@@ -1,6 +1,8 @@
 black
 isort
 mypy
+numpy
+pillow
 pydocstyle
 pylint
 pytest
