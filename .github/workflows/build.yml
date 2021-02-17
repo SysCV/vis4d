@@ -1,0 +1,44 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Build & Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --ignore-installed -r scripts/requirements.txt
+          python3 -m pip install torch==1.7.1+cpu torchvision==0.8.2+cpu \
+            torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
+          python3 -m pip install detectron2 -f \
+            https://dl.fbaipublicfiles.com/detectron2/wheels/cpu/torch1.7/index.html
+
+      - name: Lint
+        run: |
+          python3 -m pylint systm
+          python3 -m pydocstyle --convention=google systm
+          python3 -m mypy --strict systm
+          python3 -m isort -c systm
+          python3 -m black --check systm
+      # - name: Build
+      #  run: python3 setup.py sdist bdist_wheel
+      # - name: Test
+      #  run: python3 -m pytest --pyargs systm
