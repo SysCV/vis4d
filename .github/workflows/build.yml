@@ -30,7 +30,6 @@ jobs:
             torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
           python3 -m pip install detectron2 -f \
             https://dl.fbaipublicfiles.com/detectron2/wheels/cpu/torch1.7/index.html
-
       - name: Lint
         run: |
           python3 -m pylint systm
