@@ -1,0 +1,11 @@
+[detection]
+
+model_name = "faster-rcnn"
+
+[solver]
+
+images_per_batch = 16
+lr_policy = "step"
+base_lr = 0.02
+steps = [1000, 2000]
+max_iters = 10000

@@ -28,7 +28,7 @@ unsafe-load-any-extension=no
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
 # run arbitrary code
-extension-pkg-whitelist=
+extension-pkg-whitelist=pydantic
 
 
 [MESSAGES CONTROL]
@@ -320,7 +320,7 @@ max-parents=7
 max-attributes=11
 
 # Minimum number of public methods for a class (see R0903).
-min-public-methods=1
+min-public-methods=0
 
 # Maximum number of public methods for a class (see R0904).
 max-public-methods=100

@@ -3,9 +3,12 @@ isort
 mypy
 numpy
 pillow
+pydantic
 pydocstyle
 pylint
 pytest
+pytoml
+pyyaml
 setuptools
 tqdm
 wheel
