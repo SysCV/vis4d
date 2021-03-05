@@ -1,1 +1,1 @@
-"""Train detection model."""
+"""Detection training API."""

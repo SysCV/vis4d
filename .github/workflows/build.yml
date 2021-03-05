@@ -28,11 +28,11 @@ jobs:
           bash ./scripts/install_linux_cpu.sh
       - name: Lint
         run: |
-          python3 -m pylint systm
-          python3 -m pydocstyle --convention=google systm
-          python3 -m mypy --strict systm
-          python3 -m isort -c systm
-          python3 -m black --check systm
+          python3 -m pylint systm tools
+          python3 -m pydocstyle --convention=google systm tools
+          python3 -m mypy --strict systm tools
+          python3 -m isort -c systm tools
+          python3 -m black --check systm tools
       # - name: Build
       #  run: python3 setup.py sdist bdist_wheel
       - name: Test
