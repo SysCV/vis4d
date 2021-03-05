@@ -15,6 +15,17 @@ We currently support Python 3.7 and 3.8.
 - [Install Pytorch](https://pytorch.org/get-started/locally)
 - [Install Detectron2](https://github.com/facebookresearch/detectron2/blob/master/INSTALL.md)
 
+
+Example setup with conda and python 3.8:
+```
+conda create --env systm python=3.8
+conda activate systm
+conda install pytorch torchvision torchaudio cudatoolkit=11.0 -c pytorch
+python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
+pip install -r scripts/requirements.txt
+python setup.py install
+```
+
 ## Usage
 
 Training detector
