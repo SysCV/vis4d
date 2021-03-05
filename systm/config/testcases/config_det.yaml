@@ -1,4 +1,5 @@
-model_name: faster-rcnn
+detection:
+  model_name: faster-rcnn
 solver:
   images_per_batch: 16
   lr_policy: step
