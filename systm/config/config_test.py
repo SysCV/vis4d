@@ -1,7 +1,6 @@
 """Test cases for parsing config."""
 import unittest
 
-
 from ..unittest.util import get_test_file
 from .config import read_config
 

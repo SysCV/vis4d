@@ -1,12 +1,11 @@
 """Config definitions."""
 
+from os.path import splitext
 from typing import List
 
-from pydantic import BaseModel
-import yaml
 import toml
-
-from os.path import splitext
+import yaml
+from pydantic import BaseModel
 
 
 class Solver(BaseModel):
@@ -34,6 +33,7 @@ class Config(BaseModel):
 
 def read_config(filepath: str) -> Config:
     """Read config file and parse it into Config object.
+
     The config file can be in yaml or toml.
     toml is recommended for readability.
     """
