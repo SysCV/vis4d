@@ -1,7 +1,7 @@
 """Detection training API."""
 
 import os
-from detectron2.engine import DefaultTrainer, launch
+from detectron2.engine import DefaultTrainer
 from detectron2.evaluation import COCOEvaluator
 
 
@@ -19,18 +19,9 @@ class Trainer(DefaultTrainer):
         return COCOEvaluator(dataset_name, cfg, True, output_folder)
 
 
-def main(args, cfg):
+def train(args, cfg):
+    """Training function."""
+
     trainer = Trainer(cfg)
     trainer.resume_or_load(resume=args.resume)
     return trainer.train()
-
-
-def train(args, cfg):
-    launch(
-        main,
-        args.num_gpus,
-        num_machines=args.num_machines,
-        machine_rank=args.machine_rank,
-        dist_url=args.dist_url,
-        args=(args, cfg),
-    )

@@ -1,9 +1,13 @@
+"""Helper script for deleting the ignore regions from BDD100K COCO format annotations"""
+
 import os
 import json
 import argparse
 
 
 def main(args):
+    """Main function. Delete ignore regions and save updated annotation files."""
+
     with open(args.annotation_file) as f:
         ori_coco = json.load(f)
 
@@ -29,5 +33,4 @@ if __name__ == "__main__":
         description='Delete ignore regions in BDD100K coco format annotations (not supported in detectron2)')
     parser.add_argument('-a', '--annotation-file', help='path to coco format annotation file for BDD100K')
     parser.add_argument('-s', '--save-dir', help='save dir for new coco format annotation file')
-    args = parser.parse_args()
-    main(args)
+    main(parser.parse_args())

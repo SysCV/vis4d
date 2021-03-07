@@ -5,6 +5,9 @@ from datetime import datetime
 from typing import List, Optional
 from detectron2 import model_zoo
 from detectron2.config import get_cfg, CfgNode
+from detectron2.data.datasets import register_coco_instances
+
+from enum import Enum
 
 import toml
 import yaml
@@ -30,10 +33,23 @@ class Detection(BaseModel):
     num_classes: int
 
 
+class DatasetType(str, Enum):
+    """Enum for dataset type.
+        coco: COCO style dataset to support detectron2 training.
+        custom: Custom dataset type for user-defined datasets.
+    """
+
+    coco = 'coco'
+    custom = 'custom'
+
+
 class Dataset(BaseModel):
     """Config for training/evaluation datasets."""
 
     name: str
+    type: DatasetType
+    data_root: str
+    annotation_file: Optional[str]
 
 
 class Config(BaseModel):
@@ -46,7 +62,19 @@ class Config(BaseModel):
     output_dir: Optional[str]
 
 
-def _prepare_config(config):
+def _register(datasets) -> List[str]:
+    """Register dataset in detectron2."""
+    names = []
+    for dataset in datasets:
+        if not dataset.type == DatasetType.coco:
+            raise NotImplementedError("Currently only COCO style dataset structure is supported.")
+        register_coco_instances(dataset.name, {}, dataset.annotation_file, dataset.data_root)
+        names.append(dataset.name)
+    return names
+
+
+def to_detectron2(config) -> CfgNode:
+    """Convert a Config object to a detectron2 readable configuration."""
     cfg = get_cfg()
 
     # load model config (either detectron2 or systm)
@@ -68,19 +96,15 @@ def _prepare_config(config):
     # convert model attributes
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = config.detection.num_classes
     cfg.MODEL.RETINANET.NUM_CLASSES = config.detection.num_classes
+    cfg.OUTPUT_DIR = config.output_dir
 
-    # check if output dir variable is filled
-    if config.output_dir is not None:
-        cfg.OUTPUT_DIR = config.output_dir
-    else:
-        timestamp = str(datetime.now()).split('.')[0]
-        cfg.OUTPUT_DIR = os.path.join('./work_dirs/', config.detection.model_name, timestamp)
-    os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-
+    # register datasets
+    cfg.DATASETS.TRAIN = _register(config.train)
+    cfg.DATASETS.TEST = _register(config.test)
     return cfg
 
 
-def read_config(filepath: str) -> CfgNode:
+def read_config(filepath: str) -> Config:
     """Read config file and parse it into Config object.
 
     The config file can be in yaml or toml.
@@ -97,4 +121,10 @@ def read_config(filepath: str) -> CfgNode:
     else:
         raise NotImplementedError(f"Config type {ext} not supported")
     config = Config(**config_dict)
-    return _prepare_config(config)
+
+    # check if output dir variable is filled, create output dir if necessary
+    if config.output_dir is None:
+        timestamp = str(datetime.now()).split('.')[0].replace(' ', '_')
+        config.output_dir = os.path.join('./work_dirs/', config.detection.model_name, timestamp)
+    os.makedirs(config.output_dir, exist_ok=True)
+    return config

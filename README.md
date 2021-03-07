@@ -4,19 +4,20 @@ A perception system of tracking and motion understanding.
 
 ## Install dependencies
 
-We currently support Python 3.7 and 3.8.
+We currently support Python 3.7 and 3.8. For vanilla python, please first install:
 
-- Install the pip dependencies:
+- [Pytorch](https://pytorch.org/get-started/locally)
+- [Detectron2](https://github.com/facebookresearch/detectron2/blob/master/INSTALL.md)
 
-  ```bash
-  pip3 install -r requirements.txt
-  ```
+Next, you can install the package via pip:
 
-- [Install Pytorch](https://pytorch.org/get-started/locally)
-- [Install Detectron2](https://github.com/facebookresearch/detectron2/blob/master/INSTALL.md)
+```bash
+pip install -r scripts/requirements.txt
+python setup.py install
+```
 
 
-Example setup with conda and python 3.8:
+If you're using conda, run the following commands:
 ```
 conda create --env systm python=3.8
 conda activate systm
@@ -31,11 +32,11 @@ python setup.py install
 Training detector
 
 ```bash
-python3 tools/detect.py train --config <config_path> <maybe other arguments>
+python3 tools/detect.py train --config-file <config_path> <maybe other arguments>
 ```
 
 Generate detection prediction results
 
 ```bash
-python3 tools/detect.py predict --config <config_path> <maybe other arguments>
+python3 tools/detect.py predict --config-file <config_path> <maybe other arguments>
 ```
