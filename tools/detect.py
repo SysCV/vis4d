@@ -1,11 +1,9 @@
 """Training and prediction command line tool using detection API."""
 
 import sys
-from systm import detect
-from systm import config
 
-from detectron2.engine import default_argument_parser, default_setup
-
+from systm import config, detect
+from systm.engine import default_argument_parser, default_setup
 
 if __name__ == "__main__":
     action = sys.argv[1]
@@ -24,4 +22,4 @@ if __name__ == "__main__":
     if hasattr(detect, action):
         detect.launch_module(getattr(detect, action), args, cfg)
     else:
-        raise ValueError(f'Action {action} not supported!')
+        raise ValueError(f"Action {action} not supported!")

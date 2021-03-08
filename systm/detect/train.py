@@ -1,8 +1,8 @@
 """Detection training API."""
 
 import os
-from detectron2.engine import DefaultTrainer
 from detectron2.evaluation import COCOEvaluator
+from systm.engine import DefaultTrainer
 
 
 class Trainer(DefaultTrainer):
@@ -13,9 +13,8 @@ class Trainer(DefaultTrainer):
     own training loop. You can use "tools/plain_train_net.py" as an example.
     """
     @classmethod
-    def build_evaluator(cls, cfg, dataset_name, output_folder=None):
-        if output_folder is None:
-            output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
+    def build_evaluator(cls, cfg, dataset_name):
+        output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
         return COCOEvaluator(dataset_name, cfg, True, output_folder)
 
 
