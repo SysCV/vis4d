@@ -1,6 +1,6 @@
 [detection]
 
-model_name = "faster-rcnn"
+model_base = "faster-rcnn"
 
 [solver]
 

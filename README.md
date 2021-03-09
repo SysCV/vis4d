@@ -19,7 +19,7 @@ python setup.py install
 
 If you're using conda, run the following commands:
 ```
-conda create --env systm python=3.8
+conda create --name systm python=3.8
 conda activate systm
 conda install pytorch torchvision torchaudio cudatoolkit=11.0 -c pytorch
 python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
@@ -32,11 +32,11 @@ python setup.py install
 Training detector
 
 ```bash
-python3 tools/detect.py train --config-file <config_path> <maybe other arguments>
+python3 tools/detect.py train --config <config_path> <maybe other arguments>
 ```
 
 Generate detection prediction results
 
 ```bash
-python3 tools/detect.py predict --config-file <config_path> <maybe other arguments>
+python3 tools/detect.py predict --config <config_path> <maybe other arguments>
 ```

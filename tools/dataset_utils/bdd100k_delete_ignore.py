@@ -40,3 +40,5 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--save-dir',
                         help='save dir for new coco format annotation file')
     main(parser.parse_args())
+
+    # TODO move to BDD100k --> label

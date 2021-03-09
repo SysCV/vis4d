@@ -1,3 +1,3 @@
-"""Engine code."""
+"""Utility code."""
 
 from .defaults import *

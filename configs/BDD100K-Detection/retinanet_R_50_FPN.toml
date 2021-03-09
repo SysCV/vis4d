@@ -1,5 +1,5 @@
 [detection]
-model_base = "faster-rcnn/r101-fpn"
+model_base = "retinanet/r50-fpn"
 weights = "detectron2"
 num_classes = 10
 

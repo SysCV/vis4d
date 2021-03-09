@@ -1,7 +1,7 @@
 """Detection prediction API."""
 
+from .train import  Trainer
 from detectron2.checkpoint import DetectionCheckpointer
-from .train import Trainer
 
 
 def predict(args, cfg):
