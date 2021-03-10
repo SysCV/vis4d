@@ -8,14 +8,14 @@ if __name__ == "__main__":
     cfg = config.read_config(args.config)
 
     # convert config to detectron2 format
-    cfg = config.to_detectron2(cfg)
+    detectron2cfg = config.to_detectron2(cfg)
 
     # merge config and args.opts
-    cfg.merge_from_list(args.opts)
-    cfg.freeze()
-    default_setup(cfg, args)
+    detectron2cfg.merge_from_list(args.opts)
+    detectron2cfg.freeze()
+    default_setup(detectron2cfg, args)
 
     if hasattr(detect, args.action):
-        getattr(detect, args.action)(args, cfg)
+        getattr(detect, args.action)(args, detectron2cfg)
     else:
         raise ValueError(f"Action {args.action} not supported!")

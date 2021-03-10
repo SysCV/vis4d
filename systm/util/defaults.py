@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 
-def default_argument_parser():
+def default_argument_parser() -> argparse.ArgumentParser:
     """Create a parser with common systm arguments."""
     parser = argparse.ArgumentParser(description="systm options")
     parser.add_argument(
@@ -77,7 +77,7 @@ def default_argument_parser():
     return parser
 
 
-def default_setup(cfg: CfgNode, args: argparse.Namespace):
+def default_setup(cfg: CfgNode, args: argparse.Namespace) -> None:
     """Perform some basic common setups at the beginning of a job.
 
     1. Set up the logger

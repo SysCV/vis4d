@@ -2,15 +2,14 @@
 
 import os
 from argparse import Namespace
-from collections import OrderedDict
-from typing import Optional
+from typing import Dict, Optional
 
 from detectron2.config import CfgNode
 from detectron2.engine import DefaultTrainer, launch
 from detectron2.evaluation import COCOEvaluator, DatasetEvaluator
 
 
-class Trainer(DefaultTrainer):
+class Trainer(DefaultTrainer):  # type: ignore
     """Trainer with COCOEvaluator for testing."""
 
     @classmethod
@@ -22,11 +21,13 @@ class Trainer(DefaultTrainer):
         return COCOEvaluator(dataset_name, cfg, True, output_folder)
 
 
-def train_func(cfg: CfgNode, resume: bool) -> Optional[OrderedDict]:
+def train_func(
+    cfg: CfgNode, resume: bool
+) -> Optional[Dict[str, Dict[str, float]]]:
     """Training function."""
     trainer = Trainer(cfg)
     trainer.resume_or_load(resume=resume)
-    return trainer.train()
+    return trainer.train()  # type: ignore
 
 
 def train(args: Namespace, cfg: CfgNode) -> None:
