@@ -4,7 +4,7 @@ weights = "detectron2"
 num_classes = 10
 
 [solver]
-images_per_batch = 16
+images_per_batch = 2
 lr_policy = "WarmupMultiStepLR"
 base_lr = 0.02
 steps = [1000, 2000]

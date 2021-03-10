@@ -16,6 +16,6 @@ if __name__ == "__main__":
     default_setup(cfg, args)
 
     if hasattr(detect, args.action):
-        detect.launch_module(getattr(detect, args.action), args, cfg)
+        getattr(detect, args.action)(args, cfg)
     else:
         raise ValueError(f"Action {args.action} not supported!")

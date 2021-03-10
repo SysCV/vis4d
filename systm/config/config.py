@@ -4,29 +4,28 @@ import os
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
-from detectron2 import model_zoo
-from detectron2.config import get_cfg, CfgNode
-from detectron2.data.datasets import register_coco_instances
-from detectron2.data import DatasetCatalog
 
 import toml
 import yaml
+from detectron2 import model_zoo
+from detectron2.config import CfgNode, get_cfg
+from detectron2.data import DatasetCatalog
+from detectron2.data.datasets import register_coco_instances
 from pydantic import BaseModel
 
-
 model_mapping = {
-    'faster-rcnn': 'COCO-Detection/faster_rcnn_',
-    'retinanet': 'COCO-Detection/retinanet_',
-    'mask-rcnn': 'COCO-InstanceSegmentation/mask_rcnn_'
+    "faster-rcnn": "COCO-Detection/faster_rcnn_",
+    "retinanet": "COCO-Detection/retinanet_",
+    "mask-rcnn": "COCO-InstanceSegmentation/mask_rcnn_",
 }
 
 backbone_mapping = {
-    'r101-fpn': 'R_101_FPN_3x.yaml',
-    'r101-c4': 'R_101_C4_3x.yaml',
-    'r101-dc5': 'R_101_DC5_3x.yaml',
-    'r50-fpn': 'R_50_FPN_3x.yaml',
-    'r50-c4': 'R_50_C4_3x.yaml',
-    'r50-dc5': 'R_50_DC5_3x.yaml'
+    "r101-fpn": "R_101_FPN_3x.yaml",
+    "r101-c4": "R_101_C4_3x.yaml",
+    "r101-dc5": "R_101_DC5_3x.yaml",
+    "r50-fpn": "R_50_FPN_3x.yaml",
+    "r50-c4": "R_50_C4_3x.yaml",
+    "r50-dc5": "R_50_DC5_3x.yaml",
 }
 
 
@@ -58,8 +57,8 @@ class DatasetType(str, Enum):
     custom: Custom dataset type for user-defined datasets.
     """
 
-    COCO = 'coco'
-    CUSTOM = 'custom'
+    COCO = "coco"
+    CUSTOM = "custom"
 
 
 class Dataset(BaseModel):
@@ -93,16 +92,20 @@ def _register(datasets: List[Dataset]) -> List[str]:
     names = []
     for dataset in datasets:
         if not dataset.type == DatasetType.COCO:
-            raise NotImplementedError("Currently only COCO style dataset "
-                                      "structure is supported.")
+            raise NotImplementedError(
+                "Currently only COCO style dataset " "structure is supported."
+            )
         try:
             DatasetCatalog.get(dataset.name)
         except KeyError:
-            register_coco_instances(dataset.name, {}, dataset.annotation_file,
-                                    dataset.data_root)
+            register_coco_instances(
+                dataset.name, {}, dataset.annotation_file, dataset.data_root
+            )
             names.append(dataset.name)
-        print("WARNING: You tried to register the same dataset name "
-              f"twice. Skipping instance:\n{str(dataset)}")
+        print(
+            "WARNING: You tried to register the same dataset name "
+            f"twice. Skipping instance:\n{str(dataset)}"
+        )
     return names
 
 
@@ -118,9 +121,10 @@ def to_detectron2(config: Config) -> CfgNode:
         if config.detection.override_mapping:
             detectron2_model_string = config.detection.model_base
         else:
-            model, backbone = config.detection.model_base.split('/')
-            detectron2_model_string = model_mapping[model] + \
-                                      backbone_mapping[backbone]
+            model, backbone = config.detection.model_base.split("/")
+            detectron2_model_string = (
+                model_mapping[model] + backbone_mapping[backbone]
+            )
         base_cfg = model_zoo.get_config_file(detectron2_model_string)
 
     cfg.merge_from_file(base_cfg)
@@ -129,14 +133,17 @@ def to_detectron2(config: Config) -> CfgNode:
     if config.detection.weights is not None:
         if os.path.exists(config.detection.weights):
             cfg.MODEL.WEIGHTS = config.detection.weights
-        elif config.detection.weights == 'detectron2' and \
-                detectron2_model_string is not None:
+        elif (
+            config.detection.weights == "detectron2"
+            and detectron2_model_string is not None
+        ):
             cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-                detectron2_model_string)
+                detectron2_model_string
+            )
         else:
             raise ValueError(
-                f'model weights path {config.detection.weights} '
-                f'not found')
+                f"model weights path {config.detection.weights} " f"not found"
+            )
 
     # convert model attributes
     if config.detection.num_classes:
@@ -191,9 +198,9 @@ def read_config(filepath: str) -> Config:
     # check if output dir variable is filled, create output dir if necessary
     if config.output_dir is None:
         config_name = os.path.splitext(os.path.basename(filepath))[0]
-        timestamp = str(datetime.now()).split('.')[0].replace(' ', '_')
-        config.output_dir = os.path.join('./work_dirs/',
-                                         config_name,
-                                         timestamp)
+        timestamp = str(datetime.now()).split(".")[0].replace(" ", "_")
+        config.output_dir = os.path.join(
+            "./work_dirs/", config_name, timestamp
+        )
     os.makedirs(config.output_dir, exist_ok=True)
     return config
