@@ -3,10 +3,10 @@
 from detectron2.data import DatasetCatalog
 
 from systm.detect.predict import predict, predict_func
-from systm.unittest.util import EngineTest
+from systm.unittest.util import DetectTest
 
 
-class TestPredict(EngineTest):
+class TestPredict(DetectTest):
     """Test cases for systm detection prediction."""
 
     def test_predict(self) -> None:
