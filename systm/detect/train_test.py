@@ -1,5 +1,6 @@
-"""Test cases for detection engine module."""
-import unittest
+"""Test cases for detection engine training."""
+
+from detectron2.data import DatasetCatalog
 
 from systm import detect
 from systm.unittest.util import DetectTest
@@ -10,11 +11,14 @@ class TestTrain(DetectTest):
 
     def test_train(self) -> None:
         """Testcase for training."""
-        if self.det2cfg is not None and self.cfg is not None:
-            detect.train_func(self.det2cfg, self.cfg)
-        else:
-            self.assertEqual(True, False, msg="failed to initialize configs!")
+        self.assertIsNotNone(self.det2cfg)
+        self.assertIsNotNone(self.cfg)
+        detect.train_func(self.det2cfg, self.cfg)
 
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_train_launcher(self) -> None:
+        """Testcase for training launcher."""
+        for ds in self.det2cfg.DATASETS.TRAIN:
+            DatasetCatalog.remove(ds)
+        for ds in self.det2cfg.DATASETS.TEST:
+            DatasetCatalog.remove(ds)
+        detect.train(self.cfg)

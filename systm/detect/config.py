@@ -37,7 +37,7 @@ def _register(datasets: List[Dataset]) -> List[str]:
     for dataset in datasets:
         if not dataset.type == DatasetType.COCO:
             raise NotImplementedError(
-                "Currently only COCO style dataset " "structure is supported."
+                "Currently only COCO style dataset structure is supported."
             )
         try:
             DatasetCatalog.get(dataset.name)
@@ -87,7 +87,10 @@ def to_detectron2(config: Config) -> CfgNode:
             )
         else:
             raise ValueError(
-                f"model weights path {config.detection.weights} " f"not found"
+                f"model weights path {config.detection.weights} "
+                f"not "
+                f"found. If you're loading a detectron2 config from local, "
+                f"please also specify a local checkpoint file"
             )
 
     # convert model attributes
