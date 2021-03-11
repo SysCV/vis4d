@@ -2,10 +2,10 @@
 import unittest
 
 from systm import detect
-from systm.unittest.util import EngineTest
+from systm.unittest.util import DetectTest
 
 
-class TestTrain(EngineTest):
+class TestTrain(DetectTest):
     """Test cases for systm detection training."""
 
     def test_train(self) -> None:
