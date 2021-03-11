@@ -13,3 +13,4 @@ pyyaml
 setuptools
 tqdm
 wheel
+iopath==0.1.4
