@@ -43,6 +43,7 @@ jobs:
         run: python3 -m mypy --strict systm tools
 
   test:
+    name: test py${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
