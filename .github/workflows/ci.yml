@@ -24,7 +24,7 @@ jobs:
       - name: install
         run: |
           python3 -m pip install --upgrade pip
-          bash ./scripts/install_linux_cpu.sh
+          bash ./scripts/setup_linux_cpu.sh
           python3 -m pip freeze
 
       - name: isort
