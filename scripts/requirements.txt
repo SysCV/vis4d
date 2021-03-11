@@ -1,11 +1,7 @@
-black
-isort
-mypy
+coverage
 numpy
 pillow
 pydantic
-pydocstyle
-pylint
 pytest
 pytoml
 pyyaml
