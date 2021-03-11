@@ -1,4 +1,4 @@
 """Config definitions."""
-from .config import read_config, to_detectron2
+from .config import Config, Dataset, DatasetType, Launch, parse_config
 
-__all__ = ["read_config", "to_detectron2"]
+__all__ = ["Config", "Launch", "Dataset", "DatasetType", "parse_config"]

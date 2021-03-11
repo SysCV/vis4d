@@ -1,32 +1,14 @@
 """Config definitions."""
-
 import os
+import sys
+from argparse import Namespace
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
 import toml
 import yaml
-from detectron2 import model_zoo
-from detectron2.config import CfgNode, get_cfg
-from detectron2.data import DatasetCatalog
-from detectron2.data.datasets import register_coco_instances
 from pydantic import BaseModel
-
-model_mapping = {
-    "faster-rcnn": "COCO-Detection/faster_rcnn_",
-    "retinanet": "COCO-Detection/retinanet_",
-    "mask-rcnn": "COCO-InstanceSegmentation/mask_rcnn_",
-}
-
-backbone_mapping = {
-    "r101-fpn": "R_101_FPN_3x.yaml",
-    "r101-c4": "R_101_C4_3x.yaml",
-    "r101-dc5": "R_101_DC5_3x.yaml",
-    "r50-fpn": "R_50_FPN_3x.yaml",
-    "r50-c4": "R_50_C4_3x.yaml",
-    "r50-dc5": "R_50_DC5_3x.yaml",
-}
 
 
 class Solver(BaseModel):
@@ -48,6 +30,7 @@ class Detection(BaseModel):
     override_mapping: Optional[bool] = False
     weights: Optional[str] = None
     num_classes: Optional[int]
+    device: Optional[str]
 
 
 class DatasetType(str, Enum):
@@ -76,6 +59,25 @@ class Dataloader(BaseModel):
     num_workers: int
 
 
+class Launch(BaseModel):
+    """Launch configuration."""
+
+    num_gpus: int = 1
+    num_machines: int = 1
+    machine_rank: int = 0
+    # PyTorch still may leave orphan processes in multi-gpu training.
+    # Therefore we use a deterministic way to obtain port,
+    # so that users are aware of orphan processes by seeing the port occupied.
+    port = (
+        2 ** 15
+        + 2 ** 14
+        + hash(os.getuid() if sys.platform != "win32" else 1) % 2 ** 14
+    )
+    dist_url: str = "tcp://127.0.0.1:{}".format(port)
+    resume: bool = False
+    eval_only: bool = False
+
+
 class Config(BaseModel):
     """Overall config object."""
 
@@ -85,94 +87,16 @@ class Config(BaseModel):
     train: Optional[List[Dataset]]
     test: Optional[List[Dataset]]
     output_dir: Optional[str]
+    launch: Launch = Launch()
 
 
-def _register(datasets: List[Dataset]) -> List[str]:
-    """Register dataset in detectron2."""
-    names = []
-    for dataset in datasets:
-        if not dataset.type == DatasetType.COCO:
-            raise NotImplementedError(
-                "Currently only COCO style dataset " "structure is supported."
-            )
-        try:
-            DatasetCatalog.get(dataset.name)
-        except KeyError:
-            register_coco_instances(
-                dataset.name, {}, dataset.annotation_file, dataset.data_root
-            )
-            names.append(dataset.name)
-        print(
-            "WARNING: You tried to register the same dataset name "
-            f"twice. Skipping instance:\n{str(dataset)}"
-        )
-    return names
+def parse_config(args: Namespace) -> Config:
+    """Read config, parse cmd line arguments."""
+    cfg = read_config(args.config)
 
-
-def to_detectron2(config: Config) -> CfgNode:
-    """Convert a Config object to a detectron2 readable configuration."""
-    cfg = get_cfg()
-
-    # load model base config, checkpoint
-    detectron2_model_string = None
-    if os.path.exists(config.detection.model_base):
-        base_cfg = config.detection.model_base
-    else:
-        if config.detection.override_mapping:
-            detectron2_model_string = config.detection.model_base
-        else:
-            model, backbone = config.detection.model_base.split("/")
-            detectron2_model_string = (
-                model_mapping[model] + backbone_mapping[backbone]
-            )
-        base_cfg = model_zoo.get_config_file(detectron2_model_string)
-
-    cfg.merge_from_file(base_cfg)
-
-    # load checkpoint
-    if config.detection.weights is not None:
-        if os.path.exists(config.detection.weights):
-            cfg.MODEL.WEIGHTS = config.detection.weights
-        elif (
-            config.detection.weights == "detectron2"
-            and detectron2_model_string is not None
-        ):
-            cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-                detectron2_model_string
-            )
-        else:
-            raise ValueError(
-                f"model weights path {config.detection.weights} " f"not found"
-            )
-
-    # convert model attributes
-    if config.detection.num_classes:
-        cfg.MODEL.ROI_HEADS.NUM_CLASSES = config.detection.num_classes
-        cfg.MODEL.RETINANET.NUM_CLASSES = config.detection.num_classes
-    cfg.OUTPUT_DIR = config.output_dir
-
-    # convert solver attributes
-    if config.solver is not None:
-        cfg.SOLVER.IMS_PER_BATCH = config.solver.images_per_batch
-        cfg.SOLVER.LR_SCHEDULER_NAME = config.solver.lr_policy
-        cfg.SOLVER.BASE_LR = config.solver.base_lr
-        cfg.SOLVER.MAX_ITER = config.solver.max_iters
-        if config.solver.checkpoint_period is not None:
-            cfg.SOLVER.STEPS = config.solver.steps
-        if config.solver.checkpoint_period is not None:
-            cfg.SOLVER.CHECKPOINT_PERIOD = config.solver.checkpoint_period
-        if config.solver.checkpoint_period is not None:
-            cfg.TEST.EVAL_PERIOD = config.solver.eval_period
-
-    # convert datalooader attributes
-    if config.dataloader is not None:
-        cfg.DATALOADER.NUM_WORKERS = config.dataloader.num_workers
-
-    # register datasets
-    if config.train is not None:
-        cfg.DATASETS.TRAIN = _register(config.train)
-    if config.test is not None:
-        cfg.DATASETS.TEST = _register(config.test)
+    for attr, value in args.__dict__.items():
+        if attr in Launch.__fields__ and value is not None:
+            setattr(cfg.launch, attr, getattr(args, attr))
 
     return cfg
 
@@ -203,4 +127,5 @@ def read_config(filepath: str) -> Config:
             "./work_dirs/", config_name, timestamp
         )
     os.makedirs(config.output_dir, exist_ok=True)
+
     return config

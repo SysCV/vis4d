@@ -1,12 +1,15 @@
 """Detection training API."""
 
 import os
-from argparse import Namespace
 from typing import Dict, Optional
 
 from detectron2.config import CfgNode
 from detectron2.engine import DefaultTrainer, launch
 from detectron2.evaluation import COCOEvaluator, DatasetEvaluator
+
+from systm.config import Config
+
+from .config import default_setup, to_detectron2
 
 
 class Trainer(DefaultTrainer):  # type: ignore
@@ -22,21 +25,24 @@ class Trainer(DefaultTrainer):  # type: ignore
 
 
 def train_func(
-    cfg: CfgNode, resume: bool
+    det2cfg: CfgNode, cfg: Config
 ) -> Optional[Dict[str, Dict[str, float]]]:
     """Training function."""
-    trainer = Trainer(cfg)
-    trainer.resume_or_load(resume=resume)
+    trainer = Trainer(det2cfg)
+    trainer.resume_or_load(resume=cfg.launch.resume)
     return trainer.train()  # type: ignore
 
 
-def train(args: Namespace, cfg: CfgNode) -> None:
+def train(cfg: Config) -> None:
     """Launcher for training."""
+    detectron2cfg = to_detectron2(cfg)
+    default_setup(detectron2cfg, cfg.launch)
+
     launch(
         train_func,
-        args.num_gpus,
-        num_machines=args.num_machines,
-        machine_rank=args.machine_rank,
-        dist_url=args.dist_url,
-        args=(cfg, args.resume),
+        cfg.launch.num_gpus,
+        num_machines=cfg.launch.num_machines,
+        machine_rank=cfg.launch.machine_rank,
+        dist_url=cfg.launch.dist_url,
+        args=(detectron2cfg, cfg),
     )
