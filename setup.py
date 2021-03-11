@@ -6,18 +6,18 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="scalabel",  # Replace with your own username
-    version="0.3.0-rc.1",
-    author="Fisher Yu",
+    name="systm",
+    version="0.1",
+    author="CVL ETHZ",
     author_email="i@yf.io",
-    description="Scalabel Python Package",
+    description="SYSTM Python Package for perception and motion understanding",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://scalabel.ai/",
+    url="https://cv.ethz.ch/",
     project_urls={
-        "Documentation": "https://doc.scalabel.ai",
-        "Source": "https://github.com/scalabel/scalabel",
-        "Tracker": "https://github.com/scalabel/scalabel/issues",
+        "Documentation": "TODO provide link to documentation once established",
+        "Source": "https://github.com/SysCV/systm",
+        "Tracker": "https://github.com/SysCV/systm/issues",
     },
     packages=setuptools.find_packages(),
     classifiers=[
@@ -27,10 +27,6 @@ setuptools.setup(
     ],
     python_requires=">=3.7",
     install_requires=[
-        "boto3",
-        "dataclasses_json",
-        "Flask",
-        "Flask-Cors",
         "joblib",
         "numpy",
         "Pillow",
