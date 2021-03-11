@@ -1,7 +1,8 @@
-"""Test cases for detection engine module."""
-import unittest
+"""Test cases for detection engine prediction."""
 
-from systm.detect.predict import predict_func
+from detectron2.data import DatasetCatalog
+
+from systm.detect.predict import predict, predict_func
 from systm.unittest.util import EngineTest
 
 
@@ -10,10 +11,9 @@ class TestPredict(EngineTest):
 
     def test_predict(self) -> None:
         """Testcase for predict function."""
-        if self.det2cfg is not None and self.cfg is not None:
-            results = predict_func(self.det2cfg, self.cfg)
-        else:
-            self.assertEqual(True, False, msg="failed to initialize configs!")
+        self.assertIsNotNone(self.det2cfg)
+        self.assertIsNotNone(self.cfg)
+        results = predict_func(self.det2cfg, self.cfg)
 
         metric_keys = [
             "AP",
@@ -37,6 +37,10 @@ class TestPredict(EngineTest):
         for k in results["bbox"]:
             self.assertIn(k, metric_keys)
 
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_predict_launcher(self) -> None:
+        """Testcase for prediction launcher."""
+        for ds in self.det2cfg.DATASETS.TRAIN:
+            DatasetCatalog.remove(ds)
+        for ds in self.det2cfg.DATASETS.TEST:
+            DatasetCatalog.remove(ds)
+        predict(self.cfg)

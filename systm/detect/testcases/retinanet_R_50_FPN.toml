@@ -9,6 +9,9 @@ images_per_batch = 1
 lr_policy = "WarmupMultiStepLR"
 base_lr = 0.02
 max_iters = 1
+steps = [100]
+checkpoint_period = 100
+eval_period = 100
 
 [[train]]
 name = "sample_train"
@@ -23,7 +26,7 @@ annotation_file = "systm/detect/testcases/bdd100k_sample/annotation.json"
 data_root = "systm/detect/testcases/bdd100k_sample/"
 
 [dataloader]
-num_workers = 16
+num_workers = 2
 
 [launch]
 num_gpus=0

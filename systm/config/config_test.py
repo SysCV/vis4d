@@ -1,8 +1,9 @@
 """Test cases for parsing config."""
 import unittest
+from argparse import Namespace
 
 from ..unittest.util import get_test_file
-from .config import read_config
+from .config import parse_config, read_config
 
 
 class TestLoadConfig(unittest.TestCase):
@@ -21,3 +22,13 @@ class TestLoadConfig(unittest.TestCase):
         self.assertEqual(config.detection.model_base, "faster-rcnn")
         self.assertEqual(config.solver.base_lr, 0.02)
         self.assertEqual(config.solver.lr_policy, "step")
+
+    def test_det_args(self) -> None:
+        """Check cmd line argument parsing to launch cfg."""
+        args = Namespace(config=get_test_file("config_det.yaml"), num_gpus=2)
+        cfg = parse_config(args)
+        self.assertEqual(cfg.launch.num_gpus, 2)
+
+    def test_det_notsupported(self) -> None:
+        """Check detection configuration in not-supported format."""
+        self.assertRaises(NotImplementedError, read_config, "")
