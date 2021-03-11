@@ -1,7 +1,7 @@
 """Training and prediction command line tool using detection API."""
 
-from systm import config, detect
-from systm.util import default_argument_parser
+from openmt import config, detect
+from openmt.util import default_argument_parser
 
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()

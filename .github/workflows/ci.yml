@@ -28,19 +28,19 @@ jobs:
           python3 -m pip freeze
 
       - name: isort
-        run: python3 -m isort -c systm tools
+        run: python3 -m isort -c openmt tools
 
       - name: black
-        run: python3 -m black --check systm tools
+        run: python3 -m black --check openmt tools
 
       - name: lint
-        run: python3 -m pylint systm tools
+        run: python3 -m pylint openmt tools
 
       - name: docstyle
-        run: python3 -m pydocstyle --convention=google systm tools
+        run: python3 -m pydocstyle --convention=google openmt tools
 
       - name: mypy
-        run: python3 -m mypy --strict systm tools
+        run: python3 -m mypy --strict openmt tools
 
   test:
     name: test py${{ matrix.python-version }}
@@ -63,10 +63,10 @@ jobs:
           python3 -m pip freeze
 
       # - name: test
-      #   run: python3 -m pytest --pyargs systm
+      #   run: python3 -m pytest --pyargs openmt
 
       - name: test
-        run: python3 -m coverage run --source=systm -m pytest --pyargs systm
+        run: python3 -m coverage run --source=openmt -m pytest --pyargs openmt
 
       - name: test converage
         run: python3 -m coverage report --fail-under=100 -m

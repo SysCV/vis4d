@@ -7,7 +7,7 @@ from detectron2.config import CfgNode
 from detectron2.engine import DefaultTrainer, launch
 from detectron2.evaluation import COCOEvaluator, DatasetEvaluator
 
-from systm.config import Config
+from openmt.config import Config
 
 from .config import default_setup, to_detectron2
 

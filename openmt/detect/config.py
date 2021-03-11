@@ -13,7 +13,7 @@ from detectron2.utils.env import seed_all_rng
 from detectron2.utils.file_io import PathManager
 from detectron2.utils.logger import setup_logger
 
-from systm.config import Config, Dataset, DatasetType, Launch
+from openmt.config import Config, Dataset, DatasetType, Launch
 
 model_mapping = {
     "faster-rcnn": "COCO-Detection/faster_rcnn_",

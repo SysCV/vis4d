@@ -19,8 +19,8 @@ python3 -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
 If you're using conda, run the following commands:
 
 ```bash
-conda create --name systm python=3.8
-conda activate systm
+conda create --name openmt python=3.8
+conda activate openmt
 pip install -r scripts/requirements.txt
 conda install pytorch torchvision torchaudio cudatoolkit=11.0 -c pytorch
 pip install 'git+https://github.com/facebookresearch/detectron2.git'
@@ -33,7 +33,7 @@ More information about torch and detectron2 installation
 - [Pytorch](https://pytorch.org/get-started/locally)
 - [Detectron2](https://github.com/facebookresearch/detectron2/blob/master/INSTALL.md)
 
-To install `systm` package,
+To install `openmt` package,
 
 ```bash
 python3 setup.py install

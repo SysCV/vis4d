@@ -2,14 +2,14 @@
 import unittest
 from argparse import Namespace
 
-from systm import config
-from systm.config import Dataset, DatasetType
-from systm.detect.config import _register, to_detectron2
-from systm.unittest.util import get_test_file
+from openmt import config
+from openmt.config import Dataset, DatasetType
+from openmt.detect.config import _register, to_detectron2
+from openmt.unittest.util import get_test_file
 
 
 class TestConfig(unittest.TestCase):
-    """Test cases for systm detection config."""
+    """Test cases for openmt detection config."""
 
     def test_register(self) -> None:
         """Testcase for register function."""

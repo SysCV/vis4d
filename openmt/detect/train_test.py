@@ -2,12 +2,12 @@
 
 from detectron2.data import DatasetCatalog
 
-from systm import detect
-from systm.unittest.util import DetectTest
+from openmt import detect
+from openmt.unittest.util import DetectTest
 
 
 class TestTrain(DetectTest):
-    """Test cases for systm detection training."""
+    """Test cases for openmt detection training."""
 
     def test_train(self) -> None:
         """Testcase for training."""
