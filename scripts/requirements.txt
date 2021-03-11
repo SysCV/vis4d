@@ -1,4 +1,5 @@
 black
+coverage
 isort
 mypy
 numpy

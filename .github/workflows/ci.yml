@@ -1,0 +1,69 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: set up python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: install
+        run: |
+          python3 -m pip install --upgrade pip
+          bash ./scripts/install_linux_cpu.sh
+          python3 -m pip freeze
+
+      - name: isort
+        run: python3 -m isort -c systm tools
+
+      - name: black
+        run: python3 -m black --check systm tools
+
+      - name: lint
+        run: python3 -m pylint systm tools
+
+      - name: docstyle
+        run: python3 -m pydocstyle --convention=google systm tools
+
+      - name: mypy
+        run: python3 -m mypy --strict systm tools
+
+  test:
+    name: test py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8, 3.9]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: set up psython ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          bash ./scripts/install_linux_cpu.sh
+          python3 -m pip freeze
+
+      - name: test
+        run: python3 -m pytest --pyargs systm
+
+      - name: build
+        run: python3 setup.py sdist bdist_wheel
