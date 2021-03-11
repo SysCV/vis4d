@@ -24,7 +24,7 @@ jobs:
       - name: install
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install --ignore-installed -r scripts/requirements-lint.txt
+          bash ./scripts/install_linux_cpu.sh
           python3 -m pip freeze
 
       - name: isort
@@ -54,11 +54,15 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: install dependencies
         run: |
           python3 -m pip install --upgrade pip
           bash ./scripts/install_linux_cpu.sh
+          python3 -m pip freeze
+
       - name: test
         run: python3 -m pytest --pyargs systm
+
       - name: build
         run: python3 setup.py sdist bdist_wheel
