@@ -19,7 +19,7 @@ jobs:
       - name: set up python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.9
+          python-version: 3.8
 
       - name: install
         run: |
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8]
 
     steps:
       - uses: actions/checkout@v2
@@ -63,13 +63,10 @@ jobs:
           python3 -m pip freeze
 
       - name: test
-        run: python3 -m pytest --pyargs systm
-        # python3 -m coverage run --source=systm -m pytest --pyargs systm
+        run: python3 -m coverage run --source=systm -m pytest --pyargs systm
 
-      # - name: test converage
-      #   # not running converage report for python 3.9 because of seg fault
-      #   if: matrix.python-version != 3.9
-      #   run: python3 -m coverage report --fail-under=100 -m
+      - name: test converage
+        run: python3 -m coverage report --fail-under=100 -m
 
       - name: build
         run: python3 setup.py sdist bdist_wheel
