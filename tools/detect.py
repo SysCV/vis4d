@@ -11,5 +11,3 @@ if __name__ == "__main__":
         detect.train(cfg)
     elif args.action == "predict":
         detect.predict(cfg)
-    else:
-        raise ValueError(f"Action {args.action} not supported!")
