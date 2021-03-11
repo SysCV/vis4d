@@ -61,9 +61,16 @@ _build/
 doc/media
 
 # ignore rope db cache
-.vscode/.ropeproject/objectdb
+.vscode/.ropeproject
 
 # python build
 build/
 dist/
 scalabel.egg-info
+
+# coverage
+.coverage
+
+# package default workspace
+openmt-workspace
+openmt.egg-info

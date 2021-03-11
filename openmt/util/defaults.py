@@ -1,10 +1,10 @@
-"""Default boilerplate logic for systm."""
+"""Default boilerplate logic for openmt."""
 import argparse
 
 
 def default_argument_parser() -> argparse.ArgumentParser:
-    """Create a parser with common systm arguments."""
-    parser = argparse.ArgumentParser(description="systm options")
+    """Create a parser with common openmt arguments."""
+    parser = argparse.ArgumentParser(description="openmt options")
     parser.add_argument(
         "action",
         type=str,

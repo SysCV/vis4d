@@ -124,7 +124,7 @@ def read_config(filepath: str) -> Config:
         config_name = os.path.splitext(os.path.basename(filepath))[0]
         timestamp = str(datetime.now()).split(".")[0].replace(" ", "_")
         config.output_dir = os.path.join(
-            "./work_dirs/", config_name, timestamp
+            "openmt-workspace", config_name, timestamp
         )
     os.makedirs(config.output_dir, exist_ok=True)
 

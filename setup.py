@@ -6,23 +6,23 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="systm",
-    version="0.1",
-    author="CVL ETHZ",
+    name="openmt",
+    version="0.0",
+    author="CVL @ ETHZ",
     author_email="i@yf.io",
     description="SYSTM Python Package for perception and motion understanding",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://cv.ethz.ch/",
     project_urls={
-        "Documentation": "TODO provide link to documentation once established",
-        "Source": "https://github.com/SysCV/systm",
-        "Tracker": "https://github.com/SysCV/systm/issues",
+        "Documentation": "https://github.com/syscv/",
+        "Source": "https://github.com/syscv/",
+        "Tracker": "https://github.com/syscv/",
     },
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Apache License",
+        "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.7",

@@ -2,12 +2,12 @@
 
 from detectron2.data import DatasetCatalog
 
-from systm.detect.predict import predict, predict_func
-from systm.unittest.util import DetectTest
+from openmt.detect.predict import predict, predict_func
+from openmt.unittest.util import DetectTest
 
 
 class TestPredict(DetectTest):
-    """Test cases for systm detection prediction."""
+    """Test cases for openmt detection prediction."""
 
     def test_predict(self) -> None:
         """Testcase for predict function."""

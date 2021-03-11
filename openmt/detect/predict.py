@@ -6,7 +6,7 @@ from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import CfgNode
 from detectron2.engine import launch
 
-from systm.config import Config
+from openmt.config import Config
 
 from .config import default_setup, to_detectron2
 from .train import Trainer
