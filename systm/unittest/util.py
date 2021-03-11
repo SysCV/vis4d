@@ -17,7 +17,7 @@ def get_test_file(file_name: str) -> str:
     )
 
 
-class EngineTest(unittest.TestCase):
+class DetectTest(unittest.TestCase):
     """Test case init for systm detection engine."""
 
     args = Namespace(config="systm/detect/testcases/retinanet_R_50_FPN.toml")
