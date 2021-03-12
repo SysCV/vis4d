@@ -1,3 +1,4 @@
+#!/bin/bash
 eval "$(conda shell.bash hook)"
 conda create --name openmt python=3.8
 conda activate openmt
