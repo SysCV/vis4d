@@ -9,7 +9,7 @@ We currently support Python 3.7 and 3.8.
 You can install the package dependency via vanilla python and pip:
 
 ```bash
-python3 -m pip install -r scripts/requirements.txt
+python3 -m pip install -r requirements.txt
 # This may not work for you. Please look up pytorch website for your configurations
 python3 -m pip install torch torchvision torchaudio
 # Install fresh detectron2
@@ -21,7 +21,7 @@ If you're using conda, run the following commands:
 ```bash
 conda create --name openmt python=3.8
 conda activate openmt
-pip install -r scripts/requirements.txt
+pip install -r requirements.txt
 conda install pytorch torchvision torchaudio cudatoolkit=11.0 -c pytorch
 pip install 'git+https://github.com/facebookresearch/detectron2.git'
 ```
