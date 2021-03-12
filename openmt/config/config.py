@@ -24,13 +24,26 @@ class Solver(BaseModel):
 
 
 class Detection(BaseModel):
-    """Config for detection model training."""
+    """Config for detection model."""
 
     model_base: str
     override_mapping: Optional[bool] = False
     weights: Optional[str] = None
     num_classes: Optional[int]
     device: Optional[str]
+
+
+class TrackLogic(BaseModel):
+    assign_strategy: str  # e.g. greedy or hungarian
+    keep_in_memory: int  # threshold for keeping occluded objects in tracker
+    # memory
+    # TODO add more attributes
+
+class Tracking(BaseModel):
+    """Config for tracking model."""
+    detector: Detection  # here we could add our qd-rcnn config
+    tracking_logic: TrackLogic
+    # TODO add more attributes
 
 
 class DatasetType(str, Enum):
@@ -51,6 +64,12 @@ class Dataset(BaseModel):
     type: DatasetType
     data_root: str
     annotation_file: Optional[str]
+
+
+class VideoDataset(Dataset):
+    """Config for video datasets."""
+    sampling_strategy: str  # uniform, sequential etc.
+    # TODO add more attirbutes
 
 
 class Dataloader(BaseModel):
@@ -81,7 +100,8 @@ class Launch(BaseModel):
 class Config(BaseModel):
     """Overall config object."""
 
-    detection: Detection
+    detection: Optional[Detection]
+    tracking: Optional[Tracking]
     solver: Solver
     dataloader: Optional[Dataloader]
     train: Optional[List[Dataset]]
