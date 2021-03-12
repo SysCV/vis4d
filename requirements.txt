@@ -1,6 +1,5 @@
 black
 coverage
-iopath==0.1.4
 isort
 mypy
 numpy
