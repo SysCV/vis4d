@@ -27,14 +27,17 @@ setuptools.setup(
     ],
     python_requires=">=3.7",
     install_requires=[
-        "joblib",
         "numpy",
         "Pillow",
         "plyfile",
         "psutil",
         "pycocotools",
+        "pydantic",
+        "pytoml",
         "PyYAML",
         "requests",
+        "torch",
+        "torchvision",
         "tqdm",
     ],
 )
