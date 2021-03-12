@@ -26,7 +26,7 @@ conda install pytorch torchvision torchaudio cudatoolkit=11.0 -c pytorch
 pip install 'git+https://github.com/facebookresearch/detectron2.git'
 ```
 
-You can also use [python](./scripts/install_cpu_dep.sh) and [conda](./scripts/setup_linux_cpu_conda.sh) scripts on CPU machine installation.
+You can also use [python](./scripts/install_cpu_dep.sh) and [conda](./scripts/install_cpu_conda_dep.sh) scripts on CPU machine installation.
 
 More information about torch and detectron2 installation
 
