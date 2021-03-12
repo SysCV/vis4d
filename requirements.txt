@@ -17,4 +17,3 @@ wheel
 torch
 torchaudio
 torchvision
-git+git://github.com/facebookresearch/detectron2.git

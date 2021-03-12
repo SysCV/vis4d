@@ -9,7 +9,9 @@ We currently support Python 3.7 and 3.8.
 You can install the package dependency via vanilla python and pip:
 
 ```bash
-pip install -r requirements.txt -f https://download.pytorch.org/whl/cpu/torch_stable.html
+python3 -m pip install -r requirements.txt \
+    -f https://download.pytorch.org/whl/cpu/torch_stable.html
+python3 -m pip install 'git+git://github.com/facebookresearch/detectron2.git'
 ```
 
 This command install pytorch without CUDA. Please look up pytorch website for your configurations.
