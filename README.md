@@ -14,7 +14,9 @@ python3 -m pip install -r requirements.txt \
 python3 -m pip install 'git+git://github.com/facebookresearch/detectron2.git'
 ```
 
-This command install pytorch without CUDA. Please look up pytorch website for your configurations.
+This command installs pytorch without CUDA. Please look up
+[pytorch website](https://pytorch.org/get-started/locally) for installation
+on your configurations and install pytorch first.
 
 If you're using conda, run the following commands:
 
