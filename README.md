@@ -1,4 +1,4 @@
-# OpenMT
+# SYSTM
 
 A perception system of tracking and motion understanding.
 
@@ -9,12 +9,14 @@ We currently support Python 3.7 and 3.8.
 You can install the package dependency via vanilla python and pip:
 
 ```bash
-python3 -m pip install -r requirements.txt
-# This may not work for you. Please look up pytorch website for your configurations
-python3 -m pip install torch torchvision torchaudio
-# Install fresh detectron2
-python3 -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
+python3 -m pip install -r requirements.txt \
+    -f https://download.pytorch.org/whl/cpu/torch_stable.html
+python3 -m pip install 'git+git://github.com/facebookresearch/detectron2.git'
 ```
+
+This command installs pytorch without CUDA. Please look up
+[pytorch website](https://pytorch.org/get-started/locally) for installation
+on your configurations and install pytorch first.
 
 If you're using conda, run the following commands:
 
@@ -26,7 +28,7 @@ conda install pytorch torchvision torchaudio cudatoolkit=11.0 -c pytorch
 pip install 'git+https://github.com/facebookresearch/detectron2.git'
 ```
 
-You can also use [python](./scripts/setup_linux_cpu.sh) and [conda](./scripts/setup_linux_cpu_conda.sh) scripts on CPU Linux installation.
+You can also use [python](./scripts/install_cpu_dep.sh) and [conda](./scripts/install_cpu_conda_dep.sh) scripts on CPU machine installation.
 
 More information about torch and detectron2 installation
 
