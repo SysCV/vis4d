@@ -24,7 +24,7 @@ jobs:
       - name: install
         run: |
           python3 -m pip install --upgrade pip
-          bash ./scripts/setup_linux_cpu.sh
+          bash ./scripts/install_cpu_dep.sh
           python3 -m pip freeze
 
       - name: isort
@@ -59,7 +59,7 @@ jobs:
       - name: install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          bash ./scripts/setup_linux_cpu.sh
+          bash ./scripts/install_cpu_dep.sh
           python3 -m pip freeze
 
       # - name: test
