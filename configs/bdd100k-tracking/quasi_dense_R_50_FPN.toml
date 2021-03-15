@@ -1,8 +1,22 @@
+[detection]
+model_base = "faster-rcnn/r50-fpn"
+weights = "torchvision"
+num_classes = 10
+
 [tracking]
-    [tracking.detector]
-    model_base = "qd-faster-rcnn/r50-fpn"
-    weights = "torchvision"
-    num_classes = 10
+    [tracking.tracking_logic]
+    assign_strategy = "greedy"
+    keep_in_memory = 10  # timesteps
+
+    [tracking.embedding_head]
+    batch_size_per_image = 256
+    positive_fraction = 0.5
+    num_classes = 0
+        proposal_append_gt = true
+        [tracking.embedding_head.proposal_matcher]
+        thresholds = [0.3, 0.5]
+        labels = [0, -1, 1]
+        allow_low_quality_matches = false
 
 [solver]
 images_per_batch = 2

@@ -35,13 +35,28 @@ class Detection(BaseModel):
 
 class TrackLogic(BaseModel):
     assign_strategy: str  # e.g. greedy or hungarian
-    keep_in_memory: int  # threshold for keeping occluded objects in tracker
-    # memory
+    keep_in_memory: int  # threshold for keeping occluded objects in memory
     # TODO add more attributes
+
+
+class Matcher(BaseModel):
+    thresholds: List[float]
+    labels: List[int]
+    allow_low_quality_matches: bool
+
+
+class EmbeddingHead(BaseModel):
+    batch_size_per_image: int
+    positive_fraction: float
+    num_classes: int
+    proposal_append_gt: bool
+    proposal_matcher: Matcher
+
 
 class Tracking(BaseModel):
     """Config for tracking model."""
-    detector: Detection  # here we could add our qd-rcnn config
+
+    embedding_head: EmbeddingHead
     tracking_logic: TrackLogic
     # TODO add more attributes
 
@@ -68,6 +83,7 @@ class Dataset(BaseModel):
 
 class VideoDataset(Dataset):
     """Config for video datasets."""
+
     sampling_strategy: str  # uniform, sequential etc.
     # TODO add more attirbutes
 
