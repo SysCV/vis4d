@@ -27,7 +27,7 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         Returns:
             torch.nn.Module:
         """
-        model = build_model(self.track_cfg, cfg)
+        model = build_model(self.track_cfg)
         logger = logging.getLogger(__name__)
         logger.info("Model:\n{}".format(model))
         return model

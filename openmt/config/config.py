@@ -40,23 +40,31 @@ class TrackLogic(BaseModel):
 
 
 class Matcher(BaseModel):
+    type: str
     thresholds: List[float]
     labels: List[int]
     allow_low_quality_matches: bool
 
 
-class EmbeddingHead(BaseModel):
+class Sampler(BaseModel):
+    type: str
     batch_size_per_image: int
     positive_fraction: float
-    num_classes: int
     proposal_append_gt: bool
+
+
+class RoIHead(BaseModel):
+    type: str
+    num_classes: int
+    proposal_sampler: Sampler
     proposal_matcher: Matcher
 
 
 class Tracking(BaseModel):
     """Config for tracking model."""
 
-    embedding_head: EmbeddingHead
+    type: str
+    embedding_head: RoIHead
     tracking_logic: TrackLogic
     # TODO add more attributes
 

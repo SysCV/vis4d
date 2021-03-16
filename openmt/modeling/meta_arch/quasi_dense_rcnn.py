@@ -4,12 +4,17 @@ import random
 from typing import Dict, List, Optional, Tuple
 
 import torch
-import torch.nn as nn
 from detectron2.modeling import GeneralizedRCNN
 from detectron2.structures import Instances
 
+from openmt.config import Config
+from openmt.core.build import build_roi_head
+from openmt.detect import to_detectron2
 
-class QDGeneralizedRCNN(nn.Module):
+from .base_arch import BaseMetaArch
+
+
+class QDGeneralizedRCNN(BaseMetaArch):
     """
     Generalized R-CNN for quasi-dense instance similarity learning.
     Inherits from GeneralizedRCNN in detectron2, which supports:
@@ -20,9 +25,12 @@ class QDGeneralizedRCNN(nn.Module):
     learning across multiple frames.
     """
 
-    def __init__(self, track_config, detector_config):
+    def __init__(self, cfg: Config) -> None:
+        """Init."""
         super().__init__()
+        detector_config = to_detectron2(cfg)
         self.d2_detector = GeneralizedRCNN(detector_config)
+        self.track_head = build_roi_head(cfg.tracking.embedding_head)
 
     def select_keyframe(self, batch_size):
         """Keyframe selection.
@@ -49,19 +57,16 @@ class QDGeneralizedRCNN(nn.Module):
 
         return key_index, ref_indices
 
-    def forward(
-        self,
-        batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]],
-    ):
+    def forward(self, batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]]):
         """Forward pass function."""
 
-        if not self.training:
-            # During inference, we only feed one frame at a time, therefore
-            # only hand over first (and only) element to inference
+        if not self.training:  # TODO change
             return self.inference(batch_inputs[0])
 
         # preprocess input
-        batched_images = [self.preprocess_image(inp) for inp in batch_inputs]
+        batched_images = [
+            self.d2_detector.preprocess_image(inp) for inp in batch_inputs
+        ]
 
         batch_size = len(batch_inputs[0])
         key_index, ref_indices = self.select_keyframe(batch_size)
@@ -78,15 +83,19 @@ class QDGeneralizedRCNN(nn.Module):
             key_targets = ref_targets = None
 
         # backbone
-        key_x = self.backbone(key_inputs.tensor)
-        ref_x = [self.backbone(ref_im.tensor) for ref_im in ref_inputs]
+        key_x = self.d2_detector.backbone(key_inputs.tensor)
+        ref_x = [
+            self.d2_detector.backbone(ref_im.tensor) for ref_im in ref_inputs
+        ]
 
         # rpn stage
         key_proposals, rpn_losses = self.proposal_generator(key_x)
-        ref_proposals = [self.proposal_generator(x)[0] for x in ref_x]
+        ref_proposals = [
+            self.d2_detector.proposal_generator(x)[0] for x in ref_x
+        ]
 
         # detection head(s)
-        _, detect_losses = self.roi_heads(
+        _, detect_losses = self.d2_detector.roi_heads(
             key_inputs,
             key_x,
             key_proposals,

@@ -1,19 +1,25 @@
 [detection]
 model_base = "faster-rcnn/r50-fpn"
-weights = "torchvision"
+weights = "detectron2"
 num_classes = 10
 
 [tracking]
+    type = "QDGeneralizedRCNN"
     [tracking.tracking_logic]
     assign_strategy = "greedy"
     keep_in_memory = 10  # timesteps
 
     [tracking.embedding_head]
-    batch_size_per_image = 256
-    positive_fraction = 0.5
+    type = "QDRoIHead"
     num_classes = 0
+        [tracking.embedding_head.proposal_sampler]
+        type = "RandomSampler"
+        batch_size_per_image = 256
+        positive_fraction = 0.5
         proposal_append_gt = true
+
         [tracking.embedding_head.proposal_matcher]
+        type = "MaxIoUMatcher"
         thresholds = [0.3, 0.5]
         labels = [0, -1, 1]
         allow_low_quality_matches = false

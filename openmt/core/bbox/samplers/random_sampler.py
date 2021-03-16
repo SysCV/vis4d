@@ -25,7 +25,6 @@ class RandomSampler(BaseSampler):
         """Sample boxes randomly."""
         # TODO get from detectron2
 
-        # if backend == detectron2
         proposals = subsample_labels(labels, boxes, ...)
 
         return proposals

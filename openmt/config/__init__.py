@@ -1,5 +1,15 @@
 """Config definitions."""
-from .config import Config, Dataset, DatasetType, Launch, Matcher, parse_config
+from .config import (
+    Config,
+    Dataset,
+    DatasetType,
+    Launch,
+    Matcher,
+    RoIHead,
+    Sampler,
+    Tracking,
+    parse_config,
+)
 
 __all__ = [
     "Config",
@@ -8,4 +18,7 @@ __all__ = [
     "DatasetType",
     "parse_config",
     "Matcher",
+    "Sampler",
+    "RoIHead",
+    "Tracking",
 ]
