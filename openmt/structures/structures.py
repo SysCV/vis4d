@@ -1,4 +1,4 @@
-"""Data structure for label container."""
+"""Data structure for structures container."""
 import abc
 from typing import Dict, List, Tuple
 
@@ -6,8 +6,6 @@ import torch
 from scalabel.label.typing import Box2D, Label
 
 # adapt typing
-
-
 
 
 class Instances(metaclass=abc.ABCMeta):
@@ -34,6 +32,14 @@ class Boxes2D(Instances):
     def __init__(self, data: torch.tensor = None) -> None:
         """Init."""
         self.data = data
+
+    def __getitem__(self, item):
+        """This method will shadow the tensor based indexing while returning a
+        new instance of Boxes2D."""
+        if isinstance(item, int):
+            return Boxes2D(self.data[item].view(1, -1))
+        else:
+            return Boxes2D(self.data[item])
 
     def from_scalabel(self, labels: List[Label], class_to_idx: Dict[str, int]):
         """Convert from scalabel format to ours."""

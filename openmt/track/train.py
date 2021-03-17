@@ -9,10 +9,8 @@ from detectron2.engine import DefaultTrainer, launch
 from detectron2.evaluation import COCOEvaluator, DatasetEvaluator
 
 from openmt.config import Config
-from openmt.core.build import build_model
-
-# TODO
 from openmt.detect.config import default_setup, to_detectron2
+from openmt.modeling.meta_arch import build_model
 
 
 class TrackingTrainer(DefaultTrainer):  # type: ignore
@@ -21,6 +19,11 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
     def __init__(self, cfg: Config, det2cfg: CfgNode):
         self.track_cfg = cfg
         super().__init__(det2cfg)
+
+        # TODO needs new checkpointer (load pretrained detection weights into
+        #  d2_detector, but save complete model incl tracking params,
+        #  resume from complete params). Could also be handled via modifying
+        #  loaded weights
 
     def build_model(self, cfg):
         """

@@ -4,7 +4,7 @@ import sys
 from argparse import Namespace
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import toml
 import yaml
@@ -55,15 +55,42 @@ class Sampler(BaseModel):
 
 class RoIHead(BaseModel):
     type: str
-    num_classes: int
+    num_classes: int  # TODO necessary?
+    in_dim: int
+    num_convs: int
+    conv_out_dim: int
+    num_fcs: int
+    fc_out_dim: int
+    embedding_dim: int
+    norm: str
+
+    pooler_type: str
+    pooler_resolution: Tuple[int, int]
+    pooler_strides: List[int]
+    pooler_sampling_ratio: int
+
     proposal_sampler: Sampler
     proposal_matcher: Matcher
+
+
+class KeyFrameSelection(str, Enum):
+    """Enum for key frame selection strategy.
+
+    random: Keyframe is randomly selected from the input frames.
+    first: Keyframe == first frame.
+    last:  Keyframe == last frame.
+    """
+
+    RANDOM = "random"
+    FIRST = "first"
+    LAST = "last"
 
 
 class Tracking(BaseModel):
     """Config for tracking model."""
 
     type: str
+    keyframe_selection: KeyFrameSelection
     embedding_head: RoIHead
     tracking_logic: TrackLogic
     # TODO add more attributes
