@@ -1,11 +1,18 @@
 """Base class for meta architectures."""
 
 import abc
+from typing import Optional
 
 import torch
+from pydantic import BaseModel
 
-from openmt.config import LossConfig
 from openmt.core.registry import RegistryHolder
+
+
+class LossConfig(BaseModel, extra="allow"):
+    type: str
+    reduction: Optional[str] = "mean"
+    loss_weight: Optional[float] = 1.0
 
 
 class BaseLoss(torch.nn.Module, metaclass=RegistryHolder):
@@ -18,14 +25,9 @@ class BaseLoss(torch.nn.Module, metaclass=RegistryHolder):
 
 
 def build_loss(cfg: LossConfig) -> BaseLoss:
-    """
-    Build the whole model architecture using meta_arch templates.
-    Note that it does not load any weights from ``cfg``.
-    """
-    model_registry = RegistryHolder.get_registry(__package__)
-    if cfg.type in model_registry:
-        return model_registry[cfg.type](cfg)
+    """Build the loss functions for model."""
+    registry = RegistryHolder.get_registry(__package__)
+    if cfg.type in registry:
+        return registry[cfg.type](cfg)
     else:
-        raise NotImplementedError(
-            f"Loss function {cfg.tracking.type} not found."
-        )
+        raise NotImplementedError(f"Loss function {cfg.type} not found.")

@@ -6,14 +6,28 @@ import torch
 import torch.nn as nn
 from detectron2.layers.batch_norm import get_norm
 from detectron2.layers.wrappers import Conv2d
-from detectron2.modeling.poolers import ROIPooler
 from detectron2.structures import ImageList
 
-from openmt.config import RoIHead as RoIHeadConfig
-from openmt.core.bbox.matchers import build_matcher
-from openmt.core.bbox.samplers import build_sampler
-from openmt.modeling.roi_heads import BaseRoIHead
+from openmt.core.bbox.matchers import MatcherConfig, build_matcher
+from openmt.core.bbox.poolers import RoIPoolerConfig, build_roi_pooler
+from openmt.core.bbox.samplers import SamplerConfig, build_sampler
 from openmt.structures import Boxes2D
+
+from .base_roi_head import BaseRoIHead, RoIHeadConfig
+
+
+class QDRoIHeadConfig(RoIHeadConfig):
+    num_classes: int  # TODO necessary?
+    in_dim: int
+    num_convs: int
+    conv_out_dim: int
+    num_fcs: int
+    fc_out_dim: int
+    embedding_dim: int
+    norm: str
+    proposal_pooler: RoIPoolerConfig
+    proposal_sampler: SamplerConfig
+    proposal_matcher: MatcherConfig
 
 
 class QDRoIHead(BaseRoIHead):
@@ -22,18 +36,14 @@ class QDRoIHead(BaseRoIHead):
     def __init__(self, cfg: RoIHeadConfig) -> None:
         """Init."""
         super().__init__()
-        self.cfg = cfg
-        self.sampler = build_sampler(cfg.proposal_sampler)
-        self.matcher = build_matcher(cfg.proposal_matcher)
-        self.roi_pooler = ROIPooler(
-            output_size=cfg.pooler_resolution,
-            scales=[1 / s for s in cfg.pooler_strides],
-            sampling_ratio=cfg.pooler_sampling_ratio,
-            pooler_type=cfg.pooler_type,
-        )
+        self.cfg = QDRoIHeadConfig(**cfg.__dict__)
 
-        self.convs, self.fcs, last_layer_dim = self._init_embedding_head(cfg)
-        self.fc_embed = nn.Linear(last_layer_dim, cfg.embedding_dim)
+        self.sampler = build_sampler(self.cfg.proposal_sampler)
+        self.matcher = build_matcher(self.cfg.proposal_matcher)
+        self.roi_pooler = build_roi_pooler(self.cfg.proposal_pooler)
+
+        self.convs, self.fcs, last_layer_dim = self._init_embedding_head()
+        self.fc_embed = nn.Linear(last_layer_dim, self.cfg.embedding_dim)
         self._init_weights()
 
     def _init_weights(self):
@@ -50,37 +60,39 @@ class QDRoIHead(BaseRoIHead):
         nn.init.normal_(self.fc_embed.weight, 0, 0.01)
         nn.init.constant_(self.fc_embed.bias, 0)
 
-    def _init_embedding_head(cls, cfg):
+    def _init_embedding_head(self):
         """Init embedding head."""
-        last_layer_dim = cfg.in_dim
+        last_layer_dim = self.cfg.in_dim
         # add branch specific conv layers
         convs = nn.ModuleList()
-        if cfg.num_convs > 0:
-            for i in range(cfg.num_convs):
-                conv_in_dim = last_layer_dim if i == 0 else cfg.conv_out_dim
+        if self.cfg.num_convs > 0:
+            for i in range(self.cfg.num_convs):
+                conv_in_dim = (
+                    last_layer_dim if i == 0 else self.cfg.conv_out_dim
+                )
                 convs.append(
                     Conv2d(
                         conv_in_dim,
-                        cfg.conv_out_dim,
+                        self.cfg.conv_out_dim,
                         kernel_size=3,
                         padding=1,
-                        norm=get_norm(cfg.norm, cfg.conv_out_dim),
+                        norm=get_norm(self.cfg.norm, self.cfg.conv_out_dim),
                         activation=nn.ReLU(),
                     )
                 )
-            last_layer_dim = cfg.conv_out_dim
+            last_layer_dim = self.cfg.conv_out_dim
 
         fcs = nn.ModuleList()
-        if cfg.num_fcs > 0:
-            last_layer_dim *= prod(cfg.pooler_resolution)
-            for i in range(cfg.num_fcs):
-                fc_in_dim = last_layer_dim if i == 0 else cfg.fc_out_dim
+        if self.cfg.num_fcs > 0:
+            last_layer_dim *= prod(self.cfg.proposal_pooler.resolution)
+            for i in range(self.cfg.num_fcs):
+                fc_in_dim = last_layer_dim if i == 0 else self.cfg.fc_out_dim
                 fcs.append(
                     nn.Sequential(
-                        nn.Linear(fc_in_dim, cfg.fc_out_dim), nn.ReLU()
+                        nn.Linear(fc_in_dim, self.cfg.fc_out_dim), nn.ReLU()
                     )
                 )
-            last_layer_dim = cfg.fc_out_dim
+            last_layer_dim = self.cfg.fc_out_dim
         return convs, fcs, last_layer_dim
 
     def match_and_sample_proposals(self, proposals, targets):
@@ -107,10 +119,7 @@ class QDRoIHead(BaseRoIHead):
                 proposals, targets
             )
 
-        # TODO refactor proposals once converted to our format
-        x = self.roi_pooler(
-            list(features.values())[:-1], [p.proposal_boxes for p in proposals]
-        )
+        x = self.roi_pooler.pool(list(features.values())[:-1], proposals)
 
         # convs
         if self.cfg.num_convs > 0:

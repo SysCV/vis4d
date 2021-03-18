@@ -10,7 +10,9 @@ from detectron2.structures import Instances
 from openmt.config import Config
 from openmt.core.track import cosine_similarity
 from openmt.detect import to_detectron2
+from openmt.structures import Boxes2D
 
+from ..losses import build_loss
 from ..roi_heads import build_roi_head
 from .base_arch import BaseMetaArch
 
@@ -31,8 +33,12 @@ class QDGeneralizedRCNN(BaseMetaArch):
         super().__init__()
         detector_config = to_detectron2(cfg)
         self.d2_detector = GeneralizedRCNN(detector_config)
-        self.track_head = build_roi_head(cfg.tracking.embedding_head)
+        self.track_head = build_roi_head(cfg.tracking.track_head)
         self.keyframe_selection = cfg.tracking.keyframe_selection
+        self.softmax_temp = -1  # TODO move to cfg
+
+        self.track_loss = build_loss(cfg.tracking.losses[0])
+        self.track_loss_aux = build_loss(cfg.tracking.losses[1])
 
     @property
     def device(self):
@@ -120,23 +126,28 @@ class QDGeneralizedRCNN(BaseMetaArch):
             key_targets,
         )
 
-        # TODO conversion between detectron internal format Instances /
-        #  Boxes to ours (Boxes2D)
+        key_proposals = proposal_to_box2d(key_proposals)
+        key_targets = target_to_box2d(key_targets)
+        ref_proposals = [proposal_to_box2d(rp) for rp in ref_proposals]
+        ref_targets = [target_to_box2d(rt) for rt in ref_targets]
 
         # track head
-        key_embeddings, key_targets = self.track_head(
+        key_embeddings, key_track_targets = self.track_head(
             key_inputs, key_x, key_proposals, key_targets
         )
-        ref_targets, ref_embeddings = [], []
+        ref_track_targets, ref_embeddings = [], []
         for input, x, proposal, target in zip(
             ref_inputs, ref_x, ref_proposals, ref_targets
         ):
             embeddings, targets = self.track_head(input, x, proposal, target)
             ref_embeddings += [embeddings]
-            ref_targets += [target]
+            ref_track_targets += [target]
 
         track_losses = self.tracking_loss(
-            key_embeddings, key_targets, ref_embeddings, ref_targets
+            key_embeddings,
+            key_track_targets,
+            ref_embeddings,
+            ref_track_targets,
         )
 
         losses = dict()
@@ -165,22 +176,18 @@ class QDGeneralizedRCNN(BaseMetaArch):
     def get_track_targets(self, key_targets, ref_targets):  # TODO rewrite
         track_targets = []
         track_weights = []
-        for _gt_match_indices, key_res, ref_res in zip(
-            gt_match_indices, key_sampling_results, ref_sampling_results
-        ):
-            targets = _gt_match_indices.new_zeros(
-                (key_res.pos_bboxes.size(0), ref_res.bboxes.size(0)),
-                dtype=torch.int,
-            )
-            _match_indices = _gt_match_indices[key_res.pos_assigned_gt_inds]
-            pos2pos = (
-                _match_indices.view(-1, 1)
-                == ref_res.pos_assigned_gt_inds.view(1, -1)
-            ).int()
-            targets[:, : pos2pos.size(1)] = pos2pos
-            weights = (targets.sum(dim=1) > 0).float()
-            track_targets.append(targets)
-            track_weights.append(weights)
+        for key_target, ref_target in zip(key_targets, ref_targets):
+            for ref_t in ref_target:
+                targets = torch.zeros(
+                    (key_target.size(0), ref_targets.size(0)),
+                    dtype=torch.int,
+                    device=key_target.device,
+                )
+                pos2pos = key_target.gt_track_ids == ref_t.gt_track_ids
+                ref_targets[pos2pos] = 1.0  # TODO fix this
+                weights = (targets.sum(dim=1) > 0).float()
+                track_targets.append(targets)
+                track_weights.append(weights)
         return track_targets, track_weights
 
     def tracking_loss(
@@ -191,7 +198,8 @@ class QDGeneralizedRCNN(BaseMetaArch):
 
         loss_track = 0.0
         loss_track_aux = 0.0
-        dists, cos_dists = self.match(key_embeddings, ref_embeddings)
+        dists, cos_dists = self.match(key_embeddings, ref_embeddings)  #
+        # TODO not a list but a tensor, not per image like in mmdetection
         track_targets, track_weights = self.get_track_targets(
             key_targets, ref_targets
         )
@@ -203,6 +211,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
             )
             if self.loss_track_aux is not None:
                 loss_track_aux += self.loss_track_aux(_cos_dists, _targets)
+
         losses["loss_track"] = loss_track / len(dists)
 
         if self.loss_track_aux is not None:
@@ -233,3 +242,27 @@ class QDGeneralizedRCNN(BaseMetaArch):
         # associate detections, update tracker
 
         pass
+
+
+"""Detectron2 utils"""  # TODO restructure
+
+
+def proposal_to_box2d(proposals):
+    result = []
+    for proposal in proposals:
+        boxes, logits = (
+            proposal.proposal_boxes.tensor,
+            proposal.objectness_logits,
+        )
+        result.append(Boxes2D(torch.cat([boxes, logits.unsqueeze(-1)], -1)))
+    return result
+
+
+# TODO this omits track ids (add them to data first)
+def target_to_box2d(targets):
+    result = []
+    for targets in targets:
+        boxes, cls = targets.gt_boxes.tensor, targets.gt_classes.unsqueeze(-1)
+        score = torch.ones((boxes.shape[0], 1), device=boxes.device)
+        result.append(Boxes2D(torch.cat([boxes, score, cls], -1)))
+    return result

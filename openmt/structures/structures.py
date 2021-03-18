@@ -1,11 +1,9 @@
 """Data structure for structures container."""
 import abc
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import torch
 from scalabel.label.typing import Box2D, Label
-
-# adapt typing
 
 
 class Instances(metaclass=abc.ABCMeta):
@@ -41,7 +39,9 @@ class Boxes2D(Instances):
         else:
             return Boxes2D(self.data[item])
 
-    def from_scalabel(self, labels: List[Label], class_to_idx: Dict[str, int]):
+    def from_scalabel(
+        self, labels: List[Label], class_to_idx: Dict[str, int]
+    ) -> None:
         """Convert from scalabel format to ours."""
         box_list = []
         for label in labels:

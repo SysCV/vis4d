@@ -1,24 +1,20 @@
+from typing import Optional
+
 import numpy as np
 import torch
 
-from .base_loss import BaseLoss
+from .base_loss import BaseLoss, LossConfig
 from .utils import weight_reduce_loss
 
 
-def l2_loss(pred, target, reduction="mean", avg_factor=None):
-    """L2 loss.
-    Args:
-        pred (torch.Tensor): The prediction.
-        target (torch.Tensor): The learning target of the prediction.
-    Returns:
-        torch.Tensor: Calculated loss
-    """
-    assert pred.size() == target.size() and target.numel() > 0
-    loss = torch.abs(pred - target) ** 2
-    return weight_reduce_loss(loss, reduction=reduction, avg_factor=avg_factor)
+class EmbeddingDistanceLossConfig(LossConfig):
+    neg_pos_ub: Optional[int] = -1
+    pos_margin: Optional[int] = -1
+    neg_margin: Optional[int] = -1
+    hard_mining: Optional[bool] = False
 
 
-class L2Loss(BaseLoss):
+class EmbeddingDistanceLoss(BaseLoss):
     """L2 loss.
     Args:
         reduction (str, optional): The method to reduce the loss.
@@ -26,22 +22,9 @@ class L2Loss(BaseLoss):
         loss_weight (float, optional): The weight of loss.
     """
 
-    def __init__(
-        self,
-        neg_pos_ub=-1,
-        pos_margin=-1,
-        neg_margin=-1,
-        hard_mining=False,
-        reduction="mean",
-        loss_weight=1.0,
-    ):
-        super(L2Loss, self).__init__()
-        self.neg_pos_ub = neg_pos_ub
-        self.pos_margin = pos_margin
-        self.neg_margin = neg_margin
-        self.hard_mining = hard_mining
-        self.reduction = reduction
-        self.loss_weight = loss_weight
+    def __init__(self, cfg: LossConfig):
+        super().__init__()
+        self.cfg = EmbeddingDistanceLossConfig(**cfg.__dict__)
 
     def forward(
         self,
@@ -65,12 +48,12 @@ class L2Loss(BaseLoss):
         """
         assert reduction_override in (None, "none", "mean", "sum")
         reduction = (
-            reduction_override if reduction_override else self.reduction
+            reduction_override if reduction_override else self.cfg.reduction
         )
         pred, weight, avg_factor = self.update_weight(
             pred, target, weight, avg_factor
         )
-        loss_bbox = self.loss_weight * l2_loss(
+        loss_bbox = self.cfg.loss_weight * l2_loss(
             pred, target, weight, reduction=reduction, avg_factor=avg_factor
         )
         return loss_bbox
@@ -83,19 +66,19 @@ class L2Loss(BaseLoss):
         pos_inds = target == 1
         neg_inds = target == 0
 
-        if self.pos_margin > 0:
-            pred[pos_inds] -= self.pos_margin
-        if self.neg_margin > 0:
-            pred[neg_inds] -= self.neg_margin
+        if self.cfg.pos_margin > 0:
+            pred[pos_inds] -= self.cfg.pos_margin
+        if self.cfg.neg_margin > 0:
+            pred[neg_inds] -= self.cfg.neg_margin
         pred = torch.clamp(pred, min=0, max=1)
 
         num_pos = int((target == 1).sum())
         num_neg = int((target == 0).sum())
-        if self.neg_pos_ub > 0 and num_neg / num_pos > self.neg_pos_ub:
-            num_neg = num_pos * self.neg_pos_ub
+        if self.cfg.neg_pos_ub > 0 and num_neg / num_pos > self.cfg.neg_pos_ub:
+            num_neg = num_pos * self.cfg.neg_pos_ub
             neg_idx = torch.nonzero(target == 0, as_tuple=False)
 
-            if self.hard_mining:
+            if self.cfg.hard_mining:
                 costs = l2_loss(pred, target, reduction="none")[
                     neg_idx[:, 0], neg_idx[:, 1]
                 ].detach()
@@ -127,3 +110,16 @@ class L2Loss(BaseLoss):
         if not isinstance(gallery, np.ndarray):
             rand_inds = torch.from_numpy(rand_inds).long().to(gallery.device)
         return gallery[rand_inds]
+
+
+def l2_loss(pred, target, reduction="mean", avg_factor=None):
+    """L2 loss.
+    Args:
+        pred (torch.Tensor): The prediction.
+        target (torch.Tensor): The learning target of the prediction.
+    Returns:
+        torch.Tensor: Calculated loss
+    """
+    assert pred.size() == target.size() and target.numel() > 0
+    loss = torch.abs(pred - target) ** 2
+    return weight_reduce_loss(loss, reduction=reduction, avg_factor=avg_factor)

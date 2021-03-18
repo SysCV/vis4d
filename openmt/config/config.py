@@ -4,11 +4,14 @@ import sys
 from argparse import Namespace
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import toml
 import yaml
 from pydantic import BaseModel
+
+from openmt.modeling.losses import LossConfig
+from openmt.modeling.roi_heads import RoIHeadConfig
 
 
 class Solver(BaseModel):
@@ -36,41 +39,7 @@ class Detection(BaseModel):
 class TrackLogic(BaseModel):
     assign_strategy: str  # e.g. greedy or hungarian
     keep_in_memory: int  # threshold for keeping occluded objects in memory
-    # TODO add more attributes
-
-
-class Matcher(BaseModel):
-    type: str
-    thresholds: List[float]
-    labels: List[int]
-    allow_low_quality_matches: bool
-
-
-class Sampler(BaseModel):
-    type: str
-    batch_size_per_image: int
-    positive_fraction: float
-    proposal_append_gt: bool
-
-
-class RoIHead(BaseModel):
-    type: str
-    num_classes: int  # TODO necessary?
-    in_dim: int
-    num_convs: int
-    conv_out_dim: int
-    num_fcs: int
-    fc_out_dim: int
-    embedding_dim: int
-    norm: str
-
-    pooler_type: str
-    pooler_resolution: Tuple[int, int]
-    pooler_strides: List[int]
-    pooler_sampling_ratio: int
-
-    proposal_sampler: Sampler
-    proposal_matcher: Matcher
+    # TODO restructure to own module
 
 
 class KeyFrameSelection(str, Enum):
@@ -91,9 +60,9 @@ class Tracking(BaseModel):
 
     type: str
     keyframe_selection: KeyFrameSelection
-    embedding_head: RoIHead
+    track_head: RoIHeadConfig
     tracking_logic: TrackLogic
-    # TODO add more attributes
+    losses: List[LossConfig]
 
 
 class DatasetType(str, Enum):
@@ -151,7 +120,7 @@ class Launch(BaseModel):
 class Config(BaseModel):
     """Overall config object."""
 
-    detection: Optional[Detection]
+    detection: Optional[Detection]  # TODO restrucutre to module (det & track)
     tracking: Optional[Tracking]
     solver: Solver
     dataloader: Optional[Dataloader]

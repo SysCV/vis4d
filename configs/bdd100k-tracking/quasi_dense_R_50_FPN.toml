@@ -10,7 +10,13 @@ num_classes = 10
     assign_strategy = "greedy"
     keep_in_memory = 10  # timesteps
 
-    [tracking.embedding_head]  # TODO rename, restructure
+    [[tracking.losses]]
+    type = "MultiPosCrossEntropyLoss"
+
+    [[tracking.losses]]
+    type = "EmbeddingDistanceLoss"
+
+    [tracking.track_head]
     type = "QDRoIHead"
     num_classes = 0
     in_dim = 256
@@ -21,22 +27,26 @@ num_classes = 10
     embedding_dim = 256
     norm = "GN"
 
-    pooler_type = "ROIAlignV2"
-    pooler_resolution = [7, 7]
-    pooler_strides = [4, 8, 16, 32]
-    pooler_sampling_ratio = 0
+        [tracking.track_head.proposal_pooler]
+        type = "D2RoIPooler"
+        pooling_op = "ROIAlignV2"
+        resolution = [7, 7]
+        strides = [4, 8, 16, 32]
+        sampling_ratio = 0
 
-        [tracking.embedding_head.proposal_sampler]
+        [tracking.track_head.proposal_sampler]
         type = "RandomSampler"
         batch_size_per_image = 256
         positive_fraction = 0.5
         proposal_append_gt = true
 
-        [tracking.embedding_head.proposal_matcher]
+        [tracking.track_head.proposal_matcher]
         type = "MaxIoUMatcher"
         thresholds = [0.3, 0.5]
         labels = [0, -1, 1]
         allow_low_quality_matches = false
+
+
 
 [solver]
 images_per_batch = 2

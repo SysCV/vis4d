@@ -4,23 +4,30 @@ from typing import List, Tuple
 import torch
 from detectron2.modeling.sampling import subsample_labels
 
-from openmt.config import Sampler
 from openmt.structures import Boxes2D
 
 from ..matchers.base_matcher import MatchResult
-from .base_sampler import BaseSampler
+from .base_sampler import BaseSampler, SamplerConfig
+
+
+class RandomSamplerConfig(SamplerConfig):
+    batch_size_per_image: int
+    positive_fraction: float
+    proposal_append_gt: bool
 
 
 class RandomSampler(BaseSampler):
     """Random sampler class."""
 
-    def __init__(self, cfg: Sampler):
+    def __init__(self, cfg: SamplerConfig):
         """Init."""
+        super().__init__()
+        self.cfg = RandomSamplerConfig(**cfg.__dict__)
 
-        self.batch_size_per_image = cfg.batch_size_per_image
-        self.positive_fraction = cfg.positive_fraction
+        self.batch_size_per_image = self.cfg.batch_size_per_image
+        self.positive_fraction = self.cfg.positive_fraction
         # self.num_classes = cfg.num_classes  TODO num classes really needed?
-        self.proposal_append_gt = cfg.proposal_append_gt
+        self.proposal_append_gt = self.cfg.proposal_append_gt
         self.bg_label = 0
 
     def sample(

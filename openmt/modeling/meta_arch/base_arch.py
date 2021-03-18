@@ -23,9 +23,9 @@ def build_model(cfg: Config) -> BaseMetaArch:
     Build the whole model architecture using meta_arch templates.
     Note that it does not load any weights from ``cfg``.
     """
-    model_registry = RegistryHolder.get_registry(__package__)
-    if cfg.tracking.type in model_registry:
-        return model_registry[cfg.tracking.type](cfg)
+    registry = RegistryHolder.get_registry(__package__)
+    if cfg.tracking.type in registry:
+        return registry[cfg.tracking.type](cfg)
     else:
         raise NotImplementedError(
             f"Meta architecture {cfg.tracking.type} not found."

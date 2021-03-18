@@ -4,9 +4,6 @@ from .config import (
     Dataset,
     DatasetType,
     Launch,
-    Matcher,
-    RoIHead,
-    Sampler,
     Tracking,
     parse_config,
 )
@@ -17,8 +14,5 @@ __all__ = [
     "Dataset",
     "DatasetType",
     "parse_config",
-    "Matcher",
-    "Sampler",
-    "RoIHead",
     "Tracking",
 ]
