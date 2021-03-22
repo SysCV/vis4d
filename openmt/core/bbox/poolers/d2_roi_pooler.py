@@ -43,8 +43,9 @@ class D2RoIPooler(BaseRoIPooler):
             boxes: list of proposals (per image)
         Returns:
             torch.Tensor: NCHW format, where N = num boxes (total),
-            HW is roi size, C is feature dim.
+            HW is roi size, C is feature dim. Boxes are concatenated along
+            dimension 0 for all batch elements.
         """
-        x = self.roi_pooler(features, [Boxes(b.data[:, :4]) for b in boxes])
+        x = self.roi_pooler(features, [Boxes(b.boxes[:, :4]) for b in boxes])
 
         return x

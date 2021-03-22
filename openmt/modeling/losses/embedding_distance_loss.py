@@ -112,14 +112,17 @@ class EmbeddingDistanceLoss(BaseLoss):
         return gallery[rand_inds]
 
 
-def l2_loss(pred, target, reduction="mean", avg_factor=None):
+def l2_loss(pred, target, weight=None, reduction="mean", avg_factor=None):
     """L2 loss.
     Args:
         pred (torch.Tensor): The prediction.
+        target (torch.Tensor): The learning target of the prediction.
         target (torch.Tensor): The learning target of the prediction.
     Returns:
         torch.Tensor: Calculated loss
     """
     assert pred.size() == target.size() and target.numel() > 0
     loss = torch.abs(pred - target) ** 2
-    return weight_reduce_loss(loss, reduction=reduction, avg_factor=avg_factor)
+    if weight is not None:
+        weight = weight.float()
+    return weight_reduce_loss(loss, weight, reduction, avg_factor)

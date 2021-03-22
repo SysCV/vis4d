@@ -48,9 +48,9 @@ class RandomSampler(BaseSampler):
             )
             sampled_idxs = torch.cat([pos_idx, neg_idx], dim=0)
 
-            sampled_boxes.append(
+            sampled_boxes.append(box[sampled_idxs])
+            sampled_targets.append(
                 target[match.assigned_gt_indices[sampled_idxs]]
             )
-            sampled_targets.append(box[sampled_idxs])
 
-        return boxes, targets
+        return sampled_boxes, sampled_targets

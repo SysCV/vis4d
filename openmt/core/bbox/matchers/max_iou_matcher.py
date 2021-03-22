@@ -35,7 +35,7 @@ class MaxIoUMatcher(BaseMatcher):
         for b, t in zip(boxes, targets):
             # M x N matrix, where M = num gt, N = num proposals
             match_quality_matrix = pairwise_iou(
-                Boxes(t.data[:, :4]), Boxes(b.data[:, :4])
+                Boxes(t.boxes[:, :4]), Boxes(b.boxes[:, :4])
             )
 
             # matches N x 1 = index of assigned gt i.e.  range [0, M)

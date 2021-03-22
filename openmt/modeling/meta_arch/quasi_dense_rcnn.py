@@ -1,7 +1,7 @@
 """Faster R-CNN for quasi-dense instance similarity learning."""
 
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from detectron2.modeling import GeneralizedRCNN
@@ -70,7 +70,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
 
         return key_index, ref_indices
 
-    def forward(self, batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]]):
+    def forward(self, batch_inputs: List[List[Dict[str, torch.Tensor]]]):
         """Forward pass function."""
 
         # TODO change once new dataloader finished
@@ -118,7 +118,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
             for inp, x, target in zip(ref_inputs, ref_x, ref_targets)
         ]
 
-        # detection head(s)
+        # detection head(s)  TODO do we need to clone proposals here if e.g. mask head is trained with refined boxes?
         _, detect_losses = self.d2_detector.roi_heads(
             key_inputs,
             key_x,
@@ -126,6 +126,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
             key_targets,
         )
 
+        # TODO Meta info image_height=640, image_width=1138
         key_proposals = proposal_to_box2d(key_proposals)
         key_targets = target_to_box2d(key_targets)
         ref_proposals = [proposal_to_box2d(rp) for rp in ref_proposals]
@@ -141,13 +142,13 @@ class QDGeneralizedRCNN(BaseMetaArch):
         ):
             embeddings, targets = self.track_head(input, x, proposal, target)
             ref_embeddings += [embeddings]
-            ref_track_targets += [target]
+            ref_track_targets += [targets]
 
         track_losses = self.tracking_loss(
             key_embeddings,
             key_track_targets,
             ref_embeddings,
-            ref_track_targets,
+            ref_track_targets
         )
 
         losses = dict()
@@ -156,66 +157,77 @@ class QDGeneralizedRCNN(BaseMetaArch):
         losses.update(track_losses)
         return losses
 
-    def match(self, key_embeds, ref_embeds):  # TODO rewrite
+    def match(self, key_embeds, ref_embeds):
+        # for each reference view
         dists, cos_dists = [], []
-        for key_embed, ref_embed in zip(key_embeds, ref_embeds):
-            dist = cosine_similarity(
-                key_embed,
-                ref_embed,
-                normalize=False,
-                temperature=self.softmax_temp,
-            )
-            dists.append(dist)
-            if self.loss_track_aux is not None:
-                cos_dist = cosine_similarity(key_embed, ref_embed)
-                cos_dists.append(cos_dist)
-            else:
-                cos_dists.append(None)
+        for ref_embed in ref_embeds:
+            # for each batch element
+            dists_curr, cos_dists_curr = [], []
+            for key_embed, ref_embed_ in zip(key_embeds, ref_embed):
+                dist = cosine_similarity(
+                    key_embed,
+                    ref_embed_,
+                    normalize=False,
+                    temperature=self.softmax_temp,
+                )
+                dists_curr.append(dist)
+                if cos_dists is not None:
+                    cos_dist = cosine_similarity(key_embed, ref_embed_)
+                    cos_dists_curr.append(cos_dist)
+
+            dists.append(dists_curr)
+            cos_dists.append(cos_dists_curr)
         return dists, cos_dists
 
-    def get_track_targets(self, key_targets, ref_targets):  # TODO rewrite
-        track_targets = []
-        track_weights = []
-        for key_target, ref_target in zip(key_targets, ref_targets):
-            for ref_t in ref_target:
-                targets = torch.zeros(
-                    (key_target.size(0), ref_targets.size(0)),
-                    dtype=torch.int,
-                    device=key_target.device,
-                )
-                pos2pos = key_target.gt_track_ids == ref_t.gt_track_ids
-                ref_targets[pos2pos] = 1.0  # TODO fix this
-                weights = (targets.sum(dim=1) > 0).float()
-                track_targets.append(targets)
-                track_weights.append(weights)
+    def get_track_targets(self, key_targets, ref_targets):
+        # for each reference view
+        track_targets, track_weights = [], []
+        for ref_target in ref_targets:
+            # for each batch element
+            curr_targets, curr_weights = [], []
+            for key_target, ref_target_ in zip(key_targets, ref_target):
+                assert key_target.track_ids is not None and ref_target_.track_ids is not None
+                # target shape: len(key_target) x len(ref_target_)
+                target = (key_target.track_ids.view(-1, 1) == ref_target_.track_ids.view(1, -1)).int()
+                weight = (target.sum(dim=1) > 0).float()
+                curr_targets.append(target)
+                curr_weights.append(weight)
+            track_targets.append(curr_targets)
+            track_weights.append(curr_weights)
         return track_targets, track_weights
 
     def tracking_loss(
         self, key_embeddings, key_targets, ref_embeddings, ref_targets
-    ):
-        """Calculate losses for tracking."""
+    ) -> Dict[str, Union[torch.Tensor, float]]:
+        """Calculate losses for tracking.
+        Each input is of type List[List[Tensor]] where the lists are of length MxN where M is the number of reference views and N is the number of batch elements.
+        """
         losses = dict()
 
         loss_track = 0.0
         loss_track_aux = 0.0
-        dists, cos_dists = self.match(key_embeddings, ref_embeddings)  #
-        # TODO not a list but a tensor, not per image like in mmdetection
+        dists, cos_dists = self.match(key_embeddings, ref_embeddings)
         track_targets, track_weights = self.get_track_targets(
             key_targets, ref_targets
         )
-        for _dists, _cos_dists, _targets, _weights in zip(
+        # for each reference view
+        for curr_dists, curr_cos_dists, curr_targets, curr_weights in zip(
             dists, cos_dists, track_targets, track_weights
         ):
-            loss_track += self.loss_track(
-                _dists, _targets, _weights, avg_factor=_weights.sum()
-            )
-            if self.loss_track_aux is not None:
-                loss_track_aux += self.loss_track_aux(_cos_dists, _targets)
+            # for each batch element
+            for _dists, _cos_dists, _targets, _weights in zip(
+                    curr_dists, curr_cos_dists, curr_targets, curr_weights
+            ):
+                loss_track += self.track_loss(
+                    _dists, _targets, _weights, avg_factor=_weights.sum()
+                )
+                if self.track_loss_aux is not None:
+                    loss_track_aux += self.track_loss_aux(_cos_dists, _targets)
 
-        losses["loss_track"] = loss_track / len(dists)
-
-        if self.loss_track_aux is not None:
-            losses["loss_track_aux"] = loss_track_aux / len(dists)
+        num_pairs = len(dists) * len(dists[0])
+        losses["track_loss"] = loss_track / num_pairs
+        if self.track_loss_aux is not None:
+            losses["track_loss_aux"] = loss_track_aux / num_pairs
 
         return losses
 
@@ -223,7 +235,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
         self,
         batched_inputs: Tuple[Dict[str, torch.Tensor]],
         detected_instances: Optional[List[Instances]] = None,
-        do_postprocess: bool = True,
+        do_postprocess: bool = True
     ):
         """Inference function."""
 
@@ -258,11 +270,11 @@ def proposal_to_box2d(proposals):
     return result
 
 
-# TODO this omits track ids (add them to data first)
+# TODO this does not handle track ids correctly (add them to data first)
 def target_to_box2d(targets):
     result = []
     for targets in targets:
-        boxes, cls = targets.gt_boxes.tensor, targets.gt_classes.unsqueeze(-1)
+        boxes, cls = targets.gt_boxes.tensor, targets.gt_classes
         score = torch.ones((boxes.shape[0], 1), device=boxes.device)
-        result.append(Boxes2D(torch.cat([boxes, score, cls], -1)))
+        result.append(Boxes2D(torch.cat([boxes, score], -1), cls, torch.arange(0, len(boxes), device=boxes.device)))
     return result

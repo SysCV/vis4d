@@ -13,7 +13,7 @@ pyyaml
 setuptools
 tqdm
 wheel
-
+scalabel
 torch
 torchaudio
 torchvision

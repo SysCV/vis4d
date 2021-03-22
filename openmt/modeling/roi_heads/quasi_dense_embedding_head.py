@@ -105,7 +105,7 @@ class QDRoIHead(BaseRoIHead):
         features: Dict[str, torch.Tensor],
         proposals: List[Boxes2D],
         targets: Optional[List[Boxes2D]] = None,
-    ) -> Tuple[List[Boxes2D], Optional[List[Boxes2D]]]:
+    ) -> Tuple[List[torch.Tensor], Optional[List[Boxes2D]]]:
         """Forward of embedding head.
         We do not return a loss here, since the matching loss needs to
         be computed across all frames. Here, we only run the forward pass
@@ -125,11 +125,12 @@ class QDRoIHead(BaseRoIHead):
         if self.cfg.num_convs > 0:
             for i, conv in enumerate(self.convs):
                 x = conv(x)
-        x = x.view(x.size(0), -1)
 
         # fcs
+        x = torch.flatten(x, start_dim=1)
         if self.cfg.num_fcs > 0:
             for i, fc in enumerate(self.fcs):
                 x = fc(x)
 
-        return self.fc_embed(x), targets
+        embeddings = self.fc_embed(x).split([len(p) for p in proposals])
+        return embeddings, targets

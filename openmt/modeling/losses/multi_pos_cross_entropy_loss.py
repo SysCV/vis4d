@@ -21,9 +21,9 @@ class MultiPosCrossEntropyLoss(BaseLoss):
         assert cls_score.size() == label.size()
         assert reduction_override in (None, "none", "mean", "sum")
         reduction = (
-            reduction_override if reduction_override else self.reduction
+            reduction_override if reduction_override else self.cfg.reduction
         )
-        loss_cls = self.loss_weight * multi_pos_cross_entropy(
+        loss_cls = self.cfg.loss_weight * multi_pos_cross_entropy(
             cls_score,
             label,
             weight,
