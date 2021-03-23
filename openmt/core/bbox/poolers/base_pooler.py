@@ -23,10 +23,11 @@ class BaseRoIPooler(torch.nn.Module, metaclass=RegistryHolder):
     ) -> List[torch.Tensor]:
         """Pool region features corresponding to the input bounding boxes from
         the given feature maps."""
+        raise NotImplementedError
 
 
 def build_roi_pooler(cfg: RoIPoolerConfig):
-    """Build the component."""
+    """Build an RoI pooler from config."""
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
         return registry[cfg.type](cfg)

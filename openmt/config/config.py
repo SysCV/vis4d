@@ -10,6 +10,7 @@ import toml
 import yaml
 from pydantic import BaseModel
 
+from openmt.data import DataloaderConfig as Dataloader
 from openmt.modeling.losses import LossConfig
 from openmt.modeling.roi_heads import RoIHeadConfig
 
@@ -90,12 +91,6 @@ class VideoDataset(Dataset):
 
     sampling_strategy: str  # uniform, sequential etc.
     # TODO add more attirbutes
-
-
-class Dataloader(BaseModel):
-    """Config for dataloader."""
-
-    num_workers: int
 
 
 class Launch(BaseModel):

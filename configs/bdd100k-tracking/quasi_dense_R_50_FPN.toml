@@ -72,14 +72,14 @@ eval_period = 2000
 [[train]]
 name = "sample_train"
 type = "coco"
-annotation_file = "openmt/detect/testcases/bdd100k-samples/annotation.json"
-data_root = "openmt/detect/testcases/bdd100k-samples/"
+annotation_file = "openmt/track/testcases/bdd100k-samples/annotation_coco.json"
+data_root = "openmt/track/testcases/bdd100k-samples/"
 
 [[test]]
 name = "sample_val"
 type = "coco"
-annotation_file = "openmt/detect/testcases/bdd100k-samples/annotation.json"
-data_root = "openmt/detect/testcases/bdd100k-samples/"
+annotation_file = "openmt/track/testcases/bdd100k-samples/annotation_coco.json"
+data_root = "openmt/track/testcases/bdd100k-samples/"
 
 [dataloader]
 num_workers = 16

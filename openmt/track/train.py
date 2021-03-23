@@ -2,13 +2,14 @@
 
 import logging
 import os
-from typing import Dict, Optional
+from typing import Dict, Iterable, List, Optional
 
 from detectron2.config import CfgNode
 from detectron2.engine import DefaultTrainer, launch
 from detectron2.evaluation import COCOEvaluator, DatasetEvaluator
 
 from openmt.config import Config
+from openmt.data import build_tracking_train_loader
 from openmt.detect.config import default_setup, to_detectron2
 from openmt.modeling.meta_arch import build_model
 
@@ -25,7 +26,7 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         #  resume from complete params). Could also be handled via modifying
         #  loaded weights
 
-    def build_model(self, cfg):
+    def build_model(self, cfg: CfgNode):
         """
         Returns:
             torch.nn.Module:
@@ -34,6 +35,12 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         logger = logging.getLogger(__name__)
         logger.info("Model:\n{}".format(model))
         return model
+
+    def build_train_loader(self, cfg: CfgNode) -> Iterable[List]:
+        """It calls :func:`openmt.data.build_tracking_train_loader`.
+        Overwrite it if you'd like a different data loader.
+        """
+        return build_tracking_train_loader(self.track_cfg.dataloader, cfg)
 
     @classmethod
     def build_evaluator(

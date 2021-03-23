@@ -1,6 +1,7 @@
 """Config definitions."""
 from .config import (
     Config,
+    Dataloader,
     Dataset,
     DatasetType,
     Launch,
@@ -11,6 +12,7 @@ from .config import (
 __all__ = [
     "Config",
     "Launch",
+    "Dataloader",
     "Dataset",
     "DatasetType",
     "parse_config",
