@@ -15,7 +15,11 @@ from detectron2.data.samplers import (
 from detectron2.utils.logger import _log_api_usage
 from pydantic import BaseModel
 
-from .dataset_mapper import MapTrackingDataset, TrackingDatasetMapper
+from .dataset_mapper import (
+    MapTrackingDataset,
+    ReferenceSamplingConfig,
+    TrackingDatasetMapper,
+)
 from .io import DataBackendConfig
 
 
@@ -23,6 +27,7 @@ class DataloaderConfig(BaseModel):
     """Config for dataloader."""
     data_backend: DataBackendConfig = DataBackendConfig()
     num_workers: int
+    sampling_cfg: ReferenceSamplingConfig
 
 
 def _train_loader_from_config(loader_cfg: DataloaderConfig, cfg: CfgNode):
@@ -51,26 +56,27 @@ def _train_loader_from_config(loader_cfg: DataloaderConfig, cfg: CfgNode):
     else:
         raise ValueError("Unknown training sampler: {}".format(sampler_name))
 
-    return dataset, sampler, mapper, cfg.SOLVER.IMS_PER_BATCH, \
-           cfg.DATALOADER.ASPECT_RATIO_GROUPING, loader_cfg.num_workers
+    return dataset, sampler, mapper, cfg.SOLVER.IMS_PER_BATCH, loader_cfg.num_workers
 
 
 def build_tracking_train_loader(loader_cfg: DataloaderConfig, det2cfg: CfgNode):
     """Build a dataloader for object tracking with some default features.
     This interface is experimental.
     """
-    dataset, sampler, mapper, total_batch_size, aspect_ratio_grouping, num_workers = _train_loader_from_config(loader_cfg, det2cfg)
+    dataset, sampler, mapper, total_batch_size, num_workers = _train_loader_from_config(loader_cfg, det2cfg)
     if isinstance(dataset, list):
         dataset = DatasetFromList(dataset, copy=False)
     if mapper is not None:
-        dataset = MapTrackingDataset(dataset, mapper)
+        dataset = MapTrackingDataset(loader_cfg.sampling_cfg, dataset, mapper)
     if sampler is None:
         sampler = TrainingSampler(len(dataset))
     assert isinstance(sampler, torch.utils.data.sampler.Sampler)
+    # aspect_ratio_grouping: tracking datasets usually do not contain
+    # sequences with vastly different aspect ratios --> set to False
     return build_batch_data_loader(
         dataset,
         sampler,
         total_batch_size,
-        aspect_ratio_grouping=aspect_ratio_grouping,
+        aspect_ratio_grouping=False,
         num_workers=num_workers,
     )

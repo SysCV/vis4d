@@ -14,6 +14,10 @@ from detectron2.utils.file_io import PathManager
 from detectron2.utils.logger import setup_logger
 
 from openmt.config import Config, Dataset, DatasetType, Launch
+from openmt.data.datasets import (
+    register_bdd_video_instances,
+    register_coco_video_instances,
+)
 
 model_mapping = {
     "faster-rcnn": "COCO-Detection/faster_rcnn_",
@@ -35,16 +39,21 @@ def _register(datasets: List[Dataset]) -> List[str]:
     """Register datasets in detectron2."""
     names = []
     for dataset in datasets:
-        if not dataset.type == DatasetType.COCO:
-            raise NotImplementedError(
-                "Currently only COCO style dataset structure is supported."
-            )
         try:
             DatasetCatalog.get(dataset.name)
         except KeyError:
-            register_coco_instances(
-                dataset.name, {}, dataset.annotation_file, dataset.data_root
-            )
+            if dataset.type == DatasetType.COCO:
+                register_coco_instances(
+                    dataset.name, {}, dataset.annotations, dataset.data_root
+                )
+            elif dataset.type == DatasetType.COCO_VIDEO:
+                register_coco_video_instances(
+                    dataset.name, {}, dataset.annotations, dataset.data_root
+                )
+            elif dataset.type == DatasetType.BDD_VIDEO:
+                register_bdd_video_instances(
+                    dataset.name, {}, dataset.annotations, dataset.data_root
+                )
             names.append(dataset.name)
             continue
         print(

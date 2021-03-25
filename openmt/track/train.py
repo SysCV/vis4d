@@ -13,6 +13,8 @@ from openmt.data import build_tracking_train_loader
 from openmt.detect.config import default_setup, to_detectron2
 from openmt.modeling.meta_arch import build_model
 
+from .checkpointer import TrackingCheckpointer
+
 
 class TrackingTrainer(DefaultTrainer):  # type: ignore
     """Trainer with COCOEvaluator for testing."""
@@ -20,11 +22,13 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
     def __init__(self, cfg: Config, det2cfg: CfgNode):
         self.track_cfg = cfg
         super().__init__(det2cfg)
-
-        # TODO needs new checkpointer (load pretrained detection weights into
-        #  d2_detector, but save complete model incl tracking params,
-        #  resume from complete params). Could also be handled via modifying
-        #  loaded weights
+        # Assumes you want to save checkpoints together with logs/statistics
+        self.checkpointer = TrackingCheckpointer(
+            self._trainer.model,
+            cfg.output_dir,
+            optimizer=self._trainer.optimizer,
+            scheduler=self.scheduler,
+        )
 
     def build_model(self, cfg: CfgNode):
         """
@@ -48,7 +52,13 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
     ) -> DatasetEvaluator:
         """Build COCOEvaluator."""
         output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
-        return COCOEvaluator(dataset_name, cfg, True, output_folder)
+        return COCOEvaluator(
+            dataset_name, cfg, True, output_folder
+        )  # TODO change --> new class coco video eval
+
+    @classmethod
+    def test(cls, cfg, model, evaluators=None):
+        pass  # TODO
 
 
 def train_func(

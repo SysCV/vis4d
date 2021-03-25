@@ -73,9 +73,6 @@ class QDGeneralizedRCNN(BaseMetaArch):
     def forward(self, batch_inputs: List[List[Dict[str, torch.Tensor]]]):
         """Forward pass function."""
 
-        # TODO change once new dataloader finished
-        batch_inputs = [batch_inputs]
-
         if not self.training:  # TODO change
             return self.inference(batch_inputs[0])
 
@@ -87,9 +84,24 @@ class QDGeneralizedRCNN(BaseMetaArch):
         # split into key / ref pairs
         sequence_length = len(batch_inputs)
         key_index, ref_indices = self.select_keyframe(sequence_length)
-        ref_indices = [0]  # TODO delete
         key_inputs = batched_images[key_index]
         ref_inputs = [batched_images[i] for i in ref_indices]
+
+        import matplotlib.pyplot as plt
+
+        def unnormalize(input_img):
+            color_tensor = input_img.clone()
+            min, max = (
+                torch.min(color_tensor, dim=0)[0],
+                torch.max(color_tensor, dim=0)[0],
+            )
+            return color_tensor.sub_(min).div(max - min).mul_(255).int()
+
+        for imgs in batched_images:
+            for i, img in enumerate(imgs):
+                print(i)
+                plt.imshow(unnormalize(img.permute(1, 2, 0)))
+                plt.show()
 
         # prepare targets
         if "instances" in batch_inputs[0][0]:
@@ -282,17 +294,14 @@ def proposal_to_box2d(proposals):
     return result
 
 
-# TODO this does not handle track ids correctly (add them to data first)
 def target_to_box2d(targets):
     result = []
     for targets in targets:
-        boxes, cls = targets.gt_boxes.tensor, targets.gt_classes
-        score = torch.ones((boxes.shape[0], 1), device=boxes.device)
-        result.append(
-            Boxes2D(
-                torch.cat([boxes, score], -1),
-                cls,
-                torch.arange(0, len(boxes), device=boxes.device),
-            )
+        boxes, cls, track_ids = (
+            targets.gt_boxes.tensor,
+            targets.gt_classes,
+            targets.track_ids,
         )
+        score = torch.ones((boxes.shape[0], 1), device=boxes.device)
+        result.append(Boxes2D(torch.cat([boxes, score], -1), cls, track_ids))
     return result

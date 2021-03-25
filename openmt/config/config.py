@@ -74,6 +74,8 @@ class DatasetType(str, Enum):
     """
 
     COCO = "coco"
+    COCO_VIDEO = "coco_video"
+    BDD_VIDEO = "bdd_video"
     CUSTOM = "custom"
 
 
@@ -83,14 +85,7 @@ class Dataset(BaseModel):
     name: str
     type: DatasetType
     data_root: str
-    annotation_file: Optional[str]
-
-
-class VideoDataset(Dataset):
-    """Config for video datasets."""
-
-    sampling_strategy: str  # uniform, sequential etc.
-    # TODO add more attirbutes
+    annotations: Optional[str]
 
 
 class Launch(BaseModel):
