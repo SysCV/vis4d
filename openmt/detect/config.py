@@ -15,8 +15,8 @@ from detectron2.utils.logger import setup_logger
 
 from openmt.config import Config, Dataset, DatasetType, Launch
 from openmt.data.datasets import (
-    register_bdd_video_instances,
     register_coco_video_instances,
+    register_scalabel_video_instances,
 )
 
 model_mapping = {
@@ -50,8 +50,8 @@ def _register(datasets: List[Dataset]) -> List[str]:
                 register_coco_video_instances(
                     dataset.name, {}, dataset.annotations, dataset.data_root
                 )
-            elif dataset.type == DatasetType.BDD_VIDEO:
-                register_bdd_video_instances(
+            elif dataset.type == DatasetType.SCALABEL_VIDEO:
+                register_scalabel_video_instances(
                     dataset.name, {}, dataset.annotations, dataset.data_root
                 )
             names.append(dataset.name)

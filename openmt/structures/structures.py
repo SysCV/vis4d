@@ -87,7 +87,7 @@ class Boxes2D(Instances):
         track_ids = (
             self.track_ids.clone() if self.track_ids is not None else None
         )
-        return Boxes2D(self.data.clone(), classes, track_ids, self.image_wh)
+        return Boxes2D(self.boxes.clone(), classes, track_ids, self.image_wh)
 
     def to(self, device: torch.device):
         """Move data to given device."""
@@ -102,7 +102,7 @@ class Boxes2D(Instances):
             else None
         )
         return Boxes2D(
-            self.data.to(device=device), classes, track_ids, self.image_wh
+            self.boxes.to(device=device), classes, track_ids, self.image_wh
         )
 
     @property

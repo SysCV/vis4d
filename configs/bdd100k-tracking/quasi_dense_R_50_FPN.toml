@@ -7,6 +7,7 @@ num_classes = 10
     type = "QDGeneralizedRCNN"
     keyframe_selection = "random"
     [tracking.tracking_logic]
+    type = "QDEmbeddingTracker"
     assign_strategy = "greedy"
     keep_in_memory = 10  # timesteps
 
@@ -55,7 +56,7 @@ base_lr = 0.02
 steps = [1000, 2000]
 max_iters = 10000
 checkpoint_period = 2000
-eval_period = 2000
+eval_period = 1 # TODO
 
 #[[train]]
 #name = "bdd100k_train"
@@ -71,19 +72,23 @@ eval_period = 2000
 
 [[train]]
 name = "sample_train"
-type = "bdd_video"
+type = "scalabel_video"
 annotations = "openmt/track/testcases/bdd100k-samples/bdd-labels/"
+#type = "coco_video"
+#annotations = "openmt/track/testcases/bdd100k-samples/annotation_coco.json"
 data_root = "openmt/track/testcases/bdd100k-samples/bdd-images/"
 
 [[test]]
 name = "sample_val"
-type = "bdd_video"
+type = "scalabel_video"
 annotations = "openmt/track/testcases/bdd100k-samples/bdd-labels/"
+#type = "coco_video"
+#annotations = "openmt/track/testcases/bdd100k-samples/annotation_coco.json"
 data_root = "openmt/track/testcases/bdd100k-samples/bdd-images/"
 
 [dataloader]
 num_workers = 16
     [dataloader.sampling_cfg]
     type = 'uniform'
-    scope = 5
-    num_ref_imgs = 2
+    scope = 2
+    num_ref_imgs = 1

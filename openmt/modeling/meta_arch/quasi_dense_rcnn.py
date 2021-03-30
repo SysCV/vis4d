@@ -1,11 +1,10 @@
 """Faster R-CNN for quasi-dense instance similarity learning."""
 
 import random
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import torch
 from detectron2.modeling import GeneralizedRCNN
-from detectron2.structures import Instances
 
 from openmt.config import Config
 from openmt.core.track import cosine_similarity
@@ -14,6 +13,7 @@ from openmt.structures import Boxes2D
 
 from ..losses import build_loss
 from ..roi_heads import build_roi_head
+from ..tracker import build_tracker
 from .base_arch import BaseMetaArch
 
 
@@ -34,6 +34,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
         detector_config = to_detectron2(cfg)
         self.d2_detector = GeneralizedRCNN(detector_config)
         self.track_head = build_roi_head(cfg.tracking.track_head)
+        self.tracker = build_tracker(cfg.tracking.tracking_logic)
         self.keyframe_selection = cfg.tracking.keyframe_selection
         self.softmax_temp = -1  # TODO move to cfg
 
@@ -73,10 +74,14 @@ class QDGeneralizedRCNN(BaseMetaArch):
     def forward(self, batch_inputs: List[List[Dict[str, torch.Tensor]]]):
         """Forward pass function."""
 
-        if not self.training:  # TODO change
-            return self.inference(batch_inputs[0])
+        if not self.training:
+            return self.inference(batch_inputs)
 
-        # preprocess input
+        # preprocess input: group by sequence index instead of batch index, prepare
+        batch_inputs = [
+            [batch_inputs[j][i] for j in range(len(batch_inputs))]
+            for i in range(len(batch_inputs[0]))
+        ]
         batched_images = [
             self.d2_detector.preprocess_image(inp) for inp in batch_inputs
         ]
@@ -87,21 +92,23 @@ class QDGeneralizedRCNN(BaseMetaArch):
         key_inputs = batched_images[key_index]
         ref_inputs = [batched_images[i] for i in ref_indices]
 
-        import matplotlib.pyplot as plt
-
-        def unnormalize(input_img):
-            color_tensor = input_img.clone()
-            min, max = (
-                torch.min(color_tensor, dim=0)[0],
-                torch.max(color_tensor, dim=0)[0],
-            )
-            return color_tensor.sub_(min).div(max - min).mul_(255).int()
-
-        for imgs in batched_images:
-            for i, img in enumerate(imgs):
-                print(i)
-                plt.imshow(unnormalize(img.permute(1, 2, 0)))
-                plt.show()
+        # import matplotlib.pyplot as plt
+        #
+        # def unnormalize(input_img):
+        #     color_tensor = input_img.clone()
+        #     min, max = (
+        #         torch.min(color_tensor, dim=0)[0],
+        #         torch.max(color_tensor, dim=0)[0],
+        #     )
+        #     return color_tensor.sub_(min).div(max - min).mul_(255).int()
+        #
+        # for i, key_img in enumerate(key_inputs):
+        #     print(i)
+        #     plt.imshow(unnormalize(key_img.permute(1, 2, 0)))
+        #     plt.show()
+        #     for ref_img in ref_inputs[i]:
+        #         plt.imshow(unnormalize(ref_img.permute(1, 2, 0)))
+        #         plt.show()
 
         # prepare targets
         if "instances" in batch_inputs[0][0]:
@@ -250,32 +257,52 @@ class QDGeneralizedRCNN(BaseMetaArch):
 
         return losses
 
-    def inference(
-        self,
-        batched_inputs: Tuple[Dict[str, torch.Tensor]],
-        detected_instances: Optional[List[Instances]] = None,
-        do_postprocess: bool = True,
-    ):
+    def inference(self, inputs: Tuple[Dict[str, torch.Tensor]]):
         """Inference function."""
-
-        # TODO add inference code
+        inputs = inputs[
+            0
+        ]  # only batch size 1 TODO make sure we actually only get one image + frame ordering is correct
 
         # init tracker at begin of sequence
+        if inputs["frame_id"] == 0:
+            self.tracker.reset()
 
-        # forward backbone
+        # backbone
+        image = self.d2_detector.preprocess_image((inputs,))
+        x = self.d2_detector.backbone(image.tensor)
 
-        # forward RPN --> 1000 proposals out
+        # rpn stage
+        proposals, _ = self.d2_detector.proposal_generator(image, x, None)
 
-        # forward RCNN --> detect boxes out
+        # detection head(s)
+        detections = self.d2_detector.roi_heads(image, x, proposals, None)
+        detections = detections_to_box2d(detections[0])
 
-        # forward track head(s) --> instance embedding out
+        # track head
+        embeddings, _ = self.track_head(image, x, detections, None)
 
         # associate detections, update tracker
-
-        pass
+        detections = self.tracker(detections, embeddings, inputs["frame_id"])
+        return detections  # TODO what output format is best?
 
 
 """Detectron2 utils"""  # TODO restructure
+
+
+def detections_to_box2d(detections):
+    result = []
+    for detection in detections:
+        boxes, scores = (
+            detection.pred_boxes.tensor,
+            detection.scores,
+        )
+        result.append(
+            Boxes2D(
+                torch.cat([boxes, scores.unsqueeze(-1)], -1),
+                image_wh=detection.image_size,
+            )
+        )
+    return result
 
 
 def proposal_to_box2d(proposals):

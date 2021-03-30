@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from openmt.data import DataloaderConfig as Dataloader
 from openmt.modeling.losses import LossConfig
 from openmt.modeling.roi_heads import RoIHeadConfig
+from openmt.modeling.tracker import TrackLogicConfig
 
 
 class Solver(BaseModel):
@@ -37,12 +38,6 @@ class Detection(BaseModel):
     device: Optional[str]
 
 
-class TrackLogic(BaseModel):
-    assign_strategy: str  # e.g. greedy or hungarian
-    keep_in_memory: int  # threshold for keeping occluded objects in memory
-    # TODO restructure to own module
-
-
 class KeyFrameSelection(str, Enum):
     """Enum for key frame selection strategy.
 
@@ -62,7 +57,7 @@ class Tracking(BaseModel):
     type: str
     keyframe_selection: KeyFrameSelection
     track_head: RoIHeadConfig
-    tracking_logic: TrackLogic
+    tracking_logic: TrackLogicConfig
     losses: List[LossConfig]
 
 
@@ -75,7 +70,7 @@ class DatasetType(str, Enum):
 
     COCO = "coco"
     COCO_VIDEO = "coco_video"
-    BDD_VIDEO = "bdd_video"
+    SCALABEL_VIDEO = "scalabel_video"
     CUSTOM = "custom"
 
 
