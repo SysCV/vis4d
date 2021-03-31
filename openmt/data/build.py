@@ -12,7 +12,6 @@ from detectron2.data.samplers import (
     RepeatFactorTrainingSampler,
     TrainingSampler,
 )
-from detectron2.utils.logger import _log_api_usage
 from pydantic import BaseModel
 
 from .dataset_mapper import (
@@ -39,7 +38,7 @@ def _train_loader_from_config(loader_cfg: DataloaderConfig, cfg: CfgNode):
         else 0,
         proposal_files=cfg.DATASETS.PROPOSAL_FILES_TRAIN if cfg.MODEL.LOAD_PROPOSALS else None,
     )
-    _log_api_usage("dataset." + cfg.DATASETS.TRAIN[0])
+    torch._C._log_api_usage_once("detectron2." + "dataset." + cfg.DATASETS.TRAIN[0])
 
     mapper = TrackingDatasetMapper(loader_cfg.data_backend, cfg)
 

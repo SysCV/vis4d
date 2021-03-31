@@ -15,6 +15,7 @@ class MatcherConfig(BaseModel, extra="allow"):
 
 class MatchResult(NamedTuple):
     assigned_gt_indices: torch.Tensor  # Tensor of [0, M) where M = num gt
+    assigned_gt_iou: torch.Tensor  # Tensor with IoU to assigned GT
     assigned_labels: torch.Tensor  # Tensor of {0, -1, 1} = {neg, igonre, pos}
 
 

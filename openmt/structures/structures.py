@@ -61,6 +61,8 @@ class Boxes2D(Instances):
     def __getitem__(self, item):
         """This method will shadow the tensor based indexing while returning a
         new instance of Boxes2D."""
+        if isinstance(item, tuple):
+            item = item[0]
         boxes = self.boxes[item]
         classes = self.classes[item] if self.classes is not None else None
         track_ids = (
@@ -104,6 +106,32 @@ class Boxes2D(Instances):
         return Boxes2D(
             self.boxes.to(device=device), classes, track_ids, self.image_wh
         )
+
+    @classmethod
+    def cat(cls, boxes_list: List["Boxes2D"]) -> "Boxes2D":
+        """Concatenates a list of Boxes2D into a single Boxes2D."""
+        assert isinstance(boxes_list, (list, tuple))
+        assert len(boxes_list) > 0
+        assert all([isinstance(box, Boxes2D) for box in boxes_list])
+
+        boxes, classes, track_ids = [], [], []
+        for b in boxes_list:
+            boxes.append(b.boxes)
+            if classes is not None:
+                if b.classes is not None:
+                    classes.append(b.classes)
+                else:
+                    classes = None
+
+                if b.classes is not None:
+                    track_ids.append(b.track_ids)
+                else:
+                    track_ids = None
+        boxes = torch.cat(boxes)
+        classes = torch.cat(classes) if classes is not None else None
+        track_ids = torch.cat(track_ids) if track_ids is not None else None
+        cat_boxes = cls(boxes, classes, track_ids)
+        return cat_boxes
 
     @property
     def device(self) -> torch.device:

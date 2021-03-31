@@ -21,16 +21,20 @@ def load_json(json_path, image_root) -> List[Frame]:
     num_instances_without_valid_segmentation = 0
     image_id = 0
     cat_ids = set()
-    for json_file in json_files:
+    for json_file in json_files:  # TODO call scalabel io --> changes the
+        # workflow a bit
         imgs_anns = json.load(open(os.path.join(json_path, json_file), 'r'))
         ins_ids = set()
         for img_dict in imgs_anns:
-            img_dict['file_name'] = os.path.join(image_root, img_dict['video_name'], img_dict['name'])
+            img_dict['file_name'] = os.path.join(image_root, img_dict[
+                'video_name'], img_dict['name'])  # TODO use url field for this
             for i in range(len(img_dict['labels'])):
                 anno = img_dict['labels'][i]
                 cat_ids.add(anno['category'])
                 ins_ids.add(anno['id'])
-                # parse category and track id to integer
+                # parse category and track id to integer TODO add this to
+                #  'additional attributes' --> refactor to later stage (put
+                #  into data loader)
                 img_dict['labels'][i]["category_id"] = list(cat_ids).index(anno['category'])
                 img_dict['labels'][i]["instance_id"] = list(ins_ids).index(anno['id'])
 
@@ -49,7 +53,7 @@ def load_json(json_path, image_root) -> List[Frame]:
 
 
 def load_json_to_coco(json_path, image_root, dataset_name=None):
-    """Load BDD instances to dicts."""
+    """Load BDD100K instances to dicts."""
     json_files = os.listdir(json_path)
     for i in range(len(json_files)):
         json_files[i] = PathManager.get_local_path(json_files[i])
@@ -66,7 +70,7 @@ def load_json_to_coco(json_path, image_root, dataset_name=None):
             # Note: also supports pickle
             record["file_name"] = os.path.join(image_root, img_dict["video_name"],
                                                img_dict["name"])
-            record["height"] = 720  # fixed for BDD (720p)
+            record["height"] = 720  # fixed for BDD100K (720p)
             record["width"] = 1280
             record["video_id"] = img_dict["video_name"]
             record["frame_id"] = img_dict["index"]
@@ -90,7 +94,7 @@ def load_json_to_coco(json_path, image_root, dataset_name=None):
 
                 segm = anno['poly2d'] if 'poly2d' in anno.keys() else None
                 if segm:
-                    obj["segmentation"] = segm  # TODO this needs bitmask parsing. Maybe more elegant to import from BDD package?
+                    obj["segmentation"] = segm  # TODO this needs bitmask parsing. Maybe more elegant to import from BDD100K package?
 
                 obj["bbox_mode"] = BoxMode.XYWH_ABS
                 objs.append(obj)

@@ -25,6 +25,7 @@ class QDRoIHeadConfig(RoIHeadConfig):
     fc_out_dim: int
     embedding_dim: int
     norm: str
+    proposal_append_gt: bool
     proposal_pooler: RoIPoolerConfig
     proposal_sampler: SamplerConfig
     proposal_matcher: MatcherConfig
@@ -36,7 +37,7 @@ class QDRoIHead(BaseRoIHead):
     def __init__(self, cfg: RoIHeadConfig) -> None:
         """Init."""
         super().__init__()
-        self.cfg = QDRoIHeadConfig(**cfg.__dict__)
+        self.cfg = QDRoIHeadConfig(**cfg.dict())
 
         self.sampler = build_sampler(self.cfg.proposal_sampler)
         self.matcher = build_matcher(self.cfg.proposal_matcher)
@@ -95,7 +96,12 @@ class QDRoIHead(BaseRoIHead):
             last_layer_dim = self.cfg.fc_out_dim
         return convs, fcs, last_layer_dim
 
+    @torch.no_grad()
     def match_and_sample_proposals(self, proposals, targets):
+        if self.cfg.proposal_append_gt:
+            proposals = [
+                Boxes2D.cat([p, t]) for p, t in zip(proposals, targets)
+            ]
         matching = self.matcher.match(proposals, targets)
         return self.sampler.sample(matching, proposals, targets)
 

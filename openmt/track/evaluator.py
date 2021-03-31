@@ -1,12 +1,15 @@
 """Evaluation components for tracking."""
 
 import datetime
+import itertools
 import logging
 import time
 from contextlib import ExitStack, contextmanager
 
+import detectron2.utils.comm as comm
 import torch
-from detectron2.evaluation import DatasetEvaluators
+from detectron2.data import MetadataCatalog
+from detectron2.evaluation import DatasetEvaluator, DatasetEvaluators
 from detectron2.utils.comm import get_world_size
 from detectron2.utils.logger import log_every_n_seconds
 
@@ -119,3 +122,69 @@ def inference_on_dataset(model, data_loader, evaluator):
     if results is None:
         results = {}
     return results
+
+
+class MOTAEvaluator(DatasetEvaluator):
+    """Evaluate tracking model using MOTA metrics.
+    This class will accumulate information of the inputs/outputs (by :meth:`process`),
+    and produce evaluation results in the end (by :meth:`evaluate`).
+    """
+
+    def __init__(self, dataset_name, distributed=True, output_dir=None):
+        """Init."""
+        self._distributed = distributed
+        self._output_dir = output_dir
+        self._metadata = MetadataCatalog.get(dataset_name)
+        self._predictions = []
+
+    def reset(self):
+        """Preparation for a new round of evaluation."""
+        self._predictions = []
+
+    def process(self, inputs, outputs):
+        """
+        Process the pair of inputs and outputs.
+        If they contain batches, the pairs can be consumed one-by-one using `zip`:
+        .. code-block:: python
+            for input_, output in zip(inputs, outputs):
+                # do evaluation on single input/output pair
+                ...
+        Args:
+            inputs (list): the inputs that's used to call the model.
+            outputs (list): the return value of `model(inputs)`
+        """
+        for input, output in zip(inputs, outputs):
+            prediction = {
+                "video_id": input["frame_id"],
+                "frame_id": input["frame_id"],
+            }
+            prediction["predictions"] = output.to(
+                torch.device("cpu")
+            ).to_scalabel()
+            self._predictions.append(prediction)
+
+    def evaluate(self):
+        """
+        Evaluate/summarize the performance, after processing all input/output pairs.
+        Returns:
+            dict:
+                A new evaluator class can return a dict of arbitrary format
+                as long as the user can process the results.
+                In our train_net.py, we expect the following format:
+                * key: the name of the task (e.g., bbox)
+                * value: a dict of {metric name: score}, e.g.: {"AP50": 80}
+        """
+        if self._distributed:
+            comm.synchronize()
+            predictions = comm.gather(self._predictions, dst=0)
+            predictions = list(itertools.chain(*predictions))
+
+            if not comm.is_main_process():
+                return {}
+        else:
+            predictions = self._predictions
+
+        self._eval_predictions(predictions)
+
+    def _eval_predictions(self, predictions):
+        pass  # TODO load GT, import BDD100k eval

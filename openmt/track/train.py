@@ -7,7 +7,11 @@ from typing import Dict, Iterable, List, Optional
 
 from detectron2.config import CfgNode
 from detectron2.engine import DefaultTrainer, launch
-from detectron2.evaluation import COCOEvaluator, DatasetEvaluator
+from detectron2.evaluation import (
+    COCOEvaluator,
+    DatasetEvaluator,
+    DatasetEvaluators,
+)
 from detectron2.utils.comm import is_main_process
 
 from openmt.config import Config
@@ -16,7 +20,7 @@ from openmt.detect.config import default_setup, to_detectron2
 from openmt.modeling.meta_arch import build_model
 
 from .checkpointer import TrackingCheckpointer
-from .evaluator import inference_on_dataset
+from .evaluator import MOTAEvaluator, inference_on_dataset
 
 
 class TrackingTrainer(DefaultTrainer):  # type: ignore
@@ -52,12 +56,12 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
     @classmethod
     def build_evaluator(
         cls, cfg: CfgNode, dataset_name: str
-    ) -> DatasetEvaluator:
-        """Build COCOEvaluator."""
+    ) -> DatasetEvaluators:
+        """Build evaluators for tracking and detection."""
         output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
-        return COCOEvaluator(
-            dataset_name, cfg, True, output_folder
-        )  # TODO change --> new class coco video eval
+        track_eval = MOTAEvaluator(dataset_name, True, output_folder)
+        det_eval = COCOEvaluator(dataset_name, cfg, True, output_folder)
+        return DatasetEvaluators([track_eval, det_eval])
 
     @classmethod
     def test(cls, cfg, model, evaluators=None):

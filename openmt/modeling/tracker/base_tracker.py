@@ -34,12 +34,12 @@ class BaseTracker(torch.nn.Module, metaclass=RegistryHolder):
 
     @abc.abstractmethod
     def forward(self, *args, **kwargs) -> None:
-        """Process inputs."""
+        """Process inputs, match detections with existing tracks."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def update(self, *args, **kwargs) -> None:
-        """Update track memory."""
+        """Update track memory using matched detections."""
         raise NotImplementedError
 
 

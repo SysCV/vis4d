@@ -1,8 +1,9 @@
 from typing import List
 
+import torch
 from detectron2.modeling.matcher import Matcher as D2Matcher
-from detectron2.structures import Boxes, pairwise_iou
 
+from openmt.core.bbox.utils import compute_iou
 from openmt.structures import Boxes2D
 
 from .base_matcher import BaseMatcher, MatcherConfig, MatchResult
@@ -34,18 +35,20 @@ class MaxIoUMatcher(BaseMatcher):
         result = []
         for b, t in zip(boxes, targets):
             # M x N matrix, where M = num gt, N = num proposals
-            match_quality_matrix = pairwise_iou(
-                Boxes(t.boxes[:, :4]), Boxes(b.boxes[:, :4])
-            )
+            match_quality_matrix = compute_iou(t, b)
 
             # matches N x 1 = index of assigned gt i.e.  range [0, M)
             # match_labels N x 1 where 0 = negative, -1 = ignore, 1 = positive
             matches, match_labels = self.matcher(match_quality_matrix)
+            match_iou = match_quality_matrix[
+                matches, torch.arange(0, len(b)).to(b.device)
+            ]
             result.append(
                 MatchResult(
                     **dict(
                         assigned_gt_indices=matches,
                         assigned_labels=match_labels,
+                        assigned_gt_iou=match_iou,
                     )
                 )
             )

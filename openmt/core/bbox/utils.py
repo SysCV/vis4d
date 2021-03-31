@@ -1,0 +1,28 @@
+"""Utility functions for bounding boxes."""
+import torch
+from detectron2.structures import Boxes, pairwise_iou
+
+from openmt.structures import Boxes2D
+
+
+def compute_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
+    """Compute IoU between all pairs of boxes.
+    Args:
+        boxes1, boxes2 (Boxes2D): Contains N & M boxes.
+
+    Returns:
+        Tensor: IoU, size [N, M].
+    """
+    return pairwise_iou(Boxes(boxes1.boxes[:, :4]), Boxes(boxes2.boxes[:, :4]))
+
+
+def random_choice(tensor: torch.Tensor, sample_size: int) -> torch.Tensor:
+    """Randomly choose elements from a tensor."""
+    perm = torch.randperm(tensor.numel(), device=tensor.device)[:sample_size]
+    return tensor[perm]
+
+
+def non_intersection(t1: torch.Tensor, t2: torch.Tensor) -> torch.Tensor:
+    """Get the elements of t1 that are not present in t2."""
+    compareview = t2.repeat(t1.shape[0], 1).T
+    return t1[(compareview != t1).T.prod(1) == 1]

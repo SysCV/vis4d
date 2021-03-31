@@ -1,5 +1,6 @@
 """Faster R-CNN for quasi-dense instance similarity learning."""
 
+import math
 import random
 from typing import Dict, List, Tuple, Union
 
@@ -73,7 +74,6 @@ class QDGeneralizedRCNN(BaseMetaArch):
 
     def forward(self, batch_inputs: List[List[Dict[str, torch.Tensor]]]):
         """Forward pass function."""
-
         if not self.training:
             return self.inference(batch_inputs)
 
@@ -257,7 +257,9 @@ class QDGeneralizedRCNN(BaseMetaArch):
 
         return losses
 
-    def inference(self, inputs: Tuple[Dict[str, torch.Tensor]]):
+    def inference(
+        self, inputs: Tuple[Dict[str, torch.Tensor]]
+    ) -> List[Boxes2D]:
         """Inference function."""
         inputs = inputs[
             0
@@ -282,8 +284,10 @@ class QDGeneralizedRCNN(BaseMetaArch):
         embeddings, _ = self.track_head(image, x, detections, None)
 
         # associate detections, update tracker
-        detections = self.tracker(detections, embeddings, inputs["frame_id"])
-        return detections  # TODO what output format is best?
+        detections = self.tracker(
+            detections[0], embeddings[0], inputs["frame_id"]
+        )
+        return [detections]
 
 
 """Detectron2 utils"""  # TODO restructure
@@ -292,13 +296,15 @@ class QDGeneralizedRCNN(BaseMetaArch):
 def detections_to_box2d(detections):
     result = []
     for detection in detections:
-        boxes, scores = (
+        boxes, scores, cls = (
             detection.pred_boxes.tensor,
             detection.scores,
+            detection.pred_classes,
         )
         result.append(
             Boxes2D(
                 torch.cat([boxes, scores.unsqueeze(-1)], -1),
+                classes=cls,
                 image_wh=detection.image_size,
             )
         )
@@ -321,7 +327,7 @@ def proposal_to_box2d(proposals):
     return result
 
 
-def target_to_box2d(targets):
+def target_to_box2d(targets, score_as_logit=True):
     result = []
     for targets in targets:
         boxes, cls, track_ids = (
@@ -330,5 +336,7 @@ def target_to_box2d(targets):
             targets.track_ids,
         )
         score = torch.ones((boxes.shape[0], 1), device=boxes.device)
+        if score_as_logit:
+            score *= math.log((1.0 - 1e-10) / (1 - (1.0 - 1e-10)))
         result.append(Boxes2D(torch.cat([boxes, score], -1), cls, track_ids))
     return result

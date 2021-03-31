@@ -40,5 +40,6 @@ setuptools.setup(
         "torch",
         "torchvision",
         "tqdm",
+        "opencv-python"
     ],
 )

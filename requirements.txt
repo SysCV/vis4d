@@ -17,3 +17,4 @@ scalabel
 torch
 torchaudio
 torchvision
+opencv-python
