@@ -10,18 +10,13 @@ from ..matchers.base_matcher import MatchResult
 from .base_sampler import BaseSampler, SamplerConfig
 
 
-class RandomSamplerConfig(SamplerConfig):
-    batch_size_per_image: int
-    positive_fraction: float
-
-
 class RandomSampler(BaseSampler):
     """Random sampler class."""
 
     def __init__(self, cfg: SamplerConfig):
         """Init."""
         super().__init__()
-        self.cfg = RandomSamplerConfig(**cfg.__dict__)
+        self.cfg = cfg
         self.bg_label = 0
 
     def sample(

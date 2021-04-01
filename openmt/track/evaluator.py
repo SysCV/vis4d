@@ -3,15 +3,20 @@
 import datetime
 import itertools
 import logging
+import os.path as osp
 import time
 from contextlib import ExitStack, contextmanager
 
 import detectron2.utils.comm as comm
 import torch
+from bdd100k.eval.mot import acc_single_video_mot, evaluate_track
 from detectron2.data import MetadataCatalog
 from detectron2.evaluation import DatasetEvaluator, DatasetEvaluators
 from detectron2.utils.comm import get_world_size
 from detectron2.utils.logger import log_every_n_seconds
+from scalabel.label.typing import Frame
+
+from openmt.data.datasets.scalabel_video import load_json
 
 
 @contextmanager
@@ -124,7 +129,7 @@ def inference_on_dataset(model, data_loader, evaluator):
     return results
 
 
-class MOTAEvaluator(DatasetEvaluator):
+class ScalabelMOTAEvaluator(DatasetEvaluator):
     """Evaluate tracking model using MOTA metrics.
     This class will accumulate information of the inputs/outputs (by :meth:`process`),
     and produce evaluation results in the end (by :meth:`evaluate`).
@@ -135,6 +140,9 @@ class MOTAEvaluator(DatasetEvaluator):
         self._distributed = distributed
         self._output_dir = output_dir
         self._metadata = MetadataCatalog.get(dataset_name)
+        self.gts = load_json(
+            self._metadata.json_path, self._metadata.image_root
+        )
         self._predictions = []
 
     def reset(self):
@@ -154,14 +162,17 @@ class MOTAEvaluator(DatasetEvaluator):
             outputs (list): the return value of `model(inputs)`
         """
         for input, output in zip(inputs, outputs):
-            prediction = {
-                "video_id": input["frame_id"],
-                "frame_id": input["frame_id"],
-            }
-            prediction["predictions"] = output.to(
-                torch.device("cpu")
-            ).to_scalabel()
-            self._predictions.append(prediction)
+            prediction = dict(
+                name=osp.basename(input["file_name"]),
+                video_name=input["video_id"],
+                frame_index=input["frame_id"],
+            )
+
+            prediction["labels"] = output.to(torch.device("cpu")).to_scalabel(
+                self._metadata.idx_to_class_mapping
+            )
+
+            self._predictions.append(Frame(**prediction))
 
     def evaluate(self):
         """
@@ -184,7 +195,8 @@ class MOTAEvaluator(DatasetEvaluator):
         else:
             predictions = self._predictions
 
-        self._eval_predictions(predictions)
+        # TODO update requirements for BDD100k + new scalabel version
 
-    def _eval_predictions(self, predictions):
-        pass  # TODO load GT, import BDD100k eval
+        return evaluate_track(
+            acc_single_video_mot, [predictions], [self.gts]
+        )  # TODO wait for BDD100K update

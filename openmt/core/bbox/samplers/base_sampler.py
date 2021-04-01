@@ -13,6 +13,8 @@ from ..matchers.base_matcher import MatchResult
 
 class SamplerConfig(BaseModel, extra="allow"):
     type: str
+    batch_size_per_image: int
+    positive_fraction: float
 
 
 class BaseSampler(metaclass=RegistryHolder):

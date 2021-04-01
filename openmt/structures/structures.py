@@ -140,41 +140,51 @@ class Boxes2D(Instances):
 
     @classmethod
     def from_scalabel(
-        cls, labels: List[Label], class_to_idx: Dict[str, int]
+        cls,
+        labels: List[Label],
+        class_to_idx: Dict[str, int],
+        label_id_to_idx: Dict[str, int] = None,
     ) -> "Boxes2D":
-        """Convert from scalabel format to ours."""  # TODO image wh
-        box_list, cls_list = [], []
-        for label in labels:
-            box, score, box_cls = (
+        """Convert from scalabel format to internal."""  # TODO image wh
+        box_list, cls_list, idx_list = [], [], []
+        for i, label in enumerate(labels):
+            box, score, box_cls, id = (
                 label.box_2d,
                 label.score,
-                label.attributes["category"],
+                label.category,
+                label.id,
             )
             box_list.append([box.x1, box.y1, box.x2, box.y2, score])
             cls_list.append(class_to_idx[box_cls])
+            idx = label_id_to_idx[id] if label_id_to_idx is not None else i
+            idx_list.append(idx)
 
         return Boxes2D(
             torch.tensor(box_list, dtype=torch.float32),
             torch.tensor(cls_list, dtype=torch.int),
-            torch.tensor(cls_list, dtype=torch.int),
+            torch.tensor(idx_list, dtype=torch.int),
         )
 
     def to_scalabel(self, idx_to_class: Dict[int, str]) -> List[Label]:
-        """Convert from ours to scalabel format."""  # TODO image wh
+        """Convert from internal to scalabel format."""  # TODO image wh
         labels = []
         for i in range(len(self.boxes)):
+            if self.track_ids is not None:
+                label_id = str(self.track_ids[i].item())
+            else:
+                label_id = str(i)
             box = Box2D(
                 x1=float(self.boxes[i, 0]),
                 y1=float(self.boxes[i, 1]),
                 x2=float(self.boxes[i, 2]),
                 y2=float(self.boxes[i, 3]),
             )
+
             score = float(self.boxes[i, 4])
+            label_dict = dict(id=label_id, box_2d=box, score=score)
+
             cls = idx_to_class[int(self.classes[i])]
-            attributes = dict(category=cls)
-            attributes["id"] = str(self.track_ids[i].item())
-            labels.append(
-                Label(box_2d=box, score=score, attributes=attributes)
-            )
+            label_dict["category"] = cls
+            labels.append(Label(**label_dict))
 
         return labels

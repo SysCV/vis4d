@@ -57,7 +57,7 @@ base_lr = 0.02
 steps = [1000, 2000]
 max_iters = 10000
 checkpoint_period = 2000
-eval_period = 1 # TODO
+eval_period = 100
 
 #[[train]]
 #name = "bdd100k_train"
@@ -75,16 +75,12 @@ eval_period = 1 # TODO
 name = "sample_train"
 type = "scalabel_video"
 annotations = "openmt/track/testcases/bdd100k-samples/labels/"
-#type = "coco_video"
-#annotations = "openmt/track/testcases/bdd100k-samples/annotation_coco.json"
 data_root = "openmt/track/testcases/bdd100k-samples/images/"
 
 [[test]]
 name = "sample_val"
 type = "scalabel_video"
 annotations = "openmt/track/testcases/bdd100k-samples/labels/"
-#type = "coco_video"
-#annotations = "openmt/track/testcases/bdd100k-samples/annotation_coco.json"
 data_root = "openmt/track/testcases/bdd100k-samples/images/"
 
 [dataloader]

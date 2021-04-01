@@ -20,7 +20,7 @@ from openmt.detect.config import default_setup, to_detectron2
 from openmt.modeling.meta_arch import build_model
 
 from .checkpointer import TrackingCheckpointer
-from .evaluator import MOTAEvaluator, inference_on_dataset
+from .evaluator import ScalabelMOTAEvaluator, inference_on_dataset
 
 
 class TrackingTrainer(DefaultTrainer):  # type: ignore
@@ -59,7 +59,7 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
     ) -> DatasetEvaluators:
         """Build evaluators for tracking and detection."""
         output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
-        track_eval = MOTAEvaluator(dataset_name, True, output_folder)
+        track_eval = ScalabelMOTAEvaluator(dataset_name, True, output_folder)
         det_eval = COCOEvaluator(dataset_name, cfg, True, output_folder)
         return DatasetEvaluators([track_eval, det_eval])
 
