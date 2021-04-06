@@ -1,7 +1,8 @@
+"""Video dataset loader for scalabel format."""
 import json
 import logging
 import os
-from typing import Dict, List
+from typing import List
 
 from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
 from detectron2.structures import BoxMode
@@ -20,8 +21,7 @@ def load_json(json_path, image_root, dataset_name=None) -> List[Frame]:
 
         # add filename, category and instance id (integer)
         ins_ids = []
-        for i in range(len(imgs_anns)):
-            ann = imgs_anns[i]
+        for ann in imgs_anns:
             ann.url = os.path.join(image_root, ann.video_name, ann.name)
             for j in range(len(ann.labels)):
                 label = ann.labels[j]
@@ -30,15 +30,17 @@ def load_json(json_path, image_root, dataset_name=None) -> List[Frame]:
                 if not label.id in ins_ids:
                     ins_ids.append(label.id)
                 # parse category and track id to integer
-                attributes = dict(category_id=cat_ids.index(label.category),
-                                  instance_id=ins_ids.index(label.id))
+                attributes = dict(
+                    category_id=cat_ids.index(label.category),
+                    instance_id=ins_ids.index(label.id),
+                )
                 label.attributes = attributes
 
         frames.extend(imgs_anns)
 
     if dataset_name is not None:
         meta = MetadataCatalog.get(dataset_name)
-        meta.idx_to_class_mapping = {i: c for i, c in enumerate(list(cat_ids))}
+        meta.idx_to_class_mapping = dict(enumerate(cat_ids))
 
     return frames
 
@@ -48,17 +50,18 @@ def load_json_to_coco(json_path, image_root, dataset_name=None):
     json_files = os.listdir(json_path)
 
     dataset_dicts = []
-    num_instances_without_valid_segmentation = 0
+    instances_nonvalid_segmentation = 0
     image_id = 0
     cat_ids = []
     for json_file in json_files:
-        imgs_anns = json.load(open(os.path.join(json_path, json_file), 'r'))
+        imgs_anns = json.load(open(os.path.join(json_path, json_file), "r"))
         ins_ids = []
         for img_dict in imgs_anns:
             record = {}
             # Note: also supports pickle
-            record["file_name"] = os.path.join(image_root, img_dict["videoName"],
-                                               img_dict["name"])
+            record["file_name"] = os.path.join(
+                image_root, img_dict["videoName"], img_dict["name"]
+            )
             record["height"] = 720  # fixed for BDD100K (720p)
             record["width"] = 1280
             record["video_id"] = img_dict["videoName"]
@@ -66,7 +69,7 @@ def load_json_to_coco(json_path, image_root, dataset_name=None):
             record["image_id"] = image_id
 
             objs = []
-            for anno in img_dict['labels']:
+            for anno in img_dict["labels"]:
                 obj = dict()
 
                 x1 = anno["box2d"]["x1"]
@@ -76,18 +79,18 @@ def load_json_to_coco(json_path, image_root, dataset_name=None):
                 # No + 1 for box w, h to be consistent with detectron2
                 obj["bbox"] = [x1, y1, x2 - x1, y2 - y1]
 
-                if not anno['category'] in cat_ids:
-                    cat_ids.append(anno['category'])
-                if not anno['id'] in ins_ids:
-                    ins_ids.append(anno['id'])
+                if not anno["category"] in cat_ids:
+                    cat_ids.append(anno["category"])
+                if not anno["id"] in ins_ids:
+                    ins_ids.append(anno["id"])
 
-                obj["category_id"] = cat_ids.index(anno['category'])
-                obj["instance_id"] = ins_ids.index(anno['id'])
-                obj["iscrowd"] = anno['attributes']['Crowd']
+                obj["category_id"] = cat_ids.index(anno["category"])
+                obj["instance_id"] = ins_ids.index(anno["id"])
+                obj["iscrowd"] = anno["attributes"]["Crowd"]
 
-                segm = anno['poly2d'] if 'poly2d' in anno.keys() else None
+                segm = anno["poly2d"] if "poly2d" in anno.keys() else None
                 if segm:
-                    obj["segmentation"] = segm  # TODO this needs bitmask parsing. Maybe more elegant to import from BDD100K package?
+                    obj["segmentation"] = segm
 
                 obj["bbox_mode"] = BoxMode.XYWH_ABS
                 objs.append(obj)
@@ -97,34 +100,34 @@ def load_json_to_coco(json_path, image_root, dataset_name=None):
 
     if dataset_name is not None:
         meta = MetadataCatalog.get(dataset_name)
-        meta.thing_classes = list(cat_ids)
-        meta.idx_to_class_mapping = {i: c for i, c in enumerate(list(cat_ids))}
+        meta.thing_classes = cat_ids
+        meta.idx_to_class_mapping = dict(enumerate(cat_ids))
 
-    if num_instances_without_valid_segmentation > 0:
+    if instances_nonvalid_segmentation > 0:
         logger.warning(
-            "Filtered out {} instances without valid segmentation. ".format(
-                num_instances_without_valid_segmentation
-            )
-            + "There might be issues in your dataset generation process. "
-            "A valid polygon should be a list[float] with even length >= 6."
+            "Filtered out %s instances without valid segmentation.",
+            instances_nonvalid_segmentation,
         )
     return dataset_dicts
 
 
-def register_scalabel_video_instances(name, metadata, json_path, image_root):
+def register_scalabel_video_instances(  # pylint: disable=invalid-name
+    name, metadata, json_path, image_root
+):
     """Register a dataset in scalabel json annotation format for tracking."""
     assert isinstance(name, str), name
     assert isinstance(json_path, (str, os.PathLike)), json_path
     assert isinstance(image_root, (str, os.PathLike)), image_root
     # 1. register a function which returns dicts
-    DatasetCatalog.register(name, lambda: load_json_to_coco(json_path, image_root, name))
-
-    # TODO migrate to scalabel format completely (requires some
-    #  re-implementation and interfacing code with detectron2)
+    DatasetCatalog.register(
+        name, lambda: load_json_to_coco(json_path, image_root, name)
+    )
 
     # 2. Optionally, add metadata about this dataset,
     # since they might be useful in evaluation, visualization or logging
     MetadataCatalog.get(name).set(
-        json_path=json_path, image_root=image_root,
-        evaluator_type="tracking", **metadata
+        json_path=json_path,
+        image_root=image_root,
+        evaluator_type="tracking",
+        **metadata
     )

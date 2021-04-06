@@ -5,19 +5,21 @@ import torch
 from detectron2.modeling.poolers import ROIPooler as D2ROIPooler
 from detectron2.structures import Boxes
 
-from openmt.structures import Boxes2D
+from openmt.struct import Boxes2D
 
-from .base_pooler import BaseRoIPooler, RoIPoolerConfig
+from .base import BaseRoIPooler, RoIPoolerConfig
 
 
 class D2RoIPoolerConfig(RoIPoolerConfig):
+    """D2RoIPooler config."""
+
     pooling_op: str
     strides: List[int]
     sampling_ratio: int
 
 
 class D2RoIPooler(BaseRoIPooler):
-    """detectron2 roi pooling class"""
+    """detectron2 roi pooling class."""
 
     cfg_type = D2RoIPoolerConfig
 
@@ -37,10 +39,12 @@ class D2RoIPooler(BaseRoIPooler):
         self, features: List[torch.Tensor], boxes: List[Boxes2D]
     ) -> torch.Tensor:
         """detectron2 based roi pooling operation.
+
         Args:
             features: list of image feature tensors (e.g.
             fpn levels) - NCHW format
             boxes: list of proposals (per image)
+
         Returns:
             torch.Tensor: NCHW format, where N = num boxes (total),
             HW is roi size, C is feature dim. Boxes are concatenated along

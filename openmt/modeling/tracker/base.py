@@ -1,39 +1,48 @@
 """Tracking base class."""
 
 import abc
+from typing import List
 
 import torch
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from openmt.core.registry import RegistryHolder
+from openmt.struct import Boxes2D
 
 
 class TrackLogicConfig(BaseModel, extra="allow"):
-    type: str
+    """Base config for tracking logic."""
+
+    type: str = Field(...)
 
 
 class BaseTracker(torch.nn.Module, metaclass=RegistryHolder):
     """Base tracker class."""
 
-    def reset(
-        self,
-    ) -> None:
+    def __init__(self, cfg: TrackLogicConfig):
+        super().__init__()
+        self.cfg = cfg
+        self.reset()
+
+    def reset(self) -> None:
         """Reset tracks."""
         self.num_tracks = 0
         self.tracks = dict()
 
     @property
-    def empty(self):
-        """Whether track buffer is empty."""
-        return False if self.tracks else True
+    def empty(self) -> bool:
+        """Whether track memory is empty."""
+        return not self.tracks
 
     @property
-    def get_ids(self):
+    def get_ids(self) -> List[int]:
         """Get all ids in tracker."""
         return list(self.tracks.keys())
 
     @abc.abstractmethod
-    def forward(self, *args, **kwargs) -> None:
+    def forward(
+        self, detections: Boxes2D, frame_id: int, *args, **kwargs
+    ) -> Boxes2D:
         """Process inputs, match detections with existing tracks."""
         raise NotImplementedError
 
@@ -48,5 +57,4 @@ def build_tracker(cfg: TrackLogicConfig) -> BaseTracker:
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
         return registry[cfg.type](cfg)
-    else:
-        raise NotImplementedError(f"TrackLogic {cfg.type} not found.")
+    raise NotImplementedError(f"TrackLogic {cfg.type} not found.")

@@ -2,11 +2,12 @@
 import torch
 from detectron2.structures import Boxes, pairwise_iou
 
-from openmt.structures import Boxes2D
+from openmt.struct import Boxes2D
 
 
 def compute_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
     """Compute IoU between all pairs of boxes.
+
     Args:
         boxes1, boxes2 (Boxes2D): Contains N & M boxes.
 

@@ -13,7 +13,9 @@ from .checkpointer import TrackingCheckpointer
 from .train import TrackingTrainer
 
 
-def predict_func(det2cfg: CfgNode, cfg: Config) -> Dict[str, Dict[str, float]]:
+def track_predict_func(
+    det2cfg: CfgNode, cfg: Config
+) -> Dict[str, Dict[str, float]]:
     """Prediction function."""
     model = build_model(cfg)
     TrackingCheckpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
@@ -29,7 +31,7 @@ def predict(cfg: Config) -> None:
     default_setup(detectron2cfg, cfg.launch)
 
     launch(
-        predict_func,
+        track_predict_func,
         cfg.launch.num_gpus,
         num_machines=cfg.launch.num_machines,
         machine_rank=cfg.launch.machine_rank,

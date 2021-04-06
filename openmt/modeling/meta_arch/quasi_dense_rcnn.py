@@ -1,8 +1,7 @@
 """Faster R-CNN for quasi-dense instance similarity learning."""
 
-import math
 import random
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from detectron2.modeling import GeneralizedRCNN
@@ -10,17 +9,18 @@ from detectron2.modeling import GeneralizedRCNN
 from openmt.config import Config
 from openmt.core.track import cosine_similarity
 from openmt.detect import to_detectron2
-from openmt.structures import Boxes2D
+from openmt.struct import Boxes2D
 
 from ..losses import build_loss
 from ..roi_heads import build_roi_head
 from ..tracker import build_tracker
-from .base_arch import BaseMetaArch
+from ..utils import detections_to_box2d, proposal_to_box2d, target_to_box2d
+from .base import BaseMetaArch
 
 
 class QDGeneralizedRCNN(BaseMetaArch):
-    """
-    Generalized R-CNN for quasi-dense instance similarity learning.
+    """Generalized R-CNN for quasi-dense instance similarity learning.
+
     Inherits from GeneralizedRCNN in detectron2, which supports:
     1. Per-image feature extraction (aka backbone)
     2. Region proposal generation
@@ -33,11 +33,12 @@ class QDGeneralizedRCNN(BaseMetaArch):
         """Init."""
         super().__init__()
         detector_config = to_detectron2(cfg)
+        # pylint: disable=too-many-function-args,missing-kwoa
         self.d2_detector = GeneralizedRCNN(detector_config)
         self.track_head = build_roi_head(cfg.tracking.track_head)
         self.tracker = build_tracker(cfg.tracking.tracking_logic)
         self.keyframe_selection = cfg.tracking.keyframe_selection
-        self.softmax_temp = -1  # TODO move to cfg
+        self.softmax_temp = -1
 
         self.track_loss = build_loss(cfg.tracking.losses[0])
         self.track_loss_aux = build_loss(cfg.tracking.losses[1])
@@ -77,7 +78,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
         if not self.training:
             return self.inference(batch_inputs)
 
-        # preprocess input: group by sequence index instead of batch index, prepare
+        # preprocess: group by sequence index instead of batch index, prepare
         batch_inputs = [
             [batch_inputs[j][i] for j in range(len(batch_inputs))]
             for i in range(len(batch_inputs[0]))
@@ -137,7 +138,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
             for inp, x, target in zip(ref_inputs, ref_x, ref_targets)
         ]
 
-        # detection head(s)  TODO do we need to clone proposals here if e.g. mask head is trained with refined boxes?
+        # detection head(s)
         _, detect_losses = self.d2_detector.roi_heads(
             key_inputs,
             key_x,
@@ -155,10 +156,10 @@ class QDGeneralizedRCNN(BaseMetaArch):
             key_inputs, key_x, key_proposals, key_targets
         )
         ref_track_targets, ref_embeddings = [], []
-        for input, x, proposal, target in zip(
+        for inp, x, proposal, target in zip(
             ref_inputs, ref_x, ref_proposals, ref_targets
         ):
-            embeddings, targets = self.track_head(input, x, proposal, target)
+            embeddings, targets = self.track_head(inp, x, proposal, target)
             ref_embeddings += [embeddings]
             ref_track_targets += [targets]
 
@@ -175,7 +176,10 @@ class QDGeneralizedRCNN(BaseMetaArch):
         losses.update(track_losses)
         return losses
 
-    def match(self, key_embeds, ref_embeds):
+    def match(
+        self, key_embeds: torch.Tensor, ref_embeds: List[torch.Tensor]
+    ) -> Tuple[List[List[torch.Tensor]], Optional[List[List[torch.Tensor]]]]:
+        """Match key / ref embeddings based on cosine similarity."""
         # for each reference view
         dists, cos_dists = [], []
         for ref_embed in ref_embeds:
@@ -197,7 +201,11 @@ class QDGeneralizedRCNN(BaseMetaArch):
             cos_dists.append(cos_dists_curr)
         return dists, cos_dists
 
-    def get_track_targets(self, key_targets, ref_targets):
+    @staticmethod
+    def get_track_targets(
+        key_targets: Boxes2D, ref_targets: List[Boxes2D]
+    ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
+        """Create tracking target tensors."""
         # for each reference view
         track_targets, track_weights = [], []
         for ref_target in ref_targets:
@@ -221,7 +229,11 @@ class QDGeneralizedRCNN(BaseMetaArch):
         return track_targets, track_weights
 
     def tracking_loss(
-        self, key_embeddings, key_targets, ref_embeddings, ref_targets
+        self,
+        key_embeddings: torch.Tensor,
+        key_targets: Boxes2D,
+        ref_embeddings: List[torch.Tensor],
+        ref_targets: List[Boxes2D],
     ) -> Dict[str, Union[torch.Tensor, float]]:
         """Calculate losses for tracking.
         Each input is of type List[List[Tensor]] where the lists are of
@@ -261,9 +273,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
         self, inputs: Tuple[Dict[str, torch.Tensor]]
     ) -> List[Boxes2D]:
         """Inference function."""
-        inputs = inputs[
-            0
-        ]  # only batch size 1 TODO make sure we actually only get one image + frame ordering is correct
+        inputs = inputs[0]  # only batch size 1
 
         # init tracker at begin of sequence
         if inputs["frame_id"] == 0:
@@ -288,55 +298,3 @@ class QDGeneralizedRCNN(BaseMetaArch):
             detections[0], embeddings[0], inputs["frame_id"]
         )
         return [detections]
-
-
-"""Detectron2 utils"""  # TODO restructure
-
-
-def detections_to_box2d(detections):
-    result = []
-    for detection in detections:
-        boxes, scores, cls = (
-            detection.pred_boxes.tensor,
-            detection.scores,
-            detection.pred_classes,
-        )
-        result.append(
-            Boxes2D(
-                torch.cat([boxes, scores.unsqueeze(-1)], -1),
-                classes=cls,
-                image_wh=detection.image_size,
-            )
-        )
-    return result
-
-
-def proposal_to_box2d(proposals):
-    result = []
-    for proposal in proposals:
-        boxes, logits = (
-            proposal.proposal_boxes.tensor,
-            proposal.objectness_logits,
-        )
-        result.append(
-            Boxes2D(
-                torch.cat([boxes, logits.unsqueeze(-1)], -1),
-                image_wh=proposal.image_size,
-            )
-        )
-    return result
-
-
-def target_to_box2d(targets, score_as_logit=True):
-    result = []
-    for targets in targets:
-        boxes, cls, track_ids = (
-            targets.gt_boxes.tensor,
-            targets.gt_classes,
-            targets.track_ids,
-        )
-        score = torch.ones((boxes.shape[0], 1), device=boxes.device)
-        if score_as_logit:
-            score *= math.log((1.0 - 1e-10) / (1 - (1.0 - 1e-10)))
-        result.append(Boxes2D(torch.cat([boxes, score], -1), cls, track_ids))
-    return result

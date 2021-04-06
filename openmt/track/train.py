@@ -5,13 +5,10 @@ import os
 from collections import OrderedDict
 from typing import Dict, Iterable, List, Optional
 
+import torch
 from detectron2.config import CfgNode
 from detectron2.engine import DefaultTrainer, launch
-from detectron2.evaluation import (
-    COCOEvaluator,
-    DatasetEvaluator,
-    DatasetEvaluators,
-)
+from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.comm import is_main_process
 
 from openmt.config import Config
@@ -37,14 +34,11 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
             scheduler=self.scheduler,
         )
 
-    def build_model(self, cfg: CfgNode):
-        """
-        Returns:
-            torch.nn.Module:
-        """
+    def build_model(self, cfg: CfgNode) -> torch.nn.Module:
+        """Builds tracking model. """
         model = build_model(self.track_cfg)
         logger = logging.getLogger(__name__)
-        logger.info("Model:\n{}".format(model))
+        logger.info("Model:\n%s", model)
         return model
 
     def build_train_loader(self, cfg: CfgNode) -> Iterable[List]:
@@ -56,21 +50,25 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
     @classmethod
     def build_evaluator(
         cls, cfg: CfgNode, dataset_name: str
-    ) -> DatasetEvaluators:
+    ) -> DatasetEvaluator:
         """Build evaluators for tracking and detection."""
         output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
-        track_eval = ScalabelMOTAEvaluator(dataset_name, True, output_folder)
-        det_eval = COCOEvaluator(dataset_name, cfg, True, output_folder)
-        return DatasetEvaluators([track_eval, det_eval])
+        return ScalabelMOTAEvaluator(dataset_name, True, output_folder)
 
     @classmethod
-    def test(cls, cfg, model, evaluators=None):
-        """
+    def test(
+        cls,
+        cfg: CfgNode,
+        model: torch.nn.Module,
+        evaluators: List[DatasetEvaluator] = None,
+    ):
+        """Test model with given evaluators.
         Args:
-            cfg (CfgNode):
-            model (nn.Module):
+            cfg (CfgNode): detectron2 config.
+            model (nn.Module): model to test.
             evaluators (list[DatasetEvaluator] or None): if None, will call
-                :meth:`build_evaluator`. Otherwise, must have the same length as
+                :meth:`build_evaluator`. Otherwise, must have the same
+                length as
                 ``cfg.DATASETS.TEST``.
 
         Returns:
@@ -88,15 +86,17 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         for idx, dataset_name in enumerate(cfg.DATASETS.TEST):
             data_loader = cls.build_test_loader(cfg, dataset_name)
             # When evaluators are passed in as arguments,
-            # implicitly assume that evaluators can be created before data_loader.
+            # implicitly assume that evaluators can be created before
+            # data_loader.
             if evaluators is not None:
                 evaluator = evaluators[idx]
             else:
                 try:
                     evaluator = cls.build_evaluator(cfg, dataset_name)
                 except NotImplementedError:
-                    logger.warn(
-                        "No evaluator found. Use `DefaultTrainer.test(evaluators=)`, "
+                    logger.warning(
+                        "No evaluator found. Use `DefaultTrainer.test("
+                        "evaluators=)`, "
                         "or implement its `build_evaluator` method."
                     )
                     results[dataset_name] = {}
@@ -104,10 +104,9 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
             results_i = inference_on_dataset(model, data_loader, evaluator)
             results[dataset_name] = results_i
             if is_main_process():
-                assert isinstance(
-                    results_i, dict
-                ), "Evaluator must return a dict on the main process. Got {} instead.".format(
-                    results_i
+                assert isinstance(results_i, dict), (
+                    "Evaluator must return a dict on the main process. Got {} "
+                    "instead.".format(results_i)
                 )
 
         if len(results) == 1:
@@ -115,7 +114,7 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         return results
 
 
-def train_func(
+def track_train_func(
     det2cfg: CfgNode, cfg: Config
 ) -> Optional[Dict[str, Dict[str, float]]]:
     """Training function."""
@@ -126,12 +125,11 @@ def train_func(
 
 def train(cfg: Config) -> None:
     """Launcher for training."""
-
-    detectron2cfg = to_detectron2(cfg)  # TODO refactor to d2
+    detectron2cfg = to_detectron2(cfg)
     default_setup(detectron2cfg, cfg.launch)
 
     launch(
-        train_func,
+        track_train_func,
         cfg.launch.num_gpus,
         num_machines=cfg.launch.num_machines,
         machine_rank=cfg.launch.machine_rank,

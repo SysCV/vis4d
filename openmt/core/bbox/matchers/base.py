@@ -3,29 +3,34 @@ import abc
 from typing import List, NamedTuple
 
 import torch
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from openmt.core.registry import RegistryHolder
-from openmt.structures import Boxes2D
+from openmt.struct import Boxes2D
 
 
 class MatcherConfig(BaseModel, extra="allow"):
-    type: str
+    """Matcher base config."""
+
+    type: str = Field(...)
 
 
 class MatchResult(NamedTuple):
+    """Match result class. Stores expected result tensors."""
+
     assigned_gt_indices: torch.Tensor  # Tensor of [0, M) where M = num gt
     assigned_gt_iou: torch.Tensor  # Tensor with IoU to assigned GT
     assigned_labels: torch.Tensor  # Tensor of {0, -1, 1} = {neg, igonre, pos}
 
 
 class BaseMatcher(metaclass=RegistryHolder):
+    """Base clss for box / target matchers."""
+
     @abc.abstractmethod
     def match(
         self, boxes: List[Boxes2D], targets: List[Boxes2D]
     ) -> MatchResult:
-        """Match bounding boxes according to their structures."""
-
+        """Match bounding boxes according to their struct."""
         raise NotImplementedError
 
 
@@ -34,5 +39,4 @@ def build_matcher(cfg: MatcherConfig) -> BaseMatcher:
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
         return registry[cfg.type](cfg)
-    else:
-        raise NotImplementedError(f"Matcher {cfg.type} not found.")
+    raise NotImplementedError(f"Matcher {cfg.type} not found.")

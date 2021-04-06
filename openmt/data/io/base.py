@@ -7,6 +7,8 @@ from openmt.core.registry import RegistryHolder
 
 
 class DataBackendConfig(BaseModel, extra="allow"):
+    """Base data backend config."""
+
     type: str = "FileBackend"
 
 
@@ -33,5 +35,4 @@ def build_data_backend(cfg: DataBackendConfig) -> BaseDataBackend:
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
         return registry[cfg.type](cfg)
-    else:
-        raise NotImplementedError(f"Data backend {cfg.type} not found.")
+    raise NotImplementedError(f"Data backend {cfg.type} not found.")

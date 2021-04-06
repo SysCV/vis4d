@@ -1,4 +1,6 @@
 """Loss utility functions."""
+from typing import Optional
+
 import torch
 from torch.nn._reduction import get_enum
 
@@ -8,22 +10,20 @@ def _reduce(loss: torch.Tensor, reduction: str):
     value = get_enum(reduction)
     if value == 0:
         return loss
-    elif value == 1:
+    if value == 1:
         return loss.mean()
-    elif value == 2:
+    if value == 2:
         return loss.sum()
+    raise ValueError(f"Invalid reduction: {reduction}.")
 
 
-def weight_reduce_loss(loss, weight=None, reduction="mean", avg_factor=None):
-    """Apply element-wise weight and reduce loss.
-    Args:
-        loss (Tensor): Element-wise loss.
-        weight (Tensor): Element-wise weights.
-        reduction (str): Same as built-in losses of PyTorch.
-        avg_factor (float): Avarage factor when computing the mean of losses.
-    Returns:
-        Tensor: Processed loss values.
-    """
+def weight_reduce_loss(
+    loss: torch.Tensor,
+    weight: Optional[torch.Tensor] = None,
+    reduction: Optional[str] = "mean",
+    avg_factor: Optional[float] = None,
+):
+    """Apply element-wise weight and reduce loss."""
     # if weight is specified, apply element-wise weight
     if weight is not None:
         loss = loss * weight

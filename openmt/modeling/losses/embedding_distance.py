@@ -1,13 +1,17 @@
-from typing import Optional
+"""Embedding distance loss."""
+from typing import Optional, Tuple
 
-import numpy as np
 import torch
 
-from .base_loss import BaseLoss, LossConfig
+from openmt.core.bbox.utils import random_choice
+
+from .base import BaseLoss, LossConfig
 from .utils import weight_reduce_loss
 
 
 class EmbeddingDistanceLossConfig(LossConfig):
+    """Config for embedding distance loss."""
+
     neg_pos_ub: Optional[int] = -1
     pos_margin: Optional[int] = -1
     neg_margin: Optional[int] = -1
@@ -15,50 +19,50 @@ class EmbeddingDistanceLossConfig(LossConfig):
 
 
 class EmbeddingDistanceLoss(BaseLoss):
-    """L2 loss.
-    Args:
-        reduction (str, optional): The method to reduce the loss.
-            Options are "none", "mean" and "sum".
-        loss_weight (float, optional): The weight of loss.
-    """
+    """Embedding distance loss."""
 
     def __init__(self, cfg: LossConfig):
         super().__init__()
         self.cfg = EmbeddingDistanceLossConfig(**cfg.__dict__)
 
-    def forward(
+    def forward(  # pylint: disable=arguments-differ
         self,
-        pred,
-        target,
-        weight=None,
-        avg_factor=None,
-        reduction_override=None,
-    ):
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        weight: Optional[torch.Tensor] = None,
+        reduction_override: Optional[str] = None,
+        **kwargs
+    ) -> torch.Tensor:
         """Forward function.
         Args:
             pred (torch.Tensor): The prediction.
             target (torch.Tensor): The learning target of the prediction.
             weight (torch.Tensor, optional): The weight of loss for each
                 prediction. Defaults to None.
-            avg_factor (int, optional): Average factor that is used to average
-                the loss. Defaults to None.
             reduction_override (str, optional): The reduction method used to
                 override the original reduction method of the loss.
                 Defaults to None.
+            kwargs: additional arguments.
+        Returns:
+            loss_bbox (torch.Tensor): embedding distance loss.
         """
         assert reduction_override in (None, "none", "mean", "sum")
         reduction = (
             reduction_override if reduction_override else self.cfg.reduction
         )
-        pred, weight, avg_factor = self.update_weight(
-            pred, target, weight, avg_factor
-        )
+        pred, weight, avg_factor = self.update_weight(pred, target, weight)
         loss_bbox = self.cfg.loss_weight * l2_loss(
             pred, target, weight, reduction=reduction, avg_factor=avg_factor
         )
         return loss_bbox
 
-    def update_weight(self, pred, target, weight, avg_factor):
+    def update_weight(
+        self, pred: torch.Tensor, target: torch.Tensor, weight: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, float]:
+        """Update element-wise loss weights.
+        Exclude negatives according to maximum fraction of samples and/or
+        hard negative mining.
+        """
         if weight is None:
             weight = target.new_ones(target.size())
         invalid_inds = weight <= 0
@@ -84,7 +88,7 @@ class EmbeddingDistanceLoss(BaseLoss):
                 ].detach()
                 neg_idx = neg_idx[costs.topk(num_neg)[1], :]
             else:
-                neg_idx = self.random_choice(neg_idx, num_neg)
+                neg_idx = random_choice(neg_idx, num_neg)
 
             new_neg_inds = neg_inds.new_zeros(neg_inds.size()).bool()
             new_neg_inds[neg_idx[:, 0], neg_idx[:, 1]] = True
@@ -95,32 +99,15 @@ class EmbeddingDistanceLoss(BaseLoss):
         avg_factor = (weight > 0).sum()
         return pred, weight, avg_factor
 
-    @staticmethod
-    def random_choice(gallery, num):
-        """Random select some elements from the gallery.
-        It seems that Pytorch's implementation is slower than numpy so we use
-        numpy to randperm the indices.
-        """
-        assert len(gallery) >= num
-        if isinstance(gallery, list):
-            gallery = np.array(gallery)
-        cands = np.arange(len(gallery))
-        np.random.shuffle(cands)
-        rand_inds = cands[:num]
-        if not isinstance(gallery, np.ndarray):
-            rand_inds = torch.from_numpy(rand_inds).long().to(gallery.device)
-        return gallery[rand_inds]
 
-
-def l2_loss(pred, target, weight=None, reduction="mean", avg_factor=None):
-    """L2 loss.
-    Args:
-        pred (torch.Tensor): The prediction.
-        target (torch.Tensor): The learning target of the prediction.
-        target (torch.Tensor): The learning target of the prediction.
-    Returns:
-        torch.Tensor: Calculated loss
-    """
+def l2_loss(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    weight: Optional[torch.Tensor] = None,
+    reduction: Optional[str] = "mean",
+    avg_factor: Optional[float] = None,
+):
+    """L2 loss."""
     assert pred.size() == target.size() and target.numel() > 0
     loss = torch.abs(pred - target) ** 2
     if weight is not None:

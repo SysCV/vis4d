@@ -6,10 +6,12 @@ import logging
 import os.path as osp
 import time
 from contextlib import ExitStack, contextmanager
+from typing import Iterable
 
 import detectron2.utils.comm as comm
 import torch
-from bdd100k.eval.mot import acc_single_video_mot, evaluate_track
+from bdd100k.common.utils import group_and_sort
+from bdd100k.eval.mot import EvalResults, acc_single_video_mot, evaluate_track
 from detectron2.data import MetadataCatalog
 from detectron2.evaluation import DatasetEvaluator, DatasetEvaluators
 from detectron2.utils.comm import get_world_size
@@ -21,21 +23,18 @@ from openmt.data.datasets.scalabel_video import load_json
 
 @contextmanager
 def inference_context(model: torch.nn.Module) -> None:
-    """
-    A context where the model is temporarily changed to eval mode,
-    and restored to previous mode afterwards.
-    Args:
-        model: a torch Module
-    """
+    """A context where the model is temporarily changed to eval mode and
+    restored to previous mode afterwards."""
     training_mode = model.training
     model.eval()
     yield
     model.train(training_mode)
 
 
-def inference_on_dataset(model, data_loader, evaluator):
-    """
-    Run model on the data_loader and evaluate the metrics with evaluator.
+def inference_on_dataset(
+    model: torch.nn.Module, data_loader: Iterable, evaluator: DatasetEvaluator
+) -> EvalResults:
+    """Run model on the data_loader and evaluate the metrics with evaluator.
     Also benchmark the inference speed of `model.__call__` accurately.
     The model will be used in eval mode.
 
@@ -45,18 +44,20 @@ def inference_on_dataset(model, data_loader, evaluator):
 
             If it's an nn.Module, it will be temporarily set to `eval` mode.
             If you wish to evaluate a model in `training` mode instead, you can
-            wrap the given model and override its behavior of `.eval()` and `.train()`.
+            wrap the given model and override its behavior of `.eval()` and
+            `.train()`.
         data_loader: an iterable object with a length.
             The elements it generates will be the inputs to the model.
-        evaluator (DatasetEvaluator): the evaluator to run. Use `None` if you only want
+        evaluator (DatasetEvaluator): the evaluator to run. Use `None` if
+        you only want
             to benchmark, but don't want to do any evaluation.
 
     Returns:
-        The return value of `evaluator.evaluate()`
+        EvalResults: The return value of `evaluator.evaluate()`
     """
     num_devices = get_world_size()
     logger = logging.getLogger(__name__)
-    logger.info("Start inference on {} images".format(len(data_loader)))
+    logger.info("Start inference on %s images", len(data_loader))
 
     total = len(data_loader)  # inference data loader must have a fixed length
     if evaluator is None:
@@ -101,12 +102,14 @@ def inference_on_dataset(model, data_loader, evaluator):
                     n=5,
                 )
 
-    # Measure the time only for this worker (before the synchronization barrier)
+    # Measure the time only for this worker (before the synchronization
+    # barrier)
     total_time = time.perf_counter() - start_time
     total_time_str = str(datetime.timedelta(seconds=total_time))
     # NOTE this format is parsed by grep
     logger.info(
-        "Total inference time: {} ({:.6f} s / img per device, on {} devices)".format(
+        "Total inference time: {} ({:.6f} s / img per device, "
+        "on {} devices)".format(
             total_time_str, total_time / (total - num_warmup), num_devices
         )
     )
@@ -114,7 +117,8 @@ def inference_on_dataset(model, data_loader, evaluator):
         datetime.timedelta(seconds=int(total_compute_time))
     )
     logger.info(
-        "Total inference pure compute time: {} ({:.6f} s / img per device, on {} devices)".format(
+        "Total inference pure compute time: {} ({:.6f} s / img per device, "
+        "on {} devices)".format(
             total_compute_time_str,
             total_compute_time / (total - num_warmup),
             num_devices,
@@ -123,7 +127,8 @@ def inference_on_dataset(model, data_loader, evaluator):
 
     results = evaluator.evaluate()
     # An evaluator may return None when not in main process.
-    # Replace it by an empty dict instead to make it easier for downstream code to handle
+    # Replace it by an empty dict instead to make it easier for downstream
+    # code to handle
     if results is None:
         results = {}
     return results
@@ -131,7 +136,8 @@ def inference_on_dataset(model, data_loader, evaluator):
 
 class ScalabelMOTAEvaluator(DatasetEvaluator):
     """Evaluate tracking model using MOTA metrics.
-    This class will accumulate information of the inputs/outputs (by :meth:`process`),
+    This class will accumulate information of the inputs/outputs (by
+    :meth:`process`),
     and produce evaluation results in the end (by :meth:`evaluate`).
     """
 
@@ -152,7 +158,8 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):
     def process(self, inputs, outputs):
         """
         Process the pair of inputs and outputs.
-        If they contain batches, the pairs can be consumed one-by-one using `zip`:
+        If they contain batches, the pairs can be consumed one-by-one using
+        `zip`:
         .. code-block:: python
             for input_, output in zip(inputs, outputs):
                 # do evaluation on single input/output pair
@@ -161,22 +168,23 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):
             inputs (list): the inputs that's used to call the model.
             outputs (list): the return value of `model(inputs)`
         """
-        for input, output in zip(inputs, outputs):
+        for inp, out in zip(inputs, outputs):
             prediction = dict(
-                name=osp.basename(input["file_name"]),
-                video_name=input["video_id"],
-                frame_index=input["frame_id"],
+                name=osp.basename(inp["file_name"]),
+                video_name=inp["video_id"],
+                frame_index=inp["frame_id"],
             )
 
-            prediction["labels"] = output.to(torch.device("cpu")).to_scalabel(
+            prediction["labels"] = out.to(torch.device("cpu")).to_scalabel(
                 self._metadata.idx_to_class_mapping
             )
 
             self._predictions.append(Frame(**prediction))
 
     def evaluate(self):
-        """
-        Evaluate/summarize the performance, after processing all input/output pairs.
+        """Evaluate/summarize the performance, after processing all
+        input/output pairs.
+
         Returns:
             dict:
                 A new evaluator class can return a dict of arbitrary format
@@ -195,8 +203,8 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):
         else:
             predictions = self._predictions
 
-        # TODO update requirements for BDD100k + new scalabel version
-
         return evaluate_track(
-            acc_single_video_mot, [predictions], [self.gts]
-        )  # TODO wait for BDD100K update
+            acc_single_video_mot,
+            group_and_sort(predictions),
+            group_and_sort(self.gts),
+        )

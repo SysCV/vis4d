@@ -11,13 +11,15 @@ from detectron2.structures import ImageList
 from openmt.core.bbox.matchers import MatcherConfig, build_matcher
 from openmt.core.bbox.poolers import RoIPoolerConfig, build_roi_pooler
 from openmt.core.bbox.samplers import SamplerConfig, build_sampler
-from openmt.structures import Boxes2D
+from openmt.struct import Boxes2D
 
-from .base_roi_head import BaseRoIHead, RoIHeadConfig
+from .base import BaseRoIHead, RoIHeadConfig
 
 
 class QDRoIHeadConfig(RoIHeadConfig):
-    num_classes: int  # TODO necessary?
+    """Quasi-dense RoI Head config."""
+
+    num_classes: int
     in_dim: int
     num_convs: int
     conv_out_dim: int
@@ -47,7 +49,8 @@ class QDRoIHead(BaseRoIHead):
         self.fc_embed = nn.Linear(last_layer_dim, self.cfg.embedding_dim)
         self._init_weights()
 
-    def _init_weights(self):
+    def _init_weights(self) -> None:
+        """Init weights of modules in head."""
         for m in self.convs:
             nn.init.kaiming_uniform_(m.weight, a=1)
             if m.bias is not None:
@@ -61,8 +64,10 @@ class QDRoIHead(BaseRoIHead):
         nn.init.normal_(self.fc_embed.weight, 0, 0.01)
         nn.init.constant_(self.fc_embed.bias, 0)
 
-    def _init_embedding_head(self):
-        """Init embedding head."""
+    def _init_embedding_head(
+        self,
+    ) -> Tuple[torch.nn.ModuleList, torch.nn.ModuleList, int]:
+        """Init modules of head."""
         last_layer_dim = self.cfg.in_dim
         # add branch specific conv layers
         convs = nn.ModuleList()
@@ -97,7 +102,10 @@ class QDRoIHead(BaseRoIHead):
         return convs, fcs, last_layer_dim
 
     @torch.no_grad()
-    def match_and_sample_proposals(self, proposals, targets):
+    def match_and_sample_proposals(
+        self, proposals: List[Boxes2D], targets: List[Boxes2D]
+    ) -> Tuple[List[Boxes2D], List[Boxes2D]]:
+        """Match proposals to targets and subsample."""
         if self.cfg.proposal_append_gt:
             proposals = [
                 Boxes2D.cat([p, t]) for p, t in zip(proposals, targets)
@@ -129,13 +137,13 @@ class QDRoIHead(BaseRoIHead):
 
         # convs
         if self.cfg.num_convs > 0:
-            for i, conv in enumerate(self.convs):
+            for conv in self.convs:
                 x = conv(x)
 
         # fcs
         x = torch.flatten(x, start_dim=1)
         if self.cfg.num_fcs > 0:
-            for i, fc in enumerate(self.fcs):
+            for fc in self.fcs:
                 x = fc(x)
 
         embeddings = self.fc_embed(x).split([len(p) for p in proposals])

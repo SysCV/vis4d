@@ -1,31 +1,37 @@
+"""Multi-positive cross entropy loss."""
+from typing import Optional
+
 import torch
 
-from .base_loss import BaseLoss, LossConfig
+from .base import BaseLoss, LossConfig
 from .utils import weight_reduce_loss
 
 
 class MultiPosCrossEntropyLoss(BaseLoss):
+    """Multi-positive cross entropy loss class."""
+
     def __init__(self, cfg: LossConfig):
         super().__init__()
         self.cfg = cfg
 
-    def forward(
+    def forward(  # pylint: disable=arguments-differ
         self,
-        cls_score,
-        label,
-        weight=None,
-        avg_factor=None,
-        reduction_override=None,
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        weight: Optional[torch.Tensor] = None,
+        reduction_override: Optional[str] = None,
+        avg_factor: Optional[float] = None,
         **kwargs
     ):
-        assert cls_score.size() == label.size()
+        """Multi-positive cross entropy loss forward."""
+        assert pred.size() == target.size()
         assert reduction_override in (None, "none", "mean", "sum")
         reduction = (
             reduction_override if reduction_override else self.cfg.reduction
         )
         loss_cls = self.cfg.loss_weight * multi_pos_cross_entropy(
-            cls_score,
-            label,
+            pred,
+            target,
             weight,
             reduction=reduction,
             avg_factor=avg_factor,
@@ -34,11 +40,16 @@ class MultiPosCrossEntropyLoss(BaseLoss):
 
 
 def multi_pos_cross_entropy(
-    pred, label, weight=None, reduction="mean", avg_factor=None
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    weight: Optional[torch.Tensor] = None,
+    reduction: Optional[str] = "mean",
+    avg_factor: Optional[float] = None,
 ):
+    """Calculate multi-positive cross-entropy loss."""
     # element-wise losses
-    pos_inds = (label == 1).float()
-    neg_inds = (label == 0).float()
+    pos_inds = (target == 1).float()
+    neg_inds = (target == 0).float()
     exp_pos = (torch.exp(-1 * pred) * pos_inds).sum(dim=1)
     exp_neg = (torch.exp(pred.clamp(max=80)) * neg_inds).sum(dim=1)
     loss = torch.log(1 + exp_pos * exp_neg)

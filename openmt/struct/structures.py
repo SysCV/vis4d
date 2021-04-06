@@ -1,6 +1,5 @@
-"""Data structure for structures container."""
+"""Data structure for struct container."""
 import abc
-import copy
 from typing import Dict, List, Tuple
 
 import torch
@@ -8,16 +7,20 @@ from scalabel.label.typing import Box2D, Label
 
 
 class Instances(metaclass=abc.ABCMeta):
-    """Interface for bounding boxes, masks etc"""
+    """Interface for bounding boxes, masks etc."""
 
     @classmethod
     @abc.abstractmethod
     def from_scalabel(
-        cls, labels: List[Label], class_to_idx: Dict[str, int]
+        cls,
+        labels: List[Label],
+        class_to_idx: Dict[str, int],
+        label_id_to_idx: Dict[str, int] = None,
     ) -> "Instances":
         """Convert from scalabel format to ours."""
         raise NotImplementedError
 
+    @classmethod
     @abc.abstractmethod
     def to_scalabel(cls, idx_to_class: Dict[int, str]) -> List[Label]:
         """Convert from ours to scalabel format."""
@@ -26,10 +29,13 @@ class Instances(metaclass=abc.ABCMeta):
 
 class Boxes2D(Instances):
     """Container class for 2D boxes.
+
     boxes: torch.FloatTensor: (N, 5) where each entry is defined by
     [x1, y1, x2, y2, score]
-    classes: torch.IntTensor: (N,) where each entry is the class id of the respective box
-    track_ids: torch.IntTensor (N,) where each entry is the track id of the respective box
+    classes: torch.IntTensor: (N,) where each entry is the class id of
+    the respective box.
+    track_ids: torch.IntTensor (N,) where each entry is the track id of
+    the respective box.
     """
 
     def __init__(
@@ -39,7 +45,7 @@ class Boxes2D(Instances):
         track_ids: torch.Tensor = None,
         image_wh: Tuple[int, int] = None,
     ) -> None:
-        """Init."""  # TODO image wh needed?
+        """Init."""
         assert isinstance(boxes, torch.Tensor) and len(boxes.shape) == 2
         if classes is not None:
             assert (
@@ -59,8 +65,7 @@ class Boxes2D(Instances):
         self.image_wh = image_wh
 
     def __getitem__(self, item):
-        """This method will shadow the tensor based indexing while returning a
-        new instance of Boxes2D."""
+        """Shadows tensor based indexing while returning new Boxes2D."""
         if isinstance(item, tuple):
             item = item[0]
         boxes = self.boxes[item]
@@ -76,11 +81,11 @@ class Boxes2D(Instances):
             return Boxes2D(
                 boxes.view(1, -1), classes, track_ids, self.image_wh
             )
-        else:
-            return Boxes2D(boxes, classes, track_ids, self.image_wh)
+
+        return Boxes2D(boxes, classes, track_ids, self.image_wh)
 
     def __len__(self):
-        """Get length of the object"""
+        """Get length of the object."""
         return len(self.boxes)
 
     def clone(self) -> "Boxes2D":
@@ -91,7 +96,7 @@ class Boxes2D(Instances):
         )
         return Boxes2D(self.boxes.clone(), classes, track_ids, self.image_wh)
 
-    def to(self, device: torch.device):
+    def to(self, device: torch.device):  # pylint: disable=invalid-name
         """Move data to given device."""
         classes = (
             self.classes.to(device=device)
@@ -112,7 +117,7 @@ class Boxes2D(Instances):
         """Concatenates a list of Boxes2D into a single Boxes2D."""
         assert isinstance(boxes_list, (list, tuple))
         assert len(boxes_list) > 0
-        assert all([isinstance(box, Boxes2D) for box in boxes_list])
+        assert all((isinstance(box, Boxes2D) for box in boxes_list))
 
         boxes, classes, track_ids = [], [], []
         for b in boxes_list:
@@ -145,10 +150,10 @@ class Boxes2D(Instances):
         class_to_idx: Dict[str, int],
         label_id_to_idx: Dict[str, int] = None,
     ) -> "Boxes2D":
-        """Convert from scalabel format to internal."""  # TODO image wh
+        """Convert from scalabel format to internal."""
         box_list, cls_list, idx_list = [], [], []
         for i, label in enumerate(labels):
-            box, score, box_cls, id = (
+            box, score, box_cls, l_id = (
                 label.box_2d,
                 label.score,
                 label.category,
@@ -156,7 +161,7 @@ class Boxes2D(Instances):
             )
             box_list.append([box.x1, box.y1, box.x2, box.y2, score])
             cls_list.append(class_to_idx[box_cls])
-            idx = label_id_to_idx[id] if label_id_to_idx is not None else i
+            idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
 
         return Boxes2D(
@@ -166,7 +171,7 @@ class Boxes2D(Instances):
         )
 
     def to_scalabel(self, idx_to_class: Dict[int, str]) -> List[Label]:
-        """Convert from internal to scalabel format."""  # TODO image wh
+        """Convert from internal to scalabel format."""
         labels = []
         for i in range(len(self.boxes)):
             if self.track_ids is not None:

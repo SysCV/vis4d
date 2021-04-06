@@ -4,9 +4,9 @@ from typing import List, Tuple
 import torch
 from detectron2.modeling.sampling import subsample_labels
 
-from openmt.structures import Boxes2D
+from openmt.struct import Boxes2D
 
-from ..matchers.base_matcher import MatchResult
+from ..matchers.base import MatchResult
 from .base_sampler import BaseSampler, SamplerConfig
 
 
@@ -26,7 +26,6 @@ class RandomSampler(BaseSampler):
         targets: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], List[Boxes2D]]:
         """Sample boxes randomly."""
-
         sampled_boxes, sampled_targets = [], []
         for match, box, target in zip(matching, boxes, targets):
             pos_idx, neg_idx = subsample_labels(

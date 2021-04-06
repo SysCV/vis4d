@@ -13,8 +13,9 @@ pyyaml
 setuptools
 tqdm
 wheel
-scalabel
+git+'https://github.com/scalabel/scalabel'
 torch
 torchaudio
 torchvision
 opencv-python
+git+'https://github.com/bdd100k/bdd100k'

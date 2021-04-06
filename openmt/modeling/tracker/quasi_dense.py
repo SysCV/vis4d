@@ -1,15 +1,19 @@
 """Quasi-dense embedding similarity based tracker."""
+from typing import Tuple
+
 import torch
 import torch.nn.functional as F
 from pydantic import validator
 
 from openmt.core.bbox.utils import compute_iou
-from openmt.structures import Boxes2D
+from openmt.struct import Boxes2D
 
-from .base_tracker import BaseTracker, TrackLogicConfig
+from .base import BaseTracker, TrackLogicConfig
 
 
 class QDEmbeddingTrackerConfig(TrackLogicConfig):
+    """Quasi-dense embedding similarity based tracker config."""
+
     keep_in_memory: int  # threshold for keeping occluded objects in memory
     init_score_thr: float = 0.7
     obj_score_thr: float = 0.3
@@ -23,30 +27,42 @@ class QDEmbeddingTrackerConfig(TrackLogicConfig):
     match_metric: str = "bisoftmax"
 
     @validator("memo_momentum", check_fields=False)
-    def validate_memo_momentum(cls, v):
-        if not 0 <= v <= 1.0:
+    def validate_memo_momentum(
+        cls, value
+    ):  # pylint: disable=no-self-argument,no-self-use
+        """Check memo_momentum attribute."""
+        if not 0 <= value <= 1.0:
             raise ValueError("memo_momentum must be >= 0 and <= 1.0")
-        return v
+        return value
 
     @validator("keep_in_memory", check_fields=False)
-    def validate_keep_in_memory(cls, v):
-        if not v >= 0:
+    def validate_keep_in_memory(
+        cls, value
+    ):  # pylint: disable=no-self-argument,no-self-use
+        """Check keep_in_memory attribute."""
+        if not value >= 0:
             raise ValueError("keep_in_memory must be >= 0")
-        return v
+        return value
 
     @validator("memo_backdrop_frames", check_fields=False)
-    def validate_memo_backdrop_frames(cls, v):
-        if not v >= 0:
+    def validate_memo_backdrop_frames(
+        cls, value
+    ):  # pylint: disable=no-self-argument,no-self-use
+        """Check memo_backdrop_frames attribute."""
+        if not value >= 0:
             raise ValueError("memo_backdrop_frames must be >= 0")
-        return v
+        return value
 
     @validator("match_metric", check_fields=False)
-    def validate_match_metric(cls, v):
-        if not v in ["bisoftmax", "softmax", "cosine"]:
+    def validate_match_metric(
+        cls, value
+    ):  # pylint: disable=no-self-argument,no-self-use
+        """Check match_metric attribute."""
+        if not value in ["bisoftmax", "softmax", "cosine"]:
             raise ValueError(
                 "match_metric must be in [bisoftmax, softmax, cosine]"
             )
-        return v
+        return value
 
 
 class QDEmbeddingTracker(BaseTracker):
@@ -54,31 +70,34 @@ class QDEmbeddingTracker(BaseTracker):
 
     def __init__(self, cfg: TrackLogicConfig) -> None:
         """Init."""
-        super().__init__()
+        super().__init__(cfg)
         self.cfg = QDEmbeddingTrackerConfig(**cfg.__dict__)
+
+    def reset(self) -> None:
+        """Reset tracks."""
+        self.num_tracks = 0
+        self.tracks = dict()
         self.backdrops = []
 
-    def get_active_tracks(self, frame_id: int) -> Boxes2D:
-        """Get active tracks."""
-        bboxs, cls, ids = [], [], []
+    def get_tracks(self, frame_id: int = None) -> Tuple[Boxes2D, torch.Tensor]:
+        """Get active tracks at given frame.
+        If frame_id is None, return all tracks in memory.
+        """
+        bboxs, embeds, cls, ids = [], [], [], []
         for k, v in self.tracks.items():
-            if v["last_frame"] == frame_id:
-                bboxs.append(v["bbox"])
+            if frame_id is None or v["last_frame"] == frame_id:
+                bboxs.append(v["bbox"].unsqueeze(0))
+                embeds.append(v["embed"].unsqueeze(0))
                 cls.append(v["class_id"])
                 ids.append(k)
-        bboxs = (
-            torch.tensor(bboxs, dtype=torch.float32)
-            if len(bboxs)
-            else torch.empty((0, 5))
-        )
-        return Boxes2D(
-            bboxs,
-            torch.tensor(cls, dtype=torch.int),
-            torch.tensor(ids, dtype=torch.int),
-        )
 
-    def forward(
-        self, detections: Boxes2D, embeddings: torch.Tensor, frame_id: int
+        bboxs = torch.cat(bboxs) if len(bboxs) > 0 else torch.empty(0, 5)
+        embeds = torch.cat(embeds) if len(embeds) > 0 else torch.empty(0)
+        cls = torch.cat(cls) if len(cls) > 0 else torch.empty(0)
+        return Boxes2D(bboxs, cls, torch.tensor(ids)), embeds
+
+    def forward(  # pylint: disable=arguments-differ
+        self, detections: Boxes2D, frame_id: int, embeddings: torch.Tensor
     ) -> Boxes2D:
         """Process inputs, match detections with existing tracks."""
         _, inds = detections.boxes[:, -1].sort(descending=True)
@@ -105,13 +124,7 @@ class QDEmbeddingTracker(BaseTracker):
 
         # match if buffer is not empty
         if len(detections) > 0 and not self.empty:
-            (
-                memo_bboxes,
-                memo_labels,
-                memo_embeds,
-                memo_ids,
-                memo_vs,
-            ) = self.memo
+            memo_dets, memo_embeds = self.get_tracks()
 
             if self.cfg.match_metric == "bisoftmax":
                 feats = torch.mm(embeddings, memo_embeds.t())
@@ -130,23 +143,22 @@ class QDEmbeddingTracker(BaseTracker):
                 raise NotImplementedError
 
             if self.cfg.with_cats:
-                cat_same = detections.classes.view(-1, 1) == memo_labels.view(
-                    1, -1
-                )
+                cat_same = detections.classes.view(
+                    -1, 1
+                ) == memo_dets.classes.view(1, -1)
                 scores *= cat_same.float()
 
             for i in range(len(detections)):
                 conf, memo_ind = torch.max(scores[i, :], dim=0)
-                id = memo_ids[memo_ind]
+                cur_id = memo_dets.track_ids[memo_ind]
                 if conf > self.cfg.match_score_thr:
-                    if id > -1:
+                    if cur_id > -1:
                         if detections.boxes[i, -1] > self.cfg.obj_score_thr:
-                            ids[i] = id
+                            ids[i] = cur_id
                             scores[:i, memo_ind] = 0
-                            scores[i + 1 :, memo_ind] = 0
-                        else:
-                            if conf > self.cfg.nms_conf_thr:
-                                ids[i] = -2
+                            scores[(i + 1) :, memo_ind] = 0
+                        elif conf > self.cfg.nms_conf_thr:
+                            ids[i] = -2
         new_inds = (ids == -1) & (
             detections.boxes[:, -1] > self.cfg.init_score_thr
         ).cpu()
@@ -157,25 +169,30 @@ class QDEmbeddingTracker(BaseTracker):
         self.num_tracks += num_news
 
         self.update(ids, detections, embeddings, frame_id)
-        return self.get_active_tracks(frame_id)
+        result, _ = self.get_tracks(frame_id)
+        return result
 
-    def update(
-        self, ids: torch.Tensor, detections, embeddings, frame_id
+    def update(  # pylint: disable=arguments-differ
+        self,
+        ids: torch.Tensor,
+        detections: Boxes2D,
+        embeddings: torch.Tensor,
+        frame_id: int,
     ) -> None:
         """Update track memory using matched detections."""
         tracklet_inds = ids > -1
 
         # update memo
-        for id, det, embed in zip(
+        for cur_id, det, embed in zip(
             ids[tracklet_inds],
             detections[tracklet_inds],
             embeddings[tracklet_inds],
         ):
-            id = int(id)
+            cur_id = int(cur_id)
             if id in self.tracks.keys():
-                self.update_track(id, det, embed, frame_id)
+                self.update_track(cur_id, det, embed, frame_id)
             else:
-                self.create_track(id, det, embed, frame_id)
+                self.create_track(cur_id, det, embed, frame_id)
 
         backdrop_inds = torch.nonzero(ids == -1, as_tuple=False).squeeze(1)
         ious = compute_iou(detections[backdrop_inds], detections)
@@ -192,7 +209,7 @@ class QDEmbeddingTracker(BaseTracker):
             ),
         )
 
-        # pop memo
+        # delete invalid tracks from memory
         invalid_ids = []
         for k, v in self.tracks.items():
             if frame_id - v["last_frame"] >= self.cfg.keep_in_memory:
@@ -205,38 +222,39 @@ class QDEmbeddingTracker(BaseTracker):
 
     def update_track(
         self,
-        id: int,
+        track_id: int,
         detection: Boxes2D,
         embedding: torch.Tensor,
         frame_id: int,
     ) -> None:
         """Update a specific track with a new detection."""
         bbox, cls = detection.boxes[0], detection.classes[0]
-        velocity = (bbox - self.tracks[id]["bbox"]) / (
-            frame_id - self.tracks[id]["last_frame"]
+        velocity = (bbox - self.tracks[track_id]["bbox"]) / (
+            frame_id - self.tracks[track_id]["last_frame"]
         )
-        self.tracks[id]["bbox"] = bbox
-        self.tracks[id]["embed"] = (1 - self.memo_momentum) * self.tracks[id][
-            "embed"
-        ] + self.memo_momentum * embedding
-        self.tracks[id]["last_frame"] = frame_id
-        self.tracks[id]["class_id"] = cls
-        self.tracks[id]["velocity"] = (
-            self.tracks[id]["velocity"] * self.tracks[id]["acc_frame"]
+        self.tracks[track_id]["bbox"] = bbox
+        self.tracks[track_id]["embed"] = (
+            1 - self.memo_momentum
+        ) * self.tracks[id]["embed"] + self.memo_momentum * embedding
+        self.tracks[track_id]["last_frame"] = frame_id
+        self.tracks[track_id]["class_id"] = cls
+        self.tracks[track_id]["velocity"] = (
+            self.tracks[track_id]["velocity"]
+            * self.tracks[track_id]["acc_frame"]
             + velocity
-        ) / (self.tracks[id]["acc_frame"] + 1)
-        self.tracks[id]["acc_frame"] += 1
+        ) / (self.tracks[track_id]["acc_frame"] + 1)
+        self.tracks[track_id]["acc_frame"] += 1
 
     def create_track(
         self,
-        id: int,
+        track_id: int,
         detection: Boxes2D,
         embedding: torch.Tensor,
         frame_id: int,
     ) -> None:
         """Create a new track from a detection."""
         bbox, cls = detection.boxes[0], detection.classes[0]
-        self.tracks[id] = dict(
+        self.tracks[track_id] = dict(
             bbox=bbox,
             embed=embedding,
             class_id=cls,

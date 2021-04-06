@@ -1,4 +1,4 @@
-"""Checkpointing for tracking methods"""
+"""Checkpointing for tracking methods."""
 from typing import Dict
 
 from detectron2.checkpoint import DetectionCheckpointer
@@ -6,7 +6,9 @@ from fvcore.common.checkpoint import _IncompatibleKeys
 
 
 class TrackingCheckpointer(DetectionCheckpointer):
-    """Tracking checkpointer for loading detectron2 models into a tracking model."""
+    """Tracking checkpointer.
+    Loads detectron2 models into a tracking model.
+    """
 
     def _load_model(self, checkpoint: Dict) -> _IncompatibleKeys:
         """Modify d2 checkpoint, load model weights."""

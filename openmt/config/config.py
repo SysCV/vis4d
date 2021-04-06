@@ -105,7 +105,7 @@ class Launch(BaseModel):
 class Config(BaseModel):
     """Overall config object."""
 
-    detection: Optional[Detection]  # TODO restrucutre to module (det & track)
+    detection: Optional[Detection]
     tracking: Optional[Tracking]
     solver: Solver
     dataloader: Optional[Dataloader]

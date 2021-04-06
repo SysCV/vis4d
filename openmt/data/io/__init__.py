@@ -1,11 +1,7 @@
 """Init io module."""
-from .base_backend import (
-    BaseDataBackend,
-    DataBackendConfig,
-    build_data_backend,
-)
-from .file_backend import FileBackend
-from .hdf5_backend import HDF5Backend
+from .base import BaseDataBackend, DataBackendConfig, build_data_backend
+from .file import FileBackend
+from .hdf5 import HDF5Backend
 
 __all__ = [
     "HDF5Backend",

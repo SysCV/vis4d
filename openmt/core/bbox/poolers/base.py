@@ -3,26 +3,27 @@ import abc
 from typing import List, Tuple
 
 import torch
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from openmt.core.registry import RegistryHolder
-from openmt.structures import Boxes2D
+from openmt.struct import Boxes2D
 
 
 class RoIPoolerConfig(BaseModel, extra="allow"):
-    type: str
-    resolution: Tuple[int, int]
+    """Base RoI pooler config."""
+
+    type: str = Field(...)
+    resolution: Tuple[int, int] = Field(...)
 
 
-class BaseRoIPooler(torch.nn.Module, metaclass=RegistryHolder):
-    """Base class for RoI poolers"""
+class BaseRoIPooler(metaclass=RegistryHolder):
+    """Base class for RoI poolers."""
 
     @abc.abstractmethod
     def pool(
         self, features: List[torch.Tensor], boxes: List[Boxes2D]
     ) -> List[torch.Tensor]:
-        """Pool region features corresponding to the input bounding boxes from
-        the given feature maps."""
+        """Pool features in input bounding boxes from given feature maps."""
         raise NotImplementedError
 
 
@@ -31,5 +32,4 @@ def build_roi_pooler(cfg: RoIPoolerConfig):
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
         return registry[cfg.type](cfg)
-    else:
-        raise NotImplementedError(f"RoIPooler {cfg.type} not found.")
+    raise NotImplementedError(f"RoIPooler {cfg.type} not found.")
