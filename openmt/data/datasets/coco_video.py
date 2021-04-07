@@ -3,7 +3,7 @@ import contextlib
 import io
 import logging
 import os
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 import pycocotools.mask as mask_util
 from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
@@ -15,14 +15,14 @@ from pycocotools.coco import COCO
 logger = logging.getLogger(__name__)
 
 
-def load_coco_json(
+def load_coco_json(  # type: ignore
     json_file: str,
     image_root: str,
-    dataset_name: str = None,
-    extra_annotation_keys: List[str] = None,
-) -> List[Dict]:
-    """
-    Load a json file with COCO's instances annotation format.
+    dataset_name: Optional[str] = None,
+    extra_annotation_keys: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """Load a json file with COCO's instances annotation format.
+
     Currently supports instance detection, instance segmentation,
     and person keypoints annotations.
 
@@ -84,9 +84,11 @@ def load_coco_json(
         meta = MetadataCatalog.get(dataset_name)
         cat_ids = sorted(coco_api.getCatIds())
         cats = coco_api.loadCats(cat_ids)
-        # The categories in a custom json file may not be sorted.
+        # The categories in a custom json file may not be sorted. Ignore
+        # mypy error: https://github.com/python/mypy/issues/9656
         thing_classes = [
-            c["name"] for c in sorted(cats, key=lambda x: x["id"])
+            c["name"]
+            for c in sorted(cats, key=lambda x: x["id"])  # type: ignore
         ]
         meta.thing_classes = thing_classes
 
@@ -214,7 +216,7 @@ def load_coco_json(
                         "json file."
                     ) from e
             objs.append(obj)
-        record["annotations"] = objs
+        record["annotations"] = objs  # type: ignore
         dataset_dicts.append(record)
 
     if instances_nonvalid_segmentation > 0:
@@ -225,11 +227,10 @@ def load_coco_json(
     return dataset_dicts
 
 
-def register_coco_video_instances(
-    name: str, metadata: Dict, json_file: str, image_root: str
-):
-    """
-    Register a dataset in COCO's json annotation format for tracking.
+def register_coco_video_instances(  # type: ignore
+    name: str, metadata: Dict[str, Any], json_file: str, image_root: str
+) -> None:
+    """Register a dataset in COCO's json annotation format for tracking.
 
     Args:
         name (str): the name that identifies a dataset, e.g. "coco_2014_train".

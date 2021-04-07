@@ -7,7 +7,7 @@ from detectron2.modeling.sampling import subsample_labels
 from openmt.struct import Boxes2D
 
 from ..matchers.base import MatchResult
-from .base_sampler import BaseSampler, SamplerConfig
+from .base import BaseSampler, SamplerConfig
 
 
 class RandomSampler(BaseSampler):

@@ -6,6 +6,7 @@ from collections import OrderedDict
 from typing import Dict, Iterable, List, Optional
 
 import torch
+from bdd100k.eval.mot import EvalResults
 from detectron2.config import CfgNode
 from detectron2.engine import DefaultTrainer, launch
 from detectron2.evaluation import DatasetEvaluator
@@ -24,6 +25,7 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
     """Trainer with COCOEvaluator for testing."""
 
     def __init__(self, cfg: Config, det2cfg: CfgNode):
+        """Init."""
         self.track_cfg = cfg
         super().__init__(det2cfg)
         # Assumes you want to save checkpoints together with logs/statistics
@@ -35,16 +37,14 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         )
 
     def build_model(self, cfg: CfgNode) -> torch.nn.Module:
-        """Builds tracking model. """
+        """Builds tracking model."""
         model = build_model(self.track_cfg)
         logger = logging.getLogger(__name__)
         logger.info("Model:\n%s", model)
         return model
 
     def build_train_loader(self, cfg: CfgNode) -> Iterable[List]:
-        """It calls :func:`openmt.data.build_tracking_train_loader`.
-        Overwrite it if you'd like a different data loader.
-        """
+        """Calls :func:`openmt.data.build_tracking_train_loader`."""
         return build_tracking_train_loader(self.track_cfg.dataloader, cfg)
 
     @classmethod
@@ -61,8 +61,9 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         cfg: CfgNode,
         model: torch.nn.Module,
         evaluators: List[DatasetEvaluator] = None,
-    ):
+    ) -> Dict[str, EvalResults]:
         """Test model with given evaluators.
+
         Args:
             cfg (CfgNode): detectron2 config.
             model (nn.Module): model to test.

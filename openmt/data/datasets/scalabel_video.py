@@ -2,7 +2,7 @@
 import json
 import logging
 import os
-from typing import List
+from typing import Any, Dict, List, Optional, no_type_check
 
 from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
 from detectron2.structures import BoxMode
@@ -12,7 +12,9 @@ from scalabel.label.typing import Frame
 logger = logging.getLogger(__name__)
 
 
-def load_json(json_path, image_root, dataset_name=None) -> List[Frame]:
+def load_json(
+    json_path: str, image_root: str, dataset_name: Optional[str] = None
+) -> List[Frame]:
     """Load Scalabel frames from json."""
     frames = []
     cat_ids = []
@@ -22,9 +24,11 @@ def load_json(json_path, image_root, dataset_name=None) -> List[Frame]:
         # add filename, category and instance id (integer)
         ins_ids = []
         for ann in imgs_anns:
+            assert ann.video_name is not None and ann.name is not None
             ann.url = os.path.join(image_root, ann.video_name, ann.name)
             for j in range(len(ann.labels)):
                 label = ann.labels[j]
+                assert label.category is not None
                 if not label.category in cat_ids:
                     cat_ids.append(label.category)
                 if not label.id in ins_ids:
@@ -45,7 +49,10 @@ def load_json(json_path, image_root, dataset_name=None) -> List[Frame]:
     return frames
 
 
-def load_json_to_coco(json_path, image_root, dataset_name=None):
+@no_type_check
+def load_json_to_coco(
+    json_path: str, image_root: str, dataset_name: Optional[str] = None
+) -> List[Dict[str, Any]]:  # type: ignore
     """Load BDD100K instances to dicts."""
     json_files = os.listdir(json_path)
 
@@ -112,12 +119,9 @@ def load_json_to_coco(json_path, image_root, dataset_name=None):
 
 
 def register_scalabel_video_instances(  # pylint: disable=invalid-name
-    name, metadata, json_path, image_root
-):
+    name: str, metadata: Dict, json_path: str, image_root: str
+) -> None:
     """Register a dataset in scalabel json annotation format for tracking."""
-    assert isinstance(name, str), name
-    assert isinstance(json_path, (str, os.PathLike)), json_path
-    assert isinstance(image_root, (str, os.PathLike)), image_root
     # 1. register a function which returns dicts
     DatasetCatalog.register(
         name, lambda: load_json_to_coco(json_path, image_root, name)

@@ -1,14 +1,12 @@
 """RoIHead interface for backend."""
 
 import abc
-from typing import Dict, List, Optional, Tuple
+from typing import Any
 
 import torch
-from detectron2.structures import ImageList
 from pydantic import BaseModel, Field
 
 from openmt.core.registry import RegistryHolder
-from openmt.struct import Boxes2D
 
 
 class RoIHeadConfig(BaseModel, extra="allow"):
@@ -17,19 +15,16 @@ class RoIHeadConfig(BaseModel, extra="allow"):
     type: str = Field(...)
 
 
-class BaseRoIHead(torch.nn.Module, metaclass=RegistryHolder):
+class BaseRoIHead(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     """Base roi head class."""
 
     @abc.abstractmethod
-    def forward(
-        self,
-        images: ImageList,
-        features: Dict[str, torch.Tensor],
-        proposals: List[Boxes2D],
-        targets: Optional[List[Boxes2D]] = None,
-    ) -> Tuple[List[torch.Tensor], Optional[List[Boxes2D]]]:
-        """Process proposals and output predictions and possibly target
-        assignments."""
+    def forward(self, *args: Any, **kwargs: Any) -> Any:  # type: ignore
+        """Forward method.
+
+        Process proposals, output predictions and possibly target
+        assignments.
+        """
         raise NotImplementedError
 
 
@@ -37,5 +32,7 @@ def build_roi_head(cfg: RoIHeadConfig) -> BaseRoIHead:
     """Build an RoIHead from config."""
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
-        return registry[cfg.type](cfg)
+        module = registry[cfg.type](cfg)
+        assert isinstance(module, BaseRoIHead)
+        return module
     raise NotImplementedError(f"RoIHead {cfg.type} not found.")

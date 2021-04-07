@@ -1,6 +1,6 @@
 """Build data loading pipeline for tracking."""
 import logging
-from typing import Dict, List, Union
+from typing import Dict, Iterable, List, Union
 
 import torch
 from detectron2.config import CfgNode
@@ -39,6 +39,11 @@ class DataOptions(BaseModel):
     mapper: TrackingDatasetMapper
     total_batch_size: int
     num_workers: int
+
+    class Config:  # needed due to sampler
+        """Pydantic configuration for this particular class."""
+
+        arbitrary_types_allowed = True
 
 
 def _train_loader_from_config(
@@ -84,10 +89,8 @@ def _train_loader_from_config(
 
 def build_tracking_train_loader(
     loader_cfg: DataloaderConfig, det2cfg: CfgNode
-):
-    """Build a dataloader for object tracking with some default features.
-    This interface is experimental.
-    """
+) -> Iterable[List]:
+    """Build a dataloader for object tracking with some default features."""
     data_options = _train_loader_from_config(loader_cfg, det2cfg)
     dataset = DatasetFromList(data_options.dataset, copy=False)
     dataset = MapTrackingDataset(

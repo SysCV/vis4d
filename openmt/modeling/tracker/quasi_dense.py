@@ -1,5 +1,5 @@
 """Quasi-dense embedding similarity based tracker."""
-from typing import Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -77,10 +77,13 @@ class QDEmbeddingTracker(BaseTracker):
         """Reset tracks."""
         self.num_tracks = 0
         self.tracks = dict()
-        self.backdrops = []
+        self.backdrops: List[Dict[str, Union[Boxes2D, torch.Tensor]]] = []
 
-    def get_tracks(self, frame_id: int = None) -> Tuple[Boxes2D, torch.Tensor]:
+    def get_tracks(
+        self, frame_id: Optional[int] = None
+    ) -> Tuple[Boxes2D, torch.Tensor]:
         """Get active tracks at given frame.
+
         If frame_id is None, return all tracks in memory.
         """
         bboxs, embeds, cls, ids = [], [], [], []
@@ -143,9 +146,9 @@ class QDEmbeddingTracker(BaseTracker):
                 raise NotImplementedError
 
             if self.cfg.with_cats:
-                cat_same = detections.classes.view(
+                cat_same = detections.class_ids.view(
                     -1, 1
-                ) == memo_dets.classes.view(1, -1)
+                ) == memo_dets.class_ids.view(1, -1)
                 scores *= cat_same.float()
 
             for i in range(len(detections)):
@@ -228,7 +231,7 @@ class QDEmbeddingTracker(BaseTracker):
         frame_id: int,
     ) -> None:
         """Update a specific track with a new detection."""
-        bbox, cls = detection.boxes[0], detection.classes[0]
+        bbox, cls = detection.boxes[0], detection.class_ids[0]
         velocity = (bbox - self.tracks[track_id]["bbox"]) / (
             frame_id - self.tracks[track_id]["last_frame"]
         )
@@ -253,7 +256,7 @@ class QDEmbeddingTracker(BaseTracker):
         frame_id: int,
     ) -> None:
         """Create a new track from a detection."""
-        bbox, cls = detection.boxes[0], detection.classes[0]
+        bbox, cls = detection.boxes[0], detection.class_ids[0]
         self.tracks[track_id] = dict(
             bbox=bbox,
             embed=embedding,

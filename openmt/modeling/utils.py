@@ -20,7 +20,7 @@ def detections_to_box2d(detections: List[Instances]) -> List[Boxes2D]:
         result.append(
             Boxes2D(
                 torch.cat([boxes, scores.unsqueeze(-1)], -1),
-                classes=cls,
+                class_ids=cls,
                 image_wh=detection.image_size,
             )
         )

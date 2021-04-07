@@ -6,7 +6,7 @@ import logging
 import os.path as osp
 import time
 from contextlib import ExitStack, contextmanager
-from typing import Iterable
+from typing import Generator, Iterable, List, Optional
 
 import detectron2.utils.comm as comm
 import torch
@@ -19,12 +19,16 @@ from detectron2.utils.logger import log_every_n_seconds
 from scalabel.label.typing import Frame
 
 from openmt.data.datasets.scalabel_video import load_json
+from openmt.struct import Boxes2D
 
 
 @contextmanager
-def inference_context(model: torch.nn.Module) -> None:
-    """A context where the model is temporarily changed to eval mode and
-    restored to previous mode afterwards."""
+def inference_context(model: torch.nn.Module) -> Generator:
+    """Context for inference.
+
+    The model is temporarily changed to eval mode and
+    restored to previous mode afterwards.
+    """
     training_mode = model.training
     model.eval()
     yield
@@ -35,6 +39,7 @@ def inference_on_dataset(
     model: torch.nn.Module, data_loader: Iterable, evaluator: DatasetEvaluator
 ) -> EvalResults:
     """Run model on the data_loader and evaluate the metrics with evaluator.
+
     Also benchmark the inference speed of `model.__call__` accurately.
     The model will be used in eval mode.
 
@@ -134,14 +139,20 @@ def inference_on_dataset(
     return results
 
 
-class ScalabelMOTAEvaluator(DatasetEvaluator):
+class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore
     """Evaluate tracking model using MOTA metrics.
+
     This class will accumulate information of the inputs/outputs (by
-    :meth:`process`),
-    and produce evaluation results in the end (by :meth:`evaluate`).
+    :meth:`process`), and produce evaluation results in the end (by
+    :meth:`evaluate`).
     """
 
-    def __init__(self, dataset_name, distributed=True, output_dir=None):
+    def __init__(
+        self,
+        dataset_name: str,
+        distributed: bool = True,
+        output_dir: Optional[str] = None,
+    ) -> None:
         """Init."""
         self._distributed = distributed
         self._output_dir = output_dir
@@ -151,19 +162,20 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):
         )
         self._predictions = []
 
-    def reset(self):
+    def reset(self) -> None:
         """Preparation for a new round of evaluation."""
         self._predictions = []
 
-    def process(self, inputs, outputs):
-        """
-        Process the pair of inputs and outputs.
+    def process(self, inputs: List, outputs: List[Boxes2D]) -> None:
+        """Process the pair of inputs and outputs.
+
         If they contain batches, the pairs can be consumed one-by-one using
         `zip`:
         .. code-block:: python
             for input_, output in zip(inputs, outputs):
                 # do evaluation on single input/output pair
                 ...
+
         Args:
             inputs (list): the inputs that's used to call the model.
             outputs (list): the return value of `model(inputs)`
@@ -181,18 +193,8 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):
 
             self._predictions.append(Frame(**prediction))
 
-    def evaluate(self):
-        """Evaluate/summarize the performance, after processing all
-        input/output pairs.
-
-        Returns:
-            dict:
-                A new evaluator class can return a dict of arbitrary format
-                as long as the user can process the results.
-                In our train_net.py, we expect the following format:
-                * key: the name of the task (e.g., bbox)
-                * value: a dict of {metric name: score}, e.g.: {"AP50": 80}
-        """
+    def evaluate(self) -> EvalResults:
+        """Evaluate the performance after processing all input/output pairs."""
         if self._distributed:
             comm.synchronize()
             predictions = comm.gather(self._predictions, dst=0)

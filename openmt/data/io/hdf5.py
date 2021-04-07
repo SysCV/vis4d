@@ -1,8 +1,6 @@
 """Hdf5 data backend."""
 import os
-from typing import Optional
-
-import numpy as np
+from typing import Dict
 
 from .base import BaseDataBackend, DataBackendConfig
 
@@ -28,10 +26,10 @@ class HDF5Backend(BaseDataBackend):
 
         self.cfg = HDF5BackendConfig(**cfg.__dict__)
         self.h5_file_api = h5py.File
-        self.db_cache = dict()
+        self.db_cache: Dict[str, h5py.File] = dict()
 
-    def get(self, filepath: str) -> Optional[np.ndarray]:
-        """Get values according to the filepath."""
+    def get(self, filepath: str) -> bytes:
+        """Get values according to the filepath as bytes."""
         split, seq_token, column, row = filepath.split("/")
         if not split + "/" + seq_token in self.db_cache.keys():
             db_path = os.path.join(
@@ -41,7 +39,7 @@ class HDF5Backend(BaseDataBackend):
                 client = self.h5_file_api(db_path, "r")
                 self.db_cache[split + "/" + seq_token] = client
             else:
-                return None
+                raise FileNotFoundError(f"File not found: {db_path}")
         else:
             client = self.db_cache[split + "/" + seq_token]
 
@@ -49,8 +47,10 @@ class HDF5Backend(BaseDataBackend):
         if value_buf is not None:
             value_buf = value_buf.get(row)
             if value_buf is not None:
-                value_buf = np.array(client[column][row])
-        return value_buf
+                return value_buf
 
-    def get_text(self, filepath):
+        raise ValueError(f"Value {filepath} not found in {client.filename}!")
+
+    def get_text(self, filepath: str) -> str:
+        """Get values in hdf5 according to filepath as string."""
         raise NotImplementedError

@@ -2,6 +2,7 @@
 
 from typing import Dict
 
+from bdd100k.eval.mot import EvalResults
 from detectron2.config import CfgNode
 from detectron2.engine import launch
 
@@ -15,14 +16,14 @@ from .train import TrackingTrainer
 
 def track_predict_func(
     det2cfg: CfgNode, cfg: Config
-) -> Dict[str, Dict[str, float]]:
+) -> Dict[str, EvalResults]:
     """Prediction function."""
     model = build_model(cfg)
     TrackingCheckpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
         det2cfg.MODEL.WEIGHTS, resume=cfg.launch.resume
     )
 
-    return TrackingTrainer.test(det2cfg, model)  # type: ignore
+    return TrackingTrainer.test(det2cfg, model)
 
 
 def predict(cfg: Config) -> None:

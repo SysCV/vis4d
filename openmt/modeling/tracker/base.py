@@ -16,12 +16,13 @@ class TrackLogicConfig(BaseModel, extra="allow"):
     type: str = Field(...)
 
 
-class BaseTracker(torch.nn.Module, metaclass=RegistryHolder):
+class BaseTracker(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     """Base tracker class."""
 
     def __init__(self, cfg: TrackLogicConfig):
+        """Init."""
         super().__init__()
-        self.cfg = cfg
+        self.cfg_base = cfg
         self.reset()
 
     def reset(self) -> None:
@@ -56,5 +57,7 @@ def build_tracker(cfg: TrackLogicConfig) -> BaseTracker:
     """Build a Tracker from config."""
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
-        return registry[cfg.type](cfg)
+        module = registry[cfg.type](cfg)
+        assert isinstance(module, BaseTracker)
+        return module
     raise NotImplementedError(f"TrackLogic {cfg.type} not found.")

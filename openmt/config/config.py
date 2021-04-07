@@ -108,7 +108,7 @@ class Config(BaseModel):
     detection: Optional[Detection]
     tracking: Optional[Tracking]
     solver: Solver
-    dataloader: Optional[Dataloader]
+    dataloader: Dataloader
     train: Optional[List[Dataset]]
     test: Optional[List[Dataset]]
     output_dir: Optional[str]

@@ -14,6 +14,7 @@ class DataBackendConfig(BaseModel, extra="allow"):
 
 class BaseDataBackend(metaclass=RegistryHolder):
     """Abstract class of storage backends.
+
     All backends need to implement two apis: ``get()`` and ``get_text()``.
     ``get()`` reads the file as a byte stream and ``get_text()`` reads the file
     as texts.
@@ -34,5 +35,7 @@ def build_data_backend(cfg: DataBackendConfig) -> BaseDataBackend:
     """Build a data backend from config."""
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
-        return registry[cfg.type](cfg)
+        module = registry[cfg.type](cfg)
+        assert isinstance(module, BaseDataBackend)
+        return module
     raise NotImplementedError(f"Data backend {cfg.type} not found.")

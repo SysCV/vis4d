@@ -1,4 +1,5 @@
 """Combined Sampler."""
+import inspect
 from typing import List, Tuple
 
 import torch
@@ -8,7 +9,7 @@ from openmt.struct import Boxes2D
 
 from ..matchers.base import MatchResult
 from ..utils import non_intersection, random_choice
-from .base_sampler import BaseSampler, SamplerConfig
+from .base import BaseSampler, SamplerConfig
 
 
 class CombinedSamplerConfig(SamplerConfig):
@@ -54,12 +55,14 @@ class CombinedSampler(BaseSampler):
         super().__init__()
         self.cfg = CombinedSamplerConfig(**cfg.dict())
         self.bg_label = 0
+        self.pos_strategy = getattr(self, self.cfg.pos_strategy + "_sampling")
+        self.pos_args = inspect.signature(self.pos_strategy).parameters.keys()
+        self.neg_strategy = getattr(self, self.cfg.neg_strategy + "_sampling")
+        self.neg_args = inspect.signature(self.neg_strategy).parameters.keys()
 
     @staticmethod
     def instance_balanced_sampling(
-        idx_tensor: torch.Tensor,
-        assigned_gts: torch.Tensor,
-        sample_size: int,
+        idx_tensor: torch.Tensor, assigned_gts: torch.Tensor, sample_size: int
     ) -> torch.Tensor:
         """Sample indices with balancing according to matched GT instance."""
         if idx_tensor.numel() <= sample_size:
@@ -177,9 +180,7 @@ class CombinedSampler(BaseSampler):
                 assigned_gt_ious=match.assigned_gt_iou[positive_mask],
                 sample_size=num_pos,
             )
-            pos_idx = getattr(self, self.cfg.pos_strategy + "_sampling")(
-                **args
-            )
+            pos_idx = self.pos_strategy(**{k: args[k] for k in self.pos_args})
 
             args = dict(
                 idx_tensor=negative,
@@ -187,9 +188,7 @@ class CombinedSampler(BaseSampler):
                 assigned_gt_ious=match.assigned_gt_iou[negative_mask],
                 sample_size=num_neg,
             )
-            neg_idx = getattr(self, self.cfg.neg_strategy + "_sampling")(
-                **args
-            )
+            neg_idx = self.neg_strategy(**{k: args[k] for k in self.neg_args})
 
             sampled_idxs = torch.cat([pos_idx, neg_idx], dim=0)
 

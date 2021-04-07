@@ -38,5 +38,7 @@ def build_matcher(cfg: MatcherConfig) -> BaseMatcher:
     """Build a bounding box matcher from config."""
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
-        return registry[cfg.type](cfg)
+        module = registry[cfg.type](cfg)
+        assert isinstance(module, BaseMatcher)
+        return module
     raise NotImplementedError(f"Matcher {cfg.type} not found.")

@@ -12,16 +12,17 @@ from .utils import weight_reduce_loss
 class EmbeddingDistanceLossConfig(LossConfig):
     """Config for embedding distance loss."""
 
-    neg_pos_ub: Optional[int] = -1
-    pos_margin: Optional[int] = -1
-    neg_margin: Optional[int] = -1
-    hard_mining: Optional[bool] = False
+    neg_pos_ub: int = -1
+    pos_margin: int = -1
+    neg_margin: int = -1
+    hard_mining: bool = False
 
 
 class EmbeddingDistanceLoss(BaseLoss):
     """Embedding distance loss."""
 
     def __init__(self, cfg: LossConfig):
+        """Init."""
         super().__init__()
         self.cfg = EmbeddingDistanceLossConfig(**cfg.__dict__)
 
@@ -31,9 +32,9 @@ class EmbeddingDistanceLoss(BaseLoss):
         target: torch.Tensor,
         weight: Optional[torch.Tensor] = None,
         reduction_override: Optional[str] = None,
-        **kwargs
     ) -> torch.Tensor:
         """Forward function.
+
         Args:
             pred (torch.Tensor): The prediction.
             target (torch.Tensor): The learning target of the prediction.
@@ -42,13 +43,15 @@ class EmbeddingDistanceLoss(BaseLoss):
             reduction_override (str, optional): The reduction method used to
                 override the original reduction method of the loss.
                 Defaults to None.
-            kwargs: additional arguments.
+
         Returns:
             loss_bbox (torch.Tensor): embedding distance loss.
         """
         assert reduction_override in (None, "none", "mean", "sum")
         reduction = (
-            reduction_override if reduction_override else self.cfg.reduction
+            reduction_override
+            if reduction_override is not None
+            else self.cfg.reduction
         )
         pred, weight, avg_factor = self.update_weight(pred, target, weight)
         loss_bbox = self.cfg.loss_weight * l2_loss(
@@ -60,6 +63,7 @@ class EmbeddingDistanceLoss(BaseLoss):
         self, pred: torch.Tensor, target: torch.Tensor, weight: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, float]:
         """Update element-wise loss weights.
+
         Exclude negatives according to maximum fraction of samples and/or
         hard negative mining.
         """
@@ -104,7 +108,7 @@ def l2_loss(
     pred: torch.Tensor,
     target: torch.Tensor,
     weight: Optional[torch.Tensor] = None,
-    reduction: Optional[str] = "mean",
+    reduction: str = "mean",
     avg_factor: Optional[float] = None,
 ):
     """L2 loss."""

@@ -12,12 +12,14 @@ class FileBackend(BaseDataBackend):
         self.cfg = DataBackendConfig(**cfg.__dict__)
 
     def get(self, filepath: str) -> bytes:
+        """Get file content as bytes."""
         filepath = str(filepath)
         with open(filepath, "rb") as f:
             value_buf = f.read()
         return value_buf
 
     def get_text(self, filepath: str) -> str:
+        """Get file content as string."""
         filepath = str(filepath)
         with open(filepath, "r") as f:
             value_buf = f.read()

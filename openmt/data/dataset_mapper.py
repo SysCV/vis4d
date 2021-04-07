@@ -3,12 +3,13 @@
 import copy
 import logging
 from collections import defaultdict
-from typing import List
+from typing import Dict, List, Optional, Tuple
 
 import cv2
 import detectron2.data.detection_utils as d2_utils
 import numpy as np
 import torch
+from detectron2.config import CfgNode
 from detectron2.data import transforms as T
 from detectron2.data.common import MapDataset
 from detectron2.data.dataset_mapper import DatasetMapper
@@ -29,22 +30,22 @@ class ReferenceSamplingConfig(BaseModel):
     scope: int
 
     @validator("scope")
-    def _validate_scope(
-        cls, value, values
-    ):  # pylint: disable=no-self-argument,no-self-use
+    def validate_scope(  # pylint: disable=no-self-argument,no-self-use
+        cls, value: int, values
+    ) -> int:
         """Check scope attribute."""
         if not value > values["num_ref_imgs"] // 2:
             raise ValueError("Scope must be higher than num_ref_imgs / 2.")
         return value
 
 
-class MapTrackingDataset(MapDataset):
+class MapTrackingDataset(MapDataset):  # type: ignore
     """Map a function over the elements in a dataset."""
 
-    def __init__(self, sampling_cfg, *args, **kwargs):
-        """Init"""
+    def __init__(self, sampling_cfg: ReferenceSamplingConfig, *args, **kwargs):
+        """Init."""
         super().__init__(*args, **kwargs)
-        self.video_to_idcs = defaultdict(list)
+        self.video_to_idcs: Dict[str, List[int]] = defaultdict(list)
         self._create_video_mapping()
         self.sampling_cfg = sampling_cfg
 
@@ -53,7 +54,9 @@ class MapTrackingDataset(MapDataset):
         for idx, entry in enumerate(self._dataset):
             self.video_to_idcs[entry["video_id"]].append(idx)
 
-    def sample_ref_idcs(self, video_idcs: List[int], cur_idx: int):
+    def sample_ref_idcs(
+        self, video_idcs: List[int], cur_idx: int
+    ) -> List[int]:
         """Sample reference indices from video_idcs given cur_idx."""
         frame_to_idx = {self._dataset[i]["frame_id"]: i for i in video_idcs}
         frame_ids = sorted(list(frame_to_idx.keys()))
@@ -85,7 +88,8 @@ class MapTrackingDataset(MapDataset):
 
         return [frame_to_idx[i] for i in ref_frame_ids]
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Dict:
+        """Fully prepare a sample for training/inference."""
         retry_count = 0
         cur_idx = int(idx)
 
@@ -120,25 +124,28 @@ class MapTrackingDataset(MapDataset):
                 )
 
 
-class TrackingDatasetMapper(DatasetMapper):
-    """
+class TrackingDatasetMapper(DatasetMapper):  # type: ignore
+    """DatasetMapper class for tracking.
+
     A callable which takes a dataset dict in Detectron2 Dataset format,
-    and maps it into a format used by the openMT tracking model.
-
-    The callable does the following:
-
+    and maps it into a format used by the openMT tracking model. The
+    callable does the following:
     1. Read image sequence (during train) from "file_name"
     2. Applies cropping/geometric transforms to the image and annotations
     3. Prepare data and annotations to Tensor and :class:`Instances`
     """
 
-    def __init__(self, backend_cfg: DataBackendConfig, det2cfg):
+    def __init__(
+        self, backend_cfg: DataBackendConfig, det2cfg: CfgNode
+    ) -> None:
         """Init."""
         super().__init__(det2cfg)  # pylint: disable=missing-kwoa
         self.data_backend = build_data_backend(backend_cfg)
 
-    def load_image(self, dataset_dict):
-        """Load image according to data_backend"""
+    def load_image(
+        self, dataset_dict: Dict
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """Load image according to data_backend."""
         im_bytes = self.data_backend.get(dataset_dict["file_name"])
         image = utils.im_decode(im_bytes)
         d2_utils.check_image_size(dataset_dict, image)
@@ -157,8 +164,8 @@ class TrackingDatasetMapper(DatasetMapper):
 
     def transform_image(
         self, image, dataset_dict, transforms=None, sem_seg_gt=None
-    ):
-        """Apply image augmentations and convert to torch tensor"""
+    ) -> T.AugmentationList:
+        """Apply image augmentations and convert to torch tensor."""
         aug_input = T.AugInput(image, sem_seg=sem_seg_gt)
         if transforms is None:
             transforms = self.augmentations(aug_input)
@@ -216,7 +223,8 @@ class TrackingDatasetMapper(DatasetMapper):
         return instances
 
     def __call__(self, dataset_dict, transforms=None):
-        """
+        """Prepare a single sample in model format.
+
         Args:
             dataset_dict (dict): Metadata of one image, in Detectron2
             Dataset format.

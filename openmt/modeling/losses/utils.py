@@ -5,7 +5,7 @@ import torch
 from torch.nn._reduction import get_enum
 
 
-def _reduce(loss: torch.Tensor, reduction: str):
+def _reduce(loss: torch.Tensor, reduction: str) -> torch.Tensor:
     """Reduce loss based on pytorch reduction logic."""
     value = get_enum(reduction)
     if value == 0:
@@ -20,9 +20,9 @@ def _reduce(loss: torch.Tensor, reduction: str):
 def weight_reduce_loss(
     loss: torch.Tensor,
     weight: Optional[torch.Tensor] = None,
-    reduction: Optional[str] = "mean",
+    reduction: str = "mean",
     avg_factor: Optional[float] = None,
-):
+) -> torch.Tensor:
     """Apply element-wise weight and reduce loss."""
     # if weight is specified, apply element-wise weight
     if weight is not None:

@@ -1,23 +1,24 @@
 """OpenMT module registry."""
-from typing import Dict, Optional, Type
+from typing import Any, Dict, Optional, Tuple
 
 
 class RegistryHolder(type):
     """Registry for all modules in openMT."""
 
-    REGISTRY = {}
+    REGISTRY: Dict[str, "RegistryHolder"] = {}
 
     # Ignore mcs vs. cls since it conflicts with PEP8:
     # https://github.com/PyCQA/pylint/issues/2028
-    def __new__(
-        cls, name, bases, attrs
-    ):  # pylint: disable=bad-mcs-classmethod-argument
+    def __new__(  # type: ignore # pylint: disable=bad-mcs-classmethod-argument
+        cls, name: str, bases: Tuple[Any], attrs: Dict[str, Any]
+    ) -> "RegistryHolder":
         """Method called when constructing a new class.
 
         Adds the new class to the model registry,
         with its module + name as key.
         """
         new_cls = type.__new__(cls, name, bases, attrs)
+        assert isinstance(new_cls, RegistryHolder)
         module_name = ".".join(
             [*attrs["__module__"].split(".")[:-1], new_cls.__name__]
         )
@@ -27,7 +28,7 @@ class RegistryHolder(type):
     @classmethod
     def get_registry(  # pylint: disable=bad-mcs-classmethod-argument
         cls, scope: Optional[str] = None
-    ) -> Dict[str, Type]:
+    ) -> Dict[str, "RegistryHolder"]:
         """Get registered classes, optionally for a specific scope.
 
         Args:

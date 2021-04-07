@@ -39,5 +39,7 @@ def build_sampler(cfg: SamplerConfig) -> BaseSampler:
     """Build a bounding box sampler from config."""
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
-        return registry[cfg.type](cfg)
+        module = registry[cfg.type](cfg)
+        assert isinstance(module, BaseSampler)
+        return module
     raise NotImplementedError(f"Sampler {cfg.type} not found.")

@@ -1,16 +1,17 @@
 """Checkpointing for tracking methods."""
-from typing import Dict
-
 from detectron2.checkpoint import DetectionCheckpointer
 from fvcore.common.checkpoint import _IncompatibleKeys
 
+from openmt.struct import TorchCheckpoint
 
-class TrackingCheckpointer(DetectionCheckpointer):
+
+class TrackingCheckpointer(DetectionCheckpointer):  # type: ignore
     """Tracking checkpointer.
+
     Loads detectron2 models into a tracking model.
     """
 
-    def _load_model(self, checkpoint: Dict) -> _IncompatibleKeys:
+    def _load_model(self, checkpoint: TorchCheckpoint) -> _IncompatibleKeys:
         """Modify d2 checkpoint, load model weights."""
         # checkpoint modification to fit to d2_detector
         if checkpoint["__author__"].startswith("Detectron2"):

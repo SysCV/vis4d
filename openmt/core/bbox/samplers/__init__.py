@@ -1,7 +1,7 @@
 """Init sampler module."""
-from .base_sampler import BaseSampler, SamplerConfig, build_sampler
-from .combined_sampler import CombinedSampler
-from .random_sampler import RandomSampler
+from .base import BaseSampler, SamplerConfig, build_sampler
+from .combined import CombinedSampler
+from .random import RandomSampler
 
 __all__ = [
     "BaseSampler",

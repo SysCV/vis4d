@@ -29,6 +29,7 @@ class TestConfig(unittest.TestCase):
         test_file = get_test_file("retinanet_R_50_FPN.toml")
         args = Namespace(config=test_file)
         cfg = config.parse_config(args)
+        assert cfg.detection is not None
 
         cfg.detection.model_base = "COCO-Detection/retinanet_R_50_FPN_3x.yaml"
         cfg.detection.override_mapping = True

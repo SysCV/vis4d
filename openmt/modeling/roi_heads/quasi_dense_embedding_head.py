@@ -1,4 +1,4 @@
-"""RoI Heads definition for quasi-dense instance similarity learning"""
+"""RoI Heads definition for quasi-dense instance similarity learning."""
 from math import prod
 from typing import Dict, List, Optional, Tuple
 
@@ -121,6 +121,7 @@ class QDRoIHead(BaseRoIHead):
         targets: Optional[List[Boxes2D]] = None,
     ) -> Tuple[List[torch.Tensor], Optional[List[Boxes2D]]]:
         """Forward of embedding head.
+
         We do not return a loss here, since the matching loss needs to
         be computed across all frames. Here, we only run the forward pass
         per frame, as well as proposal sampling and target assignment.

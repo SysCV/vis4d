@@ -65,6 +65,7 @@ def _register(datasets: List[Dataset]) -> List[str]:
 
 def to_detectron2(config: Config) -> CfgNode:
     """Convert a Config object to a detectron2 readable configuration."""
+    assert config.detection is not None
     cfg = get_cfg()
 
     # load model base config, checkpoint

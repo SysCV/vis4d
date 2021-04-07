@@ -11,23 +11,25 @@ class MultiPosCrossEntropyLoss(BaseLoss):
     """Multi-positive cross entropy loss class."""
 
     def __init__(self, cfg: LossConfig):
+        """Init."""
         super().__init__()
         self.cfg = cfg
 
-    def forward(  # pylint: disable=arguments-differ
+    def forward(  # type: ignore
         self,
         pred: torch.Tensor,
         target: torch.Tensor,
         weight: Optional[torch.Tensor] = None,
         reduction_override: Optional[str] = None,
         avg_factor: Optional[float] = None,
-        **kwargs
-    ):
+    ) -> torch.Tensor:
         """Multi-positive cross entropy loss forward."""
         assert pred.size() == target.size()
         assert reduction_override in (None, "none", "mean", "sum")
         reduction = (
-            reduction_override if reduction_override else self.cfg.reduction
+            reduction_override
+            if reduction_override is not None
+            else self.cfg.reduction
         )
         loss_cls = self.cfg.loss_weight * multi_pos_cross_entropy(
             pred,
@@ -43,9 +45,9 @@ def multi_pos_cross_entropy(
     pred: torch.Tensor,
     target: torch.Tensor,
     weight: Optional[torch.Tensor] = None,
-    reduction: Optional[str] = "mean",
+    reduction: str = "mean",
     avg_factor: Optional[float] = None,
-):
+) -> torch.Tensor:
     """Calculate multi-positive cross-entropy loss."""
     # element-wise losses
     pos_inds = (target == 1).float()

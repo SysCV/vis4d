@@ -27,9 +27,11 @@ class BaseRoIPooler(metaclass=RegistryHolder):
         raise NotImplementedError
 
 
-def build_roi_pooler(cfg: RoIPoolerConfig):
+def build_roi_pooler(cfg: RoIPoolerConfig) -> BaseRoIPooler:
     """Build an RoI pooler from config."""
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
-        return registry[cfg.type](cfg)
+        module = registry[cfg.type](cfg)
+        assert isinstance(module, BaseRoIPooler)
+        return module
     raise NotImplementedError(f"RoIPooler {cfg.type} not found.")

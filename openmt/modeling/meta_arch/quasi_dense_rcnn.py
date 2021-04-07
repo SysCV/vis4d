@@ -1,7 +1,7 @@
 """Faster R-CNN for quasi-dense instance similarity learning."""
 
 import random
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import torch
 from detectron2.modeling import GeneralizedRCNN
@@ -32,6 +32,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
     def __init__(self, cfg: Config) -> None:
         """Init."""
         super().__init__()
+        assert cfg.tracking is not None
         detector_config = to_detectron2(cfg)
         # pylint: disable=too-many-function-args,missing-kwoa
         self.d2_detector = GeneralizedRCNN(detector_config)
@@ -44,12 +45,13 @@ class QDGeneralizedRCNN(BaseMetaArch):
         self.track_loss_aux = build_loss(cfg.tracking.losses[1])
 
     @property
-    def device(self):
+    def device(self) -> torch.device:
         """Get device where model input should be moved to."""
         return self.d2_detector.pixel_mean.device
 
-    def select_keyframe(self, sequence_length):
+    def select_keyframe(self, sequence_length: int) -> Tuple[int, List[int]]:
         """Keyframe selection.
+
         Strategies:
         - Random
         - First frame
@@ -73,11 +75,10 @@ class QDGeneralizedRCNN(BaseMetaArch):
 
         return key_index, ref_indices
 
-    def forward(self, batch_inputs: List[List[Dict[str, torch.Tensor]]]):
-        """Forward pass function."""
-        if not self.training:
-            return self.inference(batch_inputs)
-
+    def forward_train(
+        self, batch_inputs: List[List[Dict[str, torch.Tensor]]]
+    ) -> Dict[str, torch.Tensor]:
+        """Forward function for training."""
         # preprocess: group by sequence index instead of batch index, prepare
         batch_inputs = [
             [batch_inputs[j][i] for j in range(len(batch_inputs))]
@@ -178,7 +179,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
 
     def match(
         self, key_embeds: torch.Tensor, ref_embeds: List[torch.Tensor]
-    ) -> Tuple[List[List[torch.Tensor]], Optional[List[List[torch.Tensor]]]]:
+    ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
         """Match key / ref embeddings based on cosine similarity."""
         # for each reference view
         dists, cos_dists = [], []
@@ -193,7 +194,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
                     temperature=self.softmax_temp,
                 )
                 dists_curr.append(dist)
-                if cos_dists is not None:
+                if self.track_loss_aux is not None:
                     cos_dist = cosine_similarity(key_embed, ref_embed_)
                     cos_dists_curr.append(cos_dist)
 
@@ -236,6 +237,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
         ref_targets: List[Boxes2D],
     ) -> Dict[str, Union[torch.Tensor, float]]:
         """Calculate losses for tracking.
+
         Each input is of type List[List[Tensor]] where the lists are of
         length MxN where M is the number of reference views
         and N is the number of batch elements.
@@ -269,11 +271,11 @@ class QDGeneralizedRCNN(BaseMetaArch):
 
         return losses
 
-    def inference(
-        self, inputs: Tuple[Dict[str, torch.Tensor]]
+    def forward_test(
+        self, batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]]
     ) -> List[Boxes2D]:
-        """Inference function."""
-        inputs = inputs[0]  # only batch size 1
+        """Forward function during inference."""
+        inputs = batch_inputs[0][0]  # only batch size 1
 
         # init tracker at begin of sequence
         if inputs["frame_id"] == 0:
@@ -295,6 +297,6 @@ class QDGeneralizedRCNN(BaseMetaArch):
 
         # associate detections, update tracker
         detections = self.tracker(
-            detections[0], embeddings[0], inputs["frame_id"]
+            detections[0], inputs["frame_id"], embeddings[0]
         )
         return [detections]
