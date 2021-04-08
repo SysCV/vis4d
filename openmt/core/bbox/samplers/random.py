@@ -21,7 +21,7 @@ class RandomSampler(BaseSampler):
 
     def sample(
         self,
-        matching: MatchResult,
+        matching: List[MatchResult],
         boxes: List[Boxes2D],
         targets: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], List[Boxes2D]]:

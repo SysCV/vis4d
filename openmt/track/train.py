@@ -3,7 +3,7 @@
 import logging
 import os
 from collections import OrderedDict
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, List, Optional
 
 import torch
 from bdd100k.eval.mot import EvalResults
@@ -43,7 +43,7 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         logger.info("Model:\n%s", model)
         return model
 
-    def build_train_loader(self, cfg: CfgNode) -> Iterable[List]:
+    def build_train_loader(self, cfg: CfgNode) -> torch.utils.data.DataLoader:
         """Calls :func:`openmt.data.build_tracking_train_loader`."""
         return build_tracking_train_loader(self.track_cfg.dataloader, cfg)
 
@@ -60,7 +60,7 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         cls,
         cfg: CfgNode,
         model: torch.nn.Module,
-        evaluators: List[DatasetEvaluator] = None,
+        evaluators: Optional[List[DatasetEvaluator]] = None,
     ) -> Dict[str, EvalResults]:
         """Test model with given evaluators.
 
@@ -83,12 +83,11 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
                 evaluators
             ), "{} != {}".format(len(cfg.DATASETS.TEST), len(evaluators))
 
-        results = OrderedDict()
+        results = OrderedDict()  # type: ignore
         for idx, dataset_name in enumerate(cfg.DATASETS.TEST):
             data_loader = cls.build_test_loader(cfg, dataset_name)
-            # When evaluators are passed in as arguments,
-            # implicitly assume that evaluators can be created before
-            # data_loader.
+            # When evaluators are passed in as arguments, implicitly assume
+            # that evaluators can be created before data_loader.
             if evaluators is not None:
                 evaluator = evaluators[idx]
             else:
@@ -96,8 +95,7 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
                     evaluator = cls.build_evaluator(cfg, dataset_name)
                 except NotImplementedError:
                     logger.warning(
-                        "No evaluator found. Use `DefaultTrainer.test("
-                        "evaluators=)`, "
+                        "No evaluator found. Use `Trainer.test(evaluators=)`, "
                         "or implement its `build_evaluator` method."
                     )
                     results[dataset_name] = {}

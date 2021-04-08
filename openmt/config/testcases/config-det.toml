@@ -1,11 +1,16 @@
 [detection]
-
 model_base = "faster-rcnn"
 
 [solver]
-
 images_per_batch = 16
 lr_policy = "step"
 base_lr = 0.02
 steps = [1000, 2000]
 max_iters = 10000
+
+[dataloader]
+num_workers = 16
+    [dataloader.sampling_cfg]
+    type = 'uniform'
+    scope = 2
+    num_ref_imgs = 1

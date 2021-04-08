@@ -26,7 +26,7 @@ class EmbeddingDistanceLoss(BaseLoss):
         super().__init__()
         self.cfg = EmbeddingDistanceLossConfig(**cfg.__dict__)
 
-    def forward(  # pylint: disable=arguments-differ
+    def forward(  # type: ignore # pylint: disable=arguments-differ
         self,
         pred: torch.Tensor,
         target: torch.Tensor,
@@ -110,7 +110,7 @@ def l2_loss(
     weight: Optional[torch.Tensor] = None,
     reduction: str = "mean",
     avg_factor: Optional[float] = None,
-):
+) -> torch.Tensor:
     """L2 loss."""
     assert pred.size() == target.size() and target.numel() > 0
     loss = torch.abs(pred - target) ** 2

@@ -76,11 +76,11 @@ class QDGeneralizedRCNN(BaseMetaArch):
         return key_index, ref_indices
 
     def forward_train(
-        self, batch_inputs: List[List[Dict[str, torch.Tensor]]]
+        self, batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]]
     ) -> Dict[str, torch.Tensor]:
         """Forward function for training."""
         # preprocess: group by sequence index instead of batch index, prepare
-        batch_inputs = [
+        batch_inputs = [  # type: ignore
             [batch_inputs[j][i] for j in range(len(batch_inputs))]
             for i in range(len(batch_inputs[0]))
         ]
@@ -113,16 +113,13 @@ class QDGeneralizedRCNN(BaseMetaArch):
         #         plt.show()
 
         # prepare targets
-        if "instances" in batch_inputs[0][0]:
-            key_targets = [
-                x["instances"].to(self.device) for x in batch_inputs[key_index]
-            ]
-            ref_targets = [
-                [x["instances"].to(self.device) for x in batch_inputs[i]]
-                for i in ref_indices
-            ]
-        else:
-            key_targets = ref_targets = None
+        key_targets = [
+            x["instances"].to(self.device) for x in batch_inputs[key_index]
+        ]
+        ref_targets = [
+            [x["instances"].to(self.device) for x in batch_inputs[i]]
+            for i in ref_indices
+        ]
 
         # backbone
         key_x = self.d2_detector.backbone(key_inputs.tensor)
@@ -212,7 +209,7 @@ class QDGeneralizedRCNN(BaseMetaArch):
         for ref_target in ref_targets:
             # for each batch element
             curr_targets, curr_weights = [], []
-            for key_target, ref_target_ in zip(key_targets, ref_target):
+            for key_target, ref_target_ in zip(key_targets, ref_target):  # type: ignore # pylint: disable=line-too-long
                 assert (
                     key_target.track_ids is not None
                     and ref_target_.track_ids is not None
@@ -271,11 +268,11 @@ class QDGeneralizedRCNN(BaseMetaArch):
 
         return losses
 
-    def forward_test(
-        self, batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]]
+    def forward_test(  # type: ignore
+        self, batch_inputs: Tuple[Dict[str, torch.Tensor]]
     ) -> List[Boxes2D]:
         """Forward function during inference."""
-        inputs = batch_inputs[0][0]  # only batch size 1
+        inputs = batch_inputs[0]  # only batch size 1
 
         # init tracker at begin of sequence
         if inputs["frame_id"] == 0:

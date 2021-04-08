@@ -27,12 +27,12 @@ class BaseSampler(metaclass=RegistryHolder):
     @abc.abstractmethod
     def sample(
         self,
-        matching: MatchResult,
+        matching: List[MatchResult],
         boxes: List[Boxes2D],
         targets: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], List[Boxes2D]]:
         """Sample bounding boxes according to their struct."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 def build_sampler(cfg: SamplerConfig) -> BaseSampler:

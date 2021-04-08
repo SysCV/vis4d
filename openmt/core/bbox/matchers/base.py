@@ -29,9 +29,9 @@ class BaseMatcher(metaclass=RegistryHolder):
     @abc.abstractmethod
     def match(
         self, boxes: List[Boxes2D], targets: List[Boxes2D]
-    ) -> MatchResult:
+    ) -> List[MatchResult]:
         """Match bounding boxes according to their struct."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 def build_matcher(cfg: MatcherConfig) -> BaseMatcher:

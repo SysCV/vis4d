@@ -101,7 +101,7 @@ class QDRoIHead(BaseRoIHead):
             last_layer_dim = self.cfg.fc_out_dim
         return convs, fcs, last_layer_dim
 
-    @torch.no_grad()
+    @torch.no_grad()  # type: ignore
     def match_and_sample_proposals(
         self, proposals: List[Boxes2D], targets: List[Boxes2D]
     ) -> Tuple[List[Boxes2D], List[Boxes2D]]:
@@ -113,7 +113,7 @@ class QDRoIHead(BaseRoIHead):
         matching = self.matcher.match(proposals, targets)
         return self.sampler.sample(matching, proposals, targets)
 
-    def forward(
+    def forward(  # type: ignore # pylint: disable=arguments-differ
         self,
         images: ImageList,
         features: Dict[str, torch.Tensor],

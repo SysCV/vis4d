@@ -27,36 +27,36 @@ class QDEmbeddingTrackerConfig(TrackLogicConfig):
     match_metric: str = "bisoftmax"
 
     @validator("memo_momentum", check_fields=False)
-    def validate_memo_momentum(
-        cls, value
-    ):  # pylint: disable=no-self-argument,no-self-use
+    def validate_memo_momentum(  # pylint: disable=no-self-argument,no-self-use
+        cls, value: float
+    ) -> float:
         """Check memo_momentum attribute."""
         if not 0 <= value <= 1.0:
             raise ValueError("memo_momentum must be >= 0 and <= 1.0")
         return value
 
     @validator("keep_in_memory", check_fields=False)
-    def validate_keep_in_memory(
-        cls, value
-    ):  # pylint: disable=no-self-argument,no-self-use
+    def validate_keep_in_memory(  # pylint: disable=no-self-argument,no-self-use,line-too-long
+        cls, value: int
+    ) -> int:
         """Check keep_in_memory attribute."""
         if not value >= 0:
             raise ValueError("keep_in_memory must be >= 0")
         return value
 
     @validator("memo_backdrop_frames", check_fields=False)
-    def validate_memo_backdrop_frames(
-        cls, value
-    ):  # pylint: disable=no-self-argument,no-self-use
+    def validate_memo_backdrop_frames(  # pylint: disable=no-self-argument,no-self-use,line-too-long
+        cls, value: int
+    ) -> int:
         """Check memo_backdrop_frames attribute."""
         if not value >= 0:
             raise ValueError("memo_backdrop_frames must be >= 0")
         return value
 
     @validator("match_metric", check_fields=False)
-    def validate_match_metric(
-        cls, value
-    ):  # pylint: disable=no-self-argument,no-self-use
+    def validate_match_metric(  # pylint: disable=no-self-argument,no-self-use
+        cls, value: str
+    ) -> str:
         """Check match_metric attribute."""
         if not value in ["bisoftmax", "softmax", "cosine"]:
             raise ValueError(
@@ -99,7 +99,7 @@ class QDEmbeddingTracker(BaseTracker):
         cls = torch.cat(cls) if len(cls) > 0 else torch.empty(0)
         return Boxes2D(bboxs, cls, torch.tensor(ids)), embeds
 
-    def forward(  # pylint: disable=arguments-differ
+    def forward(  # type: ignore # pylint: disable=arguments-differ
         self, detections: Boxes2D, frame_id: int, embeddings: torch.Tensor
     ) -> Boxes2D:
         """Process inputs, match detections with existing tracks."""
@@ -175,7 +175,7 @@ class QDEmbeddingTracker(BaseTracker):
         result, _ = self.get_tracks(frame_id)
         return result
 
-    def update(  # pylint: disable=arguments-differ
+    def update(  # type: ignore # pylint: disable=arguments-differ
         self,
         ids: torch.Tensor,
         detections: Boxes2D,
@@ -186,7 +186,7 @@ class QDEmbeddingTracker(BaseTracker):
         tracklet_inds = ids > -1
 
         # update memo
-        for cur_id, det, embed in zip(
+        for cur_id, det, embed in zip(  # type: ignore
             ids[tracklet_inds],
             detections[tracklet_inds],
             embeddings[tracklet_inds],

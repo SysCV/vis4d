@@ -28,7 +28,7 @@ class BaseTracker(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     def reset(self) -> None:
         """Reset tracks."""
         self.num_tracks = 0
-        self.tracks = dict()
+        self.tracks = dict()  # type: ignore
 
     @property
     def empty(self) -> bool:
@@ -41,16 +41,16 @@ class BaseTracker(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
         return list(self.tracks.keys())
 
     @abc.abstractmethod
-    def forward(
+    def forward(  # type: ignore
         self, detections: Boxes2D, frame_id: int, *args, **kwargs
     ) -> Boxes2D:
         """Process inputs, match detections with existing tracks."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
-    def update(self, *args, **kwargs) -> None:
+    def update(self, *args, **kwargs) -> None:  # type: ignore
         """Update track memory using matched detections."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 def build_tracker(cfg: TrackLogicConfig) -> BaseTracker:

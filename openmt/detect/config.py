@@ -14,10 +14,7 @@ from detectron2.utils.file_io import PathManager
 from detectron2.utils.logger import setup_logger
 
 from openmt.config import Config, Dataset, DatasetType, Launch
-from openmt.data.datasets import (
-    register_coco_video_instances,
-    register_scalabel_video_instances,
-)
+from openmt.data.datasets import register_scalabel_video_instances
 
 model_mapping = {
     "faster-rcnn": "COCO-Detection/faster_rcnn_",
@@ -39,22 +36,22 @@ def _register(datasets: List[Dataset]) -> List[str]:
     """Register datasets in detectron2."""
     names = []
     for dataset in datasets:
+        names.append(dataset.name)
         try:
             DatasetCatalog.get(dataset.name)
-        except KeyError:
+        except KeyError as e:
             if dataset.type == DatasetType.COCO:
                 register_coco_instances(
-                    dataset.name, {}, dataset.annotations, dataset.data_root
-                )
-            elif dataset.type == DatasetType.COCO_VIDEO:
-                register_coco_video_instances(
                     dataset.name, {}, dataset.annotations, dataset.data_root
                 )
             elif dataset.type == DatasetType.SCALABEL_VIDEO:
                 register_scalabel_video_instances(
                     dataset.name, {}, dataset.annotations, dataset.data_root
                 )
-            names.append(dataset.name)
+            else:
+                raise NotImplementedError(
+                    f"Dataset type {dataset.type} currently not supported."
+                ) from e
             continue
         print(
             "WARNING: You tried to register the same dataset name "

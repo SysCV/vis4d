@@ -6,7 +6,7 @@ import logging
 import os.path as osp
 import time
 from contextlib import ExitStack, contextmanager
-from typing import Generator, Iterable, List, Optional
+from typing import Dict, Generator, List, Optional, Tuple
 
 import detectron2.utils.comm as comm
 import torch
@@ -23,7 +23,7 @@ from openmt.struct import Boxes2D
 
 
 @contextmanager
-def inference_context(model: torch.nn.Module) -> Generator:
+def inference_context(model: torch.nn.Module) -> Generator[None, None, None]:
     """Context for inference.
 
     The model is temporarily changed to eval mode and
@@ -36,7 +36,9 @@ def inference_context(model: torch.nn.Module) -> Generator:
 
 
 def inference_on_dataset(
-    model: torch.nn.Module, data_loader: Iterable, evaluator: DatasetEvaluator
+    model: torch.nn.Module,
+    data_loader: torch.utils.data.DataLoader,
+    evaluator: DatasetEvaluator,
 ) -> EvalResults:
     """Run model on the data_loader and evaluate the metrics with evaluator.
 
@@ -72,7 +74,7 @@ def inference_on_dataset(
 
     num_warmup = min(5, total - 1)
     start_time = time.perf_counter()
-    total_compute_time = 0
+    total_compute_time = 0.0
     with ExitStack() as stack:
         if isinstance(model, torch.nn.Module):
             stack.enter_context(inference_context(model))
@@ -157,16 +159,19 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore
         self._distributed = distributed
         self._output_dir = output_dir
         self._metadata = MetadataCatalog.get(dataset_name)
+
         self.gts = load_json(
             self._metadata.json_path, self._metadata.image_root
         )
-        self._predictions = []
+        self._predictions = []  # type: List[Frame]
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""
         self._predictions = []
 
-    def process(self, inputs: List, outputs: List[Boxes2D]) -> None:
+    def process(
+        self, inputs: Tuple[Dict[str, torch.Tensor]], outputs: List[Boxes2D]
+    ) -> None:
         """Process the pair of inputs and outputs.
 
         If they contain batches, the pairs can be consumed one-by-one using

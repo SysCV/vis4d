@@ -1,9 +1,9 @@
 """Dataset mapper for tracking in openmt."""
-
+#
 import copy
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, no_type_check
 
 import cv2
 import detectron2.data.detection_utils as d2_utils
@@ -29,10 +29,11 @@ class ReferenceSamplingConfig(BaseModel):
     num_ref_imgs: int
     scope: int
 
+    @no_type_check
     @validator("scope")
     def validate_scope(  # pylint: disable=no-self-argument,no-self-use
-        cls, value: int, values
-    ) -> int:
+        cls, value, values
+    ):
         """Check scope attribute."""
         if not value > values["num_ref_imgs"] // 2:
             raise ValueError("Scope must be higher than num_ref_imgs / 2.")
@@ -42,7 +43,9 @@ class ReferenceSamplingConfig(BaseModel):
 class MapTrackingDataset(MapDataset):  # type: ignore
     """Map a function over the elements in a dataset."""
 
-    def __init__(self, sampling_cfg: ReferenceSamplingConfig, *args, **kwargs):
+    def __init__(  # type: ignore
+        self, sampling_cfg: ReferenceSamplingConfig, *args, **kwargs
+    ):
         """Init."""
         super().__init__(*args, **kwargs)
         self.video_to_idcs: Dict[str, List[int]] = defaultdict(list)
@@ -88,7 +91,7 @@ class MapTrackingDataset(MapDataset):  # type: ignore
 
         return [frame_to_idx[i] for i in ref_frame_ids]
 
-    def __getitem__(self, idx: int) -> Dict:
+    def __getitem__(self, idx: int) -> List[Dict[str, Any]]:  # type: ignore
         """Fully prepare a sample for training/inference."""
         retry_count = 0
         cur_idx = int(idx)
@@ -142,8 +145,8 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
         super().__init__(det2cfg)  # pylint: disable=missing-kwoa
         self.data_backend = build_data_backend(backend_cfg)
 
-    def load_image(
-        self, dataset_dict: Dict
+    def load_image(  # type: ignore
+        self, dataset_dict: Dict[str, Any]
     ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """Load image according to data_backend."""
         im_bytes = self.data_backend.get(dataset_dict["file_name"])
@@ -162,8 +165,12 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
 
         return image, sem_seg_gt
 
-    def transform_image(
-        self, image, dataset_dict, transforms=None, sem_seg_gt=None
+    def transform_image(  # type: ignore
+        self,
+        image: np.ndarray,
+        dataset_dict: Dict[str, Any],
+        transforms: Optional[T.AugmentationList] = None,
+        sem_seg_gt: Optional[np.ndarray] = None,
     ) -> T.AugmentationList:
         """Apply image augmentations and convert to torch tensor."""
         aug_input = T.AugInput(image, sem_seg=sem_seg_gt)
@@ -188,7 +195,9 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
             )
         return transforms
 
-    def transform_annotation(self, dataset_dict, transforms) -> Instances:
+    def transform_annotation(  # type: ignore
+        self, dataset_dict: Dict[str, Any], transforms: T.AugmentationList
+    ) -> Instances:
         """Transform annotations."""
         image_shape = dataset_dict["image"].shape[1:]  # h, w
 
@@ -222,7 +231,9 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
         )
         return instances
 
-    def __call__(self, dataset_dict, transforms=None):
+    def __call__(  # type: ignore
+        self, dataset_dict: Dict[str, Any], transforms=None
+    ):
         """Prepare a single sample in model format.
 
         Args:

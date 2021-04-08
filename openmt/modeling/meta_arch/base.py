@@ -10,7 +10,7 @@ from openmt.core.registry import RegistryHolder
 from openmt.struct import Boxes2D
 
 
-class BaseMetaArch(torch.nn.Module, metaclass=RegistryHolder):
+class BaseMetaArch(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     """Base model class."""
 
     def forward(
@@ -29,7 +29,7 @@ class BaseMetaArch(torch.nn.Module, metaclass=RegistryHolder):
 
         Returns a dict of loss tensors.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def forward_test(
@@ -39,7 +39,7 @@ class BaseMetaArch(torch.nn.Module, metaclass=RegistryHolder):
 
         Returns predictions for each input.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 def build_model(cfg: Config) -> BaseMetaArch:

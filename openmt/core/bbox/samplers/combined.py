@@ -25,9 +25,9 @@ class CombinedSamplerConfig(SamplerConfig):
     # Disable some pylint options in validator:
     # https://github.com/samuelcolvin/pydantic/issues/568
     @validator("pos_strategy", check_fields=False)
-    def validate_pos_strategy(
-        cls, value
-    ):  # pylint: disable=no-self-argument,no-self-use
+    def validate_pos_strategy(  # pylint: disable=no-self-argument,no-self-use
+        cls, value: str
+    ) -> str:
         """Check pos_strategy attribute."""
         if not value in ["instance_balanced", "iou_balanced"]:
             raise ValueError(
@@ -36,9 +36,9 @@ class CombinedSamplerConfig(SamplerConfig):
         return value
 
     @validator("neg_strategy", check_fields=False)
-    def validate_neg_strategy(
-        cls, value
-    ):  # pylint: disable=no-self-argument,no-self-use
+    def validate_neg_strategy(  # pylint: disable=no-self-argument,no-self-use
+        cls, value: str
+    ) -> str:
         """Check neg_strategy attribute."""
         if not value in ["instance_balanced", "iou_balanced"]:
             raise ValueError(
@@ -153,7 +153,7 @@ class CombinedSampler(BaseSampler):
 
     def sample(
         self,
-        matching: MatchResult,
+        matching: List[MatchResult],
         boxes: List[Boxes2D],
         targets: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], List[Boxes2D]]:
@@ -204,7 +204,7 @@ class CombinedSampler(BaseSampler):
         idx_tensor: torch.Tensor,
         assigned_gt_ious: torch.Tensor,
         sample_size: int,
-    ):
+    ) -> torch.Tensor:
         """Sample according to N iou intervals where N = num bins."""
         floor_thr = max(self.cfg.floor_thr, 0.0)
         max_iou = assigned_gt_ious.max()
@@ -244,6 +244,6 @@ def nonzero_tuple(tensor: torch.Tensor) -> Tuple[torch.Tensor]:
     """
     if torch.jit.is_scripting():
         if tensor.dim() == 0:
-            return tensor.unsqueeze(0).nonzero().unbind(1)
-        return tensor.nonzero().unbind(1)
-    return tensor.nonzero(as_tuple=True)
+            return tensor.unsqueeze(0).nonzero().unbind(1)  # type: ignore
+        return tensor.nonzero().unbind(1)  # type: ignore
+    return tensor.nonzero(as_tuple=True)  # type: ignore

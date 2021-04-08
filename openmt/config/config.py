@@ -65,11 +65,11 @@ class DatasetType(str, Enum):
     """Enum for dataset type.
 
     coco: COCO style dataset to support detectron2 training.
+    scalabel_video: Scalabel based video dataset format.
     custom: Custom dataset type for user-defined datasets.
     """
 
     COCO = "coco"
-    COCO_VIDEO = "coco_video"
     SCALABEL_VIDEO = "scalabel_video"
     CUSTOM = "custom"
 
@@ -80,7 +80,7 @@ class Dataset(BaseModel):
     name: str
     type: DatasetType
     data_root: str
-    annotations: Optional[str]
+    annotations: str
 
 
 class Launch(BaseModel):

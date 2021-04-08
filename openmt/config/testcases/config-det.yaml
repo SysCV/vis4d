@@ -6,3 +6,9 @@ solver:
   base_lr: 0.02
   steps: [1000, 2000]
   max_iters: 10000
+dataloader:
+  num_workers: 2
+  sampling_cfg:
+    type: 'uniform'
+    scope: 2
+    num_ref_imgs: 1

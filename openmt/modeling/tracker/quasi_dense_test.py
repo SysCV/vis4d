@@ -24,9 +24,9 @@ class TestQDTracker(unittest.TestCase):
         detections, embeddings = generate_dets(h, w, num_dets)
 
         # feed same detections & embeddings --> should be matched to self
-        result_t0 = tracker(detections, embeddings, 0)
-        result_t1 = tracker(detections, embeddings, 1)
-        result_t2 = tracker(detections, embeddings, 2)
+        result_t0 = tracker(detections, 0, embeddings)
+        result_t1 = tracker(detections, 1, embeddings)
+        result_t2 = tracker(detections, 2, embeddings)
 
         # check if matching is correct
         for t0, t1, t2 in zip(

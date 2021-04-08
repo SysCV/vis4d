@@ -14,6 +14,12 @@ class TrackingCheckpointer(DetectionCheckpointer):  # type: ignore
     def _load_model(self, checkpoint: TorchCheckpoint) -> _IncompatibleKeys:
         """Modify d2 checkpoint, load model weights."""
         # checkpoint modification to fit to d2_detector
+        assert "__author__" in checkpoint.keys() and isinstance(
+            checkpoint["__author__"], str
+        )
+        assert "model" in checkpoint.keys() and isinstance(
+            checkpoint["model"], dict
+        )
         if checkpoint["__author__"].startswith("Detectron2"):
             checkpoint["model"] = {
                 "d2_detector." + k: v for k, v in checkpoint["model"].items()

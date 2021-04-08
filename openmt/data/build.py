@@ -1,6 +1,6 @@
 """Build data loading pipeline for tracking."""
 import logging
-from typing import Dict, Iterable, List, Union
+from typing import Any, Dict, List, Union
 
 import torch
 from detectron2.config import CfgNode
@@ -34,7 +34,7 @@ class DataloaderConfig(BaseModel):
 class DataOptions(BaseModel):
     """Options for building the dataloader."""
 
-    dataset: List[Dict]
+    dataset: List[Dict[str, Any]]  # type: ignore
     sampler: Union[TrainingSampler, RepeatFactorTrainingSampler]
     mapper: TrackingDatasetMapper
     total_batch_size: int
@@ -89,7 +89,7 @@ def _train_loader_from_config(
 
 def build_tracking_train_loader(
     loader_cfg: DataloaderConfig, det2cfg: CfgNode
-) -> Iterable[List]:
+) -> torch.utils.data.DataLoader:
     """Build a dataloader for object tracking with some default features."""
     data_options = _train_loader_from_config(loader_cfg, det2cfg)
     dataset = DatasetFromList(data_options.dataset, copy=False)

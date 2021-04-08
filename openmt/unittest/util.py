@@ -24,3 +24,12 @@ class DetectTest(unittest.TestCase):
     cfg = config.parse_config(args)
     det2cfg = to_detectron2(cfg)
     default_setup(det2cfg, cfg.launch)
+
+
+class TrackTest(unittest.TestCase):
+    """Test case init for openmt tracking engine."""
+
+    args = Namespace(config="openmt/track/testcases/quasi_dense_R_50_FPN.toml")
+    cfg = config.parse_config(args)
+    det2cfg = to_detectron2(cfg)
+    default_setup(det2cfg, cfg.launch)

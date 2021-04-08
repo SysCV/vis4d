@@ -13,7 +13,7 @@ class LossConfig(BaseModel, extra="allow"):
     """Base loss config."""
 
     type: str = Field(...)
-    reduction: Optional[str] = "mean"
+    reduction: str = "mean"
     loss_weight: Optional[float] = 1.0
 
 
@@ -28,7 +28,7 @@ class BaseLoss(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
 
         Returns the reduced loss (scalar).
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 def build_loss(cfg: LossConfig) -> BaseLoss:

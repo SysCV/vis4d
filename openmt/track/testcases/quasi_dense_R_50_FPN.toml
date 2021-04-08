@@ -51,30 +51,28 @@ num_classes = 10
 
 
 [solver]
-images_per_batch = 2
+images_per_batch = 1
 lr_policy = "WarmupMultiStepLR"
 base_lr = 0.02
 steps = [1000, 2000]
-max_iters = 10000
+max_iters = 1
 checkpoint_period = 2000
-eval_period = 100
+eval_period = 1
 
 [[train]]
-name = "sample_train"
+name = "sample_track_train"
 type = "scalabel_video"
 annotations = "openmt/track/testcases/bdd100k-samples/labels/"
 data_root = "openmt/track/testcases/bdd100k-samples/images/"
 
 [[test]]
-name = "sample_val"
+name = "sample_track_val"
 type = "scalabel_video"
 annotations = "openmt/track/testcases/bdd100k-samples/labels/"
 data_root = "openmt/track/testcases/bdd100k-samples/images/"
 
 [dataloader]
-num_workers = 16
-    [dataloader.data_backend]
-    type = "HDF5Backend"
+num_workers = 2
     [dataloader.sampling_cfg]
     type = 'uniform'
     scope = 2

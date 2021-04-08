@@ -38,7 +38,7 @@ def load_json(
                     category_id=cat_ids.index(label.category),
                     instance_id=ins_ids.index(label.id),
                 )
-                label.attributes = attributes
+                label.attributes = attributes  # type: ignore
 
         frames.extend(imgs_anns)
 
@@ -52,7 +52,7 @@ def load_json(
 @no_type_check
 def load_json_to_coco(
     json_path: str, image_root: str, dataset_name: Optional[str] = None
-) -> List[Dict[str, Any]]:  # type: ignore
+) -> List[Dict[str, Any]]:
     """Load BDD100K instances to dicts."""
     json_files = os.listdir(json_path)
 
@@ -118,8 +118,11 @@ def load_json_to_coco(
     return dataset_dicts
 
 
-def register_scalabel_video_instances(  # pylint: disable=invalid-name
-    name: str, metadata: Dict, json_path: str, image_root: str
+def register_scalabel_video_instances(  # type: ignore # pylint: disable=invalid-name, line-too-long
+    name: str,
+    metadata: Dict[str, Any],
+    json_path: str,
+    image_root: str,
 ) -> None:
     """Register a dataset in scalabel json annotation format for tracking."""
     # 1. register a function which returns dicts

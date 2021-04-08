@@ -25,7 +25,7 @@ class BaseRoIHead(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
         Process proposals, output predictions and possibly target
         assignments.
         """
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 def build_roi_head(cfg: RoIHeadConfig) -> BaseRoIHead:

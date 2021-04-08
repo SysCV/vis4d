@@ -19,6 +19,7 @@ class TestConfig(unittest.TestCase):
                     name="example",
                     type=DatasetType.CUSTOM,
                     data_root="/path/to/data",
+                    annotations="/path/to/annotations",
                 )
             )
         ]
