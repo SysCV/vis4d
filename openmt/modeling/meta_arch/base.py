@@ -29,7 +29,7 @@ class BaseMetaArch(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
 
         Returns a dict of loss tensors.
         """
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
     @abc.abstractmethod
     def forward_test(
@@ -39,7 +39,7 @@ class BaseMetaArch(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
 
         Returns predictions for each input.
         """
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
 
 def build_model(cfg: Config) -> BaseMetaArch:

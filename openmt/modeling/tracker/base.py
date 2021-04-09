@@ -45,12 +45,12 @@ class BaseTracker(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
         self, detections: Boxes2D, frame_id: int, *args, **kwargs
     ) -> Boxes2D:
         """Process inputs, match detections with existing tracks."""
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
     @abc.abstractmethod
     def update(self, *args, **kwargs) -> None:  # type: ignore
         """Update track memory using matched detections."""
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
 
 def build_tracker(cfg: TrackLogicConfig) -> BaseTracker:

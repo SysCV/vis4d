@@ -28,6 +28,13 @@ class TestQDTracker(unittest.TestCase):
         result_t1 = tracker(detections, 1, embeddings)
         result_t2 = tracker(detections, 2, embeddings)
 
+        empty_det, empty_emb = Boxes2D(torch.empty(0, 5)), torch.empty(0, 128)
+        for i in range(tracker.cfg.keep_in_memory + 1):
+            result_final = tracker(empty_det, 3 + i, empty_emb)
+
+        self.assertTrue(tracker.empty)
+        self.assertEqual(len(result_final), 0)
+
         # check if matching is correct
         for t0, t1, t2 in zip(
             result_t0.track_ids, result_t1.track_ids, result_t2.track_ids

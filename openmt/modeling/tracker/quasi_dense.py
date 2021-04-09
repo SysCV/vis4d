@@ -192,7 +192,7 @@ class QDEmbeddingTracker(BaseTracker):
             embeddings[tracklet_inds],
         ):
             cur_id = int(cur_id)
-            if id in self.tracks.keys():
+            if cur_id in self.tracks.keys():
                 self.update_track(cur_id, det, embed, frame_id)
             else:
                 self.create_track(cur_id, det, embed, frame_id)
@@ -237,8 +237,8 @@ class QDEmbeddingTracker(BaseTracker):
         )
         self.tracks[track_id]["bbox"] = bbox
         self.tracks[track_id]["embed"] = (
-            1 - self.memo_momentum
-        ) * self.tracks[id]["embed"] + self.memo_momentum * embedding
+            1 - self.cfg.memo_momentum
+        ) * self.tracks[track_id]["embed"] + self.cfg.memo_momentum * embedding
         self.tracks[track_id]["last_frame"] = frame_id
         self.tracks[track_id]["class_id"] = cls
         self.tracks[track_id]["velocity"] = (

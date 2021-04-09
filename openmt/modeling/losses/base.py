@@ -28,7 +28,7 @@ class BaseLoss(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
 
         Returns the reduced loss (scalar).
         """
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
 
 def build_loss(cfg: LossConfig) -> BaseLoss:

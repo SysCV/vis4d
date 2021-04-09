@@ -38,7 +38,7 @@ class RandomSampler(BaseSampler):
 
             sampled_boxes.append(box[sampled_idxs])
             sampled_targets.append(
-                target[match.assigned_gt_indices[sampled_idxs]]
+                target[match.assigned_gt_indices.long()[sampled_idxs]]
             )
 
         return sampled_boxes, sampled_targets

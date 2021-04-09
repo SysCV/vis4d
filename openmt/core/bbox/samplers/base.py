@@ -32,7 +32,7 @@ class BaseSampler(metaclass=RegistryHolder):
         targets: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], List[Boxes2D]]:
         """Sample bounding boxes according to their struct."""
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
 
 def build_sampler(cfg: SamplerConfig) -> BaseSampler:

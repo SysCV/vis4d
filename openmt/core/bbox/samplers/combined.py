@@ -70,7 +70,7 @@ class CombinedSampler(BaseSampler):
 
         unique_gt_inds = assigned_gts.unique()
         num_gts = len(unique_gt_inds)
-        num_per_gt = int(round(sample_size / float(num_gts)) + 1)
+        num_per_gt = int(sample_size / float(num_gts))
         sampled_inds = []
         # sample specific amount per gt instance
         for i in unique_gt_inds:
@@ -176,7 +176,7 @@ class CombinedSampler(BaseSampler):
 
             args = dict(
                 idx_tensor=positive,
-                assigned_gts=match.assigned_gt_indices[positive_mask],
+                assigned_gts=match.assigned_gt_indices.long()[positive_mask],
                 assigned_gt_ious=match.assigned_gt_iou[positive_mask],
                 sample_size=num_pos,
             )
@@ -184,7 +184,7 @@ class CombinedSampler(BaseSampler):
 
             args = dict(
                 idx_tensor=negative,
-                assigned_gts=match.assigned_gt_indices[negative_mask],
+                assigned_gts=match.assigned_gt_indices.long()[negative_mask],
                 assigned_gt_ious=match.assigned_gt_iou[negative_mask],
                 sample_size=num_neg,
             )
@@ -194,7 +194,7 @@ class CombinedSampler(BaseSampler):
 
             sampled_boxes.append(box[sampled_idxs])
             sampled_targets.append(
-                target[match.assigned_gt_indices[sampled_idxs]]
+                target[match.assigned_gt_indices.long()[sampled_idxs]]
             )
 
         return sampled_boxes, sampled_targets

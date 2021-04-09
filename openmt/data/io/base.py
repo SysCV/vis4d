@@ -23,12 +23,12 @@ class BaseDataBackend(metaclass=RegistryHolder):
     @abstractmethod
     def get(self, filepath: str) -> bytes:
         """Get the file content as bytes."""
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
     @abstractmethod
     def get_text(self, filepath: str) -> str:
         """Get the file content as string."""
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
 
 def build_data_backend(cfg: DataBackendConfig) -> BaseDataBackend:

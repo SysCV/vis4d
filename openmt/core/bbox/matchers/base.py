@@ -16,11 +16,15 @@ class MatcherConfig(BaseModel, extra="allow"):
 
 
 class MatchResult(NamedTuple):
-    """Match result class. Stores expected result tensors."""
+    """Match result class. Stores expected result tensors.
 
-    assigned_gt_indices: torch.Tensor  # Tensor of [0, M) where M = num gt
-    assigned_gt_iou: torch.Tensor  # Tensor with IoU to assigned GT
-    assigned_labels: torch.Tensor  # Tensor of {0, -1, 1} = {neg, igonre, pos}
+    assigned_gt_indices: torch.Tensor - Tensor of [0, M) where M = num gt
+    assigned_gt_iou: torch.Tensor  - Tensor with IoU to assigned GT
+    assigned_labels: torch.Tensor  - Tensor of {0, -1, 1} = {neg, ignore, pos}
+    """
+    assigned_gt_indices: torch.Tensor
+    assigned_gt_iou: torch.Tensor
+    assigned_labels: torch.Tensor
 
 
 class BaseMatcher(metaclass=RegistryHolder):
@@ -31,7 +35,7 @@ class BaseMatcher(metaclass=RegistryHolder):
         self, boxes: List[Boxes2D], targets: List[Boxes2D]
     ) -> List[MatchResult]:
         """Match bounding boxes according to their struct."""
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
 
 def build_matcher(cfg: MatcherConfig) -> BaseMatcher:

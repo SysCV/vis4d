@@ -21,12 +21,12 @@ class Instances(metaclass=abc.ABCMeta):
         label_id_to_idx: Optional[Dict[str, int]] = None,
     ) -> "Instances":
         """Convert from scalabel format to ours."""
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
     @abc.abstractmethod
     def to_scalabel(self, idx_to_class: Dict[int, str]) -> List[Label]:
         """Convert from ours to scalabel format."""
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError
 
 
 class Boxes2D(Instances):
@@ -77,7 +77,7 @@ class Boxes2D(Instances):
         track_ids = (
             self.track_ids[item] if self.track_ids is not None else None
         )
-        if isinstance(item, int):
+        if len(boxes.shape) < 2:
             if class_ids is not None:
                 class_ids = class_ids.view(1, -1)
             if track_ids is not None:
