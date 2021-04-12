@@ -94,7 +94,7 @@ def inference_on_dataset(
 
             iters_after_start = idx + 1 - num_warmup * int(idx >= num_warmup)
             seconds_per_img = total_compute_time / iters_after_start
-            if idx >= num_warmup * 2 or seconds_per_img > 5:
+            if idx >= num_warmup or seconds_per_img > 5:
                 total_seconds_per_img = (
                     time.perf_counter() - start_time
                 ) / iters_after_start
