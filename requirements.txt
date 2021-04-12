@@ -13,6 +13,7 @@ pyyaml
 setuptools
 tqdm
 wheel
+h5py
 git+git://github.com/scalabel/scalabel.git
 torch
 torchaudio
