@@ -25,11 +25,6 @@ class BaseDataBackend(metaclass=RegistryHolder):
         """Get the file content as bytes."""
         raise NotImplementedError
 
-    @abstractmethod
-    def get_text(self, filepath: str) -> str:
-        """Get the file content as string."""
-        raise NotImplementedError
-
 
 def build_data_backend(cfg: DataBackendConfig) -> BaseDataBackend:
     """Build a data backend from config."""

@@ -19,7 +19,7 @@ def compute_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
 
 def random_choice(tensor: torch.Tensor, sample_size: int) -> torch.Tensor:
     """Randomly choose elements from a tensor."""
-    perm = torch.randperm(tensor.numel(), device=tensor.device)[:sample_size]
+    perm = torch.randperm(len(tensor), device=tensor.device)[:sample_size]
     return tensor[perm]
 
 

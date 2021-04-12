@@ -27,11 +27,11 @@ class HDF5Backend(BaseDataBackend):
         super().__init__()
         try:
             import h5py  # pylint: disable=import-outside-toplevel
-        except ImportError as e:
+        except ImportError as e:  # pragma: no cover
             raise ImportError(
                 "Please install h5py to enable HDF5Backend."
             ) from e
-        self.cfg = DataBackendConfig(**cfg.__dict__)
+        self.cfg = DataBackendConfig(**cfg.dict())
         self.h5_file_api = h5py.File
         self.db_cache: Dict[str, h5py.File] = dict()
 
@@ -40,7 +40,7 @@ class HDF5Backend(BaseDataBackend):
         db_path = os.path.dirname(filepath).strip("/")
         while not os.path.exists(db_path + ".hdf5"):
             db_path = os.path.dirname(db_path).strip("/")
-            if db_path == ".hdf5":
+            if db_path == "":
                 raise FileNotFoundError(
                     f"Corresponding HDF5 file not found:" f" {filepath}"
                 )
@@ -57,7 +57,3 @@ class HDF5Backend(BaseDataBackend):
             return bytes(value_buf["raw"][0])
 
         raise ValueError(f"Value {filepath} not found in {client.filename}!")
-
-    def get_text(self, filepath: str) -> str:
-        """Get values in hdf5 according to filepath as string."""
-        raise NotImplementedError

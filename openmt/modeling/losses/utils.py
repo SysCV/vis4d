@@ -36,6 +36,6 @@ def weight_reduce_loss(
         if reduction == "mean":
             loss = loss.sum() / avg_factor
         # if reduction is 'none', then do nothing, otherwise raise an error
-        elif reduction != "none":
+        elif reduction != "none":  # pragma: no cover
             raise ValueError('avg_factor can not be used with reduction="sum"')
     return loss

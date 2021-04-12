@@ -24,7 +24,7 @@ class MaxIoUMatcher(BaseMatcher):
     def __init__(self, cfg: MatcherConfig):
         """Init."""
         super().__init__()
-        self.cfg = MaxIoUMatcherConfig(**cfg.__dict__)
+        self.cfg = MaxIoUMatcherConfig(**cfg.dict())
 
         self.matcher = D2Matcher(
             thresholds=self.cfg.thresholds,

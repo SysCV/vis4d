@@ -47,4 +47,4 @@ class RegistryHolder(type):
                 if k.startswith(scope)
             }
 
-        return dict(cls.REGISTRY)
+        return dict(cls.REGISTRY)  # pragma: no cover

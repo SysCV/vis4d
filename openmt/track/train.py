@@ -77,9 +77,9 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         """
         logger = logging.getLogger(__name__)
         if isinstance(evaluators, DatasetEvaluator):
-            evaluators = [evaluators]
+            evaluators = [evaluators]  # pragma: no cover
         if evaluators is not None:
-            assert len(cfg.DATASETS.TEST) == len(
+            assert len(cfg.DATASETS.TEST) == len(  # pragma: no cover
                 evaluators
             ), "{} != {}".format(len(cfg.DATASETS.TEST), len(evaluators))
 
@@ -89,11 +89,11 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
             # When evaluators are passed in as arguments, implicitly assume
             # that evaluators can be created before data_loader.
             if evaluators is not None:
-                evaluator = evaluators[idx]
+                evaluator = evaluators[idx]  # pragma: no cover
             else:
                 try:
                     evaluator = cls.build_evaluator(cfg, dataset_name)
-                except NotImplementedError:
+                except NotImplementedError:  # pragma: no cover
                     logger.warning(
                         "No evaluator found. Use `Trainer.test(evaluators=)`, "
                         "or implement its `build_evaluator` method."

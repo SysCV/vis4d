@@ -12,9 +12,9 @@ from .utils import weight_reduce_loss
 class EmbeddingDistanceLossConfig(LossConfig):
     """Config for embedding distance loss."""
 
-    neg_pos_ub: int = -1
-    pos_margin: int = -1
-    neg_margin: int = -1
+    neg_pos_ub: float = -1.0
+    pos_margin: float = -1.0
+    neg_margin: float = -1.0
     hard_mining: bool = False
 
 
@@ -24,7 +24,7 @@ class EmbeddingDistanceLoss(BaseLoss):
     def __init__(self, cfg: LossConfig):
         """Init."""
         super().__init__()
-        self.cfg = EmbeddingDistanceLossConfig(**cfg.__dict__)
+        self.cfg = EmbeddingDistanceLossConfig(**cfg.dict())
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self,
@@ -80,10 +80,10 @@ class EmbeddingDistanceLoss(BaseLoss):
             pred[neg_inds] -= self.cfg.neg_margin
         pred = torch.clamp(pred, min=0, max=1)
 
-        num_pos = int((target == 1).sum())
+        num_pos = int((target == 1).sum()) + 1e-4
         num_neg = int((target == 0).sum())
         if self.cfg.neg_pos_ub > 0 and num_neg / num_pos > self.cfg.neg_pos_ub:
-            num_neg = num_pos * self.cfg.neg_pos_ub
+            num_neg = int(num_pos * self.cfg.neg_pos_ub)
             neg_idx = torch.nonzero(target == 0, as_tuple=False)
 
             if self.cfg.hard_mining:
@@ -92,6 +92,7 @@ class EmbeddingDistanceLoss(BaseLoss):
                 ].detach()
                 neg_idx = neg_idx[costs.topk(num_neg)[1], :]
             else:
+                print(num_neg, neg_idx.numel(), len(neg_idx))
                 neg_idx = random_choice(neg_idx, num_neg)
 
             new_neg_inds = neg_inds.new_zeros(neg_inds.size()).bool()

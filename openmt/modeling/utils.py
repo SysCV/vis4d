@@ -1,11 +1,39 @@
 """Modeling utils."""
 import math
-from typing import List
+import random
+from typing import List, Tuple
 
 import torch
 from detectron2.structures import Instances
 
 from openmt.struct import Boxes2D
+
+
+def select_keyframe(
+    sequence_length: int, strategy: str = "random"
+) -> Tuple[int, List[int]]:
+    """Keyframe selection.
+
+    Strategies:
+    - Random
+    - First frame
+    - Last frame
+    """
+    if strategy == "random":
+        key_index = random.randint(0, sequence_length - 1)
+    elif strategy == "first":
+        key_index = 0
+    elif strategy == "last":
+        key_index = sequence_length - 1
+    else:
+        raise NotImplementedError(
+            f"Keyframe selection strategy {strategy} not implemented"
+        )
+
+    ref_indices = list(range(sequence_length))
+    ref_indices.remove(key_index)
+
+    return key_index, ref_indices
 
 
 def detections_to_box2d(detections: List[Instances]) -> List[Boxes2D]:

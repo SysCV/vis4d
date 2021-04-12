@@ -26,7 +26,7 @@ class D2RoIPooler(BaseRoIPooler):
     def __init__(self, cfg: RoIPoolerConfig):
         """Init."""
         super().__init__()
-        self.cfg = D2RoIPoolerConfig(**cfg.__dict__)
+        self.cfg = D2RoIPoolerConfig(**cfg.dict())
 
         self.roi_pooler = D2ROIPooler(
             output_size=self.cfg.resolution,

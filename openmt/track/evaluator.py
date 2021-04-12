@@ -69,7 +69,7 @@ def inference_on_dataset(
     total = len(data_loader)  # inference data loader must have a fixed length
     if evaluator is None:
         # create a no-op evaluator
-        evaluator = DatasetEvaluators([])
+        evaluator = DatasetEvaluators([])  # pragma: no cover
     evaluator.reset()
 
     num_warmup = min(5, total - 1)
@@ -88,7 +88,7 @@ def inference_on_dataset(
             start_compute_time = time.perf_counter()
             outputs = model(inputs)
             if torch.cuda.is_available():
-                torch.cuda.synchronize()
+                torch.cuda.synchronize()  # pragma: no cover
             total_compute_time += time.perf_counter() - start_compute_time
             evaluator.process(inputs, outputs)
 
@@ -137,7 +137,7 @@ def inference_on_dataset(
     # Replace it by an empty dict instead to make it easier for downstream
     # code to handle
     if results is None:
-        results = {}
+        results = {}  # pragma: no cover
     return results
 
 
@@ -206,9 +206,9 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore
             predictions = list(itertools.chain(*predictions))
 
             if not comm.is_main_process():
-                return {}
+                return {}  # pragma: no cover
         else:
-            predictions = self._predictions
+            predictions = self._predictions  # pragma: no cover
 
         return evaluate_track(
             acc_single_video_mot,

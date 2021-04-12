@@ -1,7 +1,7 @@
 """RoI Heads definition for quasi-dense instance similarity learning."""
-from math import prod
 from typing import Dict, List, Optional, Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 from detectron2.layers.batch_norm import get_norm
@@ -57,9 +57,9 @@ class QDRoIHead(BaseRoIHead):
                 nn.init.constant_(m.bias, 0)
 
         for m in self.fcs:
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                nn.init.constant_(m.bias, 0)
+            if isinstance(m[0], nn.Linear):
+                nn.init.xavier_uniform_(m[0].weight)
+                nn.init.constant_(m[0].bias, 0)
 
         nn.init.normal_(self.fc_embed.weight, 0, 0.01)
         nn.init.constant_(self.fc_embed.bias, 0)
@@ -90,7 +90,7 @@ class QDRoIHead(BaseRoIHead):
 
         fcs = nn.ModuleList()
         if self.cfg.num_fcs > 0:
-            last_layer_dim *= prod(self.cfg.proposal_pooler.resolution)
+            last_layer_dim *= np.prod(self.cfg.proposal_pooler.resolution)
             for i in range(self.cfg.num_fcs):
                 fc_in_dim = last_layer_dim if i == 0 else self.cfg.fc_out_dim
                 fcs.append(

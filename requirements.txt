@@ -1,5 +1,5 @@
 black
-coverage
+coverage[toml]
 isort
 mypy
 numpy

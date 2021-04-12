@@ -42,7 +42,7 @@ def load_json(
 
         frames.extend(imgs_anns)
 
-    if dataset_name is not None:
+    if dataset_name is not None:  # pragma: no cover
         meta = MetadataCatalog.get(dataset_name)
         meta.idx_to_class_mapping = dict(enumerate(cat_ids))
 
@@ -57,7 +57,6 @@ def load_json_to_coco(
     json_files = os.listdir(json_path)
 
     dataset_dicts = []
-    instances_nonvalid_segmentation = 0
     image_id = 0
     cat_ids = []
     for json_file in json_files:
@@ -95,9 +94,9 @@ def load_json_to_coco(
                 obj["instance_id"] = ins_ids.index(anno["id"])
                 obj["iscrowd"] = anno["attributes"]["Crowd"]
 
-                segm = anno["poly2d"] if "poly2d" in anno.keys() else None
-                if segm:
-                    obj["segmentation"] = segm
+                # segm = anno["poly2d"] if "poly2d" in anno.keys() else None
+                # if segm:
+                #     obj["segmentation"] = segm
 
                 obj["bbox_mode"] = BoxMode.XYWH_ABS
                 objs.append(obj)
@@ -110,11 +109,6 @@ def load_json_to_coco(
         meta.thing_classes = cat_ids
         meta.idx_to_class_mapping = dict(enumerate(cat_ids))
 
-    if instances_nonvalid_segmentation > 0:
-        logger.warning(
-            "Filtered out %s instances without valid segmentation.",
-            instances_nonvalid_segmentation,
-        )
     return dataset_dicts
 
 

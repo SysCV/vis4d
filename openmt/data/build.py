@@ -68,13 +68,6 @@ def _train_loader_from_config(
     logger.info("Using training sampler %s", sampler_name)
     if sampler_name == "TrainingSampler":
         sampler = TrainingSampler(len(dataset))
-    elif sampler_name == "RepeatFactorTrainingSampler":
-        repeat_factors = (
-            RepeatFactorTrainingSampler.repeat_factors_from_category_frequency(
-                dataset, cfg.DATALOADER.REPEAT_THRESHOLD
-            )
-        )
-        sampler = RepeatFactorTrainingSampler(repeat_factors)
     else:
         raise ValueError("Unknown training sampler: {}".format(sampler_name))
 

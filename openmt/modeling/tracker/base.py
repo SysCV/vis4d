@@ -1,7 +1,6 @@
 """Tracking base class."""
 
 import abc
-from typing import List
 
 import torch
 from pydantic import BaseModel, Field
@@ -34,11 +33,6 @@ class BaseTracker(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     def empty(self) -> bool:
         """Whether track memory is empty."""
         return not self.tracks
-
-    @property
-    def get_ids(self) -> List[int]:
-        """Get all ids in tracker."""
-        return list(self.tracks.keys())
 
     @abc.abstractmethod
     def forward(  # type: ignore

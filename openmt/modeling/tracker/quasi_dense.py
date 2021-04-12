@@ -2,7 +2,6 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 import torch
-import torch.nn.functional as F
 from pydantic import validator
 
 from openmt.core.bbox.utils import compute_iou
@@ -24,7 +23,6 @@ class QDEmbeddingTrackerConfig(TrackLogicConfig):
     nms_backdrop_iou_thr: float = 0.3
     nms_class_iou_thr: float = 0.7
     with_cats: bool = True
-    match_metric: str = "bisoftmax"
 
     @validator("memo_momentum", check_fields=False)
     def validate_memo_momentum(  # pylint: disable=no-self-argument,no-self-use
@@ -53,17 +51,6 @@ class QDEmbeddingTrackerConfig(TrackLogicConfig):
             raise ValueError("memo_backdrop_frames must be >= 0")
         return value
 
-    @validator("match_metric", check_fields=False)
-    def validate_match_metric(  # pylint: disable=no-self-argument,no-self-use
-        cls, value: str
-    ) -> str:
-        """Check match_metric attribute."""
-        if not value in ["bisoftmax", "softmax", "cosine"]:
-            raise ValueError(
-                "match_metric must be in [bisoftmax, softmax, cosine]"
-            )
-        return value
-
 
 class QDEmbeddingTracker(BaseTracker):
     """Embedding-based tracker for quasi-dense instance similarity."""
@@ -71,12 +58,11 @@ class QDEmbeddingTracker(BaseTracker):
     def __init__(self, cfg: TrackLogicConfig) -> None:
         """Init."""
         super().__init__(cfg)
-        self.cfg = QDEmbeddingTrackerConfig(**cfg.__dict__)
+        self.cfg = QDEmbeddingTrackerConfig(**cfg.dict())
 
     def reset(self) -> None:
         """Reset tracks."""
-        self.num_tracks = 0
-        self.tracks = dict()
+        super().reset()
         self.backdrops: List[Dict[str, Union[Boxes2D, torch.Tensor]]] = []
 
     def get_tracks(
@@ -129,21 +115,11 @@ class QDEmbeddingTracker(BaseTracker):
         if len(detections) > 0 and not self.empty:
             memo_dets, memo_embeds = self.get_tracks()
 
-            if self.cfg.match_metric == "bisoftmax":
-                feats = torch.mm(embeddings, memo_embeds.t())
-                d2t_scores = feats.softmax(dim=1)
-                t2d_scores = feats.softmax(dim=0)
-                scores = (d2t_scores + t2d_scores) / 2
-            elif self.cfg.match_metric == "softmax":
-                feats = torch.mm(embeddings, memo_embeds.t())
-                scores = feats.softmax(dim=1)
-            elif self.cfg.match_metric == "cosine":
-                scores = torch.mm(
-                    F.normalize(embeddings, p=2, dim=1),
-                    F.normalize(memo_embeds, p=2, dim=1).t(),
-                )
-            else:
-                raise NotImplementedError
+            # match using bisoftmax metric
+            feats = torch.mm(embeddings, memo_embeds.t())
+            d2t_scores = feats.softmax(dim=1)
+            t2d_scores = feats.softmax(dim=0)
+            scores = (d2t_scores + t2d_scores) / 2
 
             if self.cfg.with_cats:
                 cat_same = detections.class_ids.view(
@@ -160,8 +136,8 @@ class QDEmbeddingTracker(BaseTracker):
                             ids[i] = cur_id
                             scores[:i, memo_ind] = 0
                             scores[(i + 1) :, memo_ind] = 0
-                        elif conf > self.cfg.nms_conf_thr:
-                            ids[i] = -2
+                        # elif conf > self.cfg.nms_conf_thr:
+                        #     ids[i] = -2
         new_inds = (ids == -1) & (
             detections.boxes[:, -1] > self.cfg.init_score_thr
         ).cpu()

@@ -22,6 +22,7 @@ class MatchResult(NamedTuple):
     assigned_gt_iou: torch.Tensor  - Tensor with IoU to assigned GT
     assigned_labels: torch.Tensor  - Tensor of {0, -1, 1} = {neg, ignore, pos}
     """
+
     assigned_gt_indices: torch.Tensor
     assigned_gt_iou: torch.Tensor
     assigned_labels: torch.Tensor

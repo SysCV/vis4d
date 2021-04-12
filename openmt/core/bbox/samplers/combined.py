@@ -75,10 +75,7 @@ class CombinedSampler(BaseSampler):
         # sample specific amount per gt instance
         for i in unique_gt_inds:
             inds = torch.nonzero(assigned_gts == i, as_tuple=False)
-            if inds.numel() != 0:
-                inds = inds.squeeze(1)
-            else:
-                continue
+            inds = inds.squeeze(1)
             if len(inds) > num_per_gt:
                 inds = random_choice(inds, num_per_gt)
             sampled_inds.append(inds)
@@ -91,8 +88,6 @@ class CombinedSampler(BaseSampler):
             if len(extra_inds) > num_extra:
                 extra_inds = random_choice(extra_inds, num_extra)
             sampled_inds = torch.cat([sampled_inds, extra_inds])
-        elif len(sampled_inds) > sample_size:
-            sampled_inds = random_choice(sampled_inds, sample_size)
         return sampled_inds
 
     def iou_balanced_sampling(
@@ -128,7 +123,7 @@ class CombinedSampler(BaseSampler):
                     iou_sampling_set, num_iou_set_samples
                 )
         else:
-            iou_sampled_inds = iou_sampling_set
+            iou_sampled_inds = iou_sampling_set  # pragma: no cover
 
         if floor_set is not None:
             num_floor_set_samples = sample_size - len(iou_sampled_inds)
@@ -137,12 +132,12 @@ class CombinedSampler(BaseSampler):
                     floor_set, num_floor_set_samples
                 )
             else:
-                sampled_floor_inds = floor_set
+                sampled_floor_inds = floor_set  # pragma: no cover
             sampled_inds = torch.cat([sampled_floor_inds, iou_sampled_inds])
         else:
             sampled_inds = iou_sampled_inds
 
-        if len(sampled_inds) < sample_size:
+        if len(sampled_inds) < sample_size:  # pragma: no cover
             num_extra = sample_size - len(sampled_inds)
             extra_inds = non_intersection(idx_tensor, sampled_inds)
             if len(extra_inds) > num_extra:
@@ -223,7 +218,7 @@ class CombinedSampler(BaseSampler):
                     idx_tensor[tmp_set], per_bin_samples
                 )
             else:
-                tmp_sampled_set = idx_tensor[tmp_set]
+                tmp_sampled_set = idx_tensor[tmp_set]  # pragma: no cover
             sampled_inds.append(tmp_sampled_set)
 
         sampled_inds = torch.cat(sampled_inds)
@@ -237,7 +232,9 @@ class CombinedSampler(BaseSampler):
         return sampled_inds
 
 
-def nonzero_tuple(tensor: torch.Tensor) -> Tuple[torch.Tensor]:
+def nonzero_tuple(
+    tensor: torch.Tensor,
+) -> Tuple[torch.Tensor]:  # pragma: no cover
     """A 'as_tuple=True' version of torch.nonzero to support torchscript.
 
     because of https://github.com/pytorch/pytorch/issues/38718

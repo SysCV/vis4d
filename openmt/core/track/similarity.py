@@ -18,5 +18,5 @@ def cosine_similarity(
     dists = torch.mm(key_embeds, ref_embeds.t())
 
     if temperature > 0:
-        dists /= temperature
+        dists /= temperature  # pragma: no cover
     return dists

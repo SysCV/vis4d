@@ -1,6 +1,5 @@
 """Faster R-CNN for quasi-dense instance similarity learning."""
 
-import random
 from typing import Dict, List, Tuple, Union
 
 import torch
@@ -14,7 +13,12 @@ from openmt.struct import Boxes2D
 from ..losses import build_loss
 from ..roi_heads import build_roi_head
 from ..tracker import build_tracker
-from ..utils import detections_to_box2d, proposal_to_box2d, target_to_box2d
+from ..utils import (
+    detections_to_box2d,
+    proposal_to_box2d,
+    select_keyframe,
+    target_to_box2d,
+)
 from .base import BaseMetaArch
 
 
@@ -49,32 +53,6 @@ class QDGeneralizedRCNN(BaseMetaArch):
         """Get device where model input should be moved to."""
         return self.d2_detector.pixel_mean.device
 
-    def select_keyframe(self, sequence_length: int) -> Tuple[int, List[int]]:
-        """Keyframe selection.
-
-        Strategies:
-        - Random
-        - First frame
-        - Last frame
-        """
-        if self.keyframe_selection == "random":
-            key_index = random.randint(0, sequence_length - 1)
-        elif self.keyframe_selection == "first":
-            key_index = 0
-        elif self.keyframe_selection == "last":
-            key_index = sequence_length - 1
-        else:
-            raise NotImplementedError(
-                f"Keyframe selection strategy "
-                f"{self.keyframe_selection} not "
-                f"implemented"
-            )
-
-        ref_indices = list(range(sequence_length))
-        ref_indices.remove(key_index)
-
-        return key_index, ref_indices
-
     def forward_train(
         self, batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]]
     ) -> Dict[str, torch.Tensor]:
@@ -90,7 +68,9 @@ class QDGeneralizedRCNN(BaseMetaArch):
 
         # split into key / ref pairs
         sequence_length = len(batch_inputs)
-        key_index, ref_indices = self.select_keyframe(sequence_length)
+        key_index, ref_indices = select_keyframe(
+            sequence_length, self.keyframe_selection
+        )
         key_inputs = batched_images[key_index]
         ref_inputs = [batched_images[i] for i in ref_indices]
 
