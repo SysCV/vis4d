@@ -24,7 +24,11 @@ def load_json(
         # add filename, category and instance id (integer)
         ins_ids = []
         for ann in imgs_anns:
-            assert ann.video_name is not None and ann.name is not None
+            assert (
+                ann.video_name is not None
+                and ann.name is not None
+                and ann.labels is not None
+            )
             ann.url = os.path.join(image_root, ann.video_name, ann.name)
             for j in range(len(ann.labels)):
                 label = ann.labels[j]
