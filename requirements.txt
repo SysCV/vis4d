@@ -18,5 +18,4 @@ git+git://github.com/scalabel/scalabel.git
 torch
 torchaudio
 torchvision
-opencv-python
 git+git://github.com/bdd100k/bdd100k.git

@@ -1,17 +1,16 @@
 """io utils."""
 import sys
+from io import BytesIO
 from typing import Optional
 
-import cv2
 import numpy as np
+from PIL import Image
 
 
-def im_decode(
-    im_bytes: bytes, read_format: int = cv2.IMREAD_COLOR
-) -> np.ndarray:
+def im_decode(im_bytes: bytes) -> np.ndarray:
     """Decode to image (numpy array) from bytes."""
-    img_np = np.frombuffer(im_bytes, np.uint8)
-    return cv2.imdecode(img_np, read_format)
+    pil_img = Image.open(BytesIO(bytearray(im_bytes)))
+    return np.array(pil_img)
 
 
 def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:

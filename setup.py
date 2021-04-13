@@ -39,7 +39,6 @@ setuptools.setup(
         "scalabel",
         "torch",
         "torchvision",
-        "tqdm",
-        "opencv-python"
+        "tqdm"
     ],
 )
