@@ -206,3 +206,11 @@ class Boxes2D(Instances):
             labels.append(Label(**label_dict))
 
         return labels
+
+
+DetectionOutput = Tuple[
+    List[torch.Tensor],
+    List[Boxes2D],
+    List[Boxes2D],
+    Optional[Dict[str, torch.Tensor]],
+]

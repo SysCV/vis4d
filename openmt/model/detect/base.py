@@ -7,7 +7,7 @@ import torch
 from pydantic import BaseModel
 
 from openmt.common.registry import RegistryHolder
-from openmt.struct import Boxes2D, ImageList
+from openmt.struct import Boxes2D, DetectionOutput, ImageList
 
 
 class BaseDetectorConfig(BaseModel, extra="allow"):
@@ -33,16 +33,11 @@ class BaseDetector(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward(  # pylint: disable=duplicate-code
+    def forward(
         self,
         inputs: ImageList,
         targets: Optional[List[Boxes2D]] = None,
-    ) -> Tuple[
-        List[torch.Tensor],
-        List[Boxes2D],
-        List[Boxes2D],
-        Optional[Dict[str, torch.Tensor]],
-    ]:
+    ) -> DetectionOutput:
         """Detector forward function.
 
         Return backbone output features, proposals, detections and optionally

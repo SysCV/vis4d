@@ -11,7 +11,7 @@ from openmt.model.detect.d2_utils import (
     proposal_to_box2d,
     target_to_instance,
 )
-from openmt.struct import Boxes2D, ImageList
+from openmt.struct import Boxes2D, DetectionOutput, ImageList
 
 from .base import BaseDetector, BaseDetectorConfig
 
@@ -50,12 +50,7 @@ class D2GeneralizedRCNN(BaseDetector):
         self,
         inputs: ImageList,
         targets: Optional[List[Boxes2D]] = None,
-    ) -> Tuple[
-        List[torch.Tensor],
-        List[Boxes2D],
-        List[Boxes2D],
-        Optional[Dict[str, torch.Tensor]],
-    ]:
+    ) -> DetectionOutput:
         """Forward function."""
         if targets is not None:
             targets = target_to_instance(targets, inputs.tensor.shape[2:])

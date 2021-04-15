@@ -10,12 +10,12 @@ from typing import Dict, Generator, List, Optional, Tuple
 
 import detectron2.utils.comm as comm
 import torch
-from bdd100k.common.utils import group_and_sort
 from bdd100k.eval.mot import EvalResults, acc_single_video_mot, evaluate_track
 from detectron2.data import MetadataCatalog
 from detectron2.evaluation import DatasetEvaluator, DatasetEvaluators
 from detectron2.utils.comm import get_world_size
 from detectron2.utils.logger import log_every_n_seconds
+from scalabel.label.to_coco import group_and_sort
 from scalabel.label.typing import Frame
 
 from openmt.data.datasets.scalabel_video import load_json
