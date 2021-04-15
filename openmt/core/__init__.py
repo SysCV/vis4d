@@ -1,1 +1,0 @@
-"""openMT core module."""

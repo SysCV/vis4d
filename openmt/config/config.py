@@ -11,9 +11,7 @@ import yaml
 from pydantic import BaseModel
 
 from openmt.data import DataloaderConfig as Dataloader
-from openmt.modeling.losses import LossConfig
-from openmt.modeling.roi_heads import RoIHeadConfig
-from openmt.modeling.tracker import TrackLogicConfig
+from openmt.model import BaseModelConfig
 
 
 class Solver(BaseModel):
@@ -26,39 +24,6 @@ class Solver(BaseModel):
     max_iters: int
     checkpoint_period: Optional[int]
     eval_period: Optional[int]
-
-
-class Detection(BaseModel):
-    """Config for detection model."""
-
-    model_base: str
-    override_mapping: Optional[bool] = False
-    weights: Optional[str] = None
-    num_classes: Optional[int]
-    device: Optional[str]
-
-
-class KeyFrameSelection(str, Enum):
-    """Enum for key frame selection strategy.
-
-    random: Keyframe is randomly selected from the input frames.
-    first: Keyframe == first frame.
-    last:  Keyframe == last frame.
-    """
-
-    RANDOM = "random"
-    FIRST = "first"
-    LAST = "last"
-
-
-class Tracking(BaseModel):
-    """Config for tracking model."""
-
-    type: str
-    keyframe_selection: KeyFrameSelection
-    track_head: RoIHeadConfig
-    tracking_logic: TrackLogicConfig
-    losses: List[LossConfig]
 
 
 class DatasetType(str, Enum):
@@ -86,6 +51,7 @@ class Dataset(BaseModel):
 class Launch(BaseModel):
     """Launch configuration."""
 
+    device: str = "cpu"
     num_gpus: int = 1
     num_machines: int = 1
     machine_rank: int = 0
@@ -105,8 +71,7 @@ class Launch(BaseModel):
 class Config(BaseModel):
     """Overall config object."""
 
-    detection: Optional[Detection]
-    tracking: Optional[Tracking]
+    model: BaseModelConfig
     solver: Solver
     dataloader: Dataloader
     train: Optional[List[Dataset]]

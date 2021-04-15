@@ -26,7 +26,7 @@ from openmt.struct import Boxes2D
 def inference_context(model: torch.nn.Module) -> Generator[None, None, None]:
     """Context for inference.
 
-    The model is temporarily changed to eval mode and
+    The detect is temporarily changed to eval mode and
     restored to previous mode afterwards.
     """
     training_mode = model.training
@@ -40,21 +40,21 @@ def inference_on_dataset(
     data_loader: torch.utils.data.DataLoader,
     evaluator: DatasetEvaluator,
 ) -> EvalResults:
-    """Run model on the data_loader and evaluate the metrics with evaluator.
+    """Run detect on the data_loader and evaluate the metrics with evaluator.
 
-    Also benchmark the inference speed of `model.__call__` accurately.
-    The model will be used in eval mode.
+    Also benchmark the inference speed of `detect.__call__` accurately.
+    The detect will be used in eval mode.
 
     Args:
         model (callable): a callable which takes an object from
             `data_loader` and returns some outputs.
 
             If it's an nn.Module, it will be temporarily set to `eval` mode.
-            If you wish to evaluate a model in `training` mode instead, you can
-            wrap the given model and override its behavior of `.eval()` and
+            If you wish to evaluate a detect in `training` mode instead, you
+            wrap the given detect and override its behavior of `.eval()` and
             `.train()`.
         data_loader: an iterable object with a length.
-            The elements it generates will be the inputs to the model.
+            The elements it generates will be the inputs to the detect.
         evaluator (DatasetEvaluator): the evaluator to run. Use `None` if
         you only want
             to benchmark, but don't want to do any evaluation.
@@ -142,7 +142,7 @@ def inference_on_dataset(
 
 
 class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore
-    """Evaluate tracking model using MOTA metrics.
+    """Evaluate tracking detect using MOTA metrics.
 
     This class will accumulate information of the inputs/outputs (by
     :meth:`process`), and produce evaluation results in the end (by
@@ -182,8 +182,8 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore
                 ...
 
         Args:
-            inputs (list): the inputs that's used to call the model.
-            outputs (list): the return value of `model(inputs)`
+            inputs (list): the inputs that's used to call the detect.
+            outputs (list): the return value of `detect(inputs)`
         """
         for inp, out in zip(inputs, outputs):
             prediction = dict(

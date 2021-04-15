@@ -15,12 +15,13 @@ from detectron2.data.samplers import (
 )
 from pydantic import BaseModel
 
+from openmt.common.io import DataBackendConfig
+
 from .dataset_mapper import (
     MapTrackingDataset,
     ReferenceSamplingConfig,
     TrackingDatasetMapper,
 )
-from .io import DataBackendConfig
 
 
 class DataloaderConfig(BaseModel):
@@ -52,13 +53,9 @@ def _train_loader_from_config(
     """Construct training data loader from config."""
     dataset = get_detection_dataset_dicts(
         cfg.DATASETS.TRAIN,
-        filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS,
-        min_keypoints=cfg.MODEL.ROI_KEYPOINT_HEAD.MIN_KEYPOINTS_PER_IMAGE
-        if cfg.MODEL.KEYPOINT_ON
-        else 0,
-        proposal_files=cfg.DATASETS.PROPOSAL_FILES_TRAIN
-        if cfg.MODEL.LOAD_PROPOSALS
-        else None,
+        filter_empty=False,
+        min_keypoints=0,
+        proposal_files=None,
     )
 
     mapper = TrackingDatasetMapper(loader_cfg.data_backend, cfg)

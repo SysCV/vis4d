@@ -49,7 +49,9 @@ def generate_dets(
 class DetectTest(unittest.TestCase):
     """Test case init for openmt detection engine."""
 
-    args = Namespace(config="openmt/detect/testcases/retinanet_R_50_FPN.toml")
+    args = Namespace(
+        config="openmt/detect/testcases/faster_rcnn_R_50_FPN.toml"
+    )
     cfg = config.parse_config(args)
     det2cfg = to_detectron2(cfg)
     default_setup(det2cfg, cfg.launch)

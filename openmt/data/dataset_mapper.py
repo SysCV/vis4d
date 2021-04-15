@@ -14,8 +14,10 @@ from detectron2.data.dataset_mapper import DatasetMapper
 from detectron2.structures import Instances
 from pydantic import BaseModel, validator
 
+from openmt.common.io import DataBackendConfig, build_data_backend
 from openmt.data import utils
-from openmt.data.io import DataBackendConfig, build_data_backend
+
+from .utils import target_to_box2d
 
 __all__ = ["TrackingDatasetMapper", "MapTrackingDataset"]
 
@@ -62,6 +64,12 @@ class MapTrackingDataset(MapDataset):  # type: ignore
         frame_to_idx = {self._dataset[i]["frame_id"]: i for i in video_idcs}
         frame_ids = sorted(list(frame_to_idx.keys()))
         frame_id = self._dataset[cur_idx]["frame_id"]
+
+        # we want our frames to be a range(0, sequence_length)
+        assert frame_ids == list(range(len(frame_ids))), (
+            f"Sequence {self._dataset[cur_idx]['video_id']} misses frames: "
+            f"%s" % (set(frame_ids) ^ set(list(range(frame_ids[-1] + 1))))
+        )
 
         if self.sampling_cfg.type == "uniform":
             left = max(0, frame_id - self.sampling_cfg.scope)
@@ -129,7 +137,7 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
     """DatasetMapper class for tracking.
 
     A callable which takes a dataset dict in Detectron2 Dataset format,
-    and maps it into a format used by the openMT tracking model. The
+    and maps it into a format used by the openMT tracking detect. The
     callable does the following:
     1. Read image sequence (during train) from "file_name"
     2. Applies cropping/geometric transforms to the image and annotations
@@ -214,14 +222,14 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
     def __call__(  # type: ignore
         self, dataset_dict: Dict[str, Any], transforms=None
     ):
-        """Prepare a single sample in model format.
+        """Prepare a single sample in detect format.
 
         Args:
             dataset_dict (dict): Metadata of one image, in Detectron2
             Dataset format.
 
         Returns:
-            dict: a format that the model accepts
+            dict: a format that the detect accepts
         """
         dataset_dict = copy.deepcopy(
             dataset_dict
@@ -241,8 +249,7 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
 
         if "annotations" in dataset_dict:
             instances = self.transform_annotation(dataset_dict, transforms)
-            dataset_dict["instances"] = d2_utils.filter_empty_instances(
-                instances
-            )
+            instances = d2_utils.filter_empty_instances(instances)
+            dataset_dict["instances"] = target_to_box2d(instances)
 
         return dataset_dict, transforms

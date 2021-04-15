@@ -1,5 +1,5 @@
-detection:
-  model_base: faster-rcnn
+model:
+  type: test-model
 solver:
   images_per_batch: 16
   lr_policy: step

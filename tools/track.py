@@ -1,7 +1,7 @@
 """Training and prediction command line tool using tracking API."""
 
 from openmt import config, track
-from openmt.util import default_argument_parser
+from openmt.common.utils import default_argument_parser
 
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()

@@ -15,7 +15,7 @@ from detectron2.utils.comm import is_main_process
 from openmt.config import Config
 from openmt.data import build_tracking_train_loader
 from openmt.detect.config import default_setup, to_detectron2
-from openmt.modeling.meta_arch import build_model
+from openmt.model import build_model
 
 from .checkpointer import TrackingCheckpointer
 from .evaluator import ScalabelMOTAEvaluator, inference_on_dataset
@@ -37,8 +37,11 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         )
 
     def build_model(self, cfg: CfgNode) -> torch.nn.Module:
-        """Builds tracking model."""
-        model = build_model(self.track_cfg)
+        """Builds tracking detect."""
+        model = build_model(self.track_cfg.model)
+        model.to(torch.device(self.track_cfg.launch.device))
+        if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
+            cfg.MODEL.merge_from_other_cfg(model.detector.d2_cfg.MODEL)
         logger = logging.getLogger(__name__)
         logger.info("Model:\n%s", model)
         return model
@@ -62,11 +65,11 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         model: torch.nn.Module,
         evaluators: Optional[List[DatasetEvaluator]] = None,
     ) -> Dict[str, EvalResults]:
-        """Test model with given evaluators.
+        """Test detect with given evaluators.
 
         Args:
             cfg (CfgNode): detectron2 config.
-            model (nn.Module): model to test.
+            model (nn.Module): detect to test.
             evaluators (list[DatasetEvaluator] or None): if None, will call
                 :meth:`build_evaluator`. Otherwise, must have the same
                 length as

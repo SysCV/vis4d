@@ -1,23 +1,24 @@
-[detection]
-model_base = "faster-rcnn/r50-fpn"
-weights = "detectron2"
-num_classes = 10
+[model]
+type = "QDGeneralizedRCNN"
+keyframe_selection = "random"
+    [model.detection]
+    type = "D2GeneralizedRCNN"
+    model_base = "faster-rcnn/r50-fpn"
+    weights = "detectron2"
+    num_classes = 3
 
-[tracking]
-    type = "QDGeneralizedRCNN"
-    keyframe_selection = "random"
-    [tracking.tracking_logic]
-    type = "QDEmbeddingTracker"
+    [model.track_graph]
+    type = "QDTrackGraph"
     keep_in_memory = 10  # timesteps
 
-    [[tracking.losses]]
+    [[model.losses]]
     type = "MultiPosCrossEntropyLoss"
 
-    [[tracking.losses]]
+    [[model.losses]]
     type = "EmbeddingDistanceLoss"
 
-    [tracking.track_head]
-    type = "QDRoIHead"
+    [model.similarity]
+    type = "QDSimilarityHead"
     num_classes = 0
     in_dim = 256
     num_convs = 4
@@ -28,27 +29,25 @@ num_classes = 10
     norm = "GN"
     proposal_append_gt = true
 
-        [tracking.track_head.proposal_pooler]
+        [model.similarity.proposal_pooler]
         type = "D2RoIPooler"
         pooling_op = "ROIAlignV2"
         resolution = [7, 7]
         strides = [4, 8, 16, 32]
         sampling_ratio = 0
 
-        [tracking.track_head.proposal_sampler]
+        [model.similarity.proposal_sampler]
         type = "CombinedSampler"
         batch_size_per_image = 256
         positive_fraction = 0.5
         pos_strategy = "instance_balanced"
         neg_strategy = "iou_balanced"
 
-        [tracking.track_head.proposal_matcher]
+        [model.similarity.proposal_matcher]
         type = "MaxIoUMatcher"
         thresholds = [0.3, 0.5]
         labels = [0, -1, 1]
         allow_low_quality_matches = false
-
-
 
 [solver]
 images_per_batch = 1

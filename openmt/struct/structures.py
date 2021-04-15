@@ -4,8 +4,10 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+from detectron2.structures import ImageList as D2ImageList
 from scalabel.label.typing import Box2D, Label
 
+ImageList = D2ImageList
 TorchCheckpoint = Dict[str, Union[int, str, Dict[str, np.ndarray]]]
 
 

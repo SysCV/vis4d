@@ -1,5 +1,5 @@
 """Video dataset loader for scalabel format."""
-import json
+
 import logging
 import os
 from typing import Any, Dict, List, Optional, no_type_check
@@ -64,39 +64,39 @@ def load_json_to_coco(
     image_id = 0
     cat_ids = []
     for json_file in json_files:
-        imgs_anns = json.load(open(os.path.join(json_path, json_file), "r"))
+        imgs_anns = load(os.path.join(json_path, json_file))
         ins_ids = []
-        for img_dict in imgs_anns:
+        for img_ann in imgs_anns:
             record = {}
             # Note: also supports pickle
             record["file_name"] = os.path.join(
-                image_root, img_dict["videoName"], img_dict["name"]
+                image_root, img_ann.video_name, img_ann.name
             )
             record["height"] = 720  # fixed for BDD100K (720p)
             record["width"] = 1280
-            record["video_id"] = img_dict["videoName"]
-            record["frame_id"] = img_dict["frameIndex"]
+            record["video_id"] = img_ann.video_name
+            record["frame_id"] = img_ann.frame_index
             record["image_id"] = image_id
 
             objs = []
-            for anno in img_dict["labels"]:
+            for anno in img_ann.labels:
                 obj = dict()
 
-                x1 = anno["box2d"]["x1"]
-                y1 = anno["box2d"]["y1"]
-                x2 = anno["box2d"]["x2"]
-                y2 = anno["box2d"]["y2"]
+                x1 = anno.box_2d.x1
+                y1 = anno.box_2d.y1
+                x2 = anno.box_2d.x2
+                y2 = anno.box_2d.y2
                 # No + 1 for box w, h to be consistent with detectron2
                 obj["bbox"] = [x1, y1, x2 - x1, y2 - y1]
 
-                if not anno["category"] in cat_ids:
-                    cat_ids.append(anno["category"])
-                if not anno["id"] in ins_ids:
-                    ins_ids.append(anno["id"])
+                if not anno.category in cat_ids:
+                    cat_ids.append(anno.category)
+                if not anno.id in ins_ids:
+                    ins_ids.append(anno.id)
 
-                obj["category_id"] = cat_ids.index(anno["category"])
-                obj["instance_id"] = ins_ids.index(anno["id"])
-                obj["iscrowd"] = anno["attributes"]["Crowd"]
+                obj["category_id"] = cat_ids.index(anno.category)
+                obj["instance_id"] = ins_ids.index(anno.id)
+                obj["iscrowd"] = anno.attributes["crowd"]
 
                 # segm = anno["poly2d"] if "poly2d" in anno.keys() else None
                 # if segm:

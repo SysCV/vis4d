@@ -1,0 +1,36 @@
+[model]
+type = "DetectorWrapper"
+    [model.detection]
+    type = "D2GeneralizedRCNN"
+    model_base = "faster-rcnn/r50-fpn"
+    weights = "detectron2"
+    num_classes = 10
+
+[solver]
+images_per_batch = 1
+lr_policy = "WarmupMultiStepLR"
+base_lr = 0.02
+max_iters = 1
+steps = [100]
+checkpoint_period = 100
+eval_period = 100
+
+[[train]]
+name = "sample_train"
+type = "coco"
+annotations = "openmt/detect/testcases/bdd100k-samples/annotation.json"
+data_root = "openmt/detect/testcases/bdd100k-samples/"
+
+[[test]]
+name = "sample_val"
+type = "coco"
+annotations = "openmt/detect/testcases/bdd100k-samples/annotation.json"
+data_root = "openmt/detect/testcases/bdd100k-samples/"
+
+[dataloader]
+num_workers = 0
+    [dataloader.sampling_cfg]
+    type = 'uniform'
+    scope = 1
+    num_ref_imgs = 0
+

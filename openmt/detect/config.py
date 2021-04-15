@@ -3,7 +3,6 @@ import os
 from typing import List
 
 import torch
-from detectron2 import model_zoo
 from detectron2.config import CfgNode, get_cfg
 from detectron2.data import DatasetCatalog
 from detectron2.data.datasets import register_coco_instances
@@ -15,21 +14,6 @@ from detectron2.utils.logger import setup_logger
 
 from openmt.config import Config, Dataset, DatasetType, Launch
 from openmt.data.datasets import register_scalabel_video_instances
-
-model_mapping = {
-    "faster-rcnn": "COCO-Detection/faster_rcnn_",
-    "retinanet": "COCO-Detection/retinanet_",
-    "mask-rcnn": "COCO-InstanceSegmentation/mask_rcnn_",
-}
-
-backbone_mapping = {
-    "r101-fpn": "R_101_FPN_3x.yaml",
-    "r101-c4": "R_101_C4_3x.yaml",
-    "r101-dc5": "R_101_DC5_3x.yaml",
-    "r50-fpn": "R_50_FPN_3x.yaml",
-    "r50-c4": "R_50_C4_3x.yaml",
-    "r50-dc5": "R_50_DC5_3x.yaml",
-}
 
 
 def _register(datasets: List[Dataset]) -> List[str]:
@@ -62,50 +46,7 @@ def _register(datasets: List[Dataset]) -> List[str]:
 
 def to_detectron2(config: Config) -> CfgNode:
     """Convert a Config object to a detectron2 readable configuration."""
-    assert config.detection is not None
     cfg = get_cfg()
-
-    # load model base config, checkpoint
-    detectron2_model_string = None
-    if os.path.exists(config.detection.model_base):
-        base_cfg = config.detection.model_base
-    else:
-        if config.detection.override_mapping:
-            detectron2_model_string = config.detection.model_base
-        else:
-            model, backbone = config.detection.model_base.split("/")
-            detectron2_model_string = (
-                model_mapping[model] + backbone_mapping[backbone]
-            )
-        base_cfg = model_zoo.get_config_file(detectron2_model_string)
-
-    cfg.merge_from_file(base_cfg)
-
-    # load checkpoint
-    if config.detection.weights is not None:
-        if os.path.exists(config.detection.weights):
-            cfg.MODEL.WEIGHTS = config.detection.weights
-        elif (
-            config.detection.weights == "detectron2"
-            and detectron2_model_string is not None
-        ):
-            cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-                detectron2_model_string
-            )
-        else:
-            raise ValueError(
-                f"model weights path {config.detection.weights} "
-                f"not "
-                f"found. If you're loading a detectron2 config from local, "
-                f"please also specify a local checkpoint file"
-            )
-
-    # convert model attributes
-    if config.detection.num_classes:
-        if config.detection.device is not None:
-            cfg.MODEL.DEVICE = config.detection.device
-        cfg.MODEL.ROI_HEADS.NUM_CLASSES = config.detection.num_classes
-        cfg.MODEL.RETINANET.NUM_CLASSES = config.detection.num_classes
     cfg.OUTPUT_DIR = config.output_dir
 
     # convert solver attributes
