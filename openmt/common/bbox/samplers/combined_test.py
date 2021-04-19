@@ -19,6 +19,8 @@ class TestCombined(unittest.TestCase):
         num_gts: int, num_samples: int
     ) -> Tuple[List[MatchResult], List[Boxes2D], List[Boxes2D]]:
         """Generate match, box target."""
+        state = torch.random.get_rng_state()
+        torch.random.set_rng_state(torch.manual_seed(0).get_state())
         matching = [
             MatchResult(
                 assigned_gt_indices=torch.randint(0, num_gts, (num_samples,)),
@@ -28,6 +30,7 @@ class TestCombined(unittest.TestCase):
         ]
         boxes = [Boxes2D(torch.rand(num_samples, 5))]
         targets = [Boxes2D(torch.rand(num_gts, 5), torch.zeros(num_gts))]
+        torch.random.set_rng_state(state)
         return matching, boxes, targets
 
     def test_sample(self) -> None:

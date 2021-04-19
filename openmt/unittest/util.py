@@ -24,6 +24,8 @@ def generate_dets(
     height: int, width: int, num_dets: int, track_ids: bool = False
 ) -> Boxes2D:
     """Create random detections."""
+    state = torch.random.get_rng_state()
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
     rand_max = torch.repeat_interleave(
         torch.tensor([[width, height, width, height, 1.0]]), num_dets, dim=0
     )
@@ -43,6 +45,7 @@ def generate_dets(
     )
     tracks = torch.arange(0, num_dets) if track_ids else None
     dets = Boxes2D(box_tensor, torch.zeros(num_dets), tracks)
+    torch.random.set_rng_state(state)
     return dets
 
 
