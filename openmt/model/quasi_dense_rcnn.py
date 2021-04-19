@@ -141,7 +141,7 @@ class QDGeneralizedRCNN(BaseModel):
         return {**det_losses, **track_losses}
 
     def match(
-        self, key_embeds: torch.Tensor, ref_embeds: List[torch.Tensor]
+        self, key_embeds: Tuple[torch.Tensor], ref_embeds: List[Tuple[torch.Tensor]]
     ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
         """Match key / ref embeddings based on cosine similarity."""
         # for each reference view
@@ -167,7 +167,7 @@ class QDGeneralizedRCNN(BaseModel):
 
     @staticmethod
     def get_track_targets(
-        key_targets: Boxes2D, ref_targets: List[Boxes2D]
+        key_targets: List[Boxes2D], ref_targets: List[List[Boxes2D]]
     ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
         """Create tracking target tensors."""
         # for each reference view
@@ -194,21 +194,23 @@ class QDGeneralizedRCNN(BaseModel):
 
     def tracking_loss(
         self,
-        key_embeddings: torch.Tensor,
-        key_targets: Boxes2D,
-        ref_embeddings: List[torch.Tensor],
-        ref_targets: List[Boxes2D],
+        key_embeddings: Tuple[torch.Tensor],
+        key_targets: List[Boxes2D],
+        ref_embeddings: List[Tuple[torch.Tensor]],
+        ref_targets: List[List[Boxes2D]],
     ) -> Dict[str, Union[torch.Tensor, float]]:
         """Calculate losses for tracking.
 
-        Each input is of type List[List[Tensor]] where the lists are of
-        length MxN where M is the number of reference views
-        and N is the number of batch elements.
+        Key inputs are of type List[Tensor/Boxes2D] (Lists are length N)
+        Ref inputs are of type List[List[Tensor/Boxes2D]] where the lists
+        are of length MxN.
+        Where M is the number of reference views and N is the
+        number of batch elements.
         """
         losses = dict()
 
-        loss_track = 0.0
-        loss_track_aux = 0.0
+        loss_track = torch.tensor(0.0).to(self.device)
+        loss_track_aux = torch.tensor(0.0).to(self.device)
         dists, cos_dists = self.match(key_embeddings, ref_embeddings)
         track_targets, track_weights = self.get_track_targets(
             key_targets, ref_targets

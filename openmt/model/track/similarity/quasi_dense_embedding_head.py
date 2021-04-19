@@ -120,7 +120,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         proposals: List[Boxes2D],
         targets: Optional[List[Boxes2D]] = None,
         filter_negatives: bool = False,
-    ) -> Tuple[List[torch.Tensor], Optional[List[Boxes2D]]]:
+    ) -> Tuple[Tuple[torch.Tensor], Optional[List[Boxes2D]]]:
         """Forward of embedding head.
 
         We do not return a loss here, since the matching loss needs to

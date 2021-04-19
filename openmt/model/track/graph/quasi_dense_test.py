@@ -14,6 +14,28 @@ from .quasi_dense import QDTrackGraph
 class TestQDTrackGraph(unittest.TestCase):
     """Test cases for quasi-dense tracking graph construction."""
 
+    def test_get_tracks(self):
+        """Testcase for get tracks method."""
+        tracker = QDTrackGraph(
+            TrackGraphConfig(type="qdtrack", keep_in_memory=3)
+        )
+
+        h, w, num_dets = 128, 128, 64
+        detections = generate_dets(h, w, num_dets)
+        embeddings = torch.rand(num_dets, 128)
+
+        for i in range(num_dets):
+            tracker.create_track(i, detections[i], embeddings[i], 0)
+
+        boxes, embeds = tracker.get_tracks(0)
+        self.assertTrue(len(boxes) == len(embeds) == num_dets)
+
+        for i in range(num_dets // 2):
+            tracker.update_track(i, detections[i], embeddings[i], 1)
+
+        boxes, embeds = tracker.get_tracks(1)
+        self.assertTrue(len(boxes) == len(embeds) == num_dets // 2)
+
     def test_track(self) -> None:
         """Testcase for tracking function."""
         tracker = QDTrackGraph(

@@ -13,9 +13,11 @@ keyframe_selection = "random"
 
     [[model.losses]]
     type = "MultiPosCrossEntropyLoss"
+    loss_weight = 0.25
 
     [[model.losses]]
     type = "EmbeddingDistanceLoss"
+    loss_weight = 1.0
 
     [model.similarity]
     type = "QDSimilarityHead"
