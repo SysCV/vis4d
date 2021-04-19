@@ -35,7 +35,7 @@ class TestRandom(unittest.TestCase):
             )
         ]
         boxes = [Boxes2D(torch.rand(num_samples, 5))]
-        targets = [Boxes2D(torch.rand(num_gts, 5))]
+        targets = [Boxes2D(torch.rand(num_gts, 5), torch.zeros(num_gts))]
         sampled_boxes, sampled_targets = sampler.sample(
             matching, boxes, targets
         )

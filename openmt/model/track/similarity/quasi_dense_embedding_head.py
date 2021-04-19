@@ -119,6 +119,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         features: Dict[str, torch.Tensor],
         proposals: List[Boxes2D],
         targets: Optional[List[Boxes2D]] = None,
+        filter_negatives: bool = False,
     ) -> Tuple[List[torch.Tensor], Optional[List[Boxes2D]]]:
         """Forward of embedding head.
 
@@ -133,9 +134,13 @@ class QDSimilarityHead(BaseSimilarityHead):
             proposals, targets = self.match_and_sample_proposals(
                 proposals, targets
             )
+            if filter_negatives:
+                proposals = [
+                    p[t.class_ids != -1] for p, t in zip(proposals, targets)  # type: ignore # pylint: disable=line-too-long
+                ]
+                targets = [t[t.class_ids != -1] for t in targets]  # type: ignore # pylint: disable=line-too-long
 
         x = self.roi_pooler.pool(list(features.values())[:-1], proposals)
-
         # convs
         if self.cfg.num_convs > 0:
             for conv in self.convs:

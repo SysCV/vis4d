@@ -44,32 +44,43 @@ class MapTrackingDataset(MapDataset):  # type: ignore
     """Map a function over the elements in a dataset."""
 
     def __init__(  # type: ignore
-        self, sampling_cfg: ReferenceSamplingConfig, *args, **kwargs
+        self, sampling_cfg: ReferenceSamplingConfig, training, *args, **kwargs
     ):
         """Init."""
         super().__init__(*args, **kwargs)
         self.video_to_idcs: Dict[str, List[int]] = defaultdict(list)
+        self.frame_to_idcs: Dict[str, Dict[int, int]] = defaultdict(dict)
         self._create_video_mapping()
         self.sampling_cfg = sampling_cfg
+        self.training = training
 
     def _create_video_mapping(self) -> None:
         """Create a mapping that returns all img idx for a given video id."""
         for idx, entry in enumerate(self._dataset):
             self.video_to_idcs[entry["video_id"]].append(idx)
 
-    def sample_ref_idcs(
-        self, video_idcs: List[int], cur_idx: int
-    ) -> List[int]:
-        """Sample reference indices from video_idcs given cur_idx."""
-        frame_to_idx = {self._dataset[i]["frame_id"]: i for i in video_idcs}
-        frame_ids = sorted(list(frame_to_idx.keys()))
-        frame_id = self._dataset[cur_idx]["frame_id"]
+        for video in self.video_to_idcs:
+            self.video_to_idcs[video] = sorted(
+                self.video_to_idcs[video],
+                key=lambda idx: self._dataset[idx]["frame_id"],  # type: ignore
+            )
+            self.frame_to_idcs[video] = {
+                self._dataset[idx]["frame_id"]: idx
+                for idx in self.video_to_idcs[video]
+            }
 
-        # we want our frames to be a range(0, sequence_length)
-        assert frame_ids == list(range(len(frame_ids))), (
-            f"Sequence {self._dataset[cur_idx]['video_id']} misses frames: "
-            f"%s" % (set(frame_ids) ^ set(list(range(frame_ids[-1] + 1))))
-        )
+            # assert that frames are a range(0, sequence_length)
+            frame_ids = list(self.frame_to_idcs[video].keys())
+            assert frame_ids == list(
+                range(len(frame_ids))
+            ), f"Sequence {video} misses frames: %s" % (
+                set(frame_ids) ^ set(list(range(frame_ids[-1] + 1)))
+            )
+
+    def sample_ref_idcs(self, video: str, cur_idx: int) -> List[int]:
+        """Sample reference indices from video_idcs given cur_idx."""
+        frame_ids = list(self.frame_to_idcs[video].keys())
+        frame_id = self._dataset[cur_idx]["frame_id"]
 
         if self.sampling_cfg.type == "uniform":
             left = max(0, frame_id - self.sampling_cfg.scope)
@@ -95,7 +106,7 @@ class MapTrackingDataset(MapDataset):  # type: ignore
                 f"implemented."
             )
 
-        return [frame_to_idx[i] for i in ref_frame_ids]
+        return [self.frame_to_idcs[video][f] for f in ref_frame_ids]
 
     def __getitem__(self, idx: int) -> List[Dict[str, Any]]:  # type: ignore
         """Fully prepare a sample for training/inference."""
@@ -106,17 +117,20 @@ class MapTrackingDataset(MapDataset):  # type: ignore
             data = self._map_func(self._dataset[cur_idx])
             if data is not None:
                 data_dict, transforms = data
-                # sample reference views
-                video_idcs = self.video_to_idcs[data_dict["video_id"]]
-                ref_data = [
-                    self._map_func(
-                        self._dataset[ref_idx], transforms=transforms
-                    )[0]
-                    for ref_idx in self.sample_ref_idcs(video_idcs, cur_idx)
-                ]
-
                 self._fallback_candidates.add(cur_idx)
-                return [data_dict] + ref_data
+
+                if self.training:
+                    # sample reference views
+                    vid_id = data_dict["video_id"]
+                    ref_data = [
+                        self._map_func(
+                            self._dataset[ref_idx], transforms=transforms
+                        )[0]
+                        for ref_idx in self.sample_ref_idcs(vid_id, cur_idx)
+                    ]
+                    return [data_dict] + ref_data
+
+                return data_dict  # type: ignore
 
             # _map_func fails for this idx, use a random new index from the
             # pool

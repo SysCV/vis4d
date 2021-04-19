@@ -8,6 +8,7 @@ from openmt.struct import Boxes2D
 
 from ..matchers.base import MatchResult
 from .base import BaseSampler, SamplerConfig
+from .utils import prepare_target
 
 
 class RandomSampler(BaseSampler):
@@ -34,11 +35,11 @@ class RandomSampler(BaseSampler):
                 self.cfg.positive_fraction,
                 self.bg_label,
             )
-            sampled_idxs = torch.cat([pos_idx, neg_idx], dim=0)
+            sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
 
-            sampled_boxes.append(box[sampled_idxs])
+            sampled_boxes.append(box[sampled_idcs])
+
             sampled_targets.append(
-                target[match.assigned_gt_indices.long()[sampled_idxs]]
+                prepare_target(len(pos_idx), sampled_idcs, target, match)
             )
-
         return sampled_boxes, sampled_targets

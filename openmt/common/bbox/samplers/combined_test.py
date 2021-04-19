@@ -27,7 +27,7 @@ class TestCombined(unittest.TestCase):
             )
         ]
         boxes = [Boxes2D(torch.rand(num_samples, 5))]
-        targets = [Boxes2D(torch.rand(num_gts, 5))]
+        targets = [Boxes2D(torch.rand(num_gts, 5), torch.zeros(num_gts))]
         return matching, boxes, targets
 
     def test_sample(self) -> None:

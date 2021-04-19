@@ -4,11 +4,11 @@ import sys
 from argparse import Namespace
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import toml
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 from openmt.data import DataloaderConfig as Dataloader
 from openmt.model import BaseModelConfig
@@ -79,6 +79,19 @@ class Config(BaseModel):
     output_dir: Optional[str]
     launch: Launch = Launch()
 
+    @validator("output_dir", always=True)
+    def validate_output_dir(  # type: ignore # pylint: disable=no-self-argument,no-self-use,line-too-long
+        cls, value: str, values: Dict[str, Any]
+    ) -> str:
+        """Check if output dir, create output dir if necessary."""
+        if value is None:
+            timestamp = str(datetime.now()).split(".")[0].replace(" ", "_")
+            value = os.path.join(
+                "openmt-workspace", values["model"].type, timestamp
+            )
+        os.makedirs(value, exist_ok=True)
+        return value
+
 
 def parse_config(args: Namespace) -> Config:
     """Read config, parse cmd line arguments."""
@@ -108,14 +121,4 @@ def read_config(filepath: str) -> Config:
     else:
         raise NotImplementedError(f"Config type {ext} not supported")
     config = Config(**config_dict)
-
-    # check if output dir variable is filled, create output dir if necessary
-    if config.output_dir is None:
-        config_name = os.path.splitext(os.path.basename(filepath))[0]
-        timestamp = str(datetime.now()).split(".")[0].replace(" ", "_")
-        config.output_dir = os.path.join(
-            "openmt-workspace", config_name, timestamp
-        )
-    os.makedirs(config.output_dir, exist_ok=True)
-
     return config

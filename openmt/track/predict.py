@@ -26,7 +26,7 @@ def track_predict_func(
         det2cfg.MODEL.WEIGHTS, resume=cfg.launch.resume
     )
 
-    result = TrackingTrainer.test(det2cfg, model)
+    result = TrackingTrainer.test_static(cfg, det2cfg, model)
     return result
 
 

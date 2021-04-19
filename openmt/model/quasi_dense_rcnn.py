@@ -117,7 +117,11 @@ class QDGeneralizedRCNN(BaseModel):
 
         # track head
         key_embeddings, key_track_targets = self.similarity_head(
-            key_inputs, key_x, key_proposals, key_targets
+            key_inputs,
+            key_x,
+            key_proposals,
+            key_targets,
+            filter_negatives=True,
         )
         ref_track_targets, ref_embeddings = [], []
         for inp, x, proposal, target in zip(
@@ -217,11 +221,12 @@ class QDGeneralizedRCNN(BaseModel):
             for _dists, _cos_dists, _targets, _weights in zip(
                 curr_dists, curr_cos_dists, curr_targets, curr_weights
             ):
-                loss_track += self.track_loss(
-                    _dists, _targets, _weights, avg_factor=_weights.sum()
-                )
-                if self.track_loss_aux is not None:
-                    loss_track_aux += self.track_loss_aux(_cos_dists, _targets)
+                if all(_dists.shape):
+                    loss_track += self.track_loss(
+                        _dists, _targets, _weights, avg_factor=_weights.sum()+1e-5
+                    )
+                    if self.track_loss_aux is not None:
+                        loss_track_aux += self.track_loss_aux(_cos_dists, _targets)
 
         num_pairs = len(dists) * len(dists[0])
         losses["track_loss"] = loss_track / num_pairs
@@ -234,7 +239,7 @@ class QDGeneralizedRCNN(BaseModel):
         self, batch_inputs: Tuple[Dict[str, torch.Tensor]]
     ) -> List[Boxes2D]:
         """Forward function during inference."""
-        inputs = batch_inputs[0]  # only batch size 1
+        inputs = batch_inputs[0]  # Inference is done using batch size 1
 
         # init graph at begin of sequence
         if inputs["frame_id"] == 0:

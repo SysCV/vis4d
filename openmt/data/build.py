@@ -1,6 +1,6 @@
 """Build data loading pipeline for tracking."""
 import logging
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from detectron2.config import CfgNode
@@ -22,6 +22,7 @@ from .dataset_mapper import (
     ReferenceSamplingConfig,
     TrackingDatasetMapper,
 )
+from .samplers import TrackingInferenceSampler
 
 
 class DataloaderConfig(BaseModel):
@@ -36,7 +37,7 @@ class DataOptions(BaseModel):
     """Options for building the dataloader."""
 
     dataset: List[Dict[str, Any]]  # type: ignore
-    sampler: Union[TrainingSampler, RepeatFactorTrainingSampler]
+    sampler: Optional[Union[TrainingSampler, RepeatFactorTrainingSampler]]
     mapper: TrackingDatasetMapper
     total_batch_size: int
     num_workers: int
@@ -80,11 +81,11 @@ def _train_loader_from_config(
 def build_tracking_train_loader(
     loader_cfg: DataloaderConfig, det2cfg: CfgNode
 ) -> torch.utils.data.DataLoader:
-    """Build a dataloader for object tracking with some default features."""
+    """Build train dataloader for tracking with some default features."""
     data_options = _train_loader_from_config(loader_cfg, det2cfg)
     dataset = DatasetFromList(data_options.dataset, copy=False)
     dataset = MapTrackingDataset(
-        loader_cfg.sampling_cfg, dataset, data_options.mapper
+        loader_cfg.sampling_cfg, True, dataset, data_options.mapper
     )
     assert isinstance(data_options.sampler, torch.utils.data.sampler.Sampler)
     # aspect_ratio_grouping: tracking datasets usually do not contain
@@ -95,4 +96,44 @@ def build_tracking_train_loader(
         data_options.total_batch_size,
         aspect_ratio_grouping=False,
         num_workers=data_options.num_workers,
+    )
+
+
+def _test_loader_from_config(
+    loader_cfg: DataloaderConfig, cfg: CfgNode, dataset_name: str
+) -> DataOptions:
+    """Construct testing data loader from config."""
+    dataset = get_detection_dataset_dicts(
+        dataset_name,
+        filter_empty=False,
+        min_keypoints=0,
+        proposal_files=None,
+    )
+    mapper = TrackingDatasetMapper(loader_cfg.data_backend, cfg)
+    return DataOptions(
+        dataset=dataset,
+        mapper=mapper,
+        total_batch_size=1,
+        num_workers=loader_cfg.num_workers,
+    )
+
+
+def build_tracking_test_loader(
+    loader_cfg: DataloaderConfig, det2cfg: CfgNode, dataset_name: str
+) -> torch.utils.data.DataLoader:
+    """Build test dataloader for tracking with some default features."""
+    data_options = _test_loader_from_config(loader_cfg, det2cfg, dataset_name)
+    dataset = DatasetFromList(data_options.dataset, copy=False)
+    dataset = MapTrackingDataset(
+        loader_cfg.sampling_cfg, False, dataset, data_options.mapper
+    )
+    sampler = TrackingInferenceSampler(dataset)
+    batch_sampler = torch.utils.data.sampler.BatchSampler(
+        sampler, 1, drop_last=False
+    )
+    return torch.utils.data.DataLoader(
+        dataset,
+        num_workers=data_options.num_workers,
+        batch_sampler=batch_sampler,
+        collate_fn=lambda x: x,
     )

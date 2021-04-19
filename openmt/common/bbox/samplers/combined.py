@@ -10,6 +10,7 @@ from openmt.struct import Boxes2D
 from ..matchers.base import MatchResult
 from ..utils import non_intersection, random_choice
 from .base import BaseSampler, SamplerConfig
+from .utils import nonzero_tuple, prepare_target
 
 
 class CombinedSamplerConfig(SamplerConfig):
@@ -185,13 +186,11 @@ class CombinedSampler(BaseSampler):
             )
             neg_idx = self.neg_strategy(**{k: args[k] for k in self.neg_args})
 
-            sampled_idxs = torch.cat([pos_idx, neg_idx], dim=0)
-
-            sampled_boxes.append(box[sampled_idxs])
+            sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
+            sampled_boxes.append(box[sampled_idcs])
             sampled_targets.append(
-                target[match.assigned_gt_indices.long()[sampled_idxs]]
+                prepare_target(len(pos_idx), sampled_idcs, target, match)
             )
-
         return sampled_boxes, sampled_targets
 
     def sample_within_intervals(
@@ -230,17 +229,3 @@ class CombinedSampler(BaseSampler):
             sampled_inds = torch.cat([sampled_inds, extra_inds])
 
         return sampled_inds
-
-
-def nonzero_tuple(
-    tensor: torch.Tensor,
-) -> Tuple[torch.Tensor]:  # pragma: no cover
-    """A 'as_tuple=True' version of torch.nonzero to support torchscript.
-
-    because of https://github.com/pytorch/pytorch/issues/38718
-    """
-    if torch.jit.is_scripting():
-        if tensor.dim() == 0:
-            return tensor.unsqueeze(0).nonzero().unbind(1)  # type: ignore
-        return tensor.nonzero().unbind(1)  # type: ignore
-    return tensor.nonzero(as_tuple=True)  # type: ignore

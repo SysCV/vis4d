@@ -38,23 +38,26 @@ class MaxIoUMatcher(BaseMatcher):
         """Match all boxes to targets based on maximum IoU."""
         result = []
         for b, t in zip(boxes, targets):
-            # M x N matrix, where M = num gt, N = num proposals
-            match_quality_matrix = compute_iou(t, b)
+            if len(t) == 0:
+                matches = torch.zeros(len(b)).to(b.device)
+                match_labels = torch.zeros(len(b)).to(b.device)
+                match_iou = torch.zeros(len(b)).to(b.device)
+            else:
+                # M x N matrix, where M = num gt, N = num proposals
+                match_quality_matrix = compute_iou(t, b)
 
-            # matches N x 1 = index of assigned gt i.e.  range [0, M)
-            # match_labels N x 1 where 0 = negative, -1 = ignore, 1 = positive
-            matches, match_labels = self.matcher(match_quality_matrix)
-            match_iou = match_quality_matrix[
-                matches, torch.arange(0, len(b)).to(b.device)
-            ]
+                # matches N x 1 = index of assigned gt i.e.  range [0, M)
+                # match_labels N x 1, 0 = negative, -1 = ignore, 1 = positive
+                matches, match_labels = self.matcher(match_quality_matrix)
+                match_iou = match_quality_matrix[
+                    matches, torch.arange(0, len(b)).to(b.device)
+                ]
+
             result.append(
                 MatchResult(
-                    **dict(
-                        assigned_gt_indices=matches,
-                        assigned_labels=match_labels,
-                        assigned_gt_iou=match_iou,
-                    )
+                    assigned_gt_indices=matches,
+                    assigned_labels=match_labels,
+                    assigned_gt_iou=match_iou,
                 )
             )
-
         return result

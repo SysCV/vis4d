@@ -29,3 +29,7 @@ data_root = "./data/bdd100k/images/100k/val"
 
 [dataloader]
 num_workers = 4
+    [dataloader.sampling_cfg]
+    type = 'uniform'
+    scope = 1
+    num_ref_imgs = 0

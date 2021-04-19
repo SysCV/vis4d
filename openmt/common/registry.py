@@ -19,10 +19,10 @@ class RegistryHolder(type):
         """
         new_cls = type.__new__(cls, name, bases, attrs)
         assert isinstance(new_cls, RegistryHolder)
-        module_name = ".".join(
-            [*attrs["__module__"].split(".")[:-1], new_cls.__name__]
-        )
-        cls.REGISTRY[module_name] = new_cls
+        if len(bases):  # must inherit from some base class beyond Registry
+            base = str(bases[0]).replace("<class '", "").replace("'>", "")
+            module_name = ".".join([*base.split(".")[:-2], new_cls.__name__])
+            cls.REGISTRY[module_name] = new_cls
         return new_cls
 
     @classmethod

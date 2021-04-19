@@ -13,7 +13,7 @@ from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.comm import is_main_process
 
 from openmt.config import Config
-from openmt.data import build_tracking_train_loader
+from openmt.data import build_tracking_test_loader, build_tracking_train_loader
 from openmt.detect.config import default_setup, to_detectron2
 from openmt.model import build_model
 
@@ -22,7 +22,7 @@ from .evaluator import ScalabelMOTAEvaluator, inference_on_dataset
 
 
 class TrackingTrainer(DefaultTrainer):  # type: ignore
-    """Trainer with COCOEvaluator for testing."""
+    """TrackingTrainer class."""
 
     def __init__(self, cfg: Config, det2cfg: CfgNode):
         """Init."""
@@ -50,6 +50,21 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         """Calls :func:`openmt.data.build_tracking_train_loader`."""
         return build_tracking_train_loader(self.track_cfg.dataloader, cfg)
 
+    def build_test_loader(
+        self, cfg: CfgNode, dataset_name: str
+    ) -> torch.utils.data.DataLoader:
+        """Calls static version."""
+        return self.build_test_loader_static(self.track_cfg, cfg, dataset_name)  # pragma: no cover # pylint: disable=line-too-long
+
+    @classmethod
+    def build_test_loader_static(
+        cls, track_cfg: Config, cfg: CfgNode, dataset_name: str
+    ) -> torch.utils.data.DataLoader:
+        """Calls :func:`openmt.data.build_tracking_test_loader`."""
+        return build_tracking_test_loader(
+            track_cfg.dataloader, cfg, dataset_name
+        )
+
     @classmethod
     def build_evaluator(
         cls, cfg: CfgNode, dataset_name: str
@@ -58,26 +73,24 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
         return ScalabelMOTAEvaluator(dataset_name, True, output_folder)
 
-    @classmethod
     def test(
-        cls,
+        self,
         cfg: CfgNode,
         model: torch.nn.Module,
         evaluators: Optional[List[DatasetEvaluator]] = None,
     ) -> Dict[str, EvalResults]:
-        """Test detect with given evaluators.
+        """Calls static test function."""
+        return self.test_static(self.track_cfg, cfg, model, evaluators)
 
-        Args:
-            cfg (CfgNode): detectron2 config.
-            model (nn.Module): detect to test.
-            evaluators (list[DatasetEvaluator] or None): if None, will call
-                :meth:`build_evaluator`. Otherwise, must have the same
-                length as
-                ``cfg.DATASETS.TEST``.
-
-        Returns:
-            dict: a dict of result metrics
-        """
+    @classmethod
+    def test_static(
+        cls,
+        track_cfg: Config,
+        cfg: CfgNode,
+        model: torch.nn.Module,
+        evaluators: Optional[List[DatasetEvaluator]] = None,
+    ) -> Dict[str, EvalResults]:
+        """Test detect with given evaluators."""
         logger = logging.getLogger(__name__)
         if isinstance(evaluators, DatasetEvaluator):
             evaluators = [evaluators]  # pragma: no cover
@@ -88,7 +101,9 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
 
         results = OrderedDict()  # type: ignore
         for idx, dataset_name in enumerate(cfg.DATASETS.TEST):
-            data_loader = cls.build_test_loader(cfg, dataset_name)
+            data_loader = cls.build_test_loader_static(
+                track_cfg, cfg, dataset_name
+            )
             # When evaluators are passed in as arguments, implicitly assume
             # that evaluators can be created before data_loader.
             if evaluators is not None:
