@@ -26,8 +26,9 @@ def prepare_target(
         if target.track_ids is not None:
             track_ids = class_ids.clone()
         sampled_target = Boxes2D(
-            torch.zeros(len(sampled_idcs), 5).to(target.device), class_ids,
-            track_ids
+            torch.zeros(len(sampled_idcs), 5).to(target.device),
+            class_ids,
+            track_ids,
         )
     return sampled_target
 

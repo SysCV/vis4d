@@ -223,10 +223,15 @@ class QDGeneralizedRCNN(BaseModel):
             ):
                 if all(_dists.shape):
                     loss_track += self.track_loss(
-                        _dists, _targets, _weights, avg_factor=_weights.sum()+1e-5
+                        _dists,
+                        _targets,
+                        _weights,
+                        avg_factor=_weights.sum() + 1e-5,
                     )
                     if self.track_loss_aux is not None:
-                        loss_track_aux += self.track_loss_aux(_cos_dists, _targets)
+                        loss_track_aux += self.track_loss_aux(
+                            _cos_dists, _targets
+                        )
 
         num_pairs = len(dists) * len(dists[0])
         losses["track_loss"] = loss_track / num_pairs

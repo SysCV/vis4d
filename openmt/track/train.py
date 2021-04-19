@@ -54,7 +54,9 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         self, cfg: CfgNode, dataset_name: str
     ) -> torch.utils.data.DataLoader:
         """Calls static version."""
-        return self.build_test_loader_static(self.track_cfg, cfg, dataset_name)  # pragma: no cover # pylint: disable=line-too-long
+        return self.build_test_loader_static(
+            self.track_cfg, cfg, dataset_name
+        )  # pragma: no cover # pylint: disable=line-too-long
 
     @classmethod
     def build_test_loader_static(
