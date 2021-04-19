@@ -14,7 +14,7 @@ from .quasi_dense import QDTrackGraph
 class TestQDTrackGraph(unittest.TestCase):
     """Test cases for quasi-dense tracking graph construction."""
 
-    def test_get_tracks(self):
+    def test_get_tracks(self) -> None:
         """Testcase for get tracks method."""
         tracker = QDTrackGraph(
             TrackGraphConfig(type="qdtrack", keep_in_memory=3)
@@ -35,6 +35,9 @@ class TestQDTrackGraph(unittest.TestCase):
 
         boxes, embeds = tracker.get_tracks(1)
         self.assertTrue(len(boxes) == len(embeds) == num_dets // 2)
+
+        boxes, embeds = tracker.get_tracks(2)
+        self.assertTrue(len(boxes) == len(embeds) == 0)
 
     def test_track(self) -> None:
         """Testcase for tracking function."""

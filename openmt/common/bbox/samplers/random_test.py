@@ -48,3 +48,10 @@ class TestRandom(unittest.TestCase):
             self.assertTrue(
                 torch.isclose(targets[0][0].boxes, target.boxes).all()
             )
+
+        boxes = [Boxes2D(torch.rand(num_samples, 5))]
+        targets = [Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))]
+        sampled_boxes, sampled_targets = sampler.sample(
+            matching, boxes, targets
+        )
+        self.assertEqual(len(sampled_boxes[0]), len(sampled_targets[0]))

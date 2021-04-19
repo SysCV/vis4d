@@ -83,15 +83,16 @@ class QDTrackGraph(BaseTrackGraph):
         bboxs = torch.cat(bboxs) if len(bboxs) > 0 else torch.empty(0, 5)
         embeds = torch.cat(embeds) if len(embeds) > 0 else torch.empty(0)
         cls = torch.cat(cls) if len(cls) > 0 else torch.empty(0)
-        return Boxes2D(bboxs, cls, torch.tensor(ids)), embeds
+        ids = torch.tensor(ids).to(bboxs.device)  # type: ignore
+        return Boxes2D(bboxs, cls, ids), embeds
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, detections: Boxes2D, frame_id: int, embeddings: torch.Tensor
     ) -> Boxes2D:
         """Process inputs, match detections with existing tracks."""
         _, inds = detections.boxes[:, -1].sort(descending=True)
-        detections = detections[inds, :]
-        embeddings = embeddings[inds, :]
+        detections = detections[inds, :].to(torch.device("cpu"))
+        embeddings = embeddings[inds, :].to(torch.device("cpu"))
 
         # duplicate removal for potential backdrops and cross classes
         valids = embeddings.new_ones((len(detections),))

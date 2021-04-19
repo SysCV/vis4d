@@ -79,24 +79,6 @@ class QDGeneralizedRCNN(BaseModel):
         key_inputs = batched_images[key_index]
         ref_inputs = [batched_images[i] for i in ref_indices]
 
-        # import matplotlib.pyplot as plt
-        #
-        # def unnormalize(input_img):
-        #     color_tensor = input_img.clone()
-        #     min, max = (
-        #         torch.min(color_tensor, dim=0)[0],
-        #         torch.max(color_tensor, dim=0)[0],
-        #     )
-        #     return color_tensor.sub_(min).div(max - min).mul_(255).int()
-        #
-        # for i, key_img in enumerate(key_inputs):
-        #     print(i)
-        #     plt.imshow(unnormalize(key_img.permute(1, 2, 0)))
-        #     plt.show()
-        #     for ref_img in ref_inputs[i]:
-        #         plt.imshow(unnormalize(ref_img.permute(1, 2, 0)))
-        #         plt.show()
-
         # prepare targets
         key_targets = [
             x["instances"].to(self.device) for x in batch_inputs[key_index]
@@ -105,6 +87,24 @@ class QDGeneralizedRCNN(BaseModel):
             [x["instances"].to(self.device) for x in batch_inputs[i]]
             for i in ref_indices
         ]
+
+        # from mmcv.visualization.image import imshow_bboxes
+        # def unnormalize(input_img):
+        #     color_tensor = input_img.clone()
+        #     min, max = (
+        #         torch.min(color_tensor, dim=0)[0],
+        #         torch.max(color_tensor, dim=0)[0],
+        #     )
+        #     return color_tensor.sub_(min).div(max - min).mul_(255).to(
+        #         torch.uint8).cpu().numpy()
+        #
+        # for i, key_img in enumerate(key_inputs):
+        #     print(i)
+        #     imshow_bboxes(unnormalize(key_img.permute(1, 2, 0)),
+        #     key_targets[i].boxes[:, :4].cpu().numpy())
+        #     for j, ref_img in enumerate(ref_inputs[i]):
+        #         imshow_bboxes(unnormalize(ref_img.permute(1, 2, 0)),
+        #         ref_targets[i][j].boxes[:, :4].cpu().numpy())
 
         key_x, key_proposals, _, det_losses = self.detector(
             key_inputs, key_targets
@@ -141,7 +141,9 @@ class QDGeneralizedRCNN(BaseModel):
         return {**det_losses, **track_losses}
 
     def match(
-        self, key_embeds: Tuple[torch.Tensor], ref_embeds: List[Tuple[torch.Tensor]]
+        self,
+        key_embeds: Tuple[torch.Tensor],
+        ref_embeds: List[Tuple[torch.Tensor]],
     ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
         """Match key / ref embeddings based on cosine similarity."""
         # for each reference view
@@ -175,7 +177,7 @@ class QDGeneralizedRCNN(BaseModel):
         for ref_target in ref_targets:
             # for each batch element
             curr_targets, curr_weights = [], []
-            for key_target, ref_target_ in zip(key_targets, ref_target):  # type: ignore # pylint: disable=line-too-long
+            for key_target, ref_target_ in zip(key_targets, ref_target):
                 assert (
                     key_target.track_ids is not None
                     and ref_target_.track_ids is not None
