@@ -43,3 +43,16 @@ class TestDatasetMapper(unittest.TestCase):
             cfg, True, DatasetFromList(data_dict), lambda x: None
         )
         self.assertRaises(ValueError, mapper.__getitem__, 0)
+
+    def test_getitem_duplicate(self) -> None:
+        """Testcase for getitem duplicate if no video id."""
+        cfg = ReferenceSamplingConfig(
+            type="sequential", num_ref_imgs=2, scope=3
+        )
+
+        data_dict = [dict(file_name=i) for i in range(200)]
+        mapper = MapTrackingDataset(
+            cfg, True, DatasetFromList(data_dict), lambda x: (x, None)
+        )
+        data = mapper.__getitem__(100)
+        self.assertTrue(all(d["file_name"] == 100 for d in data))

@@ -90,7 +90,7 @@ class QDSimilarityHead(BaseSimilarityHead):
 
         fcs = nn.ModuleList()
         if self.cfg.num_fcs > 0:
-            last_layer_dim *= np.prod(self.cfg.proposal_pooler.resolution)
+            last_layer_dim *= np.prod(self.cfg.proposal_pooler.resolution)  # type: ignore # pylint: disable=line-too-long
             for i in range(self.cfg.num_fcs):
                 fc_in_dim = last_layer_dim if i == 0 else self.cfg.fc_out_dim
                 fcs.append(

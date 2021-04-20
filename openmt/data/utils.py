@@ -13,9 +13,10 @@ from openmt.struct import Boxes2D
 
 
 def im_decode(im_bytes: bytes) -> np.ndarray:
-    """Decode to image (numpy array) from bytes."""
+    """Decode to image (numpy array, BGR) from bytes."""
     pil_img = Image.open(BytesIO(bytearray(im_bytes)))
-    return np.array(pil_img)
+    np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: np.ndarray
+    return np_img
 
 
 def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:

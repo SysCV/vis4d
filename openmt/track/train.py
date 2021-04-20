@@ -129,7 +129,7 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
                 )
 
         if len(results) == 1:
-            results = list(results.values())[0]
+            results = list(results.values())[0]  # type: ignore
         return results
 
 

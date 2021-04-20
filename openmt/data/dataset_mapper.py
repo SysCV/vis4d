@@ -57,7 +57,8 @@ class MapTrackingDataset(MapDataset):  # type: ignore
     def _create_video_mapping(self) -> None:
         """Create a mapping that returns all img idx for a given video id."""
         for idx, entry in enumerate(self._dataset):
-            self.video_to_idcs[entry["video_id"]].append(idx)
+            if "video_id" in entry:
+                self.video_to_idcs[entry["video_id"]].append(idx)
 
         for video in self.video_to_idcs:
             self.video_to_idcs[video] = sorted(
@@ -121,13 +122,21 @@ class MapTrackingDataset(MapDataset):  # type: ignore
 
                 if self.training:
                     # sample reference views
-                    vid_id = data_dict["video_id"]
-                    ref_data = [
-                        self._map_func(
-                            self._dataset[ref_idx], transforms=transforms
-                        )[0]
-                        for ref_idx in self.sample_ref_idcs(vid_id, cur_idx)
-                    ]
+                    if "video_id" in data_dict:
+                        vid_id = data_dict["video_id"]
+                        ref_data = [
+                            self._map_func(
+                                self._dataset[ref_idx], transforms=transforms
+                            )[0]
+                            for ref_idx in self.sample_ref_idcs(
+                                vid_id, cur_idx
+                            )
+                        ]
+                    else:
+                        ref_data = [
+                            data_dict
+                            for _ in range(self.sampling_cfg.num_ref_imgs)
+                        ]
                     return [data_dict] + ref_data
 
                 return data_dict  # type: ignore

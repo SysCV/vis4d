@@ -1,9 +1,6 @@
 """Test cases for detection engine training."""
-
-from detectron2.data import DatasetCatalog
-
 from openmt import detect
-from openmt.unittest.util import DetectTest
+from openmt.unittest.util import DetectTest, d2_data_reset
 
 
 class TestTrain(DetectTest):
@@ -17,8 +14,6 @@ class TestTrain(DetectTest):
 
     def test_train_launcher(self) -> None:
         """Testcase for training launcher."""
-        for ds in self.det2cfg.DATASETS.TRAIN:
-            DatasetCatalog.remove(ds)
-        for ds in self.det2cfg.DATASETS.TEST:
-            DatasetCatalog.remove(ds)
+        d2_data_reset(self.det2cfg.DATASETS.TRAIN)
+        d2_data_reset(self.det2cfg.DATASETS.TEST)
         detect.train(self.cfg)

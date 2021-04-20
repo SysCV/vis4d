@@ -3,12 +3,21 @@ import inspect
 import os
 import unittest
 from argparse import Namespace
+from typing import List
 
 import torch
+from detectron2.data import DatasetCatalog, MetadataCatalog
 
 from openmt import config
 from openmt.detect import default_setup, to_detectron2
 from openmt.struct import Boxes2D
+
+
+def d2_data_reset(names: List[str]) -> None:
+    """Delete all given dataset instances."""
+    for ds in names:
+        DatasetCatalog.remove(ds)
+        MetadataCatalog.remove(ds)
 
 
 def get_test_file(file_name: str) -> str:

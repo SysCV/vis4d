@@ -1,34 +1,34 @@
 [model]
 type = "DetectorWrapper"
-    [detection]
+    [model.detection]
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
     weights = "detectron2"
     num_classes = 10
 
 [solver]
-images_per_batch = 2
+images_per_batch = 1
 lr_policy = "WarmupMultiStepLR"
 base_lr = 0.02
-steps = [1000, 2000]
-max_iters = 10000
-checkpoint_period = 2000
-eval_period = 2000
+max_iters = 1000
+steps = [100]
+checkpoint_period = 100
+eval_period = 100
 
 [[train]]
-name = "bdd100k_train"
+name = "sample_train"
 type = "coco"
-annotation_file = "./data/bdd100k_labels_images_train_coco_release.json"
-data_root = "./data/bdd100k/images/100k/train"
+annotations = "openmt/detect/testcases/bdd100k-samples/annotation_coco.json"
+data_root = "openmt/detect/testcases/bdd100k-samples/images"
 
 [[test]]
-name = "bdd100k_val"
+name = "sample_val"
 type = "coco"
-annotation_file = "./data/bdd100k_labels_images_val_coco_release.json"
-data_root = "./data/bdd100k/images/100k/val"
+annotations = "openmt/detect/testcases/bdd100k-samples/annotation_coco.json"
+data_root = "openmt/detect/testcases/bdd100k-samples/images"
 
 [dataloader]
-num_workers = 4
+num_workers = 0
     [dataloader.sampling_cfg]
     type = 'uniform'
     scope = 1

@@ -34,12 +34,26 @@ class DetectorWrapper(BaseModel):
         """
         images = self.detector.preprocess_image(batch_inputs)  # type: ignore
         targets = [
-            x["instances"].to(self.detector.device)  # type: ignore
+            target_to_box2d(
+                x["instances"].to(self.detector.device), score_as_logit=False  # type: ignore # pylint: disable=line-too-long
+            )
             for x in batch_inputs
         ]
-        targets = [
-            target_to_box2d(target, score_as_logit=False) for target in targets
-        ]
+
+        # from mmcv.visualization.image import imshow_bboxes
+        # def unnormalize(input_img):
+        #     color_tensor = input_img.clone()
+        #     min, max = (
+        #         torch.min(color_tensor, dim=0)[0],
+        #         torch.max(color_tensor, dim=0)[0],
+        #     )
+        #     return color_tensor.sub_(min).div(max - min).mul_(255).to(
+        #         torch.uint8).cpu().numpy()
+        #
+        # for i, img in enumerate(images):
+        #     imshow_bboxes(unnormalize(img.permute(1, 2, 0)),
+        #     targets[i].boxes[:, :4].cpu().numpy())
+
         _, _, _, det_losses = self.detector(images, targets)
         return det_losses  # type: ignore
 

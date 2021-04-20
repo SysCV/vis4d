@@ -39,7 +39,9 @@ def convert_single_dataset(source_dir: str) -> None:
         if os.path.isfile(f)
     ]
     hdf5_path = source_dir.strip("/") + ".hdf5"
-    assert not os.path.exists(hdf5_path), f"File {hdf5_path} already exists!"
+    if os.path.exists(hdf5_path):
+        print(f"File {hdf5_path} already exists! Skipping {source_dir}")
+        return
     hdf5_file = h5py.File(hdf5_path, mode="w")
 
     for fp in tqdm(files):

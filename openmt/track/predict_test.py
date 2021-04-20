@@ -1,9 +1,6 @@
 """Test cases for tracking engine prediction."""
-
-from detectron2.data import DatasetCatalog
-
 from openmt.track.predict import predict, track_predict_func
-from openmt.unittest.util import TrackTest
+from openmt.unittest.util import TrackTest, d2_data_reset
 
 
 class TestPredict(TrackTest):
@@ -33,8 +30,6 @@ class TestPredict(TrackTest):
 
     def test_predict_launcher(self) -> None:
         """Testcase for prediction launcher."""
-        for ds in self.det2cfg.DATASETS.TRAIN:
-            DatasetCatalog.remove(ds)
-        for ds in self.det2cfg.DATASETS.TEST:
-            DatasetCatalog.remove(ds)
+        d2_data_reset(self.det2cfg.DATASETS.TRAIN)
+        d2_data_reset(self.det2cfg.DATASETS.TEST)
         predict(self.cfg)

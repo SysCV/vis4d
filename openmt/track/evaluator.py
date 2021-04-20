@@ -138,7 +138,7 @@ def inference_on_dataset(
     # code to handle
     if results is None:
         results = {}  # pragma: no cover
-    return results
+    return results  # type: ignore
 
 
 class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore

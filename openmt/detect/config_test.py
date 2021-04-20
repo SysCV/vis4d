@@ -37,5 +37,5 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(
             det2cfg.DATALOADER.NUM_WORKERS, cfg.dataloader.num_workers
         )
-        self.assertEqual(det2cfg.DATASETS.TRAIN, ["sample_train"])
-        self.assertEqual(det2cfg.DATASETS.TEST, ["sample_val"])
+        self.assertEqual(det2cfg.DATASETS.TRAIN, ["bdd100k_sample_train"])
+        self.assertEqual(det2cfg.DATASETS.TEST, ["bdd100k_sample_val"])

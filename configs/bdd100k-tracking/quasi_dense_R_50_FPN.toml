@@ -5,7 +5,7 @@ keyframe_selection = "random"
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
     weights = "detectron2"
-    num_classes = 3
+    num_classes = 8
 
     [model.track_graph]
     type = "QDTrackGraph"
@@ -61,19 +61,26 @@ checkpoint_period = 2000
 eval_period = 1000
 
 [[train]]
-name = "sample_train"
+name = "bdd100k_track_sample_train"
 type = "scalabel_video"
 annotations = "openmt/track/testcases/bdd100k-samples/labels/"
 data_root = "openmt/track/testcases/bdd100k-samples/images/"
 
+[[train]]
+name = "bdd100k_det_sample_train"
+type = "scalabel_video"
+annotations = "openmt/detect/testcases/bdd100k-samples/annotation.json"
+data_root = "openmt/detect/testcases/bdd100k-samples/images/"
+
 [[test]]
-name = "sample_val"
+name = "bdd100k_sample_val"
 type = "scalabel_video"
 annotations = "openmt/track/testcases/bdd100k-samples/labels/"
 data_root = "openmt/track/testcases/bdd100k-samples/images/"
 
 [dataloader]
 num_workers = 0
+sync_classes_to_intersection = true
     [dataloader.data_backend]
     type = "HDF5Backend"
     [dataloader.sampling_cfg]

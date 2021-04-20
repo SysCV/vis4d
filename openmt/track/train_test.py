@@ -1,8 +1,6 @@
 """Test cases for tracking engine training."""
 
-from detectron2.data import DatasetCatalog
-
-from openmt.unittest.util import TrackTest
+from openmt.unittest.util import TrackTest, d2_data_reset
 
 from .train import track_train_func, train
 
@@ -18,8 +16,6 @@ class TestTrain(TrackTest):
 
     def test_train_launcher(self) -> None:
         """Testcase for training launcher."""
-        for ds in self.det2cfg.DATASETS.TRAIN:
-            DatasetCatalog.remove(ds)
-        for ds in self.det2cfg.DATASETS.TEST:
-            DatasetCatalog.remove(ds)
+        d2_data_reset(self.det2cfg.DATASETS.TRAIN)
+        d2_data_reset(self.det2cfg.DATASETS.TEST)
         train(self.cfg)

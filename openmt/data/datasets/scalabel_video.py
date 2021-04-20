@@ -4,9 +4,11 @@ import logging
 import os
 from typing import Any, Dict, List, Optional, no_type_check
 
+from bdd100k.common.utils import DEFAULT_COCO_CONFIG
 from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
 from detectron2.structures import BoxMode
 from scalabel.label.io import load
+from scalabel.label.to_coco import load_coco_config
 from scalabel.label.typing import Frame
 
 logger = logging.getLogger(__name__)
@@ -58,24 +60,36 @@ def load_json_to_coco(
     json_path: str, image_root: str, dataset_name: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """Load BDD100K instances to dicts."""
-    json_files = os.listdir(json_path)
+    if not json_path.endswith(".json"):
+        json_files = os.listdir(json_path)
+        img_anns_all = [load(os.path.join(json_path, f)) for f in json_files]
+    else:
+        img_anns_all = [[x] for x in load(json_path)]
 
     dataset_dicts = []
     image_id = 0
     cat_ids = []
-    for json_file in json_files:
-        imgs_anns = load(os.path.join(json_path, json_file))
+    name_mapping, ignore_mapping = None, None
+    if "bdd100k" in dataset_name:
+        cat_ids, name_mapping, ignore_mapping = load_coco_config(
+            "box_track", DEFAULT_COCO_CONFIG, False
+        )
+        cat_ids = [cat_id["name"] for cat_id in cat_ids]
+
+    for img_anns in img_anns_all:
         ins_ids = []
-        for img_ann in imgs_anns:
+        for img_ann in img_anns:
             record = {}
-            # Note: also supports pickle
-            record["file_name"] = os.path.join(
-                image_root, img_ann.video_name, img_ann.name
-            )
+            if img_ann.video_name is not None:
+                file_name = os.path.join(img_ann.video_name, img_ann.name)
+                record["video_id"] = img_ann.video_name
+                record["frame_id"] = img_ann.frame_index
+            else:
+                file_name = img_ann.name
+
+            record["file_name"] = os.path.join(image_root, file_name)
             record["height"] = 720  # fixed for BDD100K (720p)
             record["width"] = 1280
-            record["video_id"] = img_ann.video_name
-            record["frame_id"] = img_ann.frame_index
             record["image_id"] = image_id
 
             objs = []
@@ -94,14 +108,18 @@ def load_json_to_coco(
                 if not anno.id in ins_ids:
                     ins_ids.append(anno.id)
 
-                obj["category_id"] = cat_ids.index(anno.category)
+                category = anno.category
+                if name_mapping is not None:
+                    category = name_mapping.get(anno.category, anno.category)
+
+                if ignore_mapping is not None and category in ignore_mapping:
+                    category = ignore_mapping[category]
+                    obj["ignore"] = True
+
+                obj["category_id"] = cat_ids.index(category)
+                obj["category_name"] = category
                 obj["instance_id"] = ins_ids.index(anno.id)
-                obj["iscrowd"] = anno.attributes["crowd"]
-
-                # segm = anno["poly2d"] if "poly2d" in anno.keys() else None
-                # if segm:
-                #     obj["segmentation"] = segm
-
+                obj["iscrowd"] = anno.attributes.get("crowd", False)
                 obj["bbox_mode"] = BoxMode.XYWH_ABS
                 objs.append(obj)
             record["annotations"] = objs

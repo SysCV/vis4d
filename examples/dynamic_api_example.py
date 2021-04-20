@@ -72,7 +72,7 @@ if __name__ == "__main__":
                 name="sample_train",
                 type="coco",
                 annotations="openmt/detect/testcases/bdd100k-samples/"
-                            "annotation.json",
+                            "annotation_coco.json",
                 data_root="openmt/detect/testcases/bdd100k-samples/",
             )
         ],
@@ -81,7 +81,7 @@ if __name__ == "__main__":
                 name="sample_val",
                 type="coco",
                 annotations="openmt/detect/testcases/bdd100k-samples/"
-                            "annotation.json",
+                            "annotation_coco.json",
                 data_root="openmt/detect/testcases/bdd100k-samples/",
             )
         ],
