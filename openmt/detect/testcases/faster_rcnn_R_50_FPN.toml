@@ -3,7 +3,6 @@ type = "DetectorWrapper"
     [model.detection]
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
-    weights = "detectron2"
     num_classes = 10
 
 [solver]
@@ -34,3 +33,5 @@ num_workers = 0
     scope = 1
     num_ref_imgs = 0
 
+[launch]
+weights = "detectron2"

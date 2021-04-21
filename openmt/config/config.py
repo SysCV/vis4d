@@ -49,9 +49,27 @@ class Dataset(BaseModel):
 
 
 class Launch(BaseModel):
-    """Launch configuration."""
+    """Launch configuration.
+
+    Standard Options (command line only):
+    action (positional argument): train / predict routine
+    config: Filepath to config file
+
+    Launch Options:
+    device: Device to train on (cpu / cuda / ..)
+    weights: Filepath for weights to load. Set to "detectron2" If you want to
+            load weights from detectron2 for a corresponding detector.
+    num_gpus:"number of gpus *per machine*"
+    num_machines: "total number of machines"
+    machine_rank: the rank of this machine (unique per machine)
+    dist_url: initialization URL for pytorch distributed backend. See
+        https://pytorch.org/docs/stable/distributed.html for details.
+    resume: Whether to attempt to resume from the checkpoint directory.
+    eval_only: perform evaluation only
+    """
 
     device: str = "cpu"
+    weights: Optional[str] = None
     num_gpus: int = 1
     num_machines: int = 1
     machine_rank: int = 0

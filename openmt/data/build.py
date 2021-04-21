@@ -34,6 +34,7 @@ class DataloaderConfig(BaseModel):
     data_backend: DataBackendConfig = DataBackendConfig()
     num_workers: int
     sync_classes_to_intersection: bool = False
+    test_max_size: Optional[int] = None
     sampling_cfg: ReferenceSamplingConfig
 
 
@@ -179,7 +180,14 @@ def _test_loader_from_config(
     dataset = get_detection_dataset_dicts(
         dataset_name, False, loader_cfg.sync_classes_to_intersection
     )
-    mapper = TrackingDatasetMapper(loader_cfg.data_backend, cfg)
+    cfg.INPUT.MAX_SIZE_TEST = (
+        loader_cfg.test_max_size
+        if loader_cfg.test_max_size is not None
+        else cfg.INPUT.MAX_SIZE_TEST
+    )
+    mapper = TrackingDatasetMapper(
+        loader_cfg.data_backend, cfg, is_train=False
+    )
     return DataOptions(
         dataset=dataset,
         mapper=mapper,

@@ -19,10 +19,11 @@ def predict_func(det2cfg: CfgNode, cfg: Config) -> Dict[str, Dict[str, float]]:
     model.to(torch.device(cfg.launch.device))
     if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
         det2cfg.MODEL.merge_from_other_cfg(model.detector.d2_cfg.MODEL)
+    if cfg.launch.weights != "detectron2":
+        det2cfg.MODEL.WEIGHTS = cfg.launch.weights
     DetectionCheckpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
         det2cfg.MODEL.WEIGHTS, resume=cfg.launch.resume
     )
-
     return Trainer.test(det2cfg, model)  # type: ignore
 
 

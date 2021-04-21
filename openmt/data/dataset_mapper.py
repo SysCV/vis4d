@@ -168,10 +168,14 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
     """
 
     def __init__(
-        self, backend_cfg: DataBackendConfig, det2cfg: CfgNode
+        self,
+        backend_cfg: DataBackendConfig,
+        det2cfg: CfgNode,
+        is_train: bool = True,
     ) -> None:
         """Init."""
-        super().__init__(det2cfg)  # pylint: disable=missing-kwoa
+        # pylint: disable=missing-kwoa,too-many-function-args
+        super().__init__(det2cfg, is_train)
         self.data_backend = build_data_backend(backend_cfg)
 
     def load_image(  # type: ignore
@@ -268,7 +272,7 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
 
         if not self.is_train:  # pragma: no cover
             dataset_dict.pop("annotations", None)
-            return dataset_dict
+            return dataset_dict, transforms
 
         if "annotations" in dataset_dict:
             instances = self.transform_annotation(dataset_dict, transforms)

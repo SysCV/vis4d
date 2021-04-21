@@ -8,22 +8,21 @@ from openmt.struct import TorchCheckpoint
 class TrackingCheckpointer(DetectionCheckpointer):  # type: ignore
     """Tracking checkpointer.
 
-    Loads detectron2 models into a tracking detect.
+    Loads openmt models.
     """
 
     def _load_model(self, checkpoint: TorchCheckpoint) -> _IncompatibleKeys:
-        """Modify d2 checkpoint, load detect weights."""
-        # checkpoint modification to fit to detector.d2_detector
-        assert "__author__" in checkpoint.keys() and isinstance(
-            checkpoint["__author__"], str
-        )
+        """Modify d2 checkpoint / load weights."""
         assert "model" in checkpoint.keys() and isinstance(
             checkpoint["model"], dict
         )
-        if checkpoint["__author__"].startswith("Detectron2"):
-            checkpoint["model"] = {
-                "detector.d2_detector." + k: v
-                for k, v in checkpoint["model"].items()
-            }
+        # checkpoint modification to fit to detector.d2_detector
+        if "__author__" in checkpoint.keys():
+            assert isinstance(checkpoint["__author__"], str)
+            if checkpoint["__author__"].startswith("Detectron2"):
+                checkpoint["model"] = {
+                    "detector.d2_detector." + k: v
+                    for k, v in checkpoint["model"].items()
+                }
         incompatible = super()._load_model(checkpoint)
         return incompatible

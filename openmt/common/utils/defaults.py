@@ -1,10 +1,13 @@
 """Default boilerplate logic for openmt."""
 import argparse
 
+from openmt.config import Launch
+
 
 def default_argument_parser() -> argparse.ArgumentParser:
     """Create a parser with common openmt arguments."""
-    parser = argparse.ArgumentParser(description="openmt options")
+    schema = Launch.schema()
+    parser = argparse.ArgumentParser(description=schema["description"])
     parser.add_argument(
         "action",
         type=str,
@@ -14,28 +17,11 @@ def default_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--config", default="", metavar="FILE", help="path to config file"
     )
-    parser.add_argument(
-        "--resume",
-        action="store_true",
-        help="Whether to attempt to resume from the checkpoint directory.",
-    )
-    parser.add_argument(
-        "--eval-only", action="store_true", help="perform evaluation only"
-    )
-    parser.add_argument(
-        "--num-gpus", type=int, help="number of gpus *per machine*"
-    )
-    parser.add_argument(
-        "--num-machines", type=int, help="total number of machines"
-    )
-    parser.add_argument(
-        "--machine-rank",
-        type=int,
-        help="the rank of this machine (unique per machine)",
-    )
-    parser.add_argument(
-        "--dist-url",
-        help="initialization URL for pytorch distributed backend. See "
-        "https://pytorch.org/docs/stable/distributed.html for details.",
-    )
+
+    for key in schema["properties"]:
+        parser.add_argument(
+            "--" + key,
+            default=Launch.__fields__[key].default,
+            type=Launch.__fields__[key].type_,
+        )
     return parser

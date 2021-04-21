@@ -88,23 +88,11 @@ class QDGeneralizedRCNN(BaseModel):
             for i in ref_indices
         ]
 
-        # from mmcv.visualization.image import imshow_bboxes
-        # def unnormalize(input_img):
-        #     color_tensor = input_img.clone()
-        #     min, max = (
-        #         torch.min(color_tensor, dim=0)[0],
-        #         torch.max(color_tensor, dim=0)[0],
-        #     )
-        #     return color_tensor.sub_(min).div(max - min).mul_(255).to(
-        #         torch.uint8).cpu().numpy()
-        #
-        # for i, key_img in enumerate(key_inputs):
-        #     print(i)
-        #     imshow_bboxes(unnormalize(key_img.permute(1, 2, 0)),
-        #     key_targets[i].boxes[:, :4].cpu().numpy())
-        #     for j, ref_img in enumerate(ref_inputs[i]):
-        #         imshow_bboxes(unnormalize(ref_img.permute(1, 2, 0)),
-        #         ref_targets[i][j].boxes[:, :4].cpu().numpy())
+        # from openmt.vis.image import imshow_bboxes
+        # for ref_i, ref_img in enumerate(ref_inputs):
+        #     for batch_i, key_img in enumerate(key_inputs):
+        #         imshow_bboxes(key_img, key_targets[batch_i])
+        #         imshow_bboxes(ref_img[batch_i], ref_targets[ref_i][batch_i])
 
         key_x, key_proposals, _, det_losses = self.detector(
             key_inputs, key_targets
@@ -130,6 +118,12 @@ class QDGeneralizedRCNN(BaseModel):
             embeds, targets = self.similarity_head(inp, x, proposal, target)
             ref_embeddings += [embeds]
             ref_track_targets += [targets]
+
+        # from openmt.vis.track import visualize_matches
+        # for ref_i, ref_img in enumerate(ref_inputs):
+        #     key_imgs = [key_inputs[i] for i in range(len(key_inputs))]
+        #     visualize_matches(key_imgs, ref_img, key_track_targets,
+        #     ref_track_targets[ref_i])
 
         track_losses = self.tracking_loss(
             key_embeddings,

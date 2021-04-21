@@ -31,7 +31,6 @@ class D2GeneralizedRCNNConfig(BaseDetectorConfig):
 
     model_base: str
     override_mapping: Optional[bool] = False
-    weights: Optional[str] = None
     num_classes: Optional[int]
 
 
@@ -110,23 +109,10 @@ def model_to_detectron2(config: D2GeneralizedRCNNConfig) -> CfgNode:
     cfg.merge_from_file(base_cfg)
 
     # load checkpoint
-    if config.weights is not None:
-        if os.path.exists(config.weights):
-            cfg.MODEL.WEIGHTS = config.weights
-        elif (
-            config.weights == "detectron2"
-            and detectron2_model_string is not None
-        ):
-            cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-                detectron2_model_string
-            )
-        else:
-            raise ValueError(
-                f"model weights path {config.weights} "
-                f"not "
-                f"found. If you're loading a detectron2 config from local, "
-                f"please also specify a local checkpoint file"
-            )
+    if detectron2_model_string is not None:
+        cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
+            detectron2_model_string
+        )
 
     # convert detect attributes
     if config.num_classes:

@@ -22,10 +22,11 @@ def track_predict_func(
     model.to(torch.device(cfg.launch.device))
     if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
         det2cfg.MODEL.merge_from_other_cfg(model.detector.d2_cfg.MODEL)
+    if cfg.launch.weights != "detectron2":
+        det2cfg.MODEL.WEIGHTS = cfg.launch.weights
     TrackingCheckpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
         det2cfg.MODEL.WEIGHTS, resume=cfg.launch.resume
     )
-
     result = TrackingTrainer.test_static(cfg, det2cfg, model)
     return result
 

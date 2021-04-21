@@ -72,7 +72,6 @@ def to_detectron2(config: Config) -> CfgNode:
     if config.test is not None:
         cfg.DATASETS.TEST = _register(config.test)
 
-    cfg.freeze()
     return cfg
 
 

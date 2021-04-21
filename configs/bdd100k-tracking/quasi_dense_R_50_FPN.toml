@@ -52,7 +52,7 @@ keyframe_selection = "random"
         allow_low_quality_matches = false
 
 [solver]
-images_per_batch = 2
+images_per_batch = 1
 lr_policy = "WarmupMultiStepLR"
 base_lr = 0.02
 steps = [1000, 2000]
@@ -81,9 +81,13 @@ data_root = "openmt/track/testcases/bdd100k-samples/images/"
 [dataloader]
 num_workers = 0
 sync_classes_to_intersection = true
+test_max_size = 1280
     [dataloader.data_backend]
     type = "HDF5Backend"
     [dataloader.sampling_cfg]
     type = 'uniform'
     scope = 2
     num_ref_imgs = 1
+
+[launch]
+weights = "detectron2"

@@ -74,6 +74,8 @@ def train_func(
 ) -> Optional[Dict[str, Dict[str, float]]]:
     """Training function."""
     trainer = Trainer(cfg, det2cfg)
+    if cfg.launch.weights != "detectron2":
+        trainer.cfg.MODEL.WEIGHTS = cfg.launch.weights
     trainer.resume_or_load(resume=cfg.launch.resume)
     return trainer.train()  # type: ignore
 
