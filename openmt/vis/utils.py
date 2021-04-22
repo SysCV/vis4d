@@ -37,12 +37,12 @@ def preprocess_boxes(
 ) -> Tuple[List[Tuple[float]], List[Tuple[int]], List[float]]:
     """Preprocess BoxType to boxes / colors for drawing."""
     if isinstance(boxes, list):
-        result_box, result_color, result_score = [], [], []  # type: ignore
+        result_box, result_color, result_score = [], [], []
         for i, b in enumerate(boxes):
             res_box, res_color, res_score = preprocess_boxes(b, i)
             result_box.extend(res_box)
-            res_color.extend(res_color)
-            res_score.extend(res_score)
+            result_color.extend(res_color)
+            result_score.extend(res_score)
         return result_box, result_color, result_score
 
     assert isinstance(boxes, Boxes2D)
@@ -64,14 +64,14 @@ def preprocess_boxes(
     return boxes_list, draw_colors, scores
 
 
-def preprocess_image(input_img: ImageType) -> Image:
+def preprocess_image(input_img: ImageType) -> Image.Image:
     """Validate and convert input image.
 
     Args:
         input_img: CHW or HWC image (ImageType) in RGB.
 
     Returns:
-        PIL.Image: Processed image.
+        PIL.Image.Image: Processed image.
     """
     assert len(input_img.shape) == 3
     assert input_img.shape[0] == 3 or input_img.shape[-1] == 3

@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw
 from .utils import BoxType, preprocess_boxes, preprocess_image
 
 
-def imshow(image: Image) -> None:
+def imshow(image: Image.Image) -> None:  # pragma: no cover
     """Imshow wrapper."""
     plt.imshow(np.asarray(image))
     plt.show()
@@ -17,7 +17,7 @@ def imshow(image: Image) -> None:
 
 def imshow_bboxes(
     image: Union[torch.Tensor, np.ndarray], boxes: BoxType
-) -> None:
+) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
     image = preprocess_image(image)
     box_list, color_list, _ = preprocess_boxes(boxes)
@@ -27,7 +27,9 @@ def imshow_bboxes(
     imshow(image)
 
 
-def draw_bbox(image: Image, box: Tuple[float], color: Tuple[int]) -> None:
+def draw_bbox(
+    image: Image.Image, box: Tuple[float], color: Tuple[int]
+) -> None:
     """Draw 2D box onto image."""
     draw = ImageDraw.Draw(image)
     draw.rectangle(box, outline=color)

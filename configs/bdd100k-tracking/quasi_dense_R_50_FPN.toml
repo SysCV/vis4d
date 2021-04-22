@@ -4,7 +4,6 @@ keyframe_selection = "random"
     [model.detection]
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
-    weights = "detectron2"
     num_classes = 8
 
     [model.track_graph]

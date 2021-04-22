@@ -3,21 +3,11 @@ import inspect
 import os
 import unittest
 from argparse import Namespace
-from typing import List
 
 import torch
-from detectron2.data import DatasetCatalog, MetadataCatalog
 
 from openmt import config
-from openmt.detect import default_setup, to_detectron2
 from openmt.struct import Boxes2D
-
-
-def d2_data_reset(names: List[str]) -> None:
-    """Delete all given dataset instances."""
-    for ds in names:
-        DatasetCatalog.remove(ds)
-        MetadataCatalog.remove(ds)
 
 
 def get_test_file(file_name: str) -> str:
@@ -65,8 +55,6 @@ class DetectTest(unittest.TestCase):
         config="openmt/detect/testcases/faster_rcnn_R_50_FPN.toml"
     )
     cfg = config.parse_config(args)
-    det2cfg = to_detectron2(cfg)
-    default_setup(det2cfg, cfg.launch)
 
 
 class TrackTest(unittest.TestCase):
@@ -74,5 +62,3 @@ class TrackTest(unittest.TestCase):
 
     args = Namespace(config="openmt/track/testcases/quasi_dense_R_50_FPN.toml")
     cfg = config.parse_config(args)
-    det2cfg = to_detectron2(cfg)
-    default_setup(det2cfg, cfg.launch)

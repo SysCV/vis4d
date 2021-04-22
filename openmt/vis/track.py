@@ -1,5 +1,5 @@
 """Tracking visualziations."""
-from typing import List
+from typing import List, Sequence
 
 import torch
 from PIL import Image
@@ -11,8 +11,8 @@ from .utils import BoxType, ImageType, preprocess_boxes, preprocess_image
 
 
 def draw_sequence(
-    frames: List[ImageType], boxes: List[BoxType]
-) -> List[Image]:
+    frames: List[ImageType], boxes: Sequence[BoxType]
+) -> List[Image.Image]:
     """Draw predictions of a complete sequence."""
     processed_frames = [preprocess_image(f) for f in frames]
     for frame, boxes2d in zip(processed_frames, boxes):
@@ -27,7 +27,7 @@ def visualize_matches(
     ref_inputs: List[ImageType],
     key_boxes: List[Boxes2D],
     ref_boxes: List[Boxes2D],
-) -> None:
+) -> None:  # pragma: no cover
     """Visualize paired bounding boxes successively for batched frame pairs."""
     for batch_i, (key_box, ref_box) in enumerate(zip(key_boxes, ref_boxes)):
         target = (

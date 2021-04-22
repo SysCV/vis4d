@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Union
 
 import torch
 from detectron2.config import CfgNode
-from detectron2.engine import DefaultTrainer, launch
+from detectron2.engine import DefaultTrainer
 from detectron2.evaluation import COCOEvaluator as D2COCOEvaluator
 from detectron2.evaluation import DatasetEvaluator, coco_evaluation
 from detectron2.structures import Boxes, Instances
@@ -69,27 +69,12 @@ class Trainer(DefaultTrainer):  # type: ignore
         return COCOEvaluator(dataset_name, cfg, True, output_folder)
 
 
-def train_func(
-    det2cfg: CfgNode, cfg: Config
-) -> Optional[Dict[str, Dict[str, float]]]:
+def train(cfg: Config) -> Optional[Dict[str, Dict[str, float]]]:
     """Training function."""
+    det2cfg = to_detectron2(cfg)
+    default_setup(det2cfg, cfg.launch)
     trainer = Trainer(cfg, det2cfg)
     if cfg.launch.weights != "detectron2":
         trainer.cfg.MODEL.WEIGHTS = cfg.launch.weights
     trainer.resume_or_load(resume=cfg.launch.resume)
     return trainer.train()  # type: ignore
-
-
-def train(cfg: Config) -> None:
-    """Launcher for training."""
-    detectron2cfg = to_detectron2(cfg)
-    default_setup(detectron2cfg, cfg.launch)
-
-    launch(
-        train_func,
-        cfg.launch.num_gpus,
-        num_machines=cfg.launch.num_machines,
-        machine_rank=cfg.launch.machine_rank,
-        dist_url=cfg.launch.dist_url,
-        args=(detectron2cfg, cfg),
-    )

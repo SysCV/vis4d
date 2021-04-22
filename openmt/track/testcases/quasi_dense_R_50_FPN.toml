@@ -84,3 +84,6 @@ sync_classes_to_intersection = true
     type = 'uniform'
     scope = 2
     num_ref_imgs = 1
+
+[launch]
+weights = "detectron2"

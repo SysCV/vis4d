@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 import torch
 from bdd100k.eval.mot import EvalResults
 from detectron2.config import CfgNode
-from detectron2.engine import DefaultTrainer, launch
+from detectron2.engine import DefaultTrainer
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.comm import is_main_process
 
@@ -133,27 +133,13 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         return results
 
 
-def track_train_func(
-    det2cfg: CfgNode, cfg: Config
-) -> Optional[Dict[str, Dict[str, float]]]:
+def train(cfg: Config) -> Optional[Dict[str, EvalResults]]:
     """Training function."""
+    det2cfg = to_detectron2(cfg)
+    default_setup(det2cfg, cfg.launch)
+
     trainer = TrackingTrainer(cfg, det2cfg)
     if cfg.launch.weights != "detectron2":
-        trainer.cfg.MODEL.WEIGHTS = cfg.launch.weights
+        trainer.cfg.MODEL.WEIGHTS = cfg.launch.weights  # pragma: no cover
     trainer.resume_or_load(resume=cfg.launch.resume)
     return trainer.train()  # type: ignore
-
-
-def train(cfg: Config) -> None:
-    """Launcher for training."""
-    detectron2cfg = to_detectron2(cfg)
-    default_setup(detectron2cfg, cfg.launch)
-
-    launch(
-        track_train_func,
-        cfg.launch.num_gpus,
-        num_machines=cfg.launch.num_machines,
-        machine_rank=cfg.launch.machine_rank,
-        dist_url=cfg.launch.dist_url,
-        args=(detectron2cfg, cfg),
-    )

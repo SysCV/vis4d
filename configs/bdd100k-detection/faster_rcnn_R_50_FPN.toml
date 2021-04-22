@@ -33,5 +33,5 @@ num_workers = 0
     scope = 1
     num_ref_imgs = 0
 
-#[launch]
-#weights = "detectron2"
+[launch]
+weights = "detectron2"

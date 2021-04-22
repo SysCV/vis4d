@@ -21,7 +21,7 @@ def default_argument_parser() -> argparse.ArgumentParser:
     for key in schema["properties"]:
         parser.add_argument(
             "--" + key,
-            default=Launch.__fields__[key].default,
+            default=None,
             type=Launch.__fields__[key].type_,
         )
     return parser

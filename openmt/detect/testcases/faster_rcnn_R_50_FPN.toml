@@ -32,6 +32,3 @@ num_workers = 0
     type = 'uniform'
     scope = 1
     num_ref_imgs = 0
-
-[launch]
-weights = "detectron2"
