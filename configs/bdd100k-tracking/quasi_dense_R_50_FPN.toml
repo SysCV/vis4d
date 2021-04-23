@@ -46,7 +46,7 @@ keyframe_selection = "random"
 
         [model.similarity.proposal_matcher]
         type = "MaxIoUMatcher"
-        thresholds = [0.3, 0.5]
+        thresholds = [0.3, 0.7]
         labels = [0, -1, 1]
         allow_low_quality_matches = false
 
@@ -80,7 +80,8 @@ data_root = "openmt/track/testcases/bdd100k-samples/images/"
 [dataloader]
 num_workers = 0
 sync_classes_to_intersection = true
-test_max_size = 1280
+train_max_size = 1280
+test_max_size = 1380
     [dataloader.data_backend]
     type = "HDF5Backend"
     [dataloader.sampling_cfg]

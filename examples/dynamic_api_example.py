@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 import torchvision.models.detection.retinanet as retinanet  # type: ignore
 
+from detectron2.engine import launch
 from openmt import config, detect
 from openmt.data import DataloaderConfig as Dataloader
 from openmt.model.detect import BaseDetector, BaseDetectorConfig
@@ -73,7 +74,7 @@ if __name__ == "__main__":
                 type="coco",
                 annotations="openmt/detect/testcases/bdd100k-samples/"
                             "annotation_coco.json",
-                data_root="openmt/detect/testcases/bdd100k-samples/",
+                data_root="openmt/detect/testcases/bdd100k-samples/images/",
             )
         ],
         test=[
@@ -82,9 +83,25 @@ if __name__ == "__main__":
                 type="coco",
                 annotations="openmt/detect/testcases/bdd100k-samples/"
                             "annotation_coco.json",
-                data_root="openmt/detect/testcases/bdd100k-samples/",
+                data_root="openmt/detect/testcases/bdd100k-samples/images/",
             )
         ],
     )
 
+    # CPU
     detect.train(conf)
+
+    # single GPU
+    conf.launch = config.Launch(device='cuda')
+    detect.train(conf)
+
+    # multi GPU
+    conf.launch = config.Launch(device='cuda', num_gpus=2)
+    launch(
+        detect.train,
+        conf.launch.num_gpus,
+        num_machines=conf.launch.num_machines,
+        machine_rank=conf.launch.machine_rank,
+        dist_url=conf.launch.dist_url,
+        args=(conf,),
+    )

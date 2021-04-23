@@ -55,7 +55,7 @@ class D2GeneralizedRCNN(BaseDetector):
         if targets is not None:
             targets = target_to_instance(targets, inputs.tensor.shape[2:])
 
-            # backbone
+        # backbone
         feat = self.d2_detector.backbone(inputs.tensor)
 
         # rpn stage

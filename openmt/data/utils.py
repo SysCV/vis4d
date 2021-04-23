@@ -2,7 +2,7 @@
 import math
 import sys
 from io import BytesIO
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
@@ -10,6 +10,13 @@ from detectron2.structures import Instances
 from PIL import Image
 
 from openmt.struct import Boxes2D
+
+
+def identity_batch_collator(  # type: ignore
+    batch: List[List[Dict[str, Any]]]
+) -> List[List[Dict[str, Any]]]:
+    """Identity function batch collator."""
+    return batch
 
 
 def im_decode(im_bytes: bytes) -> np.ndarray:

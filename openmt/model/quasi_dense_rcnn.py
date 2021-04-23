@@ -259,4 +259,11 @@ class QDGeneralizedRCNN(BaseModel):
         detections = self.track_graph(
             detections[0], inputs["frame_id"], embeddings[0]
         )
+
+        self.postprocess(
+            (inputs["width"], inputs["height"]),
+            (image.tensor.shape[-1], image.tensor.shape[-2]),
+            detections,
+        )
+
         return [detections]

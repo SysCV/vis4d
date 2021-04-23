@@ -146,6 +146,16 @@ class Boxes2D(Instances):
         )
         return cat_boxes
 
+    def scale(self, scale_factor_xy: Tuple[float, float]) -> None:
+        """Scale bounding boxes according to factor."""
+        self.boxes[:, [0, 2]] *= scale_factor_xy[0]
+        self.boxes[:, [1, 3]] *= scale_factor_xy[1]
+
+    def clip(self, image_wh: Tuple[float, float]) -> None:
+        """Clip bounding boxes according to image_wh."""
+        self.boxes[:, [0, 2]] = self.boxes[:, [0, 2]].clamp(0, image_wh[0] - 1)
+        self.boxes[:, [1, 3]] = self.boxes[:, [1, 3]].clamp(0, image_wh[1] - 1)
+
     @property
     def device(self) -> torch.device:
         """Get current device of data."""

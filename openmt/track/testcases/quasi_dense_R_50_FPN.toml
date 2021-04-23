@@ -46,7 +46,7 @@ keyframe_selection = "random"
 
         [model.similarity.proposal_matcher]
         type = "MaxIoUMatcher"
-        thresholds = [0.3, 0.5]
+        thresholds = [0.3, 0.7]
         labels = [0, -1, 1]
         allow_low_quality_matches = false
 
@@ -55,9 +55,9 @@ images_per_batch = 1
 lr_policy = "WarmupMultiStepLR"
 base_lr = 0.02
 steps = [1000, 2000]
-max_iters = 1
+max_iters = 2
 checkpoint_period = 2000
-eval_period = 1
+eval_period = 2
 
 [[train]]
 name = "bdd100k_track_sample_train"
@@ -80,6 +80,8 @@ data_root = "openmt/track/testcases/bdd100k-samples/images/"
 [dataloader]
 num_workers = 0
 sync_classes_to_intersection = true
+train_max_size = 1280
+test_max_size = 1280
     [dataloader.sampling_cfg]
     type = 'uniform'
     scope = 2

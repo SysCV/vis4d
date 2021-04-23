@@ -83,8 +83,7 @@ def default_setup(cfg: CfgNode, args: Launch) -> None:
     3. Backup the config to the output directory
     """
     rank = comm.get_rank()
-    setup_logger(cfg.OUTPUT_DIR, distributed_rank=rank, name="fvcore")
-    logger = setup_logger(cfg.OUTPUT_DIR, distributed_rank=rank)
+    logger = setup_logger(cfg.OUTPUT_DIR, distributed_rank=rank, name="openmt")
 
     logger.info(
         "Rank of current process: %s. World size: %s",

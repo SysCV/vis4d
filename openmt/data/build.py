@@ -26,6 +26,7 @@ from .dataset_mapper import (
     TrackingDatasetMapper,
 )
 from .samplers import TrackingInferenceSampler
+from .utils import identity_batch_collator
 
 
 class DataloaderConfig(BaseModel):
@@ -34,6 +35,7 @@ class DataloaderConfig(BaseModel):
     data_backend: DataBackendConfig = DataBackendConfig()
     num_workers: int
     sync_classes_to_intersection: bool = False
+    train_max_size: Optional[int] = None
     test_max_size: Optional[int] = None
     sampling_cfg: ReferenceSamplingConfig
 
@@ -132,7 +134,11 @@ def _train_loader_from_config(
     dataset = get_detection_dataset_dicts(
         cfg.DATASETS.TRAIN, False, loader_cfg.sync_classes_to_intersection
     )
-
+    cfg.INPUT.MAX_SIZE_TRAIN = (
+        loader_cfg.train_max_size
+        if loader_cfg.train_max_size is not None
+        else cfg.INPUT.MAX_SIZE_TRAIN
+    )
     mapper = TrackingDatasetMapper(loader_cfg.data_backend, cfg)
 
     sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
@@ -213,5 +219,5 @@ def build_tracking_test_loader(
         dataset,
         num_workers=data_options.num_workers,
         batch_sampler=batch_sampler,
-        collate_fn=lambda x: x,
+        collate_fn=identity_batch_collator,
     )

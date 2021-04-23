@@ -48,6 +48,20 @@ class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
         """
         raise NotImplementedError
 
+    @staticmethod
+    def postprocess(
+        original_wh: Tuple[int, int],
+        output_wh: Tuple[int, int],
+        detections: Boxes2D,
+    ) -> None:
+        """Postprocess results."""
+        scale_factor = (
+            original_wh[0] / output_wh[0],
+            original_wh[1] / output_wh[1],
+        )
+        detections.scale(scale_factor)
+        detections.clip(original_wh)
+
 
 def build_model(cfg: BaseModelConfig) -> BaseModel:
     """Build openMT model.

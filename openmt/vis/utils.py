@@ -25,7 +25,11 @@ def generate_colors(length: int) -> List[Tuple[int]]:
     hsv = [(i / length, 1, brightness) for i in range(length)]
     colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
     colors = (np.array(colors) * 255).astype(np.uint8).tolist()
-    return [tuple(c) for c in colors]  # type: ignore
+    s = np.random.get_state()
+    np.random.seed(0)
+    result = [tuple(colors[i]) for i in np.random.permutation(len(colors))]
+    np.random.set_state(s)
+    return result  # type: ignore
 
 
 NUM_COLORS = 50
