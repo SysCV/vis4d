@@ -3,7 +3,6 @@ from typing import Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 from PIL import Image, ImageDraw
 
 from .utils import BoxType, ImageType, preprocess_boxes, preprocess_image
