@@ -2,8 +2,9 @@
 
 import logging
 import os
+from collections import defaultdict
 from multiprocessing import cpu_count
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from bdd100k.common.utils import DEFAULT_COCO_CONFIG
 from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
@@ -20,15 +21,16 @@ def load_json(
     """Load Scalabel frames from json."""
     frames = load(json_path, nprocs=cpu_count())
     cat_ids = []  # type: List[str]
-    ins_ids = []  # type: List[str]
+    ins_ids = defaultdict(list)  # type: Dict[str, List[str]]
     name_mapping, ignore_mapping = None, None
     if dataset_name is not None and "bdd100k" in dataset_name:
         cat_dicts, name_mapping, ignore_mapping = load_coco_config(
             "box_track", DEFAULT_COCO_CONFIG, False
         )
         cat_ids = [cat["name"] for cat in cat_dicts]
+    frequencies = {cat_id: 0 for cat_id in cat_ids}
 
-    for ann in frames:
+    for i, ann in enumerate(frames):
         # add filename, category and instance id (integer)
         assert ann.name is not None and ann.labels is not None
         if ann.video_name is not None:
@@ -36,16 +38,10 @@ def load_json(
         else:
             ann.url = os.path.join(image_root, ann.name)
 
-        for j in range(len(ann.labels)):
-            label = ann.labels[j]
+        for j, label in enumerate(ann.labels):
             assert label.category is not None
-            if not label.category in cat_ids:
-                cat_ids.append(label.category)
-            if not label.id in ins_ids:
-                ins_ids.append(label.id)
-
-            category = label.category
             ignore = False
+            category = label.category
             if name_mapping is not None:
                 category = name_mapping.get(label.category, label.category)
             if ignore_mapping is not None and category in ignore_mapping:
@@ -53,12 +49,24 @@ def load_json(
                 ignore = True
             label.category = category
 
+            attrs = dict(ignore=ignore)  # type: Dict[str, Union[int, bool]]
+
             # parse category and track id to integer
-            attrs = dict(
-                category_id=cat_ids.index(label.category),
-                instance_id=ins_ids.index(label.id),
-                ignore=ignore,
-            )
+            if not label.category in cat_ids:
+                cat_ids.append(label.category)
+                frequencies[label.category] = 0
+            frequencies[label.category] += 1
+            attrs["category_id"] = cat_ids.index(label.category)
+            if (
+                ann.video_name is not None
+                and label.id not in ins_ids[ann.video_name]
+            ):
+                ins_ids[ann.video_name].append(label.id)
+            attrs["instance_id"] = (
+                ins_ids[ann.video_name].index(label.id)
+                if ann.video_name is not None
+                else i * 256 + j
+            )  # assumes there won't be >256 labels per frame
 
             if label.attributes is None:
                 label.attributes = attrs  # type: ignore # pragma: no cover
@@ -69,6 +77,7 @@ def load_json(
         meta = MetadataCatalog.get(dataset_name)
         meta.thing_classes = cat_ids
         meta.idx_to_class_mapping = dict(enumerate(cat_ids))
+        meta.class_frequencies = frequencies
 
     return frames
 

@@ -4,7 +4,7 @@ import sys
 from argparse import Namespace
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, no_type_check
 
 import toml
 import yaml
@@ -118,6 +118,23 @@ def parse_config(args: Namespace) -> Config:
     for attr, value in args.__dict__.items():
         if attr in Launch.__fields__ and value is not None:
             setattr(cfg.launch, attr, getattr(args, attr))
+
+    if args.__dict__.get("cfg_options", "") != "":
+        cfg_dict = cfg.dict()
+        options = args.cfg_options.split(",")
+
+        @no_type_check
+        def update(my_dict, key_list, value):
+            cur_key = key_list.pop(0)
+            if len(key_list) == 0:
+                my_dict[cur_key] = value
+                return
+            update(my_dict[cur_key], key_list, value)
+
+        for option in options:
+            key, value = option.split("=")
+            update(cfg_dict, key.split("."), value)
+        cfg = Config(**cfg_dict)
 
     return cfg
 

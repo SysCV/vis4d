@@ -26,6 +26,7 @@ class TestBuild(unittest.TestCase):
             meta = MetadataCatalog.get(name)
             meta.thing_classes = cats
             meta.idx_to_class_mapping = dict(enumerate(cats))
+            meta.class_frequencies = {c: 0 for c in cats}
 
         dataset_dicts = get_tracking_dataset_dicts(names, True, False)
         self.assertEqual(dataset_dicts, [d[0] for d in data_dicts])
@@ -58,6 +59,7 @@ class TestBuild(unittest.TestCase):
             meta = MetadataCatalog.get(name)
             meta.thing_classes = cats
             meta.idx_to_class_mapping = dict(enumerate(cats))
+            meta.class_frequencies = {c: 0 for c in cats}
 
         dataset_dicts = get_tracking_dataset_dicts(names, True, False)
         self.assertEqual(len(dataset_dicts), 1)

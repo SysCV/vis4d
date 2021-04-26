@@ -22,7 +22,11 @@ from .dataset_mapper import (
     TrackingDatasetMapper,
 )
 from .samplers import TrackingInferenceSampler
-from .utils import filter_empty_annotations, identity_batch_collator
+from .utils import (
+    filter_empty_annotations,
+    identity_batch_collator,
+    print_class_histogram,
+)
 
 
 class DataloaderConfig(BaseModel):
@@ -106,6 +110,15 @@ def get_tracking_dataset_dicts(  # type: ignore
                     data_dict.labels.pop(i)
         else:
             detection_utils.check_metadata_consistency("thing_classes", names)
+            class_names = MetadataCatalog.get(names[0]).thing_classes
+
+        overall_frequencies = {c: 0 for c in class_names}
+        for name in names:
+            meta = MetadataCatalog.get(name)
+            for c in class_names:
+                overall_frequencies[c] += meta.class_frequencies[c]
+
+        print_class_histogram(overall_frequencies)
 
     if filter_empty and has_instances:
         dataset_frames = filter_empty_annotations(dataset_frames)

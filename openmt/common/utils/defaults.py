@@ -18,6 +18,13 @@ def default_argument_parser() -> argparse.ArgumentParser:
         "--config", default="", metavar="FILE", help="path to config file"
     )
 
+    parser.add_argument(
+        "--cfg-options",
+        default="",
+        help="additional config parameters in format key=value separated by "
+        "commas, e.g. dataloader.num_workers=1,solver.base_lr=0.01",
+    )
+
     for key in schema["properties"]:
         parser.add_argument(
             "--" + key,

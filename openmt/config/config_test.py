@@ -25,7 +25,11 @@ class TestLoadConfig(unittest.TestCase):
 
     def test_det_args(self) -> None:
         """Check cmd line argument parsing to launch cfg."""
-        args = Namespace(config=get_test_file("config-det.yaml"), num_gpus=2)
+        args = Namespace(
+            config=get_test_file("config-det.yaml"),
+            num_gpus=2,
+            cfg_options="dataloader.num_workers=2",
+        )
         cfg = parse_config(args)
         self.assertEqual(cfg.launch.num_gpus, 2)
 

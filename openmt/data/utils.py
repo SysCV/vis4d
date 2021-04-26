@@ -1,4 +1,5 @@
 """data utils."""
+import itertools
 import logging
 import sys
 from io import BytesIO
@@ -7,8 +8,11 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import torch
 from detectron2.structures.boxes import BoxMode
+from detectron2.utils.logger import log_first_n
 from PIL import Image
 from scalabel.label.typing import Frame, Label
+from tabulate import tabulate
+from termcolor import colored
 
 from openmt.struct import Boxes2D
 
@@ -92,3 +96,47 @@ def filter_empty_annotations(frames: List[Frame]) -> List[Frame]:
         num_after,
     )
     return frames
+
+
+def print_class_histogram(class_frequencies: Dict[str, int]) -> None:
+    """Prints out given class frequencies."""
+    class_names = list(class_frequencies.keys())
+    frequencies = list(class_frequencies.values())
+    num_classes = len(class_names)
+
+    n_cols = min(6, len(class_names) * 2)
+
+    def short_name(name: str) -> str:
+        """Make long class names shorter."""
+        if len(name) > 13:
+            return name[:11] + ".."  # pragma: no cover
+        return name
+
+    data = list(
+        itertools.chain(
+            *[
+                [short_name(class_names[i]), int(v)]
+                for i, v in enumerate(frequencies)
+            ]
+        )
+    )
+    total_num_instances = sum(data[1::2])
+    data.extend([None] * (n_cols - (len(data) % n_cols)))
+    if num_classes > 1:
+        data.extend(["total", total_num_instances])
+    data = itertools.zip_longest(*[data[i::n_cols] for i in range(n_cols)])  # type: ignore # pylint: disable=line-too-long
+    table = tabulate(
+        data,  # type: ignore
+        headers=["category", "#instances"] * (n_cols // 2),
+        tablefmt="pipe",
+        numalign="left",
+        stralign="center",
+    )
+    log_first_n(
+        logging.INFO,
+        "Distribution of instances among all {} categories:\n".format(
+            num_classes
+        )
+        + colored(table, "cyan"),
+        key="message",
+    )
