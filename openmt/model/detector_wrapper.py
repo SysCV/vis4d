@@ -3,8 +3,8 @@ from typing import Dict, List, Tuple
 
 import torch
 
-from openmt.data.utils import target_to_box2d
 from openmt.model.detect import BaseDetectorConfig, build_detector
+from openmt.model.detect.d2_utils import target_to_box2d
 from openmt.struct import Boxes2D
 
 from .base import BaseModel, BaseModelConfig
@@ -35,7 +35,7 @@ class DetectorWrapper(BaseModel):
         images = self.detector.preprocess_image(batch_inputs)  # type: ignore
         targets = [
             target_to_box2d(
-                x["instances"].to(self.detector.device), score_as_logit=False  # type: ignore # pylint: disable=line-too-long
+                x["instances"].to(self.detector.device)  # type: ignore # pylint: disable=line-too-long
             )
             for x in batch_inputs
         ]

@@ -88,6 +88,17 @@ def target_to_instance(
     return result
 
 
+def target_to_box2d(target: Instances) -> Boxes2D:
+    """Convert d2 Instances representing targets to Boxes2D."""
+    boxes, cls = (
+        target.gt_boxes.tensor,
+        target.gt_classes,
+    )
+    track_ids = target.track_ids if "track_ids" in target._fields else None
+    score = torch.ones((boxes.shape[0], 1), device=boxes.device)
+    return Boxes2D(torch.cat([boxes, score], -1), cls, track_ids)
+
+
 def model_to_detectron2(config: D2GeneralizedRCNNConfig) -> CfgNode:
     """Convert a Detector config to a detectron2 readable config."""
     cfg = get_cfg()

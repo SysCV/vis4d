@@ -16,7 +16,7 @@ class TestDatasetMapper(unittest.TestCase):
         )
 
         data_dict = [
-            dict(video_id=str(i % 2), frame_id=i - i // 2 - i % 2)
+            dict(video_name=str(i % 2), frame_index=i - i // 2 - i % 2)
             for i in range(200)
         ]
         mapper = MapTrackingDataset(
@@ -36,7 +36,7 @@ class TestDatasetMapper(unittest.TestCase):
         )
 
         data_dict = [
-            dict(video_id=i % 2, frame_id=i - i // 2 - i % 2)
+            dict(video_name=i % 2, frame_index=i - i // 2 - i % 2)
             for i in range(200)
         ]
         mapper = MapTrackingDataset(
@@ -50,7 +50,7 @@ class TestDatasetMapper(unittest.TestCase):
             type="sequential", num_ref_imgs=2, scope=3
         )
 
-        data_dict = [dict(file_name=i) for i in range(200)]
+        data_dict = [dict(file_name=i, video_name=None) for i in range(200)]
         mapper = MapTrackingDataset(
             cfg, True, DatasetFromList(data_dict), lambda x: (x, None)
         )

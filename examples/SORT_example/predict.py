@@ -1,0 +1,60 @@
+"""Example for dynamic api usage with SORT."""
+from openmt.model import BaseModelConfig
+from openmt import config, track
+from openmt.data import DataloaderConfig as Dataloader
+
+# import the SORT components
+from sort_model import SORT
+from sort_graph import SORTTrackGraph
+
+
+if __name__ == "__main__":
+    sort_detector_cfg = dict(  # TODO load pretrained weights
+        type="D2GeneralizedRCNN",
+        model_base="faster-rcnn/r50-fpn",
+        num_classes=8
+    )
+    sort_trackgraph_cfg = dict(type="SORTTrackGraph")
+    sort_cfg = dict(
+        type="SORT",
+        detection=sort_detector_cfg,
+        track_graph=sort_trackgraph_cfg
+    )
+
+    conf = config.Config(
+        model=BaseModelConfig(**sort_cfg),
+        solver=config.Solver(
+            images_per_batch=2,
+            lr_policy="WarmupMultiStepLR",
+            base_lr=0.001,
+            max_iters=100,
+        ),
+        dataloader=Dataloader(
+            num_workers=0,
+            sampling_cfg=dict(type="uniform", scope=1, num_ref_imgs=0),
+        ),
+        train=[
+            config.Dataset(
+                name="bdd100k_sample_train",
+                type="scalabel_video",
+                annotations="openmt/track/testcases/bdd100k-samples/labels",
+                data_root="openmt/track/testcases/bdd100k-samples/images/",
+            )
+        ],
+        test=[
+            config.Dataset(
+                name="bdd100k_sample_val",
+                type="scalabel_video",
+                annotations="openmt/track/testcases/bdd100k-samples/labels",
+                data_root="openmt/track/testcases/bdd100k-samples/images/",
+            )
+        ],
+    )
+
+    # choose according to setup
+    # CPU
+    track.predict(conf)
+
+    # single GPU
+    conf.launch = config.Launch(device='cuda')
+    track.predict(conf)

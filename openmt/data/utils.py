@@ -1,15 +1,18 @@
 """data utils."""
-import math
+import logging
 import sys
 from io import BytesIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from detectron2.structures import Instances
+from detectron2.structures.boxes import BoxMode
 from PIL import Image
+from scalabel.label.typing import Frame, Label
 
 from openmt.struct import Boxes2D
+
+D2BoxType = Dict[str, Union[bool, float, str]]
 
 
 def identity_batch_collator(  # type: ignore
@@ -33,14 +36,59 @@ def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:
     return str_bytes.decode(encoding)
 
 
-def target_to_box2d(target: Instances, score_as_logit: bool = True) -> Boxes2D:
-    """Convert d2 Instances representing targets to Boxes2D."""
-    boxes, cls = (
-        target.gt_boxes.tensor,
-        target.gt_classes,
+def dicts_to_boxes2d(target: List[D2BoxType]) -> Boxes2D:
+    """Convert d2 annotation dicts representing targets to Boxes2D."""
+    boxes = torch.tensor([t["bbox"] for t in target])
+    class_ids = torch.tensor(
+        [t["category_id"] for t in target], dtype=torch.long
     )
-    track_ids = target.track_ids if "track_ids" in target._fields else None
-    score = torch.ones((boxes.shape[0], 1), device=boxes.device)
-    if score_as_logit:
-        score *= math.log((1.0 - 1e-10) / (1 - (1.0 - 1e-10)))
-    return Boxes2D(torch.cat([boxes, score], -1), cls, track_ids)
+    track_ids = (
+        torch.tensor([t["instance_id"] for t in target], dtype=torch.long)
+        if "instance_id" in target[0]
+        else None
+    )
+    score = torch.ones((boxes.shape[0], 1))
+    return Boxes2D(torch.cat([boxes, score], -1), class_ids, track_ids)
+
+
+def label_to_dict(label: Label) -> D2BoxType:
+    """Convert scalabel format label to d2 readable dict."""
+    assert label.box_2d is not None and label.attributes is not None
+    ann = dict(
+        bbox=(
+            label.box_2d.x1,
+            label.box_2d.y1,
+            label.box_2d.x2,
+            label.box_2d.y2,
+        ),
+        bbox_mode=BoxMode.XYXY_ABS,
+        category_id=label.attributes["category_id"],
+    )
+    if label.attributes.get("instance_id", None) is not None:
+        ann["instance_id"] = label.attributes["instance_id"]
+    return ann
+
+
+def filter_empty_annotations(frames: List[Frame]) -> List[Frame]:
+    """Filter out images with none annotations or only crowd annotations."""
+    num_before = len(frames)
+
+    def valid(anns: Optional[List[Label]]) -> bool:
+        if anns is None:
+            return False
+        for ann in anns:
+            if ann.attributes is None:
+                return True
+            if not ann.attributes.get("crowd", False):
+                return True
+        return False
+
+    frames = [x for x in frames if valid(x.labels)]
+    num_after = len(frames)
+    logger = logging.getLogger(__name__)
+    logger.info(
+        "Removed %s images with no usable annotations. %s images left.",
+        num_before - num_after,
+        num_after,
+    )
+    return frames

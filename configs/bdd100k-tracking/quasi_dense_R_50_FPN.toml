@@ -81,7 +81,7 @@ data_root = "openmt/track/testcases/bdd100k-samples/images/"
 num_workers = 0
 sync_classes_to_intersection = true
 train_max_size = 1280
-test_max_size = 1380
+test_max_size = 1280
     [dataloader.data_backend]
     type = "HDF5Backend"
     [dataloader.sampling_cfg]

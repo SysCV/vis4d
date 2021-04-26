@@ -1,4 +1,4 @@
-"""Visualization tools for analysis and debugging."""
+"""OpenMT Visualization tools for analysis and debugging."""
 from typing import Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -6,17 +6,19 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw
 
-from .utils import BoxType, preprocess_boxes, preprocess_image
+from .utils import BoxType, ImageType, preprocess_boxes, preprocess_image
 
 
-def imshow(image: Image.Image) -> None:  # pragma: no cover
-    """Imshow wrapper."""
+def imshow(image: Union[Image.Image, ImageType]) -> None:  # pragma: no cover
+    """Imshow method."""
+    if not isinstance(image, Image.Image):
+        image = preprocess_image(image)
     plt.imshow(np.asarray(image))
     plt.show()
 
 
 def imshow_bboxes(
-    image: Union[torch.Tensor, np.ndarray], boxes: BoxType
+    image: ImageType, boxes: BoxType
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
     image = preprocess_image(image)

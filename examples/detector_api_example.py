@@ -70,7 +70,7 @@ if __name__ == "__main__":
         ),
         train=[
             config.Dataset(
-                name="sample_train",
+                name="bdd100k_sample_train",
                 type="coco",
                 annotations="openmt/detect/testcases/bdd100k-samples/"
                             "annotation_coco.json",
@@ -79,7 +79,7 @@ if __name__ == "__main__":
         ],
         test=[
             config.Dataset(
-                name="sample_val",
+                name="bdd100k_sample_val",
                 type="coco",
                 annotations="openmt/detect/testcases/bdd100k-samples/"
                             "annotation_coco.json",
@@ -88,6 +88,7 @@ if __name__ == "__main__":
         ],
     )
 
+    # choose according to setup
     # CPU
     detect.train(conf)
 

@@ -6,10 +6,6 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from detectron2.config import CfgNode
 from detectron2.data import build_batch_data_loader, detection_utils
-from detectron2.data.build import (
-    filter_images_with_only_crowd_annotations,
-    print_instances_class_histogram,
-)
 from detectron2.data.catalog import DatasetCatalog, Metadata, MetadataCatalog
 from detectron2.data.common import DatasetFromList
 from detectron2.data.samplers import (
@@ -26,7 +22,7 @@ from .dataset_mapper import (
     TrackingDatasetMapper,
 )
 from .samplers import TrackingInferenceSampler
-from .utils import identity_batch_collator
+from .utils import filter_empty_annotations, identity_batch_collator
 
 
 class DataloaderConfig(BaseModel):
@@ -35,6 +31,7 @@ class DataloaderConfig(BaseModel):
     data_backend: DataBackendConfig = DataBackendConfig()
     num_workers: int
     sync_classes_to_intersection: bool = False
+    remove_samples_without_labels: bool = False
     train_max_size: Optional[int] = None
     test_max_size: Optional[int] = None
     sampling_cfg: ReferenceSamplingConfig
@@ -55,7 +52,7 @@ class DataOptions(BaseModel):
         arbitrary_types_allowed = True
 
 
-def get_detection_dataset_dicts(  # type: ignore
+def get_tracking_dataset_dicts(  # type: ignore
     names: Union[str, List[str]],
     filter_empty: bool = True,
     sync_classes_to_intersection: bool = False,
@@ -64,15 +61,12 @@ def get_detection_dataset_dicts(  # type: ignore
     if isinstance(names, str):
         names = [names]
     assert len(names), names
-    dataset_dicts = [
+    dataset_frames = [
         DatasetCatalog.get(dataset_name) for dataset_name in names
     ]
-    for dataset_name, dicts in zip(names, dataset_dicts):
-        assert len(dicts), "Dataset '{}' is empty!".format(dataset_name)
+    dataset_frames = list(itertools.chain.from_iterable(dataset_frames))
 
-    dataset_dicts = list(itertools.chain.from_iterable(dataset_dicts))
-
-    has_instances = "annotations" in dataset_dicts[0]
+    has_instances = hasattr(dataset_frames[0], "labels")
     if has_instances:
         if sync_classes_to_intersection:
             # synchronize metadata thing_classes, sync idx_to_class_mapping
@@ -84,9 +78,9 @@ def get_detection_dataset_dicts(  # type: ignore
             class_names = [
                 c for c in classes_per_dataset[0] if c in intersect_set
             ]
-            assert len(class_names) > 0, (
-                f"Classes of datasets {names} have " f"no intersection!"
-            )
+            assert (
+                len(class_names) > 0
+            ), f"Classes of datasets {names} have no intersection!"
             for name, meta in zip(names, metas):
                 MetadataCatalog.pop(name)
                 meta_dict = meta.as_dict()
@@ -99,40 +93,37 @@ def get_detection_dataset_dicts(  # type: ignore
                 MetadataCatalog[name] = Metadata(**meta_dict)
 
             # update dataset dict using class intersection
-            for data_dict in dataset_dicts:
+            for data_dict in dataset_frames:
                 remove_anns = []
-                for i, ann in enumerate(data_dict["annotations"]):
-                    if ann["category_name"] in class_names:
-                        ann["category_id"] = class_names.index(
-                            ann["category_name"]
+                for i, ann in enumerate(data_dict.labels):
+                    if ann.category in class_names:
+                        ann.attributes["category_id"] = class_names.index(
+                            ann.category
                         )
                     else:
                         remove_anns.append(i)
                 for i in reversed(remove_anns):
-                    data_dict["annotations"].pop(i)
+                    data_dict.labels.pop(i)
         else:
             detection_utils.check_metadata_consistency("thing_classes", names)
-            class_names = MetadataCatalog.get(names[0]).thing_classes
-
-        print_instances_class_histogram(dataset_dicts, class_names)
 
     if filter_empty and has_instances:
-        dataset_dicts = filter_images_with_only_crowd_annotations(
-            dataset_dicts
-        )
+        dataset_frames = filter_empty_annotations(dataset_frames)
 
-    assert len(dataset_dicts) > 0, "No valid data found in {}.".format(
+    assert len(dataset_frames) > 0, "No valid data found in {}.".format(
         ",".join(names)
     )
-    return dataset_dicts
+    return dataset_frames
 
 
 def _train_loader_from_config(
     loader_cfg: DataloaderConfig, cfg: CfgNode
 ) -> DataOptions:
     """Construct training data loader from config."""
-    dataset = get_detection_dataset_dicts(
-        cfg.DATASETS.TRAIN, False, loader_cfg.sync_classes_to_intersection
+    dataset = get_tracking_dataset_dicts(
+        cfg.DATASETS.TRAIN,
+        loader_cfg.remove_samples_without_labels,
+        loader_cfg.sync_classes_to_intersection,
     )
     cfg.INPUT.MAX_SIZE_TRAIN = (
         loader_cfg.train_max_size
@@ -183,7 +174,7 @@ def _test_loader_from_config(
     loader_cfg: DataloaderConfig, cfg: CfgNode, dataset_name: str
 ) -> DataOptions:
     """Construct testing data loader from config."""
-    dataset = get_detection_dataset_dicts(
+    dataset = get_tracking_dataset_dicts(
         dataset_name, False, loader_cfg.sync_classes_to_intersection
     )
     cfg.INPUT.MAX_SIZE_TEST = (

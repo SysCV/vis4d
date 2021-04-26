@@ -1,8 +1,7 @@
 """Dataset mapper for tracking in openmt."""
-import copy
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, no_type_check
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import detectron2.data.detection_utils as d2_utils
 import numpy as np
@@ -11,13 +10,14 @@ from detectron2.config import CfgNode
 from detectron2.data import transforms as T
 from detectron2.data.common import MapDataset
 from detectron2.data.dataset_mapper import DatasetMapper
-from detectron2.structures import Instances
 from pydantic import BaseModel, validator
+from scalabel.label.typing import Frame, Label
 
 from openmt.common.io import DataBackendConfig, build_data_backend
 from openmt.data import utils
+from openmt.struct import Boxes2D
 
-from .utils import target_to_box2d
+from .utils import dicts_to_boxes2d, label_to_dict
 
 __all__ = ["TrackingDatasetMapper", "MapTrackingDataset"]
 
@@ -29,11 +29,10 @@ class ReferenceSamplingConfig(BaseModel):
     num_ref_imgs: int
     scope: int
 
-    @no_type_check
     @validator("scope")
-    def validate_scope(  # pylint: disable=no-self-argument,no-self-use
-        cls, value, values
-    ):
+    def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use,line-too-long
+        cls, value: int, values
+    ) -> int:
         """Check scope attribute."""
         if not value > values["num_ref_imgs"] // 2:
             raise ValueError("Scope must be higher than num_ref_imgs / 2.")
@@ -57,16 +56,16 @@ class MapTrackingDataset(MapDataset):  # type: ignore
     def _create_video_mapping(self) -> None:
         """Create a mapping that returns all img idx for a given video id."""
         for idx, entry in enumerate(self._dataset):
-            if "video_id" in entry:
-                self.video_to_idcs[entry["video_id"]].append(idx)
+            if entry["video_name"] is not None:
+                self.video_to_idcs[entry["video_name"]].append(idx)
 
         for video in self.video_to_idcs:
             self.video_to_idcs[video] = sorted(
                 self.video_to_idcs[video],
-                key=lambda idx: self._dataset[idx]["frame_id"],  # type: ignore
+                key=lambda idx: self._dataset[idx]["frame_index"],  # type: ignore # pylint: disable=line-too-long
             )
             self.frame_to_idcs[video] = {
-                self._dataset[idx]["frame_id"]: idx
+                self._dataset[idx]["frame_index"]: idx
                 for idx in self.video_to_idcs[video]
             }
 
@@ -81,7 +80,7 @@ class MapTrackingDataset(MapDataset):  # type: ignore
     def sample_ref_idcs(self, video: str, cur_idx: int) -> List[int]:
         """Sample reference indices from video_idcs given cur_idx."""
         frame_ids = list(self.frame_to_idcs[video].keys())
-        frame_id = self._dataset[cur_idx]["frame_id"]
+        frame_id = self._dataset[cur_idx]["frame_index"]
 
         if self.sampling_cfg.type == "uniform":
             left = max(0, frame_id - self.sampling_cfg.scope)
@@ -122,8 +121,8 @@ class MapTrackingDataset(MapDataset):  # type: ignore
 
                 if self.training:
                     # sample reference views
-                    if "video_id" in data_dict:
-                        vid_id = data_dict["video_id"]
+                    vid_id = data_dict["video_name"]
+                    if vid_id is not None:
                         ref_data = [
                             self._map_func(
                                 self._dataset[ref_idx], transforms=transforms
@@ -178,19 +177,22 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
         super().__init__(det2cfg, is_train)
         self.data_backend = build_data_backend(backend_cfg)
 
-    def load_image(  # type: ignore
-        self, dataset_dict: Dict[str, Any]
+    def load_image(
+        self,
+        input_dict: Dict[str, Union[torch.Tensor, Boxes2D]],
+        sample: Frame,
     ) -> np.ndarray:
         """Load image according to data_backend."""
-        im_bytes = self.data_backend.get(dataset_dict["file_name"])
+        assert sample.url is not None
+        im_bytes = self.data_backend.get(sample.url)
         image = utils.im_decode(im_bytes)
-        d2_utils.check_image_size(dataset_dict, image)
+        d2_utils.check_image_size(input_dict, image)
         return image
 
-    def transform_image(  # type: ignore
+    def transform_image(
         self,
         image: np.ndarray,
-        dataset_dict: Dict[str, Any],
+        input_dict: Dict[str, Union[torch.Tensor, Boxes2D]],
         transforms: Optional[T.AugmentationList] = None,
     ) -> T.AugmentationList:
         """Apply image augmentations and convert to torch tensor."""
@@ -205,78 +207,74 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
         # shared-memory, but not efficient on large generic data struct due
         # to the use of pickle & mp.Queue. Therefore it's important to use
         # torch.Tensor.
-        dataset_dict["image"] = torch.as_tensor(
+        input_dict["image"] = torch.as_tensor(
             np.ascontiguousarray(image.transpose(2, 0, 1))
         )
         return transforms
 
-    def transform_annotation(  # type: ignore
-        self, dataset_dict: Dict[str, Any], transforms: T.AugmentationList
-    ) -> Instances:
+    def transform_annotation(
+        self,
+        input_dict: Dict[str, Union[torch.Tensor, Boxes2D]],
+        labels: List[Label],
+        transforms: T.AugmentationList,
+    ) -> None:
         """Transform annotations."""
-        image_shape = dataset_dict["image"].shape[1:]  # h, w
-
-        # USER: Modify this if you want to keep them for some reason.
-        for anno in dataset_dict["annotations"]:
-            if not self.use_instance_mask:
-                anno.pop("segmentation", None)
-            if not self.use_keypoint:
-                anno.pop("keypoints", None)
+        image_hw = input_dict["image"].shape[1:]  # type: ignore
 
         # USER: Implement additional transformations if you have other types
         # of data
-        annos = [
-            d2_utils.transform_instance_annotations(
-                obj,
-                transforms,
-                image_shape,
-                keypoint_hflip_indices=self.keypoint_hflip_indices,
-            )
-            for obj in dataset_dict.pop("annotations")
-            if obj.get("iscrowd", 0) == 0
-        ]
-        instances = d2_utils.annotations_to_instances(
-            annos, image_shape, mask_format=self.instance_mask_format
-        )
-        instances.set(
-            "track_ids",
-            torch.tensor(
-                [anno["instance_id"] for anno in annos], dtype=torch.int
-            ),
-        )
-        return instances
+        annos = []
+        for label in labels:
+            assert label.attributes is not None
+            if not label.attributes.get("crowd", False):
+                anno = label_to_dict(label)
+                d2_utils.transform_instance_annotations(
+                    anno,
+                    transforms,
+                    image_hw,
+                    keypoint_hflip_indices=self.keypoint_hflip_indices,
+                )
+                annos.append(anno)
+
+        input_dict["instances"] = dicts_to_boxes2d(annos)
 
     def __call__(  # type: ignore
-        self, dataset_dict: Dict[str, Any], transforms=None
-    ):
+        self,
+        sample_dict: Dict[str, Any],
+        transforms: Optional[T.AugmentationList] = None,
+    ) -> Tuple[Dict[str, Union[torch.Tensor, Boxes2D]], T.AugmentationList]:
         """Prepare a single sample in detect format.
 
         Args:
-            dataset_dict (dict): Metadata of one image, in Detectron2
-            Dataset format.
+            sample (Frame): Metadata of one image, in scalabel format.
+            transforms (T.AugmentationList): Detectron2 augmentation list.
 
         Returns:
-            dict: a format that the detect accepts
+            dict: a format that the model accepts
         """
-        dataset_dict = copy.deepcopy(
-            dataset_dict
-        )  # it will be modified by code below
+        sample = Frame(**sample_dict)
+
+        input_dict = dict(
+            frame_id=sample.frame_index,
+            video_name=sample.video_name,
+            file_name=sample.url,
+        )  # type: Dict[str, Union[torch.Tensor, Boxes2D]]
 
         # image loading
-        image = self.load_image(dataset_dict)
+        image = self.load_image(input_dict, sample)
 
         # image augmentation / to torch.tensor
         transforms = self.transform_image(
-            image, dataset_dict, transforms=transforms
+            image, input_dict, transforms=transforms
         )
 
         if not self.is_train:  # pragma: no cover
-            dataset_dict.pop("annotations", None)
-            return dataset_dict, transforms
+            return input_dict, transforms
 
-        if "annotations" in dataset_dict:
-            instances = self.transform_annotation(dataset_dict, transforms)
-            instances = d2_utils.filter_empty_instances(instances)
-            dataset_dict["instances"] = target_to_box2d(instances)
+        input_dict["instances"] = Boxes2D(
+            torch.empty(0, 5), torch.empty(0), torch.empty(0)
+        )
+        if sample.labels is not None:
+            self.transform_annotation(input_dict, sample.labels, transforms)
 
-        return dataset_dict, transforms
+        return input_dict, transforms

@@ -11,14 +11,13 @@ from typing import Dict, Generator, List, Optional, Tuple
 import detectron2.utils.comm as comm
 import torch
 from bdd100k.eval.mot import EvalResults, acc_single_video_mot, evaluate_track
-from detectron2.data import MetadataCatalog
+from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.evaluation import DatasetEvaluator, DatasetEvaluators
 from detectron2.utils.comm import get_world_size
 from detectron2.utils.logger import log_every_n_seconds
 from scalabel.label.io import group_and_sort
 from scalabel.label.typing import Frame
 
-from openmt.data.datasets.scalabel_video import load_json
 from openmt.struct import Boxes2D
 
 
@@ -161,9 +160,7 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore
         self._output_dir = output_dir
         self._metadata = MetadataCatalog.get(dataset_name)
 
-        self.gts = load_json(
-            self._metadata.json_path, self._metadata.image_root
-        )
+        self.gts = DatasetCatalog.get(dataset_name)
         self._predictions = []  # type: List[Frame]
 
     def reset(self) -> None:
@@ -189,7 +186,7 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore
         for inp, out in zip(inputs, outputs):
             prediction = dict(
                 name=osp.basename(inp["file_name"]),
-                video_name=inp["video_id"],
+                video_name=inp["video_name"],
                 frame_index=inp["frame_id"],
             )
 
