@@ -42,6 +42,9 @@ def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:
 
 def dicts_to_boxes2d(target: List[D2BoxType]) -> Boxes2D:
     """Convert d2 annotation dicts representing targets to Boxes2D."""
+    if len(target) == 0:
+        return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+
     boxes = torch.tensor([t["bbox"] for t in target])
     class_ids = torch.tensor(
         [t["category_id"] for t in target], dtype=torch.long

@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional, Union
 
 from bdd100k.common.utils import DEFAULT_COCO_CONFIG
 from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
+from detectron2.utils.comm import get_world_size
+from fvcore.common.timer import Timer
 from scalabel.label.io import load
 from scalabel.label.to_coco import load_coco_config
 from scalabel.label.typing import Frame
@@ -19,7 +21,16 @@ def load_json(
     json_path: str, image_root: str, dataset_name: Optional[str] = None
 ) -> List[Frame]:
     """Load Scalabel frames from json."""
-    frames = load(json_path, nprocs=cpu_count())
+
+    timer = Timer()
+    frames = load(json_path, nprocs=cpu_count() // get_world_size())
+    logger.info(
+        "Loading %s takes %s seconds.",
+        dataset_name,
+        "{:.2f}".format(timer.seconds()),
+    )
+    timer.reset()
+
     cat_ids = []  # type: List[str]
     ins_ids = defaultdict(list)  # type: Dict[str, List[str]]
     name_mapping, ignore_mapping = None, None
@@ -74,12 +85,19 @@ def load_json(
                 else:
                     label.attributes.update(attr)
 
+    logger.info(
+        "Preprocessing %s images takes %s seconds.",
+        len(frames),
+        "{:.2f}".format(timer.seconds()),
+    )
+
     if dataset_name is not None:  # pragma: no cover
         meta = MetadataCatalog.get(dataset_name)
         meta.thing_classes = cat_ids
         meta.idx_to_class_mapping = dict(enumerate(cat_ids))
         meta.class_frequencies = frequencies
 
+    logger.info("Dataset preparation of %s successful.", dataset_name)
     return frames
 
 

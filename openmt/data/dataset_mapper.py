@@ -221,7 +221,7 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
         """Transform annotations."""
         image_hw = input_dict["image"].shape[1:]  # type: ignore
 
-        if labels is None or len(labels) == 0:
+        if labels is None:
             return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
 
         # USER: Implement additional transformations if you have other types

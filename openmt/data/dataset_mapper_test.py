@@ -72,3 +72,5 @@ class TestDatasetMapper(unittest.TestCase):
         input_dict = dict(image=torch.zeros(3, 128, 128))
         boxs = ds_mapper.transform_annotation(input_dict, None, lambda x: x)
         self.assertEqual(len(boxs), 0)
+        boxs = ds_mapper.transform_annotation(input_dict, [], lambda x: x)
+        self.assertEqual(len(boxs), 0)

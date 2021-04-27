@@ -155,8 +155,6 @@ def _train_loader_from_config(
     mapper = TrackingDatasetMapper(loader_cfg.data_backend, cfg)
 
     sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
-    logger = logging.getLogger(__name__)
-    logger.info("Using training sampler %s", sampler_name)
     if sampler_name == "TrainingSampler":
         sampler = TrainingSampler(len(dataset))
     else:
