@@ -13,6 +13,7 @@ from detectron2.data.samplers import (
     TrainingSampler,
 )
 from pydantic import BaseModel
+from scalabel.label.typing import Frame
 
 from openmt.common.io import DataBackendConfig
 
@@ -56,6 +57,25 @@ class DataOptions(BaseModel):
         arbitrary_types_allowed = True
 
 
+def update_dataset_to_intersection(
+    dataset: List[Frame], cls_intersection: List[str]
+) -> None:
+    """Update dataset dict using class intersection."""
+    for frame in dataset:
+        remove_anns = []
+        if frame.labels is not None:
+            for i, ann in enumerate(frame.labels):
+                if ann.category in cls_intersection:
+                    assert ann.attributes is not None
+                    ann.attributes["category_id"] = cls_intersection.index(
+                        ann.category
+                    )
+                else:
+                    remove_anns.append(i)
+            for i in reversed(remove_anns):
+                frame.labels.pop(i)
+
+
 def get_tracking_dataset_dicts(  # type: ignore
     names: Union[str, List[str]],
     filter_empty: bool = True,
@@ -96,18 +116,7 @@ def get_tracking_dataset_dicts(  # type: ignore
                 )
                 MetadataCatalog[name] = Metadata(**meta_dict)
 
-            # update dataset dict using class intersection
-            for data_dict in dataset_frames:
-                remove_anns = []
-                for i, ann in enumerate(data_dict.labels):
-                    if ann.category in class_names:
-                        ann.attributes["category_id"] = class_names.index(
-                            ann.category
-                        )
-                    else:
-                        remove_anns.append(i)
-                for i in reversed(remove_anns):
-                    data_dict.labels.pop(i)
+            update_dataset_to_intersection(dataset_frames, class_names)
         else:
             detection_utils.check_metadata_consistency("thing_classes", names)
             class_names = MetadataCatalog.get(names[0]).thing_classes

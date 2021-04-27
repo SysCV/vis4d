@@ -65,9 +65,9 @@ class Launch(BaseModel):
     dist_url: initialization URL for pytorch distributed backend. See
         https://pytorch.org/docs/stable/distributed.html for details.
     resume: Whether to attempt to resume from the checkpoint directory.
-    eval_only: perform evaluation only
     """
 
+    action: str = ""
     device: str = "cpu"
     weights: Optional[str] = None
     num_gpus: int = 1
@@ -83,7 +83,6 @@ class Launch(BaseModel):
     )
     dist_url: str = "tcp://127.0.0.1:{}".format(port)
     resume: bool = False
-    eval_only: bool = False
 
 
 class Config(BaseModel):

@@ -84,6 +84,11 @@ def default_setup(cfg: CfgNode, args: Launch) -> None:
     """
     rank = comm.get_rank()
     logger = setup_logger(cfg.OUTPUT_DIR, distributed_rank=rank, name="openmt")
+    setup_logger(
+        os.path.join(cfg.OUTPUT_DIR, "d2_log.txt"),
+        distributed_rank=rank,
+        name="detectron2",
+    )
 
     logger.info(
         "Rank of current process: %s. World size: %s",
@@ -108,5 +113,5 @@ def default_setup(cfg: CfgNode, args: Launch) -> None:
 
     # cudnn benchmark has large overhead. It shouldn't be used considering the
     # small size of typical validation set.
-    if not args.eval_only:
+    if args.action == "train":
         torch.backends.cudnn.benchmark = cfg.CUDNN_BENCHMARK

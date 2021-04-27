@@ -9,4 +9,5 @@ class TestTrain(DetectTest):
     def test_train(self) -> None:
         """Testcase for training."""
         self.assertIsNotNone(self.cfg)
+        self.cfg.launch.action = "train"
         detect.train(self.cfg)

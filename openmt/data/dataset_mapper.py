@@ -215,11 +215,14 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
     def transform_annotation(
         self,
         input_dict: Dict[str, Union[torch.Tensor, Boxes2D]],
-        labels: List[Label],
+        labels: Optional[List[Label]],
         transforms: T.AugmentationList,
-    ) -> None:
+    ) -> Boxes2D:
         """Transform annotations."""
         image_hw = input_dict["image"].shape[1:]  # type: ignore
+
+        if labels is None or len(labels) == 0:
+            return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
 
         # USER: Implement additional transformations if you have other types
         # of data
@@ -236,7 +239,7 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
                 )
                 annos.append(anno)
 
-        input_dict["instances"] = dicts_to_boxes2d(annos)
+        return dicts_to_boxes2d(annos)
 
     def __call__(  # type: ignore
         self,
@@ -271,10 +274,8 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
         if not self.is_train:  # pragma: no cover
             return input_dict, transforms
 
-        input_dict["instances"] = Boxes2D(
-            torch.empty(0, 5), torch.empty(0), torch.empty(0)
+        input_dict["instances"] = self.transform_annotation(
+            input_dict, sample.labels, transforms
         )
-        if sample.labels is not None:
-            self.transform_annotation(input_dict, sample.labels, transforms)
 
         return input_dict, transforms

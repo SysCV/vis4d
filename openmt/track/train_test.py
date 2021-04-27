@@ -11,4 +11,5 @@ class TestTrain(TrackTest):
     def test_train(self) -> None:
         """Testcase for training."""
         self.assertIsNotNone(self.cfg)
+        self.cfg.launch.action = "train"
         train(self.cfg)

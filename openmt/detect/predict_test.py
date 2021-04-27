@@ -9,6 +9,7 @@ class TestPredict(DetectTest):
     def test_predict(self) -> None:
         """Testcase for predict function."""
         self.assertIsNotNone(self.cfg)
+        self.cfg.launch.action = "predict"
         results = predict(self.cfg)
 
         metric_keys = [

@@ -1,9 +1,17 @@
 """Testcases for tracking dataset mapper."""
 import unittest
 
+import torch
+from detectron2.config import get_cfg
 from detectron2.data import DatasetFromList
 
-from .dataset_mapper import MapTrackingDataset, ReferenceSamplingConfig
+from openmt.common.io import DataBackendConfig
+
+from .dataset_mapper import (
+    MapTrackingDataset,
+    ReferenceSamplingConfig,
+    TrackingDatasetMapper,
+)
 
 
 class TestDatasetMapper(unittest.TestCase):
@@ -56,3 +64,11 @@ class TestDatasetMapper(unittest.TestCase):
         )
         data = mapper.__getitem__(100)
         self.assertTrue(all(d["file_name"] == 100 for d in data))
+
+    def test_transform_annotations(self) -> None:
+        """Test the transform annotations method in TrackingDatasetMapper."""
+        cfg = get_cfg()
+        ds_mapper = TrackingDatasetMapper(DataBackendConfig(), cfg)
+        input_dict = dict(image=torch.zeros(3, 128, 128))
+        boxs = ds_mapper.transform_annotation(input_dict, None, lambda x: x)
+        self.assertEqual(len(boxs), 0)
