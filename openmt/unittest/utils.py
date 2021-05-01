@@ -3,8 +3,10 @@ import inspect
 import os
 import unittest
 from argparse import Namespace
+from typing import List
 
 import torch
+from detectron2.data import DatasetCatalog, MetadataCatalog
 
 from openmt import config
 from openmt.struct import Boxes2D
@@ -17,6 +19,13 @@ def get_test_file(file_name: str) -> str:
         "testcases",
         file_name,
     )
+
+
+def d2_data_reset(datasets: List[config.Dataset]) -> None:
+    """Delete all given dataset instances."""
+    for ds in datasets:
+        DatasetCatalog.remove(ds.name)
+        MetadataCatalog.remove(ds.name)
 
 
 def generate_dets(
@@ -52,13 +61,29 @@ class DetectTest(unittest.TestCase):
     """Test case init for openmt detection engine."""
 
     args = Namespace(
-        config="openmt/detect/testcases/faster_rcnn_R_50_FPN.toml"
+        config="openmt/engine/testcases/detect/faster_rcnn_R_50_FPN.toml"
     )
     cfg = config.parse_config(args)
+
+    def tearDown(self) -> None:
+        """Clean up dataset registry."""
+        assert self.cfg.train is not None
+        assert self.cfg.test is not None
+        d2_data_reset(self.cfg.train)
+        d2_data_reset(self.cfg.test)
 
 
 class TrackTest(unittest.TestCase):
     """Test case init for openmt tracking engine."""
 
-    args = Namespace(config="openmt/track/testcases/quasi_dense_R_50_FPN.toml")
+    args = Namespace(
+        config="openmt/engine/testcases/track/quasi_dense_R_50_FPN.toml"
+    )
     cfg = config.parse_config(args)
+
+    def tearDown(self) -> None:
+        """Clean up dataset registry."""
+        assert self.cfg.train is not None
+        assert self.cfg.test is not None
+        d2_data_reset(self.cfg.train)
+        d2_data_reset(self.cfg.test)

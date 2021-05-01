@@ -1,16 +1,22 @@
 """OpenMT struct module."""
-from .structures import (
-    Boxes2D,
-    DetectionOutput,
-    ImageList,
-    Instances,
+from .data import (
+    EvalResult,
+    EvalResults,
+    Images,
+    InputSample,
+    LossesType,
     TorchCheckpoint,
 )
+from .labels import Boxes2D, DetectionOutput, LabelInstance
 
 __all__ = [
     "Boxes2D",
-    "Instances",
+    "LabelInstance",
     "TorchCheckpoint",
-    "ImageList",
+    "LossesType",
+    "EvalResult",
+    "EvalResults",
+    "InputSample",
+    "Images",
     "DetectionOutput",
 ]

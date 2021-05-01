@@ -4,7 +4,7 @@ import unittest
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from scalabel.label.typing import Frame
 
-from openmt.data.build import get_tracking_dataset_dicts
+from openmt.data.build import get_dataset_dicts
 
 
 class TestBuild(unittest.TestCase):
@@ -28,7 +28,7 @@ class TestBuild(unittest.TestCase):
             meta.idx_to_class_mapping = dict(enumerate(cats))
             meta.class_frequencies = {c: 0 for c in cats}
 
-        dataset_dicts = get_tracking_dataset_dicts(names, True, False)
+        dataset_dicts = get_dataset_dicts(names, True, False)
         self.assertEqual(dataset_dicts, [d[0] for d in data_dicts])
 
         names = ["c", "d", "e"]
@@ -61,5 +61,5 @@ class TestBuild(unittest.TestCase):
             meta.idx_to_class_mapping = dict(enumerate(cats))
             meta.class_frequencies = {c: 0 for c in cats}
 
-        dataset_dicts = get_tracking_dataset_dicts(names, True, False)
+        dataset_dicts = get_dataset_dicts(names, True, False)
         self.assertEqual(len(dataset_dicts), 1)

@@ -1,79 +1,104 @@
-"""Tracking training API."""
-
+"""DefaultTrainer for openMT."""
 import logging
 import os
 from collections import OrderedDict
 from typing import Dict, List, Optional
+from typing import OrderedDict as OrderedDictType
 
 import torch
-from bdd100k.eval.mot import EvalResults
 from detectron2.config import CfgNode
-from detectron2.engine import DefaultTrainer
+from detectron2.engine import DefaultTrainer as D2DefaultTrainer
+from detectron2.engine import HookBase, PeriodicWriter
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.comm import is_main_process
 
 from openmt.config import Config
-from openmt.data import build_tracking_test_loader, build_tracking_train_loader
-from openmt.detect.config import default_setup, to_detectron2
+from openmt.data import build_test_loader, build_train_loader
 from openmt.model import build_model
+from openmt.struct import EvalResults
 
-from .checkpointer import TrackingCheckpointer
-from .evaluator import ScalabelMOTAEvaluator, inference_on_dataset
+from .checkpointer import Checkpointer
+from .evaluator import ScalabelEvaluator, inference_on_dataset
+from .utils import default_setup, to_detectron2
 
 
-class TrackingTrainer(DefaultTrainer):  # type: ignore
-    """TrackingTrainer class."""
+class DefaultTrainer(D2DefaultTrainer):  # type: ignore
+    """DetectionTrainer class."""
 
     def __init__(self, cfg: Config, det2cfg: CfgNode):
         """Init."""
-        self.track_cfg = cfg
+        self.openmt_cfg = cfg
         super().__init__(det2cfg)
         # Assumes you want to save checkpoints together with logs/statistics
-        self.checkpointer = TrackingCheckpointer(
+        self.checkpointer = Checkpointer(
             self._trainer.model,
             cfg.output_dir,
             optimizer=self._trainer.optimizer,
             scheduler=self.scheduler,
         )
 
+    def build_hooks(self) -> List[HookBase]:
+        """Build a list of default hooks.
+
+         Including timing, evaluation, checkpointing, lr scheduling,
+         precise BN, writing events.
+
+        Returns:
+            list[HookBase]: All hooks for this training run.
+        """
+        ret = super().build_hooks()  # type: List[HookBase]
+        logp = self.openmt_cfg.solver.log_period
+        if logp is not None and isinstance(ret[-1], PeriodicWriter):
+            ret[-1]._period = logp  # pylint: disable=protected-access
+        return ret
+
     def build_model(self, cfg: CfgNode) -> torch.nn.Module:
         """Builds tracking detect."""
-        model = build_model(self.track_cfg.model)
-        model.to(torch.device(self.track_cfg.launch.device))
+        model = build_model(self.openmt_cfg.model)
+        assert hasattr(model, "detector")
         if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
             cfg.MODEL.merge_from_other_cfg(model.detector.d2_cfg.MODEL)
+        model.to(torch.device(self.openmt_cfg.launch.device))
         logger = logging.getLogger(__name__)
         logger.info("Model:\n%s", model)
         return model
 
     def build_train_loader(self, cfg: CfgNode) -> torch.utils.data.DataLoader:
-        """Calls :func:`openmt.data.build_tracking_train_loader`."""
-        return build_tracking_train_loader(self.track_cfg.dataloader, cfg)
+        """Calls :func:`openmt.data.build_train_loader`."""
+        return build_train_loader(self.openmt_cfg.dataloader, cfg)
 
     def build_test_loader(
         self, cfg: CfgNode, dataset_name: str
     ) -> torch.utils.data.DataLoader:
         """Calls static version."""
         return self.build_test_loader_static(
-            self.track_cfg, cfg, dataset_name
-        )  # pragma: no cover # pylint: disable=line-too-long
+            self.openmt_cfg, cfg, dataset_name
+        )  # pragma: no cover
 
     @classmethod
     def build_test_loader_static(
-        cls, track_cfg: Config, cfg: CfgNode, dataset_name: str
+        cls, openmt_cfg: Config, cfg: CfgNode, dataset_name: str
     ) -> torch.utils.data.DataLoader:
-        """Calls :func:`openmt.data.build_tracking_test_loader`."""
-        return build_tracking_test_loader(
-            track_cfg.dataloader, cfg, dataset_name
-        )
+        """Calls :func:`openmt.data.build_test_loader`."""
+        return build_test_loader(openmt_cfg.dataloader, cfg, dataset_name)
+
+    def build_evaluator(
+        self, cfg: CfgNode, dataset_name: str
+    ) -> DatasetEvaluator:
+        """Build Scalabel evaluators."""
+        return self.build_evaluator_static(
+            self.openmt_cfg, cfg, dataset_name
+        )  # pragma: no cover
 
     @classmethod
-    def build_evaluator(
-        cls, cfg: CfgNode, dataset_name: str
+    def build_evaluator_static(
+        cls, openmt_cfg: Config, cfg: CfgNode, dataset_name: str
     ) -> DatasetEvaluator:
         """Build evaluators for tracking and detection."""
         output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
-        return ScalabelMOTAEvaluator(dataset_name, True, output_folder)
+        evaluator = ScalabelEvaluator(dataset_name, True, output_folder)
+        evaluator.set_metrics(openmt_cfg.solver.eval_metrics)
+        return evaluator
 
     def test(
         self,
@@ -82,29 +107,31 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
         evaluators: Optional[List[DatasetEvaluator]] = None,
     ) -> Dict[str, EvalResults]:
         """Calls static test function."""
-        return self.test_static(self.track_cfg, cfg, model, evaluators)
+        return self.test_static(self.openmt_cfg, cfg, model, evaluators)
 
     @classmethod
     def test_static(
         cls,
-        track_cfg: Config,
+        openmt_cfg: Config,
         cfg: CfgNode,
         model: torch.nn.Module,
         evaluators: Optional[List[DatasetEvaluator]] = None,
-    ) -> Dict[str, EvalResults]:
+    ) -> OrderedDictType[str, EvalResults]:
         """Test detect with given evaluators."""
         logger = logging.getLogger(__name__)
+        assert openmt_cfg.test is not None
+        datasets = [ds.name for ds in openmt_cfg.test]
         if isinstance(evaluators, DatasetEvaluator):
             evaluators = [evaluators]  # pragma: no cover
         if evaluators is not None:
             assert len(cfg.DATASETS.TEST) == len(  # pragma: no cover
                 evaluators
-            ), "{} != {}".format(len(cfg.DATASETS.TEST), len(evaluators))
+            ), "{} != {}".format(len(datasets), len(evaluators))
 
         results = OrderedDict()  # type: ignore
-        for idx, dataset_name in enumerate(cfg.DATASETS.TEST):
+        for idx, dataset_name in enumerate(datasets):
             data_loader = cls.build_test_loader_static(
-                track_cfg, cfg, dataset_name
+                openmt_cfg, cfg, dataset_name
             )
             # When evaluators are passed in as arguments, implicitly assume
             # that evaluators can be created before data_loader.
@@ -112,7 +139,9 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
                 evaluator = evaluators[idx]  # pragma: no cover
             else:
                 try:
-                    evaluator = cls.build_evaluator(cfg, dataset_name)
+                    evaluator = cls.build_evaluator_static(
+                        openmt_cfg, cfg, dataset_name
+                    )
                 except NotImplementedError:  # pragma: no cover
                     logger.warning(
                         "No evaluator found. Use `Trainer.test(evaluators=)`, "
@@ -136,10 +165,27 @@ class TrackingTrainer(DefaultTrainer):  # type: ignore
 def train(cfg: Config) -> Optional[Dict[str, EvalResults]]:
     """Training function."""
     det2cfg = to_detectron2(cfg)
-    default_setup(det2cfg, cfg.launch)
+    default_setup(cfg, det2cfg, cfg.launch)
 
-    trainer = TrackingTrainer(cfg, det2cfg)
+    trainer = DefaultTrainer(cfg, det2cfg)
     if cfg.launch.weights != "detectron2":
         trainer.cfg.MODEL.WEIGHTS = cfg.launch.weights  # pragma: no cover
     trainer.resume_or_load(resume=cfg.launch.resume)
     return trainer.train()  # type: ignore
+
+
+def predict(cfg: Config) -> Dict[str, EvalResults]:
+    """Prediction function."""
+    det2cfg = to_detectron2(cfg)
+    default_setup(cfg, det2cfg, cfg.launch)
+
+    model = build_model(cfg.model)
+    model.to(torch.device(cfg.launch.device))
+    if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
+        det2cfg.MODEL.merge_from_other_cfg(model.detector.d2_cfg.MODEL)
+    if cfg.launch.weights != "detectron2":
+        det2cfg.MODEL.WEIGHTS = cfg.launch.weights  # pragma: no cover
+    Checkpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
+        det2cfg.MODEL.WEIGHTS, resume=cfg.launch.resume
+    )
+    return DefaultTrainer.test_static(cfg, det2cfg, model)

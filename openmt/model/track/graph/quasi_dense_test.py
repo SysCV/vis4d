@@ -5,7 +5,7 @@ import torch
 
 from openmt.common.bbox.utils import compute_iou
 from openmt.struct import Boxes2D
-from openmt.unittest.util import generate_dets
+from openmt.unittest.utils import generate_dets
 
 from .base import TrackGraphConfig
 from .quasi_dense import QDTrackGraph

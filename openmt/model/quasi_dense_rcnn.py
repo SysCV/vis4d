@@ -1,6 +1,6 @@
 """Faster R-CNN for quasi-dense instance similarity learning."""
 
-from typing import Dict, List, Tuple, Union
+from typing import List, Tuple
 
 import torch
 
@@ -12,7 +12,7 @@ from openmt.model.track.similarity import (
     build_similarity_head,
 )
 from openmt.model.track.utils import cosine_similarity, select_keyframe
-from openmt.struct import Boxes2D
+from openmt.struct import Boxes2D, InputSample, LossesType
 
 from .base import BaseModel, BaseModelConfig
 from .track.utils import KeyFrameSelection
@@ -58,17 +58,13 @@ class QDGeneralizedRCNN(BaseModel):
         return self.detector.device
 
     def forward_train(
-        self, batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]]
-    ) -> Dict[str, torch.Tensor]:
+        self, batch_inputs: List[List[InputSample]]
+    ) -> LossesType:
         """Forward function for training."""
         # preprocess: group by sequence index instead of batch index, prepare
-        batch_inputs = [  # type: ignore
+        batch_inputs = [
             [batch_inputs[j][i] for j in range(len(batch_inputs))]
             for i in range(len(batch_inputs[0]))
-        ]
-
-        batched_images = [
-            self.detector.preprocess_image(inp) for inp in batch_inputs
         ]
 
         # split into key / ref pairs
@@ -76,15 +72,15 @@ class QDGeneralizedRCNN(BaseModel):
         key_index, ref_indices = select_keyframe(
             sequence_length, self.keyframe_selection
         )
-        key_inputs = batched_images[key_index]
-        ref_inputs = [batched_images[i] for i in ref_indices]
+        key_inputs = batch_inputs[key_index]
+        ref_inputs = [batch_inputs[i] for i in ref_indices]
 
         # prepare targets
         key_targets = [
-            x["instances"].to(self.device) for x in batch_inputs[key_index]
+            x.instances.to(self.device) for x in batch_inputs[key_index]
         ]
         ref_targets = [
-            [x["instances"].to(self.device) for x in batch_inputs[i]]
+            [x.instances.to(self.device) for x in batch_inputs[i]]
             for i in ref_indices
         ]
 
@@ -94,14 +90,14 @@ class QDGeneralizedRCNN(BaseModel):
         #         imshow_bboxes(key_img, key_targets[batch_i])
         #         imshow_bboxes(ref_img[batch_i], ref_targets[ref_i][batch_i])
 
-        key_x, key_proposals, _, det_losses = self.detector(
+        _, key_x, key_proposals, _, det_losses = self.detector(
             key_inputs, key_targets
         )
         ref_out = [
             self.detector(ref_input, ref_target)
             for ref_input, ref_target in zip(ref_inputs, ref_targets)
         ]
-        ref_x, ref_proposals = [x[0] for x in ref_out], [x[1] for x in ref_out]
+        ref_x, ref_proposals = [x[1] for x in ref_out], [x[2] for x in ref_out]
 
         # track head
         key_embeddings, key_track_targets = self.similarity_head(
@@ -194,7 +190,7 @@ class QDGeneralizedRCNN(BaseModel):
         key_targets: List[Boxes2D],
         ref_embeddings: List[Tuple[torch.Tensor]],
         ref_targets: List[List[Boxes2D]],
-    ) -> Dict[str, Union[torch.Tensor, float]]:
+    ) -> LossesType:
         """Calculate losses for tracking.
 
         Key inputs are of type List[Tensor/Boxes2D] (Lists are length N)
@@ -238,32 +234,22 @@ class QDGeneralizedRCNN(BaseModel):
 
         return losses
 
-    def forward_test(  # type: ignore
-        self, batch_inputs: Tuple[Dict[str, torch.Tensor]]
-    ) -> List[Boxes2D]:
+    def forward_test(self, batch_inputs: List[InputSample]) -> List[Boxes2D]:
         """Forward function during inference."""
-        inputs = batch_inputs[0]  # Inference is done using batch size 1
-
         # init graph at begin of sequence
-        if inputs["frame_id"] == 0:
+        frame_id = batch_inputs[0].metadata.frame_index
+        if frame_id == 0:
             self.track_graph.reset()
 
         # detector
-        image = self.detector.preprocess_image((inputs,))
-        feat, _, detections, _ = self.detector(image)
+        image, feat, _, detections, _ = self.detector(batch_inputs)
 
         # similarity head
         embeddings, _ = self.similarity_head(image, feat, detections, None)
 
         # associate detections, update graph
-        detections = self.track_graph(
-            detections[0], inputs["frame_id"], embeddings[0]
-        )
+        detections = self.track_graph(detections[0], frame_id, embeddings[0])
 
-        self.postprocess(
-            (inputs["width"], inputs["height"]),
-            (image.tensor.shape[-1], image.tensor.shape[-2]),
-            detections,
-        )
-
+        ori_wh = tuple(batch_inputs[0].metadata.size)  # type: ignore
+        self.postprocess(ori_wh, image.image_sizes[0], detections)  # type: ignore # pylint: disable=line-too-long
         return [detections]

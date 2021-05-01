@@ -8,7 +8,7 @@ from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
 
 from openmt.common.registry import RegistryHolder
-from openmt.struct import Boxes2D
+from openmt.struct import Boxes2D, InputSample, LossesType
 
 
 class BaseModelConfig(PydanticBaseModel, extra="allow"):
@@ -21,16 +21,17 @@ class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     """Base tracker class."""
 
     def forward(
-        self, batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]]
-    ) -> Union[Dict[str, torch.Tensor], List[Boxes2D]]:
+        self, batch_inputs: List[List[InputSample]]
+    ) -> Union[LossesType, List[Boxes2D]]:
         """Model forward function."""
         if self.training:
             return self.forward_train(batch_inputs)
-        return self.forward_test(batch_inputs)
+        inputs = [inp[0] for inp in batch_inputs]  # no ref views during test
+        return self.forward_test(inputs)
 
     @abc.abstractmethod
     def forward_train(
-        self, batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]]
+        self, batch_inputs: List[List[InputSample]]
     ) -> Dict[str, torch.Tensor]:
         """Forward pass during training stage.
 
@@ -39,9 +40,7 @@ class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward_test(
-        self, batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]]
-    ) -> List[Boxes2D]:
+    def forward_test(self, batch_inputs: List[InputSample]) -> List[Boxes2D]:
         """Forward pass during testing stage.
 
         Returns predictions for each input.

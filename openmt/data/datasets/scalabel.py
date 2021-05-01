@@ -4,7 +4,7 @@ import logging
 import os
 from collections import defaultdict
 from multiprocessing import cpu_count
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from bdd100k.common.utils import DEFAULT_COCO_CONFIG
 from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
@@ -21,7 +21,6 @@ def load_json(
     json_path: str, image_root: str, dataset_name: Optional[str] = None
 ) -> List[Frame]:
     """Load Scalabel frames from json."""
-
     timer = Timer()
     frames = load(json_path, nprocs=cpu_count() // get_world_size())
     logger.info(
@@ -101,9 +100,8 @@ def load_json(
     return frames
 
 
-def register_scalabel_video_instances(  # type: ignore # pylint: disable=invalid-name, line-too-long
+def register_scalabel_instances(
     name: str,
-    metadata: Dict[str, Any],
     json_path: str,
     image_root: str,
 ) -> None:
@@ -115,9 +113,4 @@ def register_scalabel_video_instances(  # type: ignore # pylint: disable=invalid
 
     # 2. Optionally, add metadata about this dataset,
     # since they might be useful in evaluation, visualization or logging
-    MetadataCatalog.get(name).set(
-        json_path=json_path,
-        image_root=image_root,
-        evaluator_type="tracking",
-        **metadata
-    )
+    MetadataCatalog.get(name).set(json_path=json_path, image_root=image_root)

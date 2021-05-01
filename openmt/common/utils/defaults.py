@@ -1,4 +1,4 @@
-"""Default boilerplate logic for openmt."""
+"""Default argument parser for openmt."""
 import argparse
 
 from openmt.config import Launch
@@ -22,7 +22,7 @@ def default_argument_parser() -> argparse.ArgumentParser:
         "--cfg-options",
         default="",
         help="additional config parameters in format key=value separated by "
-        "commas, e.g. dataloader.num_workers=1,solver.base_lr=0.01",
+        "commas, e.g. dataloader.workers_per_gpu=1,solver.base_lr=0.01",
     )
 
     for key in schema["properties"]:

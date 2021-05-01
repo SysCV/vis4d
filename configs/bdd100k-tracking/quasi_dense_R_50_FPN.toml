@@ -51,40 +51,43 @@ keyframe_selection = "random"
         allow_low_quality_matches = false
 
 [solver]
-images_per_batch = 1
+images_per_gpu = 2
 lr_policy = "WarmupMultiStepLR"
 base_lr = 0.02
 steps = [1000, 2000]
 max_iters = 10000
 checkpoint_period = 2000
-eval_period = 1000
+log_period = 10
+eval_period = 100
+eval_metrics = ['track']
 
 [[train]]
 name = "bdd100k_track_sample_train"
-type = "scalabel_video"
-annotations = "openmt/track/testcases/bdd100k-samples/labels/"
-data_root = "openmt/track/testcases/bdd100k-samples/images/"
+type = "scalabel"
+annotations = "openmt/engine/testcases/track/bdd100k-samples/labels/"
+data_root = "openmt/engine/testcases/track/bdd100k-samples/images/"
 
 [[train]]
 name = "bdd100k_det_sample_train"
-type = "scalabel_video"
-annotations = "openmt/detect/testcases/bdd100k-samples/annotation.json"
-data_root = "openmt/detect/testcases/bdd100k-samples/images/"
+type = "scalabel"
+annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
+data_root = "openmt/engine/testcases/detect/bdd100k-samples/images/"
 
 [[test]]
 name = "bdd100k_sample_val"
-type = "scalabel_video"
-annotations = "openmt/track/testcases/bdd100k-samples/labels/"
-data_root = "openmt/track/testcases/bdd100k-samples/images/"
+type = "scalabel"
+annotations = "openmt/engine/testcases/track/bdd100k-samples/labels/"
+data_root = "openmt/engine/testcases/track/bdd100k-samples/images/"
 
 [dataloader]
-num_workers = 0
+workers_per_gpu = 0
 sync_classes_to_intersection = true
 train_max_size = 1280
 test_max_size = 1280
+inference_sampling = "sequence_based"
     [dataloader.data_backend]
     type = "HDF5Backend"
-    [dataloader.sampling_cfg]
+    [dataloader.ref_sampling_cfg]
     type = 'uniform'
     scope = 2
     num_ref_imgs = 1

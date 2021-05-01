@@ -1,7 +1,7 @@
 """Testcases for d2 utils."""
 import unittest
 
-from openmt.unittest.util import get_test_file
+from openmt.unittest.utils import get_test_file
 
 from .d2_utils import D2GeneralizedRCNNConfig, model_to_detectron2
 

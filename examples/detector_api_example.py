@@ -1,14 +1,15 @@
 """Example for dynamic api usage."""
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
 import torch
 import torchvision.models.detection.retinanet as retinanet  # type: ignore
 
 from detectron2.engine import launch
-from openmt import config, detect
+from openmt import config
+from openmt.engine import train
 from openmt.data import DataloaderConfig as Dataloader
 from openmt.model.detect import BaseDetector, BaseDetectorConfig
-from openmt.struct import Boxes2D, DetectionOutput, ImageList
+from openmt.struct import Boxes2D, DetectionOutput, Images, InputSample
 
 
 class MyDetectorConfig(BaseDetectorConfig, extra="allow"):
@@ -31,16 +32,14 @@ class MyDetector(BaseDetector):
         """Get device where detect input should be moved to."""
         raise NotImplementedError
 
-    def preprocess_image(
-        self, batched_inputs: Tuple[Dict[str, torch.Tensor]]
-    ) -> ImageList:
+    def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
         """Normalize, pad and batch the input images."""
         raise NotImplementedError
 
     def forward(
-        self,
-        inputs: ImageList,
-        targets: Optional[List[Boxes2D]] = None,
+            self,
+            inputs: List[InputSample],
+            targets: Optional[List[Boxes2D]] = None,
     ) -> DetectionOutput:
         """Detector forward function.
 
@@ -59,47 +58,50 @@ if __name__ == "__main__":
             detection=BaseDetectorConfig(**my_detector_cfg),
         ),
         solver=config.Solver(
-            images_per_batch=2,
+            images_per_gpu=2,
             lr_policy="WarmupMultiStepLR",
             base_lr=0.001,
             max_iters=100,
+            eval_metrics=['detect']
         ),
         dataloader=Dataloader(
-            num_workers=0,
-            sampling_cfg=dict(type="uniform", scope=1, num_ref_imgs=0),
+            workers_per_gpu=0,
+            ref_sampling_cfg=dict(type="uniform", scope=1, num_ref_imgs=0),
         ),
         train=[
             config.Dataset(
                 name="bdd100k_sample_train",
-                type="coco",
-                annotations="openmt/detect/testcases/bdd100k-samples/"
-                            "annotation_coco.json",
-                data_root="openmt/detect/testcases/bdd100k-samples/images/",
+                type="scalabel",
+                annotations="openmt/engine/testcases/detect/bdd100k-samples/"
+                            "annotation.json",
+                data_root="openmt/engine/testcases/detect/bdd100k-samples/"
+                          "images",
             )
         ],
         test=[
             config.Dataset(
                 name="bdd100k_sample_val",
-                type="coco",
-                annotations="openmt/detect/testcases/bdd100k-samples/"
-                            "annotation_coco.json",
-                data_root="openmt/detect/testcases/bdd100k-samples/images/",
+                type="scalabel",
+                annotations="openmt/engine/testcases/detect/bdd100k-samples/"
+                            "annotation.json",
+                data_root="openmt/engine/testcases/detect/bdd100k-samples/"
+                          "images",
             )
         ],
     )
 
     # choose according to setup
     # CPU
-    detect.train(conf)
+    train(conf)
 
     # single GPU
     conf.launch = config.Launch(device='cuda')
-    detect.train(conf)
+    train(conf)
 
     # multi GPU
     conf.launch = config.Launch(device='cuda', num_gpus=2)
     launch(
-        detect.train,
+        train,
         conf.launch.num_gpus,
         num_machines=conf.launch.num_machines,
         machine_rank=conf.launch.machine_rank,

@@ -1,5 +1,5 @@
 """Detectron2 detector wrapper."""
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
 import torch
 from detectron2.modeling import GeneralizedRCNN
@@ -11,7 +11,7 @@ from openmt.model.detect.d2_utils import (
     proposal_to_box2d,
     target_to_instance,
 )
-from openmt.struct import Boxes2D, DetectionOutput, ImageList
+from openmt.struct import Boxes2D, DetectionOutput, Images, InputSample
 
 from .base import BaseDetector, BaseDetectorConfig
 
@@ -32,40 +32,37 @@ class D2GeneralizedRCNN(BaseDetector):
         """Get device where detect input should be moved to."""
         return self.d2_detector.pixel_mean.device
 
-    def preprocess_image(
-        self, batched_inputs: Tuple[Dict[str, torch.Tensor]]
-    ) -> ImageList:
-        """Normalize, pad and batch the input images."""
-        images = [x["image"].to(self.device) for x in batched_inputs]
-        images = [
-            (x - self.d2_detector.pixel_mean) / self.d2_detector.pixel_std
-            for x in images
-        ]
-        images = ImageList.from_tensors(
-            images, self.d2_detector.backbone.size_divisibility
-        )
+    def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
+        """Batch, pad (standard stride=32) and normalize the input images."""
+        images = Images.cat([inp.image for inp in batched_inputs])
+        images = images.to(self.device)
+        images.tensor = (
+            images.tensor - self.d2_detector.pixel_mean
+        ) / self.d2_detector.pixel_std
         return images
 
     def forward(
         self,
-        inputs: ImageList,
+        inputs: List[InputSample],
         targets: Optional[List[Boxes2D]] = None,
     ) -> DetectionOutput:
         """Forward function."""
+        # preprocessing
+        images = self.preprocess_image(inputs)
         if targets is not None:
-            targets = target_to_instance(targets, inputs.tensor.shape[2:])
+            targets = target_to_instance(targets, images.image_sizes)
 
         # backbone
-        feat = self.d2_detector.backbone(inputs.tensor)
+        feat = self.d2_detector.backbone(images.tensor)
 
         # rpn stage
         proposals, rpn_losses = self.d2_detector.proposal_generator(
-            inputs, feat, targets
+            images, feat, targets
         )
 
         # detection head(s)
         detections, detect_losses = self.d2_detector.roi_heads(
-            inputs,
+            images,
             feat,
             proposals,
             targets,
@@ -76,4 +73,11 @@ class D2GeneralizedRCNN(BaseDetector):
             detections = detections_to_box2d(detections)
         else:
             detections = proposal_to_box2d(detections)
-        return feat, proposals, detections, {**rpn_losses, **detect_losses}
+
+        return (
+            images,
+            feat,
+            proposals,
+            detections,
+            {**rpn_losses, **detect_losses},
+        )

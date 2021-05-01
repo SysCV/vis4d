@@ -17,25 +17,27 @@ from openmt.model import BaseModelConfig
 class Solver(BaseModel):
     """Config for solver."""
 
-    images_per_batch: int
+    images_per_gpu: int
     lr_policy: str
     base_lr: float
     steps: Optional[List[int]]
     max_iters: int
     checkpoint_period: Optional[int]
+    log_period: Optional[int]
     eval_period: Optional[int]
+    eval_metrics: List[str]
 
 
 class DatasetType(str, Enum):
     """Enum for dataset type.
 
-    coco: COCO style dataset to support detectron2 training.
-    scalabel_video: Scalabel based video dataset format.
+    coco: COCO style dataset (will be converted to scalabel).
+    scalabel: Scalabel based dataset format.
     custom: Custom dataset type for user-defined datasets.
     """
 
     COCO = "coco"
-    SCALABEL_VIDEO = "scalabel_video"
+    SCALABEL = "scalabel"
     CUSTOM = "custom"
 
 

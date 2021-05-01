@@ -18,6 +18,7 @@ line_length = 79
             'raise NotImplementedError',
             'raise ValueError',
             'raise ImportError',
+            'raise AttributeError',
 
             # Don't complain about pydantic validators
             '@validator'

@@ -1,9 +1,8 @@
-from typing import Dict, List, Tuple
+from typing import List
 
-import torch
 from openmt.model import BaseModel, BaseModelConfig
-from openmt.struct import Boxes2D
-from openmt.model.detect import BaseDetectorConfig, build_detector, d2_utils
+from openmt.struct import Boxes2D, InputSample, LossesType
+from openmt.model.detect import BaseDetectorConfig, build_detector
 from openmt.model.track.graph import TrackGraphConfig, build_track_graph
 
 
@@ -24,56 +23,40 @@ class SORT(BaseModel):
         self.track_graph = build_track_graph(self.cfg.track_graph)
 
     def forward_train(
-        self, batch_inputs: Tuple[Tuple[Dict[str, torch.Tensor]]]
-    ) -> Dict[str, torch.Tensor]:
+        self, batch_inputs: List[List[InputSample]]
+    ) -> LossesType:
         """Forward pass during training stage.
 
         Returns a dict of loss tensors.
         """
         # SORT only needs to train the detector
-        batch_inputs = batch_inputs[0]  # no reference views
-        images = self.detector.preprocess_image(batch_inputs)  # type: ignore
-        targets = [
-            d2_utils.target_to_box2d(
-                x["instances"].to(self.detector.device)  # type: ignore # pylint: disable=line-too-long
-            )
-            for x in batch_inputs
-        ]
+        inputs = [inp[0] for inp in batch_inputs]  # no ref views
 
         # from openmt.vis.image import imshow_bboxes
         # for img, target in zip(images.tensor, targets):
         #     imshow_bboxes(img, target)
 
-        _, _, _, det_losses = self.detector(images, targets)
+        targets = [x.instances.to(self.detector.device) for x in inputs]
+        _, _, _, _, det_losses = self.detector(inputs, targets)
         return det_losses  # type: ignore
 
-    def forward_test(
-        self, batch_inputs: Tuple[Dict[str, torch.Tensor]]
-    ) -> List[Boxes2D]:
+    def forward_test(self, batch_inputs: List[InputSample]) -> List[Boxes2D]:
         """Forward pass during testing stage.
 
         Returns predictions for each input.
         """
-        inputs = batch_inputs[0]  # Inference is done using batch size 1
-
+        frame_id = batch_inputs[0].metadata.frame_index
         # init graph at begin of sequence
-        if inputs["frame_id"] == 0:
+        if frame_id == 0:
             self.track_graph.reset()
 
         # detector
-        image = self.detector.preprocess_image((inputs,))
-        _, _, detections, _ = self.detector(image)
+        image, _, _, detections, _ = self.detector(batch_inputs)
 
         # associate detections, update graph
-        detections = self.track_graph(
-            detections[0], inputs["frame_id"]
-        )
+        detections = self.track_graph(detections[0], frame_id)
 
-        self.postprocess(
-            (inputs["width"], inputs["height"]),
-            (image.tensor.shape[-1], image.tensor.shape[-2]),
-            detections,
-        )
-
+        ori_wh = tuple(batch_inputs[0].metadata.size)  # type: ignore
+        self.postprocess(ori_wh, image.image_sizes[0], detections)  # type: ignore # pylint: disable=line-too-long
         return [detections]
 

@@ -1,6 +1,5 @@
 """Build data loading pipeline for tracking."""
 import itertools
-import logging
 from typing import Any, Dict, List, Optional, Union
 
 import torch
@@ -9,19 +8,16 @@ from detectron2.data import build_batch_data_loader, detection_utils
 from detectron2.data.catalog import DatasetCatalog, Metadata, MetadataCatalog
 from detectron2.data.common import DatasetFromList
 from detectron2.data.samplers import (
+    InferenceSampler,
     RepeatFactorTrainingSampler,
     TrainingSampler,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from scalabel.label.typing import Frame
 
 from openmt.common.io import DataBackendConfig
 
-from .dataset_mapper import (
-    MapTrackingDataset,
-    ReferenceSamplingConfig,
-    TrackingDatasetMapper,
-)
+from .dataset_mapper import DatasetMapper, MapDataset, ReferenceSamplingConfig
 from .samplers import TrackingInferenceSampler
 from .utils import (
     filter_empty_annotations,
@@ -34,12 +30,24 @@ class DataloaderConfig(BaseModel):
     """Config for dataloader."""
 
     data_backend: DataBackendConfig = DataBackendConfig()
-    num_workers: int
+    workers_per_gpu: int
+    inference_sampling: str = "sample_based"
     sync_classes_to_intersection: bool = False
     remove_samples_without_labels: bool = False
     train_max_size: Optional[int] = None
     test_max_size: Optional[int] = None
-    sampling_cfg: ReferenceSamplingConfig
+    ref_sampling_cfg: ReferenceSamplingConfig
+
+    @validator("inference_sampling", check_fields=False)
+    def validate_inference_sampling(  # pylint: disable=no-self-argument,no-self-use,line-too-long
+        cls, value: str
+    ) -> str:
+        """Check inference_sampling attribute."""
+        if value not in ["sample_based", "sequence_based"]:
+            raise ValueError(
+                "inference_sampling must be sample_based or sequence_based"
+            )
+        return value
 
 
 class DataOptions(BaseModel):
@@ -47,7 +55,7 @@ class DataOptions(BaseModel):
 
     dataset: List[Dict[str, Any]]  # type: ignore
     sampler: Optional[Union[TrainingSampler, RepeatFactorTrainingSampler]]
-    mapper: TrackingDatasetMapper
+    mapper: DatasetMapper
     total_batch_size: int
     num_workers: int
 
@@ -76,7 +84,7 @@ def update_dataset_to_intersection(
                 frame.labels.pop(i)
 
 
-def get_tracking_dataset_dicts(  # type: ignore
+def get_dataset_dicts(  # type: ignore
     names: Union[str, List[str]],
     filter_empty: bool = True,
     sync_classes_to_intersection: bool = False,
@@ -142,7 +150,7 @@ def _train_loader_from_config(
     loader_cfg: DataloaderConfig, cfg: CfgNode
 ) -> DataOptions:
     """Construct training data loader from config."""
-    dataset = get_tracking_dataset_dicts(
+    dataset = get_dataset_dicts(
         cfg.DATASETS.TRAIN,
         loader_cfg.remove_samples_without_labels,
         loader_cfg.sync_classes_to_intersection,
@@ -152,7 +160,7 @@ def _train_loader_from_config(
         if loader_cfg.train_max_size is not None
         else cfg.INPUT.MAX_SIZE_TRAIN
     )
-    mapper = TrackingDatasetMapper(loader_cfg.data_backend, cfg)
+    mapper = DatasetMapper(loader_cfg.data_backend, cfg)
 
     sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
     if sampler_name == "TrainingSampler":
@@ -165,18 +173,18 @@ def _train_loader_from_config(
         sampler=sampler,
         mapper=mapper,
         total_batch_size=cfg.SOLVER.IMS_PER_BATCH,
-        num_workers=loader_cfg.num_workers,
+        num_workers=loader_cfg.workers_per_gpu,
     )
 
 
-def build_tracking_train_loader(
+def build_train_loader(
     loader_cfg: DataloaderConfig, det2cfg: CfgNode
 ) -> torch.utils.data.DataLoader:
-    """Build train dataloader for tracking with some default features."""
+    """Build train dataloader with some default features."""
     data_options = _train_loader_from_config(loader_cfg, det2cfg)
     dataset = DatasetFromList(data_options.dataset, copy=False)
-    dataset = MapTrackingDataset(
-        loader_cfg.sampling_cfg, True, dataset, data_options.mapper
+    dataset = MapDataset(
+        loader_cfg.ref_sampling_cfg, True, dataset, data_options.mapper
     )
     assert isinstance(data_options.sampler, torch.utils.data.sampler.Sampler)
     # aspect_ratio_grouping: tracking datasets usually do not contain
@@ -194,7 +202,7 @@ def _test_loader_from_config(
     loader_cfg: DataloaderConfig, cfg: CfgNode, dataset_name: str
 ) -> DataOptions:
     """Construct testing data loader from config."""
-    dataset = get_tracking_dataset_dicts(
+    dataset = get_dataset_dicts(
         dataset_name, False, loader_cfg.sync_classes_to_intersection
     )
     cfg.INPUT.MAX_SIZE_TEST = (
@@ -202,27 +210,30 @@ def _test_loader_from_config(
         if loader_cfg.test_max_size is not None
         else cfg.INPUT.MAX_SIZE_TEST
     )
-    mapper = TrackingDatasetMapper(
-        loader_cfg.data_backend, cfg, is_train=False
-    )
+    mapper = DatasetMapper(loader_cfg.data_backend, cfg, is_train=False)
+
     return DataOptions(
         dataset=dataset,
         mapper=mapper,
         total_batch_size=1,
-        num_workers=loader_cfg.num_workers,
+        num_workers=loader_cfg.workers_per_gpu,
     )
 
 
-def build_tracking_test_loader(
+def build_test_loader(
     loader_cfg: DataloaderConfig, det2cfg: CfgNode, dataset_name: str
 ) -> torch.utils.data.DataLoader:
-    """Build test dataloader for tracking with some default features."""
+    """Build test dataloader with some default features."""
     data_options = _test_loader_from_config(loader_cfg, det2cfg, dataset_name)
     dataset = DatasetFromList(data_options.dataset, copy=False)
-    dataset = MapTrackingDataset(
-        loader_cfg.sampling_cfg, False, dataset, data_options.mapper
+    dataset = MapDataset(
+        loader_cfg.ref_sampling_cfg, False, dataset, data_options.mapper
     )
-    sampler = TrackingInferenceSampler(dataset)
+    sampler = (
+        TrackingInferenceSampler(dataset)
+        if loader_cfg.inference_sampling == "sequence_based"
+        else InferenceSampler(len(dataset))
+    )
     batch_sampler = torch.utils.data.sampler.BatchSampler(
         sampler, 1, drop_last=False
     )

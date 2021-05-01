@@ -4,14 +4,12 @@ import unittest
 import torch
 from detectron2.config import get_cfg
 from detectron2.data import DatasetFromList
+from scalabel.label.typing import Frame
 
 from openmt.common.io import DataBackendConfig
+from openmt.struct import Images, InputSample
 
-from .dataset_mapper import (
-    MapTrackingDataset,
-    ReferenceSamplingConfig,
-    TrackingDatasetMapper,
-)
+from .dataset_mapper import DatasetMapper, MapDataset, ReferenceSamplingConfig
 
 
 class TestDatasetMapper(unittest.TestCase):
@@ -27,9 +25,7 @@ class TestDatasetMapper(unittest.TestCase):
             dict(video_name=str(i % 2), frame_index=i - i // 2 - i % 2)
             for i in range(200)
         ]
-        mapper = MapTrackingDataset(
-            cfg, True, DatasetFromList(data_dict), lambda x: x
-        )
+        mapper = MapDataset(cfg, True, DatasetFromList(data_dict), lambda x: x)
 
         idcs = mapper.sample_ref_idcs(str(0), 50)
         self.assertTrue(idcs == [52, 54])
@@ -47,29 +43,19 @@ class TestDatasetMapper(unittest.TestCase):
             dict(video_name=i % 2, frame_index=i - i // 2 - i % 2)
             for i in range(200)
         ]
-        mapper = MapTrackingDataset(
+        mapper = MapDataset(
             cfg, True, DatasetFromList(data_dict), lambda x: None
         )
         self.assertRaises(ValueError, mapper.__getitem__, 0)
 
-    def test_getitem_duplicate(self) -> None:
-        """Testcase for getitem duplicate if no video id."""
-        cfg = ReferenceSamplingConfig(
-            type="sequential", num_ref_imgs=2, scope=3
-        )
-
-        data_dict = [dict(file_name=i, video_name=None) for i in range(200)]
-        mapper = MapTrackingDataset(
-            cfg, True, DatasetFromList(data_dict), lambda x: (x, None)
-        )
-        data = mapper.__getitem__(100)
-        self.assertTrue(all(d["file_name"] == 100 for d in data))
-
     def test_transform_annotations(self) -> None:
         """Test the transform annotations method in TrackingDatasetMapper."""
         cfg = get_cfg()
-        ds_mapper = TrackingDatasetMapper(DataBackendConfig(), cfg)
-        input_dict = dict(image=torch.zeros(3, 128, 128))
+        ds_mapper = DatasetMapper(DataBackendConfig(), cfg)
+        input_dict = InputSample(
+            Frame(name="0"),
+            Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
+        )
         boxs = ds_mapper.transform_annotation(input_dict, None, lambda x: x)
         self.assertEqual(len(boxs), 0)
         boxs = ds_mapper.transform_annotation(input_dict, [], lambda x: x)

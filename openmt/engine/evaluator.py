@@ -3,22 +3,31 @@
 import datetime
 import itertools
 import logging
-import os.path as osp
+import os
 import time
 from contextlib import ExitStack, contextmanager
-from typing import Dict, Generator, List, Optional, Tuple
+from typing import Callable, Dict, Generator, List, Optional, Union
 
 import detectron2.utils.comm as comm
 import torch
-from bdd100k.eval.mot import EvalResults, acc_single_video_mot, evaluate_track
+from bdd100k.common.utils import DEFAULT_COCO_CONFIG
+from bdd100k.eval.detect import evaluate_det
+from bdd100k.eval.mot import acc_single_video_mot, evaluate_track
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.evaluation import DatasetEvaluator, DatasetEvaluators
 from detectron2.utils.comm import get_world_size
 from detectron2.utils.logger import log_every_n_seconds
-from scalabel.label.io import group_and_sort
+from scalabel.label.io import group_and_sort, save
 from scalabel.label.typing import Frame
 
-from openmt.struct import Boxes2D
+from openmt.struct import Boxes2D, EvalResult, EvalResults, InputSample
+
+_eval_mapping = dict(
+    detect=lambda pred, gt: evaluate_det(gt, pred, DEFAULT_COCO_CONFIG),
+    track=lambda pred, gt: evaluate_track(
+        acc_single_video_mot, group_and_sort(gt), group_and_sort(pred)
+    ),
+)  # type: Dict[str, Callable[[List[Frame], List[Frame]], EvalResult]]
 
 
 @contextmanager
@@ -63,7 +72,6 @@ def inference_on_dataset(
     """
     num_devices = get_world_size()
     logger = logging.getLogger(__name__)
-    print(__name__)
     logger.info("Start inference on %s images", len(data_loader))
 
     total = len(data_loader)  # inference data loader must have a fixed length
@@ -141,7 +149,7 @@ def inference_on_dataset(
     return results  # type: ignore
 
 
-class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore
+class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
     """Evaluate tracking detect using MOTA metrics.
 
     This class will accumulate information of the inputs/outputs (by
@@ -156,6 +164,7 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore
         output_dir: Optional[str] = None,
     ) -> None:
         """Init."""
+        self._metrics = list(_eval_mapping.keys())
         self._distributed = distributed
         self._output_dir = output_dir
         self._metadata = MetadataCatalog.get(dataset_name)
@@ -167,34 +176,23 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore
         """Preparation for a new round of evaluation."""
         self._predictions = []
 
+    def set_metrics(self, metrics: List[str]) -> None:
+        """Set metrics to evaluate."""
+        for metric in metrics:
+            if metric not in _eval_mapping.keys():  # pragma: no cover
+                raise KeyError(f"metric {metric} is not supported")
+        self._metrics = metrics
+
     def process(
-        self, inputs: Tuple[Dict[str, torch.Tensor]], outputs: List[Boxes2D]
+        self, inputs: List[List[InputSample]], outputs: List[Boxes2D]
     ) -> None:
-        """Process the pair of inputs and outputs.
-
-        If they contain batches, the pairs can be consumed one-by-one using
-        `zip`:
-        .. code-block:: python
-            for input_, output in zip(inputs, outputs):
-                # do evaluation on single input/output pair
-                ...
-
-        Args:
-            inputs (list): the inputs that's used to call the detect.
-            outputs (list): the return value of `detect(inputs)`
-        """
+        """Process the pair of inputs and outputs."""
         for inp, out in zip(inputs, outputs):
-            prediction = dict(
-                name=osp.basename(inp["file_name"]),
-                video_name=inp["video_name"],
-                frame_index=inp["frame_id"],
-            )
-
-            prediction["labels"] = out.to(torch.device("cpu")).to_scalabel(
+            prediction = inp[0].metadata  # no ref views during test
+            prediction.labels = out.to(torch.device("cpu")).to_scalabel(
                 self._metadata.idx_to_class_mapping
             )
-
-            self._predictions.append(Frame(**prediction))
+            self._predictions.append(prediction)
 
     def evaluate(self) -> EvalResults:
         """Evaluate the performance after processing all input/output pairs."""
@@ -208,8 +206,13 @@ class ScalabelMOTAEvaluator(DatasetEvaluator):  # type: ignore
         else:
             predictions = self._predictions  # pragma: no cover
 
-        return evaluate_track(
-            acc_single_video_mot,
-            group_and_sort(predictions),
-            group_and_sort(self.gts),
-        )
+        if self._output_dir:
+            os.makedirs(self._output_dir, exist_ok=True)
+            file_path = os.path.join(self._output_dir, "predictions.json")
+            save(file_path, predictions)
+
+        results = {}
+        for metric in self._metrics:
+            results[metric] = _eval_mapping[metric](predictions, self.gts)
+
+        return results

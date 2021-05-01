@@ -1,14 +1,14 @@
-"""Checkpointing for tracking methods."""
-from detectron2.checkpoint import DetectionCheckpointer
+"""Checkpointing for openMT methods."""
+from detectron2.checkpoint import DetectionCheckpointer as D2Checkpointer
 from fvcore.common.checkpoint import _IncompatibleKeys
 
 from openmt.struct import TorchCheckpoint
 
 
-class TrackingCheckpointer(DetectionCheckpointer):  # type: ignore
-    """Tracking checkpointer.
+class Checkpointer(D2Checkpointer):  # type: ignore
+    """OpenMT interface for D2 checkpoints.
 
-    Loads openmt models.
+    Loads both openmt and detectron2 models.
     """
 
     def _load_model(self, checkpoint: TorchCheckpoint) -> _IncompatibleKeys:

@@ -92,7 +92,6 @@ class EmbeddingDistanceLoss(BaseLoss):
                 ].detach()
                 neg_idx = neg_idx[costs.topk(num_neg)[1], :]
             else:
-                print(num_neg, neg_idx.numel(), len(neg_idx))
                 neg_idx = random_choice(neg_idx, num_neg)
 
             new_neg_inds = neg_inds.new_zeros(neg_inds.size()).bool()

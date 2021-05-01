@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 import torch
 
-from openmt.unittest.util import generate_dets
+from openmt.unittest.utils import generate_dets
 
 from .track import draw_sequence
 from .utils import preprocess_image

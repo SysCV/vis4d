@@ -1,25 +1,25 @@
-"""Dataset mapper for tracking in openmt."""
+"""Dataset mapper in openmt."""
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import detectron2.data.detection_utils as d2_utils
 import numpy as np
 import torch
 from detectron2.config import CfgNode
 from detectron2.data import transforms as T
-from detectron2.data.common import MapDataset
-from detectron2.data.dataset_mapper import DatasetMapper
+from detectron2.data.common import MapDataset as D2MapDataset
+from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
 from pydantic import BaseModel, validator
 from scalabel.label.typing import Frame, Label
 
 from openmt.common.io import DataBackendConfig, build_data_backend
 from openmt.data import utils
-from openmt.struct import Boxes2D
+from openmt.struct import Boxes2D, Images, InputSample
 
 from .utils import dicts_to_boxes2d, label_to_dict
 
-__all__ = ["TrackingDatasetMapper", "MapTrackingDataset"]
+__all__ = ["DatasetMapper", "MapDataset"]
 
 
 class ReferenceSamplingConfig(BaseModel):
@@ -30,7 +30,7 @@ class ReferenceSamplingConfig(BaseModel):
     scope: int
 
     @validator("scope")
-    def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use,line-too-long
+    def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long
         cls, value: int, values
     ) -> int:
         """Check scope attribute."""
@@ -39,7 +39,7 @@ class ReferenceSamplingConfig(BaseModel):
         return value
 
 
-class MapTrackingDataset(MapDataset):  # type: ignore
+class MapDataset(D2MapDataset):  # type: ignore
     """Map a function over the elements in a dataset."""
 
     def __init__(  # type: ignore
@@ -108,7 +108,7 @@ class MapTrackingDataset(MapDataset):  # type: ignore
 
         return [self.frame_to_idcs[video][f] for f in ref_frame_ids]
 
-    def __getitem__(self, idx: int) -> List[Dict[str, Any]]:  # type: ignore
+    def __getitem__(self, idx: int) -> List[InputSample]:
         """Fully prepare a sample for training/inference."""
         retry_count = 0
         cur_idx = int(idx)
@@ -116,12 +116,12 @@ class MapTrackingDataset(MapDataset):  # type: ignore
         while True:
             data = self._map_func(self._dataset[cur_idx])
             if data is not None:
-                data_dict, transforms = data
+                input_data, transforms = data
                 self._fallback_candidates.add(cur_idx)
 
-                if self.training:
+                if self.training and self.sampling_cfg.num_ref_imgs > 0:
                     # sample reference views
-                    vid_id = data_dict["video_name"]
+                    vid_id = input_data.metadata.video_name
                     if vid_id is not None:
                         ref_data = [
                             self._map_func(
@@ -132,13 +132,13 @@ class MapTrackingDataset(MapDataset):  # type: ignore
                             )
                         ]
                     else:
-                        ref_data = [
-                            data_dict
+                        ref_data = [  # pragma: no cover
+                            input_data
                             for _ in range(self.sampling_cfg.num_ref_imgs)
                         ]
-                    return [data_dict] + ref_data
+                    return [input_data] + ref_data
 
-                return data_dict  # type: ignore
+                return [input_data]
 
             # _map_func fails for this idx, use a random new index from the
             # pool
@@ -155,15 +155,14 @@ class MapTrackingDataset(MapDataset):  # type: ignore
                 )
 
 
-class TrackingDatasetMapper(DatasetMapper):  # type: ignore
-    """DatasetMapper class for tracking.
+class DatasetMapper(D2DatasetMapper):  # type: ignore
+    """DatasetMapper class for openMT.
 
-    A callable which takes a dataset dict in Detectron2 Dataset format,
-    and maps it into a format used by the openMT tracking detect. The
-    callable does the following:
-    1. Read image sequence (during train) from "file_name"
+    A callable which takes a data sample in scalabel format, and maps it into
+    a format used by the openMT model. The callable does the following:
+    1. Read image from "url"
     2. Applies cropping/geometric transforms to the image and annotations
-    3. Prepare data and annotations to Tensor and :class:`Instances`
+    3. Prepare data and annotations (InputData, AnnotationInstance)
     """
 
     def __init__(
@@ -179,22 +178,20 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
 
     def load_image(
         self,
-        input_dict: Dict[str, Union[torch.Tensor, Boxes2D]],
         sample: Frame,
     ) -> np.ndarray:
         """Load image according to data_backend."""
         assert sample.url is not None
         im_bytes = self.data_backend.get(sample.url)
         image = utils.im_decode(im_bytes)
-        d2_utils.check_image_size(input_dict, image)
+        sample.size = [image.shape[1], image.shape[0]]
         return image
 
     def transform_image(
         self,
         image: np.ndarray,
-        input_dict: Dict[str, Union[torch.Tensor, Boxes2D]],
         transforms: Optional[T.AugmentationList] = None,
-    ) -> T.AugmentationList:
+    ) -> Tuple[Images, T.AugmentationList]:
         """Apply image augmentations and convert to torch tensor."""
         aug_input = T.AugInput(image)
         if transforms is None:
@@ -207,19 +204,22 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
         # shared-memory, but not efficient on large generic data struct due
         # to the use of pickle & mp.Queue. Therefore it's important to use
         # torch.Tensor.
-        input_dict["image"] = torch.as_tensor(
-            np.ascontiguousarray(image.transpose(2, 0, 1))
+        image_processed = Images(
+            torch.as_tensor(
+                np.ascontiguousarray(image.transpose(2, 0, 1))
+            ).unsqueeze(0),
+            [(image.shape[1], image.shape[0])],
         )
-        return transforms
+        return image_processed, transforms
 
     def transform_annotation(
         self,
-        input_dict: Dict[str, Union[torch.Tensor, Boxes2D]],
+        input_sample: InputSample,
         labels: Optional[List[Label]],
         transforms: T.AugmentationList,
     ) -> Boxes2D:
         """Transform annotations."""
-        image_hw = input_dict["image"].shape[1:]  # type: ignore
+        image_hw = input_sample.image.tensor.shape[2:]
 
         if labels is None:
             return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
@@ -245,37 +245,34 @@ class TrackingDatasetMapper(DatasetMapper):  # type: ignore
         self,
         sample_dict: Dict[str, Any],
         transforms: Optional[T.AugmentationList] = None,
-    ) -> Tuple[Dict[str, Union[torch.Tensor, Boxes2D]], T.AugmentationList]:
+    ) -> Tuple[InputSample, T.AugmentationList]:
         """Prepare a single sample in detect format.
 
         Args:
-            sample (Frame): Metadata of one image, in scalabel format.
+            sample_dict (serialized Frame): Metadata of one image, in scalabel
+            format. Serialized as dict due to multi-processing.
             transforms (T.AugmentationList): Detectron2 augmentation list.
 
         Returns:
-            dict: a format that the model accepts
+            InputSample: Data format that the model accepts.
+            T.AugmentationList: augmentations, s.t. ref views can be augmented
+            with the same parameters.
         """
         sample = Frame(**sample_dict)
 
-        input_dict = dict(
-            frame_id=sample.frame_index,
-            video_name=sample.video_name,
-            file_name=sample.url,
-        )  # type: Dict[str, Union[torch.Tensor, Boxes2D]]
-
-        # image loading
-        image = self.load_image(input_dict, sample)
-
-        # image augmentation / to torch.tensor
-        transforms = self.transform_image(
-            image, input_dict, transforms=transforms
+        # image loading, augmentation / to torch.tensor
+        image, transforms = self.transform_image(
+            self.load_image(sample), transforms=transforms
         )
+        input_data = InputSample(sample, image)
 
         if not self.is_train:  # pragma: no cover
-            return input_dict, transforms
+            del sample.labels
+            return input_data, transforms
 
-        input_dict["instances"] = self.transform_annotation(
-            input_dict, sample.labels, transforms
+        input_data.instances = self.transform_annotation(
+            input_data, sample.labels, transforms
         )
+        del sample.labels
 
-        return input_dict, transforms
+        return input_data, transforms

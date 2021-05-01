@@ -4,7 +4,7 @@ import unittest
 import torch
 
 from openmt.struct import Boxes2D
-from openmt.unittest.util import generate_dets
+from openmt.unittest.utils import generate_dets
 
 from .base import MatcherConfig
 from .max_iou import MaxIoUMatcher

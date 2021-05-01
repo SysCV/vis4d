@@ -25,7 +25,7 @@ class QDTrackGraphConfig(TrackGraphConfig):
     with_cats: bool = True
 
     @validator("memo_momentum", check_fields=False)
-    def validate_memo_momentum(  # pylint: disable=no-self-argument,no-self-use
+    def validate_memo_momentum(  # pylint: disable=no-self-argument,no-self-use,line-too-long
         cls, value: float
     ) -> float:
         """Check memo_momentum attribute."""

@@ -47,7 +47,6 @@ def detections_to_box2d(detections: List[Instances]) -> List[Boxes2D]:
             Boxes2D(
                 torch.cat([boxes, scores.unsqueeze(-1)], -1),
                 class_ids=cls,
-                image_wh=detection.image_size,
             )
         )
     return result
@@ -64,18 +63,17 @@ def proposal_to_box2d(proposals: List[Instances]) -> List[Boxes2D]:
         result.append(
             Boxes2D(
                 torch.cat([boxes, logits.unsqueeze(-1)], -1),
-                image_wh=proposal.image_size,
             )
         )
     return result
 
 
 def target_to_instance(
-    targets: List[Boxes2D], img_hw: Tuple[int, int]
+    targets: List[Boxes2D], imgs_hw: List[Tuple[int, int]]
 ) -> List[Instances]:
     """Convert Boxes2D representing targets to d2 Instances."""
     result = []
-    for target in targets:
+    for target, img_hw in zip(targets, imgs_hw):
         boxes, cls, track_ids = (
             target.boxes[:, :4],
             target.class_ids,
@@ -86,17 +84,6 @@ def target_to_instance(
             fields["track_ids"] = track_ids
         result.append(Instances(img_hw, **fields))
     return result
-
-
-def target_to_box2d(target: Instances) -> Boxes2D:
-    """Convert d2 Instances representing targets to Boxes2D."""
-    boxes, cls = (
-        target.gt_boxes.tensor,
-        target.gt_classes,
-    )
-    track_ids = target.track_ids if "track_ids" in target._fields else None
-    score = torch.ones((boxes.shape[0], 1), device=boxes.device)
-    return Boxes2D(torch.cat([boxes, score], -1), cls, track_ids)
 
 
 def model_to_detectron2(config: D2GeneralizedRCNNConfig) -> CfgNode:

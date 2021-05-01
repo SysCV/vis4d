@@ -4,7 +4,7 @@ from typing import Generator
 from detectron2.utils import comm
 from torch.utils.data.sampler import Sampler
 
-from .dataset_mapper import MapTrackingDataset
+from .dataset_mapper import MapDataset
 
 
 class TrackingInferenceSampler(Sampler):  # type: ignore
@@ -15,7 +15,7 @@ class TrackingInferenceSampler(Sampler):  # type: ignore
     this sampler produces different number of samples on different workers.
     """
 
-    def __init__(self, dataset: MapTrackingDataset):
+    def __init__(self, dataset: MapDataset):
         """Init."""
         super().__init__(None)
         self._sequences = list(dataset.video_to_idcs.keys())

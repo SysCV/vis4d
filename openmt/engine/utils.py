@@ -1,11 +1,11 @@
 """Config preparation functions for the detection module."""
+import logging
 import os
 from typing import List
 
 import torch
 from detectron2.config import CfgNode, get_cfg
 from detectron2.data import DatasetCatalog
-from detectron2.data.datasets import register_coco_instances
 from detectron2.utils import comm
 from detectron2.utils.collect_env import collect_env_info
 from detectron2.utils.env import seed_all_rng
@@ -13,7 +13,10 @@ from detectron2.utils.file_io import PathManager
 from detectron2.utils.logger import setup_logger
 
 from openmt.config import Config, Dataset, DatasetType, Launch
-from openmt.data.datasets import register_scalabel_video_instances
+from openmt.data.datasets import (
+    register_coco_instances,
+    register_scalabel_instances,
+)
 
 
 def _register(datasets: List[Dataset]) -> List[str]:
@@ -25,21 +28,23 @@ def _register(datasets: List[Dataset]) -> List[str]:
             DatasetCatalog.get(dataset.name)
         except KeyError as e:
             if dataset.type == DatasetType.COCO:
-                register_coco_instances(
-                    dataset.name, {}, dataset.annotations, dataset.data_root
+                register_coco_instances(  # pragma: no cover
+                    dataset.name, dataset.annotations, dataset.data_root
                 )
-            elif dataset.type == DatasetType.SCALABEL_VIDEO:
-                register_scalabel_video_instances(
-                    dataset.name, {}, dataset.annotations, dataset.data_root
+            elif dataset.type == DatasetType.SCALABEL:
+                register_scalabel_instances(
+                    dataset.name, dataset.annotations, dataset.data_root
                 )
             else:
                 raise NotImplementedError(
                     f"Dataset type {dataset.type} currently not supported."
                 ) from e
             continue
-        print(
+        logger = logging.getLogger(__name__)
+        logger.info(
             "WARNING: You tried to register the same dataset name "
-            f"twice. Skipping instance:\n{str(dataset)}"
+            "twice. Skipping instance:\n%s",
+            dataset,
         )
     return names
 
@@ -51,7 +56,9 @@ def to_detectron2(config: Config) -> CfgNode:
 
     # convert solver attributes
     if config.solver is not None:
-        cfg.SOLVER.IMS_PER_BATCH = config.solver.images_per_batch
+        cfg.SOLVER.IMS_PER_BATCH = (
+            config.solver.images_per_gpu * config.launch.num_gpus
+        )
         cfg.SOLVER.LR_SCHEDULER_NAME = config.solver.lr_policy
         cfg.SOLVER.BASE_LR = config.solver.base_lr
         cfg.SOLVER.MAX_ITER = config.solver.max_iters
@@ -64,7 +71,7 @@ def to_detectron2(config: Config) -> CfgNode:
 
     # convert dataloader attributes
     if config.dataloader is not None:
-        cfg.DATALOADER.NUM_WORKERS = config.dataloader.num_workers
+        cfg.DATALOADER.NUM_WORKERS = config.dataloader.workers_per_gpu
 
     # register datasets
     if config.train is not None:
@@ -75,7 +82,7 @@ def to_detectron2(config: Config) -> CfgNode:
     return cfg
 
 
-def default_setup(cfg: CfgNode, args: Launch) -> None:
+def default_setup(cfg: Config, det2cfg: CfgNode, args: Launch) -> None:
     """Perform some basic common setups at the beginning of a job.
 
     1. Set up the logger
@@ -83,9 +90,11 @@ def default_setup(cfg: CfgNode, args: Launch) -> None:
     3. Backup the config to the output directory
     """
     rank = comm.get_rank()
-    logger = setup_logger(cfg.OUTPUT_DIR, distributed_rank=rank, name="openmt")
+    logger = setup_logger(
+        det2cfg.OUTPUT_DIR, distributed_rank=rank, name="openmt"
+    )
     setup_logger(
-        os.path.join(cfg.OUTPUT_DIR, "d2_log.txt"),
+        os.path.join(det2cfg.OUTPUT_DIR, "d2_log.txt"),
         distributed_rank=rank,
         name="detectron2",
     )
@@ -103,15 +112,19 @@ def default_setup(cfg: CfgNode, args: Launch) -> None:
     if comm.is_main_process():
         # Note: some of the detectron2 scripts may expect the existence of
         # config.yaml in output directory
-        path = os.path.join(cfg.OUTPUT_DIR, "config.yaml")
+        path = os.path.join(det2cfg.OUTPUT_DIR, "config.yaml")
         with PathManager.open(path, "w") as f:
-            f.write(cfg.dump())
+            f.write(det2cfg.dump())
+        # save openMT config
+        path = os.path.join(det2cfg.OUTPUT_DIR, "config.json")
+        with PathManager.open(path, "w") as f:
+            f.write(cfg.json())
         logger.info("Full config saved to %s", path)
 
     # make sure each worker has different, yet deterministic seed if specified
-    seed_all_rng(None if cfg.SEED < 0 else cfg.SEED + rank)
+    seed_all_rng(None if det2cfg.SEED < 0 else det2cfg.SEED + rank)
 
     # cudnn benchmark has large overhead. It shouldn't be used considering the
     # small size of typical validation set.
     if args.action == "train":
-        torch.backends.cudnn.benchmark = cfg.CUDNN_BENCHMARK
+        torch.backends.cudnn.benchmark = det2cfg.CUDNN_BENCHMARK

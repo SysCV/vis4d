@@ -1,14 +1,14 @@
-"""Test cases for openMT data structures."""
+"""Test cases for openMT annotation data structures."""
 import unittest
 
 import torch
 
 from openmt.struct import Boxes2D
-from openmt.unittest.util import generate_dets
+from openmt.unittest.utils import generate_dets
 
 
-class TestStructures(unittest.TestCase):
-    """Test cases openMT data structures."""
+class TestAnnotationStructures(unittest.TestCase):
+    """Test cases openMT annotation data structures."""
 
     def test_scalabel(self) -> None:
         """Testcase for conversion to / from scalabel."""

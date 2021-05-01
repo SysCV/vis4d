@@ -2,7 +2,7 @@
 import unittest
 from argparse import Namespace
 
-from ..unittest.util import get_test_file
+from ..unittest.utils import get_test_file
 from .config import parse_config, read_config
 
 
@@ -28,10 +28,11 @@ class TestLoadConfig(unittest.TestCase):
         args = Namespace(
             config=get_test_file("config-det.yaml"),
             num_gpus=2,
-            cfg_options="dataloader.num_workers=2",
+            cfg_options="dataloader.workers_per_gpu=2",
         )
         cfg = parse_config(args)
         self.assertEqual(cfg.launch.num_gpus, 2)
+        self.assertEqual(cfg.dataloader.workers_per_gpu, 2)
 
     def test_det_notsupported(self) -> None:
         """Check detection configuration in not-supported format."""

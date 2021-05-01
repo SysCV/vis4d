@@ -17,7 +17,7 @@ class TestBackends(unittest.TestCase):
         backend_file = FileBackend(DataBackendConfig(type="file"))
         backend_hdf5 = HDF5Backend(DataBackendConfig(type="hdf5"))
         sample_path = (
-            "openmt/track/testcases/bdd100k-samples/images/"
+            "openmt/engine/testcases/track/bdd100k-samples/images/"
             "00091078-875c1f73/00091078-875c1f73-0000166.jpg"
         )
 

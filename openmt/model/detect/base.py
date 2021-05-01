@@ -1,13 +1,13 @@
 """Base class for openMT detectors."""
 
 import abc
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
 import torch
 from pydantic import BaseModel
 
 from openmt.common.registry import RegistryHolder
-from openmt.struct import Boxes2D, DetectionOutput, ImageList
+from openmt.struct import Boxes2D, DetectionOutput, Images, InputSample
 
 
 class BaseDetectorConfig(BaseModel, extra="allow"):
@@ -26,16 +26,14 @@ class BaseDetector(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
         raise NotImplementedError
 
     @abc.abstractmethod
-    def preprocess_image(
-        self, batched_inputs: Tuple[Dict[str, torch.Tensor]]
-    ) -> ImageList:
+    def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
         """Normalize, pad and batch the input images."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def forward(
         self,
-        inputs: ImageList,
+        inputs: List[InputSample],
         targets: Optional[List[Boxes2D]] = None,
     ) -> DetectionOutput:
         """Detector forward function.

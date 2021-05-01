@@ -2,16 +2,13 @@
 import abc
 from typing import Dict, List, Optional, Tuple, Union
 
-import numpy as np
 import torch
-from detectron2.structures import ImageList as D2ImageList
 from scalabel.label.typing import Box2D, Label
 
-ImageList = D2ImageList
-TorchCheckpoint = Dict[str, Union[int, str, Dict[str, np.ndarray]]]
+from .data import DataInstance, Images, LossesType
 
 
-class Instances(metaclass=abc.ABCMeta):
+class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
     """Interface for bounding boxes, masks etc."""
 
     @classmethod
@@ -21,7 +18,7 @@ class Instances(metaclass=abc.ABCMeta):
         labels: List[Label],
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
-    ) -> "Instances":
+    ) -> "LabelInstance":
         """Convert from scalabel format to ours."""
         raise NotImplementedError
 
@@ -31,7 +28,7 @@ class Instances(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
-class Boxes2D(Instances):
+class Boxes2D(LabelInstance):
     """Container class for 2D boxes.
 
     boxes: torch.FloatTensor: (N, 5) where each entry is defined by
@@ -47,7 +44,7 @@ class Boxes2D(Instances):
         boxes: torch.Tensor,
         class_ids: torch.Tensor = None,
         track_ids: torch.Tensor = None,
-        image_wh: Optional[Tuple[int, int]] = None,
+        metadata: Optional[Dict[str, Union[bool, int, float, str]]] = None,
     ) -> None:
         """Init."""
         assert isinstance(boxes, torch.Tensor) and len(boxes.shape) == 2
@@ -66,7 +63,7 @@ class Boxes2D(Instances):
         self.boxes = boxes
         self.class_ids = class_ids
         self.track_ids = track_ids
-        self.image_wh = image_wh
+        self.metadata = metadata
 
     def __getitem__(self, item) -> "Boxes2D":  # type: ignore
         """Shadows tensor based indexing while returning new Boxes2D."""
@@ -85,10 +82,10 @@ class Boxes2D(Instances):
             if track_ids is not None:
                 track_ids = track_ids.view(1, -1)
             return Boxes2D(
-                boxes.view(1, -1), class_ids, track_ids, self.image_wh
+                boxes.view(1, -1), class_ids, track_ids, self.metadata
             )
 
-        return Boxes2D(boxes, class_ids, track_ids, self.image_wh)
+        return Boxes2D(boxes, class_ids, track_ids, self.metadata)
 
     def __len__(self) -> int:
         """Get length of the object."""
@@ -102,11 +99,9 @@ class Boxes2D(Instances):
         track_ids = (
             self.track_ids.clone() if self.track_ids is not None else None
         )
-        return Boxes2D(self.boxes.clone(), class_ids, track_ids, self.image_wh)
+        return Boxes2D(self.boxes.clone(), class_ids, track_ids, self.metadata)
 
-    def to(  # pylint: disable=invalid-name
-        self, device: torch.device
-    ) -> "Boxes2D":
+    def to(self, device: torch.device) -> "Boxes2D":
         """Move data to given device."""
         class_ids = (
             self.class_ids.to(device=device)
@@ -119,20 +114,20 @@ class Boxes2D(Instances):
             else None
         )
         return Boxes2D(
-            self.boxes.to(device=device), class_ids, track_ids, self.image_wh
+            self.boxes.to(device=device), class_ids, track_ids, self.metadata
         )
 
     @classmethod
-    def cat(cls, boxes_list: List["Boxes2D"]) -> "Boxes2D":
+    def cat(cls, instances: List["Boxes2D"]) -> "Boxes2D":  # type: ignore
         """Concatenates a list of Boxes2D into a single Boxes2D."""
-        assert isinstance(boxes_list, (list, tuple))
-        assert len(boxes_list) > 0
-        assert all((isinstance(box, Boxes2D) for box in boxes_list))
+        assert isinstance(instances, (list, tuple))
+        assert len(instances) > 0
+        assert all((isinstance(inst, Boxes2D) for inst in instances))
 
         boxes, class_ids, track_ids = [], [], []
-        has_class_ids = all((b.class_ids is not None for b in boxes_list))
-        has_track_ids = all((b.track_ids is not None for b in boxes_list))
-        for b in boxes_list:
+        has_class_ids = all((b.class_ids is not None for b in instances))
+        has_track_ids = all((b.track_ids is not None for b in instances))
+        for b in instances:
             boxes.append(b.boxes)
             if has_class_ids:
                 class_ids.append(b.class_ids)
@@ -219,8 +214,9 @@ class Boxes2D(Instances):
 
 
 DetectionOutput = Tuple[
+    Images,
     List[torch.Tensor],
     List[Boxes2D],
     List[Boxes2D],
-    Optional[Dict[str, torch.Tensor]],
+    Optional[LossesType],
 ]

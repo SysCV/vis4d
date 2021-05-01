@@ -1,6 +1,5 @@
 """Datasets module."""
-from .scalabel_video import register_scalabel_video_instances
+from .coco import register_coco_instances
+from .scalabel import register_scalabel_instances
 
-__all__ = [
-    "register_scalabel_video_instances",
-]
+__all__ = ["register_scalabel_instances", "register_coco_instances"]

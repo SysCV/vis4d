@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from openmt.unittest.util import generate_dets
+from openmt.unittest.utils import generate_dets
 
 from .utils import generate_colors, preprocess_boxes, preprocess_image
 

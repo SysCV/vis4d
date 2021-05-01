@@ -22,7 +22,7 @@ class BaseRoIPooler(metaclass=RegistryHolder):
     @abc.abstractmethod
     def pool(
         self, features: List[torch.Tensor], boxes: List[Boxes2D]
-    ) -> List[torch.Tensor]:
+    ) -> torch.Tensor:
         """Pool features in input bounding boxes from given feature maps."""
         raise NotImplementedError
 
