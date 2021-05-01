@@ -6,7 +6,7 @@ import logging
 import os
 import time
 from contextlib import ExitStack, contextmanager
-from typing import Callable, Dict, Generator, List, Optional, Union
+from typing import Callable, Dict, Generator, List, Optional
 
 import detectron2.utils.comm as comm
 import torch
