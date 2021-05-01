@@ -43,14 +43,14 @@ python3 setup.py install
 
 ## Usage
 
-Training detector
+Training
 
 ```bash
-python3 tools/detect.py train --config <config_path> <maybe other arguments>
+python3 tools/launch.py train --config <config_path> <maybe other arguments>
 ```
 
-Generate detection prediction results
+Evaluation
 
 ```bash
-python3 tools/detect.py predict --config <config_path> <maybe other arguments>
+python3 tools/launch.py predict --config <config_path> <maybe other arguments>
 ```

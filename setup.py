@@ -36,8 +36,9 @@ setuptools.setup(
         "pytoml",
         "PyYAML",
         "requests",
+        "scalabel",
         "torch",
         "torchvision",
-        "tqdm",
+        "tqdm"
     ],
 )

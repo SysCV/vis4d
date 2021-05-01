@@ -1,5 +1,5 @@
 black
-coverage
+coverage[toml]
 isort
 mypy
 numpy
@@ -13,7 +13,9 @@ pyyaml
 setuptools
 tqdm
 wheel
-
+h5py
+git+git://github.com/scalabel/scalabel.git
 torch
 torchaudio
 torchvision
+git+git://github.com/bdd100k/bdd100k.git

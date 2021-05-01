@@ -1,0 +1,39 @@
+[model]
+type = "DetectorWrapper"
+    [model.detection]
+    type = "D2GeneralizedRCNN"
+    model_base = "faster-rcnn/r50-fpn"
+    num_classes = 10
+
+[solver]
+images_per_gpu = 1
+lr_policy = "WarmupMultiStepLR"
+base_lr = 0.02
+max_iters = 1
+steps = [100]
+checkpoint_period = 100
+log_period = 10
+eval_period = 100
+eval_metrics = ['detect']
+
+[[train]]
+name = "bdd100k_det_sample_train"
+type = "scalabel"
+annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
+data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
+
+[[test]]
+name = "bdd100k_det_sample_val"
+type = "scalabel"
+annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
+data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
+
+[dataloader]
+workers_per_gpu = 0
+    [dataloader.ref_sampling_cfg]
+    type = 'uniform'
+    scope = 1
+    num_ref_imgs = 0
+
+[launch]
+weights = "detectron2"

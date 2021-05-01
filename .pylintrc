@@ -54,7 +54,7 @@ enable=use-symbolic-message-instead,useless-supression,fixme
 
 # This is a bug in detecting bad continuation. Since black is handling the code
 # formatting, we can disable C0330 safely.
-disable=C0330
+disable=C0330,not-callable
 
 
 [REPORTS]
@@ -269,7 +269,7 @@ ignored-classes=SQLObject, optparse.Values, thread._local, _thread._local
 # List of members which are set dynamically and missed by pylint inference
 # system, and so shouldn't trigger E1101 when accessed. Python regular
 # expressions are accepted.
-generated-members=REQUEST,acl_users,aq_parent
+generated-members=REQUEST,acl_users,aq_parent,torch.*
 
 # List of decorators that create context managers from functions, such as
 # contextlib.contextmanager.

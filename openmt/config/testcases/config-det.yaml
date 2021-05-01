@@ -1,8 +1,15 @@
-detection:
-  model_base: faster-rcnn
+model:
+  type: test-model
 solver:
-  images_per_batch: 16
+  images_per_gpu: 16
   lr_policy: step
   base_lr: 0.02
   steps: [1000, 2000]
   max_iters: 10000
+  eval_metrics: []
+dataloader:
+  workers_per_gpu: 2
+  ref_sampling_cfg:
+    type: 'uniform'
+    scope: 2
+    num_ref_imgs: 1
