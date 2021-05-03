@@ -1,4 +1,5 @@
 """Test cases for openMT engine Trainer."""
+import torch
 from openmt.engine.trainer import predict, train
 from openmt.unittest.utils import DetectTest, TrackTest
 
@@ -12,6 +13,8 @@ class TestTrack(TrackTest):
         """Testcase for prediction."""
         self.assertIsNotNone(self.cfg)
         self.cfg.launch.action = "predict"
+        if torch.cuda.is_available():
+            self.cfg.launch.device = "cuda"
         results = predict(self.cfg)["track"]
         metric_keys = [
             "pedestrian",
@@ -34,6 +37,8 @@ class TestTrack(TrackTest):
         """Testcase for training."""
         self.assertIsNotNone(self.cfg)
         self.cfg.launch.action = "train"
+        if torch.cuda.is_available():
+            self.cfg.launch.device = "cuda"
         train(self.cfg)
 
     def test_duplicate_register(self) -> None:
@@ -52,12 +57,16 @@ class TestDetect(DetectTest):
         """Testcase for training."""
         self.assertIsNotNone(self.cfg)
         self.cfg.launch.action = "train"
+        if torch.cuda.is_available():
+            self.cfg.launch.device = "cuda"
         train(self.cfg)
 
     def test_predict(self) -> None:
         """Testcase for prediction."""
         self.assertIsNotNone(self.cfg)
         self.cfg.launch.action = "predict"
+        if torch.cuda.is_available():
+            self.cfg.launch.device = "cuda"
         results = predict(self.cfg)["detect"]
         metric_keys = [
             "AP",

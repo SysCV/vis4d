@@ -5,9 +5,9 @@ from typing import List, Optional, Tuple
 import torch
 from detectron2 import model_zoo
 from detectron2.config import CfgNode, get_cfg
-from detectron2.structures import Boxes, Instances
+from detectron2.structures import Boxes, ImageList, Instances
 
-from openmt.struct import Boxes2D
+from openmt.struct import Boxes2D, Images
 
 from .base import BaseDetectorConfig
 
@@ -69,11 +69,11 @@ def proposal_to_box2d(proposals: List[Instances]) -> List[Boxes2D]:
 
 
 def target_to_instance(
-    targets: List[Boxes2D], imgs_hw: List[Tuple[int, int]]
+    targets: List[Boxes2D], imgs_wh: List[Tuple[int, int]]
 ) -> List[Instances]:
     """Convert Boxes2D representing targets to d2 Instances."""
     result = []
-    for target, img_hw in zip(targets, imgs_hw):
+    for target, img_wh in zip(targets, imgs_wh):
         boxes, cls, track_ids = (
             target.boxes[:, :4],
             target.class_ids,
@@ -82,8 +82,16 @@ def target_to_instance(
         fields = dict(gt_boxes=Boxes(boxes), gt_classes=cls)
         if track_ids is not None:
             fields["track_ids"] = track_ids
-        result.append(Instances(img_hw, **fields))
+        result.append(Instances((img_wh[1], img_wh[0]), **fields))
     return result
+
+
+def images_to_imagelist(images: Images) -> ImageList:
+    """Convert Images to ImageList (switch from wh to hw for image sizes)."""
+    return ImageList(
+        images.tensor,
+        image_sizes=[(wh[1], wh[0]) for wh in images.image_sizes],
+    )
 
 
 def model_to_detectron2(config: D2GeneralizedRCNNConfig) -> CfgNode:

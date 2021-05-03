@@ -7,6 +7,7 @@ from detectron2.modeling import GeneralizedRCNN
 from openmt.model.detect.d2_utils import (
     D2GeneralizedRCNNConfig,
     detections_to_box2d,
+    images_to_imagelist,
     model_to_detectron2,
     proposal_to_box2d,
     target_to_instance,
@@ -49,20 +50,21 @@ class D2GeneralizedRCNN(BaseDetector):
         """Forward function."""
         # preprocessing
         images = self.preprocess_image(inputs)
+        images_d2 = images_to_imagelist(images)
         if targets is not None:
             targets = target_to_instance(targets, images.image_sizes)
 
         # backbone
-        feat = self.d2_detector.backbone(images.tensor)
+        feat = self.d2_detector.backbone(images_d2.tensor)
 
         # rpn stage
         proposals, rpn_losses = self.d2_detector.proposal_generator(
-            images, feat, targets
+            images_d2, feat, targets
         )
 
         # detection head(s)
         detections, detect_losses = self.d2_detector.roi_heads(
-            images,
+            images_d2,
             feat,
             proposals,
             targets,

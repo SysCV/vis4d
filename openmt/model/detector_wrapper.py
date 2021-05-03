@@ -32,8 +32,8 @@ class DetectorWrapper(BaseModel):
         inputs = [inp[0] for inp in batch_inputs]  # no ref views
 
         # from openmt.vis.image import imshow_bboxes
-        # for img, target in zip(images.tensor, targets):
-        #     imshow_bboxes(img, target)
+        # for inp in inputs:
+        #     imshow_bboxes(inp.image.tensor[0], inp.instances)
 
         targets = [x.instances.to(self.detector.device) for x in inputs]
         _, _, _, _, det_losses = self.detector(inputs, targets)
