@@ -20,6 +20,8 @@ name = "bdd100k_sample_train"
 type = "scalabel"
 annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
+ignore = ["other person", "other vehicle", "trailer"]
+name_mapping = {"bike" = "bicycle", "caravan" = "car", "motor" = "motorcycle", "person" = "pedestrian", "van" = "car"}
 
 [[test]]
 name = "bdd100k_sample_val"
@@ -29,6 +31,7 @@ data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
 
 [dataloader]
 workers_per_gpu = 0
+categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle", "traffic light", "traffic sign"]
 train_max_size = 1280
 test_max_size = 1280
     [dataloader.data_backend]

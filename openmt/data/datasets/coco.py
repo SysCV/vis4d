@@ -1,6 +1,6 @@
 """Video dataset loader for coco format."""
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 # from scalabel.label.from_coco import coco_to_scalabel
 from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
@@ -10,21 +10,34 @@ logger = logging.getLogger(__name__)
 
 
 def convert_and_load(
-    json_path: str, image_root: str, dataset_name: Optional[str] = None
+    json_path: str,
+    image_root: str,
+    dataset_name: Optional[str] = None,
+    ignore_categories: Optional[List[str]] = None,
+    name_mapping: Optional[Dict[str, str]] = None,
 ) -> List[Frame]:
     """Convert coco annotations to scalabel format and load them."""
     raise NotImplementedError("Not supported yet")
 
 
 def register_coco_instances(
-    name: str,
     json_path: str,
     image_root: str,
+    name: Optional[str] = None,
+    ignore: Optional[List[str]] = None,
+    name_mapping: Optional[Dict[str, str]] = None,
 ) -> None:  # pragma: no cover
-    """Register a dataset in scalabel json annotation format for tracking."""
-    # 1. register a function which returns dicts
+    """Conver a coco format dataset to scalabel format and register it."""
+    # 1. register a function which returns List[Frame]
     DatasetCatalog.register(
-        name, lambda: convert_and_load(json_path, image_root, name)
+        name,
+        lambda: convert_and_load(
+            json_path,
+            image_root,
+            name,
+            ignore,
+            name_mapping,
+        ),
     )
 
     # 2. Optionally, add metadata about this dataset,

@@ -1,5 +1,6 @@
 """Test cases for openMT engine Trainer."""
 import torch
+
 from openmt.engine.trainer import predict, train
 from openmt.unittest.utils import DetectTest, TrackTest
 

@@ -30,11 +30,19 @@ def _register(datasets: List[Dataset]) -> List[str]:
         except KeyError as e:
             if dataset.type == DatasetType.COCO:
                 register_coco_instances(  # pragma: no cover
-                    dataset.name, dataset.annotations, dataset.data_root
+                    dataset.name,
+                    dataset.annotations,
+                    dataset.data_root,
+                    dataset.ignore,
+                    dataset.name_mapping,
                 )
             elif dataset.type == DatasetType.SCALABEL:
                 register_scalabel_instances(
-                    dataset.name, dataset.annotations, dataset.data_root
+                    dataset.name,
+                    dataset.annotations,
+                    dataset.data_root,
+                    dataset.ignore,
+                    dataset.name_mapping,
                 )
             else:
                 raise NotImplementedError(
