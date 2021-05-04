@@ -1,5 +1,6 @@
 """Config definitions."""
 from .config import (
+    Augmentation,
     Config,
     DataloaderConfig,
     Dataset,
@@ -17,6 +18,7 @@ __all__ = [
     "DatasetType",
     "DataloaderConfig",
     "ReferenceSamplingConfig",
+    "Augmentation",
     "parse_config",
     "Solver",
 ]

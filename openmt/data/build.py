@@ -123,11 +123,6 @@ def _train_loader_from_config(
         loader_cfg.remove_samples_without_labels,
         loader_cfg.categories,
     )
-    cfg.INPUT.MAX_SIZE_TRAIN = (
-        loader_cfg.train_max_size
-        if loader_cfg.train_max_size is not None
-        else cfg.INPUT.MAX_SIZE_TRAIN
-    )
     mapper = DatasetMapper(loader_cfg, cfg)
 
     sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
@@ -171,11 +166,6 @@ def _test_loader_from_config(
 ) -> DataOptions:
     """Construct testing data loader from config."""
     dataset = get_dataset_dicts(dataset_name, False, loader_cfg.categories)
-    cfg.INPUT.MAX_SIZE_TEST = (
-        loader_cfg.test_max_size
-        if loader_cfg.test_max_size is not None
-        else cfg.INPUT.MAX_SIZE_TEST
-    )
     mapper = DatasetMapper(loader_cfg, cfg, is_train=False)
 
     return DataOptions(

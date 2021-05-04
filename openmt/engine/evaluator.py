@@ -170,7 +170,8 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
         self._output_dir = output_dir
         self._metadata = MetadataCatalog.get(dataset_name)
         self.gts = load(
-            self._metadata.json_path, nprocs=cpu_count() // get_world_size()
+            self._metadata.json_path,
+            nprocs=max(8, cpu_count() // get_world_size()),
         )
         self._predictions = []  # type: List[Frame]
 
