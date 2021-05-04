@@ -8,6 +8,8 @@ from openmt.config import DataloaderConfig as Dataloader
 from openmt.engine import predict
 from openmt.model import BaseModelConfig
 
+# Disable pylint for this file due to high overlap with detector example
+# pylint: skip-file
 if __name__ == "__main__":
     sort_detector_cfg = dict(  # TODO load pretrained weights
         type="D2GeneralizedRCNN",
