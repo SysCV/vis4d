@@ -21,6 +21,8 @@ name = "bdd100k_det_sample_train"
 type = "scalabel"
 annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
+ignore = ["other person", "other vehicle", "trailer"]
+name_mapping = {"bike" = "bicycle", "caravan" = "car", "motor" = "motorcycle", "person" = "pedestrian", "van" = "car"}
 
 [[test]]
 name = "bdd100k_det_sample_val"
@@ -30,6 +32,7 @@ data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
 
 [dataloader]
 workers_per_gpu = 0
+categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle", "traffic light", "traffic sign"]
     [dataloader.ref_sampling_cfg]
     type = 'uniform'
     scope = 1

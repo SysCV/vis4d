@@ -1,24 +1,26 @@
 """Example for dynamic api usage with SORT."""
-from openmt.model import BaseModelConfig
-from openmt import config
-from openmt.engine import predict
-from openmt.data import DataloaderConfig as Dataloader
-
-# import the SORT components
+# import the SORT components, needs to be imported to be registered
 from sort_graph import SORTTrackGraph
 from sort_model import SORT
 
+from openmt import config
+from openmt.config import DataloaderConfig as Dataloader
+from openmt.engine import predict
+from openmt.model import BaseModelConfig
+
+# Disable pylint for this file due to high overlap with detector example
+# pylint: skip-file
 if __name__ == "__main__":
     sort_detector_cfg = dict(  # TODO load pretrained weights
         type="D2GeneralizedRCNN",
         model_base="faster-rcnn/r50-fpn",
-        num_classes=8
+        num_classes=8,
     )
     sort_trackgraph_cfg = dict(type="SORTTrackGraph")
     sort_cfg = dict(
         type="SORT",
         detection=sort_detector_cfg,
-        track_graph=sort_trackgraph_cfg
+        track_graph=sort_trackgraph_cfg,
     )
 
     conf = config.Config(
@@ -28,7 +30,7 @@ if __name__ == "__main__":
             lr_policy="WarmupMultiStepLR",
             base_lr=0.001,
             max_iters=100,
-            eval_metrics=['detect']
+            eval_metrics=["detect"],
         ),
         dataloader=Dataloader(
             workers_per_gpu=0,
@@ -39,7 +41,7 @@ if __name__ == "__main__":
                 name="bdd100k_sample_train",
                 type="scalabel",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
-                            "labels",
+                "labels",
                 data_root="openmt/track/track/bdd100k-samples/images/",
             )
         ],
@@ -48,9 +50,9 @@ if __name__ == "__main__":
                 name="bdd100k_sample_val",
                 type="scalabel",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
-                            "labels",
+                "labels",
                 data_root="openmt/engine/testcases/track/bdd100k-samples/"
-                          "images/",
+                "images/",
             )
         ],
     )
@@ -60,5 +62,5 @@ if __name__ == "__main__":
     predict(conf)
 
     # single GPU
-    conf.launch = config.Launch(device='cuda')
+    conf.launch = config.Launch(device="cuda")
     predict(conf)

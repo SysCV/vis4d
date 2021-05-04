@@ -11,6 +11,7 @@ from detectron2.utils.collect_env import collect_env_info
 from detectron2.utils.env import seed_all_rng
 from detectron2.utils.file_io import PathManager
 from detectron2.utils.logger import setup_logger
+from devtools import debug
 
 from openmt.config import Config, Dataset, DatasetType, Launch
 from openmt.data.datasets import (
@@ -29,11 +30,19 @@ def _register(datasets: List[Dataset]) -> List[str]:
         except KeyError as e:
             if dataset.type == DatasetType.COCO:
                 register_coco_instances(  # pragma: no cover
-                    dataset.name, dataset.annotations, dataset.data_root
+                    dataset.name,
+                    dataset.annotations,
+                    dataset.data_root,
+                    dataset.ignore,
+                    dataset.name_mapping,
                 )
             elif dataset.type == DatasetType.SCALABEL:
                 register_scalabel_instances(
-                    dataset.name, dataset.annotations, dataset.data_root
+                    dataset.name,
+                    dataset.annotations,
+                    dataset.data_root,
+                    dataset.ignore,
+                    dataset.name_mapping,
                 )
             else:
                 raise NotImplementedError(
@@ -106,9 +115,10 @@ def default_setup(cfg: Config, det2cfg: CfgNode, args: Launch) -> None:
     )
     logger.info("Environment info: %s", collect_env_info())
 
-    logger.info("Launch configuration: %s", str(args))
-
-    logger.info("Running with full config:\n %s", cfg)
+    logger.info(
+        "Running with full config:\n %s",
+        str(debug.format(cfg)).split("\n", 1)[1],
+    )
     if comm.is_main_process():
         # Note: some of the detectron2 scripts may expect the existence of
         # config.yaml in output directory

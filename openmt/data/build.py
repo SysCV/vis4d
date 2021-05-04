@@ -1,5 +1,6 @@
 """Build data loading pipeline for tracking."""
 import itertools
+import logging
 from typing import Any, Dict, List, Optional, Union
 
 import torch
@@ -12,42 +13,18 @@ from detectron2.data.samplers import (
     RepeatFactorTrainingSampler,
     TrainingSampler,
 )
-from pydantic import BaseModel, validator
-from scalabel.label.typing import Frame
+from pydantic import BaseModel
 
-from openmt.common.io import DataBackendConfig
+from openmt.config import DataloaderConfig
 
-from .dataset_mapper import DatasetMapper, MapDataset, ReferenceSamplingConfig
+from .dataset_mapper import DatasetMapper, MapDataset
 from .samplers import TrackingInferenceSampler
 from .utils import (
+    discard_labels_outside_set,
     filter_empty_annotations,
     identity_batch_collator,
     print_class_histogram,
 )
-
-
-class DataloaderConfig(BaseModel):
-    """Config for dataloader."""
-
-    data_backend: DataBackendConfig = DataBackendConfig()
-    workers_per_gpu: int
-    inference_sampling: str = "sample_based"
-    sync_classes_to_intersection: bool = False
-    remove_samples_without_labels: bool = False
-    train_max_size: Optional[int] = None
-    test_max_size: Optional[int] = None
-    ref_sampling_cfg: ReferenceSamplingConfig
-
-    @validator("inference_sampling", check_fields=False)
-    def validate_inference_sampling(  # pylint: disable=no-self-argument,no-self-use,line-too-long
-        cls, value: str
-    ) -> str:
-        """Check inference_sampling attribute."""
-        if value not in ["sample_based", "sequence_based"]:
-            raise ValueError(
-                "inference_sampling must be sample_based or sequence_based"
-            )
-        return value
 
 
 class DataOptions(BaseModel):
@@ -59,37 +36,19 @@ class DataOptions(BaseModel):
     total_batch_size: int
     num_workers: int
 
-    class Config:  # needed due to sampler
+    class Config:  # needed due to sampler / mapper
         """Pydantic configuration for this particular class."""
 
         arbitrary_types_allowed = True
 
 
-def update_dataset_to_intersection(
-    dataset: List[Frame], cls_intersection: List[str]
-) -> None:
-    """Update dataset dict using class intersection."""
-    for frame in dataset:
-        remove_anns = []
-        if frame.labels is not None:
-            for i, ann in enumerate(frame.labels):
-                if ann.category in cls_intersection:
-                    assert ann.attributes is not None
-                    ann.attributes["category_id"] = cls_intersection.index(
-                        ann.category
-                    )
-                else:
-                    remove_anns.append(i)
-            for i in reversed(remove_anns):
-                frame.labels.pop(i)
-
-
 def get_dataset_dicts(  # type: ignore
     names: Union[str, List[str]],
     filter_empty: bool = True,
-    sync_classes_to_intersection: bool = False,
+    categories: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Load and prepare dataset dicts."""
+    logger = logging.getLogger(__name__)
     if isinstance(names, str):
         names = [names]
     assert len(names), names
@@ -100,40 +59,49 @@ def get_dataset_dicts(  # type: ignore
 
     has_instances = hasattr(dataset_frames[0], "labels")
     if has_instances:
-        if sync_classes_to_intersection:
+        if categories is not None:
+            logger.info(
+                "Filtering categories among the following datasets: %s", names
+            )
+            logger.info("Given categories: %s", categories)
             # synchronize metadata thing_classes, sync idx_to_class_mapping
             metas = [MetadataCatalog.get(d) for d in names]
-            classes_per_dataset = [meta.thing_classes for meta in metas]
+            all_categories = list(
+                itertools.chain.from_iterable(
+                    [meta.thing_classes for meta in metas]
+                )
+            )
             # get intersection of classes among all datasets
-            intersect_set = set.intersection(*map(set, classes_per_dataset))
-            # restore ordering
-            class_names = [
-                c for c in classes_per_dataset[0] if c in intersect_set
+            discard_set = [
+                cat for cat in all_categories if cat not in all_categories
             ]
+            # log classes and discarded ones
+            logger.info("Discarding the following categories: %s", discard_set)
             assert (
-                len(class_names) > 0
+                len(categories) > 0
             ), f"Classes of datasets {names} have no intersection!"
             for name, meta in zip(names, metas):
                 MetadataCatalog.pop(name)
                 meta_dict = meta.as_dict()
                 meta_dict.update(
                     dict(
-                        thing_classes=class_names,
-                        idx_to_class_mapping=dict(enumerate(class_names)),
+                        thing_classes=categories,
+                        idx_to_class_mapping=dict(enumerate(categories)),
                     )
                 )
                 MetadataCatalog[name] = Metadata(**meta_dict)
 
-            update_dataset_to_intersection(dataset_frames, class_names)
-        else:
-            detection_utils.check_metadata_consistency("thing_classes", names)
-            class_names = MetadataCatalog.get(names[0]).thing_classes
+            discard_labels_outside_set(dataset_frames, categories)
 
+        # check metadata consistency, print class frequencies
+        detection_utils.check_metadata_consistency("thing_classes", names)
+        class_names = MetadataCatalog.get(names[0]).thing_classes
         overall_frequencies = {c: 0 for c in class_names}
         for name in names:
             meta = MetadataCatalog.get(name)
             for c in class_names:
-                overall_frequencies[c] += meta.class_frequencies[c]
+                if c in meta.class_frequencies:
+                    overall_frequencies[c] += meta.class_frequencies[c]
 
         print_class_histogram(overall_frequencies)
 
@@ -153,14 +121,14 @@ def _train_loader_from_config(
     dataset = get_dataset_dicts(
         cfg.DATASETS.TRAIN,
         loader_cfg.remove_samples_without_labels,
-        loader_cfg.sync_classes_to_intersection,
+        loader_cfg.categories,
     )
     cfg.INPUT.MAX_SIZE_TRAIN = (
         loader_cfg.train_max_size
         if loader_cfg.train_max_size is not None
         else cfg.INPUT.MAX_SIZE_TRAIN
     )
-    mapper = DatasetMapper(loader_cfg.data_backend, cfg)
+    mapper = DatasetMapper(loader_cfg, cfg)
 
     sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
     if sampler_name == "TrainingSampler":
@@ -202,15 +170,13 @@ def _test_loader_from_config(
     loader_cfg: DataloaderConfig, cfg: CfgNode, dataset_name: str
 ) -> DataOptions:
     """Construct testing data loader from config."""
-    dataset = get_dataset_dicts(
-        dataset_name, False, loader_cfg.sync_classes_to_intersection
-    )
+    dataset = get_dataset_dicts(dataset_name, False, loader_cfg.categories)
     cfg.INPUT.MAX_SIZE_TEST = (
         loader_cfg.test_max_size
         if loader_cfg.test_max_size is not None
         else cfg.INPUT.MAX_SIZE_TEST
     )
-    mapper = DatasetMapper(loader_cfg.data_backend, cfg, is_train=False)
+    mapper = DatasetMapper(loader_cfg, cfg, is_train=False)
 
     return DataOptions(
         dataset=dataset,

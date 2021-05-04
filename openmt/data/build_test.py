@@ -10,8 +10,8 @@ from openmt.data.build import get_dataset_dicts
 class TestBuild(unittest.TestCase):
     """build Testcase class."""
 
-    def test_get_tracking_dataset_dicts(self) -> None:
-        """Testcase for get_detection_dataset_dicts."""
+    def test_get_dataset_dicts(self) -> None:
+        """Testcase for get_dataset_dicts."""
         names = ["a", "b"]
         cats = ["car"]
         data_dicts = [
@@ -28,7 +28,7 @@ class TestBuild(unittest.TestCase):
             meta.idx_to_class_mapping = dict(enumerate(cats))
             meta.class_frequencies = {c: 0 for c in cats}
 
-        dataset_dicts = get_dataset_dicts(names, True, False)
+        dataset_dicts = get_dataset_dicts(names, True)
         self.assertEqual(dataset_dicts, [d[0] for d in data_dicts])
 
         names = ["c", "d", "e"]
@@ -61,5 +61,5 @@ class TestBuild(unittest.TestCase):
             meta.idx_to_class_mapping = dict(enumerate(cats))
             meta.class_frequencies = {c: 0 for c in cats}
 
-        dataset_dicts = get_dataset_dicts(names, True, False)
+        dataset_dicts = get_dataset_dicts(names, True)
         self.assertEqual(len(dataset_dicts), 1)

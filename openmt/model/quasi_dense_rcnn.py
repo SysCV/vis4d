@@ -85,10 +85,11 @@ class QDGeneralizedRCNN(BaseModel):
         ]
 
         # from openmt.vis.image import imshow_bboxes
-        # for ref_i, ref_img in enumerate(ref_inputs):
-        #     for batch_i, key_img in enumerate(key_inputs):
-        #         imshow_bboxes(key_img, key_targets[batch_i])
-        #         imshow_bboxes(ref_img[batch_i], ref_targets[ref_i][batch_i])
+        # for ref_i, ref_inp in enumerate(ref_inputs):
+        #     for batch_i, key_inp in enumerate(key_inputs):
+        #         imshow_bboxes(key_inp.image.tensor[0], key_targets[batch_i])
+        #         imshow_bboxes(ref_inp[batch_i].image.tensor[0],
+        #                       ref_targets[ref_i][batch_i])
 
         _, key_x, key_proposals, _, det_losses = self.detector(
             key_inputs, key_targets
@@ -116,9 +117,12 @@ class QDGeneralizedRCNN(BaseModel):
             ref_track_targets += [targets]
 
         # from openmt.vis.track import visualize_matches
-        # for ref_i, ref_img in enumerate(ref_inputs):
-        #     key_imgs = [key_inputs[i] for i in range(len(key_inputs))]
-        #     visualize_matches(key_imgs, ref_img, key_track_targets,
+        # for ref_i, ref_inp in enumerate(ref_inputs):
+        #     key_imgs = [key_inputs[i].image.tensor[0]
+        #                 for i in range(len(key_inputs))]
+        #     ref_imgs = [ref_inp[i].image.tensor[0]
+        #                 for i in range(len(key_inputs))]
+        #     visualize_matches(key_imgs, ref_imgs, key_track_targets,
         #     ref_track_targets[ref_i])
 
         track_losses = self.tracking_loss(

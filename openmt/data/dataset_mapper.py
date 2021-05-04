@@ -10,33 +10,15 @@ from detectron2.config import CfgNode
 from detectron2.data import transforms as T
 from detectron2.data.common import MapDataset as D2MapDataset
 from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
-from pydantic import BaseModel, validator
 from scalabel.label.typing import Frame, Label
 
-from openmt.common.io import DataBackendConfig, build_data_backend
-from openmt.data import utils
+from openmt.common.io import build_data_backend
+from openmt.config import DataloaderConfig, ReferenceSamplingConfig
 from openmt.struct import Boxes2D, Images, InputSample
 
-from .utils import dicts_to_boxes2d, label_to_dict
+from .utils import dicts_to_boxes2d, im_decode, label_to_dict
 
 __all__ = ["DatasetMapper", "MapDataset"]
-
-
-class ReferenceSamplingConfig(BaseModel):
-    """Config for customizing the sampling for reference views."""
-
-    type: str = "uniform"
-    num_ref_imgs: int
-    scope: int
-
-    @validator("scope")
-    def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long
-        cls, value: int, values
-    ) -> int:
-        """Check scope attribute."""
-        if not value > values["num_ref_imgs"] // 2:
-            raise ValueError("Scope must be higher than num_ref_imgs / 2.")
-        return value
 
 
 class MapDataset(D2MapDataset):  # type: ignore
@@ -167,14 +149,14 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
 
     def __init__(
         self,
-        backend_cfg: DataBackendConfig,
+        loader_cfg: DataloaderConfig,
         det2cfg: CfgNode,
         is_train: bool = True,
     ) -> None:
         """Init."""
         # pylint: disable=missing-kwoa,too-many-function-args
         super().__init__(det2cfg, is_train)
-        self.data_backend = build_data_backend(backend_cfg)
+        self.data_backend = build_data_backend(loader_cfg.data_backend)
 
     def load_image(
         self,
@@ -183,7 +165,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         """Load image according to data_backend."""
         assert sample.url is not None
         im_bytes = self.data_backend.get(sample.url)
-        image = utils.im_decode(im_bytes)
+        image = im_decode(im_bytes)
         sample.size = [image.shape[1], image.shape[0]]
         return image
 
@@ -229,7 +211,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         annos = []
         for label in labels:
             assert label.attributes is not None
-            if not label.attributes.get("crowd", False):
+            if not label.attributes.get("ignore", False):
                 anno = label_to_dict(label)
                 d2_utils.transform_instance_annotations(
                     anno,

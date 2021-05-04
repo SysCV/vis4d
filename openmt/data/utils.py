@@ -77,7 +77,7 @@ def label_to_dict(label: Label) -> D2BoxType:
 
 
 def filter_empty_annotations(frames: List[Frame]) -> List[Frame]:
-    """Filter out images with none annotations or only crowd annotations."""
+    """Filter out images with none annotations or only ignore annotations."""
     num_before = len(frames)
 
     def valid(anns: Optional[List[Label]]) -> bool:
@@ -86,7 +86,7 @@ def filter_empty_annotations(frames: List[Frame]) -> List[Frame]:
         for ann in anns:
             if ann.attributes is None:
                 return True
-            if not ann.attributes.get("crowd", False):
+            if not ann.attributes.get("ignore", False):
                 return True
         return False
 
@@ -99,6 +99,25 @@ def filter_empty_annotations(frames: List[Frame]) -> List[Frame]:
         num_after,
     )
     return frames
+
+
+def discard_labels_outside_set(
+    dataset: List[Frame], class_set: List[str]
+) -> None:
+    """Discard labels outside given set of classes."""
+    for frame in dataset:
+        remove_anns = []
+        if frame.labels is not None:
+            for i, ann in enumerate(frame.labels):
+                if ann.category in class_set:
+                    assert ann.attributes is not None
+                    ann.attributes["category_id"] = class_set.index(
+                        ann.category
+                    )
+                else:
+                    remove_anns.append(i)
+            for i in reversed(remove_anns):
+                frame.labels.pop(i)
 
 
 def print_class_histogram(class_frequencies: Dict[str, int]) -> None:
