@@ -193,7 +193,8 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         # torch.Tensor.
         image_processed = Images(
             torch.as_tensor(
-                np.ascontiguousarray(image.transpose(2, 0, 1))
+                np.ascontiguousarray(image.transpose(2, 0, 1)),
+                dtype=torch.float32,
             ).unsqueeze(0),
             [(image.shape[1], image.shape[0])],
         )

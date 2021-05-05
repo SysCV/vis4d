@@ -38,5 +38,22 @@ categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle
     scope = 1
     num_ref_imgs = 0
 
+    [[dataloader.train_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}
+
+    [[dataloader.train_augmentations]]
+    type = "RandomFlip"
+    kwargs = {"prob" = 0.5}
+
+    [[dataloader.train_augmentations]]
+    type = "BrightnessJitterAugmentation"
+    kwargs = {}
+
+    [[dataloader.test_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}
+
+
 [launch]
 weights = "detectron2"
