@@ -1,4 +1,4 @@
-"""Faster R-CNN for quasi-dense instance similarity learning."""
+"""Quasi-dense instance similarity learning model."""
 
 from typing import List, Tuple
 
@@ -30,15 +30,7 @@ class QDGeneralizedRCNNConfig(BaseModelConfig):
 
 
 class QDGeneralizedRCNN(BaseModel):
-    """Generalized R-CNN for quasi-dense instance similarity learning.
-
-    Inherits from GeneralizedRCNN in detectron2, which supports:
-    1. Per-image feature extraction (aka backbone)
-    2. Region proposal generation
-    3. Per-region feature extraction and prediction
-    We extend this architecture to be compatible to instance embedding
-    learning across multiple frames.
-    """
+    """Generalized R-CNN for quasi-dense instance similarity learning."""
 
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init."""

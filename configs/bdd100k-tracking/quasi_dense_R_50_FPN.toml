@@ -86,6 +86,7 @@ data_root = "openmt/engine/testcases/track/bdd100k-samples/images/"
 [dataloader]
 workers_per_gpu = 0
 categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
+remove_samples_without_labels = true
 inference_sampling = "sequence_based"
     [dataloader.data_backend]
     type = "HDF5Backend"

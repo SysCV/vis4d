@@ -79,14 +79,14 @@ class Solver(BaseModel):
 class DatasetType(str, Enum):
     """Enum for dataset type.
 
-    coco: COCO style dataset (will be converted to scalabel).
     scalabel: Scalabel based dataset format.
-    custom: Custom dataset type for user-defined datasets.
+    coco: COCO style dataset (will be converted to scalabel).
+    motchallenge: MOTChallenge dataset format (will be converted to scalabel).
     """
 
-    COCO = "coco"
     SCALABEL = "scalabel"
-    CUSTOM = "custom"
+    COCO = "coco"
+    MOTCHALLENGE = "motchallenge"
 
 
 class Dataset(BaseModel):

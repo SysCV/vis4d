@@ -42,46 +42,32 @@ class MapDataset(D2MapDataset):  # type: ignore
             if entry["video_name"] is not None:
                 self.video_to_idcs[entry["video_name"]].append(idx)
 
-        for video in self.video_to_idcs:
-            self.video_to_idcs[video] = sorted(
-                self.video_to_idcs[video],
-                key=lambda idx: self._dataset[idx]["frame_index"],  # type: ignore # pylint: disable=line-too-long
-            )
-            self.frame_to_idcs[video] = {
-                self._dataset[idx]["frame_index"]: idx
-                for idx in self.video_to_idcs[video]
-            }
-
-            # assert that frames are a range(0, sequence_length)
-            frame_ids = list(self.frame_to_idcs[video].keys())
-            assert frame_ids == list(
-                range(len(frame_ids))
-            ), f"Sequence {video} misses frames: %s" % (
-                set(frame_ids) ^ set(list(range(frame_ids[-1] + 1)))
-            )
-
     def sample_ref_idcs(self, video: str, cur_idx: int) -> List[int]:
-        """Sample reference indices from video_idcs given cur_idx."""
-        frame_ids = list(self.frame_to_idcs[video].keys())
-        frame_id = self._dataset[cur_idx]["frame_index"]
+        """Sample reference indices from dataset idcs given cur_idx."""
+        dataset_idcs = self.video_to_idcs[video]
+        cur_video_idx = dataset_idcs.index(cur_idx)
 
         if self.sampling_cfg.type == "uniform":
-            left = max(0, frame_id - self.sampling_cfg.scope)
-            right = min(frame_id + self.sampling_cfg.scope, len(frame_ids) - 1)
-            valid_inds = (
-                frame_ids[left:frame_id] + frame_ids[frame_id + 1 : right + 1]
+            left = max(0, cur_video_idx - self.sampling_cfg.scope)
+            right = min(
+                cur_video_idx + self.sampling_cfg.scope, len(dataset_idcs) - 1
             )
-            ref_frame_ids = np.random.choice(
+            valid_inds = (
+                dataset_idcs[left:cur_video_idx]
+                + dataset_idcs[cur_video_idx + 1 : right + 1]
+            )
+            ref_dataset_idcs = np.random.choice(
                 valid_inds, self.sampling_cfg.num_ref_imgs, replace=False
-            ).tolist()
+            ).tolist()  # type: List[int]
         elif self.sampling_cfg.type == "sequential":
-            right = frame_id + 1 + self.sampling_cfg.num_ref_imgs
-            if right <= len(frame_ids):
-                ref_frame_ids = frame_ids[frame_id + 1 : right]
+            right = cur_video_idx + 1 + self.sampling_cfg.num_ref_imgs
+            if right <= len(dataset_idcs):
+                ref_dataset_idcs = dataset_idcs[cur_video_idx + 1 : right]
             else:
-                left = frame_id - (right - len(frame_ids))
-                ref_frame_ids = (
-                    frame_ids[left:frame_id] + frame_ids[frame_id + 1 :]
+                left = cur_video_idx - (right - len(dataset_idcs))
+                ref_dataset_idcs = (
+                    dataset_idcs[left:cur_video_idx]
+                    + dataset_idcs[cur_video_idx + 1 :]
                 )
         else:
             raise NotImplementedError(
@@ -89,7 +75,7 @@ class MapDataset(D2MapDataset):  # type: ignore
                 f"implemented."
             )
 
-        return [self.frame_to_idcs[video][f] for f in ref_frame_ids]
+        return ref_dataset_idcs
 
     def __getitem__(self, idx: int) -> List[InputSample]:
         """Fully prepare a sample for training/inference."""

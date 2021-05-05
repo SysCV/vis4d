@@ -13,11 +13,8 @@ from detectron2.utils.file_io import PathManager
 from detectron2.utils.logger import setup_logger
 from devtools import debug
 
-from openmt.config import Config, Dataset, DatasetType, Launch
-from openmt.data.datasets import (
-    register_coco_instances,
-    register_scalabel_instances,
-)
+from openmt.config import Config, Dataset, Launch
+from openmt.data.datasets import register_dataset_instances
 
 
 def _register(datasets: List[Dataset]) -> List[str]:
@@ -27,27 +24,15 @@ def _register(datasets: List[Dataset]) -> List[str]:
         names.append(dataset.name)
         try:
             DatasetCatalog.get(dataset.name)
-        except KeyError as e:
-            if dataset.type == DatasetType.COCO:
-                register_coco_instances(  # pragma: no cover
-                    dataset.name,
-                    dataset.annotations,
-                    dataset.data_root,
-                    dataset.ignore,
-                    dataset.name_mapping,
-                )
-            elif dataset.type == DatasetType.SCALABEL:
-                register_scalabel_instances(
-                    dataset.name,
-                    dataset.annotations,
-                    dataset.data_root,
-                    dataset.ignore,
-                    dataset.name_mapping,
-                )
-            else:
-                raise NotImplementedError(
-                    f"Dataset type {dataset.type} currently not supported."
-                ) from e
+        except KeyError:
+            register_dataset_instances(
+                dataset.type,
+                dataset.name,
+                dataset.annotations,
+                dataset.data_root,
+                dataset.ignore,
+                dataset.name_mapping,
+            )
             continue
         logger = logging.getLogger(__name__)
         logger.info(

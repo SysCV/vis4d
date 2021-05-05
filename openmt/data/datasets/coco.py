@@ -1,45 +1,45 @@
 """Video dataset loader for coco format."""
+import json
 import logging
+import os
 from typing import Dict, List, Optional
 
-# from scalabel.label.from_coco import coco_to_scalabel
-from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
+from fvcore.common.timer import Timer
+from scalabel.label.from_coco import coco_to_scalabel
 from scalabel.label.typing import Frame
+
+from .scalabel import prepare_scalabel_frames
 
 logger = logging.getLogger(__name__)
 
 
-def convert_and_load(
+def convert_and_load_coco(
     json_path: str,
     image_root: str,
     dataset_name: Optional[str] = None,
     ignore_categories: Optional[List[str]] = None,
     name_mapping: Optional[Dict[str, str]] = None,
+    prepare_frames: bool = True,
 ) -> List[Frame]:
-    """Convert coco annotations to scalabel format and load them."""
-    raise NotImplementedError("Not supported yet")
-
-
-def register_coco_instances(
-    json_path: str,
-    image_root: str,
-    name: Optional[str] = None,
-    ignore: Optional[List[str]] = None,
-    name_mapping: Optional[Dict[str, str]] = None,
-) -> None:  # pragma: no cover
-    """Conver a coco format dataset to scalabel format and register it."""
-    # 1. register a function which returns List[Frame]
-    DatasetCatalog.register(
-        name,
-        lambda: convert_and_load(
-            json_path,
-            image_root,
-            name,
-            ignore,
-            name_mapping,
-        ),
+    """Convert COCO annotations to scalabel format and prepare them."""
+    if not os.path.exists(json_path) or not os.path.isfile(json_path):
+        raise FileNotFoundError(f"COCO json file not found: {json_path}")
+    timer = Timer()
+    coco_anns = json.load(open(json_path, "r"))
+    logger.info(
+        "Loading %s in COCO format takes %s seconds.",
+        dataset_name,
+        "{:.2f}".format(timer.seconds()),
     )
-
-    # 2. Optionally, add metadata about this dataset,
-    # since they might be useful in evaluation, visualization or logging
-    MetadataCatalog.get(name).set(json_path=json_path, image_root=image_root)
+    timer.reset()
+    frames, _ = coco_to_scalabel(coco_anns)
+    logger.info(
+        "Converting %s to Scalabel format takes %s seconds.",
+        dataset_name,
+        "{:.2f}".format(timer.seconds()),
+    )
+    if prepare_frames:
+        prepare_scalabel_frames(
+            frames, image_root, dataset_name, ignore_categories, name_mapping
+        )
+    return frames

@@ -19,6 +19,7 @@ line_length = 79
             'raise ValueError',
             'raise ImportError',
             'raise AttributeError',
+            'raise FileNotFoundError',
 
             # Don't complain about pydantic validators
             '@validator'

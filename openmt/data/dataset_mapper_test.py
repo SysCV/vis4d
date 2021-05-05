@@ -28,6 +28,7 @@ class TestDatasetMapper(unittest.TestCase):
         mapper = MapDataset(cfg, True, DatasetFromList(data_dict), lambda x: x)
 
         idcs = mapper.sample_ref_idcs(str(0), 50)
+        print(idcs)
         self.assertTrue(idcs == [52, 54])
 
         idcs = mapper.sample_ref_idcs(str(0), 196)

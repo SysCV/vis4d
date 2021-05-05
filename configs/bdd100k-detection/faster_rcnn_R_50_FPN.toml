@@ -17,8 +17,8 @@ eval_metrics = ['detect']
 
 [[train]]
 name = "bdd100k_sample_train"
-type = "scalabel"
-annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
+type = "coco"
+annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation_coco.json"
 data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
 ignore = ["other person", "other vehicle", "trailer"]
 name_mapping = {"bike" = "bicycle", "caravan" = "car", "motor" = "motorcycle", "person" = "pedestrian", "van" = "car"}

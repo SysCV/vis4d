@@ -1,4 +1,4 @@
-"""Faster R-CNN for quasi-dense instance similarity learning."""
+"""Wrapper for training / testing detectors in openMT."""
 from typing import List
 
 from openmt.model.detect import BaseDetectorConfig, build_detector

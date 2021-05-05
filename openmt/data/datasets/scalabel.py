@@ -6,7 +6,7 @@ from collections import defaultdict
 from multiprocessing import cpu_count
 from typing import Dict, List, Optional, Union
 
-from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
+from detectron2.data.catalog import MetadataCatalog
 from detectron2.utils.comm import get_world_size
 from fvcore.common.timer import Timer
 from scalabel.label.io import load
@@ -36,17 +36,38 @@ def load_json(
     dataset_name: Optional[str] = None,
     ignore_categories: Optional[List[str]] = None,
     name_mapping: Optional[Dict[str, str]] = None,
+    prepare_frames: bool = True,
 ) -> List[Frame]:
-    """Load Scalabel frames from json."""
+    """Load Scalabel frames from json and prepare them for openMT training."""
+    frames = load_frames(json_path, dataset_name)
+    if prepare_frames:
+        prepare_scalabel_frames(
+            frames, image_root, dataset_name, ignore_categories, name_mapping
+        )
+    return frames
+
+
+def load_frames(json_path: str, dataset_name: Optional[str]) -> List[Frame]:
+    """Load frames in scalabel format from json."""
     timer = Timer()
-    frames = load(json_path, nprocs=max(8, cpu_count() // get_world_size()))
+    frames = load(json_path, nprocs=min(8, cpu_count() // get_world_size()))
     logger.info(
         "Loading %s takes %s seconds.",
         dataset_name,
         "{:.2f}".format(timer.seconds()),
     )
-    timer.reset()
+    return frames
 
+
+def prepare_scalabel_frames(
+    frames: List[Frame],
+    image_root: str,
+    dataset_name: Optional[str] = None,
+    ignore_categories: Optional[List[str]] = None,
+    name_mapping: Optional[Dict[str, str]] = None,
+) -> List[Frame]:
+    """Prepare scalabel frames for openMT model training."""
+    timer = Timer()
     cat_ids = []  # type: List[str]
     ins_ids = defaultdict(list)  # type: Dict[str, List[str]]
     frequencies = {cat: 0 for cat in cat_ids}
@@ -103,31 +124,11 @@ def load_json(
         "{:.2f}".format(timer.seconds()),
     )
 
-    if dataset_name is not None:  # pragma: no cover
+    if dataset_name is not None:
         meta = MetadataCatalog.get(dataset_name)
         if meta.get("thing_classes") is None:
             meta.thing_classes = cat_ids
             meta.idx_to_class_mapping = dict(enumerate(cat_ids))
             meta.class_frequencies = frequencies
 
-    logger.info("Dataset preparation of %s successful.", dataset_name)
     return frames
-
-
-def register_scalabel_instances(
-    name: str,
-    json_path: str,
-    image_root: str,
-    ignore: Optional[List[str]] = None,
-    name_mapping: Optional[Dict[str, str]] = None,
-) -> None:
-    """Register a dataset in scalabel annotation format."""
-    # 1. register a function which returns List[Frame]
-    DatasetCatalog.register(
-        name,
-        lambda: load_json(json_path, image_root, name, ignore, name_mapping),
-    )
-
-    # 2. Optionally, add metadata about this dataset,
-    # since they might be useful in evaluation, visualization or logging
-    MetadataCatalog.get(name).set(json_path=json_path, image_root=image_root)
