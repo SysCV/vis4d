@@ -16,6 +16,7 @@ from openmt.common.io import build_data_backend
 from openmt.config import DataloaderConfig, ReferenceSamplingConfig
 from openmt.struct import Boxes2D, Images, InputSample
 
+from .transforms import build_augmentations
 from .utils import dicts_to_boxes2d, im_decode, label_to_dict
 
 __all__ = ["DatasetMapper", "MapDataset"]
@@ -155,7 +156,11 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
     ) -> None:
         """Init."""
         # pylint: disable=missing-kwoa,too-many-function-args
-        super().__init__(det2cfg, is_train)
+        if is_train:
+            augs = build_augmentations(loader_cfg.train_augmentations)
+        else:
+            augs = build_augmentations(loader_cfg.test_augmentations)
+        super().__init__(det2cfg, is_train, augmentations=augs)
         self.data_backend = build_data_backend(loader_cfg.data_backend)
 
     def load_image(
@@ -188,7 +193,8 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         # torch.Tensor.
         image_processed = Images(
             torch.as_tensor(
-                np.ascontiguousarray(image.transpose(2, 0, 1))
+                np.ascontiguousarray(image.transpose(2, 0, 1)),
+                dtype=torch.float32,
             ).unsqueeze(0),
             [(image.shape[1], image.shape[0])],
         )

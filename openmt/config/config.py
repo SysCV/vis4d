@@ -4,7 +4,7 @@ import sys
 from argparse import Namespace
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, no_type_check
+from typing import Any, Dict, List, Optional, Tuple, Union, no_type_check
 
 import toml
 import yaml
@@ -31,6 +31,13 @@ class ReferenceSamplingConfig(BaseModel):
         return value
 
 
+class Augmentation(BaseModel):
+    """Data augmentation instance config."""
+
+    type: str
+    kwargs: Dict[str, Union[bool, float, str, Tuple[int, int]]]
+
+
 class DataloaderConfig(BaseModel):
     """Config for dataloader."""
 
@@ -39,8 +46,8 @@ class DataloaderConfig(BaseModel):
     inference_sampling: str = "sample_based"
     categories: Optional[List[str]] = None
     remove_samples_without_labels: bool = False
-    train_max_size: Optional[int] = None
-    test_max_size: Optional[int] = None
+    train_augmentations: Optional[List[Augmentation]] = None
+    test_augmentations: Optional[List[Augmentation]] = None
     ref_sampling_cfg: ReferenceSamplingConfig
 
     @validator("inference_sampling", check_fields=False)

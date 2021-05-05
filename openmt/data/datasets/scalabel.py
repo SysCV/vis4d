@@ -39,7 +39,7 @@ def load_json(
 ) -> List[Frame]:
     """Load Scalabel frames from json."""
     timer = Timer()
-    frames = load(json_path, nprocs=cpu_count() // get_world_size())
+    frames = load(json_path, nprocs=max(8, cpu_count() // get_world_size()))
     logger.info(
         "Loading %s takes %s seconds.",
         dataset_name,
