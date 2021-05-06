@@ -73,10 +73,13 @@ def get_dataset_dicts(  # type: ignore
             )
             # get intersection of classes among all datasets
             discard_set = [
-                cat for cat in all_categories if cat not in all_categories
+                cat for cat in all_categories if cat not in categories
             ]
             # log classes and discarded ones
-            logger.info("Discarding the following categories: %s", discard_set)
+            if len(discard_set) > 0:
+                logger.info(
+                    "Discarding the following categories: %s", discard_set
+                )
             assert (
                 len(categories) > 0
             ), f"Classes of datasets {names} have no intersection!"

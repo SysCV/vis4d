@@ -30,8 +30,8 @@ def check_ignore(label: Label, ignore_categories: Optional[List[str]]) -> bool:
     return ignore
 
 
-def load_json(
-    json_path: str,
+def load_scalabel(
+    annotation_path: str,
     image_root: str,
     dataset_name: Optional[str] = None,
     ignore_categories: Optional[List[str]] = None,
@@ -39,7 +39,7 @@ def load_json(
     prepare_frames: bool = True,
 ) -> List[Frame]:
     """Load Scalabel frames from json and prepare them for openMT training."""
-    frames = load_frames(json_path, dataset_name)
+    frames = load_frames(annotation_path, dataset_name)
     if prepare_frames:
         prepare_scalabel_frames(
             frames, image_root, dataset_name, ignore_categories, name_mapping

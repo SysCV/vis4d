@@ -5,7 +5,7 @@ keyframe_selection = "random"
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
     model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111}
-    num_classes = 8
+    num_classes = 1
 
     [model.track_graph]
     type = "QDTrackGraph"
@@ -52,7 +52,7 @@ keyframe_selection = "random"
         allow_low_quality_matches = false
 
 [solver]
-images_per_gpu = 2
+images_per_gpu = 1
 lr_policy = "WarmupMultiStepLR"
 base_lr = 0.02
 steps = [1000, 2000]
@@ -63,34 +63,28 @@ eval_period = 50
 eval_metrics = ['track']
 
 [[train]]
-name = "bdd100k_track_sample_train"
-type = "scalabel"
-annotations = "openmt/engine/testcases/track/bdd100k-samples/labels/"
-data_root = "openmt/engine/testcases/track/bdd100k-samples/images/"
-ignore = ["other person", "other vehicle", "trailer"]
-name_mapping = {"bike" = "bicycle", "caravan" = "car", "motor" = "motorcycle", "person" = "pedestrian", "van" = "car"}
-
-[[train]]
-name = "bdd100k_det_sample_train"
-type = "scalabel"
-annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
-data_root = "openmt/engine/testcases/detect/bdd100k-samples/images/"
-ignore = ["other person", "other vehicle", "trailer"]
-name_mapping = {"bike" = "bicycle", "caravan" = "car", "motor" = "motorcycle", "person" = "pedestrian", "van" = "car"}
+name = "motchallenge_sample_train"
+type = "motchallenge"
+annotations = "data/MOT16"
+data_root = "data/MOT16"
+ignore = ["person on vehicle", "static person", "distractor", "reflection", "ignore"]
+name_mapping = {"1" = "pedestrian", "2" = "person on vehicle", "7" = "static person", "8" = "distractor", "12" = "reflection", "13" = "ignore"}
 
 [[test]]
-name = "bdd100k_sample_val"
-type = "scalabel"
-annotations = "openmt/engine/testcases/track/bdd100k-samples/labels/"
-data_root = "openmt/engine/testcases/track/bdd100k-samples/images/"
+name = "motchallenge_sample_val"
+type = "motchallenge"
+annotations = "data/MOT16"
+data_root = "data/MOT16"
+ignore = ["person on vehicle", "static person", "distractor", "reflection", "ignore"]
+name_mapping = {"1" = "pedestrian", "2" = "person on vehicle", "7" = "static person", "8" = "distractor", "12" = "reflection", "13" = "ignore"}
 
 [dataloader]
 workers_per_gpu = 0
-categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
+categories = ["pedestrian"]
 remove_samples_without_labels = true
 inference_sampling = "sequence_based"
     [dataloader.data_backend]
-    type = "HDF5Backend"
+    type = "FileBackend"
     [dataloader.ref_sampling_cfg]
     type = 'uniform'
     scope = 2
@@ -98,7 +92,7 @@ inference_sampling = "sequence_based"
 
     [[dataloader.train_augmentations]]
     type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
+    kwargs = {"shape" = [1080, 1920]}
 
     [[dataloader.train_augmentations]]
     type = "RandomFlip"
@@ -106,7 +100,7 @@ inference_sampling = "sequence_based"
 
     [[dataloader.test_augmentations]]
     type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
+    kwargs = {"shape" = [1080, 1920]}
 
 [launch]
 weights = "detectron2"

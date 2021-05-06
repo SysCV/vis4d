@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def convert_and_load_coco(
-    json_path: str,
+    annotation_path: str,
     image_root: str,
     dataset_name: Optional[str] = None,
     ignore_categories: Optional[List[str]] = None,
@@ -22,10 +22,12 @@ def convert_and_load_coco(
     prepare_frames: bool = True,
 ) -> List[Frame]:
     """Convert COCO annotations to scalabel format and prepare them."""
-    if not os.path.exists(json_path) or not os.path.isfile(json_path):
-        raise FileNotFoundError(f"COCO json file not found: {json_path}")
+    if not os.path.exists(annotation_path) or not os.path.isfile(
+        annotation_path
+    ):
+        raise FileNotFoundError(f"COCO json file not found: {annotation_path}")
     timer = Timer()
-    coco_anns = json.load(open(json_path, "r"))
+    coco_anns = json.load(open(annotation_path, "r"))
     logger.info(
         "Loading %s in COCO format takes %s seconds.",
         dataset_name,

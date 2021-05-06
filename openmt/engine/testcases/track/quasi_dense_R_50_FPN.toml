@@ -4,6 +4,7 @@ keyframe_selection = "random"
     [model.detection]
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
+    model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111}
     num_classes = 8
 
     [model.track_graph]

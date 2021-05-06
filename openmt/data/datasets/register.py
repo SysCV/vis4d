@@ -9,7 +9,7 @@ from openmt.config import DatasetType
 
 from .coco import convert_and_load_coco
 from .mot_challenge import convert_and_load_motchallenge
-from .scalabel import load_json
+from .scalabel import load_scalabel
 
 
 def register_dataset_instances(
@@ -22,10 +22,10 @@ def register_dataset_instances(
 ) -> None:
     """Register a dataset in scalabel annotation format."""
     if dataset_type == DatasetType.SCALABEL:
-        load_func = load_json
+        load_func = load_scalabel
     elif dataset_type == DatasetType.COCO:
         load_func = convert_and_load_coco
-    elif DatasetType.MOTCHALLENGE:
+    elif dataset_type == DatasetType.MOTCHALLENGE:
         load_func = convert_and_load_motchallenge
     else:
         raise NotImplementedError(
