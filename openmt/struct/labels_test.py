@@ -20,7 +20,7 @@ class TestAnnotationStructures(unittest.TestCase):
 
         detections_new = Boxes2D.from_scalabel(scalabel_dets, class_to_idx)
 
-        scalabel_dets[0].box_2d = None
+        scalabel_dets[0].box2d = None
         dets_with_none = Boxes2D.from_scalabel(scalabel_dets, class_to_idx)
         self.assertTrue(
             torch.isclose(

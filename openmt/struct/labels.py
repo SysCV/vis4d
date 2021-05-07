@@ -168,7 +168,7 @@ class Boxes2D(LabelInstance):
         has_class_ids = all((b.category is not None for b in labels))
         for i, label in enumerate(labels):
             box, score, box_cls, l_id = (
-                label.box_2d,
+                label.box2d,
                 label.score,
                 label.category,
                 label.id,
@@ -204,7 +204,7 @@ class Boxes2D(LabelInstance):
             )
 
             score = float(self.boxes[i, 4])
-            label_dict = dict(id=label_id, box_2d=box, score=score)
+            label_dict = dict(id=label_id, box2d=box, score=score)
 
             cls = idx_to_class[int(self.class_ids[i])]
             label_dict["category"] = cls

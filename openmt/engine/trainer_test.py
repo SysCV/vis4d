@@ -26,9 +26,9 @@ class TestTrack(TrackTest):
             "train",
             "motorcycle",
             "bicycle",
-            "HUMAN",
-            "VEHICLE",
-            "BIKE",
+            "human",
+            "vehicle",
+            "bike",
             "OVERALL",
         ]
         for k in results:

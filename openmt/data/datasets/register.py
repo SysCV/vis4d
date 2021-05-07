@@ -42,4 +42,9 @@ def register_dataset_instances(
 
     # 2. Optionally, add metadata about this dataset,
     # since they might be useful in evaluation, visualization or logging
-    MetadataCatalog.get(name).set(json_path=json_path, image_root=image_root)
+    MetadataCatalog.get(name).set(
+        json_path=json_path,
+        image_root=image_root,
+        ignore_classes=ignore,
+        name_mapping=name_mapping,
+    )
