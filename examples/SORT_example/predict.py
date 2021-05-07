@@ -1,13 +1,15 @@
 """Example for dynamic api usage with SORT."""
-from openmt.model import BaseModelConfig
-from openmt import config
-from openmt.engine import predict
-from openmt.data import DataloaderConfig as Dataloader
-
-# import the SORT components
+# import the SORT components, needs to be imported to be registered
 from sort_graph import SORTTrackGraph
 from sort_model import SORT
 
+from openmt import config
+from openmt.config import DataloaderConfig as Dataloader
+from openmt.engine import predict
+from openmt.model import BaseModelConfig
+
+# Disable pylint for this file due to high overlap with detector example
+# pylint: skip-file
 if __name__ == "__main__":
     print("hi")
     sort_detector_cfg = dict(  # TODO load pretrained weights

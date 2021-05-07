@@ -3,11 +3,11 @@ from typing import List, Optional
 
 import torch
 import torchvision.models.detection.retinanet as retinanet  # type: ignore
-
 from detectron2.engine import launch
+
 from openmt import config
+from openmt.config import DataloaderConfig as Dataloader
 from openmt.engine import train
-from openmt.data import DataloaderConfig as Dataloader
 from openmt.model.detect import BaseDetector, BaseDetectorConfig
 from openmt.struct import Boxes2D, DetectionOutput, Images, InputSample
 
@@ -37,9 +37,9 @@ class MyDetector(BaseDetector):
         raise NotImplementedError
 
     def forward(
-            self,
-            inputs: List[InputSample],
-            targets: Optional[List[Boxes2D]] = None,
+        self,
+        inputs: List[InputSample],
+        targets: Optional[List[Boxes2D]] = None,
     ) -> DetectionOutput:
         """Detector forward function.
 
@@ -62,7 +62,7 @@ if __name__ == "__main__":
             lr_policy="WarmupMultiStepLR",
             base_lr=0.001,
             max_iters=100,
-            eval_metrics=['detect']
+            eval_metrics=["detect"],
         ),
         dataloader=Dataloader(
             workers_per_gpu=0,
@@ -73,9 +73,9 @@ if __name__ == "__main__":
                 name="bdd100k_sample_train",
                 type="scalabel",
                 annotations="openmt/engine/testcases/detect/bdd100k-samples/"
-                            "annotation.json",
+                "annotation.json",
                 data_root="openmt/engine/testcases/detect/bdd100k-samples/"
-                          "images",
+                "images",
             )
         ],
         test=[
@@ -83,9 +83,9 @@ if __name__ == "__main__":
                 name="bdd100k_sample_val",
                 type="scalabel",
                 annotations="openmt/engine/testcases/detect/bdd100k-samples/"
-                            "annotation.json",
+                "annotation.json",
                 data_root="openmt/engine/testcases/detect/bdd100k-samples/"
-                          "images",
+                "images",
             )
         ],
     )
@@ -95,11 +95,11 @@ if __name__ == "__main__":
     train(conf)
 
     # single GPU
-    conf.launch = config.Launch(device='cuda')
+    conf.launch = config.Launch(device="cuda")
     train(conf)
 
     # multi GPU
-    conf.launch = config.Launch(device='cuda', num_gpus=2)
+    conf.launch = config.Launch(device="cuda", num_gpus=2)
     launch(
         train,
         conf.launch.num_gpus,

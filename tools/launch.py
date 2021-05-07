@@ -15,9 +15,7 @@ if __name__ == "__main__":
     elif args.action == "predict":
         main_func = predict
     else:
-        raise NotImplementedError(
-            f"Detect action {args.action} not " f"implemented!"
-        )
+        raise NotImplementedError(f"Action {args.action} not implemented!")
     launch(
         main_func,
         cfg.launch.num_gpus,

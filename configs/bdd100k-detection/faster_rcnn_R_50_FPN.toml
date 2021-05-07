@@ -20,6 +20,8 @@ name = "bdd100k_sample_train"
 type = "scalabel"
 annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
+ignore = ["other person", "other vehicle", "trailer"]
+name_mapping = {"bike" = "bicycle", "caravan" = "car", "motor" = "motorcycle", "person" = "pedestrian", "van" = "car"}
 
 [[test]]
 name = "bdd100k_sample_val"
@@ -29,14 +31,25 @@ data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
 
 [dataloader]
 workers_per_gpu = 0
-train_max_size = 1280
-test_max_size = 1280
+categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle", "traffic light", "traffic sign"]
     [dataloader.data_backend]
     type = "HDF5Backend"
     [dataloader.ref_sampling_cfg]
     type = 'uniform'
     scope = 1
     num_ref_imgs = 0
+
+    [[dataloader.train_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}
+
+    [[dataloader.train_augmentations]]
+    type = "RandomFlip"
+    kwargs = {"prob" = 0.5}
+
+    [[dataloader.test_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}
 
 [launch]
 weights = "detectron2"

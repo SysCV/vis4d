@@ -4,14 +4,62 @@ import sys
 from argparse import Namespace
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, no_type_check
+from typing import Any, Dict, List, Optional, Tuple, Union, no_type_check
 
 import toml
 import yaml
 from pydantic import BaseModel, validator
 
-from openmt.data import DataloaderConfig as Dataloader
+from openmt.common.io import DataBackendConfig
 from openmt.model import BaseModelConfig
+
+
+class ReferenceSamplingConfig(BaseModel):
+    """Config for customizing the sampling for reference views."""
+
+    type: str = "uniform"
+    num_ref_imgs: int
+    scope: int
+
+    @validator("scope")
+    def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long
+        cls, value: int, values
+    ) -> int:
+        """Check scope attribute."""
+        if not value > values["num_ref_imgs"] // 2:
+            raise ValueError("Scope must be higher than num_ref_imgs / 2.")
+        return value
+
+
+class Augmentation(BaseModel):
+    """Data augmentation instance config."""
+
+    type: str
+    kwargs: Dict[str, Union[bool, float, str, Tuple[int, int]]]
+
+
+class DataloaderConfig(BaseModel):
+    """Config for dataloader."""
+
+    data_backend: DataBackendConfig = DataBackendConfig()
+    workers_per_gpu: int
+    inference_sampling: str = "sample_based"
+    categories: Optional[List[str]] = None
+    remove_samples_without_labels: bool = False
+    train_augmentations: Optional[List[Augmentation]] = None
+    test_augmentations: Optional[List[Augmentation]] = None
+    ref_sampling_cfg: ReferenceSamplingConfig
+
+    @validator("inference_sampling", check_fields=False)
+    def validate_inference_sampling(  # pylint: disable=no-self-argument,no-self-use,line-too-long
+        cls, value: str
+    ) -> str:
+        """Check inference_sampling attribute."""
+        if value not in ["sample_based", "sequence_based"]:
+            raise ValueError(
+                "inference_sampling must be sample_based or sequence_based"
+            )
+        return value
 
 
 class Solver(BaseModel):
@@ -48,6 +96,8 @@ class Dataset(BaseModel):
     type: DatasetType
     data_root: str
     annotations: str
+    ignore: Optional[List[str]] = None
+    name_mapping: Optional[Dict[str, str]] = None
 
 
 class Launch(BaseModel):
@@ -92,7 +142,7 @@ class Config(BaseModel):
 
     model: BaseModelConfig
     solver: Solver
-    dataloader: Dataloader
+    dataloader: DataloaderConfig
     train: Optional[List[Dataset]]
     test: Optional[List[Dataset]]
     output_dir: Optional[str]

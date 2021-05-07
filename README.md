@@ -4,7 +4,7 @@ A perception system of tracking and motion understanding.
 
 ## Installation
 
-We currently support Python 3.7 and 3.8.
+We currently support Python 3.7, 3.8 and 3.9.
 
 You can install the package dependency via vanilla python and pip:
 

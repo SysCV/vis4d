@@ -6,6 +6,7 @@ import logging
 import os
 import time
 from contextlib import ExitStack, contextmanager
+from multiprocessing import cpu_count
 from typing import Callable, Dict, Generator, List, Optional
 
 import detectron2.utils.comm as comm
@@ -13,11 +14,11 @@ import torch
 from bdd100k.common.utils import DEFAULT_COCO_CONFIG
 from bdd100k.eval.detect import evaluate_det
 from bdd100k.eval.mot import acc_single_video_mot, evaluate_track
-from detectron2.data import DatasetCatalog, MetadataCatalog
+from detectron2.data import MetadataCatalog
 from detectron2.evaluation import DatasetEvaluator, DatasetEvaluators
 from detectron2.utils.comm import get_world_size
 from detectron2.utils.logger import log_every_n_seconds
-from scalabel.label.io import group_and_sort, save
+from scalabel.label.io import group_and_sort, load, save
 from scalabel.label.typing import Frame
 
 from openmt.struct import Boxes2D, EvalResult, EvalResults, InputSample
@@ -168,8 +169,10 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
         self._distributed = distributed
         self._output_dir = output_dir
         self._metadata = MetadataCatalog.get(dataset_name)
-
-        self.gts = DatasetCatalog.get(dataset_name)
+        self.gts = load(
+            self._metadata.json_path,
+            nprocs=max(8, cpu_count() // get_world_size()),
+        )
         self._predictions = []  # type: List[Frame]
 
     def reset(self) -> None:

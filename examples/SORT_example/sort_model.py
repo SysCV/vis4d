@@ -1,13 +1,15 @@
+"""SORT model definition."""
 from typing import List
 
 from openmt.model import BaseModel, BaseModelConfig
-from openmt.struct import Boxes2D, InputSample, LossesType
 from openmt.model.detect import BaseDetectorConfig, build_detector
 from openmt.model.track.graph import TrackGraphConfig, build_track_graph
+from openmt.struct import Boxes2D, InputSample, LossesType
 
 
 class SORTConfig(BaseModelConfig, extra="allow"):
     """SORT config."""
+
     detection: BaseDetectorConfig
     track_graph: TrackGraphConfig
 
@@ -59,4 +61,3 @@ class SORT(BaseModel):
         ori_wh = tuple(batch_inputs[0].metadata.size)  # type: ignore
         self.postprocess(ori_wh, image.image_sizes[0], detections)  # type: ignore # pylint: disable=line-too-long
         return [detections]
-

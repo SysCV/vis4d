@@ -6,10 +6,10 @@ from detectron2.config import get_cfg
 from detectron2.data import DatasetFromList
 from scalabel.label.typing import Frame
 
-from openmt.common.io import DataBackendConfig
+from openmt.config import DataloaderConfig, ReferenceSamplingConfig
 from openmt.struct import Images, InputSample
 
-from .dataset_mapper import DatasetMapper, MapDataset, ReferenceSamplingConfig
+from .dataset_mapper import DatasetMapper, MapDataset
 
 
 class TestDatasetMapper(unittest.TestCase):
@@ -51,7 +51,11 @@ class TestDatasetMapper(unittest.TestCase):
     def test_transform_annotations(self) -> None:
         """Test the transform annotations method in TrackingDatasetMapper."""
         cfg = get_cfg()
-        ds_mapper = DatasetMapper(DataBackendConfig(), cfg)
+        loader_cfg = DataloaderConfig(
+            workers_per_gpu=0,
+            ref_sampling_cfg=ReferenceSamplingConfig(num_ref_imgs=1, scope=1),
+        )
+        ds_mapper = DatasetMapper(loader_cfg, cfg)
         input_dict = InputSample(
             Frame(name="0"),
             Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),

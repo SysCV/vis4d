@@ -39,6 +39,7 @@ setuptools.setup(
         "scalabel",
         "torch",
         "torchvision",
-        "tqdm"
+        "tqdm",
+        "devtools"
     ],
 )
