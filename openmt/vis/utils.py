@@ -38,16 +38,22 @@ COLOR_PALETTE = generate_colors(NUM_COLORS)
 
 def preprocess_boxes(
     boxes: BoxType, color_idx: int = 0
-) -> Tuple[List[Tuple[float]], List[Tuple[int]], List[float]]:
+) -> Tuple[List[Tuple[float]], List[Tuple[int]], List[float], List[int]]:
     """Preprocess BoxType to boxes / colors for drawing."""
     if isinstance(boxes, list):
-        result_box, result_color, result_score = [], [], []
+        result_box, result_color, result_score, result_trackid = (
+            [],
+            [],
+            [],
+            [],
+        )
         for i, b in enumerate(boxes):
-            res_box, res_color, res_score = preprocess_boxes(b, i)
+            res_box, res_color, res_score, res_trackid = preprocess_boxes(b, i)
             result_box.extend(res_box)
             result_color.extend(res_color)
             result_score.extend(res_score)
-        return result_box, result_color, result_score
+            result_trackid.extend(res_trackid)
+        return result_box, result_color, result_score, result_trackid
 
     assert isinstance(boxes, Boxes2D)
 
@@ -59,13 +65,15 @@ def preprocess_boxes(
         if len(track_ids.shape) > 1:
             track_ids = track_ids.squeeze(-1)
         draw_colors = [COLOR_PALETTE[t % NUM_COLORS] for t in track_ids]
+        track_ids = track_ids.tolist()
     else:
+        track_ids = [None] * len(boxes_list)
         draw_colors = [
             COLOR_PALETTE[color_idx % NUM_COLORS]
             for _ in range(len(boxes_list))
         ]
 
-    return boxes_list, draw_colors, scores
+    return boxes_list, draw_colors, scores, track_ids
 
 
 def preprocess_image(input_img: ImageType) -> Image.Image:

@@ -31,11 +31,23 @@ if __name__ == "__main__":
             lr_policy="WarmupMultiStepLR",
             base_lr=0.001,
             max_iters=100,
-            eval_metrics=["detect"],
+            eval_metrics=["detect", "track"],
         ),
         dataloader=Dataloader(
             workers_per_gpu=0,
             ref_sampling_cfg=dict(type="uniform", scope=1, num_ref_imgs=0),
+            categories=[
+                "pedestrian",
+                "rider",
+                "car",
+                "truck",
+                "bus",
+                "train",
+                "motorcycle",
+                "bicycle",
+            ],
+            remove_samples_without_labels=True,
+            inference_sampling="sequence_based",
         ),
         train=[
             config.Dataset(
@@ -44,6 +56,14 @@ if __name__ == "__main__":
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 "labels",
                 data_root="openmt/track/track/bdd100k-samples/images/",
+                ignore=["other person", "other vehicle", "trailer"],
+                name_mapping={
+                    "bike": "bicycle",
+                    "caravan": "car",
+                    "motor": "motorcycle",
+                    "person": "pedestrian",
+                    "van": "car",
+                },
             )
         ],
         test=[
@@ -60,6 +80,9 @@ if __name__ == "__main__":
 
     # choose according to setup
     # CPU
+    conf.launch = config.Launch(
+        weights="/home/daniel/Desktop/RT MOT/systm/weight/model_0000199.pth"
+    )
     predict(conf)
 
     # single GPU

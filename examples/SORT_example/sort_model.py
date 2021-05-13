@@ -54,9 +54,24 @@ class SORT(BaseModel):
 
         # detector
         image, _, _, detections, _ = self.detector(batch_inputs)
+        detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
+        from openmt.vis.image import imshow_bboxes
 
+        imshow_bboxes(
+            image.tensor[0],
+            detections,
+            frame_id,
+            "/home/daniel/Desktop/hybrid10/",
+        )
         # associate detections, update graph
         detections = self.track_graph(detections[0], frame_id)
+
+        imshow_bboxes(
+            image.tensor[0],
+            detections,
+            frame_id,
+            "/home/daniel/Desktop/hybrid10/",
+        )
 
         ori_wh = tuple(batch_inputs[0].metadata.size)  # type: ignore
         self.postprocess(ori_wh, image.image_sizes[0], detections)  # type: ignore # pylint: disable=line-too-long
