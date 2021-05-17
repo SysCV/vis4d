@@ -14,7 +14,7 @@ setuptools
 tqdm
 wheel
 h5py
-git+git://github.com/scalabel/scalabel.git
+#git+git://github.com/scalabel/scalabel.git
 torch
 torchaudio
 torchvision
