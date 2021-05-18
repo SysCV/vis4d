@@ -1,7 +1,7 @@
 #!/bin/bash
 eval "$(conda shell.bash hook)"
-conda create --name openmt python=3.8
-conda activate openmt
+conda create --name openmt_tt python=3.8
+conda activate openmt_tt
 python3 -m pip install --ignore-installed  -r requirements.txt
 conda install pytorch torchvision torchaudio cpuonly -c pytorch
 # python -m pip install detectron2 -f \

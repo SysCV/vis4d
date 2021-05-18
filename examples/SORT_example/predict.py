@@ -72,8 +72,10 @@ if __name__ == "__main__":
                 type="scalabel",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 "labels",
+                # annotations="data/bdd100k/labels/box_track_20/val/",
                 data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 "images/",
+                # data_root="data/bdd100k/images/track/val/",
             )
         ],
     )

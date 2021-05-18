@@ -14,6 +14,7 @@ from detectron2.structures import Boxes, pairwise_iou
 class SORTTrackGraphConfig(TrackGraphConfig):
     """SORT graph config."""
 
+    keep_in_memory: int = 1  # threshold for keeping occluded objects in memory
     max_IOU_distance: float = 0.7
 
 
@@ -97,6 +98,9 @@ class SORTTrackGraph(BaseTrackGraph):
         self, detections: Boxes2D, frame_id: int
     ) -> Boxes2D:
         """Process inputs, match detections with existing tracks."""
+        if len(detections) == 0:
+            result, _, _ = self.get_tracks(frame_id)
+            return result
         print("#" * 100)
         print("A new frame:   frame = ", frame_id)
         print("#" * 100)
@@ -124,7 +128,7 @@ class SORTTrackGraph(BaseTrackGraph):
             kalman_state[i], tracks_cov[i] = self.kf.predict(
                 kalman_state[i], tracks_cov[i]
             )
-        # tracks_bboxes = xyah_to_xyxy(kalman_state[:, :4])
+        tracks_bboxes = xyah_to_xyxy(kalman_state[:, :4])
         tracks_vel = kalman_state[:, 4:]
 
         updated_tracks_vels = dict()

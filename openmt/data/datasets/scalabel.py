@@ -105,6 +105,8 @@ def load_json(
 
     if dataset_name is not None:  # pragma: no cover
         meta = MetadataCatalog.get(dataset_name)
+        print("meta: ", meta)
+        print("dataset_name: ", dataset_name)
         if meta.get("thing_classes") is None:
             meta.thing_classes = cat_ids
             meta.idx_to_class_mapping = dict(enumerate(cat_ids))

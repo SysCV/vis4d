@@ -1,10 +1,14 @@
 """SORT model definition."""
-from typing import List
+from typing import List, Dict
 
+from detectron2.data import MetadataCatalog
 from openmt.model import BaseModel, BaseModelConfig
 from openmt.model.detect import BaseDetectorConfig, build_detector
 from openmt.model.track.graph import TrackGraphConfig, build_track_graph
 from openmt.struct import Boxes2D, InputSample, LossesType
+from openmt.vis.image import imshow_bboxes
+import json
+import torch
 
 
 class SORTConfig(BaseModelConfig, extra="allow"):
@@ -23,6 +27,7 @@ class SORT(BaseModel):
         self.cfg = SORTConfig(**cfg.dict())
         self.detector = build_detector(self.cfg.detection)
         self.track_graph = build_track_graph(self.cfg.track_graph)
+        self.search_dict: Dict[str, Dict[int, Boxes2D]] = dict()
 
     def forward_train(
         self, batch_inputs: List[List[InputSample]]
@@ -47,32 +52,98 @@ class SORT(BaseModel):
 
         Returns predictions for each input.
         """
+        # if not self.search_dict:
+        #     self.search_dict = dict()
+        #     given_predictions = json.load(
+        #         open(
+        #             "/home/daniel/Desktop/RT MOT/systm/weight/predictions.json",
+        #             "r",
+        #         )
+        #     )
+
+        #     for prediction in given_predictions:
+        #         video_name = prediction["videoName"]
+        #         frame_index = prediction["frameIndex"]
+        #         if video_name not in self.search_dict:
+        #             self.search_dict[video_name] = dict()
+        #         boxes = torch.empty((0, 5))
+        #         class_ids = torch.empty((0))
+        #         if "labels" not in prediction:
+        #             self.search_dict[video_name][frame_index] = Boxes2D(
+        #                 torch.empty((0, 5))
+        #             )
+        #         else:
+        #             for label in prediction["labels"]:
+        #                 boxes = torch.cat(
+        #                     (
+        #                         boxes,
+        #                         torch.tensor(
+        #                             [
+        #                                 label["box2d"]["x1"],
+        #                                 label["box2d"]["y1"],
+        #                                 label["box2d"]["x2"],
+        #                                 label["box2d"]["y2"],
+        #                                 label["score"],
+        #                             ],
+        #                         ).unsqueeze(0),
+        #                     ),
+        #                     dim=0,
+        #                 )
+        #                 idx_to_class_mapping = MetadataCatalog.get(
+        #                     "bdd100k_sample_val"
+        #                 ).idx_to_class_mapping
+        #                 class_to_idx_mapping = {
+        #                     v: k for k, v in idx_to_class_mapping.items()
+        #                 }
+        #                 class_ids = torch.cat(
+        #                     (
+        #                         class_ids,
+        #                         torch.tensor(
+        #                             [class_to_idx_mapping[label["category"]]]
+        #                         ),
+        #                     )
+        #                 )
+
+        #             self.search_dict[video_name][frame_index] = Boxes2D(
+        #                 boxes, class_ids
+        #             )
+
         frame_id = batch_inputs[0].metadata.frame_index
         # init graph at begin of sequence
         if frame_id == 0:
             self.track_graph.reset()
 
         # detector
-        image, _, _, detections, _ = self.detector(batch_inputs)
-        detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
-        from openmt.vis.image import imshow_bboxes
+        image, _, _, detections, _ = self.detector(
+            batch_inputs
+        )  # detections type: List[Boxes2D]
 
-        imshow_bboxes(
-            image.tensor[0],
-            detections,
-            frame_id,
-            "/home/daniel/Desktop/hybrid10/",
-        )
+        # using given detections
+        # image = batch_inputs[0].image
+        # video_name = batch_inputs[0].metadata.video_name
+        # frame_index = batch_inputs[0].metadata.frame_index
+        # assert video_name in self.search_dict
+        # assert frame_index in self.search_dict[video_name]
+        # detections = [self.search_dict[video_name][frame_index]]
+
+        detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
+        # imshow_bboxes(
+        #     image.tensor[0],
+        #     detections,
+        #     frame_id,
+        #     "/home/daniel/Desktop/hybrid10/",
+        # )
         # associate detections, update graph
         detections = self.track_graph(detections[0], frame_id)
 
-        imshow_bboxes(
-            image.tensor[0],
-            detections,
-            frame_id,
-            "/home/daniel/Desktop/hybrid10/",
-        )
+        # imshow_bboxes(
+        #     image.tensor[0],
+        #     detections,
+        #     frame_id,
+        #     "/home/daniel/Desktop/hybrid10/",
+        # )
 
         ori_wh = tuple(batch_inputs[0].metadata.size)  # type: ignore
         self.postprocess(ori_wh, image.image_sizes[0], detections)  # type: ignore # pylint: disable=line-too-long
+       
         return [detections]
