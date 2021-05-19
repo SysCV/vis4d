@@ -80,8 +80,10 @@ class QDGeneralizedRCNN(BaseModel):
         # for ref_i, ref_inp in enumerate(ref_inputs):
         #     for batch_i, key_inp in enumerate(key_inputs):
         #         imshow_bboxes(key_inp.image.tensor[0], key_targets[batch_i])
-        #         imshow_bboxes(ref_inp[batch_i].image.tensor[0],
-        #                       ref_targets[ref_i][batch_i])
+        #         imshow_bboxes(
+        #             ref_inp[batch_i].image.tensor[0],
+        #             ref_targets[ref_i][batch_i],
+        #         )
 
         _, key_x, key_proposals, _, det_losses = self.detector(
             key_inputs, key_targets
@@ -249,6 +251,9 @@ class QDGeneralizedRCNN(BaseModel):
         # from openmt.vis.image import imshow_bboxes
         # imshow_bboxes(image.tensor[0], detections)
 
-        ori_wh = tuple(batch_inputs[0].metadata.size)  # type: ignore
-        self.postprocess(ori_wh, image.image_sizes[0], detections)  # type: ignore # pylint: disable=line-too-long
+        ori_wh = (
+            batch_inputs[0].metadata.size.width,  # type: ignore
+            batch_inputs[0].metadata.size.height,  # type: ignore
+        )
+        self.postprocess(ori_wh, image.image_sizes[0], detections)
         return [detections]

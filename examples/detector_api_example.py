@@ -84,7 +84,7 @@ if __name__ == "__main__":
                 name="bdd100k_sample_train",
                 type="scalabel",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
-                            "labels",
+                "labels",
                 data_root="openmt/track/track/bdd100k-samples/images/",
                 ignore=["other person", "other vehicle", "trailer"],
                 name_mapping={
@@ -101,9 +101,9 @@ if __name__ == "__main__":
                 name="bdd100k_sample_val",
                 type="scalabel",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
-                            "labels",
+                "labels",
                 data_root="openmt/engine/testcases/track/bdd100k-samples/"
-                          "images/",
+                "images/",
             )
         ],
     )

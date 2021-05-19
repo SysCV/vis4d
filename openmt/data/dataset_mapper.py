@@ -10,7 +10,7 @@ from detectron2.config import CfgNode
 from detectron2.data import transforms as T
 from detectron2.data.common import MapDataset as D2MapDataset
 from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
-from scalabel.label.typing import Frame, Label
+from scalabel.label.typing import Frame, ImageSize, Label
 
 from openmt.common.io import build_data_backend
 from openmt.config import DataloaderConfig, ReferenceSamplingConfig
@@ -157,7 +157,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         assert sample.url is not None
         im_bytes = self.data_backend.get(sample.url)
         image = im_decode(im_bytes)
-        sample.size = [image.shape[1], image.shape[0]]
+        sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
         return image
 
     def transform_image(
@@ -203,7 +203,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         annos = []
         for label in labels:
             assert label.attributes is not None
-            if not label.attributes.get("ignore", False):
+            if not label.attributes.get("crowd", False):
                 anno = label_to_dict(label)
                 d2_utils.transform_instance_annotations(
                     anno,

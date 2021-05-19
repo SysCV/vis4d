@@ -5,13 +5,13 @@ from sort_model import SORT
 
 from openmt import config
 from openmt.config import DataloaderConfig as Dataloader
-from openmt.engine import predict
+from openmt.engine import test
 from openmt.model import BaseModelConfig
 
 # Disable pylint for this file due to high overlap with detector example
 # pylint: skip-file
 if __name__ == "__main__":
-    sort_detector_cfg = dict(  # TODO load pretrained weights
+    sort_detector_cfg = dict(
         type="D2GeneralizedRCNN",
         model_base="faster-rcnn/r50-fpn",
         num_classes=8,
@@ -55,14 +55,8 @@ if __name__ == "__main__":
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 "labels",
                 data_root="openmt/track/track/bdd100k-samples/images/",
-                ignore=["other person", "other vehicle", "trailer"],
-                name_mapping={
-                    "bike": "bicycle",
-                    "caravan": "car",
-                    "motor": "motorcycle",
-                    "person": "pedestrian",
-                    "van": "car",
-                },
+                config_path="openmt/engine/testcases/track/bdd100k-samples/"
+                "config.toml",
             )
         ],
         test=[
@@ -73,14 +67,16 @@ if __name__ == "__main__":
                 "labels",
                 data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 "images/",
+                config_path="openmt/engine/testcases/track/bdd100k-samples/"
+                "config.toml",
             )
         ],
     )
 
-    # choose according to setup
+    # TODO choose according to setup, add pretrained weights if necessary
     # CPU
-    predict(conf)
+    test(conf)
 
     # single GPU
     conf.launch = config.Launch(device="cuda")
-    predict(conf)
+    test(conf)

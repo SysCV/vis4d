@@ -49,7 +49,13 @@ Training
 python3 tools/launch.py train --config <config_path> <maybe other arguments>
 ```
 
-Evaluation
+Testing
+
+```bash
+python3 tools/launch.py test --config <config_path> <maybe other arguments>
+```
+
+Prediction
 
 ```bash
 python3 tools/launch.py predict --config <config_path> <maybe other arguments>

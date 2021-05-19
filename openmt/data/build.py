@@ -57,7 +57,12 @@ def get_dataset_dicts(  # type: ignore
     ]
     dataset_frames = list(itertools.chain.from_iterable(dataset_frames))
 
-    has_instances = hasattr(dataset_frames[0], "labels")
+    has_instances = False
+    for f in dataset_frames:
+        if f.labels is not None:
+            has_instances = True
+            break
+
     if has_instances:
         if categories is not None:
             logger.info(
@@ -105,11 +110,23 @@ def get_dataset_dicts(  # type: ignore
             for c in class_names:
                 if c in meta.class_frequencies:
                     overall_frequencies[c] += meta.class_frequencies[c]
-
         print_class_histogram(overall_frequencies)
 
-    if filter_empty and has_instances:
-        dataset_frames = filter_empty_annotations(dataset_frames)
+        if filter_empty:
+            dataset_frames = filter_empty_annotations(dataset_frames)
+
+    elif categories is not None:
+        metas = [MetadataCatalog.get(d) for d in names]
+        for name, meta in zip(names, metas):
+            MetadataCatalog.pop(name)
+            meta_dict = meta.as_dict()
+            meta_dict.update(
+                dict(
+                    thing_classes=categories,
+                    idx_to_class_mapping=dict(enumerate(categories)),
+                )
+            )
+            MetadataCatalog[name] = Metadata(**meta_dict)
 
     assert len(dataset_frames) > 0, "No valid data found in {}.".format(
         ",".join(names)

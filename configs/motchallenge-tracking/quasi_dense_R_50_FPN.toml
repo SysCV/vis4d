@@ -1,6 +1,6 @@
 [model]
 type = "QDGeneralizedRCNN"
-keyframe_selection = "random"
+keyframe_selection = "first"
     [model.detection]
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
@@ -67,16 +67,12 @@ name = "motchallenge_sample_train"
 type = "motchallenge"
 annotations = "data/MOT16"
 data_root = "data/MOT16"
-ignore = ["person on vehicle", "static person", "distractor", "reflection", "ignore"]
-name_mapping = {"1" = "pedestrian", "2" = "person on vehicle", "7" = "static person", "8" = "distractor", "12" = "reflection", "13" = "ignore"}
 
 [[test]]
 name = "motchallenge_sample_val"
 type = "motchallenge"
 annotations = "data/MOT16"
 data_root = "data/MOT16"
-ignore = ["person on vehicle", "static person", "distractor", "reflection", "ignore"]
-name_mapping = {"1" = "pedestrian", "2" = "person on vehicle", "7" = "static person", "8" = "distractor", "12" = "reflection", "13" = "ignore"}
 
 [dataloader]
 workers_per_gpu = 0
@@ -87,7 +83,7 @@ inference_sampling = "sequence_based"
     type = "FileBackend"
     [dataloader.ref_sampling_cfg]
     type = 'uniform'
-    scope = 2
+    scope = 3
     num_ref_imgs = 1
 
     [[dataloader.train_augmentations]]

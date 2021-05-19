@@ -9,68 +9,59 @@ from typing import Dict, List, Optional, Union
 from detectron2.data.catalog import MetadataCatalog
 from detectron2.utils.comm import get_world_size
 from fvcore.common.timer import Timer
-from scalabel.label.io import load
-from scalabel.label.typing import Frame, Label
+from scalabel.label.io import load, load_label_config
+from scalabel.label.typing import Config as MetadataConfig
+from scalabel.label.typing import Dataset, Frame
+from scalabel.label.utils import get_category_id, get_leaf_categories
 
 logger = logging.getLogger(__name__)
 
 
-def check_ignore(label: Label, ignore_categories: Optional[List[str]]) -> bool:
-    """Check if label should be ignored."""
-    ignore = False
-    if ignore_categories is not None:
-        if label.category in ignore_categories:
-            ignore = True
-    if label.attributes is not None:
-        crowd = label.attributes.get("crowd", False)
-        ignored_label = label.attributes.get("ignore", False)
-        assert isinstance(crowd, bool)
-        assert isinstance(ignored_label, bool)
-        ignore = ignore or crowd or ignored_label
-    return ignore
-
-
 def load_scalabel(
-    annotation_path: str,
     image_root: str,
+    annotation_path: Optional[str] = None,
     dataset_name: Optional[str] = None,
-    ignore_categories: Optional[List[str]] = None,
-    name_mapping: Optional[Dict[str, str]] = None,
+    cfg_path: Optional[str] = None,
     prepare_frames: bool = True,
 ) -> List[Frame]:
     """Load Scalabel frames from json and prepare them for openMT training."""
-    frames = load_frames(annotation_path, dataset_name)
+    assert annotation_path is not None
+    dataset = load_dataset(annotation_path, dataset_name)
+    frames, metadata_cfg = dataset.frames, dataset.config
+    if cfg_path is not None:
+        metadata_cfg = load_label_config(cfg_path)
+    assert metadata_cfg is not None
     if prepare_frames:
-        prepare_scalabel_frames(
-            frames, image_root, dataset_name, ignore_categories, name_mapping
-        )
+        prepare_scalabel_frames(frames, image_root, metadata_cfg, dataset_name)
     return frames
 
 
-def load_frames(json_path: str, dataset_name: Optional[str]) -> List[Frame]:
+def load_dataset(json_path: str, dataset_name: Optional[str]) -> Dataset:
     """Load frames in scalabel format from json."""
     timer = Timer()
-    frames = load(json_path, nprocs=min(8, cpu_count() // get_world_size()))
+    dataset = load(json_path, nprocs=min(8, cpu_count() // get_world_size()))
     logger.info(
         "Loading %s takes %s seconds.",
         dataset_name,
         "{:.2f}".format(timer.seconds()),
     )
-    return frames
+    return dataset
 
 
 def prepare_scalabel_frames(
     frames: List[Frame],
     image_root: str,
+    metadata_cfg: MetadataConfig,
     dataset_name: Optional[str] = None,
-    ignore_categories: Optional[List[str]] = None,
-    name_mapping: Optional[Dict[str, str]] = None,
 ) -> List[Frame]:
     """Prepare scalabel frames for openMT model training."""
     timer = Timer()
-    cat_ids = []  # type: List[str]
+    cat_name2id = {
+        c.name: get_category_id(c.name, metadata_cfg)
+        for c in get_leaf_categories(metadata_cfg.categories)
+    }
     ins_ids = defaultdict(list)  # type: Dict[str, List[str]]
-    frequencies = {cat: 0 for cat in cat_ids}
+    frequencies = {cat: 0 for cat in cat_name2id}
     for i, ann in enumerate(frames):
         # add filename, category and instance id (integer)
         assert ann.name is not None
@@ -81,27 +72,16 @@ def prepare_scalabel_frames(
 
         if ann.labels is not None:
             for j, label in enumerate(ann.labels):
+                if not label.category in cat_name2id:
+                    continue
+
                 attr = dict()  # type: Dict[str, Union[bool, int, float, str]]
-
-                assert label.category is not None
-                if name_mapping is not None:
-                    label.category = name_mapping.get(
-                        label.category, label.category
-                    )
-
-                # check if label should be ignored
-                attr["ignore"] = check_ignore(label, ignore_categories)
-
-                if not attr["ignore"]:
-                    # assert again because mypy will complain otherwise
+                if label.attributes is None or not label.attributes.get(
+                    "crowd", False
+                ):
                     assert label.category is not None
-                    # parse category and track id to integer
-                    if not label.category in cat_ids:
-                        cat_ids.append(label.category)
-                        frequencies[label.category] = 0
-
                     frequencies[label.category] += 1
-                    attr["category_id"] = cat_ids.index(label.category)
+                    attr["category_id"] = cat_name2id[label.category]
                     if (
                         ann.video_name is not None
                         and label.id not in ins_ids[ann.video_name]
@@ -127,8 +107,9 @@ def prepare_scalabel_frames(
     if dataset_name is not None:
         meta = MetadataCatalog.get(dataset_name)
         if meta.get("thing_classes") is None:
-            meta.thing_classes = cat_ids
-            meta.idx_to_class_mapping = dict(enumerate(cat_ids))
+            meta.thing_classes = list(cat_name2id.keys())
+            meta.idx_to_class_mapping = {v: k for k, v in cat_name2id.items()}
             meta.class_frequencies = frequencies
+            meta.metadata_cfg = metadata_cfg
 
     return frames
