@@ -30,8 +30,8 @@ class MapDataset(D2MapDataset):  # type: ignore
     ):
         """Init."""
         super().__init__(*args, **kwargs)
-        self.video_to_idcs: Dict[str, List[int]] = defaultdict(list)
-        self.frame_to_idcs: Dict[str, Dict[int, int]] = defaultdict(dict)
+        self.video_to_indices: Dict[str, List[int]] = defaultdict(list)
+        self.frame_to_indices: Dict[str, Dict[int, int]] = defaultdict(dict)
         self._create_video_mapping()
         self.sampling_cfg = sampling_cfg
         self.training = training
@@ -40,34 +40,34 @@ class MapDataset(D2MapDataset):  # type: ignore
         """Create a mapping that returns all img idx for a given video id."""
         for idx, entry in enumerate(self._dataset):
             if entry["video_name"] is not None:
-                self.video_to_idcs[entry["video_name"]].append(idx)
+                self.video_to_indices[entry["video_name"]].append(idx)
 
-    def sample_ref_idcs(self, video: str, cur_idx: int) -> List[int]:
-        """Sample reference indices from dataset idcs given cur_idx."""
-        dataset_idcs = self.video_to_idcs[video]
-        cur_video_idx = dataset_idcs.index(cur_idx)
+    def sample_ref_idcs(self, video: str, key_dataset_index: int) -> List[int]:
+        """Sample reference dataset indices given video and keyframe index."""
+        dataset_indices = self.video_to_indices[video]
+        key_index = dataset_indices.index(key_dataset_index)
 
         if self.sampling_cfg.type == "uniform":
-            left = max(0, cur_video_idx - self.sampling_cfg.scope)
+            left = max(0, key_index - self.sampling_cfg.scope)
             right = min(
-                cur_video_idx + self.sampling_cfg.scope, len(dataset_idcs) - 1
+                key_index + self.sampling_cfg.scope, len(dataset_indices) - 1
             )
             valid_inds = (
-                dataset_idcs[left:cur_video_idx]
-                + dataset_idcs[cur_video_idx + 1 : right + 1]
+                dataset_indices[left:key_index]
+                + dataset_indices[key_index + 1 : right + 1]
             )
-            ref_dataset_idcs = np.random.choice(
+            ref_dataset_indices = np.random.choice(
                 valid_inds, self.sampling_cfg.num_ref_imgs, replace=False
             ).tolist()  # type: List[int]
         elif self.sampling_cfg.type == "sequential":
-            right = cur_video_idx + 1 + self.sampling_cfg.num_ref_imgs
-            if right <= len(dataset_idcs):
-                ref_dataset_idcs = dataset_idcs[cur_video_idx + 1 : right]
+            right = key_index + 1 + self.sampling_cfg.num_ref_imgs
+            if right <= len(dataset_indices):
+                ref_dataset_indices = dataset_indices[key_index + 1 : right]
             else:
-                left = cur_video_idx - (right - len(dataset_idcs))
-                ref_dataset_idcs = (
-                    dataset_idcs[left:cur_video_idx]
-                    + dataset_idcs[cur_video_idx + 1 :]
+                left = key_index - (right - len(dataset_indices))
+                ref_dataset_indices = (
+                    dataset_indices[left:key_index]
+                    + dataset_indices[key_index + 1 :]
                 )
         else:
             raise NotImplementedError(
@@ -75,7 +75,7 @@ class MapDataset(D2MapDataset):  # type: ignore
                 f"implemented."
             )
 
-        return ref_dataset_idcs
+        return ref_dataset_indices
 
     def __getitem__(self, idx: int) -> List[InputSample]:
         """Fully prepare a sample for training/inference."""
