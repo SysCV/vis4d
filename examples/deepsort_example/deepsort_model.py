@@ -1,30 +1,31 @@
-"""SORT model definition."""
+"""deep SORT model definition."""
 from typing import List, Dict
-
+import json
+import torch
 from detectron2.data import MetadataCatalog
+
+from deep import FeatureNet
 from openmt.model import BaseModel, BaseModelConfig
 from openmt.model.detect import BaseDetectorConfig, build_detector
 from openmt.model.track.graph import TrackGraphConfig, build_track_graph
 from openmt.struct import Boxes2D, InputSample, LossesType
 from openmt.vis.image import imshow_bboxes  # , imsave_bboxes
-import json
-import torch
 
 
-class SORTConfig(BaseModelConfig, extra="allow"):
-    """SORT config."""
+class DeepSORTConfig(BaseModelConfig, extra="allow"):
+    """deep SORT config."""
 
     detection: BaseDetectorConfig
     track_graph: TrackGraphConfig
 
 
-class SORT(BaseModel):
-    """SORT tracking module."""
+class DeepSORT(BaseModel):
+    """deep SORT tracking module."""
 
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init detector."""
         super().__init__()
-        self.cfg = SORTConfig(**cfg.dict())
+        self.cfg = DeepSORTConfig(**cfg.dict())
         self.detector = build_detector(self.cfg.detection)
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.search_dict: Dict[str, Dict[int, Boxes2D]] = dict()
@@ -138,7 +139,9 @@ class SORT(BaseModel):
         #     "detections",
         # )
         # associate detections, update graph
-        detections_new, predictions = self.track_graph(detections[0], frame_id)
+        detections, predictions = self.track_graph(
+            detections[0], frame_id, image.tensor[0]
+        )
 
         # imsave_bboxes(
         #     image.tensor[0],
@@ -156,6 +159,6 @@ class SORT(BaseModel):
         # )
 
         ori_wh = tuple(batch_inputs[0].metadata.size)  # type: ignore
-        self.postprocess(ori_wh, image.image_sizes[0], detections_new)  # type: ignore # pylint: disable=line-too-long
+        self.postprocess(ori_wh, image.image_sizes[0], detections)  # type: ignore # pylint: disable=line-too-long
 
-        return [detections_new]
+        return [detections]

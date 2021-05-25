@@ -14,6 +14,7 @@ from detectron2.structures import Boxes, pairwise_iou
 class SORTTrackGraphConfig(TrackGraphConfig):
     """SORT graph config."""
 
+    keep_in_memory: int = 1  # threshold for keeping occluded objects in memory
     max_IOU_distance: float = 0.7
 
 
@@ -95,11 +96,14 @@ class SORTTrackGraph(BaseTrackGraph):
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, detections: Boxes2D, frame_id: int
-    ) -> Boxes2D:
+    ) -> Tuple[Boxes2D, Boxes2D]:
         """Process inputs, match detections with existing tracks."""
-        print("#" * 100)
-        print("A new frame:   frame = ", frame_id)
-        print("#" * 100)
+        if len(detections) == 0:
+            result, _, _ = self.get_tracks(frame_id)
+            return result, result
+        # print("#" * 100)
+        # print("A new frame:   frame = ", frame_id)
+        # print("#" * 100)
         _, inds = detections.boxes[:, -1].sort(descending=True)
         detections = detections[inds, :].to(torch.device("cpu"))
 
@@ -111,7 +115,7 @@ class SORTTrackGraph(BaseTrackGraph):
         # det_cls_unique = torch.unique(det_cls_ids)
 
         tracks_boxes2d, tracks_vel, tracks_cov = self.get_tracks(frame_id - 1)
-        print("existing tracks ids:  ", self.tracks.keys())
+        # print("existing tracks ids:  ", self.tracks.keys())
         tracks_bboxes = tracks_boxes2d.boxes[:, :-1]
         tracks_ids = tracks_boxes2d.track_ids
         tracks_cls_ids = tracks_boxes2d.class_ids
@@ -124,7 +128,10 @@ class SORTTrackGraph(BaseTrackGraph):
             kalman_state[i], tracks_cov[i] = self.kf.predict(
                 kalman_state[i], tracks_cov[i]
             )
-        # tracks_bboxes = xyah_to_xyxy(kalman_state[:, :4])
+        # comment this line to not using prediction
+        tracks_bboxes = xyah_to_xyxy(kalman_state[:, :4])
+        predictions = Boxes2D(tracks_bboxes, tracks_cls_ids, tracks_ids)
+
         tracks_vel = kalman_state[:, 4:]
 
         updated_tracks_vels = dict()
@@ -134,8 +141,8 @@ class SORTTrackGraph(BaseTrackGraph):
         # print("det_cls_ids:  ", det_cls_ids)
 
         for existing_cls in tracks_cls_unique:
-            print("-" * 50)
-            print("start matching for object class:  ", existing_cls)
+            # print("-" * 50)
+            # print("start matching for object class:  ", existing_cls)
             tracks_boxes_per_cls = tracks_bboxes[
                 tracks_cls_ids == existing_cls
             ]
@@ -146,8 +153,8 @@ class SORTTrackGraph(BaseTrackGraph):
             det_indices_per_cls = torch.nonzero(
                 det_cls_ids == existing_cls
             ).squeeze(1)
-            print("tracks_indices_per_cls:  ", tracks_indices_per_cls)
-            print("det_indices_per_cls:  ", det_indices_per_cls)
+            # print("tracks_indices_per_cls:  ", tracks_indices_per_cls)
+            # print("det_indices_per_cls:  ", det_indices_per_cls)
 
             matches, _, _ = self._match(
                 tracks_boxes_per_cls,
@@ -155,11 +162,11 @@ class SORTTrackGraph(BaseTrackGraph):
                 tracks_indices_per_cls,
                 det_indices_per_cls,
             )
-            print("matched result:  ", matches)
+            # print("matched result:  ", matches)
             for matched_track_ind, matched_det_ind in matches:
                 # print("matched_track_ind:  ", matched_track_ind)
-                print("_" * 20)
-                print("start updating detection indices: ", matched_det_ind)
+                # print("_" * 20)
+                # print("start updating detection indices: ", matched_det_ind)
 
                 matched_kalman_state = kalman_state[matched_track_ind]
                 matched_cov = tracks_cov[matched_track_ind]
@@ -183,7 +190,9 @@ class SORTTrackGraph(BaseTrackGraph):
                 updated_tracks_covs[
                     int(tracks_ids[matched_track_ind])
                 ] = updated_track_cov
-                detections.boxes[matched_det_ind, :-1] = updated_track_xyxy
+
+                # comment this line to not use corrected bbox
+                # detections.boxes[matched_det_ind, :-1] = updated_track_xyxy
 
                 ids[matched_det_ind] = tracks_ids[matched_track_ind]
 
@@ -193,13 +202,13 @@ class SORTTrackGraph(BaseTrackGraph):
             self.num_tracks, self.num_tracks + num_news, dtype=torch.long
         )
         self.num_tracks += num_news
-        print("updated detections tracking ids:  ", ids)
+        # print("updated detections tracking ids:  ", ids)
 
         self.update(
             ids, detections, frame_id, updated_tracks_vels, updated_tracks_covs
         )
         result, _, _ = self.get_tracks(frame_id)
-        return result
+        return result, predictions
 
     def _match(
         self,
@@ -406,10 +415,10 @@ class KalmanFilter(object):
         """Project state distribution to measurement space."""
         std = torch.Tensor(
             [
-                10 * self._std_weight_position * mean[3],
-                10 * self._std_weight_position * mean[3],
+                self._std_weight_position * mean[3],
+                self._std_weight_position * mean[3],
                 1e-1,
-                10 * self._std_weight_position * mean[3],
+                self._std_weight_position * mean[3],
             ]
         )
         innovation_cov = torch.diag(torch.square(std))

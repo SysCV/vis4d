@@ -18,5 +18,5 @@ h5py
 torch
 torchaudio
 torchvision
-git+git://github.com/bdd100k/bdd100k.git
+#git+git://github.com/bdd100k/bdd100k.git
 devtools
