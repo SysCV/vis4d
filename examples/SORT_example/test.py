@@ -51,24 +51,22 @@ if __name__ == "__main__":
         train=[
             config.Dataset(
                 name="bdd100k_sample_train",
-                type="scalabel",
+                type="bdd100k",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 "labels",
                 data_root="openmt/track/track/bdd100k-samples/images/",
-                config_path="openmt/engine/testcases/track/bdd100k-samples/"
-                "config.toml",
+                config_path="box_track",
             )
         ],
         test=[
             config.Dataset(
                 name="bdd100k_sample_val",
-                type="scalabel",
+                type="bdd100k",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 "labels",
                 data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 "images/",
-                config_path="openmt/engine/testcases/track/bdd100k-samples/"
-                "config.toml",
+                config_path="box_track",
             )
         ],
     )

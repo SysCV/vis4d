@@ -82,28 +82,23 @@ if __name__ == "__main__":
         train=[
             config.Dataset(
                 name="bdd100k_sample_train",
-                type="scalabel",
+                type="bdd100k",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 "labels",
-                data_root="openmt/track/track/bdd100k-samples/images/",
-                ignore=["other person", "other vehicle", "trailer"],
-                name_mapping={
-                    "bike": "bicycle",
-                    "caravan": "car",
-                    "motor": "motorcycle",
-                    "person": "pedestrian",
-                    "van": "car",
-                },
+                data_root="openmt/engine/testcases/track/bdd100k-samples/"
+                "images/",
+                config_path="box_track"
             )
         ],
         test=[
             config.Dataset(
                 name="bdd100k_sample_val",
-                type="scalabel",
+                type="bdd100k",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 "labels",
                 data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 "images/",
+                config_path="box_track"
             )
         ],
     )
