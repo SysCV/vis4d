@@ -29,7 +29,9 @@ class TrackingInferenceSampler(Sampler):  # type: ignore
         end = min(shard_size * (self._rank + 1), self._num_seqs)
         self._local_idcs = []
         for i in range(begin, end):
-            self._local_idcs.extend(dataset.video_to_indices[self._sequences[i]])
+            self._local_idcs.extend(
+                dataset.video_to_indices[self._sequences[i]]
+            )
 
     def __iter__(self) -> Generator[int, None, None]:
         """Iteration method."""
