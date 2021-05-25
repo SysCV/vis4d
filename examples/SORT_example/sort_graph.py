@@ -104,6 +104,7 @@ class SORTTrackGraph(BaseTrackGraph):
         # print("#" * 100)
         # print("A new frame:   frame = ", frame_id)
         # print("#" * 100)
+
         _, inds = detections.boxes[:, -1].sort(descending=True)
         detections = detections[inds, :].to(torch.device("cpu"))
 
@@ -128,10 +129,14 @@ class SORTTrackGraph(BaseTrackGraph):
             kalman_state[i], tracks_cov[i] = self.kf.predict(
                 kalman_state[i], tracks_cov[i]
             )
+<<<<<<< HEAD
         # comment this line to not using prediction
         tracks_bboxes = xyah_to_xyxy(kalman_state[:, :4])
         predictions = Boxes2D(tracks_bboxes, tracks_cls_ids, tracks_ids)
 
+=======
+        tracks_bboxes = xyah_to_xyxy(kalman_state[:, :4])
+>>>>>>> f514bd71f1e200038ef467556b23b4167bb3afe0
         tracks_vel = kalman_state[:, 4:]
 
         updated_tracks_vels = dict()

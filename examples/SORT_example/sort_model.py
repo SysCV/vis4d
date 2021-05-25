@@ -6,7 +6,11 @@ from openmt.model import BaseModel, BaseModelConfig
 from openmt.model.detect import BaseDetectorConfig, build_detector
 from openmt.model.track.graph import TrackGraphConfig, build_track_graph
 from openmt.struct import Boxes2D, InputSample, LossesType
+<<<<<<< HEAD
 from openmt.vis.image import imshow_bboxes  # , imsave_bboxes
+=======
+from openmt.vis.image import imshow_bboxes
+>>>>>>> f514bd71f1e200038ef467556b23b4167bb3afe0
 import json
 import torch
 
@@ -107,6 +111,7 @@ class SORT(BaseModel):
                     self.search_dict[video_name][frame_index] = Boxes2D(
                         boxes, class_ids
                     )
+
 
         frame_id = batch_inputs[0].metadata.frame_index
         # init graph at begin of sequence
