@@ -3,6 +3,7 @@ from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
 
 from openmt.config import Dataset, DatasetType
 
+from .bdd100k import convert_and_load_bdd100k
 from .coco import convert_and_load_coco
 from .custom import convert_and_load_directory
 from .motchallenge import convert_and_load_motchallenge
@@ -13,6 +14,8 @@ def register_dataset_instances(dataset: Dataset) -> None:
     """Register a dataset in scalabel annotation format."""
     if dataset.type == DatasetType.SCALABEL:
         load_func = load_scalabel
+    elif dataset.type == DatasetType.BDD100K:
+        load_func = convert_and_load_bdd100k
     elif dataset.type == DatasetType.COCO:
         load_func = convert_and_load_coco
     elif dataset.type == DatasetType.CUSTOM:

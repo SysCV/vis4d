@@ -85,6 +85,7 @@ class DatasetType(str, Enum):
     """
 
     SCALABEL = "scalabel"
+    BDD100K = "bdd100k"
     COCO = "coco"
     MOTCHALLENGE = "motchallenge"
     CUSTOM = "custom"
@@ -137,6 +138,7 @@ class Launch(BaseModel):
     resume: bool = False
     input_dir: Optional[str]
     output_dir: Optional[str]
+    visualize: bool = False
 
     @validator("input_dir", always=True)
     def validate_input_dir(  # pylint: disable=no-self-argument,no-self-use

@@ -12,7 +12,7 @@ from fvcore.common.timer import Timer
 from scalabel.label.io import load, load_label_config
 from scalabel.label.typing import Config as MetadataConfig
 from scalabel.label.typing import Dataset, Frame
-from scalabel.label.utils import get_category_id, get_leaf_categories
+from scalabel.label.utils import get_leaf_categories
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +57,8 @@ def prepare_scalabel_frames(
     """Prepare scalabel frames for openMT model training."""
     timer = Timer()
     cat_name2id = {
-        c.name: get_category_id(c.name, metadata_cfg)
-        for c in get_leaf_categories(metadata_cfg.categories)
+        cat.name: i + 1
+        for i, cat in enumerate(get_leaf_categories(metadata_cfg.categories))
     }
     ins_ids = defaultdict(list)  # type: Dict[str, List[str]]
     frequencies = {cat: 0 for cat in cat_name2id}
@@ -73,7 +73,7 @@ def prepare_scalabel_frames(
         if ann.labels is not None:
             for j, label in enumerate(ann.labels):
                 if not label.category in cat_name2id:
-                    continue
+                    continue  # pragma: no cover
 
                 attr = dict()  # type: Dict[str, Union[bool, int, float, str]]
                 if label.attributes is None or not label.attributes.get(

@@ -96,7 +96,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
         cls, openmt_cfg: Config, cfg: CfgNode, dataset_name: str
     ) -> DatasetEvaluator:
         """Build evaluators for tracking and detection."""
-        output_folder = os.path.join(cfg.OUTPUT_DIR, dataset_name, "inference")
+        output_folder = os.path.join(cfg.OUTPUT_DIR, dataset_name)
         evaluator = ScalabelEvaluator(dataset_name, True, output_folder)
         evaluator.set_metrics(openmt_cfg.solver.eval_metrics)
         return evaluator
@@ -182,9 +182,11 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
                 openmt_cfg, cfg, dataset_name
             )
             output_folder = os.path.join(
-                openmt_cfg.launch.output_dir, dataset_name, "inference"
+                openmt_cfg.launch.output_dir, dataset_name
             )
-            visualizer = ScalabelVisualizer(dataset_name, output_folder)
+            visualizer = ScalabelVisualizer(
+                dataset_name, output_folder, True, openmt_cfg.launch.visualize
+            )
             inference_on_dataset(model, data_loader, visualizer)
 
 

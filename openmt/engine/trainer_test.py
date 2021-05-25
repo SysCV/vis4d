@@ -22,6 +22,7 @@ class TestTrack(TrackTest):
             "openmt/engine/testcases/track/"
             "bdd100k-samples/images/00091078-875c1f73/"
         )
+        self.cfg.launch.visualize = True
         predict(self.cfg)
 
     def test_testfunc(self) -> None:
@@ -74,6 +75,7 @@ class TestDetect(DetectTest):
         self.cfg.launch.action = "predict"
         if torch.cuda.is_available():
             self.cfg.launch.device = "cuda"  # pragma: no cover
+        self.cfg.launch.visualize = True
         predict(self.cfg)
 
     def test_train(self) -> None:
