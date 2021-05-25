@@ -1,8 +1,10 @@
 """Load and convert bdd100k labesl to scalabel format."""
+from multiprocessing import cpu_count
 from typing import List, Optional
 
 from bdd100k.common.utils import load_bdd100k_config
 from bdd100k.label.to_scalabel import bdd100k_to_scalabel
+from detectron2.utils.comm import get_world_size
 from scalabel.label.io import load
 from scalabel.label.typing import Frame
 
@@ -18,7 +20,9 @@ def convert_and_load_bdd100k(
 ) -> List[Frame]:
     """Convert COCO annotations to scalabel format and prepare them."""
     assert annotation_path is not None
-    bdd100k_anns = load(annotation_path)
+    bdd100k_anns = load(
+        annotation_path, nprocs=min(8, cpu_count() // get_world_size())
+    )
     frames = bdd100k_anns.frames
     assert cfg_path is not None
     bdd100k_cfg = load_bdd100k_config(cfg_path)

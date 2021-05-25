@@ -87,7 +87,7 @@ if __name__ == "__main__":
                 "labels",
                 data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 "images/",
-                config_path="box_track"
+                config_path="box_track",
             )
         ],
         test=[
@@ -98,7 +98,7 @@ if __name__ == "__main__":
                 "labels",
                 data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 "images/",
-                config_path="box_track"
+                config_path="box_track",
             )
         ],
     )
