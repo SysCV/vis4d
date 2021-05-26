@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import torch
-from bdd100k.eval.mot import EvalResults as MOTEvalResults
+from scalabel.eval.mot import EvalResults as MOTEvalResults
 from scalabel.label.typing import Frame
 
 TorchCheckpoint = Dict[str, Union[int, str, Dict[str, np.ndarray]]]

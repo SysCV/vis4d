@@ -13,11 +13,8 @@ from detectron2.utils.file_io import PathManager
 from detectron2.utils.logger import setup_logger
 from devtools import debug
 
-from openmt.config import Config, Dataset, DatasetType, Launch
-from openmt.data.datasets import (
-    register_coco_instances,
-    register_scalabel_instances,
-)
+from openmt.config import Config, Dataset, Launch
+from openmt.data.datasets import register_dataset_instances
 
 
 def _register(datasets: List[Dataset]) -> List[str]:
@@ -27,27 +24,8 @@ def _register(datasets: List[Dataset]) -> List[str]:
         names.append(dataset.name)
         try:
             DatasetCatalog.get(dataset.name)
-        except KeyError as e:
-            if dataset.type == DatasetType.COCO:
-                register_coco_instances(  # pragma: no cover
-                    dataset.name,
-                    dataset.annotations,
-                    dataset.data_root,
-                    dataset.ignore,
-                    dataset.name_mapping,
-                )
-            elif dataset.type == DatasetType.SCALABEL:
-                register_scalabel_instances(
-                    dataset.name,
-                    dataset.annotations,
-                    dataset.data_root,
-                    dataset.ignore,
-                    dataset.name_mapping,
-                )
-            else:
-                raise NotImplementedError(
-                    f"Dataset type {dataset.type} currently not supported."
-                ) from e
+        except KeyError:
+            register_dataset_instances(dataset)
             continue
         logger = logging.getLogger(__name__)
         logger.info(
@@ -58,10 +36,20 @@ def _register(datasets: List[Dataset]) -> List[str]:
     return names
 
 
+def register_directory(input_path: str) -> str:
+    """Register directory containing input data as dataset."""
+    if input_path[-1] == "/":
+        input_path = input_path[:-1]
+    dataset_name = os.path.basename(input_path)
+    dataset = Dataset(type="custom", name=dataset_name, data_root=input_path)
+    register_dataset_instances(dataset)
+    return dataset_name
+
+
 def to_detectron2(config: Config) -> CfgNode:
     """Convert a Config object to a detectron2 readable configuration."""
     cfg = get_cfg()
-    cfg.OUTPUT_DIR = config.output_dir
+    cfg.OUTPUT_DIR = config.launch.output_dir
 
     # convert solver attributes
     if config.solver is not None:

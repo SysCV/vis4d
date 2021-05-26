@@ -1,7 +1,9 @@
 """Test cases for openMT engine Trainer."""
 import torch
 
-from openmt.engine.trainer import predict, train
+from openmt.engine.trainer import predict
+from openmt.engine.trainer import test as evaluate
+from openmt.engine.trainer import train
 from openmt.unittest.utils import DetectTest, TrackTest
 
 from .utils import _register
@@ -11,12 +13,25 @@ class TestTrack(TrackTest):
     """Test cases for openmt tracking."""
 
     def test_predict(self) -> None:
-        """Testcase for prediction."""
+        """Testcase for predict."""
         self.assertIsNotNone(self.cfg)
         self.cfg.launch.action = "predict"
         if torch.cuda.is_available():
             self.cfg.launch.device = "cuda"  # pragma: no cover
-        results = predict(self.cfg)["track"]
+        self.cfg.launch.input_dir = (
+            "openmt/engine/testcases/track/"
+            "bdd100k-samples/images/00091078-875c1f73/"
+        )
+        self.cfg.launch.visualize = True
+        predict(self.cfg)
+
+    def test_testfunc(self) -> None:
+        """Testcase for test function."""
+        self.assertIsNotNone(self.cfg)
+        self.cfg.launch.action = "predict"
+        if torch.cuda.is_available():
+            self.cfg.launch.device = "cuda"  # pragma: no cover
+        results = evaluate(self.cfg)["track"]
         metric_keys = [
             "pedestrian",
             "rider",
@@ -26,9 +41,9 @@ class TestTrack(TrackTest):
             "train",
             "motorcycle",
             "bicycle",
-            "HUMAN",
-            "VEHICLE",
-            "BIKE",
+            "human",
+            "vehicle",
+            "bike",
             "OVERALL",
         ]
         for k in results:
@@ -54,6 +69,15 @@ class TestTrack(TrackTest):
 class TestDetect(DetectTest):
     """Test cases for openmt detection."""
 
+    def test_predict(self) -> None:
+        """Testcase for predict."""
+        self.assertIsNotNone(self.cfg)
+        self.cfg.launch.action = "predict"
+        if torch.cuda.is_available():
+            self.cfg.launch.device = "cuda"  # pragma: no cover
+        self.cfg.launch.visualize = True
+        predict(self.cfg)
+
     def test_train(self) -> None:
         """Testcase for training."""
         self.assertIsNotNone(self.cfg)
@@ -62,13 +86,13 @@ class TestDetect(DetectTest):
             self.cfg.launch.device = "cuda"  # pragma: no cover
         train(self.cfg)
 
-    def test_predict(self) -> None:
-        """Testcase for prediction."""
+    def test_testfunc(self) -> None:
+        """Testcase for test function."""
         self.assertIsNotNone(self.cfg)
         self.cfg.launch.action = "predict"
         if torch.cuda.is_available():
             self.cfg.launch.device = "cuda"  # pragma: no cover
-        results = predict(self.cfg)["detect"]
+        results = evaluate(self.cfg)["detect"]
         metric_keys = [
             "AP",
             "AP_50",

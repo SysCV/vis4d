@@ -79,13 +79,15 @@ class Solver(BaseModel):
 class DatasetType(str, Enum):
     """Enum for dataset type.
 
-    coco: COCO style dataset (will be converted to scalabel).
     scalabel: Scalabel based dataset format.
-    custom: Custom dataset type for user-defined datasets.
+    coco: COCO style dataset (will be converted to scalabel).
+    motchallenge: MOTChallenge dataset format (will be converted to scalabel).
     """
 
-    COCO = "coco"
     SCALABEL = "scalabel"
+    BDD100K = "bdd100k"
+    COCO = "coco"
+    MOTCHALLENGE = "motchallenge"
     CUSTOM = "custom"
 
 
@@ -95,9 +97,8 @@ class Dataset(BaseModel):
     name: str
     type: DatasetType
     data_root: str
-    annotations: str
-    ignore: Optional[List[str]] = None
-    name_mapping: Optional[Dict[str, str]] = None
+    annotations: Optional[str]
+    config_path: Optional[str]
 
 
 class Launch(BaseModel):
@@ -135,6 +136,21 @@ class Launch(BaseModel):
     )
     dist_url: str = "tcp://127.0.0.1:{}".format(port)
     resume: bool = False
+    input_dir: Optional[str]
+    output_dir: Optional[str]
+    visualize: bool = False
+
+    @validator("input_dir", always=True)
+    def validate_input_dir(  # pylint: disable=no-self-argument,no-self-use
+        cls, value: Optional[str]
+    ) -> Optional[str]:
+        """Check if input dir exists."""
+        if value is not None:
+            if not os.path.exists(value):
+                raise FileNotFoundError(
+                    f"Input directory does not exist: {value}"
+                )
+        return value
 
 
 class Config(BaseModel):
@@ -145,25 +161,21 @@ class Config(BaseModel):
     dataloader: DataloaderConfig
     train: Optional[List[Dataset]]
     test: Optional[List[Dataset]]
-    output_dir: Optional[str]
     launch: Launch = Launch()
 
-    @validator("output_dir", always=True)
-    def validate_output_dir(  # type: ignore # pylint: disable=no-self-argument,no-self-use,line-too-long
-        cls, value: str, values: Dict[str, Any]
-    ) -> str:
-        """Check if output dir, create output dir if necessary."""
-        if value is None:
+    def __init__(self, **data: Any) -> None:  # type: ignore
+        """Init config."""
+        super().__init__(**data)
+        if self.launch.output_dir is None:
             timestamp = str(datetime.now()).split(".")[0].replace(" ", "_")
-            value = os.path.join(
-                "openmt-workspace", values["model"].type, timestamp
+            self.launch.output_dir = os.path.join(
+                "openmt-workspace", self.model.type, timestamp
             )
-        os.makedirs(value, exist_ok=True)
-        return value
+        os.makedirs(self.launch.output_dir, exist_ok=True)
 
 
 def parse_config(args: Namespace) -> Config:
-    """Read config, parse cmd line arguments."""
+    """Read config, parse cmd line arguments, create workspace dir."""
     cfg = read_config(args.config)
 
     for attr, value in args.__dict__.items():

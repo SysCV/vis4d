@@ -10,7 +10,7 @@ from detectron2.config import CfgNode
 from detectron2.data import transforms as T
 from detectron2.data.common import MapDataset as D2MapDataset
 from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
-from scalabel.label.typing import Frame, Label
+from scalabel.label.typing import Frame, ImageSize, Label
 
 from openmt.common.io import build_data_backend
 from openmt.config import DataloaderConfig, ReferenceSamplingConfig
@@ -30,8 +30,8 @@ class MapDataset(D2MapDataset):  # type: ignore
     ):
         """Init."""
         super().__init__(*args, **kwargs)
-        self.video_to_idcs: Dict[str, List[int]] = defaultdict(list)
-        self.frame_to_idcs: Dict[str, Dict[int, int]] = defaultdict(dict)
+        self.video_to_indices: Dict[str, List[int]] = defaultdict(list)
+        self.frame_to_indices: Dict[str, Dict[int, int]] = defaultdict(dict)
         self._create_video_mapping()
         self.sampling_cfg = sampling_cfg
         self.training = training
@@ -40,48 +40,34 @@ class MapDataset(D2MapDataset):  # type: ignore
         """Create a mapping that returns all img idx for a given video id."""
         for idx, entry in enumerate(self._dataset):
             if entry["video_name"] is not None:
-                self.video_to_idcs[entry["video_name"]].append(idx)
+                self.video_to_indices[entry["video_name"]].append(idx)
 
-        for video in self.video_to_idcs:
-            self.video_to_idcs[video] = sorted(
-                self.video_to_idcs[video],
-                key=lambda idx: self._dataset[idx]["frame_index"],  # type: ignore # pylint: disable=line-too-long
-            )
-            self.frame_to_idcs[video] = {
-                self._dataset[idx]["frame_index"]: idx
-                for idx in self.video_to_idcs[video]
-            }
-
-            # assert that frames are a range(0, sequence_length)
-            frame_ids = list(self.frame_to_idcs[video].keys())
-            assert frame_ids == list(
-                range(len(frame_ids))
-            ), f"Sequence {video} misses frames: %s" % (
-                set(frame_ids) ^ set(list(range(frame_ids[-1] + 1)))
-            )
-
-    def sample_ref_idcs(self, video: str, cur_idx: int) -> List[int]:
-        """Sample reference indices from video_idcs given cur_idx."""
-        frame_ids = list(self.frame_to_idcs[video].keys())
-        frame_id = self._dataset[cur_idx]["frame_index"]
+    def sample_ref_idcs(self, video: str, key_dataset_index: int) -> List[int]:
+        """Sample reference dataset indices given video and keyframe index."""
+        dataset_indices = self.video_to_indices[video]
+        key_index = dataset_indices.index(key_dataset_index)
 
         if self.sampling_cfg.type == "uniform":
-            left = max(0, frame_id - self.sampling_cfg.scope)
-            right = min(frame_id + self.sampling_cfg.scope, len(frame_ids) - 1)
-            valid_inds = (
-                frame_ids[left:frame_id] + frame_ids[frame_id + 1 : right + 1]
+            left = max(0, key_index - self.sampling_cfg.scope)
+            right = min(
+                key_index + self.sampling_cfg.scope, len(dataset_indices) - 1
             )
-            ref_frame_ids = np.random.choice(
+            valid_inds = (
+                dataset_indices[left:key_index]
+                + dataset_indices[key_index + 1 : right + 1]
+            )
+            ref_dataset_indices = np.random.choice(
                 valid_inds, self.sampling_cfg.num_ref_imgs, replace=False
-            ).tolist()
+            ).tolist()  # type: List[int]
         elif self.sampling_cfg.type == "sequential":
-            right = frame_id + 1 + self.sampling_cfg.num_ref_imgs
-            if right <= len(frame_ids):
-                ref_frame_ids = frame_ids[frame_id + 1 : right]
+            right = key_index + 1 + self.sampling_cfg.num_ref_imgs
+            if right <= len(dataset_indices):
+                ref_dataset_indices = dataset_indices[key_index + 1 : right]
             else:
-                left = frame_id - (right - len(frame_ids))
-                ref_frame_ids = (
-                    frame_ids[left:frame_id] + frame_ids[frame_id + 1 :]
+                left = key_index - (right - len(dataset_indices))
+                ref_dataset_indices = (
+                    dataset_indices[left:key_index]
+                    + dataset_indices[key_index + 1 :]
                 )
         else:
             raise NotImplementedError(
@@ -89,7 +75,7 @@ class MapDataset(D2MapDataset):  # type: ignore
                 f"implemented."
             )
 
-        return [self.frame_to_idcs[video][f] for f in ref_frame_ids]
+        return ref_dataset_indices
 
     def __getitem__(self, idx: int) -> List[InputSample]:
         """Fully prepare a sample for training/inference."""
@@ -171,7 +157,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         assert sample.url is not None
         im_bytes = self.data_backend.get(sample.url)
         image = im_decode(im_bytes)
-        sample.size = [image.shape[1], image.shape[0]]
+        sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
         return image
 
     def transform_image(
@@ -217,7 +203,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         annos = []
         for label in labels:
             assert label.attributes is not None
-            if not label.attributes.get("ignore", False):
+            if not label.attributes.get("crowd", False):
                 anno = label_to_dict(label)
                 d2_utils.transform_instance_annotations(
                     anno,

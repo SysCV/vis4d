@@ -1,6 +1,6 @@
 """Detection utils."""
 import os
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from detectron2 import model_zoo
@@ -30,6 +30,7 @@ class D2GeneralizedRCNNConfig(BaseDetectorConfig):
     """Config for detectron2 rcnn-based models."""
 
     model_base: str
+    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
     override_mapping: Optional[bool] = False
     num_classes: Optional[int]
 
@@ -125,4 +126,14 @@ def model_to_detectron2(config: D2GeneralizedRCNNConfig) -> CfgNode:
         cfg.MODEL.ROI_HEADS.NUM_CLASSES = config.num_classes
         cfg.MODEL.RETINANET.NUM_CLASSES = config.num_classes
 
+    # add keyword args in config
+    if config.model_kwargs:
+        for k, v in config.model_kwargs.items():
+            attr = cfg
+            partial_keys = k.split(".")
+            partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
+            for part_k in partial_keys:
+                attr = attr.get(part_k)
+            attr_type = type(attr.get(last_key))
+            attr.__setattr__(last_key, attr_type(v))
     return cfg

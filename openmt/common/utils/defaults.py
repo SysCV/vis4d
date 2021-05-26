@@ -25,10 +25,18 @@ def default_argument_parser() -> argparse.ArgumentParser:
         "commas, e.g. dataloader.workers_per_gpu=1,solver.base_lr=0.01",
     )
 
-    for key in schema["properties"]:
-        parser.add_argument(
-            "--" + key,
-            default=None,
-            type=Launch.__fields__[key].type_,
-        )
+    for key, val in schema["properties"].items():
+        if Launch.__fields__[key].type_ == bool:
+            if not val["default"]:
+                parser.add_argument("--" + key, action="store_true")
+            else:
+                parser.add_argument(
+                    "--" + key, action="store_false"
+                )  # pragma: no cover
+        else:
+            parser.add_argument(
+                "--" + key,
+                default=None,
+                type=Launch.__fields__[key].type_,
+            )
     return parser

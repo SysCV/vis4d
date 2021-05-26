@@ -6,29 +6,29 @@ import logging
 import os
 import time
 from contextlib import ExitStack, contextmanager
-from multiprocessing import cpu_count
 from typing import Callable, Dict, Generator, List, Optional
 
 import detectron2.utils.comm as comm
 import torch
-from bdd100k.common.utils import DEFAULT_COCO_CONFIG
-from bdd100k.eval.detect import evaluate_det
-from bdd100k.eval.mot import acc_single_video_mot, evaluate_track
-from detectron2.data import MetadataCatalog
+from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.evaluation import DatasetEvaluator, DatasetEvaluators
-from detectron2.utils.comm import get_world_size
 from detectron2.utils.logger import log_every_n_seconds
-from scalabel.label.io import group_and_sort, load, save
-from scalabel.label.typing import Frame
+from scalabel.eval.detect import evaluate_det
+from scalabel.eval.mot import acc_single_video_mot, evaluate_track
+from scalabel.label.io import group_and_sort, save
+from scalabel.label.typing import Config, Frame
 
 from openmt.struct import Boxes2D, EvalResult, EvalResults, InputSample
 
 _eval_mapping = dict(
-    detect=lambda pred, gt: evaluate_det(gt, pred, DEFAULT_COCO_CONFIG),
-    track=lambda pred, gt: evaluate_track(
-        acc_single_video_mot, group_and_sort(gt), group_and_sort(pred)
+    detect=lambda pred, gt, cfg: evaluate_det(gt, pred, cfg),
+    track=lambda pred, gt, cfg: evaluate_track(
+        acc_single_video_mot,
+        group_and_sort(gt),
+        group_and_sort(pred),
+        cfg,
     ),
-)  # type: Dict[str, Callable[[List[Frame], List[Frame]], EvalResult]]
+)  # type: Dict[str, Callable[[List[Frame], List[Frame], Config], EvalResult]]
 
 
 @contextmanager
@@ -49,10 +49,10 @@ def inference_on_dataset(
     data_loader: torch.utils.data.DataLoader,
     evaluator: DatasetEvaluator,
 ) -> EvalResults:
-    """Run detect on the data_loader and evaluate the metrics with evaluator.
+    """Runs model on the data_loader and evaluate the metrics with evaluator.
 
-    Also benchmark the inference speed of `detect.__call__` accurately.
-    The detect will be used in eval mode.
+    Also benchmark the inference speed of `model.__call__` accurately.
+    The model will be used in eval mode.
 
     Args:
         model (callable): a callable which takes an object from
@@ -71,7 +71,7 @@ def inference_on_dataset(
     Returns:
         EvalResults: The return value of `evaluator.evaluate()`
     """
-    num_devices = get_world_size()
+    num_devices = comm.get_world_size()
     logger = logging.getLogger(__name__)
     logger.info("Start inference on %s images", len(data_loader))
 
@@ -151,7 +151,7 @@ def inference_on_dataset(
 
 
 class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
-    """Evaluate tracking detect using MOTA metrics.
+    """Evaluate model using metrics supported in salabel (currently AP / MOTA).
 
     This class will accumulate information of the inputs/outputs (by
     :meth:`process`), and produce evaluation results in the end (by
@@ -169,10 +169,7 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
         self._distributed = distributed
         self._output_dir = output_dir
         self._metadata = MetadataCatalog.get(dataset_name)
-        self.gts = load(
-            self._metadata.json_path,
-            nprocs=max(8, cpu_count() // get_world_size()),
-        )
+        self.gts = DatasetCatalog[dataset_name](prep_frames=False)
         self._predictions = []  # type: List[Frame]
 
     def reset(self) -> None:
@@ -216,6 +213,10 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
 
         results = {}
         for metric in self._metrics:
-            results[metric] = _eval_mapping[metric](predictions, self.gts)
+            results[metric] = _eval_mapping[metric](
+                predictions,
+                self.gts,
+                self._metadata.metadata_cfg,
+            )
 
         return results
