@@ -106,8 +106,6 @@ def prepare_scalabel_frames(
 
     if dataset_name is not None:
         meta = MetadataCatalog.get(dataset_name)
-        print("meta: ", meta)
-        print("dataset_name: ", dataset_name)
         if meta.get("thing_classes") is None:
             meta.thing_classes = list(cat_name2id.keys())
             meta.idx_to_class_mapping = {v: k for k, v in cat_name2id.items()}

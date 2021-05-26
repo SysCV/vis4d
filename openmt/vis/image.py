@@ -43,7 +43,6 @@ def draw_bbox(
     label: Optional[str] = None,
 ) -> None:
     """Draw 2D box onto image."""
-    # print("draw_bbox:   ", box, "color: ", color, "")
     draw = ImageDraw.Draw(image)
     draw.rectangle(box, outline=color)
     if label is not None:
