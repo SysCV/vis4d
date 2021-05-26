@@ -71,14 +71,14 @@ if __name__ == "__main__":
             config.Dataset(
                 name="bdd100k_sample_val",
                 type="bdd100k",
-                annotations="openmt/engine/testcases/track/bdd100k-samples/"
-                "labels",
+                # annotations="openmt/engine/testcases/track/bdd100k-samples/"
+                # "labels",
                 # annotations="data/bdd100k/labels/box_track_20/val/",
-                # annotations="data/one_sequence/labels",
-                data_root="openmt/engine/testcases/track/bdd100k-samples/"
-                "images/",
+                annotations="data/one_sequence/labels",
+                # data_root="openmt/engine/testcases/track/bdd100k-samples/"
+                # "images/",
                 # data_root="data/bdd100k/images/track/val/",
-                # data_root="data/one_sequence/images/",
+                data_root="data/one_sequence/images/",
                 config_path="box_track",
             )
         ],
@@ -86,7 +86,6 @@ if __name__ == "__main__":
 
     # TODO choose according to setup, add pretrained weights if necessary
     # CPU
-
     conf.launch = config.Launch(weights="weight/model_0000199.pth")
     # import os
     # import shutil

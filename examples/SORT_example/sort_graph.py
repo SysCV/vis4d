@@ -3,10 +3,10 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from scipy.optimize import linear_sum_assignment as linear_assignment
 import scipy.linalg
+from detectron2.structures import Boxes, pairwise_iou
 
 from openmt.struct import Boxes2D
 from openmt.model.track.graph import BaseTrackGraph, TrackGraphConfig
-from detectron2.structures import Boxes, pairwise_iou
 
 # MetadataCatalog.get(dataset_name).idx_to_class_mapping
 
@@ -129,14 +129,10 @@ class SORTTrackGraph(BaseTrackGraph):
             kalman_state[i], tracks_cov[i] = self.kf.predict(
                 kalman_state[i], tracks_cov[i]
             )
-<<<<<<< HEAD
         # comment this line to not using prediction
         tracks_bboxes = xyah_to_xyxy(kalman_state[:, :4])
         predictions = Boxes2D(tracks_bboxes, tracks_cls_ids, tracks_ids)
 
-=======
-        tracks_bboxes = xyah_to_xyxy(kalman_state[:, :4])
->>>>>>> f514bd71f1e200038ef467556b23b4167bb3afe0
         tracks_vel = kalman_state[:, 4:]
 
         updated_tracks_vels = dict()

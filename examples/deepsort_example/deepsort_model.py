@@ -139,7 +139,7 @@ class DeepSORT(BaseModel):
         #     "detections",
         # )
         # associate detections, update graph
-        detections, predictions = self.track_graph(
+        detections_new, predictions = self.track_graph(
             detections[0], frame_id, image.tensor[0]
         )
 
@@ -159,6 +159,6 @@ class DeepSORT(BaseModel):
         # )
 
         ori_wh = tuple(batch_inputs[0].metadata.size)  # type: ignore
-        self.postprocess(ori_wh, image.image_sizes[0], detections)  # type: ignore # pylint: disable=line-too-long
+        self.postprocess(ori_wh, image.image_sizes[0], detections_new)  # type: ignore # pylint: disable=line-too-long
 
-        return [detections]
+        return [detections_new]
