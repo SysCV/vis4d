@@ -8,7 +8,6 @@ from openmt.config import DataloaderConfig as Dataloader
 from openmt.engine import test
 from openmt.model import BaseModelConfig
 
-
 # Disable pylint for this file due to high overlap with detector example
 # pylint: skip-file
 if __name__ == "__main__":
@@ -56,14 +55,6 @@ if __name__ == "__main__":
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 "labels",
                 data_root="openmt/track/track/bdd100k-samples/images/",
-                ignore=["other person", "other vehicle", "trailer"],
-                name_mapping={
-                    "bike": "bicycle",
-                    "caravan": "car",
-                    "motor": "motorcycle",
-                    "person": "pedestrian",
-                    "van": "car",
-                },
                 config_path="box_track",
             )
         ],

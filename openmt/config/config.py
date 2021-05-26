@@ -152,22 +152,6 @@ class Launch(BaseModel):
                 )
         return value
 
-    @validator("output_dir", always=True)
-    def validate_output_dir(  # type: ignore # pylint: disable=no-self-argument,no-self-use,line-too-long
-        cls, value: str, values: Dict[str, Any]
-    ) -> str:
-        """Check if output dir, create output dir if necessary."""
-        if value is None:
-            timestamp = str(datetime.now()).split(".")[0].replace(" ", "_")
-            value = os.path.join(
-                # "openmt-workspace", values["model"].type, timestamp
-                "openmt-workspace",
-                "temp",
-                timestamp,
-            )
-        os.makedirs(value, exist_ok=True)
-        return value
-
 
 class Config(BaseModel):
     """Overall config object."""
