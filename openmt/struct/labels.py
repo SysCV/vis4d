@@ -148,12 +148,8 @@ class Boxes2D(LabelInstance):
 
     def clip(self, image_wh: Tuple[float, float]) -> None:
         """Clip bounding boxes according to image_wh."""
-        self.boxes[:, [0, 2]] = self.boxes[:, [0, 2]].clamp(
-            0, image_wh[0][1] - 1
-        )
-        self.boxes[:, [1, 3]] = self.boxes[:, [1, 3]].clamp(
-            0, image_wh[1][1] - 1
-        )
+        self.boxes[:, [0, 2]] = self.boxes[:, [0, 2]].clamp(0, image_wh[0] - 1)
+        self.boxes[:, [1, 3]] = self.boxes[:, [1, 3]].clamp(0, image_wh[1] - 1)
 
     @property
     def device(self) -> torch.device:

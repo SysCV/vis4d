@@ -55,8 +55,8 @@ class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     ) -> None:
         """Postprocess results."""
         scale_factor = (
-            original_wh[0][1] / output_wh[0],
-            original_wh[1][1] / output_wh[1],
+            original_wh[0] / output_wh[0],
+            original_wh[1] / output_wh[1],
         )
         detections.scale(scale_factor)
         detections.clip(original_wh)

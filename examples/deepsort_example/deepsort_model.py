@@ -158,7 +158,10 @@ class DeepSORT(BaseModel):
         #     "corrected",
         # )
 
-        ori_wh = tuple(batch_inputs[0].metadata.size)  # type: ignore
+        ori_wh = (
+            batch_inputs[0].metadata.size.width,  # type: ignore
+            batch_inputs[0].metadata.size.height,  # type: ignore
+        )
         self.postprocess(ori_wh, image.image_sizes[0], detections_new)  # type: ignore # pylint: disable=line-too-long
 
         return [detections_new]

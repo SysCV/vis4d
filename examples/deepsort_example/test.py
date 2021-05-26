@@ -1,7 +1,7 @@
 """Example for dynamic api usage with SORT."""
 # import the SORT components, needs to be imported to be registered
-from sort_graph import SORTTrackGraph
-from sort_model import SORT
+from deepsort_graph import DeepSORTTrackGraph
+from deepsort_model import DeepSORT
 
 from openmt import config
 from openmt.config import DataloaderConfig as Dataloader
@@ -11,20 +11,20 @@ from openmt.model import BaseModelConfig
 # Disable pylint for this file due to high overlap with detector example
 # pylint: skip-file
 if __name__ == "__main__":
-    sort_detector_cfg = dict(
+    deepsort_detector_cfg = dict(  # TODO load pretrained weights
         type="D2GeneralizedRCNN",
         model_base="faster-rcnn/r50-fpn",
         num_classes=8,
     )
-    sort_trackgraph_cfg = dict(type="SORTTrackGraph")
-    sort_cfg = dict(
-        type="SORT",
-        detection=sort_detector_cfg,
-        track_graph=sort_trackgraph_cfg,
+    deepsort_trackgraph_cfg = dict(type="DeepSORTTrackGraph")
+    deepsort_cfg = dict(
+        type="DeepSORT",
+        detection=deepsort_detector_cfg,
+        track_graph=deepsort_trackgraph_cfg,
     )
 
     conf = config.Config(
-        model=BaseModelConfig(**sort_cfg),
+        model=BaseModelConfig(**deepsort_cfg),
         solver=config.Solver(
             images_per_gpu=2,
             lr_policy="WarmupMultiStepLR",
@@ -64,18 +64,18 @@ if __name__ == "__main__":
                 type="bdd100k",
                 # annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 # "labels",
-                # annotations="data/bdd100k/labels/box_track_20/val/",
-                annotations="data/one_sequence/labels",
+                annotations="data/bdd100k/labels/box_track_20/val/",
+                # annotations="data/one_sequence/labels",
                 # data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 # "images/",
-                # data_root="data/bdd100k/images/track/val/",
-                data_root="data/one_sequence/images/",
+                data_root="data/bdd100k/images/track/val/",
+                # data_root="data/one_sequence/images/",
                 config_path="box_track",
             )
         ],
     )
 
-    # TODO choose according to setup, add pretrained weights if necessary
+    # choose according to setup
     # CPU
     conf.launch.weights = "weight/model_0000199.pth"
     # import os
@@ -87,5 +87,5 @@ if __name__ == "__main__":
     test(conf)
 
     # single GPU
-    # conf.launch = config.Launch(device="cuda")
-    # test(conf)
+    # conf.launch = config.Launch(device='cuda')
+    # predict(conf)
