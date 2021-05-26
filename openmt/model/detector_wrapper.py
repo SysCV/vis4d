@@ -1,4 +1,4 @@
-"""Faster R-CNN for quasi-dense instance similarity learning."""
+"""Wrapper for training / testing detectors in openMT."""
 from typing import List
 
 from openmt.model.detect import BaseDetectorConfig, build_detector
@@ -46,6 +46,9 @@ class DetectorWrapper(BaseModel):
         """
         _, _, _, detections, _ = self.detector(batch_inputs)
         for inp, det in zip(batch_inputs, detections):
-            ori_wh = tuple(inp.metadata.size)  # type: ignore
-            self.postprocess(ori_wh, inp.image.image_sizes[0], det)  # type: ignore # pylint: disable=line-too-long
+            ori_wh = (
+                batch_inputs[0].metadata.size.width,  # type: ignore
+                batch_inputs[0].metadata.size.height,  # type: ignore
+            )
+            self.postprocess(ori_wh, inp.image.image_sizes[0], det)
         return detections  # type: ignore

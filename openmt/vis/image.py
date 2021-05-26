@@ -1,5 +1,5 @@
 """OpenMT Visualization tools for analysis and debugging."""
-from typing import Tuple, Union, Optional
+from typing import Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,36 +9,43 @@ from .utils import BoxType, ImageType, preprocess_boxes, preprocess_image
 
 
 def imshow(
-    image: Union[Image.Image, ImageType], frame_id: Optional[int], folder: str
-) -> None:  # pragma: no cover
-    """Imshow method."""
-    if not isinstance(image, Image.Image):
-        image = preprocess_image(image)
+    image: Union[Image.Image, ImageType], mode: str = "BGR"
+) -> None:  # pragma: no cover  # pylint: disable=line-too-long
+    """Imshow method.
 
+    Args:
+        image: PIL Image or ImageType (i.e. numpy array, torch.Tensor)
+        mode: Image channel format, will be used to convert ImageType to
+        an RGB PIL Image. Not necessary if 'image' is an RGB PIL Image.
+    """
+    if not isinstance(image, Image.Image):
+        image = preprocess_image(image, mode)
     plt.imshow(np.asarray(image))
-    plt.imsave(folder + "frame_" + str(frame_id) + ".png", np.asarray(image))
-    # plt.show()
+    plt.show()
 
 
 def imshow_bboxes(
-    image: ImageType, boxes: BoxType, frame_id: Optional[int], folder: str
+    image: ImageType, boxes: BoxType, mode: str = "BGR"
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
-    image = preprocess_image(image)
-    box_list, color_list, _, trackid_list = preprocess_boxes(boxes)
-    for box, col, trackid in zip(box_list, color_list, trackid_list):
-        draw_bbox(image, box, col, trackid)
+    image = preprocess_image(image, mode)
+    box_list, color_list, label_list = preprocess_boxes(boxes)
+    for box, col, label in zip(box_list, color_list, label_list):
+        draw_bbox(image, box, col, label)
 
-    imshow(image, frame_id, folder)
+    imshow(image)
 
 
 def draw_bbox(
-    image: Image.Image, box: Tuple[float], color: Tuple[int], trackid: int
+    image: Image.Image,
+    box: Tuple[float],
+    color: Tuple[int],
+    label: Optional[str] = None,
 ) -> None:
     """Draw 2D box onto image."""
     # print("draw_bbox:   ", box, "color: ", color, "")
     draw = ImageDraw.Draw(image)
     draw.rectangle(box, outline=color)
-    if trackid is not None:
+    if label is not None:
         font = ImageFont.load_default()
-        draw.text(box[:2], str(trackid), (255, 255, 255), font=font)
+        draw.text(box[:2], label, (255, 255, 255), font=font)

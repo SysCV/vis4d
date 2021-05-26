@@ -5,14 +5,14 @@ from sort_model import SORT
 
 from openmt import config
 from openmt.config import DataloaderConfig as Dataloader
-from openmt.engine import predict
+from openmt.engine import test
 from openmt.model import BaseModelConfig
 
 
 # Disable pylint for this file due to high overlap with detector example
 # pylint: skip-file
 if __name__ == "__main__":
-    sort_detector_cfg = dict(  # TODO load pretrained weights
+    sort_detector_cfg = dict(
         type="D2GeneralizedRCNN",
         model_base="faster-rcnn/r50-fpn",
         num_classes=8,
@@ -52,7 +52,7 @@ if __name__ == "__main__":
         train=[
             config.Dataset(
                 name="bdd100k_sample_train",
-                type="scalabel",
+                type="bdd100k",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 "labels",
                 data_root="openmt/track/track/bdd100k-samples/images/",
@@ -64,12 +64,13 @@ if __name__ == "__main__":
                     "person": "pedestrian",
                     "van": "car",
                 },
+                config_path="box_track",
             )
         ],
         test=[
             config.Dataset(
                 name="bdd100k_sample_val",
-                type="scalabel",
+                type="bdd100k",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 "labels",
                 # annotations="data/bdd100k/labels/box_track_20/val/",
@@ -78,20 +79,23 @@ if __name__ == "__main__":
                 "images/",
                 # data_root="data/bdd100k/images/track/val/",
                 # data_root="data/one_sequence/images/",
+                config_path="box_track",
             )
         ],
     )
 
-    # choose according to setup
+    # TODO choose according to setup, add pretrained weights if necessary
     # CPU
+
     conf.launch = config.Launch(weights="weight/model_0000199.pth")
     # import os
     # import shutil
     # if os.path.exists("visualization/"):
     #     shutil.rmtree("visualization/")
     # os.mkdir("visualization/")
-    predict(conf)
+
+    test(conf)
 
     # single GPU
-    # conf.launch = config.Launch(device='cuda')
-    # predict(conf)
+    # conf.launch = config.Launch(device="cuda")
+    # test(conf)

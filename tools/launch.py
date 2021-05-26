@@ -1,10 +1,10 @@
-"""Training and prediction command line tool."""
+"""Training, testing and prediction command line tool."""
 
 from detectron2.engine import launch
 
 from openmt import config
 from openmt.common.utils import default_argument_parser
-from openmt.engine import predict, train
+from openmt.engine import predict, test, train
 
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()
@@ -12,6 +12,8 @@ if __name__ == "__main__":
 
     if args.action == "train":
         main_func = train
+    elif args.action == "test":
+        main_func = test
     elif args.action == "predict":
         main_func = predict
     else:

@@ -12,6 +12,7 @@ class TestDefaults(unittest.TestCase):
         parser = default_argument_parser()
         action = "train"
         cfg_path = "/path/to/config.toml"
-        args = parser.parse_args([action, "--config", cfg_path])
+        args = parser.parse_args([action, "--config", cfg_path, "--visualize"])
         self.assertEqual(args.config, cfg_path)
         self.assertEqual(args.action, action)
+        self.assertEqual(args.visualize, True)

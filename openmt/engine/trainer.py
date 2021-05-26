@@ -16,10 +16,11 @@ from openmt.config import Config
 from openmt.data import build_test_loader, build_train_loader
 from openmt.model import build_model
 from openmt.struct import EvalResults
+from openmt.vis import ScalabelVisualizer
 
 from .checkpointer import Checkpointer
 from .evaluator import ScalabelEvaluator, inference_on_dataset
-from .utils import default_setup, to_detectron2
+from .utils import default_setup, register_directory, to_detectron2
 
 
 class DefaultTrainer(D2DefaultTrainer):  # type: ignore
@@ -32,7 +33,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
         # Assumes you want to save checkpoints together with logs/statistics
         self.checkpointer = Checkpointer(
             self._trainer.model,
-            cfg.output_dir,
+            cfg.launch.output_dir,
             optimizer=self._trainer.optimizer,
             scheduler=self.scheduler,
         )
@@ -95,7 +96,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
         cls, openmt_cfg: Config, cfg: CfgNode, dataset_name: str
     ) -> DatasetEvaluator:
         """Build evaluators for tracking and detection."""
-        output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
+        output_folder = os.path.join(cfg.OUTPUT_DIR, dataset_name)
         evaluator = ScalabelEvaluator(dataset_name, True, output_folder)
         evaluator.set_metrics(openmt_cfg.solver.eval_metrics)
         return evaluator
@@ -117,7 +118,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
         model: torch.nn.Module,
         evaluators: Optional[List[DatasetEvaluator]] = None,
     ) -> OrderedDictType[str, EvalResults]:
-        """Test detect with given evaluators."""
+        """Test model with given evaluators."""
         logger = logging.getLogger(__name__)
         assert openmt_cfg.test is not None
         datasets = [ds.name for ds in openmt_cfg.test]
@@ -161,6 +162,33 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
             results = list(results.values())[0]  # type: ignore
         return results
 
+    @classmethod
+    def predict(
+        cls,
+        openmt_cfg: Config,
+        cfg: CfgNode,
+        model: torch.nn.Module,
+    ) -> None:
+        """Test detect with given evaluators."""
+        assert openmt_cfg.launch.output_dir is not None
+        if openmt_cfg.launch.input_dir is not None:
+            datasets = [register_directory(openmt_cfg.launch.input_dir)]
+        else:
+            assert openmt_cfg.test is not None
+            datasets = [ds.name for ds in openmt_cfg.test]
+
+        for dataset_name in datasets:
+            data_loader = cls.build_test_loader_static(
+                openmt_cfg, cfg, dataset_name
+            )
+            output_folder = os.path.join(
+                openmt_cfg.launch.output_dir, dataset_name
+            )
+            visualizer = ScalabelVisualizer(
+                dataset_name, output_folder, True, openmt_cfg.launch.visualize
+            )
+            inference_on_dataset(model, data_loader, visualizer)
+
 
 def train(cfg: Config) -> Optional[Dict[str, EvalResults]]:
     """Training function."""
@@ -174,8 +202,8 @@ def train(cfg: Config) -> Optional[Dict[str, EvalResults]]:
     return trainer.train()  # type: ignore
 
 
-def predict(cfg: Config) -> Dict[str, EvalResults]:
-    """Prediction function."""
+def test(cfg: Config) -> Dict[str, EvalResults]:
+    """Test function."""
     det2cfg = to_detectron2(cfg)
     default_setup(cfg, det2cfg, cfg.launch)
 
@@ -189,3 +217,20 @@ def predict(cfg: Config) -> Dict[str, EvalResults]:
         det2cfg.MODEL.WEIGHTS, resume=cfg.launch.resume
     )
     return DefaultTrainer.test_static(cfg, det2cfg, model)
+
+
+def predict(cfg: Config) -> None:
+    """Prediction function."""
+    det2cfg = to_detectron2(cfg)
+    default_setup(cfg, det2cfg, cfg.launch)
+
+    model = build_model(cfg.model)
+    model.to(torch.device(cfg.launch.device))
+    if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
+        det2cfg.MODEL.merge_from_other_cfg(model.detector.d2_cfg.MODEL)
+    if cfg.launch.weights != "detectron2":
+        det2cfg.MODEL.WEIGHTS = cfg.launch.weights  # pragma: no cover
+    Checkpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
+        det2cfg.MODEL.WEIGHTS, resume=cfg.launch.resume
+    )
+    DefaultTrainer.predict(cfg, det2cfg, model)

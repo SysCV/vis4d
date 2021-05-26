@@ -60,13 +60,13 @@ def dicts_to_boxes2d(target: List[D2BoxType]) -> Boxes2D:
 
 def label_to_dict(label: Label) -> D2BoxType:
     """Convert scalabel format label to d2 readable dict."""
-    assert label.box_2d is not None and label.attributes is not None
+    assert label.box2d is not None and label.attributes is not None
     ann = dict(
         bbox=(
-            label.box_2d.x1,
-            label.box_2d.y1,
-            label.box_2d.x2,
-            label.box_2d.y2,
+            label.box2d.x1,
+            label.box2d.y1,
+            label.box2d.x2,
+            label.box2d.y2,
         ),
         bbox_mode=BoxMode.XYXY_ABS,
         category_id=label.attributes["category_id"],

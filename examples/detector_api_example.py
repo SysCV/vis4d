@@ -67,25 +67,38 @@ if __name__ == "__main__":
         dataloader=Dataloader(
             workers_per_gpu=0,
             ref_sampling_cfg=dict(type="uniform", scope=1, num_ref_imgs=0),
+            categories=[
+                "pedestrian",
+                "rider",
+                "car",
+                "truck",
+                "bus",
+                "train",
+                "motorcycle",
+                "bicycle",
+            ],
+            remove_samples_without_labels=True,
         ),
         train=[
             config.Dataset(
                 name="bdd100k_sample_train",
-                type="scalabel",
-                annotations="openmt/engine/testcases/detect/bdd100k-samples/"
-                "annotation.json",
-                data_root="openmt/engine/testcases/detect/bdd100k-samples/"
-                "images",
+                type="bdd100k",
+                annotations="openmt/engine/testcases/track/bdd100k-samples/"
+                "labels",
+                data_root="openmt/engine/testcases/track/bdd100k-samples/"
+                "images/",
+                config_path="box_track",
             )
         ],
         test=[
             config.Dataset(
                 name="bdd100k_sample_val",
-                type="scalabel",
-                annotations="openmt/engine/testcases/detect/bdd100k-samples/"
-                "annotation.json",
-                data_root="openmt/engine/testcases/detect/bdd100k-samples/"
-                "images",
+                type="bdd100k",
+                annotations="openmt/engine/testcases/track/bdd100k-samples/"
+                "labels",
+                data_root="openmt/engine/testcases/track/bdd100k-samples/"
+                "images/",
+                config_path="box_track",
             )
         ],
     )

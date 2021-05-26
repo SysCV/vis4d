@@ -18,7 +18,7 @@ class TrackingInferenceSampler(Sampler):  # type: ignore
     def __init__(self, dataset: MapDataset):
         """Init."""
         super().__init__(None)
-        self._sequences = list(dataset.video_to_idcs.keys())
+        self._sequences = list(dataset.video_to_indices.keys())
         self._num_seqs = len(self._sequences)
         assert self._num_seqs > 0
         self._rank = comm.get_rank()
@@ -29,7 +29,9 @@ class TrackingInferenceSampler(Sampler):  # type: ignore
         end = min(shard_size * (self._rank + 1), self._num_seqs)
         self._local_idcs = []
         for i in range(begin, end):
-            self._local_idcs.extend(dataset.video_to_idcs[self._sequences[i]])
+            self._local_idcs.extend(
+                dataset.video_to_indices[self._sequences[i]]
+            )
 
     def __iter__(self) -> Generator[int, None, None]:
         """Iteration method."""

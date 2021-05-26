@@ -38,22 +38,16 @@ COLOR_PALETTE = generate_colors(NUM_COLORS)
 
 def preprocess_boxes(
     boxes: BoxType, color_idx: int = 0
-) -> Tuple[List[Tuple[float]], List[Tuple[int]], List[float], List[int]]:
-    """Preprocess BoxType to boxes / colors for drawing."""
+) -> Tuple[List[Tuple[float]], List[Tuple[int]], List[str]]:
+    """Preprocess BoxType to boxes / colors / labels for drawing."""
     if isinstance(boxes, list):
-        result_box, result_color, result_score, result_trackid = (
-            [],
-            [],
-            [],
-            [],
-        )
+        result_box, result_color, result_labels = [], [], []
         for i, b in enumerate(boxes):
-            res_box, res_color, res_score, res_trackid = preprocess_boxes(b, i)
+            res_box, res_color, res_labels = preprocess_boxes(b, i)
             result_box.extend(res_box)
             result_color.extend(res_color)
-            result_score.extend(res_score)
-            result_trackid.extend(res_trackid)
-        return result_box, result_color, result_score, result_trackid
+            result_labels.extend(res_labels)
+        return result_box, result_color, result_labels
 
     assert isinstance(boxes, Boxes2D)
 
@@ -64,41 +58,69 @@ def preprocess_boxes(
         track_ids = boxes.track_ids.cpu().numpy()
         if len(track_ids.shape) > 1:
             track_ids = track_ids.squeeze(-1)
-        draw_colors = [COLOR_PALETTE[t % NUM_COLORS] for t in track_ids]
-        track_ids = track_ids.tolist()
     else:
-        track_ids = [None] * len(boxes_list)
-        draw_colors = [
-            COLOR_PALETTE[color_idx % NUM_COLORS]
-            for _ in range(len(boxes_list))
-        ]
+        track_ids = [None for _ in range(len(boxes_list))]
 
-    return boxes_list, draw_colors, scores, track_ids
+    if boxes.class_ids is not None:
+        class_ids = boxes.class_ids.cpu().numpy()
+    else:
+        class_ids = [None for _ in range(len(boxes_list))]
+
+    labels, draw_colors = [], []
+    for s, t, c in zip(scores, track_ids, class_ids):
+        if t is not None:
+            draw_color = COLOR_PALETTE[int(t) % NUM_COLORS]
+        elif c is not None:
+            draw_color = COLOR_PALETTE[int(c) % NUM_COLORS]
+        else:
+            draw_color = COLOR_PALETTE[color_idx % NUM_COLORS]
+
+        label = ""
+        if t is not None:
+            label += str(int(t)) + ","
+        if c is not None:
+            str_c = str(int(c))
+            if boxes.metadata is not None:
+                str_c = boxes.metadata[str_c]  # type: ignore
+            label += str_c + ","
+
+        label += "{:.1f}%".format(s * 100)
+        labels.append(label)
+        draw_colors.append(draw_color)
+
+    return boxes_list, draw_colors, labels
 
 
-def preprocess_image(input_img: ImageType) -> Image.Image:
+def preprocess_image(image: ImageType, mode: str = "BGR") -> Image.Image:
     """Validate and convert input image.
 
     Args:
-        input_img: CHW or HWC image (ImageType) in RGB.
+        image: CHW or HWC image (ImageType) with C = 3.
+        mode: input channel format (e.g. BGR, HSV). More info
+        at https://pillow.readthedocs.io/en/stable/handbook/concepts.html
 
     Returns:
-        PIL.Image.Image: Processed image.
+        PIL.Image.Image: Processed image in RGB.
     """
-    assert len(input_img.shape) == 3
-    assert input_img.shape[0] == 3 or input_img.shape[-1] == 3
+    assert len(image.shape) == 3
+    assert image.shape[0] == 3 or image.shape[-1] == 3
 
-    if isinstance(input_img, torch.Tensor):
-        input_img = input_img.cpu().numpy()
+    if isinstance(image, torch.Tensor):
+        image = image.cpu().numpy()
 
-    if not input_img.shape[-1] == 3:
-        input_img = input_img.transpose(1, 2, 0)
+    if not image.shape[-1] == 3:
+        image = image.transpose(1, 2, 0)
     min_val, max_val = (
-        np.min(input_img, axis=(0, 1)),
-        np.max(input_img, axis=(0, 1)),
+        np.min(image, axis=(0, 1)),
+        np.max(image, axis=(0, 1)),
     )
 
-    input_img = input_img.astype(np.float32)
+    image = image.astype(np.float32)
 
-    input_img = (input_img - min_val) / (max_val - min_val) * 255.0
-    return Image.fromarray(input_img.astype(np.uint8))
+    image = (image - min_val) / (max_val - min_val) * 255.0
+
+    if mode == "BGR":
+        image = image[..., [2, 1, 0]]
+        mode = "RGB"
+
+    return Image.fromarray(image.astype(np.uint8), mode=mode).convert("RGB")

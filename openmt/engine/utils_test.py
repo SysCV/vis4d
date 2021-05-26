@@ -17,13 +17,14 @@ class TestConfig(unittest.TestCase):
             Dataset(
                 **dict(
                     name="example",
-                    type=DatasetType.CUSTOM,
+                    type=DatasetType.MOTCHALLENGE,
                     data_root="/path/to/data",
                     annotations="/path/to/annotations",
                 )
             )
         ]
-        self.assertRaises(NotImplementedError, _register, datasets)
+        names = _register(datasets)
+        self.assertEqual(names, ["example"])
 
     def test_to_detectron2(self) -> None:
         """Testcase for detectron2 config conversion."""
