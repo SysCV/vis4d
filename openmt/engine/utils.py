@@ -41,7 +41,7 @@ def register_directory(input_path: str) -> str:
     if input_path[-1] == "/":
         input_path = input_path[:-1]
     dataset_name = os.path.basename(input_path)
-    dataset = Dataset(type="custom", name=dataset_name, data_root=input_path)
+    dataset = Dataset(type="Custom", name=dataset_name, data_root=input_path)
     register_dataset_instances(dataset)
     return dataset_name
 

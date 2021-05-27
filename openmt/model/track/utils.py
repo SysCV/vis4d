@@ -1,50 +1,38 @@
 """Tracking model utils."""
-import random
-from enum import Enum
 from typing import List, Tuple
 
 import torch
 from torch.nn import functional as F
 
-
-class KeyFrameSelection(str, Enum):
-    """Enum for key frame selection strategy.
-
-    random: Keyframe is randomly selected from the input frames.
-    first: Keyframe == first frame.
-    last:  Keyframe == last frame.
-    """
-
-    RANDOM = "random"
-    FIRST = "first"
-    LAST = "last"
+from openmt.struct import InputSample
 
 
-def select_keyframe(
-    sequence_length: int, strategy: str = "random"
-) -> Tuple[int, List[int]]:
-    """Keyframe selection.
+def split_key_ref_inputs(
+    batched_input_samples: List[List[InputSample]],
+) -> Tuple[List[InputSample], List[List[InputSample]]]:
+    """Split key / ref frame inputs from batched List of InputSample."""
+    key_indices = []  # type: List[int]
+    ref_indices = []  # type: List[List[int]]
+    for input_samples in batched_input_samples:
+        curr_ref_indices = list(range(0, len(input_samples)))
+        for i, sample in enumerate(input_samples):
+            if (
+                sample.metadata.attributes is not None
+                and sample.metadata.attributes.get("keyframe", False)
+            ):
+                key_indices.append(curr_ref_indices.pop(i))
+                ref_indices.append(curr_ref_indices)
+                break
 
-    Strategies:
-    - Random
-    - First frame
-    - Last frame
-    """
-    if strategy == "random":
-        key_index = random.randint(0, sequence_length - 1)
-    elif strategy == "first":
-        key_index = 0
-    elif strategy == "last":
-        key_index = sequence_length - 1
-    else:
-        raise NotImplementedError(
-            f"Keyframe selection strategy {strategy} not implemented"
-        )
-
-    ref_indices = list(range(sequence_length))
-    ref_indices.remove(key_index)
-
-    return key_index, ref_indices
+    key_inputs = [
+        inputs[key_index]
+        for inputs, key_index in zip(batched_input_samples, key_indices)
+    ]
+    ref_inputs = [
+        [inputs[i] for i in curr_ref_indices]
+        for inputs, curr_ref_indices in zip(batched_input_samples, ref_indices)
+    ]
+    return key_inputs, ref_inputs
 
 
 def cosine_similarity(

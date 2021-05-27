@@ -1,22 +1,30 @@
 """data utils."""
 import itertools
 import logging
+import os
 import sys
+from collections import defaultdict
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
+from detectron2.data.catalog import MetadataCatalog
 from detectron2.structures.boxes import BoxMode
 from detectron2.utils.logger import log_first_n
+from fvcore.common.timer import Timer
 from PIL import Image
+from scalabel.label.typing import Config as MetadataConfig
 from scalabel.label.typing import Frame, Label
+from scalabel.label.utils import get_leaf_categories
 from tabulate import tabulate
 from termcolor import colored
 
+from openmt.config import Dataset as DatasetConfig
 from openmt.struct import Boxes2D
 
 D2BoxType = Dict[str, Union[bool, float, str]]
+logger = logging.getLogger(__name__)
 
 
 def identity_batch_collator(  # type: ignore
@@ -31,6 +39,115 @@ def im_decode(im_bytes: bytes) -> np.ndarray:
     pil_img = Image.open(BytesIO(bytearray(im_bytes)))
     np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: np.ndarray
     return np_img
+
+
+def instance_ids_to_global(
+    frames: List[Frame], local_instance_ids: Dict[str, List[str]]
+) -> None:
+    """Use local (per video) instance ids to produce global ones."""
+    video_names = list(local_instance_ids.keys())
+    for frame_id, ann in enumerate(frames):
+        if ann.labels is not None:
+            for label in ann.labels:
+                assert label.attributes is not None
+                if not label.attributes.get("crowd", False):
+                    video_name = (
+                        ann.video_name
+                        if ann.video_name is not None
+                        else "no-video-" + str(frame_id)
+                    )
+                    sum_previous_vids = sum(
+                        (
+                            len(local_instance_ids[v])
+                            for v in video_names[
+                                : video_names.index(video_name)
+                            ]
+                        )
+                    )
+                    label.attributes[
+                        "instance_id"
+                    ] = sum_previous_vids + local_instance_ids[
+                        video_name
+                    ].index(
+                        label.id
+                    )
+
+
+def prepare_labels(
+    cat_name2id: Dict[str, int],
+    frames: List[Frame],
+    global_instance_ids: bool = False,
+) -> Dict[str, int]:
+    """Add category id and instance id to labels, return class frequencies."""
+    timer = Timer()
+    instance_ids = defaultdict(list)  # type: Dict[str, List[str]]
+    frequencies = {cat: 0 for cat in cat_name2id}
+    for frame_id, ann in enumerate(frames):
+        if ann.labels is not None:
+            for label in ann.labels:
+                attr = dict()  # type: Dict[str, Union[bool, int, float, str]]
+                if label.attributes is None or not label.attributes.get(
+                    "crowd", False
+                ):
+                    assert label.category is not None
+                    frequencies[label.category] += 1
+                    attr["category_id"] = cat_name2id[label.category]
+
+                    video_name = (
+                        ann.video_name
+                        if ann.video_name is not None
+                        else "no-video-" + str(frame_id)
+                    )
+                    if label.id not in instance_ids[video_name]:
+                        instance_ids[video_name].append(label.id)
+                    attr["instance_id"] = instance_ids[video_name].index(
+                        label.id
+                    )
+
+                if label.attributes is None:
+                    label.attributes = attr  # pragma: no cover
+                else:
+                    label.attributes.update(attr)
+
+    if global_instance_ids:
+        instance_ids_to_global(frames, instance_ids)
+
+    logger.info(
+        "Preprocessing %s labels takes %s seconds.",
+        len(frames),
+        "{:.2f}".format(timer.seconds()),
+    )
+    return frequencies
+
+
+def add_data_path(data_root: str, frames: List[Frame]) -> None:
+    """Add filepath to frame using data_root and frame.name."""
+    for ann in frames:
+        assert ann.name is not None
+        if ann.video_name is not None:
+            ann.url = os.path.join(data_root, ann.video_name, ann.name)
+        else:
+            ann.url = os.path.join(data_root, ann.name)
+
+
+def add_metadata(
+    metadata_cfg: MetadataConfig, dataset_cfg: DatasetConfig
+) -> None:
+    """Add metadata to MetadataCatalog."""
+    meta = MetadataCatalog.get(dataset_cfg.name)
+    if meta.get("thing_classes") is None:
+        cat_name2id = {
+            cat.name: i + 1
+            for i, cat in enumerate(
+                get_leaf_categories(metadata_cfg.categories)
+            )
+        }
+        meta.thing_classes = list(cat_name2id.keys())
+        meta.idx_to_class_mapping = {v: k for k, v in cat_name2id.items()}
+        meta.metadata_cfg = metadata_cfg
+        meta.annotations = dataset_cfg.annotations
+        meta.data_root = dataset_cfg.data_root
+        meta.cfg_path = dataset_cfg.config_path
 
 
 def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:
@@ -92,7 +209,6 @@ def filter_empty_annotations(frames: List[Frame]) -> List[Frame]:
 
     frames = [x for x in frames if valid(x.labels)]
     num_after = len(frames)
-    logger = logging.getLogger(__name__)
     logger.info(
         "Removed %s images with no usable annotations. %s images left.",
         num_before - num_after,

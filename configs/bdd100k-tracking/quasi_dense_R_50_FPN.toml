@@ -1,6 +1,5 @@
 [model]
 type = "QDGeneralizedRCNN"
-keyframe_selection = "first"
     [model.detection]
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
@@ -64,21 +63,21 @@ eval_metrics = ['track']
 
 [[train]]
 name = "bdd100k_track_sample_train"
-type = "bdd100k"
+type = "BDD100K"
 annotations = "openmt/engine/testcases/track/bdd100k-samples/labels/"
 data_root = "openmt/engine/testcases/track/bdd100k-samples/images/"
 config_path = "box_track"
 
 [[train]]
 name = "bdd100k_det_sample_train"
-type = "bdd100k"
+type = "BDD100K"
 annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "openmt/engine/testcases/detect/bdd100k-samples/images/"
 config_path = "det"
 
 [[test]]
 name = "bdd100k_sample_val"
-type = "bdd100k"
+type = "BDD100K"
 annotations = "openmt/engine/testcases/track/bdd100k-samples/labels/"
 data_root = "openmt/engine/testcases/track/bdd100k-samples/images/"
 config_path = "box_track"
@@ -91,7 +90,7 @@ inference_sampling = "sequence_based"
     [dataloader.data_backend]
     type = "HDF5Backend"
     [dataloader.ref_sampling_cfg]
-    type = 'uniform'
+    type = "uniform"
     scope = 3
     num_ref_imgs = 1
 

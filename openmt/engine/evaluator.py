@@ -169,7 +169,7 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
         self._distributed = distributed
         self._output_dir = output_dir
         self._metadata = MetadataCatalog.get(dataset_name)
-        self.gts = DatasetCatalog[dataset_name](prep_frames=False)
+        self.gts = DatasetCatalog[dataset_name]()
         self._predictions = []  # type: List[Frame]
 
     def reset(self) -> None:

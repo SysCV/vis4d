@@ -11,17 +11,15 @@ from openmt.model.track.similarity import (
     SimilarityLearningConfig,
     build_similarity_head,
 )
-from openmt.model.track.utils import cosine_similarity, select_keyframe
+from openmt.model.track.utils import cosine_similarity, split_key_ref_inputs
 from openmt.struct import Boxes2D, InputSample, LossesType
 
 from .base import BaseModel, BaseModelConfig
-from .track.utils import KeyFrameSelection
 
 
 class QDGeneralizedRCNNConfig(BaseModelConfig):
     """Config for quasi-dense tracking model."""
 
-    keyframe_selection: KeyFrameSelection
     detection: BaseDetectorConfig
     similarity: SimilarityLearningConfig
     track_graph: TrackGraphConfig
@@ -39,8 +37,6 @@ class QDGeneralizedRCNN(BaseModel):
         self.detector = build_detector(self.cfg.detection)
         self.similarity_head = build_similarity_head(self.cfg.similarity)
         self.track_graph = build_track_graph(self.cfg.track_graph)
-        self.keyframe_selection = self.cfg.keyframe_selection
-
         self.track_loss = build_loss(self.cfg.losses[0])
         self.track_loss_aux = build_loss(self.cfg.losses[1])
 
@@ -53,33 +49,26 @@ class QDGeneralizedRCNN(BaseModel):
         self, batch_inputs: List[List[InputSample]]
     ) -> LossesType:
         """Forward function for training."""
-        # preprocess: group by sequence index instead of batch index, prepare
-        batch_inputs = [
-            [batch_inputs[j][i] for j in range(len(batch_inputs))]
-            for i in range(len(batch_inputs[0]))
-        ]
+        # split into key / ref pairs NxM input --> key: N, ref: Nx(M-1)
+        key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
 
-        # split into key / ref pairs
-        sequence_length = len(batch_inputs)
-        key_index, ref_indices = select_keyframe(
-            sequence_length, self.keyframe_selection
-        )
-        key_inputs = batch_inputs[key_index]
-        ref_inputs = [batch_inputs[i] for i in ref_indices]
+        # group by ref views by sequence: Nx(M-1) --> (M-1)xN
+        ref_inputs = [
+            [ref_inputs[j][i] for j in range(len(ref_inputs))]
+            for i in range(len(ref_inputs[0]))
+        ]
 
         # prepare targets
-        key_targets = [
-            x.instances.to(self.device) for x in batch_inputs[key_index]
-        ]
+        key_targets = [input.instances.to(self.device) for input in key_inputs]
         ref_targets = [
-            [x.instances.to(self.device) for x in batch_inputs[i]]
-            for i in ref_indices
+            [input.instances.to(self.device) for input in inputs]
+            for inputs in ref_inputs
         ]
 
         # from openmt.vis.image import imshow_bboxes
-        # for ref_i, ref_inp in enumerate(ref_inputs):
-        #     for batch_i, key_inp in enumerate(key_inputs):
-        #         imshow_bboxes(key_inp.image.tensor[0], key_targets[batch_i])
+        # for batch_i, key_inp in enumerate(key_inputs):
+        #     imshow_bboxes(key_inp.image.tensor[0], key_targets[batch_i])
+        #     for ref_i, ref_inp in enumerate(ref_inputs):
         #         imshow_bboxes(
         #             ref_inp[batch_i].image.tensor[0],
         #             ref_targets[ref_i][batch_i],

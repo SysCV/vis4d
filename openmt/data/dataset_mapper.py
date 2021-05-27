@@ -77,6 +77,24 @@ class MapDataset(D2MapDataset):  # type: ignore
 
         return ref_dataset_indices
 
+    def sort_samples(
+        self, input_samples: List[InputSample]
+    ) -> List[InputSample]:
+        """Sort samples according to sampling cfg."""
+        if self.sampling_cfg.frame_order == "key_first":
+            return input_samples
+        if self.sampling_cfg.frame_order == "temporal":
+            return sorted(
+                input_samples,
+                key=lambda x: x.metadata.frame_index
+                if x.metadata.frame_index is not None
+                else 0,
+            )
+        raise NotImplementedError(
+            f"Frame ordering {self.sampling_cfg.frame_order} not "
+            f"implemented."
+        )
+
     def __getitem__(self, idx: int) -> List[InputSample]:
         """Fully prepare a sample for training/inference."""
         retry_count = 0
@@ -86,6 +104,9 @@ class MapDataset(D2MapDataset):  # type: ignore
             data = self._map_func(self._dataset[cur_idx])
             if data is not None:
                 input_data, transforms = data
+                if input_data.metadata.attributes is None:
+                    input_data.metadata.attributes = dict()
+                input_data.metadata.attributes["keyframe"] = True
                 self._fallback_candidates.add(cur_idx)
 
                 if self.training and self.sampling_cfg.num_ref_imgs > 0:
@@ -105,7 +126,8 @@ class MapDataset(D2MapDataset):  # type: ignore
                             input_data
                             for _ in range(self.sampling_cfg.num_ref_imgs)
                         ]
-                    return [input_data] + ref_data
+
+                    return self.sort_samples([input_data] + ref_data)
 
                 return [input_data]
 
@@ -248,5 +270,4 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             input_data, sample.labels, transforms
         )
         del sample.labels
-
         return input_data, transforms

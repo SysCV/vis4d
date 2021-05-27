@@ -82,7 +82,7 @@ class ScalabelVisualizer(DatasetEvaluator):  # type: ignore
             has_videos = True
             for frame, box in zip(predictions, self._boxes2d):
                 if frame.attributes is None:
-                    frame.attributes = dict()
+                    frame.attributes = dict()  # pragma: no cover
                 frame.attributes["boxs2d"] = box
                 if frame.video_name is None:
                     frame.video_name = ""

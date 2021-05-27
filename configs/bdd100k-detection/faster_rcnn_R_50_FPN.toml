@@ -17,13 +17,13 @@ eval_metrics = ['detect']
 
 [[train]]
 name = "bdd100k_sample_train"
-type = "coco"
+type = "COCO"
 annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation_coco.json"
 data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
 
 [[test]]
 name = "bdd100k_sample_val"
-type = "bdd100k"
+type = "BDD100K"
 annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
 config_path = "det"
