@@ -2,7 +2,7 @@
 from typing import List
 
 from openmt.model.detect import BaseDetectorConfig, build_detector
-from openmt.struct import Boxes2D, InputSample, LossesType
+from openmt.struct import InputSample, LossesType, ModelOutput
 
 from .base import BaseModel, BaseModelConfig
 
@@ -39,7 +39,7 @@ class DetectorWrapper(BaseModel):
         _, _, _, _, det_losses = self.detector(inputs, targets)
         return det_losses  # type: ignore
 
-    def forward_test(self, batch_inputs: List[InputSample]) -> List[Boxes2D]:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Forward pass during testing stage.
 
         Returns predictions for each input.
@@ -51,4 +51,4 @@ class DetectorWrapper(BaseModel):
                 batch_inputs[0].metadata.size.height,  # type: ignore
             )
             self.postprocess(ori_wh, inp.image.image_sizes[0], det)
-        return detections  # type: ignore
+        return dict(detect=detections)

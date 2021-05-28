@@ -18,14 +18,14 @@ eval_metrics = ['detect']
 
 [[train]]
 name = "bdd100k_det_sample_train"
-type = "coco"
+type = "COCO"
 annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation_coco.json"
 data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
 config_path = "openmt/engine/testcases/detect/bdd100k-samples/config.toml"
 
 [[test]]
 name = "bdd100k_det_sample_val"
-type = "scalabel"
+type = "Scalabel"
 annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
 config_path = "openmt/engine/testcases/detect/bdd100k-samples/config.toml"

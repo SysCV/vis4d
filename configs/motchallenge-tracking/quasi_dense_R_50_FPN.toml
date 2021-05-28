@@ -63,13 +63,13 @@ eval_metrics = ['track']
 
 [[train]]
 name = "motchallenge_sample_train"
-type = "motchallenge"
+type = "MOTChallenge"
 annotations = "data/MOT16"
 data_root = "data/MOT16"
 
 [[test]]
 name = "motchallenge_sample_val"
-type = "motchallenge"
+type = "MOTChallenge"
 annotations = "data/MOT16"
 data_root = "data/MOT16"
 

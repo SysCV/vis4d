@@ -3,7 +3,7 @@ import unittest
 from argparse import Namespace
 
 from openmt import config
-from openmt.config import Dataset, DatasetType
+from openmt.config import Dataset
 from openmt.engine.utils import _register, to_detectron2
 from openmt.unittest.utils import get_test_file
 
@@ -17,7 +17,7 @@ class TestConfig(unittest.TestCase):
             Dataset(
                 **dict(
                     name="example",
-                    type=DatasetType.MOTCHALLENGE,
+                    type="MOTChallenge",
                     data_root="/path/to/data",
                     annotations="/path/to/annotations",
                 )

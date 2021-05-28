@@ -6,8 +6,7 @@ from detectron2.data import MetadataCatalog
 from openmt.model import BaseModel, BaseModelConfig
 from openmt.model.detect import BaseDetectorConfig, build_detector
 from openmt.model.track.graph import TrackGraphConfig, build_track_graph
-from openmt.struct import Boxes2D, InputSample, LossesType
-from openmt.vis.image import imshow_bboxes  # , imsave_bboxes
+from openmt.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
 
 class SORTConfig(BaseModelConfig, extra="allow"):
@@ -46,12 +45,14 @@ class SORT(BaseModel):
         _, _, _, _, det_losses = self.detector(inputs, targets)
         return det_losses  # type: ignore
 
-    def forward_test(self, batch_inputs: List[InputSample]) -> List[Boxes2D]:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Forward pass during testing stage.
 
         Returns predictions for each input.
         """
         if not self.search_dict:
+            from openmt.struct import Boxes2D
+
             self.search_dict = dict()
             given_predictions = json.load(
                 open(
@@ -107,57 +108,30 @@ class SORT(BaseModel):
                         boxes, class_ids
                     )
 
+        assert len(batch_inputs) == 1, "Currently only BS=1 supported!"
         frame_id = batch_inputs[0].metadata.frame_index
         # init graph at begin of sequence
         if frame_id == 0:
             self.track_graph.reset()
 
-        # detector
-        # image, _, _, detections, _ = self.detector(
-        #     batch_inputs
-        # )  # detections type: List[Boxes2D]
-
         # using given detections
-        image = batch_inputs[0].image
-        video_name = batch_inputs[0].metadata.video_name
-        frame_index = batch_inputs[0].metadata.frame_index
-        assert video_name in self.search_dict
-        assert frame_index in self.search_dict[video_name]
-        detections = [self.search_dict[video_name][frame_index]]
+        # image = batch_inputs[0].image
+        # video_name = batch_inputs[0].metadata.video_name
+        # frame_index = batch_inputs[0].metadata.frame_index
+        # assert video_name in self.search_dict
+        # assert frame_index in self.search_dict[video_name]
+        # detections = [self.search_dict[video_name][frame_index]]
 
-        detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
-
-        # if frame_id is None:
-        #     frame_id = 10000
-        # imsave_bboxes(
-        #     image.tensor[0],
-        #     detections,
-        #     frame_id,
-        #     "visualization/",
-        #     "detections",
-        # )
-        # associate detections, update graph
-        detections_new, predictions = self.track_graph(detections[0], frame_id)
-
-        # imsave_bboxes(
-        #     image.tensor[0],
-        #     predictions,
-        #     frame_id,
-        #     "visualization/",
-        #     "predictions",
-        # )
-        # imsave_bboxes(
-        #     image.tensor[0],
-        #     detections,
-        #     frame_id,
-        #     "visualization/",
-        #     "corrected",
-        # )
-
+        # using detectors
+        image, _, _, detections, _ = self.detector(batch_inputs)
         ori_wh = (
             batch_inputs[0].metadata.size.width,  # type: ignore
             batch_inputs[0].metadata.size.height,  # type: ignore
         )
-        self.postprocess(ori_wh, image.image_sizes[0], detections_new)  # type: ignore # pylint: disable=line-too-long
+        self.postprocess(ori_wh, image.image_sizes[0], detections[0])
 
-        return [detections_new]
+        # associate detections, update graph
+        detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
+        tracks = self.track_graph(detections[0], frame_id)
+
+        return dict(detect=detections, track=[tracks])

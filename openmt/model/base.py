@@ -8,7 +8,7 @@ from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
 
 from openmt.common.registry import RegistryHolder
-from openmt.struct import Boxes2D, InputSample, LossesType
+from openmt.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
 
 class BaseModelConfig(PydanticBaseModel, extra="allow"):
@@ -35,15 +35,25 @@ class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     ) -> Dict[str, torch.Tensor]:
         """Forward pass during training stage.
 
-        Returns a dict of loss tensors.
+        Args:
+            batch_inputs: Model input. Batched, including possible reference
+            views.
+
+        Returns:
+            Dict: A dict of loss tensors.
         """
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward_test(self, batch_inputs: List[InputSample]) -> List[Boxes2D]:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Forward pass during testing stage.
 
-        Returns predictions for each input.
+        Args:
+            batch_inputs: Model input (batched).
+
+        Returns:
+            ModelOutput: Dict of LabelInstance results, e.g. tracking and
+            separate detection result.
         """
         raise NotImplementedError
 

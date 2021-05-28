@@ -3,7 +3,6 @@ import os
 import sys
 from argparse import Namespace
 from datetime import datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union, no_type_check
 
 import toml
@@ -15,11 +14,12 @@ from openmt.model import BaseModelConfig
 
 
 class ReferenceSamplingConfig(BaseModel):
-    """Config for customizing the sampling for reference views."""
+    """Config for customizing the sampling of reference views."""
 
     type: str = "uniform"
-    num_ref_imgs: int
-    scope: int
+    num_ref_imgs: int = 0
+    scope: int = 1
+    frame_order: str = "key_first"
 
     @validator("scope")
     def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long
@@ -46,6 +46,7 @@ class DataloaderConfig(BaseModel):
     inference_sampling: str = "sample_based"
     categories: Optional[List[str]] = None
     remove_samples_without_labels: bool = False
+    compute_global_instance_ids: bool = False
     train_augmentations: Optional[List[Augmentation]] = None
     test_augmentations: Optional[List[Augmentation]] = None
     ref_sampling_cfg: ReferenceSamplingConfig
@@ -76,26 +77,11 @@ class Solver(BaseModel):
     eval_metrics: List[str]
 
 
-class DatasetType(str, Enum):
-    """Enum for dataset type.
-
-    scalabel: Scalabel based dataset format.
-    coco: COCO style dataset (will be converted to scalabel).
-    motchallenge: MOTChallenge dataset format (will be converted to scalabel).
-    """
-
-    SCALABEL = "scalabel"
-    BDD100K = "bdd100k"
-    COCO = "coco"
-    MOTCHALLENGE = "motchallenge"
-    CUSTOM = "custom"
-
-
 class Dataset(BaseModel):
     """Config for training/evaluation datasets."""
 
     name: str
-    type: DatasetType
+    type: str
     data_root: str
     annotations: Optional[str]
     config_path: Optional[str]
@@ -218,5 +204,16 @@ def read_config(filepath: str) -> Config:
         config_dict = toml.load(filepath)
     else:
         raise NotImplementedError(f"Config type {ext} not supported")
+
+    # Fix pickle error with the class not being serializable:
+    # TomlDecoder.get_empty_inline_table.<locals>.DynamicInlineTableDict
+    @no_type_check
+    def check_for_dicts(obj):
+        if isinstance(obj, dict):
+            return {k: check_for_dicts(v) for k, v in obj.items()}
+        return obj
+
+    config_dict = check_for_dicts(config_dict)
+
     config = Config(**config_dict)
     return config

@@ -51,7 +51,7 @@ if __name__ == "__main__":
         train=[
             config.Dataset(
                 name="bdd100k_sample_train",
-                type="bdd100k",
+                type="BDD100K",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 "labels",
                 data_root="openmt/track/track/bdd100k-samples/images/",
