@@ -23,6 +23,7 @@ from .utils import (
     discard_labels_outside_set,
     filter_empty_annotations,
     identity_batch_collator,
+    prepare_labels,
     print_class_histogram,
 )
 
@@ -45,6 +46,7 @@ class DataOptions(BaseModel):
 def get_dataset_dicts(  # type: ignore
     names: Union[str, List[str]],
     filter_empty: bool = True,
+    global_instance_ids: bool = False,
     categories: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Load and prepare dataset dicts."""
@@ -101,19 +103,23 @@ def get_dataset_dicts(  # type: ignore
 
             discard_labels_outside_set(dataset_frames, categories)
 
-        # check metadata consistency, print class frequencies
+        # check metadata consistency
         detection_utils.check_metadata_consistency("thing_classes", names)
-        class_names = MetadataCatalog.get(names[0]).thing_classes
-        overall_frequencies = {c: 0 for c in class_names}
-        for name in names:
-            meta = MetadataCatalog.get(name)
-            for c in class_names:
-                if c in meta.class_frequencies:
-                    overall_frequencies[c] += meta.class_frequencies[c]
-        print_class_histogram(overall_frequencies)
 
         if filter_empty:
             dataset_frames = filter_empty_annotations(dataset_frames)
+
+        # add category and instance ids, print class frequencies
+        cat_name2id = {
+            v: k
+            for k, v in MetadataCatalog.get(
+                names[0]
+            ).idx_to_class_mapping.items()
+        }
+        frequencies = prepare_labels(
+            cat_name2id, dataset_frames, global_instance_ids
+        )
+        print_class_histogram(frequencies)
 
     elif categories is not None:
         metas = [MetadataCatalog.get(d) for d in names]
@@ -141,6 +147,7 @@ def _train_loader_from_config(
     dataset = get_dataset_dicts(
         cfg.DATASETS.TRAIN,
         loader_cfg.remove_samples_without_labels,
+        loader_cfg.compute_global_instance_ids,
         loader_cfg.categories,
     )
     mapper = DatasetMapper(loader_cfg, cfg)
@@ -185,7 +192,9 @@ def _test_loader_from_config(
     loader_cfg: DataloaderConfig, cfg: CfgNode, dataset_name: str
 ) -> DataOptions:
     """Construct testing data loader from config."""
-    dataset = get_dataset_dicts(dataset_name, False, loader_cfg.categories)
+    dataset = get_dataset_dicts(
+        dataset_name, False, False, loader_cfg.categories
+    )
     mapper = DatasetMapper(loader_cfg, cfg, is_train=False)
 
     return DataOptions(

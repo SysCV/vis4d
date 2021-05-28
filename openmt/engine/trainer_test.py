@@ -1,16 +1,23 @@
 """Test cases for openMT engine Trainer."""
+import unittest
+from argparse import Namespace
+
 import torch
 
+from openmt import config
 from openmt.engine.trainer import predict
 from openmt.engine.trainer import test as evaluate
 from openmt.engine.trainer import train
-from openmt.unittest.utils import DetectTest, TrackTest
+from openmt.unittest.utils import d2_data_reset, get_test_file
 
 from .utils import _register
 
 
-class TestTrack(TrackTest):
+class TestTrack(unittest.TestCase):
     """Test cases for openmt tracking."""
+
+    args = Namespace(config=get_test_file("track/quasi_dense_R_50_FPN.toml"))
+    cfg = config.parse_config(args)
 
     def test_predict(self) -> None:
         """Testcase for predict."""
@@ -65,9 +72,20 @@ class TestTrack(TrackTest):
         _register(self.cfg.test)
         _register(self.cfg.train)
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Clean up dataset registry."""
+        assert cls.cfg.train is not None
+        assert cls.cfg.test is not None
+        d2_data_reset(cls.cfg.train)
+        d2_data_reset(cls.cfg.test)
 
-class TestDetect(DetectTest):
+
+class TestDetect(unittest.TestCase):
     """Test cases for openmt detection."""
+
+    args = Namespace(config=get_test_file("detect/faster_rcnn_R_50_FPN.toml"))
+    cfg = config.parse_config(args)
 
     def test_predict(self) -> None:
         """Testcase for predict."""
@@ -110,3 +128,11 @@ class TestDetect(DetectTest):
 
         for k in results:
             self.assertIn(k, metric_keys)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Clean up dataset registry."""
+        assert cls.cfg.train is not None
+        assert cls.cfg.test is not None
+        d2_data_reset(cls.cfg.train)
+        d2_data_reset(cls.cfg.test)

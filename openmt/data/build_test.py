@@ -15,8 +15,8 @@ class TestBuild(unittest.TestCase):
         names = ["a", "b"]
         cats = ["car"]
         data_dicts = [
-            [Frame(**dict(name="1", labels=[dict(id="1", category=0)]))],
-            [Frame(**dict(name="1", labels=[dict(id="1", category=0)]))],
+            [Frame(**dict(name="1", labels=[dict(id="1", category="car")]))],
+            [Frame(**dict(name="1", labels=[dict(id="1", category="car")]))],
         ]
 
         DatasetCatalog.register(names[0], lambda: data_dicts[0])
@@ -42,7 +42,7 @@ class TestBuild(unittest.TestCase):
                         labels=[
                             dict(
                                 id="1",
-                                category=0,
+                                category="car",
                                 attributes=dict(crowd=False),
                             )
                         ],
@@ -59,7 +59,6 @@ class TestBuild(unittest.TestCase):
             meta = MetadataCatalog.get(name)
             meta.thing_classes = cats
             meta.idx_to_class_mapping = dict(enumerate(cats))
-            meta.class_frequencies = {c: 0 for c in cats}
 
         dataset_dicts = get_dataset_dicts(names, True)
         self.assertEqual(len(dataset_dicts), 1)

@@ -49,7 +49,7 @@ class TestDatasetMapper(unittest.TestCase):
         self.assertRaises(ValueError, mapper.__getitem__, 0)
 
     def test_transform_annotations(self) -> None:
-        """Test the transform annotations method in TrackingDatasetMapper."""
+        """Test the transform annotations method in DatasetMapper."""
         cfg = get_cfg()
         loader_cfg = DataloaderConfig(
             workers_per_gpu=0,
@@ -64,3 +64,30 @@ class TestDatasetMapper(unittest.TestCase):
         self.assertEqual(len(boxs), 0)
         boxs = ds_mapper.transform_annotation(input_dict, [], lambda x: x)
         self.assertEqual(len(boxs), 0)
+
+    def test_sort_samples(self) -> None:
+        """Test the sort_samples method in MapDataset."""
+        cfg = ReferenceSamplingConfig(
+            num_ref_imgs=1, scope=1, frame_order="temporal"
+        )
+        data_dict = [
+            dict(video_name=i % 2, frame_index=i - i // 2 - i % 2)
+            for i in range(200)
+        ]
+        ds_mapper = MapDataset(
+            cfg, True, DatasetFromList(data_dict), lambda x: None
+        )
+        input_samples = [
+            InputSample(
+                Frame(name="1", frame_index=1),
+                Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
+            ),
+            InputSample(
+                Frame(name="0", frame_index=0),
+                Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
+            ),
+        ]
+
+        sorted_samples = ds_mapper.sort_samples(input_samples)
+        self.assertEqual(sorted_samples[0].metadata.frame_index, 0)
+        self.assertEqual(sorted_samples[1].metadata.frame_index, 1)

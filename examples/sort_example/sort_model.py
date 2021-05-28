@@ -4,7 +4,7 @@ from typing import List
 from openmt.model import BaseModel, BaseModelConfig
 from openmt.model.detect import BaseDetectorConfig, build_detector
 from openmt.model.track.graph import TrackGraphConfig, build_track_graph
-from openmt.struct import Boxes2D, InputSample, LossesType
+from openmt.struct import InputSample, LossesType, ModelOutput
 
 
 class SORTConfig(BaseModelConfig, extra="allow"):
@@ -42,11 +42,12 @@ class SORT(BaseModel):
         _, _, _, _, det_losses = self.detector(inputs, targets)
         return det_losses  # type: ignore
 
-    def forward_test(self, batch_inputs: List[InputSample]) -> List[Boxes2D]:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Forward pass during testing stage.
 
         Returns predictions for each input.
         """
+        assert len(batch_inputs) == 1, "Currently only BS=1 supported!"
         frame_id = batch_inputs[0].metadata.frame_index
         # init graph at begin of sequence
         if frame_id == 0:
@@ -54,10 +55,13 @@ class SORT(BaseModel):
 
         # detector
         image, _, _, detections, _ = self.detector(batch_inputs)
+        ori_wh = (
+            batch_inputs[0].metadata.size.width,  # type: ignore
+            batch_inputs[0].metadata.size.height,  # type: ignore
+        )
+        self.postprocess(ori_wh, image.image_sizes[0], detections[0])
 
         # associate detections, update graph
-        detections = self.track_graph(detections[0], frame_id)
+        tracks = self.track_graph(detections[0], frame_id)
 
-        ori_wh = tuple(batch_inputs[0].metadata.size)  # type: ignore
-        self.postprocess(ori_wh, image.image_sizes[0], detections)  # type: ignore # pylint: disable=line-too-long
-        return [detections]
+        return dict(detect=detections, track=[tracks])

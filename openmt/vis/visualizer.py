@@ -1,7 +1,8 @@
 """Visualizer class."""
-import itertools
+import copy
 import os
-from typing import List
+from collections import defaultdict
+from typing import Dict, List
 
 import detectron2.utils.comm as comm
 import torch
@@ -11,7 +12,8 @@ from PIL import Image
 from scalabel.label.io import group_and_sort, save
 from scalabel.label.typing import Frame
 
-from openmt.struct import Boxes2D, InputSample
+from openmt.engine.utils import gather_predictions
+from openmt.struct import Boxes2D, InputSample, ModelOutput
 
 from .track import draw_sequence
 
@@ -30,80 +32,100 @@ class ScalabelVisualizer(DatasetEvaluator):  # type: ignore
         self._distributed = distributed
         self._output_dir = output_dir
         self._metadata = MetadataCatalog.get(dataset_name)
-        self._predictions = []  # type: List[Frame]
-        self._boxes2d = []  # type: List[Boxes2D]
+        self._predictions = defaultdict(list)  # type: Dict[str, List[Frame]]
         self._visualize = visualize
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""
-        self._predictions = []
-        self._boxes2d = []
+        self._predictions = defaultdict(list)
 
     def process(
-        self, inputs: List[List[InputSample]], outputs: List[Boxes2D]
+        self, inputs: List[List[InputSample]], outputs: ModelOutput
     ) -> None:
         """Process the pair of inputs and outputs."""
-        for inp, out in zip(inputs, outputs):
-            prediction = inp[0].metadata  # no ref views during test
-            boxes2d = out.to(torch.device("cpu"))
-            prediction.labels = boxes2d.to_scalabel(
-                self._metadata.idx_to_class_mapping
-            )
-            boxes2d.metadata = {
-                str(k): v
-                for k, v in self._metadata.idx_to_class_mapping.items()
-            }
-            self._predictions.append(prediction)
-            if self._visualize:
-                self._boxes2d.append(boxes2d)
+        for key, output in outputs.items():
+            for inp, out in zip(inputs, output):
+                prediction = inp[0].metadata  # no ref views during test
+                boxes2d = out.to(torch.device("cpu"))
+                assert isinstance(
+                    boxes2d, Boxes2D
+                ), "Only Boxes2D output support for visualization."
+                prediction.labels = boxes2d.to_scalabel(
+                    self._metadata.idx_to_class_mapping
+                )
+                boxes2d.metadata = {
+                    str(k): v
+                    for k, v in self._metadata.idx_to_class_mapping.items()
+                }
+                attr = (
+                    prediction.attributes
+                    if prediction.attributes is not None
+                    else dict()
+                )
+                attr["boxes2d"] = boxes2d  # type: ignore
+                prediction.attributes = attr
+                self._predictions[key].append(prediction)
 
     def evaluate(self) -> None:
         """Evaluate the performance after processing all input/output pairs."""
         if self._distributed:
-            comm.synchronize()
-            predictions = comm.gather(self._predictions, dst=0)
-            predictions = list(itertools.chain(*predictions))
-
+            predictions_dict = gather_predictions(self._predictions)
             if not comm.is_main_process():
                 return  # pragma: no cover
         else:
-            predictions = self._predictions  # pragma: no cover
+            predictions_dict = self._predictions  # pragma: no cover
 
         os.makedirs(os.path.join(self._output_dir), exist_ok=True)
-        save(
-            os.path.join(self._output_dir, "predictions.json"),
-            predictions,
-        )
+        for key, predictions in predictions_dict.items():
+            # save predictions
+            predictions_without_boxes2d = []
+            for frame in predictions:
+                frame_without_boxes2d = copy.deepcopy(frame)
+                assert frame_without_boxes2d.attributes is not None
+                frame_without_boxes2d.attributes.pop("boxes2d")
+                predictions_without_boxes2d.append(frame_without_boxes2d)
 
-        if self._visualize:
-            os.makedirs(
-                os.path.join(self._output_dir, "visualization"), exist_ok=True
+            save(
+                os.path.join(self._output_dir, f"{key}_predictions.json"),
+                predictions_without_boxes2d,
             )
-            has_videos = True
-            for frame, box in zip(predictions, self._boxes2d):
-                if frame.attributes is None:
-                    frame.attributes = dict()
-                frame.attributes["boxs2d"] = box
-                if frame.video_name is None:
-                    frame.video_name = ""
-                    has_videos = False
 
-            if has_videos:
-                predictions = group_and_sort(predictions)
-            else:
-                predictions = [predictions]
-            for video_predictions in predictions:
-                images = [Image.open(frame.url) for frame in video_predictions]
-                boxes2d = [
-                    frame.attributes["boxs2d"] for frame in video_predictions
-                ]  # type: List[Boxes2D]
-                images = draw_sequence(images, boxes2d)
-                for img, frame in zip(images, video_predictions):
-                    img.save(
-                        os.path.join(
-                            self._output_dir,
-                            "visualization",
-                            frame.video_name,
-                            frame.name,
+            # visualize predictions
+            if self._visualize:
+                os.makedirs(
+                    os.path.join(self._output_dir, f"{key}_visualization"),
+                    exist_ok=True,
+                )
+                has_videos = True
+                for frame in predictions:
+                    if frame.video_name is None:
+                        has_videos = False
+
+                if has_videos:
+                    predictions_grouped = group_and_sort(predictions)
+                else:
+                    predictions_grouped = [predictions]
+                for video_predictions in predictions_grouped:
+                    images = [
+                        Image.open(frame.url) for frame in video_predictions
+                    ]
+                    boxes2d = []  # type: List[Boxes2D]
+                    image_paths = []
+                    for frame in video_predictions:
+                        assert frame.attributes is not None
+                        boxes2d.append(frame.attributes["boxes2d"])  # type: ignore # pylint: disable=line-too-long
+                        if frame.video_name is None:
+                            frame.video_name = ""
+                        image_paths.append(
+                            os.path.join(
+                                self._output_dir,
+                                f"{key}_visualization",
+                                frame.video_name,
+                                frame.name,
+                            )
                         )
-                    )
+
+                    for fp, img in zip(
+                        image_paths, draw_sequence(images, boxes2d)
+                    ):
+                        img.save(fp)

@@ -7,7 +7,7 @@ from .data import (
     LossesType,
     TorchCheckpoint,
 )
-from .labels import Boxes2D, DetectionOutput, LabelInstance
+from .labels import Boxes2D, DetectionOutput, LabelInstance, ModelOutput
 
 __all__ = [
     "Boxes2D",
@@ -19,4 +19,5 @@ __all__ = [
     "InputSample",
     "Images",
     "DetectionOutput",
+    "ModelOutput",
 ]

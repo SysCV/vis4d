@@ -29,7 +29,7 @@ class MatchResult(NamedTuple):
 
 
 class BaseMatcher(metaclass=RegistryHolder):
-    """Base clss for box / target matchers."""
+    """Base class for box / target matchers."""
 
     @abc.abstractmethod
     def match(
