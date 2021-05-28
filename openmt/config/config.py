@@ -168,20 +168,6 @@ def parse_config(args: Namespace) -> Config:
         if attr in Launch.__fields__ and value is not None:
             setattr(cfg.launch, attr, getattr(args, attr))
 
-    # Fix pickle error with the class not being serializable:
-    # TomlDecoder.get_empty_inline_table.<locals>.DynamicInlineTableDict
-    @no_type_check
-    def check_for_dicts(obj):
-        if isinstance(obj, BaseModel):
-            for k, v in obj.__dict__.items():
-                obj.__dict__[k] = check_for_dicts(v)
-        elif isinstance(obj, dict):
-            return {k: check_for_dicts(v) for k, v in obj.items()}
-        return obj
-
-    for k in cfg.dict():
-        check_for_dicts(getattr(cfg, k))
-
     if args.__dict__.get("cfg_options", "") != "":
         cfg_dict = cfg.dict()
         options = args.cfg_options.split(",")
@@ -218,5 +204,16 @@ def read_config(filepath: str) -> Config:
         config_dict = toml.load(filepath)
     else:
         raise NotImplementedError(f"Config type {ext} not supported")
+
+    # Fix pickle error with the class not being serializable:
+    # TomlDecoder.get_empty_inline_table.<locals>.DynamicInlineTableDict
+    @no_type_check
+    def check_for_dicts(obj):
+        if isinstance(obj, dict):
+            return {k: check_for_dicts(v) for k, v in obj.items()}
+        return obj
+
+    config_dict = check_for_dicts(config_dict)
+
     config = Config(**config_dict)
     return config

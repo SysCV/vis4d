@@ -1,10 +1,9 @@
 """Evaluation components for tracking."""
-
 import datetime
-import itertools
 import logging
 import os
 import time
+from collections import defaultdict
 from contextlib import ExitStack, contextmanager
 from typing import Callable, Dict, Generator, List, Optional
 
@@ -18,7 +17,15 @@ from scalabel.eval.mot import acc_single_video_mot, evaluate_track
 from scalabel.label.io import group_and_sort, save
 from scalabel.label.typing import Config, Frame
 
-from openmt.struct import Boxes2D, EvalResult, EvalResults, InputSample
+from openmt.struct import (
+    EvalResult,
+    EvalResults,
+    InputSample,
+    LabelInstance,
+    ModelOutput,
+)
+
+from .utils import gather_predictions
 
 _eval_mapping = dict(
     detect=lambda pred, gt, cfg: evaluate_det(gt, pred, cfg),
@@ -170,11 +177,11 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
         self._output_dir = output_dir
         self._metadata = MetadataCatalog.get(dataset_name)
         self.gts = DatasetCatalog[dataset_name]()
-        self._predictions = []  # type: List[Frame]
+        self._predictions = defaultdict(list)  # type: Dict[str, List[Frame]]
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""
-        self._predictions = []
+        self._predictions = defaultdict(list)
 
     def set_metrics(self, metrics: List[str]) -> None:
         """Set metrics to evaluate."""
@@ -184,39 +191,42 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
         self._metrics = metrics
 
     def process(
-        self, inputs: List[List[InputSample]], outputs: List[Boxes2D]
+        self, inputs: List[List[InputSample]], outputs: ModelOutput
     ) -> None:
         """Process the pair of inputs and outputs."""
-        for inp, out in zip(inputs, outputs):
-            prediction = inp[0].metadata  # no ref views during test
-            prediction.labels = out.to(torch.device("cpu")).to_scalabel(
-                self._metadata.idx_to_class_mapping
-            )
-            self._predictions.append(prediction)
+        for key, output in outputs.items():
+            for inp, out in zip(inputs, output):
+                prediction = inp[0].metadata  # no ref views during test
+                out_cpu = out.to(torch.device("cpu"))
+                assert isinstance(out_cpu, LabelInstance)
+                prediction.labels = out_cpu.to_scalabel(
+                    self._metadata.idx_to_class_mapping
+                )
+                self._predictions[key].append(prediction)
 
     def evaluate(self) -> EvalResults:
         """Evaluate the performance after processing all input/output pairs."""
         if self._distributed:
-            comm.synchronize()
-            predictions = comm.gather(self._predictions, dst=0)
-            predictions = list(itertools.chain(*predictions))
-
+            predictions_dict = gather_predictions(self._predictions)
             if not comm.is_main_process():
                 return {}  # pragma: no cover
         else:
-            predictions = self._predictions  # pragma: no cover
-
-        if self._output_dir:
-            os.makedirs(self._output_dir, exist_ok=True)
-            file_path = os.path.join(self._output_dir, "predictions.json")
-            save(file_path, predictions)
+            predictions_dict = self._predictions  # pragma: no cover
 
         results = {}
-        for metric in self._metrics:
-            results[metric] = _eval_mapping[metric](
-                predictions,
-                self.gts,
-                self._metadata.metadata_cfg,
-            )
+        for key, predictions in predictions_dict.items():
+            if self._output_dir:
+                os.makedirs(self._output_dir, exist_ok=True)
+                file_path = os.path.join(
+                    self._output_dir, f"{key}_predictions.json"
+                )
+                save(file_path, predictions)
+
+            if key in self._metrics:
+                results[key] = _eval_mapping[key](
+                    predictions,
+                    self.gts,
+                    self._metadata.metadata_cfg,
+                )
 
         return results

@@ -213,6 +213,8 @@ class Boxes2D(LabelInstance):
         return labels
 
 
+ModelOutput = Dict[str, List[LabelInstance]]
+
 DetectionOutput = Tuple[
     Images,
     List[torch.Tensor],

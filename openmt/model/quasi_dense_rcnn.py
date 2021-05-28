@@ -12,7 +12,7 @@ from openmt.model.track.similarity import (
     build_similarity_head,
 )
 from openmt.model.track.utils import cosine_similarity, split_key_ref_inputs
-from openmt.struct import Boxes2D, InputSample, LossesType
+from openmt.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
 from .base import BaseModel, BaseModelConfig
 
@@ -221,8 +221,10 @@ class QDGeneralizedRCNN(BaseModel):
 
         return losses
 
-    def forward_test(self, batch_inputs: List[InputSample]) -> List[Boxes2D]:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Forward function during inference."""
+        assert len(batch_inputs) == 1, "Currently only BS=1 supported!"
+
         # init graph at begin of sequence
         frame_id = batch_inputs[0].metadata.frame_index
         if frame_id == 0:
@@ -233,16 +235,16 @@ class QDGeneralizedRCNN(BaseModel):
 
         # similarity head
         embeddings, _ = self.similarity_head(image, feat, detections, None)
-
-        # associate detections, update graph
-        detections = self.track_graph(detections[0], frame_id, embeddings[0])
-
-        # from openmt.vis.image import imshow_bboxes
-        # imshow_bboxes(image.tensor[0], detections)
-
         ori_wh = (
             batch_inputs[0].metadata.size.width,  # type: ignore
             batch_inputs[0].metadata.size.height,  # type: ignore
         )
-        self.postprocess(ori_wh, image.image_sizes[0], detections)
-        return [detections]
+        self.postprocess(ori_wh, image.image_sizes[0], detections[0])
+
+        # associate detections, update graph
+        tracks = self.track_graph(detections[0], frame_id, embeddings[0])
+
+        # from openmt.vis.image import imshow_bboxes
+        # imshow_bboxes(image.tensor[0], detections)
+
+        return dict(detect=detections, track=[tracks])

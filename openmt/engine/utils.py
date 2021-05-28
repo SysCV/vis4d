@@ -1,7 +1,8 @@
 """Config preparation functions for the detection module."""
+import itertools
 import logging
 import os
-from typing import List
+from typing import Dict, List
 
 import torch
 from detectron2.config import CfgNode, get_cfg
@@ -12,9 +13,24 @@ from detectron2.utils.env import seed_all_rng
 from detectron2.utils.file_io import PathManager
 from detectron2.utils.logger import setup_logger
 from devtools import debug
+from scalabel.label.typing import Frame
 
 from openmt.config import Config, Dataset, Launch
 from openmt.data.datasets import register_dataset_instances
+
+
+def gather_predictions(
+    predictions: Dict[str, List[Frame]]
+) -> Dict[str, List[Frame]]:
+    """Gather prediction dict in distributed setting."""
+    comm.synchronize()
+    predictions_list = comm.gather(predictions, dst=0)
+
+    result = {}
+    for key in predictions:
+        prediction_list = [p[key] for p in predictions_list]
+        result[key] = list(itertools.chain(*prediction_list))
+    return result
 
 
 def _register(datasets: List[Dataset]) -> List[str]:
