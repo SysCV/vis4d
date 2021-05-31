@@ -1,11 +1,8 @@
 """Track graph of deep SORT."""
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 import torch
-from scipy.optimize import linear_sum_assignment as linear_assignment
-from detectron2.structures import Boxes, pairwise_iou
 
 from kalman_filter import KalmanFilter
-from deep import FeatureExtractor
 from match import match
 from openmt.struct import Boxes2D
 from openmt.model.track.graph import BaseTrackGraph, TrackGraphConfig
@@ -27,9 +24,6 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         super().__init__(cfg)
         self.cfg = DeepSORTTrackGraphConfig(**cfg.dict())
         self.kf = KalmanFilter()
-        self.feature_extractor = FeatureExtractor(
-            self.cfg.featurenet_weight_path
-        )
 
     def get_tracks(
         self, frame_id: Optional[int] = None
@@ -71,24 +65,21 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         return Boxes2D(bboxs, cls, ids), velocities, covariances, features
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
-        self, detections: Boxes2D, frame_id: int, image: torch.Tensor
-    ) -> Tuple[Boxes2D, Boxes2D]:
+        self, detections: Boxes2D, frame_id: int, det_features: torch.Tensor
+    ) -> Boxes2D:
         """Process inputs, match detections with existing tracks.
 
         image tensor is shape (C_1, ..., C_K, H, W) where K >= 1.
         """
-
         if len(detections) == 0:
             result, _, _, _ = self.get_tracks(frame_id)
-            return result, result
+            return result
         # print("#" * 100)
         # print("A new frame:   frame = ", frame_id)
         # print("#" * 100)
 
         _, inds = detections.boxes[:, -1].sort(descending=True)
         detections = detections[inds, :].to(torch.device("cpu"))
-
-        det_features = self._get_features(detections, image)
 
         # init ids container
         ids = torch.full((len(detections),), -1, dtype=torch.long)
@@ -207,7 +198,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             updated_tracks_covs,
         )
         result, _, _, _ = self.get_tracks(frame_id)
-        return result, predictions
+        return result
 
     def update(  # type: ignore # pylint: disable=arguments-differ
         self,
@@ -287,21 +278,6 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             covariance=covariance,
             feature=feature,
         )
-
-    def _get_features(
-        self, detections: Boxes2D, image: torch.Tensor
-    ) -> torch.Tensor:
-        """image shape: 3xHxW"""
-        im_crops = []
-        for box in detections.boxes[:, :4]:
-            x1, y1, x2, y2 = box.int()
-            im = image[:, y1:y2, x1:x2].clone()
-            im_crops.append(im)
-        if im_crops:
-            features = self.feature_extractor(im_crops)
-        else:
-            features = torch.tensor([])
-        return features
 
 
 def xyxy_to_xyah(xyxy: torch.Tensor) -> torch.FloatTensor:

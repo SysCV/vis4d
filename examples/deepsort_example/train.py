@@ -5,7 +5,7 @@ from deepsort_model import DeepSORT
 
 from openmt import config
 from openmt.config import DataloaderConfig as Dataloader
-from openmt.engine import test
+from openmt.engine import train
 from openmt.model import BaseModelConfig
 
 # Disable pylint for this file due to high overlap with detector example
@@ -26,10 +26,11 @@ if __name__ == "__main__":
     conf = config.Config(
         model=BaseModelConfig(**deepsort_cfg),
         solver=config.Solver(
-            images_per_gpu=2,
+            images_per_gpu=8,
             lr_policy="WarmupMultiStepLR",
             base_lr=0.001,
             max_iters=1000,
+            log_period=100,
             eval_metrics=["detect", "track"],
         ),
         dataloader=Dataloader(
@@ -47,19 +48,20 @@ if __name__ == "__main__":
             ],
             remove_samples_without_labels=True,
             inference_sampling="sequence_based",
+            compute_global_instance_ids=True,
         ),
         train=[
             config.Dataset(
                 name="bdd100k_sample_train",
                 type="BDD100K",
-                annotations="openmt/engine/testcases/track/bdd100k-samples/"
-                "labels",
-                data_root="openmt/engine/testcases/track/bdd100k-samples/"
-                "images/",
+                # annotations="openmt/engine/testcases/track/bdd100k-samples/"
+                # "labels",
+                # data_root="openmt/engine/testcases/track/bdd100k-samples/"
+                # "images/",
                 # annotations="data/one_sequence/labels",
                 # data_root="data/one_sequence/images/",
-                # annotations="data/bdd100k/labels/box_track_20/train/",
-                # data_root="data/bdd100k/images/track/train/",
+                annotations="data/bdd100k/labels/box_track_20/train/",
+                data_root="data/bdd100k/images/track/train/",
                 config_path="box_track",
             )
         ],
@@ -67,14 +69,14 @@ if __name__ == "__main__":
             config.Dataset(
                 name="bdd100k_sample_val",
                 type="BDD100K",
-                annotations="openmt/engine/testcases/track/bdd100k-samples/"
-                "labels",
-                data_root="openmt/engine/testcases/track/bdd100k-samples/"
-                "images/",
+                # annotations="openmt/engine/testcases/track/bdd100k-samples/"
+                # "labels",
+                # data_root="openmt/engine/testcases/track/bdd100k-samples/"
+                # "images/",
                 # annotations="data/one_sequence/labels",
                 # data_root="data/one_sequence/images/",
-                # annotations="data/bdd100k/labels/box_track_20/val/",
-                # data_root="data/bdd100k/images/track/val/",
+                annotations="data/bdd100k/labels/box_track_20/val/",
+                data_root="data/bdd100k/images/track/val/",
                 config_path="box_track",
             )
         ],
@@ -89,7 +91,7 @@ if __name__ == "__main__":
     #     shutil.rmtree("visualization/")
     # os.mkdir("visualization/")
 
-    test(conf)
+    train(conf)
 
     # single GPU
     # conf.launch = config.Launch(device='cuda')

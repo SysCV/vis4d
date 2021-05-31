@@ -96,11 +96,11 @@ class SORTTrackGraph(BaseTrackGraph):
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self, detections: Boxes2D, frame_id: int
-    ) -> Tuple[Boxes2D, Boxes2D]:
+    ) -> Boxes2D:
         """Process inputs, match detections with existing tracks."""
         if len(detections) == 0:
             result, _, _ = self.get_tracks(frame_id)
-            return result, result
+            return result
         # print("#" * 100)
         # print("A new frame:   frame = ", frame_id)
         # print("#" * 100)
@@ -209,7 +209,7 @@ class SORTTrackGraph(BaseTrackGraph):
             ids, detections, frame_id, updated_tracks_vels, updated_tracks_covs
         )
         result, _, _ = self.get_tracks(frame_id)
-        return result, predictions
+        return result
 
     def _match(
         self,

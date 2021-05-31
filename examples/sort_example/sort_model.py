@@ -3,6 +3,7 @@ from typing import List, Dict
 import json
 import torch
 from detectron2.data import MetadataCatalog
+
 from openmt.model import BaseModel, BaseModelConfig
 from openmt.model.detect import BaseDetectorConfig, build_detector
 from openmt.model.track.graph import TrackGraphConfig, build_track_graph
@@ -51,8 +52,6 @@ class SORT(BaseModel):
         Returns predictions for each input.
         """
         if not self.search_dict:
-            from openmt.struct import Boxes2D
-
             self.search_dict = dict()
             given_predictions = json.load(
                 open(
@@ -122,8 +121,11 @@ class SORT(BaseModel):
         # assert frame_index in self.search_dict[video_name]
         # detections = [self.search_dict[video_name][frame_index]]
 
-        # using detectors
+        # # using detectors
         image, _, _, detections, _ = self.detector(batch_inputs)
+        # use this line only on 6 samples
+        detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
+
         ori_wh = (
             batch_inputs[0].metadata.size.width,  # type: ignore
             batch_inputs[0].metadata.size.height,  # type: ignore
@@ -131,7 +133,5 @@ class SORT(BaseModel):
         self.postprocess(ori_wh, image.image_sizes[0], detections[0])
 
         # associate detections, update graph
-        detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
         tracks = self.track_graph(detections[0], frame_id)
-
-        return dict(detect=detections, track=[tracks])
+        return dict(detect=detections, track=[tracks])  # type:ignore

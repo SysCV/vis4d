@@ -1,13 +1,12 @@
-from typing import List
+"""deep featureNet."""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.transforms as transforms
-import numpy as np
-import cv2
 
 
 class BasicBlock(nn.Module):  # type: ignore
+    """Basic build block"""
+
     def __init__(self, c_in, c_out, is_downsample=False):
         super(BasicBlock, self).__init__()
         self.is_downsample = is_downsample
@@ -63,7 +62,9 @@ def make_layers(c_in, c_out, repeat_times, is_downsample=False):
 
 
 class FeatureNet(nn.Module):  # type: ignore
-    def __init__(self, num_classes=625, reid=False):
+    """Deep feature net."""
+
+    def __init__(self, num_classes=625):
         super(FeatureNet, self).__init__()
         # 3 128 64
         self.conv = nn.Sequential(
@@ -89,13 +90,12 @@ class FeatureNet(nn.Module):  # type: ignore
             nn.ELU(inplace=True),
         )
         # 256 1 1
-        self.reid = reid
         self.batch_norm = nn.BatchNorm1d(128)
         self.classifier = nn.Sequential(
             nn.Linear(128, num_classes),
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, train: bool = False) -> torch.Tensor:
         """Forward function of feature net.
 
         output size: N x 128
@@ -106,76 +106,14 @@ class FeatureNet(nn.Module):  # type: ignore
         x = self.layer3(x)
 
         x = x.view(x.size(0), -1)
-        if self.reid:
+        if not train:
             x = self.dense[0](x)
             x = self.dense[1](x)
+            # x is normalized to a unit sphere
             x = x.div(x.norm(p=2, dim=1, keepdim=True))
             return x
         x = self.dense(x)
-        # B x 128
+        # N x 128
         # classifier
         x = self.classifier(x)
         return x
-
-
-class FeatureExtractor(object):
-    def __init__(self, model_weight_path, use_cuda=True):
-        self.net = FeatureNet(reid=True)
-        self.device = (
-            "cuda" if torch.cuda.is_available() and use_cuda else "cpu"
-        )
-        state_dict = torch.load(
-            model_weight_path, map_location=lambda storage, loc: storage
-        )["net_dict"]
-        self.net.load_state_dict(state_dict)
-        self.net.to(self.device)
-        self.size = (64, 128)
-        self.norm = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-                ),
-            ]
-        )
-
-    def _preprocess(self, im_crops):
-        """
-        1. to float with scale from 0 to 1
-        2. resize to (64, 128) as Market1501 dataset did
-        3. concatenate to a numpy array
-        3. to torch Tensor
-        4. normalize
-
-        input im_crops: torch.Tensor of shape 3xHxW
-        """
-
-        def _resize(im, size):
-            im = im.numpy().astype(np.float32)
-            resized = cv2.resize(im / 255.0, size)
-            return resized
-
-        im_batch = []
-        for im in im_crops:
-            im = np.transpose(im, (1, 2, 0))
-            im = _resize(im, self.size)
-            im = self.norm(im).unsqueeze(0)
-            im_batch.append(im)
-        im_batch = torch.cat(im_batch, dim=0).float()
-
-        return im_batch
-
-    def __call__(self, im_crops: List[torch.Tensor]):
-        """im_crops shape: 3xHxW"""
-        im_batch = self._preprocess(im_crops)
-        with torch.no_grad():
-            im_batch = im_batch.to(self.device)
-            features = self.net(im_batch)
-        return features
-
-
-if __name__ == "__main__":
-    net = FeatureNet(reid=True)
-    x = torch.randn(4, 3, 128, 64)
-    y = net(x)
-    print("shape y： ", y.shape)
