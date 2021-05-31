@@ -98,12 +98,18 @@ class Launch(BaseModel):
     device: Device to train on (cpu / cuda / ..)
     weights: Filepath for weights to load. Set to "detectron2" If you want to
             load weights from detectron2 for a corresponding detector.
-    num_gpus:"number of gpus *per machine*"
-    num_machines: "total number of machines"
+    num_gpus: number of gpus per machine
+    num_machines: total number of machines
     machine_rank: the rank of this machine (unique per machine)
     dist_url: initialization URL for pytorch distributed backend. See
         https://pytorch.org/docs/stable/distributed.html for details.
     resume: Whether to attempt to resume from the checkpoint directory.
+    input_dir: Input directory in case you want to run inference on a folder
+    with input data (e.g. images that can be temporally sorted by name)
+    output_dir: Specific directory to save checkpoints, logs, etc.
+    Default: openmt-workspace/<model_name>/<timestamp>
+    visualize: If you're running in predict mode, this option lets you
+    visualize the model predictions in the output_dir
     """
 
     action: str = ""

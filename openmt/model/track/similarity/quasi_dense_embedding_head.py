@@ -28,6 +28,7 @@ class QDSimilarityHeadConfig(SimilarityLearningConfig):
     embedding_dim: int
     norm: str
     proposal_append_gt: bool
+    in_features: List[str] = ["p2", "p3", "p4", "p5"]
     proposal_pooler: RoIPoolerConfig
     proposal_sampler: SamplerConfig
     proposal_matcher: MatcherConfig
@@ -128,7 +129,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         per frame, as well as proposal sampling and target assignment.
         """
         del images
-
+        features_list = [features[f] for f in self.cfg.in_features]
         if self.training:
             assert targets, "'targets' argument is required during training"
             proposals, targets = self.match_and_sample_proposals(
@@ -140,7 +141,7 @@ class QDSimilarityHead(BaseSimilarityHead):
                 ]
                 targets = [t[t.class_ids != -1] for t in targets]  # type: ignore # pylint: disable=line-too-long
 
-        x = self.roi_pooler.pool(list(features.values())[:-1], proposals)
+        x = self.roi_pooler.pool(features_list, proposals)
         # convs
         if self.cfg.num_convs > 0:
             for conv in self.convs:

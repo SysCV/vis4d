@@ -1,6 +1,7 @@
 """DefaultTrainer for openMT."""
 import logging
 import os
+import weakref
 from collections import OrderedDict
 from typing import Dict, List, Optional
 from typing import OrderedDict as OrderedDictType
@@ -8,7 +9,7 @@ from typing import OrderedDict as OrderedDictType
 import torch
 from detectron2.config import CfgNode
 from detectron2.engine import DefaultTrainer as D2DefaultTrainer
-from detectron2.engine import HookBase, PeriodicWriter
+from detectron2.engine import PeriodicCheckpointer, PeriodicWriter
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.comm import is_main_process
 
@@ -24,7 +25,7 @@ from .utils import default_setup, register_directory, to_detectron2
 
 
 class DefaultTrainer(D2DefaultTrainer):  # type: ignore
-    """DetectionTrainer class."""
+    """OpenMT DefaultTrainer class."""
 
     def __init__(self, cfg: Config, det2cfg: CfgNode):
         """Init."""
@@ -34,24 +35,15 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
         self.checkpointer = Checkpointer(
             self._trainer.model,
             cfg.launch.output_dir,
-            optimizer=self._trainer.optimizer,
-            scheduler=self.scheduler,
+            trainer=weakref.proxy(self),
         )
-
-    def build_hooks(self) -> List[HookBase]:
-        """Build a list of default hooks.
-
-         Including timing, evaluation, checkpointing, lr scheduling,
-         precise BN, writing events.
-
-        Returns:
-            list[HookBase]: All hooks for this training run.
-        """
-        ret = super().build_hooks()  # type: List[HookBase]
-        logp = self.openmt_cfg.solver.log_period
-        if logp is not None and isinstance(ret[-1], PeriodicWriter):
-            ret[-1]._period = logp  # pylint: disable=protected-access
-        return ret
+        # Update hooks with custom parameters / objects
+        logp = cfg.solver.log_period
+        for hook in self._hooks:
+            if isinstance(hook, PeriodicCheckpointer):
+                hook.checkpointer = self.checkpointer
+            if logp is not None and isinstance(hook, PeriodicWriter):
+                hook._period = logp  # pylint: disable=protected-access
 
     def build_model(self, cfg: CfgNode) -> torch.nn.Module:
         """Builds tracking detect."""

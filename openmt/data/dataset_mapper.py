@@ -262,7 +262,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         )
         input_data = InputSample(sample, image)
 
-        if not self.is_train:  # pragma: no cover
+        if not self.is_train:
             del sample.labels
             return input_data, transforms
 
