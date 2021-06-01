@@ -71,6 +71,7 @@ class Solver(BaseModel):
     base_lr: float
     steps: Optional[List[int]]
     max_iters: int
+    warmup_iters: Optional[int]
     checkpoint_period: Optional[int]
     log_period: Optional[int]
     eval_period: Optional[int]
@@ -109,7 +110,9 @@ class Launch(BaseModel):
     output_dir: Specific directory to save checkpoints, logs, etc.
     Default: openmt-workspace/<model_name>/<timestamp>
     visualize: If you're running in predict mode, this option lets you
-    visualize the model predictions in the output_dir
+    visualize the model predictions in the output_dir.
+    seed: Set random seed for numpy, torch, python. Default: -1,
+    i.e. no specific random seed is chosen.
     """
 
     action: str = ""
@@ -129,8 +132,9 @@ class Launch(BaseModel):
     dist_url: str = "tcp://127.0.0.1:{}".format(port)
     resume: bool = False
     input_dir: Optional[str]
-    output_dir: Optional[str]
+    output_dir: str = ""
     visualize: bool = False
+    seed: int = -1
 
     @validator("input_dir", always=True)
     def validate_input_dir(  # pylint: disable=no-self-argument,no-self-use
@@ -158,7 +162,7 @@ class Config(BaseModel):
     def __init__(self, **data: Any) -> None:  # type: ignore
         """Init config."""
         super().__init__(**data)
-        if self.launch.output_dir is None:
+        if self.launch.output_dir == "":
             timestamp = str(datetime.now()).split(".")[0].replace(" ", "_")
             self.launch.output_dir = os.path.join(
                 "openmt-workspace", self.model.type, timestamp

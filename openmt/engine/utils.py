@@ -75,11 +75,13 @@ def to_detectron2(config: Config) -> CfgNode:
         cfg.SOLVER.LR_SCHEDULER_NAME = config.solver.lr_policy
         cfg.SOLVER.BASE_LR = config.solver.base_lr
         cfg.SOLVER.MAX_ITER = config.solver.max_iters
-        if config.solver.checkpoint_period is not None:
+        if config.solver.warmup_iters is not None:
+            cfg.SOLVER.WARMUP_ITERS = config.solver.warmup_iters
+        if config.solver.steps is not None:
             cfg.SOLVER.STEPS = config.solver.steps
         if config.solver.checkpoint_period is not None:
             cfg.SOLVER.CHECKPOINT_PERIOD = config.solver.checkpoint_period
-        if config.solver.checkpoint_period is not None:
+        if config.solver.eval_period is not None:
             cfg.TEST.EVAL_PERIOD = config.solver.eval_period
 
     # convert dataloader attributes
@@ -136,7 +138,11 @@ def default_setup(cfg: Config, det2cfg: CfgNode, args: Launch) -> None:
         logger.info("Full config saved to %s", path)
 
     # make sure each worker has different, yet deterministic seed if specified
-    seed_all_rng(None if det2cfg.SEED < 0 else det2cfg.SEED + rank)
+    if cfg.launch.seed < 0:
+        seed_all_rng()
+    else:
+        logger.info("Using a fixed random seed: %s", cfg.launch.seed)
+        seed_all_rng(cfg.launch.seed + rank)
 
     # cudnn benchmark has large overhead. It shouldn't be used considering the
     # small size of typical validation set.

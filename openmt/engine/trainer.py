@@ -93,6 +93,11 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
         evaluator.set_metrics(openmt_cfg.solver.eval_metrics)
         return evaluator
 
+    def train(self) -> Dict[str, EvalResults]:
+        """Run training."""
+        super().train()
+        return self._last_eval_results  # type: ignore
+
     def test(
         self,
         cfg: CfgNode,
@@ -182,7 +187,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
             inference_on_dataset(model, data_loader, visualizer)
 
 
-def train(cfg: Config) -> Optional[Dict[str, EvalResults]]:
+def train(cfg: Config) -> Dict[str, EvalResults]:
     """Training function."""
     det2cfg = to_detectron2(cfg)
     default_setup(cfg, det2cfg, cfg.launch)
@@ -191,7 +196,7 @@ def train(cfg: Config) -> Optional[Dict[str, EvalResults]]:
     if cfg.launch.weights != "detectron2":
         trainer.cfg.MODEL.WEIGHTS = cfg.launch.weights  # pragma: no cover
     trainer.resume_or_load(resume=cfg.launch.resume)
-    return trainer.train()  # type: ignore
+    return trainer.train()
 
 
 def test(cfg: Config) -> Dict[str, EvalResults]:
