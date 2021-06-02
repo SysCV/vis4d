@@ -1,6 +1,7 @@
 """DefaultTrainer for openMT."""
 import logging
 import os
+import weakref
 from collections import OrderedDict
 from typing import Dict, List, Optional
 from typing import OrderedDict as OrderedDictType
@@ -8,7 +9,7 @@ from typing import OrderedDict as OrderedDictType
 import torch
 from detectron2.config import CfgNode
 from detectron2.engine import DefaultTrainer as D2DefaultTrainer
-from detectron2.engine import HookBase, PeriodicWriter
+from detectron2.engine import PeriodicCheckpointer, PeriodicWriter
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.comm import is_main_process
 
@@ -24,7 +25,7 @@ from .utils import default_setup, register_directory, to_detectron2
 
 
 class DefaultTrainer(D2DefaultTrainer):  # type: ignore
-    """DetectionTrainer class."""
+    """OpenMT DefaultTrainer class."""
 
     def __init__(self, cfg: Config, det2cfg: CfgNode):
         """Init."""
@@ -34,27 +35,18 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
         self.checkpointer = Checkpointer(
             self._trainer.model,
             cfg.launch.output_dir,
-            optimizer=self._trainer.optimizer,
-            scheduler=self.scheduler,
+            trainer=weakref.proxy(self),
         )
-
-    def build_hooks(self) -> List[HookBase]:
-        """Build a list of default hooks.
-
-         Including timing, evaluation, checkpointing, lr scheduling,
-         precise BN, writing events.
-
-        Returns:
-            list[HookBase]: All hooks for this training run.
-        """
-        ret = super().build_hooks()  # type: List[HookBase]
-        logp = self.openmt_cfg.solver.log_period
-        if logp is not None and isinstance(ret[-1], PeriodicWriter):
-            ret[-1]._period = logp  # pylint: disable=protected-access
-        return ret
+        # Update hooks with custom parameters / objects
+        logp = cfg.solver.log_period
+        for hook in self._hooks:
+            if isinstance(hook, PeriodicCheckpointer):
+                hook.checkpointer = self.checkpointer
+            if logp is not None and isinstance(hook, PeriodicWriter):
+                hook._period = logp  # pylint: disable=protected-access
 
     def build_model(self, cfg: CfgNode) -> torch.nn.Module:
-        """Builds tracking detect."""
+        """Builds model."""
         model = build_model(self.openmt_cfg.model)
         assert hasattr(model, "detector")
         if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
@@ -100,6 +92,11 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
         evaluator = ScalabelEvaluator(dataset_name, True, output_folder)
         evaluator.set_metrics(openmt_cfg.solver.eval_metrics)
         return evaluator
+
+    def train(self) -> Dict[str, EvalResults]:
+        """Run training."""
+        super().train()
+        return self._last_eval_results  # type: ignore
 
     def test(
         self,
@@ -190,7 +187,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
             inference_on_dataset(model, data_loader, visualizer)
 
 
-def train(cfg: Config) -> Optional[Dict[str, EvalResults]]:
+def train(cfg: Config) -> Dict[str, EvalResults]:
     """Training function."""
     det2cfg = to_detectron2(cfg)
     default_setup(cfg, det2cfg, cfg.launch)
@@ -199,7 +196,7 @@ def train(cfg: Config) -> Optional[Dict[str, EvalResults]]:
     if cfg.launch.weights != "detectron2":
         trainer.cfg.MODEL.WEIGHTS = cfg.launch.weights  # pragma: no cover
     trainer.resume_or_load(resume=cfg.launch.resume)
-    return trainer.train()  # type: ignore
+    return trainer.train()
 
 
 def test(cfg: Config) -> Dict[str, EvalResults]:

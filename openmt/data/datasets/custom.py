@@ -4,10 +4,10 @@ import os
 from PIL import Image
 from scalabel.label.typing import Config, Dataset, Frame, ImageSize
 
-from .base import LoadDataset
+from .base import DatasetLoader
 
 
-class Custom(LoadDataset):
+class Custom(DatasetLoader):
     """Custom dataloading class."""
 
     def load_dataset(self) -> Dataset:

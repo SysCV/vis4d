@@ -22,8 +22,8 @@ def register_dataset_instances(dataset_cfg: DatasetConfig) -> None:
     )
 
 
-class LoadDataset(metaclass=RegistryHolder):
-    """Load dataset interface."""
+class DatasetLoader(metaclass=RegistryHolder):
+    """Interface for loading dataset to scalabel format."""
 
     def __init__(self, cfg: DatasetConfig):
         """Init dataset loader."""
@@ -51,11 +51,11 @@ def load_dataset(dataset_cfg: DatasetConfig) -> List[Frame]:
     return dataset.frames
 
 
-def build_dataset_loader(cfg: DatasetConfig) -> LoadDataset:
+def build_dataset_loader(cfg: DatasetConfig) -> DatasetLoader:
     """Build a dataset loader."""
     registry = RegistryHolder.get_registry(__package__)
     if cfg.type in registry:
         dataset_loader = registry[cfg.type](cfg)
-        assert isinstance(dataset_loader, LoadDataset)
+        assert isinstance(dataset_loader, DatasetLoader)
         return dataset_loader
     raise NotImplementedError(f"Dataset type {cfg.type} not found.")

@@ -233,8 +233,11 @@ class QDGeneralizedRCNN(BaseModel):
         # detector
         image, feat, _, detections, _ = self.detector(batch_inputs)
 
+        # from openmt.vis.image import imshow_bboxes
+        # imshow_bboxes(image.tensor[0], detections)
+
         # similarity head
-        embeddings, _ = self.similarity_head(image, feat, detections, None)
+        embeddings, _ = self.similarity_head(image, feat, detections)
         ori_wh = (
             batch_inputs[0].metadata.size.width,  # type: ignore
             batch_inputs[0].metadata.size.height,  # type: ignore
@@ -243,8 +246,5 @@ class QDGeneralizedRCNN(BaseModel):
 
         # associate detections, update graph
         tracks = self.track_graph(detections[0], frame_id, embeddings[0])
-
-        # from openmt.vis.image import imshow_bboxes
-        # imshow_bboxes(image.tensor[0], detections)
 
         return dict(detect=detections, track=[tracks])

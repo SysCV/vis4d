@@ -1,4 +1,5 @@
 """Evaluation components for tracking."""
+import copy
 import datetime
 import logging
 import os
@@ -196,7 +197,7 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
         """Process the pair of inputs and outputs."""
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):
-                prediction = inp[0].metadata  # no ref views during test
+                prediction = copy.deepcopy(inp[0].metadata)
                 out_cpu = out.to(torch.device("cpu"))
                 assert isinstance(out_cpu, LabelInstance)
                 prediction.labels = out_cpu.to_scalabel(

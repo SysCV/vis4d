@@ -11,6 +11,7 @@ from detectron2.data import transforms as T
 from detectron2.data.common import MapDataset as D2MapDataset
 from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
 from scalabel.label.typing import Frame, ImageSize, Label
+from scalabel.label.utils import check_crowd, check_ignored
 
 from openmt.common.io import build_data_backend
 from openmt.config import DataloaderConfig, ReferenceSamplingConfig
@@ -225,7 +226,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         annos = []
         for label in labels:
             assert label.attributes is not None
-            if not label.attributes.get("crowd", False):
+            if not check_crowd(label) and not check_ignored(label):
                 anno = label_to_dict(label)
                 d2_utils.transform_instance_annotations(
                     anno,
@@ -262,7 +263,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         )
         input_data = InputSample(sample, image)
 
-        if not self.is_train:  # pragma: no cover
+        if not self.is_train:
             del sample.labels
             return input_data, transforms
 

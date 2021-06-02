@@ -8,11 +8,12 @@ type = "DetectorWrapper"
 [solver]
 images_per_gpu = 1
 lr_policy = "WarmupMultiStepLR"
-base_lr = 0.02
+base_lr = 0.01
 max_iters = 1
-steps = [100]
+warmup_iters = 0
+steps = []
 checkpoint_period = 100
-log_period = 10
+log_period = 1
 eval_period = 100
 eval_metrics = ['detect']
 
