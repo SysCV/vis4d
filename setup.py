@@ -42,4 +42,11 @@ setuptools.setup(
         "tqdm",
         "devtools"
     ],
+    package_data={
+        "openmt": [
+            "data/datasets/motchallenge.toml",
+            "py.typed",
+        ]
+    },
+    include_package_data=True,
 )
