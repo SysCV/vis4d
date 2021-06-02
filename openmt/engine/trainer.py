@@ -46,7 +46,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
                 hook._period = logp  # pylint: disable=protected-access
 
     def build_model(self, cfg: CfgNode) -> torch.nn.Module:
-        """Builds tracking detect."""
+        """Builds model."""
         model = build_model(self.openmt_cfg.model)
         assert hasattr(model, "detector")
         if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
