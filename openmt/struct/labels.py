@@ -217,7 +217,7 @@ ModelOutput = Dict[str, List[LabelInstance]]
 
 DetectionOutput = Tuple[
     Images,
-    List[torch.Tensor],
+    Dict[str, torch.Tensor],
     List[Boxes2D],
     List[Boxes2D],
     Optional[LossesType],

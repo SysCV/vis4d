@@ -1,7 +1,7 @@
 """Base class for openMT detectors."""
 
 import abc
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from pydantic import BaseModel
@@ -40,6 +40,45 @@ class BaseDetector(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
 
         Return backbone output features, proposals, detections and optionally
         training losses.
+        """
+        raise NotImplementedError
+
+
+class BaseTwoStageDetector(BaseDetector):
+    """Base class for two-stage detectors."""
+
+    @abc.abstractmethod
+    def extract_features(self, images: Images) -> Dict[str, torch.Tensor]:
+        """Detector feature extraction stage.
+
+        Return backbone output features
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def generate_proposals(
+        self,
+        images: Images,
+        features: Dict[str, torch.Tensor],
+        targets: Optional[List[Boxes2D]] = None,
+    ) -> Tuple[List[Boxes2D], Dict[str, torch.Tensor]]:
+        """Detector RPN stage.
+
+        Return proposals per image.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def generate_detections(
+        self,
+        images: Images,
+        features: Dict[str, torch.Tensor],
+        proposals: List[Boxes2D],
+        targets: Optional[List[Boxes2D]] = None,
+    ) -> Tuple[List[Boxes2D], Dict[str, torch.Tensor]]:
+        """Detector second stage (RoI Head).
+
+        Return detections per image
         """
         raise NotImplementedError
 
