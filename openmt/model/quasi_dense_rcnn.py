@@ -72,7 +72,7 @@ class QDGeneralizedRCNN(BaseModel):
         #             ref_targets[ref_i][batch_i],
         #         )
 
-        _, key_x, key_proposals, _, det_losses = self.detector(
+        key_images, key_x, key_proposals, _, det_losses = self.detector(
             key_inputs, key_targets
         )
 
@@ -86,9 +86,15 @@ class QDGeneralizedRCNN(BaseModel):
                 for img, x in zip(ref_images, ref_x)
             ]
 
+        # from openmt.vis.track import imshow_bboxes
+        # for ref_imgs, ref_props in zip(ref_images, ref_proposals):
+        #     for ref_img, ref_prop in zip(ref_imgs, ref_props):
+        #         _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
+        #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
+
         # track head
         key_embeddings, key_track_targets = self.similarity_head(
-            key_inputs,
+            key_images,
             key_x,
             key_proposals,
             key_targets,
@@ -96,7 +102,7 @@ class QDGeneralizedRCNN(BaseModel):
         )
         ref_track_targets, ref_embeddings = [], []
         for inp, x, proposal, target in zip(
-            ref_inputs, ref_x, ref_proposals, ref_targets
+            ref_images, ref_x, ref_proposals, ref_targets
         ):
             embeds, targets = self.similarity_head(inp, x, proposal, target)
             ref_embeddings += [embeds]

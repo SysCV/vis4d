@@ -6,12 +6,11 @@ import torch
 import torch.nn as nn
 from detectron2.layers.batch_norm import get_norm
 from detectron2.layers.wrappers import Conv2d
-from detectron2.structures import ImageList
 
 from openmt.common.bbox.matchers import MatcherConfig, build_matcher
 from openmt.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
 from openmt.common.bbox.samplers import SamplerConfig, build_sampler
-from openmt.struct import Boxes2D
+from openmt.struct import Boxes2D, Images
 
 from .base import BaseSimilarityHead, SimilarityLearningConfig
 
@@ -116,7 +115,7 @@ class QDSimilarityHead(BaseSimilarityHead):
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
         self,
-        images: ImageList,
+        images: Images,
         features: Dict[str, torch.Tensor],
         proposals: List[Boxes2D],
         targets: Optional[List[Boxes2D]] = None,
@@ -131,7 +130,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         del images
         features_list = [features[f] for f in self.cfg.in_features]
         if self.training:
-            assert targets, "'targets' argument is required during training"
+            assert targets is not None, "targets required during training"
             proposals, targets = self.match_and_sample_proposals(
                 proposals, targets
             )
