@@ -54,10 +54,10 @@ class EmbeddingDistanceLoss(BaseLoss):
             else self.cfg.reduction
         )
         pred, weight, avg_factor = self.update_weight(pred, target, weight)
-        loss_bbox = self.cfg.loss_weight * l2_loss(
+        loss = self.cfg.loss_weight * l2_loss(
             pred, target, weight, reduction=reduction, avg_factor=avg_factor
         )
-        return loss_bbox
+        return loss
 
     def update_weight(
         self, pred: torch.Tensor, target: torch.Tensor, weight: torch.Tensor
@@ -80,7 +80,7 @@ class EmbeddingDistanceLoss(BaseLoss):
             pred[neg_inds] -= self.cfg.neg_margin
         pred = torch.clamp(pred, min=0, max=1)
 
-        num_pos = int((target == 1).sum()) + 1e-4
+        num_pos = max(1, int((target == 1).sum()))
         num_neg = int((target == 0).sum())
         if self.cfg.neg_pos_ub > 0 and num_neg / num_pos > self.cfg.neg_pos_ub:
             num_neg = int(num_pos * self.cfg.neg_pos_ub)
