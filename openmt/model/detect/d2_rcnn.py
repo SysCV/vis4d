@@ -13,7 +13,13 @@ from openmt.model.detect.d2_utils import (
     proposal_to_box2d,
     target_to_instance,
 )
-from openmt.struct import Boxes2D, DetectionOutput, Images, InputSample
+from openmt.struct import (
+    Boxes2D,
+    DetectionOutput,
+    Images,
+    InputSample,
+    LossesType,
+)
 
 from .base import BaseDetectorConfig, BaseTwoStageDetector
 
@@ -77,10 +83,10 @@ class D2GeneralizedRCNN(BaseTwoStageDetector):
         images: Images,
         features: Dict[str, torch.Tensor],
         targets: Optional[List[Boxes2D]] = None,
-    ) -> Tuple[List[Boxes2D], Dict[str, torch.Tensor]]:
+    ) -> Tuple[List[Boxes2D], LossesType]:
         """Detector RPN stage.
 
-        Return proposals per image.
+        Return proposals per image and losses (empty if no targets).
         """
         images_d2 = images_to_imagelist(images)
         is_training = self.d2_detector.proposal_generator.training
@@ -101,10 +107,10 @@ class D2GeneralizedRCNN(BaseTwoStageDetector):
         features: Dict[str, torch.Tensor],
         proposals: List[Boxes2D],
         targets: Optional[List[Boxes2D]] = None,
-    ) -> Tuple[List[Boxes2D], Dict[str, torch.Tensor]]:
+    ) -> Tuple[List[Boxes2D], LossesType]:
         """Detector second stage (RoI Head).
 
-        Return detections per image
+        Return detections per image and losses (empty if no targets).
         """
         images_d2 = images_to_imagelist(images)
         proposals = box2d_to_proposal(proposals, images.image_sizes)

@@ -17,6 +17,10 @@ keyframe_selection = "first"
     [[model.losses]]
     type = "EmbeddingDistanceLoss"
     loss_weight = 1.0
+    neg_pos_ub = 3
+    pos_margin = 0
+    neg_margin = 0.3
+    hard_mining = true
 
     [model.similarity]
     type = "QDSimilarityHead"

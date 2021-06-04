@@ -83,7 +83,7 @@ class QDSimilarityHead(BaseSimilarityHead):
                         kernel_size=3,
                         padding=1,
                         norm=get_norm(self.cfg.norm, self.cfg.conv_out_dim),
-                        activation=nn.ReLU(),
+                        activation=nn.ReLU(inplace=True),
                     )
                 )
             last_layer_dim = self.cfg.conv_out_dim
@@ -95,7 +95,8 @@ class QDSimilarityHead(BaseSimilarityHead):
                 fc_in_dim = last_layer_dim if i == 0 else self.cfg.fc_out_dim
                 fcs.append(
                     nn.Sequential(
-                        nn.Linear(fc_in_dim, self.cfg.fc_out_dim), nn.ReLU()
+                        nn.Linear(fc_in_dim, self.cfg.fc_out_dim),
+                        nn.ReLU(inplace=True),
                     )
                 )
             last_layer_dim = self.cfg.fc_out_dim

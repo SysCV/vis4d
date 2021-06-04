@@ -7,7 +7,13 @@ import torch
 from pydantic import BaseModel
 
 from openmt.common.registry import RegistryHolder
-from openmt.struct import Boxes2D, DetectionOutput, Images, InputSample
+from openmt.struct import (
+    Boxes2D,
+    DetectionOutput,
+    Images,
+    InputSample,
+    LossesType,
+)
 
 
 class BaseDetectorConfig(BaseModel, extra="allow"):
@@ -61,10 +67,10 @@ class BaseTwoStageDetector(BaseDetector):
         images: Images,
         features: Dict[str, torch.Tensor],
         targets: Optional[List[Boxes2D]] = None,
-    ) -> Tuple[List[Boxes2D], Dict[str, torch.Tensor]]:
+    ) -> Tuple[List[Boxes2D], LossesType]:
         """Detector RPN stage.
 
-        Return proposals per image.
+        Return proposals per image and losses (empty if no targets).
         """
         raise NotImplementedError
 
@@ -75,10 +81,10 @@ class BaseTwoStageDetector(BaseDetector):
         features: Dict[str, torch.Tensor],
         proposals: List[Boxes2D],
         targets: Optional[List[Boxes2D]] = None,
-    ) -> Tuple[List[Boxes2D], Dict[str, torch.Tensor]]:
+    ) -> Tuple[List[Boxes2D], LossesType]:
         """Detector second stage (RoI Head).
 
-        Return detections per image
+        Return detections per image and losses (empty if no targets).
         """
         raise NotImplementedError
 
