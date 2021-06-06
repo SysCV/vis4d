@@ -114,17 +114,17 @@ class SORT(BaseModel):
             self.track_graph.reset()
 
         # using given detections
-        # image = batch_inputs[0].image
-        # video_name = batch_inputs[0].metadata.video_name
-        # frame_index = batch_inputs[0].metadata.frame_index
-        # assert video_name in self.search_dict
-        # assert frame_index in self.search_dict[video_name]
-        # detections = [self.search_dict[video_name][frame_index]]
+        image = batch_inputs[0].image
+        video_name = batch_inputs[0].metadata.video_name
+        frame_index = batch_inputs[0].metadata.frame_index
+        assert video_name in self.search_dict
+        assert frame_index in self.search_dict[video_name]
+        detections = [self.search_dict[video_name][frame_index]]
 
         # # using detectors
-        image, _, _, detections, _ = self.detector(batch_inputs)
+        #image, _, _, detections, _ = self.detector(batch_inputs)
         # use this line only on 6 samples
-        detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
+        # detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
 
         ori_wh = (
             batch_inputs[0].metadata.size.width,  # type: ignore

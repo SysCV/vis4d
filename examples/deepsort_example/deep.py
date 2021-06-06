@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.transforms as transforms
 
 
 class BasicBlock(nn.Module):  # type: ignore
@@ -94,12 +95,17 @@ class FeatureNet(nn.Module):  # type: ignore
         self.classifier = nn.Sequential(
             nn.Linear(128, num_classes),
         )
+        self.norm = transforms.Normalize(
+            [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+        )
 
     def forward(self, x: torch.Tensor, train: bool = False) -> torch.Tensor:
         """Forward function of feature net.
 
         output size: N x 128
         """
+        x = torch.div(x, 255.0)
+        x = self.norm(x)
         x = self.conv(x)
         x = self.layer1(x)
         x = self.layer2(x)

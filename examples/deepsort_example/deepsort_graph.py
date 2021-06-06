@@ -80,7 +80,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
 
         _, inds = detections.boxes[:, -1].sort(descending=True)
         detections = detections[inds, :].to(torch.device("cpu"))
-
+        det_features = det_features[inds, :].to(torch.device("cpu"))
         # init ids container
         ids = torch.full((len(detections),), -1, dtype=torch.long)
         # match if buffer is not empty

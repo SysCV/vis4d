@@ -36,6 +36,22 @@ def imshow_bboxes(
     imshow(image)
 
 
+def imsave_bboxes(
+    image: ImageType,
+    boxes: BoxType,
+    mode: str = "BGR",
+    frame_id=000,
+) -> None:
+    image = preprocess_image(image, mode)
+    box_list, color_list, label_list = preprocess_boxes(boxes)
+    for box, col, label in zip(box_list, color_list, label_list):
+        draw_bbox(image, box, col, label)
+
+    if not isinstance(image, Image.Image):
+        image = preprocess_image(image, mode)
+    image.save("visualization/" + "frame_" + str(frame_id).zfill(4) + ".png")
+
+
 def draw_bbox(
     image: Image.Image,
     box: Tuple[float],

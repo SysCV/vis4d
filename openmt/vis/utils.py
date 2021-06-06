@@ -123,4 +123,6 @@ def preprocess_image(image: ImageType, mode: str = "BGR") -> Image.Image:
         image = image[..., [2, 1, 0]]
         mode = "RGB"
 
-    return Image.fromarray(image.astype(np.uint8), mode=mode).convert("RGB")
+    return Image.fromarray(
+        image.astype(np.uint8), mode=mode
+    )  # .convert("RGB")

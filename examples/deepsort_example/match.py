@@ -5,7 +5,7 @@ from scipy.optimize import linear_sum_assignment as linear_assignment
 
 from detectron2.structures import Boxes, pairwise_iou
 
-balance_lambda: float = 0.0
+balance_lambda: float = 1.0
 max_IOU_distance: float = 0.7
 
 
