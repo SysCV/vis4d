@@ -1,10 +1,9 @@
-"""Load and convert bdd100k labelsd to scalabel format."""
-from multiprocessing import cpu_count
+"""Load and convert bdd100k labels to scalabel format."""
+import os
+import inspect
 
-from bdd100k.common.utils import load_bdd100k_config
-from bdd100k.label.to_scalabel import bdd100k_to_scalabel
-from detectron2.utils.comm import get_world_size
-from scalabel.label.io import load
+from scalabel.label.from_waymo import from_waymo
+from scalabel.label.io import load_label_config
 from scalabel.label.typing import Dataset
 
 from .base import DatasetLoader
@@ -15,5 +14,16 @@ class Waymo(DatasetLoader):
 
     def load_dataset(self) -> Dataset:
         """Convert Waymo annotations to Scalabel format."""
-        # TODO implement waymo to scalabel
-        return Dataset(frames=frames, config=config)
+        assert (
+                self.cfg.data_root == self.cfg.annotations
+        ), "MOTChallenge requires images and annotations in the same path."
+        cfg_path = self.cfg.config_path
+        if cfg_path is None:
+            cfg_path = os.path.join(
+                os.path.dirname(os.path.abspath(inspect.stack()[1][1])),
+                "waymo.toml",  # TODO add to package data
+            )
+        metadata_cfg = load_label_config(cfg_path)
+
+        frames = from_waymo(self.cfg.annotations)
+        return Dataset(frames=frames, config=metadata_cfg)
