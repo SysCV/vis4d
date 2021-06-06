@@ -22,7 +22,7 @@ class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
 
     def forward(
         self, batch_inputs: List[List[InputSample]]
-    ) -> Union[LossesType, List[Boxes2D]]:
+    ) -> Union[LossesType, ModelOutput]:
         """Model forward function."""
         if self.training:
             return self.forward_train(batch_inputs)

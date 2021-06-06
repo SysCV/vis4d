@@ -7,10 +7,10 @@ from detectron2.utils.comm import get_world_size
 from scalabel.label.io import load
 from scalabel.label.typing import Dataset
 
-from .base import LoadDataset
+from .base import DatasetLoader
 
 
-class BDD100K(LoadDataset):
+class BDD100K(DatasetLoader):
     """BDD100K dataloading class."""
 
     def load_dataset(self) -> Dataset:

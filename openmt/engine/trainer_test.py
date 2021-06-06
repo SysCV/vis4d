@@ -60,9 +60,11 @@ class TestTrack(unittest.TestCase):
         """Testcase for training."""
         self.assertIsNotNone(self.cfg)
         self.cfg.launch.action = "train"
+        self.cfg.launch.seed = 42
         if torch.cuda.is_available():
             self.cfg.launch.device = "cuda"  # pragma: no cover
         train(self.cfg)
+        self.cfg.launch.seed = -1
 
     def test_duplicate_register(self) -> None:
         """Test if duplicated datasets are skipped."""
@@ -100,9 +102,11 @@ class TestDetect(unittest.TestCase):
         """Testcase for training."""
         self.assertIsNotNone(self.cfg)
         self.cfg.launch.action = "train"
+        self.cfg.launch.seed = 42
         if torch.cuda.is_available():
             self.cfg.launch.device = "cuda"  # pragma: no cover
         train(self.cfg)
+        self.cfg.launch.seed = -1
 
     def test_testfunc(self) -> None:
         """Testcase for test function."""

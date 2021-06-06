@@ -45,7 +45,7 @@ class ScalabelVisualizer(DatasetEvaluator):  # type: ignore
         """Process the pair of inputs and outputs."""
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):
-                prediction = inp[0].metadata  # no ref views during test
+                prediction = copy.deepcopy(inp[0].metadata)
                 boxes2d = out.to(torch.device("cpu"))
                 assert isinstance(
                     boxes2d, Boxes2D

@@ -15,7 +15,7 @@ if __name__ == "__main__":
     elif args.action == "test":
         main_func = test
     elif args.action == "predict":
-        main_func = predict
+        main_func = predict  # type: ignore
     else:
         raise NotImplementedError(f"Action {args.action} not implemented!")
     launch(

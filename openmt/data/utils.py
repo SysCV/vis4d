@@ -16,7 +16,11 @@ from fvcore.common.timer import Timer
 from PIL import Image
 from scalabel.label.typing import Config as MetadataConfig
 from scalabel.label.typing import Frame, Label
-from scalabel.label.utils import get_leaf_categories
+from scalabel.label.utils import (
+    check_crowd,
+    check_ignored,
+    get_leaf_categories,
+)
 from tabulate import tabulate
 from termcolor import colored
 
@@ -50,7 +54,7 @@ def instance_ids_to_global(
         if ann.labels is not None:
             for label in ann.labels:
                 assert label.attributes is not None
-                if not label.attributes.get("crowd", False):
+                if not check_crowd(label) and not check_ignored(label):
                     video_name = (
                         ann.video_name
                         if ann.video_name is not None
@@ -86,9 +90,10 @@ def prepare_labels(
         if ann.labels is not None:
             for label in ann.labels:
                 attr = dict()  # type: Dict[str, Union[bool, int, float, str]]
-                if label.attributes is None or not label.attributes.get(
-                    "crowd", False
-                ):
+                if label.attributes is not None:
+                    attr = label.attributes
+
+                if not check_crowd(label) and not check_ignored(label):
                     assert label.category is not None
                     frequencies[label.category] += 1
                     attr["category_id"] = cat_name2id[label.category]
@@ -104,10 +109,7 @@ def prepare_labels(
                         label.id
                     )
 
-                if label.attributes is None:
-                    label.attributes = attr  # pragma: no cover
-                else:
-                    label.attributes.update(attr)
+                label.attributes = attr
 
     if global_instance_ids:
         instance_ids_to_global(frames, instance_ids)
