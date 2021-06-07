@@ -69,6 +69,21 @@ def proposal_to_box2d(proposals: List[Instances]) -> List[Boxes2D]:
     return result
 
 
+def box2d_to_proposal(
+    proposals: List[Boxes2D], imgs_wh: List[Tuple[int, int]]
+) -> List[Instances]:
+    """Convert Boxes2D representing proposals to d2 Instances."""
+    result = []
+    for proposal, img_wh in zip(proposals, imgs_wh):
+        boxes, logits = (
+            proposal.boxes[:, :4],
+            proposal.boxes[:, -1],
+        )
+        fields = dict(proposal_boxes=Boxes(boxes), objectness_logits=logits)
+        result.append(Instances((img_wh[1], img_wh[0]), **fields))
+    return result
+
+
 def target_to_instance(
     targets: List[Boxes2D], imgs_wh: List[Tuple[int, int]]
 ) -> List[Instances]:

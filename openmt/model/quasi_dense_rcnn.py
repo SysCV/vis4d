@@ -4,17 +4,14 @@ from typing import List, Tuple
 
 import torch
 
-from openmt.model.detect import BaseDetectorConfig, build_detector
-from openmt.model.track.graph import TrackGraphConfig, build_track_graph
-from openmt.model.track.losses import LossConfig, build_loss
-from openmt.model.track.similarity import (
-    SimilarityLearningConfig,
-    build_similarity_head,
-)
-from openmt.model.track.utils import cosine_similarity, split_key_ref_inputs
 from openmt.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
 from .base import BaseModel, BaseModelConfig
+from .detect import BaseDetectorConfig, BaseTwoStageDetector, build_detector
+from .track.graph import TrackGraphConfig, build_track_graph
+from .track.losses import LossConfig, build_loss
+from .track.similarity import SimilarityLearningConfig, build_similarity_head
+from .track.utils import cosine_similarity, split_key_ref_inputs
 
 
 class QDGeneralizedRCNNConfig(BaseModelConfig):
@@ -35,6 +32,7 @@ class QDGeneralizedRCNN(BaseModel):
         super().__init__()
         self.cfg = QDGeneralizedRCNNConfig(**cfg.dict())
         self.detector = build_detector(self.cfg.detection)
+        assert isinstance(self.detector, BaseTwoStageDetector)
         self.similarity_head = build_similarity_head(self.cfg.similarity)
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.track_loss = build_loss(self.cfg.losses[0])
@@ -74,18 +72,29 @@ class QDGeneralizedRCNN(BaseModel):
         #             ref_targets[ref_i][batch_i],
         #         )
 
-        _, key_x, key_proposals, _, det_losses = self.detector(
+        key_images, key_x, key_proposals, _, det_losses = self.detector(
             key_inputs, key_targets
         )
-        ref_out = [
-            self.detector(ref_input, ref_target)
-            for ref_input, ref_target in zip(ref_inputs, ref_targets)
+
+        ref_images = [
+            self.detector.preprocess_image(inp) for inp in ref_inputs
         ]
-        ref_x, ref_proposals = [x[1] for x in ref_out], [x[2] for x in ref_out]
+        ref_x = [self.detector.extract_features(img) for img in ref_images]
+        with torch.no_grad():
+            ref_proposals = [
+                self.detector.generate_proposals(img, x)[0]
+                for img, x in zip(ref_images, ref_x)
+            ]
+
+        # from openmt.vis.track import imshow_bboxes
+        # for ref_imgs, ref_props in zip(ref_images, ref_proposals):
+        #     for ref_img, ref_prop in zip(ref_imgs, ref_props):
+        #         _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
+        #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
 
         # track head
         key_embeddings, key_track_targets = self.similarity_head(
-            key_inputs,
+            key_images,
             key_x,
             key_proposals,
             key_targets,
@@ -93,7 +102,7 @@ class QDGeneralizedRCNN(BaseModel):
         )
         ref_track_targets, ref_embeddings = [], []
         for inp, x, proposal, target in zip(
-            ref_inputs, ref_x, ref_proposals, ref_targets
+            ref_images, ref_x, ref_proposals, ref_targets
         ):
             embeds, targets = self.similarity_head(inp, x, proposal, target)
             ref_embeddings += [embeds]

@@ -1,23 +1,30 @@
 """Detectron2 detector wrapper."""
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from detectron2.modeling import GeneralizedRCNN
 
 from openmt.model.detect.d2_utils import (
     D2GeneralizedRCNNConfig,
+    box2d_to_proposal,
     detections_to_box2d,
     images_to_imagelist,
     model_to_detectron2,
     proposal_to_box2d,
     target_to_instance,
 )
-from openmt.struct import Boxes2D, DetectionOutput, Images, InputSample
+from openmt.struct import (
+    Boxes2D,
+    DetectionOutput,
+    Images,
+    InputSample,
+    LossesType,
+)
 
-from .base import BaseDetector, BaseDetectorConfig
+from .base import BaseDetectorConfig, BaseTwoStageDetector
 
 
-class D2GeneralizedRCNN(BaseDetector):
+class D2GeneralizedRCNN(BaseTwoStageDetector):
     """Detectron2 detector wrapper."""
 
     def __init__(self, cfg: BaseDetectorConfig):
@@ -48,38 +55,80 @@ class D2GeneralizedRCNN(BaseDetector):
         targets: Optional[List[Boxes2D]] = None,
     ) -> DetectionOutput:
         """Forward function."""
-        # preprocessing
         images = self.preprocess_image(inputs)
-        images_d2 = images_to_imagelist(images)
-        if targets is not None:
-            targets = target_to_instance(targets, images.image_sizes)
-
-        # backbone
-        feat = self.d2_detector.backbone(images_d2.tensor)
-
-        # rpn stage
-        proposals, rpn_losses = self.d2_detector.proposal_generator(
-            images_d2, feat, targets
+        features = self.extract_features(images)
+        proposals, rpn_losses = self.generate_proposals(
+            images, features, targets
         )
-
-        # detection head(s)
-        detections, detect_losses = self.d2_detector.roi_heads(
-            images_d2,
-            feat,
-            proposals,
-            targets,
+        detections, detect_losses = self.generate_detections(
+            images, features, proposals, targets
         )
-
-        proposals = proposal_to_box2d(proposals)
-        if not self.d2_detector.training:
-            detections = detections_to_box2d(detections)
-        else:
-            detections = proposal_to_box2d(detections)
-
         return (
             images,
-            feat,
+            features,
             proposals,
             detections,
             {**rpn_losses, **detect_losses},
         )
+
+    def extract_features(self, images: Images) -> Dict[str, torch.Tensor]:
+        """Detector feature extraction stage.
+
+        Return preprocessed images, backbone output features.
+        """
+        return self.d2_detector.backbone(images.tensor)  # type: ignore
+
+    def generate_proposals(
+        self,
+        images: Images,
+        features: Dict[str, torch.Tensor],
+        targets: Optional[List[Boxes2D]] = None,
+    ) -> Tuple[List[Boxes2D], LossesType]:
+        """Detector RPN stage.
+
+        Return proposals per image and losses (empty if no targets).
+        """
+        images_d2 = images_to_imagelist(images)
+        is_training = self.d2_detector.proposal_generator.training
+        if targets is not None:
+            targets = target_to_instance(targets, images.image_sizes)
+        else:
+            self.d2_detector.proposal_generator.training = False
+
+        proposals, rpn_losses = self.d2_detector.proposal_generator(
+            images_d2, features, targets
+        )
+        self.d2_detector.proposal_generator.training = is_training
+        return proposal_to_box2d(proposals), rpn_losses
+
+    def generate_detections(
+        self,
+        images: Images,
+        features: Dict[str, torch.Tensor],
+        proposals: List[Boxes2D],
+        targets: Optional[List[Boxes2D]] = None,
+    ) -> Tuple[List[Boxes2D], LossesType]:
+        """Detector second stage (RoI Head).
+
+        Return detections per image and losses (empty if no targets).
+        """
+        images_d2 = images_to_imagelist(images)
+        proposals = box2d_to_proposal(proposals, images.image_sizes)
+        is_training = self.d2_detector.roi_heads.training
+        if targets is not None:
+            targets = target_to_instance(targets, images.image_sizes)
+        else:
+            self.d2_detector.roi_heads.training = False
+
+        detections, detect_losses = self.d2_detector.roi_heads(
+            images_d2,
+            features,
+            proposals,
+            targets,
+        )
+        self.d2_detector.roi_heads.training = is_training
+        if not self.d2_detector.training:
+            detections = detections_to_box2d(detections)
+        else:
+            detections = proposal_to_box2d(detections)
+        return detections, detect_losses
