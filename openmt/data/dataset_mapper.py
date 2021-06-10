@@ -294,7 +294,11 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         )
         del sample.labels
 
-        if self.skip_empty_samples and len(input_data.instances) == 0:
+        if (
+            self.skip_empty_samples
+            and len(input_data.instances) == 0
+            and transforms is None
+        ):
             return None  # pragma: no cover
 
         return input_data, transforms
