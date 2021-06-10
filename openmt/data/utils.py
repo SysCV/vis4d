@@ -195,30 +195,6 @@ def label_to_dict(label: Label) -> D2BoxType:
     return ann
 
 
-def filter_empty_annotations(frames: List[Frame]) -> List[Frame]:
-    """Filter out images with none annotations or only ignore annotations."""
-    num_before = len(frames)
-
-    def valid(anns: Optional[List[Label]]) -> bool:
-        if anns is None:
-            return False
-        for ann in anns:
-            if ann.attributes is None:
-                return True
-            if not ann.attributes.get("ignore", False):
-                return True
-        return False
-
-    frames = [x for x in frames if valid(x.labels)]
-    num_after = len(frames)
-    logger.info(
-        "Removed %s images with no usable annotations. %s images left.",
-        num_before - num_after,
-        num_after,
-    )
-    return frames
-
-
 def discard_labels_outside_set(
     dataset: List[Frame], class_set: List[str]
 ) -> None:

@@ -20,6 +20,7 @@ class ReferenceSamplingConfig(BaseModel):
     num_ref_imgs: int = 0
     scope: int = 1
     frame_order: str = "key_first"
+    skip_nomatch_samples: bool = False
 
     @validator("scope")
     def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long
@@ -45,7 +46,7 @@ class DataloaderConfig(BaseModel):
     workers_per_gpu: int
     inference_sampling: str = "sample_based"
     categories: Optional[List[str]] = None
-    remove_samples_without_labels: bool = False
+    skip_empty_samples: bool = False
     compute_global_instance_ids: bool = False
     train_augmentations: Optional[List[Augmentation]] = None
     test_augmentations: Optional[List[Augmentation]] = None

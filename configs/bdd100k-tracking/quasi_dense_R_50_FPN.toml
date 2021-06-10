@@ -31,6 +31,7 @@ type = "QDGeneralizedRCNN"
     num_fcs = 1
     fc_out_dim = 1024
     embedding_dim = 256
+    conv_has_bias = false
     norm = "GN"
     proposal_append_gt = true
 
@@ -89,7 +90,7 @@ config_path = "box_track"
 [dataloader]
 workers_per_gpu = 0
 categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
-remove_samples_without_labels = true
+skip_empty_samples = true
 inference_sampling = "sequence_based"
     [dataloader.data_backend]
     type = "HDF5Backend"
@@ -97,6 +98,7 @@ inference_sampling = "sequence_based"
     type = "uniform"
     scope = 3
     num_ref_imgs = 1
+    skip_nomatch_samples = true
 
     [[dataloader.train_augmentations]]
     type = "Resize"
