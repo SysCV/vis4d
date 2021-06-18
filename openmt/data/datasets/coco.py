@@ -6,10 +6,10 @@ from scalabel.label.from_coco import coco_to_scalabel
 from scalabel.label.io import load_label_config
 from scalabel.label.typing import Dataset
 
-from .base import DatasetLoader
+from .base import BaseDatasetLoader
 
 
-class COCO(DatasetLoader):
+class COCO(BaseDatasetLoader):
     """COCO dataloading class."""
 
     def load_dataset(self) -> Dataset:

@@ -13,9 +13,16 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from detectron2.data.transforms import Augmentation, Transform
 from detectron2.data.transforms import augmentation_impl as Augmentations
+from pydantic.main import BaseModel
 
 from openmt.common.registry import RegistryHolder
-from openmt.config import Augmentation as AugmentationConfig
+
+
+class AugmentationConfig(BaseModel):
+    """Data augmentation instance config."""
+
+    type: str
+    kwargs: Dict[str, Union[bool, float, str, Tuple[int, int]]]
 
 
 class BaseAugmentation(Augmentation, metaclass=RegistryHolder):  # type: ignore

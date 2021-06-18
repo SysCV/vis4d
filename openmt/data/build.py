@@ -15,9 +15,7 @@ from detectron2.data.samplers import (
 )
 from pydantic import BaseModel
 
-from openmt.config import DataloaderConfig
-
-from .dataset_mapper import DatasetMapper, MapDataset
+from .dataset_mapper import DataloaderConfig, DatasetMapper, MapDataset
 from .samplers import TrackingInferenceSampler
 from .utils import (
     discard_labels_outside_set,

@@ -10,17 +10,37 @@ from detectron2.config import CfgNode
 from detectron2.data import transforms as T
 from detectron2.data.common import MapDataset as D2MapDataset
 from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
+from pydantic import validator
+from pydantic.main import BaseModel
 from scalabel.label.typing import Frame, ImageSize, Label
 from scalabel.label.utils import check_crowd, check_ignored
 
 from openmt.common.io import build_data_backend
-from openmt.config import DataloaderConfig, ReferenceSamplingConfig
 from openmt.struct import Boxes2D, Images, InputSample
 
-from .transforms import build_augmentations
+from ..common.io import DataBackendConfig
+from .transforms import AugmentationConfig, build_augmentations
 from .utils import dicts_to_boxes2d, im_decode, label_to_dict
 
 __all__ = ["DatasetMapper", "MapDataset"]
+
+
+class ReferenceSamplingConfig(BaseModel):
+    """Config for customizing the sampling of reference views."""
+
+    type: str = "uniform"
+    num_ref_imgs: int = 0
+    scope: int = 1
+    frame_order: str = "key_first"
+
+    @validator("scope")
+    def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long
+        cls, value: int, values
+    ) -> int:
+        """Check scope attribute."""
+        if not value > values["num_ref_imgs"] // 2:
+            raise ValueError("Scope must be higher than num_ref_imgs / 2.")
+        return value
 
 
 class MapDataset(D2MapDataset):  # type: ignore
@@ -145,6 +165,31 @@ class MapDataset(D2MapDataset):  # type: ignore
                     idx,
                     retry_count,
                 )
+
+
+class DataloaderConfig(BaseModel):
+    """Config for dataloader."""
+
+    data_backend: DataBackendConfig = DataBackendConfig()
+    workers_per_gpu: int
+    inference_sampling: str = "sample_based"
+    categories: Optional[List[str]] = None
+    remove_samples_without_labels: bool = False
+    compute_global_instance_ids: bool = False
+    train_augmentations: Optional[List[AugmentationConfig]] = None
+    test_augmentations: Optional[List[AugmentationConfig]] = None
+    ref_sampling_cfg: ReferenceSamplingConfig
+
+    @validator("inference_sampling", check_fields=False)
+    def validate_inference_sampling(  # pylint: disable=no-self-argument,no-self-use,line-too-long
+        cls, value: str
+    ) -> str:
+        """Check inference_sampling attribute."""
+        if value not in ["sample_based", "sequence_based"]:
+            raise ValueError(
+                "inference_sampling must be sample_based or sequence_based"
+            )
+        return value
 
 
 class DatasetMapper(D2DatasetMapper):  # type: ignore

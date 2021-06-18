@@ -1,7 +1,6 @@
 """data utils."""
 import itertools
 import logging
-import os
 import sys
 from collections import defaultdict
 from io import BytesIO
@@ -9,22 +8,15 @@ from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from detectron2.data.catalog import MetadataCatalog
 from detectron2.structures.boxes import BoxMode
 from detectron2.utils.logger import log_first_n
 from fvcore.common.timer import Timer
 from PIL import Image
-from scalabel.label.typing import Config as MetadataConfig
 from scalabel.label.typing import Frame, Label
-from scalabel.label.utils import (
-    check_crowd,
-    check_ignored,
-    get_leaf_categories,
-)
+from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
 from termcolor import colored
 
-from openmt.config import Dataset as DatasetConfig
 from openmt.struct import Boxes2D
 
 D2BoxType = Dict[str, Union[bool, float, str]]
@@ -120,36 +112,6 @@ def prepare_labels(
         "{:.2f}".format(timer.seconds()),
     )
     return frequencies
-
-
-def add_data_path(data_root: str, frames: List[Frame]) -> None:
-    """Add filepath to frame using data_root and frame.name."""
-    for ann in frames:
-        assert ann.name is not None
-        if ann.video_name is not None:
-            ann.url = os.path.join(data_root, ann.video_name, ann.name)
-        else:
-            ann.url = os.path.join(data_root, ann.name)
-
-
-def add_metadata(
-    metadata_cfg: MetadataConfig, dataset_cfg: DatasetConfig
-) -> None:
-    """Add metadata to MetadataCatalog."""
-    meta = MetadataCatalog.get(dataset_cfg.name)
-    if meta.get("thing_classes") is None:
-        cat_name2id = {
-            cat.name: i + 1
-            for i, cat in enumerate(
-                get_leaf_categories(metadata_cfg.categories)
-            )
-        }
-        meta.thing_classes = list(cat_name2id.keys())
-        meta.idx_to_class_mapping = {v: k for k, v in cat_name2id.items()}
-        meta.metadata_cfg = metadata_cfg
-        meta.annotations = dataset_cfg.annotations
-        meta.data_root = dataset_cfg.data_root
-        meta.cfg_path = dataset_cfg.config_path
 
 
 def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:

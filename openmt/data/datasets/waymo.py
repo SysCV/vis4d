@@ -1,21 +1,34 @@
 """Load and convert bdd100k labels to scalabel format."""
-import os
 import inspect
+import os
 
 from scalabel.label.from_waymo import from_waymo
 from scalabel.label.io import load_label_config
 from scalabel.label.typing import Dataset
 
-from .base import DatasetLoader
+from .base import BaseDatasetConfig, BaseDatasetLoader
 
 
-class Waymo(DatasetLoader):
+class WaymoDatasetConfig(BaseDatasetConfig):
+    """Config for training/evaluation datasets."""
+
+    output_dir: str
+    use_lidar_labels: bool = False
+    nproc: int = 4
+
+
+class Waymo(BaseDatasetLoader):
     """Waymo Open dataloading class."""
+
+    def __init__(self, cfg: BaseDatasetConfig):
+        """Init dataset loader."""
+        super().__init__(cfg)
+        self.cfg = WaymoDatasetConfig(**cfg.dict())  # type: WaymoDatasetConfig
 
     def load_dataset(self) -> Dataset:
         """Convert Waymo annotations to Scalabel format."""
         assert (
-                self.cfg.data_root == self.cfg.annotations
+            self.cfg.data_root == self.cfg.annotations
         ), "MOTChallenge requires images and annotations in the same path."
         cfg_path = self.cfg.config_path
         if cfg_path is None:
@@ -25,5 +38,10 @@ class Waymo(DatasetLoader):
             )
         metadata_cfg = load_label_config(cfg_path)
 
-        frames = from_waymo(self.cfg.annotations)
+        frames = from_waymo(
+            self.cfg.data_root,
+            self.cfg.output_dir,
+            self.cfg.use_lidar_labels,
+            self.cfg.nproc,
+        )
         return Dataset(frames=frames, config=metadata_cfg)

@@ -3,7 +3,7 @@ import unittest
 from argparse import Namespace
 
 from openmt import config
-from openmt.config import Dataset
+from openmt.data.datasets.base import BaseDatasetConfig
 from openmt.engine.utils import _register, to_detectron2
 from openmt.unittest.utils import get_test_file
 
@@ -14,7 +14,7 @@ class TestConfig(unittest.TestCase):
     def test_register(self) -> None:
         """Testcase for register function."""
         datasets = [
-            Dataset(
+            BaseDatasetConfig(
                 **dict(
                     name="example",
                     type="MOTChallenge",

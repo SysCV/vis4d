@@ -33,6 +33,7 @@ class D2GeneralizedRCNNConfig(BaseDetectorConfig):
     model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
     override_mapping: Optional[bool] = False
     num_classes: Optional[int]
+    set_batchnorm_eval: bool = False
 
 
 def detections_to_box2d(detections: List[Instances]) -> List[Boxes2D]:

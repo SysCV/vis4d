@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 from detectron2.modeling import GeneralizedRCNN
+from torch.nn.modules.batchnorm import _BatchNorm
 
 from openmt.model.detect.d2_utils import (
     D2GeneralizedRCNNConfig,
@@ -34,6 +35,14 @@ class D2GeneralizedRCNN(BaseTwoStageDetector):
         self.d2_cfg = model_to_detectron2(self.cfg)
         # pylint: disable=too-many-function-args,missing-kwoa
         self.d2_detector = GeneralizedRCNN(self.d2_cfg)
+        if self.cfg.set_batchnorm_eval:
+            self.set_batchnorm_eval()
+
+    def set_batchnorm_eval(self) -> None:
+        """Set all batchnorm layers in backbone to eval mode."""
+        for m in self.d2_detector.modules():
+            if isinstance(m, _BatchNorm):
+                m.eval()
 
     @property
     def device(self) -> torch.device:
