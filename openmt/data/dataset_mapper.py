@@ -32,6 +32,7 @@ class ReferenceSamplingConfig(BaseModel):
     num_ref_imgs: int = 0
     scope: int = 1
     frame_order: str = "key_first"
+    skip_nomatch_samples: bool = False
 
     @validator("scope")
     def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long
@@ -116,6 +117,23 @@ class MapDataset(D2MapDataset):  # type: ignore
             f"implemented."
         )
 
+    @staticmethod
+    def has_matches(
+        key_data: InputSample, ref_data: List[InputSample]
+    ) -> bool:
+        """Check if key / ref data have matches."""
+        has_match = False
+        assert isinstance(key_data.instances, Boxes2D)
+        key_track_ids = key_data.instances.track_ids
+        for ref_view in ref_data:
+            assert isinstance(ref_view.instances, Boxes2D)
+            ref_track_ids = ref_view.instances.track_ids
+            match = key_track_ids.view(-1, 1) == ref_track_ids.view(1, -1)
+            if match.any():
+                has_match = True
+                break
+        return has_match
+
     def __getitem__(self, idx: int) -> List[InputSample]:
         """Fully prepare a sample for training/inference."""
         retry_count = 0
@@ -148,9 +166,13 @@ class MapDataset(D2MapDataset):  # type: ignore
                             for _ in range(self.sampling_cfg.num_ref_imgs)
                         ]
 
-                    return self.sort_samples([input_data] + ref_data)
-
-                return [input_data]
+                    if (
+                        not self.sampling_cfg.skip_nomatch_samples
+                        or self.has_matches(input_data, ref_data)
+                    ):
+                        return self.sort_samples([input_data] + ref_data)
+                else:
+                    return [input_data]
 
             # _map_func fails for this idx, use a random new index from the
             # pool
@@ -174,7 +196,7 @@ class DataloaderConfig(BaseModel):
     workers_per_gpu: int
     inference_sampling: str = "sample_based"
     categories: Optional[List[str]] = None
-    remove_samples_without_labels: bool = False
+    skip_empty_samples: bool = False
     compute_global_instance_ids: bool = False
     train_augmentations: Optional[List[AugmentationConfig]] = None
     test_augmentations: Optional[List[AugmentationConfig]] = None
@@ -216,6 +238,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             augs = build_augmentations(loader_cfg.test_augmentations)
         super().__init__(det2cfg, is_train, augmentations=augs)
         self.data_backend = build_data_backend(loader_cfg.data_backend)
+        self.skip_empty_samples = loader_cfg.skip_empty_samples
 
     def load_image(
         self,
@@ -287,7 +310,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         self,
         sample_dict: Dict[str, Any],
         transforms: Optional[T.AugmentationList] = None,
-    ) -> Tuple[InputSample, T.AugmentationList]:
+    ) -> Optional[Tuple[InputSample, T.AugmentationList]]:
         """Prepare a single sample in detect format.
 
         Args:
@@ -316,4 +339,12 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             input_data, sample.labels, transforms
         )
         del sample.labels
+
+        if (
+            self.skip_empty_samples
+            and len(input_data.instances) == 0
+            and transforms is None
+        ):
+            return None  # pragma: no cover
+
         return input_data, transforms

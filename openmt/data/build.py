@@ -14,12 +14,12 @@ from detectron2.data.samplers import (
     TrainingSampler,
 )
 from pydantic import BaseModel
+from scalabel.label.typing import Frame
 
 from .dataset_mapper import DataloaderConfig, DatasetMapper, MapDataset
 from .samplers import TrackingInferenceSampler
 from .utils import (
     discard_labels_outside_set,
-    filter_empty_annotations,
     identity_batch_collator,
     prepare_labels,
     print_class_histogram,
@@ -41,13 +41,12 @@ class DataOptions(BaseModel):
         arbitrary_types_allowed = True
 
 
-def get_dataset_dicts(  # type: ignore
+def get_dataset_frames(
     names: Union[str, List[str]],
-    filter_empty: bool = True,
     global_instance_ids: bool = False,
     categories: Optional[List[str]] = None,
-) -> List[Dict[str, Any]]:
-    """Load and prepare dataset dicts."""
+) -> List[Frame]:
+    """Load and prepare datasets in Scalabel format."""
     logger = logging.getLogger(__name__)
     if isinstance(names, str):
         names = [names]
@@ -104,9 +103,6 @@ def get_dataset_dicts(  # type: ignore
         # check metadata consistency
         detection_utils.check_metadata_consistency("thing_classes", names)
 
-        if filter_empty:
-            dataset_frames = filter_empty_annotations(dataset_frames)
-
         # add category and instance ids, print class frequencies
         cat_name2id = {
             v: k
@@ -142,9 +138,8 @@ def _train_loader_from_config(
     loader_cfg: DataloaderConfig, cfg: CfgNode
 ) -> DataOptions:
     """Construct training data loader from config."""
-    dataset = get_dataset_dicts(
+    dataset = get_dataset_frames(
         cfg.DATASETS.TRAIN,
-        loader_cfg.remove_samples_without_labels,
         loader_cfg.compute_global_instance_ids,
         loader_cfg.categories,
     )
@@ -190,9 +185,7 @@ def _test_loader_from_config(
     loader_cfg: DataloaderConfig, cfg: CfgNode, dataset_name: str
 ) -> DataOptions:
     """Construct testing data loader from config."""
-    dataset = get_dataset_dicts(
-        dataset_name, False, False, loader_cfg.categories
-    )
+    dataset = get_dataset_frames(dataset_name, False, loader_cfg.categories)
     mapper = DatasetMapper(loader_cfg, cfg, is_train=False)
 
     return DataOptions(
