@@ -45,6 +45,7 @@ setuptools.setup(
     package_data={
         "openmt": [
             "data/datasets/motchallenge.toml",
+            "data/datasets/waymo.toml",
             "py.typed",
         ]
     },

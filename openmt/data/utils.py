@@ -165,12 +165,7 @@ def discard_labels_outside_set(
         remove_anns = []
         if frame.labels is not None:
             for i, ann in enumerate(frame.labels):
-                if ann.category in class_set:
-                    assert ann.attributes is not None
-                    ann.attributes["category_id"] = class_set.index(
-                        ann.category
-                    )
-                else:
+                if not ann.category in class_set:
                     remove_anns.append(i)
             for i in reversed(remove_anns):
                 frame.labels.pop(i)

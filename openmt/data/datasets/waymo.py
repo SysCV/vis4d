@@ -3,7 +3,7 @@ import inspect
 import os
 
 from scalabel.label.from_waymo import from_waymo
-from scalabel.label.io import load_label_config
+from scalabel.label.io import load, load_label_config
 from scalabel.label.typing import Dataset
 
 from .base import BaseDatasetConfig, BaseDatasetLoader
@@ -12,12 +12,14 @@ from .base import BaseDatasetConfig, BaseDatasetLoader
 class WaymoDatasetConfig(BaseDatasetConfig):
     """Config for training/evaluation datasets."""
 
+    input_dir: str
     output_dir: str
+    save_images: bool = True
     use_lidar_labels: bool = False
     nproc: int = 4
 
 
-class Waymo(BaseDatasetLoader):
+class Waymo(BaseDatasetLoader):  # pragma: no cover
     """Waymo Open dataloading class."""
 
     def __init__(self, cfg: BaseDatasetConfig):
@@ -28,20 +30,28 @@ class Waymo(BaseDatasetLoader):
     def load_dataset(self) -> Dataset:
         """Convert Waymo annotations to Scalabel format."""
         assert (
-            self.cfg.data_root == self.cfg.annotations
-        ), "MOTChallenge requires images and annotations in the same path."
+            self.cfg.data_root == self.cfg.output_dir
+        ), "Waymo requires conversion output path to be equal to data_root."
         cfg_path = self.cfg.config_path
         if cfg_path is None:
             cfg_path = os.path.join(
                 os.path.dirname(os.path.abspath(inspect.stack()[1][1])),
-                "waymo.toml",  # TODO add to package data
+                "waymo.toml",
             )
         metadata_cfg = load_label_config(cfg_path)
 
-        frames = from_waymo(
-            self.cfg.data_root,
-            self.cfg.output_dir,
-            self.cfg.use_lidar_labels,
-            self.cfg.nproc,
-        )
+        if not os.path.exists(
+            os.path.join(self.cfg.output_dir, "scalabel_anns.json")
+        ):
+            frames = from_waymo(
+                self.cfg.input_dir,
+                self.cfg.output_dir,
+                self.cfg.save_images,
+                self.cfg.use_lidar_labels,
+                self.cfg.nproc,
+            )
+        else:
+            frames = load(
+                os.path.join(self.cfg.output_dir, "scalabel_anns.json")
+            ).frames
         return Dataset(frames=frames, config=metadata_cfg)

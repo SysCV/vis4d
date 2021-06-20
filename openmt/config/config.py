@@ -14,7 +14,6 @@ from openmt.data.datasets.base import BaseDatasetConfig
 from openmt.model import BaseModelConfig
 
 
-
 class Solver(BaseModel):
     """Config for solver."""
 

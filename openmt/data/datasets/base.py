@@ -16,7 +16,7 @@ from openmt.common.registry import RegistryHolder
 logger = logging.getLogger(__name__)
 
 
-class BaseDatasetConfig(BaseModel):
+class BaseDatasetConfig(BaseModel, extra="allow"):
     """Config for training/evaluation datasets."""
 
     name: str

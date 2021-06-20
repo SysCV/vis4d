@@ -1,11 +1,10 @@
 [model]
 type = "QDGeneralizedRCNN"
+keyframe_selection = "first"
     [model.detection]
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
-    model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111, "MODEL.PIXEL_STD" = [57.375, 57.120, 58.395], "MODEL.RESNETS.NORM" = "BN"}
-    num_classes = 8
-    set_batchnorm_eval = true
+    num_classes = 3
 
     [model.track_graph]
     type = "QDTrackGraph"
@@ -29,10 +28,10 @@ type = "QDGeneralizedRCNN"
     in_dim = 256
     num_convs = 4
     conv_out_dim = 256
+    conv_has_bias = false
     num_fcs = 1
     fc_out_dim = 1024
     embedding_dim = 256
-    conv_has_bias = false
     norm = "GN"
     proposal_append_gt = true
 
@@ -59,50 +58,44 @@ type = "QDGeneralizedRCNN"
 [solver]
 images_per_gpu = 1
 lr_policy = "WarmupMultiStepLR"
-base_lr = 0.01
-warmup_iters = 0
-steps = []
-max_iters = 1
-log_period = 1
-checkpoint_period = 1000
-eval_period = 1000
-eval_metrics = ["track"]
+base_lr = 0.02
+steps = [1000, 2000]
+max_iters = 10000
+checkpoint_period = 2000
+log_period = 10
+eval_period = 50
+eval_metrics = ['track']
 
 [[train]]
-name = "bdd100k_track_sample_train"
-type = "BDD100K"
-annotations = "openmt/engine/testcases/track/bdd100k-samples/labels/"
-data_root = "openmt/engine/testcases/track/bdd100k-samples/images/"
-config_path = "box_track"
-
-[[train]]
-name = "bdd100k_det_sample_train"
-type = "BDD100K"
-annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
-data_root = "openmt/engine/testcases/detect/bdd100k-samples/images/"
-config_path = "det"
+name = "waymo_sample_train"
+type = "Waymo"
+data_root = "data/Waymo_scalabel"
+input_dir = "data/Waymo/train"
+output_dir = "data/Waymo_scalabel"
 
 [[test]]
-name = "bdd100k_sample_val"
-type = "BDD100K"
-annotations = "openmt/engine/testcases/track/bdd100k-samples/labels/"
-data_root = "openmt/engine/testcases/track/bdd100k-samples/images/"
-config_path = "box_track"
+name = "waymo_sample_val"
+type = "Waymo"
+data_root = "data/Waymo_scalabel"
+input_dir = "data/Waymo/train"
+output_dir = "data/Waymo_scalabel"
 
 [dataloader]
 workers_per_gpu = 0
-categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
+categories = ["vehicle", "pedestrian", "cyclist"]
+skip_empty_samples = true
 inference_sampling = "sequence_based"
-compute_global_instance_ids = true
+    [dataloader.data_backend]
+    type = "FileBackend"
     [dataloader.ref_sampling_cfg]
     type = 'uniform'
-    scope = 2
+    scope = 3
     num_ref_imgs = 1
     skip_nomatch_samples = true
 
     [[dataloader.train_augmentations]]
     type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
+    kwargs = {"shape" = [1080, 1920]}
 
     [[dataloader.train_augmentations]]
     type = "RandomFlip"
@@ -110,7 +103,7 @@ compute_global_instance_ids = true
 
     [[dataloader.test_augmentations]]
     type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
+    kwargs = {"shape" = [1080, 1920]}
 
 [launch]
 weights = "detectron2"

@@ -5,6 +5,7 @@ from .coco import COCO
 from .custom import Custom
 from .motchallenge import MOTChallenge
 from .scalabel import Scalabel
+from .waymo import Waymo
 
 __all__ = [
     "register_dataset",
@@ -15,4 +16,5 @@ __all__ = [
     "COCO",
     "Custom",
     "MOTChallenge",
+    "Waymo",
 ]
