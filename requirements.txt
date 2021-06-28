@@ -2,7 +2,7 @@ black
 coverage[toml]
 isort
 mypy
-numpy
+numpy>=1.21.0
 pillow
 pydantic
 pydocstyle
