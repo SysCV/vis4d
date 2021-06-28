@@ -72,9 +72,9 @@ def to_detectron2(config: Config) -> CfgNode:
 
     # convert solver attributes
     if config.solver is not None:
-        cfg.SOLVER.IMS_PER_BATCH = (
-            config.solver.images_per_gpu * config.launch.num_gpus
-        )
+        cfg.SOLVER.IMS_PER_BATCH = config.solver.images_per_gpu
+        if config.launch.num_gpus > 0:
+            cfg.SOLVER.IMS_PER_BATCH *= config.launch.num_gpus
         cfg.SOLVER.LR_SCHEDULER_NAME = config.solver.lr_policy
         cfg.SOLVER.BASE_LR = config.solver.base_lr
         cfg.SOLVER.MAX_ITER = config.solver.max_iters

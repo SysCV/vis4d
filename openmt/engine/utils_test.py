@@ -29,7 +29,7 @@ class TestConfig(unittest.TestCase):
     def test_to_detectron2(self) -> None:
         """Testcase for detectron2 config conversion."""
         test_file = get_test_file("detect/faster_rcnn_R_50_FPN.toml")
-        args = Namespace(config=test_file)
+        args = Namespace(config=test_file, device="cuda")
         cfg = config.parse_config(args)
         det2cfg = to_detectron2(cfg)
         self.assertEqual(

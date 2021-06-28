@@ -27,6 +27,7 @@ class TestLoadConfig(unittest.TestCase):
         """Check cmd line argument parsing to launch cfg."""
         args = Namespace(
             config=get_test_file("config-det.yaml"),
+            device="cuda",
             num_gpus=2,
             cfg_options="dataloader.workers_per_gpu=2",
         )

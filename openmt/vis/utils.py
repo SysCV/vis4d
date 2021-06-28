@@ -24,7 +24,7 @@ def generate_colors(length: int) -> List[Tuple[int]]:
     brightness = 0.7
     hsv = [(i / length, 1, brightness) for i in range(length)]
     colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
-    colors = (np.array(colors) * 255).astype(np.uint8).tolist()
+    colors = (np.array(colors) * 255).astype(np.uint8).tolist()  # type: ignore
     s = np.random.get_state()
     np.random.seed(0)
     result = [tuple(colors[i]) for i in np.random.permutation(len(colors))]
@@ -111,8 +111,8 @@ def preprocess_image(image: ImageType, mode: str = "BGR") -> Image.Image:
     if not image.shape[-1] == 3:
         image = image.transpose(1, 2, 0)
     min_val, max_val = (
-        np.min(image, axis=(0, 1)),
-        np.max(image, axis=(0, 1)),
+        np.min(image, axis=(0, 1)),  # type: ignore
+        np.max(image, axis=(0, 1)),  # type: ignore
     )
 
     image = image.astype(np.float32)

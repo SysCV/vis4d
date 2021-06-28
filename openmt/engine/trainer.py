@@ -48,7 +48,6 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
     def build_model(self, cfg: CfgNode) -> torch.nn.Module:
         """Builds model."""
         model = build_model(self.openmt_cfg.model)
-        assert hasattr(model, "detector")
         if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
             cfg.MODEL.merge_from_other_cfg(model.detector.d2_cfg.MODEL)
         model.to(torch.device(self.openmt_cfg.launch.device))

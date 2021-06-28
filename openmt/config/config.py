@@ -104,7 +104,12 @@ class Config(BaseModel):
         """Init config."""
         super().__init__(**data)
         if self.launch.output_dir == "":
-            timestamp = str(datetime.now()).split(".")[0].replace(" ", "_")
+            timestamp = (
+                str(datetime.now())
+                .split(".")[0]
+                .replace(" ", "_")
+                .replace(":", "-")
+            )
             self.launch.output_dir = os.path.join(
                 "openmt-workspace", self.model.type, timestamp
             )
@@ -114,10 +119,12 @@ class Config(BaseModel):
 def parse_config(args: Namespace) -> Config:
     """Read config, parse cmd line arguments, create workspace dir."""
     cfg = read_config(args.config)
-
     for attr, value in args.__dict__.items():
         if attr in Launch.__fields__ and value is not None:
             setattr(cfg.launch, attr, getattr(args, attr))
+
+    if cfg.launch.device == "cpu":
+        cfg.launch.num_gpus = 0
 
     if args.__dict__.get("cfg_options", "") != "":
         cfg_dict = cfg.dict()
@@ -156,7 +163,7 @@ def read_config(filepath: str) -> Config:
     else:
         raise NotImplementedError(f"Config type {ext} not supported")
 
-    # Fix pickle error with the class not being serializable:
+    # Fix pickle error with this class not being serializable:
     # TomlDecoder.get_empty_inline_table.<locals>.DynamicInlineTableDict
     @no_type_check
     def check_for_dicts(obj):
