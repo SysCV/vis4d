@@ -2,11 +2,17 @@
 import inspect
 import os
 
-from scalabel.label.from_waymo import from_waymo
 from scalabel.label.io import load, load_label_config
 from scalabel.label.typing import Dataset
 
 from .base import BaseDatasetConfig, BaseDatasetLoader
+
+try:
+    from scalabel.label.from_waymo import from_waymo
+
+    WAYMO_INSTALLED = True
+except NameError:
+    WAYMO_INSTALLED = False
 
 
 class WaymoDatasetConfig(BaseDatasetConfig):
@@ -28,6 +34,9 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
 
     def load_dataset(self) -> Dataset:
         """Convert Waymo annotations to Scalabel format."""
+        assert (
+            WAYMO_INSTALLED
+        ), "Using waymo dataset needs waymo open dataset reader installed!."
         assert (
             self.cfg.data_root == self.cfg.output_dir
         ), "Waymo requires conversion output path to be equal to data_root."
