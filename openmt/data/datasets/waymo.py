@@ -1,6 +1,5 @@
 """Load and convert bdd100k labels to scalabel format."""
 import inspect
-import multiprocessing as mp
 import os
 
 from scalabel.label.from_waymo import from_waymo

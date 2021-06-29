@@ -1,7 +1,5 @@
 """Dataset loader for scalabel format."""
 
-import multiprocessing as mp
-
 from scalabel.label.io import load, load_label_config
 from scalabel.label.typing import Dataset
 

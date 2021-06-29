@@ -1,5 +1,4 @@
 """Load and convert bdd100k labelsd to scalabel format."""
-import multiprocessing as mp
 
 from bdd100k.common.utils import load_bdd100k_config
 from bdd100k.label.to_scalabel import bdd100k_to_scalabel
