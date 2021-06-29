@@ -20,3 +20,8 @@ torchaudio
 torchvision
 git+git://github.com/bdd100k/bdd100k.git
 devtools
+
+types-toml
+types-termcolor
+types-tabulate
+types-PyYAML
