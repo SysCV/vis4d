@@ -1,5 +1,6 @@
 """Load and convert bdd100k labels to scalabel format."""
 import inspect
+import multiprocessing as mp
 import os
 
 from scalabel.label.from_waymo import from_waymo
@@ -16,7 +17,6 @@ class WaymoDatasetConfig(BaseDatasetConfig):
     output_dir: str
     save_images: bool = True
     use_lidar_labels: bool = False
-    nproc: int = 4
 
 
 class Waymo(BaseDatasetLoader):  # pragma: no cover
@@ -52,6 +52,7 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
             )
         else:
             frames = load(
-                os.path.join(self.cfg.output_dir, "scalabel_anns.json")
+                os.path.join(self.cfg.output_dir, "scalabel_anns.json"),
+                nprocs=self.cfg.nproc,
             ).frames
         return Dataset(frames=frames, config=metadata_cfg)

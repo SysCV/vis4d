@@ -24,6 +24,7 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     data_root: str
     annotations: Optional[str]
     config_path: Optional[str]
+    nproc: int = 4
 
 
 class BaseDatasetLoader(metaclass=RegistryHolder):

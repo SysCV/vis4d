@@ -62,12 +62,14 @@ type = "BDD100K"
 annotations = "data/bdd100k/labels/box_track_20/train/"
 data_root = "data/bdd100k/images/track/train/"
 config_path = "box_track"
+
 [[train]]
 name = "bdd100k_det_train"
 type = "BDD100K"
 annotations = "data/bdd100k/labels/det_20/det_train.json"
 data_root = "data/bdd100k/images/100k/train/"
 config_path = "det"
+
 [[test]]
 name = "bdd100k_val"
 type = "BDD100K"

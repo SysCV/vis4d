@@ -3,18 +3,20 @@ type = "DetectorWrapper"
     [model.detection]
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
-    model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111}
+    model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111, "MODEL.PIXEL_STD" = [57.375, 57.120, 58.395], "MODEL.RESNETS.NORM" = "BN"}
     num_classes = 10
+    set_batchnorm_eval = true
 
 [solver]
 images_per_gpu = 12
 lr_policy = "WarmupMultiStepLR"
 base_lr = 0.06
-steps = [71250, 90000]
-max_iters = 97500
-checkpoint_period = 15000
+steps = [12000, 16500]
+max_iters = 18000
+warmup_iters = 500
+checkpoint_period = 1500
 log_period = 50
-eval_period = 15000
+eval_period = 1500
 eval_metrics = ["detect"]
 
 [[train]]
@@ -32,7 +34,7 @@ data_root = "data/bdd100k/images/100k/val/"
 config_path = "det"
 
 [dataloader]
-workers_per_gpu = 12
+workers_per_gpu = 6
 categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle", "traffic light", "traffic sign"]
 skip_empty_samples = true
     [dataloader.data_backend]
@@ -56,5 +58,5 @@ skip_empty_samples = true
 
 [launch]
 device = "cuda"
-weights = "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
+weights = "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
 num_gpus = 4

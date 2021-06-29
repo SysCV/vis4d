@@ -1,9 +1,8 @@
 """Load and convert bdd100k labelsd to scalabel format."""
-from multiprocessing import cpu_count
+import multiprocessing as mp
 
 from bdd100k.common.utils import load_bdd100k_config
 from bdd100k.label.to_scalabel import bdd100k_to_scalabel
-from detectron2.utils.comm import get_world_size
 from scalabel.label.io import load
 from scalabel.label.typing import Dataset
 
@@ -18,7 +17,7 @@ class BDD100K(BaseDatasetLoader):
         assert self.cfg.annotations is not None
         bdd100k_anns = load(
             self.cfg.annotations,
-            nprocs=min(8, cpu_count() // get_world_size()),
+            nprocs=self.cfg.nproc,
         )
         frames = bdd100k_anns.frames
         assert self.cfg.config_path is not None
