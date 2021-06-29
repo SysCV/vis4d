@@ -10,7 +10,7 @@ from .base import BaseDatasetConfig, BaseDatasetLoader
 try:
     from scalabel.label.from_waymo import from_waymo
 
-    WAYMO_INSTALLED = True
+    WAYMO_INSTALLED = True  # pragma: no cover
 except NameError:
     WAYMO_INSTALLED = False
 
