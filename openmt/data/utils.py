@@ -17,7 +17,7 @@ from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
 from termcolor import colored
 
-from openmt.struct import Boxes2D, NDArray64
+from openmt.struct import Boxes2D, NDArrayUI8
 
 D2BoxType = Dict[str, Union[bool, float, str]]
 logger = logging.getLogger(__name__)
@@ -30,10 +30,10 @@ def identity_batch_collator(  # type: ignore
     return batch
 
 
-def im_decode(im_bytes: bytes) -> NDArray64:
+def im_decode(im_bytes: bytes) -> NDArrayUI8:
     """Decode to image (numpy array, BGR) from bytes."""
     pil_img = Image.open(BytesIO(bytearray(im_bytes)))
-    np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: NDArray64
+    np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: NDArrayUI8
     return np_img
 
 

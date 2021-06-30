@@ -5,7 +5,8 @@ from .data import (
     Images,
     InputSample,
     LossesType,
-    NDArray64,
+    NDArrayF64,
+    NDArrayUI8,
     TorchCheckpoint,
 )
 from .labels import Boxes2D, DetectionOutput, LabelInstance, ModelOutput
@@ -14,7 +15,8 @@ __all__ = [
     "Boxes2D",
     "LabelInstance",
     "TorchCheckpoint",
-    "NDArray64",
+    "NDArrayF64",
+    "NDArrayUI8",
     "LossesType",
     "EvalResult",
     "EvalResults",

@@ -16,7 +16,7 @@ from scalabel.label.typing import Frame, ImageSize, Label
 from scalabel.label.utils import check_crowd, check_ignored
 
 from openmt.common.io import build_data_backend
-from openmt.struct import Boxes2D, Images, InputSample, NDArray64
+from openmt.struct import Boxes2D, Images, InputSample, NDArrayUI8
 
 from ..common.io import DataBackendConfig
 from .transforms import AugmentationConfig, build_augmentations
@@ -244,7 +244,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
     def load_image(
         self,
         sample: Frame,
-    ) -> NDArray64:
+    ) -> NDArrayUI8:
         """Load image according to data_backend."""
         assert sample.url is not None
         im_bytes = self.data_backend.get(sample.url)
@@ -254,7 +254,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
 
     def transform_image(
         self,
-        image: NDArray64,
+        image: NDArrayUI8,
         transforms: Optional[T.AugmentationList] = None,
     ) -> Tuple[Images, T.AugmentationList]:
         """Apply image augmentations and convert to torch tensor."""

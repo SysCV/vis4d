@@ -6,9 +6,9 @@ import numpy as np
 import torch
 from PIL import Image
 
-from openmt.struct import Boxes2D
+from openmt.struct import Boxes2D, NDArrayF64, NDArrayUI8
 
-ImageType = Union[torch.Tensor, np.ndarray]
+ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
 BoxType = Union[Boxes2D, List[Boxes2D]]
 
