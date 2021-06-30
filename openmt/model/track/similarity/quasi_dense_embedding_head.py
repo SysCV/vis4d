@@ -3,9 +3,9 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-import torch.nn as nn
 from detectron2.layers.batch_norm import get_norm
 from detectron2.layers.wrappers import Conv2d
+from torch import nn
 
 from openmt.common.bbox.matchers import MatcherConfig, build_matcher
 from openmt.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler

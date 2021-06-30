@@ -106,7 +106,7 @@ class Config(BaseModel):
         if self.launch.output_dir == "":
             timestamp = (
                 str(datetime.now())
-                .split(".")[0]
+                .split(".", maxsplit=1)[0]
                 .replace(" ", "_")
                 .replace(":", "-")
             )
@@ -154,10 +154,8 @@ def read_config(filepath: str) -> Config:
     """
     ext = os.path.splitext(filepath)[1]
     if ext == ".yaml":
-        config_dict = yaml.load(
-            open(filepath, "r").read(),
-            Loader=yaml.Loader,
-        )
+        with open(filepath, "r") as f:
+            config_dict = yaml.load(f.read(), Loader=yaml.Loader)
     elif ext == ".toml":
         config_dict = toml.load(filepath)
     else:
