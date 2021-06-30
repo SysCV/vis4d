@@ -5,8 +5,9 @@ import torch
 import torchvision.models.detection.retinanet as retinanet  # type: ignore
 from detectron2.engine import launch
 
+import openmt.data.datasets.base
 from openmt import config
-from openmt.config import DataloaderConfig as Dataloader
+from openmt.data.build import DataloaderConfig as Dataloader
 from openmt.engine import train
 from openmt.model.detect import BaseDetector, BaseDetectorConfig
 from openmt.struct import Boxes2D, DetectionOutput, Images, InputSample
@@ -80,7 +81,7 @@ if __name__ == "__main__":
             remove_samples_without_labels=True,
         ),
         train=[
-            config.Dataset(
+            openmt.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_train",
                 type="BDD100K",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
@@ -91,7 +92,7 @@ if __name__ == "__main__":
             )
         ],
         test=[
-            config.Dataset(
+            openmt.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_val",
                 type="BDD100K",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"

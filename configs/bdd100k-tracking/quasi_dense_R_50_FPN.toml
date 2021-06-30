@@ -3,8 +3,9 @@ type = "QDGeneralizedRCNN"
     [model.detection]
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
-    model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111, "MODEL.PIXEL_STD" = [57.375, 57.120, 58.395]}
+    model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111, "MODEL.PIXEL_STD" = [57.375, 57.120, 58.395], "MODEL.RESNETS.NORM" = "BN"}
     num_classes = 8
+    set_batchnorm_eval = true
 
     [model.track_graph]
     type = "QDTrackGraph"
@@ -31,6 +32,7 @@ type = "QDGeneralizedRCNN"
     num_fcs = 1
     fc_out_dim = 1024
     embedding_dim = 256
+    conv_has_bias = false
     norm = "GN"
     proposal_append_gt = true
 
@@ -54,61 +56,65 @@ type = "QDGeneralizedRCNN"
         labels = [0, -1, 1]
         allow_low_quality_matches = false
 
-[solver]
-images_per_gpu = 2
-lr_policy = "WarmupMultiStepLR"
-base_lr = 0.02
-steps = []
-max_iters = 10000
-checkpoint_period = 2000
-log_period = 10
-eval_period = 50
-eval_metrics = ['track']
-
 [[train]]
-name = "bdd100k_track_sample_train"
+name = "bdd100k_train"
 type = "BDD100K"
-annotations = "openmt/engine/testcases/track/bdd100k-samples/labels/"
-data_root = "openmt/engine/testcases/track/bdd100k-samples/images/"
+annotations = "data/bdd100k/labels/box_track_20/train/"
+data_root = "data/bdd100k/images/track/train/"
 config_path = "box_track"
 
 [[train]]
-name = "bdd100k_det_sample_train"
+name = "bdd100k_det_train"
 type = "BDD100K"
-annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
-data_root = "openmt/engine/testcases/detect/bdd100k-samples/images/"
+annotations = "data/bdd100k/labels/det_20/det_train.json"
+data_root = "data/bdd100k/images/100k/train/"
 config_path = "det"
 
 [[test]]
-name = "bdd100k_sample_val"
+name = "bdd100k_val"
 type = "BDD100K"
-annotations = "openmt/engine/testcases/track/bdd100k-samples/labels/"
-data_root = "openmt/engine/testcases/track/bdd100k-samples/images/"
+annotations = "data/bdd100k/labels/box_track_20/val/"
+data_root = "data/bdd100k/images/track/val/"
 config_path = "box_track"
 
+[solver]
+images_per_gpu = 8
+lr_policy = "WarmupMultiStepLR"
+base_lr = 0.04
+steps = [85000, 120000]
+max_iters = 130000
+checkpoint_period = 20000
+log_period = 50
+eval_period = 20000
+eval_metrics = ["detect", "track"]
+
 [dataloader]
-workers_per_gpu = 0
+workers_per_gpu = 8
 categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
-remove_samples_without_labels = true
+skip_empty_samples = true
 inference_sampling = "sequence_based"
     [dataloader.data_backend]
-    type = "HDF5Backend"
+    type = "FileBackend"
     [dataloader.ref_sampling_cfg]
-    type = "uniform"
+    type = 'uniform'
     scope = 3
     num_ref_imgs = 1
+    skip_nomatch_samples = true
 
     [[dataloader.train_augmentations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}
-
     [[dataloader.train_augmentations]]
     type = "RandomFlip"
     kwargs = {"prob" = 0.5}
-
     [[dataloader.test_augmentations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}
 
 [launch]
+device = "cuda"
 weights = "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
+num_gpus = 4
+
+
+

@@ -3,9 +3,9 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-import torch.nn as nn
 from detectron2.layers.batch_norm import get_norm
 from detectron2.layers.wrappers import Conv2d
+from torch import nn
 
 from openmt.common.bbox.matchers import MatcherConfig, build_matcher
 from openmt.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
@@ -22,6 +22,7 @@ class QDSimilarityHeadConfig(SimilarityLearningConfig):
     in_dim: int
     num_convs: int
     conv_out_dim: int
+    conv_has_bias: bool
     num_fcs: int
     fc_out_dim: int
     embedding_dim: int
@@ -54,7 +55,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         for m in self.convs:
             nn.init.kaiming_uniform_(m.weight, a=1)
             if m.bias is not None:
-                nn.init.constant_(m.bias, 0)
+                nn.init.constant_(m.bias, 0)  # pragma: no cover
 
         for m in self.fcs:
             if isinstance(m[0], nn.Linear):
@@ -82,6 +83,7 @@ class QDSimilarityHead(BaseSimilarityHead):
                         self.cfg.conv_out_dim,
                         kernel_size=3,
                         padding=1,
+                        bias=self.cfg.conv_has_bias,
                         norm=get_norm(self.cfg.norm, self.cfg.conv_out_dim),
                         activation=nn.ReLU(inplace=True),
                     )

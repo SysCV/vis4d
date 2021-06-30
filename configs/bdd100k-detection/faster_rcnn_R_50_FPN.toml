@@ -3,37 +3,42 @@ type = "DetectorWrapper"
     [model.detection]
     type = "D2GeneralizedRCNN"
     model_base = "faster-rcnn/r50-fpn"
-    model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111}
+    model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111, "MODEL.PIXEL_STD" = [57.375, 57.120, 58.395], "MODEL.RESNETS.NORM" = "BN"}
     num_classes = 10
+    set_batchnorm_eval = true
 
 [solver]
-images_per_gpu = 2
+images_per_gpu = 12
 lr_policy = "WarmupMultiStepLR"
-base_lr = 0.002
-max_iters = 1000
-steps = [100]
-checkpoint_period = 100
-eval_period = 100
-eval_metrics = ['detect']
+base_lr = 0.06
+steps = [12000, 16500]
+max_iters = 18000
+warmup_iters = 500
+checkpoint_period = 1500
+log_period = 50
+eval_period = 1500
+eval_metrics = ["detect"]
 
 [[train]]
-name = "bdd100k_sample_train"
-type = "COCO"
-annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation_coco.json"
-data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
+name = "bdd100k_det_train"
+type = "BDD100K"
+annotations = "data/bdd100k/labels/det_20/det_train.json"
+data_root = "data/bdd100k/images/100k/train/"
+config_path = "det"
 
 [[test]]
-name = "bdd100k_sample_val"
+name = "bdd100k_det_val"
 type = "BDD100K"
-annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
-data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
+annotations = "data/bdd100k/labels/det_20/det_val.json"
+data_root = "data/bdd100k/images/100k/val/"
 config_path = "det"
 
 [dataloader]
-workers_per_gpu = 0
+workers_per_gpu = 6
 categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle", "traffic light", "traffic sign"]
+skip_empty_samples = true
     [dataloader.data_backend]
-    type = "HDF5Backend"
+    type = "FileBackend"
     [dataloader.ref_sampling_cfg]
     type = 'uniform'
     scope = 1
@@ -52,4 +57,6 @@ categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle
     kwargs = {"shape" = [720, 1280]}
 
 [launch]
-weights = "detectron2"
+device = "cuda"
+weights = "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
+num_gpus = 4

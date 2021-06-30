@@ -28,6 +28,7 @@ keyframe_selection = "first"
     in_dim = 256
     num_convs = 4
     conv_out_dim = 256
+    conv_has_bias = false
     num_fcs = 1
     fc_out_dim = 1024
     embedding_dim = 256
@@ -80,7 +81,7 @@ data_root = "data/MOT16"
 [dataloader]
 workers_per_gpu = 0
 categories = ["pedestrian"]
-remove_samples_without_labels = true
+skip_empty_samples = true
 inference_sampling = "sequence_based"
     [dataloader.data_backend]
     type = "FileBackend"
@@ -88,6 +89,7 @@ inference_sampling = "sequence_based"
     type = 'uniform'
     scope = 3
     num_ref_imgs = 1
+    skip_nomatch_samples = true
 
     [[dataloader.train_augmentations]]
     type = "Resize"

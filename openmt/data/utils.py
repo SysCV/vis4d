@@ -1,7 +1,6 @@
 """data utils."""
 import itertools
 import logging
-import os
 import sys
 from collections import defaultdict
 from io import BytesIO
@@ -9,23 +8,16 @@ from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from detectron2.data.catalog import MetadataCatalog
 from detectron2.structures.boxes import BoxMode
 from detectron2.utils.logger import log_first_n
 from fvcore.common.timer import Timer
 from PIL import Image
-from scalabel.label.typing import Config as MetadataConfig
 from scalabel.label.typing import Frame, Label
-from scalabel.label.utils import (
-    check_crowd,
-    check_ignored,
-    get_leaf_categories,
-)
+from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
 from termcolor import colored
 
-from openmt.config import Dataset as DatasetConfig
-from openmt.struct import Boxes2D
+from openmt.struct import Boxes2D, NDArrayUI8
 
 D2BoxType = Dict[str, Union[bool, float, str]]
 logger = logging.getLogger(__name__)
@@ -38,10 +30,10 @@ def identity_batch_collator(  # type: ignore
     return batch
 
 
-def im_decode(im_bytes: bytes) -> np.ndarray:
+def im_decode(im_bytes: bytes) -> NDArrayUI8:
     """Decode to image (numpy array, BGR) from bytes."""
     pil_img = Image.open(BytesIO(bytearray(im_bytes)))
-    np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: np.ndarray
+    np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: NDArrayUI8
     return np_img
 
 
@@ -122,36 +114,6 @@ def prepare_labels(
     return frequencies
 
 
-def add_data_path(data_root: str, frames: List[Frame]) -> None:
-    """Add filepath to frame using data_root and frame.name."""
-    for ann in frames:
-        assert ann.name is not None
-        if ann.video_name is not None:
-            ann.url = os.path.join(data_root, ann.video_name, ann.name)
-        else:
-            ann.url = os.path.join(data_root, ann.name)
-
-
-def add_metadata(
-    metadata_cfg: MetadataConfig, dataset_cfg: DatasetConfig
-) -> None:
-    """Add metadata to MetadataCatalog."""
-    meta = MetadataCatalog.get(dataset_cfg.name)
-    if meta.get("thing_classes") is None:
-        cat_name2id = {
-            cat.name: i + 1
-            for i, cat in enumerate(
-                get_leaf_categories(metadata_cfg.categories)
-            )
-        }
-        meta.thing_classes = list(cat_name2id.keys())
-        meta.idx_to_class_mapping = {v: k for k, v in cat_name2id.items()}
-        meta.metadata_cfg = metadata_cfg
-        meta.annotations = dataset_cfg.annotations
-        meta.data_root = dataset_cfg.data_root
-        meta.cfg_path = dataset_cfg.config_path
-
-
 def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:
     """Decode to string from bytes."""
     if encoding is None:
@@ -195,30 +157,6 @@ def label_to_dict(label: Label) -> D2BoxType:
     return ann
 
 
-def filter_empty_annotations(frames: List[Frame]) -> List[Frame]:
-    """Filter out images with none annotations or only ignore annotations."""
-    num_before = len(frames)
-
-    def valid(anns: Optional[List[Label]]) -> bool:
-        if anns is None:
-            return False
-        for ann in anns:
-            if ann.attributes is None:
-                return True
-            if not ann.attributes.get("ignore", False):
-                return True
-        return False
-
-    frames = [x for x in frames if valid(x.labels)]
-    num_after = len(frames)
-    logger.info(
-        "Removed %s images with no usable annotations. %s images left.",
-        num_before - num_after,
-        num_after,
-    )
-    return frames
-
-
 def discard_labels_outside_set(
     dataset: List[Frame], class_set: List[str]
 ) -> None:
@@ -227,12 +165,7 @@ def discard_labels_outside_set(
         remove_anns = []
         if frame.labels is not None:
             for i, ann in enumerate(frame.labels):
-                if ann.category in class_set:
-                    assert ann.attributes is not None
-                    ann.attributes["category_id"] = class_set.index(
-                        ann.category
-                    )
-                else:
+                if not ann.category in class_set:
                     remove_anns.append(i)
             for i in reversed(remove_anns):
                 frame.labels.pop(i)

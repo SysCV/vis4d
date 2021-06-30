@@ -4,11 +4,14 @@ import itertools
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
+import numpy.typing as npt
 import torch
 from scalabel.eval.mot import EvalResults as MOTEvalResults
 from scalabel.label.typing import Frame
 
-TorchCheckpoint = Dict[str, Union[int, str, Dict[str, np.ndarray]]]
+NDArrayF64 = npt.NDArray[np.float64]
+NDArrayUI8 = npt.NDArray[np.uint8]
+TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
 LossesType = Dict[str, torch.Tensor]
 EvalResult = Union[Dict[str, float], MOTEvalResults]
 EvalResults = Dict[str, Union[Dict[str, float], MOTEvalResults]]

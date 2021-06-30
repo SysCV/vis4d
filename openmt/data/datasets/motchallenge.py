@@ -6,10 +6,10 @@ from scalabel.label.from_mot import from_mot
 from scalabel.label.io import load_label_config
 from scalabel.label.typing import Dataset
 
-from .base import DatasetLoader
+from .base import BaseDatasetLoader
 
 
-class MOTChallenge(DatasetLoader):
+class MOTChallenge(BaseDatasetLoader):
     """Custom dataloading class."""
 
     def load_dataset(self) -> Dataset:  # pragma: no cover

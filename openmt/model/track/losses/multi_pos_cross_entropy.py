@@ -49,12 +49,21 @@ def multi_pos_cross_entropy(
     avg_factor: Optional[float] = None,
 ) -> torch.Tensor:
     """Calculate multi-positive cross-entropy loss."""
-    # element-wise losses
-    pos_inds = (target == 1).float()
-    neg_inds = (target == 0).float()
-    exp_pos = (torch.exp(-1 * pred) * pos_inds).sum(dim=1)
-    exp_neg = (torch.exp(pred.clamp(max=80)) * neg_inds).sum(dim=1)
-    loss = torch.log(1 + exp_pos * exp_neg)
+    pos_inds = target == 1
+    neg_inds = target == 0
+    pred_pos = pred * pos_inds.float()
+    pred_neg = pred * neg_inds.float()
+    # use -inf to mask out unwanted elements.
+    pred_pos[neg_inds] = pred_pos[neg_inds] + float("inf")
+    pred_neg[pos_inds] = pred_neg[pos_inds] + float("-inf")
+
+    _pos_expand = torch.repeat_interleave(pred_pos, pred.shape[1], dim=1)
+    _neg_expand = pred_neg.repeat(1, pred.shape[1])
+
+    x = torch.nn.functional.pad(
+        (_neg_expand - _pos_expand), (0, 1), "constant", 0
+    )
+    loss = torch.logsumexp(x, dim=1)
 
     # apply weights and do the reduction
     if weight is not None:
