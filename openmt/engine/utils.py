@@ -1,4 +1,4 @@
-"""Config preparation functions for the detection module."""
+"""Config preparation functions for the models module."""
 import itertools
 import logging
 import os

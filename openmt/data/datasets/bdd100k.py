@@ -16,7 +16,8 @@ class BDD100K(BaseDatasetLoader):
         assert self.cfg.annotations is not None
         bdd100k_anns = load(
             self.cfg.annotations,
-            nprocs=self.cfg.nproc,
+            validate_frames=self.cfg.validate_frames,
+            nprocs=self.cfg.num_processes,
         )
         frames = bdd100k_anns.frames
         assert self.cfg.config_path is not None

@@ -169,6 +169,7 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
     def __init__(
         self,
         dataset_name: str,
+        metrics: List[str],
         distributed: bool = True,
         output_dir: Optional[str] = None,
     ) -> None:
@@ -179,6 +180,7 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
         self._metadata = MetadataCatalog.get(dataset_name)
         self.gts = DatasetCatalog[dataset_name]()
         self._predictions = defaultdict(list)  # type: Dict[str, List[Frame]]
+        self.set_metrics(metrics)
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""

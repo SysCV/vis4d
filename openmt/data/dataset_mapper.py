@@ -195,24 +195,12 @@ class DataloaderConfig(BaseModel):
 
     data_backend: DataBackendConfig = DataBackendConfig()
     workers_per_gpu: int
-    inference_sampling: str = "sample_based"
     categories: Optional[List[str]] = None
     skip_empty_samples: bool = False
     compute_global_instance_ids: bool = False
     train_augmentations: Optional[List[AugmentationConfig]] = None
     test_augmentations: Optional[List[AugmentationConfig]] = None
     ref_sampling_cfg: ReferenceSamplingConfig
-
-    @validator("inference_sampling", check_fields=False)
-    def validate_inference_sampling(  # pylint: disable=no-self-argument,no-self-use,line-too-long
-        cls, value: str
-    ) -> str:
-        """Check inference_sampling attribute."""
-        if value not in ["sample_based", "sequence_based"]:
-            raise ValueError(
-                "inference_sampling must be sample_based or sequence_based"
-            )
-        return value
 
 
 class DatasetMapper(D2DatasetMapper):  # type: ignore

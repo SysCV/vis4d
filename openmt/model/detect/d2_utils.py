@@ -9,7 +9,7 @@ from detectron2.structures import Boxes, ImageList, Instances
 
 from openmt.struct import Boxes2D, Images
 
-from .base import BaseDetectorConfig
+from ..base import BaseModelConfig
 
 model_mapping = {
     "faster-rcnn": "COCO-Detection/faster_rcnn_",
@@ -26,8 +26,8 @@ backbone_mapping = {
 }
 
 
-class D2GeneralizedRCNNConfig(BaseDetectorConfig):
-    """Config for detectron2 rcnn-based models."""
+class D2TwoStageDetectorConfig(BaseModelConfig):
+    """Config for detectron2 two stage models."""
 
     model_base: str
     model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
@@ -111,7 +111,7 @@ def images_to_imagelist(images: Images) -> ImageList:
     )
 
 
-def model_to_detectron2(config: D2GeneralizedRCNNConfig) -> CfgNode:
+def model_to_detectron2(config: D2TwoStageDetectorConfig) -> CfgNode:
     """Convert a Detector config to a detectron2 readable config."""
     cfg = get_cfg()
 

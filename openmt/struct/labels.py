@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 from scalabel.label.typing import Box2D, Label
 
-from .data import DataInstance, Images, LossesType
+from .data import DataInstance
 
 
 class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
@@ -206,7 +206,9 @@ class Boxes2D(LabelInstance):
             score = float(self.boxes[i, 4])
             label_dict = dict(id=label_id, box2d=box, score=score)
 
-            cls = idx_to_class[int(self.class_ids[i])]
+            cls = str(
+                self.class_ids[i]
+            )  # idx_to_class[int(self.class_ids[i])]
             label_dict["category"] = cls
             labels.append(Label(**label_dict))
 
@@ -214,11 +216,3 @@ class Boxes2D(LabelInstance):
 
 
 ModelOutput = Dict[str, List[LabelInstance]]
-
-DetectionOutput = Tuple[
-    Images,
-    Dict[str, torch.Tensor],
-    List[Boxes2D],
-    List[Boxes2D],
-    Optional[LossesType],
-]

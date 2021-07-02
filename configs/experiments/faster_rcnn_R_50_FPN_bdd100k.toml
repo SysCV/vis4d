@@ -1,0 +1,20 @@
+[[config]]
+path = "../models/mmdetection/faster_rcnn_R_50_FPN.toml"
+
+[[config]]
+path = "../datasets/bdd100k_det.toml"
+
+
+[solver]
+images_per_gpu = 12
+lr_policy = "WarmupMultiStepLR"
+base_lr = 0.06
+steps = [12000, 16500]
+max_iters = 18000
+checkpoint_period = 1500
+log_period = 50
+eval_period = 1500
+
+[launch]
+device = "cuda"
+num_gpus = 4

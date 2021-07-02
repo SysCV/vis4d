@@ -28,7 +28,7 @@ class BaseDataBackend(metaclass=RegistryHolder):
 
 def build_data_backend(cfg: DataBackendConfig) -> BaseDataBackend:
     """Build a data backend from config."""
-    registry = RegistryHolder.get_registry(__package__)
+    registry = RegistryHolder.get_registry(BaseDataBackend)
     if cfg.type in registry:
         module = registry[cfg.type](cfg)
         assert isinstance(module, BaseDataBackend)

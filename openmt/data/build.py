@@ -197,7 +197,10 @@ def _test_loader_from_config(
 
 
 def build_test_loader(
-    loader_cfg: DataloaderConfig, det2cfg: CfgNode, dataset_name: str
+    loader_cfg: DataloaderConfig,
+    det2cfg: CfgNode,
+    dataset_name: str,
+    inference_sampling: str,
 ) -> torch.utils.data.DataLoader:
     """Build test dataloader with some default features."""
     data_options = _test_loader_from_config(loader_cfg, det2cfg, dataset_name)
@@ -207,7 +210,7 @@ def build_test_loader(
     )
     sampler = (
         TrackingInferenceSampler(dataset)
-        if loader_cfg.inference_sampling == "sequence_based"
+        if inference_sampling == "sequence_based"
         else InferenceSampler(len(dataset))
     )
     batch_sampler = torch.utils.data.sampler.BatchSampler(

@@ -47,7 +47,8 @@ def build_augmentation(
     cfg: AugmentationConfig,
 ) -> Union[Augmentation, Transform]:
     """Build a single detectron2 augmentation."""
-    registry = RegistryHolder.get_registry(__package__)
+    registry = RegistryHolder.get_registry(Augmentation)
+    registry.update(RegistryHolder.get_registry(Transform))
     if hasattr(Augmentations, cfg.type):
         augmentation = getattr(Augmentations, cfg.type)
     elif cfg.type in registry:

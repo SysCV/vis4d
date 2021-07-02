@@ -20,7 +20,7 @@ class MyDetectorConfig(BaseDetectorConfig, extra="allow"):
 
 
 class MyDetector(BaseDetector):
-    """Example detection module."""
+    """Example models module."""
 
     def __init__(self, cfg: BaseDetectorConfig) -> None:
         """Init detector."""

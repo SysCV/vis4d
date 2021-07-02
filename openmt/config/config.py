@@ -3,7 +3,7 @@ import os
 import sys
 from argparse import Namespace
 from datetime import datetime
-from typing import Any, List, Optional, no_type_check
+from typing import Any, Dict, List, Optional, no_type_check
 
 import toml
 import yaml
@@ -26,7 +26,6 @@ class Solver(BaseModel):
     checkpoint_period: Optional[int]
     log_period: Optional[int]
     eval_period: Optional[int]
-    eval_metrics: List[str]
 
 
 class Launch(BaseModel):
@@ -96,8 +95,8 @@ class Config(BaseModel):
     model: BaseModelConfig
     solver: Solver
     dataloader: DataloaderConfig
-    train: Optional[List[BaseDatasetConfig]]
-    test: Optional[List[BaseDatasetConfig]]
+    train: List[BaseDatasetConfig] = []
+    test: List[BaseDatasetConfig] = []
     launch: Launch = Launch()
 
     def __init__(self, **data: Any) -> None:  # type: ignore
@@ -146,12 +145,8 @@ def parse_config(args: Namespace) -> Config:
     return cfg
 
 
-def read_config(filepath: str) -> Config:
-    """Read config file and parse it into Config object.
-
-    The config file can be in yaml or toml.
-    toml is recommended for readability.
-    """
+def load_config(filepath: str) -> Dict[str, Any]:  # type: ignore
+    """Load config from file to dict."""
     ext = os.path.splitext(filepath)[1]
     if ext == ".yaml":
         with open(filepath, "r") as f:
@@ -160,6 +155,23 @@ def read_config(filepath: str) -> Config:
         config_dict = toml.load(filepath)
     else:
         raise NotImplementedError(f"Config type {ext} not supported")
+    return config_dict  # type: ignore
+
+
+def read_config(filepath: str) -> Config:
+    """Read config file and parse it into Config object.
+
+    The config file can be in yaml or toml.
+    toml is recommended for readability.
+    """
+    config_dict = load_config(filepath)
+    if "config" in config_dict:
+        cwd = os.getcwd()
+        os.chdir(os.path.dirname(filepath))
+        for cfg in config_dict["config"]:
+            assert "path" in cfg, "Config arguments must have path!"
+            config_dict.update(load_config(cfg["path"]))
+        os.chdir(cwd)
 
     # Fix pickle error with this class not being serializable:
     # TomlDecoder.get_empty_inline_table.<locals>.DynamicInlineTableDict
@@ -171,5 +183,4 @@ def read_config(filepath: str) -> Config:
 
     config_dict = check_for_dicts(config_dict)
 
-    config = Config(**config_dict)
-    return config
+    return Config(**config_dict)

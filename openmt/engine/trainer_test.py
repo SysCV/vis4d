@@ -1,4 +1,5 @@
 """Test cases for openMT engine Trainer."""
+import shutil
 import unittest
 from argparse import Namespace
 
@@ -16,7 +17,10 @@ from .utils import _register
 class TestTrack(unittest.TestCase):
     """Test cases for openmt tracking."""
 
-    args = Namespace(config=get_test_file("track/quasi_dense_R_50_FPN.toml"))
+    work_dir = "./unittest_track/"
+    args = Namespace(
+        config=get_test_file("track/qdtrack_d2.toml"), output_dir=work_dir
+    )
     cfg = config.parse_config(args)
 
     def test_predict(self) -> None:
@@ -76,17 +80,21 @@ class TestTrack(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        """Clean up dataset registry."""
+        """Clean up dataset registry, files."""
         assert cls.cfg.train is not None
         assert cls.cfg.test is not None
         d2_data_reset(cls.cfg.train)
         d2_data_reset(cls.cfg.test)
+        shutil.rmtree(cls.work_dir, ignore_errors=True)
 
 
 class TestDetect(unittest.TestCase):
-    """Test cases for openmt detection."""
+    """Test cases for openmt models."""
 
-    args = Namespace(config=get_test_file("detect/faster_rcnn_R_50_FPN.toml"))
+    work_dir = "./unittest_detect/"
+    args = Namespace(
+        config=get_test_file("detect/faster_rcnn_d2.toml"), output_dir=work_dir
+    )
     cfg = config.parse_config(args)
 
     def test_predict(self) -> None:
@@ -135,8 +143,9 @@ class TestDetect(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        """Clean up dataset registry."""
+        """Clean up dataset registry, files."""
         assert cls.cfg.train is not None
         assert cls.cfg.test is not None
         d2_data_reset(cls.cfg.train)
         d2_data_reset(cls.cfg.test)
+        shutil.rmtree(cls.work_dir, ignore_errors=True)

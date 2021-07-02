@@ -72,7 +72,13 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
         cls, openmt_cfg: Config, cfg: CfgNode, dataset_name: str
     ) -> torch.utils.data.DataLoader:
         """Calls :func:`openmt.data.build_test_loader`."""
-        return build_test_loader(openmt_cfg.dataloader, cfg, dataset_name)
+        sampling = "sequence_based"
+        for ds in openmt_cfg.test:
+            if ds.name == dataset_name:
+                sampling = ds.inference_sampling
+        return build_test_loader(
+            openmt_cfg.dataloader, cfg, dataset_name, sampling
+        )
 
     def build_evaluator(
         self, cfg: CfgNode, dataset_name: str
@@ -86,10 +92,16 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
     def build_evaluator_static(
         cls, openmt_cfg: Config, cfg: CfgNode, dataset_name: str
     ) -> DatasetEvaluator:
-        """Build evaluators for tracking and detection."""
+        """Build evaluators for tracking and models."""
         output_folder = os.path.join(cfg.OUTPUT_DIR, dataset_name)
-        evaluator = ScalabelEvaluator(dataset_name, True, output_folder)
-        evaluator.set_metrics(openmt_cfg.solver.eval_metrics)
+        metrics = [
+            ds.eval_metrics
+            for ds in openmt_cfg.test
+            if ds.name == dataset_name
+        ][0]
+        evaluator = ScalabelEvaluator(
+            dataset_name, metrics, True, output_folder
+        )
         return evaluator
 
     def train(self) -> Dict[str, EvalResults]:

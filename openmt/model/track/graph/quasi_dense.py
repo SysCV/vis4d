@@ -248,7 +248,7 @@ class QDTrackGraph(BaseTrackGraph):
         embedding: torch.Tensor,
         frame_id: int,
     ) -> None:
-        """Update a specific track with a new detection."""
+        """Update a specific track with a new models."""
         bbox, cls = detection.boxes[0], detection.class_ids[0]
         velocity = (bbox - self.tracks[track_id]["bbox"]) / (
             frame_id - self.tracks[track_id]["last_frame"]
@@ -273,7 +273,7 @@ class QDTrackGraph(BaseTrackGraph):
         embedding: torch.Tensor,
         frame_id: int,
     ) -> None:
-        """Create a new track from a detection."""
+        """Create a new track from a models."""
         bbox, cls = detection.boxes[0], detection.class_ids[0]
         self.tracks[track_id] = dict(
             bbox=bbox,

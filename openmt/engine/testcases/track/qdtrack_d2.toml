@@ -1,0 +1,19 @@
+[[config]]
+path = "../configs/models/detectron2/qdtrack_R_50_FPN.toml"
+
+[[config]]
+path = "../configs/datasets/track.toml"
+
+[solver]
+images_per_gpu = 1
+lr_policy = "WarmupMultiStepLR"
+base_lr = 0.01
+warmup_iters = 0
+steps = []
+max_iters = 1
+log_period = 1
+checkpoint_period = 1000
+eval_period = 1000
+
+[launch]
+weights = "detectron2"
