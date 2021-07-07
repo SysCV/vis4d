@@ -2,6 +2,7 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
+from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.modeling import GeneralizedRCNN
 from torch.nn.modules.batchnorm import _BatchNorm
 
@@ -30,6 +31,9 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         self.d2_cfg = model_to_detectron2(self.cfg)
         # pylint: disable=too-many-function-args,missing-kwoa
         self.d2_detector = GeneralizedRCNN(self.d2_cfg)
+        self.checkpointer = DetectionCheckpointer(self.d2_detector)
+        if self.d2_cfg.MODEL.WEIGHTS != "":
+            self.checkpointer.load(self.d2_cfg.MODEL.WEIGHTS)
         if self.cfg.set_batchnorm_eval:
             self.set_batchnorm_eval()
 
@@ -64,7 +68,9 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             len(inp) == 1 for inp in batch_inputs
         ), "No reference views allowed in detector training!"
         inputs = [inp[0] for inp in batch_inputs]
-        targets = [x.instances.to(self.device) for x in inputs]
+        targets = [
+            x.instances.to(self.device) for x in inputs  # type: ignore
+        ]  # type: List[Boxes2D]
 
         # from openmt.vis.image import imshow_bboxes
         # for inp in inputs:
@@ -101,7 +107,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
                 )
                 self.postprocess(ori_wh, inp.image.image_sizes[0], det)
 
-        return dict(detect=detections)
+        return dict(detect=detections)  # type: ignore
 
     def extract_features(self, images: Images) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.
@@ -163,7 +169,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         if not self.d2_detector.training:
             detections = detections_to_box2d(detections)
         elif compute_detections:
-            detections = proposal_to_box2d(detections)
+            detections = proposal_to_box2d(detections)  # pragma: no cover
         else:
             detections = None
         return detections, detect_losses

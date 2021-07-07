@@ -38,7 +38,7 @@ class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     @abc.abstractmethod
     def forward_train(
         self, batch_inputs: List[List[InputSample]]
-    ) -> Dict[str, torch.Tensor]:
+    ) -> LossesType:
         """Forward pass during training stage.
 
         Args:
@@ -46,7 +46,7 @@ class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
             views.
 
         Returns:
-            Dict: A dict of loss tensors.
+            LossesType: A dict of scalar loss tensors.
         """
         raise NotImplementedError
 

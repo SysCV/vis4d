@@ -139,7 +139,6 @@ class QDGeneralizedRCNN(BaseModel):
             ref_embeddings,
             ref_track_targets,
         )
-
         return {**det_losses, **track_losses}
 
     def match(

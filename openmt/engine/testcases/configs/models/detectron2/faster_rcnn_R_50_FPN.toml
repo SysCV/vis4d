@@ -2,3 +2,4 @@
 type = "D2TwoStageDetector"
 model_base = "faster-rcnn/r50-fpn"
 num_classes = 10
+weights = "detectron2"

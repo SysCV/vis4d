@@ -1,15 +1,15 @@
 """DefaultTrainer for openMT."""
 import logging
 import os
-import weakref
 from collections import OrderedDict
 from typing import Dict, List, Optional
 from typing import OrderedDict as OrderedDictType
 
 import torch
+from detectron2.checkpoint import Checkpointer
 from detectron2.config import CfgNode
 from detectron2.engine import DefaultTrainer as D2DefaultTrainer
-from detectron2.engine import PeriodicCheckpointer, PeriodicWriter
+from detectron2.engine import PeriodicWriter
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.comm import is_main_process
 
@@ -19,7 +19,6 @@ from openmt.model import build_model
 from openmt.struct import EvalResults
 from openmt.vis import ScalabelVisualizer
 
-from .checkpointer import Checkpointer
 from .evaluator import ScalabelEvaluator, inference_on_dataset
 from .utils import default_setup, register_directory, to_detectron2
 
@@ -31,17 +30,9 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
         """Init."""
         self.openmt_cfg = cfg
         super().__init__(det2cfg)
-        # Assumes you want to save checkpoints together with logs/statistics
-        self.checkpointer = Checkpointer(
-            self._trainer.model,
-            cfg.launch.output_dir,
-            trainer=weakref.proxy(self),
-        )
         # Update hooks with custom parameters / objects
         logp = cfg.solver.log_period
         for hook in self._hooks:
-            if isinstance(hook, PeriodicCheckpointer):
-                hook.checkpointer = self.checkpointer
             if logp is not None and isinstance(hook, PeriodicWriter):
                 hook._period = logp  # pylint: disable=protected-access
 
@@ -92,7 +83,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
     def build_evaluator_static(
         cls, openmt_cfg: Config, cfg: CfgNode, dataset_name: str
     ) -> DatasetEvaluator:
-        """Build evaluators for tracking and models."""
+        """Build evaluators."""
         output_folder = os.path.join(cfg.OUTPUT_DIR, dataset_name)
         metrics = [
             ds.eval_metrics
@@ -204,8 +195,7 @@ def train(cfg: Config) -> Dict[str, EvalResults]:
     default_setup(cfg, det2cfg, cfg.launch)
 
     trainer = DefaultTrainer(cfg, det2cfg)
-    if cfg.launch.weights != "detectron2":
-        trainer.cfg.MODEL.WEIGHTS = cfg.launch.weights  # pragma: no cover
+    trainer.cfg.MODEL.WEIGHTS = cfg.launch.weights
     trainer.resume_or_load(resume=cfg.launch.resume)
     return trainer.train()
 
@@ -217,12 +207,8 @@ def test(cfg: Config) -> Dict[str, EvalResults]:
 
     model = build_model(cfg.model)
     model.to(torch.device(cfg.launch.device))
-    if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
-        det2cfg.MODEL.merge_from_other_cfg(model.detector.d2_cfg.MODEL)
-    if cfg.launch.weights != "detectron2":
-        det2cfg.MODEL.WEIGHTS = cfg.launch.weights  # pragma: no cover
     Checkpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
-        det2cfg.MODEL.WEIGHTS, resume=cfg.launch.resume
+        cfg.launch.weights, resume=cfg.launch.resume
     )
     return DefaultTrainer.test_static(cfg, det2cfg, model)
 
@@ -234,11 +220,7 @@ def predict(cfg: Config) -> None:
 
     model = build_model(cfg.model)
     model.to(torch.device(cfg.launch.device))
-    if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
-        det2cfg.MODEL.merge_from_other_cfg(model.detector.d2_cfg.MODEL)
-    if cfg.launch.weights != "detectron2":
-        det2cfg.MODEL.WEIGHTS = cfg.launch.weights  # pragma: no cover
     Checkpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
-        det2cfg.MODEL.WEIGHTS, resume=cfg.launch.resume
+        cfg.launch.weights, resume=cfg.launch.resume
     )
     DefaultTrainer.predict(cfg, det2cfg, model)

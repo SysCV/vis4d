@@ -49,17 +49,14 @@ class Boxes2D(LabelInstance):
         """Init."""
         assert isinstance(boxes, torch.Tensor) and len(boxes.shape) == 2
         if class_ids is not None:
-            assert (
-                isinstance(class_ids, torch.Tensor)
-                and len(boxes) == len(class_ids)
-                and boxes.device == class_ids.device
-            )
+            assert isinstance(class_ids, torch.Tensor)
+            assert len(boxes) == len(class_ids)
+            assert boxes.device == class_ids.device
         if track_ids is not None:
-            assert (
-                isinstance(track_ids, torch.Tensor)
-                and len(boxes) == len(track_ids)
-                and boxes.device == track_ids.device
-            )
+            assert isinstance(track_ids, torch.Tensor)
+            assert len(boxes) == len(track_ids)
+            assert boxes.device == track_ids.device
+
         self.boxes = boxes
         self.class_ids = class_ids
         self.track_ids = track_ids
@@ -206,9 +203,7 @@ class Boxes2D(LabelInstance):
             score = float(self.boxes[i, 4])
             label_dict = dict(id=label_id, box2d=box, score=score)
 
-            cls = str(
-                self.class_ids[i]
-            )  # idx_to_class[int(self.class_ids[i])]
+            cls = idx_to_class[int(self.class_ids[i])]
             label_dict["category"] = cls
             labels.append(Label(**label_dict))
 

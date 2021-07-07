@@ -66,6 +66,8 @@ def detections_from_mmdet(
     """Convert mmdetection detections to OpenMT format."""
     detections_boxes2d = []
     for bbox, label in zip(bboxes, labels):
+        if not label.device == bbox.device:
+            label = label.to(bbox.device)
         detections_boxes2d.append(Boxes2D(bbox, label))
     return detections_boxes2d
 
@@ -112,6 +114,8 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
     """Convert a Detector config to a mmdet readable config."""
     if os.path.exists(config.model_base):
         cfg = MMConfig.fromfile(config.model_base)
+        if cfg.get("model"):
+            cfg = cfg["model"]
     elif config.model_base.startswith("mmdet://"):
         ext = os.path.splitext(config.model_base)[1]
         cfg = MMConfig.fromstring(
@@ -151,6 +155,6 @@ def _parse_losses(losses: Dict[str, torch.Tensor]) -> LossesType:
             elif isinstance(value, list):
                 log_vars[name] = sum(_loss.mean() for _loss in value)
             else:
-                raise TypeError(f"{name} is not a tensor or list of tensors")
+                raise ValueError(f"{name} is not a tensor or list of tensors")
 
     return log_vars

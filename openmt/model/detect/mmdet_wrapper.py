@@ -65,7 +65,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             len(inp) == 1 for inp in batch_inputs
         ), "No reference views allowed in detector training!"
         inputs = [inp[0] for inp in batch_inputs]
-        targets = [x.instances.to(self.device) for x in inputs]
+        targets = [
+            x.instances.to(self.device) for x in inputs  # type: ignore
+        ]  # type: List[Boxes2D]
 
         # from openmt.vis.image import imshow_bboxes
         # for inp in inputs:
@@ -102,7 +104,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 )
                 self.postprocess(ori_wh, inp.image.image_sizes[0], det)
 
-        return dict(detect=detections)
+        return dict(detect=detections)  # type: ignore
 
     def extract_features(self, images: Images) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.
@@ -110,7 +112,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         Return preprocessed images, backbone output features.
         """
         outs = self.mm_detector.extract_feat(images.tensor)
-        if self.cfg.backbone_output_names is None:
+        if self.cfg.backbone_output_names is None:  # pragma: no cover
             return {f"out{i}": v for i, v in enumerate(outs)}
 
         return dict(zip(self.cfg.backbone_output_names, outs))
@@ -180,8 +182,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         else:
             bboxes, labels = self.mm_detector.roi_head.simple_test_bboxes(
                 feat_list,
-                proposal_list,
                 img_metas,
+                proposal_list,
+                self.mm_detector.roi_head.test_cfg,
             )
             detections = detections_from_mmdet(bboxes, labels)
             detect_losses = dict()

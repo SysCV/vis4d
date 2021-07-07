@@ -1,9 +1,8 @@
 [[config]]
-path = "../base/models/detectron2/qdtrack_R_50_FPN.toml"
+path = "../base/models/mmdetection/qdtrack_R_50_FPN.toml"
 
 [[config]]
 path = "../base/datasets/bdd100k_track_det.toml"
-
 
 [solver]
 images_per_gpu = 8
