@@ -67,7 +67,7 @@ def detections_from_mmdet(
     detections_boxes2d = []
     for bbox, label in zip(bboxes, labels):
         if not label.device == bbox.device:
-            label = label.to(bbox.device)
+            label = label.to(bbox.device)  # pragma: no cover
         detections_boxes2d.append(Boxes2D(bbox, label))
     return detections_boxes2d
 
