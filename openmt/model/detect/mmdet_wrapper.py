@@ -2,6 +2,7 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
+from mmcv.runner.checkpoint import load_checkpoint
 from mmdet.models import TwoStageDetector, build_detector
 
 from openmt.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
@@ -31,6 +32,11 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         self.mm_cfg = get_mmdet_config(self.cfg)
         self.mm_detector = build_detector(self.mm_cfg)
         assert isinstance(self.mm_detector, TwoStageDetector)
+        self.mm_detector.init_weights()
+        self.mm_detector.train()
+        if self.cfg.weights is not None:
+            load_checkpoint(self.mm_detector, self.cfg.weights)
+
         self.register_buffer(
             "pixel_mean",
             torch.tensor(self.cfg.pixel_mean).view(-1, 1, 1),

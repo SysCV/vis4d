@@ -24,6 +24,7 @@ class MMTwoStageDetectorConfig(BaseModelConfig):
     pixel_mean: Tuple[float, float, float]
     pixel_std: Tuple[float, float, float]
     backbone_output_names: Optional[List[str]]
+    weights: Optional[str]
 
 
 def get_img_metas(images: Images) -> List[MMDetMetaData]:

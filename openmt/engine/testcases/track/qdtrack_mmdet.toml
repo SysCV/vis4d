@@ -13,4 +13,4 @@ steps = []
 max_iters = 1
 log_period = 1
 checkpoint_period = 1000
-eval_period = 1000
+eval_period = 100
