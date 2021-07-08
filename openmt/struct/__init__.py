@@ -1,5 +1,6 @@
 """OpenMT struct module."""
 from .data import (
+    DictStrAny,
     EvalResult,
     EvalResults,
     Images,
@@ -23,4 +24,5 @@ __all__ = [
     "InputSample",
     "Images",
     "ModelOutput",
+    "DictStrAny",
 ]

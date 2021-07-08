@@ -1,4 +1,4 @@
-"""Testcases for tracking dataset mapper."""
+"""Testcases for openMT dataset mapper."""
 import unittest
 
 import torch

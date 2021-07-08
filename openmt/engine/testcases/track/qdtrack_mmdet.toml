@@ -1,8 +1,9 @@
 [[config]]
-path = "../configs/models/mmdetection/qdtrack_R_50_FPN.toml"
+path = "../configs/datasets/track.toml"
 
 [[config]]
-path = "../configs/datasets/track.toml"
+path = "../configs/models/mmdetection/qdtrack_R_50_FPN.toml"
+
 
 [solver]
 images_per_gpu = 1

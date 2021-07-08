@@ -54,7 +54,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
     def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
         """Batch, pad (standard stride=32) and normalize the input images."""
         images = Images.cat([inp.image for inp in batched_inputs])
-        images.tensor = images.tensor[:, [2, 1, 0]].contiguous()  # BGR to RGB
+        images.tensor = images.tensor.contiguous()
         images = images.to(self.device)
         images.tensor = (images.tensor - self.pixel_mean) / self.pixel_std
         return images
@@ -77,7 +77,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
         # from openmt.vis.image import imshow_bboxes
         # for inp in inputs:
-        #     imshow_bboxes(inp.image.tensor[0], inp.instances)
+        #     imshow_bboxes(inp.image.tensor[0], inp.instances, mode="RGB")
 
         images = self.preprocess_image(inputs)
         image_metas = get_img_metas(images)

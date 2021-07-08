@@ -1,7 +1,7 @@
 """Data structure for struct container."""
 import abc
 import itertools
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -15,6 +15,7 @@ TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
 LossesType = Dict[str, torch.Tensor]
 EvalResult = Union[Dict[str, float], MOTEvalResults]
 EvalResults = Dict[str, Union[Dict[str, float], MOTEvalResults]]
+DictStrAny = Dict[str, Any]  # type: ignore
 
 
 class DataInstance(metaclass=abc.ABCMeta):

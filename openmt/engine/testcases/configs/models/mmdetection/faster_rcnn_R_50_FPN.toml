@@ -5,3 +5,6 @@ model_kwargs= {"rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.b
 num_classes = 10
 pixel_mean = [123.675, 116.28, 103.53]
 pixel_std = [58.395, 57.12, 57.375]
+
+[dataloader]
+image_channel_mode = "RGB"
