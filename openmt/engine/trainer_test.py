@@ -65,6 +65,16 @@ class BaseEngineTests:
                 "AR_small",
                 "AR_medium",
                 "AR_large",
+                "AP_pedestrian",
+                "AP_rider",
+                "AP_car",
+                "AP_truck",
+                "AP_bus",
+                "AP_train",
+                "AP_motorcycle",
+                "AP_bicycle",
+                "AP_traffic light",
+                "AP_traffic sign",
             ]
 
             for k in results:
