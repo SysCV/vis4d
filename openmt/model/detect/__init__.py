@@ -1,16 +1,11 @@
 """Detector module."""
-from .base import (
-    BaseDetector,
-    BaseDetectorConfig,
-    BaseTwoStageDetector,
-    build_detector,
-)
-from .d2_rcnn import D2GeneralizedRCNN
+from .base import BaseDetector, BaseTwoStageDetector
+from .d2_wrapper import D2TwoStageDetector
+from .mmdet_wrapper import MMTwoStageDetector
 
 __all__ = [
     "BaseDetector",
     "BaseTwoStageDetector",
-    "D2GeneralizedRCNN",
-    "BaseDetectorConfig",
-    "build_detector",
+    "D2TwoStageDetector",
+    "MMTwoStageDetector",
 ]

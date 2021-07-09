@@ -1,5 +1,6 @@
 """OpenMT struct module."""
 from .data import (
+    DictStrAny,
     EvalResult,
     EvalResults,
     Images,
@@ -9,7 +10,7 @@ from .data import (
     NDArrayUI8,
     TorchCheckpoint,
 )
-from .labels import Boxes2D, DetectionOutput, LabelInstance, ModelOutput
+from .labels import Boxes2D, LabelInstance, ModelOutput
 
 __all__ = [
     "Boxes2D",
@@ -22,6 +23,6 @@ __all__ = [
     "EvalResults",
     "InputSample",
     "Images",
-    "DetectionOutput",
     "ModelOutput",
+    "DictStrAny",
 ]

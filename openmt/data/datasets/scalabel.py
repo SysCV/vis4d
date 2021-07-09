@@ -14,7 +14,8 @@ class Scalabel(BaseDatasetLoader):
         assert self.cfg.annotations is not None
         dataset = load(
             self.cfg.annotations,
-            nprocs=self.cfg.nproc,
+            validate_frames=self.cfg.validate_frames,
+            nprocs=self.cfg.num_processes,
         )
         metadata_cfg = dataset.config
         if self.cfg.config_path is not None:

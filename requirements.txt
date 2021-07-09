@@ -2,6 +2,8 @@ black
 coverage[toml]
 isort
 mypy
+mmdet
+mmcv-full
 numpy>=1.21.0
 pillow
 pydantic
@@ -25,3 +27,4 @@ types-toml
 types-termcolor
 types-tabulate
 types-PyYAML
+types-requests

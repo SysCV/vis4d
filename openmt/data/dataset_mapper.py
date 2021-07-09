@@ -195,24 +195,13 @@ class DataloaderConfig(BaseModel):
 
     data_backend: DataBackendConfig = DataBackendConfig()
     workers_per_gpu: int
-    inference_sampling: str = "sample_based"
     categories: Optional[List[str]] = None
     skip_empty_samples: bool = False
     compute_global_instance_ids: bool = False
     train_augmentations: Optional[List[AugmentationConfig]] = None
     test_augmentations: Optional[List[AugmentationConfig]] = None
     ref_sampling_cfg: ReferenceSamplingConfig
-
-    @validator("inference_sampling", check_fields=False)
-    def validate_inference_sampling(  # pylint: disable=no-self-argument,no-self-use,line-too-long
-        cls, value: str
-    ) -> str:
-        """Check inference_sampling attribute."""
-        if value not in ["sample_based", "sequence_based"]:
-            raise ValueError(
-                "inference_sampling must be sample_based or sequence_based"
-            )
-        return value
+    image_channel_mode: str = "BGR"
 
 
 class DatasetMapper(D2DatasetMapper):  # type: ignore
@@ -221,8 +210,8 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
     A callable which takes a data sample in scalabel format, and maps it into
     a format used by the openMT model. The callable does the following:
     1. Read image from "url"
-    2. Applies cropping/geometric transforms to the image and annotations
-    3. Prepare data and annotations (InputData, AnnotationInstance)
+    2. Applies transforms to the image and annotations
+    3. Put data and annotations in openMT format (InputSample)
     """
 
     def __init__(
@@ -238,6 +227,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         else:
             augs = build_augmentations(loader_cfg.test_augmentations)
         super().__init__(det2cfg, is_train, augmentations=augs)
+        self.loader_cfg = loader_cfg
         self.data_backend = build_data_backend(loader_cfg.data_backend)
         self.skip_empty_samples = loader_cfg.skip_empty_samples
 
@@ -248,7 +238,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         """Load image according to data_backend."""
         assert sample.url is not None
         im_bytes = self.data_backend.get(sample.url)
-        image = im_decode(im_bytes)
+        image = im_decode(im_bytes, mode=self.loader_cfg.image_channel_mode)
         sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
         return image
 

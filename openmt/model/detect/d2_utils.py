@@ -9,7 +9,7 @@ from detectron2.structures import Boxes, ImageList, Instances
 
 from openmt.struct import Boxes2D, Images
 
-from .base import BaseDetectorConfig
+from ..base import BaseModelConfig
 
 model_mapping = {
     "faster-rcnn": "COCO-Detection/faster_rcnn_",
@@ -26,14 +26,15 @@ backbone_mapping = {
 }
 
 
-class D2GeneralizedRCNNConfig(BaseDetectorConfig):
-    """Config for detectron2 rcnn-based models."""
+class D2TwoStageDetectorConfig(BaseModelConfig):
+    """Config for detectron2 two stage models."""
 
     model_base: str
     model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
     override_mapping: Optional[bool] = False
     num_classes: Optional[int]
     set_batchnorm_eval: bool = False
+    weights: Optional[str]
 
 
 def detections_to_box2d(detections: List[Instances]) -> List[Boxes2D]:
@@ -111,31 +112,32 @@ def images_to_imagelist(images: Images) -> ImageList:
     )
 
 
-def model_to_detectron2(config: D2GeneralizedRCNNConfig) -> CfgNode:
+def model_to_detectron2(config: D2TwoStageDetectorConfig) -> CfgNode:
     """Convert a Detector config to a detectron2 readable config."""
     cfg = get_cfg()
 
     # load detect base config, checkpoint
-    detectron2_model_string = None
+    d2_model_string = None
     if os.path.exists(config.model_base):
         base_cfg = config.model_base
     else:
         if config.override_mapping:
-            detectron2_model_string = config.model_base
+            d2_model_string = config.model_base
         else:
             model, backbone = config.model_base.split("/")
-            detectron2_model_string = (
-                model_mapping[model] + backbone_mapping[backbone]
-            )
-        base_cfg = model_zoo.get_config_file(detectron2_model_string)
+            d2_model_string = model_mapping[model] + backbone_mapping[backbone]
+        base_cfg = model_zoo.get_config_file(d2_model_string)
 
     cfg.merge_from_file(base_cfg)
 
-    # load checkpoint
-    if detectron2_model_string is not None:
-        cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-            detectron2_model_string
-        )
+    # prepare checkpoint path
+    if config.weights is not None:
+        if config.weights == "detectron2" and d2_model_string is not None:
+            cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(d2_model_string)
+        else:
+            cfg.MODEL.WEIGHTS = config.weights
+    else:
+        cfg.MODEL.WEIGHTS = ""
 
     # convert detect attributes
     if config.num_classes:

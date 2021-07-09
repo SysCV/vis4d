@@ -56,11 +56,12 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
                 self.cfg.output_dir,
                 self.cfg.save_images,
                 self.cfg.use_lidar_labels,
-                self.cfg.nproc,
+                self.cfg.num_processes,
             )
         else:
             frames = load(
                 os.path.join(self.cfg.output_dir, "scalabel_anns.json"),
-                nprocs=self.cfg.nproc,
+                validate_frames=self.cfg.validate_frames,
+                nprocs=self.cfg.num_processes,
             ).frames
         return Dataset(frames=frames, config=metadata_cfg)

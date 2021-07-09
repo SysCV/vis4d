@@ -1,0 +1,39 @@
+[[train]]
+name = "waymo_sample_train"
+type = "Waymo"
+data_root = "data/Waymo_scalabel"
+input_dir = "data/Waymo/train"
+output_dir = "data/Waymo_scalabel"
+
+[[test]]
+name = "waymo_sample_val"
+type = "Waymo"
+data_root = "data/Waymo_scalabel"
+input_dir = "data/Waymo/train"
+output_dir = "data/Waymo_scalabel"
+eval_metrics = ["track"]
+inference_sampling = "sequence_based"
+
+[dataloader]
+workers_per_gpu = 0
+categories = ["vehicle", "pedestrian", "cyclist"]
+skip_empty_samples = true
+    [dataloader.data_backend]
+    type = "FileBackend"
+    [dataloader.ref_sampling_cfg]
+    type = 'uniform'
+    scope = 3
+    num_ref_imgs = 1
+    skip_nomatch_samples = true
+
+    [[dataloader.train_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [1080, 1920]}
+
+    [[dataloader.train_augmentations]]
+    type = "RandomFlip"
+    kwargs = {"prob" = 0.5}
+
+    [[dataloader.test_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [1080, 1920]}

@@ -3,7 +3,7 @@ import unittest
 
 from openmt.unittest.utils import get_test_file
 
-from .d2_utils import D2GeneralizedRCNNConfig, model_to_detectron2
+from .d2_utils import D2TwoStageDetectorConfig, model_to_detectron2
 
 
 class TestD2Utils(unittest.TestCase):
@@ -11,7 +11,7 @@ class TestD2Utils(unittest.TestCase):
 
     def test_model_tod2(self) -> None:
         """Testcase for config to d2 config."""
-        cfg = D2GeneralizedRCNNConfig(
+        cfg = D2TwoStageDetectorConfig(
             type="D2GeneralizedRCNN",
             model_base="faster-rcnn/r50-fpn",
             num_classes=10,

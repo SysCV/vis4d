@@ -2,11 +2,12 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
+from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.modeling import GeneralizedRCNN
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from openmt.model.detect.d2_utils import (
-    D2GeneralizedRCNNConfig,
+    D2TwoStageDetectorConfig,
     box2d_to_proposal,
     detections_to_box2d,
     images_to_imagelist,
@@ -14,27 +15,25 @@ from openmt.model.detect.d2_utils import (
     proposal_to_box2d,
     target_to_instance,
 )
-from openmt.struct import (
-    Boxes2D,
-    DetectionOutput,
-    Images,
-    InputSample,
-    LossesType,
-)
+from openmt.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
 
-from .base import BaseDetectorConfig, BaseTwoStageDetector
+from ..base import BaseModelConfig
+from .base import BaseTwoStageDetector
 
 
-class D2GeneralizedRCNN(BaseTwoStageDetector):
-    """Detectron2 detector wrapper."""
+class D2TwoStageDetector(BaseTwoStageDetector):
+    """Detectron2 two-stage detector wrapper."""
 
-    def __init__(self, cfg: BaseDetectorConfig):
+    def __init__(self, cfg: BaseModelConfig):
         """Init."""
         super().__init__()
-        self.cfg = D2GeneralizedRCNNConfig(**cfg.dict())
+        self.cfg = D2TwoStageDetectorConfig(**cfg.dict())
         self.d2_cfg = model_to_detectron2(self.cfg)
         # pylint: disable=too-many-function-args,missing-kwoa
         self.d2_detector = GeneralizedRCNN(self.d2_cfg)
+        self.checkpointer = DetectionCheckpointer(self.d2_detector)
+        if self.d2_cfg.MODEL.WEIGHTS != "":
+            self.checkpointer.load(self.d2_cfg.MODEL.WEIGHTS)
         if self.cfg.set_batchnorm_eval:
             self.set_batchnorm_eval()
 
@@ -58,27 +57,57 @@ class D2GeneralizedRCNN(BaseTwoStageDetector):
         ) / self.d2_detector.pixel_std
         return images
 
-    def forward(
-        self,
-        inputs: List[InputSample],
-        targets: Optional[List[Boxes2D]] = None,
-    ) -> DetectionOutput:
-        """Forward function."""
+    def forward_train(
+        self, batch_inputs: List[List[InputSample]]
+    ) -> LossesType:
+        """Forward pass during training stage.
+
+        Returns a dict of loss tensors.
+        """
+        assert all(
+            len(inp) == 1 for inp in batch_inputs
+        ), "No reference views allowed in detector training!"
+        inputs = [inp[0] for inp in batch_inputs]
+        targets = [
+            x.instances.to(self.device) for x in inputs  # type: ignore
+        ]  # type: List[Boxes2D]
+
+        # from openmt.vis.image import imshow_bboxes
+        # for inp in inputs:
+        #     imshow_bboxes(inp.image.tensor[0], inp.instances)
+
         images = self.preprocess_image(inputs)
         features = self.extract_features(images)
         proposals, rpn_losses = self.generate_proposals(
             images, features, targets
         )
-        detections, detect_losses = self.generate_detections(
-            images, features, proposals, targets
+        _, detect_losses = self.generate_detections(
+            images, features, proposals, targets, compute_detections=False
         )
-        return (
-            images,
-            features,
-            proposals,
-            detections,
-            {**rpn_losses, **detect_losses},
-        )
+        return {**rpn_losses, **detect_losses}
+
+    def forward_test(
+        self, batch_inputs: List[InputSample], postprocess: bool = True
+    ) -> ModelOutput:
+        """Forward pass during testing stage.
+
+        Returns predictions for each input.
+        """
+        images = self.preprocess_image(batch_inputs)
+        features = self.extract_features(images)
+        proposals, _ = self.generate_proposals(images, features)
+        detections, _ = self.generate_detections(images, features, proposals)
+        assert detections is not None
+
+        if postprocess:
+            for inp, det in zip(batch_inputs, detections):
+                ori_wh = (
+                    batch_inputs[0].metadata.size.width,  # type: ignore
+                    batch_inputs[0].metadata.size.height,  # type: ignore
+                )
+                self.postprocess(ori_wh, inp.image.image_sizes[0], det)
+
+        return dict(detect=detections)  # type: ignore
 
     def extract_features(self, images: Images) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.
@@ -116,10 +145,11 @@ class D2GeneralizedRCNN(BaseTwoStageDetector):
         features: Dict[str, torch.Tensor],
         proposals: List[Boxes2D],
         targets: Optional[List[Boxes2D]] = None,
-    ) -> Tuple[List[Boxes2D], LossesType]:
+        compute_detections: bool = True,
+    ) -> Tuple[Optional[List[Boxes2D]], LossesType]:
         """Detector second stage (RoI Head).
 
-        Return detections per image and losses (empty if no targets).
+        Return losses (empty if no targets) and optionally detections.
         """
         images_d2 = images_to_imagelist(images)
         proposals = box2d_to_proposal(proposals, images.image_sizes)
@@ -138,6 +168,8 @@ class D2GeneralizedRCNN(BaseTwoStageDetector):
         self.d2_detector.roi_heads.training = is_training
         if not self.d2_detector.training:
             detections = detections_to_box2d(detections)
+        elif compute_detections:
+            detections = proposal_to_box2d(detections)  # pragma: no cover
         else:
-            detections = proposal_to_box2d(detections)
+            detections = None
         return detections, detect_losses

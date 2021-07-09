@@ -1,0 +1,20 @@
+[[config]]
+path = "../base/datasets/bdd100k_track_det.toml"
+
+[[config]]
+path = "../base/models/mmdetection/qdtrack_R_50_FPN.toml"
+
+
+[solver]
+images_per_gpu = 8
+lr_policy = "WarmupMultiStepLR"
+base_lr = 0.04
+steps = [88000, 121000]
+max_iters = 132000
+checkpoint_period = 11000
+log_period = 50
+eval_period = 11000
+
+[launch]
+device = "cuda"
+num_gpus = 4

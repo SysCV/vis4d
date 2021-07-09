@@ -30,7 +30,7 @@ class BaseSimilarityHead(torch.nn.Module, metaclass=RegistryHolder):  # type: ig
 
 def build_similarity_head(cfg: SimilarityLearningConfig) -> BaseSimilarityHead:
     """Build a SimilarityHead from config."""
-    registry = RegistryHolder.get_registry(__package__)
+    registry = RegistryHolder.get_registry(BaseSimilarityHead)
     if cfg.type in registry:
         module = registry[cfg.type](cfg)
         assert isinstance(module, BaseSimilarityHead)

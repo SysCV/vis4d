@@ -1,24 +1,3 @@
-[model]
-type = "DetectorWrapper"
-    [model.detection]
-    type = "D2GeneralizedRCNN"
-    model_base = "faster-rcnn/r50-fpn"
-    model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111, "MODEL.PIXEL_STD" = [57.375, 57.120, 58.395], "MODEL.RESNETS.NORM" = "BN"}
-    num_classes = 10
-    set_batchnorm_eval = true
-
-[solver]
-images_per_gpu = 12
-lr_policy = "WarmupMultiStepLR"
-base_lr = 0.06
-steps = [12000, 16500]
-max_iters = 18000
-warmup_iters = 500
-checkpoint_period = 1500
-log_period = 50
-eval_period = 1500
-eval_metrics = ["detect"]
-
 [[train]]
 name = "bdd100k_det_train"
 type = "BDD100K"
@@ -31,6 +10,7 @@ name = "bdd100k_det_val"
 type = "BDD100K"
 annotations = "data/bdd100k/labels/det_20/det_val.json"
 data_root = "data/bdd100k/images/100k/val/"
+eval_metrics = ["detect"]
 config_path = "det"
 
 [dataloader]
@@ -55,8 +35,3 @@ skip_empty_samples = true
     [[dataloader.test_augmentations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}
-
-[launch]
-device = "cuda"
-weights = "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
-num_gpus = 4

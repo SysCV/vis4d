@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
 from fvcore.common.timer import Timer
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from scalabel.label.typing import Config as MetadataConfig
 from scalabel.label.typing import Dataset, Frame
 from scalabel.label.utils import get_leaf_categories
@@ -24,7 +24,21 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     data_root: str
     annotations: Optional[str]
     config_path: Optional[str]
-    nproc: int = 4
+    eval_metrics: List[str] = []
+    inference_sampling: str = "sample_based"
+    validate_frames: bool = False
+    num_processes: int = 4
+
+    @validator("inference_sampling", check_fields=False)
+    def validate_inference_sampling(  # pylint: disable=no-self-argument,no-self-use,line-too-long
+        cls, value: str
+    ) -> str:
+        """Check inference_sampling attribute."""
+        if value not in ["sample_based", "sequence_based"]:
+            raise ValueError(
+                "inference_sampling must be sample_based or sequence_based"
+            )
+        return value
 
 
 class BaseDatasetLoader(metaclass=RegistryHolder):
@@ -58,7 +72,7 @@ def load_dataset(dataset_cfg: BaseDatasetConfig) -> List[Frame]:
 
 def build_dataset_loader(cfg: BaseDatasetConfig) -> BaseDatasetLoader:
     """Build a dataset loader."""
-    registry = RegistryHolder.get_registry(__package__)
+    registry = RegistryHolder.get_registry(BaseDatasetLoader)
     if cfg.type in registry:
         dataset_loader = registry[cfg.type](cfg)
         assert isinstance(dataset_loader, BaseDatasetLoader)

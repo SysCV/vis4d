@@ -20,6 +20,12 @@ class BaseModelConfig(PydanticBaseModel, extra="allow"):
 class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     """Base tracker class."""
 
+    @property
+    @abc.abstractmethod
+    def device(self) -> torch.device:
+        """Get device where input should be moved to."""
+        raise NotImplementedError
+
     def forward(
         self, batch_inputs: List[List[InputSample]]
     ) -> Union[LossesType, ModelOutput]:
@@ -32,7 +38,7 @@ class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     @abc.abstractmethod
     def forward_train(
         self, batch_inputs: List[List[InputSample]]
-    ) -> Dict[str, torch.Tensor]:
+    ) -> LossesType:
         """Forward pass during training stage.
 
         Args:
@@ -40,20 +46,24 @@ class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
             views.
 
         Returns:
-            Dict: A dict of loss tensors.
+            LossesType: A dict of scalar loss tensors.
         """
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
+    def forward_test(
+        self, batch_inputs: List[InputSample], postprocess: bool = True
+    ) -> ModelOutput:
         """Forward pass during testing stage.
 
         Args:
             batch_inputs: Model input (batched).
+            postprocess: If output should be postprocessed to original
+            resolution.
 
         Returns:
             ModelOutput: Dict of LabelInstance results, e.g. tracking and
-            separate detection result.
+            separate models result.
         """
         raise NotImplementedError
 
@@ -78,7 +88,7 @@ def build_model(cfg: BaseModelConfig) -> BaseModel:
     Note that it does not load any weights from ``cfg``.
     """
     assert cfg is not None
-    registry = RegistryHolder.get_registry(__package__)
+    registry = RegistryHolder.get_registry(BaseModel)
     if cfg.type in registry:
         module = registry[cfg.type](cfg)
         assert isinstance(module, BaseModel)

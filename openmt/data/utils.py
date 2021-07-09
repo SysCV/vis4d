@@ -30,10 +30,15 @@ def identity_batch_collator(  # type: ignore
     return batch
 
 
-def im_decode(im_bytes: bytes) -> NDArrayUI8:
+def im_decode(im_bytes: bytes, mode: str = "BGR") -> NDArrayUI8:
     """Decode to image (numpy array, BGR) from bytes."""
     pil_img = Image.open(BytesIO(bytearray(im_bytes)))
-    np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: NDArrayUI8
+    if mode == "BGR":
+        np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: NDArrayUI8
+    elif mode == "RGB":
+        np_img = np.array(pil_img)
+    else:
+        raise NotImplementedError(f"{mode} not supported for image decoding!")
     return np_img
 
 
