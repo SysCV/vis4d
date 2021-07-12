@@ -11,6 +11,7 @@ eval_metrics = []
 
 [dataloader]
 workers_per_gpu = 16
+image_channel_mode = "BGR"
     [dataloader.ref_sampling_cfg]
     type = 'uniform'
     scope = 2
