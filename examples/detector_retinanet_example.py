@@ -8,16 +8,13 @@ from openmt.model.detect.d2_utils import (
     target_to_instance,
 )
 from openmt import config
-from openmt.data.build import DataloaderConfig as Dataloader
+from openmt.data.dataset_mapper import DataloaderConfig as Dataloader
 
 # from openmt.config import DataloaderConfig as Dataloader
 from openmt.engine import train
-from openmt.model.detect import (
-    BaseDetector,
-    BaseDetectorConfig,
-)
-from openmt.struct import Boxes2D, DetectionOutput, Images, InputSample
-
+from openmt.model.detect import BaseDetector
+from openmt.model import BaseModelConfig
+from openmt.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
 from detectron2.modeling.meta_arch.retinanet import RetinaNet, RetinaNetHead
 from detectron2.modeling.postprocessing import detector_postprocess
 from detectron2.structures import Boxes, ImageList, Instances
@@ -77,7 +74,7 @@ def detections_to_box2d_inference(
     return result
 
 
-class D2RetinaNetConfig(BaseDetectorConfig, extra="allow"):
+class D2RetinaNetConfig(BaseModelConfig, extra="allow"):
     """Config for detectron2 RetinaNet model."""
 
     num_classes: int
@@ -86,7 +83,7 @@ class D2RetinaNetConfig(BaseDetectorConfig, extra="allow"):
 class D2RetinaNetDetector(BaseDetector):
     """Example detection module."""
 
-    def __init__(self, cfg: BaseDetectorConfig) -> None:
+    def __init__(self, cfg: BaseModelConfig) -> None:
         """Init detector."""
         super().__init__()
         self.cfg = D2RetinaNetConfig(**cfg.dict())
@@ -119,11 +116,11 @@ class D2RetinaNetDetector(BaseDetector):
         ) / self.retinanet.pixel_std
         return images
 
-    def forward(
+    def forward_train(
         self,
         inputs: List[InputSample],
         targets: Optional[List[Boxes2D]] = None,
-    ) -> DetectionOutput:
+    ) -> LossesType:
         """Detector forward function.
 
         Return backbone output features, proposals, detections and optionally

@@ -6,8 +6,8 @@ from sort_model import SORT
 import openmt.data.datasets.base
 from openmt import config
 
-from openmt.config import Augmentation
-from openmt.data.build import DataloaderConfig as Dataloader
+
+from openmt.data.dataset_mapper import DataloaderConfig as Dataloader
 from openmt.engine import test
 from openmt.model import BaseModelConfig
 
@@ -15,7 +15,7 @@ from openmt.model import BaseModelConfig
 # pylint: skip-file
 if __name__ == "__main__":
     sort_detector_cfg = dict(
-        type="D2GeneralizedRCNN",
+        type="D2TwoStageDetector",
         model_base="faster-rcnn/r50-fpn",
         num_classes=8,
     )
@@ -50,13 +50,6 @@ if __name__ == "__main__":
             ],
             remove_samples_without_labels=True,
             inference_sampling="sequence_based",
-            train_augmentations=[
-                Augmentation(type="Resize", kwargs={"shape": [720, 1280]}),
-                Augmentation(type="RandomFlip", kwargs={"prob": 0.5}),
-            ],
-            test_augmentations=[
-                Augmentation(type="Resize", kwargs={"shape": [720, 1280]})
-            ],
         ),
         train=[
             openmt.data.datasets.base.BaseDatasetConfig(

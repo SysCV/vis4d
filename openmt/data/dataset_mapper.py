@@ -201,7 +201,7 @@ class DataloaderConfig(BaseModel):
     train_augmentations: Optional[List[AugmentationConfig]] = None
     test_augmentations: Optional[List[AugmentationConfig]] = None
     ref_sampling_cfg: ReferenceSamplingConfig
-    image_channel_mode: str = "BGR"
+    image_channel_mode: str
 
 
 class DatasetMapper(D2DatasetMapper):  # type: ignore

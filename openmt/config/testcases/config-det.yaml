@@ -9,6 +9,7 @@ solver:
   eval_metrics: []
 dataloader:
   workers_per_gpu: 2
+  image_channel_mode: "BGR"
   ref_sampling_cfg:
     type: 'uniform'
     scope: 2

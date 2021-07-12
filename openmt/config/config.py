@@ -159,9 +159,13 @@ def read_config(filepath: str) -> Config:
     if "config" in config_dict:
         cwd = os.getcwd()
         os.chdir(os.path.dirname(filepath))
+        subconfig_dict = dict()  # type: DictStrAny
         for cfg in config_dict["config"]:
             assert "path" in cfg, "Config arguments must have path!"
-            nested_update(config_dict, load_config(cfg["path"]))
+            nested_update(subconfig_dict, load_config(cfg["path"]))
+
+        nested_update(subconfig_dict, config_dict)
+        config_dict = subconfig_dict
         os.chdir(cwd)
 
     config_dict = check_for_dicts(config_dict)

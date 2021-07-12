@@ -4,8 +4,9 @@ import json
 import torch
 from detectron2.data import MetadataCatalog
 
-from openmt.model import BaseModel, BaseModelConfig
-from openmt.model.detect import BaseDetectorConfig, build_detector
+import torch
+
+from openmt.model import BaseModel, BaseModelConfig, build_model
 from openmt.model.track.graph import TrackGraphConfig, build_track_graph
 from openmt.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
@@ -13,7 +14,7 @@ from openmt.struct import Boxes2D, InputSample, LossesType, ModelOutput
 class SORTConfig(BaseModelConfig, extra="allow"):
     """SORT config."""
 
-    detection: BaseDetectorConfig
+    detection: BaseModelConfig
     track_graph: TrackGraphConfig
 
 
@@ -24,9 +25,14 @@ class SORT(BaseModel):
         """Init detector."""
         super().__init__()
         self.cfg = SORTConfig(**cfg.dict())
-        self.detector = build_detector(self.cfg.detection)
+        self.detector = build_model(self.cfg.detection)
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.search_dict: Dict[str, Dict[int, Boxes2D]] = dict()
+
+    @property
+    def device(self) -> torch.device:
+        """Get device where input should be moved to."""
+        return self.detector.device
 
     def forward_train(
         self, batch_inputs: List[List[InputSample]]
@@ -35,18 +41,11 @@ class SORT(BaseModel):
 
         Returns a dict of loss tensors.
         """
-        # SORT only needs to train the detector
-        inputs = [inp[0] for inp in batch_inputs]  # no ref views
+        return self.detector.forward_train(batch_inputs)
 
-        # from openmt.vis.image import imshow_bboxes
-        # for img, target in zip(images.tensor, targets):
-        #     imshow_bboxes(img, target)
-
-        targets = [x.instances.to(self.detector.device) for x in inputs]
-        _, _, _, _, det_losses = self.detector(inputs, targets)
-        return det_losses  # type: ignore
-
-    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
+    def forward_test(
+        self, batch_inputs: List[InputSample], postprocess: bool = True
+    ) -> ModelOutput:
         """Forward pass during testing stage.
 
         Returns predictions for each input.
@@ -130,7 +129,7 @@ class SORT(BaseModel):
             batch_inputs[0].metadata.size.width,  # type: ignore
             batch_inputs[0].metadata.size.height,  # type: ignore
         )
-        self.postprocess(ori_wh, image.image_sizes[0], detections[0])
+        detections = output["detect"]
 
         # associate detections, update graph
         tracks = self.track_graph(detections[0], frame_id)

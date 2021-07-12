@@ -5,3 +5,6 @@ model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_
 num_classes = 10
 set_batchnorm_eval = true
 weights = "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
+
+[dataloader]
+image_channel_mode = "BGR"
