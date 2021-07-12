@@ -1,17 +1,20 @@
 """Datasets module."""
-from .base import DatasetLoader, register_dataset_instances
+from .base import BaseDatasetConfig, BaseDatasetLoader, register_dataset
 from .bdd100k import BDD100K
 from .coco import COCO
 from .custom import Custom
 from .motchallenge import MOTChallenge
 from .scalabel import Scalabel
+from .waymo import Waymo
 
 __all__ = [
-    "register_dataset_instances",
-    "DatasetLoader",
+    "register_dataset",
+    "BaseDatasetLoader",
+    "BaseDatasetConfig",
     "BDD100K",
     "Scalabel",
     "COCO",
     "Custom",
     "MOTChallenge",
+    "Waymo",
 ]

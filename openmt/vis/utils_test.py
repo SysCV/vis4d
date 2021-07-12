@@ -30,8 +30,8 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(isinstance(proc_img, Image.Image))
         proc_img = np.array(proc_img)
         self.assertEqual(proc_img.shape, (128, 128, 3))
-        self.assertTrue(np.min(proc_img) >= 0)
-        self.assertTrue(np.max(proc_img) < 256)
+        self.assertTrue(np.min(proc_img) >= 0)  # type: ignore
+        self.assertTrue(np.max(proc_img) < 256)  # type: ignore
 
     def test_preprocess_boxes(self) -> None:
         """Test preprocess_boxes method."""

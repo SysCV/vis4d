@@ -50,8 +50,7 @@ def convert_single_dataset(source_dir: str) -> None:
         ds = g.create_dataset("raw", shape=(1,), dtype=t_vlen_uint8)
         with open(fp, "rb") as fp:
             file_content = fp.read()
-            file_content = np.frombuffer(file_content, dtype="uint8")
-            ds[0] = file_content
+            ds[0] = np.frombuffer(file_content, dtype="uint8")  # type: ignore
 
     hdf5_file.close()
     print("done.")

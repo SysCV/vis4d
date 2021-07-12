@@ -1,4 +1,4 @@
-"""Testcases for tracking dataset mapper."""
+"""Testcases for openMT dataset mapper."""
 import unittest
 
 import torch
@@ -6,10 +6,14 @@ from detectron2.config import get_cfg
 from detectron2.data import DatasetFromList
 from scalabel.label.typing import Frame
 
-from openmt.config import DataloaderConfig, ReferenceSamplingConfig
 from openmt.struct import Images, InputSample
 
-from .dataset_mapper import DatasetMapper, MapDataset
+from .dataset_mapper import (
+    DataloaderConfig,
+    DatasetMapper,
+    MapDataset,
+    ReferenceSamplingConfig,
+)
 
 
 class TestDatasetMapper(unittest.TestCase):

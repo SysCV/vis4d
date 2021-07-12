@@ -4,10 +4,10 @@ import os
 from collections import defaultdict
 from typing import Dict, List
 
-import detectron2.utils.comm as comm
 import torch
 from detectron2.data import MetadataCatalog
 from detectron2.evaluation import DatasetEvaluator
+from detectron2.utils import comm
 from PIL import Image
 from scalabel.label.io import group_and_sort, save
 from scalabel.label.typing import Frame

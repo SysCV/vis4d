@@ -8,10 +8,10 @@ from collections import defaultdict
 from contextlib import ExitStack, contextmanager
 from typing import Callable, Dict, Generator, List, Optional
 
-import detectron2.utils.comm as comm
 import torch
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.evaluation import DatasetEvaluator, DatasetEvaluators
+from detectron2.utils import comm
 from detectron2.utils.logger import log_every_n_seconds
 from scalabel.eval.detect import evaluate_det
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
@@ -169,6 +169,7 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
     def __init__(
         self,
         dataset_name: str,
+        metrics: List[str],
         distributed: bool = True,
         output_dir: Optional[str] = None,
     ) -> None:
@@ -179,6 +180,7 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
         self._metadata = MetadataCatalog.get(dataset_name)
         self.gts = DatasetCatalog[dataset_name]()
         self._predictions = defaultdict(list)  # type: Dict[str, List[Frame]]
+        self.set_metrics(metrics)
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""

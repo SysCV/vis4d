@@ -29,7 +29,7 @@ class BaseRoIPooler(metaclass=RegistryHolder):
 
 def build_roi_pooler(cfg: RoIPoolerConfig) -> BaseRoIPooler:
     """Build an RoI pooler from config."""
-    registry = RegistryHolder.get_registry(__package__)
+    registry = RegistryHolder.get_registry(BaseRoIPooler)
     if cfg.type in registry:
         module = registry[cfg.type](cfg)
         assert isinstance(module, BaseRoIPooler)

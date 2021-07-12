@@ -3,9 +3,11 @@
 from sort_graph import SORTTrackGraph
 from sort_model import SORT
 
+import openmt.data.datasets.base
 from openmt import config
-from openmt.config import DataloaderConfig as Dataloader
+
 from openmt.config import Augmentation
+from openmt.data.build import DataloaderConfig as Dataloader
 from openmt.engine import test
 from openmt.model import BaseModelConfig
 
@@ -57,7 +59,7 @@ if __name__ == "__main__":
             ],
         ),
         train=[
-            config.Dataset(
+            openmt.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_train",
                 type="BDD100K",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
@@ -67,7 +69,7 @@ if __name__ == "__main__":
             )
         ],
         test=[
-            config.Dataset(
+            openmt.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_val",
                 type="BDD100K",
                 # annotations="openmt/engine/testcases/track/bdd100k-samples/"

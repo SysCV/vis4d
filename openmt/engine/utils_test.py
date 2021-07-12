@@ -1,20 +1,20 @@
-"""Test cases for detection engine config."""
+"""Test cases for models engine config."""
 import unittest
 from argparse import Namespace
 
 from openmt import config
-from openmt.config import Dataset
+from openmt.data.datasets.base import BaseDatasetConfig
 from openmt.engine.utils import _register, to_detectron2
 from openmt.unittest.utils import get_test_file
 
 
 class TestConfig(unittest.TestCase):
-    """Test cases for openmt detection config."""
+    """Test cases for openmt models config."""
 
     def test_register(self) -> None:
         """Testcase for register function."""
         datasets = [
-            Dataset(
+            BaseDatasetConfig(
                 **dict(
                     name="example",
                     type="MOTChallenge",
@@ -28,8 +28,8 @@ class TestConfig(unittest.TestCase):
 
     def test_to_detectron2(self) -> None:
         """Testcase for detectron2 config conversion."""
-        test_file = get_test_file("detect/faster_rcnn_R_50_FPN.toml")
-        args = Namespace(config=test_file)
+        test_file = get_test_file("detect/faster_rcnn_d2.toml")
+        args = Namespace(config=test_file, device="cuda")
         cfg = config.parse_config(args)
         det2cfg = to_detectron2(cfg)
         self.assertEqual(

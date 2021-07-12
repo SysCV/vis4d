@@ -1,4 +1,4 @@
-"""Config preparation functions for the detection module."""
+"""Config preparation functions for the models module."""
 import itertools
 import logging
 import os
@@ -15,8 +15,9 @@ from detectron2.utils.logger import setup_logger
 from devtools import debug
 from scalabel.label.typing import Frame
 
-from openmt.config import Config, Dataset, Launch
-from openmt.data.datasets import register_dataset_instances
+from openmt.config import Config, Launch
+from openmt.data.datasets import register_dataset
+from openmt.data.datasets.base import BaseDatasetConfig
 
 
 def gather_predictions(
@@ -33,7 +34,7 @@ def gather_predictions(
     return result
 
 
-def _register(datasets: List[Dataset]) -> List[str]:
+def _register(datasets: List[BaseDatasetConfig]) -> List[str]:
     """Register datasets in detectron2."""
     names = []
     for dataset in datasets:
@@ -41,7 +42,7 @@ def _register(datasets: List[Dataset]) -> List[str]:
         try:
             DatasetCatalog.get(dataset.name)
         except KeyError:
-            register_dataset_instances(dataset)
+            register_dataset(dataset)
             continue
         logger = logging.getLogger(__name__)
         logger.info(
@@ -57,8 +58,10 @@ def register_directory(input_path: str) -> str:
     if input_path[-1] == "/":
         input_path = input_path[:-1]
     dataset_name = os.path.basename(input_path)
-    dataset = Dataset(type="Custom", name=dataset_name, data_root=input_path)
-    register_dataset_instances(dataset)
+    dataset = BaseDatasetConfig(
+        type="Custom", name=dataset_name, data_root=input_path
+    )
+    register_dataset(dataset)
     return dataset_name
 
 
@@ -69,9 +72,9 @@ def to_detectron2(config: Config) -> CfgNode:
 
     # convert solver attributes
     if config.solver is not None:
-        cfg.SOLVER.IMS_PER_BATCH = (
-            config.solver.images_per_gpu * config.launch.num_gpus
-        )
+        cfg.SOLVER.IMS_PER_BATCH = config.solver.images_per_gpu
+        if config.launch.num_gpus > 0:
+            cfg.SOLVER.IMS_PER_BATCH *= config.launch.num_gpus
         cfg.SOLVER.LR_SCHEDULER_NAME = config.solver.lr_policy
         cfg.SOLVER.BASE_LR = config.solver.base_lr
         cfg.SOLVER.MAX_ITER = config.solver.max_iters

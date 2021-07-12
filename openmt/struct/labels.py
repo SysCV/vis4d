@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 from scalabel.label.typing import Box2D, Label
 
-from .data import DataInstance, Images, LossesType
+from .data import DataInstance
 
 
 class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
@@ -49,17 +49,14 @@ class Boxes2D(LabelInstance):
         """Init."""
         assert isinstance(boxes, torch.Tensor) and len(boxes.shape) == 2
         if class_ids is not None:
-            assert (
-                isinstance(class_ids, torch.Tensor)
-                and len(boxes) == len(class_ids)
-                and boxes.device == class_ids.device
-            )
+            assert isinstance(class_ids, torch.Tensor)
+            assert len(boxes) == len(class_ids)
+            assert boxes.device == class_ids.device
         if track_ids is not None:
-            assert (
-                isinstance(track_ids, torch.Tensor)
-                and len(boxes) == len(track_ids)
-                and boxes.device == track_ids.device
-            )
+            assert isinstance(track_ids, torch.Tensor)
+            assert len(boxes) == len(track_ids)
+            assert boxes.device == track_ids.device
+
         self.boxes = boxes
         self.class_ids = class_ids
         self.track_ids = track_ids
@@ -214,11 +211,3 @@ class Boxes2D(LabelInstance):
 
 
 ModelOutput = Dict[str, List[LabelInstance]]
-
-DetectionOutput = Tuple[
-    Images,
-    List[torch.Tensor],
-    List[Boxes2D],
-    List[Boxes2D],
-    Optional[LossesType],
-]

@@ -1,0 +1,37 @@
+[[train]]
+name = "bdd100k_det_train"
+type = "BDD100K"
+annotations = "data/bdd100k/labels/det_20/det_train.json"
+data_root = "data/bdd100k/images/100k/train/"
+config_path = "det"
+
+[[test]]
+name = "bdd100k_det_val"
+type = "BDD100K"
+annotations = "data/bdd100k/labels/det_20/det_val.json"
+data_root = "data/bdd100k/images/100k/val/"
+eval_metrics = ["detect"]
+config_path = "det"
+
+[dataloader]
+workers_per_gpu = 6
+categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle", "traffic light", "traffic sign"]
+skip_empty_samples = true
+    [dataloader.data_backend]
+    type = "FileBackend"
+    [dataloader.ref_sampling_cfg]
+    type = 'uniform'
+    scope = 1
+    num_ref_imgs = 0
+
+    [[dataloader.train_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}
+
+    [[dataloader.train_augmentations]]
+    type = "RandomFlip"
+    kwargs = {"prob" = 0.5}
+
+    [[dataloader.test_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}

@@ -8,7 +8,9 @@ from openmt.model.detect.d2_utils import (
     target_to_instance,
 )
 from openmt import config
-from openmt.config import DataloaderConfig as Dataloader
+from openmt.data.build import DataloaderConfig as Dataloader
+
+# from openmt.config import DataloaderConfig as Dataloader
 from openmt.engine import train
 from openmt.model.detect import (
     BaseDetector,
@@ -309,8 +311,8 @@ if __name__ == "__main__":
         shutil.rmtree("visualization/")
     os.mkdir("visualization/")
 
-    # conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DetectorWrapper/2021-07-07_02:17:04/model_0002999.pth"
-    conf.launch.weights = "/home/yinjiang/systm/weight/model_final_5bd44e.pkl"
+    conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DetectorWrapper/2021-07-07_19:34:01/model_0004999.pth"  # self_trained weight
+    # conf.launch.weights = "/home/yinjiang/systm/weight/model_final_5bd44e.pkl" # detectron pretrained weight
     # conf.launch.resume = True
     conf.launch.device = "cuda"
     conf.launch.num_gpus = 1

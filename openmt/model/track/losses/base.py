@@ -33,7 +33,7 @@ class BaseLoss(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
 
 def build_loss(cfg: LossConfig) -> BaseLoss:
     """Build the loss functions for detect."""
-    registry = RegistryHolder.get_registry(__package__)
+    registry = RegistryHolder.get_registry(BaseLoss)
     if cfg.type in registry:
         module = registry[cfg.type](cfg)
         assert isinstance(module, BaseLoss)

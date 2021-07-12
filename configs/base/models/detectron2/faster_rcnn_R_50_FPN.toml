@@ -1,0 +1,7 @@
+[model]
+type = "D2TwoStageDetector"
+model_base = "faster-rcnn/r50-fpn"
+model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111, "MODEL.PIXEL_STD" = [57.375, 57.120, 58.395], "MODEL.RESNETS.NORM" = "BN"}
+num_classes = 10
+set_batchnorm_eval = true
+weights = "detectron2://ImageNetPretrained/torchvision/R-50.pkl"

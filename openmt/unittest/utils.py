@@ -6,7 +6,6 @@ from typing import List
 import torch
 from detectron2.data import DatasetCatalog, MetadataCatalog
 
-from openmt import config
 from openmt.struct import Boxes2D
 
 
@@ -48,8 +47,9 @@ def generate_dets(
     return dets
 
 
-def d2_data_reset(datasets: List[config.Dataset]) -> None:
+def d2_data_reset(datasets: List[str]) -> None:
     """Delete all given dataset instances."""
     for ds in datasets:
-        DatasetCatalog.remove(ds.name)
-        MetadataCatalog.remove(ds.name)
+        if ds in DatasetCatalog.keys():
+            DatasetCatalog.remove(ds)
+            MetadataCatalog.remove(ds)

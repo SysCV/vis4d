@@ -8,11 +8,12 @@ from .dataset_mapper import MapDataset
 
 
 class TrackingInferenceSampler(Sampler):  # type: ignore
-    """Produce indices for inference across all workers.
+    """Produce sequence ordered indices for inference across all workers.
 
-    Inference needs to run on the __exact__ set of samples, therefore when
-    the total number of samples is not divisible by the number of workers,
-    this sampler produces different number of samples on different workers.
+    Inference needs to run on the __exact__ set of sequences and their
+    respecitve samples, therefore if the sequences are not divible by the
+    number of workers of if they have different length, the sampler
+    produces different number of samples on different workers.
     """
 
     def __init__(self, dataset: MapDataset):

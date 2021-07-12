@@ -1,39 +1,23 @@
-[model]
-type = "DetectorWrapper"
-    [model.detection]
-    type = "D2GeneralizedRCNN"
-    model_base = "faster-rcnn/r50-fpn"
-    model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111}
-    num_classes = 10
-
-[solver]
-images_per_gpu = 2
-lr_policy = "WarmupMultiStepLR"
-base_lr = 0.002
-max_iters = 1000
-steps = [100]
-checkpoint_period = 100
-eval_period = 100
-eval_metrics = ['detect']
-
 [[train]]
-name = "bdd100k_sample_train"
+name = "bdd100k_det_sample_train"
 type = "COCO"
 annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation_coco.json"
 data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
+config_path = "openmt/engine/testcases/detect/bdd100k-samples/config.toml"
+num_processes = 0
 
 [[test]]
-name = "bdd100k_sample_val"
-type = "BDD100K"
+name = "bdd100k_det_sample_val"
+type = "Scalabel"
 annotations = "openmt/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "openmt/engine/testcases/detect/bdd100k-samples/images"
-config_path = "det"
+config_path = "openmt/engine/testcases/detect/bdd100k-samples/config.toml"
+num_processes = 0
+eval_metrics = ["detect"]
 
 [dataloader]
 workers_per_gpu = 0
 categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle", "traffic light", "traffic sign"]
-    [dataloader.data_backend]
-    type = "HDF5Backend"
     [dataloader.ref_sampling_cfg]
     type = 'uniform'
     scope = 1
@@ -47,9 +31,10 @@ categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle
     type = "RandomFlip"
     kwargs = {"prob" = 0.5}
 
+    [[dataloader.train_augmentations]]
+    type = "BrightnessJitterAugmentation"
+    kwargs = {}
+
     [[dataloader.test_augmentations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}
-
-[launch]
-weights = "detectron2"

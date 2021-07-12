@@ -66,7 +66,10 @@ class QDTrackGraph(BaseTrackGraph):
         self.backdrops: List[Dict[str, Union[Boxes2D, torch.Tensor]]] = []
 
     def get_tracks(
-        self, frame_id: Optional[int] = None
+        self,
+        device: torch.device,
+        frame_id: Optional[int] = None,
+        add_backdrops: bool = False,
     ) -> Tuple[Boxes2D, torch.Tensor]:
         """Get active tracks at given frame.
 
@@ -80,21 +83,45 @@ class QDTrackGraph(BaseTrackGraph):
                 cls.append(v["class_id"])
                 ids.append(k)
 
-        bboxs = torch.cat(bboxs) if len(bboxs) > 0 else torch.empty(0, 5)
-        embeds = torch.cat(embeds) if len(embeds) > 0 else torch.empty(0)
-        cls = torch.cat(cls) if len(cls) > 0 else torch.empty(0)
-        ids = torch.tensor(ids).to(bboxs.device)  # type: ignore
+        bboxs = (
+            torch.cat(bboxs)
+            if len(bboxs) > 0
+            else torch.empty((0, 5), device=device)
+        )
+        embeds = (
+            torch.cat(embeds)
+            if len(embeds) > 0
+            else torch.empty((0,), device=device)
+        )
+        cls = (
+            torch.cat(cls)
+            if len(cls) > 0
+            else torch.empty((0,), device=device)
+        )
+        ids = torch.tensor(ids).to(device)
+
+        if add_backdrops:
+            for backdrop in self.backdrops:
+                backdrop_ids = torch.full(
+                    (len(backdrop["embeddings"]),),
+                    -1,
+                    dtype=torch.long,
+                    device=device,
+                )
+                ids = torch.cat([ids, backdrop_ids])
+                bboxs = torch.cat([bboxs, backdrop["detections"].boxes])
+                embeds = torch.cat([embeds, backdrop["embeddings"]])
+                cls = torch.cat([cls, backdrop["detections"].class_ids])
+
         return Boxes2D(bboxs, cls, ids), embeds
 
-    def forward(  # type: ignore # pylint: disable=arguments-differ
-        self, detections: Boxes2D, frame_id: int, embeddings: torch.Tensor
-    ) -> Boxes2D:
-        """Process inputs, match detections with existing tracks."""
-        _, inds = detections.boxes[:, -1].sort(descending=True)
-        detections = detections[inds, :].to(torch.device("cpu"))
-        embeddings = embeddings[inds, :].to(torch.device("cpu"))
-
+    def remove_duplicates(
+        self, detections: Boxes2D, embeddings: torch.Tensor
+    ) -> Tuple[Boxes2D, torch.Tensor]:
+        """Remove overlapping objects across classes via nms."""
         # duplicate removal for potential backdrops and cross classes
+        _, inds = detections.boxes[:, -1].sort(descending=True)
+        detections, embeddings = detections[inds], embeddings[inds]
         valids = embeddings.new_ones((len(detections),))
         ious = compute_iou(detections, detections)
         for i in range(1, len(detections)):
@@ -108,13 +135,24 @@ class QDTrackGraph(BaseTrackGraph):
         valids = valids == 1
         detections = detections[valids, :]
         embeddings = embeddings[valids, :]
+        return detections, embeddings
+
+    def forward(  # type: ignore # pylint: disable=arguments-differ
+        self, detections: Boxes2D, frame_id: int, embeddings: torch.Tensor
+    ) -> Boxes2D:
+        """Process inputs, match detections with existing tracks."""
+        detections, embeddings = self.remove_duplicates(detections, embeddings)
 
         # init ids container
-        ids = torch.full((len(detections),), -1, dtype=torch.long)
+        ids = torch.full(
+            (len(detections),), -1, dtype=torch.long, device=detections.device
+        )
 
         # match if buffer is not empty
         if len(detections) > 0 and not self.empty:
-            memo_dets, memo_embeds = self.get_tracks()
+            memo_dets, memo_embeds = self.get_tracks(
+                detections.device, add_backdrops=True
+            )
 
             # match using bisoftmax metric
             feats = torch.mm(embeddings, memo_embeds.t())
@@ -137,19 +175,22 @@ class QDTrackGraph(BaseTrackGraph):
                             ids[i] = cur_id
                             scores[:i, memo_ind] = 0
                             scores[(i + 1) :, memo_ind] = 0
-                        # elif conf > self.cfg.nms_conf_thr:
-                        #     ids[i] = -2
+                        elif conf > self.cfg.nms_conf_thr:  # pragma: no cover
+                            ids[i] = -2
         new_inds = (ids == -1) & (
             detections.boxes[:, -1] > self.cfg.init_score_thr
-        ).cpu()
+        )
         num_news = new_inds.sum()
         ids[new_inds] = torch.arange(
-            self.num_tracks, self.num_tracks + num_news, dtype=torch.long
+            self.num_tracks,
+            self.num_tracks + num_news,
+            dtype=torch.long,
+            device=ids.device,
         )
         self.num_tracks += num_news
 
         self.update(ids, detections, embeddings, frame_id)
-        result, _ = self.get_tracks(frame_id)
+        result, _ = self.get_tracks(detections.device, frame_id)
         return result
 
     def update(  # type: ignore # pylint: disable=arguments-differ
@@ -207,7 +248,7 @@ class QDTrackGraph(BaseTrackGraph):
         embedding: torch.Tensor,
         frame_id: int,
     ) -> None:
-        """Update a specific track with a new detection."""
+        """Update a specific track with a new models."""
         bbox, cls = detection.boxes[0], detection.class_ids[0]
         velocity = (bbox - self.tracks[track_id]["bbox"]) / (
             frame_id - self.tracks[track_id]["last_frame"]
@@ -232,7 +273,7 @@ class QDTrackGraph(BaseTrackGraph):
         embedding: torch.Tensor,
         frame_id: int,
     ) -> None:
-        """Create a new track from a detection."""
+        """Create a new track from a models."""
         bbox, cls = detection.boxes[0], detection.class_ids[0]
         self.tracks[track_id] = dict(
             bbox=bbox,

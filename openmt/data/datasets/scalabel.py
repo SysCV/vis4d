@@ -1,15 +1,12 @@
 """Dataset loader for scalabel format."""
 
-from multiprocessing import cpu_count
-
-from detectron2.utils.comm import get_world_size
 from scalabel.label.io import load, load_label_config
 from scalabel.label.typing import Dataset
 
-from .base import DatasetLoader
+from .base import BaseDatasetLoader
 
 
-class Scalabel(DatasetLoader):
+class Scalabel(BaseDatasetLoader):
     """Scalabel dataloading class."""
 
     def load_dataset(self) -> Dataset:
@@ -17,7 +14,8 @@ class Scalabel(DatasetLoader):
         assert self.cfg.annotations is not None
         dataset = load(
             self.cfg.annotations,
-            nprocs=min(8, cpu_count() // get_world_size()),
+            validate_frames=self.cfg.validate_frames,
+            nprocs=self.cfg.num_processes,
         )
         metadata_cfg = dataset.config
         if self.cfg.config_path is not None:

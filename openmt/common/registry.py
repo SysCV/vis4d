@@ -27,24 +27,24 @@ class RegistryHolder(type):
 
     @classmethod
     def get_registry(  # pylint: disable=bad-mcs-classmethod-argument
-        cls, scope: Optional[str] = None
+        cls, cls_type: Optional["RegistryHolder"] = None
     ) -> Dict[str, "RegistryHolder"]:
         """Get registered classes, optionally for a specific scope.
 
         Args:
-            scope: indicates module to pull classes from,
-            e.g.  'module.submodule' will return all registered classes in
-        'submodule'.
+            cls_type: The super class for which you'd like to get the
+            registered subclasses. E.g. input openmt.model.BaseModel to get
+            all registered models.
 
         Returns:
-            Dict[str, Type]: A dictionary with class names as keys and
-            classes as values.
+            Dict[str, RegistryHolder]: A dictionary with class names as keys
+            and classes as values.
         """
-        if scope is not None:
+        if cls_type is not None:
             return {
-                k.replace(scope + ".", ""): v
+                k.split(".")[-1]: v
                 for k, v in cls.REGISTRY.items()
-                if k.startswith(scope)
+                if issubclass(v, cls_type)
             }
 
         return dict(cls.REGISTRY)  # pragma: no cover

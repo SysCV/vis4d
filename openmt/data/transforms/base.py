@@ -13,9 +13,16 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from detectron2.data.transforms import Augmentation, Transform
 from detectron2.data.transforms import augmentation_impl as Augmentations
+from pydantic.main import BaseModel
 
 from openmt.common.registry import RegistryHolder
-from openmt.config import Augmentation as AugmentationConfig
+
+
+class AugmentationConfig(BaseModel):
+    """Data augmentation instance config."""
+
+    type: str
+    kwargs: Dict[str, Union[bool, float, str, Tuple[int, int]]]
 
 
 class BaseAugmentation(Augmentation, metaclass=RegistryHolder):  # type: ignore
@@ -40,7 +47,8 @@ def build_augmentation(
     cfg: AugmentationConfig,
 ) -> Union[Augmentation, Transform]:
     """Build a single detectron2 augmentation."""
-    registry = RegistryHolder.get_registry(__package__)
+    registry = RegistryHolder.get_registry(Augmentation)
+    registry.update(RegistryHolder.get_registry(Transform))
     if hasattr(Augmentations, cfg.type):
         augmentation = getattr(Augmentations, cfg.type)
     elif cfg.type in registry:

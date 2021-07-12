@@ -1,0 +1,11 @@
+[[categories]]
+name = "vehicle"
+
+[[categories]]
+name = "pedestrian"
+
+[[categories]]
+name = "cyclist"
+
+[[categories]]
+name = "sign"

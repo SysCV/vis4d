@@ -27,16 +27,16 @@ class TestQDTrackGraph(unittest.TestCase):
         for i in range(num_dets):
             tracker.create_track(i, detections[i], embeddings[i], 0)
 
-        boxes, embeds = tracker.get_tracks(0)
+        boxes, embeds = tracker.get_tracks(torch.device("cpu"), frame_id=0)
         self.assertTrue(len(boxes) == len(embeds) == num_dets)
 
         for i in range(num_dets // 2):
             tracker.update_track(i, detections[i], embeddings[i], 1)
 
-        boxes, embeds = tracker.get_tracks(1)
+        boxes, embeds = tracker.get_tracks(torch.device("cpu"), frame_id=1)
         self.assertTrue(len(boxes) == len(embeds) == num_dets // 2)
 
-        boxes, embeds = tracker.get_tracks(2)
+        boxes, embeds = tracker.get_tracks(torch.device("cpu"), frame_id=2)
         self.assertTrue(len(boxes) == len(embeds) == 0)
 
     def test_track(self) -> None:

@@ -41,7 +41,7 @@ class BaseMatcher(metaclass=RegistryHolder):
 
 def build_matcher(cfg: MatcherConfig) -> BaseMatcher:
     """Build a bounding box matcher from config."""
-    registry = RegistryHolder.get_registry(__package__)
+    registry = RegistryHolder.get_registry(BaseMatcher)
     if cfg.type in registry:
         module = registry[cfg.type](cfg)
         assert isinstance(module, BaseMatcher)

@@ -3,64 +3,16 @@ import os
 import sys
 from argparse import Namespace
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union, no_type_check
+from typing import Any, List, Optional
 
 import toml
 import yaml
 from pydantic import BaseModel, validator
 
-from openmt.common.io import DataBackendConfig
+from openmt.data.dataset_mapper import DataloaderConfig
+from openmt.data.datasets.base import BaseDatasetConfig
 from openmt.model import BaseModelConfig
-
-
-class ReferenceSamplingConfig(BaseModel):
-    """Config for customizing the sampling of reference views."""
-
-    type: str = "uniform"
-    num_ref_imgs: int = 0
-    scope: int = 1
-    frame_order: str = "key_first"
-
-    @validator("scope")
-    def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long
-        cls, value: int, values
-    ) -> int:
-        """Check scope attribute."""
-        if not value > values["num_ref_imgs"] // 2:
-            raise ValueError("Scope must be higher than num_ref_imgs / 2.")
-        return value
-
-
-class Augmentation(BaseModel):
-    """Data augmentation instance config."""
-
-    type: str
-    kwargs: Dict[str, Union[bool, float, str, Tuple[int, int]]]
-
-
-class DataloaderConfig(BaseModel):
-    """Config for dataloader."""
-
-    data_backend: DataBackendConfig = DataBackendConfig()
-    workers_per_gpu: int
-    inference_sampling: str = "sample_based"
-    categories: Optional[List[str]] = None
-    remove_samples_without_labels: bool = False
-    compute_global_instance_ids: bool = False
-    train_augmentations: Optional[List[Augmentation]] = None
-    test_augmentations: Optional[List[Augmentation]] = None
-    ref_sampling_cfg: ReferenceSamplingConfig
-
-    @validator("inference_sampling", check_fields=False)
-    def validate_inference_sampling(  # pylint: disable=no-self-argument,no-self-use,line-too-long
-        cls, value: str
-    ) -> str:
-        """Check inference_sampling attribute."""
-        if value not in ["sample_based", "sequence_based"]:
-            raise ValueError(
-                "inference_sampling must be sample_based or sequence_based"
-            )
-        return value
+from openmt.struct import DictStrAny
 
 
 class Solver(BaseModel):
@@ -75,17 +27,6 @@ class Solver(BaseModel):
     checkpoint_period: Optional[int]
     log_period: Optional[int]
     eval_period: Optional[int]
-    eval_metrics: List[str]
-
-
-class Dataset(BaseModel):
-    """Config for training/evaluation datasets."""
-
-    name: str
-    type: str
-    data_root: str
-    annotations: Optional[str]
-    config_path: Optional[str]
 
 
 class Launch(BaseModel):
@@ -155,15 +96,20 @@ class Config(BaseModel):
     model: BaseModelConfig
     solver: Solver
     dataloader: DataloaderConfig
-    train: Optional[List[Dataset]]
-    test: Optional[List[Dataset]]
+    train: List[BaseDatasetConfig] = []
+    test: List[BaseDatasetConfig] = []
     launch: Launch = Launch()
 
     def __init__(self, **data: Any) -> None:  # type: ignore
         """Init config."""
         super().__init__(**data)
         if self.launch.output_dir == "":
-            timestamp = str(datetime.now()).split(".")[0].replace(" ", "_")
+            timestamp = (
+                str(datetime.now())
+                .split(".", maxsplit=1)[0]
+                .replace(" ", "_")
+                .replace(":", "-")
+            )
             self.launch.output_dir = os.path.join(
                 "openmt-workspace", self.model.type, timestamp
             )
@@ -173,29 +119,34 @@ class Config(BaseModel):
 def parse_config(args: Namespace) -> Config:
     """Read config, parse cmd line arguments, create workspace dir."""
     cfg = read_config(args.config)
-
     for attr, value in args.__dict__.items():
         if attr in Launch.__fields__ and value is not None:
             setattr(cfg.launch, attr, getattr(args, attr))
 
+    if cfg.launch.device == "cpu":
+        cfg.launch.num_gpus = 0
+
     if args.__dict__.get("cfg_options", "") != "":
         cfg_dict = cfg.dict()
         options = args.cfg_options.split(",")
-
-        @no_type_check
-        def update(my_dict, key_list, value):
-            cur_key = key_list.pop(0)
-            if len(key_list) == 0:
-                my_dict[cur_key] = value
-                return
-            update(my_dict[cur_key], key_list, value)
-
         for option in options:
             key, value = option.split("=")
-            update(cfg_dict, key.split("."), value)
+            keylist_update(cfg_dict, key.split("."), value)
         cfg = Config(**cfg_dict)
-
     return cfg
+
+
+def load_config(filepath: str) -> DictStrAny:
+    """Load config from file to dict."""
+    ext = os.path.splitext(filepath)[1]
+    if ext == ".yaml":
+        with open(filepath, "r") as f:
+            config_dict = yaml.load(f.read(), Loader=yaml.Loader)
+    elif ext == ".toml":
+        config_dict = toml.load(filepath)
+    else:
+        raise NotImplementedError(f"Config type {ext} not supported")
+    return config_dict  # type: ignore
 
 
 def read_config(filepath: str) -> Config:
@@ -204,26 +155,45 @@ def read_config(filepath: str) -> Config:
     The config file can be in yaml or toml.
     toml is recommended for readability.
     """
-    ext = os.path.splitext(filepath)[1]
-    if ext == ".yaml":
-        config_dict = yaml.load(
-            open(filepath, "r").read(),
-            Loader=yaml.Loader,
-        )
-    elif ext == ".toml":
-        config_dict = toml.load(filepath)
-    else:
-        raise NotImplementedError(f"Config type {ext} not supported")
-
-    # Fix pickle error with the class not being serializable:
-    # TomlDecoder.get_empty_inline_table.<locals>.DynamicInlineTableDict
-    @no_type_check
-    def check_for_dicts(obj):
-        if isinstance(obj, dict):
-            return {k: check_for_dicts(v) for k, v in obj.items()}
-        return obj
+    config_dict = load_config(filepath)
+    if "config" in config_dict:
+        cwd = os.getcwd()
+        os.chdir(os.path.dirname(filepath))
+        for cfg in config_dict["config"]:
+            assert "path" in cfg, "Config arguments must have path!"
+            nested_update(config_dict, load_config(cfg["path"]))
+        os.chdir(cwd)
 
     config_dict = check_for_dicts(config_dict)
+    return Config(**config_dict)
 
-    config = Config(**config_dict)
-    return config
+
+def keylist_update(  # type: ignore
+    my_dict: DictStrAny, key_list: List[str], value: Any
+) -> None:
+    """Update nested dict based on multiple keys saved in a list."""
+    cur_key = key_list.pop(0)
+    if len(key_list) == 0:
+        my_dict[cur_key] = value
+        return
+    keylist_update(my_dict[cur_key], key_list, value)
+
+
+def nested_update(ori: DictStrAny, new: DictStrAny) -> DictStrAny:
+    """Update function for updating a nested dict."""
+    for k, v in new.items():
+        if isinstance(v, dict):
+            ori[k] = nested_update(ori.get(k, {}), v)
+        else:
+            ori[k] = v
+    return ori
+
+
+def check_for_dicts(obj: Any) -> Any:  # type: ignore
+    """Fix pickle error with a class not being serializable.
+
+    TomlDecoder.get_empty_inline_table.<locals>.DynamicInlineTableDict
+    """
+    if isinstance(obj, dict):
+        return {k: check_for_dicts(v) for k, v in obj.items()}
+    return obj
