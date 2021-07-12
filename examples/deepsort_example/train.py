@@ -1,7 +1,7 @@
 """Example for dynamic api usage with SORT."""
 # import the SORT components, needs to be imported to be registered
-from deepsort_graph import DeepSORTTrackGraph
-from deepsort_model import DeepSORT
+from examples.deepsort_example.deepsort_graph import DeepSORTTrackGraph
+from examples.deepsort_example.deepsort_model import DeepSORT
 
 from openmt import config
 from openmt.config import DataloaderConfig as Dataloader
@@ -22,20 +22,25 @@ if __name__ == "__main__":
         type="DeepSORT",
         detection=deepsort_detector_cfg,
         track_graph=deepsort_trackgraph_cfg,
+        max_boxes_num=512,
+        featurenet_weight_path=None,
+        dataset="BDD100K",
+        num_instances=108524,
+        prediction_path="weight/predictions.json",
     )
 
     conf = config.Config(
         model=BaseModelConfig(**deepsort_cfg),
         solver=config.Solver(
-            images_per_gpu=32,
+            images_per_gpu=32,  # 32 for train
             lr_policy="WarmupMultiStepLR",
-            base_lr=0.001,
-            steps=[5000],
-            max_iters=10000,
+            base_lr=0.0006,
+            # steps=[30000, 40000],
+            max_iters=50000,
             log_period=100,
             checkpoint_period=1000,
-            eval_period=4000,
-            eval_metrics=["detect", "track"],
+            eval_period=10000,
+            eval_metrics=["track"],
         ),
         dataloader=Dataloader(
             workers_per_gpu=8,
@@ -57,54 +62,51 @@ if __name__ == "__main__":
                 Augmentation(type="Resize", kwargs={"shape": [720, 1280]}),
                 Augmentation(type="RandomFlip", kwargs={"prob": 0.5}),
             ],
-            test_augmentations=[
-                Augmentation(type="Resize", kwargs={"shape": [720, 1280]})
-            ],
         ),
         train=[
             config.Dataset(
-                name="bdd100k_sample_train",
+                name="bdd100k_train",
                 type="BDD100K",
                 # annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 # "labels",
                 # data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 # "images/",
-                annotations="data/one_sequence/labels",
-                data_root="data/one_sequence/images/",
-                # annotations="data/bdd100k/labels/box_track_20/train/",
-                # data_root="data/bdd100k/images/track/train/",
+                # annotations="data/one_sequence/labels",
+                # data_root="data/one_sequence/images/",
+                annotations="data/bdd100k/labels/box_track_20/train/",
+                data_root="data/bdd100k/images/track/train/",
                 config_path="box_track",
             )
         ],
         test=[
             config.Dataset(
-                name="bdd100k_sample_val",
+                name="bdd100k_val",
                 type="BDD100K",
                 # annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 # "labels",
                 # data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 # "images/",
-                annotations="data/one_sequence/labels",
-                data_root="data/one_sequence/images/",
-                # annotations="data/bdd100k/labels/box_track_20/val/",
-                # data_root="data/bdd100k/images/track/val/",
+                # annotations="data/one_sequence/labels",
+                # data_root="data/one_sequence/images/",
+                annotations="data/bdd100k/labels/box_track_20/val/",
+                data_root="data/bdd100k/images/track/val/",
                 config_path="box_track",
             )
         ],
     )
 
     # choose according to setup
-    # CPU
-    # conf.launch.weights = "weight/model_0000199.pth"
+    # conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-26_10:59:19/model_0014999.pth"
+    # conf.launch.weights = "/home/yinjiang/systm/examples/deepsort_example/checkpoint/original_ckpt.pth"
+    # conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-26_20:30:08/model_0032999.pth"
+    conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-28_11:38:49/model_0007999.pth"
     conf.launch.device = "cuda"
+    conf.launch.num_gpus = 6
+    conf.launch.resume = True
     # import os
     # import shutil
-    # if os.path.exists("visualization/"):
+    # if os.path.exists("visualsization/"):
     #     shutil.rmtree("visualization/")
     # os.mkdir("visualization/")
 
     train(conf)
-
-    # single GPU
-    # conf.launch = config.Launch(device='cuda')
-    # test(conf)

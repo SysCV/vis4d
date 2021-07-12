@@ -1,5 +1,5 @@
 """Tracking base class."""
-
+from typing import Union, Dict, List, Any
 import abc
 
 import torch
@@ -27,7 +27,7 @@ class BaseTrackGraph(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     def reset(self) -> None:
         """Reset tracks."""
         self.num_tracks = 0
-        self.tracks = dict()  # type: ignore
+        self.tracks: Dict[Any, Any] = dict()  # type: ignore
 
     @property
     def empty(self) -> bool:

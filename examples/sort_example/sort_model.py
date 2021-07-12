@@ -122,7 +122,7 @@ class SORT(BaseModel):
         detections = [self.search_dict[video_name][frame_index]]
 
         # # using detectors
-        #image, _, _, detections, _ = self.detector(batch_inputs)
+        # image, _, _, detections, _ = self.detector(batch_inputs)
         # use this line only on 6 samples
         # detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
 

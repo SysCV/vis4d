@@ -1,13 +1,12 @@
 """deep SORT model definition."""
-from typing import List, Dict, Union
-import json
+from typing import List, Dict
 import torch
 from torchvision.ops import roi_align
-from detectron2.data import MetadataCatalog
 
-from deep import FeatureNet
+from examples.deepsort_example.deep import FeatureNet
+from examples.deepsort_example.load_predictions import load_predictions
 from openmt.model import BaseModel, BaseModelConfig
-from openmt.model.detect import BaseDetectorConfig, build_detector
+from openmt.model.detect import BaseDetectorConfig
 from openmt.model.track.graph import TrackGraphConfig, build_track_graph
 from openmt.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
@@ -18,14 +17,9 @@ class DeepSORTConfig(BaseModelConfig, extra="allow"):
     detection: BaseDetectorConfig
     track_graph: TrackGraphConfig
     max_boxes_num: int = 512
-    num_instances: int = 108524  # 108524 # 625
-    # featurenet_weight_path: Union[
-    #     str, None
-    # ] = "/home/yinjiang/systm/examples/deepsort_example/checkpoint/original_ckpt.t7"
-    featurenet_weight_path: Union[str, None] = None
-    # featurenet_weight_path: Union[
-    #     str, None
-    # ] = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-01_08:40:48/model_0006999.pth"
+    dataset: str
+    num_instances: int
+    prediction_path: str
 
 
 class DeepSORT(BaseModel):
@@ -35,18 +29,11 @@ class DeepSORT(BaseModel):
         """Init detector."""
         super().__init__()
         self.cfg = DeepSORTConfig(**cfg.dict())
-        self.detector = build_detector(self.cfg.detection)
+        # self.detector = build_detector(self.cfg.detection)
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.search_dict: Dict[str, Dict[int, Boxes2D]] = dict()
         self.feature_net = FeatureNet(num_classes=self.cfg.num_instances)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        assert torch.cuda.is_available(), "cuda is not available"
-        self.feature_net.to(self.device)
-        if self.cfg.featurenet_weight_path:
-            state_dict = torch.load(
-                self.cfg.featurenet_weight_path,
-            )["model_state_dict"]
-            self.feature_net.load_state_dict(state_dict)
 
     def forward_train(
         self, batch_inputs: List[List[InputSample]]
@@ -61,6 +48,14 @@ class DeepSORT(BaseModel):
         ]  # no ref views
         inputs_images = torch.cat(inputs_images, dim=0).to(self.device)
         labels = [inp[0].instances for inp in batch_inputs]
+        # visualize ground truth on one image
+        # from openmt.vis.image import imshow_bboxes
+
+        # imshow_bboxes(
+        #     batch_inputs[0][0].image.tensor[0],
+        #     batch_inputs[0][0].instances,  # type: ignore
+        # )
+
         instance_boxes = torch.empty([0, 5])
         for batch_index, label in enumerate(labels):
             boxes = label.boxes[:, :-1].float()  # type: ignore
@@ -68,7 +63,10 @@ class DeepSORT(BaseModel):
             batch_boxes = torch.cat((batch_column, boxes), dim=1)
             instance_boxes = torch.cat((instance_boxes, batch_boxes), dim=0)
         instance_boxes = instance_boxes.to(self.device)
-        instance_ids = torch.cat([label.track_ids for label in labels], dim=0).to(self.device)  # type: ignore
+        instance_ids = torch.cat(
+            [label.track_ids for label in labels], dim=0  # type:ignore
+        ).to(self.device)
+        # print("len(instance_boxes):   ", len(instance_boxes))
         batch_size = min(self.cfg.max_boxes_num, len(instance_boxes))
         # print("len(instance_boxes):   ", len(instance_boxes))
         # print("batch_size:   ", batch_size)
@@ -76,16 +74,23 @@ class DeepSORT(BaseModel):
         instance_boxes = instance_boxes[indices]
         instance_ids = instance_ids[indices]
 
+        resize = (128, 64) if self.cfg.dataset == "MOT16" else (64, 128)
+        (128, 128)
         instance_images = roi_align(
-            inputs_images, instance_boxes, (64, 128), aligned=True
+            inputs_images, instance_boxes, resize, aligned=True
         )
 
         # from PIL import Image
         # import numpy as np
-        # for instance_img in instance_images:
-        #     data_im = np.moveaxis(instance_img.numpy(), 0, -1).astype(np.uint8)
+
+        # for count, instance_img in enumerate(instance_images):
+        #     data_im = np.moveaxis(instance_img.cpu().numpy(), 0, -1).astype(
+        #         np.uint8
+        #     )
         #     img = Image.fromarray(data_im, "RGB")
         #     img.show()
+        #     if count == 10:
+        #         break
         cls_output = self.feature_net(instance_images, train=True)
         instance_ids = instance_ids.long()
         feature_net_loss = torch.nn.functional.cross_entropy(
@@ -99,60 +104,9 @@ class DeepSORT(BaseModel):
         Returns predictions for each input.
         """
         if not self.search_dict:
-            self.search_dict = dict()
-            given_predictions = json.load(
-                open(
-                    "weight/predictions.json",
-                    "r",
-                )
+            self.search_dict = load_predictions(
+                self.cfg.dataset, self.cfg.prediction_path
             )
-
-            for prediction in given_predictions:
-                video_name = prediction["videoName"]
-                frame_index = prediction["frameIndex"]
-                if video_name not in self.search_dict:
-                    self.search_dict[video_name] = dict()
-                boxes = torch.empty((0, 5))
-                class_ids = torch.empty((0))
-                if "labels" not in prediction:
-                    self.search_dict[video_name][frame_index] = Boxes2D(
-                        torch.empty((0, 5))
-                    )
-                else:
-                    for label in prediction["labels"]:
-                        boxes = torch.cat(
-                            (
-                                boxes,
-                                torch.tensor(
-                                    [
-                                        label["box2d"]["x1"],
-                                        label["box2d"]["y1"],
-                                        label["box2d"]["x2"],
-                                        label["box2d"]["y2"],
-                                        label["score"],
-                                    ],
-                                ).unsqueeze(0),
-                            ),
-                            dim=0,
-                        )
-                        idx_to_class_mapping = MetadataCatalog.get(
-                            "bdd100k_sample_val"
-                        ).idx_to_class_mapping
-                        class_to_idx_mapping = {
-                            v: k for k, v in idx_to_class_mapping.items()
-                        }
-                        class_ids = torch.cat(
-                            (
-                                class_ids,
-                                torch.tensor(
-                                    [class_to_idx_mapping[label["category"]]]
-                                ),
-                            )
-                        )
-
-                    self.search_dict[video_name][frame_index] = Boxes2D(
-                        boxes, class_ids
-                    )
 
         assert len(batch_inputs) == 1, "Currently only BS=1 supported!"
         frame_id = batch_inputs[0].metadata.frame_index
@@ -163,12 +117,23 @@ class DeepSORT(BaseModel):
         # using given detections
         image = batch_inputs[0].image
         video_name = batch_inputs[0].metadata.video_name
-        frame_index = batch_inputs[0].metadata.frame_index
         assert video_name in self.search_dict
-        assert frame_index in self.search_dict[video_name]
-        detections = [
-            self.search_dict[video_name][frame_index].to(self.device)
-        ]
+        # there might be no detections in one frame, e.g. MOT16-12 frame 443
+        if frame_id not in self.search_dict[video_name]:
+            detections = [
+                Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0)).to(
+                    self.device
+                )
+            ]
+        else:
+            detections = [
+                self.search_dict[video_name][frame_id].to(self.device)
+            ]
+
+        # visualzie given detections
+        # from openmt.vis.image import imshow_bboxes
+
+        # imshow_bboxes(image.tensor[0], detections)
 
         # # using detectors
         # image, _, _, detections, _ = self.detector(batch_inputs)
@@ -189,16 +154,19 @@ class DeepSORT(BaseModel):
         else:
             instance_boxes = detections[0].boxes[:, :-1]
             image_tensor = image.tensor.to(self.device)
+            resize = (128, 64) if self.cfg.dataset == "MOT16" else (64, 128)
             instance_images = roi_align(
-                image_tensor, [instance_boxes], (64, 128), aligned=True
+                image_tensor, [instance_boxes], resize, aligned=True
             )
             det_features = self.feature_net(instance_images, train=False)
             tracks = self.track_graph(detections[0], frame_id, det_features)
-        from openmt.vis.image import imsave_bboxes
+        # # visualize tracks
+        # from openmt.vis.image import imshow_bboxes
 
-        # imsave_bboxes(
-        #     image.tensor[0],
-        #     detections,
-        #     frame_id,
-        # )
+        # imshow_bboxes(image.tensor[0], tracks, frame_id=frame_id)
+        # a, _ = torch.sort(detections[0].boxes.cpu().float(), dim=0)
+        # b, _ = torch.sort(tracks.boxes.cpu().float(), dim=0)
+        # assert torch.allclose(a, b, atol=0.001)
         return dict(detect=detections, track=[tracks])  # type:ignore
+
+        # return dict(detect=detections, track=detections)  # type:ignore

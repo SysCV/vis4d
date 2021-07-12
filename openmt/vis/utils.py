@@ -51,8 +51,8 @@ def preprocess_boxes(
 
     assert isinstance(boxes, Boxes2D)
 
-    boxes_list = boxes.boxes[:, :4].cpu().numpy().tolist()
-    scores = boxes.boxes[:, -1].cpu().numpy().tolist()
+    boxes_list = boxes.boxes[:, :4].cpu().detach().numpy().tolist()
+    scores = boxes.boxes[:, -1].cpu().detach().numpy().tolist()
 
     if boxes.track_ids is not None:
         track_ids = boxes.track_ids.cpu().numpy()

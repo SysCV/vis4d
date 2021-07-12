@@ -1,12 +1,12 @@
 """Example for dynamic api usage with SORT."""
 # import the SORT components, needs to be imported to be registered
-from deepsort_graph import DeepSORTTrackGraph
-from deepsort_model import DeepSORT
+from examples.deepsort_example.deepsort_graph import DeepSORTTrackGraph
+from examples.deepsort_example.deepsort_model import DeepSORT
 
 from openmt import config
 from openmt.config import DataloaderConfig as Dataloader
 from openmt.config import Augmentation
-from openmt.engine import test
+from openmt.engine import train, test
 from openmt.model import BaseModelConfig
 
 # Disable pylint for this file due to high overlap with detector example
@@ -23,19 +23,22 @@ if __name__ == "__main__":
         detection=deepsort_detector_cfg,
         track_graph=deepsort_trackgraph_cfg,
         max_boxes_num=512,
-        featurenet_weight_path=None,
-        dataset="BDD100K",
-        num_instances=108524,  # 108524 for BDD100K train, # 625 for using given pretrained weights
-        prediction_path="weight/predictions.json",
+        dataset="MOT16",
+        num_instances=517,  # 517 for MOT16 train, # 625 for using given pretrained weights
+        prediction_path="weight/MOT16_det_feat",
     )
 
     conf = config.Config(
         model=BaseModelConfig(**deepsort_cfg),
         solver=config.Solver(
-            images_per_gpu=32,  # 32, # 2 in biwidl302
+            images_per_gpu=2,  # 32 for train, # 1 for test on biwidl302
             lr_policy="WarmupMultiStepLR",
             base_lr=0.001,
-            max_iters=1000,
+            # steps=[20000],
+            max_iters=10000,
+            log_period=100,
+            checkpoint_period=1000,
+            eval_period=5000,
             eval_metrics=["track"],
         ),
         dataloader=Dataloader(
@@ -43,16 +46,10 @@ if __name__ == "__main__":
             ref_sampling_cfg=dict(type="uniform", scope=1, num_ref_imgs=0),
             categories=[
                 "pedestrian",
-                "rider",
-                "car",
-                "truck",
-                "bus",
-                "train",
-                "motorcycle",
-                "bicycle",
             ],
             remove_samples_without_labels=True,
             inference_sampling="sequence_based",
+            compute_global_instance_ids=True,
             train_augmentations=[
                 Augmentation(type="Resize", kwargs={"shape": [720, 1280]}),
                 Augmentation(type="RandomFlip", kwargs={"prob": 0.5}),
@@ -60,46 +57,32 @@ if __name__ == "__main__":
         ),
         train=[
             config.Dataset(
-                name="bdd100k_train",
-                type="BDD100K",
-                # annotations="openmt/engine/testcases/track/bdd100k-samples/"
-                # "labels",
-                # data_root="openmt/engine/testcases/track/bdd100k-samples/"
-                # "images/",
-                # annotations="data/one_sequence/labels",
-                # data_root="data/one_sequence/images/",
-                annotations="data/bdd100k/labels/box_track_20/train/",
-                data_root="data/bdd100k/images/track/train/",
-                config_path="box_track",
+                name="MOT16_train",
+                type="MOTChallenge",
+                annotations="data/MOT16/train",
+                data_root="data/MOT16/train",
             )
         ],
         test=[
             config.Dataset(
-                name="bdd100k_val",
-                type="BDD100K",
-                # annotations="openmt/engine/testcases/track/bdd100k-samples/"
-                # "labels",
-                # data_root="openmt/engine/testcases/track/bdd100k-samples/"
-                # "images/",
-                # annotations="data/one_sequence/labels",
-                # data_root="data/one_sequence/images/",
-                annotations="data/bdd100k/labels/box_track_20/val/",
-                data_root="data/bdd100k/images/track/val/",
-                config_path="box_track",
+                name="MOT16_val",
+                type="MOTChallenge",
+                annotations="data/MOT16/train",
+                data_root="data/MOT16/train",
             )
         ],
     )
 
-    # choose according to setup
-    conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-28_21:24:04/model_0034999.pth"  # deepsort trained on BDD100K
+    conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-25_12:21:34/model_final.pth"
     # conf.launch.weights = "/home/yinjiang/systm/examples/deepsort_example/checkpoint/original_ckpt.pth"
     conf.launch.device = "cuda"
-    conf.launch.num_gpus = 4
-
+    conf.launch.num_gpus = 1
     # import os
     # import shutil
+
     # if os.path.exists("visualization/"):
     #     shutil.rmtree("visualization/")
     # os.mkdir("visualization/")
 
+    # train(conf)
     test(conf)

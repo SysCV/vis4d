@@ -1,19 +1,55 @@
 """Track graph of deep SORT."""
-from typing import Dict, Optional, Tuple
+from typing import List
+from collections import defaultdict
 import torch
+import numpy as np
 
-from kalman_filter import KalmanFilter
-from match import match
+import examples.deepsort_example.iou_matching as iou_matching
+import examples.deepsort_example.linear_assignment as linear_assignment
+
+from examples.deepsort_example.preprocessing import non_max_suppression
+from examples.deepsort_example.detection import Detection
+from examples.deepsort_example.kalman_filter import KalmanFilter
+from examples.deepsort_example.nn_matching import NearestNeighborDistanceMetric
+from examples.deepsort_example.track import Track
+
 from openmt.struct import Boxes2D
 from openmt.model.track.graph import BaseTrackGraph, TrackGraphConfig
+
+# from detectron2.data import MetadataCatalog
+
+
+def tlwh_to_tlbr(bbox_tlwh: np.ndarray):
+    """Convert a single bbox from tlwh to tlbr."""
+    x1, y1, w, h = bbox_tlwh
+    x2 = x1 + w
+    y2 = y1 + h
+    return x1, y1, x2, y2
+
+
+def tlbr_to_tlwh(bbox_tlbr: np.ndarray):
+    """Convert tlbr boxes to tlwh.
+
+    bbox_tlbr: torch.FloatTensor: (N, 4) where each entry is defined by
+    [x1, y1, x2, y2]
+    """
+    bbox_tlwh = bbox_tlbr.copy()
+    bbox_tlwh[:, 2] = bbox_tlbr[:, 2] - bbox_tlbr[:, 0]
+    bbox_tlwh[:, 3] = bbox_tlbr[:, 3] - bbox_tlbr[:, 1]
+    return bbox_tlwh
 
 
 class DeepSORTTrackGraphConfig(TrackGraphConfig):
     """deep SORT graph config."""
 
-    featurenet_weight_path: str = "/home/yinjiang/systm/examples/deepsort_example/checkpoint/original_ckpt.t7"
-    keep_in_memory: int = 1  # threshold for keeping occluded objects in memory
-    max_IOU_distance: float = 0.7
+    min_confidence: float = 0.3
+    metric = "cosine"
+    max_cosine_distance = 0.2
+    max_age = 70
+    n_init = 3
+    nn_budget = 100
+    max_iou_distance = 0.7
+    nms_max_overlap = 0.5
 
 
 class DeepSORTTrackGraph(BaseTrackGraph):
@@ -24,295 +60,233 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         super().__init__(cfg)
         self.cfg = DeepSORTTrackGraphConfig(**cfg.dict())
         self.kf = KalmanFilter()
+        self.max_iou_distance = self.cfg.max_iou_distance
+        self.max_age = self.cfg.max_age
+        self.n_init = self.cfg.n_init
+        self.metric = NearestNeighborDistanceMetric(
+            self.cfg.metric, self.cfg.max_cosine_distance, self.cfg.nn_budget
+        )
+        self._next_id = 1
+        self.tracks = []  # type: ignore
+        self.reset()
 
-    def get_tracks(
-        self, frame_id: Optional[int] = None
-    ) -> Tuple[Boxes2D, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def reset(self) -> None:
+        """Reset tracks."""
+        self._next_id = 1
+        self.tracks = []  # type: ignore
+
+    def get_output(self) -> Boxes2D:
         """Get active tracks at given frame.
 
         If frame_id is None, return all tracks in memory.
         """
-        bboxs, cls, ids, velocities, covariances, features = (
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
+        track_boxes = []
+        class_ids = []
+        track_ids = []
+        for track in self.tracks:
+            if not track.is_confirmed() or track.time_since_update > 1:
+                continue
+            # if track.time_since_update >= 1:
+            #     continue
+            x1, y1, x2, y2 = track.to_tlbr()
+            conf = track.confidence
+            track_boxes.append(
+                torch.tensor([x1, y1, x2, y2, conf]).unsqueeze(0)
+            )
+            class_ids.append(track.class_id)
+            track_ids.append(track.track_id)
+
+        track_boxes = (
+            torch.cat(track_boxes)
+            if len(track_boxes) > 0
+            else torch.empty((0, 5))
         )
-        for k, v in self.tracks.items():
-            if frame_id is None or v["last_frame"] == frame_id:
-                bboxs.append(v["bbox"].unsqueeze(0))
-                cls.append(v["class_id"])
-                ids.append(k)
-                velocities.append(v["velocity"].unsqueeze(0))
-                covariances.append(v["covariance"].unsqueeze(0))
-                features.append(v["feature"].unsqueeze(0))
-        bboxs = torch.cat(bboxs) if len(bboxs) > 0 else torch.empty(0, 5)
-        cls = torch.cat(cls) if len(cls) > 0 else torch.empty(0)
-        ids = torch.tensor(ids).to(bboxs.device)  # type: ignore
-        velocities = (
-            torch.cat(velocities) if len(velocities) > 0 else torch.empty(0, 4)
+        class_ids = (
+            torch.tensor(class_ids) if len(class_ids) > 0 else torch.empty(0)
         )
-        covariances = (
-            torch.cat(covariances)
-            if len(covariances) > 0
-            else torch.empty(0, 4)
+        track_ids = (
+            torch.tensor(track_ids) if len(track_ids) > 0 else torch.empty(0)
         )
-        features = (
-            torch.cat(features) if len(features) > 0 else torch.empty(0, 128)
-        )
-        return Boxes2D(bboxs, cls, ids), velocities, covariances, features
+        return Boxes2D(track_boxes, class_ids, track_ids)
 
     def forward(  # type: ignore # pylint: disable=arguments-differ
-        self, detections: Boxes2D, frame_id: int, det_features: torch.Tensor
-    ) -> Boxes2D:
-        """Process inputs, match detections with existing tracks.
-
-        image tensor is shape (C_1, ..., C_K, H, W) where K >= 1.
-        """
-        if len(detections) == 0:
-            result, _, _, _ = self.get_tracks(frame_id)
-            return result
-        # print("#" * 100)
-        # print("A new frame:   frame = ", frame_id)
-        # print("#" * 100)
-
-        _, inds = detections.boxes[:, -1].sort(descending=True)
-        detections = detections[inds, :].to(torch.device("cpu"))
-        det_features = det_features[inds, :].to(torch.device("cpu"))
-        # init ids container
-        ids = torch.full((len(detections),), -1, dtype=torch.long)
-        # match if buffer is not empty
-        det_bboxes = detections.boxes[:, :-1]
-        det_cls_ids = detections.class_ids
-        # det_cls_unique = torch.unique(det_cls_ids)
-
-        (
-            tracks_boxes2d,
-            tracks_vel,
-            tracks_cov,
-            tracks_features,
-        ) = self.get_tracks(frame_id - 1)
-        # print("existing tracks ids:  ", self.tracks.keys())
-        tracks_bboxes = tracks_boxes2d.boxes[:, :-1]
-        tracks_ids = tracks_boxes2d.track_ids
-        tracks_cls_ids = tracks_boxes2d.class_ids
-        tracks_cls_unique = torch.unique(tracks_cls_ids)
-
-        kalman_state = torch.cat(
-            (xyxy_to_xyah(tracks_bboxes), tracks_vel), dim=1
-        )
-        for i, _ in enumerate(kalman_state):
-            kalman_state[i], tracks_cov[i] = self.kf.predict(
-                kalman_state[i], tracks_cov[i]
-            )
-        # comment this line to not using prediction
-        tracks_bboxes = xyah_to_xyxy(kalman_state[:, :4])
-        predictions = Boxes2D(tracks_bboxes, tracks_cls_ids, tracks_ids)
-
-        tracks_vel = kalman_state[:, 4:]
-
-        updated_tracks_vels = dict()
-        updated_tracks_covs = dict()
-        # print("tracks_cls_ids:  ", tracks_cls_ids)
-        # print("tracks_cls_unique:  ", tracks_cls_unique)
-        # print("det_cls_ids:  ", det_cls_ids)
-
-        for existing_cls in tracks_cls_unique:
-            # print("-" * 50)
-            # print("start matching for object class:  ", existing_cls)
-            tracks_boxes_per_cls = tracks_bboxes[
-                tracks_cls_ids == existing_cls
-            ]
-            tracks_indices_per_cls = torch.nonzero(
-                tracks_cls_ids == existing_cls
-            ).squeeze(1)
-            tracks_features_per_cls = tracks_features[
-                tracks_cls_ids == existing_cls
-            ]
-            det_boxes_per_cls = det_bboxes[det_cls_ids == existing_cls]
-            det_indices_per_cls = torch.nonzero(
-                det_cls_ids == existing_cls
-            ).squeeze(1)
-            det_features_per_cls = det_features[det_cls_ids == existing_cls]
-            # print("tracks_indices_per_cls:  ", tracks_indices_per_cls)
-            # print("det_indices_per_cls:  ", det_indices_per_cls)
-
-            matches, _, _ = match(
-                tracks_boxes_per_cls,
-                det_boxes_per_cls,
-                tracks_indices_per_cls,
-                det_indices_per_cls,
-                det_features_per_cls,
-                tracks_features_per_cls,
-            )
-            # print("matched result:  ", matches)
-            for matched_track_ind, matched_det_ind in matches:
-                # print("matched_track_ind:  ", matched_track_ind)
-                # print("_" * 20)
-                # print("start updating detection indices: ", matched_det_ind)
-
-                matched_kalman_state = kalman_state[matched_track_ind]
-                matched_cov = tracks_cov[matched_track_ind]
-
-                matched_det_bboxes = xyxy_to_xyah(
-                    det_bboxes[matched_det_ind].unsqueeze(0)
-                ).squeeze()
-                updated_kalman_state, updated_track_cov = self.kf.update(
-                    matched_kalman_state,
-                    matched_cov,
-                    matched_det_bboxes,
-                )
-                # print("updated_kalman_state  ", updated_kalman_state)
-                updated_track_xyxy = xyah_to_xyxy(
-                    updated_kalman_state[:4].unsqueeze(0)
-                ).squeeze()
-                updated_track_vel = updated_kalman_state[4:]
-                updated_tracks_vels[
-                    int(tracks_ids[matched_track_ind])
-                ] = updated_track_vel
-                updated_tracks_covs[
-                    int(tracks_ids[matched_track_ind])
-                ] = updated_track_cov
-
-                # comment this line to not use corrected bbox
-                # detections.boxes[matched_det_ind, :-1] = updated_track_xyxy
-
-                ids[matched_det_ind] = tracks_ids[matched_track_ind]
-
-        new_inds = (ids == -1).cpu()
-        num_news = new_inds.sum()
-        ids[new_inds] = torch.arange(
-            self.num_tracks, self.num_tracks + num_news, dtype=torch.long
-        )
-        self.num_tracks += num_news
-        # print("updated detections tracking ids:  ", ids)
-
-        self.update(
-            ids,
-            detections,
-            det_features,
-            frame_id,
-            updated_tracks_vels,
-            updated_tracks_covs,
-        )
-        result, _, _, _ = self.get_tracks(frame_id)
-        return result
-
-    def update(  # type: ignore # pylint: disable=arguments-differ
         self,
-        ids: torch.Tensor,
         detections: Boxes2D,
+        frame_id: int,
         det_features: torch.Tensor,
-        frame_id: int,
-        updated_tracks_vels: Dict[int, torch.Tensor],
-        updated_tracks_covs: Dict[int, torch.Tensor],
-    ) -> None:
-        """Update track memory using matched detections."""
-        tracklet_inds = ids > -1
-        # update memo
-        for cur_id, det, det_feature in zip(  # type: ignore
-            ids[tracklet_inds],
-            detections[tracklet_inds],
-            det_features[tracklet_inds],
-        ):
-            cur_id = int(cur_id)
-            if cur_id in self.tracks.keys():
-                self.update_track(
-                    cur_id,
-                    det,
-                    frame_id,
-                    updated_tracks_vels[cur_id],
-                    updated_tracks_covs[cur_id],
-                    det_feature,
-                )
-            else:
-                self.create_track(cur_id, det, frame_id, det_feature)
+    ) -> Boxes2D:
+        """Process inputs, match detections with existing tracks."""
+        det_boxes = detections.boxes.to(torch.device("cpu")).numpy()
+        bbox_tlbr = det_boxes[:, :-1]
+        confidences = det_boxes[:, -1]
+        class_ids = detections.class_ids.to(torch.device("cpu"))
+        det_features = det_features.to(torch.device("cpu")).numpy()
+        bbox_tlwh = tlbr_to_tlwh(bbox_tlbr)
+        dets = [
+            Detection(bbox_tlwh[i], conf, int(class_id), det_features[i])
+            for i, (conf, class_id) in enumerate(zip(confidences, class_ids))
+            if conf >= self.cfg.min_confidence
+        ]
+        # # run on non-maximum supression, don't use it on good detection
+        # boxes = np.array([d.tlwh for d in dets])
+        # scores = np.array([d.confidence for d in dets])
+        # indices = non_max_suppression(
+        #     boxes, self.cfg.nms_max_overlap, scores
+        # )  # pylint:disable=line-too-long
+        # dets = [dets[i] for i in indices]
 
-        # delete invalid tracks from memory
-        invalid_ids = []
-        for k, v in self.tracks.items():
-            if frame_id - v["last_frame"] >= self.cfg.keep_in_memory:
-                invalid_ids.append(k)
-        for invalid_id in invalid_ids:
-            self.tracks.pop(invalid_id)
+        self.predict()
+        self.update(dets)
 
-    def update_track(
-        self,
-        track_id: int,
-        detection: Boxes2D,
-        frame_id: int,
-        velocity: torch.Tensor,
-        covariance: torch.Tensor,
-        feature: torch.Tensor,
-    ) -> None:
-        """Update a specific track with a new detection."""
-        bbox, cls = detection.boxes[0], detection.class_ids[0]
-        # print("update_track, ", "bbox: ", bbox, "   velocity:  ", velocity)
-        self.tracks[track_id]["bbox"] = bbox
-        self.tracks[track_id]["last_frame"] = frame_id
-        self.tracks[track_id]["class_id"] = cls
-        self.tracks[track_id]["velocity"] = velocity
-        self.tracks[track_id]["covariance"] = covariance
-        self.tracks[track_id]["feature"] = feature
+        output = self.get_output()
+        return output
 
-    def create_track(
-        self,
-        track_id: int,
-        detection: Boxes2D,
-        frame_id: int,
-        feature: torch.Tensor,
-    ) -> None:
-        """Create a new track from a detection."""
-        bbox, cls = detection.boxes[0], detection.class_ids[0]
-        # print("creat_track, bbox:  ", bbox)
-        _, covariance = self.kf.initiate(
-            xyxy_to_xyah(bbox[:-1].unsqueeze(0)).squeeze()
+    def predict(self):
+        """Propagate all tracklet one time step forward.
+
+        This function should be called once every time step, before `update`.
+        """
+        for track in self.tracks:
+            track.predict(self.kf)
+
+    def update(self, detections: List[Detection]):  # type: ignore # pylint: disable=arguments-differ
+        """Perform association and track management."""
+        cls_detidx_mapping = defaultdict(list)
+        for i, det in enumerate(detections):
+            cls_detidx_mapping[det.class_id].append(i)
+        # Run matching cascade.
+        matches, unmatched_tracks, unmatched_detections = [], [], []
+        for class_id in cls_detidx_mapping.keys():
+            (
+                matches_cls,
+                unmatched_tracks_cls,
+                unmatched_detections_cls,
+            ) = self._match(detections, cls_detidx_mapping[class_id], class_id)
+            matches.extend(matches_cls)
+            unmatched_tracks.extend(unmatched_tracks_cls)
+            unmatched_detections.extend(unmatched_detections_cls)
+
+        matched_det_set = set()
+        unmatched_det_set = set()
+        # Update track set.
+        for track_idx, detection_idx in matches:
+            assert detection_idx not in matched_det_set
+            matched_det_set.add(detection_idx)
+            self.tracks[track_idx].update(self.kf, detections[detection_idx])
+        for track_idx in unmatched_tracks:
+            self.tracks[track_idx].mark_missed()
+        for detection_idx in unmatched_detections:
+            self._initiate_track(detections[detection_idx])
+        self.tracks = [t for t in self.tracks if not t.is_deleted()]  # type: ignore
+        for unmatched_det in unmatched_detections:
+            assert unmatched_det not in unmatched_det_set
+            unmatched_det_set.add(unmatched_det)
+        assert len(matched_det_set & unmatched_det_set) == 0
+        assert len(matched_det_set | unmatched_det_set) == len(detections)
+
+        # Update distance metric.
+        active_targets = [t.track_id for t in self.tracks if t.is_confirmed()]
+        features, targets = [], []
+        for track in self.tracks:
+            if not track.is_confirmed():
+                continue
+            features += track.features
+            targets += [track.track_id for _ in track.features]
+            track.features = []
+        self.metric.partial_fit(
+            np.asarray(features), np.asarray(targets), active_targets
         )
-        self.tracks[track_id] = dict(
-            bbox=bbox,
-            class_id=cls,
-            last_frame=frame_id,
-            velocity=torch.zeros_like(bbox[:-1]),
-            covariance=covariance,
-            feature=feature,
-        )
 
+    def _match(self, detections: List[Detection], detection_indices, class_id):
+        """Matching."""
 
-def xyxy_to_xyah(xyxy: torch.Tensor) -> torch.FloatTensor:
-    """Convert xyxy boxes to xya.
+        def gated_metric(tracks, dets, track_indices, detection_indices):
+            """Calculate cost matrix."""
+            features = np.array([dets[i].feature for i in detection_indices])
+            targets = np.array([tracks[i].track_id for i in track_indices])
+            # calculate cost matrix using deep feature
+            cost_matrix = self.metric.distance(features, targets)
+            # use mahalanobis distance to gate cost matrix
+            cost_matrix = linear_assignment.gate_cost_matrix(
+                self.kf,
+                cost_matrix,
+                tracks,
+                dets,
+                track_indices,
+                detection_indices,
+            )
 
-    xyxy: torch.FloatTensor: (N, 4) where each entry is defined by
-    [x1, y1, x2, y2]
-    """
-    width = xyxy[:, [2]] - xyxy[:, [0]]
-    height = xyxy[:, [3]] - xyxy[:, [1]]
-    x = 0.5 * (xyxy[:, [2]] + xyxy[:, [0]])
-    y = 0.5 * (xyxy[:, [3]] + xyxy[:, [1]])
-    xyah = torch.cat((x, y, width / height, height), dim=1)
-    return xyah
+            return cost_matrix
 
+        # Split track set into confirmed and unconfirmed tracks.
+        confirmed_tracks = [
+            i
+            for i, t in enumerate(self.tracks)
+            if t.is_confirmed() and t.class_id == class_id
+        ]
+        unconfirmed_tracks = [
+            i
+            for i, t in enumerate(self.tracks)
+            if not t.is_confirmed() and t.class_id == class_id
+        ]
 
-def xyah_to_xyxy(xyah: torch.Tensor):
-    """Convert xyah boxes to xyxy.
-
-    xyah: torch.FloatTensor: (4) where each entry is defined by
-    [x1, y1, a, h]
-    """
-    height = xyah[:, [3]]
-    width = xyah[:, [2]] * xyah[:, [3]]
-    x1 = xyah[:, [0]] - width / 2
-    x2 = xyah[:, [0]] + width / 2
-    y1 = xyah[:, [1]] - height / 2
-    y2 = xyah[:, [1]] + height / 2
-    xyxy = torch.cat(
+        # Associate confirmed tracks using appearance features.
         (
-            x1,
-            y1,
-            x2,
-            y2,
-        ),
-        dim=1,
-    )
-    return xyxy
+            matches_a,
+            unmatched_tracks_a,
+            unmatched_detections,
+        ) = linear_assignment.matching_cascade(
+            gated_metric,
+            self.metric.matching_threshold,
+            self.max_age,
+            self.tracks,
+            detections,
+            confirmed_tracks,
+            detection_indices,
+        )
+
+        # Associate remaining tracks together with unconfirmed tracks using IOU
+        iou_track_candidates = unconfirmed_tracks + [
+            k
+            for k in unmatched_tracks_a
+            if self.tracks[k].time_since_update == 1
+        ]
+        unmatched_tracks_a = [
+            k
+            for k in unmatched_tracks_a
+            if self.tracks[k].time_since_update != 1
+        ]
+        (
+            matches_b,
+            unmatched_tracks_b,
+            unmatched_detections,
+        ) = linear_assignment.min_cost_matching(
+            iou_matching.iou_cost,
+            self.max_iou_distance,
+            self.tracks,
+            detections,
+            iou_track_candidates,
+            unmatched_detections,
+        )
+
+        matches = matches_a + matches_b
+        unmatched_tracks = list(set(unmatched_tracks_a + unmatched_tracks_b))
+        return matches, unmatched_tracks, unmatched_detections
+
+    def _initiate_track(self, detection):
+        """Initiate a track."""
+        mean, covariance = self.kf.initiate(detection.to_xyah())
+        confidence, class_id = detection.confidence, detection.class_id
+        self.tracks.append(
+            Track(
+                mean,
+                covariance,
+                confidence,
+                class_id,
+                self._next_id,
+                self.n_init,
+                self.max_age,
+                detection.feature,
+            )
+        )
+        self._next_id += 1

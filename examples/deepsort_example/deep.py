@@ -4,12 +4,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 
+# pylint: disable= invalid-name
+
 
 class BasicBlock(nn.Module):  # type: ignore
-    """Basic build block"""
+    """Basic build block."""
 
     def __init__(self, c_in, c_out, is_downsample=False):
-        super(BasicBlock, self).__init__()
+        """Init."""
+        super().__init__()
         self.is_downsample = is_downsample
         if is_downsample:
             self.conv1 = nn.Conv2d(
@@ -38,6 +41,7 @@ class BasicBlock(nn.Module):  # type: ignore
             self.is_downsample = True
 
     def forward(self, x):
+        """Forward."""
         y = self.conv1(x)
         y = self.bn1(y)
         y = self.relu(y)
@@ -49,6 +53,7 @@ class BasicBlock(nn.Module):  # type: ignore
 
 
 def make_layers(c_in, c_out, repeat_times, is_downsample=False):
+    """Make layers."""
     blocks = []
     for i in range(repeat_times):
         if i == 0:
@@ -66,7 +71,8 @@ class FeatureNet(nn.Module):  # type: ignore
     """Deep feature net."""
 
     def __init__(self, num_classes=625):
-        super(FeatureNet, self).__init__()
+        """Init."""
+        super().__init__()
         # 3 128 64
         self.conv = nn.Sequential(
             nn.Conv2d(3, 32, 3, stride=1, padding=1),

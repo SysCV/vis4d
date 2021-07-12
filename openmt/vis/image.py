@@ -9,7 +9,7 @@ from .utils import BoxType, ImageType, preprocess_boxes, preprocess_image
 
 
 def imshow(
-    image: Union[Image.Image, ImageType], mode: str = "BGR"
+    image: Union[Image.Image, ImageType], mode: str = "BGR", frame_id: int = 0
 ) -> None:  # pragma: no cover  # pylint: disable=line-too-long
     """Imshow method.
 
@@ -20,12 +20,13 @@ def imshow(
     """
     if not isinstance(image, Image.Image):
         image = preprocess_image(image, mode)
-    plt.imshow(np.asarray(image))
-    plt.show()
+    # plt.imshow(np.asarray(image))
+    # plt.show()
+    image.save("visualization/" + "frame_" + str(frame_id).zfill(4) + ".png")
 
 
 def imshow_bboxes(
-    image: ImageType, boxes: BoxType, mode: str = "BGR"
+    image: ImageType, boxes: BoxType, mode: str = "BGR", frame_id: int = 0
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode)
@@ -33,7 +34,7 @@ def imshow_bboxes(
     for box, col, label in zip(box_list, color_list, label_list):
         draw_bbox(image, box, col, label)
 
-    imshow(image)
+    imshow(image, frame_id=frame_id)
 
 
 def imsave_bboxes(
