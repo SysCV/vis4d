@@ -1,63 +1,93 @@
 """Example for dynamic api usage."""
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import torch
-import torchvision.models.detection.retinanet as retinanet  # type: ignore
 from detectron2.engine import launch
+from torchvision.models.detection import retinanet  # type: ignore
 
 import openmt.data.datasets.base
 from openmt import config
-from openmt.data.build import DataloaderConfig as Dataloader
+from openmt.data.dataset_mapper import DataloaderConfig as Dataloader
 from openmt.engine import train
-from openmt.model.detect import BaseDetector, BaseDetectorConfig
-from openmt.struct import Boxes2D, DetectionOutput, Images, InputSample
+from openmt.model import BaseModelConfig
+from openmt.model.detect import BaseDetector
+from openmt.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
 
 
-class MyDetectorConfig(BaseDetectorConfig, extra="allow"):
+class MyDetectorConfig(BaseModelConfig, extra="allow"):
     """My detector config."""
 
     abc: str
 
 
 class MyDetector(BaseDetector):
-    """Example models module."""
+    """Example detector model."""
 
-    def __init__(self, cfg: BaseDetectorConfig) -> None:
+    def __init__(self, cfg: BaseModelConfig) -> None:
         """Init detector."""
         super().__init__()
         self.cfg = MyDetectorConfig(**cfg.dict())
         self.retinanet = retinanet.retinanet_resnet50_fpn(pretrained=True)
 
-    @property
-    def device(self) -> torch.device:
-        """Get device where detect input should be moved to."""
-        raise NotImplementedError
-
     def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
         """Normalize, pad and batch the input images."""
         raise NotImplementedError
 
-    def forward(
-        self,
-        inputs: List[InputSample],
-        targets: Optional[List[Boxes2D]] = None,
-    ) -> DetectionOutput:
-        """Detector forward function.
+    def forward_train(
+        self, batch_inputs: List[List[InputSample]]
+    ) -> LossesType:
+        """Forward pass during training stage.
 
-        Return backbone output features, proposals, detections and optionally
-        training losses.
+        Args:
+            batch_inputs: Model input. Batched, including possible reference
+            views.
+
+        Returns:
+            LossesType: A dict of scalar loss tensors.
+        """
+        raise NotImplementedError
+
+    def forward_test(
+        self, batch_inputs: List[InputSample], postprocess: bool = True
+    ) -> ModelOutput:
+        """Forward pass during testing stage.
+
+        Args:
+            batch_inputs: Model input (batched).
+            postprocess: If output should be postprocessed to original
+            resolution.
+
+        Returns:
+            ModelOutput: Dict of LabelInstance results, e.g. tracking and
+            separate models result.
+        """
+        raise NotImplementedError
+
+    def extract_features(self, images: Images) -> Dict[str, torch.Tensor]:
+        """Detector feature extraction stage.
+
+        Return backbone output features
+        """
+        raise NotImplementedError
+
+    def generate_detections(
+        self,
+        images: Images,
+        features: Dict[str, torch.Tensor],
+        proposals: List[Boxes2D],
+        targets: Optional[List[Boxes2D]] = None,
+        compute_detections: bool = True,
+    ) -> Tuple[Optional[List[Boxes2D]], LossesType]:
+        """Detector second stage (RoI Head).
+
+        Return losses (empty if no targets) and optionally detections.
         """
         raise NotImplementedError
 
 
 if __name__ == "__main__":
-    my_detector_cfg = dict(type="MyDetector", abc="example_attribute")
-
     conf = config.Config(
-        model=dict(
-            type="DetectorWrapper",
-            detection=BaseDetectorConfig(**my_detector_cfg),
-        ),
+        model=dict(type="MyDetector", abc="example_attribute"),
         solver=config.Solver(
             images_per_gpu=2,
             lr_policy="WarmupMultiStepLR",
@@ -79,6 +109,7 @@ if __name__ == "__main__":
                 "bicycle",
             ],
             remove_samples_without_labels=True,
+            image_channel_mode="BGR",
         ),
         train=[
             openmt.data.datasets.base.BaseDatasetConfig(

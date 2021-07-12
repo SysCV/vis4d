@@ -1,0 +1,51 @@
+[[train]]
+name = "mot16_train"
+type = "MOTChallenge"
+annotations = "data/MOT16/train"
+data_root = "data/MOT16/train"
+num_processes = 0
+
+[[test]]
+name = "mot16_val"
+type = "MOTChallenge"
+annotations = "data/MOT16/train"
+data_root = "data/MOT16/train"
+eval_metrics = ["track"]
+inference_sampling = "sequence_based"
+num_processes = 0
+
+[dataloader]
+workers_per_gpu = 2
+categories = ["pedestrian"]
+skip_empty_samples = true
+    [dataloader.data_backend]
+    type = "FileBackend"
+    [dataloader.ref_sampling_cfg]
+    type = 'uniform'
+    scope = 3
+    num_ref_imgs = 1
+    skip_nomatch_samples = true
+
+    [[dataloader.train_augmentations]]
+    type = "RandomCrop"
+    kwargs = {"crop_type" = "absolute", "crop_size" = [612, 1088]}
+
+    [[dataloader.train_augmentations]]
+    type = "RandomFlip"
+    kwargs = {"prob" = 0.5}
+
+    [[dataloader.train_augmentations]]
+    type = "RandomBrightness"
+    kwargs = {"intensity_min" = 0.9, "intensity_max" = 1.1}
+
+    [[dataloader.train_augmentations]]
+    type = "RandomContrast"
+    kwargs = {"intensity_min" = 0.9, "intensity_max" = 1.1}
+
+    [[dataloader.train_augmentations]]
+    type = "RandomSaturation"
+    kwargs = {"intensity_min" = 0.9, "intensity_max" = 1.1}
+
+    [[dataloader.test_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [1080, 1920]}

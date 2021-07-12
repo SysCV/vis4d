@@ -57,6 +57,7 @@ class TestDatasetMapper(unittest.TestCase):
         cfg = get_cfg()
         loader_cfg = DataloaderConfig(
             workers_per_gpu=0,
+            image_channel_mode="BGR",
             ref_sampling_cfg=ReferenceSamplingConfig(num_ref_imgs=1, scope=1),
         )
         ds_mapper = DatasetMapper(loader_cfg, cfg)

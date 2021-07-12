@@ -1,0 +1,23 @@
+[[config]]
+path = "../../base/datasets/mot16.toml"
+
+[[config]]
+path = "../../base/models/detectron2/qdtrack_R_50_FPN.toml"
+
+[model]
+    [model.detection]
+    weights = "detectron2://new_baselines/mask_rcnn_R_50_FPN_400ep_LSJ/42019571/model_final_14d201.pkl"
+
+[solver]
+images_per_gpu = 8
+lr_policy = "WarmupMultiStepLR"
+base_lr = 0.04
+steps = [88000, 121000]
+max_iters = 132000
+checkpoint_period = 11000
+log_period = 50
+eval_period = 11000
+
+[launch]
+device = "cuda"
+num_gpus = 4
