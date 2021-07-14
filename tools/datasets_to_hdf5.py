@@ -33,24 +33,23 @@ def datasets_to_hdf5(args: Namespace) -> None:
 def convert_single_dataset(source_dir: str) -> None:
     """Convert particular dataset instance to hdf5."""
     print(f"Converting dataset at: {source_dir}")
-    files = [
-        f
-        for f in glob.glob(source_dir + "/**/*", recursive=True)
-        if os.path.isfile(f)
-    ]
-    hdf5_path = source_dir.strip("/") + ".hdf5"
+    hdf5_path = source_dir.rstrip("/") + ".hdf5"
     if os.path.exists(hdf5_path):
         print(f"File {hdf5_path} already exists! Skipping {source_dir}")
         return
     hdf5_file = h5py.File(hdf5_path, mode="w")
 
-    for fp in tqdm(files):
-        key = fp[len(source_dir) :].strip("/")
-        g = hdf5_file.create_group(key)
-        ds = g.create_dataset("raw", shape=(1,), dtype=t_vlen_uint8)
-        with open(fp, "rb") as fp:
-            file_content = fp.read()
-            ds[0] = np.frombuffer(file_content, dtype="uint8")  # type: ignore
+    for video_name in tqdm(os.listdir(source_dir)):
+        video_dir = os.path.join(source_dir, video_name)
+        g = hdf5_file.create_group(video_name)
+        for frame_name in os.listdir(video_dir):
+            frame_path = os.path.join(video_dir, frame_name)
+            if os.path.isfile(frame_path):
+                with open(frame_path, "rb") as fp:
+                    file_content = fp.read()
+                g.create_dataset(
+                    frame_name, data=np.frombuffer(file_content, dtype="uint8")  # type: ignore
+                )
 
     hdf5_file.close()
     print("done.")
