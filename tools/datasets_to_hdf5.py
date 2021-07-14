@@ -32,7 +32,7 @@ def datasets_to_hdf5(args: Namespace) -> None:
 def convert_single_dataset(source_dir: str) -> None:
     """Convert particular dataset instance to hdf5."""
     print(f"Converting dataset at: {source_dir}")
-    hdf5_path = source_dir.rstrip("/") + "aa.hdf5"
+    hdf5_path = source_dir.rstrip("/") + ".hdf5"
     if os.path.exists(hdf5_path):
         print(f"File {hdf5_path} already exists! Skipping {source_dir}")
         return
