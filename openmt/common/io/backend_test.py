@@ -35,6 +35,12 @@ class TestBackends(unittest.TestCase):
         self.assertRaises(FileNotFoundError, backend_file.get, "invalid_path")
         self.assertRaises(FileNotFoundError, backend_hdf5.get, "invalid_path")
 
+        invalid_hdf5_path = (
+            "openmt/engine/testcases/track/bdd100k-samples/images.hdf5/"
+            "000/000.jpg"
+        )
+        self.assertRaises(ValueError, backend_hdf5.get, invalid_hdf5_path)
+
     def test_str_decode(self) -> None:
         """Test str decode method in utils."""
         my_str = "Hello world!"

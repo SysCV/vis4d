@@ -1,7 +1,6 @@
 """Pack a dataset folder into an hdf5 file."""
 
 import argparse
-import glob
 import os
 from argparse import Namespace
 
@@ -33,23 +32,32 @@ def datasets_to_hdf5(args: Namespace) -> None:
 def convert_single_dataset(source_dir: str) -> None:
     """Convert particular dataset instance to hdf5."""
     print(f"Converting dataset at: {source_dir}")
-    hdf5_path = source_dir.rstrip("/") + ".hdf5"
+    hdf5_path = source_dir.rstrip("/") + "aa.hdf5"
     if os.path.exists(hdf5_path):
         print(f"File {hdf5_path} already exists! Skipping {source_dir}")
         return
     hdf5_file = h5py.File(hdf5_path, mode="w")
 
-    for video_name in tqdm(os.listdir(source_dir)):
-        video_dir = os.path.join(source_dir, video_name)
-        g = hdf5_file.create_group(video_name)
-        for frame_name in os.listdir(video_dir):
-            frame_path = os.path.join(video_dir, frame_name)
-            if os.path.isfile(frame_path):
-                with open(frame_path, "rb") as fp:
-                    file_content = fp.read()
-                g.create_dataset(
-                    frame_name, data=np.frombuffer(file_content, dtype="uint8")  # type: ignore
-                )
+    file_count = sum(len(files) for _, _, files in os.walk(source_dir))
+    with tqdm(total=file_count) as pbar:
+        for root, dirs, files in os.walk(source_dir):
+            if not dirs:
+                if root is not source_dir:
+                    group = hdf5_file.create_group(root.split("/")[-1])
+                else:
+                    group = hdf5_file
+                for f in files:
+                    filepath = os.path.join(root, f)
+                    if os.path.isfile(filepath):
+                        with open(filepath, "rb") as fp:
+                            file_content = fp.read()
+                        group.create_dataset(
+                            f,
+                            data=np.frombuffer(  # type: ignore
+                                file_content, dtype="uint8"
+                            ),
+                        )
+                    pbar.update()
 
     hdf5_file.close()
     print("done.")
