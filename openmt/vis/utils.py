@@ -6,11 +6,12 @@ import numpy as np
 import torch
 from PIL import Image
 
-from openmt.struct import Boxes2D, NDArrayF64, NDArrayUI8
+from openmt.struct import Boxes2D, Boxes3D, NDArrayF64, NDArrayUI8
 
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
 BoxType = Union[Boxes2D, List[Boxes2D]]
+Box3DType = Union[Boxes3D, List[Boxes3D]]
 
 ColorType = Union[
     Union[Tuple[int], str],
@@ -37,21 +38,21 @@ COLOR_PALETTE = generate_colors(NUM_COLORS)
 
 
 def preprocess_boxes(
-    boxes: BoxType, color_idx: int = 0
-) -> Tuple[List[Tuple[float]], List[Tuple[int]], List[str]]:
+    boxes: Union[BoxType, Box3DType], color_idx: int = 0
+) -> Tuple[List[List[float]], List[Tuple[int]], List[str]]:
     """Preprocess BoxType to boxes / colors / labels for drawing."""
     if isinstance(boxes, list):
         result_box, result_color, result_labels = [], [], []
         for i, b in enumerate(boxes):
-            res_box, res_color, res_labels = preprocess_boxes(b, i)
-            result_box.extend(res_box)
-            result_color.extend(res_color)
-            result_labels.extend(res_labels)
+            box, color, labels = preprocess_boxes(b, i)  # type: ignore
+            result_box.extend(box)
+            result_color.extend(color)
+            result_labels.extend(labels)
         return result_box, result_color, result_labels
 
-    assert isinstance(boxes, Boxes2D)
+    assert isinstance(boxes, (Boxes2D, Boxes3D))
 
-    boxes_list = boxes.boxes[:, :4].cpu().numpy().tolist()
+    boxes_list = boxes.boxes[:, :-1].cpu().numpy().tolist()
     scores = boxes.boxes[:, -1].cpu().numpy().tolist()
 
     if boxes.track_ids is not None:
@@ -124,3 +125,59 @@ def preprocess_image(image: ImageType, mode: str = "BGR") -> Image.Image:
         mode = "RGB"
 
     return Image.fromarray(image.astype(np.uint8), mode=mode).convert("RGB")
+
+
+def box3d_to_corners(box3d: List[float]) -> NDArrayF64:
+    """Convert Boxes3D style box to its respective corner points."""
+    x_loc, y_loc, z_loc = box3d[:3]
+    h, w, l = box3d[3:6]
+    ry = box3d[6]
+
+    x_corners = np.array(
+        [
+            l / 2.0,
+            l / 2.0,
+            -l / 2.0,
+            -l / 2.0,
+            l / 2.0,
+            l / 2.0,
+            -l / 2.0,
+            -l / 2.0,
+        ],
+        dtype=np.float64,
+    )
+    z_corners = np.array(
+        [
+            w / 2.0,
+            -w / 2.0,
+            -w / 2.0,
+            w / 2.0,
+            w / 2.0,
+            -w / 2.0,
+            -w / 2.0,
+            w / 2.0,
+        ],
+        dtype=np.float64,
+    )
+    y_corners = np.zeros((8,), dtype=np.float64)
+    y_corners[0:4] = h / 2
+    y_corners[4:8] = -h / 2
+
+    rot = np.array(
+        [[np.cos(ry), 0, -np.sin(ry)], [0, 1, 0], [np.sin(ry), 0, np.cos(ry)]]
+    )
+    temp_corners = np.concatenate(
+        (
+            x_corners.reshape(8, 1),
+            y_corners.reshape(8, 1),
+            z_corners.reshape(8, 1),
+        ),
+        axis=1,
+    )  # type: ignore
+    corners = np.matmul(temp_corners, rot)
+    corners[:, 0], corners[:, 1], corners[:, 2] = (
+        corners[:, 0] + x_loc,
+        corners[:, 1] + y_loc,
+        corners[:, 2] + z_loc,
+    )
+    return corners  # type: ignore

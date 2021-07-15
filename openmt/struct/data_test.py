@@ -26,12 +26,13 @@ class TestDataStructures(unittest.TestCase):
         """Testcases for InputSample class."""
         sample = InputSample(Frame(name="f1"), self.im1, image2=self.im2)
         self.assertEqual(sample.metadata.name, "f1")
-        meta = sample.__getattr__("metadata")
+        meta = sample.get("metadata")
         assert isinstance(meta, Frame)
         self.assertEqual(meta.name, "f1")  # pylint: disable=no-member
         self.assertEqual(sample.image.tensor.shape, self.im1.tensor.shape)
-        assert isinstance(sample.image2, Images)
-        self.assertEqual(sample.image2.tensor.shape, self.im2.tensor.shape)
+        image2 = sample.get("image2")
+        assert isinstance(image2, Images)
+        self.assertEqual(image2.tensor.shape, self.im2.tensor.shape)
         self.assertEqual(
             list(sample.dict().keys()), ["metadata", "image", "image2"]
         )

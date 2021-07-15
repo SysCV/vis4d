@@ -3,7 +3,6 @@ import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
-import detectron2.data.detection_utils as d2_utils
 import numpy as np
 import torch
 from detectron2.config import CfgNode
@@ -123,11 +122,11 @@ class MapDataset(D2MapDataset):  # type: ignore
     ) -> bool:
         """Check if key / ref data have matches."""
         has_match = False
-        assert isinstance(key_data.instances, Boxes2D)
-        key_track_ids = key_data.instances.track_ids
+        assert key_data.boxes2d is not None
+        key_track_ids = key_data.boxes2d.track_ids
         for ref_view in ref_data:
-            assert isinstance(ref_view.instances, Boxes2D)
-            ref_track_ids = ref_view.instances.track_ids
+            assert isinstance(ref_view.boxes2d, Boxes2D)
+            ref_track_ids = ref_view.boxes2d.track_ids
             match = key_track_ids.view(-1, 1) == ref_track_ids.view(1, -1)
             if match.any():
                 has_match = True
@@ -197,6 +196,7 @@ class DataloaderConfig(BaseModel):
     workers_per_gpu: int
     categories: Optional[List[str]] = None
     skip_empty_samples: bool = False
+    clip_bboxes_to_image: bool = True
     compute_global_instance_ids: bool = False
     train_augmentations: Optional[List[AugmentationConfig]] = None
     test_augmentations: Optional[List[AugmentationConfig]] = None
@@ -280,19 +280,19 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         if labels is None:
             return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
 
-        # USER: Implement additional transformations if you have other types
-        # of data
         annos = []
         for label in labels:
             assert label.attributes is not None
             if not check_crowd(label) and not check_ignored(label):
                 anno = label_to_dict(label)
-                d2_utils.transform_instance_annotations(
-                    anno,
-                    transforms,
-                    image_hw,
-                    keypoint_hflip_indices=self.keypoint_hflip_indices,
-                )
+                bbox = transforms.apply_box(np.array([anno["bbox"]]))[0]
+                # clip transformed bbox to image size
+                if self.loader_cfg.clip_bboxes_to_image:
+                    bbox.clip(min=0)
+                    bbox = np.minimum(bbox, list(image_hw + image_hw)[::-1])
+                anno["bbox"] = bbox
+                # USER: Implement additional transformations if you have other
+                # types of data like instance segmentations
                 annos.append(anno)
 
         return dicts_to_boxes2d(annos)
@@ -326,14 +326,41 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             del sample.labels
             return input_data, transforms
 
-        input_data.instances = self.transform_annotation(
+        from openmt.vis.image import imshow_bboxes3d
+        from openmt.struct import Boxes3D
+        from scalabel.label.utils import get_matrix_from_intrinsics
+        if sample.labels is not None:  # TODO remove
+            cat_dict = dict()
+            for label in sample.labels:
+                if label.category not in cat_dict:
+                    cat_dict[label.category] = label.attributes["category_id"]
+            boxes3d = Boxes3D.from_scalabel(sample.labels, cat_dict)
+            boxes3d.boxes = boxes3d.boxes[:, [0, 1, 2, 3, 4, 5, 7, -1]]
+
+            image = torch.from_numpy(self.load_image(sample)).to(torch.float32)
+            intrinsic_matrix = get_matrix_from_intrinsics(sample.intrinsics)
+            import kornia.augmentation as K
+            from kornia.augmentation.container.augment import AugmentationSequential
+            imshow_bboxes3d(image, boxes3d, intrinsic_matrix, mode="RGB")
+
+            transform = AugmentationSequential(
+                K.RandomHorizontalFlip(p=1.0, return_transform=True),
+                K.RandomRotation(p=1.0, degrees=45.0, return_transform=True),
+            )
+            image = transform(image)
+            print(transform.get_transformation_matrix())
+            intrinsic_matrix = transform.get_transformation_matrix() * intrinsic_matrix
+
+            imshow_bboxes3d(image, boxes3d, intrinsic_matrix, mode="RGB")
+
+        input_data.boxes2d = self.transform_annotation(
             input_data, sample.labels, transforms
         )
         del sample.labels
 
         if (
             self.skip_empty_samples
-            and len(input_data.instances) == 0
+            and len(input_data.boxes2d) == 0
             and transforms is None
         ):
             return None  # pragma: no cover

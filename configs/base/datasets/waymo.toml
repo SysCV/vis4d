@@ -4,6 +4,7 @@ type = "Waymo"
 data_root = "data/Waymo_scalabel"
 input_dir = "data/Waymo/train"
 output_dir = "data/Waymo_scalabel"
+num_processes = 0
 
 [[test]]
 name = "waymo_sample_val"
@@ -13,6 +14,7 @@ input_dir = "data/Waymo/train"
 output_dir = "data/Waymo_scalabel"
 eval_metrics = ["track"]
 inference_sampling = "sequence_based"
+num_processes = 0
 
 [dataloader]
 workers_per_gpu = 0

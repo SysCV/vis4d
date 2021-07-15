@@ -1,38 +1,18 @@
-"""Data structure for struct container."""
-import abc
-from typing import Dict, List, Optional, Tuple, Union
+"""OpenMT Label data structures."""
+from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import torch
-from scalabel.label.typing import Box2D, Label
+from scalabel.label.typing import Box2D, Box3D, Label
 
-from .data import DataInstance
+from .structures import DataInstance, LabelInstance
 
-
-class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
-    """Interface for bounding boxes, masks etc."""
-
-    @classmethod
-    @abc.abstractmethod
-    def from_scalabel(
-        cls,
-        labels: List[Label],
-        class_to_idx: Dict[str, int],
-        label_id_to_idx: Optional[Dict[str, int]] = None,
-    ) -> "LabelInstance":
-        """Convert from scalabel format to ours."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def to_scalabel(self, idx_to_class: Dict[int, str]) -> List[Label]:
-        """Convert from ours to scalabel format."""
-        raise NotImplementedError
+TBoxes = TypeVar("TBoxes", bound="Boxes")
 
 
-class Boxes2D(LabelInstance):
-    """Container class for 2D boxes.
+class Boxes(DataInstance):
+    """Abstract container for 2D / BEV / 3D / ... Boxes.
 
-    boxes: torch.FloatTensor: (N, 5) where each entry is defined by
-    [x1, y1, x2, y2, score]
+    boxes: torch.FloatTensor: (N, M) N elements of boxes with M parameters
     class_ids: torch.IntTensor: (N,) where each entry is the class id of
     the respective box.
     track_ids: torch.IntTensor (N,) where each entry is the track id of
@@ -62,8 +42,8 @@ class Boxes2D(LabelInstance):
         self.track_ids = track_ids
         self.metadata = metadata
 
-    def __getitem__(self, item) -> "Boxes2D":  # type: ignore
-        """Shadows tensor based indexing while returning new Boxes2D."""
+    def __getitem__(self: "TBoxes", item) -> "TBoxes":  # type: ignore
+        """Shadows tensor based indexing while returning new Boxes."""
         if isinstance(item, tuple):
             item = item[0]
         boxes = self.boxes[item]
@@ -78,17 +58,17 @@ class Boxes2D(LabelInstance):
                 class_ids = class_ids.view(1, -1)
             if track_ids is not None:
                 track_ids = track_ids.view(1, -1)
-            return Boxes2D(
+            return type(self)(
                 boxes.view(1, -1), class_ids, track_ids, self.metadata
             )
 
-        return Boxes2D(boxes, class_ids, track_ids, self.metadata)
+        return type(self)(boxes, class_ids, track_ids, self.metadata)
 
     def __len__(self) -> int:
         """Get length of the object."""
         return len(self.boxes)
 
-    def clone(self) -> "Boxes2D":
+    def clone(self: "TBoxes") -> "TBoxes":
         """Create a copy of the object."""
         class_ids = (
             self.class_ids.clone() if self.class_ids is not None else None
@@ -96,9 +76,11 @@ class Boxes2D(LabelInstance):
         track_ids = (
             self.track_ids.clone() if self.track_ids is not None else None
         )
-        return Boxes2D(self.boxes.clone(), class_ids, track_ids, self.metadata)
+        return type(self)(
+            self.boxes.clone(), class_ids, track_ids, self.metadata
+        )
 
-    def to(self, device: torch.device) -> "Boxes2D":
+    def to(self: "TBoxes", device: torch.device) -> "TBoxes":
         """Move data to given device."""
         class_ids = (
             self.class_ids.to(device=device)
@@ -110,16 +92,16 @@ class Boxes2D(LabelInstance):
             if self.track_ids is not None
             else None
         )
-        return Boxes2D(
+        return type(self)(
             self.boxes.to(device=device), class_ids, track_ids, self.metadata
         )
 
     @classmethod
-    def cat(cls, instances: List["Boxes2D"]) -> "Boxes2D":  # type: ignore
+    def cat(cls: Type["TBoxes"], instances: List["TBoxes"]) -> "TBoxes":
         """Concatenates a list of Boxes2D into a single Boxes2D."""
         assert isinstance(instances, (list, tuple))
         assert len(instances) > 0
-        assert all((isinstance(inst, Boxes2D) for inst in instances))
+        assert all((isinstance(inst, Boxes) for inst in instances))
 
         boxes, class_ids, track_ids = [], [], []
         has_class_ids = all((b.class_ids is not None for b in instances))
@@ -138,6 +120,23 @@ class Boxes2D(LabelInstance):
         )
         return cat_boxes
 
+    @property
+    def device(self) -> torch.device:
+        """Get current device of data."""
+        return self.boxes.device
+
+
+class Boxes2D(Boxes, LabelInstance):
+    """Container class for 2D boxes.
+
+    boxes: torch.FloatTensor: (N, 5) where each entry is defined by
+    [x1, y1, x2, y2, score]
+    class_ids: torch.IntTensor: (N,) where each entry is the class id of
+    the respective box.
+    track_ids: torch.IntTensor (N,) where each entry is the track id of
+    the respective box.
+    """
+
     def scale(self, scale_factor_xy: Tuple[float, float]) -> None:
         """Scale bounding boxes according to factor."""
         self.boxes[:, [0, 2]] *= scale_factor_xy[0]
@@ -147,11 +146,6 @@ class Boxes2D(LabelInstance):
         """Clip bounding boxes according to image_wh."""
         self.boxes[:, [0, 2]] = self.boxes[:, [0, 2]].clamp(0, image_wh[0] - 1)
         self.boxes[:, [1, 3]] = self.boxes[:, [1, 3]].clamp(0, image_wh[1] - 1)
-
-    @property
-    def device(self) -> torch.device:
-        """Get current device of data."""
-        return self.boxes.device
 
     @classmethod
     def from_scalabel(
@@ -173,17 +167,21 @@ class Boxes2D(LabelInstance):
             if box is None:
                 continue
 
+            if score is None:
+                score = 1.0
+
             box_list.append([box.x1, box.y1, box.x2, box.y2, score])
             if has_class_ids:
                 cls_list.append(class_to_idx[box_cls])  # type: ignore
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
 
-        return Boxes2D(
-            torch.tensor(box_list, dtype=torch.float32),
-            torch.tensor(cls_list, dtype=torch.int) if has_class_ids else None,
-            torch.tensor(idx_list, dtype=torch.int),
-        )
+        box_tensor = torch.tensor(box_list, dtype=torch.float32)
+        class_ids = torch.tensor(cls_list, dtype=torch.int) if has_class_ids else None
+        track_ids = torch.tensor(idx_list, dtype=torch.int)
+        if len(box_tensor.shape) < 2:
+            track_ids = track_ids.view(1, -1)
+        return Boxes2D(box_tensor, class_ids, track_ids)
 
     def to_scalabel(self, idx_to_class: Dict[int, str]) -> List[Label]:
         """Convert from internal to scalabel format."""
@@ -210,4 +208,99 @@ class Boxes2D(LabelInstance):
         return labels
 
 
-ModelOutput = Dict[str, List[LabelInstance]]
+class Boxes3D(Boxes, LabelInstance):
+    """Container class for 3D boxes.
+
+    boxes: torch.FloatTensor: (N, 8) where each entry is defined as
+    [x, y, z, h, w, l, ry, score] or (N, 10) where each entry is defined by
+    [x, y, z, h, w, l, rx, ry, rz, score].
+    class_ids: torch.IntTensor: (N,) where each entry is the class id of
+    the respective box.
+    track_ids: torch.IntTensor (N,) where each entry is the track id of
+    the respective box.
+
+    x,y,z are in OpenCV camera coordinate system. l, h, w, are the 3D box
+    dimensions and correspond to their respective axis (length first (x),
+    height second (y), width last (z). The rotations are axis angles w.r.t.
+    each axis (x,y,z).
+    """
+
+    @classmethod
+    def from_scalabel(
+        cls,
+        labels: List[Label],
+        class_to_idx: Dict[str, int],
+        label_id_to_idx: Optional[Dict[str, int]] = None,
+    ) -> "Boxes3D":
+        """Convert from scalabel format to internal."""
+        box_list, cls_list, idx_list = [], [], []
+        has_class_ids = all((b.category is not None for b in labels))
+        for i, label in enumerate(labels):
+            box, score, box_cls, l_id = (
+                label.box3d,
+                label.score,
+                label.category,
+                label.id,
+            )
+            if box is None:
+                continue
+
+            if score is None:
+                score = 1.0
+
+            box_list.append(
+                [*box.location, *box.dimension, *box.orientation, score]
+            )
+            if has_class_ids:
+                cls_list.append(class_to_idx[box_cls])  # type: ignore
+            idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
+            idx_list.append(idx)
+
+        box_tensor = torch.tensor(box_list, dtype=torch.float32)
+        class_ids = torch.tensor(cls_list, dtype=torch.int) if has_class_ids else None
+        track_ids = torch.tensor(idx_list, dtype=torch.int)
+        if len(box_tensor.shape) < 2:
+            track_ids = track_ids.view(1, -1)
+        return Boxes3D(box_tensor, class_ids, track_ids)
+
+    def to_scalabel(self, idx_to_class: Dict[int, str]) -> List[Label]:
+        """Convert from internal to scalabel format."""
+        labels = []
+        for i in range(len(self.boxes)):
+            if self.track_ids is not None:
+                label_id = str(self.track_ids[i].item())
+            else:
+                label_id = str(i)
+
+            if self.boxes.shape[-1] == 8:
+                rx = 0.0
+                ry = float(self.boxes[i, 6])
+                rz = 0.0
+                score = float(self.boxes[i, 7])
+            else:
+                rx = float(self.boxes[i, 6])
+                ry = float(self.boxes[i, 7])
+                rz = float(self.boxes[i, 8])
+                score = float(self.boxes[i, 9])
+
+            box = Box3D(
+                location=[
+                    float(self.boxes[i, 0]),
+                    float(self.boxes[i, 1]),
+                    float(self.boxes[i, 2]),
+                ],
+                dimension=[
+                    float(self.boxes[i, 3]),
+                    float(self.boxes[i, 4]),
+                    float(self.boxes[i, 5]),
+                ],
+                orientation=[rx, ry, rz],
+            )
+
+            label_dict = dict(id=label_id, box3d=box, score=score)
+
+            cls = idx_to_class[int(self.class_ids[i])]
+            label_dict["category"] = cls
+            labels.append(Label(**label_dict))
+
+        return labels

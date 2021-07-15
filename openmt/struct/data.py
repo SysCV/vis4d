@@ -1,54 +1,13 @@
-"""Data structure for struct container."""
-import abc
-import itertools
-from typing import Any, Dict, List, Tuple, Union
+"""OpenMT Input data structures."""
 
-import numpy as np
-import numpy.typing as npt
+import itertools
+from typing import Dict, List, Optional, Tuple, Union
+
 import torch
-from scalabel.eval.mot import EvalResults as MOTEvalResults
 from scalabel.label.typing import Frame
 
-NDArrayF64 = npt.NDArray[np.float64]
-NDArrayUI8 = npt.NDArray[np.uint8]
-TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
-LossesType = Dict[str, torch.Tensor]
-EvalResult = Union[Dict[str, float], MOTEvalResults]
-EvalResults = Dict[str, Union[Dict[str, float], MOTEvalResults]]
-DictStrAny = Dict[str, Any]  # type: ignore
-
-
-class DataInstance(metaclass=abc.ABCMeta):
-    """Meta class for input data."""
-
-    @abc.abstractmethod
-    def __len__(self) -> int:
-        """Len method. Return -1 if not applicable."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def __getitem__(self, idx: int) -> "DataInstance":
-        """Get item method."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def to(  # pylint: disable=invalid-name
-        self, device: torch.device
-    ) -> "DataInstance":
-        """Move to device (CPU / GPU / ...)."""
-        raise NotImplementedError
-
-    @classmethod
-    @abc.abstractmethod
-    def cat(cls, instances: List["DataInstance"]) -> "DataInstance":
-        """Concatenate two data instances."""
-        raise NotImplementedError
-
-    @property
-    @abc.abstractmethod
-    def device(self) -> torch.device:
-        """Returns current device if applicable."""
-        raise NotImplementedError
+from .labels import Boxes2D, Boxes3D
+from .structures import DataInstance
 
 
 class Images(DataInstance):
@@ -95,7 +54,7 @@ class Images(DataInstance):
         return Images(cast_tensor, self.image_sizes)
 
     @classmethod
-    def cat(cls, instances: List["Images"]) -> "Images":  # type: ignore
+    def cat(cls, instances: List["Images"]) -> "Images":
         """Concatenate two Images objects."""
         assert isinstance(instances, (list, tuple))
         assert len(instances) > 0
@@ -139,25 +98,50 @@ class InputSample:
     """Container holding varying types of DataInstances and Frame metadata."""
 
     def __init__(
-        self, metadata: Frame, image: Images, **kwargs: DataInstance
+        self,
+        metadata: Frame,
+        image: Images,
+        boxes2d: Optional[Boxes2D] = None,
+        boxes3d: Optional[Boxes3D] = None,
+        **kwargs: DataInstance,
     ) -> None:
         """Init."""
         self.metadata = metadata
         self.image = image
+        if boxes2d is not None:
+            self.boxes2d = boxes2d
+        else:
+            self.boxes2d = Boxes2D(torch.empty(0, 5))
+        if boxes3d is not None:
+            self.boxes3d = boxes3d
+        else:
+            self.boxes3d = Boxes3D(torch.empty(0, 8))
+
+        self.attributes = dict()  # type: Dict[str, DataInstance]
         for k, v in kwargs.items():
-            self.__setattr__(k, v)
+            self.attributes[k] = v
 
-    def __setattr__(self, key: str, val: Union[Frame, DataInstance]) -> None:
-        """Set attribute."""
-        assert isinstance(val, (DataInstance, Frame))
-        super().__setattr__(key, val)
-
-    def __getattr__(self, key: str) -> DataInstance:
-        """Get attribute."""
-        if key in self.dict():
-            return getattr(self, key)  # type: ignore
-        raise AttributeError(f"Could not find attribute {key}.")
+    def get(self, key: str) -> Union[Frame, DataInstance]:
+        """Get attribute by key."""
+        if key == "metadata":
+            return self.metadata
+        if key == "image":
+            return self.image
+        if key == "boxes2d":
+            return self.boxes2d
+        if key == "boxes3d":
+            return self.boxes3d
+        if key in self.attributes:
+            return self.attributes[key]
+        raise AttributeError(f"Attribute {key} not found!")
 
     def dict(self) -> Dict[str, Union[Frame, DataInstance]]:
-        """Return InputData object as dict."""
-        return self.__dict__
+        """Return InputSample object as dict."""
+        obj_dict = {
+            "metadata": self.metadata,
+            "image": self.image,
+            "boxes2d": self.boxes2d,
+            "boxes3d": self.boxes3d,
+        }  # type: Dict[str, Union[Frame, DataInstance]]
+        obj_dict.update(self.attributes)
+        return obj_dict

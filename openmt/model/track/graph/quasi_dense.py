@@ -204,11 +204,11 @@ class QDTrackGraph(BaseTrackGraph):
         tracklet_inds = ids > -1
 
         # update memo
-        for cur_id, det, embed in zip(  # type: ignore
+        for cur_id, det, embed in zip(
             ids[tracklet_inds],
             detections[tracklet_inds],
             embeddings[tracklet_inds],
-        ):
+        ):  # type: ignore
             cur_id = int(cur_id)
             if cur_id in self.tracks.keys():
                 self.update_track(cur_id, det, embed, frame_id)
