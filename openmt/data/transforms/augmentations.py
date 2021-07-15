@@ -7,6 +7,8 @@ from detectron2.data.transforms import transform as T
 from .base import BaseAugmentation
 
 
+# TODO switch to using kornia.augmentation here
+
 class BrightnessJitterAugmentation(BaseAugmentation):
     """Simple brightness augmentation class.
 

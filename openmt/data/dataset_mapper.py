@@ -240,7 +240,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         im_bytes = self.data_backend.get(sample.url)
         image = im_decode(im_bytes, mode=self.loader_cfg.image_channel_mode)
         sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
-        return image
+        return image  # TODO transform to NCHW tensor here, since this is the expected input for Kornia augmentations
 
     def transform_image(
         self,
@@ -284,15 +284,17 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         for label in labels:
             assert label.attributes is not None
             if not check_crowd(label) and not check_ignored(label):
-                anno = label_to_dict(label)
+                anno = label_to_dict(label)  # TODO remove this part
                 bbox = transforms.apply_box(np.array([anno["bbox"]]))[0]
                 # clip transformed bbox to image size
                 if self.loader_cfg.clip_bboxes_to_image:
                     bbox.clip(min=0)
                     bbox = np.minimum(bbox, list(image_hw + image_hw)[::-1])
                 anno["bbox"] = bbox
-                # USER: Implement additional transformations if you have other
-                # types of data like instance segmentations
+                # TODO first transform Scalabel labels to Boxes2D, then transform Boxes2D using Kornia transform
+
+                # TODO implement option to parse 3D boxes here (no need to apply augmentations)
+
                 annos.append(anno)
 
         return dicts_to_boxes2d(annos)
@@ -317,7 +319,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         sample = Frame(**sample_dict)
 
         # image loading, augmentation / to torch.tensor
-        image, transforms = self.transform_image(
+        image, transforms = self.transform_image(  # TODO change to kornia-based pipeline
             self.load_image(sample), transforms=transforms
         )
         input_data = InputSample(sample, image)
@@ -326,10 +328,13 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             del sample.labels
             return input_data, transforms
 
-        from openmt.vis.image import imshow_bboxes3d
+        # TODO remove this
+        ### Example for Kornia-based augmentations transforming intrinsic matrix ###
+        # Notice how the 3D box visualization stays consistent with the image content
+        from openmt.vis.image import imshow_bboxes3d, imshow
         from openmt.struct import Boxes3D
         from scalabel.label.utils import get_matrix_from_intrinsics
-        if sample.labels is not None:  # TODO remove
+        if sample.labels is not None:
             cat_dict = dict()
             for label in sample.labels:
                 if label.category not in cat_dict:
@@ -337,21 +342,31 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             boxes3d = Boxes3D.from_scalabel(sample.labels, cat_dict)
             boxes3d.boxes = boxes3d.boxes[:, [0, 1, 2, 3, 4, 5, 7, -1]]
 
-            image = torch.from_numpy(self.load_image(sample)).to(torch.float32)
-            intrinsic_matrix = get_matrix_from_intrinsics(sample.intrinsics)
+            image = torch.from_numpy(self.load_image(sample)).to(
+                torch.float32)
+            intrinsic_matrix = torch.from_numpy(
+                get_matrix_from_intrinsics(sample.intrinsics)).to(
+                torch.float32)
             import kornia.augmentation as K
-            from kornia.augmentation.container.augment import AugmentationSequential
+            from kornia.augmentation.container.augment import \
+                AugmentationSequential
             imshow_bboxes3d(image, boxes3d, intrinsic_matrix, mode="RGB")
 
-            transform = AugmentationSequential(
-                K.RandomHorizontalFlip(p=1.0, return_transform=True),
-                K.RandomRotation(p=1.0, degrees=45.0, return_transform=True),
-            )
-            image = transform(image)
-            print(transform.get_transformation_matrix())
-            intrinsic_matrix = transform.get_transformation_matrix() * intrinsic_matrix
+            transform1 = K.RandomHorizontalFlip(p=1.0,
+                                                return_transform=True)
+            transform2 = K.RandomRotation(p=1.0, degrees=45.0,
+                                          return_transform=True)
+            image = image.permute(2, 0, 1)
+            image, transform_matrix1 = transform1(image)
+            image, transform_matrix2 = transform2(image)
+            image = image.squeeze(0)
+            intrinsic_matrix = torch.mm(
+                torch.mm(transform_matrix2[0], transform_matrix1[0]),
+                intrinsic_matrix)
 
-            imshow_bboxes3d(image, boxes3d, intrinsic_matrix, mode="RGB")
+            imshow_bboxes3d(image, boxes3d, intrinsic_matrix.numpy(),
+                            mode="RGB")
+        ### End kornia augmentation example ###
 
         input_data.boxes2d = self.transform_annotation(
             input_data, sample.labels, transforms
