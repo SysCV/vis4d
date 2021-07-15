@@ -31,27 +31,31 @@ def datasets_to_hdf5(args: Namespace) -> None:
 
 def convert_single_dataset(source_dir: str) -> None:
     """Convert particular dataset instance to hdf5."""
-    print(f"Converting dataset at: {source_dir}")
+    if not os.path.exists(source_dir):
+        raise FileNotFoundError(f"source_dir {source_dir} not found.")
+
+    source_dir = os.path.join(source_dir, "")  # must end with trailing slash
     hdf5_path = source_dir.rstrip("/") + "aa.hdf5"
     if os.path.exists(hdf5_path):
         print(f"File {hdf5_path} already exists! Skipping {source_dir}")
         return
-    hdf5_file = h5py.File(hdf5_path, mode="w")
 
-    file_count = sum(len(files) for _, _, files in os.walk(source_dir))
+    print(f"Converting dataset at: {source_dir}")
+    hdf5_file = h5py.File(hdf5_path, mode="w")
+    sub_dirs = list(os.walk(source_dir))
+    file_count = sum(len(files) for (_, _, files) in sub_dirs)
+
     with tqdm(total=file_count) as pbar:
-        for root, dirs, files in os.walk(source_dir):
+        for (root, dirs, files) in sub_dirs:
             if not dirs:
-                if root is not source_dir:
-                    group = hdf5_file.create_group(root.split("/")[-1])
-                else:
-                    group = hdf5_file
+                g_name = root.replace(source_dir, "")
+                g = hdf5_file.create_group(g_name) if g_name else hdf5_file
                 for f in files:
                     filepath = os.path.join(root, f)
                     if os.path.isfile(filepath):
                         with open(filepath, "rb") as fp:
                             file_content = fp.read()
-                        group.create_dataset(
+                        g.create_dataset(
                             f,
                             data=np.frombuffer(  # type: ignore
                                 file_content, dtype="uint8"
