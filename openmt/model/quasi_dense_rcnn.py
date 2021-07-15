@@ -49,15 +49,6 @@ class QDGeneralizedRCNN(BaseModel):
         ref_inputs: List[List[InputSample]],
     ) -> Tuple[List[Boxes2D], List[List[Boxes2D]]]:
         """Prepare targets from key / ref input samples."""
-        # split into key / ref pairs NxM input --> key: N, ref: Nx(M-1)
-
-        # group by ref views by sequence: Nx(M-1) --> (M-1)xN
-        ref_inputs = [
-            [ref_inputs[j][i] for j in range(len(ref_inputs))]
-            for i in range(len(ref_inputs[0]))
-        ]
-
-        # prepare targets
         key_targets = []
         for x in key_inputs:
             assert x.boxes2d is not None
@@ -88,9 +79,17 @@ class QDGeneralizedRCNN(BaseModel):
         self, batch_inputs: List[List[InputSample]]
     ) -> LossesType:
         """Forward function for training."""
+        # split into key / ref pairs NxM input --> key: N, ref: Nx(M-1)
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
-        key_targets, ref_targets = self.prepare_targets(key_inputs, ref_inputs)
+
+        # group by ref views by sequence: Nx(M-1) --> (M-1)xN
+        ref_inputs = [
+            [ref_inputs[j][i] for j in range(len(ref_inputs))]
+            for i in range(len(ref_inputs[0]))
+        ]
+
         key_images, ref_images = self.prepare_images(key_inputs, ref_inputs)
+        key_targets, ref_targets = self.prepare_targets(key_inputs, ref_inputs)
 
         # from openmt.vis.image import imshow_bboxes
         # for batch_i, key_inp in enumerate(key_inputs):
