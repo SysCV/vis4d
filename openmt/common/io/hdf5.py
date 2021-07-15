@@ -8,16 +8,10 @@ from .base import BaseDataBackend, DataBackendConfig
 class HDF5Backend(BaseDataBackend):
     """Backend for loading data from HDF5 files.
 
-    This backend works with the same filepaths as the file backend. However,
-    we assume that all dataset subfolders do not contain any other hdf5 files,
-    so that this backend can back-track from each filename to the closest hdf5
-    file in the path hierarchy in order to find its corresponding hdf5 blob,
-    e.g.:
-    /path/to/dataset/images/first_image.png
-    will first search in /path/to/dataset for images.hdf5, next it will try
-    /path/to/dataset.hdf5 and so on.
-    "images.hdf5" should contain the binary image data of "first_image.png"
-    at group first_image.png, column raw.
+    This backend works with filepaths pointing to valid HDF5 files. We assume
+    that the given HDF5 file contains the whole dataset associated to this
+    backend.
+
     You can use the provided script at tools/datasets_to_hdf5.py to convert
     your dataset to the expected hdf5 format before using this backend.
     """
@@ -33,27 +27,34 @@ class HDF5Backend(BaseDataBackend):
             ) from e
         self.cfg = DataBackendConfig(**cfg.dict())
         self.h5_file_api = h5py.File
+        self.is_hdf5 = h5py.is_hdf5
         self.db_cache: Dict[str, h5py.File] = dict()
 
     def get(self, filepath: str) -> bytes:
         """Get values according to the filepath as bytes."""
-        db_path = os.path.dirname(filepath).strip("/")
-        while not os.path.exists(db_path + ".hdf5"):
-            db_path = os.path.dirname(db_path).strip("/")
-            if db_path == "":
-                raise FileNotFoundError(
-                    f"Corresponding HDF5 file not found:" f" {filepath}"
-                )
+        filepath_as_list = filepath.split("/")
+        keys = []
 
-        if not db_path in self.db_cache.keys():
-            client = self.h5_file_api(db_path + ".hdf5", "r")
-            self.db_cache[db_path] = client
+        while filepath and not self.is_hdf5(filepath):
+            keys.append(filepath_as_list.pop())
+            filepath = "/".join(filepath_as_list)
+
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(
+                f"Corresponding HDF5 file not found:" f" {filepath}"
+            )
+
+        if filepath not in self.db_cache.keys():
+            client = self.h5_file_api(filepath, "r")
+            self.db_cache[filepath] = client
         else:
-            client = self.db_cache[db_path]
+            client = self.db_cache[filepath]
 
-        key = filepath[len(db_path) :].strip("/")
-        value_buf = client.get(key)
-        if value_buf is not None:
-            return bytes(value_buf["raw"][0])
+        url = "/".join(reversed(keys))
+        value_buf = client
+        while keys:
+            value_buf = value_buf.get(keys.pop())
+            if value_buf is None:
+                raise ValueError(f"Value {url} not found in {filepath}!")
 
-        raise ValueError(f"Value {filepath} not found in {client.filename}!")
+        return bytes(value_buf[()])

@@ -20,16 +20,26 @@ class TestBackends(unittest.TestCase):
             "openmt/engine/testcases/track/bdd100k-samples/images/"
             "00091078-875c1f73/00091078-875c1f73-0000166.jpg"
         )
+        hdf5_path = (
+            "openmt/engine/testcases/track/bdd100k-samples/images.hdf5/"
+            "00091078-875c1f73/00091078-875c1f73-0000166.jpg"
+        )
 
         out_file = backend_file.get(sample_path)
-        out_hdf5 = backend_hdf5.get(sample_path)
+        out_hdf5 = backend_hdf5.get(hdf5_path)
         self.assertTrue(out_file == out_hdf5)
 
         # check db_cache
-        backend_hdf5.get(sample_path)
+        backend_hdf5.get(hdf5_path)
 
-        self.assertRaises(FileNotFoundError, backend_hdf5.get, "invalid_path")
         self.assertRaises(FileNotFoundError, backend_file.get, "invalid_path")
+        self.assertRaises(FileNotFoundError, backend_hdf5.get, "invalid_path")
+
+        invalid_hdf5_path = (
+            "openmt/engine/testcases/track/bdd100k-samples/images.hdf5/"
+            "000/000.jpg"
+        )
+        self.assertRaises(ValueError, backend_hdf5.get, invalid_hdf5_path)
 
     def test_str_decode(self) -> None:
         """Test str decode method in utils."""
