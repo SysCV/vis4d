@@ -35,7 +35,7 @@ def convert_single_dataset(source_dir: str) -> None:
         raise FileNotFoundError(f"source_dir {source_dir} not found.")
 
     source_dir = os.path.join(source_dir, "")  # must end with trailing slash
-    hdf5_path = source_dir.rstrip("/") + "aa.hdf5"
+    hdf5_path = source_dir.rstrip("/") + ".hdf5"
     if os.path.exists(hdf5_path):
         print(f"File {hdf5_path} already exists! Skipping {source_dir}")
         return
