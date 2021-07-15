@@ -32,7 +32,7 @@ def datasets_to_hdf5(args: Namespace) -> None:
 def convert_single_dataset(source_dir: str) -> None:
     """Convert particular dataset instance to hdf5."""
     if not os.path.exists(source_dir):
-        raise FileNotFoundError(f"source_dir {source_dir} not found.")
+        raise FileNotFoundError(f"No such file or directory: {source_dir}")
 
     source_dir = os.path.join(source_dir, "")  # must end with trailing slash
     hdf5_path = source_dir.rstrip("/") + ".hdf5"
