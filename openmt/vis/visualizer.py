@@ -92,10 +92,6 @@ class ScalabelVisualizer(DatasetEvaluator):  # type: ignore
 
             # visualize predictions
             if self._visualize:
-                os.makedirs(
-                    os.path.join(self._output_dir, f"{key}_visualization"),
-                    exist_ok=True,
-                )
                 has_videos = True
                 for frame in predictions:
                     if frame.video_name is None:
@@ -124,8 +120,8 @@ class ScalabelVisualizer(DatasetEvaluator):  # type: ignore
                                 frame.name,
                             )
                         )
-
                     for fp, img in zip(
                         image_paths, draw_sequence(images, boxes2d)
                     ):
+                        os.makedirs(os.path.dirname(fp), exist_ok=True)
                         img.save(fp)
