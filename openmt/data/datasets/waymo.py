@@ -2,7 +2,7 @@
 import inspect
 import os
 
-from scalabel.label.io import load, load_label_config
+from scalabel.label.io import load, load_label_config, save
 from scalabel.label.typing import Dataset
 
 from .base import BaseDatasetConfig, BaseDatasetLoader
@@ -48,9 +48,10 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
             )
         metadata_cfg = load_label_config(cfg_path)
 
-        if not os.path.exists(
-            os.path.join(self.cfg.output_dir, "scalabel_anns.json")
-        ):
+        scalabel_anns_path = os.path.join(
+            self.cfg.output_dir, "scalabel_anns.json"
+            )
+        if not os.path.exists(scalabel_anns_path):
             frames = from_waymo(
                 self.cfg.input_dir,
                 self.cfg.output_dir,
@@ -58,9 +59,10 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
                 self.cfg.use_lidar_labels,
                 self.cfg.num_processes,
             )
+            save(scalabel_anns_path, frames)
         else:
             frames = load(
-                os.path.join(self.cfg.output_dir, "scalabel_anns.json"),
+                scalabel_anns_path,
                 validate_frames=self.cfg.validate_frames,
                 nprocs=self.cfg.num_processes,
             ).frames
