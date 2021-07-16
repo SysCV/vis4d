@@ -6,6 +6,7 @@ import logging
 from typing import List
 
 import psutil
+import torch
 import tqdm
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.data import DatasetFromList
@@ -17,8 +18,7 @@ from detectron2.utils.events import CommonMetricPrinter
 from fvcore.common.timer import Timer
 from torch.nn.parallel import DistributedDataParallel
 
-from openmt.common.utils import default_argument_parser
-from openmt.config import Config, parse_config
+from openmt.config import Config, default_argument_parser, parse_config
 from openmt.data import build_test_loader, build_train_loader
 from openmt.engine.utils import to_detectron2
 from openmt.model import build_model
@@ -82,7 +82,7 @@ def benchmark_train(cfg: Config) -> None:
     det2cfg = to_detectron2(cfg)
     cfg.solver.base_lr = 0.001  # Avoid NaN loss in benchmark due to high LR
 
-    model = build_model(cfg.model)
+    model = build_model(cfg.model).to(torch.device(det2cfg.MODEL.DEVICE))
     logger.info("Model:\n%s", model)
     if comm.get_world_size() > 1:
         model = DistributedDataParallel(
@@ -120,7 +120,7 @@ def benchmark_test(cfg: Config) -> None:
     """Benchmark speed of testing pipeline."""
     det2cfg = to_detectron2(cfg)
 
-    model = build_model(cfg.model)
+    model = build_model(cfg.model).to(torch.device(det2cfg.MODEL.DEVICE))
     model.eval()
     logger.info("Model:\n%s", model)
     DetectionCheckpointer(model).load(det2cfg.MODEL.WEIGHTS)

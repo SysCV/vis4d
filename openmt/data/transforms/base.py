@@ -19,6 +19,7 @@ from openmt.common.registry import RegistryHolder
 
 # TODO switch to using kornia.augmentation here
 
+
 class AugmentationConfig(BaseModel):
     """Data augmentation instance config."""
 

@@ -319,7 +319,10 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         sample = Frame(**sample_dict)
 
         # image loading, augmentation / to torch.tensor
-        image, transforms = self.transform_image(  # TODO change to kornia-based pipeline
+        (
+            image,
+            transforms,
+        ) = self.transform_image(  # TODO change to kornia-based pipeline
             self.load_image(sample), transforms=transforms
         )
         input_data = InputSample(sample, image)
