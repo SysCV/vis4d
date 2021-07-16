@@ -32,6 +32,5 @@
   "files.watcherExclude": {
     "node_modules": true
   },
-"restructuredtext.confPath": "${workspaceFolder}/doc/source",
-"python.pythonPath": "/cluster/home/segum/.venv/systm/bin/python3"
+  "restructuredtext.confPath": "${workspaceFolder}/doc/source"
 }
