@@ -21,8 +21,14 @@ class Custom(BaseDatasetLoader):
             if not dirs:
                 video_name = os.path.join(root, "").replace(source_dir, "")
                 img_files = sorted(
-                    [f for f in files if ".jpg" in f or ".png" in f]
+                    [
+                        f
+                        for f in files
+                        if ".jpg" in f or ".png" in f or ".jpeg" in f
+                    ]
                 )
+                if len(img_files) == 0:
+                    continue  # pragma: no cover
                 for i, img_file in enumerate(img_files):
                     img = Image.open(
                         os.path.join(source_dir, video_name, img_file)
@@ -36,5 +42,6 @@ class Custom(BaseDatasetLoader):
                     )
                     frames.append(frame)
 
+        assert len(frames) > 0, "Input folder didn't contain any images!"
         metadata_cfg = Config(categories=[])
         return Dataset(frames=frames, config=metadata_cfg)
