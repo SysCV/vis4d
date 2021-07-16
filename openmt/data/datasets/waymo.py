@@ -50,7 +50,7 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
 
         scalabel_anns_path = os.path.join(
             self.cfg.output_dir, "scalabel_anns.json"
-            )
+        )
         if not os.path.exists(scalabel_anns_path):
             frames = from_waymo(
                 self.cfg.input_dir,
