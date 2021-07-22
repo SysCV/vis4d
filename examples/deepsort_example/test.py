@@ -3,9 +3,12 @@
 from deepsort_graph import DeepSORTTrackGraph
 from deepsort_model import DeepSORT
 
+import openmt.data.datasets.base
 from openmt import config
-from openmt.config import DataloaderConfig as Dataloader
-from openmt.config import Augmentation
+from openmt.data.dataset_mapper import DataloaderConfig as Dataloader
+from openmt.data.transforms.base import AugmentationConfig as Augmentation
+
+# from openmt.config import Augmentation
 from openmt.engine import test
 from openmt.model import BaseModelConfig
 
@@ -36,7 +39,6 @@ if __name__ == "__main__":
             lr_policy="WarmupMultiStepLR",
             base_lr=0.001,
             max_iters=1000,
-            eval_metrics=["track"],
         ),
         dataloader=Dataloader(
             workers_per_gpu=8,
@@ -57,9 +59,10 @@ if __name__ == "__main__":
                 Augmentation(type="Resize", kwargs={"shape": [720, 1280]}),
                 Augmentation(type="RandomFlip", kwargs={"prob": 0.5}),
             ],
+            image_channel_mode="BGR",
         ),
         train=[
-            config.Dataset(
+            openmt.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_train",
                 type="BDD100K",
                 # annotations="openmt/engine/testcases/track/bdd100k-samples/"
@@ -74,18 +77,19 @@ if __name__ == "__main__":
             )
         ],
         test=[
-            config.Dataset(
+            openmt.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_val",
                 type="BDD100K",
                 # annotations="openmt/engine/testcases/track/bdd100k-samples/"
                 # "labels",
                 # data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 # "images/",
-                # annotations="data/one_sequence/labels",
-                # data_root="data/one_sequence/images/",
-                annotations="data/bdd100k/labels/box_track_20/val/",
-                data_root="data/bdd100k/images/track/val/",
+                annotations="data/one_sequence/labels",
+                data_root="data/one_sequence/images/",
+                # annotations="data/bdd100k/labels/box_track_20/val/",
+                # data_root="data/bdd100k/images/track/val/",
                 config_path="box_track",
+                eval_metrics=["track"],
             )
         ],
     )
@@ -94,7 +98,7 @@ if __name__ == "__main__":
     conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-28_21:24:04/model_0034999.pth"  # deepsort trained on BDD100K
     # conf.launch.weights = "/home/yinjiang/systm/examples/deepsort_example/checkpoint/original_ckpt.pth"
     conf.launch.device = "cuda"
-    conf.launch.num_gpus = 4
+    conf.launch.num_gpus = 1
 
     # import os
     # import shutil

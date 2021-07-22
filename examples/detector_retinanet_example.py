@@ -1,29 +1,34 @@
 """Example for dynamic api usage."""
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Optional
 import os
 import torch
 
-from openmt.model.detect.d2_utils import (
-    images_to_imagelist,
-    target_to_instance,
-)
-from openmt import config
-from openmt.data.dataset_mapper import DataloaderConfig as Dataloader
+print("import detectron2")
+# from detectron2.engine import launch
+# from detectron2.modeling.meta_arch.retinanet import RetinaNet
+# from detectron2.modeling.postprocessing import detector_postprocess
+# from detectron2.structures import Instances, ImageList
+# from detectron2 import model_zoo
+# from detectron2.config import get_cfg
 
-# from openmt.config import DataloaderConfig as Dataloader
-from openmt.engine import train
-from openmt.model.detect import BaseDetector
-from openmt.model import BaseModelConfig
+# import openmt.data.datasets.base
+
+# from openmt.model.detect.d2_utils import (
+#     images_to_imagelist,
+#     target_to_instance,
+# )
+# from openmt import config
+# from openmt.data.dataset_mapper import DataloaderConfig as Dataloader
+# from openmt.engine import train, test
+# from openmt.model.detect import BaseDetector
+# from openmt.model import BaseModelConfig
 from openmt.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
-from detectron2.modeling.meta_arch.retinanet import RetinaNet, RetinaNetHead
-from detectron2.modeling.postprocessing import detector_postprocess
-from detectron2.structures import Boxes, ImageList, Instances
-from detectron2 import model_zoo
-from detectron2.config import CfgNode, get_cfg
+
+print("import success")
 
 
 def permute_to_N_HWA_K(tensor, K: int):
-    """Transpose/reshape a tensor from (N, (Ai x K), H, W) to (N, (HxWxAi), K)"""
+    """Transpose/reshape a tensor from (N, (Ai x K), H, W) to (N, (HxWxAi), K)."""
     assert tensor.dim() == 4, tensor.shape
     N, _, H, W = tensor.shape
     tensor = tensor.view(N, -1, K, H, W)
@@ -32,7 +37,7 @@ def permute_to_N_HWA_K(tensor, K: int):
     return tensor
 
 
-def detections_to_box2d_training(detections: List[Instances]) -> List[Boxes2D]:
+def detections_to_box2d(detections: List[Instances]) -> List[Boxes2D]:
     """Convert d2 Instances representing detections to Boxes2D.
 
     with class_ids
@@ -48,27 +53,6 @@ def detections_to_box2d_training(detections: List[Instances]) -> List[Boxes2D]:
             Boxes2D(
                 torch.cat([boxes, scores.unsqueeze(-1)], -1),
                 class_ids=cls,
-            )
-        )
-    return result
-
-
-def detections_to_box2d_inference(
-    detections: List[Instances],
-) -> List[Boxes2D]:
-    """Convert d2 Instances representing detections to Boxes2D.
-
-    no class_ids
-    """
-    result = []
-    for detection in detections:
-        boxes, logits = (
-            detection.pred_boxes.tensor,
-            detection.scores,
-        )
-        result.append(
-            Boxes2D(
-                torch.cat([boxes, logits.unsqueeze(-1)], -1),
             )
         )
     return result
@@ -117,66 +101,48 @@ class D2RetinaNetDetector(BaseDetector):
         return images
 
     def forward_train(
-        self,
-        inputs: List[InputSample],
-        targets: Optional[List[Boxes2D]] = None,
+        self, batch_inputs: List[List[InputSample]]
     ) -> LossesType:
-        """Detector forward function.
+        """Forward pass during training stage.
 
-        Return backbone output features, proposals, detections and optionally
-        training losses.
+        Returns a dict of loss tensors.
         """
-
-        def to_batched_inputs(images_d2, targets):
-            batched_inputs = []
-            if targets is None:
-                for image in images_d2:
-                    batched_inputs.append(
-                        {"image": image.cpu(), "instances": None}
-                    )
-            else:
-                for image, target in zip(images_d2, targets):
-                    batched_inputs.append(
-                        {"image": image.cpu(), "instances": target.to("cpu")}
-                    )
-            return batched_inputs
-
+        inputs = [inp[0] for inp in batch_inputs]  # no ref views
+        targets = [x.instances.to(self.device) for x in inputs]
         images = self.preprocess_image(inputs)
         images_d2 = images_to_imagelist(images)
-        if targets is not None:
-            targets_d2 = target_to_instance(targets, images.image_sizes)
+        targets_d2 = target_to_instance(targets, images.image_sizes)  # type: ignore
 
-        # batched_inputs = to_batched_inputs(images_d2, targets)
-        # backbone
-        features = self.retinanet.backbone(images_d2.tensor)
-        # features = [f for k, f in features.items()]
-        features = [features[f] for f in self.retinanet.head_in_features]
+        features = self.extract_features(images_d2)
 
         anchors = self.retinanet.anchor_generator(features)
+        pred_logits, pred_anchor_deltas = self.retinanet.head(features)
+        # Transpose the Hi*Wi*A dimension to the middle:
+        pred_logits = [
+            permute_to_N_HWA_K(x, self.retinanet.num_classes)
+            for x in pred_logits
+        ]
+        pred_anchor_deltas = [
+            permute_to_N_HWA_K(x, 4) for x in pred_anchor_deltas
+        ]
+        gt_labels, gt_boxes = self.retinanet.label_anchors(anchors, targets_d2)
+        detect_losses = self.retinanet.losses(
+            anchors, pred_logits, gt_labels, pred_anchor_deltas, gt_boxes
+        )
+        return detect_losses  # type: ignore
 
-        # from openmt.vis.image import imshow_bboxes
+    def forward_test(
+        self, batch_inputs: List[InputSample], postprocess: bool = True
+    ) -> ModelOutput:
+        """Forward pass during testing stage.
 
-        # boxes2d_anchors = Boxes2D(
-        #     torch.cat(
-        #         (
-        #             anchors[1].tensor,
-        #             0.7
-        #             * torch.ones(anchors[1].tensor.shape[0], 1).to(
-        #                 self.device
-        #             ),
-        #         ),
-        #         dim=1,
-        #     )
-        # )
-        # imshow_bboxes(
-        #     torch.zeros(
-        #         size=tuple(
-        #             [3, features[1][0].shape[1], features[1][0].shape[2]]
-        #         ),
-        #     ),
-        #     boxes2d_anchors,
-        #     frame_id=self.count,
-        # )
+        Returns predictions for each input.
+        """
+        images = self.preprocess_image(batch_inputs)
+        images_d2 = images_to_imagelist(images)
+        features = self.extract_features(images_d2)
+
+        anchors = self.retinanet.anchor_generator(features)
         pred_logits, pred_anchor_deltas = self.retinanet.head(features)
         # Transpose the Hi*Wi*A dimension to the middle:
         pred_logits = [
@@ -187,21 +153,10 @@ class D2RetinaNetDetector(BaseDetector):
             permute_to_N_HWA_K(x, 4) for x in pred_anchor_deltas
         ]
 
-        if self.retinanet.training:
-            gt_labels, gt_boxes = self.retinanet.label_anchors(
-                anchors, targets_d2
-            )
-            detect_losses = self.retinanet.losses(
-                anchors, pred_logits, gt_labels, pred_anchor_deltas, gt_boxes
-            )
-        else:
-            detect_losses = {}
         results = self.retinanet.inference(
             anchors, pred_logits, pred_anchor_deltas, images_d2.image_sizes
         )
-        # vil_results = [results[0].to("cpu")]
-        # if self.count % 100 == 0:
-        #     self.retinanet.visualize_training(batched_inputs, vil_results)
+
         processed_results = []
         for results_per_image, image_size in zip(
             results, images_d2.image_sizes
@@ -211,38 +166,36 @@ class D2RetinaNetDetector(BaseDetector):
             r = detector_postprocess(results_per_image, height, width)
             processed_results.append(r)
 
-        if not self.retinanet.training:
-            detections = detections_to_box2d_training(processed_results)
-        else:
-            detections = detections_to_box2d_training(processed_results)
+        detections = detections_to_box2d(processed_results)
 
-        if self.count % 100 == 0:
-            from openmt.vis.image import imshow_bboxes
-
-            imshow_bboxes(
-                inputs[0].image.tensor[0],
-                detections[0],  # type: ignore
-                frame_id=self.count,
+        for inp, det in zip(batch_inputs, detections):
+            ori_wh = (
+                batch_inputs[0].metadata.size.width,  # type: ignore
+                batch_inputs[0].metadata.size.height,  # type: ignore
             )
-        self.count += 1
-        return (
-            images,
-            features,
-            detections,
-            detections,
-            {**detect_losses},
-        )
+            self.postprocess(ori_wh, inp.image.image_sizes[0], det)
+
+        return dict(detect=detections)  # type:ignore
+
+    def extract_features(
+        self, images: ImageList
+    ) -> List[torch.Tensor]:  # type:ignore
+        """Detector feature extraction stage.
+
+        Return backbone output features
+        """
+
+        # backbone
+        features = self.retinanet.backbone(images.tensor)
+        features = [features[f] for f in self.retinanet.head_in_features]
+        return features
 
 
 if __name__ == "__main__":
-    d2retinanet_detector_cfg = dict(
-        type="D2RetinaNetDetector",
-        num_classes=8,
-    )
     conf = config.Config(
         model=dict(
-            type="DetectorWrapper",
-            detection=BaseDetectorConfig(**d2retinanet_detector_cfg),
+            type="D2RetinaNetDetector",
+            num_classes=8,
         ),
         solver=config.Solver(
             images_per_gpu=1,
@@ -252,8 +205,7 @@ if __name__ == "__main__":
             max_iters=10000,
             log_period=10,
             checkpoint_period=100,
-            eval_period=500,
-            eval_metrics=["detect"],
+            eval_period=100,
         ),
         dataloader=Dataloader(
             workers_per_gpu=8,
@@ -269,9 +221,10 @@ if __name__ == "__main__":
                 "bicycle",
             ],
             remove_samples_without_labels=True,
+            image_channel_mode="BGR",
         ),
         train=[
-            config.Dataset(
+            openmt.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_train",
                 type="BDD100K",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
@@ -286,7 +239,7 @@ if __name__ == "__main__":
             )
         ],
         test=[
-            config.Dataset(
+            openmt.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_val",
                 type="BDD100K",
                 annotations="openmt/engine/testcases/track/bdd100k-samples/"
@@ -298,6 +251,7 @@ if __name__ == "__main__":
                 # annotations="data/bdd100k/labels/box_track_20/val/",
                 # data_root="data/bdd100k/images/track/val/",
                 config_path="box_track",
+                eval_metrics=["detect"],
             )
         ],
     )
@@ -308,11 +262,19 @@ if __name__ == "__main__":
         shutil.rmtree("visualization/")
     os.mkdir("visualization/")
 
-    conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DetectorWrapper/2021-07-07_19:34:01/model_0004999.pth"  # self_trained weight
-    # conf.launch.weights = "/home/yinjiang/systm/weight/model_final_5bd44e.pkl" # detectron pretrained weight
-    # conf.launch.resume = True
+    conf.launch.weights = "/home/yinjiang/systm/examples/checkpoint/weight_of_6frames.pth"  # self_trained weight on 6 samples
+    # # conf.launch.weights = "/home/yinjiang/systm/weight/model_final_5bd44e.pkl" # detectron pretrained weight
+    # # conf.launch.resume = True
     conf.launch.device = "cuda"
     conf.launch.num_gpus = 1
+    test(conf)
 
-    # conf.launch.resume = True
-    train(conf)
+    # conf.launch = config.Launch(device="cuda", num_gpus=1)
+    # launch(
+    #     test,
+    #     conf.launch.num_gpus,
+    #     num_machines=conf.launch.num_machines,
+    #     machine_rank=conf.launch.machine_rank,
+    #     dist_url=conf.launch.dist_url,
+    #     args=(conf,),
+    # )

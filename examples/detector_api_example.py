@@ -93,7 +93,6 @@ if __name__ == "__main__":
             lr_policy="WarmupMultiStepLR",
             base_lr=0.001,
             max_iters=100,
-            eval_metrics=["detect"],
         ),
         dataloader=Dataloader(
             workers_per_gpu=0,
@@ -131,6 +130,7 @@ if __name__ == "__main__":
                 data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 "images/",
                 config_path="box_track",
+                eval_metrics=["detect"],
             )
         ],
     )

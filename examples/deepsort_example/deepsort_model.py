@@ -6,7 +6,6 @@ from torchvision.ops import roi_align
 from examples.deepsort_example.deep import FeatureNet
 from examples.deepsort_example.load_predictions import load_predictions
 from openmt.model import BaseModel, BaseModelConfig
-from openmt.model.detect import BaseDetectorConfig
 from openmt.model.track.graph import TrackGraphConfig, build_track_graph
 from openmt.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
@@ -14,7 +13,7 @@ from openmt.struct import Boxes2D, InputSample, LossesType, ModelOutput
 class DeepSORTConfig(BaseModelConfig, extra="allow"):
     """deep SORT config."""
 
-    detection: BaseDetectorConfig
+    detection: BaseModelConfig
     track_graph: TrackGraphConfig
     max_boxes_num: int = 512
     dataset: str
@@ -33,7 +32,15 @@ class DeepSORT(BaseModel):
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.search_dict: Dict[str, Dict[int, Boxes2D]] = dict()
         self.feature_net = FeatureNet(num_classes=self.cfg.num_instances)
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    @property
+    def device(self) -> torch.device:
+        """Get device where detect input should be moved to."""
+        return (
+            torch.device("cuda")
+            if torch.cuda.is_available()
+            else torch.device("cpu")
+        )
 
     def forward_train(
         self, batch_inputs: List[List[InputSample]]
@@ -74,8 +81,9 @@ class DeepSORT(BaseModel):
         instance_boxes = instance_boxes[indices]
         instance_ids = instance_ids[indices]
 
-        resize = (128, 64) if self.cfg.dataset == "MOT16" else (64, 128)
-        (128, 128)
+        resize = (
+            (128, 64) if self.cfg.dataset == "MOT16" else (64, 128)
+        )  # try (128, 128)
         instance_images = roi_align(
             inputs_images, instance_boxes, resize, aligned=True
         )

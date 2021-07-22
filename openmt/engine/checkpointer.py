@@ -21,8 +21,7 @@ class Checkpointer(D2Checkpointer):  # type: ignore
             assert isinstance(checkpoint["__author__"], str)
             if checkpoint["__author__"].startswith("Detectron2"):
                 checkpoint["model"] = {
-                    "detector.retinanet." + k: v
-                    for k, v in checkpoint["model"].items()
+                    "retinanet." + k: v for k, v in checkpoint["model"].items()
                 }
         incompatible = super()._load_model(checkpoint)
         return incompatible

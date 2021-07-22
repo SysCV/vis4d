@@ -3,9 +3,10 @@
 from examples.deepsort_example.deepsort_graph import DeepSORTTrackGraph
 from examples.deepsort_example.deepsort_model import DeepSORT
 
+import openmt.data.datasets.base
 from openmt import config
-from openmt.config import DataloaderConfig as Dataloader
-from openmt.config import Augmentation
+from openmt.data.dataset_mapper import DataloaderConfig as Dataloader
+from openmt.data.transforms.base import AugmentationConfig as Augmentation
 from openmt.engine import train
 from openmt.model import BaseModelConfig
 
@@ -64,7 +65,7 @@ if __name__ == "__main__":
             ],
         ),
         train=[
-            config.Dataset(
+            openmt.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_train",
                 type="BDD100K",
                 # annotations="openmt/engine/testcases/track/bdd100k-samples/"
@@ -79,7 +80,7 @@ if __name__ == "__main__":
             )
         ],
         test=[
-            config.Dataset(
+            openmt.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_val",
                 type="BDD100K",
                 # annotations="openmt/engine/testcases/track/bdd100k-samples/"
@@ -91,6 +92,7 @@ if __name__ == "__main__":
                 annotations="data/bdd100k/labels/box_track_20/val/",
                 data_root="data/bdd100k/images/track/val/",
                 config_path="box_track",
+                eval_metrics=["track"],
             )
         ],
     )
