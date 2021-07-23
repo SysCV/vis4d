@@ -6,11 +6,11 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="openmt",
+    name="vist",
     version="0.0",
     author="CVL @ ETHZ",
     author_email="i@yf.io",
-    description="SYSTM Python Package for perception and motion understanding",
+    description="VisT Python Package for perception and motion understanding",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://cv.ethz.ch/",
@@ -40,10 +40,10 @@ setuptools.setup(
         "torch",
         "torchvision",
         "tqdm",
-        "devtools"
+        "devtools",
     ],
     package_data={
-        "openmt": [
+        "vist": [
             "data/datasets/motchallenge.toml",
             "data/datasets/waymo.toml",
             "py.typed",
