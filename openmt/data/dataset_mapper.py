@@ -202,6 +202,7 @@ class DataloaderConfig(BaseModel):
     test_augmentations: Optional[List[AugmentationConfig]] = None
     ref_sampling_cfg: ReferenceSamplingConfig
     image_channel_mode: str
+    ignore_unknown_cats: bool = False
 
 
 class DatasetMapper(D2DatasetMapper):  # type: ignore

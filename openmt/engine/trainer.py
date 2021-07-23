@@ -85,13 +85,14 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
     ) -> DatasetEvaluator:
         """Build evaluators."""
         output_folder = os.path.join(cfg.OUTPUT_DIR, dataset_name)
+        ignore_unknown_cats = openmt_cfg.dataloader.ignore_unknown_cats
         metrics = [
             ds.eval_metrics
             for ds in openmt_cfg.test
             if ds.name == dataset_name
         ][0]
         evaluator = ScalabelEvaluator(
-            dataset_name, metrics, True, output_folder
+            dataset_name, metrics, True, output_folder, ignore_unknown_cats
         )
         return evaluator
 

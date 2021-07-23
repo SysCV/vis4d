@@ -28,15 +28,31 @@ from openmt.struct import (
 
 from .utils import gather_predictions
 
-_eval_mapping = dict(
-    detect=lambda pred, gt, cfg: evaluate_det(gt, pred, cfg),
-    track=lambda pred, gt, cfg: evaluate_track(
+
+def _detect(
+    pred: List[Frame],
+    gt: List[Frame],
+    cfg: Config,
+    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
+) -> EvalResult:
+    """Wrapper for evaluate_det function."""
+    return evaluate_det(gt, pred, cfg)
+
+
+def _track(
+    pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
+) -> EvalResult:
+    """Wrapper for evaluate_track function."""
+    return evaluate_track(
         acc_single_video_mot,
         group_and_sort(gt),
         group_and_sort(pred),
         cfg,
-    ),
-)  # type: Dict[str, Callable[[List[Frame], List[Frame], Config], EvalResult]]
+        ignore_unknown_cats=ignore_unknown_cats,
+    )
+
+
+_eval_mapping = dict(detect=_detect, track=_track)
 
 
 @contextmanager
@@ -172,6 +188,7 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
         metrics: List[str],
         distributed: bool = True,
         output_dir: Optional[str] = None,
+        ignore_unknown_cats: bool = False,
     ) -> None:
         """Init."""
         self._metrics = list(_eval_mapping.keys())
@@ -181,6 +198,7 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
         self.gts = DatasetCatalog[dataset_name]()
         self._predictions = defaultdict(list)  # type: Dict[str, List[Frame]]
         self.set_metrics(metrics)
+        self.ignore_unknown_cats = ignore_unknown_cats
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""
@@ -230,6 +248,7 @@ class ScalabelEvaluator(DatasetEvaluator):  # type: ignore
                     predictions,
                     self.gts,
                     self._metadata.metadata_cfg,
+                    self.ignore_unknown_cats,
                 )
 
         return results
