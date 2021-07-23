@@ -1,4 +1,4 @@
-# SYSTM
+# VisT
 
 A perception system of tracking and motion understanding.
 
@@ -21,8 +21,8 @@ on your configurations and install pytorch first.
 If you're using conda, run the following commands:
 
 ```bash
-conda create --name openmt python=3.8
-conda activate openmt
+conda create --name vist python=3.8
+conda activate vist
 pip install -r requirements.txt
 conda install pytorch torchvision torchaudio cudatoolkit=11.0 -c pytorch
 pip install 'git+https://github.com/facebookresearch/detectron2.git'
@@ -35,7 +35,7 @@ More information about torch and detectron2 installation
 - [Pytorch](https://pytorch.org/get-started/locally)
 - [Detectron2](https://github.com/facebookresearch/detectron2/blob/master/INSTALL.md)
 
-To install `openmt` package,
+To install `vist` package,
 
 ```bash
 python3 setup.py install

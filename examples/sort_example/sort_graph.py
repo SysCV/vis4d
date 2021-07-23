@@ -1,6 +1,6 @@
 """Track graph of SORT."""
-from openmt.model.track.graph import BaseTrackGraph, TrackGraphConfig
-from openmt.struct import Boxes2D
+from vist.model.track.graph import BaseTrackGraph, TrackGraphConfig
+from vist.struct import Boxes2D
 
 
 class SORTTrackGraphConfig(TrackGraphConfig):
