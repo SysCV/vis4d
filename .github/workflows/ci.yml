@@ -34,7 +34,7 @@ jobs:
         run: python3 -m black --check vist tools
 
       - name: lint
-        run: python3 -m pylint vist tools
+        run: python3 -m pylint vist tools/*
 
       - name: docstyle
         run: python3 -m pydocstyle --convention=google vist tools
