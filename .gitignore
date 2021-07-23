@@ -70,5 +70,7 @@ scalabel.egg-info
 .coverage
 
 # package default workspace
-openmt-workspace
-openmt.egg-info
+vist-workspace
+vist.egg-info
+
+*.tmp

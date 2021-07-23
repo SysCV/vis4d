@@ -5,13 +5,13 @@ import torch
 from detectron2.engine import launch
 from torchvision.models.detection import retinanet  # type: ignore
 
-import openmt.data.datasets.base
-from openmt import config
-from openmt.data.dataset_mapper import DataloaderConfig as Dataloader
-from openmt.engine import train
-from openmt.model import BaseModelConfig
-from openmt.model.detect import BaseDetector
-from openmt.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
+import vist.data.datasets.base
+from vist import config
+from vist.data.dataset_mapper import DataloaderConfig as Dataloader
+from vist.engine import train
+from vist.model import BaseModelConfig
+from vist.model.detect import BaseDetector
+from vist.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
 
 
 class MyDetectorConfig(BaseModelConfig, extra="allow"):
@@ -112,23 +112,23 @@ if __name__ == "__main__":
             image_channel_mode="BGR",
         ),
         train=[
-            openmt.data.datasets.base.BaseDatasetConfig(
+            vist.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_train",
                 type="BDD100K",
-                annotations="openmt/engine/testcases/track/bdd100k-samples/"
+                annotations="vist/engine/testcases/track/bdd100k-samples/"
                 "labels",
-                data_root="openmt/engine/testcases/track/bdd100k-samples/"
+                data_root="vist/engine/testcases/track/bdd100k-samples/"
                 "images/",
                 config_path="box_track",
             )
         ],
         test=[
-            openmt.data.datasets.base.BaseDatasetConfig(
+            vist.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_val",
                 type="BDD100K",
-                annotations="openmt/engine/testcases/track/bdd100k-samples/"
+                annotations="vist/engine/testcases/track/bdd100k-samples/"
                 "labels",
-                data_root="openmt/engine/testcases/track/bdd100k-samples/"
+                data_root="vist/engine/testcases/track/bdd100k-samples/"
                 "images/",
                 config_path="box_track",
             )
