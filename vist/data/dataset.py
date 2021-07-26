@@ -1,19 +1,18 @@
 """Dataset mapper in vist."""
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Callable
 
-import detectron2.data.detection_utils as d2_utils
+import random
 import numpy as np
 import torch
-from detectron2.config import CfgNode
-from detectron2.data import transforms as T
-from detectron2.data.common import MapDataset as D2MapDataset
-from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
 from pydantic import validator
 from pydantic.main import BaseModel
 from scalabel.label.typing import Frame, ImageSize, Label
 from scalabel.label.utils import check_crowd, check_ignored
+
+import detectron2.data.detection_utils as d2_utils
+from detectron2.data import transforms as T
 
 from vist.common.io import build_data_backend
 from vist.struct import Boxes2D, Images, InputSample, NDArrayUI8
@@ -21,41 +20,42 @@ from vist.struct import Boxes2D, Images, InputSample, NDArrayUI8
 from ..common.io import DataBackendConfig
 from .transforms import AugmentationConfig, build_augmentations
 from .utils import dicts_to_boxes2d, im_decode, label_to_dict
+from .datasets import BaseDatasetLoader
 
-__all__ = ["DatasetMapper", "MapDataset"]
-
-
-class ReferenceSamplingConfig(BaseModel):
-    """Config for customizing the sampling of reference views."""
-
-    type: str = "uniform"
-    num_ref_imgs: int = 0
-    scope: int = 1
-    frame_order: str = "key_first"
-    skip_nomatch_samples: bool = False
-
-    @validator("scope")
-    def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long
-        cls, value: int, values
-    ) -> int:
-        """Check scope attribute."""
-        if not value > values["num_ref_imgs"] // 2:
-            raise ValueError("Scope must be higher than num_ref_imgs / 2.")
-        return value
+__all__ = ["ScalabelDataset"]
 
 
-class MapDataset(D2MapDataset):  # type: ignore
-    """Map a function over the elements in a dataset."""
 
-    def __init__(  # type: ignore
-        self, sampling_cfg: ReferenceSamplingConfig, training, *args, **kwargs
+class ScalabelDataset(torch.utils.data.Dataset):
+    """Preprocess Scalabel format data into VisT input format."""
+
+    def __init__(
+        self, dataset: BaseDatasetLoader,
+            training: bool
     ):
         """Init."""
-        super().__init__(*args, **kwargs)
+        self.cfg = dataset.cfg
+        if training:
+            augs = build_augmentations(self.cfg.dataloader_cfg.train_augmentations)
+        else:
+            augs = build_augmentations(self.cfg.dataloader_cfg.test_augmentations)
+        self.augmentations = T.AugmentationList(augs)
+        self.data_backend = build_data_backend(self.cfg.dataloader_cfg.data_backend)
+        self.skip_empty_samples = self.cfg.dataloader_cfg.skip_empty_samples
+
+        self._dataset = dataset
+        self.training = training
+
+        # TODO use model classes here for doing some akin to
+        # discard_labels_outside_set(dataset_frames, categories)
+        # TODO idx to class mapping for model only
+
+        self._rng = random.Random(42)
+        self._fallback_candidates = set(range(len(dataset)))
+
         self.video_to_indices: Dict[str, List[int]] = defaultdict(list)
         self.frame_to_indices: Dict[str, Dict[int, int]] = defaultdict(dict)
         self._create_video_mapping()
-        self.sampling_cfg = sampling_cfg
         self.training = training
 
     def _create_video_mapping(self) -> None:
@@ -140,7 +140,7 @@ class MapDataset(D2MapDataset):  # type: ignore
         cur_idx = int(idx)
 
         while True:
-            data = self._map_func(self._dataset[cur_idx])
+            data = self.get_sample(self._dataset[cur_idx])
             if data is not None:
                 input_data, transforms = data
                 if input_data.metadata.attributes is None:
@@ -154,7 +154,7 @@ class MapDataset(D2MapDataset):  # type: ignore
                     vid_id = input_data.metadata.video_name
                     if vid_id is not None:
                         ref_data = [
-                            self._map_func(
+                            self.get_sample(
                                 self._dataset[ref_idx], transforms=transforms
                             )[0]
                             for ref_idx in self.sample_ref_idcs(
@@ -175,8 +175,6 @@ class MapDataset(D2MapDataset):  # type: ignore
                 else:
                     return [input_data]
 
-            # _map_func fails for this idx, use a random new index from the
-            # pool
             retry_count += 1
             self._fallback_candidates.discard(cur_idx)
             cur_idx = self._rng.sample(self._fallback_candidates, k=1)[0]
@@ -184,50 +182,10 @@ class MapDataset(D2MapDataset):  # type: ignore
             if retry_count >= 5:
                 logger = logging.getLogger(__name__)
                 logger.warning(
-                    "Failed to apply `_map_func` for idx: %s, retry count: %s",
+                    "Failed to get sample for idx: %s, retry count: %s",
                     idx,
                     retry_count,
                 )
-
-
-class DataloaderConfig(BaseModel):
-    """Config for dataloader."""
-
-    data_backend: DataBackendConfig = DataBackendConfig()
-    categories: Optional[List[str]] = None
-    skip_empty_samples: bool = False
-    compute_global_instance_ids: bool = False
-    train_augmentations: Optional[List[AugmentationConfig]] = None
-    test_augmentations: Optional[List[AugmentationConfig]] = None
-    ref_sampling_cfg: ReferenceSamplingConfig
-    image_channel_mode: str
-
-
-class DatasetMapper:
-    """DatasetMapper class for VisT.
-
-    A callable which takes a data sample in scalabel format, and maps it into
-    a format used by the VisT model. The callable does the following:
-    1. Read image from "url"
-    2. Applies transforms to the image and annotations
-    3. Put data and annotations in VisT format (InputSample)
-    """
-
-    def __init__(
-        self,
-        loader_cfg: DataloaderConfig,
-        is_train: bool = True,
-    ) -> None:
-        """Init."""
-        # pylint: disable=missing-kwoa,too-many-function-args
-        if is_train:
-            augs = build_augmentations(loader_cfg.train_augmentations)
-        else:
-            augs = build_augmentations(loader_cfg.test_augmentations)
-        self.augmentations = T.AugmentationList(augs)
-        self.loader_cfg = loader_cfg
-        self.data_backend = build_data_backend(loader_cfg.data_backend)
-        self.skip_empty_samples = loader_cfg.skip_empty_samples
 
     def load_image(
         self,
@@ -289,22 +247,21 @@ class DatasetMapper:
                     anno,
                     transforms,
                     image_hw,
-                    keypoint_hflip_indices=self.keypoint_hflip_indices,
                 )
                 annos.append(anno)
 
         return dicts_to_boxes2d(annos)
 
-    def __call__(  # type: ignore
+    def get_sample(
         self,
-        sample_dict: Dict[str, Any],
+        sample: Frame,
         transforms: Optional[T.AugmentationList] = None,
     ) -> Optional[Tuple[InputSample, T.AugmentationList]]:
         """Prepare a single sample in detect format.
 
         Args:
-            sample_dict (serialized Frame): Metadata of one image, in scalabel
-            format. Serialized as dict due to multi-processing.
+            sample (Frame): Metadata of one image, in scalabel format.
+            Serialized as dict due to multi-processing.
             transforms (T.AugmentationList): Detectron2 augmentation list.
 
         Returns:
@@ -312,7 +269,6 @@ class DatasetMapper:
             T.AugmentationList: augmentations, s.t. ref views can be augmented
             with the same parameters.
         """
-        sample = Frame(**sample_dict)
 
         # image loading, augmentation / to torch.tensor
         image, transforms = self.transform_image(

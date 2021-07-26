@@ -5,7 +5,7 @@ from sort_model import SORT
 
 import vist.data.datasets.base
 from vist import config
-from vist.data.dataset_mapper import DataloaderConfig as Dataloader
+from vist.data.dataset import DataloaderConfig as Dataloader
 from vist.engine import test
 from vist.model import BaseModelConfig
 

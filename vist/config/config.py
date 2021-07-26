@@ -9,8 +9,7 @@ import toml
 import yaml
 from pydantic import BaseModel, validator
 
-from vist.data.dataset_mapper import DataloaderConfig
-from vist.data.datasets.base import BaseDatasetConfig
+from vist.data.datasets import BaseDatasetConfig
 from vist.model import BaseModelConfig
 from vist.struct import DictStrAny
 
@@ -19,6 +18,7 @@ class Solver(BaseModel):
     """Config for solver."""
 
     images_per_gpu: int
+    workers_per_gpu: int
     lr_policy: str
     base_lr: float
     steps: Optional[List[int]]
@@ -95,7 +95,6 @@ class Config(BaseModel):
 
     model: BaseModelConfig
     solver: Solver
-    dataloader: DataloaderConfig
     train: List[BaseDatasetConfig] = []
     test: List[BaseDatasetConfig] = []
     launch: Launch = Launch()

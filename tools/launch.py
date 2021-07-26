@@ -1,7 +1,4 @@
 """Training, testing and prediction command line tool."""
-
-from detectron2.engine import launch
-
 from vist import config
 from vist.common.utils import default_argument_parser
 from vist.engine import predict, test, train
@@ -18,11 +15,4 @@ if __name__ == "__main__":
         main_func = predict  # type: ignore
     else:
         raise NotImplementedError(f"Action {args.action} not implemented!")
-    launch(
-        main_func,
-        cfg.launch.num_gpus,
-        num_machines=cfg.launch.num_machines,
-        machine_rank=cfg.launch.machine_rank,
-        dist_url=cfg.launch.dist_url,
-        args=(cfg,),
-    )
+    main_func(cfg)

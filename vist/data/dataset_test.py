@@ -8,7 +8,7 @@ from scalabel.label.typing import Frame
 
 from vist.struct import Images, InputSample
 
-from .dataset_mapper import (
+from .dataset import (
     DataloaderConfig,
     DatasetMapper,
     MapDataset,

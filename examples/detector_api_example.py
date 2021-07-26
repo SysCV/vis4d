@@ -7,7 +7,7 @@ from torchvision.models.detection import retinanet  # type: ignore
 
 import vist.data.datasets.base
 from vist import config
-from vist.data.dataset_mapper import DataloaderConfig as Dataloader
+from vist.data.dataset import DataloaderConfig as Dataloader
 from vist.engine import train
 from vist.model import BaseModelConfig
 from vist.model.detect import BaseDetector

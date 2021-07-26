@@ -1,13 +1,14 @@
 """Base class for VisT models."""
 
 import abc
-from typing import Dict, List, Tuple, Union
+from typing import List, Tuple, Union
 
 import torch
+import pytorch_lightning as pl
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
 
-from vist.common.registry import RegistryHolder
+from vist.common.registry import ABCRegistryHolder
 from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
 
@@ -17,7 +18,7 @@ class BaseModelConfig(PydanticBaseModel, extra="allow"):
     type: str = Field(...)
 
 
-class BaseModel(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
+class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
     """Base tracker class."""
 
     @property
@@ -87,8 +88,7 @@ def build_model(cfg: BaseModelConfig) -> BaseModel:
 
     Note that it does not load any weights from ``cfg``.
     """
-    assert cfg is not None
-    registry = RegistryHolder.get_registry(BaseModel)
+    registry = ABCRegistryHolder.get_registry(BaseModel)
     if cfg.type in registry:
         module = registry[cfg.type](cfg)
         assert isinstance(module, BaseModel)

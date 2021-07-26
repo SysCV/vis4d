@@ -16,8 +16,7 @@ from devtools import debug
 from scalabel.label.typing import Frame
 
 from vist.config import Config, Launch
-from vist.data.datasets import register_dataset
-from vist.data.datasets.base import BaseDatasetConfig
+from vist.data.datasets import BaseDatasetConfig
 
 
 def gather_predictions(

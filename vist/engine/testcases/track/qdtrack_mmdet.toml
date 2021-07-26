@@ -7,6 +7,7 @@ path = "../configs/models/mmdetection/qdtrack_R_50_FPN.toml"
 
 [solver]
 images_per_gpu = 1
+workers_per_gpu = 2
 lr_policy = "WarmupMultiStepLR"
 base_lr = 0.01
 warmup_iters = 0
