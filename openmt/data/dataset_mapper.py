@@ -331,7 +331,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             del sample.labels
             return input_data, transforms
 
-        TODO remove this
+        # TODO remove this
         ### Example for Kornia-based augmentations transforming intrinsic matrix ###
         # Notice how the 3D box visualization stays consistent with the image content
         from scalabel.label.utils import get_matrix_from_intrinsics
