@@ -23,7 +23,7 @@ from openmt.data import build_test_loader, build_train_loader
 from openmt.engine.utils import to_detectron2
 from openmt.model import build_model
 
-logger = logging.getLogger("openmt.benchmark")
+logger = logging.getLogger("detectron2")
 logger.setLevel(logging.INFO)
 
 
@@ -79,8 +79,10 @@ def benchmark_data(cfg: Config) -> None:
 
 def benchmark_train(cfg: Config) -> None:
     """Benchmark speed of training pipeline."""
+    from detectron2.utils.logger import setup_logger
+    setup_logger(distributed_rank=comm.get_rank())
+    cfg.solver.base_lr = 0.00001  # Avoid NaN loss in benchmark due to high LR
     det2cfg = to_detectron2(cfg)
-    cfg.solver.base_lr = 0.001  # Avoid NaN loss in benchmark due to high LR
 
     model = build_model(cfg.model).to(torch.device(det2cfg.MODEL.DEVICE))
     logger.info("Model:\n%s", model)
@@ -107,9 +109,10 @@ def benchmark_train(cfg: Config) -> None:
         [
             hooks.IterationTimer(),
             hooks.PeriodicWriter([CommonMetricPrinter(max_iter)]),
-            hooks.AutogradProfiler(
+            hooks.TorchProfiler(
                 lambda trainer: trainer.iter == max_iter - 1,
                 det2cfg.OUTPUT_DIR,
+                save_tensorboard=True,
             ),
         ]
     )
