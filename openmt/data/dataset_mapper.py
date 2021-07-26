@@ -194,7 +194,6 @@ class DataloaderConfig(BaseModel):
     """Config for dataloader."""
 
     data_backend: DataBackendConfig = DataBackendConfig()
-    workers_per_gpu: int
     categories: Optional[List[str]] = None
     skip_empty_samples: bool = False
     compute_global_instance_ids: bool = False
@@ -204,7 +203,7 @@ class DataloaderConfig(BaseModel):
     image_channel_mode: str
 
 
-class DatasetMapper(D2DatasetMapper):  # type: ignore
+class DatasetMapper:
     """DatasetMapper class for openMT.
 
     A callable which takes a data sample in scalabel format, and maps it into
@@ -217,7 +216,6 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
     def __init__(
         self,
         loader_cfg: DataloaderConfig,
-        det2cfg: CfgNode,
         is_train: bool = True,
     ) -> None:
         """Init."""
@@ -226,7 +224,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             augs = build_augmentations(loader_cfg.train_augmentations)
         else:
             augs = build_augmentations(loader_cfg.test_augmentations)
-        super().__init__(det2cfg, is_train, augmentations=augs)
+        self.augmentations = T.AugmentationList(augs)
         self.loader_cfg = loader_cfg
         self.data_backend = build_data_backend(loader_cfg.data_backend)
         self.skip_empty_samples = loader_cfg.skip_empty_samples

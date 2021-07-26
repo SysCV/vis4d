@@ -4,7 +4,6 @@ import logging
 import os
 from typing import List, Optional
 
-from detectron2.data.catalog import DatasetCatalog, MetadataCatalog
 from fvcore.common.timer import Timer
 from pydantic import BaseModel, validator
 from scalabel.label.typing import Config as MetadataConfig
@@ -22,6 +21,7 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     name: str
     type: str
     data_root: str
+    dataloader_cfg: DataloaderConfig
     annotations: Optional[str]
     config_path: Optional[str]
     eval_metrics: List[str] = []

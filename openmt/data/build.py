@@ -161,7 +161,7 @@ def _train_loader_from_config(
 
 
 def build_train_loader(
-    loader_cfg: DataloaderConfig, det2cfg: CfgNode
+    loader_cfg: DataloaderConfig
 ) -> torch.utils.data.DataLoader:
     """Build train dataloader with some default features."""
     data_options = _train_loader_from_config(loader_cfg, det2cfg)

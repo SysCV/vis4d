@@ -6,12 +6,7 @@ from typing import Dict, List, Optional
 from typing import OrderedDict as OrderedDictType
 
 import torch
-from detectron2.checkpoint import Checkpointer
-from detectron2.config import CfgNode
-from detectron2.engine import DefaultTrainer as D2DefaultTrainer
-from detectron2.engine import PeriodicWriter
-from detectron2.evaluation import DatasetEvaluator
-from detectron2.utils.comm import is_main_process
+import pytorch_lightning as pl
 
 from openmt.config import Config
 from openmt.data import build_test_loader, build_train_loader
@@ -189,38 +184,40 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
             inference_on_dataset(model, data_loader, visualizer)
 
 
-def train(cfg: Config) -> Dict[str, EvalResults]:
+def train(cfg: Config) -> None:
     """Training function."""
-    det2cfg = to_detectron2(cfg)
-    default_setup(cfg, det2cfg, cfg.launch)
-
-    trainer = DefaultTrainer(cfg, det2cfg)
-    trainer.cfg.MODEL.WEIGHTS = cfg.launch.weights
-    trainer.resume_or_load(resume=cfg.launch.resume)
-    return trainer.train()
-
-
-def test(cfg: Config) -> Dict[str, EvalResults]:
-    """Test function."""
-    det2cfg = to_detectron2(cfg)
-    default_setup(cfg, det2cfg, cfg.launch)
+    # TODO setup to lightning
 
     model = build_model(cfg.model)
-    model.to(torch.device(cfg.launch.device))
-    Checkpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
-        cfg.launch.weights, resume=cfg.launch.resume
-    )
-    return DefaultTrainer.test_static(cfg, det2cfg, model)
+
+    # TODO
+    # workers_per_gpu: int --> lightning
+
+    dataloader_train = build_train_loader(cfg.train)
+
+    dataloaders_test = [build_test_loader(data_cfg) for data_cfg in cfg.test]
+
+    trainer = pl.Trainer()
+    trainer.fit(model)
+
+
+def test(cfg: Config) -> None:
+    """Test function."""
+
+    # TODO setup to lightning
+
+    model = build_model(cfg.model)
+    # TODO load weights
+
+    trainer = pl.Trainer()
+    trainer.test(model)
 
 
 def predict(cfg: Config) -> None:
     """Prediction function."""
-    det2cfg = to_detectron2(cfg)
-    default_setup(cfg, det2cfg, cfg.launch)
+    # TODO setup to lightning
 
     model = build_model(cfg.model)
-    model.to(torch.device(cfg.launch.device))
-    Checkpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
-        cfg.launch.weights, resume=cfg.launch.resume
-    )
-    DefaultTrainer.predict(cfg, det2cfg, model)
+
+    trainer = pl.Trainer()
+    trainer.predict(model)
