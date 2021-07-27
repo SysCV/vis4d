@@ -332,49 +332,49 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             return input_data, transforms
 
         # TODO remove this
-        ### Example for Kornia-based augmentations transforming intrinsic matrix ###
-        # Notice how the 3D box visualization stays consistent with the image content
-        from scalabel.label.utils import get_matrix_from_intrinsics
-
-        from openmt.struct import Boxes3D
-        from openmt.vis.image import imshow, imshow_bboxes3d
-
-        if sample.labels is not None:
-            cat_dict = dict()
-            for label in sample.labels:
-                if label.category not in cat_dict:
-                    cat_dict[label.category] = label.attributes["category_id"]
-            boxes3d = Boxes3D.from_scalabel(sample.labels, cat_dict)
-            boxes3d.boxes = boxes3d.boxes[:, [0, 1, 2, 3, 4, 5, 7, -1]]
-
-            image = torch.from_numpy(self.load_image(sample)).to(torch.float32)
-            intrinsic_matrix = torch.from_numpy(
-                get_matrix_from_intrinsics(sample.intrinsics)
-            ).to(torch.float32)
-            import kornia.augmentation as K
-            from kornia.augmentation.container.augment import (
-                AugmentationSequential,
-            )
-
-            imshow_bboxes3d(image, boxes3d, intrinsic_matrix, mode="RGB")
-
-            transform1 = K.RandomHorizontalFlip(p=1.0, return_transform=True)
-            transform2 = K.RandomRotation(
-                p=1.0, degrees=45.0, return_transform=True
-            )
-            image = image.permute(2, 0, 1)
-            image, transform_matrix1 = transform1(image)
-            image, transform_matrix2 = transform2(image)
-            image = image.squeeze(0)
-            intrinsic_matrix = torch.mm(
-                torch.mm(transform_matrix2[0], transform_matrix1[0]),
-                intrinsic_matrix,
-            )
-
-            imshow_bboxes3d(
-                image, boxes3d, intrinsic_matrix.numpy(), mode="RGB"
-            )
-        ### End kornia augmentation example ###
+        # ### Example for Kornia-based augmentations transforming intrinsic matrix ###
+        # # Notice how the 3D box visualization stays consistent with the image content
+        # from scalabel.label.utils import get_matrix_from_intrinsics
+        #
+        # from openmt.struct import Boxes3D
+        # from openmt.vis.image import imshow, imshow_bboxes3d
+        #
+        # if sample.labels is not None:
+        #     cat_dict = dict()
+        #     for label in sample.labels:
+        #         if label.category not in cat_dict:
+        #             cat_dict[label.category] = label.attributes["category_id"]
+        #     boxes3d = Boxes3D.from_scalabel(sample.labels, cat_dict)
+        #     boxes3d.boxes = boxes3d.boxes[:, [0, 1, 2, 3, 4, 5, 7, -1]]
+        #
+        #     image = torch.from_numpy(self.load_image(sample)).to(torch.float32)
+        #     intrinsic_matrix = torch.from_numpy(
+        #         get_matrix_from_intrinsics(sample.intrinsics)
+        #     ).to(torch.float32)
+        #     import kornia.augmentation as K
+        #     from kornia.augmentation.container.augment import (
+        #         AugmentationSequential,
+        #     )
+        #
+        #     imshow_bboxes3d(image, boxes3d, intrinsic_matrix, mode="RGB")
+        #
+        #     transform1 = K.RandomHorizontalFlip(p=1.0, return_transform=True)
+        #     transform2 = K.RandomRotation(
+        #         p=1.0, degrees=45.0, return_transform=True
+        #     )
+        #     image = image.permute(2, 0, 1)
+        #     image, transform_matrix1 = transform1(image)
+        #     image, transform_matrix2 = transform2(image)
+        #     image = image.squeeze(0)
+        #     intrinsic_matrix = torch.mm(
+        #         torch.mm(transform_matrix2[0], transform_matrix1[0]),
+        #         intrinsic_matrix,
+        #     )
+        #
+        #     imshow_bboxes3d(
+        #         image, boxes3d, intrinsic_matrix.numpy(), mode="RGB"
+        #     )
+        # ### End kornia augmentation example ###
 
         input_data.boxes2d = self.transform_annotation(
             input_data, sample.labels, transforms

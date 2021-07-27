@@ -172,8 +172,7 @@ class CombinedSampler(BaseSampler):
 
             if self.cfg.neg_pos_ub >= 0:
                 neg_upper_bound = int(self.cfg.neg_pos_ub * num_pos)
-                if num_neg > neg_upper_bound:
-                    num_neg = neg_upper_bound
+                num_neg = min(num_neg, neg_upper_bound)
 
             args = dict(
                 idx_tensor=positive,

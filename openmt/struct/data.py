@@ -54,7 +54,9 @@ class Images(DataInstance):
         return Images(cast_tensor, self.image_sizes)
 
     @classmethod
-    def cat(cls, instances: List["Images"], device: Optional[torch.device] = None) -> "Images":
+    def cat(
+        cls, instances: List["Images"], device: Optional[torch.device] = None
+    ) -> "Images":
         """Concatenate two Images objects."""
         assert isinstance(instances, (list, tuple))
         assert len(instances) > 0

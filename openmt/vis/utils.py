@@ -52,8 +52,12 @@ def preprocess_boxes(
 
     assert isinstance(boxes, (Boxes2D, Boxes3D))
 
-    boxes_list = boxes.boxes[:, :-1].cpu().numpy().tolist()
-    scores = boxes.boxes[:, -1].cpu().numpy().tolist()
+    if boxes.boxes.shape[-1] in [5, 8, 10]:  # 4 DoF, 7 DoF, 9 DoF boxes
+        boxes_list = boxes.boxes[:, :-1].cpu().numpy().tolist()
+        scores = boxes.boxes[:, -1].cpu().numpy().tolist()
+    else:
+        boxes_list = boxes.boxes.cpu().numpy().tolist()
+        scores = [None for _ in range(len(boxes_list))]
 
     if boxes.track_ids is not None:
         track_ids = boxes.track_ids.cpu().numpy()
@@ -85,7 +89,8 @@ def preprocess_boxes(
                 str_c = boxes.metadata[str_c]  # type: ignore
             label += str_c + ","
 
-        label += "{:.1f}%".format(s * 100)
+        if s is not None:
+            label += "{:.1f}%".format(s * 100)
         labels.append(label)
         draw_colors.append(draw_color)
 

@@ -80,6 +80,7 @@ def benchmark_data(cfg: Config) -> None:
 def benchmark_train(cfg: Config) -> None:
     """Benchmark speed of training pipeline."""
     from detectron2.utils.logger import setup_logger
+
     setup_logger(distributed_rank=comm.get_rank())
     cfg.solver.base_lr = 0.00001  # Avoid NaN loss in benchmark due to high LR
     det2cfg = to_detectron2(cfg)
