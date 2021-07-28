@@ -1,13 +1,12 @@
 """Dataset mapper in vist."""
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple, Callable
+from typing import Dict, List, Optional, Tuple
 
 import random
 import numpy as np
 import torch
-from pydantic import validator
-from pydantic.main import BaseModel
+from torch.utils import data
 from scalabel.label.typing import Frame, ImageSize, Label
 from scalabel.label.utils import check_crowd, check_ignored
 
@@ -17,52 +16,56 @@ from detectron2.data import transforms as T
 from vist.common.io import build_data_backend
 from vist.struct import Boxes2D, Images, InputSample, NDArrayUI8
 
-from ..common.io import DataBackendConfig
-from .transforms import AugmentationConfig, build_augmentations
-from .utils import dicts_to_boxes2d, im_decode, label_to_dict
+from .transforms import build_augmentations
+from .utils import dicts_to_boxes2d, im_decode, label_to_dict, prepare_labels, print_class_histogram, discard_labels_outside_set
 from .datasets import BaseDatasetLoader
 
 __all__ = ["ScalabelDataset"]
 
 
-
-class ScalabelDataset(torch.utils.data.Dataset):
+class ScalabelDataset(data.Dataset):
     """Preprocess Scalabel format data into VisT input format."""
 
     def __init__(
         self, dataset: BaseDatasetLoader,
-            training: bool
+            training: bool, cats_name2id: Optional[Dict[str, int]] = None
     ):
         """Init."""
         self.cfg = dataset.cfg
-        if training:
-            augs = build_augmentations(self.cfg.dataloader_cfg.train_augmentations)
-        else:
-            augs = build_augmentations(self.cfg.dataloader_cfg.test_augmentations)
-        self.augmentations = T.AugmentationList(augs)
-        self.data_backend = build_data_backend(self.cfg.dataloader_cfg.data_backend)
-        self.skip_empty_samples = self.cfg.dataloader_cfg.skip_empty_samples
+        self.sampling_cfg = self.cfg.dataloader.ref_sampling
+        self.augmentations = T.AugmentationList(build_augmentations(self.cfg.dataloader.transformations))
+        self.data_backend = build_data_backend(self.cfg.dataloader.data_backend)
 
-        self._dataset = dataset
+        self._dataset = dataset.frames
+        self._dataset_cfg = dataset.metadata_cfg
         self.training = training
 
-        # TODO use model classes here for doing some akin to
-        # discard_labels_outside_set(dataset_frames, categories)
-        # TODO idx to class mapping for model only
+        if cats_name2id is not None:
+            discard_labels_outside_set(self._dataset, list(cats_name2id.keys()))
+        else:
+            cats_name2id = {v: i for i, v in enumerate(self._dataset_cfg.categories)}
+
+        frequencies = prepare_labels(
+            self._dataset, cats_name2id, self.cfg.dataloader.compute_global_instance_ids
+        )
+        print_class_histogram(frequencies)
 
         self._rng = random.Random(42)
-        self._fallback_candidates = set(range(len(dataset)))
+        self._fallback_candidates = set(range(len(self._dataset)))
 
         self.video_to_indices: Dict[str, List[int]] = defaultdict(list)
         self.frame_to_indices: Dict[str, Dict[int, int]] = defaultdict(dict)
         self._create_video_mapping()
         self.training = training
 
+    def __len__(self):
+        return len(self._dataset)
+
     def _create_video_mapping(self) -> None:
         """Create a mapping that returns all img idx for a given video id."""
         for idx, entry in enumerate(self._dataset):
-            if entry["video_name"] is not None:
-                self.video_to_indices[entry["video_name"]].append(idx)
+            if entry.video_name is not None:
+                self.video_to_indices[entry.video_name].append(idx)
 
     def sample_ref_idcs(self, video: str, key_dataset_index: int) -> List[int]:
         """Sample reference dataset indices given video and keyframe index."""
@@ -194,7 +197,7 @@ class ScalabelDataset(torch.utils.data.Dataset):
         """Load image according to data_backend."""
         assert sample.url is not None
         im_bytes = self.data_backend.get(sample.url)
-        image = im_decode(im_bytes, mode=self.loader_cfg.image_channel_mode)
+        image = im_decode(im_bytes, mode=self.cfg.dataloader.image_channel_mode)
         sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
         return image
 
@@ -276,7 +279,7 @@ class ScalabelDataset(torch.utils.data.Dataset):
         )
         input_data = InputSample(sample, image)
 
-        if not self.is_train:
+        if not self.training:
             del sample.labels
             return input_data, transforms
 
@@ -286,7 +289,7 @@ class ScalabelDataset(torch.utils.data.Dataset):
         del sample.labels
 
         if (
-            self.skip_empty_samples
+            self.cfg.dataloader.skip_empty_samples
             and len(input_data.instances) == 0
             and transforms is None
         ):

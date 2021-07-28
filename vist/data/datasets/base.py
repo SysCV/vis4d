@@ -43,7 +43,7 @@ class DataloaderConfig(BaseModel):
     skip_empty_samples: bool = False
     compute_global_instance_ids: bool = False
     transformations: Optional[List[AugmentationConfig]] = None
-    ref_sampling_cfg: ReferenceSamplingConfig = ReferenceSamplingConfig()
+    ref_sampling: ReferenceSamplingConfig = ReferenceSamplingConfig()
 
 
 class BaseDatasetConfig(BaseModel, extra="allow"):
@@ -52,7 +52,7 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     name: str
     type: str
     data_root: str
-    dataloader_cfg: DataloaderConfig
+    dataloader: DataloaderConfig
     annotations: Optional[str]
     config_path: Optional[str]
     eval_metrics: List[str] = []
@@ -80,16 +80,16 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         super().__init__()
         self.cfg = cfg
         timer = Timer()
-        metadata_cfg, frames = self.load_dataset()
-        assert metadata_cfg is not None
-        add_data_path(cfg.data_root, frames)
+        dataset = self.load_dataset()
+        assert dataset.config is not None
+        add_data_path(cfg.data_root, dataset.frames)
         logger.info(
             "Loading %s takes %s seconds.",
             cfg.name,
             "{:.2f}".format(timer.seconds()),
         )
-        self.metadata_cfg = metadata_cfg
-        self.frames = frames
+        self.metadata_cfg = dataset.config
+        self.frames = dataset.frames
 
     @abc.abstractmethod
     def load_dataset(self) -> Dataset:

@@ -38,12 +38,11 @@ class QDGeneralizedRCNN(BaseModel):
         self.track_loss = build_loss(self.cfg.losses[0])
         self.track_loss_aux = build_loss(self.cfg.losses[1])
 
-    @property
-    def device(self) -> torch.device:
-        """Get device where input should be moved to."""
-        return self.detector.device
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        return optimizer
 
-    def forward_train(
+    def training_step(
         self, batch_inputs: List[List[InputSample]]
     ) -> LossesType:
         """Forward function for training."""
@@ -245,7 +244,7 @@ class QDGeneralizedRCNN(BaseModel):
 
         return losses
 
-    def forward_test(
+    def testing_step(
         self, batch_inputs: List[InputSample], postprocess: bool = True
     ) -> ModelOutput:
         """Forward function during inference."""

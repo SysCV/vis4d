@@ -5,19 +5,19 @@ annotations = "vist/engine/testcases/track/bdd100k-samples/labels/"
 data_root = "vist/engine/testcases/track/bdd100k-samples/images/"
 config_path = "box_track"
 num_processes = 0
-    [train.dataloader_cfg]
+    [train.dataloader]
     image_channel_mode = "RGB"
-    [ref_sampling_cfg]
-    type = 'uniform'
-    scope = 2
-    num_ref_imgs = 1
-    skip_nomatch_samples = true
+        [train.dataloader.ref_sampling]
+        type = 'uniform'
+        scope = 2
+        num_ref_imgs = 1
+        skip_nomatch_samples = true
 
-    [[transformations]]
+    [[train.transformations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}
 
-    [[transformations]]
+    [[train.transformations]]
     type = "RandomFlip"
     kwargs = {"prob" = 0.5}
 
@@ -28,17 +28,17 @@ annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "vist/engine/testcases/detect/bdd100k-samples/images/"
 config_path = "det"
 num_processes = 0
-    [train.dataloader_cfg]
+    [train.dataloader]
     image_channel_mode = "RGB"
-    [ref_sampling_cfg]
-    scope = 0
-    num_ref_imgs = 1
+        [train.dataloader.ref_sampling]
+        scope = 0
+        num_ref_imgs = 1
 
-    [[transformations]]
+    [[train.transformations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}
 
-    [[transformations]]
+    [[train.transformations]]
     type = "RandomFlip"
     kwargs = {"prob" = 0.5}
 
@@ -52,8 +52,8 @@ inference_sampling = "sequence_based"
 config_path = "box_track"
 num_processes = 0
 
-    [test.dataloader_cfg]
+    [test.dataloader]
     image_channel_mode = "RGB"
-    [[transformations]]
+    [[test.transformations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}

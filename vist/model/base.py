@@ -1,9 +1,8 @@
 """Base class for VisT models."""
 
 import abc
-from typing import List, Tuple, Union
+from typing import List, Tuple, Dict, Optional
 
-import torch
 import pytorch_lightning as pl
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
@@ -16,28 +15,14 @@ class BaseModelConfig(PydanticBaseModel, extra="allow"):
     """Config for default VisT tracker."""
 
     type: str = Field(...)
+    category_mapping: Optional[Dict[str, int]] = None
 
 
 class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
     """Base tracker class."""
 
-    @property
     @abc.abstractmethod
-    def device(self) -> torch.device:
-        """Get device where input should be moved to."""
-        raise NotImplementedError
-
-    def forward(
-        self, batch_inputs: List[List[InputSample]]
-    ) -> Union[LossesType, ModelOutput]:
-        """Model forward function."""
-        if self.training:
-            return self.forward_train(batch_inputs)
-        inputs = [inp[0] for inp in batch_inputs]  # no ref views during test
-        return self.forward_test(inputs)
-
-    @abc.abstractmethod
-    def forward_train(
+    def training_step(
         self, batch_inputs: List[List[InputSample]]
     ) -> LossesType:
         """Forward pass during training stage.
@@ -52,15 +37,13 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward_test(
-        self, batch_inputs: List[InputSample], postprocess: bool = True
+    def testing_step(
+        self, batch_inputs: List[InputSample]
     ) -> ModelOutput:
         """Forward pass during testing stage.
 
         Args:
             batch_inputs: Model input (batched).
-            postprocess: If output should be postprocessed to original
-            resolution.
 
         Returns:
             ModelOutput: Dict of LabelInstance results, e.g. tracking and

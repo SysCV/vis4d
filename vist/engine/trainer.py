@@ -5,6 +5,7 @@ from torch.utils import data
 
 from vist.config import Config
 from vist.data import build_train_dataset, build_test_dataset, TrackingInferenceSampler
+from vist.data.utils import identity_batch_collator
 from vist.model import build_model
 from vist.struct import EvalResults
 from vist.vis import ScalabelVisualizer
@@ -13,19 +14,21 @@ from .evaluator import ScalabelEvaluator, inference_on_dataset
 
 
 def build_train_loader(cfg: Config):
-    train_dataset = build_train_dataset(cfg.train)
+    train_dataset = build_train_dataset(cfg.train, cfg.model.category_mapping)
 
     train_dataloader = data.DataLoader(
         train_dataset,
-        cfg.solver.imgs_per_gpu,
+        cfg.solver.images_per_gpu,
         num_workers=cfg.solver.workers_per_gpu,
+        collate_fn=identity_batch_collator,
     )
+    return train_dataloader
 
 
 def build_test_loaders(cfg: Config):
     test_dataloaders = []
     for data_cfg in cfg.test:
-        dataset = build_test_dataset(data_cfg)
+        dataset = build_test_dataset(data_cfg, cfg.model.category_mapping)
 
         sampler = (
             TrackingInferenceSampler(dataset)
@@ -40,9 +43,9 @@ def build_test_loaders(cfg: Config):
             dataset,
             num_workers=cfg.solver.workers_per_gpu,
             batch_sampler=batch_sampler,
-            sampler=sampler,
         )
         test_dataloaders.append(test_dataloader)
+    return test_dataloaders
 
 
 def train(cfg: Config) -> None:

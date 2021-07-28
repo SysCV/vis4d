@@ -75,8 +75,8 @@ def instance_ids_to_global(
 
 
 def prepare_labels(
-    cat_name2id: Dict[str, int],
     frames: List[Frame],
+    cat_name2id: Dict[str, int],
     global_instance_ids: bool = False,
 ) -> Dict[str, int]:
     """Add category id and instance id to labels, return class frequencies."""

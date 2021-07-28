@@ -1,5 +1,7 @@
 [model]
 type = "QDGeneralizedRCNN"
+category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7, "traffic light" = 8, "traffic sign" = 9}
+
     [model.detection]
     type = "MMTwoStageDetector"
     model_base = "mmdet://_base_/models/faster_rcnn_r50_fpn.py"
