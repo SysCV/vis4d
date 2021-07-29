@@ -6,9 +6,9 @@ from detectron2.data import MetadataCatalog
 
 import torch
 
-from openmt.model import BaseModel, BaseModelConfig, build_model
-from openmt.model.track.graph import TrackGraphConfig, build_track_graph
-from openmt.struct import Boxes2D, InputSample, LossesType, ModelOutput
+from vist.model import BaseModel, BaseModelConfig, build_model
+from vist.model.track.graph import TrackGraphConfig, build_track_graph
+from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
 
 class SORTConfig(BaseModelConfig, extra="allow"):

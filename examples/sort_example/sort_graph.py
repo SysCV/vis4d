@@ -1,12 +1,13 @@
 """Track graph of SORT."""
+
 from typing import Dict, List, Optional, Tuple
 import torch
 from scipy.optimize import linear_sum_assignment as linear_assignment
 import scipy.linalg
 from detectron2.structures import Boxes, pairwise_iou
 
-from openmt.struct import Boxes2D
-from openmt.model.track.graph import BaseTrackGraph, TrackGraphConfig
+from vist.struct import Boxes2D
+from vist.model.track.graph import BaseTrackGraph, TrackGraphConfig
 
 # MetadataCatalog.get(dataset_name).idx_to_class_mapping
 

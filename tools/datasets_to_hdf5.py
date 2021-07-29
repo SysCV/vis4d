@@ -8,7 +8,7 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
-from openmt.config.config import read_config
+from vist.config.config import read_config
 
 t_vlen_uint8 = h5py.special_dtype(vlen=np.uint8)
 
