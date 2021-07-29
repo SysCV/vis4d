@@ -1,30 +1,21 @@
 """Example for dynamic api usage."""
 from typing import List, Dict, Optional
-import os
 import torch
 
-print("import detectron2")
-from detectron2.engine import launch
 from detectron2.modeling.meta_arch.retinanet import RetinaNet
 from detectron2.modeling.postprocessing import detector_postprocess
 from detectron2.structures import Instances, ImageList
 from detectron2 import model_zoo
 from detectron2.config import get_cfg
 
-import openmt.data.datasets.base
-
 from openmt.model.detect.d2_utils import (
     images_to_imagelist,
     target_to_instance,
 )
-from openmt import config
-from openmt.data.dataset_mapper import DataloaderConfig as Dataloader
-from openmt.engine import train, test
+
 from openmt.model.detect import BaseDetector
 from openmt.model import BaseModelConfig
 from openmt.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
-
-print("import success")
 
 
 def permute_to_N_HWA_K(tensor, K: int):
@@ -190,91 +181,16 @@ class D2RetinaNetDetector(BaseDetector):
         features = [features[f] for f in self.retinanet.head_in_features]
         return features
 
+    def generate_detections(
+        self,
+        images: Images,
+        features: Dict[str, torch.Tensor],
+        proposals: List[Boxes2D],
+        targets: Optional[List[Boxes2D]] = None,
+        compute_detections: bool = True,
+    ) -> Tuple[Optional[List[Boxes2D]], LossesType]:
+        """Detector second stage (RoI Head).
 
-if __name__ == "__main__":
-    conf = config.Config(
-        model=dict(
-            type="D2RetinaNetDetector",
-            num_classes=8,
-        ),
-        solver=config.Solver(
-            images_per_gpu=1,
-            lr_policy="WarmupMultiStepLR",
-            base_lr=0.0006,
-            # steps=[5000, 8000],
-            max_iters=10000,
-            log_period=10,
-            checkpoint_period=100,
-            eval_period=100,
-        ),
-        dataloader=Dataloader(
-            workers_per_gpu=8,
-            ref_sampling_cfg=dict(type="uniform", scope=1, num_ref_imgs=0),
-            categories=[
-                "pedestrian",
-                "rider",
-                "car",
-                "truck",
-                "bus",
-                "train",
-                "motorcycle",
-                "bicycle",
-            ],
-            remove_samples_without_labels=True,
-            image_channel_mode="BGR",
-        ),
-        train=[
-            openmt.data.datasets.base.BaseDatasetConfig(
-                name="bdd100k_sample_train",
-                type="BDD100K",
-                annotations="openmt/engine/testcases/track/bdd100k-samples/"
-                "labels",
-                data_root="openmt/engine/testcases/track/bdd100k-samples/"
-                "images/",
-                # annotations="data/one_sequence/labels",
-                # data_root="data/one_sequence/images/",
-                # annotations="data/bdd100k/labels/box_track_20/train/",
-                # data_root="data/bdd100k/images/track/train/",
-                config_path="box_track",
-            )
-        ],
-        test=[
-            openmt.data.datasets.base.BaseDatasetConfig(
-                name="bdd100k_sample_val",
-                type="BDD100K",
-                annotations="openmt/engine/testcases/track/bdd100k-samples/"
-                "labels",
-                data_root="openmt/engine/testcases/track/bdd100k-samples/"
-                "images/",
-                # annotations="data/one_sequence/labels",
-                # data_root="data/one_sequence/images/",
-                # annotations="data/bdd100k/labels/box_track_20/val/",
-                # data_root="data/bdd100k/images/track/val/",
-                config_path="box_track",
-                eval_metrics=["detect"],
-            )
-        ],
-    )
-    import os
-    import shutil
-
-    if os.path.exists("visualization/"):
-        shutil.rmtree("visualization/")
-    os.mkdir("visualization/")
-
-    conf.launch.weights = "/home/yinjiang/systm/examples/checkpoint/weight_of_6frames.pth"  # self_trained weight on 6 samples
-    # # conf.launch.weights = "/home/yinjiang/systm/weight/model_final_5bd44e.pkl" # detectron pretrained weight
-    # # conf.launch.resume = True
-    conf.launch.device = "cuda"
-    conf.launch.num_gpus = 1
-    test(conf)
-
-    # conf.launch = config.Launch(device="cuda", num_gpus=1)
-    # launch(
-    #     test,
-    #     conf.launch.num_gpus,
-    #     num_machines=conf.launch.num_machines,
-    #     machine_rank=conf.launch.machine_rank,
-    #     dist_url=conf.launch.dist_url,
-    #     args=(conf,),
-    # )
+        Return losses (empty if no targets) and optionally detections.
+        """
+        raise NotImplementedError

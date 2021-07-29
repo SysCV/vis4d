@@ -42,11 +42,12 @@ def tlbr_to_tlwh(bbox_tlbr: np.ndarray):
 class DeepSORTTrackGraphConfig(TrackGraphConfig):
     """deep SORT graph config."""
 
+    dataset: str
     min_confidence: float = 0.3
     metric = "cosine"
     max_cosine_distance = 0.2
     max_age = 70
-    n_init = 3
+    n_init = 1
     nn_budget = 100
     max_iou_distance = 0.7
     nms_max_overlap = 0.5
@@ -59,7 +60,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         """Init."""
         super().__init__(cfg)
         self.cfg = DeepSORTTrackGraphConfig(**cfg.dict())
-        self.kf = KalmanFilter()
+        self.kf = KalmanFilter(self.cfg.dataset)
         self.max_iou_distance = self.cfg.max_iou_distance
         self.max_age = self.cfg.max_age
         self.n_init = self.cfg.n_init
@@ -84,10 +85,10 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         class_ids = []
         track_ids = []
         for track in self.tracks:
-            if not track.is_confirmed() or track.time_since_update > 1:
-                continue
-            # if track.time_since_update >= 1:
+            # if not track.is_confirmed() or track.time_since_update > 1:
             #     continue
+            if track.time_since_update >= 1:
+                continue
             x1, y1, x2, y2 = track.to_tlbr()
             conf = track.confidence
             track_boxes.append(
@@ -275,7 +276,9 @@ class DeepSORTTrackGraph(BaseTrackGraph):
 
     def _initiate_track(self, detection):
         """Initiate a track."""
-        mean, covariance = self.kf.initiate(detection.to_xyah())
+        mean, covariance = self.kf.initiate(
+            detection.to_xyah(), detection.class_id
+        )
         confidence, class_id = detection.confidence, detection.class_id
         self.tracks.append(
             Track(

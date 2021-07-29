@@ -1,7 +1,7 @@
 """Kalman filter."""
 import numpy as np
 import scipy.linalg
-
+from detectron2.data import MetadataCatalog
 
 # Table for the 0.95 quantile of the chi-square distribution with N degrees of
 # freedom (contains values for N=1, ..., 9). Taken from MATLAB/Octave's chi2inv
@@ -31,7 +31,7 @@ class KalmanFilter:
     and their respective velocities.
     """
 
-    def __init__(self):
+    def __init__(self, dataset_name):
         """Init."""
         ndim, dt = 4, 1.0
 
@@ -44,10 +44,41 @@ class KalmanFilter:
         # Motion and observation uncertainty are chosen relative to the current
         # state estimate. These weights control the amount of uncertainty in
         # the model. This is a bit hacky.
-        self._std_weight_position = 1.0 / 20
-        self._std_weight_velocity = 1.0 / 160
+        self._std_weight_position = {
+            "pedestrian": 1.0 / 20,
+            "rider": 1.0 / 20 * 5,
+            "car": 1.0 / 20 * 10,
+            "truck": 1.0 / 20 * 10,
+            "bus": 1.0 / 20 * 10,
+            "train": 1.0 / 20 * 10,
+            "motorcycle": 1.0 / 20 * 10,
+            "bicycle": 1.0 / 20 * 5,
+        }
+        self._std_weight_velocity = {
+            "pedestrian": 1.0 / 160,
+            "rider": 1.0 / 160 * 5,
+            "car": 1.0 / 160 * 10,
+            "truck": 1.0 / 160 * 10,
+            "bus": 1.0 / 160 * 10,
+            "train": 1.0 / 160 * 10,
+            "motorcycle": 1.0 / 160 * 10,
+            "bicycle": 1.0 / 160 * 5,
+        }
 
-    def initiate(self, measurement):
+        # a = MetadataCatalog.get(dataset_name)
+        # self.idx2cls_mapping = a.idx_to_class_mapping
+        self.idx2cls_mapping = {
+            0: "pedestrian",
+            1: "rider",
+            2: "car",
+            3: "truck",
+            4: "bus",
+            5: "train",
+            6: "motorcycle",
+            7: "bicycle",
+        }
+
+    def initiate(self, measurement, class_id):
         """Create track from unassociated measurement.
 
         Parameters
@@ -68,19 +99,31 @@ class KalmanFilter:
         mean = np.r_[mean_pos, mean_vel]
 
         std = [
-            2 * self._std_weight_position * measurement[3],
-            2 * self._std_weight_position * measurement[3],
+            2
+            * self._std_weight_position[self.idx2cls_mapping[class_id]]
+            * measurement[3],
+            2
+            * self._std_weight_position[self.idx2cls_mapping[class_id]]
+            * measurement[3],
             1e-2,
-            2 * self._std_weight_position * measurement[3],
-            10 * self._std_weight_velocity * measurement[3],
-            10 * self._std_weight_velocity * measurement[3],
+            2
+            * self._std_weight_position[self.idx2cls_mapping[class_id]]
+            * measurement[3],
+            10
+            * self._std_weight_velocity[self.idx2cls_mapping[class_id]]
+            * measurement[3],
+            10
+            * self._std_weight_velocity[self.idx2cls_mapping[class_id]]
+            * measurement[3],
             1e-5,
-            10 * self._std_weight_velocity * measurement[3],
+            10
+            * self._std_weight_velocity[self.idx2cls_mapping[class_id]]
+            * measurement[3],
         ]
         covariance = np.diag(np.square(std))
         return mean, covariance
 
-    def predict(self, mean, covariance):
+    def predict(self, mean, covariance, class_id):
         """Run Kalman filter prediction step.
 
         Parameters
@@ -99,16 +142,22 @@ class KalmanFilter:
             state. Unobserved velocities are initialized to 0 mean.
         """
         std_pos = [
-            self._std_weight_position * mean[3],
-            self._std_weight_position * mean[3],
+            self._std_weight_position[self.idx2cls_mapping[class_id]]
+            * mean[3],
+            self._std_weight_position[self.idx2cls_mapping[class_id]]
+            * mean[3],
             1e-2,
-            self._std_weight_position * mean[3],
+            self._std_weight_position[self.idx2cls_mapping[class_id]]
+            * mean[3],
         ]
         std_vel = [
-            self._std_weight_velocity * mean[3],
-            self._std_weight_velocity * mean[3],
+            self._std_weight_velocity[self.idx2cls_mapping[class_id]]
+            * mean[3],
+            self._std_weight_velocity[self.idx2cls_mapping[class_id]]
+            * mean[3],
             1e-5,
-            self._std_weight_velocity * mean[3],
+            self._std_weight_velocity[self.idx2cls_mapping[class_id]]
+            * mean[3],
         ]
         motion_cov = np.diag(np.square(np.r_[std_pos, std_vel]))
 
@@ -122,7 +171,7 @@ class KalmanFilter:
 
         return mean, covariance
 
-    def project(self, mean, covariance):
+    def project(self, mean, covariance, class_id):
         """Project state distribution to measurement space.
 
         Parameters
@@ -140,10 +189,13 @@ class KalmanFilter:
 
         """
         std = [
-            self._std_weight_position * mean[3],
-            self._std_weight_position * mean[3],
+            self._std_weight_position[self.idx2cls_mapping[class_id]]
+            * mean[3],
+            self._std_weight_position[self.idx2cls_mapping[class_id]]
+            * mean[3],
             1e-1,
-            self._std_weight_position * mean[3],
+            self._std_weight_position[self.idx2cls_mapping[class_id]]
+            * mean[3],
         ]
         innovation_cov = np.diag(np.square(std))
 
@@ -153,7 +205,7 @@ class KalmanFilter:
         )
         return mean, covariance + innovation_cov
 
-    def update(self, mean, covariance, measurement):
+    def update(self, mean, covariance, measurement, class_id):
         """Run Kalman filter correction step.
 
         Parameters
@@ -173,7 +225,9 @@ class KalmanFilter:
             Returns the measurement-corrected state distribution.
 
         """
-        projected_mean, projected_cov = self.project(mean, covariance)
+        projected_mean, projected_cov = self.project(
+            mean, covariance, class_id
+        )
 
         chol_factor, lower = scipy.linalg.cho_factor(
             projected_cov, lower=True, check_finite=False
@@ -192,7 +246,12 @@ class KalmanFilter:
         return new_mean, new_covariance
 
     def gating_distance(
-        self, mean, covariance, measurements, only_position=False
+        self,
+        mean,
+        covariance,
+        measurements,
+        class_id,
+        only_position=False,
     ):
         """Compute gating distance between state distribution and measurements.
 
@@ -222,7 +281,7 @@ class KalmanFilter:
             `measurements[i]`.
 
         """
-        mean, covariance = self.project(mean, covariance)
+        mean, covariance = self.project(mean, covariance, class_id)
         if only_position:
             mean, covariance = mean[:2], covariance[:2, :2]
             measurements = measurements[:, :2]

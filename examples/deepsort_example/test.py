@@ -20,7 +20,9 @@ if __name__ == "__main__":
         model_base="faster-rcnn/r50-fpn",
         num_classes=8,
     )
-    deepsort_trackgraph_cfg = dict(type="DeepSORTTrackGraph")
+    deepsort_trackgraph_cfg = dict(
+        type="DeepSORTTrackGraph", dataset="bdd100k_val"
+    )
     deepsort_cfg = dict(
         type="DeepSORT",
         detection=deepsort_detector_cfg,
@@ -69,10 +71,10 @@ if __name__ == "__main__":
                 # "labels",
                 # data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 # "images/",
-                # annotations="data/one_sequence/labels",
-                # data_root="data/one_sequence/images/",
-                annotations="data/bdd100k/labels/box_track_20/train/",
-                data_root="data/bdd100k/images/track/train/",
+                annotations="data/one_sequence/labels",
+                data_root="data/one_sequence/images/",
+                # annotations="data/bdd100k/labels/box_track_20/train/",
+                # data_root="data/bdd100k/images/track/train/",
                 config_path="box_track",
             )
         ],
@@ -84,10 +86,10 @@ if __name__ == "__main__":
                 # "labels",
                 # data_root="openmt/engine/testcases/track/bdd100k-samples/"
                 # "images/",
-                annotations="data/one_sequence/labels",
-                data_root="data/one_sequence/images/",
-                # annotations="data/bdd100k/labels/box_track_20/val/",
-                # data_root="data/bdd100k/images/track/val/",
+                # annotations="data/one_sequence/labels",
+                # data_root="data/one_sequence/images/",
+                annotations="data/bdd100k/labels/box_track_20/val/",
+                data_root="data/bdd100k/images/track/val/",
                 config_path="box_track",
                 eval_metrics=["track"],
             )
@@ -98,7 +100,7 @@ if __name__ == "__main__":
     conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-28_21:24:04/model_0034999.pth"  # deepsort trained on BDD100K
     # conf.launch.weights = "/home/yinjiang/systm/examples/deepsort_example/checkpoint/original_ckpt.pth"
     conf.launch.device = "cuda"
-    conf.launch.num_gpus = 1
+    conf.launch.num_gpus = 4
 
     # import os
     # import shutil

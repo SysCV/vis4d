@@ -78,7 +78,8 @@ class Track:
         self.age = 1
         self.time_since_update = 0
 
-        self.state = TrackState.Tentative
+        # self.state = TrackState.Tentative
+        self.state = TrackState.Confirmed
         self.features = []
         if feature is not None:
             self.features.append(feature)
@@ -105,14 +106,16 @@ class Track:
         Propagate the state distribution to the current time step using a
         Kalman filter prediction step.
         """
-        self.mean, self.covariance = kf.predict(self.mean, self.covariance)
+        self.mean, self.covariance = kf.predict(
+            self.mean, self.covariance, self.class_id
+        )
         self.age += 1
         self.time_since_update += 1
 
     def update(self, kf: KalmanFilter, detection: Detection):
         """Kalman filter measurement update step and update the feature cache."""  # pylint: disable=line-too-long
         self.mean, self.covariance = kf.update(
-            self.mean, self.covariance, detection.to_xyah()
+            self.mean, self.covariance, detection.to_xyah(), self.class_id
         )
         self.features.append(detection.feature)
         self.confidence = detection.confidence
@@ -121,7 +124,7 @@ class Track:
         if self.state == TrackState.Tentative and self.hits >= self._n_init:
             self.state = TrackState.Confirmed
 
-        # self.mean[:4] = detection.to_xyah()
+        self.mean[:4] = detection.to_xyah()
 
     def mark_missed(self):
         """Mark this track as missed.

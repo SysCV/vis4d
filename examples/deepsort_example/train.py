@@ -18,7 +18,9 @@ if __name__ == "__main__":
         model_base="faster-rcnn/r50-fpn",
         num_classes=8,
     )
-    deepsort_trackgraph_cfg = dict(type="DeepSORTTrackGraph")
+    deepsort_trackgraph_cfg = dict(
+        type="DeepSORTTrackGraph", dataset="bdd100k_val"
+    )
     deepsort_cfg = dict(
         type="DeepSORT",
         detection=deepsort_detector_cfg,
@@ -41,7 +43,6 @@ if __name__ == "__main__":
             log_period=100,
             checkpoint_period=1000,
             eval_period=10000,
-            eval_metrics=["track"],
         ),
         dataloader=Dataloader(
             workers_per_gpu=8,
@@ -59,10 +60,11 @@ if __name__ == "__main__":
             remove_samples_without_labels=True,
             inference_sampling="sequence_based",
             compute_global_instance_ids=True,
-            train_augmentations=[
-                Augmentation(type="Resize", kwargs={"shape": [720, 1280]}),
-                Augmentation(type="RandomFlip", kwargs={"prob": 0.5}),
-            ],
+            # train_augmentations=[
+            #     Augmentation(type="Resize", kwargs={"shape": [720, 1280]}),
+            #     Augmentation(type="RandomFlip", kwargs={"prob": 0.5}),
+            # ],
+            image_channel_mode="BGR",
         ),
         train=[
             openmt.data.datasets.base.BaseDatasetConfig(
