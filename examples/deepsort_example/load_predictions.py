@@ -7,7 +7,7 @@ import numpy as np
 
 import torch
 from detectron2.data import MetadataCatalog
-from openmt.struct import Boxes2D
+from vist.struct import Boxes2D
 
 
 def load_bdd100k_preds(pred_path: str):

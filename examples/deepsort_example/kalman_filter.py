@@ -42,7 +42,7 @@ class KalmanFilter:
         self._update_mat = np.eye(ndim, 2 * ndim)
 
         # Motion and observation uncertainty are chosen relative to the current
-        # state estimate. These weights control the amount of uncertainty in
+        # state estimate, height. These weights control the amount of uncertainty in
         # the model. This is a bit hacky.
         self._std_weight_position = {
             "pedestrian": 1.0 / 20,

@@ -5,9 +5,9 @@ from torchvision.ops import roi_align
 
 from examples.deepsort_example.deep import FeatureNet
 from examples.deepsort_example.load_predictions import load_predictions
-from openmt.model import BaseModel, BaseModelConfig
-from openmt.model.track.graph import TrackGraphConfig, build_track_graph
-from openmt.struct import Boxes2D, InputSample, LossesType, ModelOutput
+from vist.model import BaseModel, BaseModelConfig
+from vist.model.track.graph import TrackGraphConfig, build_track_graph
+from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
 
 class DeepSORTConfig(BaseModelConfig, extra="allow"):

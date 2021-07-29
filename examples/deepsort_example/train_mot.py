@@ -3,11 +3,11 @@
 from examples.deepsort_example.deepsort_graph import DeepSORTTrackGraph
 from examples.deepsort_example.deepsort_model import DeepSORT
 
-from openmt import config
-from openmt.config import DataloaderConfig as Dataloader
-from openmt.config import Augmentation
-from openmt.engine import train, test
-from openmt.model import BaseModelConfig
+from vist import config
+from vist.config import DataloaderConfig as Dataloader
+from vist.config import Augmentation
+from vist.engine import train, test
+from vist.model import BaseModelConfig
 
 # Disable pylint for this file due to high overlap with detector example
 # pylint: skip-file

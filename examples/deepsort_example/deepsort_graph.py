@@ -13,8 +13,8 @@ from examples.deepsort_example.kalman_filter import KalmanFilter
 from examples.deepsort_example.nn_matching import NearestNeighborDistanceMetric
 from examples.deepsort_example.track import Track
 
-from openmt.struct import Boxes2D
-from openmt.model.track.graph import BaseTrackGraph, TrackGraphConfig
+from vist.struct import Boxes2D
+from vist.model.track.graph import BaseTrackGraph, TrackGraphConfig
 
 # from detectron2.data import MetadataCatalog
 

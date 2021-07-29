@@ -3,14 +3,14 @@
 from deepsort_graph import DeepSORTTrackGraph
 from deepsort_model import DeepSORT
 
-import openmt.data.datasets.base
-from openmt import config
-from openmt.data.dataset_mapper import DataloaderConfig as Dataloader
-from openmt.data.transforms.base import AugmentationConfig as Augmentation
+import vist.data.datasets.base
+from vist import config
+from vist.data.dataset_mapper import DataloaderConfig as Dataloader
+from vist.data.transforms.base import AugmentationConfig as Augmentation
 
-# from openmt.config import Augmentation
-from openmt.engine import test
-from openmt.model import BaseModelConfig
+# from vist.config import Augmentation
+from vist.engine import test
+from vist.model import BaseModelConfig
 
 # Disable pylint for this file due to high overlap with detector example
 # pylint: skip-file
@@ -64,12 +64,12 @@ if __name__ == "__main__":
             image_channel_mode="BGR",
         ),
         train=[
-            openmt.data.datasets.base.BaseDatasetConfig(
+            vist.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_train",
                 type="BDD100K",
-                # annotations="openmt/engine/testcases/track/bdd100k-samples/"
+                # annotations="vist/engine/testcases/track/bdd100k-samples/"
                 # "labels",
-                # data_root="openmt/engine/testcases/track/bdd100k-samples/"
+                # data_root="vist/engine/testcases/track/bdd100k-samples/"
                 # "images/",
                 annotations="data/one_sequence/labels",
                 data_root="data/one_sequence/images/",
@@ -79,17 +79,17 @@ if __name__ == "__main__":
             )
         ],
         test=[
-            openmt.data.datasets.base.BaseDatasetConfig(
+            vist.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_val",
                 type="BDD100K",
-                # annotations="openmt/engine/testcases/track/bdd100k-samples/"
+                # annotations="vist/engine/testcases/track/bdd100k-samples/"
                 # "labels",
-                # data_root="openmt/engine/testcases/track/bdd100k-samples/"
+                # data_root="vist/engine/testcases/track/bdd100k-samples/"
                 # "images/",
-                # annotations="data/one_sequence/labels",
-                # data_root="data/one_sequence/images/",
-                annotations="data/bdd100k/labels/box_track_20/val/",
-                data_root="data/bdd100k/images/track/val/",
+                annotations="data/one_sequence/labels",
+                data_root="data/one_sequence/images/",
+                # annotations="data/bdd100k/labels/box_track_20/val/",
+                # data_root="data/bdd100k/images/track/val/",
                 config_path="box_track",
                 eval_metrics=["track"],
             )
