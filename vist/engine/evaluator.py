@@ -6,7 +6,7 @@ import os
 import time
 from collections import defaultdict
 from contextlib import ExitStack, contextmanager
-from typing import Callable, Dict, Generator, List, Optional
+from typing import Dict, Generator, List, Optional
 
 import torch
 from detectron2.data import DatasetCatalog, MetadataCatalog
