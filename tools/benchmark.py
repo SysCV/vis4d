@@ -15,6 +15,7 @@ from detectron2.solver import build_optimizer
 from detectron2.utils import comm
 from detectron2.utils.collect_env import collect_env_info
 from detectron2.utils.events import CommonMetricPrinter
+from detectron2.utils.logger import setup_logger
 from fvcore.common.timer import Timer
 from torch.nn.parallel import DistributedDataParallel
 
@@ -79,7 +80,6 @@ def benchmark_data(cfg: Config) -> None:
 
 def benchmark_train(cfg: Config) -> None:
     """Benchmark speed of training pipeline."""
-    from detectron2.utils.logger import setup_logger
 
     setup_logger(distributed_rank=comm.get_rank())
     cfg.solver.base_lr = 0.00001  # Avoid NaN loss in benchmark due to high LR
