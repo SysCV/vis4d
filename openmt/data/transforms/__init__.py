@@ -1,5 +1,5 @@
 """Package for data transformations / augmentations."""
-from .augmentations import BrightnessJitterAugmentation
+from .augmentations import BrightnessJitterAugmentation, Resize
 from .base import AugmentationConfig, BaseAugmentation, build_augmentations
 
 __all__ = [
@@ -7,4 +7,5 @@ __all__ = [
     "BaseAugmentation",
     "AugmentationConfig",
     "BrightnessJitterAugmentation",
+    "Resize",
 ]

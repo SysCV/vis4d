@@ -11,13 +11,14 @@ Reference: https://detectron2.readthedocs.io/tutorials/augmentation.html
 """
 from typing import Dict, List, Optional, Tuple, Union
 
+import kornia.augmentation as K
+import torch
 from detectron2.data.transforms import Augmentation, Transform
 from detectron2.data.transforms import augmentation_impl as Augmentations
+from kornia.augmentation.base import GeometricAugmentationBase2D
 from pydantic.main import BaseModel
 
 from openmt.common.registry import RegistryHolder
-
-# TODO switch to using kornia.augmentation here
 
 
 class AugmentationConfig(BaseModel):
@@ -45,7 +46,27 @@ class BaseAugmentation(Augmentation, metaclass=RegistryHolder):  # type: ignore
         raise NotImplementedError
 
 
-def build_augmentation(
+class BaseKorniaAugmentation(
+    GeometricAugmentationBase2D, metaclass=RegistryHolder
+):
+    """Subclass kornia Augmentation to support registry."""
+
+    def compute_transformation(  # pylint: disable=arguments-renamed
+        self, inputs: torch.Tensor, params: Dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        """Get the corresponding deterministic transform for a given input.
+
+        Args:
+            inputs: Image tensor.
+            params: parameters needed for computing transformation matrix.
+
+        Returns:
+            Transform: Returns the deterministic transform.
+        """
+        raise NotImplementedError
+
+
+def build_augmentation_det2(
     cfg: AugmentationConfig,
 ) -> Union[Augmentation, Transform]:
     """Build a single detectron2 augmentation."""
@@ -55,6 +76,21 @@ def build_augmentation(
         augmentation = getattr(Augmentations, cfg.type)
     elif cfg.type in registry:
         augmentation = registry[cfg.type]
+    else:
+        raise ValueError(f"Augmentation {cfg.type} not known!")
+    return augmentation(**cfg.kwargs)
+
+
+def build_augmentation(
+    cfg: AugmentationConfig,
+):
+    """Build a single kornia augmentation."""
+    registry = RegistryHolder.get_registry(GeometricAugmentationBase2D)
+
+    if cfg.type in registry:
+        augmentation = registry[cfg.type]
+    elif hasattr(K, cfg.type):
+        augmentation = getattr(K, cfg.type)
     else:
         raise ValueError(f"Augmentation {cfg.type} not known!")
     return augmentation(**cfg.kwargs)

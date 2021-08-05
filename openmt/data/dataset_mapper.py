@@ -3,6 +3,7 @@ import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
+import kornia.augmentation as K
 import numpy as np
 import torch
 from detectron2.config import CfgNode
@@ -11,15 +12,19 @@ from detectron2.data.common import MapDataset as D2MapDataset
 from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
 from pydantic import validator
 from pydantic.main import BaseModel
-from scalabel.label.typing import Frame, ImageSize, Label
-from scalabel.label.utils import check_crowd, check_ignored
+from scalabel.label.typing import Frame, ImageSize, Intrinsics, Label
+from scalabel.label.utils import (
+    check_crowd,
+    check_ignored,
+    get_matrix_from_intrinsics,
+)
 
 from openmt.common.io import build_data_backend
 from openmt.struct import Boxes2D, Images, InputSample, NDArrayUI8
 
 from ..common.io import DataBackendConfig
 from .transforms import AugmentationConfig, build_augmentations
-from .utils import dicts_to_boxes2d, im_decode, label_to_dict
+from .utils import im_decode
 
 __all__ = ["DatasetMapper", "MapDataset"]
 
@@ -226,7 +231,8 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             augs = build_augmentations(loader_cfg.train_augmentations)
         else:
             augs = build_augmentations(loader_cfg.test_augmentations)
-        super().__init__(det2cfg, is_train, augmentations=augs)
+        super().__init__(det2cfg, is_train)
+        self.augs = augs
         self.loader_cfg = loader_cfg
         self.data_backend = build_data_backend(loader_cfg.data_backend)
         self.skip_empty_samples = loader_cfg.skip_empty_samples
@@ -240,64 +246,87 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         im_bytes = self.data_backend.get(sample.url)
         image = im_decode(im_bytes, mode=self.loader_cfg.image_channel_mode)
         sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
-        return image  # TODO transform to NCHW tensor here, since this is the expected input for Kornia augmentations
+        return image
 
     def transform_image(
         self,
         image: NDArrayUI8,
-        transforms: Optional[T.AugmentationList] = None,
-    ) -> Tuple[Images, T.AugmentationList]:
+        transforms: List[K.AugmentationBase2D] = None,
+    ):
         """Apply image augmentations and convert to torch tensor."""
-        aug_input = T.AugInput(image)
-        if transforms is None:
-            transforms = self.augmentations(aug_input)
-            image = aug_input.image
-        else:
-            image = transforms.apply_image(image)
+        transform_matrix = torch.eye(3, 3)
 
-        # Pytorch's dataloader is efficient on torch.Tensor due to
-        # shared-memory, but not efficient on large generic data struct due
-        # to the use of pickle & mp.Queue. Therefore it's important to use
-        # torch.Tensor.
-        image_processed = Images(
-            torch.as_tensor(
-                np.ascontiguousarray(image.transpose(2, 0, 1)),
-                dtype=torch.float32,
-            ).unsqueeze(0),
-            [(image.shape[1], image.shape[0])],
-        )
-        return image_processed, transforms
+        image = torch.as_tensor(
+            np.ascontiguousarray(image.transpose(2, 0, 1)),
+            dtype=torch.float32,
+        ).unsqueeze(0)
+
+        if transforms is None:
+            transforms = self.augs
+
+        for aug in transforms:
+            image, tm = aug(image)
+            transform_matrix = torch.mm(tm[0], transform_matrix)
+
+        image_processed = Images(image, [(image.shape[3], image.shape[2])])
+
+        return image_processed, transforms, transform_matrix
 
     def transform_annotation(
         self,
         input_sample: InputSample,
         labels: Optional[List[Label]],
-        transforms: T.AugmentationList,
+        transform_matrix: np.ndarray,
     ) -> Boxes2D:
         """Transform annotations."""
         image_hw = input_sample.image.tensor.shape[2:]
 
-        if labels is None:
+        labels_used = []
+
+        if labels is not None:
+            cat_dict = dict()
+            for label in labels:
+                assert label.attributes is not None
+                if not check_crowd(label) and not check_ignored(label):
+                    labels_used.append(label)
+                    if label.category not in cat_dict:
+                        cat_dict[label.category] = label.attributes[
+                            "category_id"
+                        ]
+
+            if labels_used:
+                boxes2d = Boxes2D.from_scalabel(labels_used, cat_dict)
+                # from openmt.struct import Boxes3D
+                # boxes3d = Boxes3D.from_scalabel(labels_used, cat_dict)
+
+        if labels is None or not labels_used:
             return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
 
-        annos = []
-        for label in labels:
-            assert label.attributes is not None
-            if not check_crowd(label) and not check_ignored(label):
-                anno = label_to_dict(label)  # TODO remove this part
-                bbox = transforms.apply_box(np.array([anno["bbox"]]))[0]
-                # clip transformed bbox to image size
-                if self.loader_cfg.clip_bboxes_to_image:
-                    bbox.clip(min=0)
-                    bbox = np.minimum(bbox, list(image_hw + image_hw)[::-1])
-                anno["bbox"] = bbox
-                # TODO first transform Scalabel labels to Boxes2D, then transform Boxes2D using Kornia transform
+        bboxes_2d = boxes2d.boxes[:, :4]
 
-                # TODO implement option to parse 3D boxes here (no need to apply augmentations)
+        idxs = np.array([(0, 1), (2, 1), (0, 3), (2, 3)]).flatten()
 
-                annos.append(anno)
+        for i in range(bboxes_2d.shape[0]):
+            coords = bboxes_2d[i].reshape(-1, 4)[:, idxs].reshape(-1, 2)
+            coords_h = torch.cat([coords, torch.ones(4, 1)], dim=1)
 
-        return dicts_to_boxes2d(annos)
+            trans_box = torch.mm(transform_matrix, coords_h.T)[:2, :]
+
+            minxy = torch.min(trans_box, dim=1).values
+            maxxy = torch.max(trans_box, dim=1).values
+
+            bboxes_2d[i] = torch.cat([minxy, maxxy], 0)
+
+            # clip transformed bbox to image size
+            if self.loader_cfg.clip_bboxes_to_image:
+                bboxes_2d[i].clip(min=0)
+                bboxes_2d[i] = np.minimum(
+                    bboxes_2d[i], list(image_hw + image_hw)[::-1]
+                )
+
+        boxes2d.boxes[:, :4] = bboxes_2d
+
+        return boxes2d
 
     def __call__(  # type: ignore
         self,
@@ -319,11 +348,9 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         sample = Frame(**sample_dict)
 
         # image loading, augmentation / to torch.tensor
-        (
-            image,
-            transforms,
-        ) = self.transform_image(  # TODO change to kornia-based pipeline
-            self.load_image(sample), transforms=transforms
+        image, transforms, transform_matrix = self.transform_image(
+            self.load_image(sample),
+            transforms=transforms,
         )
         input_data = InputSample(sample, image)
 
@@ -331,48 +358,19 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             del sample.labels
             return input_data, transforms
 
-        # TODO remove this
-        ### Example for Kornia-based augmentations transforming intrinsic matrix ###
-        # Notice how the 3D box visualization stays consistent with the image content
-        from openmt.vis.image import imshow_bboxes3d, imshow
-        from openmt.struct import Boxes3D
-        from scalabel.label.utils import get_matrix_from_intrinsics
-        if sample.labels is not None:
-            cat_dict = dict()
-            for label in sample.labels:
-                if label.category not in cat_dict:
-                    cat_dict[label.category] = label.attributes["category_id"]
-            boxes3d = Boxes3D.from_scalabel(sample.labels, cat_dict)
-            boxes3d.boxes = boxes3d.boxes[:, [0, 1, 2, 3, 4, 5, 7, -1]]
+        intrinsic_matrix = torch.from_numpy(
+            get_matrix_from_intrinsics(sample.intrinsics)
+        ).to(torch.float32)
 
-            image = torch.from_numpy(self.load_image(sample)).to(
-                torch.float32)
-            intrinsic_matrix = torch.from_numpy(
-                get_matrix_from_intrinsics(sample.intrinsics)).to(
-                torch.float32)
-            import kornia.augmentation as K
-            from kornia.augmentation.container.augment import \
-                AugmentationSequential
-            imshow_bboxes3d(image, boxes3d, intrinsic_matrix, mode="RGB")
+        projection = torch.mm(transform_matrix, intrinsic_matrix).numpy()
 
-            transform1 = K.RandomHorizontalFlip(p=1.0,
-                                                return_transform=True)
-            transform2 = K.RandomRotation(p=1.0, degrees=45.0,
-                                          return_transform=True)
-            image = image.permute(2, 0, 1)
-            image, transform_matrix1 = transform1(image)
-            image, transform_matrix2 = transform2(image)
-            image = image.squeeze(0)
-            intrinsic_matrix = torch.mm(
-                torch.mm(transform_matrix2[0], transform_matrix1[0]),
-                intrinsic_matrix)
-
-            imshow_bboxes3d(image, boxes3d, intrinsic_matrix.numpy(),
-                            mode="RGB")
-        ### End kornia augmentation example ###
+        input_data.metadata.intrinsics = Intrinsics(
+            focal=(projection[0][0], projection[1][1]),
+            center=(projection[0][2], projection[1][2]),
+        )
 
         input_data.boxes2d = self.transform_annotation(
-            input_data, sample.labels, transforms
+            input_data, sample.labels, transform_matrix
         )
         del sample.labels
 

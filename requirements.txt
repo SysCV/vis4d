@@ -22,6 +22,8 @@ torchaudio
 torchvision
 git+git://github.com/bdd100k/bdd100k.git
 devtools
+utm
+kornia
 
 types-toml
 types-termcolor

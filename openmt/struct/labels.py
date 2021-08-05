@@ -178,7 +178,9 @@ class Boxes2D(Boxes, LabelInstance):
 
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         class_ids = (
-            torch.tensor(cls_list, dtype=torch.int) if has_class_ids else None
+            torch.tensor(cls_list, dtype=torch.int64)
+            if has_class_ids
+            else None
         )
         track_ids = torch.tensor(idx_list, dtype=torch.int)
         if len(box_tensor.shape) < 2:
