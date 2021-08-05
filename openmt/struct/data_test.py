@@ -34,5 +34,6 @@ class TestDataStructures(unittest.TestCase):
         assert isinstance(image2, Images)
         self.assertEqual(image2.tensor.shape, self.im2.tensor.shape)
         self.assertEqual(
-            list(sample.dict().keys()), ["metadata", "image", "image2"]
+            list(sample.dict().keys()),
+            ["metadata", "image", "boxes2d", "boxes3d", "image2"],
         )

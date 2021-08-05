@@ -2,7 +2,7 @@ black
 coverage[toml]
 isort
 mypy
-mmdet
+git+git://github.com/SysCV/mmdetection.git
 mmcv-full
 numpy>=1.21.0
 pillow

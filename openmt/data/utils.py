@@ -131,7 +131,7 @@ def dicts_to_boxes2d(target: List[D2BoxType]) -> Boxes2D:
     if len(target) == 0:
         return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
 
-    boxes = torch.tensor([t["bbox"] for t in target])
+    boxes = torch.tensor([t["bbox"] for t in target], dtype=torch.float32)
     class_ids = torch.tensor(
         [t["category_id"] for t in target], dtype=torch.long
     )
@@ -140,8 +140,7 @@ def dicts_to_boxes2d(target: List[D2BoxType]) -> Boxes2D:
         if "instance_id" in target[0]
         else None
     )
-    score = torch.ones((boxes.shape[0], 1))
-    return Boxes2D(torch.cat([boxes, score], -1), class_ids, track_ids)
+    return Boxes2D(boxes, class_ids, track_ids)
 
 
 def label_to_dict(label: Label) -> D2BoxType:

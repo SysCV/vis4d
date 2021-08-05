@@ -30,13 +30,11 @@ class MMTwoStageDetectorConfig(BaseModelConfig):
 def get_img_metas(images: Images) -> List[MMDetMetaData]:
     """Create image metadata in mmdetection format."""
     img_metas = []
-    output_shapes = []
     _, c, padh, padw = images.tensor.shape  # type: Tuple[int, int, int, int]
     for i in range(len(images)):
         meta = dict()  # type: MMDetMetaData
         w, h = images.image_sizes[i]
         meta["img_shape"] = meta["ori_shape"] = (h, w, c)
-        output_shapes.append((h, w))
         meta["scale_factor"] = 1.0
         meta["flip"] = False
         meta["pad_shape"] = (padh, padw, c)
@@ -93,7 +91,7 @@ def targets_to_mmdet(
     targets: List[Boxes2D],
 ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
     """Convert openMT targets to mmdetection compatible format."""
-    gt_bboxes = [t.boxes[:, :4].to(torch.float32) for t in targets]
+    gt_bboxes = [t.boxes for t in targets]
     gt_labels = [t.class_ids for t in targets]
     return gt_bboxes, gt_labels
 

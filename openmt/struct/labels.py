@@ -98,7 +98,12 @@ class Boxes(DataInstance):
 
     @classmethod
     def cat(cls: Type["TBoxes"], instances: List["TBoxes"]) -> "TBoxes":
-        """Concatenates a list of Boxes2D into a single Boxes2D."""
+        """Concatenates a list of Boxes into a single Boxes.
+
+        If the Boxes instances have different number of parameters per entry,
+        this function will take the minimum and cut additional parameters
+        from the other instances.
+        """
         assert isinstance(instances, (list, tuple))
         assert len(instances) > 0
         assert all((isinstance(inst, Boxes) for inst in instances))
@@ -106,8 +111,9 @@ class Boxes(DataInstance):
         boxes, class_ids, track_ids = [], [], []
         has_class_ids = all((b.class_ids is not None for b in instances))
         has_track_ids = all((b.track_ids is not None for b in instances))
+        min_param = min((b.boxes.shape[-1] for b in instances))
         for b in instances:
-            boxes.append(b.boxes)
+            boxes.append(b.boxes[:, :min_param])
             if has_class_ids:
                 class_ids.append(b.class_ids)
             if has_track_ids:
@@ -129,8 +135,8 @@ class Boxes(DataInstance):
 class Boxes2D(Boxes, LabelInstance):
     """Container class for 2D boxes.
 
-    boxes: torch.FloatTensor: (N, 5) where each entry is defined by
-    [x1, y1, x2, y2, score]
+    boxes: torch.FloatTensor: (N, [4, 5]) where each entry is defined by
+    [x1, y1, x2, y2, Optional[score]]
     class_ids: torch.IntTensor: (N,) where each entry is the class id of
     the respective box.
     track_ids: torch.IntTensor (N,) where each entry is the track id of
@@ -168,9 +174,10 @@ class Boxes2D(Boxes, LabelInstance):
                 continue
 
             if score is None:
-                score = 1.0
+                box_list.append([box.x1, box.y1, box.x2, box.y2])
+            else:
+                box_list.append([box.x1, box.y1, box.x2, box.y2, score])
 
-            box_list.append([box.x1, box.y1, box.x2, box.y2, score])
             if has_class_ids:
                 cls_list.append(class_to_idx[box_cls])  # type: ignore
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
@@ -201,8 +208,10 @@ class Boxes2D(Boxes, LabelInstance):
                 x2=float(self.boxes[i, 2]),
                 y2=float(self.boxes[i, 3]),
             )
-
-            score = float(self.boxes[i, 4])
+            if self.boxes.shape[-1] == 5:
+                score = float(self.boxes[i, 4])  # type: Optional[float]
+            else:
+                score = None
             label_dict = dict(id=label_id, box2d=box, score=score)
 
             cls = idx_to_class[int(self.class_ids[i])]
@@ -215,9 +224,9 @@ class Boxes2D(Boxes, LabelInstance):
 class Boxes3D(Boxes, LabelInstance):
     """Container class for 3D boxes.
 
-    boxes: torch.FloatTensor: (N, 8) where each entry is defined as
-    [x, y, z, h, w, l, ry, score] or (N, 10) where each entry is defined by
-    [x, y, z, h, w, l, rx, ry, rz, score].
+    boxes: torch.FloatTensor: (N, [7, 8]) where each entry is defined as
+    [x, y, z, h, w, l, ry, Optional[score]] or (N, [9, 10]) where each entry
+    is defined by [x, y, z, h, w, l, rx, ry, rz, Optional[score]].
     class_ids: torch.IntTensor: (N,) where each entry is the class id of
     the respective box.
     track_ids: torch.IntTensor (N,) where each entry is the track id of
@@ -250,11 +259,13 @@ class Boxes3D(Boxes, LabelInstance):
                 continue
 
             if score is None:
-                score = 1.0
-
-            box_list.append(
-                [*box.location, *box.dimension, *box.orientation, score]
-            )
+                box_list.append(
+                    [*box.location, *box.dimension, *box.orientation]
+                )
+            else:
+                box_list.append(
+                    [*box.location, *box.dimension, *box.orientation, score]
+                )
             if has_class_ids:
                 cls_list.append(class_to_idx[box_cls])  # type: ignore
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
@@ -278,16 +289,22 @@ class Boxes3D(Boxes, LabelInstance):
             else:
                 label_id = str(i)
 
-            if self.boxes.shape[-1] == 8:
+            if self.boxes.shape[-1] < 9:
                 rx = 0.0
                 ry = float(self.boxes[i, 6])
                 rz = 0.0
-                score = float(self.boxes[i, 7])
+                if self.boxes.shape[-1] == 8:
+                    score = float(self.boxes[i, 7])  # type: Optional[float]
+                else:
+                    score = None
             else:
                 rx = float(self.boxes[i, 6])
                 ry = float(self.boxes[i, 7])
                 rz = float(self.boxes[i, 8])
-                score = float(self.boxes[i, 9])
+                if self.boxes.shape[-1] == 10:
+                    score = float(self.boxes[i, 9])
+                else:
+                    score = None
 
             box = Box3D(
                 location=[

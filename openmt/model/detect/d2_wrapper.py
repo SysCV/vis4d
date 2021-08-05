@@ -50,8 +50,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
     def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
         """Batch, pad (standard stride=32) and normalize the input images."""
-        images = Images.cat([inp.image for inp in batched_inputs])
-        images = images.to(self.device)
+        images = Images.cat([inp.image for inp in batched_inputs], self.device)
         images.tensor = (
             images.tensor - self.d2_detector.pixel_mean
         ) / self.d2_detector.pixel_std

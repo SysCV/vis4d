@@ -54,7 +54,9 @@ class Images(DataInstance):
         return Images(cast_tensor, self.image_sizes)
 
     @classmethod
-    def cat(cls, instances: List["Images"]) -> "Images":
+    def cat(
+        cls, instances: List["Images"], device: Optional[torch.device] = None
+    ) -> "Images":
         """Concatenate two Images objects."""
         assert isinstance(instances, (list, tuple))
         assert len(instances) > 0
@@ -72,7 +74,9 @@ class Images(DataInstance):
         batch_shape = (
             [sum(lens)] + list(instances[0].tensor.shape[1:-2]) + list(max_hw)
         )
-        pad_imgs = instances[0].tensor.new_full(batch_shape, 0.0)
+        if device is None:
+            device = instances[0].tensor.device
+        pad_imgs = torch.zeros(batch_shape, device=device)
         cum_len = 0
         for img, cur_len in zip(instances, lens):
             pad_imgs[
