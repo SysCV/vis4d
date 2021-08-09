@@ -3,13 +3,14 @@ import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
-import kornia.augmentation as K
 import numpy as np
 import torch
 from detectron2.config import CfgNode
 from detectron2.data import transforms as T
 from detectron2.data.common import MapDataset as D2MapDataset
 from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
+from kornia.augmentation import AugmentationBase2D
+from kornia.geometry.bbox import transform_bbox
 from pydantic import validator
 from pydantic.main import BaseModel
 from scalabel.label.typing import Frame, ImageSize, Intrinsics, Label
@@ -251,7 +252,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
     def transform_image(
         self,
         image: NDArrayUI8,
-        transforms: List[K.AugmentationBase2D] = None,
+        transforms: List[AugmentationBase2D] = None,
     ):
         """Apply image augmentations and convert to torch tensor."""
         transform_matrix = torch.eye(3, 3)
@@ -304,18 +305,10 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
 
         bboxes_2d = boxes2d.boxes[:, :4]
 
-        idxs = np.array([(0, 1), (2, 1), (0, 3), (2, 3)]).flatten()
-
         for i in range(bboxes_2d.shape[0]):
-            coords = bboxes_2d[i].reshape(-1, 4)[:, idxs].reshape(-1, 2)
-            coords_h = torch.cat([coords, torch.ones(4, 1)], dim=1)
-
-            trans_box = torch.mm(transform_matrix, coords_h.T)[:2, :]
-
-            minxy = torch.min(trans_box, dim=1).values
-            maxxy = torch.max(trans_box, dim=1).values
-
-            bboxes_2d[i] = torch.cat([minxy, maxxy], 0)
+            bboxes_2d[i] = transform_bbox(
+                transform_matrix.unsqueeze(0), bboxes_2d[i].unsqueeze(0)
+            )
 
             # clip transformed bbox to image size
             if self.loader_cfg.clip_bboxes_to_image:

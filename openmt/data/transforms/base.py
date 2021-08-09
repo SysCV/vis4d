@@ -11,10 +11,8 @@ Reference: https://detectron2.readthedocs.io/tutorials/augmentation.html
 """
 from typing import Dict, List, Optional, Tuple, Union
 
-import kornia.augmentation as K
 import torch
-from detectron2.data.transforms import Augmentation, Transform
-from detectron2.data.transforms import augmentation_impl as Augmentations
+from kornia import augmentation as kornia_augmentation
 from kornia.augmentation.base import GeometricAugmentationBase2D
 from pydantic.main import BaseModel
 
@@ -26,24 +24,6 @@ class AugmentationConfig(BaseModel):
 
     type: str
     kwargs: Dict[str, Union[bool, float, str, Tuple[int, int]]]
-
-
-class BaseAugmentation(Augmentation, metaclass=RegistryHolder):  # type: ignore
-    """Subclass detectron2 Augmentation to support registry."""
-
-    def get_transform(
-        self, *args: Dict[str, Union[bool, float, str, Tuple[int, int]]]
-    ) -> Transform:
-        """Get the corresponding deterministic transform for a given input.
-
-        Args:
-            args: Any fixed-length positional arguments. By default, the name
-            of the arguments should exist in the :class:`AugInput` to be used.
-
-        Returns:
-            Transform: Returns the deterministic transform.
-        """
-        raise NotImplementedError
 
 
 class BaseKorniaAugmentation(
@@ -66,21 +46,6 @@ class BaseKorniaAugmentation(
         raise NotImplementedError
 
 
-def build_augmentation_det2(
-    cfg: AugmentationConfig,
-) -> Union[Augmentation, Transform]:
-    """Build a single detectron2 augmentation."""
-    registry = RegistryHolder.get_registry(Augmentation)
-    registry.update(RegistryHolder.get_registry(Transform))
-    if hasattr(Augmentations, cfg.type):
-        augmentation = getattr(Augmentations, cfg.type)
-    elif cfg.type in registry:
-        augmentation = registry[cfg.type]
-    else:
-        raise ValueError(f"Augmentation {cfg.type} not known!")
-    return augmentation(**cfg.kwargs)
-
-
 def build_augmentation(
     cfg: AugmentationConfig,
 ):
@@ -89,8 +54,8 @@ def build_augmentation(
 
     if cfg.type in registry:
         augmentation = registry[cfg.type]
-    elif hasattr(K, cfg.type):
-        augmentation = getattr(K, cfg.type)
+    elif hasattr(kornia_augmentation, cfg.type):
+        augmentation = getattr(kornia_augmentation, cfg.type)
     else:
         raise ValueError(f"Augmentation {cfg.type} not known!")
     return augmentation(**cfg.kwargs)
@@ -98,7 +63,7 @@ def build_augmentation(
 
 def build_augmentations(
     cfgs: Optional[List[AugmentationConfig]],
-) -> List[Union[Augmentation, Transform]]:
+):
     """Build a list of augmentations / transforms and return these as List."""
     augmentations = []
     if cfgs is not None:

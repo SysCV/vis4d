@@ -40,12 +40,13 @@ setuptools.setup(
         "torch",
         "torchvision",
         "tqdm",
-        "devtools"
+        "devtools",
     ],
     package_data={
         "openmt": [
             "data/datasets/motchallenge.toml",
             "data/datasets/waymo.toml",
+            "data/datasets/kitti.toml",
             "py.typed",
         ]
     },
