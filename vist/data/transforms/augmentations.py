@@ -1,78 +1,61 @@
 """VisT augmentations."""
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 import torch.nn.functional as F
-from PIL import Image
 
-from .base import BaseKorniaAugmentation
+from .base import AugParams, BaseAugmentation
 
 
-class Resize(BaseKorniaAugmentation):
-    """Simple reszie augmentation class."""
+class Resize(BaseAugmentation):
+    """Simple resize augmentation class."""
 
     def __init__(
         self,
         shape: Tuple[int, int],
-        interp=None,
-        return_transform: bool = False,
+        interpolation: Optional[str] = None,
     ) -> None:
-        """Init."""
-        super().__init__(return_transform)
-        self.new_h, self.new_w = shape
-        if interp is None:
-            self.interp = Image.BILINEAR
-        self.return_transform = return_transform
+        """Init function.
 
-    def __repr__(self) -> str:
-        """Generate class name."""
-        return self.__class__.__name__ + f"({super().__repr__()})"
+        Args:
+            shape: Image shape to be resized to in (H, W) format.
+            interpolation: Interpolation method. One of ["nearest", "bilinear",
+            "bicubic"]
+            return_transform: If the transform should be returned in matrix
+            format.
+        """
+        super().__init__()
+        self.shape = shape
+        if interpolation is None:
+            self.interpolation = "bilinear"
+        else:
+            self.interpolation = interpolation
 
-    def compute_transformation(self, inputs, params):
-        """Dummy one here."""
-        return None
+        assert self.interpolation in ["nearest", "bilinear", "bicubic"]
+
+    def generate_parameters(self, batch_shape: torch.Size) -> AugParams:
+        """Generate current parameters."""
+        return dict(shape=self.shape)
+
+    def compute_transformation(
+        self, inputs: torch.Tensor, params: AugParams
+    ) -> torch.Tensor:
+        """Compute transformation for resize."""
+        transform = torch.eye(3, 3, device=inputs.device)
+        n, _, h, w = inputs.shape
+        transform[0, 0] = params["shape"][1] / w
+        transform[1, 1] = params["shape"][0] / h
+        return torch.stack([transform for _ in range(n)], 0)
 
     def apply_transform(  # pylint: disable=arguments-renamed
-        self, inputs, params, transform
-    ):
-        """Dummy one here."""
-        return inputs
-
-    def forward(  # pylint: disable=arguments-renamed
-        self,
-        img,
-        params=None,
-        return_transform=None,
+        self, inputs: torch.Tensor, params: AugParams, transform: torch.Tensor
     ) -> torch.Tensor:
-        """Overwrite to use simple scaling and generate transform matrix."""
-        interp_method = self.interp
-
-        if return_transform is None:
-            return_transform = self.return_transform
-
-        h, w = img.shape[2:]
-
-        pil_resize_to_interpolate_mode = {
-            Image.NEAREST: "nearest",
-            Image.BILINEAR: "bilinear",
-            Image.BICUBIC: "bicubic",
-        }
-        mode = pil_resize_to_interpolate_mode[interp_method]
-        align_corners = None if mode == "nearest" else False
-        img = F.interpolate(
-            img,
-            (self.new_h, self.new_w),
-            mode=mode,
+        """Apply resize."""
+        align_corners = None if self.interpolation == "nearest" else False
+        output = F.interpolate(
+            inputs,
+            self.shape,
+            mode=self.interpolation,
             align_corners=align_corners,
         )
-
-        # compute transformation
-        transform = torch.eye(3, 3)
-
-        transform[0][0] = self.new_w / w
-        transform[1][1] = self.new_h / h
-
-        if self.return_transform:
-            return img, transform.unsqueeze(0)
-
-        return img
+        return output

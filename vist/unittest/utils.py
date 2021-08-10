@@ -1,12 +1,13 @@
 """Utilities for unit tests."""
 import inspect
+import math
 import os
 from typing import List
 
 import torch
 from detectron2.data import DatasetCatalog, MetadataCatalog
 
-from vist.struct import Boxes2D
+from vist.struct import Boxes2D, Boxes3D
 
 
 def get_test_file(file_name: str) -> str:
@@ -43,6 +44,28 @@ def generate_dets(
     )
     tracks = torch.arange(0, num_dets) if track_ids else None
     dets = Boxes2D(box_tensor, torch.zeros(num_dets), tracks)
+    torch.random.set_rng_state(state)
+    return dets
+
+
+def generate_dets3d(num_dets: int, track_ids: bool = False) -> Boxes3D:
+    """Create random 3D detections."""
+    state = torch.random.get_rng_state()
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
+    rand_min = torch.repeat_interleave(
+        torch.tensor([[-10, -1, 0, 1.5, 1, 3, 0, -math.pi, 0, 1.0]]),
+        num_dets,
+        dim=0,
+    )
+    rand_max = torch.repeat_interleave(
+        torch.tensor([[10, 1, 80, 2, 2, 4, 0, math.pi, 0, 1.0]]),
+        num_dets,
+        dim=0,
+    )
+    box_tensor = torch.rand(num_dets, 10) * (rand_max - rand_min) + rand_min
+
+    tracks = torch.arange(0, num_dets) if track_ids else None
+    dets = Boxes3D(box_tensor, torch.zeros(num_dets), tracks)
     torch.random.set_rng_state(state)
     return dets
 

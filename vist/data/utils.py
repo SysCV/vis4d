@@ -7,17 +7,15 @@ from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
-import torch
-from detectron2.structures.boxes import BoxMode
 from detectron2.utils.logger import log_first_n
 from fvcore.common.timer import Timer
 from PIL import Image
-from scalabel.label.typing import Frame, Label
+from scalabel.label.typing import Frame
 from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
 from termcolor import colored
 
-from vist.struct import Boxes2D, NDArrayUI8
+from vist.struct import NDArrayUI8
 
 D2BoxType = Dict[str, Union[bool, float, str]]
 logger = logging.getLogger(__name__)
@@ -124,41 +122,6 @@ def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:
     if encoding is None:
         encoding = sys.getdefaultencoding()
     return str_bytes.decode(encoding)
-
-
-def dicts_to_boxes2d(target: List[D2BoxType]) -> Boxes2D:
-    """Convert d2 annotation dicts representing targets to Boxes2D."""
-    if len(target) == 0:
-        return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
-
-    boxes = torch.tensor([t["bbox"] for t in target], dtype=torch.float32)
-    class_ids = torch.tensor(
-        [t["category_id"] for t in target], dtype=torch.long
-    )
-    track_ids = (
-        torch.tensor([t["instance_id"] for t in target], dtype=torch.long)
-        if "instance_id" in target[0]
-        else None
-    )
-    return Boxes2D(boxes, class_ids, track_ids)
-
-
-def label_to_dict(label: Label) -> D2BoxType:
-    """Convert scalabel format label to d2 readable dict."""
-    assert label.box2d is not None and label.attributes is not None
-    ann = dict(
-        bbox=(
-            label.box2d.x1,
-            label.box2d.y1,
-            label.box2d.x2,
-            label.box2d.y2,
-        ),
-        bbox_mode=BoxMode.XYXY_ABS,
-        category_id=label.attributes["category_id"],
-    )
-    if label.attributes.get("instance_id", None) is not None:
-        ann["instance_id"] = label.attributes["instance_id"]
-    return ann
 
 
 def discard_labels_outside_set(

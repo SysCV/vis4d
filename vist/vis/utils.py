@@ -52,7 +52,7 @@ def preprocess_boxes(
 
     assert isinstance(boxes, (Boxes2D, Boxes3D))
 
-    if boxes.boxes.shape[-1] in [5, 8, 10]:  # 4 DoF, 7 DoF, 9 DoF boxes
+    if boxes.boxes.shape[-1] in [5, 8, 10]:  # 4, 7, 9 DoF boxes + score
         boxes_list = boxes.boxes[:, :-1].cpu().numpy().tolist()
         scores = boxes.boxes[:, -1].cpu().numpy().tolist()
     else:

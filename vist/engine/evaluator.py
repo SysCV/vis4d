@@ -26,7 +26,7 @@ from vist.struct import (
     ModelOutput,
 )
 
-from .utils import gather_predictions
+from ..common.utils.parallel import gather_predictions
 
 
 def _detect(

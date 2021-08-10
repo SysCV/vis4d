@@ -20,7 +20,7 @@ from .utils import (
 
 def imshow(
     image: Union[Image.Image, ImageType], mode: str = "BGR"
-) -> None:  # pragma: no cover  # pylint: disable=line-too-long
+) -> None:  # pragma: no cover
     """Imshow method.
 
     Args:
@@ -81,7 +81,7 @@ def draw_bbox3d(
     intrinsics: NDArrayF64,
     color: Tuple[int],
     label: Optional[str] = None,
-) -> None:
+) -> None:  # pragma: no cover
     """Draw 3D box onto image."""
     draw = ImageDraw.Draw(image)
     corners = project_points_to_image(box3d_to_corners(box3d), intrinsics)

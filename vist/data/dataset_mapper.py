@@ -6,10 +6,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 from detectron2.config import CfgNode
-from detectron2.data import transforms as T
 from detectron2.data.common import MapDataset as D2MapDataset
 from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
-from kornia.augmentation import AugmentationBase2D
 from kornia.geometry.bbox import transform_bbox
 from pydantic import validator
 from pydantic.main import BaseModel
@@ -24,7 +22,7 @@ from vist.common.io import build_data_backend
 from vist.struct import Boxes2D, Images, InputSample, NDArrayUI8
 
 from ..common.io import DataBackendConfig
-from .transforms import AugmentationConfig, build_augmentations
+from .transforms import AugmentationConfig, AugParams, build_augmentations
 from .utils import im_decode
 
 __all__ = ["DatasetMapper", "MapDataset"]
@@ -147,7 +145,7 @@ class MapDataset(D2MapDataset):  # type: ignore
         while True:
             data = self._map_func(self._dataset[cur_idx])
             if data is not None:
-                input_data, transforms = data
+                input_data, parameters = data
                 if input_data.metadata.attributes is None:
                     input_data.metadata.attributes = dict()
                 if self.training:
@@ -160,7 +158,7 @@ class MapDataset(D2MapDataset):  # type: ignore
                     if vid_id is not None:
                         ref_data = [
                             self._map_func(
-                                self._dataset[ref_idx], transforms=transforms
+                                self._dataset[ref_idx], parameters=parameters
                             )[0]
                             for ref_idx in self.sample_ref_idcs(
                                 vid_id, cur_idx
@@ -253,8 +251,8 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
     def transform_image(
         self,
         image: NDArrayUI8,
-        transforms: List[AugmentationBase2D] = None,
-    ):
+        parameters: Optional[List[AugParams]] = None,
+    ) -> Tuple[Images, List[AugParams], torch.Tensor]:
         """Apply image augmentations and convert to torch tensor."""
         transform_matrix = torch.eye(3, 3)
 
@@ -263,22 +261,29 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             dtype=torch.float32,
         ).unsqueeze(0)
 
-        if transforms is None:
-            transforms = self.augs
+        if parameters is None:
+            parameters = []
+            for aug in self.augs:
+                parameters.append(aug.forward_parameters(image.shape))
+        else:
+            assert len(parameters) == len(self.augs), (
+                "Length of augmentation parameters must equal the number of "
+                "augmentations!"
+            )
 
-        for aug in transforms:
-            image, tm = aug(image)
+        for aug, params in zip(self.augs, parameters):
+            image, tm = aug(image, params, return_transform=True)
             transform_matrix = torch.mm(tm[0], transform_matrix)
 
         image_processed = Images(image, [(image.shape[3], image.shape[2])])
 
-        return image_processed, transforms, transform_matrix
+        return image_processed, parameters, transform_matrix
 
     def transform_annotation(
         self,
         input_sample: InputSample,
         labels: Optional[List[Label]],
-        transform_matrix: np.ndarray,
+        transform_matrix: torch.Tensor,
     ) -> Boxes2D:
         """Transform annotations."""
         image_hw = input_sample.image.tensor.shape[2:]
@@ -289,12 +294,13 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
             cat_dict = dict()
             for label in labels:
                 assert label.attributes is not None
+                assert label.category is not None
                 if not check_crowd(label) and not check_ignored(label):
                     labels_used.append(label)
                     if label.category not in cat_dict:
-                        cat_dict[label.category] = label.attributes[
-                            "category_id"
-                        ]
+                        cat_dict[label.category] = int(
+                            label.attributes["category_id"]
+                        )
 
             if labels_used:
                 boxes2d = Boxes2D.from_scalabel(labels_used, cat_dict)
@@ -304,64 +310,56 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         if labels is None or not labels_used:
             return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
 
-        bboxes_2d = boxes2d.boxes[:, :4]
-
-        for i in range(bboxes_2d.shape[0]):
-            bboxes_2d[i] = transform_bbox(
-                transform_matrix.unsqueeze(0), bboxes_2d[i].unsqueeze(0)
-            )
-
-            # clip transformed bbox to image size
-            if self.loader_cfg.clip_bboxes_to_image:
-                bboxes_2d[i].clip(min=0)
-                bboxes_2d[i] = np.minimum(
-                    bboxes_2d[i], list(image_hw + image_hw)[::-1]
-                )
-
-        boxes2d.boxes[:, :4] = bboxes_2d
+        transform_bbox(
+            transform_matrix.unsqueeze(0), boxes2d.boxes[:, :4].unsqueeze(0)
+        ).squeeze(0)
+        if self.loader_cfg.clip_bboxes_to_image:
+            boxes2d.clip((image_hw[1], image_hw[0]))
 
         return boxes2d
+
+    @staticmethod
+    def transform_intrinsics(
+        intrinsics: Intrinsics, transform_matrix: torch.Tensor
+    ) -> torch.Tensor:
+        """Transform intrinsic camera matrix according to augmentations."""
+        intrinsic_matrix = torch.from_numpy(
+            get_matrix_from_intrinsics(intrinsics)
+        ).to(torch.float32)
+        projection = torch.mm(transform_matrix, intrinsic_matrix)
+        return projection
 
     def __call__(  # type: ignore
         self,
         sample_dict: Dict[str, Any],
-        transforms: Optional[T.AugmentationList] = None,
-    ) -> Optional[Tuple[InputSample, T.AugmentationList]]:
+        parameters: Optional[List[AugParams]] = None,
+    ) -> Optional[Tuple[InputSample, Optional[List[AugParams]]]]:
         """Prepare a single sample in detect format.
 
         Args:
             sample_dict (serialized Frame): Metadata of one image, in scalabel
             format. Serialized as dict due to multi-processing.
-            transforms (T.AugmentationList): Detectron2 augmentation list.
+            parameters (List[AugParams]): Augmentation parameter list.
 
         Returns:
             InputSample: Data format that the model accepts.
-            T.AugmentationList: augmentations, s.t. ref views can be augmented
-            with the same parameters.
+            List[AugParams]: augmentation parameters, s.t. ref views can be
+            augmented with the same parameters.
         """
         sample = Frame(**sample_dict)
 
         # image loading, augmentation / to torch.tensor
-        image, transforms, transform_matrix = self.transform_image(
+        image, parameters, transform_matrix = self.transform_image(
             self.load_image(sample),
-            transforms=transforms,
+            parameters=parameters,
         )
         input_data = InputSample(sample, image)
 
+        # TODO InputSample field for intrinsics as tensor needed. Add transform_intriniscs into workflow
+
         if not self.is_train:
             del sample.labels
-            return input_data, transforms
-
-        intrinsic_matrix = torch.from_numpy(
-            get_matrix_from_intrinsics(sample.intrinsics)
-        ).to(torch.float32)
-
-        projection = torch.mm(transform_matrix, intrinsic_matrix).numpy()
-
-        input_data.metadata.intrinsics = Intrinsics(
-            focal=(projection[0][0], projection[1][1]),
-            center=(projection[0][2], projection[1][2]),
-        )
+            return input_data, parameters
 
         input_data.boxes2d = self.transform_annotation(
             input_data, sample.labels, transform_matrix
@@ -371,8 +369,8 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         if (
             self.skip_empty_samples
             and len(input_data.boxes2d) == 0
-            and transforms is None
+            and parameters is None
         ):
             return None  # pragma: no cover
 
-        return input_data, transforms
+        return input_data, parameters

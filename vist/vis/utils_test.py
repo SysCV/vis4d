@@ -1,4 +1,5 @@
 """Visualization utils test cases."""
+import math
 import unittest
 
 import numpy as np
@@ -7,7 +8,12 @@ from PIL import Image
 
 from vist.unittest.utils import generate_dets
 
-from .utils import generate_colors, preprocess_boxes, preprocess_image
+from .utils import (
+    box3d_to_corners,
+    generate_colors,
+    preprocess_boxes,
+    preprocess_image,
+)
 
 
 class TestUtils(unittest.TestCase):
@@ -54,3 +60,22 @@ class TestUtils(unittest.TestCase):
         dets[0].class_ids = None
         proc_dets, cols, _ = preprocess_boxes(dets)
         self.assertTrue(len(set(cols)) == 1)
+
+    def test_box3d_to_corners(self) -> None:
+        """Test for box3d_to_corners function."""
+        corners = box3d_to_corners([10, 10, 10, 2.0, 2.0, 4.0, math.pi / 2])
+        self.assertTrue(
+            (
+                corners
+                == [
+                    [11.0, 11.0, 8.0],
+                    [9.0, 11.0, 8.0],
+                    [9.0, 11.0, 12.0],
+                    [11.0, 11.0, 12.0],
+                    [11.0, 9.0, 8.0],
+                    [9.0, 9.0, 8.0],
+                    [9.0, 9.0, 12.0],
+                    [11.0, 9.0, 12.0],
+                ]
+            ).all()
+        )

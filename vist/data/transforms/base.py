@@ -1,13 +1,14 @@
-"""Interface for using and extending detectron2 augmentations in VisT.
+"""Interface for using and extending kornia augmentations in VisT.
 
-Detectron2 spans two types of operations:
-- Augmentation defines the “policy” to modify inputs.
-- Transform implements the actual operations to transform data
-Depending on the use case, you may want to add either the Augmentation or the
-Transform type to your AugmentationList (e.g. probabilistic vs. deterministic
-execution).
+Kornia augmentations require the following functions:
+- generate_parameters: Generate the (random) parameters for computing the
+current transformation.
+- compute_transformation: Compute a geometric transformation that transforms
+the input. Optionally in Kornia but required here, since we need the transform
+to maintain valid projective geometry in 3D tracking.
+- apply_transform: Apply the transformation to the input.
 
-Reference: https://detectron2.readthedocs.io/tutorials/augmentation.html
+Reference: https://kornia.readthedocs.io/en/latest/augmentation.base.html
 """
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -18,6 +19,8 @@ from pydantic.main import BaseModel
 
 from vist.common.registry import RegistryHolder
 
+AugParams = Dict[str, torch.Tensor]
+
 
 class AugmentationConfig(BaseModel):
     """Data augmentation instance config."""
@@ -26,9 +29,7 @@ class AugmentationConfig(BaseModel):
     kwargs: Dict[str, Union[bool, float, str, Tuple[int, int]]]
 
 
-class BaseKorniaAugmentation(
-    GeometricAugmentationBase2D, metaclass=RegistryHolder
-):
+class BaseAugmentation(GeometricAugmentationBase2D, metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
     """Subclass kornia Augmentation to support registry."""
 
     def compute_transformation(  # pylint: disable=arguments-renamed
@@ -48,8 +49,8 @@ class BaseKorniaAugmentation(
 
 def build_augmentation(
     cfg: AugmentationConfig,
-):
-    """Build a single kornia augmentation."""
+) -> BaseAugmentation:
+    """Build a single augmentation."""
     registry = RegistryHolder.get_registry(GeometricAugmentationBase2D)
 
     if cfg.type in registry:
@@ -58,13 +59,13 @@ def build_augmentation(
         augmentation = getattr(kornia_augmentation, cfg.type)
     else:
         raise ValueError(f"Augmentation {cfg.type} not known!")
-    return augmentation(**cfg.kwargs)
+    return augmentation(**cfg.kwargs)  # type: ignore
 
 
 def build_augmentations(
     cfgs: Optional[List[AugmentationConfig]],
-):
-    """Build a list of augmentations / transforms and return these as List."""
+) -> List[BaseAugmentation]:
+    """Build a list of augmentations and return these as List."""
     augmentations = []
     if cfgs is not None:
         for aug_cfg in cfgs:

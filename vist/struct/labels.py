@@ -137,9 +137,9 @@ class Boxes2D(Boxes, LabelInstance):
 
     boxes: torch.FloatTensor: (N, [4, 5]) where each entry is defined by
     [x1, y1, x2, y2, Optional[score]]
-    class_ids: torch.IntTensor: (N,) where each entry is the class id of
+    class_ids: torch.LongTensor: (N,) where each entry is the class id of
     the respective box.
-    track_ids: torch.IntTensor (N,) where each entry is the track id of
+    track_ids: torch.LongTensor (N,) where each entry is the track id of
     the respective box.
     """
 
@@ -185,11 +185,9 @@ class Boxes2D(Boxes, LabelInstance):
 
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         class_ids = (
-            torch.tensor(cls_list, dtype=torch.int64)
-            if has_class_ids
-            else None
+            torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
-        track_ids = torch.tensor(idx_list, dtype=torch.int)
+        track_ids = torch.tensor(idx_list, dtype=torch.long)
         if len(box_tensor.shape) < 2:
             track_ids = track_ids.view(1, -1)
         return Boxes2D(box_tensor, class_ids, track_ids)
@@ -227,9 +225,9 @@ class Boxes3D(Boxes, LabelInstance):
     boxes: torch.FloatTensor: (N, [7, 8]) where each entry is defined as
     [x, y, z, h, w, l, ry, Optional[score]] or (N, [9, 10]) where each entry
     is defined by [x, y, z, h, w, l, rx, ry, rz, Optional[score]].
-    class_ids: torch.IntTensor: (N,) where each entry is the class id of
+    class_ids: torch.LongTensor: (N,) where each entry is the class id of
     the respective box.
-    track_ids: torch.IntTensor (N,) where each entry is the track id of
+    track_ids: torch.LongTensor (N,) where each entry is the track id of
     the respective box.
 
     x,y,z are in OpenCV camera coordinate system. l, h, w, are the 3D box
@@ -273,9 +271,9 @@ class Boxes3D(Boxes, LabelInstance):
 
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         class_ids = (
-            torch.tensor(cls_list, dtype=torch.int) if has_class_ids else None
+            torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
-        track_ids = torch.tensor(idx_list, dtype=torch.int)
+        track_ids = torch.tensor(idx_list, dtype=torch.long)
         if len(box_tensor.shape) < 2:
             track_ids = track_ids.view(1, -1)
         return Boxes3D(box_tensor, class_ids, track_ids)
@@ -318,6 +316,7 @@ class Boxes3D(Boxes, LabelInstance):
                     float(self.boxes[i, 5]),
                 ],
                 orientation=[rx, ry, rz],
+                alpha=-1.0,
             )
 
             label_dict = dict(id=label_id, box3d=box, score=score)

@@ -2,8 +2,6 @@ black
 coverage[toml]
 isort
 mypy
-git+git://github.com/SysCV/mmdetection.git
-mmcv-full
 numpy>=1.21.0
 pillow
 pydantic
@@ -21,6 +19,8 @@ torch
 torchaudio
 torchvision
 git+git://github.com/bdd100k/bdd100k.git
+git+git://github.com/SysCV/mmdetection.git
+mmcv-full
 devtools
 utm
 kornia

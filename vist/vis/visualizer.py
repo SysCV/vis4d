@@ -12,9 +12,8 @@ from PIL import Image
 from scalabel.label.io import group_and_sort, save
 from scalabel.label.typing import Frame
 
-from vist.engine.utils import gather_predictions
-from vist.struct import Boxes2D, InputSample, ModelOutput
-
+from ..common.utils.parallel import gather_predictions
+from ..struct import Boxes2D, InputSample, ModelOutput
 from .track import draw_sequence
 
 
