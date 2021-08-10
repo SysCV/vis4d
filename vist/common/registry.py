@@ -1,4 +1,4 @@
-"""OpenMT module registry."""
+"""VisT module registry."""
 from typing import Any, Dict, Optional, Tuple
 
 

@@ -24,7 +24,7 @@ from .utils import default_setup, register_directory, to_detectron2
 
 
 class DefaultTrainer(D2DefaultTrainer):  # type: ignore
-    """OpenMT DefaultTrainer class."""
+    """VisT DefaultTrainer class."""
 
     def __init__(self, cfg: Config, det2cfg: CfgNode):
         """Init."""

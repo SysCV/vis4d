@@ -1,4 +1,4 @@
-"""OpenMT Visualization tools for analysis and debugging."""
+"""VisT Visualization tools for analysis and debugging."""
 from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scalabel.label.utils import project_points_to_image
 
-from openmt.struct import NDArrayF64
+from vist.struct import NDArrayF64
 
 from .utils import (
     Box3DType,

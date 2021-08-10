@@ -1,4 +1,4 @@
-"""OpenMT data Samplers."""
+"""VisT data Samplers."""
 from typing import Generator
 
 from detectron2.utils import comm

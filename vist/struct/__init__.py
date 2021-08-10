@@ -1,4 +1,4 @@
-"""OpenMT struct module."""
+"""VisT struct module."""
 from .data import Images, InputSample
 from .labels import Boxes2D, Boxes3D
 from .structures import (

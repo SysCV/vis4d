@@ -1,4 +1,4 @@
-"""Tool for benchmarking openMT models."""
+"""Tool for benchmarking VisT models."""
 
 import argparse
 import itertools
@@ -19,10 +19,10 @@ from detectron2.utils.logger import setup_logger
 from fvcore.common.timer import Timer
 from torch.nn.parallel import DistributedDataParallel
 
-from openmt.config import Config, default_argument_parser, parse_config
-from openmt.data import build_test_loader, build_train_loader
-from openmt.engine.utils import to_detectron2
-from openmt.model import build_model
+from vist.config import Config, default_argument_parser, parse_config
+from vist.data import build_test_loader, build_train_loader
+from vist.engine.utils import to_detectron2
+from vist.model import build_model
 
 logger = logging.getLogger("detectron2")
 logger.setLevel(logging.INFO)

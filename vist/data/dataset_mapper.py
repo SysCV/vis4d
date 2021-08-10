@@ -298,7 +298,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
 
             if labels_used:
                 boxes2d = Boxes2D.from_scalabel(labels_used, cat_dict)
-                # from openmt.struct import Boxes3D
+                # from vist.struct import Boxes3D
                 # boxes3d = Boxes3D.from_scalabel(labels_used, cat_dict)
 
         if labels is None or not labels_used:

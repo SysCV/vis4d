@@ -8,7 +8,6 @@ import torch
 from vist.common.registry import RegistryHolder
 from vist.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
 
-
 from ..base import BaseModel
 
 

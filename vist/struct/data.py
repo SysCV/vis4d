@@ -1,4 +1,4 @@
-"""OpenMT Input data structures."""
+"""VisT Input data structures."""
 
 import itertools
 from typing import Dict, List, Optional, Tuple, Union
