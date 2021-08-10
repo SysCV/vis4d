@@ -2,8 +2,8 @@
 
 from detectron2.engine import launch
 
-from openmt import config
-from openmt.engine import predict, test, train
+from vist import config
+from vist.engine import predict, test, train
 
 if __name__ == "__main__":
     args = config.default_argument_parser().parse_args()

@@ -3,11 +3,11 @@
 from sort_graph import SORTTrackGraph
 from sort_model import SORT
 
-import openmt.data.datasets.base
-from openmt import config
-from openmt.data.dataset_mapper import DataloaderConfig as Dataloader
-from openmt.engine import test
-from openmt.model import BaseModelConfig
+import vist.data.datasets.base
+from vist import config
+from vist.data.dataset_mapper import DataloaderConfig as Dataloader
+from vist.engine import test
+from vist.model import BaseModelConfig
 
 # Disable pylint for this file due to high overlap with detector example
 # pylint: skip-file
@@ -51,22 +51,22 @@ if __name__ == "__main__":
             image_channel_mode="BGR",
         ),
         train=[
-            openmt.data.datasets.base.BaseDatasetConfig(
+            vist.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_train",
                 type="BDD100K",
-                annotations="openmt/engine/testcases/track/bdd100k-samples/"
+                annotations="vist/engine/testcases/track/bdd100k-samples/"
                 "labels",
-                data_root="openmt/track/track/bdd100k-samples/images/",
+                data_root="vist/track/track/bdd100k-samples/images/",
                 config_path="box_track",
             )
         ],
         test=[
-            openmt.data.datasets.base.BaseDatasetConfig(
+            vist.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_val",
                 type="BDD100K",
-                annotations="openmt/engine/testcases/track/bdd100k-samples/"
+                annotations="vist/engine/testcases/track/bdd100k-samples/"
                 "labels",
-                data_root="openmt/engine/testcases/track/bdd100k-samples/"
+                data_root="vist/engine/testcases/track/bdd100k-samples/"
                 "images/",
                 config_path="box_track",
             )
