@@ -15,6 +15,8 @@ class KITTIDatasetConfig(BaseDatasetConfig):
 
     input_dir: str
     output_dir: str
+    split: str
+    data_type: str
 
 
 class KITTI(BaseDatasetLoader):  # pragma: no cover
