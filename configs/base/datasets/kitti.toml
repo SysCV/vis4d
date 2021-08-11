@@ -45,15 +45,15 @@ skip_empty_samples = true
 
     [[dataloader.train_augmentations]]
     type = "Resize"
-    kwargs = {"shape" = [448, 1485], "return_transform" = true}
+    kwargs = {"shape" = [448, 1485]}
 
     [[dataloader.train_augmentations]]
     type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5, "return_transform" = true}
+    kwargs = {"p" = 0.5}
 
     [[dataloader.train_augmentations]]
     type = "RandomRotation"
-    kwargs = {"p" = 0.5, "degrees" = 10.0, "return_transform" = true}
+    kwargs = {"p" = 0.5, "degrees" = 10.0}
 
     [[dataloader.test_augmentations]]
     type = "Resize"

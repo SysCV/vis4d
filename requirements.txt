@@ -19,7 +19,6 @@ torch
 torchaudio
 torchvision
 git+git://github.com/bdd100k/bdd100k.git
-git+git://github.com/SysCV/mmdetection.git
 mmcv-full
 devtools
 utm
