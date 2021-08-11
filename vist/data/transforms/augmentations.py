@@ -24,7 +24,7 @@ class Resize(BaseAugmentation):
             return_transform: If the transform should be returned in matrix
             format.
         """
-        super().__init__()
+        super().__init__(p=1.0)
         self.shape = shape
         if interpolation is None:
             self.interpolation = "bilinear"
@@ -47,7 +47,7 @@ class Resize(BaseAugmentation):
         transform[1, 1] = params["shape"][0] / h
         return torch.stack([transform for _ in range(n)], 0)
 
-    def apply_transform(  # pylint: disable=arguments-renamed
+    def apply_transform(
         self, inputs: torch.Tensor, params: AugParams, transform: torch.Tensor
     ) -> torch.Tensor:
         """Apply resize."""

@@ -35,5 +35,13 @@ class TestDataStructures(unittest.TestCase):
         self.assertEqual(image2.tensor.shape, self.im2.tensor.shape)
         self.assertEqual(
             list(sample.dict().keys()),
-            ["metadata", "image", "boxes2d", "boxes3d", "image2"],
+            [
+                "metadata",
+                "image",
+                "boxes2d",
+                "boxes3d",
+                "intrinsics",
+                "extrinsics",
+                "image2",
+            ],
         )

@@ -169,7 +169,7 @@ class TestTrackD2(BaseEngineTests.TestTrack):
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
-        cls.work_dir = "./unittest_track_d2/"
+        cls.work_dir = "./unittests/unittest_track_d2/"
         cls.args = Namespace(
             config=get_test_file("track/qdtrack_d2.toml"),
             output_dir=cls.work_dir,
@@ -183,12 +183,32 @@ class TestTrackMM(BaseEngineTests.TestTrack):
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
-        cls.work_dir = "./unittest_track_mm/"
+        cls.work_dir = "./unittests/unittest_track_mm/"
         cls.args = Namespace(
             config=get_test_file("track/qdtrack_mmdet.toml"),
             output_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
+
+
+class TestTrackMMKITTI(BaseEngineTests.TestTrack):
+    """MMDetection tracking test cases on KITTI."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_track_mm/"
+        cls.args = Namespace(
+            config=get_test_file("track/qdtrack_mmdet_kitti.toml"),
+            output_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(cls.args)
+        cls.cfg.dataloader.fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        super().tearDownClass()
+        cls.cfg.dataloader.fields_to_load = ["boxes2d"]
 
 
 class TestDetectD2(BaseEngineTests.TestDetect):
@@ -197,7 +217,7 @@ class TestDetectD2(BaseEngineTests.TestDetect):
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
-        cls.work_dir = "./unittest_detect_d2/"
+        cls.work_dir = "./unittests/unittest_detect_d2/"
         cls.args = Namespace(
             config=get_test_file("detect/faster_rcnn_d2.toml"),
             output_dir=cls.work_dir,
@@ -211,7 +231,7 @@ class TestDetectMM(BaseEngineTests.TestDetect):
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
-        cls.work_dir = "./unittest_detect_mm/"
+        cls.work_dir = "./unittests/unittest_detect_mm/"
         args = Namespace(
             config=get_test_file("detect/faster_rcnn_mmdet.toml"),
             output_dir=cls.work_dir,

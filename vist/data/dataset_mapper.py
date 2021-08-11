@@ -5,27 +5,36 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from detectron2.config import CfgNode
 from detectron2.data.common import MapDataset as D2MapDataset
-from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
 from kornia.geometry.bbox import transform_bbox
 from pydantic import validator
 from pydantic.main import BaseModel
-from scalabel.label.typing import Frame, ImageSize, Intrinsics, Label
+from scalabel.label.typing import Extrinsics as ScalabelExtrinsics
+from scalabel.label.typing import Frame, ImageSize
+from scalabel.label.typing import Intrinsics as ScalabelIntrinsics
+from scalabel.label.typing import Label
 from scalabel.label.utils import (
     check_crowd,
     check_ignored,
+    get_matrix_from_extrinsics,
     get_matrix_from_intrinsics,
 )
 
-from vist.common.io import build_data_backend
-from vist.struct import Boxes2D, Images, InputSample, NDArrayUI8
-
-from ..common.io import DataBackendConfig
+from ..common.io import DataBackendConfig, build_data_backend
+from ..struct import (
+    Boxes2D,
+    Boxes3D,
+    Extrinsics,
+    Images,
+    InputSample,
+    Intrinsics,
+    NDArrayUI8,
+)
 from .transforms import AugmentationConfig, AugParams, build_augmentations
 from .utils import im_decode
 
 __all__ = ["DatasetMapper", "MapDataset"]
+logger = logging.getLogger(__name__)
 
 
 class ReferenceSamplingConfig(BaseModel):
@@ -198,6 +207,7 @@ class DataloaderConfig(BaseModel):
 
     data_backend: DataBackendConfig = DataBackendConfig()
     workers_per_gpu: int
+    fields_to_load: List[str] = ["boxes2d"]
     categories: Optional[List[str]] = None
     skip_empty_samples: bool = False
     clip_bboxes_to_image: bool = True
@@ -209,7 +219,7 @@ class DataloaderConfig(BaseModel):
     ignore_unknown_cats: bool = False
 
 
-class DatasetMapper(D2DatasetMapper):  # type: ignore
+class DatasetMapper:
     """DatasetMapper class for VisT.
 
     A callable which takes a data sample in scalabel format, and maps it into
@@ -222,20 +232,23 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
     def __init__(
         self,
         loader_cfg: DataloaderConfig,
-        det2cfg: CfgNode,
         is_train: bool = True,
     ) -> None:
         """Init."""
-        # pylint: disable=missing-kwoa,too-many-function-args
         if is_train:
             augs = build_augmentations(loader_cfg.train_augmentations)
         else:
             augs = build_augmentations(loader_cfg.test_augmentations)
-        super().__init__(det2cfg, is_train)
+        logger.info(f"Augmentations used: {augs}")
+
         self.augs = augs
+        self.is_train = is_train
         self.loader_cfg = loader_cfg
         self.data_backend = build_data_backend(loader_cfg.data_backend)
         self.skip_empty_samples = loader_cfg.skip_empty_samples
+        self.fields_to_load = loader_cfg.fields_to_load
+        for field in self.fields_to_load:
+            assert field in ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
 
     def load_image(
         self,
@@ -284,7 +297,7 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         input_sample: InputSample,
         labels: Optional[List[Label]],
         transform_matrix: torch.Tensor,
-    ) -> Boxes2D:
+    ) -> None:
         """Transform annotations."""
         image_hw = input_sample.image.tensor.shape[2:]
 
@@ -302,32 +315,39 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
                             label.attributes["category_id"]
                         )
 
-            if labels_used:
+        if "boxes2d" in self.fields_to_load:
+            if labels is not None and labels_used:
                 boxes2d = Boxes2D.from_scalabel(labels_used, cat_dict)
-                # from vist.struct import Boxes3D
-                # boxes3d = Boxes3D.from_scalabel(labels_used, cat_dict)
+                boxes2d.boxes[:, :4] = transform_bbox(
+                    transform_matrix.unsqueeze(0),
+                    boxes2d.boxes[:, :4].unsqueeze(0),
+                ).squeeze(0)
+                if self.loader_cfg.clip_bboxes_to_image:
+                    boxes2d.clip((image_hw[1], image_hw[0]))
+                input_sample.boxes2d = boxes2d
 
-        if labels is None or not labels_used:
-            return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
-
-        transform_bbox(
-            transform_matrix.unsqueeze(0), boxes2d.boxes[:, :4].unsqueeze(0)
-        ).squeeze(0)
-        if self.loader_cfg.clip_bboxes_to_image:
-            boxes2d.clip((image_hw[1], image_hw[0]))
-
-        return boxes2d
+        if "boxes3d" in self.fields_to_load:
+            if labels is not None and labels_used:
+                boxes3d = Boxes3D.from_scalabel(labels_used, cat_dict)
+                input_sample.boxes3d = boxes3d
 
     @staticmethod
     def transform_intrinsics(
-        intrinsics: Intrinsics, transform_matrix: torch.Tensor
-    ) -> torch.Tensor:
+        intrinsics: ScalabelIntrinsics, transform_matrix: torch.Tensor
+    ) -> Intrinsics:
         """Transform intrinsic camera matrix according to augmentations."""
         intrinsic_matrix = torch.from_numpy(
             get_matrix_from_intrinsics(intrinsics)
         ).to(torch.float32)
-        projection = torch.mm(transform_matrix, intrinsic_matrix)
-        return projection
+        return Intrinsics(torch.mm(transform_matrix, intrinsic_matrix))
+
+    @staticmethod
+    def transform_extrinsics(extrinsics: ScalabelExtrinsics) -> Extrinsics:
+        """Transform extrinsics from Scalabel to VisT."""
+        extrinsics_matrix = torch.from_numpy(
+            get_matrix_from_extrinsics(extrinsics)
+        ).to(torch.float32)
+        return Extrinsics(extrinsics_matrix)
 
     def __call__(  # type: ignore
         self,
@@ -355,15 +375,27 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
         )
         input_data = InputSample(sample, image)
 
-        # TODO InputSample field for intrinsics as tensor needed. Add transform_intriniscs into workflow
+        if (
+            sample.intrinsics is not None
+            and "intrinsics" in self.fields_to_load
+        ):
+            input_data.intrinsics = self.transform_intrinsics(
+                sample.intrinsics, transform_matrix
+            )
+
+        if (
+            sample.extrinsics is not None
+            and "extrinsics" in self.fields_to_load
+        ):
+            input_data.extrinsics = self.transform_extrinsics(
+                sample.extrinsics
+            )
 
         if not self.is_train:
             del sample.labels
             return input_data, parameters
 
-        input_data.boxes2d = self.transform_annotation(
-            input_data, sample.labels, transform_matrix
-        )
+        self.transform_annotation(input_data, sample.labels, transform_matrix)
         del sample.labels
 
         if (

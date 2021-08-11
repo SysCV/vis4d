@@ -55,12 +55,12 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
     ) -> torch.utils.data.DataLoader:
         """Calls static version."""
         return self.build_test_loader_static(
-            self.vist_cfg, cfg, dataset_name
+            self.vist_cfg, dataset_name
         )  # pragma: no cover
 
     @classmethod
     def build_test_loader_static(
-        cls, vist_cfg: Config, cfg: CfgNode, dataset_name: str
+        cls, vist_cfg: Config, dataset_name: str
     ) -> torch.utils.data.DataLoader:
         """Calls :func:`vist.data.build_test_loader`."""
         sampling = "sequence_based"
@@ -68,7 +68,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
             if ds.name == dataset_name:
                 sampling = ds.inference_sampling
         return build_test_loader(
-            vist_cfg.dataloader, cfg, dataset_name, sampling
+            vist_cfg.dataloader, dataset_name, sampling
         )
 
     def build_evaluator(
@@ -129,9 +129,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
 
         results = OrderedDict()  # type: ignore
         for idx, dataset_name in enumerate(datasets):
-            data_loader = cls.build_test_loader_static(
-                vist_cfg, cfg, dataset_name
-            )
+            data_loader = cls.build_test_loader_static(vist_cfg, dataset_name)
             # When evaluators are passed in as arguments, implicitly assume
             # that evaluators can be created before data_loader.
             if evaluators is not None:
@@ -176,9 +174,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
             datasets = [ds.name for ds in vist_cfg.test]
 
         for dataset_name in datasets:
-            data_loader = cls.build_test_loader_static(
-                vist_cfg, cfg, dataset_name
-            )
+            data_loader = cls.build_test_loader_static(vist_cfg, dataset_name)
             output_folder = os.path.join(
                 vist_cfg.launch.output_dir, dataset_name
             )

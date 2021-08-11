@@ -10,6 +10,94 @@ from .labels import Boxes2D, Boxes3D
 from .structures import DataInstance
 
 
+class Intrinsics(DataInstance):
+    """Data structure for intrinsic calibration."""
+
+    def __init__(self, tensor: torch.Tensor):
+        """Init Intrinsics class.
+
+        Args:
+            tensor (torch.Tensor): (N, 3, 3) or (3, 3)
+        """
+        assert 2 <= len(tensor.shape) <= 3
+        if len(tensor.shape) == 3:
+            self.batched = True
+        else:
+            self.batched = False
+        self.tensor = tensor
+
+    def to(self, device: torch.device) -> "Intrinsics":
+        """Put images on device."""
+        cast_tensor = self.tensor.to(device)
+        return Intrinsics(cast_tensor)
+
+    @property
+    def device(self) -> torch.device:
+        """Returns current device."""
+        return self.tensor.device
+
+    @classmethod
+    def cat(
+        cls,
+        instances: List["Intrinsics"],
+        device: Optional[torch.device] = None,
+    ) -> "Intrinsics":
+        """Concatenate N Intrinsics objects."""
+        tensors = []
+        if device is None:
+            device = instances[0].tensor.device
+        for inst in instances:
+            tensor = inst.tensor.to(device)
+            if not inst.batched:
+                tensor.unsqueeze(0)
+            tensors.append(tensor)
+        return Intrinsics(torch.cat(tensors, 0))
+
+
+class Extrinsics(DataInstance):
+    """Data structure for extrinsic calibration."""
+
+    def __init__(self, tensor: torch.Tensor):
+        """Init Extrinsics class.
+
+        Args:
+            tensor (torch.Tensor): (N, 4, 4) or (4, 4)
+        """
+        assert 2 <= len(tensor.shape) <= 3
+        if len(tensor.shape) == 3:
+            self.batched = True
+        else:
+            self.batched = False
+        self.tensor = tensor
+
+    def to(self, device: torch.device) -> "Extrinsics":
+        """Put images on device."""
+        cast_tensor = self.tensor.to(device)
+        return Extrinsics(cast_tensor)
+
+    @property
+    def device(self) -> torch.device:
+        """Returns current device."""
+        return self.tensor.device
+
+    @classmethod
+    def cat(
+        cls,
+        instances: List["Extrinsics"],
+        device: Optional[torch.device] = None,
+    ) -> "Extrinsics":
+        """Concatenate N Extrinsics objects."""
+        tensors = []
+        if device is None:
+            device = instances[0].tensor.device
+        for inst in instances:
+            tensor = inst.tensor.to(device)
+            if not inst.batched:
+                tensor.unsqueeze(0)
+            tensors.append(tensor)
+        return Extrinsics(torch.cat(tensors, 0))
+
+
 class Images(DataInstance):
     """Data structure for saving images."""
 
@@ -57,7 +145,7 @@ class Images(DataInstance):
     def cat(
         cls, instances: List["Images"], device: Optional[torch.device] = None
     ) -> "Images":
-        """Concatenate two Images objects."""
+        """Concatenate N Images objects."""
         assert isinstance(instances, (list, tuple))
         assert len(instances) > 0
         assert all((isinstance(inst, Images) for inst in instances))
@@ -107,6 +195,8 @@ class InputSample:
         image: Images,
         boxes2d: Optional[Boxes2D] = None,
         boxes3d: Optional[Boxes3D] = None,
+        intrinsics: Optional[Intrinsics] = None,
+        extrinsics: Optional[Extrinsics] = None,
         **kwargs: DataInstance,
     ) -> None:
         """Init."""
@@ -115,11 +205,23 @@ class InputSample:
         if boxes2d is not None:
             self.boxes2d = boxes2d
         else:
-            self.boxes2d = Boxes2D(torch.empty(0, 5))
+            self.boxes2d = Boxes2D(
+                torch.empty(0, 5), torch.empty(0), torch.empty(0)
+            )
         if boxes3d is not None:
             self.boxes3d = boxes3d
         else:
-            self.boxes3d = Boxes3D(torch.empty(0, 8))
+            self.boxes3d = Boxes3D(
+                torch.empty(0, 8), torch.empty(0), torch.empty(0)
+            )
+        if intrinsics is not None:
+            self.intrinsics = intrinsics
+        else:
+            self.intrinsics = Intrinsics(torch.eye(3))
+        if extrinsics is not None:
+            self.extrinsics = extrinsics
+        else:
+            self.extrinsics = Extrinsics(torch.eye(4))
 
         self.attributes = dict()  # type: Dict[str, DataInstance]
         for k, v in kwargs.items():
@@ -135,6 +237,10 @@ class InputSample:
             return self.boxes2d
         if key == "boxes3d":
             return self.boxes3d
+        if key == "intrinsics":
+            return self.intrinsics
+        if key == "extrinsics":
+            return self.extrinsics
         if key in self.attributes:
             return self.attributes[key]
         raise AttributeError(f"Attribute {key} not found!")
@@ -146,6 +252,8 @@ class InputSample:
             "image": self.image,
             "boxes2d": self.boxes2d,
             "boxes3d": self.boxes3d,
+            "intrinsics": self.intrinsics,
+            "extrinsics": self.extrinsics,
         }  # type: Dict[str, Union[Frame, DataInstance]]
         obj_dict.update(self.attributes)
         return obj_dict

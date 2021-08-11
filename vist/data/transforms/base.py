@@ -32,6 +32,13 @@ class AugmentationConfig(BaseModel):
 class BaseAugmentation(GeometricAugmentationBase2D, metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
     """Subclass kornia Augmentation to support registry."""
 
+    def __repr__(self) -> str:
+        return self.__class__.__name__ + f"({super().__repr__()})"
+
+    def generate_parameters(self, batch_shape: torch.Size) -> AugParams:
+        """Generate current parameters."""
+        raise NotImplementedError
+
     def compute_transformation(  # pylint: disable=arguments-renamed
         self, inputs: torch.Tensor, params: Dict[str, torch.Tensor]
     ) -> torch.Tensor:
@@ -44,6 +51,12 @@ class BaseAugmentation(GeometricAugmentationBase2D, metaclass=RegistryHolder):  
         Returns:
             Transform: Returns the deterministic transform.
         """
+        raise NotImplementedError
+
+    def apply_transform(  # pylint: disable=arguments-renamed
+        self, inputs: torch.Tensor, params: AugParams, transform: torch.Tensor
+    ) -> torch.Tensor:
+        """Apply the transformation given parameters and transform."""
         raise NotImplementedError
 
 

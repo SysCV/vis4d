@@ -1,5 +1,5 @@
 """VisT struct module."""
-from .data import Images, InputSample
+from .data import Extrinsics, Images, InputSample, Intrinsics
 from .labels import Boxes2D, Boxes3D
 from .structures import (
     DataInstance,
@@ -27,6 +27,8 @@ __all__ = [
     "EvalResults",
     "InputSample",
     "Images",
+    "Intrinsics",
+    "Extrinsics",
     "ModelOutput",
     "DictStrAny",
 ]
