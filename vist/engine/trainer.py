@@ -67,9 +67,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
         for ds in vist_cfg.test:
             if ds.name == dataset_name:
                 sampling = ds.inference_sampling
-        return build_test_loader(
-            vist_cfg.dataloader, dataset_name, sampling
-        )
+        return build_test_loader(vist_cfg.dataloader, dataset_name, sampling)
 
     def build_evaluator(
         self, cfg: CfgNode, dataset_name: str

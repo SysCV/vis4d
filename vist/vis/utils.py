@@ -1,10 +1,12 @@
 """Utilities for visualization."""
 import colorsys
+import math
 from typing import List, Tuple, Union
 
 import numpy as np
 import torch
 from PIL import Image
+from scipy.spatial.transform import Rotation as R
 
 from vist.struct import Boxes2D, Boxes3D, NDArrayF64, NDArrayUI8
 
@@ -136,7 +138,10 @@ def box3d_to_corners(box3d: List[float]) -> NDArrayF64:
     """Convert Boxes3D style box to its respective corner points."""
     x_loc, y_loc, z_loc = box3d[:3]
     h, w, l = box3d[3:6]
-    ry = box3d[6]
+    if len(box3d) < 9:  # if 7 DoF box type
+        rx, ry, rz = 0.0, box3d[6], 0.0
+    else:
+        rx, ry, rz = box3d[6], box3d[7], box3d[8]
 
     x_corners = np.array(
         [
@@ -168,9 +173,11 @@ def box3d_to_corners(box3d: List[float]) -> NDArrayF64:
     y_corners[0:4] = h / 2
     y_corners[4:8] = -h / 2
 
-    rot = np.array(
-        [[np.cos(ry), 0, -np.sin(ry)], [0, 1, 0], [np.sin(ry), 0, np.cos(ry)]]
-    )
+    # add 180 degrees to the y rotation, since direction of rotation around
+    # the yy axis is clockwise not counter-clockwise, compare:
+    # https://en.wikipedia.org/wiki/Rotation_matrix#Basic_rotations
+    # https://en.wikipedia.org/wiki/Right-hand_rule#Coordinates
+    rot = R.from_euler("xyz", np.array([rx, ry + math.pi, rz])).as_matrix()
     temp_corners = np.concatenate(
         (
             x_corners.reshape(8, 1),

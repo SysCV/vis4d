@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scalabel.label.utils import project_points_to_image
 
-from vist.struct import NDArrayF64
+from vist.struct import Intrinsics, NDArrayF64
 
 from .utils import (
     Box3DType,
@@ -49,12 +49,19 @@ def imshow_bboxes(
 def imshow_bboxes3d(
     image: ImageType,
     boxes: Box3DType,
-    intrinsics: NDArrayF64,
+    intrinsics: Union[NDArrayF64, Intrinsics],
     mode: str = "BGR",
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode)
     box_list, color_list, label_list = preprocess_boxes(boxes)
+    if isinstance(intrinsics, Intrinsics):
+        intrinsics = intrinsics.tensor.cpu().numpy()
+        assert intrinsics.shape == (
+            3,
+            3,
+        ), f"Intrinsics must be of shape 3x3, got {intrinsics.shape}"
+
     for box, col, label in zip(box_list, color_list, label_list):
         draw_bbox3d(image, box, intrinsics, col, label)
 
@@ -96,7 +103,7 @@ def draw_bbox3d(
     for i in range(4):
         draw.line((tuple(corners[i]), tuple(corners[i + 4])), fill=color)
 
-    # Draw front (first 4 corners) and rear (last 4 corners)
+    # Draw bottom (first 4 corners) and top (last 4 corners)
     draw_rect(corners[:4])
     draw_rect(corners[4:])
 

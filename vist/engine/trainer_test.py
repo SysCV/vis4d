@@ -203,12 +203,6 @@ class TestTrackMMKITTI(BaseEngineTests.TestTrack):
             output_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
-        cls.cfg.dataloader.fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        super().tearDownClass()
-        cls.cfg.dataloader.fields_to_load = ["boxes2d"]
 
 
 class TestDetectD2(BaseEngineTests.TestDetect):
