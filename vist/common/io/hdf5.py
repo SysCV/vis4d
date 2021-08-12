@@ -12,7 +12,7 @@ class HDF5Backend(BaseDataBackend):
     that the given HDF5 file contains the whole dataset associated to this
     backend.
 
-    You can use the provided script at tools/datasets_to_hdf5.py to convert
+    You can use the provided script at vist.tool.datasets_to_hdf5 to convert
     your dataset to the expected hdf5 format before using this backend.
     """
 
