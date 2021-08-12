@@ -30,13 +30,11 @@ class MMTwoStageDetectorConfig(BaseModelConfig):
 def get_img_metas(images: Images) -> List[MMDetMetaData]:
     """Create image metadata in mmdetection format."""
     img_metas = []
-    output_shapes = []
     _, c, padh, padw = images.tensor.shape  # type: Tuple[int, int, int, int]
     for i in range(len(images)):
         meta = dict()  # type: MMDetMetaData
         w, h = images.image_sizes[i]
         meta["img_shape"] = meta["ori_shape"] = (h, w, c)
-        output_shapes.append((h, w))
         meta["scale_factor"] = 1.0
         meta["flip"] = False
         meta["pad_shape"] = (padh, padw, c)
@@ -46,7 +44,7 @@ def get_img_metas(images: Images) -> List[MMDetMetaData]:
 
 
 def proposals_from_mmdet(proposals: List[torch.Tensor]) -> List[Boxes2D]:
-    """Convert mmdetection proposals to OpenMT format."""
+    """Convert mmdetection proposals to VisT format."""
     proposals_boxes2d = []
     for proposal in proposals:
         proposals_boxes2d.append(Boxes2D(proposal))
@@ -54,7 +52,7 @@ def proposals_from_mmdet(proposals: List[torch.Tensor]) -> List[Boxes2D]:
 
 
 def proposals_to_mmdet(proposals: List[Boxes2D]) -> List[torch.Tensor]:
-    """Convert OpenMT format proposals to mmdetection."""
+    """Convert VisT format proposals to mmdetection."""
     proposal_tensors = []
     for proposal in proposals:
         proposal_tensors.append(proposal.boxes)
@@ -64,7 +62,7 @@ def proposals_to_mmdet(proposals: List[Boxes2D]) -> List[torch.Tensor]:
 def detections_from_mmdet(
     bboxes: List[torch.Tensor], labels: List[torch.Tensor]
 ) -> List[Boxes2D]:
-    """Convert mmdetection detections to OpenMT format."""
+    """Convert mmdetection detections to VisT format."""
     detections_boxes2d = []
     for bbox, label in zip(bboxes, labels):
         if not label.device == bbox.device:
@@ -76,7 +74,7 @@ def detections_from_mmdet(
 def results_from_mmdet(
     detections: List[torch.Tensor], device: torch.device
 ) -> List[Boxes2D]:
-    """Convert mmdetection bbox_results to OpenMT format."""
+    """Convert mmdetection bbox_results to VisT format."""
     detections_boxes2d = []
     for detection in detections:
         bboxes = torch.from_numpy(np.vstack(detection)).to(device)  # Nx5
@@ -93,7 +91,8 @@ def targets_to_mmdet(
     targets: List[Boxes2D],
 ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
     """Convert VisT targets to mmdetection compatible format."""
-    gt_bboxes = [t.boxes[:, :4].to(torch.float32) for t in targets]
+    gt_bboxes = [t.boxes for t in targets]
+
     gt_labels = [t.class_ids for t in targets]
     return gt_bboxes, gt_labels
 

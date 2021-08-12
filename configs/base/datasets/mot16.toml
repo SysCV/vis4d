@@ -22,9 +22,13 @@ skip_empty_samples = true
     type = "FileBackend"
     [dataloader.ref_sampling_cfg]
     type = 'uniform'
-    scope = 3
+    scope = 10
     num_ref_imgs = 1
     skip_nomatch_samples = true
+
+    [[dataloader.train_augmentations]]
+    type = "ResizeShortestEdge"
+    kwargs = {"short_edge_length" = [490, 734]}
 
     [[dataloader.train_augmentations]]
     type = "RandomCrop"
@@ -36,15 +40,15 @@ skip_empty_samples = true
 
     [[dataloader.train_augmentations]]
     type = "RandomBrightness"
-    kwargs = {"intensity_min" = 0.9, "intensity_max" = 1.1}
+    kwargs = {"intensity_min" = 0.5, "intensity_max" = 1.5}
 
     [[dataloader.train_augmentations]]
     type = "RandomContrast"
-    kwargs = {"intensity_min" = 0.9, "intensity_max" = 1.1}
+    kwargs = {"intensity_min" = 0.5, "intensity_max" = 1.5}
 
     [[dataloader.train_augmentations]]
     type = "RandomSaturation"
-    kwargs = {"intensity_min" = 0.9, "intensity_max" = 1.1}
+    kwargs = {"intensity_min" = 0.5, "intensity_max" = 1.5}
 
     [[dataloader.test_augmentations]]
     type = "Resize"

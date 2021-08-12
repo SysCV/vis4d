@@ -11,8 +11,8 @@ try:
     from scalabel.label.from_waymo import from_waymo
 
     WAYMO_INSTALLED = True  # pragma: no cover
-except NameError:
-    WAYMO_INSTALLED = False
+except NameError:  # pragma: no cover
+    WAYMO_INSTALLED = False  # pragma: no cover
 
 
 class WaymoDatasetConfig(BaseDatasetConfig):

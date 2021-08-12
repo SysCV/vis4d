@@ -3,6 +3,7 @@ import unittest
 from argparse import Namespace
 
 from vist import config
+from vist.common.utils import timeit
 from vist.data.datasets.base import BaseDatasetConfig
 from vist.engine.utils import _register, to_detectron2
 from vist.unittest.utils import get_test_file
@@ -11,6 +12,7 @@ from vist.unittest.utils import get_test_file
 class TestConfig(unittest.TestCase):
     """Test cases for vist models config."""
 
+    @timeit  # type: ignore
     def test_register(self) -> None:
         """Testcase for register function."""
         datasets = [

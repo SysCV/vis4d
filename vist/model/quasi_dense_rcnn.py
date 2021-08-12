@@ -4,7 +4,7 @@ from typing import List, Tuple
 
 import torch
 
-from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
+from vist.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
 
 from .base import BaseModel, BaseModelConfig, build_model
 from .detect import BaseTwoStageDetector
@@ -43,6 +43,38 @@ class QDGeneralizedRCNN(BaseModel):
         """Get device where input should be moved to."""
         return self.detector.device
 
+    def prepare_targets(
+        self,
+        key_inputs: List[InputSample],
+        ref_inputs: List[List[InputSample]],
+    ) -> Tuple[List[Boxes2D], List[List[Boxes2D]]]:
+        """Prepare targets from key / ref input samples."""
+        key_targets = []
+        for x in key_inputs:
+            assert x.boxes2d is not None
+            key_targets.append(x.boxes2d.to(self.device))
+        ref_targets = []
+        for inputs in ref_inputs:
+            ref_target = []
+            for x in inputs:
+                assert x.boxes2d is not None
+                ref_target.append(x.boxes2d.to(self.device))
+            ref_targets.append(ref_target)
+
+        return key_targets, ref_targets
+
+    def prepare_images(
+        self,
+        key_inputs: List[InputSample],
+        ref_inputs: List[List[InputSample]],
+    ) -> Tuple[Images, List[Images]]:
+        """Prepare images from key / ref input samples."""
+        key_images = self.detector.preprocess_image(key_inputs)
+        ref_images = [
+            self.detector.preprocess_image(inp) for inp in ref_inputs
+        ]
+        return key_images, ref_images
+
     def forward_train(
         self, batch_inputs: List[List[InputSample]]
     ) -> LossesType:
@@ -56,12 +88,8 @@ class QDGeneralizedRCNN(BaseModel):
             for i in range(len(ref_inputs[0]))
         ]
 
-        # prepare targets
-        key_targets = [input.instances.to(self.device) for input in key_inputs]
-        ref_targets = [
-            [input.instances.to(self.device) for input in inputs]
-            for inputs in ref_inputs
-        ]
+        key_images, ref_images = self.prepare_images(key_inputs, ref_inputs)
+        key_targets, ref_targets = self.prepare_targets(key_inputs, ref_inputs)
 
         # from vist.vis.image import imshow_bboxes
         # for batch_i, key_inp in enumerate(key_inputs):
@@ -71,12 +99,6 @@ class QDGeneralizedRCNN(BaseModel):
         #             ref_inp[batch_i].image.tensor[0],
         #             ref_targets[ref_i][batch_i],
         #         )
-
-        # prepare inputs
-        key_images = self.detector.preprocess_image(key_inputs)
-        ref_images = [
-            self.detector.preprocess_image(inp) for inp in ref_inputs
-        ]
 
         # feature extraction
         key_x = self.detector.extract_features(key_images)

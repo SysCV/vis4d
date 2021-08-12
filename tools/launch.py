@@ -3,11 +3,10 @@
 from detectron2.engine import launch
 
 from vist import config
-from vist.common.utils import default_argument_parser
 from vist.engine import predict, test, train
 
 if __name__ == "__main__":
-    args = default_argument_parser().parse_args()
+    args = config.default_argument_parser().parse_args()
     cfg = config.parse_config(args)
 
     if args.action == "train":

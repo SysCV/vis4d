@@ -1,26 +1,61 @@
 """VisT augmentations."""
-import random
-from typing import Dict, Tuple, Union
+from typing import Optional, Tuple
 
-from detectron2.data.transforms import transform as T
+import torch
+import torch.nn.functional as F
 
-from .base import BaseAugmentation
+from .base import AugParams, BaseAugmentation
 
 
-class BrightnessJitterAugmentation(BaseAugmentation):
-    """Simple brightness augmentation class.
+class Resize(BaseAugmentation):
+    """Simple resize augmentation class."""
 
-    Multiplies color values by random factor alpha.
-    """
+    def __init__(
+        self,
+        shape: Tuple[int, int],
+        interpolation: Optional[str] = None,
+    ) -> None:
+        """Init function.
 
-    def __init__(self, brightness: float = 0.1):
-        """Init."""
-        super().__init__()
-        self.brightness = brightness
+        Args:
+            shape: Image shape to be resized to in (H, W) format.
+            interpolation: Interpolation method. One of ["nearest", "bilinear",
+            "bicubic"]
+            return_transform: If the transform should be returned in matrix
+            format.
+        """
+        super().__init__(p=1.0)
+        self.shape = shape
+        if interpolation is None:
+            self.interpolation = "bilinear"
+        else:
+            self.interpolation = interpolation
 
-    def get_transform(
-        self, *args: Dict[str, Union[bool, float, str, Tuple[int, int]]]
-    ) -> T.Transform:
-        """Get deterministic transformation."""
-        alpha = 1.0 + random.uniform(-self.brightness, self.brightness)
-        return T.ColorTransform(lambda x: x * alpha)
+        assert self.interpolation in ["nearest", "bilinear", "bicubic"]
+
+    def generate_parameters(self, batch_shape: torch.Size) -> AugParams:
+        """Generate current parameters."""
+        return dict(shape=self.shape)
+
+    def compute_transformation(
+        self, inputs: torch.Tensor, params: AugParams
+    ) -> torch.Tensor:
+        """Compute transformation for resize."""
+        transform = torch.eye(3, 3, device=inputs.device)
+        n, _, h, w = inputs.shape
+        transform[0, 0] = params["shape"][1] / w
+        transform[1, 1] = params["shape"][0] / h
+        return torch.stack([transform for _ in range(n)], 0)
+
+    def apply_transform(
+        self, inputs: torch.Tensor, params: AugParams, transform: torch.Tensor
+    ) -> torch.Tensor:
+        """Apply resize."""
+        align_corners = None if self.interpolation == "nearest" else False
+        output = F.interpolate(
+            inputs,
+            self.shape,
+            mode=self.interpolation,
+            align_corners=align_corners,
+        )
+        return output

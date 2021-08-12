@@ -3,26 +3,37 @@ import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
-import detectron2.data.detection_utils as d2_utils
 import numpy as np
 import torch
-from detectron2.config import CfgNode
-from detectron2.data import transforms as T
 from detectron2.data.common import MapDataset as D2MapDataset
-from detectron2.data.dataset_mapper import DatasetMapper as D2DatasetMapper
 from pydantic import validator
 from pydantic.main import BaseModel
-from scalabel.label.typing import Frame, ImageSize, Label
-from scalabel.label.utils import check_crowd, check_ignored
+from scalabel.label.typing import Extrinsics as ScalabelExtrinsics
+from scalabel.label.typing import Frame, ImageSize
+from scalabel.label.typing import Intrinsics as ScalabelIntrinsics
+from scalabel.label.typing import Label
+from scalabel.label.utils import (
+    check_crowd,
+    check_ignored,
+    get_matrix_from_extrinsics,
+    get_matrix_from_intrinsics,
+)
 
-from vist.common.io import build_data_backend
-from vist.struct import Boxes2D, Images, InputSample, NDArrayUI8
-
-from ..common.io import DataBackendConfig
-from .transforms import AugmentationConfig, build_augmentations
-from .utils import dicts_to_boxes2d, im_decode, label_to_dict
+from ..common.io import DataBackendConfig, build_data_backend
+from ..struct import (
+    Boxes2D,
+    Boxes3D,
+    Extrinsics,
+    Images,
+    InputSample,
+    Intrinsics,
+    NDArrayUI8,
+)
+from .transforms import AugmentationConfig, AugParams, build_augmentations
+from .utils import im_decode, transform_bbox
 
 __all__ = ["DatasetMapper", "MapDataset"]
+logger = logging.getLogger(__name__)
 
 
 class ReferenceSamplingConfig(BaseModel):
@@ -123,11 +134,11 @@ class MapDataset(D2MapDataset):  # type: ignore
     ) -> bool:
         """Check if key / ref data have matches."""
         has_match = False
-        assert isinstance(key_data.instances, Boxes2D)
-        key_track_ids = key_data.instances.track_ids
+        assert key_data.boxes2d is not None
+        key_track_ids = key_data.boxes2d.track_ids
         for ref_view in ref_data:
-            assert isinstance(ref_view.instances, Boxes2D)
-            ref_track_ids = ref_view.instances.track_ids
+            assert isinstance(ref_view.boxes2d, Boxes2D)
+            ref_track_ids = ref_view.boxes2d.track_ids
             match = key_track_ids.view(-1, 1) == ref_track_ids.view(1, -1)
             if match.any():
                 has_match = True
@@ -142,7 +153,7 @@ class MapDataset(D2MapDataset):  # type: ignore
         while True:
             data = self._map_func(self._dataset[cur_idx])
             if data is not None:
-                input_data, transforms = data
+                input_data, parameters = data
                 if input_data.metadata.attributes is None:
                     input_data.metadata.attributes = dict()
                 if self.training:
@@ -155,7 +166,7 @@ class MapDataset(D2MapDataset):  # type: ignore
                     if vid_id is not None:
                         ref_data = [
                             self._map_func(
-                                self._dataset[ref_idx], transforms=transforms
+                                self._dataset[ref_idx], parameters=parameters
                             )[0]
                             for ref_idx in self.sample_ref_idcs(
                                 vid_id, cur_idx
@@ -182,7 +193,6 @@ class MapDataset(D2MapDataset):  # type: ignore
             cur_idx = self._rng.sample(self._fallback_candidates, k=1)[0]
 
             if retry_count >= 5:
-                logger = logging.getLogger(__name__)
                 logger.warning(
                     "Failed to apply `_map_func` for idx: %s, retry count: %s",
                     idx,
@@ -195,8 +205,10 @@ class DataloaderConfig(BaseModel):
 
     data_backend: DataBackendConfig = DataBackendConfig()
     workers_per_gpu: int
+    fields_to_load: List[str] = ["boxes2d"]
     categories: Optional[List[str]] = None
     skip_empty_samples: bool = False
+    clip_bboxes_to_image: bool = True
     compute_global_instance_ids: bool = False
     train_augmentations: Optional[List[AugmentationConfig]] = None
     test_augmentations: Optional[List[AugmentationConfig]] = None
@@ -205,7 +217,7 @@ class DataloaderConfig(BaseModel):
     ignore_unknown_cats: bool = False
 
 
-class DatasetMapper(D2DatasetMapper):  # type: ignore
+class DatasetMapper:
     """DatasetMapper class for VisT.
 
     A callable which takes a data sample in scalabel format, and maps it into
@@ -218,19 +230,23 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
     def __init__(
         self,
         loader_cfg: DataloaderConfig,
-        det2cfg: CfgNode,
         is_train: bool = True,
     ) -> None:
         """Init."""
-        # pylint: disable=missing-kwoa,too-many-function-args
         if is_train:
             augs = build_augmentations(loader_cfg.train_augmentations)
         else:
             augs = build_augmentations(loader_cfg.test_augmentations)
-        super().__init__(det2cfg, is_train, augmentations=augs)
+        logger.info("Augmentations used: %s", augs)
+
+        self.augs = augs
+        self.is_train = is_train
         self.loader_cfg = loader_cfg
         self.data_backend = build_data_backend(loader_cfg.data_backend)
         self.skip_empty_samples = loader_cfg.skip_empty_samples
+        self.fields_to_load = loader_cfg.fields_to_load
+        for field in self.fields_to_load:
+            assert field in ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
 
     def load_image(
         self,
@@ -246,97 +262,145 @@ class DatasetMapper(D2DatasetMapper):  # type: ignore
     def transform_image(
         self,
         image: NDArrayUI8,
-        transforms: Optional[T.AugmentationList] = None,
-    ) -> Tuple[Images, T.AugmentationList]:
+        parameters: Optional[List[AugParams]] = None,
+    ) -> Tuple[Images, List[AugParams], torch.Tensor]:
         """Apply image augmentations and convert to torch tensor."""
-        aug_input = T.AugInput(image)
-        if transforms is None:
-            transforms = self.augmentations(aug_input)
-            image = aug_input.image
-        else:
-            image = transforms.apply_image(image)
+        transform_matrix = torch.eye(3, 3)
 
-        # Pytorch's dataloader is efficient on torch.Tensor due to
-        # shared-memory, but not efficient on large generic data struct due
-        # to the use of pickle & mp.Queue. Therefore it's important to use
-        # torch.Tensor.
-        image_processed = Images(
-            torch.as_tensor(
-                np.ascontiguousarray(image.transpose(2, 0, 1)),
-                dtype=torch.float32,
-            ).unsqueeze(0),
-            [(image.shape[1], image.shape[0])],
-        )
-        return image_processed, transforms
+        image = torch.as_tensor(
+            np.ascontiguousarray(image.transpose(2, 0, 1)),
+            dtype=torch.float32,
+        ).unsqueeze(0)
+
+        if parameters is None:
+            parameters = []
+            for aug in self.augs:
+                parameters.append(aug.forward_parameters(image.shape))
+        else:
+            assert len(parameters) == len(self.augs), (
+                "Length of augmentation parameters must equal the number of "
+                "augmentations!"
+            )
+
+        for aug, params in zip(self.augs, parameters):
+            image, tm = aug(image, params, return_transform=True)
+            transform_matrix = torch.mm(tm[0], transform_matrix)
+
+        image_processed = Images(image, [(image.shape[3], image.shape[2])])
+
+        return image_processed, parameters, transform_matrix
 
     def transform_annotation(
         self,
         input_sample: InputSample,
         labels: Optional[List[Label]],
-        transforms: T.AugmentationList,
-    ) -> Boxes2D:
+        transform_matrix: torch.Tensor,
+    ) -> None:
         """Transform annotations."""
         image_hw = input_sample.image.tensor.shape[2:]
 
-        if labels is None:
-            return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+        labels_used = []
 
-        # USER: Implement additional transformations if you have other types
-        # of data
-        annos = []
-        for label in labels:
-            assert label.attributes is not None
-            if not check_crowd(label) and not check_ignored(label):
-                anno = label_to_dict(label)
-                d2_utils.transform_instance_annotations(
-                    anno,
-                    transforms,
-                    image_hw,
-                    keypoint_hflip_indices=self.keypoint_hflip_indices,
+        if labels is not None:
+            cat_dict = dict()
+            for label in labels:
+                assert label.attributes is not None
+                assert label.category is not None
+                if not check_crowd(label) and not check_ignored(label):
+                    labels_used.append(label)
+                    if label.category not in cat_dict:
+                        cat_dict[label.category] = int(
+                            label.attributes["category_id"]
+                        )
+
+        if "boxes2d" in self.fields_to_load:
+            if labels is not None and labels_used:
+                boxes2d = Boxes2D.from_scalabel(labels_used, cat_dict)
+                boxes2d.boxes[:, :4] = transform_bbox(
+                    transform_matrix,
+                    boxes2d.boxes[:, :4],
                 )
-                annos.append(anno)
+                if self.loader_cfg.clip_bboxes_to_image:
+                    boxes2d.clip((image_hw[1], image_hw[0]))
+                input_sample.boxes2d = boxes2d
 
-        return dicts_to_boxes2d(annos)
+        if "boxes3d" in self.fields_to_load:
+            if labels is not None and labels_used:
+                boxes3d = Boxes3D.from_scalabel(labels_used, cat_dict)
+                input_sample.boxes3d = boxes3d
+
+    @staticmethod
+    def transform_intrinsics(
+        intrinsics: ScalabelIntrinsics, transform_matrix: torch.Tensor
+    ) -> Intrinsics:
+        """Transform intrinsic camera matrix according to augmentations."""
+        intrinsic_matrix = torch.from_numpy(
+            get_matrix_from_intrinsics(intrinsics)
+        ).to(torch.float32)
+        return Intrinsics(torch.mm(transform_matrix, intrinsic_matrix))
+
+    @staticmethod
+    def transform_extrinsics(extrinsics: ScalabelExtrinsics) -> Extrinsics:
+        """Transform extrinsics from Scalabel to VisT."""
+        extrinsics_matrix = torch.from_numpy(
+            get_matrix_from_extrinsics(extrinsics)
+        ).to(torch.float32)
+        return Extrinsics(extrinsics_matrix)
 
     def __call__(  # type: ignore
         self,
         sample_dict: Dict[str, Any],
-        transforms: Optional[T.AugmentationList] = None,
-    ) -> Optional[Tuple[InputSample, T.AugmentationList]]:
+        parameters: Optional[List[AugParams]] = None,
+    ) -> Optional[Tuple[InputSample, Optional[List[AugParams]]]]:
         """Prepare a single sample in detect format.
 
         Args:
             sample_dict (serialized Frame): Metadata of one image, in scalabel
             format. Serialized as dict due to multi-processing.
-            transforms (T.AugmentationList): Detectron2 augmentation list.
+            parameters (List[AugParams]): Augmentation parameter list.
 
         Returns:
             InputSample: Data format that the model accepts.
-            T.AugmentationList: augmentations, s.t. ref views can be augmented
-            with the same parameters.
+            List[AugParams]: augmentation parameters, s.t. ref views can be
+            augmented with the same parameters.
         """
         sample = Frame(**sample_dict)
 
         # image loading, augmentation / to torch.tensor
-        image, transforms = self.transform_image(
-            self.load_image(sample), transforms=transforms
+        image, parameters, transform_matrix = self.transform_image(
+            self.load_image(sample),
+            parameters=parameters,
         )
         input_data = InputSample(sample, image)
 
+        if (
+            sample.intrinsics is not None
+            and "intrinsics" in self.fields_to_load
+        ):
+            input_data.intrinsics = self.transform_intrinsics(
+                sample.intrinsics, transform_matrix
+            )
+
+        if (
+            sample.extrinsics is not None
+            and "extrinsics" in self.fields_to_load
+        ):
+            input_data.extrinsics = self.transform_extrinsics(
+                sample.extrinsics
+            )
+
         if not self.is_train:
             del sample.labels
-            return input_data, transforms
+            return input_data, parameters
 
-        input_data.instances = self.transform_annotation(
-            input_data, sample.labels, transforms
-        )
+        self.transform_annotation(input_data, sample.labels, transform_matrix)
         del sample.labels
 
         if (
             self.skip_empty_samples
-            and len(input_data.instances) == 0
-            and transforms is None
+            and len(input_data.boxes2d) == 0
+            and parameters is None
         ):
             return None  # pragma: no cover
 
-        return input_data, transforms
+        return input_data, parameters

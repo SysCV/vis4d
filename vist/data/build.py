@@ -143,7 +143,7 @@ def _train_loader_from_config(
         loader_cfg.compute_global_instance_ids,
         loader_cfg.categories,
     )
-    mapper = DatasetMapper(loader_cfg, cfg)
+    mapper = DatasetMapper(loader_cfg)
 
     sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
     if sampler_name == "TrainingSampler":
@@ -182,11 +182,11 @@ def build_train_loader(
 
 
 def _test_loader_from_config(
-    loader_cfg: DataloaderConfig, cfg: CfgNode, dataset_name: str
+    loader_cfg: DataloaderConfig, dataset_name: str
 ) -> DataOptions:
     """Construct testing data loader from config."""
     dataset = get_dataset_frames(dataset_name, False, loader_cfg.categories)
-    mapper = DatasetMapper(loader_cfg, cfg, is_train=False)
+    mapper = DatasetMapper(loader_cfg, is_train=False)
 
     return DataOptions(
         dataset=dataset,
@@ -198,12 +198,11 @@ def _test_loader_from_config(
 
 def build_test_loader(
     loader_cfg: DataloaderConfig,
-    det2cfg: CfgNode,
     dataset_name: str,
     inference_sampling: str,
 ) -> torch.utils.data.DataLoader:
     """Build test dataloader with some default features."""
-    data_options = _test_loader_from_config(loader_cfg, det2cfg, dataset_name)
+    data_options = _test_loader_from_config(loader_cfg, dataset_name)
     dataset = DatasetFromList(data_options.dataset, copy=False)
     dataset = MapDataset(
         loader_cfg.ref_sampling_cfg, False, dataset, data_options.mapper

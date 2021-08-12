@@ -50,8 +50,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
     def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
         """Batch, pad (standard stride=32) and normalize the input images."""
-        images = Images.cat([inp.image for inp in batched_inputs])
-        images = images.to(self.device)
+        images = Images.cat([inp.image for inp in batched_inputs], self.device)
         images.tensor = (
             images.tensor - self.d2_detector.pixel_mean
         ) / self.d2_detector.pixel_std
@@ -64,17 +63,12 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
         Returns a dict of loss tensors.
         """
-        assert all(
-            len(inp) == 1 for inp in batch_inputs
-        ), "No reference views allowed in detector training!"
         inputs = [inp[0] for inp in batch_inputs]
-        targets = [
-            x.instances.to(self.device) for x in inputs  # type: ignore
-        ]  # type: List[Boxes2D]
 
-        # from vist.vis.image import imshow_bboxes
-        # for inp in inputs:
-        #     imshow_bboxes(inp.image.tensor[0], inp.instances)
+        targets = []
+        for x in inputs:
+            assert x.boxes2d is not None
+            targets.append(x.boxes2d.to(self.device))
 
         images = self.preprocess_image(inputs)
         features = self.extract_features(images)

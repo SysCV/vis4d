@@ -18,7 +18,7 @@ class CombinedSamplerConfig(SamplerConfig):
 
     pos_strategy: str
     neg_strategy: str
-
+    neg_pos_ub: float = 3.0
     floor_thr: float = -1.0
     floor_fraction: float = 0.0
     num_bins: int = 3
@@ -169,6 +169,10 @@ class CombinedSampler(BaseSampler):
 
             num_pos = min(positive.numel(), pos_sample_size)
             num_neg = self.cfg.batch_size_per_image - num_pos
+
+            if self.cfg.neg_pos_ub >= 0:
+                neg_upper_bound = int(self.cfg.neg_pos_ub * num_pos)
+                num_neg = min(num_neg, neg_upper_bound)
 
             args = dict(
                 idx_tensor=positive,

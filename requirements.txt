@@ -2,8 +2,6 @@ black
 coverage[toml]
 isort
 mypy
-mmdet
-mmcv-full
 numpy>=1.21.0
 pillow
 pydantic
@@ -21,7 +19,10 @@ torch
 torchaudio
 torchvision
 git+git://github.com/bdd100k/bdd100k.git
+mmcv-full
 devtools
+utm
+kornia
 
 types-toml
 types-termcolor
