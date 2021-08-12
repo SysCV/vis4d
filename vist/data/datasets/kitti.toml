@@ -1,8 +1,17 @@
 [[categories]]
-name = "car"
-
-[[categories]]
 name = "pedestrian"
 
 [[categories]]
 name = "cyclist"
+
+[[categories]]
+name = "car"
+
+[[categories]]
+name = "truck"
+
+[[categories]]
+name = "tram"
+
+[[categories]]
+name = "misc"

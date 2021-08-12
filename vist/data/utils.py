@@ -6,7 +6,9 @@ from collections import defaultdict
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
 
+import kornia
 import numpy as np
+import torch
 from detectron2.utils.logger import log_first_n
 from fvcore.common.timer import Timer
 from PIL import Image
@@ -19,6 +21,40 @@ from vist.struct import NDArrayUI8
 
 D2BoxType = Dict[str, Union[bool, float, str]]
 logger = logging.getLogger(__name__)
+
+
+def transform_bbox(
+    trans_mat: torch.Tensor, boxes: torch.Tensor
+) -> torch.Tensor:
+    """Apply trans_mat (3, 3) / (B, 3, 3)  to (N, 4) / (B, N, 4) xyxy boxes."""
+    assert len(trans_mat.shape) == len(
+        boxes.shape
+    ), "trans_mat and boxes must have same number of dimensions!"
+    x1y1 = boxes[..., :2]
+    x2y2 = boxes[..., 2:]
+    if len(boxes.shape) == 2:
+        x1y1 = x1y1.unsqueeze(0)
+        x2y2 = x2y2.unsqueeze(0)
+        trans_mat = trans_mat.unsqueeze(0)
+
+    x1y1 = kornia.transform_points(trans_mat, x1y1)
+    x2y2 = kornia.transform_points(trans_mat, x2y2)
+
+    x1x2 = torch.stack((x1y1[..., 0], x2y2[..., 0]), -1)
+    y1y2 = torch.stack((x1y1[..., 1], x2y2[..., 1]), -1)
+    transformed_boxes = torch.stack(
+        (
+            x1x2.min(dim=-1)[0],
+            y1y2.min(dim=-1)[0],
+            x1x2.max(dim=-1)[0],
+            y1y2.max(dim=-1)[0],
+        ),
+        -1,
+    )
+
+    if len(boxes.shape) == 2:
+        transformed_boxes.squeeze(0)
+    return transformed_boxes
 
 
 def identity_batch_collator(  # type: ignore

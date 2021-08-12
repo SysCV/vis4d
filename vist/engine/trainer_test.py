@@ -206,9 +206,12 @@ class TestTrackMMKITTI(BaseEngineTests.TestTrack):
         )
         cls.cfg = config.parse_config(cls.args)
         cls.metric_keys = [
-            "car",
             "pedestrian",
             "cyclist",
+            "car",
+            "truck",
+            "tram",
+            "misc",
             "OVERALL",
         ]
         cls.predict_dir = (

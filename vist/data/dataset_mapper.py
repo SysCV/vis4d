@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 from detectron2.data.common import MapDataset as D2MapDataset
-from kornia.geometry.bbox import transform_bbox
 from pydantic import validator
 from pydantic.main import BaseModel
 from scalabel.label.typing import Extrinsics as ScalabelExtrinsics
@@ -31,7 +30,7 @@ from ..struct import (
     NDArrayUI8,
 )
 from .transforms import AugmentationConfig, AugParams, build_augmentations
-from .utils import im_decode
+from .utils import im_decode, transform_bbox
 
 __all__ = ["DatasetMapper", "MapDataset"]
 logger = logging.getLogger(__name__)
@@ -318,9 +317,9 @@ class DatasetMapper:
             if labels is not None and labels_used:
                 boxes2d = Boxes2D.from_scalabel(labels_used, cat_dict)
                 boxes2d.boxes[:, :4] = transform_bbox(
-                    transform_matrix.unsqueeze(0),
-                    boxes2d.boxes[:, :4].unsqueeze(0),
-                ).squeeze(0)
+                    transform_matrix,
+                    boxes2d.boxes[:, :4],
+                )
                 if self.loader_cfg.clip_bboxes_to_image:
                     boxes2d.clip((image_hw[1], image_hw[0]))
                 input_sample.boxes2d = boxes2d
