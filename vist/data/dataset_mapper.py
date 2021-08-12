@@ -194,7 +194,6 @@ class MapDataset(D2MapDataset):  # type: ignore
             cur_idx = self._rng.sample(self._fallback_candidates, k=1)[0]
 
             if retry_count >= 5:
-                logger = logging.getLogger(__name__)
                 logger.warning(
                     "Failed to apply `_map_func` for idx: %s, retry count: %s",
                     idx,
@@ -239,7 +238,7 @@ class DatasetMapper:
             augs = build_augmentations(loader_cfg.train_augmentations)
         else:
             augs = build_augmentations(loader_cfg.test_augmentations)
-        logger.info(f"Augmentations used: {augs}")
+        logger.info("Augmentations used: %s", augs)
 
         self.augs = augs
         self.is_train = is_train

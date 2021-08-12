@@ -96,6 +96,24 @@ class BaseEngineTests:
         cfg = None
         work_dir = None
         args = None
+        metric_keys = [
+            "car",
+            "pedestrian",
+            "rider",
+            "truck",
+            "bus",
+            "train",
+            "motorcycle",
+            "bicycle",
+            "human",
+            "vehicle",
+            "bike",
+            "OVERALL",
+        ]
+        predict_dir = (
+            "vist/engine/testcases/track/bdd100k-samples/images/"
+            "00091078-875c1f73/"
+        )
 
         def test_predict(self) -> None:
             """Testcase for predict."""
@@ -103,10 +121,7 @@ class BaseEngineTests:
             self.cfg.launch.action = "predict"
             if torch.cuda.is_available():
                 self.cfg.launch.device = "cuda"  # pragma: no cover
-            self.cfg.launch.input_dir = (
-                "vist/engine/testcases/track/"
-                "bdd100k-samples/images/00091078-875c1f73/"
-            )
+            self.cfg.launch.input_dir = self.predict_dir
             self.cfg.launch.visualize = True
             predict(self.cfg)
 
@@ -117,22 +132,9 @@ class BaseEngineTests:
             if torch.cuda.is_available():
                 self.cfg.launch.device = "cuda"  # pragma: no cover
             results = evaluate(self.cfg)["track"]
-            metric_keys = [
-                "pedestrian",
-                "rider",
-                "car",
-                "truck",
-                "bus",
-                "train",
-                "motorcycle",
-                "bicycle",
-                "human",
-                "vehicle",
-                "bike",
-                "OVERALL",
-            ]
+
             for k in results:
-                self.assertIn(k, metric_keys)
+                self.assertIn(k, self.metric_keys)
 
         def test_train(self) -> None:
             """Testcase for training."""
@@ -197,12 +199,22 @@ class TestTrackMMKITTI(BaseEngineTests.TestTrack):
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
-        cls.work_dir = "./unittests/unittest_track_mm/"
+        cls.work_dir = "./unittests/unittest_track_mm_kitti/"
         cls.args = Namespace(
             config=get_test_file("track/qdtrack_mmdet_kitti.toml"),
             output_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
+        cls.metric_keys = [
+            "car",
+            "pedestrian",
+            "cyclist",
+            "OVERALL",
+        ]
+        cls.predict_dir = (
+            "vist/engine/testcases/track/kitti-samples/"
+            "tracking/training/image_02/0001/"
+        )
 
 
 class TestDetectD2(BaseEngineTests.TestDetect):

@@ -1,6 +1,5 @@
 """Utilities for visualization."""
 import colorsys
-import math
 from typing import List, Tuple, Union
 
 import numpy as np
@@ -173,11 +172,7 @@ def box3d_to_corners(box3d: List[float]) -> NDArrayF64:
     y_corners[0:4] = h / 2
     y_corners[4:8] = -h / 2
 
-    # add 180 degrees to the y rotation, since direction of rotation around
-    # the yy axis is clockwise not counter-clockwise, compare:
-    # https://en.wikipedia.org/wiki/Rotation_matrix#Basic_rotations
-    # https://en.wikipedia.org/wiki/Right-hand_rule#Coordinates
-    rot = R.from_euler("xyz", np.array([rx, ry + math.pi, rz])).as_matrix()
+    rot = R.from_euler("xyz", np.array([rx, ry, rz])).as_matrix()
     temp_corners = np.concatenate(
         (
             x_corners.reshape(8, 1),
@@ -186,7 +181,7 @@ def box3d_to_corners(box3d: List[float]) -> NDArrayF64:
         ),
         axis=1,
     )  # type: ignore
-    corners = np.matmul(temp_corners, rot)
+    corners = np.matmul(temp_corners, rot.T)
     corners[:, 0], corners[:, 1], corners[:, 2] = (
         corners[:, 0] + x_loc,
         corners[:, 1] + y_loc,

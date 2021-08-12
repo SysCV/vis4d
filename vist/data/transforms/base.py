@@ -33,6 +33,7 @@ class BaseAugmentation(GeometricAugmentationBase2D, metaclass=RegistryHolder):  
     """Subclass kornia Augmentation to support registry."""
 
     def __repr__(self) -> str:
+        """Print class & params, s.t. user can inspect easily via cmd line."""
         return self.__class__.__name__ + f"({super().__repr__()})"
 
     def generate_parameters(self, batch_shape: torch.Size) -> AugParams:

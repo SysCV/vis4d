@@ -131,7 +131,6 @@ def benchmark_test(cfg: Config) -> None:
     cfg.dataloader.workers_per_gpu = 0
     data_loader = build_test_loader(
         cfg.dataloader,
-        det2cfg,
         cfg.test[0].name,
         cfg.test[0].inference_sampling,
     )

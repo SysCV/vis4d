@@ -4,7 +4,6 @@ path = "../configs/datasets/bdd100k/detect.toml"
 [[config]]
 path = "../configs/models/detectron2/faster_rcnn_R_50_FPN.toml"
 
-
 [solver]
 images_per_gpu = 1
 lr_policy = "WarmupMultiStepLR"

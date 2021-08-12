@@ -45,6 +45,10 @@ class TestBoxes2D(unittest.TestCase):
             )
         )
 
+        detections.boxes = detections.boxes[:, :-1]
+        scalabel_dets_no_score = detections.to_scalabel(idx_to_class)
+        self.assertTrue(all(d.score is None for d in scalabel_dets_no_score))
+
     def test_clone(self) -> None:
         """Testcase for cloning a Boxes2D object."""
         h, w, num_dets = 128, 128, 10
@@ -122,6 +126,34 @@ class TestBoxes3D(unittest.TestCase):
                 (str(i) == det.id for i, det in enumerate(dets_without_tracks))
             )
         )
+        # test 7 DoF
+        detections_7dof = detections.clone()
+        detections_7dof.boxes = detections_7dof.boxes[
+            :, [0, 1, 2, 3, 4, 5, 7, 9]
+        ]
+        scalabel_dets_7dof = detections_7dof.to_scalabel(  # pylint: disable=no-member,line-too-long
+            idx_to_class
+        )
+        for d in scalabel_dets_7dof:
+            assert d.box3d is not None
+            self.assertEqual(d.box3d.orientation[0], 0)
+            self.assertEqual(d.box3d.orientation[2], 0)
+
+        # 7DoF without score
+        detections_7dof.boxes = detections_7dof.boxes[:, :-1]
+        scalabel_dets_no_score = detections_7dof.to_scalabel(  # pylint: disable=no-member,line-too-long
+            idx_to_class
+        )
+        for d in scalabel_dets_no_score:
+            self.assertIsNone(d.score)
+            assert d.box3d is not None
+            self.assertEqual(d.box3d.orientation[0], 0)
+            self.assertEqual(d.box3d.orientation[2], 0)
+
+        # without score
+        detections.boxes = detections.boxes[:, :-1]
+        scalabel_dets_no_score = detections.to_scalabel(idx_to_class)
+        self.assertTrue(all(d.score is None for d in scalabel_dets_no_score))
 
     def test_clone(self) -> None:
         """Testcase for cloning a Boxes2D object."""

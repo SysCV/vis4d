@@ -56,14 +56,19 @@ def imshow_bboxes3d(
     image = preprocess_image(image, mode)
     box_list, color_list, label_list = preprocess_boxes(boxes)
     if isinstance(intrinsics, Intrinsics):
-        intrinsics = intrinsics.tensor.cpu().numpy()
-        assert intrinsics.shape == (
-            3,
-            3,
-        ), f"Intrinsics must be of shape 3x3, got {intrinsics.shape}"
+        intrinsic_matrix = intrinsics.tensor.cpu().numpy()  # type: NDArrayF64
+    elif isinstance(intrinsics, np.ndarray):
+        intrinsic_matrix = intrinsics
+    else:
+        raise ValueError(f"Invalid type for intrinsics: {type(intrinsics)}")
+
+    assert intrinsic_matrix.shape == (
+        3,
+        3,
+    ), f"Intrinsics must be of shape 3x3, got {intrinsic_matrix.shape}"
 
     for box, col, label in zip(box_list, color_list, label_list):
-        draw_bbox3d(image, box, intrinsics, col, label)
+        draw_bbox3d(image, box, intrinsic_matrix, col, label)
 
     imshow(image)
 

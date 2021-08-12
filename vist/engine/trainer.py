@@ -160,7 +160,6 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
     def predict(
         cls,
         vist_cfg: Config,
-        cfg: CfgNode,
         model: torch.nn.Module,
     ) -> None:
         """Test detect with given evaluators."""
@@ -216,4 +215,4 @@ def predict(cfg: Config) -> None:
     Checkpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
         cfg.launch.weights, resume=cfg.launch.resume
     )
-    DefaultTrainer.predict(cfg, det2cfg, model)
+    DefaultTrainer.predict(cfg, model)

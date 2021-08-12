@@ -4,6 +4,8 @@ path = "../configs/datasets/kitti/track.toml"
 [[config]]
 path = "../configs/models/mmdetection/qdtrack_R_50_FPN.toml"
 
+[model.detection]
+num_classes = 3
 
 [solver]
 images_per_gpu = 1

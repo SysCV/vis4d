@@ -188,8 +188,6 @@ class Boxes2D(Boxes, LabelInstance):
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
         track_ids = torch.tensor(idx_list, dtype=torch.long)
-        if len(box_tensor.shape) < 2:
-            track_ids = track_ids.view(1, -1)
         return Boxes2D(box_tensor, class_ids, track_ids)
 
     def to_scalabel(self, idx_to_class: Dict[int, str]) -> List[Label]:
@@ -274,8 +272,6 @@ class Boxes3D(Boxes, LabelInstance):
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
         track_ids = torch.tensor(idx_list, dtype=torch.long)
-        if len(box_tensor.shape) < 2:
-            track_ids = track_ids.view(1, -1)
         return Boxes3D(box_tensor, class_ids, track_ids)
 
     def to_scalabel(self, idx_to_class: Dict[int, str]) -> List[Label]:

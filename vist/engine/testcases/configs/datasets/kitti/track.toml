@@ -1,5 +1,5 @@
 [[train]]
-name = "kitti_track_sample_train"
+name = "kitti_sample_train"
 type = "KITTI"
 data_root = "vist/engine/testcases/track/kitti-samples/"
 annotations = "vist/engine/testcases/track/kitti-samples/tracking_training.json"
@@ -17,7 +17,7 @@ inference_sampling = "sequence_based"
 
 [dataloader]
 workers_per_gpu = 0
-categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
+categories = ["car", "pedestrian", "cyclist"]
 fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
     [dataloader.ref_sampling_cfg]
     type = 'uniform'

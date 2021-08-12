@@ -49,7 +49,7 @@ class Intrinsics(DataInstance):
         for inst in instances:
             tensor = inst.tensor.to(device)
             if not inst.batched:
-                tensor.unsqueeze(0)
+                tensor = tensor.unsqueeze(0)
             tensors.append(tensor)
         return Intrinsics(torch.cat(tensors, 0))
 
@@ -93,7 +93,7 @@ class Extrinsics(DataInstance):
         for inst in instances:
             tensor = inst.tensor.to(device)
             if not inst.batched:
-                tensor.unsqueeze(0)
+                tensor = tensor.unsqueeze(0)
             tensors.append(tensor)
         return Extrinsics(torch.cat(tensors, 0))
 
@@ -202,26 +202,25 @@ class InputSample:
         """Init."""
         self.metadata = metadata
         self.image = image
-        if boxes2d is not None:
-            self.boxes2d = boxes2d
-        else:
-            self.boxes2d = Boxes2D(
+        if boxes2d is None:
+            boxes2d = Boxes2D(
                 torch.empty(0, 5), torch.empty(0), torch.empty(0)
             )
-        if boxes3d is not None:
-            self.boxes3d = boxes3d
-        else:
-            self.boxes3d = Boxes3D(
+        self.boxes2d = boxes2d
+
+        if boxes3d is None:
+            boxes3d = Boxes3D(
                 torch.empty(0, 8), torch.empty(0), torch.empty(0)
             )
-        if intrinsics is not None:
-            self.intrinsics = intrinsics
-        else:
-            self.intrinsics = Intrinsics(torch.eye(3))
-        if extrinsics is not None:
-            self.extrinsics = extrinsics
-        else:
-            self.extrinsics = Extrinsics(torch.eye(4))
+        self.boxes3d = boxes3d
+
+        if intrinsics is None:
+            intrinsics = Intrinsics(torch.eye(3))
+        self.intrinsics = intrinsics
+
+        if extrinsics is None:
+            extrinsics = Extrinsics(torch.eye(4))
+        self.extrinsics = extrinsics
 
         self.attributes = dict()  # type: Dict[str, DataInstance]
         for k, v in kwargs.items():
