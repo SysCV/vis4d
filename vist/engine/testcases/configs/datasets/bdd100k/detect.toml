@@ -25,7 +25,17 @@ categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle
 
     [[dataloader.train_augmentations]]
     type = "Resize"
-    kwargs = {"shape" = [720, 1280], "interpolation" = "bicubic"}
+    kwargs = {"shape" = [360, 640], "scale_range" = [1.2, 1.5], "interpolation" = "bicubic"}
+
+    [[dataloader.train_augmentations]]
+    type = "Resize"
+    [dataloader.train_augmentations.kwargs]
+        shape = [
+            [360, 640],
+            [480, 960]
+        ]
+        keep_ratio = true
+        multiscale_mode = "list"
 
     [[dataloader.train_augmentations]]
     type = "RandomHorizontalFlip"

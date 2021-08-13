@@ -29,8 +29,8 @@ skip_empty_samples = true
     kwargs = {"shape" = [720, 1280]}
 
     [[dataloader.train_augmentations]]
-    type = "RandomFlip"
-    kwargs = {"prob" = 0.5}
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
 
     [[dataloader.test_augmentations]]
     type = "Resize"
