@@ -18,7 +18,6 @@ class Resize(BaseAugmentation):
         multiscale_mode: str = "range",
         scale_range: Tuple[float, float] = (1.0, 1.0),
         interpolation: str = "bilinear",
-
     ) -> None:
         """Init function.
 
