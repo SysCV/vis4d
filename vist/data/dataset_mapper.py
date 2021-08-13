@@ -272,6 +272,8 @@ class DatasetMapper:
 
         if parameters is None:
             parameters = []
+            for aug in self.augs:
+                parameters.append(aug.forward_parameters(image.shape))
         else:
             assert len(parameters) == len(self.augs), (
                 "Length of augmentation parameters must equal the number of "
@@ -317,6 +319,7 @@ class DatasetMapper:
                 )
                 if self.loader_cfg.clip_bboxes_to_image:
                     boxes2d.clip(input_sample.image.image_sizes[0])
+
                 input_sample.boxes2d = boxes2d
 
         if "boxes3d" in self.fields_to_load:
