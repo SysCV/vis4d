@@ -40,7 +40,9 @@ class DataloaderConfig(BaseModel):
     image_channel_mode: str
     data_backend: DataBackendConfig = DataBackendConfig()
     categories: Optional[List[str]] = None
+    fields_to_load: List[str] = ["boxes2d"]
     skip_empty_samples: bool = False
+    clip_bboxes_to_image: bool = True
     compute_global_instance_ids: bool = False
     transformations: Optional[List[AugmentationConfig]] = None
     ref_sampling: ReferenceSamplingConfig = ReferenceSamplingConfig()

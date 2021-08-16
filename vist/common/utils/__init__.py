@@ -1,5 +1,5 @@
 """Utility code."""
 
-from .defaults import default_argument_parser
+from .time import timeit
 
-__all__ = ["default_argument_parser"]
+__all__ = ["timeit"]

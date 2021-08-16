@@ -23,7 +23,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
 
     @abc.abstractmethod
     def training_step(
-        self, batch_inputs: List[List[InputSample]]
+        self, batch_inputs: List[List[InputSample]], batch_idx: int
     ) -> LossesType:
         """Forward pass during training stage.
 
@@ -37,8 +37,8 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def testing_step(
-        self, batch_inputs: List[InputSample]
+    def test_step(
+        self, batch_inputs: List[InputSample], batch_idx: int
     ) -> ModelOutput:
         """Forward pass during testing stage.
 

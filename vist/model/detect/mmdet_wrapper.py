@@ -21,6 +21,8 @@ from .mmdet_utils import (
     targets_to_mmdet,
 )
 
+MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
+
 
 class MMTwoStageDetector(BaseTwoStageDetector):
     """mmdetection two-stage detector wrapper."""
@@ -35,6 +37,10 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         self.mm_detector.init_weights()
         self.mm_detector.train()
         if self.cfg.weights is not None:
+            if self.cfg.weights.startswith("mmdet://"):
+                self.cfg.weights = MMDET_MODEL_PREFIX + self.cfg.weights.strip(
+                    "mmdet://"
+                )
             load_checkpoint(self.mm_detector, self.cfg.weights)
 
         self.register_buffer(
@@ -46,38 +52,25 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             "pixel_std", torch.tensor(self.cfg.pixel_std).view(-1, 1, 1), False
         )
 
-    @property
-    def device(self) -> torch.device:
-        """Get device where detect input should be moved to."""
-        return self.pixel_mean.device
-
     def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
         """Batch, pad (standard stride=32) and normalize the input images."""
-        images = Images.cat([inp.image for inp in batched_inputs])
-        images.tensor = images.tensor.contiguous()
-        images = images.to(self.device)
+        images = Images.cat([inp.image for inp in batched_inputs], self.device)
         images.tensor = (images.tensor - self.pixel_mean) / self.pixel_std
         return images
 
-    def forward_train(
-        self,
-        batch_inputs: List[List[InputSample]],
+    def training_step(
+        self, batch_inputs: List[List[InputSample]], batch_idx: int
     ) -> LossesType:
         """Forward pass during training stage.
 
         Returns a dict of loss tensors.
         """
-        assert all(
-            len(inp) == 1 for inp in batch_inputs
-        ), "No reference views allowed in detector training!"
         inputs = [inp[0] for inp in batch_inputs]
-        targets = [
-            x.instances.to(self.device) for x in inputs  # type: ignore
-        ]  # type: List[Boxes2D]
 
-        # from vist.vis.image import imshow_bboxes
-        # for inp in inputs:
-        #     imshow_bboxes(inp.image.tensor[0], inp.instances, mode="RGB")
+        targets = []
+        for x in inputs:
+            assert x.boxes2d is not None
+            targets.append(x.boxes2d.to(self.device))
 
         images = self.preprocess_image(inputs)
         image_metas = get_img_metas(images)
@@ -88,10 +81,12 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             gt_bboxes,
             gt_labels,
         )
-        return _parse_losses(losses)
+        losses = _parse_losses(losses)
+        losses['loss'] = sum([l for l in losses.values()])
+        return losses
 
-    def forward_test(
-        self, batch_inputs: List[InputSample], postprocess: bool = True
+    def test_step(
+        self, batch_inputs: List[InputSample], batch_idx: int
     ) -> ModelOutput:
         """Forward pass during testing stage.
 

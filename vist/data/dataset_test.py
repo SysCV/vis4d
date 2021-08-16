@@ -61,14 +61,14 @@ class TestDatasetMapper(unittest.TestCase):
             ref_sampling_cfg=ReferenceSamplingConfig(num_ref_imgs=1, scope=1),
         )
         ds_mapper = DatasetMapper(loader_cfg, cfg)
-        input_dict = InputSample(
+        input_sample = InputSample(
             Frame(name="0"),
             Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
         )
-        boxs = ds_mapper.transform_annotation(input_dict, None, lambda x: x)
-        self.assertEqual(len(boxs), 0)
-        boxs = ds_mapper.transform_annotation(input_dict, [], lambda x: x)
-        self.assertEqual(len(boxs), 0)
+        ds_mapper.transform_annotation(input_sample, None, lambda x: x)
+        self.assertEqual(len(input_sample.boxes2d), 0)
+        ds_mapper.transform_annotation(input_sample, [], lambda x: x)
+        self.assertEqual(len(input_sample.boxes2d), 0)
 
     def test_sort_samples(self) -> None:
         """Test the sort_samples method in MapDataset."""

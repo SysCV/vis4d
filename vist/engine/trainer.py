@@ -3,7 +3,7 @@
 import pytorch_lightning as pl
 from torch.utils import data
 
-from vist.config import Config
+from vist.config import Config, default_argument_parser, parse_config
 from vist.data import build_train_dataset, build_test_dataset, TrackingInferenceSampler
 from vist.data.utils import identity_batch_collator
 from vist.model import build_model
@@ -80,6 +80,21 @@ def predict(cfg: Config) -> None:
     # TODO setup to lightning
 
     model = build_model(cfg.model)
-
     trainer = pl.Trainer()
     trainer.predict(model)
+
+
+if __name__ == "__main__":
+    # TODO add benchmarking options
+    args = default_argument_parser().parse_args()
+    cfg = parse_config(args)
+
+    if args.action == "train":
+        main_func = train
+    elif args.action == "test":
+        main_func = test
+    elif args.action == "predict":
+        main_func = predict  # type: ignore
+    else:
+        raise NotImplementedError(f"Action {args.action} not implemented!")
+    main_func(cfg)

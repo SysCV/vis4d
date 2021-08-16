@@ -4,23 +4,22 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 import random
+import copy
 import numpy as np
 import torch
 from torch.utils import data
-from scalabel.label.typing import Frame, ImageSize, Label
-from scalabel.label.utils import check_crowd, check_ignored
-
-import detectron2.data.detection_utils as d2_utils
-from detectron2.data import transforms as T
+from scalabel.label.typing import Frame, ImageSize, Label, Intrinsics as ScalabelIntrinsics, Extrinsics as ScalabelExtrinsics
+from scalabel.label.utils import check_crowd, check_ignored, get_matrix_from_extrinsics, get_matrix_from_intrinsics
 
 from vist.common.io import build_data_backend
-from vist.struct import Boxes2D, Images, InputSample, NDArrayUI8
+from ..struct import Boxes2D, Images, InputSample, NDArrayUI8, Intrinsics, Extrinsics, Boxes3D
 
-from .transforms import build_augmentations
-from .utils import dicts_to_boxes2d, im_decode, label_to_dict, prepare_labels, print_class_histogram, discard_labels_outside_set
+from .transforms import build_augmentations, AugParams
+from .utils import im_decode, prepare_labels, print_class_histogram, discard_labels_outside_set, transform_bbox
 from .datasets import BaseDatasetLoader
 
 __all__ = ["ScalabelDataset"]
+logger = logging.getLogger(__name__)
 
 
 class ScalabelDataset(data.Dataset):
@@ -33,8 +32,14 @@ class ScalabelDataset(data.Dataset):
         """Init."""
         self.cfg = dataset.cfg
         self.sampling_cfg = self.cfg.dataloader.ref_sampling
-        self.augmentations = T.AugmentationList(build_augmentations(self.cfg.dataloader.transformations))
         self.data_backend = build_data_backend(self.cfg.dataloader.data_backend)
+        logger.info("Using data backend: %s", self.cfg.dataloader.data_backend.type)
+
+        self.augmentations = build_augmentations(self.cfg.dataloader.transformations)
+        logger.info("Augmentations used: %s", self.augmentations)
+
+        for field in self.cfg.dataloader.fields_to_load:
+            assert field in ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
 
         self._dataset = dataset.frames
         self._dataset_cfg = dataset.metadata_cfg
@@ -126,11 +131,11 @@ class ScalabelDataset(data.Dataset):
     ) -> bool:
         """Check if key / ref data have matches."""
         has_match = False
-        assert isinstance(key_data.instances, Boxes2D)
-        key_track_ids = key_data.instances.track_ids
+        assert key_data.boxes2d is not None
+        key_track_ids = key_data.boxes2d.track_ids
         for ref_view in ref_data:
-            assert isinstance(ref_view.instances, Boxes2D)
-            ref_track_ids = ref_view.instances.track_ids
+            assert isinstance(ref_view.boxes2d, Boxes2D)
+            ref_track_ids = ref_view.boxes2d.track_ids
             match = key_track_ids.view(-1, 1) == ref_track_ids.view(1, -1)
             if match.any():
                 has_match = True
@@ -145,7 +150,7 @@ class ScalabelDataset(data.Dataset):
         while True:
             data = self.get_sample(self._dataset[cur_idx])
             if data is not None:
-                input_data, transforms = data
+                input_data, parameters = data
                 if input_data.metadata.attributes is None:
                     input_data.metadata.attributes = dict()
                 if self.training:
@@ -158,7 +163,7 @@ class ScalabelDataset(data.Dataset):
                     if vid_id is not None:
                         ref_data = [
                             self.get_sample(
-                                self._dataset[ref_idx], transforms=transforms
+                                self._dataset[ref_idx], parameters=parameters
                             )[0]
                             for ref_idx in self.sample_ref_idcs(
                                 vid_id, cur_idx
@@ -183,7 +188,6 @@ class ScalabelDataset(data.Dataset):
             cur_idx = self._rng.sample(self._fallback_candidates, k=1)[0]
 
             if retry_count >= 5:
-                logger = logging.getLogger(__name__)
                 logger.warning(
                     "Failed to get sample for idx: %s, retry count: %s",
                     idx,
@@ -204,95 +208,139 @@ class ScalabelDataset(data.Dataset):
     def transform_image(
         self,
         image: NDArrayUI8,
-        transforms: Optional[T.AugmentationList] = None,
-    ) -> Tuple[Images, T.AugmentationList]:
+        parameters: Optional[List[AugParams]] = None,
+    ) -> Tuple[Images, List[AugParams], torch.Tensor]:
         """Apply image augmentations and convert to torch tensor."""
-        aug_input = T.AugInput(image)
-        if transforms is None:
-            transforms = self.augmentations(aug_input)
-            image = aug_input.image
-        else:
-            image = transforms.apply_image(image)
+        image = torch.as_tensor(
+            np.ascontiguousarray(image.transpose(2, 0, 1)),
+            dtype=torch.float32,
+        ).unsqueeze(0)
 
-        # Pytorch's dataloader is efficient on torch.Tensor due to
-        # shared-memory, but not efficient on large generic data struct due
-        # to the use of pickle & mp.Queue. Therefore it's important to use
-        # torch.Tensor.
-        image_processed = Images(
-            torch.as_tensor(
-                np.ascontiguousarray(image.transpose(2, 0, 1)),
-                dtype=torch.float32,
-            ).unsqueeze(0),
-            [(image.shape[1], image.shape[0])],
-        )
-        return image_processed, transforms
+        if parameters is None:
+            parameters = []
+        else:
+            assert len(parameters) == len(self.augmentations), (
+                "Length of augmentation parameters must equal the number of "
+                "augmentations!"
+            )
+
+        transform_matrix = torch.eye(3)
+        for i, aug in enumerate(self.augmentations):
+            if len(parameters) < len(self.augmentations):
+                parameters.append(aug.forward_parameters(image.shape))
+            image, tm = aug(image, parameters[i], return_transform=True)
+            transform_matrix = torch.mm(tm[0], transform_matrix)
+
+        image_processed = Images(image, [(image.shape[3], image.shape[2])])
+        return image_processed, parameters, transform_matrix
 
     def transform_annotation(
         self,
         input_sample: InputSample,
         labels: Optional[List[Label]],
-        transforms: T.AugmentationList,
-    ) -> Boxes2D:
+        transform_matrix: torch.Tensor,
+    ) -> None:
         """Transform annotations."""
-        image_hw = input_sample.image.tensor.shape[2:]
+        labels_used = []
+        if labels is not None:
+            cat_dict = dict()
+            for label in labels:
+                assert label.attributes is not None
+                assert label.category is not None
+                if not check_crowd(label) and not check_ignored(label):
+                    labels_used.append(label)
+                    if label.category not in cat_dict:
+                        cat_dict[label.category] = int(
+                            label.attributes["category_id"]
+                        )
 
-        if labels is None:
-            return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
-
-        # USER: Implement additional transformations if you have other types
-        # of data
-        annos = []
-        for label in labels:
-            assert label.attributes is not None
-            if not check_crowd(label) and not check_ignored(label):
-                anno = label_to_dict(label)
-                d2_utils.transform_instance_annotations(
-                    anno,
-                    transforms,
-                    image_hw,
+        if "boxes2d" in self.cfg.dataloader.fields_to_load:
+            if labels is not None and labels_used:
+                boxes2d = Boxes2D.from_scalabel(labels_used, cat_dict)
+                boxes2d.boxes[:, :4] = transform_bbox(
+                    transform_matrix,
+                    boxes2d.boxes[:, :4],
                 )
-                annos.append(anno)
+                if self.cfg.dataloader.clip_bboxes_to_image:
+                    boxes2d.clip(input_sample.image.image_sizes[0])
 
-        return dicts_to_boxes2d(annos)
+                input_sample.boxes2d = boxes2d
+
+        if "boxes3d" in self.cfg.dataloader.fields_to_load:
+            if labels is not None and labels_used:
+                boxes3d = Boxes3D.from_scalabel(labels_used, cat_dict)
+                input_sample.boxes3d = boxes3d
+
+    @staticmethod
+    def transform_intrinsics(
+        intrinsics: ScalabelIntrinsics, transform_matrix: torch.Tensor
+    ) -> Intrinsics:
+        """Transform intrinsic camera matrix according to augmentations."""
+        intrinsic_matrix = torch.from_numpy(
+            get_matrix_from_intrinsics(intrinsics)
+        ).to(torch.float32)
+        return Intrinsics(torch.mm(transform_matrix, intrinsic_matrix))
+
+    @staticmethod
+    def transform_extrinsics(extrinsics: ScalabelExtrinsics) -> Extrinsics:
+        """Transform extrinsics from Scalabel to VisT."""
+        extrinsics_matrix = torch.from_numpy(
+            get_matrix_from_extrinsics(extrinsics)
+        ).to(torch.float32)
+        return Extrinsics(extrinsics_matrix)
 
     def get_sample(
         self,
         sample: Frame,
-        transforms: Optional[T.AugmentationList] = None,
-    ) -> Optional[Tuple[InputSample, T.AugmentationList]]:
+        parameters: Optional[List[AugParams]] = None,
+    ) -> Optional[Tuple[InputSample, List[AugParams]]]:
         """Prepare a single sample in detect format.
 
         Args:
             sample (Frame): Metadata of one image, in scalabel format.
             Serialized as dict due to multi-processing.
-            transforms (T.AugmentationList): Detectron2 augmentation list.
-
+            parameters (List[AugParams]): Augmentation parameter list.
         Returns:
             InputSample: Data format that the model accepts.
-            T.AugmentationList: augmentations, s.t. ref views can be augmented
-            with the same parameters.
+            List[AugParams]: augmentation parameters, s.t. ref views can be
+            augmented with the same parameters.
         """
-
         # image loading, augmentation / to torch.tensor
-        image, transforms = self.transform_image(
-            self.load_image(sample), transforms=transforms
+        image, parameters, transform_matrix = self.transform_image(
+            self.load_image(sample),
+            parameters=parameters,
         )
-        input_data = InputSample(sample, image)
+        input_data = InputSample(copy.deepcopy(sample), image)
+
+        if (
+            input_data.metadata.intrinsics is not None
+            and "intrinsics" in self.cfg.dataloader.fields_to_load
+        ):
+            input_data.intrinsics = self.transform_intrinsics(
+                input_data.metadata.intrinsics, transform_matrix
+            )
+
+        if (
+            input_data.metadata.extrinsics is not None
+            and "extrinsics" in self.cfg.dataloader.fields_to_load
+        ):
+            input_data.extrinsics = self.transform_extrinsics(
+                input_data.metadata.extrinsics
+            )
 
         if not self.training:
-            del sample.labels
-            return input_data, transforms
+            del input_data.metadata.labels
+            return input_data, parameters
 
-        input_data.instances = self.transform_annotation(
-            input_data, sample.labels, transforms
-        )
-        del sample.labels
+        self.transform_annotation(input_data, input_data.metadata.labels, transform_matrix)
+        del input_data.metadata.labels
 
         if (
             self.cfg.dataloader.skip_empty_samples
-            and len(input_data.instances) == 0
-            and transforms is None
+            and len(input_data.boxes2d) == 0
+            and len(input_data.boxes3d) == 0
+            and parameters is None
         ):
             return None  # pragma: no cover
 
-        return input_data, transforms
+        return input_data, parameters

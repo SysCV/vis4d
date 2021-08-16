@@ -43,38 +43,27 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             if isinstance(m, _BatchNorm):
                 m.eval()
 
-    @property
-    def device(self) -> torch.device:
-        """Get device where detect input should be moved to."""
-        return self.d2_detector.pixel_mean.device
-
     def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
         """Batch, pad (standard stride=32) and normalize the input images."""
-        images = Images.cat([inp.image for inp in batched_inputs])
-        images = images.to(self.device)
+        images = Images.cat([inp.image for inp in batched_inputs], self.device)
         images.tensor = (
             images.tensor - self.d2_detector.pixel_mean
         ) / self.d2_detector.pixel_std
         return images
 
-    def forward_train(
-        self, batch_inputs: List[List[InputSample]]
+    def training_step(
+        self, batch_inputs: List[List[InputSample]], batch_idx: int
     ) -> LossesType:
         """Forward pass during training stage.
 
         Returns a dict of loss tensors.
         """
-        assert all(
-            len(inp) == 1 for inp in batch_inputs
-        ), "No reference views allowed in detector training!"
         inputs = [inp[0] for inp in batch_inputs]
-        targets = [
-            x.instances.to(self.device) for x in inputs  # type: ignore
-        ]  # type: List[Boxes2D]
 
-        # from vist.vis.image import imshow_bboxes
-        # for inp in inputs:
-        #     imshow_bboxes(inp.image.tensor[0], inp.instances)
+        targets = []
+        for x in inputs:
+            assert x.boxes2d is not None
+            targets.append(x.boxes2d.to(self.device))
 
         images = self.preprocess_image(inputs)
         features = self.extract_features(images)
@@ -84,10 +73,13 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         _, detect_losses = self.generate_detections(
             images, features, proposals, targets, compute_detections=False
         )
-        return {**rpn_losses, **detect_losses}
 
-    def forward_test(
-        self, batch_inputs: List[InputSample], postprocess: bool = True
+        losses = {**rpn_losses, **detect_losses}
+        losses['loss'] = sum([l for l in losses.values()])
+        return losses
+
+    def test_step(
+        self, batch_inputs: List[InputSample], batch_idx: int
     ) -> ModelOutput:
         """Forward pass during testing stage.
 

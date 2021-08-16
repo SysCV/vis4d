@@ -5,6 +5,7 @@ annotations = "vist/engine/testcases/track/bdd100k-samples/labels/"
 data_root = "vist/engine/testcases/track/bdd100k-samples/images/"
 config_path = "box_track"
 num_processes = 0
+categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
     [train.dataloader]
     image_channel_mode = "RGB"
         [train.dataloader.ref_sampling]
@@ -18,8 +19,8 @@ num_processes = 0
     kwargs = {"shape" = [720, 1280]}
 
     [[train.transformations]]
-    type = "RandomFlip"
-    kwargs = {"prob" = 0.5}
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
 
 [[train]]
 name = "bdd100k_det_sample_train"
@@ -28,6 +29,7 @@ annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "vist/engine/testcases/detect/bdd100k-samples/images/"
 config_path = "det"
 num_processes = 0
+categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
     [train.dataloader]
     image_channel_mode = "RGB"
         [train.dataloader.ref_sampling]
@@ -39,21 +41,22 @@ num_processes = 0
     kwargs = {"shape" = [720, 1280]}
 
     [[train.transformations]]
-    type = "RandomFlip"
-    kwargs = {"prob" = 0.5}
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
 
 [[test]]
 name = "bdd100k_sample_val"
 type = "BDD100K"
 annotations = "vist/engine/testcases/track/bdd100k-samples/labels/"
 data_root = "vist/engine/testcases/track/bdd100k-samples/images/"
+categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
 eval_metrics = ["detect", "track"]
 inference_sampling = "sequence_based"
 config_path = "box_track"
 num_processes = 0
-
     [test.dataloader]
     image_channel_mode = "RGB"
+
     [[test.transformations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}

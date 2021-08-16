@@ -93,7 +93,7 @@ def target_to_instance(
     result = []
     for target, img_wh in zip(targets, imgs_wh):
         boxes, cls, track_ids = (
-            target.boxes[:, :4],
+            target.boxes,
             target.class_ids,
             target.track_ids,
         )

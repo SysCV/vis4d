@@ -1,5 +1,5 @@
 [model]
-type = "QDGeneralizedRCNN"
+type = "QDTrack"
     [model.detection]
     type = "D2TwoStageDetector"
     model_base = "faster-rcnn/r50-fpn"

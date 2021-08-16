@@ -1,7 +1,7 @@
 """Default argument parser for vist."""
 import argparse
 
-from vist.config import Launch
+from .config import Launch
 
 
 def default_argument_parser() -> argparse.ArgumentParser:

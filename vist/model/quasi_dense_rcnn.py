@@ -4,7 +4,7 @@ from typing import List, Tuple
 
 import torch
 
-from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
+from vist.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
 
 from .base import BaseModel, BaseModelConfig, build_model
 from .detect import BaseTwoStageDetector
@@ -24,8 +24,8 @@ class QDGeneralizedRCNNConfig(BaseModelConfig):
     softmax_temp: float = -1.0
 
 
-class QDGeneralizedRCNN(BaseModel):
-    """Generalized R-CNN for quasi-dense instance similarity learning."""
+class QDTrack(BaseModel):
+    """QDTrack model - quasi-dense instance similarity learning."""
 
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init."""
@@ -42,8 +42,40 @@ class QDGeneralizedRCNN(BaseModel):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
 
+    def prepare_targets(
+        self,
+        key_inputs: List[InputSample],
+        ref_inputs: List[List[InputSample]],
+    ) -> Tuple[List[Boxes2D], List[List[Boxes2D]]]:
+        """Prepare targets from key / ref input samples."""
+        key_targets = []
+        for x in key_inputs:
+            assert x.boxes2d is not None
+            key_targets.append(x.boxes2d.to(self.device))
+        ref_targets = []
+        for inputs in ref_inputs:
+            ref_target = []
+            for x in inputs:
+                assert x.boxes2d is not None
+                ref_target.append(x.boxes2d.to(self.device))
+            ref_targets.append(ref_target)
+
+        return key_targets, ref_targets
+
+    def prepare_images(
+        self,
+        key_inputs: List[InputSample],
+        ref_inputs: List[List[InputSample]],
+    ) -> Tuple[Images, List[Images]]:
+        """Prepare images from key / ref input samples."""
+        key_images = self.detector.preprocess_image(key_inputs)
+        ref_images = [
+            self.detector.preprocess_image(inp) for inp in ref_inputs
+        ]
+        return key_images, ref_images
+
     def training_step(
-        self, batch_inputs: List[List[InputSample]]
+        self, batch_inputs: List[List[InputSample]], batch_idx: int
     ) -> LossesType:
         """Forward function for training."""
         # split into key / ref pairs NxM input --> key: N, ref: Nx(M-1)
@@ -55,12 +87,8 @@ class QDGeneralizedRCNN(BaseModel):
             for i in range(len(ref_inputs[0]))
         ]
 
-        # prepare targets
-        key_targets = [input.instances.to(self.device) for input in key_inputs]
-        ref_targets = [
-            [input.instances.to(self.device) for input in inputs]
-            for inputs in ref_inputs
-        ]
+        key_images, ref_images = self.prepare_images(key_inputs, ref_inputs)
+        key_targets, ref_targets = self.prepare_targets(key_inputs, ref_inputs)
 
         # from vist.vis.image import imshow_bboxes
         # for batch_i, key_inp in enumerate(key_inputs):
@@ -70,12 +98,6 @@ class QDGeneralizedRCNN(BaseModel):
         #             ref_inp[batch_i].image.tensor[0],
         #             ref_targets[ref_i][batch_i],
         #         )
-
-        # prepare inputs
-        key_images = self.detector.preprocess_image(key_inputs)
-        ref_images = [
-            self.detector.preprocess_image(inp) for inp in ref_inputs
-        ]
 
         # feature extraction
         key_x = self.detector.extract_features(key_images)
@@ -138,7 +160,9 @@ class QDGeneralizedRCNN(BaseModel):
             ref_embeddings,
             ref_track_targets,
         )
-        return {**det_losses, **track_losses}
+        losses = {**det_losses, **track_losses}
+        losses['loss'] = sum([l for l in losses.values()])
+        return losses
 
     def match(
         self,
@@ -244,8 +268,8 @@ class QDGeneralizedRCNN(BaseModel):
 
         return losses
 
-    def testing_step(
-        self, batch_inputs: List[InputSample], postprocess: bool = True
+    def test_step(
+        self, batch_inputs: List[InputSample], batch_idx: int
     ) -> ModelOutput:
         """Forward function during inference."""
         assert len(batch_inputs) == 1, "Currently only BS=1 supported!"
@@ -269,12 +293,11 @@ class QDGeneralizedRCNN(BaseModel):
 
         # similarity head
         embeddings, _ = self.similarity_head(image, feat, detections)
-        if postprocess:
-            ori_wh = (
-                batch_inputs[0].metadata.size.width,  # type: ignore
-                batch_inputs[0].metadata.size.height,  # type: ignore
-            )
-            self.postprocess(ori_wh, image.image_sizes[0], detections[0])
+        ori_wh = (
+            batch_inputs[0].metadata.size.width,  # type: ignore
+            batch_inputs[0].metadata.size.height,  # type: ignore
+        )
+        self.postprocess(ori_wh, image.image_sizes[0], detections[0])
 
         # associate detections, update graph
         tracks = self.track_graph(detections[0], frame_id, embeddings[0])
