@@ -272,8 +272,6 @@ class DatasetMapper:
 
         if parameters is None:
             parameters = []
-            for aug in self.augs:
-                parameters.append(aug.forward_parameters(image.shape))
         else:
             assert len(parameters) == len(self.augs), (
                 "Length of augmentation parameters must equal the number of "
