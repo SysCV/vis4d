@@ -265,8 +265,6 @@ class DatasetMapper:
         parameters: Optional[List[AugParams]] = None,
     ) -> Tuple[Images, List[AugParams], torch.Tensor]:
         """Apply image augmentations and convert to torch tensor."""
-        transform_matrix = torch.eye(3, 3)
-
         image = torch.as_tensor(
             np.ascontiguousarray(image.transpose(2, 0, 1)),
             dtype=torch.float32,
@@ -274,20 +272,20 @@ class DatasetMapper:
 
         if parameters is None:
             parameters = []
-            for aug in self.augs:
-                parameters.append(aug.forward_parameters(image.shape))
         else:
             assert len(parameters) == len(self.augs), (
                 "Length of augmentation parameters must equal the number of "
                 "augmentations!"
             )
 
-        for aug, params in zip(self.augs, parameters):
-            image, tm = aug(image, params, return_transform=True)
+        transform_matrix = torch.eye(3)
+        for i, aug in enumerate(self.augs):
+            if len(parameters) < len(self.augs):
+                parameters.append(aug.forward_parameters(image.shape))
+            image, tm = aug(image, parameters[i], return_transform=True)
             transform_matrix = torch.mm(tm[0], transform_matrix)
 
         image_processed = Images(image, [(image.shape[3], image.shape[2])])
-
         return image_processed, parameters, transform_matrix
 
     def transform_annotation(
@@ -297,10 +295,7 @@ class DatasetMapper:
         transform_matrix: torch.Tensor,
     ) -> None:
         """Transform annotations."""
-        image_hw = input_sample.image.tensor.shape[2:]
-
         labels_used = []
-
         if labels is not None:
             cat_dict = dict()
             for label in labels:
@@ -321,7 +316,8 @@ class DatasetMapper:
                     boxes2d.boxes[:, :4],
                 )
                 if self.loader_cfg.clip_bboxes_to_image:
-                    boxes2d.clip((image_hw[1], image_hw[0]))
+                    boxes2d.clip(input_sample.image.image_sizes[0])
+
                 input_sample.boxes2d = boxes2d
 
         if "boxes3d" in self.fields_to_load:

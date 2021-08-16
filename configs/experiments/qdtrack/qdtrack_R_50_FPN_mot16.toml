@@ -17,7 +17,7 @@ clip_bboxes_to_image = false
 image_channel_mode = "BGR"
 
 [solver]
-images_per_gpu = 8
+images_per_gpu = 6
 lr_policy = "WarmupMultiStepLR"
 base_lr = 0.01
 steps = [16500]

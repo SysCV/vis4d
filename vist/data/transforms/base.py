@@ -26,7 +26,17 @@ class AugmentationConfig(BaseModel):
     """Data augmentation instance config."""
 
     type: str
-    kwargs: Dict[str, Union[bool, float, str, Tuple[int, int]]]
+    kwargs: Dict[
+        str,
+        Union[
+            bool,
+            float,
+            str,
+            Tuple[float, float],
+            Tuple[int, int],
+            List[Tuple[int, int]],
+        ],
+    ]
 
 
 class BaseAugmentation(GeometricAugmentationBase2D, metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long

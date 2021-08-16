@@ -19,6 +19,7 @@ num_processes = 0
 [dataloader]
 workers_per_gpu = 0
 categories = ["vehicle", "pedestrian", "cyclist"]
+fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
 skip_empty_samples = true
     [dataloader.data_backend]
     type = "FileBackend"
@@ -33,8 +34,8 @@ skip_empty_samples = true
     kwargs = {"shape" = [1080, 1920]}
 
     [[dataloader.train_augmentations]]
-    type = "RandomFlip"
-    kwargs = {"prob" = 0.5}
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
 
     [[dataloader.test_augmentations]]
     type = "Resize"
