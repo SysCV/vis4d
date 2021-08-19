@@ -20,9 +20,9 @@ def imshow(
     """
     if not isinstance(image, Image.Image):
         image = preprocess_image(image, mode)
-    # plt.imshow(np.asarray(image))
-    # plt.show()
-    image.save("visualization/" + "frame_" + str(frame_id).zfill(4) + ".png")
+    plt.imshow(np.asarray(image))
+    plt.show()
+    # image.save("visualization/" + "frame_" + str(frame_id).zfill(4) + ".png")
 
 
 def imshow_bboxes(
@@ -41,7 +41,7 @@ def imsave_bboxes(
     image: ImageType,
     boxes: BoxType,
     mode: str = "BGR",
-    frame_id=000,
+    frame_id: int = 000,
 ) -> None:
     image = preprocess_image(image, mode)
     box_list, color_list, label_list = preprocess_boxes(boxes)

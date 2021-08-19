@@ -13,11 +13,11 @@ from detectron2.engine import PeriodicWriter
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.utils.comm import is_main_process
 
+import vist.vis.visualizer as visualizer  # import ScalabelVisualizer
 from vist.config import Config
 from vist.data import build_test_loader, build_train_loader
 from vist.model import build_model
 from vist.struct import EvalResults
-from vist.vis import ScalabelVisualizer
 
 from .evaluator import ScalabelEvaluator, inference_on_dataset
 from .utils import default_setup, register_directory, to_detectron2
@@ -181,7 +181,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
             output_folder = os.path.join(
                 vist_cfg.launch.output_dir, dataset_name
             )
-            visualizer = ScalabelVisualizer(
+            visualizer = visualizer.ScalabelVisualizer(
                 dataset_name, output_folder, True, vist_cfg.launch.visualize
             )
             inference_on_dataset(model, data_loader, visualizer)

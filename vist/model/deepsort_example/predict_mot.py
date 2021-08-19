@@ -1,13 +1,14 @@
 """Example for dynamic api usage with SORT."""
 # import the SORT components, needs to be imported to be registered
-from examples.deepsort_example.deepsort_graph import DeepSORTTrackGraph
-from examples.deepsort_example.deepsort_model import DeepSORT
-
+import vist.data.datasets.base
 from vist import config
-from vist.config import DataloaderConfig as Dataloader
-from vist.config import Augmentation
-from vist.engine import train, test, predict
+from vist.data.dataset_mapper import DataloaderConfig as Dataloader
+from vist.data.transforms.base import AugmentationConfig as Augmentation
+from vist.engine import predict, test, train
 from vist.model import BaseModelConfig
+
+from .deepsort_graph import DeepSORTTrackGraph
+from .deepsort_model import DeepSORT
 
 # Disable pylint for this file due to high overlap with detector example
 # pylint: skip-file
@@ -56,7 +57,7 @@ if __name__ == "__main__":
             ],
         ),
         test=[
-            config.Dataset(
+            vist.data.datasets.base.BaseDatasetConfig(
                 name="MOT16_test",
                 type="MOTChallenge",
                 annotations="data/MOT16/test",

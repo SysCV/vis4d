@@ -1,9 +1,10 @@
-from typing import Dict, List, Optional, Tuple
-import torch
-import torch.nn as nn
-from scipy.optimize import linear_sum_assignment as linear_assignment
+"""Match detections and tracks."""
+from typing import List, Tuple
 
+import torch
 from detectron2.structures import Boxes, pairwise_iou
+from scipy.optimize import linear_sum_assignment as linear_assignment
+from torch import nn
 
 balance_lambda: float = 0.0
 max_IOU_distance: float = 0.7
@@ -12,10 +13,10 @@ max_IOU_distance: float = 0.7
 def match(
     tracks_boxes: torch.Tensor,
     det_boxes: torch.Tensor,
-    tracks_indices,
-    det_indices,
-    det_features,
-    track_features,
+    tracks_indices: List[int],
+    det_indices: List[int],
+    det_features: torch.tensor,
+    track_features: torch.tensor,
 ) -> Tuple[
     List[Tuple[torch.LongTensor, torch.LongTensor]],
     List[torch.LongTensor],

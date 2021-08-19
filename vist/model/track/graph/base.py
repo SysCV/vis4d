@@ -1,6 +1,6 @@
 """Tracking base class."""
-from typing import Union, Dict, List, Any
 import abc
+from typing import Any, Dict, List, Union
 
 import torch
 from pydantic import BaseModel, Field

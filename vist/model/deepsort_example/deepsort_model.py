@@ -1,11 +1,12 @@
 """deep SORT model definition."""
-from typing import List, Dict
+from typing import Dict, List
+
 import torch
 from torchvision.ops import roi_align
 
-from examples.deepsort_example.deep import FeatureNet
-from examples.deepsort_example.load_predictions import load_predictions
 from vist.model import BaseModel, BaseModelConfig
+from vist.model.deepsort_example.deep import FeatureNet
+from vist.model.deepsort_example.load_predictions import load_predictions
 from vist.model.track.graph import TrackGraphConfig, build_track_graph
 from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
@@ -106,7 +107,9 @@ class DeepSORT(BaseModel):
         )
         return feature_net_loss  # type: ignore
 
-    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
+    def forward_test(
+        self, batch_inputs: List[InputSample], postprocess: bool = True
+    ) -> ModelOutput:
         """Forward pass during testing stage.
 
         Returns predictions for each input.

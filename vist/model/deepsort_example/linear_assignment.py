@@ -1,23 +1,35 @@
 """LInear assignment."""
 from __future__ import absolute_import
+
+from typing import Callable, List, Optional, Tuple
+
 import numpy as np
+import numpy.typing as npt
 
 # from sklearn.utils.linear_assignment_ import linear_assignment
 from scipy.optimize import linear_sum_assignment as linear_assignment
-from examples.deepsort_example.kalman_filter import chi2inv95
 
+from vist.model.deepsort_example.detection import Detection
+from vist.model.deepsort_example.track import Track
+
+from .kalman_filter import KalmanFilter, chi2inv95
 
 INFTY_COST = 1e5
 
 
 def min_cost_matching(
-    distance_metric,
-    max_distance,
-    tracks,
-    detections,
-    track_indices=None,
-    detection_indices=None,
-):  # pylint: disable= line-too-long
+    distance_metric: Callable[
+        [List[Track], List[Detection], List[int], List[int]],
+        npt.NDArray[np.complex64],
+    ],
+    max_distance: float,
+    tracks: List[Track],
+    detections: List[Detection],
+    track_indices: List[int] = None,
+    detection_indices: List[int] = None,
+) -> Tuple[
+    List[Tuple[int, int]], List[int], List[int]
+]:  # pylint: disable= line-too-long
     """Solve linear assignment problem.
 
     Parameters
@@ -85,14 +97,19 @@ def min_cost_matching(
 
 
 def matching_cascade(
-    distance_metric,
-    max_distance,
-    cascade_depth,
-    tracks,
-    detections,
-    track_indices=None,
-    detection_indices=None,
-):  # pylint: disable =line-too-long
+    distance_metric: Callable[
+        [List[Track], List[Detection], List[int], List[int]],
+        npt.NDArray[np.complex64],
+    ],
+    max_distance: float,
+    cascade_depth: int,
+    tracks: List[Track],
+    detections: List[Detection],
+    track_indices: Optional[List[int]] = None,
+    detection_indices: Optional[List[int]] = None,
+) -> Tuple[
+    List[Tuple[int, int]], List[int], List[int]
+]:  # pylint: disable =line-too-long
     """Run matching cascade.
 
     Parameters
@@ -162,15 +179,15 @@ def matching_cascade(
 
 
 def gate_cost_matrix(
-    kf,
-    cost_matrix,
-    tracks,
-    detections,
-    track_indices,
-    detection_indices,
-    gated_cost=INFTY_COST,
-    only_position=False,
-):
+    kf: KalmanFilter,
+    cost_matrix: npt.NDArray[np.complex64],
+    tracks: List[Track],
+    detections: List[Detection],
+    track_indices: List[int],
+    detection_indices: List[int],
+    gated_cost: Optional[float] = INFTY_COST,
+    only_position: Optional[bool] = False,
+) -> npt.NDArray[np.complex64]:
     """Apply gate for matching.
 
     Invalidate infeasible entries in cost matrix based on the state

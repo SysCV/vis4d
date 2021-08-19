@@ -1,13 +1,16 @@
 """Track graph of SORT."""
 
 from typing import Dict, List, Optional, Tuple
-import torch
-from scipy.optimize import linear_sum_assignment as linear_assignment
-import scipy.linalg
-from detectron2.structures import Boxes, pairwise_iou
 
-from vist.struct import Boxes2D
+import numpy as np
+import numpy.typing as npt
+import scipy.linalg
+import torch
+from detectron2.structures import Boxes, pairwise_iou
+from scipy.optimize import linear_sum_assignment as linear_assignment
+
 from vist.model.track.graph import BaseTrackGraph, TrackGraphConfig
+from vist.struct import Boxes2D
 
 # MetadataCatalog.get(dataset_name).idx_to_class_mapping
 
@@ -19,7 +22,7 @@ class SORTTrackGraphConfig(TrackGraphConfig):
     max_IOU_distance: float = 0.7
 
 
-def xyxy_to_xyah(xyxy: torch.Tensor) -> torch.FloatTensor:
+def xyxy_to_xyah(xyxy: torch.tensor) -> torch.tensor:
     """Convert xyxy boxes to xya.
 
     xyxy: torch.FloatTensor: (N, 4) where each entry is defined by
@@ -33,7 +36,7 @@ def xyxy_to_xyah(xyxy: torch.Tensor) -> torch.FloatTensor:
     return xyah
 
 
-def xyah_to_xyxy(xyah: torch.Tensor):
+def xyah_to_xyxy(xyah: torch.tensor) -> torch.tensor:
     """Convert xyah boxes to xyxy.
 
     xyah: torch.FloatTensor: (4) where each entry is defined by
@@ -102,10 +105,6 @@ class SORTTrackGraph(BaseTrackGraph):
         if len(detections) == 0:
             result, _, _ = self.get_tracks(frame_id)
             return result
-        # print("#" * 100)
-        # print("A new frame:   frame = ", frame_id)
-        # print("#" * 100)
-
         _, inds = detections.boxes[:, -1].sort(descending=True)
         detections = detections[inds, :].to(torch.device("cpu"))
 
@@ -117,7 +116,6 @@ class SORTTrackGraph(BaseTrackGraph):
         # det_cls_unique = torch.unique(det_cls_ids)
 
         tracks_boxes2d, tracks_vel, tracks_cov = self.get_tracks(frame_id - 1)
-        # print("existing tracks ids:  ", self.tracks.keys())
         tracks_bboxes = tracks_boxes2d.boxes[:, :-1]
         tracks_ids = tracks_boxes2d.track_ids
         tracks_cls_ids = tracks_boxes2d.class_ids
@@ -130,17 +128,12 @@ class SORTTrackGraph(BaseTrackGraph):
             kalman_state[i], tracks_cov[i] = self.kf.predict(
                 kalman_state[i], tracks_cov[i]
             )
-        # comment this line to not using prediction
-        tracks_bboxes = xyah_to_xyxy(kalman_state[:, :4])
-        predictions = Boxes2D(tracks_bboxes, tracks_cls_ids, tracks_ids)
+        # comment this line to not use kalman prediction as box
+        # tracks_bboxes = xyah_to_xyxy(kalman_state[:, :4])
 
         tracks_vel = kalman_state[:, 4:]
-
         updated_tracks_vels = dict()
         updated_tracks_covs = dict()
-        # print("tracks_cls_ids:  ", tracks_cls_ids)
-        # print("tracks_cls_unique:  ", tracks_cls_unique)
-        # print("det_cls_ids:  ", det_cls_ids)
 
         for existing_cls in tracks_cls_unique:
             # print("-" * 50)
@@ -155,8 +148,6 @@ class SORTTrackGraph(BaseTrackGraph):
             det_indices_per_cls = torch.nonzero(
                 det_cls_ids == existing_cls
             ).squeeze(1)
-            # print("tracks_indices_per_cls:  ", tracks_indices_per_cls)
-            # print("det_indices_per_cls:  ", det_indices_per_cls)
 
             matches, _, _ = self._match(
                 tracks_boxes_per_cls,
@@ -164,12 +155,7 @@ class SORTTrackGraph(BaseTrackGraph):
                 tracks_indices_per_cls,
                 det_indices_per_cls,
             )
-            # print("matched result:  ", matches)
             for matched_track_ind, matched_det_ind in matches:
-                # print("matched_track_ind:  ", matched_track_ind)
-                # print("_" * 20)
-                # print("start updating detection indices: ", matched_det_ind)
-
                 matched_kalman_state = kalman_state[matched_track_ind]
                 matched_cov = tracks_cov[matched_track_ind]
 
@@ -181,7 +167,7 @@ class SORTTrackGraph(BaseTrackGraph):
                     matched_cov,
                     matched_det_bboxes,
                 )
-                # print("updated_kalman_state  ", updated_kalman_state)
+                # pylint: disable=unused-variable
                 updated_track_xyxy = xyah_to_xyxy(
                     updated_kalman_state[:4].unsqueeze(0)
                 ).squeeze()
@@ -204,8 +190,6 @@ class SORTTrackGraph(BaseTrackGraph):
             self.num_tracks, self.num_tracks + num_news, dtype=torch.long
         )
         self.num_tracks += num_news
-        # print("updated detections tracking ids:  ", ids)
-
         self.update(
             ids, detections, frame_id, updated_tracks_vels, updated_tracks_covs
         )
@@ -216,8 +200,8 @@ class SORTTrackGraph(BaseTrackGraph):
         self,
         tracks_boxes: torch.Tensor,
         det_boxes: torch.Tensor,
-        tracks_indices,
-        det_indices,
+        tracks_indices: List[int],
+        det_indices: List[int],
     ) -> Tuple[
         List[Tuple[torch.LongTensor, torch.LongTensor]],
         List[torch.LongTensor],
@@ -232,8 +216,6 @@ class SORTTrackGraph(BaseTrackGraph):
         iou_cost_matrix = torch.ones_like(iou_matrix) - iou_matrix
 
         row_indices, col_indices = linear_assignment(iou_cost_matrix)
-        # print("row_indices:  ", row_indices)
-        # print("col_indices:  ", col_indices)
         matches, unmatched_tracks, unmatched_detections = [], [], []
         for col, detection_idx in enumerate(det_indices):
             if col not in col_indices:
@@ -242,7 +224,6 @@ class SORTTrackGraph(BaseTrackGraph):
             if row not in row_indices:
                 unmatched_tracks.append(track_idx)
         for row, col in zip(row_indices, col_indices):
-            # print("row, col : ", row, ",   ", col)
             track_idx = tracks_indices[row]
             detection_idx = det_indices[col]
             if iou_cost_matrix[row, col] > self.cfg.max_IOU_distance:
@@ -296,7 +277,6 @@ class SORTTrackGraph(BaseTrackGraph):
     ) -> None:
         """Update a specific track with a new detection."""
         bbox, cls = detection.boxes[0], detection.class_ids[0]
-        # print("update_track, ", "bbox: ", bbox, "   velocity:  ", velocity)
         self.tracks[track_id]["bbox"] = bbox
         self.tracks[track_id]["last_frame"] = frame_id
         self.tracks[track_id]["class_id"] = cls
@@ -311,7 +291,6 @@ class SORTTrackGraph(BaseTrackGraph):
     ) -> None:
         """Create a new track from a detection."""
         bbox, cls = detection.boxes[0], detection.class_ids[0]
-        # print("creat_track, bbox:  ", bbox)
         _, covariance = self.kf.initiate(
             xyxy_to_xyah(bbox[:-1].unsqueeze(0)).squeeze()
         )
@@ -333,7 +312,7 @@ class KalmanFilter(object):
     and their respective velocities.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Init."""
         ndim, dt = 4, 1.0
 
@@ -349,7 +328,9 @@ class KalmanFilter(object):
         self._std_weight_position = 1.0 / 20
         self._std_weight_velocity = 1.0 / 160
 
-    def initiate(self, measurement):
+    def initiate(
+        self, measurement: npt.NDArray[np.complex64]
+    ) -> Tuple[npt.NDArray[np.complex64], npt.NDArray[np.complex64]]:
         """Create track from unassociated measurement.
 
         Parameters
@@ -357,12 +338,13 @@ class KalmanFilter(object):
         measurement : ndarray
             Bounding box coordinates (x, y, a, h) with center position (x, y),
             aspect ratio a, and height h.
+
         Returns
         -------
-        (ndarray, ndarray)
+        Tuple[ndarray, ndarray]
             Returns the mean vector (8 dimensional) and covariance matrix (8x8
-            dimensional) of the new track. Unobserved velocities are initialized
-            to 0 mean.
+            dimensional) of the new track. Unobserved velocities are
+            initialized to 0 mean.
         """
         mean_pos = measurement
         mean_vel = torch.zeros_like(mean_pos)
@@ -383,7 +365,9 @@ class KalmanFilter(object):
         covariance = torch.diag(torch.square(std))
         return mean, covariance
 
-    def predict(self, mean, covariance):
+    def predict(
+        self, mean: torch.tensor, covariance: torch.tensor
+    ) -> Tuple[torch.tensor, torch.tensor]:
         """Run Kalman filter prediction step."""
         std_pos = torch.Tensor(
             [
@@ -413,7 +397,9 @@ class KalmanFilter(object):
 
         return mean, covariance
 
-    def project(self, mean, covariance):
+    def project(
+        self, mean: torch.tensor, covariance: torch.tensor
+    ) -> Tuple[torch.tensor, torch.tensor]:
         """Project state distribution to measurement space."""
         std = torch.Tensor(
             [
@@ -431,7 +417,12 @@ class KalmanFilter(object):
         )
         return mean, covariance + innovation_cov
 
-    def update(self, mean, covariance, measurement):
+    def update(
+        self,
+        mean: torch.tensor,
+        covariance: torch.tensor,
+        measurement: torch.tensor,
+    ) -> Tuple[torch.tensor, torch.tensor]:
         """Run Kalman filter correction step."""
         projected_mean, projected_cov = self.project(mean, covariance)
         projected_cov = projected_cov.numpy()

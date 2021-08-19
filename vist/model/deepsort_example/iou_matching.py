@@ -1,10 +1,20 @@
-"""IOU matching"""
+"""IOU matching."""
+print("start import linear assignment")
 from __future__ import absolute_import
+
+from typing import List, Optional, Tuple
+
 import numpy as np
-import examples.deepsort_example.linear_assignment as linear_assignment
+import numpy.typing as npt
+
+from vist.model.deepsort_example import linear_assignment
+from vist.model.deepsort_example.detection import Detection
+from vist.model.deepsort_example.track import Track
 
 
-def iou(bbox, candidates):
+def iou(
+    bbox: npt.NDArray[np.complex64], candidates: npt.NDArray[np.complex64]
+) -> npt.NDArray[np.complex64]:
     """Computer intersection over union.
 
     Parameters
@@ -45,7 +55,12 @@ def iou(bbox, candidates):
     )
 
 
-def iou_cost(tracks, detections, track_indices=None, detection_indices=None):
+def iou_cost(
+    tracks: List[Track],
+    detections: List[Detection],
+    track_indices: List[int] = None,
+    detection_indices: List[int] = None,
+) -> npt.NDArray[np.complex64]:
     """An intersection over union distance metric.
 
     Parameters

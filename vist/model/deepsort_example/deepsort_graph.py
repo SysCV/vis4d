@@ -1,33 +1,34 @@
 """Track graph of deep SORT."""
-from typing import List
+print("start print")
 from collections import defaultdict
-import torch
+from typing import List, Tuple
+
 import numpy as np
+import numpy.typing as npt
+import torch
 
-import examples.deepsort_example.iou_matching as iou_matching
-import examples.deepsort_example.linear_assignment as linear_assignment
+print("finish import torchs")
+import vist.model.deepsort_example.iou_matching as iou_matching
 
-from examples.deepsort_example.preprocessing import non_max_suppression
-from examples.deepsort_example.detection import Detection
-from examples.deepsort_example.kalman_filter import KalmanFilter
-from examples.deepsort_example.nn_matching import NearestNeighborDistanceMetric
-from examples.deepsort_example.track import Track
-
-from vist.struct import Boxes2D
+print("import iou success")
+from vist.model.deepsort_example import linear_assignment
+from vist.model.deepsort_example.detection import Detection
+from vist.model.deepsort_example.kalman_filter import KalmanFilter
+from vist.model.deepsort_example.nn_matching import (
+    NearestNeighborDistanceMetric,
+)
+from vist.model.deepsort_example.track import Track
 from vist.model.track.graph import BaseTrackGraph, TrackGraphConfig
+from vist.struct import Boxes2D
 
+print("finish import")
+# from .preprocessing import non_max_suppression
 # from detectron2.data import MetadataCatalog
 
 
-def tlwh_to_tlbr(bbox_tlwh: np.ndarray):
-    """Convert a single bbox from tlwh to tlbr."""
-    x1, y1, w, h = bbox_tlwh
-    x2 = x1 + w
-    y2 = y1 + h
-    return x1, y1, x2, y2
-
-
-def tlbr_to_tlwh(bbox_tlbr: np.ndarray):
+def tlbr_to_tlwh(
+    bbox_tlbr: npt.NDArray[np.complex64],
+) -> npt.NDArray[np.complex64]:
     """Convert tlbr boxes to tlwh.
 
     bbox_tlbr: torch.FloatTensor: (N, 4) where each entry is defined by
@@ -142,7 +143,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         output = self.get_output()
         return output
 
-    def predict(self):
+    def predict(self) -> None:
         """Propagate all tracklet one time step forward.
 
         This function should be called once every time step, before `update`.
@@ -157,12 +158,12 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             cls_detidx_mapping[det.class_id].append(i)
         # Run matching cascade.
         matches, unmatched_tracks, unmatched_detections = [], [], []
-        for class_id in cls_detidx_mapping.keys():
+        for class_id, detidx in cls_detidx_mapping.items():
             (
                 matches_cls,
                 unmatched_tracks_cls,
                 unmatched_detections_cls,
-            ) = self._match(detections, cls_detidx_mapping[class_id], class_id)
+            ) = self._match(detections, detidx, class_id)
             matches.extend(matches_cls)
             unmatched_tracks.extend(unmatched_tracks_cls)
             unmatched_detections.extend(unmatched_detections_cls)
@@ -178,6 +179,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             self.tracks[track_idx].mark_missed()
         for detection_idx in unmatched_detections:
             self._initiate_track(detections[detection_idx])
+        # pylint: disable=line-too-long
         self.tracks = [t for t in self.tracks if not t.is_deleted()]  # type: ignore
         for unmatched_det in unmatched_detections:
             assert unmatched_det not in unmatched_det_set
@@ -198,10 +200,20 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             np.asarray(features), np.asarray(targets), active_targets
         )
 
-    def _match(self, detections: List[Detection], detection_indices, class_id):
+    def _match(
+        self,
+        detections: List[Detection],
+        detection_indices: List[int],
+        class_id: int,
+    ) -> Tuple[List[Tuple[int, int]], List[int], List[int]]:
         """Matching."""
 
-        def gated_metric(tracks, dets, track_indices, detection_indices):
+        def gated_metric(
+            tracks: List[Track],
+            dets: List[Detection],
+            track_indices: List[int],
+            detection_indices: List[int],
+        ) -> npt.NDArray[np.complex64]:
             """Calculate cost matrix."""
             features = np.array([dets[i].feature for i in detection_indices])
             targets = np.array([tracks[i].track_id for i in track_indices])
@@ -274,13 +286,13 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         unmatched_tracks = list(set(unmatched_tracks_a + unmatched_tracks_b))
         return matches, unmatched_tracks, unmatched_detections
 
-    def _initiate_track(self, detection):
+    def _initiate_track(self, detection: Detection) -> None:
         """Initiate a track."""
         mean, covariance = self.kf.initiate(
             detection.to_xyah(), detection.class_id
         )
         confidence, class_id = detection.confidence, detection.class_id
-        self.tracks.append(
+        self.tracks.append(  # type:ignore
             Track(
                 mean,
                 covariance,

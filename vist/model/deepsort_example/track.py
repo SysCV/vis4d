@@ -1,9 +1,11 @@
 """DeepSORT track."""
 from typing import Optional
-import numpy as np
 
-from examples.deepsort_example.kalman_filter import KalmanFilter
-from examples.deepsort_example.detection import Detection
+import numpy as np
+import numpy.typing as npt
+
+from .detection import Detection
+from .kalman_filter import KalmanFilter
 
 
 class TrackState:
@@ -59,15 +61,15 @@ class Track:
 
     def __init__(
         self,
-        mean: np.ndarray,
-        covariance: np.ndarray,
+        mean: npt.NDArray[np.complex64],
+        covariance: npt.NDArray[np.complex64],
         confidence: float,
         class_id: int,
         track_id: int,
         n_init: int,
         max_age: int,
-        feature: Optional[np.ndarray] = None,
-    ):
+        feature: Optional[npt.NDArray[np.complex64]] = None,
+    ) -> None:
         """Init."""
         self.mean = mean
         self.covariance = covariance
@@ -87,20 +89,20 @@ class Track:
         self._n_init = n_init
         self._max_age = max_age
 
-    def to_tlwh(self):
+    def to_tlwh(self) -> npt.NDArray[np.complex64]:
         """Get bounding box in `(top left x, top left y, width, height)."""
         ret = self.mean[:4].copy()
         ret[2] *= ret[3]
         ret[:2] -= ret[2:] / 2.0
         return ret
 
-    def to_tlbr(self):
+    def to_tlbr(self) -> npt.NDArray[np.complex64]:
         """Get bounding box in `(min x, miny, max x, max y)`."""
         ret = self.to_tlwh()
         ret[2:] = ret[:2] + ret[2:]
         return ret
 
-    def predict(self, kf):
+    def predict(self, kf: KalmanFilter) -> None:
         """State prediction to the current time.
 
         Propagate the state distribution to the current time step using a
@@ -112,7 +114,7 @@ class Track:
         self.age += 1
         self.time_since_update += 1
 
-    def update(self, kf: KalmanFilter, detection: Detection):
+    def update(self, kf: KalmanFilter, detection: Detection) -> None:
         """Kalman filter measurement update step and update the feature cache."""  # pylint: disable=line-too-long
         self.mean, self.covariance = kf.update(
             self.mean, self.covariance, detection.to_xyah(), self.class_id
@@ -126,7 +128,7 @@ class Track:
 
         self.mean[:4] = detection.to_xyah()
 
-    def mark_missed(self):
+    def mark_missed(self) -> None:
         """Mark this track as missed.
 
         no association at the current time step.
@@ -136,14 +138,14 @@ class Track:
         elif self.time_since_update > self._max_age:
             self.state = TrackState.Deleted
 
-    def is_tentative(self):
+    def is_tentative(self) -> bool:
         """Returns True if this track is tentative (unconfirmed)."""
         return self.state == TrackState.Tentative
 
-    def is_confirmed(self):
+    def is_confirmed(self) -> bool:
         """Returns True if this track is confirmed."""
         return self.state == TrackState.Confirmed
 
-    def is_deleted(self):
+    def is_deleted(self) -> bool:
         """Returns True if this track is dead and should be deleted."""
         return self.state == TrackState.Deleted

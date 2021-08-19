@@ -1,9 +1,13 @@
 """Nearest Neighbor metric."""
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
+
 import numpy as np
+import numpy.typing as npt
 
 
-def _pdist(a, b):  # pylint: disable = invalid-name
+def _pdist(
+    a: npt.NDArray[np.complex64], b: npt.NDArray[np.complex64]
+) -> npt.NDArray[np.complex64]:  # pylint: disable = invalid-name
     """Compute pair-wise squared distance between points in `a` and `b`.
 
     Parameters
@@ -30,8 +34,10 @@ def _pdist(a, b):  # pylint: disable = invalid-name
 
 
 def _cosine_distance(
-    a, b, data_is_normalized=False
-):  # pylint: disable = invalid-name
+    a: npt.NDArray[np.complex64],
+    b: npt.NDArray[np.complex64],
+    data_is_normalized: bool = False,
+) -> npt.NDArray[np.complex64]:  # pylint: disable = invalid-name
     """Compute pair-wise cosine distance between points in `a` and `b`.
 
     Parameters
@@ -57,7 +63,9 @@ def _cosine_distance(
     return 1.0 - np.dot(a, b.T)
 
 
-def _nn_euclidean_distance(x, y):  # pylint: disable = invalid-name
+def _nn_euclidean_distance(
+    x: npt.NDArray[np.complex64], y: npt.NDArray[np.complex64]
+) -> npt.NDArray[np.complex64]:  # pylint: disable = invalid-name
     """Helper function for nearest neighbor distance metric (Euclidean).
 
     Parameters
@@ -78,7 +86,9 @@ def _nn_euclidean_distance(x, y):  # pylint: disable = invalid-name
     return np.maximum(0.0, distances.min(axis=0))
 
 
-def _nn_cosine_distance(x, y):  # pylint: disable = invalid-name
+def _nn_cosine_distance(
+    x: npt.NDArray[np.complex64], y: npt.NDArray[np.complex64]
+) -> npt.NDArray[np.complex64]:  # pylint: disable = invalid-name
     """Helper function for nearest neighbor distance metric (cosine).
 
     Parameters
@@ -126,7 +136,7 @@ class NearestNeighborDistanceMetric(object):
         metric: str,
         matching_threshold: float,
         budget: Optional[int] = None,
-    ):
+    ) -> None:
         """Init."""
         if metric == "euclidean":
             self._metric = _nn_euclidean_distance
@@ -138,9 +148,14 @@ class NearestNeighborDistanceMetric(object):
             )
         self.matching_threshold = matching_threshold
         self.budget = budget
-        self.samples: Dict[int, List[np.ndarray]] = {}
+        self.samples: Dict[int, List[npt.NDArray[np.complex64]]] = {}
 
-    def partial_fit(self, features, targets, active_targets):
+    def partial_fit(
+        self,
+        features: npt.NDArray[np.complex64],
+        targets: npt.NDArray[np.complex64],
+        active_targets: List[int],
+    ) -> None:
         """Update the distance metric with new data.
 
         Parameters
@@ -156,10 +171,15 @@ class NearestNeighborDistanceMetric(object):
         for feature, target in zip(features, targets):
             self.samples.setdefault(target, []).append(feature)
             if self.budget is not None:
+                # pylint: disable=invalid-unary-operand-type
                 self.samples[target] = self.samples[target][-self.budget :]
         self.samples = {k: self.samples[k] for k in active_targets}
 
-    def distance(self, features: np.ndarray, targets: np.ndarray):
+    def distance(
+        self,
+        features: npt.NDArray[np.complex64],
+        targets: npt.NDArray[np.complex64],
+    ) -> npt.NDArray[np.complex64]:
         """Compute distance between features and targets.
 
         Parameters
@@ -179,5 +199,7 @@ class NearestNeighborDistanceMetric(object):
         """
         cost_matrix = np.zeros((len(targets), len(features)))
         for i, target in enumerate(targets):
-            cost_matrix[i, :] = self._metric(self.samples[target], features)
+            cost_matrix[i, :] = self._metric(
+                self.samples[target], features
+            )  # type:ignore
         return cost_matrix

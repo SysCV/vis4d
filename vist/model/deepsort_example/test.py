@@ -1,14 +1,14 @@
 """Example for dynamic api usage with SORT."""
 # import the SORT components, needs to be imported to be registered
-from examples.deepsort_example.deepsort_graph import DeepSORTTrackGraph
-from examples.deepsort_example.deepsort_model import DeepSORT
-
-import openmt.data.datasets.base
+print("import trackgraph")
+import vist.data.datasets.base
 from vist import config
 from vist.data.dataset_mapper import DataloaderConfig as Dataloader
 from vist.data.transforms.base import AugmentationConfig as Augmentation
-from vist.engine import train
+from vist.engine import test
 from vist.model import BaseModelConfig
+from vist.model.deepsort_example.deepsort_graph import DeepSORTTrackGraph
+from vist.model.deepsort_example.deepsort_model import DeepSORT
 
 # Disable pylint for this file due to high overlap with detector example
 # pylint: skip-file
@@ -28,21 +28,17 @@ if __name__ == "__main__":
         max_boxes_num=512,
         featurenet_weight_path=None,
         dataset="BDD100K",
-        num_instances=108524,
-        prediction_path="weight/predictions.json",
+        num_instances=108524,  # 108524 for BDD100K train, # 625 for using given pretrained weights
+        prediction_path="/home/yinjiang/systm/given_predictions/track_predictions.json",
     )
 
     conf = config.Config(
         model=BaseModelConfig(**deepsort_cfg),
         solver=config.Solver(
-            images_per_gpu=32,  # 32 for train
+            images_per_gpu=32,  # 32, # 2 in biwidl302
             lr_policy="WarmupMultiStepLR",
-            base_lr=0.0006,
-            # steps=[30000, 40000],
-            max_iters=50000,
-            log_period=100,
-            checkpoint_period=1000,
-            eval_period=10000,
+            base_lr=0.001,
+            max_iters=1000,
         ),
         dataloader=Dataloader(
             workers_per_gpu=8,
@@ -59,11 +55,10 @@ if __name__ == "__main__":
             ],
             remove_samples_without_labels=True,
             inference_sampling="sequence_based",
-            compute_global_instance_ids=True,
-            # train_augmentations=[
-            #     Augmentation(type="Resize", kwargs={"shape": [720, 1280]}),
-            #     Augmentation(type="RandomFlip", kwargs={"prob": 0.5}),
-            # ],
+            train_augmentations=[
+                Augmentation(type="Resize", kwargs={"shape": [720, 1280]}),
+                Augmentation(type="RandomFlip", kwargs={"prob": 0.5}),
+            ],
             image_channel_mode="BGR",
         ),
         train=[
@@ -100,17 +95,8 @@ if __name__ == "__main__":
     )
 
     # choose according to setup
-    # conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-26_10:59:19/model_0014999.pth"
+    conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-28_21:24:04/model_0034999.pth"  # deepsort trained on BDD100K
     # conf.launch.weights = "/home/yinjiang/systm/examples/deepsort_example/checkpoint/original_ckpt.pth"
-    # conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-26_20:30:08/model_0032999.pth"
-    conf.launch.weights = "/home/yinjiang/systm/openmt-workspace/DeepSORT/2021-06-28_11:38:49/model_0007999.pth"
     conf.launch.device = "cuda"
-    conf.launch.num_gpus = 6
-    conf.launch.resume = True
-    # import os
-    # import shutil
-    # if os.path.exists("visualsization/"):
-    #     shutil.rmtree("visualization/")
-    # os.mkdir("visualization/")
-
-    train(conf)
+    conf.launch.num_gpus = 4
+    test(conf)

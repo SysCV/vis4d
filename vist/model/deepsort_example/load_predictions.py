@@ -1,29 +1,41 @@
 """Functions for loading given predictions."""
-from typing import Dict
-import os
 import glob
 import json
-import numpy as np
+import os
+from typing import Dict
 
+import numpy as np
+import numpy.typing as npt
 import torch
-from detectron2.data import MetadataCatalog
+
+# from detectron2.data import MetadataCatalog
 from vist.struct import Boxes2D
 
 
-def load_bdd100k_preds(pred_path: str):
+def load_bdd100k_preds(pred_path: str) -> Dict[str, Dict[int, Boxes2D]]:
     """Function for loading BDD100K predictions."""
-    search_dict: Dict[str, Dict[str, Boxes2D]] = dict()
+    search_dict: Dict[str, Dict[int, Boxes2D]] = dict()
     given_predictions = json.load(
         open(
             pred_path,
             "r",
         )
     )
-    idx_to_class_mapping = MetadataCatalog.get(
-        "bdd100k_val"
-    ).idx_to_class_mapping
+    # idx_to_class_mapping = MetadataCatalog.get(
+    #     "bdd100k_val"
+    # ).idx_to_class_mapping
+    idx_to_class_mapping = {
+        0: "pedestrian",
+        1: "rider",
+        2: "car",
+        3: "truck",
+        4: "bus",
+        5: "train",
+        6: "motorcycle",
+        7: "bicycle",
+    }
     class_to_idx_mapping = {v: k for k, v in idx_to_class_mapping.items()}
-
+    given_predictions = given_predictions["frames"]
     for prediction in given_predictions:
         video_name = prediction["videoName"]
         frame_index = prediction["frameIndex"]
@@ -66,48 +78,44 @@ def load_bdd100k_preds(pred_path: str):
                     (track_ids, torch.tensor([int(label["id"])]))
                 )
             search_dict[video_name][frame_index] = Boxes2D(
-                boxes, class_ids, track_ids
+                boxes, class_ids, track_ids.int()
             )
     return search_dict
 
 
-def load_mot16_preds(pred_path: str):
+def load_mot16_preds(pred_path: str) -> Dict[str, Dict[int, Boxes2D]]:
     """Function for loading MOT16 predictions."""
-    from PIL import Image
-    import torchvision
-    from openmt.vis.image import imshow_bboxes
-
     search_dict: Dict[str, Dict[int, Boxes2D]] = dict()
     video_names = glob.glob(os.path.join(pred_path, "MOT16-*_det.txt"))
-    for video in video_names:
-        video_name, _ = os.path.splitext(os.path.split(video)[1])
+    for v in video_names:
+        video_name, _ = os.path.splitext(os.path.split(v)[1])
         video_name = video_name[:-4]
         search_dict[video_name] = dict()
-        detections = np.loadtxt(video, delimiter=",")
+        detections = np.loadtxt(v, delimiter=",")
         detections[:, 2:6] = tlwh_to_xyxy(detections[:, 2:6])
         frames = np.unique(detections[:, 0])
-        for frame_id in frames:
-            frame_data = detections[detections[:, 0] == frame_id]
+        for f_id in frames:
+            frame_data = detections[detections[:, 0] == f_id]
             boxes = torch.from_numpy(frame_data[:, 2:7]).float()
             class_ids = torch.zeros(boxes.shape[0])
-            search_dict[video_name][frame_id - 1] = Boxes2D(boxes, class_ids)
-            # if video_name == "MOT16-02" and frame_id == 1:
+            search_dict[video_name][f_id - 1] = Boxes2D(boxes, class_ids)
+            # if video_name == "MOT16-02" and f_id == 1:
             #     print(video_name)
             #     img = Image.open(
             #         "data/MOT16/train/"
             #         + video_name
             #         + "/img1/"
             #         + "00000"
-            #         + str(int(frame_id))
+            #         + str(int(f_id))
             #         + ".jpg"
             #     ).convert("RGB")
             #     tensor = torchvision.transforms.ToTensor()(img) * 255.0
-            #     imshow_bboxes(tensor, search_dict[video_name][frame_id - 1])
+            #     imshow_bboxes(tensor, search_dict[video_name][f_id - 1])
 
     return search_dict
 
 
-def tlwh_to_xyxy(tlwh: np.ndarray):
+def tlwh_to_xyxy(tlwh: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
     """Convert tlwh boxes to xyxy.
 
     tlwh: shape(n x 4), where axis 1 is [x1, y1, w, h]
@@ -120,7 +128,9 @@ def tlwh_to_xyxy(tlwh: np.ndarray):
     return xyxy
 
 
-def load_predictions(dataset_name: str, pred_path: str):
+def load_predictions(
+    dataset_name: str, pred_path: str
+) -> Dict[str, Dict[int, Boxes2D]]:
     """Function for calling specific prediction loader."""
     if dataset_name == "BDD100K":
         return load_bdd100k_preds(pred_path)
@@ -133,16 +143,16 @@ def load_predictions(dataset_name: str, pred_path: str):
 if __name__ == "__main__":
     # mot16_preds = load_predictions("MOT16", "weight/MOT16_det_feat")
     bdd100K = load_predictions("BDD100K", "weight/predictions.json")
-    threshold = 0.3
-    min_conf = 1.0
-    count = 0
+    THRESHOLD = 0.3
+    MIN_CONF = 1.0
+    COUNT = 0
     for video_id, video in bdd100K.items():
         for frame_id, frame in video.items():
             if len(frame.boxes) == 0:
                 continue
-            if torch.min(frame.boxes[:, -1]) < min_conf:
-                min_conf = torch.min(frame.boxes[:, -1])
-            threshold_conf = frame.boxes[:, -1] < threshold
-            count += torch.sum(threshold_conf)
-    print("count: ", count)
-    print("min_conf", min_conf)
+            if torch.min(frame.boxes[:, -1]) < MIN_CONF:
+                MIN_CONF = torch.min(frame.boxes[:, -1])
+            threshold_conf = frame.boxes[:, -1] < THRESHOLD
+            COUNT += torch.sum(threshold_conf)
+    print("COUNT: ", COUNT)
+    print("MIN_CONF", MIN_CONF)

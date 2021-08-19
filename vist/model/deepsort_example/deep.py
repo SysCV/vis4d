@@ -1,8 +1,8 @@
 """deep featureNet."""
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.transforms as transforms
+from torch import nn
+from torchvision import transforms
 
 # pylint: disable= invalid-name
 
@@ -10,7 +10,9 @@ import torchvision.transforms as transforms
 class BasicBlock(nn.Module):  # type: ignore
     """Basic build block."""
 
-    def __init__(self, c_in, c_out, is_downsample=False):
+    def __init__(
+        self, c_in: int, c_out: int, is_downsample: bool = False
+    ) -> None:
         """Init."""
         super().__init__()
         self.is_downsample = is_downsample
@@ -40,7 +42,7 @@ class BasicBlock(nn.Module):  # type: ignore
             )
             self.is_downsample = True
 
-    def forward(self, x):
+    def forward(self, x: torch.tensor) -> torch.tensor:
         """Forward."""
         y = self.conv1(x)
         y = self.bn1(y)
@@ -52,7 +54,9 @@ class BasicBlock(nn.Module):  # type: ignore
         return F.relu(x.add(y), True)
 
 
-def make_layers(c_in, c_out, repeat_times, is_downsample=False):
+def make_layers(
+    c_in: int, c_out: int, repeat_times: int, is_downsample: bool = False
+) -> nn.Sequential:
     """Make layers."""
     blocks = []
     for i in range(repeat_times):
@@ -70,7 +74,7 @@ def make_layers(c_in, c_out, repeat_times, is_downsample=False):
 class FeatureNet(nn.Module):  # type: ignore
     """Deep feature net."""
 
-    def __init__(self, num_classes=625):
+    def __init__(self, num_classes: int = 625):
         """Init."""
         super().__init__()
         # 3 128 64

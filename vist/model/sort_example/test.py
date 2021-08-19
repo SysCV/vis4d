@@ -1,16 +1,12 @@
 """Example for dynamic api usage with SORT."""
 # import the SORT components, needs to be imported to be registered
-from sort_graph import SORTTrackGraph
-from sort_model import SORT
-
 import vist.data.datasets.base
 from vist import config
-
-
 from vist.data.dataset_mapper import DataloaderConfig as Dataloader
 from vist.engine import test
 from vist.model import BaseModelConfig
-
+from vist.model.sort_example.sort_graph import SORTTrackGraph
+from vist.model.sort_example.sort_model import SORT
 
 # Disable pylint for this file due to high overlap with detector example
 # pylint: skip-file
@@ -25,6 +21,8 @@ if __name__ == "__main__":
         type="SORT",
         detection=sort_detector_cfg,
         track_graph=sort_trackgraph_cfg,
+        dataset="BDD100K",
+        prediction_path="/home/yinjiang/systm/given_predictions/track_predictions.json",
     )
 
     conf = config.Config(
@@ -34,7 +32,6 @@ if __name__ == "__main__":
             lr_policy="WarmupMultiStepLR",
             base_lr=0.001,
             max_iters=100,
-            eval_metrics=["detect", "track"],
         ),
         dataloader=Dataloader(
             workers_per_gpu=8,
@@ -66,30 +63,21 @@ if __name__ == "__main__":
             vist.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_val",
                 type="BDD100K",
-                # annotations="vist/engine/testcases/track/bdd100k-samples/"
-                # "labels",
+                # data_root="data/bdd100k/images/track/val/",
                 # annotations="data/bdd100k/labels/box_track_20/val/",
-                annotations="data/one_sequence/labels",
                 # data_root="vist/engine/testcases/track/bdd100k-samples/"
                 # "images/",
-                # data_root="data/bdd100k/images/track/val/",
+                # annotations="vist/engine/testcases/track/bdd100k-samples/"
+                # "labels",
                 data_root="data/one_sequence/images/",
+                annotations="data/one_sequence/labels",
                 config_path="box_track",
+                eval_metrics=["track"],
             )
         ],
     )
 
-    # TODO choose according to setup, add pretrained weights if necessary
-    # CPU
-    conf.launch.weights = "weight/model_0000199.pth"
-    # import os
-    # import shutil
-    # if os.path.exists("visualization/"):
-    #     shutil.rmtree("visualization/")
-    # os.mkdir("visualization/")
-
+    # conf.launch.weights = "weight/model_0000199.pth"
+    conf.launch.device = "cuda"
+    conf.launch.num_gpus = 1
     test(conf)
-
-    # single GPU
-    # conf.launch = config.Launch(device="cuda")
-    # test(conf)
