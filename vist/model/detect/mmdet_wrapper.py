@@ -155,6 +155,59 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
         return proposals_from_mmdet(proposals), _parse_losses(rpn_losses)
 
+    def _roi_forward_train_with_det(
+        self,
+        x,
+        img_metas,
+        proposal_list,
+        gt_bboxes,
+        gt_labels,
+        gt_bboxes_ignore=None,
+    ):
+        """Generate losses along with dection result."""
+        num_imgs = len(img_metas)
+        if gt_bboxes_ignore is None:
+            gt_bboxes_ignore = [None for _ in range(num_imgs)]
+        sampling_results = []
+        # TODO: Try batch forward
+        for i in range(num_imgs):
+            assign_result = self.mm_detector.roi_head.bbox_assigner.assign(
+                proposal_list[i],
+                gt_bboxes[i],
+                gt_bboxes_ignore[i],
+                gt_labels[i],
+            )
+            sampling_result = self.mm_detector.roi_head.bbox_sampler.sample(
+                assign_result,
+                proposal_list[i],
+                gt_bboxes[i],
+                gt_labels[i],
+                feats=[lvl_feat[i][None] for lvl_feat in x],
+            )
+            sampling_results.append(sampling_result)
+
+        losses = dict()
+        # bbox head forward and loss
+        bbox_results = self.mm_detector.roi_head._bbox_forward_train(
+            x, sampling_results, gt_bboxes, gt_labels, img_metas
+        )
+        losses.update(bbox_results["loss_bbox"])
+
+        # bbox target
+        bbox_targets = self.mm_detector.roi_head.bbox_head.get_targets(
+            sampling_results,
+            gt_bboxes,
+            gt_labels,
+            self.mm_detector.roi_head.train_cfg,
+        )
+
+        return (
+            losses,
+            bbox_results["bbox_pred"],
+            bbox_results["bbox_feats"],
+            sampling_results,
+        )
+
     def generate_detections(
         self,
         images: Images,
@@ -162,7 +215,12 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         proposals: List[Boxes2D],
         targets: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
-    ) -> Tuple[Optional[List[Boxes2D]], LossesType]:
+    ) -> Tuple[
+        Optional[List[Boxes2D]],
+        LossesType,
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+    ]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if no targets) and optionally detections.
@@ -172,18 +230,36 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         img_metas = get_img_metas(images)
         if targets is not None:
             gt_bboxes, gt_labels = targets_to_mmdet(targets)
-            detect_losses = self.mm_detector.roi_head.forward_train(
-                feat_list,
-                img_metas,
-                proposal_list,
-                gt_bboxes,
-                gt_labels,
-            )
+            if compute_detections:
+                (
+                    detect_losses,
+                    bbox_pred,
+                    bbox_feats,
+                    sampling_results,
+                ) = self._roi_forward_train_with_det(
+                    feat_list,
+                    img_metas,
+                    proposal_list,
+                    gt_bboxes,
+                    gt_labels,
+                )
+                detect_losses = _parse_losses(detect_losses)
+                return (
+                    bbox_pred,
+                    detect_losses,
+                    bbox_feats,
+                    sampling_results,
+                )
+            else:
+                detect_losses = self.mm_detector.roi_head.forward_train(
+                    feat_list,
+                    img_metas,
+                    proposal_list,
+                    gt_bboxes,
+                    gt_labels,
+                )
+                detections = None
             detect_losses = _parse_losses(detect_losses)
-            assert (
-                not compute_detections
-            ), "mmdetection does not compute detections during train!"
-            detections = None
         else:
             bboxes, labels = self.mm_detector.roi_head.simple_test_bboxes(
                 feat_list,
