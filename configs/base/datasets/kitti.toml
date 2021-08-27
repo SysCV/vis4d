@@ -1,5 +1,6 @@
 [[train]]
 name = "kitti_track_train"
+annotations = "data/KITTI/anns/tracking_training.json"
 type = "KITTI"
 data_root = "data/KITTI"
 input_dir = "data/KITTI"
@@ -10,6 +11,7 @@ num_processes = 0
 
 [[train]]
 name = "kitti_det_train"
+annotations = "data/KITTI/anns/detection_training.json"
 type = "KITTI"
 data_root = "data/KITTI"
 input_dir = "data/KITTI"
@@ -32,6 +34,7 @@ num_processes = 0
 workers_per_gpu = 0
 categories = ["car", "pedestrian", "cyclist"]
 skip_empty_samples = true
+fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
     [dataloader.data_backend]
     type = "FileBackend"
     [dataloader.ref_sampling_cfg]
