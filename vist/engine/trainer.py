@@ -24,7 +24,7 @@ from .utils import default_setup, register_directory, to_detectron2
 
 
 class DefaultTrainer(D2DefaultTrainer):  # type: ignore
-    """OpenMT DefaultTrainer class."""
+    """VisT DefaultTrainer class."""
 
     def __init__(self, cfg: Config, det2cfg: CfgNode):
         """Init."""
@@ -55,21 +55,19 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
     ) -> torch.utils.data.DataLoader:
         """Calls static version."""
         return self.build_test_loader_static(
-            self.vist_cfg, cfg, dataset_name
+            self.vist_cfg, dataset_name
         )  # pragma: no cover
 
     @classmethod
     def build_test_loader_static(
-        cls, vist_cfg: Config, cfg: CfgNode, dataset_name: str
+        cls, vist_cfg: Config, dataset_name: str
     ) -> torch.utils.data.DataLoader:
         """Calls :func:`vist.data.build_test_loader`."""
         sampling = "sequence_based"
         for ds in vist_cfg.test:
             if ds.name == dataset_name:
                 sampling = ds.inference_sampling
-        return build_test_loader(
-            vist_cfg.dataloader, cfg, dataset_name, sampling
-        )
+        return build_test_loader(vist_cfg.dataloader, dataset_name, sampling)
 
     def build_evaluator(
         self, cfg: CfgNode, dataset_name: str
@@ -85,11 +83,12 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
     ) -> DatasetEvaluator:
         """Build evaluators."""
         output_folder = os.path.join(cfg.OUTPUT_DIR, dataset_name)
+        ignore_unknown_cats = vist_cfg.dataloader.ignore_unknown_cats
         metrics = [
             ds.eval_metrics for ds in vist_cfg.test if ds.name == dataset_name
         ][0]
         evaluator = ScalabelEvaluator(
-            dataset_name, metrics, True, output_folder
+            dataset_name, metrics, True, output_folder, ignore_unknown_cats
         )
         return evaluator
 
@@ -128,9 +127,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
 
         results = OrderedDict()  # type: ignore
         for idx, dataset_name in enumerate(datasets):
-            data_loader = cls.build_test_loader_static(
-                vist_cfg, cfg, dataset_name
-            )
+            data_loader = cls.build_test_loader_static(vist_cfg, dataset_name)
             # When evaluators are passed in as arguments, implicitly assume
             # that evaluators can be created before data_loader.
             if evaluators is not None:
@@ -163,7 +160,6 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
     def predict(
         cls,
         vist_cfg: Config,
-        cfg: CfgNode,
         model: torch.nn.Module,
     ) -> None:
         """Test detect with given evaluators."""
@@ -175,9 +171,7 @@ class DefaultTrainer(D2DefaultTrainer):  # type: ignore
             datasets = [ds.name for ds in vist_cfg.test]
 
         for dataset_name in datasets:
-            data_loader = cls.build_test_loader_static(
-                vist_cfg, cfg, dataset_name
-            )
+            data_loader = cls.build_test_loader_static(vist_cfg, dataset_name)
             output_folder = os.path.join(
                 vist_cfg.launch.output_dir, dataset_name
             )
@@ -221,4 +215,4 @@ def predict(cfg: Config) -> None:
     Checkpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
         cfg.launch.weights, resume=cfg.launch.resume
     )
-    DefaultTrainer.predict(cfg, det2cfg, model)
+    DefaultTrainer.predict(cfg, model)

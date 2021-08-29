@@ -1,0 +1,38 @@
+[[train]]
+name = "kitti_sample_train"
+type = "KITTI"
+data_root = "vist/engine/testcases/track/kitti-samples/"
+annotations = "vist/engine/testcases/track/kitti-samples/tracking_training.json"
+num_processes = 0
+
+[[test]]
+name = "kitti_sample_val"
+type = "KITTI"
+data_root = "vist/engine/testcases/track/kitti-samples/"
+annotations = "vist/engine/testcases/track/kitti-samples/tracking_training.json"
+validate_frames = true
+num_processes = 0
+eval_metrics = ["detect", "track"]
+inference_sampling = "sequence_based"
+
+[dataloader]
+workers_per_gpu = 0
+categories = ["car", "pedestrian", "cyclist"]
+fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
+    [dataloader.ref_sampling_cfg]
+    type = 'uniform'
+    scope = 1
+    num_ref_imgs = 1
+    skip_nomatch_samples = true
+
+    [[dataloader.train_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [375, 1242]}
+
+    [[dataloader.train_augmentations]]
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
+
+    [[dataloader.test_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [375, 1242]}

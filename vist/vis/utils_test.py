@@ -1,4 +1,5 @@
 """Visualization utils test cases."""
+import math
 import unittest
 
 import numpy as np
@@ -7,7 +8,12 @@ from PIL import Image
 
 from vist.unittest.utils import generate_dets
 
-from .utils import generate_colors, preprocess_boxes, preprocess_image
+from .utils import (
+    box3d_to_corners,
+    generate_colors,
+    preprocess_boxes,
+    preprocess_image,
+)
 
 
 class TestUtils(unittest.TestCase):
@@ -37,6 +43,20 @@ class TestUtils(unittest.TestCase):
         """Test preprocess_boxes method."""
         dets = [generate_dets(128, 128, 10, track_ids=True)]
         dets[0].track_ids = dets[0].track_ids.unsqueeze(-1)
+
+        # with score
+        proc_dets, cols, labels = preprocess_boxes(dets)
+        self.assertTrue(
+            len(dets[0]) == len(proc_dets) == len(cols) == len(labels)
+        )
+        self.assertTrue(len(cols) == len(set(cols)))
+        for det, proc_det, label in zip(dets[0], proc_dets, labels):  # type: ignore # pylint: disable=line-too-long
+            det_box = det.boxes[0, :4].numpy().tolist()
+            self.assertEqual(det_box, proc_det)
+            self.assertEqual(0, int(label[2]))
+
+        # without score
+        dets[0].boxes = dets[0].boxes[:, :4]
         proc_dets, cols, labels = preprocess_boxes(dets)
         self.assertTrue(
             len(dets[0]) == len(proc_dets) == len(cols) == len(labels)
@@ -54,3 +74,21 @@ class TestUtils(unittest.TestCase):
         dets[0].class_ids = None
         proc_dets, cols, _ = preprocess_boxes(dets)
         self.assertTrue(len(set(cols)) == 1)
+
+    def test_box3d_to_corners(self) -> None:
+        """Test for box3d_to_corners function."""
+        box_corners = [
+            [11.0, 11.0, 8.0],
+            [9.0, 11.0, 8.0],
+            [9.0, 11.0, 12.0],
+            [11.0, 11.0, 12.0],
+            [11.0, 9.0, 8.0],
+            [9.0, 9.0, 8.0],
+            [9.0, 9.0, 12.0],
+            [11.0, 9.0, 12.0],
+        ]
+        corners = box3d_to_corners([10, 10, 10, 2, 2, 4, math.pi / 2])
+        self.assertTrue((corners == box_corners).all())
+
+        corners = box3d_to_corners([10, 10, 10, 2, 2, 4, 0, math.pi / 2, 0])
+        self.assertTrue((corners == box_corners).all())

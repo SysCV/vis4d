@@ -1,4 +1,4 @@
-"""OpenMT tracking loss implementations."""
+"""VisT tracking loss implementations."""
 
 from .base import BaseLoss, LossConfig, build_loss
 from .embedding_distance import EmbeddingDistanceLoss

@@ -2,8 +2,6 @@ black
 coverage[toml]
 isort
 mypy
-mmdet==2.14.0
-#mmcv-full==1.3.8
 numpy>=1.21.0
 pillow
 pydantic
@@ -18,7 +16,10 @@ wheel
 h5py
 git+git://github.com/scalabel/scalabel.git
 git+git://github.com/bdd100k/bdd100k.git
+mmcv-full
 devtools
+utm
+kornia
 
 types-toml
 types-termcolor

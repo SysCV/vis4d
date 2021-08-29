@@ -1,4 +1,4 @@
-"""OpenMT model module."""
+"""VisT model module."""
 from .base import BaseModel, BaseModelConfig, build_model
 from .quasi_dense_rcnn import QDGeneralizedRCNN
 

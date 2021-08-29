@@ -46,6 +46,7 @@ setuptools.setup(
         "vist": [
             "data/datasets/motchallenge.toml",
             "data/datasets/waymo.toml",
+            "data/datasets/kitti.toml",
             "py.typed",
         ]
     },
