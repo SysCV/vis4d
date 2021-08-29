@@ -1,4 +1,5 @@
 """Tracking base class."""
+
 import abc
 
 import torch
