@@ -1,0 +1,55 @@
+[model]
+type = "SORT"
+dataset = "BDD100K"
+prediction_path = "/home/yinjiang/systm/given_predictions/track_predictions.json"
+    [model.detection]
+    type = "D2TwoStageDetector"
+    model_base = "faster-rcnn/r50-fpn"
+    num_classes = 8
+    [model.track_graph]
+    type = "SORTTrackGraph"
+
+[[train]]
+name = "bdd100k_track_train"
+type = "BDD100K"
+annotations = "data/bdd100k/labels/box_track_20/train/"
+data_root = "data/bdd100k/images/track/train/"
+config_path = "box_track"
+num_processes = 0
+
+[[test]]
+name = "bdd100k_track_val"
+type = "BDD100K"
+annotations = "data/bdd100k/labels/box_track_20/val/"
+data_root = "data/bdd100k/images/track/val/"
+eval_metrics = ["detect", "track"]
+inference_sampling = "sequence_based"
+config_path = "box_track"
+num_processes = 0
+
+[dataloader]
+workers_per_gpu = 4
+categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
+skip_empty_samples = true
+image_channel_mode = "RGB"
+remove_samples_without_labels=True
+    [[dataloader.train_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}
+    [[dataloader.train_augmentations]]
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
+    [[dataloader.test_augmentations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}
+
+
+[solver]
+images_per_gpu = 32
+lr_policy = "WarmupMultiStepLR"
+base_lr = 0.001
+max_iters = 100
+
+[launch]
+device = "cuda"
+num_gpus = 4
