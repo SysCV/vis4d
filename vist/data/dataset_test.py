@@ -1,98 +1,125 @@
-"""Testcases for VisT dataset mapper."""
+"""Testcases for VisT ScalabelDataset."""
 import unittest
+from typing import List
 
 import torch
-from detectron2.config import get_cfg
-from detectron2.data import DatasetFromList
-from scalabel.label.typing import Frame
+from scalabel.label.typing import Category, Config, Dataset, Frame
 
-from vist.struct import Images, InputSample
-
-from .dataset import (
+from ..struct import Images, InputSample
+from .dataset import ScalabelDataset
+from .datasets.base import (
+    BaseDatasetConfig,
+    BaseDatasetLoader,
     DataloaderConfig,
-    DatasetMapper,
-    MapDataset,
     ReferenceSamplingConfig,
 )
 
 
-class TestDatasetMapper(unittest.TestCase):
-    """DatasetMapper Testcase class."""
+class MockDatasetLoader(BaseDatasetLoader):
+    """Scalabel dataset mockup."""
+
+    def __init__(self, cfg: BaseDatasetConfig, frames: List[Frame]) -> None:
+        """Init."""
+        self.frames = frames
+        super().__init__(cfg)
+
+    def load_dataset(self) -> Dataset:
+        """Load and possibly convert dataset to scalabel format."""
+        config = Config(categories=[Category(name="test")])
+        return Dataset(frames=self.frames, config=config)
+
+
+class TestScalabelDataset(unittest.TestCase):
+    """ScalabelDataset Testcase class."""
+
+    cfg = BaseDatasetConfig(
+        name="test",
+        type="Scalabel",
+        data_root="/path/to/root",
+        dataloader=DataloaderConfig(
+            ref_sampling=ReferenceSamplingConfig(
+                type="sequential",
+                num_ref_imgs=2,
+                scope=3,
+                frame_order="temporal",
+            )
+        ),
+    )
+
+    dataset_loader = MockDatasetLoader(
+        cfg,
+        [
+            Frame(
+                name=str(i),
+                videoName=str(i % 2),
+                frameIndex=i - i // 2 - i % 2,
+            )
+            for i in range(200)
+        ],
+    )
+
+    dataset = ScalabelDataset(dataset_loader, True)
 
     def test_reference_sampling(self) -> None:
         """Testcase for reference view sampling."""
-        cfg = ReferenceSamplingConfig(
-            type="sequential", num_ref_imgs=2, scope=3
-        )
-
-        data_dict = [
-            dict(video_name=str(i % 2), frame_index=i - i // 2 - i % 2)
-            for i in range(200)
-        ]
-        mapper = MapDataset(cfg, True, DatasetFromList(data_dict), lambda x: x)
-
-        idcs = mapper.sample_ref_idcs(str(0), 50)
+        idcs = self.dataset.sample_ref_indices(str(0), 50)
         self.assertTrue(idcs == [52, 54])
-
-        idcs = mapper.sample_ref_idcs(str(0), 196)
+        idcs = self.dataset.sample_ref_indices(str(0), 196)
         self.assertTrue(idcs == [194, 198])
 
     def test_getitem_fallback(self) -> None:
         """Testcase for getitem fallback if None is returned."""
-        cfg = ReferenceSamplingConfig(
-            type="sequential", num_ref_imgs=2, scope=3
+        cfg = BaseDatasetConfig(
+            name="test",
+            type="Scalabel",
+            data_root="vist/engine/testcases/track/bdd100k-samples/images/",
+            dataloader=DataloaderConfig(
+                ref_sampling=ReferenceSamplingConfig(
+                    type="sequential",
+                    num_ref_imgs=1,
+                    scope=3,
+                    skip_nomatch_samples=True,
+                ),
+            ),
         )
 
-        data_dict = [
-            dict(video_name=i % 2, frame_index=i - i // 2 - i % 2)
-            for i in range(200)
-        ]
-        mapper = MapDataset(
-            cfg, True, DatasetFromList(data_dict), lambda x: None
+        dataset_loader = MockDatasetLoader(
+            cfg,
+            [
+                Frame(
+                    name="00091078-875c1f73-0000167.jpg",
+                    videoName="00091078-875c1f73",
+                    frameIndex=i,
+                )
+                for i in range(6)
+            ],
         )
-        self.assertRaises(ValueError, mapper.__getitem__, 0)
+        dataset = ScalabelDataset(dataset_loader, True)
+        self.assertRaises(ValueError, dataset.__getitem__, 0)
 
     def test_transform_annotations(self) -> None:
         """Test the transform annotations method in DatasetMapper."""
-        cfg = get_cfg()
-        loader_cfg = DataloaderConfig(
-            workers_per_gpu=0,
-            image_channel_mode="BGR",
-            ref_sampling_cfg=ReferenceSamplingConfig(num_ref_imgs=1, scope=1),
-        )
-        ds_mapper = DatasetMapper(loader_cfg, cfg)
         input_sample = InputSample(
             Frame(name="0"),
             Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
         )
-        ds_mapper.transform_annotation(input_sample, None, lambda x: x)
+        self.dataset.transform_annotation(input_sample, None, lambda x: x)
         self.assertEqual(len(input_sample.boxes2d), 0)
-        ds_mapper.transform_annotation(input_sample, [], lambda x: x)
+        self.dataset.transform_annotation(input_sample, [], lambda x: x)
         self.assertEqual(len(input_sample.boxes2d), 0)
 
     def test_sort_samples(self) -> None:
         """Test the sort_samples method in MapDataset."""
-        cfg = ReferenceSamplingConfig(
-            num_ref_imgs=1, scope=1, frame_order="temporal"
-        )
-        data_dict = [
-            dict(video_name=i % 2, frame_index=i - i // 2 - i % 2)
-            for i in range(200)
-        ]
-        ds_mapper = MapDataset(
-            cfg, True, DatasetFromList(data_dict), lambda x: None
-        )
         input_samples = [
             InputSample(
-                Frame(name="1", frame_index=1),
+                Frame(name="1", frameIndex=1),
                 Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
             ),
             InputSample(
-                Frame(name="0", frame_index=0),
+                Frame(name="0", frameIndex=0),
                 Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
             ),
         ]
-
-        sorted_samples = ds_mapper.sort_samples(input_samples)
-        self.assertEqual(sorted_samples[0].metadata.frame_index, 0)
-        self.assertEqual(sorted_samples[1].metadata.frame_index, 1)
+        sorted_samples = self.dataset.sort_samples(input_samples)
+        self.assertEqual(sorted_samples[0].metadata.frameIndex, 0)
+        self.assertEqual(sorted_samples[1].metadata.frameIndex, 1)

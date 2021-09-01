@@ -29,8 +29,10 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
     def __init__(self, cfg: BaseModelConfig):
         """Init."""
-        super().__init__()
-        self.cfg = MMTwoStageDetectorConfig(**cfg.dict())
+        super().__init__(cfg)
+        self.cfg = MMTwoStageDetectorConfig(
+            **cfg.dict()
+        )  # type: MMTwoStageDetectorConfig
         self.mm_cfg = get_mmdet_config(self.cfg)
         self.mm_detector = build_detector(self.mm_cfg)
         assert isinstance(self.mm_detector, TwoStageDetector)
@@ -58,13 +60,14 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         images.tensor = (images.tensor - self.pixel_mean) / self.pixel_std
         return images
 
-    def training_step(
-        self, batch_inputs: List[List[InputSample]], batch_idx: int
+    def forward_train(
+        self,
+        batch_inputs: List[List[InputSample]],
     ) -> LossesType:
-        """Forward pass during training stage.
-
-        Returns a dict of loss tensors.
-        """
+        """Forward pass during training stage."""
+        assert all(
+            len(inp) == 1 for inp in batch_inputs
+        ), "No reference views allowed in MMTwoStageDetector training!"
         inputs = [inp[0] for inp in batch_inputs]
 
         targets = []
@@ -81,29 +84,25 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             gt_bboxes,
             gt_labels,
         )
-        losses = _parse_losses(losses)
-        losses['loss'] = sum([l for l in losses.values()])
-        return losses
+        return _parse_losses(losses)
 
-    def test_step(
-        self, batch_inputs: List[InputSample], batch_idx: int
+    def forward_test(
+        self,
+        batch_inputs: List[List[InputSample]],
     ) -> ModelOutput:
-        """Forward pass during testing stage.
+        """Forward pass during testing stage."""
+        inputs = [inp[0] for inp in batch_inputs]
 
-        Returns predictions for each input.
-        """
-        images = self.preprocess_image(batch_inputs)
+        images = self.preprocess_image(inputs)
         image_metas = get_img_metas(images)
         outs = self.mm_detector.simple_test(images.tensor, image_metas)
         detections = results_from_mmdet(outs, self.device)
-
-        if postprocess:
-            for inp, det in zip(batch_inputs, detections):
-                ori_wh = (
-                    batch_inputs[0].metadata.size.width,  # type: ignore
-                    batch_inputs[0].metadata.size.height,  # type: ignore
-                )
-                self.postprocess(ori_wh, inp.image.image_sizes[0], det)
+        for inp, det in zip(inputs, detections):
+            ori_wh = (
+                inputs[0].metadata.size.width,  # type: ignore
+                inputs[0].metadata.size.height,  # type: ignore
+            )
+            self.postprocess(ori_wh, inp.image.image_sizes[0], det)
 
         return dict(detect=detections)  # type: ignore
 
@@ -147,7 +146,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             proposals = self.mm_detector.rpn_head.simple_test(
                 feat_list, img_metas
             )
-            rpn_losses = dict()
+            rpn_losses = {}
 
         return proposals_from_mmdet(proposals), _parse_losses(rpn_losses)
 
@@ -188,6 +187,6 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 self.mm_detector.roi_head.test_cfg,
             )
             detections = detections_from_mmdet(bboxes, labels)
-            detect_losses = dict()
+            detect_losses = {}
 
         return detections, detect_losses

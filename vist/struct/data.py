@@ -222,7 +222,7 @@ class InputSample:
             extrinsics = Extrinsics(torch.eye(4))
         self.extrinsics = extrinsics
 
-        self.attributes = dict()  # type: Dict[str, DataInstance]
+        self.attributes = {}  # type: Dict[str, DataInstance]
         for k, v in kwargs.items():
             self.attributes[k] = v
 

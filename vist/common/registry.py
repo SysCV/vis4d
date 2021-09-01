@@ -53,4 +53,4 @@ class RegistryHolder(type):
 
 
 class ABCRegistryHolder(RegistryHolder, ABCMeta):
-    pass
+    """Metaclass unifying ABCMeta and RegistryHolder."""

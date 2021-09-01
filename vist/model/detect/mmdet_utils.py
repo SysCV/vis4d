@@ -20,7 +20,6 @@ class MMTwoStageDetectorConfig(BaseModelConfig):
 
     model_base: str
     model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
-    num_classes: Optional[int]
     pixel_mean: Tuple[float, float, float]
     pixel_std: Tuple[float, float, float]
     backbone_output_names: Optional[List[str]]
@@ -32,7 +31,7 @@ def get_img_metas(images: Images) -> List[MMDetMetaData]:
     img_metas = []
     _, c, padh, padw = images.tensor.shape  # type: Tuple[int, int, int, int]
     for i in range(len(images)):
-        meta = dict()  # type: MMDetMetaData
+        meta = {}  # type: MMDetMetaData
         w, h = images.image_sizes[i]
         meta["img_shape"] = meta["ori_shape"] = (h, w, c)
         meta["scale_factor"] = 1.0
@@ -126,8 +125,9 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
             f"MMDetection config not found: {config.model_base}"
         )
 
-    if config.num_classes:
-        cfg["roi_head"]["bbox_head"]["num_classes"] = config.num_classes
+    # convert detect attributes
+    assert config.category_mapping is not None
+    cfg["roi_head"]["bbox_head"]["num_classes"] = len(config.category_mapping)
 
     # add keyword args in config
     if config.model_kwargs:
@@ -147,7 +147,7 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
 
 def _parse_losses(losses: Dict[str, torch.Tensor]) -> LossesType:
     """Parse losses to a scalar tensor."""
-    log_vars = dict()
+    log_vars = {}
     for name, value in losses.items():
         if "loss" in name:
             if isinstance(value, torch.Tensor):

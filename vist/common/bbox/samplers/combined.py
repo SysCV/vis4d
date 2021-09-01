@@ -1,5 +1,4 @@
 """Combined Sampler."""
-import inspect
 from typing import List, Tuple
 
 import torch
@@ -57,13 +56,14 @@ class CombinedSampler(BaseSampler):
         self.cfg = CombinedSamplerConfig(**cfg.dict())
         self.bg_label = 0
         self.pos_strategy = getattr(self, self.cfg.pos_strategy + "_sampling")
-        self.pos_args = inspect.signature(self.pos_strategy).parameters.keys()
         self.neg_strategy = getattr(self, self.cfg.neg_strategy + "_sampling")
-        self.neg_args = inspect.signature(self.neg_strategy).parameters.keys()
 
     @staticmethod
     def instance_balanced_sampling(
-        idx_tensor: torch.Tensor, assigned_gts: torch.Tensor, sample_size: int
+        idx_tensor: torch.Tensor,
+        assigned_gts: torch.Tensor,
+        assigned_gt_ious: torch.Tensor,  # pylint: disable=unused-argument
+        sample_size: int,
     ) -> torch.Tensor:
         """Sample indices with balancing according to matched GT instance."""
         if idx_tensor.numel() <= sample_size:
@@ -94,6 +94,7 @@ class CombinedSampler(BaseSampler):
     def iou_balanced_sampling(
         self,
         idx_tensor: torch.Tensor,
+        assigned_gts: torch.Tensor,  # pylint: disable=unused-argument
         assigned_gt_ious: torch.Tensor,
         sample_size: int,
     ) -> torch.Tensor:
@@ -174,21 +175,19 @@ class CombinedSampler(BaseSampler):
                 neg_upper_bound = int(self.cfg.neg_pos_ub * num_pos)
                 num_neg = min(num_neg, neg_upper_bound)
 
-            args = dict(
+            pos_idx = self.pos_strategy(
                 idx_tensor=positive,
                 assigned_gts=match.assigned_gt_indices.long()[positive_mask],
                 assigned_gt_ious=match.assigned_gt_iou[positive_mask],
                 sample_size=num_pos,
             )
-            pos_idx = self.pos_strategy(**{k: args[k] for k in self.pos_args})
 
-            args = dict(
+            neg_idx = self.neg_strategy(
                 idx_tensor=negative,
                 assigned_gts=match.assigned_gt_indices.long()[negative_mask],
                 assigned_gt_ious=match.assigned_gt_iou[negative_mask],
                 sample_size=num_neg,
             )
-            neg_idx = self.neg_strategy(**{k: args[k] for k in self.neg_args})
 
             sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
             sampled_boxes.append(box[sampled_idcs])

@@ -18,7 +18,6 @@ num_processes = 0
 
 [dataloader]
 workers_per_gpu = 0
-categories = ["vehicle", "pedestrian", "cyclist"]
 fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
 skip_empty_samples = true
     [dataloader.data_backend]

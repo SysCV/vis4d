@@ -32,7 +32,6 @@ class D2TwoStageDetectorConfig(BaseModelConfig):
     model_base: str
     model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
     override_mapping: Optional[bool] = False
-    num_classes: Optional[int]
     set_batchnorm_eval: bool = False
     weights: Optional[str]
 
@@ -140,9 +139,9 @@ def model_to_detectron2(config: D2TwoStageDetectorConfig) -> CfgNode:
         cfg.MODEL.WEIGHTS = ""
 
     # convert detect attributes
-    if config.num_classes:
-        cfg.MODEL.ROI_HEADS.NUM_CLASSES = config.num_classes
-        cfg.MODEL.RETINANET.NUM_CLASSES = config.num_classes
+    assert config.category_mapping is not None
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(config.category_mapping)
+    cfg.MODEL.RETINANET.NUM_CLASSES = len(config.category_mapping)
 
     # add keyword args in config
     if config.model_kwargs:

@@ -5,6 +5,23 @@ annotations = "data/bdd100k/labels/box_track_20/train/"
 data_root = "data/bdd100k/images/track/train/"
 config_path = "box_track"
 num_processes = 0
+    [train.dataloader]
+    skip_empty_samples = true
+
+    [train.dataloader.ref_sampling]
+    type = 'uniform'
+    scope = 2
+    num_ref_imgs = 1
+    skip_nomatch_samples = true
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}
+
+    [[train.dataloader.transformations]]
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
+
 
 [[train]]
 name = "bdd100k_det_train"
@@ -13,6 +30,17 @@ annotations = "data/bdd100k/labels/det_20/det_train.json"
 data_root = "data/bdd100k/images/100k/train/"
 config_path = "det"
 num_processes = 0
+    [train.dataloader.ref_sampling]
+    scope = 0
+    num_ref_imgs = 1
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}
+
+    [[train.dataloader.transformations]]
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
 
 [[test]]
 name = "bdd100k_track_val"
@@ -23,25 +51,6 @@ eval_metrics = ["detect", "track"]
 inference_sampling = "sequence_based"
 config_path = "box_track"
 num_processes = 0
-
-[dataloader]
-workers_per_gpu = 4
-categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
-skip_empty_samples = true
-    [dataloader.data_backend]
-    type = "FileBackend"
-    [dataloader.ref_sampling_cfg]
-    type = 'uniform'
-    scope = 3
-    num_ref_imgs = 1
-    skip_nomatch_samples = true
-
-    [[dataloader.train_augmentations]]
-    type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
-    [[dataloader.train_augmentations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
-    [[dataloader.test_augmentations]]
+    [[test.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}

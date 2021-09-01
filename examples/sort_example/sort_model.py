@@ -47,7 +47,7 @@ class SORT(BaseModel):
         Returns predictions for each input.
         """
         assert len(batch_inputs) == 1, "Currently only BS=1 supported!"
-        frame_id = batch_inputs[0].metadata.frame_index
+        frame_id = batch_inputs[0].metadata.frameIndex
         # init graph at begin of sequence
         if frame_id == 0:
             self.track_graph.reset()

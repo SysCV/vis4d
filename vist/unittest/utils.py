@@ -2,10 +2,8 @@
 import inspect
 import math
 import os
-from typing import List
 
 import torch
-from detectron2.data import DatasetCatalog, MetadataCatalog
 
 from vist.struct import Boxes2D, Boxes3D
 
@@ -68,11 +66,3 @@ def generate_dets3d(num_dets: int, track_ids: bool = False) -> Boxes3D:
     dets = Boxes3D(box_tensor, torch.zeros(num_dets), tracks)
     torch.random.set_rng_state(state)
     return dets
-
-
-def d2_data_reset(datasets: List[str]) -> None:
-    """Delete all given dataset instances."""
-    for ds in datasets:
-        if ds in DatasetCatalog.keys():
-            DatasetCatalog.remove(ds)
-            MetadataCatalog.remove(ds)

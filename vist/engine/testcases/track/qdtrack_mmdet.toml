@@ -4,15 +4,20 @@ path = "../configs/datasets/bdd100k/track.toml"
 [[config]]
 path = "../configs/models/mmdetection/qdtrack_R_50_FPN.toml"
 
+[model]
+    [model.optimizer]
+    type = "SGD"
+    lr = 0.001
 
-[solver]
-images_per_gpu = 1
-workers_per_gpu = 2
-lr_policy = "WarmupMultiStepLR"
-base_lr = 0.01
-warmup_iters = 0
-steps = []
-max_iters = 1
-log_period = 1
-checkpoint_period = 1000
-eval_period = 100
+    [model.lr_scheduler]
+    type = "MultiStepLR"
+    warmup = "constant"
+    kwargs = {"milestones" = [9, 11]}
+
+[launch]
+samples_per_gpu = 1
+workers_per_gpu = 0
+
+[trainer]
+max_steps = 2
+log_every_n_steps = 50

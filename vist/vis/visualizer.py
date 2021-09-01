@@ -2,41 +2,87 @@
 import copy
 import os
 from collections import defaultdict
-from typing import Dict, List
+from typing import Any, Dict, List, Optional, Sequence
 
+import pytorch_lightning as pl
 import torch
-from detectron2.data import MetadataCatalog
-from detectron2.evaluation import DatasetEvaluator
-from detectron2.utils import comm
-from PIL import Image
-from scalabel.label.io import group_and_sort, save
+from pytorch_lightning.callbacks import Callback
+from scalabel.label.io import save
 from scalabel.label.typing import Frame
 
-from ..common.utils.parallel import gather_predictions
+from ..common.utils.distributed import all_gather_predictions
 from ..struct import Boxes2D, InputSample, ModelOutput
-from .track import draw_sequence
+from .image import draw_image
 
 
-class ScalabelVisualizer(DatasetEvaluator):  # type: ignore
-    """Run model on sequence and visualize & save output."""
+class VisTWriterCallback(Callback):
+    """VisT prediction writer base class."""
 
-    def __init__(
-        self,
-        dataset_name: str,
-        output_dir: str,
-        distributed: bool = True,
-        visualize: bool = True,
-    ) -> None:
+    def __init__(self, output_dir: str):
         """Init."""
-        self._distributed = distributed
         self._output_dir = output_dir
-        self._metadata = MetadataCatalog.get(dataset_name)
         self._predictions = defaultdict(list)  # type: Dict[str, List[Frame]]
-        self._visualize = visualize
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""
         self._predictions = defaultdict(list)
+
+    def gather(self, pl_module: pl.LightningModule) -> None:
+        """Gather accumulated data."""
+        self._predictions = all_gather_predictions(
+            self._predictions, pl_module
+        )
+
+    def process(
+        self, inputs: List[List[InputSample]], outputs: ModelOutput
+    ) -> None:
+        """Process the pair of inputs and outputs."""
+        raise NotImplementedError
+
+    def write(self) -> None:
+        """Write the aggregated output."""
+        raise NotImplementedError
+
+    def on_predict_batch_end(  # type: ignore
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        """Hook for on_predict_batch_end."""
+        self.process(batch, outputs)
+
+    def on_predict_epoch_end(  # type: ignore
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Sequence[Any],
+    ) -> None:
+        """Hook for on_predict_epoch_end."""
+        self.gather(pl_module)
+        if trainer.is_global_zero:
+            self.write()
+        self.reset()
+
+
+class ScalabelWriterCallback(VisTWriterCallback):
+    """Run model and visualize & save output."""
+
+    def __init__(
+        self,
+        output_dir: str,
+        category_mapping: Optional[Dict[str, int]],
+        visualize: bool = True,
+    ) -> None:
+        """Init."""
+        super().__init__(output_dir)
+        self._visualize = visualize
+        self.cats_id2name = None  # type: Optional[Dict[int, str]]
+        if category_mapping is not None:
+            self.cats_id2name = {v: k for k, v in category_mapping.items()}
 
     def process(
         self, inputs: List[List[InputSample]], outputs: ModelOutput
@@ -45,82 +91,34 @@ class ScalabelVisualizer(DatasetEvaluator):  # type: ignore
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):
                 prediction = copy.deepcopy(inp[0].metadata)
-                boxes2d = out.to(torch.device("cpu"))
-                assert isinstance(
-                    boxes2d, Boxes2D
-                ), "Only Boxes2D output support for visualization."
-                prediction.labels = boxes2d.to_scalabel(
-                    self._metadata.idx_to_class_mapping
-                )
-                boxes2d.metadata = {
-                    str(k): v
-                    for k, v in self._metadata.idx_to_class_mapping.items()
-                }
-                attr = (
-                    prediction.attributes
-                    if prediction.attributes is not None
-                    else dict()
-                )
-                attr["boxes2d"] = boxes2d  # type: ignore
-                prediction.attributes = attr
+                out = out.to(torch.device("cpu"))  # type: ignore
+                prediction.labels = out.to_scalabel(self.cats_id2name)
                 self._predictions[key].append(prediction)
 
-    def evaluate(self) -> None:
-        """Evaluate the performance after processing all input/output pairs."""
-        if self._distributed:
-            predictions_dict = gather_predictions(self._predictions)
-            if not comm.is_main_process():
-                return  # pragma: no cover
-        else:
-            predictions_dict = self._predictions  # pragma: no cover
+                if self._visualize:
+                    video_name = (
+                        prediction.videoName
+                        if prediction.videoName is not None
+                        else ""
+                    )
+                    save_path = os.path.join(
+                        self._output_dir,
+                        f"{key}_visualization",
+                        video_name,
+                        prediction.name,
+                    )
+                    assert isinstance(
+                        out, Boxes2D
+                    ), "Visualization only for boxes2d currently."
+                    image = draw_image(inp[0].image.tensor[0], out)
+                    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                    image.save(save_path)
 
-        os.makedirs(os.path.join(self._output_dir), exist_ok=True)
-        for key, predictions in predictions_dict.items():
-            # save predictions
-            predictions_without_boxes2d = []
-            for frame in predictions:
-                frame_without_boxes2d = copy.deepcopy(frame)
-                assert frame_without_boxes2d.attributes is not None
-                frame_without_boxes2d.attributes.pop("boxes2d")
-                predictions_without_boxes2d.append(frame_without_boxes2d)
-
+    def write(self) -> None:
+        """Write the aggregated output."""
+        os.makedirs(self._output_dir, exist_ok=True)
+        for key, predictions in self._predictions.items():
             save(
                 os.path.join(self._output_dir, f"{key}_predictions.json"),
-                predictions_without_boxes2d,
+                predictions,
             )
-
-            # visualize predictions
-            if self._visualize:
-                has_videos = True
-                for frame in predictions:
-                    if frame.video_name is None:
-                        has_videos = False
-
-                if has_videos:
-                    predictions_grouped = group_and_sort(predictions)
-                else:
-                    predictions_grouped = [predictions]
-                for video_predictions in predictions_grouped:
-                    images = [
-                        Image.open(frame.url) for frame in video_predictions
-                    ]
-                    boxes2d = []  # type: List[Boxes2D]
-                    image_paths = []
-                    for frame in video_predictions:
-                        assert frame.attributes is not None
-                        boxes2d.append(frame.attributes["boxes2d"])  # type: ignore # pylint: disable=line-too-long
-                        if frame.video_name is None:
-                            frame.video_name = ""
-                        image_paths.append(
-                            os.path.join(
-                                self._output_dir,
-                                f"{key}_visualization",
-                                frame.video_name,
-                                frame.name,
-                            )
-                        )
-                    for fp, img in zip(
-                        image_paths, draw_sequence(images, boxes2d)
-                    ):
-                        os.makedirs(os.path.dirname(fp), exist_ok=True)
-                        img.save(fp)

@@ -4,6 +4,32 @@ type = "MOTChallenge"
 annotations = "data/MOT16/train"
 data_root = "data/MOT16/train"
 num_processes = 0
+    [train.dataloader]
+    clip_bboxes_to_image = false
+    skip_empty_samples = true
+    [train.dataloader.ref_sampling_cfg]
+    type = 'uniform'
+    scope = 10
+    num_ref_imgs = 1
+    skip_nomatch_samples = true
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    kwargs = {"shape" = [612, 1088], scale_range = [0.8, 1.2]}
+
+    [[train.dataloader.transformations]]
+    type = "RandomCrop"
+    kwargs = {"size" = [612, 1088], "pad_if_needed" = true}
+
+    [[train.dataloader.transformations]]
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
+
+    [[train.dataloader.transformations]]
+    type = "ColorJitter"
+    kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
+
+
 
 [[test]]
 name = "mot16_val"
@@ -13,36 +39,10 @@ data_root = "data/MOT16/train"
 eval_metrics = ["track"]
 inference_sampling = "sequence_based"
 num_processes = 0
+    [test.dataloader]
+    clip_bboxes_to_image = false
+    skip_empty_samples = true
 
-[dataloader]
-workers_per_gpu = 2
-categories = ["pedestrian"]
-clip_bboxes_to_image = false
-skip_empty_samples = true
-    [dataloader.data_backend]
-    type = "FileBackend"
-    [dataloader.ref_sampling_cfg]
-    type = 'uniform'
-    scope = 10
-    num_ref_imgs = 1
-    skip_nomatch_samples = true
-
-    [[dataloader.train_augmentations]]
-    type = "Resize"
-    kwargs = {"shape" = [612, 1088], scale_range = [0.8, 1.2]}
-
-    [[dataloader.train_augmentations]]
-    type = "RandomCrop"
-    kwargs = {"size" = [612, 1088], "pad_if_needed" = true}
-
-    [[dataloader.train_augmentations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
-
-    [[dataloader.train_augmentations]]
-    type = "ColorJitter"
-    kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
-
-    [[dataloader.test_augmentations]]
+    [[test.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [1080, 1920]}

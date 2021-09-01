@@ -1,9 +1,11 @@
 """data module init."""
-from .build import build_train_dataset, build_test_dataset
+from .build import VisTDataModule, build_dataset_loaders
+from .dataset import ScalabelDataset
 from .samplers import TrackingInferenceSampler
 
 __all__ = [
+    "build_dataset_loaders",
+    "VisTDataModule",
+    "ScalabelDataset",
     "TrackingInferenceSampler",
-    "build_train_dataset",
-    "build_test_dataset",
 ]

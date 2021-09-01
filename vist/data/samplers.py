@@ -1,9 +1,9 @@
 """VisT data Samplers."""
 from typing import Generator
 
-from detectron2.utils import comm
 from torch.utils.data.sampler import Sampler
 
+from ..common.utils import get_rank, get_world_size
 from .dataset import ScalabelDataset
 
 
@@ -11,7 +11,7 @@ class TrackingInferenceSampler(Sampler):  # type: ignore
     """Produce sequence ordered indices for inference across all workers.
 
     Inference needs to run on the __exact__ set of sequences and their
-    respecitve samples, therefore if the sequences are not divible by the
+    respective samples, therefore if the sequences are not divisible by the
     number of workers of if they have different length, the sampler
     produces different number of samples on different workers.
     """
@@ -21,9 +21,12 @@ class TrackingInferenceSampler(Sampler):  # type: ignore
         super().__init__(None)
         self._sequences = list(dataset.video_to_indices.keys())
         self._num_seqs = len(self._sequences)
-        assert self._num_seqs > 0
-        self._rank = comm.get_rank()
-        self._world_size = comm.get_world_size()
+        self._rank = get_rank()
+        self._world_size = get_world_size()
+        assert self._num_seqs >= self._world_size, (
+            f"Number of sequences ({self._num_seqs}) must be greater or "
+            f"equal to number of replicas ({self._world_size})!"
+        )
 
         shard_size = (self._num_seqs - 1) // self._world_size + 1
         begin = shard_size * self._rank

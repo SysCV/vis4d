@@ -1,10 +1,11 @@
 [model]
 type = "QDTrack"
+category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
+image_channel_mode = "BGR"
     [model.detection]
     type = "D2TwoStageDetector"
     model_base = "faster-rcnn/r50-fpn"
     model_kwargs = {"MODEL.ROI_BOX_HEAD.SMOOTH_L1_BETA" = 1.0, "MODEL.RPN.SMOOTH_L1_BETA" = 0.111, "MODEL.PIXEL_STD" = [57.375, 57.120, 58.395], "MODEL.RESNETS.NORM" = "BN"}
-    num_classes = 8
     set_batchnorm_eval = true
     weights = "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
 
@@ -26,7 +27,6 @@ type = "QDTrack"
 
     [model.similarity]
     type = "QDSimilarityHead"
-    num_classes = 0
     in_dim = 256
     num_convs = 4
     conv_out_dim = 256
@@ -34,7 +34,7 @@ type = "QDTrack"
     fc_out_dim = 1024
     embedding_dim = 256
     conv_has_bias = false
-    norm = "GN"
+    norm = "GroupNorm"
     proposal_append_gt = true
 
         [model.similarity.proposal_pooler]
@@ -56,6 +56,3 @@ type = "QDTrack"
         thresholds = [0.3, 0.7]
         labels = [0, -1, 1]
         allow_low_quality_matches = false
-
-[dataloader]
-image_channel_mode = "BGR"

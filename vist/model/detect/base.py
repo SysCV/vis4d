@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 
 from vist.common.registry import RegistryHolder
-from vist.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
+from vist.struct import Boxes2D, Images, InputSample, LossesType
 
 from ..base import BaseModel
 
@@ -18,18 +18,6 @@ class BaseDetector(BaseModel, metaclass=RegistryHolder):
     def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
         """Normalize, pad and batch the input images."""
         raise NotImplementedError
-
-    def forward(
-        self, batch_inputs: List[List[InputSample]]
-    ) -> Union[LossesType, ModelOutput]:
-        """Model forward function."""
-        if self.training:
-            assert all(
-                len(inp) == 1 for inp in batch_inputs
-            ), "No reference views allowed in detector training!"
-            return self.forward_train(batch_inputs)
-        inputs = [inp[0] for inp in batch_inputs]  # no ref views during test
-        return self.forward_test(inputs)
 
     @abc.abstractmethod
     def extract_features(self, images: Images) -> Dict[str, torch.Tensor]:

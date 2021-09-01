@@ -15,7 +15,6 @@ if __name__ == "__main__":
     sort_detector_cfg = dict(
         type="D2TwoStageDetector",
         model_base="faster-rcnn/r50-fpn",
-        num_classes=8,
     )
     sort_trackgraph_cfg = dict(type="SORTTrackGraph")
     sort_cfg = dict(
@@ -27,7 +26,7 @@ if __name__ == "__main__":
     conf = config.Config(
         model=BaseModelConfig(**sort_cfg),
         solver=config.Solver(
-            images_per_gpu=2,
+            samples_per_gpu=2,
             lr_policy="WarmupMultiStepLR",
             base_lr=0.001,
             max_iters=100,

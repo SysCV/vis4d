@@ -27,7 +27,7 @@ class BaseTrackGraph(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     def reset(self) -> None:
         """Reset tracks."""
         self.num_tracks = 0
-        self.tracks = dict()  # type: ignore
+        self.tracks = {}  # type: ignore
 
     @property
     def empty(self) -> bool:
@@ -48,7 +48,7 @@ class BaseTrackGraph(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
 
 
 def build_track_graph(cfg: TrackGraphConfig) -> BaseTrackGraph:
-    """Build a tracking graph optimizer from config."""
+    """Build a tracking graph optimize from config."""
     registry = RegistryHolder.get_registry(BaseTrackGraph)
     if cfg.type in registry:
         module = registry[cfg.type](cfg)

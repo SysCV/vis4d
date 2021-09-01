@@ -89,7 +89,7 @@ if __name__ == "__main__":
     conf = config.Config(
         model=dict(type="MyDetector", abc="example_attribute"),
         solver=config.Solver(
-            images_per_gpu=2,
+            samples_per_gpu=2,
             lr_policy="WarmupMultiStepLR",
             base_lr=0.001,
             max_iters=100,

@@ -4,13 +4,10 @@ path = "../configs/datasets/bdd100k/track.toml"
 [[config]]
 path = "../configs/models/detectron2/qdtrack_R_50_FPN.toml"
 
-[solver]
-images_per_gpu = 1
-lr_policy = "WarmupMultiStepLR"
-base_lr = 0.01
-warmup_iters = 0
-steps = []
-max_iters = 1
-log_period = 1
-checkpoint_period = 1000
-eval_period = 1000
+[launch]
+samples_per_gpu = 1
+workers_per_gpu = 0
+
+[trainer]
+max_steps = 1
+log_every_n_steps = 50

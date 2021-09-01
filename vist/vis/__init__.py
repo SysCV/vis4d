@@ -1,4 +1,4 @@
 """VisT visualization package."""
-from .visualizer import ScalabelVisualizer
+from .visualizer import ScalabelWriterCallback
 
-__all__ = ["ScalabelVisualizer"]
+__all__ = ["ScalabelWriterCallback"]

@@ -1,19 +1,25 @@
 [[config]]
-path = "../datasets/bdd100k_det.toml"
+path = "../../base/datasets/bdd100k_det.toml"
 
 [[config]]
-path = "../models/mmdetection/faster_rcnn_R_50_FPN.toml"
+path = "../../base/models/mmdetection/faster_rcnn_R_50_FPN.toml"
 
-[solver]
-images_per_gpu = 12
-lr_policy = "WarmupMultiStepLR"
-base_lr = 0.06
-steps = [12000, 16500]
-max_iters = 18000
-checkpoint_period = 1500
-log_period = 50
-eval_period = 1500
+[model]
+category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7, "traffic light" = 8, "traffic sign" = 9}
+    [model.optimizer]
+    type = "SGD"
+    lr = 0.04
+    kwargs = {"momentum" = 0.9}
+
+    [model.lr_scheduler]
+    type = "MultiStepLR"
+    kwargs = {"milestones" = [9, 11]}
 
 [launch]
-device = "cuda"
-num_gpus = 4
+samples_per_gpu = 8
+workers_per_gpu = 2
+
+[trainer]
+max_epochs = 12
+log_every_n_steps = 50
+check_val_every_n_epoch = 1
