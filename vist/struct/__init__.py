@@ -1,6 +1,6 @@
 """VisT struct module."""
 from .data import Extrinsics, Images, InputSample, Intrinsics
-from .labels import Boxes2D, Boxes3D, QD_3DT_Boxes
+from .labels import Boxes2D, Boxes3D
 from .structures import (
     DataInstance,
     DictStrAny,
@@ -17,7 +17,6 @@ from .structures import (
 __all__ = [
     "Boxes2D",
     "Boxes3D",
-    "QD_3DT_Boxes",
     "DataInstance",
     "LabelInstance",
     "TorchCheckpoint",

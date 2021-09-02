@@ -1,13 +1,13 @@
 """Quasi-dense 3D Tracking model."""
-
 from typing import List, Tuple, Dict, Optional
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 from vist.struct import (
     Boxes2D,
     Boxes3D,
-    QD_3DT_Boxes,
     Images,
     InputSample,
     LossesType,
@@ -23,8 +23,6 @@ from .track.graph import TrackGraphConfig, build_track_graph
 from .track.losses import LossConfig, build_loss
 from .track.similarity import SimilarityLearningConfig, build_similarity_head
 from .track.utils import cosine_similarity, split_key_ref_inputs
-
-import pdb
 
 
 class QD3DTConfig(QDGeneralizedRCNNConfig):
@@ -57,41 +55,22 @@ class QuasiDense3D(QDGeneralizedRCNN):
         List[Boxes2D], List[Boxes3D], List[List[Boxes2D]], List[List[Boxes3D]]
     ]:
         """Prepare 2D and 3D targets from key / ref input samples."""
-        key_targets = []
+        key_targets, ref_targets = super().prepare_targets(
+            key_inputs, ref_inputs
+        )
+
         key_targets_3d = []
+        key_cam_intrinsics = []
         for x in key_inputs:
-            assert x.boxes2d is not None
-            boxes2d = x.boxes2d.to(self.device)
-            key_targets.append(boxes2d)
-
             assert x.boxes3d is not None
-            boxes3d = QD_3DT_Boxes(x.boxes3d.to(self.device))
-            boxes3d.decode(boxes2d, x.intrinsics.to(self.device).tensor)
-            key_targets_3d.append(boxes3d)
-
-        ref_targets = []
-        ref_targets_3d = []
-        for inputs in ref_inputs:
-            ref_target = []
-            ref_target_3d = []
-            for x in inputs:
-                assert x.boxes2d is not None
-                boxes2d = x.boxes2d.to(self.device)
-                ref_target.append(boxes2d)
-
-                assert x.boxes3d is not None
-                boxes3d = QD_3DT_Boxes(x.boxes3d.to(self.device))
-                boxes3d.decode(boxes2d, x.intrinsics.to(self.device).tensor)
-                ref_target_3d.append(boxes3d)
-
-            ref_targets.append(ref_target)
-            ref_targets_3d.append(ref_target_3d)
+            key_targets_3d.append(x.boxes3d.to(self.device))
+            key_cam_intrinsics.append(x.intrinsics.to(self.device).tensor)
 
         return (
             key_targets,
             key_targets_3d,
+            key_cam_intrinsics,
             ref_targets,
-            ref_targets_3d,
         )
 
     def forward_train(
@@ -111,8 +90,8 @@ class QuasiDense3D(QDGeneralizedRCNN):
         (
             key_targets,
             key_targets_3d,
+            key_cam_intrinsics,
             ref_targets,
-            ref_targets_3d,
         ) = self.prepare_targets(key_inputs, ref_inputs)
 
         # feature extraction
@@ -130,36 +109,37 @@ class QuasiDense3D(QDGeneralizedRCNN):
             ]
 
         # bbox head
-        (
-            bbox_preds,
-            roi_losses,
-            bbox_feats,
-            sampling_results,
-        ) = self.detector.generate_detections(
-            key_images, key_x, key_proposals, key_targets
+        _, roi_losses = self.detector.generate_detections(
+            key_images,
+            key_x,
+            key_proposals,
+            key_targets,
+            compute_detections=False,
         )
 
-        # 3d estimation
+        # 3d bbox head
         (
-            depth_preds,
-            depth_uncertainty_preds,
-            dim_preds,
-            alpha_preds,
-            delta_2dc_preds,
-        ) = self.bbox_3d_head(bbox_feats)
+            bbox_3d_pred,
+            pos_assigned_gt_inds,
+            pos_proposals,
+        ) = self.bbox_3d_head(
+            key_x,
+            key_proposals,
+            key_targets,
+            self.detector.mm_detector.roi_head,
+            filter_negatives=True,
+        )
 
-        bbox3d_targets = self.bbox_3d_head.get_target(
-            sampling_results, key_targets_3d
+        bbox3d_targets, labels = self.bbox_3d_head.get_targets(
+            pos_proposals,
+            pos_assigned_gt_inds,
+            key_targets,
+            key_targets_3d,
+            key_cam_intrinsics,
         )
 
         loss_bbox_3d = self.bbox_3d_head.loss(
-            bbox_preds.size(0),
-            depth_preds,
-            depth_uncertainty_preds,
-            dim_preds,
-            alpha_preds,
-            delta_2dc_preds,
-            *bbox3d_targets,
+            bbox_3d_pred, bbox3d_targets, labels
         )
 
         det_losses = {**rpn_losses, **roi_losses, **loss_bbox_3d}
@@ -186,7 +166,5 @@ class QuasiDense3D(QDGeneralizedRCNN):
             ref_embeddings,
             ref_track_targets,
         )
-        return {**det_losses, **track_losses}
 
-    def detection_3d_loss(self) -> LossesType:
-        return None
+        return {**det_losses, **track_losses}

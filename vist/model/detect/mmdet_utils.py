@@ -8,7 +8,7 @@ import requests
 import torch
 from mmcv import Config as MMConfig
 
-from vist.struct import Boxes2D, QD_3DT_Boxes, Images, LossesType
+from vist.struct import Boxes2D, Images, LossesType
 
 from ..base import BaseModelConfig
 
@@ -95,22 +95,6 @@ def targets_to_mmdet(
 
     gt_labels = [t.class_ids for t in targets]
     return gt_bboxes, gt_labels
-
-
-def qd_3dt_targets_to_mmdet(
-    targets: List[QD_3DT_Boxes],
-) -> Tuple[
-    List[torch.Tensor],
-    List[torch.Tensor],
-    List[torch.Tensor],
-    List[torch.Tensor],
-]:
-    """Convert VisT targets to mmdetection compatible format."""
-    gt_delta_2dcs = [t.delta_2dcs for t in targets]
-    gt_depths = [t.depths for t in targets]
-    gt_dims = [t.dims for t in targets]
-    gt_rotys = [t.rotys for t in targets]
-    return gt_delta_2dcs, gt_depths, gt_dims, gt_rotys
 
 
 def load_config_from_mmdet(url: str) -> str:

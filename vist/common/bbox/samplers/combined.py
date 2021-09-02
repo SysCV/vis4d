@@ -1,6 +1,6 @@
 """Combined Sampler."""
 import inspect
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import torch
 from pydantic import validator
@@ -152,12 +152,13 @@ class CombinedSampler(BaseSampler):
         matching: List[MatchResult],
         boxes: List[Boxes2D],
         targets: List[Boxes2D],
-    ) -> Tuple[List[Boxes2D], List[Boxes2D]]:
+        return_pos_inds: bool = False,
+    ) -> Tuple[List[Boxes2D], List[Boxes2D], Optional[List[torch.tensor]]]:
         """Sample boxes according to strategies defined in cfg."""
         pos_sample_size = int(
             self.cfg.batch_size_per_image * self.cfg.positive_fraction
         )
-        sampled_boxes, sampled_targets = [], []
+        sampled_boxes, sampled_targets, pos_assigned_gt_inds = [], [], []
         for match, box, target in zip(matching, boxes, targets):
             positive_mask = (match.assigned_labels != -1) & (
                 match.assigned_labels != self.bg_label
@@ -181,6 +182,9 @@ class CombinedSampler(BaseSampler):
                 sample_size=num_pos,
             )
             pos_idx = self.pos_strategy(**{k: args[k] for k in self.pos_args})
+            pos_assigned_gt_inds.append(
+                match.assigned_gt_indices.long()[pos_idx]
+            )
 
             args = dict(
                 idx_tensor=negative,
@@ -195,7 +199,11 @@ class CombinedSampler(BaseSampler):
             sampled_targets.append(
                 prepare_target(len(pos_idx), sampled_idcs, target, match)
             )
-        return sampled_boxes, sampled_targets
+
+        if return_pos_inds:
+            return sampled_boxes, sampled_targets, pos_assigned_gt_inds
+        else:
+            return sampled_boxes, sampled_targets
 
     def sample_within_intervals(
         self,

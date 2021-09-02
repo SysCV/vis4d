@@ -5,15 +5,19 @@ import numpy as np
 import torch
 from detectron2.layers.batch_norm import get_norm
 from detectron2.layers.wrappers import Conv2d
-from mmdet.models import build_loss as build_mmdet_loss
+from mmdet.core import bbox2roi
 
 from torch import nn
 
-from vist.common.bbox.utils import multi_apply
+from vist.common.bbox.utils import Box3DCoder
+from vist.common.bbox.matchers import MatcherConfig, build_matcher
+from vist.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
+from vist.common.bbox.samplers import SamplerConfig, build_sampler
 from vist.model.detect.losses import LossConfig, build_loss
+from vist.model.detect.mmdet_utils import proposals_to_mmdet
+from vist.struct import Boxes2D, Boxes3D
 
 from .base import BaseBoundingBoxConfig, BaseBoundingBoxHead
-import pdb
 
 
 class QD3DBBox3DHeadConfig(BaseBoundingBoxConfig):
@@ -46,11 +50,13 @@ class QD3DBBox3DHeadConfig(BaseBoundingBoxConfig):
     with_rot: bool
     with_2dc: bool
 
-    loss_depth: dict
-    loss_dim: dict
-    loss_uncertainty: dict
-    loss_rot: LossConfig
-    loss_2dc: dict
+    loss_3d: LossConfig
+
+    proposal_append_gt: bool
+    in_features: List[str] = ["p2", "p3", "p4", "p5"]
+    proposal_pooler: RoIPoolerConfig
+    proposal_sampler: SamplerConfig
+    proposal_matcher: MatcherConfig
 
 
 class QD3DBBox3DHead(BaseBoundingBoxHead):
@@ -62,6 +68,12 @@ class QD3DBBox3DHead(BaseBoundingBoxHead):
         self.cfg = QD3DBBox3DHeadConfig(**cfg.dict())
 
         self.cls_out_channels = self.cfg.num_classes
+
+        self.sampler = build_sampler(self.cfg.proposal_sampler)
+        self.matcher = build_matcher(self.cfg.proposal_matcher)
+        self.roi_pooler = build_roi_pooler(self.cfg.proposal_pooler)
+
+        self.bbox_coder = Box3DCoder()
 
         # add shared convs and fcs
         (
@@ -165,26 +177,7 @@ class QD3DBBox3DHead(BaseBoundingBoxHead):
         self._init_weights()
 
         # losses
-        # TODO: Reorganize detection and tracking loss
-        self.loss_depth = (
-            build_mmdet_loss(self.cfg.loss_depth)
-            if self.cfg.with_depth
-            else None
-        )
-        self.loss_dim = (
-            build_mmdet_loss(self.cfg.loss_dim) if self.cfg.with_dim else None
-        )
-        self.loss_rot = (
-            build_loss(self.cfg.loss_rot) if self.cfg.with_rot else None
-        )
-        self.loss_2dc = (
-            build_mmdet_loss(self.cfg.loss_2dc) if self.cfg.with_2dc else None
-        )
-        self.loss_uncertainty = (
-            build_mmdet_loss(self.cfg.loss_uncertainty)
-            if self.cfg.with_uncertainty
-            else None
-        )
+        self.loss_3d = build_loss(self.cfg.loss_3d)
 
     def _init_weights(self) -> None:
         """Init weights of modules in head."""
@@ -344,8 +337,56 @@ class QD3DBBox3DHead(BaseBoundingBoxHead):
             delta_2dc_preds,
         )
 
-    def forward(self, x):
+    @torch.no_grad()  # type: ignore
+    def match_and_sample_proposals(
+        self, proposals: List[Boxes2D], targets: List[Boxes2D]
+    ) -> Tuple[List[Boxes2D], List[Boxes2D]]:
+        """Match proposals to targets and subsample."""
+        if self.cfg.proposal_append_gt:
+            proposals = [
+                Boxes2D.cat([p, t]) for p, t in zip(proposals, targets)
+            ]
+        matching = self.matcher.match(proposals, targets)
+        return self.sampler.sample(
+            matching, proposals, targets, return_pos_inds=True
+        )
+
+    def forward(
+        self,
+        features: Dict[str, torch.Tensor],
+        proposals: List[Boxes2D],
+        targets: Optional[List[Boxes2D]] = None,
+        detector=None,
+        filter_negatives: bool = False,
+    ):
         """Forward bbox 3d estimation."""
+        feat_list = list(features.values())
+        # match and sample
+        if self.training:
+            assert targets is not None, "targets required during training"
+            (
+                proposals,
+                targets,
+                pos_assigned_gt_inds,
+            ) = self.match_and_sample_proposals(proposals, targets)
+            if filter_negatives:
+                proposals = [
+                    p[t.class_ids != -1] for p, t in zip(proposals, targets)  # type: ignore # pylint: disable=line-too-long
+                ]
+                targets = [t[t.class_ids != -1] for t in targets]  # type: ignore # pylint: disable=line-too-long
+
+        # 2D head bbox feature
+        proposal_list = proposals_to_mmdet(proposals)
+        rois = bbox2roi([bboxes for bboxes in proposal_list])
+
+        x = detector.bbox_roi_extractor(
+            feat_list[: detector.bbox_roi_extractor.num_inputs],
+            rois,
+        )
+
+        if detector.with_shared_head:
+            x = detector.shared_head(x)
+
         x_dep, x_dim, x_rot, x_2dc = self.get_embeds(x)
         (
             depth_preds,
@@ -355,303 +396,86 @@ class QD3DBBox3DHead(BaseBoundingBoxHead):
             delta_2dc_preds,
         ) = self.get_logits(x_dep, x_dim, x_rot, x_2dc)
 
-        return (
-            depth_preds,
-            depth_uncertainty_preds,
-            dim_preds,
-            alpha_preds,
-            delta_2dc_preds,
-        )
-
-    def get_target(
-        self,
-        sampling_results,
-        targets_3d,
-        concat: bool = True,
-    ):
-        """Prepare 3D target for training."""
-        pos_bboxes_list = [res.pos_bboxes for res in sampling_results]
-        neg_bboxes_list = [res.neg_bboxes for res in sampling_results]
-        pos_gt_labels_list = [res.pos_gt_labels for res in sampling_results]
-        pos_gt_depths_list = [
-            t.depths[res.pos_assigned_gt_inds]
-            for t, res in zip(targets_3d, sampling_results)
-        ]
-        pos_gt_alphas_list = [
-            t.alphas[res.pos_assigned_gt_inds]
-            for t, res in zip(targets_3d, sampling_results)
-        ]
-        pos_gt_dims_list = [
-            t.dims[res.pos_assigned_gt_inds]
-            for t, res in zip(targets_3d, sampling_results)
-        ]
-        pos_gt_delta_2dcs_list = [
-            t.delta_2dcs[res.pos_assigned_gt_inds]
-            for t, res in zip(targets_3d, sampling_results)
+        outputs = [
+            delta_2dc_preds.view(-1, self.cfg.num_classes, 2),
+            depth_preds.view(-1, self.cfg.num_classes, 1),
+            dim_preds.view(-1, self.cfg.num_classes, 3),
+            alpha_preds.view(-1, self.cfg.num_classes, 8),
+            depth_uncertainty_preds.view(-1, self.cfg.num_classes, 1),
         ]
 
-        (
-            labels,
-            depth_targets,
-            depth_weights,
-            roty_targets,
-            roty_weights,
-            dim_targets,
-            dim_weights,
-            delta_2dc_targets,
-            delta_2dc_weights,
-        ) = multi_apply(
-            self.get_target_single,
-            pos_bboxes_list,
-            neg_bboxes_list,
-            pos_gt_labels_list,
-            pos_gt_depths_list,
-            pos_gt_alphas_list,
-            pos_gt_dims_list,
-            pos_gt_delta_2dcs_list,
-        )
-
-        if concat:
-            labels = torch.cat(labels, 0)
-            depth_targets = torch.cat(depth_targets, 0)
-            depth_weights = torch.cat(depth_weights, 0)
-            roty_targets = torch.cat(roty_targets, 0)
-            roty_weights = torch.cat(roty_weights, 0)
-            dim_targets = torch.cat(dim_targets, 0)
-            dim_weights = torch.cat(dim_weights, 0)
-            delta_2dc_targets = torch.cat(delta_2dc_targets, 0)
-            delta_2dc_weights = torch.cat(delta_2dc_weights, 0)
+        bbox_3d_pred = torch.cat(outputs, -1)
 
         return (
-            labels,
-            depth_targets,
-            depth_weights,
-            roty_targets,
-            roty_weights,
-            dim_targets,
-            dim_weights,
-            delta_2dc_targets,
-            delta_2dc_weights,
+            bbox_3d_pred,
+            pos_assigned_gt_inds,
+            proposals,
         )
 
-    def get_target_single(
+    def _get_target_single(
         self,
-        pos_bboxes,
-        neg_bboxes,
-        pos_gt_labels,
-        pos_gt_depths,
-        pos_gt_alphas,
-        pos_gt_dims,
-        pos_gt_delta_2dcs,
+        pos_proposals: Boxes2D,
+        pos_assigned_gt_inds: torch.tensor,
+        gt_bboxes_2d: Boxes2D,
+        gt_bboxes_3d: Boxes3D,
+        cam_intrinsics: torch.tensor,
     ):
-        """Prepare single 3D target for training."""
-        num_pos = pos_bboxes.size(0)
-        num_neg = neg_bboxes.size(0)
-        num_samples = num_pos + num_neg
-        labels = pos_bboxes.new_zeros(num_samples, dtype=torch.long)
-        depth_targets = pos_bboxes.new_zeros(num_samples, 1)
-        depth_weights = pos_bboxes.new_zeros(num_samples, 1)
-        roty_targets = pos_bboxes.new_zeros(num_samples, 1)
-        roty_weights = pos_bboxes.new_zeros(num_samples, 1)
-        dim_targets = pos_bboxes.new_zeros(num_samples, 3)
-        dim_weights = pos_bboxes.new_zeros(num_samples, 3)
-        delta_2dc_targets = pos_bboxes.new_zeros(num_samples, 2)
-        delta_2dc_weights = pos_bboxes.new_zeros(num_samples, 2)
+        num_pos = pos_proposals.boxes.size(0)
+        bbox_targets = pos_proposals.boxes.new_zeros(
+            num_pos, 2 + 1 + 3 + 4
+        )  # angle only 4 params in GT (2 bin, res cos/sin)
 
         if num_pos > 0:
-            labels[:num_pos] = pos_gt_labels
-            if pos_gt_depths is not None:
-                depth_targets[:num_pos] = pos_gt_depths
-                depth_weights[:num_pos] = 1.0
+            bbox_targets = self.bbox_coder.encode(
+                gt_bboxes_2d[pos_assigned_gt_inds],
+                gt_bboxes_3d[pos_assigned_gt_inds],
+                cam_intrinsics,
+            )
+        return bbox_targets
 
-            if pos_gt_alphas is not None:
-                roty_targets[:num_pos] = pos_gt_alphas[:num_pos]
-                roty_weights[:num_pos] = 1.0
-
-            if pos_gt_dims is not None:
-                dim_targets[:num_pos, :] = pos_gt_dims[:num_pos]
-                dim_weights[:num_pos, :] = 1.0
-
-            if pos_gt_delta_2dcs is not None:
-                delta_2dc_targets[:num_pos, :] = pos_gt_delta_2dcs[:num_pos]
-                delta_2dc_weights[:num_pos, :] = 1.0
-
-        return (
-            labels,
-            depth_targets,
-            depth_weights,
-            roty_targets,
-            roty_weights,
-            dim_targets,
-            dim_weights,
-            delta_2dc_targets,
-            delta_2dc_weights,
+    def get_targets(
+        self,
+        pos_proposals: List[Boxes2D],
+        pos_assigned_gt_inds: List[torch.tensor],
+        gt_bboxes_2d: List[Boxes2D],
+        gt_bboxes_3d: List[Boxes3D],
+        cam_intrinsics: List[torch.tensor],
+        concat=True,
+    ):
+        bbox_targets = list(
+            map(
+                self._get_target_single,
+                pos_proposals,
+                pos_assigned_gt_inds,
+                gt_bboxes_2d,
+                gt_bboxes_3d,
+                cam_intrinsics,
+            )
         )
 
-    def loss(
-        self,
-        batch_size,
-        depth_preds,
-        depth_uncertainty_preds,
-        dim_preds,
-        alpha_preds,
-        delta_2dc_preds,
-        labels,
-        depth_targets,
-        depth_weights,
-        roty_targets,
-        roty_weights,
-        dim_targets,
-        dim_weights,
-        delta_2dc_targets,
-        delta_2dc_weights,
-        reduction_override=None,
-    ):
-        losses = dict()
+        labels = [t.class_ids[pos_assigned_gt_inds] for t in gt_bboxes_2d]
 
-        pos_inds = labels > 0
+        if concat:
+            bbox_targets = torch.cat(bbox_targets, 0)
+            labels = torch.cat(labels, 0)
 
-        if depth_preds is not None and self.cfg.with_depth:
-            depth_weights[depth_targets <= 0] = 0
+        return bbox_targets, labels
 
-            def get_depth_gt(gt, scale: float = 2.0):
-                return torch.where(
-                    gt > 0, torch.log(gt) * scale, -gt.new_ones(1)
-                )
-
-            if self.cfg.reg_class_agnostic:
-                pos_depth_preds = depth_preds[pos_inds]
-            else:
-                pos_depth_preds = depth_preds.view(batch_size, -1, 1)[
-                    pos_inds, labels[pos_inds]
-                ]
-
-            pos_depth_targets = get_depth_gt(depth_targets[pos_inds])
-            pos_depth_weights = depth_weights[pos_inds]
-
-            losses["loss_depth"] = self.loss_depth(
-                pos_depth_preds, pos_depth_targets, weight=pos_depth_weights
+    def loss(self, bbox3d_pred, bbox_targets, labels):
+        # if any positive boxes
+        if not bbox3d_pred.size(0) == 0:
+            losses = self.loss_3d(bbox3d_pred, bbox_targets, labels)
+        else:
+            loss_ctr3d = loss_dep3d = loss_dim3d = loss_rot3d = loss_conf3d = (
+                bbox3d_pred.sum() * 0
             )
-
-            if depth_uncertainty_preds is not None and self.with_uncertainty:
-                pos_depth_self_labels = torch.exp(
-                    -torch.abs(pos_depth_preds - pos_depth_targets) * 5.0
-                )
-
-                pos_depth_self_weights = torch.where(
-                    pos_depth_self_labels > 0.8,
-                    pos_depth_weights.new_ones(1) * 5.0,
-                    pos_depth_weights.new_ones(1) * 0.1,
-                )
-
-                if self.cfg.reg_class_agnostic:
-                    pos_depth_uncertainty_preds = depth_uncertainty_preds[
-                        pos_inds
-                    ]
-                else:
-                    pos_depth_uncertainty_preds = depth_uncertainty_preds.view(
-                        batch_size, -1, 1
-                    )[pos_inds, labels[pos_inds]]
-
-                losses["loss_unc"] = self.loss_uncertainty(
-                    pos_depth_uncertainty_preds,
-                    pos_depth_self_labels.detach().clone(),
-                    pos_depth_self_weights,
-                    reduction_override=reduction_override,
-                )
-                losses["unc_acc"] = accuracy(
-                    torch.cat(
-                        [
-                            1.0 - pos_depth_uncertainty_preds[:, None],
-                            pos_depth_uncertainty_preds[:, None],
-                        ],
-                        dim=1,
-                    ),
-                    (pos_depth_self_labels > 0.8).detach().clone(),
-                )
-        if dim_preds is not None and self.with_dim:
-            dim_weights[dim_targets <= 0] = 0
-
-            def get_dim_gt(gt, scale: float = 2.0):
-                return torch.where(
-                    gt > 0, torch.log(gt) * scale, gt.new_ones(1)
-                )
-
-            if self.reg_class_agnostic:
-                pos_dim_preds = dim_preds[pos_inds]
-            else:
-                pos_dim_preds = dim_preds.view(batch_size, -1, 3)[
-                    pos_inds, labels[pos_inds]
-                ]
-            pos_dim_targets = get_dim_gt(dim_targets[pos_inds])
-            pos_dim_weights = dim_weights[pos_inds]
-            losses["loss_dim"] = self.loss_dim(
-                pos_dim_preds, pos_dim_targets, weight=pos_dim_weights
+            losses = dict(
+                loss_ctr3d=loss_ctr3d,
+                loss_dep3d=loss_dep3d,
+                loss_dim3d=loss_dim3d,
+                loss_rot3d=loss_rot3d,
             )
-
-        if alpha_preds is not None and self.with_rot:
-            alpha_weights[alpha_targets <= -10] = 0
-
-            def get_rot_bin_gt(alpha_targets):
-                bin_cls = alpha_targets.new_zeros(
-                    (len(alpha_targets), 2)
-                ).long()
-                bin_res = alpha_targets.new_zeros(
-                    (len(alpha_targets), 2)
-                ).float()
-
-                for i in range(len(alpha_targets)):
-                    if (
-                        alpha_targets[i] < np.pi / 6.0
-                        or alpha_targets[i] > 5 * np.pi / 6.0
-                    ):
-                        bin_cls[i, 0] = 1
-                        bin_res[i, 0] = alpha_targets[i] - (-0.5 * np.pi)
-
-                    if (
-                        alpha_targets[i] > -np.pi / 6.0
-                        or alpha_targets[i] < -5 * np.pi / 6.0
-                    ):
-                        bin_cls[i, 1] = 1
-                        bin_res[i, 1] = alpha_targets[i] - (0.5 * np.pi)
-                return bin_cls, bin_res
-
-            if self.reg_class_agnostic:
-                pos_alpha_preds = alpha_preds[pos_inds].squeeze(1)
-            else:
-                pos_alpha_preds = alpha_preds.view(batch_size, -1, 8)[
-                    pos_inds, labels[pos_inds]
-                ]
-            pos_rot_cls, pos_rot_res = get_rot_bin_gt(alpha_targets[pos_inds])
-            pos_rot_weights = alpha_weights[pos_inds]
-            avg_factor = max(
-                torch.sum(pos_rot_weights > 0).float().item(), 1.0
-            )
-            losses["loss_alpha"] = self.loss_rot(
-                pos_alpha_preds,
-                pos_rot_cls,
-                pos_rot_res,
-                weight=pos_rot_weights,
-                avg_factor=avg_factor,
-            )
-
-        if delta_2dc_preds is not None and self.with_2dc:
-            pos_2dc_weights = delta_2dc_weights[pos_inds]
-
-            def get_2dc_gt(gt_cen, scale: float = 10.0):
-                return gt_cen / scale
-
-            if self.reg_class_agnostic:
-                pos_2dc_pred = delta_2dc_preds[pos_inds]
-            else:
-                pos_2dc_pred = delta_2dc_preds.view(batch_size, -1, 2)[
-                    pos_inds, labels[pos_inds]
-                ]
-            pos_2dc_targets = get_2dc_gt(
-                delta_2dc_targets[pos_inds], scale=self.center_scale
-            )
-            losses["loss_2dc"] = self.loss_2dc(
-                pos_2dc_pred, pos_2dc_targets, weight=pos_2dc_weights
-            )
+            if self.with_confidence:
+                losses["loss_conf3d"] = loss_conf3d
 
         return losses

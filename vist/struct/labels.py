@@ -1,35 +1,12 @@
 """OpenMT Label data structures."""
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
-import numpy as np
 import torch
 from scalabel.label.typing import Box2D, Box3D, Label
 
 from .structures import DataInstance, LabelInstance
 
 TBoxes = TypeVar("TBoxes", bound="Boxes")
-
-
-def project_points_to_image(
-    points: torch.Tensor, intrinsics: torch.Tensor
-) -> torch.Tensor:
-    """Project Nx3 points to Nx2 pixel coordinates with 3x3 intrinsics."""
-    hom_cam_coords = points / points[:, 2:3]
-    pts_2d = hom_cam_coords.mm(intrinsics.t())
-    return pts_2d[:, :2]  # type: ignore
-
-
-def yaw2alpha_torch(rot_y, x_loc, z_loc):
-    """
-    Get alpha by rotation_y - theta
-    rotation_y : Rotation ry around Y-axis in camera coordinates [-pi..pi]
-    x : Object center x to the camera center (x-W/2), in pixels
-    alpha : Observation angle of object, ranging [-pi..pi]
-    """
-    torch_pi = rot_y.new_tensor([np.pi])
-    alpha = rot_y - torch.atan2(x_loc, z_loc)
-    alpha = (alpha + torch_pi) % (2 * torch_pi) - torch_pi
-    return alpha
 
 
 class Boxes(DataInstance):
@@ -345,66 +322,3 @@ class Boxes3D(Boxes, LabelInstance):
             labels.append(Label(**label_dict))
 
         return labels
-
-
-class QD_3DT_Boxes:
-    """Container class for QD-3DT boxes.
-
-    boxes3d: Boxes3D
-    delta_2dcs: distance between projected 2d center and 2d bbox center
-    depths: distance between object and camera in z axis of camera coordinate
-    dims: h, w, l of the object
-    rotys: rotation y of obeject
-    """
-
-    def __init__(self, boxes3d: Boxes3D):
-        self.boxes3d = boxes3d
-
-    def decode(
-        self,
-        boxes2d: List[Boxes2D] = None,
-        intrinsics: List[torch.Tensor] = None,
-    ) -> Tuple[
-        List[torch.Tensor],
-        List[torch.Tensor],
-        List[torch.Tensor],
-        List[torch.Tensor],
-    ]:
-        """Decode Boxes3D into qd-3dt format."""
-        if intrinsics is None:
-            raise ValueError("Camera Intrinsics can not be None!")
-
-        if boxes2d is None:
-            self.delta_2dcs = None
-            self.depths = None
-            self.dims = None
-            self.alphas = None
-        else:
-            projected_2dcs = project_points_to_image(
-                self.boxes3d.boxes[:, :3], intrinsics
-            ).view(self.boxes3d.boxes.shape[0], -1)
-
-            x_2d = (boxes2d.boxes[:, 0] + boxes2d.boxes[:, 2]) / 2
-            x_2d = x_2d.view(self.boxes3d.boxes.shape[0], -1)
-
-            y_2d = (boxes2d.boxes[:, 1] + boxes2d.boxes[:, 3]) / 2
-            y_2d = y_2d.view(self.boxes3d.boxes.shape[0], -1)
-
-            center_2dcs = torch.cat([x_2d, y_2d], 1)
-
-            self.delta_2dcs = projected_2dcs - center_2dcs
-            self.delta_2dcs = self.delta_2dcs.view(
-                self.boxes3d.boxes.shape[0], -1
-            )
-            self.depths = self.boxes3d.boxes[:, 2].view(
-                self.boxes3d.boxes.shape[0], -1
-            )
-            self.dims = self.boxes3d.boxes[:, 3:6].view(
-                self.boxes3d.boxes.shape[0], -1
-            )
-            rot_ys = self.boxes3d.boxes[:, 7].view(
-                self.boxes3d.boxes.shape[0], -1
-            )
-            self.alphas = yaw2alpha_torch(
-                rot_ys, self.boxes3d.boxes[:, 0:1], self.boxes3d.boxes[:, 2:3]
-            )

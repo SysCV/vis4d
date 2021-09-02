@@ -37,30 +37,31 @@ type = "QuasiDense3D"
     with_dim = true
     with_rot = true
     with_2dc = true
+    proposal_append_gt = true
 
-        [model.bbox_3d_head.loss_depth]
-        type = 'SmoothL1Loss'
-        beta = 0.111
-        loss_weight = 1.0
+        [model.bbox_3d_head.loss_3d]
+        type = 'Box3DUncertaintyLoss'
+        loss_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
 
-        [model.bbox_3d_head.loss_uncertainty]
-        type = 'SmoothL1Loss'
-        beta = 0.111
-        loss_weight = 1.0
+        [model.bbox_3d_head.proposal_pooler]
+        type = "D2RoIPooler"
+        pooling_op = "ROIAlignV2"
+        resolution = [7, 7]
+        strides = [4, 8, 16, 32]
+        sampling_ratio = 0
 
-        [model.bbox_3d_head.loss_dim]
-        type = 'SmoothL1Loss'
-        beta = 0.111
-        loss_weight = 1.0
+        [model.bbox_3d_head.proposal_sampler]
+        type = "CombinedSampler"
+        batch_size_per_image = 512
+        positive_fraction = 0.25
+        pos_strategy = "instance_balanced"
+        neg_strategy = "iou_balanced"
 
-        [model.bbox_3d_head.loss_rot]
-        type = 'RotBinLoss'
-        loss_weight = 1.0
-
-        [model.bbox_3d_head.loss_2dc]
-        type = 'SmoothL1Loss'
-        beta = 0.111
-        loss_weight = 1.0
+        [model.bbox_3d_head.proposal_matcher]
+        type = "MaxIoUMatcher"
+        thresholds = [0.5, 0.5]
+        labels = [0, -1, 1]
+        allow_low_quality_matches = false
 
     [model.track_graph]
     type = "QDTrackGraph"
