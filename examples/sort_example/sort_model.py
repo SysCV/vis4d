@@ -20,8 +20,9 @@ class SORT(BaseModel):
 
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init detector."""
-        super().__init__()
-        self.cfg = SORTConfig(**cfg.dict())
+        super().__init__(cfg)
+        self.cfg = SORTConfig(**cfg.dict())  # type: SORTConfig
+        self.cfg.detection.category_mapping = self.cfg.category_mapping
         self.detector = build_model(self.cfg.detection)
         self.track_graph = build_track_graph(self.cfg.track_graph)
 
@@ -40,22 +41,21 @@ class SORT(BaseModel):
         return self.detector.forward_train(batch_inputs)
 
     def forward_test(
-        self, batch_inputs: List[InputSample], postprocess: bool = True
+        self, batch_inputs: List[List[InputSample]]
     ) -> ModelOutput:
         """Forward pass during testing stage.
 
         Returns predictions for each input.
         """
+        inputs = [inp[0] for inp in batch_inputs]
         assert len(batch_inputs) == 1, "Currently only BS=1 supported!"
-        frame_id = batch_inputs[0].metadata.frameIndex
+        frame_id = inputs[0].metadata.frameIndex
         # init graph at begin of sequence
         if frame_id == 0:
             self.track_graph.reset()
 
         # detector
-        output = self.detector.forward_test(
-            batch_inputs, postprocess=postprocess
-        )
+        output = self.detector.forward_test(batch_inputs)
         detections = output["detect"]
 
         # associate detections, update graph
