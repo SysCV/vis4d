@@ -6,7 +6,7 @@ from sort_model import SORT
 import vist.data.datasets.base
 from vist import config
 from vist.data.datasets import DataloaderConfig as Dataloader
-from vist.engine import test
+from vist.engine.trainer import test
 from vist.model import BaseModelConfig
 from vist.model.optimize import BaseOptimizerConfig
 

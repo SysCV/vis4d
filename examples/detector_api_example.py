@@ -2,13 +2,12 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from detectron2.engine import launch
 from torchvision.models.detection import retinanet  # type: ignore
 
 import vist.data.datasets.base
 from vist import config
 from vist.data.datasets import DataloaderConfig as Dataloader
-from vist.engine import train
+from vist.engine.trainer import train
 from vist.model import BaseModelConfig
 from vist.model.detect import BaseDetector
 from vist.model.optimize import BaseOptimizerConfig
