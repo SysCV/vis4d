@@ -17,7 +17,7 @@ def get_world_size() -> int:  # pragma: no cover
         return 1
     if not dist.is_initialized():
         return 1
-    return dist.get_world_size()  # type: ignore
+    return int(dist.get_world_size())
 
 
 def get_rank() -> int:  # pragma: no cover
@@ -26,7 +26,7 @@ def get_rank() -> int:  # pragma: no cover
         return 0
     if not dist.is_initialized():
         return 0
-    return dist.get_rank()  # type: ignore
+    return int(dist.get_rank())
 
 
 def synchronize() -> None:  # pragma: no cover

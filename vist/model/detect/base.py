@@ -1,7 +1,7 @@
 """Base class for VisT detectors."""
 
 import abc
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import torch
 

@@ -228,31 +228,23 @@ class InputSample:
 
     def get(self, key: str) -> Union[Frame, DataInstance]:
         """Get attribute by key."""
-        if key == "metadata":
-            return self.metadata
-        if key == "image":
-            return self.image
-        if key == "boxes2d":
-            return self.boxes2d
-        if key == "boxes3d":
-            return self.boxes3d
-        if key == "intrinsics":
-            return self.intrinsics
-        if key == "extrinsics":
-            return self.extrinsics
         if key in self.attributes:
             return self.attributes[key]
+        if key in self.__dict__:
+            value = self.__dict__[key]
+            assert type(value) is Frame or type(value) is DataInstance
+            return value
         raise AttributeError(f"Attribute {key} not found!")
 
     def dict(self) -> Dict[str, Union[Frame, DataInstance]]:
         """Return InputSample object as dict."""
-        obj_dict = {
+        obj_dict: Dict[str, Union[Frame, DataInstance]] = {
             "metadata": self.metadata,
             "image": self.image,
             "boxes2d": self.boxes2d,
             "boxes3d": self.boxes3d,
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
-        }  # type: Dict[str, Union[Frame, DataInstance]]
+        }
         obj_dict.update(self.attributes)
         return obj_dict

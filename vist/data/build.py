@@ -77,9 +77,9 @@ class VisTDataModule(pl.LightningDataModule):
         self.category_mapping = category_mapping
         self.image_channel_mode = image_channel_mode
         self.seed = seed
-        self.train_datasets = None  # type: Optional[List[ScalabelDataset]]
-        self.test_datasets = None  # type: Optional[List[ScalabelDataset]]
-        self.predict_datasets = None  # type: Optional[List[ScalabelDataset]]
+        self.train_datasets: Optional[List[ScalabelDataset]] = None
+        self.test_datasets: Optional[List[ScalabelDataset]] = None
+        self.predict_datasets: Optional[List[ScalabelDataset]] = None
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Initialize dataset classes."""
@@ -155,7 +155,7 @@ class VisTDataModule(pl.LightningDataModule):
         """Build dataloaders for test / predict."""
         dataloaders = []
         for dataset in datasets:
-            sampler = None  # type: Optional[data.Sampler]
+            sampler: Optional[data.Sampler] = None
             if get_world_size() > 1 and dataset.has_sequences:
                 sampler = TrackingInferenceSampler(dataset)  # pragma: no cover
 

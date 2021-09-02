@@ -106,14 +106,15 @@ def parse_config(args: Namespace) -> Config:
 def load_config(filepath: str) -> DictStrAny:
     """Load config from file to dict."""
     ext = os.path.splitext(filepath)[1]
+    config_dict: DictStrAny
     if ext == ".yaml":
         with open(filepath, "r", encoding="utf-8") as f:
             config_dict = yaml.load(f.read(), Loader=yaml.Loader)
     elif ext == ".toml":
-        config_dict = toml.load(filepath)
+        config_dict = dict(**toml.load(filepath))
     else:
         raise NotImplementedError(f"Config type {ext} not supported")
-    return config_dict  # type: ignore
+    return config_dict
 
 
 def read_config(filepath: str) -> Config:
@@ -126,7 +127,7 @@ def read_config(filepath: str) -> Config:
     if "config" in config_dict:
         cwd = os.getcwd()
         os.chdir(os.path.dirname(filepath))
-        subconfig_dict = {}  # type: DictStrAny
+        subconfig_dict: DictStrAny = {}
         for cfg in config_dict["config"]:
             assert "path" in cfg, "Config arguments must have path!"
             nested_update(subconfig_dict, load_config(cfg["path"]))
