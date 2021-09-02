@@ -292,11 +292,12 @@ class QDTrack(BaseModel):
 
         # similarity head
         embeddings, _ = self.similarity_head(image, feat, detections)
-        ori_wh = (
-            inputs[0].metadata.size.width,  # type: ignore
-            inputs[0].metadata.size.height,  # type: ignore
+        assert inputs[0].metadata.size is not None
+        input_size = (
+            inputs[0].metadata.size.width,
+            inputs[0].metadata.size.height,
         )
-        self.postprocess(ori_wh, image.image_sizes[0], detections[0])
+        self.postprocess(input_size, image.image_sizes[0], detections[0])
 
         # associate detections, update graph
         tracks = self.track_graph(detections[0], frame_id, embeddings[0])

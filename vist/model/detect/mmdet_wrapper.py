@@ -97,12 +97,13 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         image_metas = get_img_metas(images)
         outs = self.mm_detector.simple_test(images.tensor, image_metas)
         detections = results_from_mmdet(outs, self.device)
+        assert inputs[0].metadata.size is not None
+        input_size = (
+            inputs[0].metadata.size.width,
+            inputs[0].metadata.size.height,
+        )
         for inp, det in zip(inputs, detections):
-            ori_wh = (
-                inputs[0].metadata.size.width,  # type: ignore
-                inputs[0].metadata.size.height,  # type: ignore
-            )
-            self.postprocess(ori_wh, inp.image.image_sizes[0], det)
+            self.postprocess(input_size, inp.image.image_sizes[0], det)
 
         return dict(detect=detections)  # type: ignore
 
