@@ -232,7 +232,7 @@ class InputSample:
             return self.attributes[key]
         if key in self.__dict__:
             value = self.__dict__[key]
-            assert type(value) is Frame or type(value) is DataInstance
+            assert isinstance(value, (Frame, DataInstance))
             return value
         raise AttributeError(f"Attribute {key} not found!")
 
