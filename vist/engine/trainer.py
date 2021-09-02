@@ -62,19 +62,30 @@ def default_setup(
         save_on_train_epoch_end=True,
     )
 
-    # create trainer
-    trainer_args["callbacks"] = [lr_monitor, progress_bar, checkpoint]
     # resume from checkpoint if specified
-    if cfg.launch.resume and cfg.launch.weights is not None:
-        trainer_args[
-            "resume_from_checkpoint"
-        ] = cfg.launch.weights  # pragma: no cover
-    trainer = pl.Trainer(**trainer_args)
-
-    # setup cmd line logging
     output_dir = osp.join(
         cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
     )
+    if cfg.launch.resume:  # pragma: no cover
+        if cfg.launch.weights is not None:
+            resume_path = cfg.launch.weights
+        elif osp.exists(osp.join(output_dir, "checkpoints/last.ckpt")):
+            resume_path = osp.join(output_dir, "checkpoints/last.ckpt")
+        else:
+            raise ValueError(
+                "cfg.launch.resume set to True but there is no checkpoint to "
+                "resume! Please specify a checkpoint via cfg.launch.weights "
+                "or configure a directory that contains a checkpoint at "
+                "work_dir/exp_name/version/checkpoints/last.ckpt."
+            )
+
+        trainer_args["resume_from_checkpoint"] = resume_path
+
+    # create trainer
+    trainer_args["callbacks"] = [lr_monitor, progress_bar, checkpoint]
+    trainer = pl.Trainer(**trainer_args)
+
+    # setup cmd line logging
     logger = setup_logger(osp.join(output_dir, "log.txt"))
 
     # print env / config
