@@ -13,7 +13,6 @@ data_root = "data/Waymo_scalabel"
 input_dir = "data/Waymo/train"
 output_dir = "data/Waymo_scalabel"
 eval_metrics = ["track"]
-inference_sampling = "sequence_based"
 num_processes = 0
 
 [dataloader]

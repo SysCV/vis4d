@@ -107,8 +107,8 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         self._fallback_candidates = set(range(len(self.dataset.frames)))
         self.video_to_indices: Dict[str, List[int]] = defaultdict(list)
-        self.frame_to_indices: Dict[str, Dict[int, int]] = defaultdict(dict)
         self._create_video_mapping()
+        self.has_sequences = bool(self.video_to_indices)
 
     def __len__(self) -> int:
         """Return length of dataset."""

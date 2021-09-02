@@ -10,9 +10,9 @@ from pytorch_lightning.callbacks import Callback
 from scalabel.label.io import save
 from scalabel.label.typing import Frame
 
-from ..common.utils.distributed import all_gather_predictions
+from ..common.utils.distributed import get_rank, get_world_size
 from ..struct import Boxes2D, InputSample, ModelOutput
-from .image import draw_image
+from ..vis.image import draw_image
 
 
 class VisTWriterCallback(Callback):
@@ -26,12 +26,6 @@ class VisTWriterCallback(Callback):
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""
         self._predictions = defaultdict(list)
-
-    def gather(self, pl_module: pl.LightningModule) -> None:
-        """Gather accumulated data."""
-        self._predictions = all_gather_predictions(
-            self._predictions, pl_module
-        )
 
     def process(
         self, inputs: List[List[InputSample]], outputs: ModelOutput
@@ -62,9 +56,7 @@ class VisTWriterCallback(Callback):
         outputs: Sequence[Any],
     ) -> None:
         """Hook for on_predict_epoch_end."""
-        self.gather(pl_module)
-        if trainer.is_global_zero:
-            self.write()
+        self.write()
         self.reset()
 
 
@@ -116,9 +108,13 @@ class ScalabelWriterCallback(VisTWriterCallback):
 
     def write(self) -> None:
         """Write the aggregated output."""
-        os.makedirs(self._output_dir, exist_ok=True)
         for key, predictions in self._predictions.items():
+            os.makedirs(os.path.join(self._output_dir, key), exist_ok=True)
+            if get_world_size() > 1:
+                filename = f"predictions_{get_rank()}.json"  # pragma: no cover
+            else:
+                filename = "predictions.json"
             save(
-                os.path.join(self._output_dir, f"{key}_predictions.json"),
+                os.path.join(self._output_dir, key, filename),
                 predictions,
             )

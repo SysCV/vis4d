@@ -48,7 +48,6 @@ type = "BDD100K"
 annotations = "data/bdd100k/labels/box_track_20/val/"
 data_root = "data/bdd100k/images/track/val/"
 eval_metrics = ["detect", "track"]
-inference_sampling = "sequence_based"
 config_path = "box_track"
 num_processes = 0
     [[test.dataloader.transformations]]

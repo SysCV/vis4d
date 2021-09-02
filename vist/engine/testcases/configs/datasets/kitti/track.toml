@@ -29,7 +29,6 @@ annotations = "vist/engine/testcases/track/kitti-samples/tracking_training.json"
 validate_frames = true
 num_processes = 0
 eval_metrics = ["detect", "track"]
-inference_sampling = "sequence_based"
     [test.dataloader]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
     image_channel_mode = "RGB"

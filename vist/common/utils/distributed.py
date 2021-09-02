@@ -1,13 +1,11 @@
 """VisT utils for distributed setting."""
-import itertools
 import logging
 import pickle
-from typing import Any, Dict, List, Tuple
+from typing import Any, List, Tuple
 
 import pytorch_lightning as pl
 import torch
 import torch.distributed as dist
-from scalabel.label.typing import Frame
 
 TORCH_VERSION = tuple(int(x) for x in torch.__version__.split(".")[:2])
 
@@ -132,23 +130,3 @@ def all_gather_object(data: Any, pl_module: pl.LightningModule) -> List[Any]:  #
         data_list.append(pickle.loads(buffer))
 
     return data_list
-
-
-def all_gather_predictions(
-    predictions: Dict[str, List[Frame]], pl_module: pl.LightningModule
-) -> Dict[str, List[Frame]]:
-    """Gather prediction dict in distributed setting."""
-    predictions_list = all_gather_object(predictions, pl_module)
-    result = {}
-    for key in predictions:
-        prediction_list = [p[key] for p in predictions_list]
-        result[key] = list(itertools.chain(*prediction_list))
-    return result
-
-
-def all_gather_gts(
-    gts: List[Frame], pl_module: pl.LightningModule
-) -> List[Frame]:
-    """Gather gts list in distributed setting."""
-    gts_list = all_gather_object(gts, pl_module)
-    return list(itertools.chain(*gts_list))

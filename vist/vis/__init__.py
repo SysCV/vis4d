@@ -1,4 +1,4 @@
 """VisT visualization package."""
-from .visualizer import ScalabelWriterCallback
+from vist.engine.writer import ScalabelWriterCallback
 
 __all__ = ["ScalabelWriterCallback"]

@@ -64,8 +64,6 @@ def default_setup(
 
     # create trainer
     trainer_args["callbacks"] = [lr_monitor, progress_bar, checkpoint]
-    # tracking inference requires sequence based sampler
-    trainer_args["replace_sampler_ddp"] = False
     # resume from checkpoint if specified
     if cfg.launch.resume and cfg.launch.weights is not None:
         trainer_args[

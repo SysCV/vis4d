@@ -1,6 +1,6 @@
 """VisT model module."""
 from .base import BaseModel, BaseModelConfig, build_model
-from .quasi_dense_rcnn import QDTrack
+from .qdtrack import QDTrack
 
 __all__ = [
     "BaseModelConfig",

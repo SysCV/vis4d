@@ -64,21 +64,9 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     annotations: Optional[str]
     config_path: Optional[str]
     eval_metrics: List[str] = []
-    inference_sampling: str = "sample_based"
     validate_frames: bool = False
     ignore_unkown_cats: bool = False
     num_processes: int = 4
-
-    @validator("inference_sampling", check_fields=False)
-    def validate_inference_sampling(  # pylint: disable=no-self-argument,no-self-use,line-too-long
-        cls, value: str
-    ) -> str:
-        """Check inference_sampling attribute."""
-        if value not in ["sample_based", "sequence_based"]:
-            raise ValueError(
-                "inference_sampling must be sample_based or sequence_based"
-            )
-        return value
 
 
 class BaseDatasetLoader(metaclass=RegistryHolder):

@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 import torch
 from torch.utils import data
 
-from ..common.utils import get_rank
+from ..common.utils import get_rank, get_world_size
 from .dataset import ScalabelDataset
 from .datasets import (
     BaseDatasetConfig,
@@ -156,8 +156,8 @@ class VisTDataModule(pl.LightningDataModule):
         dataloaders = []
         for dataset in datasets:
             sampler = None  # type: Optional[data.Sampler]
-            if dataset.cfg.inference_sampling == "sequence_based":
-                sampler = TrackingInferenceSampler(dataset)
+            if get_world_size() > 1 and dataset.has_sequences:
+                sampler = TrackingInferenceSampler(dataset)  # pragma: no cover
 
             test_dataloader = data.DataLoader(
                 dataset,

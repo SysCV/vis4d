@@ -15,11 +15,11 @@ from scalabel.eval.result import Result
 from scalabel.label.io import group_and_sort, save
 from scalabel.label.typing import Config, Frame
 
-from ..common.utils.distributed import all_gather_gts, all_gather_predictions
 from ..data.datasets import BaseDatasetLoader
-from ..struct import DictStrAny, InputSample, LabelInstance, ModelOutput
+from ..struct import InputSample, LabelInstance, ModelOutput
+from .utils import all_gather_gts, all_gather_predictions
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("pytorch_lightning")
 
 
 def _detect(

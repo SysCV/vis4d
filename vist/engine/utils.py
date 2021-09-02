@@ -1,5 +1,6 @@
 """VisT engine utils."""
 import inspect
+import itertools
 import logging
 import os
 import sys
@@ -11,6 +12,8 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks.progress import reset
 from scalabel.label.typing import Frame
 from termcolor import colored
+
+from ..common.utils.distributed import all_gather_object
 
 # ignore DeprecationWarning by default (e.g. numpy)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -100,3 +103,23 @@ def split_args(args: Namespace) -> Tuple[Namespace, Namespace]:
         **{name: params[name] for name in params if name not in valid_kwargs}
     )
     return vist_kwargs, trainer_kwargs
+
+
+def all_gather_predictions(
+    predictions: Dict[str, List[Frame]], pl_module: pl.LightningModule
+) -> Dict[str, List[Frame]]:
+    """Gather prediction dict in distributed setting."""
+    predictions_list = all_gather_object(predictions, pl_module)
+    result = {}
+    for key in predictions:
+        prediction_list = [p[key] for p in predictions_list]
+        result[key] = list(itertools.chain(*prediction_list))
+    return result
+
+
+def all_gather_gts(
+    gts: List[Frame], pl_module: pl.LightningModule
+) -> List[Frame]:
+    """Gather gts list in distributed setting."""
+    gts_list = all_gather_object(gts, pl_module)
+    return list(itertools.chain(*gts_list))
