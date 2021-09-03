@@ -29,7 +29,6 @@ class QD3DTConfig(QDGeneralizedRCNNConfig):
     """Config for quasi-dense 3D tracking model."""
 
     bbox_3d_head: BaseBoundingBoxConfig
-    motion: str = "kf3d"
 
 
 class QuasiDense3D(QDGeneralizedRCNN):
@@ -119,14 +118,14 @@ class QuasiDense3D(QDGeneralizedRCNN):
 
         # 3d bbox head
         (
-            bbox_3d_pred,
+            bbox_3d_preds,
             pos_assigned_gt_inds,
             pos_proposals,
+            _,
         ) = self.bbox_3d_head(
             key_x,
             key_proposals,
             key_targets,
-            self.detector.mm_detector.roi_head,
             filter_negatives=True,
         )
 
@@ -139,13 +138,12 @@ class QuasiDense3D(QDGeneralizedRCNN):
         )
 
         loss_bbox_3d = self.bbox_3d_head.loss(
-            bbox_3d_pred, bbox3d_targets, labels
+            bbox_3d_preds, bbox3d_targets, labels
         )
 
         det_losses = {**rpn_losses, **roi_losses, **loss_bbox_3d}
 
         # track head
-        # TODO: Adding qd-3dt tracking graph
         key_embeddings, key_track_targets = self.similarity_head(
             key_images,
             key_x,
@@ -168,3 +166,92 @@ class QuasiDense3D(QDGeneralizedRCNN):
         )
 
         return {**det_losses, **track_losses}
+
+    def match(
+        self,
+        key_embeds: Tuple[torch.Tensor],
+        ref_embeds: List[Tuple[torch.Tensor]],
+    ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
+        """Match key / ref embeddings based on cosine similarity."""
+        # for each reference view
+        dists, cos_dists = [], []
+        for ref_embed in ref_embeds:
+            # for each batch element
+            dists_curr, cos_dists_curr = [], []
+            for key_embed, ref_embed_ in zip(key_embeds, ref_embed):
+                dist = cosine_similarity(
+                    key_embed,
+                    ref_embed_,
+                    normalize=False,
+                    temperature=self.cfg.softmax_temp,
+                )
+                dists_curr.append(dist)
+                if self.track_loss_aux is not None:
+                    cos_dist = cosine_similarity(key_embed, ref_embed_)
+                    cos_dists_curr.append(cos_dist)
+
+            dists.append(dists_curr)
+            cos_dists.append(cos_dists_curr)
+        return dists, cos_dists
+
+    def forward_test(
+        self, batch_inputs: List[InputSample], postprocess: bool = True
+    ) -> ModelOutput:
+        """Forward function during inference."""
+        import pdb
+
+        assert len(batch_inputs) == 1, "Currently only BS=1 supported!"
+
+        # init graph at begin of sequence
+        frame_id = batch_inputs[0].metadata.frame_index
+        if frame_id == 0:
+            self.track_graph.reset()
+
+        image = self.detector.preprocess_image(batch_inputs)
+        cam_intrinsics = [
+            x.intrinsics.to(self.device).tensor for x in batch_inputs
+        ]
+
+        # Detector
+        feat = self.detector.extract_features(image)
+        proposals, _ = self.detector.generate_proposals(image, feat)
+
+        # 3D
+        (bbox_3d_preds, _, _, roi_feats,) = self.bbox_3d_head(
+            feat,
+            proposals,
+        )
+
+        # 2D
+        (
+            cls_scores,
+            bbox_2d_preds,
+        ) = self.detector.generate_detections_from_roi_feats(roi_feats)
+
+        (
+            bbox_2d_preds,
+            det_labels,
+            bbox_3d_preds,
+        ) = self.bbox_3d_head.get_det_bboxes(
+            rois,
+            cls_scores,
+            bbox_2d_preds,
+            bbox_3d_preds,
+            img_shape,
+            scale_factor,
+            cfg=self.cfg.detector.test_cfg,
+        )
+
+        # similarity head
+        embeddings, _ = self.similarity_head(image, feat, detections)
+        if postprocess:
+            ori_wh = (
+                batch_inputs[0].metadata.size.width,  # type: ignore
+                batch_inputs[0].metadata.size.height,  # type: ignore
+            )
+            self.postprocess(ori_wh, image.image_sizes[0], detections[0])
+
+        # associate detections, update graph
+        tracks = self.track_graph(detections[0], frame_id, embeddings[0])
+
+        return dict(detect=detections, track=[tracks])
