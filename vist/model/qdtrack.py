@@ -4,17 +4,17 @@ from typing import List, Tuple
 
 import torch
 
+from vist.model.losses import LossConfig, build_loss
 from vist.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
 
 from .base import BaseModel, BaseModelConfig, build_model
 from .detect import BaseTwoStageDetector
 from .track.graph import TrackGraphConfig, build_track_graph
-from .track.losses import LossConfig, build_loss
 from .track.similarity import SimilarityLearningConfig, build_similarity_head
 from .track.utils import cosine_similarity, split_key_ref_inputs
 
 
-class QDGeneralizedRCNNConfig(BaseModelConfig):
+class QDTrackConfig(BaseModelConfig):
     """Config for quasi-dense tracking model."""
 
     detection: BaseModelConfig
@@ -24,24 +24,20 @@ class QDGeneralizedRCNNConfig(BaseModelConfig):
     softmax_temp: float = -1.0
 
 
-class QDGeneralizedRCNN(BaseModel):
-    """Generalized R-CNN for quasi-dense instance similarity learning."""
+class QDTrack(BaseModel):
+    """QDTrack model - quasi-dense instance similarity learning."""
 
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init."""
-        super().__init__()
-        self.cfg = QDGeneralizedRCNNConfig(**cfg.dict())
+        super().__init__(cfg)
+        self.cfg = QDTrackConfig(**cfg.dict())  # type: QDTrackConfig
+        self.cfg.detection.category_mapping = self.cfg.category_mapping
         self.detector = build_model(self.cfg.detection)
         assert isinstance(self.detector, BaseTwoStageDetector)
         self.similarity_head = build_similarity_head(self.cfg.similarity)
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.track_loss = build_loss(self.cfg.losses[0])
         self.track_loss_aux = build_loss(self.cfg.losses[1])
-
-    @property
-    def device(self) -> torch.device:
-        """Get device where input should be moved to."""
-        return self.detector.device
 
     def prepare_targets(
         self,
@@ -76,7 +72,8 @@ class QDGeneralizedRCNN(BaseModel):
         return key_images, ref_images
 
     def forward_train(
-        self, batch_inputs: List[List[InputSample]]
+        self,
+        batch_inputs: List[List[InputSample]],
     ) -> LossesType:
         """Forward function for training."""
         # split into key / ref pairs NxM input --> key: N, ref: Nx(M-1)
@@ -232,7 +229,7 @@ class QDGeneralizedRCNN(BaseModel):
         Where M is the number of reference views and N is the
         number of batch elements.
         """
-        losses = dict()
+        losses = {}
 
         loss_track = torch.tensor(0.0).to(self.device)
         loss_track_aux = torch.tensor(0.0).to(self.device)
@@ -268,18 +265,21 @@ class QDGeneralizedRCNN(BaseModel):
         return losses
 
     def forward_test(
-        self, batch_inputs: List[InputSample], postprocess: bool = True
+        self,
+        batch_inputs: List[List[InputSample]],
     ) -> ModelOutput:
-        """Forward function during inference."""
-        assert len(batch_inputs) == 1, "Currently only BS=1 supported!"
+        """Compute model output during inference."""
+        assert len(batch_inputs) == 1, "No reference views during test!"
+        inputs = [inp[0] for inp in batch_inputs]
+        assert len(inputs) == 1, "Currently only BS=1 supported!"
 
         # init graph at begin of sequence
-        frame_id = batch_inputs[0].metadata.frame_index
+        frame_id = inputs[0].metadata.frameIndex
         if frame_id == 0:
             self.track_graph.reset()
 
         # detector
-        image = self.detector.preprocess_image(batch_inputs)
+        image = self.detector.preprocess_image(inputs)
         feat = self.detector.extract_features(image)
         proposals, _ = self.detector.generate_proposals(image, feat)
         detections, _ = self.detector.generate_detections(
@@ -292,14 +292,13 @@ class QDGeneralizedRCNN(BaseModel):
 
         # similarity head
         embeddings, _ = self.similarity_head(image, feat, detections)
-        if postprocess:
-            ori_wh = (
-                batch_inputs[0].metadata.size.width,  # type: ignore
-                batch_inputs[0].metadata.size.height,  # type: ignore
-            )
-            self.postprocess(ori_wh, image.image_sizes[0], detections[0])
+        assert inputs[0].metadata.size is not None
+        input_size = (
+            inputs[0].metadata.size.width,
+            inputs[0].metadata.size.height,
+        )
+        self.postprocess(input_size, image.image_sizes[0], detections[0])
 
         # associate detections, update graph
         tracks = self.track_graph(detections[0], frame_id, embeddings[0])
-
         return dict(detect=detections, track=[tracks])

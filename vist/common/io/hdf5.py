@@ -12,7 +12,7 @@ class HDF5Backend(BaseDataBackend):
     that the given HDF5 file contains the whole dataset associated to this
     backend.
 
-    You can use the provided script at tools/datasets_to_hdf5.py to convert
+    You can use the provided script at tools/to_hdf5.py to convert
     your dataset to the expected hdf5 format before using this backend.
     """
 
@@ -28,7 +28,7 @@ class HDF5Backend(BaseDataBackend):
         self.cfg = DataBackendConfig(**cfg.dict())
         self.h5_file_api = h5py.File
         self.is_hdf5 = h5py.is_hdf5
-        self.db_cache: Dict[str, h5py.File] = dict()
+        self.db_cache: Dict[str, h5py.File] = {}
 
     def get(self, filepath: str) -> bytes:
         """Get values according to the filepath as bytes."""

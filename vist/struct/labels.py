@@ -190,7 +190,9 @@ class Boxes2D(Boxes, LabelInstance):
         track_ids = torch.tensor(idx_list, dtype=torch.long)
         return Boxes2D(box_tensor, class_ids, track_ids)
 
-    def to_scalabel(self, idx_to_class: Dict[int, str]) -> List[Label]:
+    def to_scalabel(
+        self, idx_to_class: Optional[Dict[int, str]] = None
+    ) -> List[Label]:
         """Convert from internal to scalabel format."""
         labels = []
         for i in range(len(self.boxes)):
@@ -210,7 +212,10 @@ class Boxes2D(Boxes, LabelInstance):
                 score = None
             label_dict = dict(id=label_id, box2d=box, score=score)
 
-            cls = idx_to_class[int(self.class_ids[i])]
+            if idx_to_class is not None:
+                cls = idx_to_class[int(self.class_ids[i])]
+            else:
+                cls = str(int(self.class_ids[i]))  # pragma: no cover
             label_dict["category"] = cls
             labels.append(Label(**label_dict))
 
@@ -274,7 +279,9 @@ class Boxes3D(Boxes, LabelInstance):
         track_ids = torch.tensor(idx_list, dtype=torch.long)
         return Boxes3D(box_tensor, class_ids, track_ids)
 
-    def to_scalabel(self, idx_to_class: Dict[int, str]) -> List[Label]:
+    def to_scalabel(
+        self, idx_to_class: Optional[Dict[int, str]] = None
+    ) -> List[Label]:
         """Convert from internal to scalabel format."""
         labels = []
         for i in range(len(self.boxes)):
@@ -314,10 +321,12 @@ class Boxes3D(Boxes, LabelInstance):
                 orientation=[rx, ry, rz],
                 alpha=-1.0,
             )
-
             label_dict = dict(id=label_id, box3d=box, score=score)
 
-            cls = idx_to_class[int(self.class_ids[i])]
+            if idx_to_class is not None:
+                cls = idx_to_class[int(self.class_ids[i])]
+            else:
+                cls = str(int(self.class_ids[i]))  # pragma: no cover
             label_dict["category"] = cls
             labels.append(Label(**label_dict))
 

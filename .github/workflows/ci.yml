@@ -28,19 +28,19 @@ jobs:
           python3 -m pip freeze
 
       - name: isort
-        run: python3 -m isort -c vist tools
+        run: python3 -m isort -c vist
 
       - name: black
-        run: python3 -m black --check vist tools
+        run: python3 -m black --check vist
 
       - name: lint
-        run: python3 -m pylint vist tools/*
+        run: python3 -m pylint vist
 
       - name: docstyle
-        run: python3 -m pydocstyle --convention=google vist tools
+        run: python3 -m pydocstyle --convention=google vist
 
       - name: mypy
-        run: python3 -m mypy --strict vist tools
+        run: python3 -m mypy --strict vist
 
   test:
     name: test py${{ matrix.python-version }}

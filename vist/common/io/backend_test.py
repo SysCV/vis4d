@@ -4,6 +4,7 @@ import unittest
 
 from vist.data.utils import str_decode
 
+from ..utils import timeit
 from .base import DataBackendConfig
 from .file import FileBackend
 from .hdf5 import HDF5Backend
@@ -12,6 +13,7 @@ from .hdf5 import HDF5Backend
 class TestBackends(unittest.TestCase):
     """Testcases for ensuring equal output of each backend."""
 
+    @timeit  # type: ignore
     def test_get(self) -> None:
         """Test image retrieval from different backends."""
         backend_file = FileBackend(DataBackendConfig(type="file"))
@@ -21,7 +23,7 @@ class TestBackends(unittest.TestCase):
             "00091078-875c1f73/00091078-875c1f73-0000166.jpg"
         )
         hdf5_path = (
-            "vist/engine/testcases/track/bdd100k-samples/images.hdf5/"
+            "vist/engine/testcases/track/bdd100k-samples/images_.hdf5/"
             "00091078-875c1f73/00091078-875c1f73-0000166.jpg"
         )
 
@@ -36,7 +38,7 @@ class TestBackends(unittest.TestCase):
         self.assertRaises(FileNotFoundError, backend_hdf5.get, "invalid_path")
 
         invalid_hdf5_path = (
-            "vist/engine/testcases/track/bdd100k-samples/images.hdf5/"
+            "vist/engine/testcases/track/bdd100k-samples/images_.hdf5/"
             "000/000.jpg"
         )
         self.assertRaises(ValueError, backend_hdf5.get, invalid_hdf5_path)

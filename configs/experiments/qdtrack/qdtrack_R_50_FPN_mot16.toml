@@ -5,27 +5,30 @@ path = "../../base/datasets/mot16.toml"
 path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"
 
 [model]
+image_channel_mode = "BGR"
     [model.detection]
     model_kwargs= {"backbone.style" = "caffe", "backbone.norm_cfg.requires_grad" = false, "backbone.init_cfg.checkpoint" = "open-mmlab://detectron2/resnet50_caffe"}
-    num_classes = 1
     pixel_mean = [103.530, 116.280, 123.675]
     pixel_std = [1.0, 1.0, 1.0]
     weights = "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco-person/faster_rcnn_r50_fpn_1x_coco-person_20201216_175929-d022e227.pth"
 
-[dataloader]
-clip_bboxes_to_image = false
-image_channel_mode = "BGR"
+[model]
+category_mapping = {"pedestrian" = 0}
+    [model.optimizer]
+    type = "SGD"
+    lr = 0.03
+    kwargs = {"momentum" = 0.9}
 
-[solver]
-images_per_gpu = 6
-lr_policy = "WarmupMultiStepLR"
-base_lr = 0.01
-steps = [16500]
-max_iters = 22000
-checkpoint_period = 5500
-log_period = 50
-eval_period = 5500
+    [model.lr_scheduler]
+    type = "MultiStepLR"
+    kwargs = {"milestones" = [9, 11]}
 
 [launch]
-device = "cuda"
-num_gpus = 4
+samples_per_gpu = 6
+workers_per_gpu = 2
+
+[trainer]
+max_epochs = 12
+log_every_n_steps = 50
+check_val_every_n_epoch = 1
+num_sanity_val_steps = 0

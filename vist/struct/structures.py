@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import numpy.typing as npt
 import torch
-from scalabel.eval.mot import EvalResults as MOTEvalResults
 from scalabel.label.typing import Label
 
 
@@ -41,7 +40,9 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def to_scalabel(self, idx_to_class: Dict[int, str]) -> List[Label]:
+    def to_scalabel(
+        self, idx_to_class: Optional[Dict[int, str]] = None
+    ) -> List[Label]:
         """Convert from ours to scalabel format."""
         raise NotImplementedError
 
@@ -50,7 +51,5 @@ NDArrayF64 = npt.NDArray[np.float64]
 NDArrayUI8 = npt.NDArray[np.uint8]
 TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
 LossesType = Dict[str, torch.Tensor]
-EvalResult = Union[Dict[str, float], MOTEvalResults]
-EvalResults = Dict[str, Union[Dict[str, float], MOTEvalResults]]
 ModelOutput = Dict[str, List[LabelInstance]]
 DictStrAny = Dict[str, Any]  # type: ignore

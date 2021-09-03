@@ -86,8 +86,6 @@ def preprocess_boxes(
             label += str(int(t)) + ","
         if c is not None:
             str_c = str(int(c))
-            if boxes.metadata is not None:
-                str_c = boxes.metadata[str_c]  # type: ignore
             label += str_c + ","
 
         if s is not None:
@@ -98,7 +96,7 @@ def preprocess_boxes(
     return boxes_list, draw_colors, labels
 
 
-def preprocess_image(image: ImageType, mode: str = "BGR") -> Image.Image:
+def preprocess_image(image: ImageType, mode: str = "RGB") -> Image.Image:
     """Validate and convert input image.
 
     Args:
