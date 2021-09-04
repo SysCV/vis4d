@@ -22,7 +22,7 @@ class SORT(BaseModel):
 
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init detector."""
-        super().__init__()
+        super().__init__(cfg)
         self.cfg = SORTConfig(**cfg.dict())
         self.detector = build_model(self.cfg.detection)
         self.track_graph = build_track_graph(self.cfg.track_graph)
@@ -43,26 +43,28 @@ class SORT(BaseModel):
         return self.detector.forward_train(batch_inputs)
 
     def forward_test(
-        self, batch_inputs: List[InputSample], postprocess: bool = True
+        self, batch_inputs: List[List[InputSample]]
     ) -> ModelOutput:
         """Forward pass during testing stage.
 
         Returns predictions for each input.
         """
+        assert len(batch_inputs) == 1, "No reference views during test!"
+        inputs = [inp[0] for inp in batch_inputs]
+        assert len(inputs) == 1, "Currently only BS=1 supported!"
         if not self.search_dict:
             self.search_dict = load_predictions(
-                self.cfg.dataset, self.cfg.prediction_path
+                self.cfg.dataset, self.cfg.prediction_path  # type:ignore
             )
 
-        assert len(batch_inputs) == 1, "Currently only BS=1 supported!"
-        frame_id = batch_inputs[0].metadata.frame_index
+        frame_id = inputs[0].metadata.frameIndex
         # init graph at begin of sequence
         if frame_id == 0:
             self.track_graph.reset()
 
         # using given detections
-        image = batch_inputs[0].image
-        video_name = batch_inputs[0].metadata.video_name
+        image = inputs[0].image
+        video_name = inputs[0].metadata.videoName
         assert video_name in self.search_dict
         # there might be no detections in one frame, e.g. MOT16-12 frame 443
         if frame_id not in self.search_dict[video_name]:
@@ -77,8 +79,8 @@ class SORT(BaseModel):
             ]
 
         ori_wh = (
-            batch_inputs[0].metadata.size.width,  # type: ignore
-            batch_inputs[0].metadata.size.height,  # type: ignore
+            inputs[0].metadata.size.width,  # type: ignore
+            inputs[0].metadata.size.height,  # type: ignore
         )
         self.postprocess(ori_wh, image.image_sizes[0], detections[0])
 

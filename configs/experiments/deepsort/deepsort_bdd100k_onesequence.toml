@@ -1,8 +1,9 @@
 [[train]]
 name = "bdd100k_track_train"
 type = "BDD100K"
-annotations = "data/bdd100k/labels/box_track_20/train/"
-data_root = "data/bdd100k/images/track/train/"
+annotations = "data/one_sequence/labels"
+data_root = "data/one_sequence/images/"
+              
 config_path = "box_track"
 num_processes = 0
     [train.dataloader]
@@ -21,16 +22,15 @@ name = "bdd100k_track_val"
 type = "BDD100K"
 annotations = "data/bdd100k/labels/box_track_20/val/"
 data_root = "data/bdd100k/images/track/val/"
-eval_metrics = ["detect", "track"]
+eval_metrics = ["track"]
 config_path = "box_track"
 num_processes = 0
-    [[test.dataloader.transformations]]
-    type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
 
 [model]
-type = "SORT"
+type = "DeepSORT"
 dataset = "BDD100K"
+max_boxes_num=512
+num_instances=108524
 prediction_path = "given_predictions/track_predictions_val.json"
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
     [model.detection]
@@ -40,11 +40,11 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
     category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
 
     [model.track_graph]
-    type = "SORTTrackGraph"
+    type = "DeepSORTTrackGraph"
 
     [model.optimizer]
     type = "SGD"
-    lr = 0.04
+    lr = 0.001
     kwargs = {"momentum" = 0.9}
 
     [model.lr_scheduler]
