@@ -5,6 +5,21 @@ annotations = "vist/engine/testcases/track/bdd100k-samples/labels/"
 data_root = "vist/engine/testcases/track/bdd100k-samples/images/"
 config_path = "box_track"
 num_processes = 0
+    [train.dataloader]
+    compute_global_instance_ids = true
+        [train.dataloader.ref_sampling]
+        type = 'uniform'
+        scope = 2
+        num_ref_imgs = 1
+        skip_nomatch_samples = true
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}
+
+    [[train.dataloader.transformations]]
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
 
 [[train]]
 name = "bdd100k_det_sample_train"
@@ -13,6 +28,18 @@ annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "vist/engine/testcases/detect/bdd100k-samples/images/"
 config_path = "det"
 num_processes = 0
+    [train.dataloader]
+        [train.dataloader.ref_sampling]
+        scope = 0
+        num_ref_imgs = 1
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    kwargs = {"shape" = [720, 1280]}
+
+    [[train.dataloader.transformations]]
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
 
 [[test]]
 name = "bdd100k_sample_val"
@@ -20,28 +47,8 @@ type = "BDD100K"
 annotations = "vist/engine/testcases/track/bdd100k-samples/labels/"
 data_root = "vist/engine/testcases/track/bdd100k-samples/images/"
 eval_metrics = ["detect", "track"]
-inference_sampling = "sequence_based"
 config_path = "box_track"
 num_processes = 0
-
-[dataloader]
-workers_per_gpu = 0
-categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle"]
-compute_global_instance_ids = true
-    [dataloader.ref_sampling_cfg]
-    type = 'uniform'
-    scope = 2
-    num_ref_imgs = 1
-    skip_nomatch_samples = true
-
-    [[dataloader.train_augmentations]]
-    type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
-
-    [[dataloader.train_augmentations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
-
-    [[dataloader.test_augmentations]]
+    [[test.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}

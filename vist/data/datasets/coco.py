@@ -21,7 +21,7 @@ class COCO(BaseDatasetLoader):
             raise FileNotFoundError(
                 f"COCO json file not found: {self.cfg.annotations}"
             )
-        with open(self.cfg.annotations, "r") as f:
+        with open(self.cfg.annotations, "r", encoding="utf-8") as f:
             coco_anns = json.load(f)
         frames, metadata_cfg = coco_to_scalabel(coco_anns)
         if self.cfg.config_path is not None:

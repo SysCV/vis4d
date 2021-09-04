@@ -2,15 +2,15 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from detectron2.engine import launch
 from torchvision.models.detection import retinanet  # type: ignore
 
 import vist.data.datasets.base
 from vist import config
-from vist.data.dataset_mapper import DataloaderConfig as Dataloader
-from vist.engine import train
+from vist.data.datasets import DataloaderConfig as Dataloader
+from vist.engine.trainer import train
 from vist.model import BaseModelConfig
 from vist.model.detect import BaseDetector
+from vist.model.optimize import BaseOptimizerConfig
 from vist.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
 
 
@@ -25,8 +25,8 @@ class MyDetector(BaseDetector):
 
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init detector."""
-        super().__init__()
-        self.cfg = MyDetectorConfig(**cfg.dict())
+        super().__init__(cfg)
+        self.cfg = MyDetectorConfig(**cfg.dict())  # type: MyDetectorConfig
         self.retinanet = retinanet.retinanet_resnet50_fpn(pretrained=True)
 
     def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
@@ -48,14 +48,12 @@ class MyDetector(BaseDetector):
         raise NotImplementedError
 
     def forward_test(
-        self, batch_inputs: List[InputSample], postprocess: bool = True
+        self, batch_inputs: List[List[InputSample]]
     ) -> ModelOutput:
         """Forward pass during testing stage.
 
         Args:
             batch_inputs: Model input (batched).
-            postprocess: If output should be postprocessed to original
-            resolution.
 
         Returns:
             ModelOutput: Dict of LabelInstance results, e.g. tracking and
@@ -87,29 +85,23 @@ class MyDetector(BaseDetector):
 
 if __name__ == "__main__":
     conf = config.Config(
-        model=dict(type="MyDetector", abc="example_attribute"),
-        solver=config.Solver(
-            images_per_gpu=2,
-            lr_policy="WarmupMultiStepLR",
-            base_lr=0.001,
-            max_iters=100,
+        model=dict(
+            type="MyDetector",
+            category_mapping={
+                "pedestrian": 0,
+                "rider": 1,
+                "car": 2,
+                "truck": 3,
+                "bus": 4,
+                "train": 5,
+                "motorcycle": 6,
+                "bicycle": 7,
+            },
+            image_channel_mode="RGB",
+            optimizer=BaseOptimizerConfig(lr=0.001),
+            abc="example_attribute",
         ),
-        dataloader=Dataloader(
-            workers_per_gpu=0,
-            ref_sampling_cfg=dict(type="uniform", scope=1, num_ref_imgs=0),
-            categories=[
-                "pedestrian",
-                "rider",
-                "car",
-                "truck",
-                "bus",
-                "train",
-                "motorcycle",
-                "bicycle",
-            ],
-            remove_samples_without_labels=True,
-            image_channel_mode="BGR",
-        ),
+        launch=config.Launch(samples_per_gpu=2, workers_per_gpu=0),
         train=[
             vist.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_train",
@@ -119,6 +111,8 @@ if __name__ == "__main__":
                 data_root="vist/engine/testcases/track/bdd100k-samples/"
                 "images/",
                 config_path="box_track",
+                eval_metrics=["detect"],
+                dataloader=Dataloader(skip_empty_samples=True),
             )
         ],
         test=[
@@ -140,16 +134,9 @@ if __name__ == "__main__":
     train(conf)
 
     # single GPU
-    conf.launch = config.Launch(device="cuda")
-    train(conf)
+    trainer_args = {"gpus": "0,"}  # add arguments for PyTorchLightning trainer
+    train(conf, trainer_args)
 
     # multi GPU
-    conf.launch = config.Launch(device="cuda", num_gpus=2)
-    launch(
-        train,
-        conf.launch.num_gpus,
-        num_machines=conf.launch.num_machines,
-        machine_rank=conf.launch.machine_rank,
-        dist_url=conf.launch.dist_url,
-        args=(conf,),
-    )
+    trainer_args = {"gpus": "0,1"}
+    train(conf, trainer_args)

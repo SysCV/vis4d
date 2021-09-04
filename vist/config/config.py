@@ -1,6 +1,5 @@
 """Config definitions."""
 import os
-import sys
 from argparse import Namespace
 from datetime import datetime
 from typing import Any, List, Optional
@@ -9,73 +8,55 @@ import toml
 import yaml
 from pydantic import BaseModel, validator
 
-from vist.data.dataset_mapper import DataloaderConfig
-from vist.data.datasets.base import BaseDatasetConfig
+from vist.data.datasets import BaseDatasetConfig
 from vist.model import BaseModelConfig
 from vist.struct import DictStrAny
-
-
-class Solver(BaseModel):
-    """Config for solver."""
-
-    images_per_gpu: int
-    lr_policy: str
-    base_lr: float
-    steps: Optional[List[int]]
-    max_iters: int
-    warmup_iters: Optional[int]
-    checkpoint_period: Optional[int]
-    log_period: Optional[int]
-    eval_period: Optional[int]
 
 
 class Launch(BaseModel):
     """Launch configuration.
 
     Standard Options (command line only):
-    action (positional argument): train / predict routine
+    action (positional argument): train / test / predict
     config: Filepath to config file
 
     Launch Options:
-    device: Device to train on (cpu / cuda / ..)
-    weights: Filepath for weights to load. Set to "detectron2" If you want to
-            load weights from detectron2 for a corresponding detector.
-    num_gpus: number of gpus per machine
-    num_machines: total number of machines
-    machine_rank: the rank of this machine (unique per machine)
-    dist_url: initialization URL for pytorch distributed backend. See
-        https://pytorch.org/docs/stable/distributed.html for details.
-    resume: Whether to attempt to resume from the checkpoint directory.
+    work_dir: Specific directory to save checkpoints, logs, etc. Integrates
+    with exp_name and version to work_dir/exp_name/version.
+    Default: ./vist-workspace/
+    exp_name: Name of current experiment. Default: <name of model>
+    version: Version of current experiment. Default: <timestamp>
     input_dir: Input directory in case you want to run inference on a folder
-    with input data (e.g. images that can be temporally sorted by name)
-    output_dir: Specific directory to save checkpoints, logs, etc.
-    Default: vist-workspace/<model_name>/<timestamp>
+    with input data (e.g. images that can be temporally sorted by name).
+    find_unused_parameters: Activates PyTorch checking for unused parameters
+    in DDP setting. Deactivated by default for better performance.
     visualize: If you're running in predict mode, this option lets you
     visualize the model predictions in the output_dir.
-    seed: Set random seed for numpy, torch, python. Default: -1,
+    seed: Set random seed for numpy, torch, python. Default: None,
     i.e. no specific random seed is chosen.
+    weights: Filepath for weights to load in test / predict. Default: "best",
+    will load the best checkpoint in work_dir/exp_name/version.
+    resume: Whether to resume from weights (if specified), or last ckpt in
+    work_dir/exp_name/version.
     """
 
     action: str = ""
-    device: str = "cpu"
-    weights: Optional[str] = None
-    num_gpus: int = 1
-    num_machines: int = 1
-    machine_rank: int = 0
-    # PyTorch still may leave orphan processes in multi-gpu training.
-    # Therefore we use a deterministic way to obtain port,
-    # so that users are aware of orphan processes by seeing the port occupied.
-    port = (
-        2 ** 15
-        + 2 ** 14
-        + hash(os.getuid() if sys.platform != "win32" else 1) % 2 ** 14
+    samples_per_gpu: int = 1
+    workers_per_gpu: int = 1
+    work_dir: str = "vist-workspace"
+    exp_name: str = ""
+    version: str = (
+        str(datetime.now())
+        .split(".", maxsplit=1)[0]
+        .replace(" ", "_")
+        .replace(":", "-")
     )
-    dist_url: str = "tcp://127.0.0.1:{}".format(port)
-    resume: bool = False
     input_dir: Optional[str]
-    output_dir: str = ""
+    find_unused_parameters: bool = False
     visualize: bool = False
-    seed: int = -1
+    seed: Optional[int]
+    weights: Optional[str]
+    resume: bool = False
 
     @validator("input_dir", always=True)
     def validate_input_dir(  # pylint: disable=no-self-argument,no-self-use
@@ -90,41 +71,27 @@ class Launch(BaseModel):
         return value
 
 
-class Config(BaseModel):
+class Config(BaseModel, extra="allow"):
     """Overall config object."""
 
     model: BaseModelConfig
-    solver: Solver
-    dataloader: DataloaderConfig
+    launch: Launch = Launch()
     train: List[BaseDatasetConfig] = []
     test: List[BaseDatasetConfig] = []
-    launch: Launch = Launch()
 
     def __init__(self, **data: Any) -> None:  # type: ignore
         """Init config."""
         super().__init__(**data)
-        if self.launch.output_dir == "":
-            timestamp = (
-                str(datetime.now())
-                .split(".", maxsplit=1)[0]
-                .replace(" ", "_")
-                .replace(":", "-")
-            )
-            self.launch.output_dir = os.path.join(
-                "vist-workspace", self.model.type, timestamp
-            )
-        os.makedirs(self.launch.output_dir, exist_ok=True)
+        if self.launch.exp_name == "":
+            self.launch.exp_name = self.model.type
 
 
 def parse_config(args: Namespace) -> Config:
-    """Read config, parse cmd line arguments, create workspace dir."""
+    """Read config, parse cmd line arguments."""
     cfg = read_config(args.config)
     for attr, value in args.__dict__.items():
         if attr in Launch.__fields__ and value is not None:
             setattr(cfg.launch, attr, getattr(args, attr))
-
-    if cfg.launch.device == "cpu":
-        cfg.launch.num_gpus = 0
 
     if args.__dict__.get("cfg_options", "") != "":
         cfg_dict = cfg.dict()
@@ -139,14 +106,15 @@ def parse_config(args: Namespace) -> Config:
 def load_config(filepath: str) -> DictStrAny:
     """Load config from file to dict."""
     ext = os.path.splitext(filepath)[1]
+    config_dict: DictStrAny
     if ext == ".yaml":
-        with open(filepath, "r") as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             config_dict = yaml.load(f.read(), Loader=yaml.Loader)
     elif ext == ".toml":
-        config_dict = toml.load(filepath)
+        config_dict = dict(**toml.load(filepath))
     else:
         raise NotImplementedError(f"Config type {ext} not supported")
-    return config_dict  # type: ignore
+    return config_dict
 
 
 def read_config(filepath: str) -> Config:
@@ -159,7 +127,7 @@ def read_config(filepath: str) -> Config:
     if "config" in config_dict:
         cwd = os.getcwd()
         os.chdir(os.path.dirname(filepath))
-        subconfig_dict = dict()  # type: DictStrAny
+        subconfig_dict: DictStrAny = {}
         for cfg in config_dict["config"]:
             assert "path" in cfg, "Config arguments must have path!"
             nested_update(subconfig_dict, load_config(cfg["path"]))
@@ -186,7 +154,9 @@ def keylist_update(  # type: ignore
 def nested_update(ori: DictStrAny, new: DictStrAny) -> DictStrAny:
     """Update function for updating a nested dict."""
     for k, v in new.items():
-        if isinstance(v, dict):
+        if isinstance(v, dict) and not isinstance(
+            v, toml.decoder.InlineTableDict  # type: ignore
+        ):
             ori[k] = nested_update(ori.get(k, {}), v)
         else:
             ori[k] = v

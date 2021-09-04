@@ -1,44 +1,34 @@
-"""Test cases for models engine config."""
+"""Unit tests for engine utils."""
 import unittest
 from argparse import Namespace
 
-from vist import config
-from vist.common.utils import timeit
-from vist.data.datasets.base import BaseDatasetConfig
-from vist.engine.utils import _register, to_detectron2
-from vist.unittest.utils import get_test_file
+from .utils import setup_logger, split_args
 
 
-class TestConfig(unittest.TestCase):
-    """Test cases for vist models config."""
+class TestTrack(unittest.TestCase):
+    """Test cases for vist tracking."""
 
-    @timeit  # type: ignore
-    def test_register(self) -> None:
-        """Testcase for register function."""
-        datasets = [
-            BaseDatasetConfig(
-                **dict(
-                    name="example",
-                    type="MOTChallenge",
-                    data_root="/path/to/data",
-                    annotations="/path/to/annotations",
-                )
-            )
-        ]
-        names = _register(datasets)
-        self.assertEqual(names, ["example"])
+    def test_split_args(self) -> None:
+        """Test split_args function."""
+        args = Namespace(a="hi", max_steps=10)
+        args1, args2 = split_args(args)
+        self.assertEqual(args1.a, "hi")  # pylint: disable=no-member
+        self.assertEqual(list(vars(args1).keys()), ["a"])
+        self.assertEqual(args.max_steps, 10)  # pylint: disable=no-member
+        self.assertEqual(list(vars(args2).keys()), ["max_steps"])
 
-    def test_to_detectron2(self) -> None:
-        """Testcase for detectron2 config conversion."""
-        test_file = get_test_file("detect/faster_rcnn_d2.toml")
-        args = Namespace(config=test_file, device="cuda")
-        cfg = config.parse_config(args)
-        det2cfg = to_detectron2(cfg)
-        self.assertEqual(
-            det2cfg.SOLVER.IMS_PER_BATCH, cfg.solver.images_per_gpu
-        )
-        self.assertEqual(
-            det2cfg.DATALOADER.NUM_WORKERS, cfg.dataloader.workers_per_gpu
-        )
-        self.assertEqual(det2cfg.DATASETS.TRAIN, ["bdd100k_det_sample_train"])
-        self.assertEqual(det2cfg.DATASETS.TEST, ["bdd100k_det_sample_val"])
+    @staticmethod
+    def test_setup_logger() -> None:
+        """Test setup_logger."""
+        logger = setup_logger()
+        logger.debug("DEBUG")
+        logger.info("INFO")
+        logger.warning("WARN")
+        logger.error("ERROR")
+        logger.critical("CRITICAL")
+        logger = setup_logger(color=False)
+        logger.debug("DEBUG")
+        logger.info("INFO")
+        logger.warning("WARN")
+        logger.error("ERROR")
+        logger.critical("CRITICAL")

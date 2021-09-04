@@ -11,7 +11,6 @@ You can install the package dependency via vanilla python and pip:
 ```bash
 python3 -m pip install -r requirements.txt \
     -f https://download.pytorch.org/whl/cpu/torch_stable.html
-python3 -m pip install 'git+git://github.com/facebookresearch/detectron2.git'
 ```
 
 This command installs pytorch without CUDA. Please look up
@@ -23,17 +22,16 @@ If you're using conda, run the following commands:
 ```bash
 conda create --name vist python=3.8
 conda activate vist
-pip install -r requirements.txt
 conda install pytorch torchvision torchaudio cudatoolkit=11.0 -c pytorch
-pip install 'git+https://github.com/facebookresearch/detectron2.git'
+pip install -r requirements.txt
 ```
 
 You can also use [python](./scripts/install_cpu_dep.sh) and [conda](./scripts/install_cpu_conda_dep.sh) scripts on CPU machine installation.
 
-More information about torch and detectron2 installation
+More information about torch and pytorch-lightning installation
 
 - [Pytorch](https://pytorch.org/get-started/locally)
-- [Detectron2](https://github.com/facebookresearch/detectron2/blob/master/INSTALL.md)
+- [PytorchLightning](https://www.pytorchlightning.ai/)
 
 To install `vist` package,
 

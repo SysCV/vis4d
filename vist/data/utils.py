@@ -1,6 +1,5 @@
 """data utils."""
 import itertools
-import logging
 import sys
 from collections import defaultdict
 from io import BytesIO
@@ -9,9 +8,9 @@ from typing import Any, Dict, List, Optional, Union
 import kornia
 import numpy as np
 import torch
-from detectron2.utils.logger import log_first_n
 from fvcore.common.timer import Timer
 from PIL import Image
+from pytorch_lightning.utilities.distributed import rank_zero_info
 from scalabel.label.typing import Frame
 from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
@@ -20,7 +19,6 @@ from termcolor import colored
 from vist.struct import NDArrayUI8
 
 D2BoxType = Dict[str, Union[bool, float, str]]
-logger = logging.getLogger(__name__)
 
 
 def transform_bbox(
@@ -64,8 +62,8 @@ def identity_batch_collator(  # type: ignore
     return batch
 
 
-def im_decode(im_bytes: bytes, mode: str = "BGR") -> NDArrayUI8:
-    """Decode to image (numpy array, BGR) from bytes."""
+def im_decode(im_bytes: bytes, mode: str = "RGB") -> NDArrayUI8:
+    """Decode to image (numpy array, RGB) from bytes."""
     pil_img = Image.open(BytesIO(bytearray(im_bytes)))
     if mode == "BGR":
         np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: NDArrayUI8
@@ -87,8 +85,8 @@ def instance_ids_to_global(
                 assert label.attributes is not None
                 if not check_crowd(label) and not check_ignored(label):
                     video_name = (
-                        ann.video_name
-                        if ann.video_name is not None
+                        ann.videoName
+                        if ann.videoName is not None
                         else "no-video-" + str(frame_id)
                     )
                     sum_previous_vids = sum(
@@ -109,8 +107,8 @@ def instance_ids_to_global(
 
 
 def prepare_labels(
-    cat_name2id: Dict[str, int],
     frames: List[Frame],
+    cat_name2id: Dict[str, int],
     global_instance_ids: bool = False,
 ) -> Dict[str, int]:
     """Add category id and instance id to labels, return class frequencies."""
@@ -120,7 +118,7 @@ def prepare_labels(
     for frame_id, ann in enumerate(frames):
         if ann.labels is not None:
             for label in ann.labels:
-                attr = dict()  # type: Dict[str, Union[bool, int, float, str]]
+                attr = {}  # type: Dict[str, Union[bool, int, float, str]]
                 if label.attributes is not None:
                     attr = label.attributes
 
@@ -130,8 +128,8 @@ def prepare_labels(
                     attr["category_id"] = cat_name2id[label.category]
 
                     video_name = (
-                        ann.video_name
-                        if ann.video_name is not None
+                        ann.videoName
+                        if ann.videoName is not None
                         else "no-video-" + str(frame_id)
                     )
                     if label.id not in instance_ids[video_name]:
@@ -145,7 +143,7 @@ def prepare_labels(
     if global_instance_ids:
         instance_ids_to_global(frames, instance_ids)
 
-    logger.info(
+    rank_zero_info(
         "Preprocessing %s labels takes %s seconds.",
         len(frames),
         "{:.2f}".format(timer.seconds()),
@@ -208,11 +206,7 @@ def print_class_histogram(class_frequencies: Dict[str, int]) -> None:
         numalign="left",
         stralign="center",
     )
-    log_first_n(
-        logging.INFO,
-        "Distribution of instances among all {} categories:\n".format(
-            num_classes
-        )
-        + colored(table, "cyan"),
-        key="message",
+    rank_zero_info(
+        f"Distribution of instances among all {num_classes} categories:\n"
+        + colored(table, "cyan")
     )

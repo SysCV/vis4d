@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.modeling import GeneralizedRCNN
+from detectron2.utils.events import EventStorage
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from vist.model.detect.d2_utils import (
@@ -26,11 +27,15 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
     def __init__(self, cfg: BaseModelConfig):
         """Init."""
-        super().__init__()
-        self.cfg = D2TwoStageDetectorConfig(**cfg.dict())
+        super().__init__(cfg)
+        self.cfg = D2TwoStageDetectorConfig(
+            **cfg.dict()
+        )  # type: D2TwoStageDetectorConfig
         self.d2_cfg = model_to_detectron2(self.cfg)
         # pylint: disable=too-many-function-args,missing-kwoa
         self.d2_detector = GeneralizedRCNN(self.d2_cfg)
+        # detectron2 requires an EventStorage for logging
+        self.d2_event_storage = EventStorage()
         self.checkpointer = DetectionCheckpointer(self.d2_detector)
         if self.d2_cfg.MODEL.WEIGHTS != "":
             self.checkpointer.load(self.d2_cfg.MODEL.WEIGHTS)
@@ -43,11 +48,6 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             if isinstance(m, _BatchNorm):
                 m.eval()
 
-    @property
-    def device(self) -> torch.device:
-        """Get device where detect input should be moved to."""
-        return self.d2_detector.pixel_mean.device
-
     def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
         """Batch, pad (standard stride=32) and normalize the input images."""
         images = Images.cat([inp.image for inp in batched_inputs], self.device)
@@ -57,12 +57,13 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         return images
 
     def forward_train(
-        self, batch_inputs: List[List[InputSample]]
+        self,
+        batch_inputs: List[List[InputSample]],
     ) -> LossesType:
-        """Forward pass during training stage.
-
-        Returns a dict of loss tensors.
-        """
+        """D2 model forward pass during training stage."""
+        assert all(
+            len(inp) == 1 for inp in batch_inputs
+        ), "No reference views allowed in D2TwoStageDetector training!"
         inputs = [inp[0] for inp in batch_inputs]
 
         targets = []
@@ -81,25 +82,23 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         return {**rpn_losses, **detect_losses}
 
     def forward_test(
-        self, batch_inputs: List[InputSample], postprocess: bool = True
+        self,
+        batch_inputs: List[List[InputSample]],
     ) -> ModelOutput:
-        """Forward pass during testing stage.
-
-        Returns predictions for each input.
-        """
-        images = self.preprocess_image(batch_inputs)
+        """Forward pass during testing stage."""
+        inputs = [inp[0] for inp in batch_inputs]
+        images = self.preprocess_image(inputs)
         features = self.extract_features(images)
         proposals, _ = self.generate_proposals(images, features)
         detections, _ = self.generate_detections(images, features, proposals)
         assert detections is not None
-
-        if postprocess:
-            for inp, det in zip(batch_inputs, detections):
-                ori_wh = (
-                    batch_inputs[0].metadata.size.width,  # type: ignore
-                    batch_inputs[0].metadata.size.height,  # type: ignore
-                )
-                self.postprocess(ori_wh, inp.image.image_sizes[0], det)
+        assert inputs[0].metadata.size is not None
+        input_size = (
+            inputs[0].metadata.size.width,
+            inputs[0].metadata.size.height,
+        )
+        for inp, det in zip(inputs, detections):
+            self.postprocess(input_size, inp.image.image_sizes[0], det)
 
         return dict(detect=detections)  # type: ignore
 
@@ -127,9 +126,10 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         else:
             self.d2_detector.proposal_generator.training = False
 
-        proposals, rpn_losses = self.d2_detector.proposal_generator(
-            images_d2, features, targets
-        )
+        with self.d2_event_storage:
+            proposals, rpn_losses = self.d2_detector.proposal_generator(
+                images_d2, features, targets
+            )
         self.d2_detector.proposal_generator.training = is_training
         return proposal_to_box2d(proposals), rpn_losses
 
@@ -153,12 +153,13 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         else:
             self.d2_detector.roi_heads.training = False
 
-        detections, detect_losses = self.d2_detector.roi_heads(
-            images_d2,
-            features,
-            proposals,
-            targets,
-        )
+        with self.d2_event_storage:
+            detections, detect_losses = self.d2_detector.roi_heads(
+                images_d2,
+                features,
+                proposals,
+                targets,
+            )
         self.d2_detector.roi_heads.training = is_training
         if not self.d2_detector.training:
             detections = detections_to_box2d(detections)

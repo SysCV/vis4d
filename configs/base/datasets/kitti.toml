@@ -7,6 +7,26 @@ split = "training"
 data_type = "tracking"
 output_dir = "data/KITTI/anns"
 num_processes = 0
+    [train.dataloader]
+    skip_empty_samples = true
+
+    [train.dataloader.ref_sampling_cfg]
+    type = 'uniform'
+    scope = 3
+    num_ref_imgs = 1
+    skip_nomatch_samples = true
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    kwargs = {"shape" = [375, 1242]}
+
+    [[train.dataloader.transformations]]
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
+
+    [[train.dataloader.transformations]]
+    type = "RandomRotation"
+    kwargs = {"p" = 0.5, "degrees" = 10.0}
 
 [[train]]
 name = "kitti_det_train"
@@ -17,6 +37,20 @@ split = "training"
 data_type = "detection"
 output_dir = "data/KITTI/anns"
 num_processes = 0
+    [train.dataloader]
+    skip_empty_samples = true
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    kwargs = {"shape" = [375, 1242]}
+
+    [[train.dataloader.transformations]]
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
+
+    [[train.dataloader.transformations]]
+    type = "RandomRotation"
+    kwargs = {"p" = 0.5, "degrees" = 10.0}
 
 [[test]]
 name = "kitti_sample_train"
@@ -28,30 +62,6 @@ data_type = "tracking"
 output_dir = "data/KITTI/anns"
 num_processes = 0
 
-[dataloader]
-workers_per_gpu = 0
-categories = ["car", "pedestrian", "cyclist"]
-skip_empty_samples = true
-    [dataloader.data_backend]
-    type = "FileBackend"
-    [dataloader.ref_sampling_cfg]
-    type = 'uniform'
-    scope = 3
-    num_ref_imgs = 1
-    skip_nomatch_samples = true
-
-    [[dataloader.train_augmentations]]
-    type = "Resize"
-    kwargs = {"shape" = [375, 1242]}
-
-    [[dataloader.train_augmentations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
-
-    [[dataloader.train_augmentations]]
-    type = "RandomRotation"
-    kwargs = {"p" = 0.5, "degrees" = 10.0}
-
-    [[dataloader.test_augmentations]]
+    [[test.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [375, 1242]}

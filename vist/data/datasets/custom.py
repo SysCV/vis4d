@@ -36,8 +36,8 @@ class Custom(BaseDatasetLoader):
                     size = ImageSize(width=img.size[0], height=img.size[1])
                     frame = Frame(
                         name=img_file,
-                        video_name=video_name,
-                        frame_index=i,
+                        videoName=video_name,
+                        frameIndex=i,
                         size=size,
                     )
                     frames.append(frame)

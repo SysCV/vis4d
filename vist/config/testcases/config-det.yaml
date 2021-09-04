@@ -1,16 +1,4 @@
 model:
   type: test-model
-solver:
-  images_per_gpu: 16
-  lr_policy: step
-  base_lr: 0.02
-  steps: [1000, 2000]
-  max_iters: 10000
-  eval_metrics: []
-dataloader:
-  workers_per_gpu: 2
-  image_channel_mode: "BGR"
-  ref_sampling_cfg:
-    type: 'uniform'
-    scope: 2
-    num_ref_imgs: 1
+launch:
+  samples_per_gpu: 2

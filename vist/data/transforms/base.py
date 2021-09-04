@@ -71,11 +71,9 @@ class BaseAugmentation(GeometricAugmentationBase2D, metaclass=RegistryHolder):  
         raise NotImplementedError
 
 
-def build_augmentation(
-    cfg: AugmentationConfig,
-) -> BaseAugmentation:
+def build_augmentation(cfg: AugmentationConfig) -> BaseAugmentation:
     """Build a single augmentation."""
-    registry = RegistryHolder.get_registry(GeometricAugmentationBase2D)
+    registry = RegistryHolder.get_registry(BaseAugmentation)
 
     if cfg.type in registry:
         augmentation = registry[cfg.type]
@@ -83,7 +81,8 @@ def build_augmentation(
         augmentation = getattr(kornia_augmentation, cfg.type)
     else:
         raise ValueError(f"Augmentation {cfg.type} not known!")
-    return augmentation(**cfg.kwargs)  # type: ignore
+    module = augmentation(**cfg.kwargs)
+    return module  # type: ignore
 
 
 def build_augmentations(

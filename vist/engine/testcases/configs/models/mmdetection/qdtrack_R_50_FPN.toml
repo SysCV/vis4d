@@ -1,10 +1,10 @@
 [model]
-type = "QDGeneralizedRCNN"
+type = "QDTrack"
+category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
     [model.detection]
     type = "MMTwoStageDetector"
     model_base = "mmdet://_base_/models/faster_rcnn_r50_fpn.py"
     model_kwargs= {"rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.beta" = 0.111, "roi_head.bbox_head.loss_bbox.type" = "SmoothL1Loss"}
-    num_classes = 8
     pixel_mean = [123.675, 116.28, 103.53]
     pixel_std = [58.395, 57.12, 57.375]
     backbone_output_names = ["p2", "p3", "p4", "p5", "p6"]
@@ -28,7 +28,6 @@ type = "QDGeneralizedRCNN"
 
     [model.similarity]
     type = "QDSimilarityHead"
-    num_classes = 0
     in_dim = 256
     num_convs = 4
     conv_out_dim = 256
@@ -36,7 +35,7 @@ type = "QDGeneralizedRCNN"
     fc_out_dim = 1024
     embedding_dim = 256
     conv_has_bias = false
-    norm = "GN"
+    norm = "GroupNorm"
     proposal_append_gt = true
 
         [model.similarity.proposal_pooler]
@@ -58,6 +57,3 @@ type = "QDGeneralizedRCNN"
         thresholds = [0.3, 0.7]
         labels = [0, -1, 1]
         allow_low_quality_matches = false
-
-[dataloader]
-image_channel_mode = "RGB"
