@@ -1,20 +1,51 @@
 """Utility functions for bounding boxes."""
+from typing import Tuple
+
 import torch
-from detectron2.structures import Boxes, pairwise_iou
 
 from vist.struct import Boxes2D
 
 
-def compute_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
+def bbox_intersection(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
+    """Given two lists of boxes of size N and M, compute N x M intersection.
+
+    Args:
+        boxes1: N 2D boxes in format (x1, y1, x2, y2, Optional[score])
+        boxes2: M 2D boxes in format (x1, y1, x2, y2, Optional[score])
+
+    Returns:
+        Tensor: intersection (N, M).
+    """
+    boxes1, boxes2 = boxes1.boxes[:, :4], boxes2.boxes[:, :4]
+    width_height = torch.min(boxes1[:, None, 2:], boxes2[:, 2:]) - torch.max(
+        boxes1[:, None, :2], boxes2[:, :2]
+    )
+
+    width_height.clamp_(min=0)
+    intersection = width_height.prod(dim=2)
+    return intersection
+
+
+def bbox_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
     """Compute IoU between all pairs of boxes.
 
     Args:
-        boxes1, boxes2 (Boxes2D): Contains N & M boxes.
+        boxes1: N 2D boxes in format (x1, y1, x2, y2, Optional[score])
+        boxes2: M 2D boxes in format (x1, y1, x2, y2, Optional[score])
 
     Returns:
-        Tensor: IoU, size [N, M].
+        Tensor: IoU (N, M).
     """
-    return pairwise_iou(Boxes(boxes1.boxes[:, :4]), Boxes(boxes2.boxes[:, :4]))
+    area1 = boxes1.area()
+    area2 = boxes2.area()
+    inter = bbox_intersection(boxes1, boxes2)
+
+    iou = torch.where(
+        inter > 0,
+        inter / (area1[:, None] + area2 - inter),
+        torch.zeros(1, dtype=inter.dtype, device=inter.device),
+    )
+    return iou
 
 
 def random_choice(tensor: torch.Tensor, sample_size: int) -> torch.Tensor:
@@ -27,3 +58,15 @@ def non_intersection(t1: torch.Tensor, t2: torch.Tensor) -> torch.Tensor:
     """Get the elements of t1 that are not present in t2."""
     compareview = t2.repeat(t1.shape[0], 1).T
     return t1[(compareview != t1).T.prod(1) == 1]
+
+
+def nonzero_tuple(tensor: torch.Tensor) -> Tuple[torch.Tensor]:
+    """A 'as_tuple=True' version of torch.nonzero to support torchscript.
+
+    because of https://github.com/pytorch/pytorch/issues/38718
+    """
+    if torch.jit.is_scripting():
+        if tensor.dim() == 0:
+            return tensor.unsqueeze(0).nonzero().unbind(1)  # type: ignore
+        return tensor.nonzero().unbind(1)  # type: ignore
+    return tensor.nonzero(as_tuple=True)  # type: ignore

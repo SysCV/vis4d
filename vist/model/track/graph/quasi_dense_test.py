@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from vist.common.bbox.utils import compute_iou
+from vist.common.bbox.utils import bbox_iou
 from vist.struct import Boxes2D
 from vist.unittest.utils import generate_dets
 
@@ -74,5 +74,5 @@ class TestQDTrackGraph(unittest.TestCase):
             )
 
             # check if tracks do not overlap too much
-            ious = compute_iou(res, res) - torch.eye(len(res.boxes))
+            ious = bbox_iou(res, res) - torch.eye(len(res.boxes))
             self.assertTrue((ious <= tracker.cfg.nms_class_iou_thr).all())

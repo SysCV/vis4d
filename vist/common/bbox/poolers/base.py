@@ -10,7 +10,10 @@ from vist.struct import Boxes2D
 
 
 class RoIPoolerConfig(BaseModel, extra="allow"):
-    """Base RoI pooler config."""
+    """Base RoI pooler config.
+
+    resolution: output size of the pooled region, e.g., 14 x 14.
+    """
 
     type: str = Field(...)
     resolution: Tuple[int, int] = Field(...)

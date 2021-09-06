@@ -1,14 +1,32 @@
 """Interface for VisT bounding box samplers."""
-
 import abc
-from typing import List, Tuple
+from typing import List, NamedTuple
 
+import torch
 from pydantic import BaseModel, Field
 
 from vist.common.registry import RegistryHolder
 from vist.struct import Boxes2D
 
 from ..matchers.base import MatchResult
+
+
+class SamplingResult(NamedTuple):
+    """Match result class. Stores expected result tensors.
+
+    sampled_boxes: List[Boxes2D] Sampled Boxes.
+    sampled_targets: List[Boxes2D] Assigned target for each sampled box.
+    sampled_labels: List[Tensor] of {0, -1, 1} = {neg, ignore, pos}.
+    sampled_indices: List[Tensor] Index of input Boxes2D.
+    sampled_label_indices: List[Tensor] Index of assigned target for each
+        sampled box.
+    """
+
+    sampled_boxes: List[Boxes2D]
+    sampled_targets: List[Boxes2D]
+    sampled_labels: List[torch.Tensor]
+    sampled_indices: List[torch.Tensor]
+    sampled_target_indices: List[torch.Tensor]
 
 
 class SamplerConfig(BaseModel, extra="allow"):
@@ -30,7 +48,7 @@ class BaseSampler(metaclass=RegistryHolder):
         matching: List[MatchResult],
         boxes: List[Boxes2D],
         targets: List[Boxes2D],
-    ) -> Tuple[List[Boxes2D], List[Boxes2D]]:
+    ) -> SamplingResult:
         """Sample bounding boxes according to their struct."""
         raise NotImplementedError
 

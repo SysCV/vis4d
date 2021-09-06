@@ -153,6 +153,13 @@ class Boxes2D(Boxes, LabelInstance):
         self.boxes[:, [0, 2]] = self.boxes[:, [0, 2]].clamp(0, image_wh[0] - 1)
         self.boxes[:, [1, 3]] = self.boxes[:, [1, 3]].clamp(0, image_wh[1] - 1)
 
+    def area(self) -> torch.Tensor:
+        """Compute area of each bounding box."""
+        area = (self.boxes[:, 2] - self.boxes[:, 0]) * (
+            self.boxes[:, 3] - self.boxes[:, 1]
+        )
+        return area
+
     @classmethod
     def from_scalabel(
         cls,

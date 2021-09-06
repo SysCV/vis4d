@@ -1,5 +1,5 @@
 """Init sampler module."""
-from .base import BaseSampler, SamplerConfig, build_sampler
+from .base import BaseSampler, SamplerConfig, SamplingResult, build_sampler
 from .combined import CombinedSampler
 from .random import RandomSampler
 
@@ -9,4 +9,5 @@ __all__ = [
     "CombinedSampler",
     "build_sampler",
     "SamplerConfig",
+    "SamplingResult",
 ]

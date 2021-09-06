@@ -1,10 +1,10 @@
 """Init sampler module."""
 from .base import BaseRoIPooler, RoIPoolerConfig, build_roi_pooler
-from .d2_roi_pooler import D2RoIPooler
+from .roi_pooler import MultiScaleRoIPooler
 
 __all__ = [
     "BaseRoIPooler",
-    "D2RoIPooler",
+    "MultiScaleRoIPooler",
     "build_roi_pooler",
     "RoIPoolerConfig",
 ]
