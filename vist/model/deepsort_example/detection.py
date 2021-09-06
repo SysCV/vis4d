@@ -1,5 +1,5 @@
 """Class for holding one bounding box detection in a single image."""
-import numpy as np
+import torch
 
 
 class Detection:
@@ -7,34 +7,40 @@ class Detection:
 
     Attributes
     ----------
-    tlwh : ndarray
+    tlwh : torch.tensor
         Bounding box in format `(top left x, top left y, width, height)`.
-    confidence : ndarray
+    confidence : float
         Detector confidence score.
-    feature : ndarray | NoneType
+    feature : torch.tensor
         A feature vector that describes the object contained in this image.
     """
 
-    def __init__(self, tlwh, confidence, class_id, feature):
+    def __init__(
+        self,
+        tlwh: torch.tensor,
+        confidence: float,
+        class_id: int,
+        feature: torch.tensor,
+    ):
         """Init."""
-        self.tlwh = np.asarray(tlwh, dtype=np.float64)
+        self.tlwh = tlwh.clone().detach()
         self.confidence = confidence
         self.class_id = class_id
-        self.feature = np.asarray(feature, dtype=np.float32)
+        self.feature = feature.clone().detach()
 
-    def to_tlbr(self):
+    def to_tlbr(self) -> torch.tensor:
         """Convert bounding box to format `(min x, min y, max x, max y)`."""
-        ret = self.tlwh.copy()
+        ret = self.tlwh.clone().detach()
         ret[2:] += ret[:2]
         return ret
 
-    def to_xyah(self):
+    def to_xyah(self) -> torch.tensor:
         # pylint: disable=line-too-long
         """Convert bounding box to format `(center x, center y, aspect ratio, height)`.
 
         aspect ratio is `width / height`.
         """
-        ret = self.tlwh.copy()
+        ret = self.tlwh.clone().detach()
         ret[:2] += ret[2:] / 2.0
         ret[2] /= ret[3]
         return ret

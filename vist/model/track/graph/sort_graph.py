@@ -1,15 +1,11 @@
 """Track graph of SORT."""
-
 from typing import Dict, List, Optional, Tuple
-import scipy.linalg
 import torch
 from detectron2.structures import Boxes, pairwise_iou
 from scipy.optimize import linear_sum_assignment as linear_assignment
 
 from vist.struct import Boxes2D, NDArrayF64
 from .base import BaseTrackGraph, TrackGraphConfig
-
-# MetadataCatalog.get(dataset_name).idx_to_class_mapping
 
 
 class SORTTrackGraphConfig(TrackGraphConfig):
@@ -407,7 +403,6 @@ class KalmanFilter(object):
             ]
         )
         innovation_cov = torch.diag(torch.square(std))
-
         mean = torch.matmul(self._update_mat, mean)
         covariance = torch.matmul(
             self._update_mat, torch.matmul(covariance, self._update_mat.T)
@@ -422,22 +417,15 @@ class KalmanFilter(object):
     ) -> Tuple[torch.tensor, torch.tensor]:
         """Run Kalman filter correction step."""
         projected_mean, projected_cov = self.project(mean, covariance)
-        projected_cov = projected_cov.numpy()
-        chol_factor, lower = scipy.linalg.cho_factor(
-            projected_cov, lower=True, check_finite=False
-        )
-        kalman_gain = scipy.linalg.cho_solve(
-            (chol_factor, lower),
-            torch.matmul(covariance, self._update_mat.T).numpy().T,
-            check_finite=False,
+        chol_factor = torch.linalg.cholesky(projected_cov)
+        kalman_gain = torch.cholesky_solve(
+            torch.matmul(covariance, self._update_mat.T).T,
+            chol_factor,
+            upper=False,
         ).T
-        kalman_gain = torch.from_numpy(kalman_gain)
         innovation = measurement - projected_mean
-
         new_mean = mean + torch.matmul(innovation, kalman_gain.T)
-        projected_cov = torch.from_numpy(projected_cov)
         new_covariance = covariance - torch.matmul(
             kalman_gain, torch.matmul(projected_cov, kalman_gain.T)
         )
-
         return new_mean, new_covariance

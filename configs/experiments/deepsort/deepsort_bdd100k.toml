@@ -54,8 +54,8 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
 image_channel_mode = "RGB"
 
 [launch]
-samples_per_gpu = 8
-workers_per_gpu = 2
+samples_per_gpu = 32
+workers_per_gpu = 8
 
 [trainer]
 max_epochs = 12

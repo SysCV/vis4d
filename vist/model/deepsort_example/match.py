@@ -1,5 +1,5 @@
-from typing import Dict, List, Optional, Tuple
-
+"""Match based on IOU."""
+from typing import List, Tuple
 import torch
 import torch.nn as nn
 from detectron2.structures import Boxes, pairwise_iou
@@ -38,8 +38,6 @@ def match(
         + (1 - balance_lambda) * feature_cost_matrix
     )
     row_indices, col_indices = linear_assignment(cost_matrix)
-    # print("row_indices:  ", row_indices)
-    # print("col_indices:  ", col_indices)
     matches, unmatched_tracks, unmatched_detections = [], [], []
     for col, detection_idx in enumerate(det_indices):
         if col not in col_indices:
@@ -48,7 +46,6 @@ def match(
         if row not in row_indices:
             unmatched_tracks.append(track_idx)
     for row, col in zip(row_indices, col_indices):
-        # print("row, col : ", row, ",   ", col)
         track_idx = tracks_indices[row]
         detection_idx = det_indices[col]
         if iou_cost_matrix[row, col] > max_IOU_distance:

@@ -1,11 +1,9 @@
 """Track graph of deep SORT."""
+from typing import List, Tuple
 from collections import defaultdict
-from typing import List
-
-import numpy as np
 import torch
 
-from vist.struct import Boxes2D, NDArrayF64
+from vist.struct import Boxes2D
 from ...deepsort_example.iou_matching import iou_cost
 from ...deepsort_example.linear_assignment import (
     gate_cost_matrix,
@@ -18,24 +16,18 @@ from ...deepsort_example.nn_matching import NearestNeighborDistanceMetric
 from ...deepsort_example.track import Track
 from .base import BaseTrackGraph, TrackGraphConfig
 
-# from ...deepsort_example.preprocessing import non_max_suppression
 
-
-def tlwh_to_tlbr(bbox_tlwh: NDArrayF64):
-    """Convert a single bbox from tlwh to tlbr."""
-    x1, y1, w, h = bbox_tlwh
-    x2 = x1 + w
-    y2 = y1 + h
-    return x1, y1, x2, y2
-
-
-def tlbr_to_tlwh(bbox_tlbr: NDArrayF64):
+def tlbr_to_tlwh(bbox_tlbr: torch.tensor) -> torch.tensor:
     """Convert tlbr boxes to tlwh.
 
-    bbox_tlbr: torch.FloatTensor: (N, 4) where each entry is defined by
-    [x1, y1, x2, y2]
+    Args:
+        bbox_tlbr: torch.FloatTensor: (N, 4) where each entry is defined by
+            [x1, y1, x2, y2]
+
+    Returns:
+        bbox_tlwh: torch.FloatTensor: (N, 4), [x1, y1, w, h]
     """
-    bbox_tlwh = bbox_tlbr.copy()
+    bbox_tlwh = bbox_tlbr.clone().detach()
     bbox_tlwh[:, 2] = bbox_tlbr[:, 2] - bbox_tlbr[:, 0]
     bbox_tlwh[:, 3] = bbox_tlbr[:, 3] - bbox_tlbr[:, 1]
     return bbox_tlwh
@@ -115,28 +107,19 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         self,
         detections: Boxes2D,
         frame_id: int,
-        det_features: torch.Tensor,
+        det_features: torch.tensor,
     ) -> Boxes2D:
         """Process inputs, match detections with existing tracks."""
-        det_boxes = detections.boxes.to(torch.device("cpu")).numpy()
+        det_boxes = detections.boxes
         bbox_tlbr = det_boxes[:, :-1]
         confidences = det_boxes[:, -1]
-        class_ids = detections.class_ids.to(torch.device("cpu"))
-        det_features = det_features.to(torch.device("cpu")).numpy()
+        class_ids = detections.class_ids
         bbox_tlwh = tlbr_to_tlwh(bbox_tlbr)
         dets = [
             Detection(bbox_tlwh[i], conf, int(class_id), det_features[i])
             for i, (conf, class_id) in enumerate(zip(confidences, class_ids))
             if conf >= self.cfg.min_confidence
         ]
-        # # run on non-maximum supression, don't use it on good detection
-        # boxes = np.array([d.tlwh for d in dets])
-        # scores = np.array([d.confidence for d in dets])
-        # indices = non_max_suppression(
-        #     boxes, self.cfg.nms_max_overlap, scores
-        # )  # pylint:disable=line-too-long
-        # dets = [dets[i] for i in indices]
-
         self.predict()
         self.update(dets)
 
@@ -198,16 +181,23 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             targets += [track.track_id for _ in track.features]
             track.features = []
         self.metric.partial_fit(
-            np.asarray(features), np.asarray(targets), active_targets
+            features,
+            targets,
+            active_targets,
         )
 
-    def _match(self, detections: List[Detection], detection_indices, class_id):
+    def _match(
+        self,
+        detections: List[Detection],
+        detection_indices: List[int],
+        class_id: int,
+    ) -> Tuple[List[Tuple[int, int]], List[int], List[int]]:
         """Matching."""
 
         def gated_metric(tracks, dets, track_indices, detection_indices):
             """Calculate cost matrix."""
-            features = np.array([dets[i].feature for i in detection_indices])
-            targets = np.array([tracks[i].track_id for i in track_indices])
+            features = [dets[i].feature for i in detection_indices]
+            targets = [tracks[i].track_id for i in track_indices]
             # calculate cost matrix using deep feature
             cost_matrix = self.metric.distance(features, targets)
             # use mahalanobis distance to gate cost matrix
@@ -243,7 +233,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             gated_metric,
             self.metric.matching_threshold,
             self.max_age,
-            self.tracks,
+            self.tracks,  # type:ignore
             detections,
             confirmed_tracks,
             detection_indices,
@@ -267,7 +257,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         ) = min_cost_matching(
             iou_cost,
             self.max_iou_distance,
-            self.tracks,
+            self.tracks,  # type:ignore
             detections,
             iou_track_candidates,
             unmatched_detections,
@@ -277,13 +267,13 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         unmatched_tracks = list(set(unmatched_tracks_a + unmatched_tracks_b))
         return matches, unmatched_tracks, unmatched_detections
 
-    def _initiate_track(self, detection):
+    def _initiate_track(self, detection: Detection) -> None:
         """Initiate a track."""
         mean, covariance = self.kf.initiate(
             detection.to_xyah(), detection.class_id
         )
         confidence, class_id = detection.confidence, detection.class_id
-        self.tracks.append(
+        self.tracks.append(  # type:ignore
             Track(
                 mean,
                 covariance,

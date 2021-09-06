@@ -1,5 +1,5 @@
 [[train]]
-name = "bdd100k_track_train"
+name = "bdd100k_track_train_os"
 type = "BDD100K"
 annotations = "data/one_sequence/labels"
 data_root = "data/one_sequence/images/"
@@ -18,10 +18,10 @@ num_processes = 0
     kwargs = {"p" = 0.5}
 
 [[test]]
-name = "bdd100k_track_val"
+name = "bdd100k_track_val_os"
 type = "BDD100K"
-annotations = "data/bdd100k/labels/box_track_20/val/"
-data_root = "data/bdd100k/images/track/val/"
+annotations = "data/one_sequence/labels"
+data_root = "data/one_sequence/images/"
 eval_metrics = ["track"]
 config_path = "box_track"
 num_processes = 0
@@ -55,12 +55,12 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
 image_channel_mode = "RGB"
 
 [launch]
-samples_per_gpu = 8
-workers_per_gpu = 2
+samples_per_gpu = 32
+workers_per_gpu = 8
 
 [trainer]
 max_epochs = 12
 log_every_n_steps = 50
 check_val_every_n_epoch = 1
 num_sanity_val_steps = 0
-gpus = 4
+gpus = 1

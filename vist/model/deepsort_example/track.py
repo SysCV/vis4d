@@ -1,7 +1,7 @@
 """DeepSORT track."""
 from typing import Optional
+import torch
 
-from vist.struct import NDArrayF64
 from .detection import Detection
 from .kalman_filter import KalmanFilter
 
@@ -25,13 +25,13 @@ class Track:
 
     Attributes
     ----------
-    mean : ndarray
+    mean : torch.tensor
         The 8-dimensional state space, (x, y, a, h, vx, vy, va, vh), contains
         the bounding box center position (x, y), aspect ratio a, height h,
         and their respective velocities.
     confidence: float
         bounding box detection confidence score
-    covariance : ndarray
+    covariance : torch.tensor
         Covariance matrix of the state distribution.
     track_id : int
         A unique track identifier.
@@ -42,7 +42,7 @@ class Track:
     max_age : int
         The maximum number of consecutive misses before the track state is
         set to `Deleted`.
-    feature : Optional[ndarray]
+    feature : Optional[torch.tensor]
         Feature vector of the detection.
     hits : int
         Total number of measurement updates.
@@ -52,21 +52,21 @@ class Track:
         Total number of frames since last measurement update.
     state: TrackState
         The current track state.
-    features : List[ndarray]
+    features : List[torch.tensor]
         A cache of features. On each measurement update, the associated feature
         vector is added to this list.
     """
 
     def __init__(
         self,
-        mean: NDArrayF64,
-        covariance: NDArrayF64,
+        mean: torch.tensor,
+        covariance: torch.tensor,
         confidence: float,
         class_id: int,
         track_id: int,
         n_init: int,
         max_age: int,
-        feature: Optional[NDArrayF64] = None,
+        feature: Optional[torch.tensor] = None,
     ):
         """Init."""
         self.mean = mean
@@ -89,7 +89,7 @@ class Track:
 
     def to_tlwh(self):
         """Get bounding box in `(top left x, top left y, width, height)."""
-        ret = self.mean[:4].copy()
+        ret = self.mean[:4].clone().detach()
         ret[2] *= ret[3]
         ret[:2] -= ret[2:] / 2.0
         return ret
@@ -100,11 +100,14 @@ class Track:
         ret[2:] = ret[:2] + ret[2:]
         return ret
 
-    def predict(self, kf):
+    def predict(self, kf: KalmanFilter):
         """State prediction to the current time.
 
         Propagate the state distribution to the current time step using a
         Kalman filter prediction step.
+
+        Args:
+            kf: KalmanFilter
         """
         self.mean, self.covariance = kf.predict(
             self.mean, self.covariance, self.class_id
