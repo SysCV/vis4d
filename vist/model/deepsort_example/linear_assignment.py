@@ -1,13 +1,16 @@
 """LInear assignment."""
 from __future__ import absolute_import
-from typing import Callable, Tuple, List, Optional
+
+from typing import Callable, List, Optional, Tuple
+
 import torch
 
 # from sklearn.utils.linear_assignment_ import linear_assignment
 from scipy.optimize import linear_sum_assignment as linear_assignment
+
 from .detection import Detection
+from .kalman_filter import KalmanFilter, chi2inv95
 from .track import Track
-from .kalman_filter import chi2inv95, KalmanFilter
 
 INFTY_COST = 1e5
 

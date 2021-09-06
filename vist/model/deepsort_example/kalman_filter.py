@@ -1,12 +1,9 @@
 """Kalman filter."""
-from typing import Tuple, Optional
+from typing import Optional, Tuple
+
 import torch
 
-from .kf_parameters import (
-    cov_motion_Q,
-    cov_P0,
-    cov_project_R,
-)
+from .kf_parameters import cov_motion_Q, cov_P0, cov_project_R
 
 # Table for the 0.95 quantile of the chi-square distribution with N degrees of
 # freedom (contains values for N=1, ..., 9). Taken from MATLAB/Octave's chi2inv

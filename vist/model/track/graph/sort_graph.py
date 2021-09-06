@@ -1,10 +1,12 @@
 """Track graph of SORT."""
 from typing import Dict, List, Optional, Tuple
+
 import torch
 from detectron2.structures import Boxes, pairwise_iou
 from scipy.optimize import linear_sum_assignment as linear_assignment
 
 from vist.struct import Boxes2D, NDArrayF64
+
 from .base import BaseTrackGraph, TrackGraphConfig
 
 

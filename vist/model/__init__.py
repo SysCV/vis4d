@@ -1,8 +1,8 @@
 """VisT model module."""
 from .base import BaseModel, BaseModelConfig, build_model
+from .deepsort_model import DeepSORT
 from .qdtrack import QDTrack
 from .sort_model import SORT
-from .deepsort_model import DeepSORT
 
 __all__ = [
     "BaseModelConfig",

@@ -1,10 +1,12 @@
 """IOU matching."""
 from __future__ import absolute_import
+
 from typing import List, Optional
+
 import torch
 
-from .linear_assignment import INFTY_COST
 from .detection import Detection
+from .linear_assignment import INFTY_COST
 from .track import Track
 
 

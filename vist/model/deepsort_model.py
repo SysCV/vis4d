@@ -4,12 +4,12 @@ from typing import Dict, List
 import torch
 from torchvision.ops import roi_align
 
-
 from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
+
 from .base import BaseModel, BaseModelConfig
-from .track.graph import TrackGraphConfig, build_track_graph
-from .load_predictions import load_predictions
 from .deepsort_example.deep import FeatureNet
+from .load_predictions import load_predictions
+from .track.graph import TrackGraphConfig, build_track_graph
 
 
 class DeepSORTConfig(BaseModelConfig, extra="allow"):

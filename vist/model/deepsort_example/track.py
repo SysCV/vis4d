@@ -1,5 +1,6 @@
 """DeepSORT track."""
 from typing import Optional
+
 import torch
 
 from .detection import Detection

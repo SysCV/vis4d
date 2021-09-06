@@ -1,5 +1,6 @@
 """Nearest Neighbor metric."""
 from typing import Dict, List, Optional
+
 import torch
 
 

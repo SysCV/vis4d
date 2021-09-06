@@ -2,10 +2,12 @@
 from typing import Dict, List
 
 import torch
+
 from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
+
 from .base import BaseModel, BaseModelConfig, build_model
-from .track.graph import TrackGraphConfig, build_track_graph
 from .load_predictions import load_predictions
+from .track.graph import TrackGraphConfig, build_track_graph
 
 
 class SORTConfig(BaseModelConfig, extra="allow"):

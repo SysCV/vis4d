@@ -1,17 +1,19 @@
 """Track graph of deep SORT."""
-from typing import List, Tuple
 from collections import defaultdict
+from typing import List, Tuple
+
 import torch
 
 from vist.struct import Boxes2D
+
+from ...deepsort_example.detection import Detection
 from ...deepsort_example.iou_matching import iou_cost
+from ...deepsort_example.kalman_filter import KalmanFilter
 from ...deepsort_example.linear_assignment import (
     gate_cost_matrix,
-    min_cost_matching,
     matching_cascade,
+    min_cost_matching,
 )
-from ...deepsort_example.detection import Detection
-from ...deepsort_example.kalman_filter import KalmanFilter
 from ...deepsort_example.nn_matching import NearestNeighborDistanceMetric
 from ...deepsort_example.track import Track
 from .base import BaseTrackGraph, TrackGraphConfig
