@@ -1,7 +1,11 @@
 """Utils for samplers."""
+from typing import Dict, List, Union
+
 import torch
 
 from vist.struct import Boxes2D
+
+from ..matchers import MatchResult
 
 
 def prepare_target(
@@ -25,3 +29,22 @@ def prepare_target(
             track_ids,
         )
     return sampled_target
+
+
+def add_to_result(
+    result: Dict[str, Union[List[Boxes2D], List[torch.Tensor]]],
+    sampled_idcs: torch.Tensor,
+    boxes: Boxes2D,
+    targets: Boxes2D,
+    match: MatchResult,
+) -> None:
+    """Add fields required in SamplingResult to input dict."""
+    result["sampled_boxes"] += [boxes[sampled_idcs]]
+    result["sampled_targets"] += [
+        prepare_target(sampled_idcs, targets, match.assigned_gt_indices)
+    ]
+    result["sampled_labels"] += [match.assigned_labels[sampled_idcs]]
+    result["sampled_indices"] += [sampled_idcs]
+    result["sampled_target_indices"] += [
+        match.assigned_gt_indices[sampled_idcs]
+    ]

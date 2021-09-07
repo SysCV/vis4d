@@ -15,9 +15,9 @@ path = "../configs/models/mmdetection/qdtrack_R_50_FPN.toml"
     kwargs = {"milestones" = [9, 11]}
 
 [launch]
-samples_per_gpu = 1
+samples_per_gpu = 4
 workers_per_gpu = 0
 
 [trainer]
-max_steps = 2
+max_steps = 200
 log_every_n_steps = 50

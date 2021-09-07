@@ -7,7 +7,6 @@ from pydantic import validator
 from vist.common.bbox.utils import bbox_iou
 from vist.struct import Boxes2D
 
-from ..utils import nonzero_tuple
 from .base import BaseMatcher, MatcherConfig, MatchResult
 
 
@@ -130,7 +129,7 @@ def _set_low_quality_matches(
     See Sec. 3.1.2 of Faster R-CNN: https://arxiv.org/abs/1506.01497
     """
     highest_quality_foreach_gt, _ = match_quality_matrix.max(dim=1)
-    _, pred_inds_with_highest_quality = nonzero_tuple(
+    pred_inds_with_highest_quality = (
         match_quality_matrix == highest_quality_foreach_gt[:, None]
-    )
+    ).nonzero()[:, 1]
     match_labels[pred_inds_with_highest_quality] = 1

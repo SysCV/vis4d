@@ -1,6 +1,6 @@
 """Combined Sampler."""
 from collections import defaultdict
-from typing import List
+from typing import Dict, List, Union
 
 import torch
 from pydantic import validator
@@ -8,9 +8,9 @@ from pydantic import validator
 from vist.struct import Boxes2D
 
 from ..matchers.base import MatchResult
-from ..utils import non_intersection, nonzero_tuple, random_choice
+from ..utils import non_intersection, random_choice
 from .base import BaseSampler, SamplerConfig, SamplingResult
-from .utils import prepare_target
+from .utils import add_to_result
 
 
 class CombinedSamplerConfig(SamplerConfig):
@@ -159,15 +159,17 @@ class CombinedSampler(BaseSampler):
         pos_sample_size = int(
             self.cfg.batch_size_per_image * self.cfg.positive_fraction
         )
-        result = defaultdict(list)
+        result = defaultdict(
+            list
+        )  # type: Dict[str, Union[List[Boxes2D], List[torch.Tensor]]]
         for match, box, target in zip(matching, boxes, targets):
             positive_mask = (match.assigned_labels != -1) & (
                 match.assigned_labels != self.bg_label
             )
             negative_mask = match.assigned_labels == self.bg_label
 
-            positive = nonzero_tuple(positive_mask)[0]
-            negative = nonzero_tuple(negative_mask)[0]
+            positive = positive_mask.nonzero()[:, 0]
+            negative = negative_mask.nonzero()[:, 0]
 
             num_pos = min(positive.numel(), pos_sample_size)
             num_neg = self.cfg.batch_size_per_image - num_pos
@@ -190,16 +192,7 @@ class CombinedSampler(BaseSampler):
                 sample_size=num_neg,
             )
             sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
-
-            result["sampled_boxes"] += [box[sampled_idcs]]
-            result["sampled_targets"] += [
-                prepare_target(sampled_idcs, target, match.assigned_gt_indices)
-            ]
-            result["sampled_labels"] += [match.assigned_labels[sampled_idcs]]
-            result["sampled_indices"] += [sampled_idcs]
-            result["sampled_target_indices"] += [
-                match.assigned_gt_indices[sampled_idcs]
-            ]
+            add_to_result(result, sampled_idcs, box, target, match)
 
         return SamplingResult(**result)
 
@@ -219,9 +212,9 @@ class CombinedSampler(BaseSampler):
         for i in range(self.cfg.num_bins):
             start_iou = floor_thr + i * iou_interval
             end_iou = floor_thr + (i + 1) * iou_interval
-            tmp_set = nonzero_tuple(
+            tmp_set = (
                 (start_iou <= assigned_gt_ious) & (assigned_gt_ious < end_iou)
-            )[0]
+            ).nonzero()[:, 0]
             if len(tmp_set) > per_bin_samples:
                 tmp_sampled_set = random_choice(
                     idx_tensor[tmp_set], per_bin_samples

@@ -7,7 +7,6 @@ from torchvision.ops import roi_align, roi_pool
 
 from vist.struct import Boxes2D
 
-from ..utils import nonzero_tuple
 from .base import BaseRoIPooler, RoIPoolerConfig
 from .utils import assign_boxes_to_levels, boxes_to_tensor
 
@@ -68,6 +67,7 @@ class MultiScaleRoIPooler(BaseRoIPooler):
             )
         elif self.cfg.pooling_op == "ROIPool":
             self.pooling_op = roi_pool
+        else:
             raise ValueError(f"Unknown pooling_op: {self.cfg.pooling_op}")
 
         # Map scale (defined as 1 / stride) to its feature map level under the
@@ -107,9 +107,10 @@ class MultiScaleRoIPooler(BaseRoIPooler):
             f"but x is list of {len(features)} Tensors"
         )
 
-        assert (
-            len(boxes) == features[0].shape[0]
-        ), f"unequal value, x[0] batch dim 0 is {features[0].shape[0]}, but box_list has length {len(boxes)}"
+        assert len(boxes) == features[0].shape[0], (
+            f"unequal value, x[0] batch dim 0 is {features[0].shape[0]}, "
+            f"but box_list has length {len(boxes)}"
+        )
         if len(boxes) == 0:
             return torch.zeros(
                 (0, features[0].shape[1]) + self.cfg.resolution,
@@ -124,7 +125,7 @@ class MultiScaleRoIPooler(BaseRoIPooler):
                 pooler_fmt_boxes,
                 output_size=self.cfg.resolution,
                 spatial_scale=self.scales[0],
-            )
+            )  # type: ignore
 
         level_assignments = assign_boxes_to_levels(
             boxes,
@@ -146,14 +147,14 @@ class MultiScaleRoIPooler(BaseRoIPooler):
         )
 
         for level, scale in enumerate(self.scales):
-            inds = nonzero_tuple(level_assignments == level)[0]
+            inds = (level_assignments == level).nonzero()[:, 0]
             pooler_fmt_boxes_level = pooler_fmt_boxes[inds]
             pooled_features = self.pooling_op(
                 features[level],
                 pooler_fmt_boxes_level,
                 output_size=self.cfg.resolution,
                 spatial_scale=scale,
-            )
+            )  # type: ignore
             # Use index_put_ instead of advance indexing
             # avoids pytorch/issues/49852
             output.index_put_((inds,), pooled_features)

@@ -1,6 +1,4 @@
 """Utility functions for bounding boxes."""
-from typing import Tuple
-
 import torch
 
 from vist.struct import Boxes2D
@@ -58,15 +56,3 @@ def non_intersection(t1: torch.Tensor, t2: torch.Tensor) -> torch.Tensor:
     """Get the elements of t1 that are not present in t2."""
     compareview = t2.repeat(t1.shape[0], 1).T
     return t1[(compareview != t1).T.prod(1) == 1]
-
-
-def nonzero_tuple(tensor: torch.Tensor) -> Tuple[torch.Tensor]:
-    """A 'as_tuple=True' version of torch.nonzero to support torchscript.
-
-    because of https://github.com/pytorch/pytorch/issues/38718
-    """
-    if torch.jit.is_scripting():
-        if tensor.dim() == 0:
-            return tensor.unsqueeze(0).nonzero().unbind(1)  # type: ignore
-        return tensor.nonzero().unbind(1)  # type: ignore
-    return tensor.nonzero(as_tuple=True)  # type: ignore

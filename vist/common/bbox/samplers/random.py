@@ -1,15 +1,14 @@
 """Random Sampler."""
 from collections import defaultdict
-from typing import List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import torch
 
 from vist.struct import Boxes2D
 
 from ..matchers.base import MatchResult
-from ..utils import nonzero_tuple
 from .base import BaseSampler, SamplerConfig, SamplingResult
-from .utils import prepare_target
+from .utils import add_to_result
 
 
 class RandomSampler(BaseSampler):
@@ -28,20 +27,13 @@ class RandomSampler(BaseSampler):
         targets: List[Boxes2D],
     ) -> SamplingResult:
         """Sample boxes randomly."""
-        result = defaultdict(list)
+        result = defaultdict(
+            list
+        )  # type: Dict[str, Union[List[Boxes2D], List[torch.Tensor]]]
         for match, box, target in zip(matching, boxes, targets):
             pos_idx, neg_idx = self._sample_labels(match.assigned_labels)
             sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
-
-            result["sampled_boxes"] += [box[sampled_idcs]]
-            result["sampled_targets"] += [
-                prepare_target(sampled_idcs, target, match.assigned_gt_indices)
-            ]
-            result["sampled_labels"] += [match.assigned_labels[sampled_idcs]]
-            result["sampled_indices"] += [sampled_idcs]
-            result["sampled_target_indices"] += [
-                match.assigned_gt_indices[sampled_idcs]
-            ]
+            add_to_result(result, sampled_idcs, box, target, match)
 
         return SamplingResult(**result)
 
@@ -49,8 +41,8 @@ class RandomSampler(BaseSampler):
         self, labels: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Randomly sample indices from given labels."""
-        positive = nonzero_tuple((labels != -1) & (labels != self.bg_label))[0]
-        negative = nonzero_tuple(labels == self.bg_label)[0]
+        positive = ((labels != -1) & (labels != self.bg_label)).nonzero()[:, 0]
+        negative = (labels == self.bg_label).nonzero()[:, 0]
 
         num_pos = int(
             self.cfg.batch_size_per_image * self.cfg.positive_fraction

@@ -1,4 +1,4 @@
-"""Similarity Head definition for quasi-dense instance similarity learning."""
+"""Similarity Head for quasi-dense instance similarity learning."""
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -190,8 +190,9 @@ class QDSimilarityHead(BaseSimilarityHead):
 
         embeddings = []
         for feat, box in zip(inputs, sampled_boxes):
-            assert isinstance(feat, dict), \
-                "QDSimilarityHead expects feature maps as input!"
+            assert isinstance(
+                feat, dict
+            ), "QDSimilarityHead expects feature maps as input!"
             embeddings.append(self.forward(feat, box))
 
         track_losses = self.loss(
@@ -217,8 +218,9 @@ class QDSimilarityHead(BaseSimilarityHead):
             List[torch.Tensor]: Similarity embeddings (one vector per box, one
             tensor per batch element).
         """
-        assert isinstance(inputs, dict), \
-            "QDSimilarityHead expects feature maps as input!"
+        assert isinstance(
+            inputs, dict
+        ), "QDSimilarityHead expects feature maps as input!"
         return self.forward(inputs, boxes)
 
     @staticmethod
