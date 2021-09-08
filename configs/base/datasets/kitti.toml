@@ -8,6 +8,27 @@ split = "training"
 data_type = "tracking"
 output_dir = "data/KITTI/anns"
 num_processes = 0
+    [train.dataloader]
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
+    skip_empty_samples = true
+
+    [train.dataloader.ref_sampling]
+    type = 'uniform'
+    scope = 10
+    num_ref_imgs = 1
+    skip_nomatch_samples = true
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    kwargs = {"shape" = [375, 1242]}
+
+    [[train.dataloader.transformations]]
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
+
+    [[train.dataloader.transformations]]
+    type = "RandomRotation"
+    kwargs = {"p" = 0.5, "degrees" = 10.0}
 
 [[train]]
 name = "kitti_det_train"
@@ -19,42 +40,41 @@ split = "training"
 data_type = "detection"
 output_dir = "data/KITTI/anns"
 num_processes = 0
+    [train.dataloader]
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
+    skip_empty_samples = true
 
-[[test]]
-name = "kitti_sample_train"
-type = "KITTI"
-data_root = "data/KITTI"
-input_dir = "data/KITTI"
-mode = "mini"
-data_type = "tracking"
-output_dir = "data/KITTI/anns"
-num_processes = 0
-
-[dataloader]
-workers_per_gpu = 0
-categories = ["car", "pedestrian", "cyclist"]
-skip_empty_samples = true
-fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
-    [dataloader.data_backend]
-    type = "FileBackend"
-    [dataloader.ref_sampling_cfg]
+    [train.dataloader.ref_sampling]
     type = 'uniform'
-    scope = 3
+    scope = 10
     num_ref_imgs = 1
     skip_nomatch_samples = true
 
-    [[dataloader.train_augmentations]]
+    [[train.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [375, 1242]}
 
-    [[dataloader.train_augmentations]]
+    [[train.dataloader.transformations]]
     type = "RandomHorizontalFlip"
     kwargs = {"p" = 0.5}
 
-    [[dataloader.train_augmentations]]
+    [[train.dataloader.transformations]]
     type = "RandomRotation"
     kwargs = {"p" = 0.5, "degrees" = 10.0}
 
-    [[dataloader.test_augmentations]]
+[[test]]
+name = "kitti_sample_train"
+annotations = "data/KITTI/anns/tracking_training.json"
+type = "KITTI"
+data_root = "data/KITTI"
+input_dir = "data/KITTI"
+split = "training"
+data_type = "tracking"
+output_dir = "data/KITTI/anns"
+num_processes = 0
+    [test.dataloader]
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
+
+    [[test.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [375, 1242]}

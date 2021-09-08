@@ -3,13 +3,12 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from detectron2.layers.batch_norm import get_norm
-from detectron2.layers.wrappers import Conv2d
 from torch import nn
 
 from vist.common.bbox.matchers import MatcherConfig, build_matcher
 from vist.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
 from vist.common.bbox.samplers import SamplerConfig, build_sampler
+from vist.common.layers import Conv2d
 from vist.struct import Boxes2D, Images
 
 from .base import BaseSimilarityHead, SimilarityLearningConfig
@@ -18,7 +17,6 @@ from .base import BaseSimilarityHead, SimilarityLearningConfig
 class QDSimilarityHeadConfig(SimilarityLearningConfig):
     """Quasi-dense Similarity Head config."""
 
-    num_classes: int
     in_dim: int
     num_convs: int
     conv_out_dim: int
@@ -27,6 +25,7 @@ class QDSimilarityHeadConfig(SimilarityLearningConfig):
     fc_out_dim: int
     embedding_dim: int
     norm: str
+    num_groups: int = 32
     proposal_append_gt: bool
     in_features: List[str] = ["p2", "p3", "p4", "p5"]
     proposal_pooler: RoIPoolerConfig
@@ -72,6 +71,9 @@ class QDSimilarityHead(BaseSimilarityHead):
         last_layer_dim = self.cfg.in_dim
         # add branch specific conv layers
         convs = nn.ModuleList()
+        norm = getattr(nn, self.cfg.norm)
+        if norm == nn.GroupNorm:
+            norm = lambda x: nn.GroupNorm(self.cfg.num_groups, x)
         if self.cfg.num_convs > 0:
             for i in range(self.cfg.num_convs):
                 conv_in_dim = (
@@ -84,7 +86,7 @@ class QDSimilarityHead(BaseSimilarityHead):
                         kernel_size=3,
                         padding=1,
                         bias=self.cfg.conv_has_bias,
-                        norm=get_norm(self.cfg.norm, self.cfg.conv_out_dim),
+                        norm=norm(self.cfg.conv_out_dim),
                         activation=nn.ReLU(inplace=True),
                     )
                 )

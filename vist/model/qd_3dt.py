@@ -13,38 +13,29 @@ from vist.struct import (
     LossesType,
     ModelOutput,
 )
+from vist.model.losses import LossConfig, build_loss
 
-from .quasi_dense_rcnn import QDGeneralizedRCNNConfig, QDGeneralizedRCNN
+from .qdtrack import QDTrackConfig, QDTrack
 
-from .base import BaseModel, BaseModelConfig, build_model
-from .detect import BaseTwoStageDetector
 from .detect.bbox_head import BaseBoundingBoxConfig, build_bbox_head
-from .track.graph import TrackGraphConfig, build_track_graph
-from .track.losses import LossConfig, build_loss
-from .track.similarity import SimilarityLearningConfig, build_similarity_head
 from .track.utils import cosine_similarity, split_key_ref_inputs
+import pdb
 
 
-class QD3DTConfig(QDGeneralizedRCNNConfig):
+class QD3DTConfig(QDTrackConfig):
     """Config for quasi-dense 3D tracking model."""
 
     bbox_3d_head: BaseBoundingBoxConfig
 
 
-class QuasiDense3D(QDGeneralizedRCNN):
+class QD3DT(QDTrack):
     """QD-3DT model class."""
 
     def __init__(self, cfg) -> None:
         """Init."""
         super().__init__(cfg)
         self.cfg = QD3DTConfig(**cfg.dict())
-        self.detector = build_model(self.cfg.detection)
-        assert isinstance(self.detector, BaseTwoStageDetector)
         self.bbox_3d_head = build_bbox_head(self.cfg.bbox_3d_head)
-        self.similarity_head = build_similarity_head(self.cfg.similarity)
-        self.track_graph = build_track_graph(self.cfg.track_graph)
-        self.track_loss = build_loss(self.cfg.losses[0])
-        self.track_loss_aux = build_loss(self.cfg.losses[1])
 
     def prepare_targets(
         self,
@@ -73,7 +64,8 @@ class QuasiDense3D(QDGeneralizedRCNN):
         )
 
     def forward_train(
-        self, batch_inputs: List[List[InputSample]]
+        self,
+        batch_inputs: List[List[InputSample]],
     ) -> LossesType:
         """Forward function for training."""
         # split into key / ref pairs NxM input --> key: N, ref: Nx(M-1)
@@ -149,6 +141,7 @@ class QuasiDense3D(QDGeneralizedRCNN):
             key_x,
             key_proposals,
             key_targets,
+            filter_negatives=True,
         )
         ref_track_targets, ref_embeddings = [], []
         for inp, x, proposal, target in zip(
@@ -167,50 +160,23 @@ class QuasiDense3D(QDGeneralizedRCNN):
 
         return {**det_losses, **track_losses}
 
-    def match(
-        self,
-        key_embeds: Tuple[torch.Tensor],
-        ref_embeds: List[Tuple[torch.Tensor]],
-    ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
-        """Match key / ref embeddings based on cosine similarity."""
-        # for each reference view
-        dists, cos_dists = [], []
-        for ref_embed in ref_embeds:
-            # for each batch element
-            dists_curr, cos_dists_curr = [], []
-            for key_embed, ref_embed_ in zip(key_embeds, ref_embed):
-                dist = cosine_similarity(
-                    key_embed,
-                    ref_embed_,
-                    normalize=False,
-                    temperature=self.cfg.softmax_temp,
-                )
-                dists_curr.append(dist)
-                if self.track_loss_aux is not None:
-                    cos_dist = cosine_similarity(key_embed, ref_embed_)
-                    cos_dists_curr.append(cos_dist)
-
-            dists.append(dists_curr)
-            cos_dists.append(cos_dists_curr)
-        return dists, cos_dists
-
     def forward_test(
-        self, batch_inputs: List[InputSample], postprocess: bool = True
+        self,
+        batch_inputs: List[InputSample],
     ) -> ModelOutput:
         """Forward function during inference."""
-        import pdb
-
-        assert len(batch_inputs) == 1, "Currently only BS=1 supported!"
+        assert len(batch_inputs) == 1, "No reference views during test!"
+        inputs = [inp[0] for inp in batch_inputs]
+        assert len(inputs) == 1, "Currently only BS=1 supported!"
 
         # init graph at begin of sequence
-        frame_id = batch_inputs[0].metadata.frame_index
+        frame_id = inputs[0].metadata.frameIndex
         if frame_id == 0:
             self.track_graph.reset()
 
-        image = self.detector.preprocess_image(batch_inputs)
-        cam_intrinsics = [
-            x.intrinsics.to(self.device).tensor for x in batch_inputs
-        ]
+        image = self.detector.preprocess_image(inputs)
+
+        cam_intrinsics = [x.intrinsics.to(self.device).tensor for x in inputs]
 
         # Detector
         feat = self.detector.extract_features(image)
@@ -244,14 +210,13 @@ class QuasiDense3D(QDGeneralizedRCNN):
 
         # similarity head
         embeddings, _ = self.similarity_head(image, feat, detections)
-        if postprocess:
-            ori_wh = (
-                batch_inputs[0].metadata.size.width,  # type: ignore
-                batch_inputs[0].metadata.size.height,  # type: ignore
-            )
-            self.postprocess(ori_wh, image.image_sizes[0], detections[0])
+        assert inputs[0].metadata.size is not None
+        input_size = (
+            inputs[0].metadata.size.width,
+            inputs[0].metadata.size.height,
+        )
+        self.postprocess(input_size, image.image_sizes[0], detections[0])
 
         # associate detections, update graph
         tracks = self.track_graph(detections[0], frame_id, embeddings[0])
-
         return dict(detect=detections, track=[tracks])

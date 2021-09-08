@@ -1,223 +1,185 @@
 """Build VisT data loading pipeline."""
-import itertools
-import logging
-from typing import Any, Dict, List, Optional, Union
+import os
+import random
+from functools import partial
+from typing import Dict, List, Optional, Tuple, Union
 
+import numpy as np
+import pytorch_lightning as pl
 import torch
-from detectron2.config import CfgNode
-from detectron2.data import build_batch_data_loader, detection_utils
-from detectron2.data.catalog import DatasetCatalog, Metadata, MetadataCatalog
-from detectron2.data.common import DatasetFromList
-from detectron2.data.samplers import (
-    InferenceSampler,
-    RepeatFactorTrainingSampler,
-    TrainingSampler,
-)
-from pydantic import BaseModel
-from scalabel.label.typing import Frame
+from torch.utils import data
 
-from .dataset_mapper import DataloaderConfig, DatasetMapper, MapDataset
+from ..common.utils import get_rank, get_world_size
+from .dataset import ScalabelDataset
+from .datasets import (
+    BaseDatasetConfig,
+    BaseDatasetLoader,
+    build_dataset_loader,
+)
 from .samplers import TrackingInferenceSampler
-from .utils import (
-    discard_labels_outside_set,
-    identity_batch_collator,
-    prepare_labels,
-    print_class_histogram,
-)
+from .utils import identity_batch_collator
 
 
-class DataOptions(BaseModel):
-    """Options for building the dataloader."""
-
-    dataset: List[Dict[str, Any]]  # type: ignore
-    sampler: Optional[Union[TrainingSampler, RepeatFactorTrainingSampler]]
-    mapper: DatasetMapper
-    total_batch_size: int
-    num_workers: int
-
-    class Config:  # needed due to sampler / mapper
-        """Pydantic configuration for this particular class."""
-
-        arbitrary_types_allowed = True
-
-
-def get_dataset_frames(
-    names: Union[str, List[str]],
-    global_instance_ids: bool = False,
-    categories: Optional[List[str]] = None,
-) -> List[Frame]:
-    """Load and prepare datasets in Scalabel format."""
-    logger = logging.getLogger(__name__)
-    if isinstance(names, str):
-        names = [names]
-    assert len(names), names
-    dataset_frames = [
-        DatasetCatalog.get(dataset_name) for dataset_name in names
-    ]
-    dataset_frames = list(itertools.chain.from_iterable(dataset_frames))
-
-    has_instances = False
-    for f in dataset_frames:
-        if f.labels is not None:
-            has_instances = True
-            break
-
-    if has_instances:
-        if categories is not None:
-            logger.info(
-                "Filtering categories among the following datasets: %s", names
-            )
-            logger.info("Given categories: %s", categories)
-            # synchronize metadata thing_classes, sync idx_to_class_mapping
-            metas = [MetadataCatalog.get(d) for d in names]
-            all_categories = list(
-                itertools.chain.from_iterable(
-                    [meta.thing_classes for meta in metas]
+def build_dataset_loaders(
+    train_cfg: List[BaseDatasetConfig],
+    test_cfg: List[BaseDatasetConfig],
+    input_dir: Optional[str] = None,
+) -> Tuple[
+    List[BaseDatasetLoader], List[BaseDatasetLoader], List[BaseDatasetLoader]
+]:
+    """Build dataset loaders."""
+    train_loaders = [build_dataset_loader(cfg) for cfg in train_cfg]
+    test_loaders = [build_dataset_loader(cfg) for cfg in test_cfg]
+    predict_loaders = []
+    if input_dir is not None:
+        if input_dir[-1] == "/":
+            input_dir = input_dir[:-1]
+        dataset_name = os.path.basename(input_dir)
+        predict_loaders += [
+            build_dataset_loader(
+                BaseDatasetConfig(
+                    type="Custom",
+                    name=dataset_name,
+                    data_root=input_dir,
                 )
             )
-            # get intersection of classes among all datasets
-            discard_set = [
-                cat for cat in all_categories if cat not in categories
+        ]
+    return train_loaders, test_loaders, predict_loaders
+
+
+class VisTDataModule(pl.LightningDataModule):
+    """Data module for VisT."""
+
+    def __init__(
+        self,
+        samples_per_gpu: int,
+        workers_per_gpu: int,
+        train_loaders: List[BaseDatasetLoader],
+        test_loaders: List[BaseDatasetLoader],
+        predict_loaders: List[BaseDatasetLoader],
+        category_mapping: Optional[Dict[str, int]] = None,
+        image_channel_mode: str = "RGB",
+        seed: Optional[int] = None,
+    ) -> None:
+        """Init."""
+        super().__init__()  # type: ignore
+        assert not (
+            len(train_loaders)
+            == len(test_loaders)
+            == len(predict_loaders)
+            == 0
+        ), "Please specify either train, test or predict datasets."
+        self.train_loaders = train_loaders
+        self.test_loaders = test_loaders
+        self.predict_loaders = predict_loaders
+        self.samples_per_gpu = samples_per_gpu
+        self.workers_per_gpu = workers_per_gpu
+        self.category_mapping = category_mapping
+        self.image_channel_mode = image_channel_mode
+        self.seed = seed
+        self.train_datasets: Optional[List[ScalabelDataset]] = None
+        self.test_datasets: Optional[List[ScalabelDataset]] = None
+        self.predict_datasets: Optional[List[ScalabelDataset]] = None
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        """Initialize dataset classes."""
+        if len(self.train_loaders) > 0:
+            self.train_datasets = [
+                ScalabelDataset(
+                    dl, True, self.category_mapping, self.image_channel_mode
+                )
+                for dl in self.train_loaders
             ]
-            # log classes and discarded ones
-            if len(discard_set) > 0:
-                logger.info(
-                    "Discarding the following categories: %s", discard_set
+
+        if len(self.test_loaders) > 0:
+            self.test_datasets = [
+                ScalabelDataset(
+                    dl, False, self.category_mapping, self.image_channel_mode
                 )
-            assert (
-                len(categories) > 0
-            ), f"Classes of datasets {names} have no intersection!"
-            for name, meta in zip(names, metas):
-                MetadataCatalog.pop(name)
-                meta_dict = meta.as_dict()
-                meta_dict.update(
-                    dict(
-                        thing_classes=categories,
-                        idx_to_class_mapping=dict(enumerate(categories)),
-                    )
+                for dl in self.test_loaders
+            ]
+
+        if len(self.predict_loaders) > 0:
+            self.predict_datasets = [
+                ScalabelDataset(
+                    dl, False, self.category_mapping, self.image_channel_mode
                 )
-                MetadataCatalog[name] = Metadata(**meta_dict)
+                for dl in self.predict_loaders
+            ]
 
-            discard_labels_outside_set(dataset_frames, categories)
+    def train_dataloader(self) -> data.DataLoader:
+        """Return dataloader for training."""
+        train_dataset = data.ConcatDataset(self.train_datasets)
 
-        # check metadata consistency
-        detection_utils.check_metadata_consistency("thing_classes", names)
-
-        # add category and instance ids, print class frequencies
-        cat_name2id = {
-            v: k
-            for k, v in MetadataCatalog.get(
-                names[0]
-            ).idx_to_class_mapping.items()
-        }
-        frequencies = prepare_labels(
-            cat_name2id, dataset_frames, global_instance_ids
-        )
-        print_class_histogram(frequencies)
-
-    elif categories is not None:
-        metas = [MetadataCatalog.get(d) for d in names]
-        for name, meta in zip(names, metas):
-            MetadataCatalog.pop(name)
-            meta_dict = meta.as_dict()
-            meta_dict.update(
-                dict(
-                    thing_classes=categories,
-                    idx_to_class_mapping=dict(enumerate(categories)),
-                )
+        init_fn = (
+            partial(
+                worker_init_fn,
+                num_workers=self.workers_per_gpu,
+                rank=get_rank(),
+                seed=self.seed,
             )
-            MetadataCatalog[name] = Metadata(**meta_dict)
+            if self.seed is not None
+            else None
+        )
 
-    assert len(dataset_frames) > 0, "No valid data found in {}.".format(
-        ",".join(names)
-    )
-    return dataset_frames
+        train_dataloader = data.DataLoader(
+            train_dataset,
+            batch_size=self.samples_per_gpu,
+            num_workers=self.workers_per_gpu,
+            collate_fn=identity_batch_collator,
+            worker_init_fn=init_fn,
+            persistent_workers=self.workers_per_gpu > 0,
+        )
+        return train_dataloader
 
+    def predict_dataloader(
+        self,
+    ) -> Union[data.DataLoader, List[data.DataLoader]]:
+        """Return dataloader(s) for prediction."""
+        if self.predict_datasets is not None:
+            return self._build_inference_dataloaders(self.predict_datasets)
+        return self.test_dataloader()
 
-def _train_loader_from_config(
-    loader_cfg: DataloaderConfig, cfg: CfgNode
-) -> DataOptions:
-    """Construct training data loader from config."""
-    dataset = get_dataset_frames(
-        cfg.DATASETS.TRAIN,
-        loader_cfg.compute_global_instance_ids,
-        loader_cfg.categories,
-    )
-    mapper = DatasetMapper(loader_cfg)
+    def val_dataloader(self) -> List[data.DataLoader]:
+        """Return dataloaders for validation."""
+        return self.test_dataloader()
 
-    sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
-    if sampler_name == "TrainingSampler":
-        sampler = TrainingSampler(len(dataset))
-    else:
-        raise ValueError("Unknown training sampler: {}".format(sampler_name))
+    def test_dataloader(self) -> List[data.DataLoader]:
+        """Return dataloaders for testing."""
+        assert self.test_datasets is not None
+        return self._build_inference_dataloaders(self.test_datasets)
 
-    return DataOptions(
-        dataset=dataset,
-        sampler=sampler,
-        mapper=mapper,
-        total_batch_size=cfg.SOLVER.IMS_PER_BATCH,
-        num_workers=loader_cfg.workers_per_gpu,
-    )
+    def _build_inference_dataloaders(
+        self, datasets: List[ScalabelDataset]
+    ) -> List[data.DataLoader]:
+        """Build dataloaders for test / predict."""
+        dataloaders = []
+        for dataset in datasets:
+            sampler: Optional[data.Sampler] = None
+            if get_world_size() > 1 and dataset.has_sequences:
+                sampler = TrackingInferenceSampler(dataset)  # pragma: no cover
 
-
-def build_train_loader(
-    loader_cfg: DataloaderConfig, det2cfg: CfgNode
-) -> torch.utils.data.DataLoader:
-    """Build train dataloader with some default features."""
-    data_options = _train_loader_from_config(loader_cfg, det2cfg)
-    dataset = DatasetFromList(data_options.dataset, copy=False)
-    dataset = MapDataset(
-        loader_cfg.ref_sampling_cfg, True, dataset, data_options.mapper
-    )
-    assert isinstance(data_options.sampler, torch.utils.data.sampler.Sampler)
-    # aspect_ratio_grouping: tracking datasets usually do not contain
-    # sequences with vastly different aspect ratios --> set to False
-    return build_batch_data_loader(
-        dataset,
-        data_options.sampler,
-        data_options.total_batch_size,
-        aspect_ratio_grouping=False,
-        num_workers=data_options.num_workers,
-    )
+            test_dataloader = data.DataLoader(
+                dataset,
+                batch_size=1,
+                num_workers=self.workers_per_gpu,
+                sampler=sampler,
+                collate_fn=identity_batch_collator,
+                persistent_workers=self.workers_per_gpu > 0,
+            )
+            dataloaders.append(test_dataloader)
+        return dataloaders
 
 
-def _test_loader_from_config(
-    loader_cfg: DataloaderConfig, dataset_name: str
-) -> DataOptions:
-    """Construct testing data loader from config."""
-    dataset = get_dataset_frames(dataset_name, False, loader_cfg.categories)
-    mapper = DatasetMapper(loader_cfg, is_train=False)
+def worker_init_fn(
+    worker_id: int, num_workers: int, rank: int, seed: int
+) -> None:  # pragma: no cover
+    """Init worker with unique seed.
 
-    return DataOptions(
-        dataset=dataset,
-        mapper=mapper,
-        total_batch_size=1,
-        num_workers=loader_cfg.workers_per_gpu,
-    )
-
-
-def build_test_loader(
-    loader_cfg: DataloaderConfig,
-    dataset_name: str,
-    inference_sampling: str,
-) -> torch.utils.data.DataLoader:
-    """Build test dataloader with some default features."""
-    data_options = _test_loader_from_config(loader_cfg, dataset_name)
-    dataset = DatasetFromList(data_options.dataset, copy=False)
-    dataset = MapDataset(
-        loader_cfg.ref_sampling_cfg, False, dataset, data_options.mapper
-    )
-    sampler = (
-        TrackingInferenceSampler(dataset)
-        if inference_sampling == "sequence_based"
-        else InferenceSampler(len(dataset))
-    )
-    batch_sampler = torch.utils.data.sampler.BatchSampler(
-        sampler, 1, drop_last=False
-    )
-    return torch.utils.data.DataLoader(
-        dataset,
-        num_workers=data_options.num_workers,
-        batch_sampler=batch_sampler,
-        collate_fn=identity_batch_collator,
-    )
+    The seed of each worker equals to:
+    num_worker * rank + worker_id + user_seed
+    """
+    worker_seed = num_workers * rank + worker_id + seed
+    torch.manual_seed(worker_seed)
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)

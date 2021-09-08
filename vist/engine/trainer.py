@@ -1,218 +1,255 @@
 """DefaultTrainer for VisT."""
-import logging
-import os
-from collections import OrderedDict
-from typing import Dict, List, Optional
-from typing import OrderedDict as OrderedDictType
+import json
+import os.path as osp
+from typing import Optional
 
-import torch
-from detectron2.checkpoint import Checkpointer
-from detectron2.config import CfgNode
-from detectron2.engine import DefaultTrainer as D2DefaultTrainer
-from detectron2.engine import PeriodicWriter
-from detectron2.evaluation import DatasetEvaluator
-from detectron2.utils.comm import is_main_process
+import pytorch_lightning as pl
+import yaml
+from devtools import debug
+from torch.utils.collect_env import get_pretty_env_info
 
-from vist.config import Config
-from vist.data import build_test_loader, build_train_loader
-from vist.model import build_model
-from vist.struct import EvalResults
-from vist.vis import ScalabelVisualizer
-
-from .evaluator import ScalabelEvaluator, inference_on_dataset
-from .utils import default_setup, register_directory, to_detectron2
+from ..config import Config, default_argument_parser, parse_config
+from ..data import VisTDataModule, build_dataset_loaders
+from ..model import build_model
+from ..struct import DictStrAny
+from ..vis import ScalabelWriterCallback
+from .evaluator import ScalabelEvaluatorCallback
+from .utils import VisTProgressBar, setup_logger, split_args
 
 
-class DefaultTrainer(D2DefaultTrainer):  # type: ignore
-    """VisT DefaultTrainer class."""
+def default_setup(
+    cfg: Config, trainer_args: Optional[DictStrAny] = None
+) -> pl.Trainer:
+    """Perform some basic common setups at the beginning of a job.
 
-    def __init__(self, cfg: Config, det2cfg: CfgNode):
-        """Init."""
-        self.vist_cfg = cfg
-        super().__init__(det2cfg)
-        # Update hooks with custom parameters / objects
-        logp = cfg.solver.log_period
-        for hook in self._hooks:
-            if logp is not None and isinstance(hook, PeriodicWriter):
-                hook._period = logp  # pylint: disable=protected-access
+    1. Set all seeds
+    2. Setup callback: tensorboard logger, LRMonitor, GPUMonitor, Checkpoint
+    3. Init pytorch lightning Trainer
+    4. Set up cmd line logger
+    5. Log basic information about environment, trainer arguments, and config
+    6. Backup the args / config to the output directory
+    """
+    # set seeds
+    if cfg.launch.seed is not None:
+        pl.seed_everything(cfg.launch.seed)
 
-    def build_model(self, cfg: CfgNode) -> torch.nn.Module:
-        """Builds model."""
-        model = build_model(self.vist_cfg.model)
-        if hasattr(model, "detector") and hasattr(model.detector, "d2_cfg"):
-            cfg.MODEL.merge_from_other_cfg(model.detector.d2_cfg.MODEL)
-        model.to(torch.device(self.vist_cfg.launch.device))
-        logger = logging.getLogger(__name__)
-        logger.info("Model:\n%s", model)
-        return model
+    # prepare trainer args
+    if trainer_args is None:
+        trainer_args = {}  # pragma: no cover
+    if "trainer" in cfg.dict().keys():
+        trainer_args.update(cfg.dict()["trainer"])
 
-    def build_train_loader(self, cfg: CfgNode) -> torch.utils.data.DataLoader:
-        """Calls :func:`vist.data.build_train_loader`."""
-        return build_train_loader(self.vist_cfg.dataloader, cfg)
+    # setup experiment logging
+    exp_logger = pl.loggers.TensorBoardLogger(
+        save_dir=cfg.launch.work_dir,
+        name=cfg.launch.exp_name,
+        version=cfg.launch.version,
+        default_hp_metric=False,
+    )
+    trainer_args["logger"] = exp_logger
 
-    def build_test_loader(
-        self, cfg: CfgNode, dataset_name: str
-    ) -> torch.utils.data.DataLoader:
-        """Calls static version."""
-        return self.build_test_loader_static(
-            self.vist_cfg, dataset_name
-        )  # pragma: no cover
+    # add learning rate / GPU stats monitor (logs to tensorboard)
+    lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval="step")
 
-    @classmethod
-    def build_test_loader_static(
-        cls, vist_cfg: Config, dataset_name: str
-    ) -> torch.utils.data.DataLoader:
-        """Calls :func:`vist.data.build_test_loader`."""
-        sampling = "sequence_based"
-        for ds in vist_cfg.test:
-            if ds.name == dataset_name:
-                sampling = ds.inference_sampling
-        return build_test_loader(vist_cfg.dataloader, dataset_name, sampling)
+    # add progress bar (train progress separate from validation)
+    progress_bar = VisTProgressBar()
 
-    def build_evaluator(
-        self, cfg: CfgNode, dataset_name: str
-    ) -> DatasetEvaluator:
-        """Build Scalabel evaluators."""
-        return self.build_evaluator_static(
-            self.vist_cfg, cfg, dataset_name
-        )  # pragma: no cover
+    # add Model checkpointer
+    checkpoint = pl.callbacks.ModelCheckpoint(
+        verbose=True,
+        save_last=True,
+        every_n_epochs=1,
+        save_on_train_epoch_end=True,
+    )
 
-    @classmethod
-    def build_evaluator_static(
-        cls, vist_cfg: Config, cfg: CfgNode, dataset_name: str
-    ) -> DatasetEvaluator:
-        """Build evaluators."""
-        output_folder = os.path.join(cfg.OUTPUT_DIR, dataset_name)
-        ignore_unknown_cats = vist_cfg.dataloader.ignore_unknown_cats
-        metrics = [
-            ds.eval_metrics for ds in vist_cfg.test if ds.name == dataset_name
-        ][0]
-        evaluator = ScalabelEvaluator(
-            dataset_name, metrics, True, output_folder, ignore_unknown_cats
-        )
-        return evaluator
-
-    def train(self) -> Dict[str, EvalResults]:
-        """Run training."""
-        super().train()
-        return self._last_eval_results  # type: ignore
-
-    def test(
-        self,
-        cfg: CfgNode,
-        model: torch.nn.Module,
-        evaluators: Optional[List[DatasetEvaluator]] = None,
-    ) -> Dict[str, EvalResults]:
-        """Calls static test function."""
-        return self.test_static(self.vist_cfg, cfg, model, evaluators)
-
-    @classmethod
-    def test_static(
-        cls,
-        vist_cfg: Config,
-        cfg: CfgNode,
-        model: torch.nn.Module,
-        evaluators: Optional[List[DatasetEvaluator]] = None,
-    ) -> OrderedDictType[str, EvalResults]:
-        """Test model with given evaluators."""
-        logger = logging.getLogger(__name__)
-        assert vist_cfg.test is not None
-        datasets = [ds.name for ds in vist_cfg.test]
-        if isinstance(evaluators, DatasetEvaluator):
-            evaluators = [evaluators]  # pragma: no cover
-        if evaluators is not None:
-            assert len(cfg.DATASETS.TEST) == len(  # pragma: no cover
-                evaluators
-            ), "{} != {}".format(len(datasets), len(evaluators))
-
-        results = OrderedDict()  # type: ignore
-        for idx, dataset_name in enumerate(datasets):
-            data_loader = cls.build_test_loader_static(vist_cfg, dataset_name)
-            # When evaluators are passed in as arguments, implicitly assume
-            # that evaluators can be created before data_loader.
-            if evaluators is not None:
-                evaluator = evaluators[idx]  # pragma: no cover
-            else:
-                try:
-                    evaluator = cls.build_evaluator_static(
-                        vist_cfg, cfg, dataset_name
-                    )
-                except NotImplementedError:  # pragma: no cover
-                    logger.warning(
-                        "No evaluator found. Use `Trainer.test(evaluators=)`, "
-                        "or implement its `build_evaluator` method."
-                    )
-                    results[dataset_name] = {}
-                    continue
-            results_i = inference_on_dataset(model, data_loader, evaluator)
-            results[dataset_name] = results_i
-            if is_main_process():
-                assert isinstance(results_i, dict), (
-                    "Evaluator must return a dict on the main process. Got {} "
-                    "instead.".format(results_i)
-                )
-
-        if len(results) == 1:
-            results = list(results.values())[0]  # type: ignore
-        return results
-
-    @classmethod
-    def predict(
-        cls,
-        vist_cfg: Config,
-        model: torch.nn.Module,
-    ) -> None:
-        """Test detect with given evaluators."""
-        assert vist_cfg.launch.output_dir is not None
-        if vist_cfg.launch.input_dir is not None:
-            datasets = [register_directory(vist_cfg.launch.input_dir)]
+    # resume from checkpoint if specified
+    output_dir = osp.join(
+        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
+    )
+    if cfg.launch.resume:  # pragma: no cover
+        if cfg.launch.weights is not None:
+            resume_path = cfg.launch.weights
+        elif osp.exists(osp.join(output_dir, "checkpoints/last.ckpt")):
+            resume_path = osp.join(output_dir, "checkpoints/last.ckpt")
         else:
-            assert vist_cfg.test is not None
-            datasets = [ds.name for ds in vist_cfg.test]
-
-        for dataset_name in datasets:
-            data_loader = cls.build_test_loader_static(vist_cfg, dataset_name)
-            output_folder = os.path.join(
-                vist_cfg.launch.output_dir, dataset_name
+            raise ValueError(
+                "cfg.launch.resume set to True but there is no checkpoint to "
+                "resume! Please specify a checkpoint via cfg.launch.weights "
+                "or configure a directory that contains a checkpoint at "
+                "work_dir/exp_name/version/checkpoints/last.ckpt."
             )
-            visualizer = ScalabelVisualizer(
-                dataset_name, output_folder, True, vist_cfg.launch.visualize
-            )
-            inference_on_dataset(model, data_loader, visualizer)
+
+        trainer_args["resume_from_checkpoint"] = resume_path
+
+    # create trainer
+    trainer_args["callbacks"] = [lr_monitor, progress_bar, checkpoint]
+    trainer = pl.Trainer(**trainer_args)
+
+    # setup cmd line logging
+    logger = setup_logger(osp.join(output_dir, "log.txt"))
+
+    # print env / config
+    logger.info("Environment info: %s", get_pretty_env_info())
+    logger.info(
+        "Running with full config:\n %s",
+        str(debug.format(cfg)).split("\n", 1)[1],
+    )
+    if cfg.launch.seed is not None:
+        logger.info("Using a fixed random seed: %s", cfg.launch.seed)
+
+    # save trainer args (converted to string)
+    path = osp.join(output_dir, "trainer_args.yaml")
+    for key, arg in trainer_args.items():
+        trainer_args[key] = str(arg)
+    with open(path, "w", encoding="utf-8") as outfile:
+        yaml.dump(trainer_args, outfile, default_flow_style=False)
+    logger.info("Trainer arguments saved to %s", path)
+
+    # save VisT config
+    path = osp.join(output_dir, "config.json")
+    with open(path, "w", encoding="utf-8") as outfile:
+        json.dump(trainer_args, outfile)
+    logger.info("VisT Config saved to %s", path)
+
+    return trainer
 
 
-def train(cfg: Config) -> Dict[str, EvalResults]:
+def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Training function."""
-    det2cfg = to_detectron2(cfg)
-    default_setup(cfg, det2cfg, cfg.launch)
+    trainer = default_setup(cfg, trainer_args)
+    model = build_model(
+        cfg.model, cfg.launch.weights if not cfg.launch.resume else None
+    )
 
-    trainer = DefaultTrainer(cfg, det2cfg)
-    trainer.cfg.MODEL.WEIGHTS = cfg.launch.weights
-    trainer.resume_or_load(resume=cfg.launch.resume)
-    return trainer.train()
+    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
+        cfg.train, cfg.test
+    )
+    data_module = VisTDataModule(
+        cfg.launch.samples_per_gpu,
+        cfg.launch.workers_per_gpu,
+        train_loaders,
+        test_loaders,
+        predict_loaders,
+        cfg.model.category_mapping,
+        cfg.model.image_channel_mode,
+        seed=cfg.launch.seed,
+    )
+
+    if len(test_loaders) > 0:
+        assert (
+            cfg.model.category_mapping is not None
+        ), "Need category mapping to evaluate model!"
+        evaluators = [
+            ScalabelEvaluatorCallback(
+                dl,
+                cfg.model.category_mapping,
+            )
+            for dl in test_loaders
+        ]
+        trainer.callbacks += evaluators  # pylint: disable=no-member
+    trainer.fit(model, data_module)
 
 
-def test(cfg: Config) -> Dict[str, EvalResults]:
+def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Test function."""
-    det2cfg = to_detectron2(cfg)
-    default_setup(cfg, det2cfg, cfg.launch)
+    trainer = default_setup(cfg, trainer_args)
+    model = build_model(cfg.model, cfg.launch.weights)
 
-    model = build_model(cfg.model)
-    model.to(torch.device(cfg.launch.device))
-    Checkpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
-        cfg.launch.weights, resume=cfg.launch.resume
+    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
+        [], cfg.test
     )
-    return DefaultTrainer.test_static(cfg, det2cfg, model)
+    data_module = VisTDataModule(
+        cfg.launch.samples_per_gpu,
+        cfg.launch.workers_per_gpu,
+        train_loaders,
+        test_loaders,
+        predict_loaders,
+        cfg.model.category_mapping,
+        cfg.model.image_channel_mode,
+        seed=cfg.launch.seed,
+    )
+
+    assert len(test_loaders), "No test datasets specified!"
+    assert (
+        cfg.model.category_mapping is not None
+    ), "Need category mapping to evaluate model!"
+    out_dir = osp.join(
+        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
+    )
+    evaluators = [
+        ScalabelEvaluatorCallback(
+            dl, cfg.model.category_mapping, osp.join(out_dir, dl.cfg.name)
+        )
+        for dl in test_loaders
+    ]
+    trainer.callbacks += evaluators  # pylint: disable=no-member
+    trainer.test(
+        model,
+        data_module,
+        verbose=False,
+    )
 
 
-def predict(cfg: Config) -> None:
+def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Prediction function."""
-    det2cfg = to_detectron2(cfg)
-    default_setup(cfg, det2cfg, cfg.launch)
+    trainer = default_setup(cfg, trainer_args)
+    model = build_model(cfg.model, cfg.launch.weights)
 
-    model = build_model(cfg.model)
-    model.to(torch.device(cfg.launch.device))
-    Checkpointer(model, save_dir=det2cfg.OUTPUT_DIR).resume_or_load(
-        cfg.launch.weights, resume=cfg.launch.resume
+    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
+        [],
+        cfg.test if cfg.launch.input_dir is None else [],
+        cfg.launch.input_dir,
     )
-    DefaultTrainer.predict(cfg, model)
+    data_module = VisTDataModule(
+        cfg.launch.samples_per_gpu,
+        cfg.launch.workers_per_gpu,
+        train_loaders,
+        test_loaders,
+        predict_loaders,
+        cfg.model.category_mapping,
+        cfg.model.image_channel_mode,
+        seed=cfg.launch.seed,
+    )
+
+    out_dir = osp.join(
+        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
+    )
+
+    if len(predict_loaders) > 0:
+        dataloaders = predict_loaders
+    else:
+        dataloaders = test_loaders
+
+    assert len(dataloaders) > 0, "No datasets for prediction specified!"
+    evaluators = [
+        ScalabelWriterCallback(
+            osp.join(out_dir, dl.cfg.name),
+            cfg.model.category_mapping,
+            cfg.launch.visualize,
+        )
+        for dl in dataloaders
+    ]
+    trainer.callbacks += evaluators  # pylint: disable=no-member
+    trainer.predict(model, data_module)
+
+
+def cli_main() -> None:  # pragma: no cover
+    """Main function when called from command line."""
+    parser = default_argument_parser()
+    pl.Trainer.add_argparse_args(parser)
+    args = parser.parse_args()
+    vist_args, trainer_args = split_args(args)
+    cfg = parse_config(vist_args)
+
+    if args.action == "train":
+        train(cfg, vars(trainer_args))
+    elif args.action == "test":
+        test(cfg, vars(trainer_args))
+    elif args.action == "predict":
+        predict(cfg, vars(trainer_args))
+    else:
+        raise NotImplementedError(f"Action {args.action} not known!")
+
+
+if __name__ == "__main__":  # pragma: no cover
+    cli_main()

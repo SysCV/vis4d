@@ -4,11 +4,11 @@ from .base import (
     BaseBoundingBoxHead,
     build_bbox_head,
 )
-from .quasi_dense_3d_bbox_3d_head import QD3DBBox3DHead
+from .qd_3dt_bbox_3d_head import QD3DTBBox3DHead
 
 __all__ = [
     "BaseBoundingBoxConfig",
     "BaseBoundingBoxHead",
     "build_bbox_head",
-    "QD3DBBox3DHead",
+    "QD3DTBBox3DHead",
 ]

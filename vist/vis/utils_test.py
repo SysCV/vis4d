@@ -32,7 +32,7 @@ class TestUtils(unittest.TestCase):
     def test_preprocess_image(self) -> None:
         """Test preprocess_image method."""
         img = torch.rand((3, 128, 128))
-        proc_img = preprocess_image(img)
+        proc_img = preprocess_image(img, mode="BGR")
         self.assertTrue(isinstance(proc_img, Image.Image))
         proc_img = np.array(proc_img)
         self.assertEqual(proc_img.shape, (128, 128, 3))

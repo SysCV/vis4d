@@ -6,25 +6,20 @@ from PIL import Image
 
 from vist.struct import Boxes2D
 
-from .image import draw_bbox, imshow_bboxes
-from .utils import BoxType, ImageType, preprocess_boxes, preprocess_image
+from .image import draw_image, imshow_bboxes
+from .utils import BoxType, ImageType
 
 
 def draw_sequence(
     frames: List[Union[ImageType, Image.Image]],
     boxes: Sequence[BoxType],
-    mode: str = "BGR",
+    mode: str = "RGB",
 ) -> List[Image.Image]:
     """Draw predictions of a complete sequence."""
-    processed_frames = [
-        preprocess_image(f, mode) if not isinstance(f, Image.Image) else f
-        for f in frames
-    ]
-    for frame, boxes2d in zip(processed_frames, boxes):
-        box_list, col_list, label_list = preprocess_boxes(boxes2d)
-        for box, col, label in zip(box_list, col_list, label_list):
-            draw_bbox(frame, box, col, label)
-    return processed_frames
+    results = []
+    for frame, box in zip(frames, boxes):
+        results.append(draw_image(frame, box, mode))
+    return results
 
 
 def visualize_matches(
@@ -32,7 +27,7 @@ def visualize_matches(
     ref_inputs: List[ImageType],
     key_boxes: List[Boxes2D],
     ref_boxes: List[Boxes2D],
-    mode: str = "BGR",
+    mode: str = "RGB",
 ) -> None:  # pragma: no cover
     """Visualize paired bounding boxes successively for batched frame pairs."""
     for batch_i, (key_box, ref_box) in enumerate(zip(key_boxes, ref_boxes)):

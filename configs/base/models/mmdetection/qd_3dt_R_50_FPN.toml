@@ -1,16 +1,15 @@
 [model]
-type = "QuasiDense3D"
+type = "QD3DT"
     [model.detection]
     type = "MMTwoStageDetector"
     model_base = "mmdet://_base_/models/faster_rcnn_r50_fpn.py"
     model_kwargs= {"rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.beta" = 0.111, "roi_head.bbox_head.loss_bbox.type" = "SmoothL1Loss"}
-    num_classes = 3
     pixel_mean = [123.675, 116.28, 103.53]
     pixel_std = [58.395, 57.12, 57.375]
     backbone_output_names = ["p2", "p3", "p4", "p5", "p6"]
 
     [model.bbox_3d_head]
-    type = "QD3DBBox3DHead"
+    type = "QD3DTBBox3DHead"
     num_shared_convs = 2
     num_shared_fcs = 0
     num_dep_convs = 4
@@ -25,13 +24,13 @@ type = "QuasiDense3D"
     conv_out_dim = 1024
     fc_out_dim = 1024
     roi_feat_size = 7
-    num_classes = 3
+
     target_means = [0.0, 0.0, 0.0, 0.0]
     target_stds = [0.1, 0.1, 0.2, 0.2]
     center_scale = 10.0
     reg_class_agnostic = false
     conv_has_bias = false
-    norm = "GN"
+    norm = "GroupNorm"
     with_depth = true
     with_uncertainty = true
     with_dim = true
@@ -81,7 +80,6 @@ type = "QuasiDense3D"
 
     [model.similarity]
     type = "QDSimilarityHead"
-    num_classes = 0
     in_dim = 256
     num_convs = 4
     conv_out_dim = 256
@@ -89,7 +87,7 @@ type = "QuasiDense3D"
     fc_out_dim = 1024
     embedding_dim = 256
     conv_has_bias = false
-    norm = "GN"
+    norm = "GroupNorm"
     proposal_append_gt = true
 
         [model.similarity.proposal_pooler]

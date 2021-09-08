@@ -13,7 +13,7 @@ from vist.config.config import read_config
 t_vlen_uint8 = h5py.special_dtype(vlen=np.uint8)
 
 
-def datasets_to_hdf5(args: Namespace) -> None:
+def datasets_to_hdf5(args: Namespace) -> None:  # pragma: no cover
     """Convert datasets to hdf5."""
     if args.config is not None:
         cfg = read_config(args.config)
@@ -67,7 +67,7 @@ def convert_single_dataset(source_dir: str) -> None:
     print("done.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser(
         description="Converts all datasets in a specific config file to hdf5 "
         "format. Alternatively, converts a specific dataset at "

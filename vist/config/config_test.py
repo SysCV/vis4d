@@ -13,27 +13,25 @@ class TestLoadConfig(unittest.TestCase):
         """Check models configuration in yaml format."""
         config = read_config(get_test_file("config-det.yaml"))
         self.assertEqual(config.model.type, "test-model")
-        self.assertEqual(config.solver.base_lr, 0.02)
-        self.assertEqual(config.solver.lr_policy, "step")
+        self.assertEqual(config.launch.samples_per_gpu, 2)
 
     def test_det_toml(self) -> None:
         """Check models configuration in toml format."""
         config = read_config(get_test_file("config-det.toml"))
         self.assertEqual(config.model.type, "test-model")
-        self.assertEqual(config.solver.base_lr, 0.02)
-        self.assertEqual(config.solver.lr_policy, "step")
+        self.assertEqual(config.launch.samples_per_gpu, 2)
 
     def test_det_args(self) -> None:
         """Check cmd line argument parsing to launch cfg."""
         args = Namespace(
             config=get_test_file("config-det.yaml"),
             device="cuda",
-            num_gpus=2,
-            cfg_options="dataloader.workers_per_gpu=2",
+            samples_per_gpu=2,
+            cfg_options="model.image_channel_mode=BGR",
         )
         cfg = parse_config(args)
-        self.assertEqual(cfg.launch.num_gpus, 2)
-        self.assertEqual(cfg.dataloader.workers_per_gpu, 2)
+        self.assertEqual(cfg.launch.samples_per_gpu, 2)
+        self.assertEqual(cfg.model.image_channel_mode, "BGR")
 
     def test_det_notsupported(self) -> None:
         """Check models configuration in not-supported format."""

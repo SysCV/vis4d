@@ -5,21 +5,21 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from detectron2.layers.batch_norm import get_norm
-from detectron2.layers.wrappers import Conv2d
 
 from vist.common.bbox.utils import Box3DCoder
 from vist.common.bbox.matchers import MatcherConfig, build_matcher
 from vist.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
 from vist.common.bbox.samplers import SamplerConfig, build_sampler
+from vist.common.layers import Conv2d
 from vist.model.detect.losses import LossConfig, build_loss
 from vist.model.detect.mmdet_utils import proposals_to_mmdet
 from vist.struct import Boxes2D, Boxes3D
 
 from .base import BaseBoundingBoxConfig, BaseBoundingBoxHead
+import pdb
 
 
-class QD3DBBox3DHeadConfig(BaseBoundingBoxConfig):
+class QD3DTBBox3DHeadConfig(BaseBoundingBoxConfig):
     """QD-3DT 3D Bounding Box Head config."""
 
     num_shared_convs: int
@@ -43,6 +43,7 @@ class QD3DBBox3DHeadConfig(BaseBoundingBoxConfig):
     reg_class_agnostic: bool
     conv_has_bias: bool
     norm: str
+    num_groups: int = 32
     with_depth: bool
     with_uncertainty: bool
     with_dim: bool
@@ -58,13 +59,13 @@ class QD3DBBox3DHeadConfig(BaseBoundingBoxConfig):
     proposal_matcher: MatcherConfig
 
 
-class QD3DBBox3DHead(BaseBoundingBoxHead):
+class QD3DTBBox3DHead(BaseBoundingBoxHead):
     """QD-3DT 3D Bounding Box Head."""
 
     def __init__(self, cfg: BaseBoundingBoxConfig) -> None:
         """Init."""
         super().__init__()
-        self.cfg = QD3DBBox3DHeadConfig(**cfg.dict())
+        self.cfg = QD3DTBBox3DHeadConfig(**cfg.dict())
 
         self.cls_out_channels = self.cfg.num_classes
 
@@ -209,6 +210,9 @@ class QD3DBBox3DHead(BaseBoundingBoxHead):
         last_layer_dim = in_channels
         # add branch specific conv layers
         convs = nn.ModuleList()
+        norm = getattr(nn, self.cfg.norm)
+        if norm == nn.GroupNorm:
+            norm = lambda x: nn.GroupNorm(self.cfg.num_groups, x)
         if num_branch_convs > 0:
             for i in range(num_branch_convs):
                 conv_in_dim = (
@@ -221,7 +225,7 @@ class QD3DBBox3DHead(BaseBoundingBoxHead):
                         kernel_size=3,
                         padding=1,
                         bias=self.cfg.conv_has_bias,
-                        norm=get_norm(self.cfg.norm, self.cfg.conv_out_dim),
+                        norm=norm(self.cfg.conv_out_dim),
                         activation=nn.ReLU(inplace=True),
                     )
                 )
@@ -439,7 +443,9 @@ class QD3DBBox3DHead(BaseBoundingBoxHead):
             )
         )
 
-        labels = [t.class_ids[pos_assigned_gt_inds] for t in gt_bboxes_2d]
+        labels = [
+            t.class_ids[p] for t, p in zip(gt_bboxes_2d, pos_assigned_gt_inds)
+        ]
 
         if concat:
             bbox_targets = torch.cat(bbox_targets, 0)

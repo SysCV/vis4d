@@ -14,7 +14,7 @@ class TestD2Utils(unittest.TestCase):
         cfg = D2TwoStageDetectorConfig(
             type="D2GeneralizedRCNN",
             model_base="faster-rcnn/r50-fpn",
-            num_classes=10,
+            category_mapping={"car": 0, "pedestrian": 1},
         )
         model_to_detectron2(cfg)
         cfg.model_base = "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"

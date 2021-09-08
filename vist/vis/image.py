@@ -19,14 +19,14 @@ from .utils import (
 
 
 def imshow(
-    image: Union[Image.Image, ImageType], mode: str = "BGR"
+    image: Union[Image.Image, ImageType], mode: str = "RGB"
 ) -> None:  # pragma: no cover
     """Imshow method.
 
     Args:
         image: PIL Image or ImageType (i.e. numpy array, torch.Tensor)
         mode: Image channel format, will be used to convert ImageType to
-        an RGB PIL Image. Not necessary if 'image' is an RGB PIL Image.
+        an RGB PIL Image.
     """
     if not isinstance(image, Image.Image):
         image = preprocess_image(image, mode)
@@ -35,7 +35,7 @@ def imshow(
 
 
 def imshow_bboxes(
-    image: ImageType, boxes: BoxType, mode: str = "BGR"
+    image: ImageType, boxes: BoxType, mode: str = "RGB"
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode)
@@ -50,7 +50,7 @@ def imshow_bboxes3d(
     image: ImageType,
     boxes: Box3DType,
     intrinsics: Union[NDArrayF64, Intrinsics],
-    mode: str = "BGR",
+    mode: str = "RGB",
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode)
@@ -71,6 +71,23 @@ def imshow_bboxes3d(
         draw_bbox3d(image, box, intrinsic_matrix, col, label)
 
     imshow(image)
+
+
+def draw_image(
+    frame: Union[ImageType, Image.Image],
+    boxes2d: BoxType,
+    mode: str = "RGB",
+) -> Image.Image:
+    """Draw boxes2d on an image."""
+    image = (
+        preprocess_image(frame, mode)
+        if not isinstance(frame, Image.Image)
+        else frame
+    )
+    box_list, col_list, label_list = preprocess_boxes(boxes2d)
+    for box, col, label in zip(box_list, col_list, label_list):
+        draw_bbox(image, box, col, label)
+    return image
 
 
 def draw_bbox(

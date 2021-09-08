@@ -4,8 +4,6 @@ from .labels import Boxes2D, Boxes3D
 from .structures import (
     DataInstance,
     DictStrAny,
-    EvalResult,
-    EvalResults,
     LabelInstance,
     LossesType,
     ModelOutput,
@@ -23,8 +21,6 @@ __all__ = [
     "NDArrayF64",
     "NDArrayUI8",
     "LossesType",
-    "EvalResult",
-    "EvalResults",
     "InputSample",
     "Images",
     "Intrinsics",

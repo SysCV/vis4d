@@ -1,8 +1,6 @@
 [model]
 type = "D2TwoStageDetector"
 model_base = "faster-rcnn/r50-fpn"
-num_classes = 10
 weights = "detectron2"
-
-[dataloader]
+category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7, "traffic light" = 8, "traffic sign" = 9}
 image_channel_mode = "BGR"

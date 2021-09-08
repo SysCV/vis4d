@@ -11,9 +11,7 @@ from vist import config
 from vist.engine.trainer import predict
 from vist.engine.trainer import test as evaluate
 from vist.engine.trainer import train
-from vist.unittest.utils import d2_data_reset, get_test_file
-
-from .utils import _register
+from vist.unittest.utils import get_test_file
 
 
 class BaseEngineTests:
@@ -30,64 +28,35 @@ class BaseEngineTests:
             """Testcase for predict."""
             self.assertIsNotNone(self.cfg)
             self.cfg.launch.action = "predict"
+            trainer_args = {}
             if torch.cuda.is_available():
-                self.cfg.launch.device = "cuda"  # pragma: no cover
+                trainer_args["gpus"] = "0,"  # pragma: no cover
             self.cfg.launch.visualize = True
-            predict(self.cfg)
+            predict(self.cfg, trainer_args)
 
         def test_train(self) -> None:
             """Testcase for training."""
             self.assertIsNotNone(self.cfg)
             self.cfg.launch.action = "train"
             self.cfg.launch.seed = 42
+            trainer_args = {}
             if torch.cuda.is_available():
-                self.cfg.launch.device = "cuda"  # pragma: no cover
-            train(self.cfg)
+                trainer_args["gpus"] = "0,"  # pragma: no cover
+            train(self.cfg, trainer_args)
             self.cfg.launch.seed = -1
 
         def test_testfunc(self) -> None:
             """Testcase for test function."""
             self.assertIsNotNone(self.cfg)
-            self.cfg.launch.action = "predict"
+            self.cfg.launch.action = "test"
+            trainer_args = {}
             if torch.cuda.is_available():
-                self.cfg.launch.device = "cuda"  # pragma: no cover
-            results = evaluate(self.cfg)["detect"]
-            metric_keys = [
-                "AP",
-                "AP_50",
-                "AP_75",
-                "AP_small",
-                "AP_medium",
-                "AP_large",
-                "AR_max_1",
-                "AR_max_10",
-                "AR_max_100",
-                "AR_small",
-                "AR_medium",
-                "AR_large",
-                "AP_pedestrian",
-                "AP_rider",
-                "AP_car",
-                "AP_truck",
-                "AP_bus",
-                "AP_train",
-                "AP_motorcycle",
-                "AP_bicycle",
-                "AP_traffic light",
-                "AP_traffic sign",
-            ]
-
-            for k in results:
-                self.assertIn(k, metric_keys)
+                trainer_args["gpus"] = "0,"  # pragma: no cover
+            evaluate(self.cfg, trainer_args)
 
         @classmethod
         def tearDownClass(cls) -> None:
             """Clean up dataset registry, files."""
-            assert cls.cfg.train is not None, "cfg.train must not be None"
-            assert cls.cfg.test is not None, "cfg.test must not be None"
-            d2_data_reset([ds.name for ds in cls.cfg.train])
-            d2_data_reset([ds.name for ds in cls.cfg.test])
-            d2_data_reset(["00091078-875c1f73"])
             shutil.rmtree(cls.work_dir, ignore_errors=True)
 
     class TestTrack(unittest.TestCase):
@@ -96,20 +65,6 @@ class BaseEngineTests:
         cfg = None
         work_dir = None
         args = None
-        metric_keys = [
-            "car",
-            "pedestrian",
-            "rider",
-            "truck",
-            "bus",
-            "train",
-            "motorcycle",
-            "bicycle",
-            "human",
-            "vehicle",
-            "bike",
-            "OVERALL",
-        ]
         predict_dir = (
             "vist/engine/testcases/track/bdd100k-samples/images/"
             "00091078-875c1f73/"
@@ -119,49 +74,36 @@ class BaseEngineTests:
             """Testcase for predict."""
             self.assertIsNotNone(self.cfg)
             self.cfg.launch.action = "predict"
+            trainer_args = {}
             if torch.cuda.is_available():
-                self.cfg.launch.device = "cuda"  # pragma: no cover
+                trainer_args["gpus"] = "0,"  # pragma: no cover
             self.cfg.launch.input_dir = self.predict_dir
             self.cfg.launch.visualize = True
-            predict(self.cfg)
+            predict(self.cfg, trainer_args)
 
         def test_testfunc(self) -> None:
             """Testcase for test function."""
             self.assertIsNotNone(self.cfg)
-            self.cfg.launch.action = "predict"
+            self.cfg.launch.action = "test"
+            trainer_args = {}
             if torch.cuda.is_available():
-                self.cfg.launch.device = "cuda"  # pragma: no cover
-            results = evaluate(self.cfg)["track"]
-
-            for k in results:
-                self.assertIn(k, self.metric_keys)
+                trainer_args["gpus"] = "0,"  # pragma: no cover
+            evaluate(self.cfg, trainer_args)
 
         def test_train(self) -> None:
             """Testcase for training."""
             self.assertIsNotNone(self.cfg)
             self.cfg.launch.action = "train"
             self.cfg.launch.seed = 42
+            trainer_args = {}
             if torch.cuda.is_available():
-                self.cfg.launch.device = "cuda"  # pragma: no cover
-            train(self.cfg)
+                trainer_args["gpus"] = "0,"  # pragma: no cover
+            train(self.cfg, trainer_args)
             self.cfg.launch.seed = -1
-
-        def test_duplicate_register(self) -> None:
-            """Test if duplicated datasets are skipped."""
-            self.assertIsNotNone(self.cfg.train)
-            self.assertIsNotNone(self.cfg.test)
-            _register(self.cfg.train)
-            _register(self.cfg.test)
-            _register(self.cfg.train)
 
         @classmethod
         def tearDownClass(cls) -> None:
             """Clean up dataset registry, files."""
-            assert cls.cfg.train is not None, "cfg.train must not be None"
-            assert cls.cfg.test is not None, "cfg.test must not be None"
-            d2_data_reset([ds.name for ds in cls.cfg.train])
-            d2_data_reset([ds.name for ds in cls.cfg.test])
-            d2_data_reset(["00091078-875c1f73"])
             shutil.rmtree(cls.work_dir, ignore_errors=True)
 
 
@@ -174,7 +116,7 @@ class TestTrackD2(BaseEngineTests.TestTrack):
         cls.work_dir = "./unittests/unittest_track_d2/"
         cls.args = Namespace(
             config=get_test_file("track/qdtrack_d2.toml"),
-            output_dir=cls.work_dir,
+            work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
 
@@ -188,7 +130,7 @@ class TestTrackMM(BaseEngineTests.TestTrack):
         cls.work_dir = "./unittests/unittest_track_mm/"
         cls.args = Namespace(
             config=get_test_file("track/qdtrack_mmdet.toml"),
-            output_dir=cls.work_dir,
+            work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
 
@@ -202,18 +144,9 @@ class TestTrackMMKITTI(BaseEngineTests.TestTrack):
         cls.work_dir = "./unittests/unittest_track_mm_kitti/"
         cls.args = Namespace(
             config=get_test_file("track/qdtrack_mmdet_kitti.toml"),
-            output_dir=cls.work_dir,
+            work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
-        cls.metric_keys = [
-            "pedestrian",
-            "cyclist",
-            "car",
-            "truck",
-            "tram",
-            "misc",
-            "OVERALL",
-        ]
         cls.predict_dir = (
             "vist/engine/testcases/track/kitti-samples/"
             "tracking/training/image_02/0001/"
@@ -229,7 +162,7 @@ class TestDetectD2(BaseEngineTests.TestDetect):
         cls.work_dir = "./unittests/unittest_detect_d2/"
         cls.args = Namespace(
             config=get_test_file("detect/faster_rcnn_d2.toml"),
-            output_dir=cls.work_dir,
+            work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
 
@@ -243,6 +176,6 @@ class TestDetectMM(BaseEngineTests.TestDetect):
         cls.work_dir = "./unittests/unittest_detect_mm/"
         args = Namespace(
             config=get_test_file("detect/faster_rcnn_mmdet.toml"),
-            output_dir=cls.work_dir,
+            work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)

@@ -5,6 +5,28 @@ annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation_coco.json
 data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
 config_path = "vist/engine/testcases/detect/bdd100k-samples/config.toml"
 num_processes = 0
+    [train.dataloader.ref_sampling_cfg]
+    type = 'uniform'
+    scope = 1
+    num_ref_imgs = 0
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    kwargs = {"shape" = [360, 640], "scale_range" = [1.2, 1.5], "interpolation" = "bicubic"}
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    [train.dataloader.transformations.kwargs]
+        shape = [
+            [360, 640],
+            [480, 960]
+        ]
+        keep_ratio = true
+        multiscale_mode = "list"
+
+    [[train.dataloader.transformations]]
+    type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
 
 [[test]]
 name = "bdd100k_det_sample_val"
@@ -14,33 +36,6 @@ data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
 config_path = "vist/engine/testcases/detect/bdd100k-samples/config.toml"
 num_processes = 0
 eval_metrics = ["detect"]
-
-[dataloader]
-workers_per_gpu = 0
-categories = ["pedestrian", "rider", "car", "truck", "bus", "train", "motorcycle", "bicycle", "traffic light", "traffic sign"]
-    [dataloader.ref_sampling_cfg]
-    type = 'uniform'
-    scope = 1
-    num_ref_imgs = 0
-
-    [[dataloader.train_augmentations]]
-    type = "Resize"
-    kwargs = {"shape" = [360, 640], "scale_range" = [1.2, 1.5], "interpolation" = "bicubic"}
-
-    [[dataloader.train_augmentations]]
-    type = "Resize"
-    [dataloader.train_augmentations.kwargs]
-        shape = [
-            [360, 640],
-            [480, 960]
-        ]
-        keep_ratio = true
-        multiscale_mode = "list"
-
-    [[dataloader.train_augmentations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
-
-    [[dataloader.test_augmentations]]
+    [[test.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}

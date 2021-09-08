@@ -3,23 +3,27 @@ path = "../../base/datasets/kitti.toml"
 
 [[config]]
 path = "../../base/models/mmdetection/qd_3dt_R_50_FPN.toml"
+
 [model]
-    [model.detection]
-    num_classes = 3
+category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
+    [model.optimizer]
+    type = "SGD"
+    lr = 0.03
+    kwargs = {"momentum" = 0.9}
+
+    [model.lr_scheduler]
+    type = "MultiStepLR"
+    kwargs = {"milestones" = [9, 11]}
 
     [model.bbox_3d_head]
     num_classes = 3
 
-[solver]
-images_per_gpu = 1
-lr_policy = "WarmupMultiStepLR"
-base_lr = 0.001
-steps = [88000, 121000]
-max_iters = 132000
-checkpoint_period = 11000
-log_period = 50
-eval_period = 11000
-
 [launch]
-device = "cuda"
-num_gpus = 1
+samples_per_gpu = 6
+workers_per_gpu = 2
+
+[trainer]
+max_epochs = 12
+log_every_n_steps = 50
+check_val_every_n_epoch = 1
+num_sanity_val_steps = 0
