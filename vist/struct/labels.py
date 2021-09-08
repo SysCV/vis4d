@@ -214,7 +214,7 @@ class Boxes2D(Boxes, LabelInstance):
                 y2=float(self.boxes[i, 3]),
             )
             if self.boxes.shape[-1] == 5:
-                score = float(self.boxes[i, 4])  # type: Optional[float]
+                score: Optional[float] = float(self.boxes[i, 4])
             else:
                 score = None
             label_dict = dict(id=label_id, box2d=box, score=score)
@@ -302,7 +302,7 @@ class Boxes3D(Boxes, LabelInstance):
                 ry = float(self.boxes[i, 6])
                 rz = 0.0
                 if self.boxes.shape[-1] == 8:
-                    score = float(self.boxes[i, 7])  # type: Optional[float]
+                    score: Optional[float] = float(self.boxes[i, 7])
                 else:
                     score = None
             else:

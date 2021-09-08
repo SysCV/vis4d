@@ -150,9 +150,9 @@ class QDSimilarityHead(BaseSimilarityHead):
             for fc in self.fcs:
                 x = fc(x)
 
-        embeddings = self.fc_embed(x).split(
+        embeddings: List[torch.Tensor] = self.fc_embed(x).split(
             [len(b) for b in boxes]
-        )  # type: List[torch.Tensor]
+        )
         return embeddings
 
     def forward_train(
@@ -171,7 +171,8 @@ class QDSimilarityHead(BaseSimilarityHead):
 
         Returns:
             LossesType: A dict of scalar loss tensors.
-             Optional[List[SamplingResult]]: Sampling result for
+            Optional[List[SamplingResult]]: Sampling results. Key first, then
+                reference views.
         """
         sampling_results, sampled_boxes, sampled_targets = [], [], []
         for i, (box, tgt) in enumerate(zip(boxes, targets)):

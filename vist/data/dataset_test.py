@@ -3,7 +3,14 @@ import unittest
 from typing import List
 
 import torch
-from scalabel.label.typing import Category, Config, Dataset, Frame
+from scalabel.label.typing import (
+    Box2D,
+    Category,
+    Config,
+    Dataset,
+    Frame,
+    Label,
+)
 
 from ..struct import Images, InputSample
 from .dataset import ScalabelDataset
@@ -103,10 +110,41 @@ class TestScalabelDataset(unittest.TestCase):
             Frame(name="0"),
             Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
         )
-        self.dataset.transform_annotation(input_sample, None, lambda x: x)
+        self.dataset.transform_annotation(input_sample, None, torch.eye(3))
         self.assertEqual(len(input_sample.boxes2d), 0)
-        self.dataset.transform_annotation(input_sample, [], lambda x: x)
+        self.dataset.transform_annotation(input_sample, [], torch.eye(3))
         self.assertEqual(len(input_sample.boxes2d), 0)
+
+        labels = [
+            Label(
+                id="a",
+                category="car",
+                box2d=Box2D(x1=10, y1=10, x2=20, y2=20),
+                attributes={"category_id": 0, "instance_id": 2},
+            ),
+            Label(
+                id="b",
+                category="car",
+                box2d=Box2D(x1=11, y1=10, x2=20, y2=20),
+                attributes={"category_id": 0, "instance_id": 1},
+            ),
+            Label(
+                id="c",
+                category="car",
+                box2d=Box2D(x1=12, y1=10, x2=20, y2=20),
+                attributes={"category_id": 0, "instance_id": 0},
+            ),
+        ]
+        self.dataset.transform_annotation(input_sample, labels, torch.eye(3))
+
+        self.assertTrue(all(input_sample.boxes2d.class_ids == 0))
+        self.assertEqual(input_sample.boxes2d.boxes[0, 0], 10)
+        self.assertEqual(input_sample.boxes2d.boxes[1, 0], 11)
+        self.assertEqual(input_sample.boxes2d.boxes[2, 0], 12)
+
+        self.assertEqual(input_sample.boxes2d.track_ids[0], 2)
+        self.assertEqual(input_sample.boxes2d.track_ids[1], 1)
+        self.assertEqual(input_sample.boxes2d.track_ids[2], 0)
 
     def test_sort_samples(self) -> None:
         """Test the sort_samples method in MapDataset."""

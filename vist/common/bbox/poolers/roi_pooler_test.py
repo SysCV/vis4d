@@ -16,7 +16,7 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
         """Testcase for pool function."""
         cfg = MultiScaleRoIPoolerConfig(
             type="placeholder",
-            pooling_op="ROIAlign",
+            pooling_op="RoIAlign",
             resolution=[7, 7],
             strides=[8, 16],
             sampling_ratio=0,
@@ -38,7 +38,7 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
 
         cfg = MultiScaleRoIPoolerConfig(
             type="placeholder",
-            pooling_op="ROIPool",
+            pooling_op="RoIPool",
             resolution=[7, 7],
             strides=[8],
             sampling_ratio=0,

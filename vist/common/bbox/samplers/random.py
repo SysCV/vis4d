@@ -27,9 +27,9 @@ class RandomSampler(BaseSampler):
         targets: List[Boxes2D],
     ) -> SamplingResult:
         """Sample boxes randomly."""
-        result = defaultdict(
-            list
-        )  # type: Dict[str, Union[List[Boxes2D], List[torch.Tensor]]]
+        result: Dict[
+            str, Union[List[Boxes2D], List[torch.Tensor]]
+        ] = defaultdict(list)
         for match, box, target in zip(matching, boxes, targets):
             pos_idx, neg_idx = self._sample_labels(match.assigned_labels)
             sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)

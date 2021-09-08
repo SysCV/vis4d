@@ -159,9 +159,9 @@ class CombinedSampler(BaseSampler):
         pos_sample_size = int(
             self.cfg.batch_size_per_image * self.cfg.positive_fraction
         )
-        result = defaultdict(
-            list
-        )  # type: Dict[str, Union[List[Boxes2D], List[torch.Tensor]]]
+        result: Dict[
+            str, Union[List[Boxes2D], List[torch.Tensor]]
+        ] = defaultdict(list)
         for match, box, target in zip(matching, boxes, targets):
             positive_mask = (match.assigned_labels != -1) & (
                 match.assigned_labels != self.bg_label

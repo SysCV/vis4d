@@ -17,9 +17,9 @@ class MultiScaleRoIPoolerConfig(RoIPoolerConfig):
     strides: feature map strides relative to the input.
         The strides must be powers of 2 and a monotically decreasing geometric
          sequence with a factor of 1/2.
-    sampling_ratio: Parameter for the ROIAlign (see torchvision).
-    pooler_type: Name of pooling operation that should be applied. "ROIPool",
-        "ROIAlign" or "ROIAlignV2".
+    sampling_ratio: Parameter for the RoIAlign (see torchvision).
+    pooler_type: Name of pooling operation that should be applied. "RoIPool" or
+        "RoIAlign".
     canonical_box_size: A canonical box size in pixels (sqrt(box area)). The
         default is heuristically defined as 224 pixels in the FPN paper
         (based on ImageNet pre-training).
@@ -31,6 +31,8 @@ class MultiScaleRoIPoolerConfig(RoIPoolerConfig):
         w.r.t canonical_box_size. For example, a box whose area is 4x that of a
         canonical box should be used to pool features from feature level
         ``canonical_level+1``.
+    aligned (bool): For roi_align op. Shift the box coordinates it by -0.5
+        for a better alignment with the two neighboring pixel indices.
     """
 
     pooling_op: str
@@ -38,6 +40,7 @@ class MultiScaleRoIPoolerConfig(RoIPoolerConfig):
     sampling_ratio: int
     canonical_box_size: int = 224
     canonical_level: int = 4
+    aligned: bool = True
 
 
 class MultiScaleRoIPooler(BaseRoIPooler):
@@ -51,24 +54,10 @@ class MultiScaleRoIPooler(BaseRoIPooler):
         super().__init__()
         self.cfg = MultiScaleRoIPoolerConfig(**cfg.dict())
 
-        if self.cfg.pooling_op == "ROIAlign":
-            self.pooling_op = lambda *args, **kwargs: roi_align(
-                *args,
-                **kwargs,
-                sampling_ratio=self.cfg.sampling_ratio,
-                aligned=False,
-            )
-        elif self.cfg.pooling_op == "ROIAlignV2":
-            self.pooling_op = lambda *args, **kwargs: roi_align(
-                *args,
-                **kwargs,
-                sampling_ratio=self.cfg.sampling_ratio,
-                aligned=True,
-            )
-        elif self.cfg.pooling_op == "ROIPool":
-            self.pooling_op = roi_pool
-        else:
-            raise ValueError(f"Unknown pooling_op: {self.cfg.pooling_op}")
+        assert self.cfg.pooling_op in [
+            "RoIAlign",
+            "RoIPool",
+        ], f"Unknown pooling_op: {self.cfg.pooling_op}"
 
         # Map scale (defined as 1 / stride) to its feature map level under the
         # assumption that stride is a power of 2.
@@ -120,12 +109,11 @@ class MultiScaleRoIPooler(BaseRoIPooler):
 
         pooler_fmt_boxes = boxes_to_tensor(boxes)
         if len(self.cfg.strides) == 1:
-            return self.pooling_op(
+            return self._pooling_op(
                 features[0],
                 pooler_fmt_boxes,
-                output_size=self.cfg.resolution,
                 spatial_scale=self.scales[0],
-            )  # type: ignore
+            )
 
         level_assignments = assign_boxes_to_levels(
             boxes,
@@ -149,14 +137,33 @@ class MultiScaleRoIPooler(BaseRoIPooler):
         for level, scale in enumerate(self.scales):
             inds = (level_assignments == level).nonzero()[:, 0]
             pooler_fmt_boxes_level = pooler_fmt_boxes[inds]
-            pooled_features = self.pooling_op(
+            pooled_features = self._pooling_op(
                 features[level],
                 pooler_fmt_boxes_level,
-                output_size=self.cfg.resolution,
                 spatial_scale=scale,
-            )  # type: ignore
+            )
             # Use index_put_ instead of advance indexing
             # avoids pytorch/issues/49852
             output.index_put_((inds,), pooled_features)
 
         return output
+
+    def _pooling_op(
+        self,
+        inputs: torch.Tensor,
+        boxes: torch.Tensor,
+        spatial_scale: float = 1.0,
+    ) -> torch.Tensor:
+        """Execute pooling op defined in config."""
+        if self.cfg.pooling_op == "RoIAlign":
+            return roi_align(
+                inputs,
+                boxes,
+                self.cfg.resolution,
+                spatial_scale,
+                self.cfg.sampling_ratio,
+                self.cfg.aligned,
+            )
+        if self.cfg.pooling_op == "RoIPool":
+            return roi_pool(inputs, boxes, self.cfg.resolution, spatial_scale)
+        raise ValueError(f"Unknown pooling_op: {self.cfg.pooling_op}")

@@ -303,20 +303,26 @@ class ScalabelDataset(Dataset):  # type: ignore
         """Transform annotations."""
         labels_used = []
         if labels is not None:
-            cat_dict = {}
+            category_dict = {}
+            instance_id_dict = {}
             for label in labels:
                 assert label.attributes is not None
                 assert label.category is not None
                 if not check_crowd(label) and not check_ignored(label):
                     labels_used.append(label)
-                    if label.category not in cat_dict:
-                        cat_dict[label.category] = int(
+                    if label.category not in category_dict:
+                        category_dict[label.category] = int(
                             label.attributes["category_id"]
                         )
+                    if label.id not in instance_id_dict:
+                        instance_id_dict[label.id] = int(
+                            label.attributes["instance_id"]
+                        )
 
-        if "boxes2d" in self.cfg.dataloader.fields_to_load:
-            if labels is not None and labels_used:
-                boxes2d = Boxes2D.from_scalabel(labels_used, cat_dict)
+            if "boxes2d" in self.cfg.dataloader.fields_to_load and labels_used:
+                boxes2d = Boxes2D.from_scalabel(
+                    labels_used, category_dict, instance_id_dict
+                )
                 boxes2d.boxes[:, :4] = transform_bbox(
                     transform_matrix,
                     boxes2d.boxes[:, :4],
@@ -326,9 +332,10 @@ class ScalabelDataset(Dataset):  # type: ignore
 
                 input_sample.boxes2d = boxes2d
 
-        if "boxes3d" in self.cfg.dataloader.fields_to_load:
-            if labels is not None and labels_used:
-                boxes3d = Boxes3D.from_scalabel(labels_used, cat_dict)
+            if "boxes3d" in self.cfg.dataloader.fields_to_load and labels_used:
+                boxes3d = Boxes3D.from_scalabel(
+                    labels_used, category_dict, instance_id_dict
+                )
                 input_sample.boxes3d = boxes3d
 
     @staticmethod

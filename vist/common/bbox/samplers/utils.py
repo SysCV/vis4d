@@ -17,7 +17,7 @@ def prepare_target(
     if len(target):
         sampled_target = target[assigned_gt_indices.long()[sampled_idcs]]
     else:
-        class_ids = torch.ones(len(sampled_idcs), device=target.device) * -1
+        class_ids = torch.zeros(len(sampled_idcs), device=target.device)
         track_ids = None
         if target.track_ids is not None:
             track_ids = class_ids.clone()

@@ -1,6 +1,7 @@
 # type: ignore
 """Test cases for VisT engine Trainer."""
 
+import os
 import shutil
 import unittest
 from argparse import Namespace
@@ -119,6 +120,8 @@ class TestTrackD2(BaseEngineTests.TestTrack):
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
+        if os.path.exists(cls.cfg.train[0].annotations.rstrip("/") + ".pkl"):
+            os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
 
 
 class TestTrackMM(BaseEngineTests.TestTrack):
@@ -133,6 +136,8 @@ class TestTrackMM(BaseEngineTests.TestTrack):
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
+        if os.path.exists(cls.cfg.train[0].annotations.rstrip("/") + ".pkl"):
+            os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
 
 
 class TestTrackMMKITTI(BaseEngineTests.TestTrack):
