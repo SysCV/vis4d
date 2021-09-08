@@ -120,7 +120,9 @@ class TestTrackD2(BaseEngineTests.TestTrack):
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
-        if os.path.exists(cls.cfg.train[0].annotations.rstrip("/") + ".pkl"):
+        if os.path.exists(
+            cls.cfg.train[0].annotations.rstrip("/") + ".pkl"
+        ):  # pragma: no cover
             os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
 
 
@@ -136,7 +138,9 @@ class TestTrackMM(BaseEngineTests.TestTrack):
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
-        if os.path.exists(cls.cfg.train[0].annotations.rstrip("/") + ".pkl"):
+        if os.path.exists(
+            cls.cfg.train[0].annotations.rstrip("/") + ".pkl"
+        ):  # pragma: no cover
             os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
 
 
