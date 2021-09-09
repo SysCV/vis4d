@@ -11,7 +11,7 @@ from vist.common.bbox.matchers import MatcherConfig, build_matcher
 from vist.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
 from vist.common.bbox.samplers import SamplerConfig, build_sampler
 from vist.common.layers import Conv2d
-from vist.model.detect.losses import LossConfig, build_loss
+from vist.model.losses import LossConfig, build_loss
 from vist.model.detect.mmdet_utils import proposals_to_mmdet
 from vist.struct import Boxes2D, Boxes3D
 
@@ -475,25 +475,23 @@ class QD3DTBBox3DHead(BaseBoundingBoxHead):
     # TODO: Get rid of mmdet nms
     def get_det_bboxes(
         self,
-        rois,
         cls_score,
         bbox_2d_preds,
         bbox_3d_preds,
-        img_shape,
-        scale_factor,
-        cfg,
-        rescale=False,
     ):
+        """Transfer model prediction with nms into detection results."""
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
         scores = F.softmax(cls_score, dim=1) if cls_score is not None else None
 
+        if not self.cfg.reg_class_agnostic:
+            bbox_2d_preds = bbox_2d_preds.view(scores.size(0), -1, 4)
+
+        pdb.set_trace()
+
         bbox_2d_preds, bbox_3d_preds = self.bbox_coder.decode(
             bbox_2d_preds, bbox_3d_preds
         )
-
-        if rescale:
-            bbox_2d_preds /= scale_factor
 
         return self.multiclass_3d_nms(
             bbox_2d_preds,

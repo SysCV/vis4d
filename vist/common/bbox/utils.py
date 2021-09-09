@@ -5,6 +5,7 @@ import numpy as np
 from detectron2.structures import Boxes, pairwise_iou
 
 from vist.struct import Boxes2D, Boxes3D
+import pdb
 
 
 def compute_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
@@ -315,10 +316,11 @@ class Box3DCoder:
     # TODO: adjust for inference
     def decode(
         self,
-        bboxes_2d: torch.tensor,
-        bboxes_3d: torch.tensor,
+        bbox_2d_preds: torch.tensor,
+        bbox_3d_preds: torch.tensor,
     ):
         """Decode the model prediction."""
+        pdb.set_trace()
         if bbox_2d_preds is not None:
             bbox_2d_preds = delta2bbox(
                 rois[:, 1:],
@@ -334,9 +336,6 @@ class Box3DCoder:
                 bbox_2d_preds[:, [1, 3]].clamp_(min=0, max=img_shape[0] - 1)
 
         # center 2d
-        import pdb
-
-        pdb.set_trace()
         delta_center = bboxes_2d[:, 0:2]
 
         pred_x = (proposals[:, 0] + proposals[:, 2]) * 0.5

@@ -8,7 +8,6 @@ import torch.nn.functional as F
 from .base import BaseLoss, LossConfig
 
 from mmdet.models.losses import smooth_l1_loss, l1_loss
-import pdb
 
 
 class Box3DUncertaintyLossConfig(LossConfig):

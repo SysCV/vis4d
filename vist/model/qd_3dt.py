@@ -194,18 +194,14 @@ class QD3DT(QDTrack):
             bbox_2d_preds,
         ) = self.detector.generate_detections_from_roi_feats(roi_feats)
 
+        # pdb.set_trace()
+
         (
             bbox_2d_preds,
             det_labels,
             bbox_3d_preds,
         ) = self.bbox_3d_head.get_det_bboxes(
-            rois,
-            cls_scores,
-            bbox_2d_preds,
-            bbox_3d_preds,
-            img_shape,
-            scale_factor,
-            cfg=self.cfg.detector.test_cfg,
+            cls_scores, bbox_2d_preds, bbox_3d_preds
         )
 
         # similarity head
