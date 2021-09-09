@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Optional, Union
 import kornia
 import numpy as np
 import torch
-from fvcore.common.timer import Timer
 from PIL import Image
 from pytorch_lightning.utilities.distributed import rank_zero_info
 from scalabel.label.typing import Frame
@@ -16,6 +15,7 @@ from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
 from termcolor import colored
 
+from vist.common.utils.time import Timer
 from vist.struct import NDArrayUI8
 
 D2BoxType = Dict[str, Union[bool, float, str]]
@@ -113,12 +113,12 @@ def prepare_labels(
 ) -> Dict[str, int]:
     """Add category id and instance id to labels, return class frequencies."""
     timer = Timer()
-    instance_ids = defaultdict(list)  # type: Dict[str, List[str]]
+    instance_ids: Dict[str, List[str]] = defaultdict(list)
     frequencies = {cat: 0 for cat in cat_name2id}
     for frame_id, ann in enumerate(frames):
         if ann.labels is not None:
             for label in ann.labels:
-                attr = {}  # type: Dict[str, Union[bool, int, float, str]]
+                attr: Dict[str, Union[bool, int, float, str]] = {}
                 if label.attributes is not None:
                     attr = label.attributes
 
@@ -146,7 +146,7 @@ def prepare_labels(
     rank_zero_info(
         "Preprocessing %s labels takes %s seconds.",
         len(frames),
-        "{:.2f}".format(timer.seconds()),
+        "{:.2f}".format(timer.time()),
     )
     return frequencies
 

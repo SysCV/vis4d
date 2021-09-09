@@ -31,7 +31,7 @@ def get_img_metas(images: Images) -> List[MMDetMetaData]:
     img_metas = []
     _, c, padh, padw = images.tensor.shape  # type: Tuple[int, int, int, int]
     for i in range(len(images)):
-        meta = {}  # type: MMDetMetaData
+        meta: MMDetMetaData = {}
         w, h = images.image_sizes[i]
         meta["img_shape"] = meta["ori_shape"] = (h, w, c)
         meta["scale_factor"] = 1.0

@@ -7,7 +7,7 @@ num_processes = 0
     [train.dataloader]
     clip_bboxes_to_image = false
     skip_empty_samples = true
-    [train.dataloader.ref_sampling_cfg]
+    [train.dataloader.ref_sampling]
     type = 'uniform'
     scope = 10
     num_ref_imgs = 1

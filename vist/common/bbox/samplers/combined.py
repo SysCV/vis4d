@@ -1,5 +1,6 @@
 """Combined Sampler."""
-from typing import List, Tuple, Optional
+from collections import defaultdict
+from typing import Dict, List, Union
 
 import torch
 from pydantic import validator
@@ -8,8 +9,8 @@ from vist.struct import Boxes2D
 
 from ..matchers.base import MatchResult
 from ..utils import non_intersection, random_choice
-from .base import BaseSampler, SamplerConfig
-from .utils import nonzero_tuple, prepare_target
+from .base import BaseSampler, SamplerConfig, SamplingResult
+from .utils import add_to_result
 
 
 class CombinedSamplerConfig(SamplerConfig):
@@ -153,21 +154,22 @@ class CombinedSampler(BaseSampler):
         matching: List[MatchResult],
         boxes: List[Boxes2D],
         targets: List[Boxes2D],
-        return_pos_inds: bool = False,
-    ) -> Tuple[List[Boxes2D], List[Boxes2D], Optional[List[torch.tensor]]]:
+    ) -> SamplingResult:
         """Sample boxes according to strategies defined in cfg."""
         pos_sample_size = int(
             self.cfg.batch_size_per_image * self.cfg.positive_fraction
         )
-        sampled_boxes, sampled_targets, pos_assigned_gt_inds = [], [], []
+        result: Dict[
+            str, Union[List[Boxes2D], List[torch.Tensor]]
+        ] = defaultdict(list)
         for match, box, target in zip(matching, boxes, targets):
             positive_mask = (match.assigned_labels != -1) & (
                 match.assigned_labels != self.bg_label
             )
             negative_mask = match.assigned_labels == self.bg_label
 
-            positive = nonzero_tuple(positive_mask)[0]
-            negative = nonzero_tuple(negative_mask)[0]
+            positive = positive_mask.nonzero()[:, 0]
+            negative = negative_mask.nonzero()[:, 0]
 
             num_pos = min(positive.numel(), pos_sample_size)
             num_neg = self.cfg.batch_size_per_image - num_pos
@@ -182,9 +184,6 @@ class CombinedSampler(BaseSampler):
                 assigned_gt_ious=match.assigned_gt_iou[positive_mask],
                 sample_size=num_pos,
             )
-            pos_assigned_gt_inds.append(
-                match.assigned_gt_indices.long()[pos_idx]
-            )
 
             neg_idx = self.neg_strategy(
                 idx_tensor=negative,
@@ -192,17 +191,10 @@ class CombinedSampler(BaseSampler):
                 assigned_gt_ious=match.assigned_gt_iou[negative_mask],
                 sample_size=num_neg,
             )
-
             sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
-            sampled_boxes.append(box[sampled_idcs])
-            sampled_targets.append(
-                prepare_target(len(pos_idx), sampled_idcs, target, match)
-            )
+            add_to_result(result, sampled_idcs, box, target, match)
 
-        if return_pos_inds:
-            return sampled_boxes, sampled_targets, pos_assigned_gt_inds
-        else:
-            return sampled_boxes, sampled_targets
+        return SamplingResult(**result)
 
     def sample_within_intervals(
         self,
@@ -220,9 +212,9 @@ class CombinedSampler(BaseSampler):
         for i in range(self.cfg.num_bins):
             start_iou = floor_thr + i * iou_interval
             end_iou = floor_thr + (i + 1) * iou_interval
-            tmp_set = nonzero_tuple(
+            tmp_set = (
                 (start_iou <= assigned_gt_ious) & (assigned_gt_ious < end_iou)
-            )[0]
+            ).nonzero()[:, 0]
             if len(tmp_set) > per_bin_samples:
                 tmp_sampled_set = random_choice(
                     idx_tensor[tmp_set], per_bin_samples

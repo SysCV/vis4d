@@ -21,7 +21,7 @@ class VisTWriterCallback(Callback):
     def __init__(self, output_dir: str):
         """Init."""
         self._output_dir = output_dir
-        self._predictions = defaultdict(list)  # type: Dict[str, List[Frame]]
+        self._predictions: Dict[str, List[Frame]] = defaultdict(list)
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""
@@ -72,7 +72,7 @@ class ScalabelWriterCallback(VisTWriterCallback):
         """Init."""
         super().__init__(output_dir)
         self._visualize = visualize
-        self.cats_id2name = None  # type: Optional[Dict[int, str]]
+        self.cats_id2name: Optional[Dict[int, str]] = None
         if category_mapping is not None:
             self.cats_id2name = {v: k for k, v in category_mapping.items()}
 
