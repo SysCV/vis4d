@@ -1,15 +1,16 @@
 """Function for registering the datasets in VisT."""
 import abc
 import os
+import pickle
 from typing import List, Optional
 
-from fvcore.common.timer import Timer
 from pydantic import BaseModel, validator
 from pytorch_lightning.utilities.distributed import rank_zero_info
 from scalabel.label.typing import Dataset, Frame
 
 from vist.common.io import DataBackendConfig
 from vist.common.registry import RegistryHolder
+from vist.common.utils.time import Timer
 from vist.data.transforms import AugmentationConfig
 
 
@@ -66,6 +67,7 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     eval_metrics: List[str] = []
     validate_frames: bool = False
     ignore_unkown_cats: bool = False
+    cache_as_binary: bool = False
     num_processes: int = 4
 
 
@@ -77,13 +79,28 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         super().__init__()
         self.cfg = cfg
         timer = Timer()
-        dataset = self.load_dataset()
+        if self.cfg.cache_as_binary:
+            assert self.cfg.annotations is not None
+            if not os.path.exists(self.cfg.annotations.rstrip("/") + ".pkl"):
+                dataset = self.load_dataset()
+                with open(
+                    self.cfg.annotations.rstrip("/") + ".pkl", "wb"
+                ) as file:
+                    file.write(pickle.dumps(dataset))
+            else:
+                with open(
+                    self.cfg.annotations.rstrip("/") + ".pkl", "rb"
+                ) as file:
+                    dataset = pickle.loads(file.read())
+        else:
+            dataset = self.load_dataset()
+
         assert dataset.config is not None
         add_data_path(cfg.data_root, dataset.frames)
         rank_zero_info(
             "Loading %s takes %s seconds.",
             cfg.name,
-            "{:.2f}".format(timer.seconds()),
+            "{:.2f}".format(timer.time()),
         )
         self.metadata_cfg = dataset.config
         self.frames = dataset.frames

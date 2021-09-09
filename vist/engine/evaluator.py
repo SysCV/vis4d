@@ -58,9 +58,9 @@ class VisTEvaluatorCallback(Callback):
 
     def __init__(self) -> None:
         """Init class."""
-        self._predictions = defaultdict(list)  # type: Dict[str, List[Frame]]
-        self._gts = []  # type: List[Frame]
-        self.logger = None  # type: Optional[pl.loggers.LightningLoggerBase]
+        self._predictions: Dict[str, List[Frame]] = defaultdict(list)
+        self._gts: List[Frame] = []
+        self.logger: Optional[pl.loggers.LightningLoggerBase] = None
         self.logging_disabled = False
 
     def reset(self) -> None:

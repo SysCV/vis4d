@@ -23,7 +23,7 @@ class TestRandom(unittest.TestCase):
                 type="MaxIoUMatcher",
                 thresholds=[0.3, 0.5],
                 labels=[0, -1, 1],
-                allow_low_quality_matches=False,
+                allow_low_quality_matches=True,
             )
         )
         match_result = matcher.match(boxes, boxes)[0]
@@ -34,3 +34,6 @@ class TestRandom(unittest.TestCase):
 
         match_result = matcher.match(boxes, [Boxes2D(torch.empty(0, 5))])[0]
         self.assertTrue((match_result.assigned_labels == 0.0).all())
+
+        match_result = matcher.match([Boxes2D(torch.empty(0, 5))], boxes)[0]
+        self.assertEqual(len(match_result.assigned_gt_indices), 0)

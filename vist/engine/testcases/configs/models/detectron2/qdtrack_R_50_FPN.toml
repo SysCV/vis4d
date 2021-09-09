@@ -13,18 +13,6 @@ image_channel_mode = "BGR"
     type = "QDTrackGraph"
     keep_in_memory = 10  # timesteps
 
-    [[model.losses]]
-    type = "MultiPosCrossEntropyLoss"
-    loss_weight = 0.25
-
-    [[model.losses]]
-    type = "EmbeddingDistanceLoss"
-    loss_weight = 1.0
-    neg_pos_ub = 3
-    pos_margin = 0
-    neg_margin = 0.3
-    hard_mining = true
-
     [model.similarity]
     type = "QDSimilarityHead"
     in_dim = 256
@@ -37,9 +25,21 @@ image_channel_mode = "BGR"
     norm = "GroupNorm"
     proposal_append_gt = true
 
+        [model.similarity.track_loss]
+        type = "MultiPosCrossEntropyLoss"
+        loss_weight = 0.25
+
+        [model.similarity.track_loss_aux]
+        type = "EmbeddingDistanceLoss"
+        loss_weight = 1.0
+        neg_pos_ub = 3
+        pos_margin = 0
+        neg_margin = 0.3
+        hard_mining = true
+
         [model.similarity.proposal_pooler]
-        type = "D2RoIPooler"
-        pooling_op = "ROIAlignV2"
+        type = "MultiScaleRoIPooler"
+        pooling_op = "RoIAlign"
         resolution = [7, 7]
         strides = [4, 8, 16, 32]
         sampling_ratio = 0

@@ -1,20 +1,49 @@
 """Utility functions for bounding boxes."""
 import torch
-from detectron2.structures import Boxes, pairwise_iou
 
 from vist.struct import Boxes2D
 
 
-def compute_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
+def bbox_intersection(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
+    """Given two lists of boxes of size N and M, compute N x M intersection.
+
+    Args:
+        boxes1: N 2D boxes in format (x1, y1, x2, y2, Optional[score])
+        boxes2: M 2D boxes in format (x1, y1, x2, y2, Optional[score])
+
+    Returns:
+        Tensor: intersection (N, M).
+    """
+    boxes1, boxes2 = boxes1.boxes[:, :4], boxes2.boxes[:, :4]
+    width_height = torch.min(boxes1[:, None, 2:], boxes2[:, 2:]) - torch.max(
+        boxes1[:, None, :2], boxes2[:, :2]
+    )
+
+    width_height.clamp_(min=0)
+    intersection = width_height.prod(dim=2)
+    return intersection
+
+
+def bbox_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
     """Compute IoU between all pairs of boxes.
 
     Args:
-        boxes1, boxes2 (Boxes2D): Contains N & M boxes.
+        boxes1: N 2D boxes in format (x1, y1, x2, y2, Optional[score])
+        boxes2: M 2D boxes in format (x1, y1, x2, y2, Optional[score])
 
     Returns:
-        Tensor: IoU, size [N, M].
+        Tensor: IoU (N, M).
     """
-    return pairwise_iou(Boxes(boxes1.boxes[:, :4]), Boxes(boxes2.boxes[:, :4]))
+    area1 = boxes1.area()
+    area2 = boxes2.area()
+    inter = bbox_intersection(boxes1, boxes2)
+
+    iou = torch.where(
+        inter > 0,
+        inter / (area1[:, None] + area2 - inter),
+        torch.zeros(1, dtype=inter.dtype, device=inter.device),
+    )
+    return iou
 
 
 def random_choice(tensor: torch.Tensor, sample_size: int) -> torch.Tensor:

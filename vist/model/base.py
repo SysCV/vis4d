@@ -99,6 +99,9 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
                     self.trainer.global_step,
                     self.cfg.optimizer.lr,
                 )
+        elif self.trainer.global_step == self.cfg.lr_scheduler.warmup_steps:
+            for pg in optimizer.param_groups:
+                pg["lr"] = self.cfg.optimizer.lr
 
         # update params
         optimizer.step(closure=optimizer_closure)
@@ -121,7 +124,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         losses["loss"] = sum(list(losses.values()))
 
         self.log_dict(
-            losses,
+            {k: v.clone().detach() for k, v in losses.items()},
             prog_bar=True,
             logger=True,
             on_step=True,
