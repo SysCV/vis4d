@@ -109,53 +109,21 @@ class QD3DT(QDTrack):
         )
 
         # 3d bbox head
-        (
-            bbox_3d_preds,
-            pos_assigned_gt_inds,
-            pos_proposals,
-            _,
-        ) = self.bbox_3d_head(
+        loss_bbox_3d = self.bbox_3d_head.forward_train(
             key_x,
             key_proposals,
-            key_targets,
-            filter_negatives=True,
-        )
-
-        bbox3d_targets, labels = self.bbox_3d_head.get_targets(
-            pos_proposals,
-            pos_assigned_gt_inds,
             key_targets,
             key_targets_3d,
             key_cam_intrinsics,
         )
 
-        loss_bbox_3d = self.bbox_3d_head.loss(
-            bbox_3d_preds, bbox3d_targets, labels
-        )
-
         det_losses = {**rpn_losses, **roi_losses, **loss_bbox_3d}
 
         # track head
-        key_embeddings, key_track_targets = self.similarity_head(
-            key_images,
-            key_x,
-            key_proposals,
-            key_targets,
-            filter_negatives=True,
-        )
-        ref_track_targets, ref_embeddings = [], []
-        for inp, x, proposal, target in zip(
-            ref_images, ref_x, ref_proposals, ref_targets
-        ):
-            embeds, targets = self.similarity_head(inp, x, proposal, target)
-            ref_embeddings += [embeds]
-            ref_track_targets += [targets]
-
-        track_losses = self.tracking_loss(
-            key_embeddings,
-            key_track_targets,
-            ref_embeddings,
-            ref_track_targets,
+        track_losses, _ = self.similarity_head.forward_train(
+            [key_x, *ref_x],
+            [key_proposals, *ref_proposals],
+            [key_targets, *ref_targets],
         )
 
         return {**det_losses, **track_losses}

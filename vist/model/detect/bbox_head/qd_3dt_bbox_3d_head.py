@@ -9,7 +9,12 @@ import torch.nn.functional as F
 from vist.common.bbox.utils import Box3DCoder
 from vist.common.bbox.matchers import MatcherConfig, build_matcher
 from vist.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
-from vist.common.bbox.samplers import SamplerConfig, build_sampler
+
+from vist.common.bbox.samplers import (
+    SamplerConfig,
+    SamplingResult,
+    build_sampler,
+)
 from vist.common.layers import Conv2d
 from vist.model.losses import LossConfig, build_loss
 from vist.model.detect.mmdet_utils import proposals_to_mmdet
@@ -343,43 +348,22 @@ class QD3DTBBox3DHead(BaseBoundingBoxHead):
     @torch.no_grad()  # type: ignore
     def match_and_sample_proposals(
         self, proposals: List[Boxes2D], targets: List[Boxes2D]
-    ) -> Tuple[List[Boxes2D], List[Boxes2D]]:
+    ) -> SamplingResult:
         """Match proposals to targets and subsample."""
         if self.cfg.proposal_append_gt:
             proposals = [
                 Boxes2D.cat([p, t]) for p, t in zip(proposals, targets)
             ]
         matching = self.matcher.match(proposals, targets)
-        return self.sampler.sample(
-            matching, proposals, targets, return_pos_inds=True
-        )
+        return self.sampler.sample(matching, proposals, targets)
 
     def forward(
         self,
-        features: Dict[str, torch.Tensor],
-        proposals: List[Boxes2D],
-        targets: Optional[List[Boxes2D]] = None,
-        filter_negatives: bool = False,
+        features_list: List[torch.Tensor],
+        pos_proposals: List[Boxes2D],
     ):
         """Forward bbox 3d estimation."""
-        features_list = [features[f] for f in self.cfg.in_features]
-        # match and sample
-        if self.training:
-            assert targets is not None, "targets required during training"
-            (
-                proposals,
-                targets,
-                pos_assigned_gt_inds,
-            ) = self.match_and_sample_proposals(proposals, targets)
-            if filter_negatives:
-                proposals = [
-                    p[t.class_ids != -1] for p, t in zip(proposals, targets)  # type: ignore # pylint: disable=line-too-long
-                ]
-                targets = [t[t.class_ids != -1] for t in targets]  # type: ignore # pylint: disable=line-too-long
-        else:
-            pos_assigned_gt_inds = None
-
-        roi_feats = self.roi_pooler.pool(features_list, proposals)
+        roi_feats = self.roi_pooler.pool(features_list, pos_proposals)
 
         x_dep, x_dim, x_rot, x_2dc = self.get_embeds(roi_feats)
         (
@@ -400,7 +384,7 @@ class QD3DTBBox3DHead(BaseBoundingBoxHead):
 
         bbox_3d_preds = torch.cat(outputs, -1)
 
-        return bbox_3d_preds, pos_assigned_gt_inds, proposals, roi_feats
+        return bbox_3d_preds, roi_feats
 
     def _get_target_single(
         self,
@@ -452,6 +436,56 @@ class QD3DTBBox3DHead(BaseBoundingBoxHead):
             labels = torch.cat(labels, 0)
 
         return bbox_targets, labels
+
+    def forward_train(
+        self,
+        features: Dict[str, torch.Tensor],
+        proposals: List[Boxes2D],
+        targets: Optional[List[Boxes2D]] = None,
+        targets_3d: Optional[List[Boxes3D]] = None,
+        cam_intrinsics: Optional[torch.tensor] = None,
+    ):
+        """Forward pass during training stage.
+
+        Args:
+            features:
+            proposals:
+            targets:
+            targets_3d:
+            cam_intrinsics:
+
+        Returns:
+            LossesType: A dict of scalar loss tensors.
+        """
+        features_list = [features[f] for f in self.cfg.in_features]
+
+        # match and sample
+        sampling_results = self.match_and_sample_proposals(proposals, targets)
+        positives = [l == 1 for l in sampling_results.sampled_labels]
+        pos_assigned_gt_inds = [
+            i[p]
+            for i, p in zip(sampling_results.sampled_target_indices, positives)
+        ]
+        pos_proposals = [
+            b[p] for b, p in zip(sampling_results.sampled_boxes, positives)
+        ]
+
+        (bbox_3d_preds, _,) = self.forward(
+            features_list,
+            pos_proposals,
+        )
+
+        bbox3d_targets, labels = self.get_targets(
+            pos_proposals,
+            pos_assigned_gt_inds,
+            targets,
+            targets_3d,
+            cam_intrinsics,
+        )
+
+        loss_bbox_3d = self.loss(bbox_3d_preds, bbox3d_targets, labels)
+
+        return loss_bbox_3d
 
     def loss(self, bbox3d_pred, bbox_targets, labels):
         # if any positive boxes
