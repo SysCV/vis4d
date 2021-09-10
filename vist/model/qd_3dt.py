@@ -18,8 +18,8 @@ from vist.model.losses import LossConfig, build_loss
 from .qdtrack import QDTrackConfig, QDTrack
 
 from .detect.bbox_head import BaseBoundingBoxConfig, build_bbox_head
-from .track.utils import cosine_similarity, split_key_ref_inputs
-import pdb
+from .track.graph import build_track_graph
+from .track.utils import split_key_ref_inputs
 
 
 class QD3DTConfig(QDTrackConfig):
@@ -36,6 +36,7 @@ class QD3DT(QDTrack):
         super().__init__(cfg)
         self.cfg = QD3DTConfig(**cfg.dict())
         self.bbox_3d_head = build_bbox_head(self.cfg.bbox_3d_head)
+        self.track_graph = build_track_graph(self.cfg.track_graph)
 
     def prepare_targets(
         self,
@@ -150,37 +151,30 @@ class QD3DT(QDTrack):
         feat = self.detector.extract_features(image)
         proposals, _ = self.detector.generate_proposals(image, feat)
 
-        # 3D
-        (bbox_3d_preds, _, _, roi_feats,) = self.bbox_3d_head(
-            feat,
-            proposals,
+        detections, _ = self.detector.generate_detections(
+            image, feat, proposals
         )
+        assert detections is not None
 
-        # 2D
-        (
-            cls_scores,
-            bbox_2d_preds,
-        ) = self.detector.generate_detections_from_roi_feats(roi_feats)
-
-        # pdb.set_trace()
-
-        (
-            bbox_2d_preds,
-            det_labels,
-            bbox_3d_preds,
-        ) = self.bbox_3d_head.get_det_bboxes(
-            cls_scores, bbox_2d_preds, bbox_3d_preds
+        bbox_2d_preds, bbox_3d_preds, keep = self.bbox_3d_head.forward_test(
+            feat,
+            detections,
+            cam_intrinsics,
         )
 
         # similarity head
-        embeddings, _ = self.similarity_head(image, feat, detections)
+        embeddings = self.similarity_head.forward_test(feat, detections)
+        embeddings = embeddings[0][keep]
         assert inputs[0].metadata.size is not None
         input_size = (
             inputs[0].metadata.size.width,
             inputs[0].metadata.size.height,
         )
-        self.postprocess(input_size, image.image_sizes[0], detections[0])
+        self.postprocess(input_size, image.image_sizes[0], bbox_2d_preds)
 
         # associate detections, update graph
-        tracks = self.track_graph(detections[0], frame_id, embeddings[0])
-        return dict(detect=detections, track=[tracks])
+        tracks, tracks_3d = self.track_graph(
+            bbox_2d_preds, bbox_3d_preds, frame_id, embeddings
+        )
+
+        return dict(detect=[bbox_2d_preds], track=[tracks])

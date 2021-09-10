@@ -190,11 +190,3 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             detect_losses = {}
 
         return detections, detect_losses
-
-    def generate_detections_from_roi_feats(self, roi_feats):
-        """Generate 2D prediction for 3D."""
-        cls_scores, bbox_2d_preds = self.mm_detector.roi_head.bbox_head(
-            roi_feats
-        )
-
-        return cls_scores, bbox_2d_preds

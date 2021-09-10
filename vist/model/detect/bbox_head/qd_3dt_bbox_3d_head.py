@@ -21,7 +21,6 @@ from vist.model.detect.mmdet_utils import proposals_to_mmdet
 from vist.struct import Boxes2D, Boxes3D
 
 from .base import BaseBoundingBoxConfig, BaseBoundingBoxHead
-import pdb
 
 
 class QD3DTBBox3DHeadConfig(BaseBoundingBoxConfig):
@@ -42,8 +41,6 @@ class QD3DTBBox3DHeadConfig(BaseBoundingBoxConfig):
     fc_out_dim: int
     roi_feat_size: int
     num_classes: int
-    target_means: List[float]
-    target_stds: List[float]
     center_scale: float
     reg_class_agnostic: bool
     conv_has_bias: bool
@@ -51,6 +48,7 @@ class QD3DTBBox3DHeadConfig(BaseBoundingBoxConfig):
     num_groups: int = 32
     with_depth: bool
     with_uncertainty: bool
+    uncertainty_thres: float
     with_dim: bool
     with_rot: bool
     with_2dc: bool
@@ -470,10 +468,7 @@ class QD3DTBBox3DHead(BaseBoundingBoxHead):
             b[p] for b, p in zip(sampling_results.sampled_boxes, positives)
         ]
 
-        (bbox_3d_preds, _,) = self.forward(
-            features_list,
-            pos_proposals,
-        )
+        bbox_3d_preds, _ = self.forward(features_list, pos_proposals)
 
         bbox3d_targets, labels = self.get_targets(
             pos_proposals,
@@ -506,169 +501,19 @@ class QD3DTBBox3DHead(BaseBoundingBoxHead):
 
         return losses
 
-    # TODO: Get rid of mmdet nms
-    def get_det_bboxes(
+    def forward_test(
         self,
-        cls_score,
-        bbox_2d_preds,
-        bbox_3d_preds,
+        features: Dict[str, torch.Tensor],
+        bbox_2d_preds: List[Boxes2D],
+        cam_intrinsics: List[torch.Tensor],
     ):
-        """Transfer model prediction with nms into detection results."""
-        if isinstance(cls_score, list):
-            cls_score = sum(cls_score) / float(len(cls_score))
-        scores = F.softmax(cls_score, dim=1) if cls_score is not None else None
+        features_list = [features[f] for f in self.cfg.in_features]
+        bbox_3d_preds, _ = self.forward(features_list, bbox_2d_preds)
 
-        if not self.cfg.reg_class_agnostic:
-            bbox_2d_preds = bbox_2d_preds.view(scores.size(0), -1, 4)
-
-        pdb.set_trace()
-
-        bbox_2d_preds, bbox_3d_preds = self.bbox_coder.decode(
-            bbox_2d_preds, bbox_3d_preds
-        )
-
-        return self.multiclass_3d_nms(
-            bbox_2d_preds,
-            scores,
+        return self.bbox_coder.decode(
+            bbox_2d_preds[0],
             bbox_3d_preds,
-            cfg.score_thr,
-            cfg.nms,
-            cfg.max_per_img,
-        )
-
-    def multiclass_3d_nms(
-        self,
-        multi_bboxes,
-        multi_scores,
-        bbox_3d_preds,
-        score_thr,
-        nms_cfg,
-        max_num=-1,
-        score_factors=None,
-    ):
-        """NMS for multi-class bboxes.
-
-        Args:
-            multi_bboxes (Tensor): shape (n, #class*4) or (n, 4)
-            multi_scores (Tensor): shape (n, #class), where the 0th column
-                contains scores of the background class, but this will be ignored.
-            bbox_3d_preds (Tensor): shape (n, #class*15) or (n, 15)
-            score_thr (float): bbox threshold, bboxes with scores lower than it
-                will not be considered.
-            nms_thr (float): NMS IoU threshold
-            max_num (int): if there are more than max_num bboxes after NMS,
-                only top max_num will be kept.
-            score_factors (Tensor): The factors multiplied to scores before
-                applying NMS
-
-        Returns:
-            tuple: (bbox_2d_preds, labels, bbox_3d_preds), tensors of shape
-                (k, 5), (k, 1) and (k, 15). Labels are 0-based.
-        """
-        num_classes = multi_scores.size(1) - 1
-
-        # exclude background category
-        if self.cfg.reg_class_agnostic:
-            bboxes = multi_bboxes[:, None].expand(-1, num_classes, 4)
-        else:
-            bboxes = multi_bboxes.view(multi_scores.size(0), -1, 4)[:, 1:]
-        scores = multi_scores[:, 1:]
-
-        # filter out boxes with low scores
-        if self.cfg.with_uncertainty:
-            valid_mask = (scores * depth_uncertainty_pred[:, 1:]) > score_thr
-        else:
-            valid_mask = scores > score_thr
-        bboxes = bboxes[valid_mask]
-        if score_factors is not None:
-            scores = scores * score_factors[:, None]
-        scores = scores[valid_mask]
-
-        labels = valid_mask.nonzero()[:, 1]
-
-        if bboxes.numel() == 0:
-            bboxes = multi_bboxes.new_zeros((0, 5))
-            labels = multi_bboxes.new_zeros((0,), dtype=torch.long)
-            depths = multi_bboxes.new_zeros((0,))
-            depths_uncertainty = multi_bboxes.new_zeros((0,))
-            dims = multi_bboxes.new_zeros((0, 3))
-            rots = multi_bboxes.new_zeros((0,))
-            cen_2ds = multi_bboxes.new_zeros((0, 2))
-            return (
-                bboxes,
-                labels,
-                depths,
-                depths_uncertainty,
-                dims,
-                rots,
-                cen_2ds,
-            )
-
-        dets, keep = batched_nms(bboxes, scores, labels, nms_cfg)
-
-        if depth_pred is not None:
-            if reg_class_agnostic:
-                depths = depth_pred.expand(-1, num_classes, -1)[valid_mask]
-            else:
-                depths = depth_pred.view(multi_scores.size(0), -1, 1)[:, 1:][
-                    valid_mask
-                ]
-            depths = depths[keep[:max_num]]
-        else:
-            depths = None
-
-        if depth_uncertainty_pred is not None:
-            if reg_class_agnostic:
-                depths_uncertainty = depth_uncertainty_pred.expand(
-                    -1, num_classes, -1
-                )[valid_mask]
-            else:
-                depths_uncertainty = depth_uncertainty_pred.view(
-                    multi_scores.size(0), -1, 1
-                )[:, 1:][valid_mask]
-            depths_uncertainty = depths_uncertainty[keep[:max_num]]
-        else:
-            depths_uncertainty = None
-
-        if dim_pred is not None:
-            if reg_class_agnostic:
-                dims = dim_pred.expand(-1, num_classes, -1)[valid_mask]
-            else:
-                dims = dim_pred.view(multi_scores.size(0), -1, 3)[:, 1:][
-                    valid_mask
-                ]
-            dims = dims[keep[:max_num]]
-        else:
-            dims = None
-
-        if rot_pred is not None:
-            if reg_class_agnostic:
-                rots = rot_pred.expand(-1, num_classes, -1)[valid_mask]
-            else:
-                rots = rot_pred.view(multi_scores.size(0), -1, 1)[:, 1:][
-                    valid_mask
-                ]
-            rots = rots[keep[:max_num]]
-        else:
-            rots = None
-
-        if cen_2d_pred is not None:
-            if reg_class_agnostic:
-                cen_2ds = cen_2d_pred.expand(-1, num_classes, -1)[valid_mask]
-            else:
-                cen_2ds = cen_2d_pred.view(multi_scores.size(0), -1, 2)[:, 1:][
-                    valid_mask
-                ]
-            cen_2ds = cen_2ds[keep[:max_num]]
-        else:
-            cen_2ds = None
-
-        return (
-            dets[:max_num],
-            labels[keep[:max_num]],
-            depths,
-            depths_uncertainty,
-            dims,
-            rots,
-            cen_2ds,
+            cam_intrinsics[0],
+            self.cfg.with_uncertainty,
+            self.cfg.uncertainty_thres,
         )

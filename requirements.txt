@@ -24,6 +24,7 @@ mmcv-full
 devtools
 utm
 kornia
+filterpy
 
 types-toml
 types-termcolor

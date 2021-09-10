@@ -25,14 +25,13 @@ type = "QD3DT"
     fc_out_dim = 1024
     roi_feat_size = 7
 
-    target_means = [0.0, 0.0, 0.0, 0.0]
-    target_stds = [0.1, 0.1, 0.2, 0.2]
     center_scale = 10.0
     reg_class_agnostic = false
     conv_has_bias = false
     norm = "GroupNorm"
     with_depth = true
     with_uncertainty = true
+    uncertainty_thres = 0.9
     with_dim = true
     with_rot = true
     with_2dc = true
@@ -63,8 +62,24 @@ type = "QD3DT"
         allow_low_quality_matches = false
 
     [model.track_graph]
-    type = "QDTrackGraph"
+    type = "QD3DTrackGraph"
     keep_in_memory = 10  # timesteps
+    init_score_thr = 0.5
+    obj_score_thr = 0.5
+    match_score_thr = 0.5
+    memo_backdrop_frames = 1
+    memo_momentum = 0.8
+    motion_momentum = 0.9
+    nms_conf_thr = 0.5
+    nms_backdrop_iou_thr = 0.3
+    nms_class_iou_thr = 0.8
+    loc_dim = 7
+    with_cats = true
+    with_depth_uncertainty = true
+    lstm_name = 'VeloLSTM'
+    lstm_ckpt_name = './checkpoints/batch8_min10_seq10_dim7_subtrain_VeloLSTM_kitti_100_linear.pth'
+    tracker_model_name = 'LSTM3DTracker'
+    bbox_affinity_weight = 0.5
 
     [model.similarity]
     type = "QDSimilarityHead"
