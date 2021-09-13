@@ -16,7 +16,7 @@ from vist.model.detect.d2_utils import (
     proposal_to_box2d,
     target_to_instance,
 )
-from vist.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
+from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
 from ..base import BaseModelConfig
 from .base import BaseTwoStageDetector
@@ -48,13 +48,13 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             if isinstance(m, _BatchNorm):
                 m.eval()
 
-    def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
+    def preprocess_inputs(self, inputs: List[InputSample]) -> InputSample:
         """Batch, pad (standard stride=32) and normalize the input images."""
-        images = Images.cat([inp.image for inp in batched_inputs], self.device)
-        images.tensor = (
-            images.tensor - self.d2_detector.pixel_mean
+        batched_inputs = InputSample.cat(inputs, self.device)
+        batched_inputs.images.tensor = (
+            batched_inputs.images.tensor - self.d2_detector.pixel_mean
         ) / self.d2_detector.pixel_std
-        return images
+        return batched_inputs
 
     def forward_train(
         self,
@@ -64,20 +64,13 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         assert all(
             len(inp) == 1 for inp in batch_inputs
         ), "No reference views allowed in D2TwoStageDetector training!"
-        inputs = [inp[0] for inp in batch_inputs]
+        raw_inputs = [inp[0] for inp in batch_inputs]
 
-        targets = []
-        for x in inputs:
-            assert x.boxes2d is not None
-            targets.append(x.boxes2d.to(self.device))
-
-        images = self.preprocess_image(inputs)
-        features = self.extract_features(images)
-        proposals, rpn_losses = self.generate_proposals(
-            images, features, targets
-        )
+        inputs = self.preprocess_inputs(raw_inputs)
+        features = self.extract_features(inputs)
+        proposals, rpn_losses = self.generate_proposals(inputs, features)
         _, detect_losses = self.generate_detections(
-            images, features, proposals, targets, compute_detections=False
+            inputs, features, proposals, compute_detections=False
         )
         return {**rpn_losses, **detect_losses}
 
@@ -86,44 +79,47 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         batch_inputs: List[List[InputSample]],
     ) -> ModelOutput:
         """Forward pass during testing stage."""
-        inputs = [inp[0] for inp in batch_inputs]
-        images = self.preprocess_image(inputs)
-        features = self.extract_features(images)
-        proposals, _ = self.generate_proposals(images, features)
-        detections, _ = self.generate_detections(images, features, proposals)
+        raw_inputs = [inp[0] for inp in batch_inputs]
+        inputs = self.preprocess_inputs(raw_inputs)
+        features = self.extract_features(inputs)
+        proposals, _ = self.generate_proposals(inputs, features)
+        detections, _ = self.generate_detections(inputs, features, proposals)
         assert detections is not None
-        assert inputs[0].metadata.size is not None
-        input_size = (
-            inputs[0].metadata.size.width,
-            inputs[0].metadata.size.height,
-        )
+
         for inp, det in zip(inputs, detections):
-            self.postprocess(input_size, inp.image.image_sizes[0], det)
+            assert inp.metadata[0].size is not None
+            input_size = (
+                inp.metadata[0].size.width,
+                inp.metadata[0].size.height,
+            )
+            self.postprocess(input_size, inp.images.image_sizes[0], det)
 
         return dict(detect=detections)  # type: ignore
 
-    def extract_features(self, images: Images) -> Dict[str, torch.Tensor]:
+    def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.
 
-        Return preprocessed images, backbone output features.
+        Return backbone output features.
         """
-        return self.d2_detector.backbone(images.tensor)  # type: ignore
+        return self.d2_detector.backbone(inputs.tensor)  # type: ignore
 
     def generate_proposals(
         self,
-        images: Images,
+        inputs: InputSample,
         features: Dict[str, torch.Tensor],
-        targets: Optional[List[Boxes2D]] = None,
     ) -> Tuple[List[Boxes2D], LossesType]:
         """Detector RPN stage.
 
         Return proposals per image and losses (empty if no targets).
         """
-        images_d2 = images_to_imagelist(images)
+        images_d2 = images_to_imagelist(inputs.images)
         is_training = self.d2_detector.proposal_generator.training
-        if targets is not None:
-            targets = target_to_instance(targets, images.image_sizes)
+        if inputs.boxes2d is not None:
+            targets = target_to_instance(
+                inputs.boxes2d, inputs.images.image_sizes
+            )
         else:
+            targets = None
             self.d2_detector.proposal_generator.training = False
 
         with self.d2_event_storage:
@@ -135,22 +131,27 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
     def generate_detections(
         self,
-        images: Images,
+        inputs: InputSample,
         features: Dict[str, torch.Tensor],
-        proposals: List[Boxes2D],
-        targets: Optional[List[Boxes2D]] = None,
+        proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
     ) -> Tuple[Optional[List[Boxes2D]], LossesType]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if no targets) and optionally detections.
         """
-        images_d2 = images_to_imagelist(images)
-        proposals = box2d_to_proposal(proposals, images.image_sizes)
+        assert (
+            proposals is not None
+        ), "Generating detections with D2TwoStageDetector requires proposals."
+        images_d2 = images_to_imagelist(inputs.images)
+        proposals = box2d_to_proposal(proposals, inputs.images.image_sizes)
         is_training = self.d2_detector.roi_heads.training
-        if targets is not None:
-            targets = target_to_instance(targets, images.image_sizes)
+        if self.training:
+            targets = target_to_instance(
+                inputs.boxes2d, inputs.images.image_sizes
+            )
         else:
+            targets = None
             self.d2_detector.roi_heads.training = False
 
         with self.d2_event_storage:

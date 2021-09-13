@@ -97,8 +97,8 @@ class Boxes(DataInstance):
         )
 
     @classmethod
-    def cat(cls: Type["TBoxes"], instances: List["TBoxes"]) -> "TBoxes":
-        """Concatenates a list of Boxes into a single Boxes.
+    def merge(cls: Type["TBoxes"], instances: List["TBoxes"]) -> "TBoxes":
+        """Merges a list of Boxes into a single Boxes.
 
         If the Boxes instances have different number of parameters per entry,
         this function will take the minimum and cut additional parameters
@@ -107,6 +107,7 @@ class Boxes(DataInstance):
         assert isinstance(instances, (list, tuple))
         assert len(instances) > 0
         assert all((isinstance(inst, Boxes) for inst in instances))
+        assert all(instances[0].device == inst.device for inst in instances)
 
         boxes, class_ids, track_ids = [], [], []
         has_class_ids = all((b.class_ids is not None for b in instances))

@@ -1,13 +1,12 @@
 """Box3d loss with uncertainty for QD-3DT."""
-from typing import Optional, Tuple, List
+from typing import List, Optional, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from mmdet.models.losses import l1_loss, smooth_l1_loss
 
 from .base import BaseLoss, LossConfig
-
-from mmdet.models.losses import smooth_l1_loss, l1_loss
 
 
 class Box3DUncertaintyLossConfig(LossConfig):

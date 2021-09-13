@@ -177,11 +177,11 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
     ) -> None:
         """Process the pair of inputs and outputs."""
         for inp in inputs:
-            self._gts.append(inp[0].metadata)
+            self._gts.append(inp[0].metadata[0])
 
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):
-                prediction = copy.deepcopy(inp[0].metadata)
+                prediction = copy.deepcopy(inp[0].metadata[0])
                 out_cpu = out.to(torch.device("cpu"))
                 assert isinstance(out_cpu, LabelInstance)
                 prediction.labels = out_cpu.to_scalabel(self.cats_id2name)

@@ -64,11 +64,11 @@ class TestBoxes2D(unittest.TestCase):
                 torch.isclose(det.track_ids, det_new.track_ids).all()
             )
 
-    def test_cat(self) -> None:
-        """Testcase for concatenating a list of Boxes2D objects."""
+    def test_merge(self) -> None:
+        """Testcase for merging a list of Boxes2D objects."""
         h, w, num_dets = 128, 128, 10
         det = generate_dets(h, w, num_dets, track_ids=True)
-        det_new = Boxes2D.cat([det, det])
+        det_new = Boxes2D.merge([det, det])
 
         self.assertTrue(
             torch.isclose(
@@ -174,7 +174,7 @@ class TestBoxes3D(unittest.TestCase):
         """Testcase for concatenating a list of Boxes2D objects."""
         num_dets = 10
         det = generate_dets3d(num_dets, track_ids=True)
-        det_new = Boxes3D.cat([det, det])
+        det_new = Boxes3D.merge([det, det])
 
         self.assertTrue(
             torch.isclose(

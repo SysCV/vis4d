@@ -1,5 +1,5 @@
 """Similarity Head for quasi-dense instance similarity learning."""
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -14,7 +14,7 @@ from vist.common.bbox.samplers import (
 )
 from vist.common.layers import Conv2d
 from vist.model.losses import BaseLoss, LossConfig, build_loss
-from vist.struct import Boxes2D, Images, LossesType
+from vist.struct import Boxes2D, InputSample, LossesType
 
 from ..utils import cosine_similarity
 from .base import BaseSimilarityHead, SimilarityLearningConfig
@@ -128,7 +128,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         """Match proposals to targets and subsample."""
         if self.cfg.proposal_append_gt:
             proposals = [
-                Boxes2D.cat([p, t]) for p, t in zip(proposals, targets)
+                Boxes2D.merge([p, t]) for p, t in zip(proposals, targets)
             ]
         matching = self.matcher.match(proposals, targets)
         return self.sampler.sample(matching, proposals, targets)
@@ -157,17 +157,18 @@ class QDSimilarityHead(BaseSimilarityHead):
 
     def forward_train(
         self,
-        inputs: Union[List[Images], List[Dict[str, torch.Tensor]]],
+        inputs: List[InputSample],
+        features: List[Dict[str, torch.Tensor]],
         boxes: List[List[Boxes2D]],
-        targets: List[List[Boxes2D]],
     ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
 
         Args:
-            inputs: Either images or feature maps. Batched, including possible
-                reference views. The keyframe is assumed to be at index 0.
+            inputs: InputSamples (images, metadata, etc). Batched, including
+                possible reference views. The keyframe is at index 0.
+            features: Input feature maps. Batched, including possible
+                reference views. The keyframe is at index 0.
             boxes: Detected boxes to apply similarity learning on.
-            targets: Target boxes with tracking identities.
 
         Returns:
             LossesType: A dict of scalar loss tensors.
@@ -175,8 +176,8 @@ class QDSimilarityHead(BaseSimilarityHead):
                 reference views.
         """
         sampling_results, sampled_boxes, sampled_targets = [], [], []
-        for i, (box, tgt) in enumerate(zip(boxes, targets)):
-            sampling_result = self.match_and_sample_proposals(box, tgt)
+        for i, (box, inp) in enumerate(zip(boxes, inputs)):
+            sampling_result = self.match_and_sample_proposals(box, inp.boxes2d)
             sampling_results.append(sampling_result)
 
             sampled_box = sampling_result.sampled_boxes
@@ -190,10 +191,7 @@ class QDSimilarityHead(BaseSimilarityHead):
             sampled_targets.append(sampled_tgt)
 
         embeddings = []
-        for feat, box in zip(inputs, sampled_boxes):
-            assert isinstance(
-                feat, dict
-            ), "QDSimilarityHead expects feature maps as input!"
+        for feat, box in zip(features, sampled_boxes):
             embeddings.append(self.forward(feat, box))
 
         track_losses = self.loss(
@@ -206,23 +204,22 @@ class QDSimilarityHead(BaseSimilarityHead):
 
     def forward_test(
         self,
-        inputs: Union[Images, Dict[str, torch.Tensor]],
+        inputs: InputSample,
+        features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
     ) -> List[torch.Tensor]:
         """Forward pass during testing stage.
 
         Args:
-            inputs: Model input (batched).
+            inputs: InputSamples (images, metadata, etc). Batched.
+            features: Input feature maps. Batched.
             boxes: Input boxes to compute similarity embedding for.
 
         Returns:
             List[torch.Tensor]: Similarity embeddings (one vector per box, one
             tensor per batch element).
         """
-        assert isinstance(
-            inputs, dict
-        ), "QDSimilarityHead expects feature maps as input!"
-        return self.forward(inputs, boxes)
+        return self.forward(features, boxes)
 
     @staticmethod
     def get_targets(

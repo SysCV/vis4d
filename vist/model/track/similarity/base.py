@@ -1,14 +1,14 @@
 """VisT base class for similarity networks."""
 
 import abc
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from pydantic import BaseModel, Field
 
 from vist.common.bbox.samplers import SamplingResult
 from vist.common.registry import RegistryHolder
-from vist.struct import Boxes2D, Images, LossesType
+from vist.struct import Boxes2D, InputSample, LossesType
 
 
 class SimilarityLearningConfig(BaseModel, extra="allow"):
@@ -23,34 +23,38 @@ class BaseSimilarityHead(torch.nn.Module, metaclass=RegistryHolder):  # type: ig
     @abc.abstractmethod
     def forward_train(
         self,
-        inputs: Union[List[Images], List[Dict[str, torch.Tensor]]],
+        inputs: List[InputSample],
+        features: List[Dict[str, torch.Tensor]],
         boxes: List[List[Boxes2D]],
-        targets: List[List[Boxes2D]],
     ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
 
         Args:
-            inputs: Either images or feature maps. Batched, including possible
-                reference views.
+            inputs: InputSamples (images, metadata, etc). Batched, including
+                possible reference views. The keyframe is at index 0.
+            features: Input feature maps. Batched, including possible
+                reference views. The keyframe is at index 0.
             boxes: Detected boxes to apply similarity learning on.
-            targets: Target boxes with tracking identities.
 
         Returns:
             LossesType: A dict of scalar loss tensors.
-             Optional[List[SamplingResult]]: Sampling result for
+            Optional[List[SamplingResult]]: Sampling results. Key first, then
+                reference views.
         """
         raise NotImplementedError
 
     @abc.abstractmethod
     def forward_test(
         self,
-        inputs: Union[Images, Dict[str, torch.Tensor]],
+        inputs: InputSample,
+        features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
     ) -> List[torch.Tensor]:
         """Forward pass during testing stage.
 
         Args:
-            inputs: Model input (batched).
+            inputs: InputSamples (images, metadata, etc). Batched.
+            features: Input feature maps. Batched.
             boxes: Input boxes to compute similarity embedding for.
 
         Returns:

@@ -20,16 +20,18 @@ class Intrinsics(DataInstance):
             tensor (torch.Tensor): (N, 3, 3) or (3, 3)
         """
         assert 2 <= len(tensor.shape) <= 3
-        if len(tensor.shape) == 3:
-            self.batched = True
-        else:
-            self.batched = False
+        if len(tensor.shape) == 2:
+            tensor = tensor.unsqueeze(0)
         self.tensor = tensor
 
     def to(self, device: torch.device) -> "Intrinsics":
         """Put images on device."""
         cast_tensor = self.tensor.to(device)
         return Intrinsics(cast_tensor)
+
+    def __getitem__(self, item: int) -> "Intrinsics":
+        """Return single element."""
+        return Intrinsics(self.tensor[item])
 
     @property
     def device(self) -> torch.device:
@@ -48,8 +50,6 @@ class Intrinsics(DataInstance):
             device = instances[0].tensor.device
         for inst in instances:
             tensor = inst.tensor.to(device)
-            if not inst.batched:
-                tensor = tensor.unsqueeze(0)
             tensors.append(tensor)
         return Intrinsics(torch.cat(tensors, 0))
 
@@ -64,10 +64,8 @@ class Extrinsics(DataInstance):
             tensor (torch.Tensor): (N, 4, 4) or (4, 4)
         """
         assert 2 <= len(tensor.shape) <= 3
-        if len(tensor.shape) == 3:
-            self.batched = True
-        else:
-            self.batched = False
+        if len(tensor.shape) == 2:
+            tensor = tensor.unsqueeze(0)
         self.tensor = tensor
 
     def to(self, device: torch.device) -> "Extrinsics":
@@ -79,6 +77,10 @@ class Extrinsics(DataInstance):
     def device(self) -> torch.device:
         """Returns current device."""
         return self.tensor.device
+
+    def __getitem__(self, item: int) -> "Extrinsics":
+        """Return single element."""
+        return Extrinsics(self.tensor[item])
 
     @classmethod
     def cat(
@@ -92,8 +94,6 @@ class Extrinsics(DataInstance):
             device = instances[0].tensor.device
         for inst in instances:
             tensor = inst.tensor.to(device)
-            if not inst.batched:
-                tensor = tensor.unsqueeze(0)
             tensors.append(tensor)
         return Extrinsics(torch.cat(tensors, 0))
 
@@ -191,60 +191,105 @@ class InputSample:
 
     def __init__(
         self,
-        metadata: Frame,
-        image: Images,
-        boxes2d: Optional[Boxes2D] = None,
-        boxes3d: Optional[Boxes3D] = None,
+        metadata: List[Frame],
+        images: Images,
+        boxes2d: Optional[List[Boxes2D]] = None,
+        boxes3d: Optional[List[Boxes3D]] = None,
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
-        **kwargs: DataInstance,
     ) -> None:
         """Init."""
         self.metadata = metadata
-        self.image = image
+        self.images = images
+        assert len(metadata) == len(images)
+
         if boxes2d is None:
-            boxes2d = Boxes2D(
-                torch.empty(0, 5), torch.empty(0), torch.empty(0)
-            )
+            boxes2d = [
+                Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+                for _ in range(len(images))
+            ]
         self.boxes2d = boxes2d
 
         if boxes3d is None:
-            boxes3d = Boxes3D(
-                torch.empty(0, 8), torch.empty(0), torch.empty(0)
-            )
+            boxes3d = [
+                Boxes3D(torch.empty(0, 8), torch.empty(0), torch.empty(0))
+                for _ in range(len(images))
+            ]
         self.boxes3d = boxes3d
 
         if intrinsics is None:
-            intrinsics = Intrinsics(torch.eye(3))
+            intrinsics = Intrinsics(
+                torch.cat([torch.eye(3) for _ in range(len(images))])
+            )
         self.intrinsics = intrinsics
 
         if extrinsics is None:
-            extrinsics = Extrinsics(torch.eye(4))
+            extrinsics = Extrinsics(
+                torch.cat([torch.eye(4) for _ in range(len(images))])
+            )
         self.extrinsics = extrinsics
 
-        self.attributes: Dict[str, DataInstance] = {}
-        for k, v in kwargs.items():
-            self.attributes[k] = v
-
-    def get(self, key: str) -> Union[Frame, DataInstance]:
+    def get(
+        self, key: str
+    ) -> Union[List[Frame], DataInstance, List[DataInstance]]:
         """Get attribute by key."""
-        if key in self.attributes:
-            return self.attributes[key]
         if key in self.__dict__:
             value = self.__dict__[key]
-            assert isinstance(value, (Frame, DataInstance))
+            # assert isinstance(value, (Frame, DataInstance)) TODO adjust
             return value
         raise AttributeError(f"Attribute {key} not found!")
 
-    def dict(self) -> Dict[str, Union[Frame, DataInstance]]:
+    def dict(
+        self,
+    ) -> Dict[str, Union[List[Frame], DataInstance, List[DataInstance]]]:
         """Return InputSample object as dict."""
         obj_dict: Dict[str, Union[Frame, DataInstance]] = {
             "metadata": self.metadata,
-            "image": self.image,
+            "images": self.images,
             "boxes2d": self.boxes2d,
             "boxes3d": self.boxes3d,
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
         }
-        obj_dict.update(self.attributes)
         return obj_dict
+
+    @classmethod
+    def cat(
+        cls,
+        instances: List["InputSample"],
+        device: Optional[torch.device] = None,
+    ) -> "InputSample":
+        """Concatenate N InputSample objects."""
+        cat_dict = {}
+        for k, v in instances[0].dict().items():
+            if isinstance(v, list):
+                cat_dict[k] = []
+                for inst in instances:
+                    attr = inst.get(k)
+                    if hasattr(attr[0], "to"):
+                        cat_dict[k] += [attr_v.to(device) for attr_v in attr]
+                    else:
+                        cat_dict[k] += attr
+            elif hasattr(type(v), "cat"):
+                cat_dict[k] = type(v).cat(
+                    [inst.get(k) for inst in instances], device
+                )
+            else:
+                raise AttributeError(
+                    f"Class {type(v)} for attribute {k} must either be of type"
+                    f" list or implement the cat() function (see e.g. Images)!"
+                )
+
+        return InputSample(**cat_dict)
+
+    def __getitem__(self, item: int) -> "InputSample":
+        """Return single element."""
+        assert item < len(self.images), "Index out of bound for InputSample."
+        return InputSample(
+            [self.metadata[item]],
+            self.images[item],
+            [self.boxes2d[item]],
+            [self.boxes3d[item]],
+            self.intrinsics[item],
+            self.extrinsics[item],
+        )

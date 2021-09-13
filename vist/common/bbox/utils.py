@@ -1,6 +1,6 @@
 """Utility functions for bounding boxes."""
-import torch
 import numpy as np
+import torch
 
 from vist.struct import Boxes2D, Boxes3D
 

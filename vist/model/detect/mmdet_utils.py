@@ -91,7 +91,6 @@ def targets_to_mmdet(
 ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
     """Convert VisT targets to mmdetection compatible format."""
     gt_bboxes = [t.boxes for t in targets]
-
     gt_labels = [t.class_ids for t in targets]
     return gt_bboxes, gt_labels
 

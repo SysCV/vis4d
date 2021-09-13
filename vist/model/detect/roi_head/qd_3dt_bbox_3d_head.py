@@ -1,4 +1,4 @@
-"""Similarity Head definition for quasi-dense instance similarity learning."""
+"""3D Box Head definition for QD-3DT."""
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -6,24 +6,29 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from vist.common.bbox.utils import Box3DCoder
 from vist.common.bbox.matchers import MatcherConfig, build_matcher
 from vist.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
-
 from vist.common.bbox.samplers import (
     SamplerConfig,
     SamplingResult,
     build_sampler,
 )
+from vist.common.bbox.utils import Box3DCoder
 from vist.common.layers import Conv2d
-from vist.model.losses import LossConfig, build_loss
 from vist.model.detect.mmdet_utils import proposals_to_mmdet
-from vist.struct import Boxes2D, Boxes3D
+from vist.model.losses import LossConfig, build_loss
+from vist.struct import (
+    Boxes2D,
+    Boxes3D,
+    InputSample,
+    LabelInstance,
+    LossesType,
+)
 
-from .base import BaseBoundingBoxConfig, BaseBoundingBoxHead
+from .base import BaseRoIHead, BaseRoIHeadConfig
 
 
-class QD3DTBBox3DHeadConfig(BaseBoundingBoxConfig):
+class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
     """QD-3DT 3D Bounding Box Head config."""
 
     num_shared_convs: int
@@ -62,10 +67,10 @@ class QD3DTBBox3DHeadConfig(BaseBoundingBoxConfig):
     proposal_matcher: MatcherConfig
 
 
-class QD3DTBBox3DHead(BaseBoundingBoxHead):
+class QD3DTBBox3DHead(BaseRoIHead):
     """QD-3DT 3D Bounding Box Head."""
 
-    def __init__(self, cfg: BaseBoundingBoxConfig) -> None:
+    def __init__(self, cfg: BaseRoIHeadConfig) -> None:
         """Init."""
         super().__init__()
         self.cfg = QD3DTBBox3DHeadConfig(**cfg.dict())
@@ -350,7 +355,7 @@ class QD3DTBBox3DHead(BaseBoundingBoxHead):
         """Match proposals to targets and subsample."""
         if self.cfg.proposal_append_gt:
             proposals = [
-                Boxes2D.cat([p, t]) for p, t in zip(proposals, targets)
+                Boxes2D.merge([p, t]) for p, t in zip(proposals, targets)
             ]
         matching = self.matcher.match(proposals, targets)
         return self.sampler.sample(matching, proposals, targets)
@@ -437,23 +442,20 @@ class QD3DTBBox3DHead(BaseBoundingBoxHead):
 
     def forward_train(
         self,
+        inputs: InputSample,
         features: Dict[str, torch.Tensor],
-        proposals: List[Boxes2D],
-        targets: Optional[List[Boxes2D]] = None,
-        targets_3d: Optional[List[Boxes3D]] = None,
-        cam_intrinsics: Optional[torch.tensor] = None,
-    ):
+        boxes: List[Boxes2D],
+    ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Forward pass during training stage.
 
         Args:
-            features:
-            proposals:
-            targets:
-            targets_3d:
-            cam_intrinsics:
+            inputs: InputSamples (images, metadata, etc). Batched.
+            features: Input feature maps. Batched.
+            boxes: Input boxes to apply RoIHead on.
 
         Returns:
             LossesType: A dict of scalar loss tensors.
+            Optional[List[SamplingResult]]: Sampling result.
         """
         features_list = [features[f] for f in self.cfg.in_features]
 
@@ -503,10 +505,20 @@ class QD3DTBBox3DHead(BaseBoundingBoxHead):
 
     def forward_test(
         self,
+        inputs: InputSample,
         features: Dict[str, torch.Tensor],
-        bbox_2d_preds: List[Boxes2D],
-        cam_intrinsics: List[torch.Tensor],
-    ):
+        boxes: List[Boxes2D],
+    ) -> List[LabelInstance]:
+        """Forward pass during testing stage.
+
+        Args:
+            inputs: InputSamples (images, metadata, etc). Batched.
+            features: Input feature maps. Batched.
+            boxes: Input boxes to apply RoIHead on.
+
+        Returns:
+            List[LabelInstance]: Prediction output.
+        """
         features_list = [features[f] for f in self.cfg.in_features]
         bbox_3d_preds, _ = self.forward(features_list, bbox_2d_preds)
 

@@ -166,8 +166,8 @@ class ScalabelDataset(Dataset):  # type: ignore
         if self.sampling_cfg.frame_order == "temporal":
             return sorted(
                 input_samples,
-                key=lambda x: x.metadata.frameIndex
-                if x.metadata.frameIndex is not None
+                key=lambda x: x.metadata[0].frameIndex
+                if x.metadata[0].frameIndex is not None
                 else 0,
             )
         raise NotImplementedError(
@@ -182,7 +182,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         parameters: Optional[List[AugParams]],
     ) -> Optional[List[InputSample]]:
         """Sample reference views from key view."""
-        vid_id = key_data.metadata.videoName
+        vid_id = key_data.metadata[0].videoName
         if vid_id is not None:
             ref_data = []
             for ref_idx in self.sample_ref_indices(vid_id, cur_idx):
@@ -210,11 +210,9 @@ class ScalabelDataset(Dataset):  # type: ignore
         key_data: InputSample, ref_data: List[InputSample]
     ) -> bool:
         """Check if key / ref data have matches."""
-        assert key_data.boxes2d is not None
-        key_track_ids = key_data.boxes2d.track_ids
+        key_track_ids = key_data.boxes2d[0].track_ids
         for ref_view in ref_data:
-            assert isinstance(ref_view.boxes2d, Boxes2D)
-            ref_track_ids = ref_view.boxes2d.track_ids
+            ref_track_ids = ref_view.boxes2d[0].track_ids
             match = key_track_ids.view(-1, 1) == ref_track_ids.view(1, -1)
             if match.any():
                 return True
@@ -230,10 +228,10 @@ class ScalabelDataset(Dataset):  # type: ignore
                 self.dataset.frames[cur_idx]
             )
             if input_data is not None:
-                if input_data.metadata.attributes is None:
-                    input_data.metadata.attributes = {}
+                if input_data.metadata[0].attributes is None:
+                    input_data.metadata[0].attributes = {}
                 if self.training:
-                    input_data.metadata.attributes["keyframe"] = True
+                    input_data.metadata[0].attributes["keyframe"] = True
 
                 if self.training and self.sampling_cfg.num_ref_imgs > 0:
                     ref_data = self.sample_ref_views(
@@ -328,15 +326,15 @@ class ScalabelDataset(Dataset):  # type: ignore
                     boxes2d.boxes[:, :4],
                 )
                 if self.cfg.dataloader.clip_bboxes_to_image:
-                    boxes2d.clip(input_sample.image.image_sizes[0])
+                    boxes2d.clip(input_sample.images.image_sizes[0])
 
-                input_sample.boxes2d = boxes2d
+                input_sample.boxes2d = [boxes2d]
 
             if "boxes3d" in self.cfg.dataloader.fields_to_load and labels_used:
                 boxes3d = Boxes3D.from_scalabel(
                     labels_used, category_dict, instance_id_dict
                 )
-                input_sample.boxes3d = boxes3d
+                input_sample.boxes3d = [boxes3d]
 
     @staticmethod
     def transform_intrinsics(
@@ -378,35 +376,33 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.load_image(sample),
             parameters=parameters,
         )
-        input_data = InputSample(copy.deepcopy(sample), image)
+        input_data = InputSample([copy.deepcopy(sample)], image)
 
         if (
-            input_data.metadata.intrinsics is not None
+            sample.intrinsics is not None
             and "intrinsics" in self.cfg.dataloader.fields_to_load
         ):
             input_data.intrinsics = self.transform_intrinsics(
-                input_data.metadata.intrinsics, transform_matrix
+                sample.intrinsics, transform_matrix
             )
 
         if (
-            input_data.metadata.extrinsics is not None
+            sample.extrinsics is not None
             and "extrinsics" in self.cfg.dataloader.fields_to_load
         ):
             input_data.extrinsics = self.transform_extrinsics(
-                input_data.metadata.extrinsics
+                sample.extrinsics
             )
 
         if not self.training:
             return input_data, parameters
 
-        self.transform_annotation(
-            input_data, input_data.metadata.labels, transform_matrix
-        )
+        self.transform_annotation(input_data, sample.labels, transform_matrix)
 
         if (
             self.cfg.dataloader.skip_empty_samples
-            and len(input_data.boxes2d) == 0
-            and len(input_data.boxes3d) == 0
+            and len(input_data.boxes2d[0]) == 0
+            and len(input_data.boxes3d[0]) == 0
         ):
             return None, None  # pragma: no cover
 

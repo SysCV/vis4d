@@ -1,4 +1,5 @@
 """QD-3DT tracking graph."""
+import pdb
 from typing import Dict, List, Optional, Tuple, Union
 
 import torch
@@ -9,10 +10,9 @@ from vist.common.bbox.utils import bbox_iou
 from vist.struct import Boxes2D, Boxes3D
 
 from .base import TrackGraphConfig
-from .quasi_dense import QDTrackGraphConfig, QDTrackGraph
 from .motion.motion_model import get_lstm_model
 from .motion.tracker_model import get_tracker
-import pdb
+from .quasi_dense import QDTrackGraph, QDTrackGraphConfig
 
 
 class QD3DTrackGraphConfig(QDTrackGraphConfig):
