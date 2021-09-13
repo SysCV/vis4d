@@ -1,3 +1,4 @@
+"""VeloLSTM motion model."""
 from typing import Tuple
 
 import torch

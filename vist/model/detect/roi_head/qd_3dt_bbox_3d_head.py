@@ -460,7 +460,9 @@ class QD3DTBBox3DHead(BaseRoIHead):
         features_list = [features[f] for f in self.cfg.in_features]
 
         # match and sample
-        sampling_results = self.match_and_sample_proposals(proposals, targets)
+        sampling_results = self.match_and_sample_proposals(
+            boxes, inputs.boxes2d
+        )
         positives = [l == 1 for l in sampling_results.sampled_labels]
         pos_assigned_gt_inds = [
             i[p]
@@ -472,12 +474,16 @@ class QD3DTBBox3DHead(BaseRoIHead):
 
         bbox_3d_preds, _ = self.forward(features_list, pos_proposals)
 
+        cam_intrinsics = [
+            inputs.intrinsics.tensor[i]
+            for i in range(inputs.intrinsics.tensor.shape[0])
+        ]
         bbox3d_targets, labels = self.get_targets(
             pos_proposals,
             pos_assigned_gt_inds,
-            targets,
-            targets_3d,
-            cam_intrinsics,
+            inputs.boxes2d,
+            inputs.boxes3d,
+            inputs.intrinsics.tensor,
         )
 
         loss_bbox_3d = self.loss(bbox_3d_preds, bbox3d_targets, labels)
@@ -520,12 +526,12 @@ class QD3DTBBox3DHead(BaseRoIHead):
             List[LabelInstance]: Prediction output.
         """
         features_list = [features[f] for f in self.cfg.in_features]
-        bbox_3d_preds, _ = self.forward(features_list, bbox_2d_preds)
+        bbox_3d_preds, _ = self.forward(features_list, boxes)
 
         return self.bbox_coder.decode(
-            bbox_2d_preds[0],
+            boxes[0],
             bbox_3d_preds,
-            cam_intrinsics[0],
+            inputs.intrinsics.tensor[0],
             self.cfg.with_uncertainty,
             self.cfg.uncertainty_thres,
         )

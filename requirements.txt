@@ -25,6 +25,7 @@ devtools
 utm
 kornia
 filterpy
+pyquaternion
 
 types-toml
 types-termcolor

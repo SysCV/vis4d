@@ -8,6 +8,7 @@ from vist.struct import InputSample, LossesType, ModelOutput
 from .detect.roi_head import BaseRoIHeadConfig, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
 from .track.graph import build_track_graph
+import pdb
 
 
 class QD3DTConfig(QDTrackConfig):
@@ -117,7 +118,11 @@ class QD3DT(QDTrack):
 
         # associate detections, update graph
         tracks, tracks_3d = self.track_graph(
-            bbox_2d_preds, bbox_3d_preds, frame_id, embeddings
+            bbox_2d_preds,
+            bbox_3d_preds,
+            frame_id,
+            embeddings,
+            inputs.extrinsics.tensor[0],
         )
 
         return dict(detect=[bbox_2d_preds], track=[tracks])

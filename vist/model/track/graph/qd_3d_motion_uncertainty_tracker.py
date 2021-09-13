@@ -4,14 +4,19 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
-from pydantic import validator
 
-from vist.common.bbox.utils import bbox_iou
+from vist.common.bbox.utils import bbox_iou, get_yaw_world
 from vist.struct import Boxes2D, Boxes3D
 
+from vist.model.track.motion.motion_model import get_lstm_model
+
+from vist.model.track.motion import (
+    build_motion_tracker,
+    get_lstm_model,
+    LSTM3DMotionTrackerConfig,
+)
+
 from .base import TrackGraphConfig
-from .motion.motion_model import get_lstm_model
-from .motion.tracker_model import get_tracker
 from .quasi_dense import QDTrackGraph, QDTrackGraphConfig
 
 
@@ -19,12 +24,8 @@ class QD3DTrackGraphConfig(QDTrackGraphConfig):
     """Quasi-dense similarity based graph config."""
 
     motion_momentum: float
-    loc_dim: int
-    with_depth_uncertainty: bool
-    tracker_model_name: str
-    lstm_name: str
-    lstm_ckpt_name: str
     bbox_affinity_weight: float
+    motion_tracker: LSTM3DMotionTrackerConfig
 
 
 class QD3DTrackGraph(QDTrackGraph):
@@ -34,23 +35,22 @@ class QD3DTrackGraph(QDTrackGraph):
         """Init."""
         super().__init__(cfg)
         self.cfg = QD3DTrackGraphConfig(**cfg.dict())
-        self.tracker_model = get_tracker(self.cfg.tracker_model_name)
-        if self.cfg.tracker_model_name == "LSTM3DTracker":
-            self.device = torch.device(
-                "cuda" if torch.cuda.is_available() else "cpu"
-            )
-            self.lstm = get_lstm_model(self.cfg.lstm_name)(
-                1, 64, 128, 2, self.cfg.loc_dim
-            ).to(self.device)
-            self.lstm.eval()
-            ckpt = torch.load(self.cfg.lstm_ckpt_name)
+        self.cfg.loc_dim = self.cfg.motion_tracker.loc_dim
+
+        if self.cfg.motion_tracker.type == "LSTM3DMotionTracker":
+            self.cfg.motion_tracker.lstm = get_lstm_model(
+                self.cfg.motion_tracker.lstm_name
+            )(1, 64, 128, 2, self.cfg.motion_tracker.loc_dim)
+            ckpt = torch.load(self.cfg.motion_tracker.lstm_ckpt_name)
             try:
-                self.lstm.load_state_dict(ckpt["state_dict"])
+                self.cfg.motion_tracker.lstm.load_state_dict(
+                    ckpt["state_dict"]
+                )
             except (RuntimeError, KeyError) as ke:
                 print("Cannot load full model: {}".format(ke))
-                state = self.lstm.state_dict()
+                state = self.cfg.motion_tracker.lstm.state_dict()
                 state.update(ckpt["state_dict"])
-                self.lstm.load_state_dict(state)
+                self.cfg.motion_tracker.lstm.load_state_dict(state)
             del ckpt
 
         self.cfg.feat_affinity_weight = 1 - self.cfg.bbox_affinity_weight
@@ -70,15 +70,15 @@ class QD3DTrackGraph(QDTrackGraph):
 
         If frame_id is None, return all tracks in memory.
         """
-        bboxs, boxes_3d, embeds, trackers, velocities, class_ids, ids = (
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-        )
+        (
+            bboxs,
+            boxes_3d,
+            embeds,
+            trackers,
+            velocities,
+            class_ids,
+            ids,
+        ) = ([], [], [], [], [], [], [])
         for k, v in self.tracks.items():
             if frame_id is None or v["last_frame"] == frame_id:
                 bboxs.append(v["bbox"].unsqueeze(0))
@@ -97,7 +97,7 @@ class QD3DTrackGraph(QDTrackGraph):
         boxes_3d = (
             torch.cat(boxes_3d)
             if len(boxes_3d) > 0
-            else torch.empty((0, 8), device=device)
+            else torch.empty((0, self.cfg.loc_dim + 1), device=device)
         )
         embeds = (
             torch.cat(embeds)
@@ -107,7 +107,7 @@ class QD3DTrackGraph(QDTrackGraph):
         velocities = (
             torch.cat(velocities)
             if len(velocities) > 0
-            else torch.empty((0, 8), device=device)
+            else torch.empty((0, self.cfg.loc_dim), device=device)
         )
         class_ids = (
             torch.cat(class_ids)
@@ -130,8 +130,10 @@ class QD3DTrackGraph(QDTrackGraph):
                     [boxes_3d, backdrop["detections_3d"].boxes]
                 )
                 embeds = torch.cat([embeds, backdrop["embeddings"]])
-                trackers.append(backdrop["tracker"])
-                backdrop_vs = torch.zeros_like(backdrop["detections_3d"].boxes)
+                trackers.extend(backdrop["tracker"])
+                backdrop_vs = torch.zeros_like(
+                    backdrop["detections_3d"].boxes[:, : self.cfg.loc_dim]
+                )
                 velocities = torch.cat([velocities, backdrop_vs])
                 class_ids = torch.cat(
                     [class_ids, backdrop["detections"].class_ids]
@@ -280,10 +282,19 @@ class QD3DTrackGraph(QDTrackGraph):
         detections_3d: Boxes3D,
         frame_id: int,
         embeddings: torch.Tensor,
+        cam_extrinsics: torch.Tensor,
     ) -> Tuple[Boxes2D, Boxes3D]:
         """Process inputs, match detections with existing tracks."""
         detections, detections_3d, embeddings = self.remove_duplicates(
             detections, detections_3d, embeddings
+        )
+
+        quat_det_yaws_world = get_yaw_world(
+            detections_3d.boxes[:, 6], cam_extrinsics.detach().cpu().numpy()
+        )
+
+        detections_3d.boxes[:, 6] = torch.from_numpy(
+            quat_det_yaws_world["yaw_world"]
         )
 
         # init ids container
@@ -360,28 +371,23 @@ class QD3DTrackGraph(QDTrackGraph):
         backdrop_inds = backdrop_inds[backdrop_inds > -1]
 
         backdrop_tracker = [
-            self.tracker_model(
-                self.device,
-                self.lstm,
+            build_motion_tracker(
+                detections.device,
+                self.cfg.motion_tracker,
                 detections_3d[bd_ind].boxes[0].cpu().numpy(),
-            )
-            if self.cfg.tracker_model_name == "LSTM3DTracker"
-            else self.tracker_model(
-                detections_3d[bd_ind].boxes[0].cpu().numpy()
             )
             for bd_ind in backdrop_inds
         ]
 
-        if backdrop_tracker:
-            self.backdrops.insert(
-                0,
-                dict(
-                    detections=detections[backdrop_inds],
-                    detections_3d=detections_3d[backdrop_inds],
-                    embeddings=embeddings[backdrop_inds],
-                    tracker=backdrop_tracker,
-                ),
-            )
+        self.backdrops.insert(
+            0,
+            dict(
+                detections=detections[backdrop_inds],
+                detections_3d=detections_3d[backdrop_inds],
+                embeddings=embeddings[backdrop_inds],
+                tracker=backdrop_tracker,
+            ),
+        )
 
         # delete invalid tracks from memory
         invalid_ids = []
@@ -403,21 +409,24 @@ class QD3DTrackGraph(QDTrackGraph):
         frame_id: int,
     ) -> None:
         """Update a specific track with a new models."""
-        bbox, box_3d, class_id = (
+        bbox, det_3d, class_id = (
             detection.boxes[0],
             detection_3d.boxes[0],
             detection.class_ids[0],
         )
         self.tracks[track_id]["bbox"] = bbox
-        self.tracks[track_id]["tracker"].update(box_3d.cpu().numpy())
+        self.tracks[track_id]["tracker"].update(det_3d.cpu().numpy())
 
-        tracker_box = self.tracks[track_id]["tracker"].get_state()[:7]
-        pd_box_3d = box_3d.new_tensor(tracker_box)
-        velocity = (pd_box_3d - self.tracks[track_id]["box_3d"][:7]) / (
-            frame_id - self.tracks[track_id]["last_frame"]
-        )
+        tracker_box = self.tracks[track_id]["tracker"].get_state()[
+            : self.cfg.loc_dim
+        ]
+        pd_box_3d = det_3d.new_tensor(tracker_box)
 
-        self.tracks[track_id]["box_3d"][:7] = pd_box_3d
+        velocity = (
+            pd_box_3d - self.tracks[track_id]["box_3d"][: self.cfg.loc_dim]
+        ) / (frame_id - self.tracks[track_id]["last_frame"])
+
+        self.tracks[track_id]["box_3d"][: self.cfg.loc_dim] = pd_box_3d
         self.tracks[track_id]["embed"] = (
             1 - self.cfg.memo_momentum
         ) * self.tracks[track_id]["embed"] + self.cfg.memo_momentum * embedding
@@ -439,27 +448,23 @@ class QD3DTrackGraph(QDTrackGraph):
         frame_id: int,
     ) -> None:
         """Create a new track from a models."""
-        bbox, box_3d, class_id = (
+        bbox, det_3d, class_id = (
             detection.boxes[0],
             detection_3d.boxes[0],
             detection.class_ids[0],
         )
-        built_tracker = (
-            self.tracker_model(
-                detection.device,
-                self.lstm,
-                box_3d.cpu().numpy(),
-            )
-            if self.cfg.tracker_model_name == "LSTM3DTracker"
-            else self.tracker_model(box_3d.cpu().numpy())
+        built_tracker = build_motion_tracker(
+            detection.device,
+            self.cfg.motion_tracker,
+            det_3d.cpu().numpy(),
         )
         self.tracks[track_id] = dict(
             bbox=bbox,
-            box_3d=box_3d,
+            box_3d=det_3d,
             tracker=built_tracker,
             embed=embedding,
             class_id=class_id,
             last_frame=frame_id,
-            velocity=torch.zeros_like(box_3d),
+            velocity=torch.zeros_like(det_3d[: self.cfg.loc_dim]),
             acc_frame=0,
         )

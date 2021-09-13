@@ -1,8 +1,8 @@
-# from filterpy.kalman import KalmanFilter
-import pdb
-
 import numpy as np
+
 import torch
+from filterpy.kalman import KalmanFilter
+import pdb
 
 
 class KalmanBox3DTracker(object):
@@ -13,7 +13,7 @@ class KalmanBox3DTracker(object):
 
     count = 0
 
-    def __init__(self, bbox3D):
+    def __init__(self, bbox3D, info):
         """
         Initialises a tracker using initial bounding box.
         """
@@ -67,6 +67,7 @@ class KalmanBox3DTracker(object):
         self.hit_streak = 1  # number of continuing hit considering the first
         # detection
         self.age = 0
+        self.info = info  # other info
 
     @property
     def obj_state(self):
@@ -78,7 +79,7 @@ class KalmanBox3DTracker(object):
     def _init_history(self, bbox3D):
         self.history = [bbox3D - self.prev_ref] * self.nfr
 
-    def update(self, bbox3D):
+    def update(self, bbox3D, info):
         """
         Updates the state vector with observed bbox.
         """
@@ -123,6 +124,7 @@ class KalmanBox3DTracker(object):
             self.kf.x[3] -= np.pi * 2  # make the theta still in the range
         if self.kf.x[3] < -np.pi:
             self.kf.x[3] += np.pi * 2
+        self.info = info
         self.prev_ref = self.kf.x.flatten()[:7]
 
     def predict(self, update_state: bool = True):
@@ -163,14 +165,15 @@ class LSTM3DTracker(object):
 
     count = 0
 
-    def __init__(self, device, lstm, bbox3D):
+    def __init__(self, device, lstm, detections_3d):
         """
         Initialises a tracker using initial bounding box.
-        """
-        # define constant velocity model
-        # coord3d - array of detections [x,y,z,l,w,h,theta]
-        # x, y, z, h, w, l, ry, Optional[score]
 
+        Args:
+            device: cpu / cuda.
+            lstm: lstm model.
+            detections_3d: x, y, z, h, w, l, ry, depth uncertainty
+        """
         self.device = device
         self.lstm = lstm
         self.loc_dim = self.lstm.loc_dim
@@ -183,16 +186,17 @@ class LSTM3DTracker(object):
         self.init_flag = True
         self.age = 0
 
-        self.obj_state = np.hstack([bbox3D[:7], np.zeros((3,))])
-        self.uncertainty = bbox3D[7]
-        self.history = np.tile(
-            np.zeros_like(bbox3D[: self.loc_dim]), (self.nfr, 1)
-        )
-        self.ref_history = np.tile(bbox3D[: self.loc_dim], (self.nfr + 1, 1))
+        bbox3D = detections_3d[: self.loc_dim]
+        info = detections_3d[self.loc_dim :]
+
+        self.obj_state = np.hstack([bbox3D.reshape((7,)), np.zeros((3,))])
+        self.history = np.tile(np.zeros_like(bbox3D), (self.nfr, 1))
+        self.ref_history = np.tile(bbox3D, (self.nfr + 1, 1))
         self.avg_angle = bbox3D[6]
         self.avg_dim = np.array(bbox3D[3:6])
         self.prev_obs = bbox3D.copy()
-        self.prev_ref = bbox3D[: self.loc_dim].copy()
+        self.prev_ref = bbox3D.copy()
+        self.info = info
         self.hidden_pred = self.lstm.init_hidden(self.device)
         self.hidden_ref = self.lstm.init_hidden(self.device)
 
@@ -241,43 +245,46 @@ class LSTM3DTracker(object):
             self.avg_angle = self.prev_obs[3]
             self.avg_dim = np.array(self.prev_obs[4:])
 
-    def update(self, bbox3D):
+    def update(self, detections_3d):
         """
         Updates the state vector with observed bbox.
         """
+        bbox3D = detections_3d[: self.loc_dim]
+        info = detections_3d[self.loc_dim :]
+
         self.time_since_update = 0
         self.hits += 1
         self.hit_streak += 1
 
         if self.age == 1:
-            self.obj_state[: self.loc_dim] = bbox3D[: self.loc_dim].copy()
+            self.obj_state[: self.loc_dim] = bbox3D.copy()
 
         if self.loc_dim > 3:
             # orientation correction
-            self.obj_state[3] = self.fix_alpha(self.obj_state[3])
-            bbox3D[3] = self.fix_alpha(bbox3D[3])
+            self.obj_state[6] = self.fix_alpha(self.obj_state[6])
+            bbox3D[6] = self.fix_alpha(bbox3D[6])
 
             # if the angle of two theta is not acute angle
             # make the theta still in the range
-            curr_yaw = bbox3D[3]
+            curr_yaw = bbox3D[6]
             if (
                 np.pi / 2.0
-                < abs(curr_yaw - self.obj_state[3])
+                < abs(curr_yaw - self.obj_state[6])
                 < np.pi * 3 / 2.0
             ):
-                self.obj_state[3] += np.pi
-                if self.obj_state[3] > np.pi:
-                    self.obj_state[3] -= np.pi * 2
-                if self.obj_state[3] < -np.pi:
-                    self.obj_state[3] += np.pi * 2
+                self.obj_state[6] += np.pi
+                if self.obj_state[6] > np.pi:
+                    self.obj_state[6] -= np.pi * 2
+                if self.obj_state[6] < -np.pi:
+                    self.obj_state[6] += np.pi * 2
 
             # now the angle is acute: < 90 or > 270,
             # convert the case of > 270 to < 90
-            if abs(curr_yaw - self.obj_state[3]) >= np.pi * 3 / 2.0:
+            if abs(curr_yaw - self.obj_state[6]) >= np.pi * 3 / 2.0:
                 if curr_yaw > 0:
-                    self.obj_state[3] += np.pi * 2
+                    self.obj_state[6] += np.pi * 2
                 else:
-                    self.obj_state[3] -= np.pi * 2
+                    self.obj_state[6] -= np.pi * 2
 
         with torch.no_grad():
             refined_loc, self.hidden_ref = self.lstm.refine(
@@ -285,32 +292,29 @@ class LSTM3DTracker(object):
                 .view(1, self.loc_dim)
                 .float()
                 .to(self.device),
-                torch.from_numpy(bbox3D[: self.loc_dim])
+                torch.from_numpy(bbox3D)
                 .view(1, self.loc_dim)
                 .float()
                 .to(self.device),
-                torch.from_numpy(self.prev_ref[: self.loc_dim])
+                torch.from_numpy(self.prev_ref)
                 .view(1, self.loc_dim)
                 .float()
                 .to(self.device),
-                torch.from_numpy(bbox3D[-1])
-                .view(1, 1)
-                .float()
-                .to(self.device),
+                torch.from_numpy(info).view(1, 1).float().to(self.device),
                 self.hidden_ref,
             )
 
         refined_obj = refined_loc.cpu().numpy().flatten()
         if self.loc_dim > 3:
-            refined_obj[3] = self.fix_alpha(refined_obj[3])
+            refined_obj[6] = self.fix_alpha(refined_obj[6])
 
         self.obj_state[: self.loc_dim] = refined_obj
         self.prev_obs = bbox3D
 
-        if np.pi / 2.0 < abs(bbox3D[3] - self.avg_angle) < np.pi * 3 / 2.0:
+        if np.pi / 2.0 < abs(bbox3D[6] - self.avg_angle) < np.pi * 3 / 2.0:
             for r_indx in range(len(self.ref_history)):
-                self.ref_history[r_indx][3] = self.fix_alpha(
-                    self.ref_history[r_indx][3] + np.pi
+                self.ref_history[r_indx][6] = self.fix_alpha(
+                    self.ref_history[r_indx][6] + np.pi
                 )
 
         if self.init_flag:
@@ -318,6 +322,8 @@ class LSTM3DTracker(object):
             self.init_flag = False
         else:
             self._update_history(refined_obj)
+
+        self.info = info
 
     def predict(self, update_state: bool = True):
         """
@@ -341,7 +347,7 @@ class LSTM3DTracker(object):
         pred_state[: self.loc_dim] = pred_loc.cpu().numpy().flatten()
         pred_state[7:] = pred_state[:3] - self.prev_ref[:3]
         if self.loc_dim > 3:
-            pred_state[3] = self.fix_alpha(pred_state[3])
+            pred_state[6] = self.fix_alpha(pred_state[6])
 
         if update_state:
             self.hidden_pred = hidden_pred
@@ -375,7 +381,7 @@ class DummyTracker(object):
 
     count = 0
 
-    def __init__(self, bbox3D):
+    def __init__(self, bbox3D, info):
         """
         Initialises a tracker using initial bounding box.
         """
@@ -391,6 +397,7 @@ class DummyTracker(object):
         self.history = [np.zeros_like(bbox3D)] * self.nfr
         self.prev_ref = bbox3D
         self.motion_momentum = 0.9
+        self.info = info
 
     def _update_history(self, bbox3D):
         self.history = self.history[1:] + [bbox3D - self.prev_ref]
@@ -398,7 +405,7 @@ class DummyTracker(object):
     def _init_history(self, bbox3D):
         self.history = [bbox3D - self.prev_ref] * self.nfr
 
-    def update(self, bbox3D):
+    def update(self, bbox3D, info):
         """
         Updates the state vector with observed bbox.
         """
@@ -409,6 +416,7 @@ class DummyTracker(object):
             np.hstack([bbox3D.reshape((7,)), np.zeros((3,))]) - self.obj_state
         )
         self.prev_ref = bbox3D
+        self.info = info
 
     def predict(self, update_state: bool = True):
         """

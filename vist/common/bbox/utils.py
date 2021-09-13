@@ -1,7 +1,10 @@
 """Utility functions for bounding boxes."""
+import math
 import numpy as np
 import torch
 
+from scipy.spatial.transform import Rotation as R
+from pyquaternion import Quaternion
 from vist.struct import Boxes2D, Boxes3D
 
 
@@ -90,6 +93,68 @@ def get_alpha(rot):
     alpha1 = torch.atan(rot[:, 2] / rot[:, 3]) + (-0.5 * np.pi)
     alpha2 = torch.atan(rot[:, 6] / rot[:, 7]) + (0.5 * np.pi)
     return alpha1 * idx + alpha2 * (1 - idx)
+
+
+def quaternion_to_euler(w, x, y, z):
+    """Transform quaternion into euler."""
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    roll = math.atan2(t0, t1)
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    pitch = math.asin(t2)
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    yaw = math.atan2(t3, t4)
+
+    return roll, pitch, yaw
+
+
+def euler_to_quaternion(roll, pitch, yaw):
+    """Transform euler into quaternion."""
+    qx = np.sin(roll / 2) * np.cos(pitch / 2) * np.cos(yaw / 2) - np.cos(
+        roll / 2
+    ) * np.sin(pitch / 2) * np.sin(yaw / 2)
+    qy = np.cos(roll / 2) * np.sin(pitch / 2) * np.cos(yaw / 2) + np.sin(
+        roll / 2
+    ) * np.cos(pitch / 2) * np.sin(yaw / 2)
+    qz = np.cos(roll / 2) * np.cos(pitch / 2) * np.sin(yaw / 2) - np.sin(
+        roll / 2
+    ) * np.sin(pitch / 2) * np.cos(yaw / 2)
+    qw = np.cos(roll / 2) * np.cos(pitch / 2) * np.cos(yaw / 2) + np.sin(
+        roll / 2
+    ) * np.sin(pitch / 2) * np.sin(yaw / 2)
+
+    return [qw, qx, qy, qz]
+
+
+def get_yaw_world(det_yaws, cam_extrinsics):
+    """Transfer yaw in cam to yaw in world."""
+    r_camera_to_world = R.from_matrix(cam_extrinsics[:3, :3]).as_matrix()
+    cam_rot_quat = Quaternion(matrix=r_camera_to_world)
+
+    quat_det_yaws_world = {"roll_pitch": [], "yaw_world": []}
+
+    for det_yaw in det_yaws:
+        yaw_quat = Quaternion(axis=[0, 1, 0], radians=det_yaw.cpu().numpy())
+        rotation_world = cam_rot_quat * yaw_quat
+        if rotation_world.z < 0:
+            rotation_world *= -1
+        roll_world, pitch_world, yaw_world = quaternion_to_euler(
+            rotation_world.w,
+            rotation_world.x,
+            rotation_world.y,
+            rotation_world.z,
+        )
+        quat_det_yaws_world["roll_pitch"].append([roll_world, pitch_world])
+        quat_det_yaws_world["yaw_world"].append(yaw_world)
+
+    quat_det_yaws_world["yaw_world"] = np.array(
+        quat_det_yaws_world["yaw_world"]
+    )
+
+    return quat_det_yaws_world
 
 
 class Box3DCoder:

@@ -73,13 +73,15 @@ type = "QD3DT"
     nms_conf_thr = 0.5
     nms_backdrop_iou_thr = 0.3
     nms_class_iou_thr = 0.8
-    loc_dim = 7
     with_cats = true
-    with_depth_uncertainty = true
-    lstm_name = 'VeloLSTM'
-    lstm_ckpt_name = './checkpoints/batch8_min10_seq10_dim7_subtrain_VeloLSTM_kitti_100_linear.pth'
-    tracker_model_name = 'LSTM3DTracker'
     bbox_affinity_weight = 0.5
+
+        [model.track_graph.motion_tracker]
+        type = "LSTM3DMotionTracker"
+        lstm_name = "VeloLSTM"
+        nfr = 5
+        loc_dim = 7
+        lstm_ckpt_name = "./checkpoints/batch8_min10_seq10_dim7_subtrain_VeloLSTM_kitti_100_linear.pth"
 
     [model.similarity]
     type = "QDSimilarityHead"
