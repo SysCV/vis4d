@@ -101,7 +101,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
         Return backbone output features.
         """
-        return self.d2_detector.backbone(inputs.tensor)  # type: ignore
+        return self.d2_detector.backbone(inputs.images.tensor)  # type: ignore
 
     def generate_proposals(
         self,
