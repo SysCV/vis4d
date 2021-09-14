@@ -81,7 +81,6 @@ type = "QD3DT"
         lstm_name = "VeloLSTM"
         nfr = 5
         loc_dim = 7
-        lstm_ckpt_name = "./checkpoints/batch8_min10_seq10_dim7_subtrain_VeloLSTM_kitti_100_linear.pth"
 
     [model.similarity]
     type = "QDSimilarityHead"

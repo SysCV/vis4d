@@ -1,6 +1,8 @@
 """VisT utils for distributed setting."""
 import logging
 import pickle
+import os
+import shutil
 from typing import Any, List, Tuple
 
 import pytorch_lightning as pl
@@ -103,7 +105,7 @@ def _pad_to_largest_tensor(
     return size_list, tensor
 
 
-def all_gather_object(data: Any, pl_module: pl.LightningModule) -> List[Any]:  # type: ignore # pylint: disable=line-too-long # pragma: no cover
+def all_gather_object_gpu(data: Any, pl_module: pl.LightningModule) -> List[Any]:  # type: ignore # pragma: no cover
     """Run pl_module.all_gather on arbitrary picklable data.
 
     Args:
@@ -128,5 +130,40 @@ def all_gather_object(data: Any, pl_module: pl.LightningModule) -> List[Any]:  #
     for size, tensor in zip(size_list, tensors):
         buffer = tensor.cpu().numpy().tobytes()[:size]
         data_list.append(pickle.loads(buffer))
+
+    return data_list
+
+
+def all_gather_object_cpu(data: Any, tmpdir: str = ".dist_tmp") -> List[Any]:  # type: ignore # pylint: disable=line-too-long # pragma: no cover
+    """Share arbitrary picklable data via file system caching.
+
+    Args:
+        data: any picklable object.
+        tmpdir: Save path for temporary files.
+
+    Returns:
+        List[Any]: list of data gathered from each process.
+    """
+    rank, world_size = get_rank(), get_world_size()
+    if world_size == 1:
+        return [data]
+
+    # mk dir
+    os.makedirs(tmpdir, exist_ok=True)
+
+    # encode & save
+    with open(os.path.join(tmpdir, f'part_{rank}.pkl'), "wb") as f:
+        pickle.dump(data, f)
+    synchronize()
+
+    # load & decode
+    data_list = []
+    for i in range(world_size):
+        with open(os.path.join(tmpdir, f'part_{rank}.pkl'), "rb") as f:
+            data_list.append(pickle.load(f))
+
+    # rm dir
+    if rank == 0:
+        shutil.rmtree(tmpdir)
 
     return data_list

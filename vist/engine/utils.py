@@ -13,7 +13,7 @@ from pytorch_lightning.callbacks.progress import reset
 from scalabel.label.typing import Frame
 from termcolor import colored
 
-from ..common.utils.distributed import all_gather_object
+from ..common.utils.distributed import all_gather_object_gpu, all_gather_object_cpu
 
 # ignore DeprecationWarning by default (e.g. numpy)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -106,10 +106,16 @@ def split_args(args: Namespace) -> Tuple[Namespace, Namespace]:
 
 
 def all_gather_predictions(
-    predictions: Dict[str, List[Frame]], pl_module: pl.LightningModule
+    predictions: Dict[str, List[Frame]], pl_module: pl.LightningModule, collect_fn: str
 ) -> Dict[str, List[Frame]]:
     """Gather prediction dict in distributed setting."""
-    predictions_list = all_gather_object(predictions, pl_module)
+    if collect_fn == "gpu":
+        predictions_list = all_gather_object_gpu(predictions, pl_module)
+    elif collect_fn == "cpu":
+        predictions_list = all_gather_object_cpu(predictions)
+    else:
+        raise ValueError(f"Collect arg {collect_fn} unknown.")
+
     result = {}
     for key in predictions:
         prediction_list = [p[key] for p in predictions_list]
@@ -118,8 +124,14 @@ def all_gather_predictions(
 
 
 def all_gather_gts(
-    gts: List[Frame], pl_module: pl.LightningModule
+    gts: List[Frame], pl_module: pl.LightningModule, collect_fn: str
 ) -> List[Frame]:
     """Gather gts list in distributed setting."""
-    gts_list = all_gather_object(gts, pl_module)
+    if collect_fn == "gpu":
+        gts_list = all_gather_object_gpu(gts, pl_module)
+    elif collect_fn == "cpu":
+        gts_list = all_gather_object_cpu(gts)
+    else:
+        raise ValueError(f"Collect arg {collect_fn} unknown.")
+
     return list(itertools.chain(*gts_list))

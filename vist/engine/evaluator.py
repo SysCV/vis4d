@@ -56,12 +56,14 @@ class VisTEvaluatorCallback(Callback):
     evaluation results in 'evaluate'.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, collect="cpu") -> None:
         """Init class."""
+        assert collect in ["cpu", "gpu"], f"Collect arg {collect} unknown."
         self._predictions: Dict[str, List[Frame]] = defaultdict(list)
         self._gts: List[Frame] = []
         self.logger: Optional[pl.loggers.LightningLoggerBase] = None
         self.logging_disabled = False
+        self.collect = collect
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""
@@ -71,9 +73,9 @@ class VisTEvaluatorCallback(Callback):
     def gather(self, pl_module: pl.LightningModule) -> None:
         """Gather accumulated data."""
         self._predictions = all_gather_predictions(
-            self._predictions, pl_module
+            self._predictions, pl_module, self.collect
         )
-        self._gts = all_gather_gts(self._gts, pl_module)
+        self._gts = all_gather_gts(self._gts, pl_module, self.collect)
 
     def process(
         self, inputs: List[List[InputSample]], outputs: ModelOutput
