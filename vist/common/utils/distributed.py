@@ -1,9 +1,9 @@
 """VisT utils for distributed setting."""
 import logging
-import pickle
 import os
+import pickle
 import shutil
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple
 
 import pytorch_lightning as pl
 import torch
@@ -105,18 +105,22 @@ def _pad_to_largest_tensor(
     return size_list, tensor
 
 
-def all_gather_object_gpu(data: Any, pl_module: pl.LightningModule) -> List[Any]:  # type: ignore # pragma: no cover
+def all_gather_object_gpu(
+        data: Any, pl_module: pl.LightningModule, rank_zero_only: bool = True
+) -> Optional[List[Any]]:  # type: ignore # pragma: no cover
     """Run pl_module.all_gather on arbitrary picklable data.
 
     Args:
         data: any picklable object
         pl_module: LightningModule that contains the gathering op for the
         backend currently in use.
+        rank_zero_only: if results should only be returned on rank 0
 
     Returns:
         List[Any]: list of data gathered from each process
     """
-    if get_world_size() == 1:
+    rank, world_size = get_rank(), get_world_size()
+    if world_size == 1:
         return [data]
 
     # encode
@@ -124,6 +128,9 @@ def all_gather_object_gpu(data: Any, pl_module: pl.LightningModule) -> List[Any]
     size_list, tensor = _pad_to_largest_tensor(tensor, pl_module)
 
     tensors = pl_module.all_gather(tensor)  # (world_size, N)
+
+    if rank_zero_only and not rank == 0:
+        return None
 
     # decode
     data_list = []
@@ -134,12 +141,15 @@ def all_gather_object_gpu(data: Any, pl_module: pl.LightningModule) -> List[Any]
     return data_list
 
 
-def all_gather_object_cpu(data: Any, tmpdir: str = ".dist_tmp") -> List[Any]:  # type: ignore # pylint: disable=line-too-long # pragma: no cover
+def all_gather_object_cpu(
+        data: Any, tmpdir: str = ".dist_tmp", rank_zero_only: bool = True
+) -> Optional[List[Any]]:  # type: ignore # pragma: no cover
     """Share arbitrary picklable data via file system caching.
 
     Args:
         data: any picklable object.
         tmpdir: Save path for temporary files.
+        rank_zero_only: if results should only be returned on rank 0
 
     Returns:
         List[Any]: list of data gathered from each process.
@@ -152,17 +162,21 @@ def all_gather_object_cpu(data: Any, tmpdir: str = ".dist_tmp") -> List[Any]:  #
     os.makedirs(tmpdir, exist_ok=True)
 
     # encode & save
-    with open(os.path.join(tmpdir, f'part_{rank}.pkl'), "wb") as f:
+    with open(os.path.join(tmpdir, f"part_{rank}.pkl"), "wb") as f:
         pickle.dump(data, f)
     synchronize()
+
+    if rank_zero_only and not rank == 0:
+        return None
 
     # load & decode
     data_list = []
     for i in range(world_size):
-        with open(os.path.join(tmpdir, f'part_{rank}.pkl'), "rb") as f:
+        with open(os.path.join(tmpdir, f"part_{i}.pkl"), "rb") as f:
             data_list.append(pickle.load(f))
 
     # rm dir
+    synchronize()
     if rank == 0:
         shutil.rmtree(tmpdir)
 

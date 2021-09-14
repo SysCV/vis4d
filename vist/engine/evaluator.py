@@ -56,7 +56,7 @@ class VisTEvaluatorCallback(Callback):
     evaluation results in 'evaluate'.
     """
 
-    def __init__(self, collect="cpu") -> None:
+    def __init__(self, collect: str = "cpu") -> None:
         """Init class."""
         assert collect in ["cpu", "gpu"], f"Collect arg {collect} unknown."
         self._predictions: Dict[str, List[Frame]] = defaultdict(list)
@@ -72,10 +72,14 @@ class VisTEvaluatorCallback(Callback):
 
     def gather(self, pl_module: pl.LightningModule) -> None:
         """Gather accumulated data."""
-        self._predictions = all_gather_predictions(
+        preds = all_gather_predictions(
             self._predictions, pl_module, self.collect
         )
-        self._gts = all_gather_gts(self._gts, pl_module, self.collect)
+        if preds is not None:
+            self._predictions = preds
+        gts = all_gather_gts(self._gts, pl_module, self.collect)
+        if gts is not None:
+            self._gts = gts
 
     def process(
         self, inputs: List[List[InputSample]], outputs: ModelOutput
@@ -112,7 +116,8 @@ class VisTEvaluatorCallback(Callback):
     ) -> None:
         """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
         self.gather(pl_module)
-        self.evaluate()
+        if trainer.is_global_zero:
+            self.evaluate()
         self.reset()
 
     def on_test_batch_end(  # type: ignore
@@ -160,9 +165,10 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
         dataset_loader: BaseDatasetLoader,
         category_mapping: Dict[str, int],
         output_dir: Optional[str] = None,
+        collect: str = "cpu",
     ) -> None:
         """Init."""
-        super().__init__()
+        super().__init__(collect)
         self.output_dir = output_dir
         self.ignore_unknown_cats = dataset_loader.cfg.ignore_unkown_cats
         self.cats_id2name = {v: k for k, v in category_mapping.items()}
@@ -192,6 +198,7 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
     def evaluate(self) -> Dict[str, Result]:
         """Evaluate the performance after processing all input/output pairs."""
         results = {}
+        logger.info("Running evaluation for dataset %s...", self.name)
         for key, predictions in self._predictions.items():
             if self.output_dir:
                 os.makedirs(self.output_dir, exist_ok=True)
@@ -200,7 +207,6 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
                 )
                 save(file_path, predictions)
 
-            logger.info("Running evaluation for dataset %s...", self.name)
             if key in self.metrics:
                 results[key] = _eval_mapping[key](
                     predictions,
