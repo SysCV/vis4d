@@ -76,11 +76,10 @@ type = "QD3DT"
     with_cats = true
     bbox_affinity_weight = 0.5
 
-        [model.track_graph.motion_tracker]
-        type = "LSTM3DMotionTracker"
-        lstm_name = "VeloLSTM"
-        nfr = 5
-        loc_dim = 7
+        [model.track_graph.motion_model]
+        type = "LSTM3DMotionModel"
+        num_frames = 5
+        motion_dims = 7
         lstm_ckpt_name = "./checkpoints/batch8_min10_seq10_dim7_subtrain_VeloLSTM_kitti_100_linear.pth"
 
     [model.similarity]

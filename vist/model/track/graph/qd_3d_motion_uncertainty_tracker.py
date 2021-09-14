@@ -1,19 +1,15 @@
 """QD-3DT tracking graph."""
-import pdb
 from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
 
-from vist.common.bbox.utils import bbox_iou, get_yaw_world
+from vist.common.bbox.utils import bbox_iou, get_yaw_world, get_yaw_cam
 from vist.struct import Boxes2D, Boxes3D
-
-from vist.model.track.motion.motion_model import get_lstm_model
-
 from vist.model.track.motion import (
-    build_motion_tracker,
-    get_lstm_model,
-    LSTM3DMotionTrackerConfig,
+    build_motion_model,
+    VeloLSTM,
+    LSTM3DMotionModelConfig,
 )
 
 from .base import TrackGraphConfig
@@ -25,7 +21,7 @@ class QD3DTrackGraphConfig(QDTrackGraphConfig):
 
     motion_momentum: float
     bbox_affinity_weight: float
-    motion_tracker: LSTM3DMotionTrackerConfig
+    motion_model: LSTM3DMotionModelConfig
 
 
 class QD3DTrackGraph(QDTrackGraph):
@@ -35,23 +31,24 @@ class QD3DTrackGraph(QDTrackGraph):
         """Init."""
         super().__init__(cfg)
         self.cfg = QD3DTrackGraphConfig(**cfg.dict())
-        self.cfg.loc_dim = self.cfg.motion_tracker.loc_dim
+        self.cfg.motion_dims = self.cfg.motion_model.motion_dims
 
-        if self.cfg.motion_tracker.type == "LSTM3DMotionTracker":
-            self.cfg.motion_tracker.lstm = get_lstm_model(
-                self.cfg.motion_tracker.lstm_name
-            )(1, 64, 128, 2, self.cfg.motion_tracker.loc_dim)
-            ckpt = torch.load(self.cfg.motion_tracker.lstm_ckpt_name)
-            try:
-                self.cfg.motion_tracker.lstm.load_state_dict(
-                    ckpt["state_dict"]
-                )
-            except (RuntimeError, KeyError) as ke:
-                print("Cannot load full model: {}".format(ke))
-                state = self.cfg.motion_tracker.lstm.state_dict()
-                state.update(ckpt["state_dict"])
-                self.cfg.motion_tracker.lstm.load_state_dict(state)
-            del ckpt
+        if self.cfg.motion_model.type == "LSTM3DMotionModel":
+            self.cfg.motion_model.lstm = VeloLSTM(
+                1, 64, 128, 2, self.cfg.motion_model.motion_dims
+            )
+            if self.cfg.motion_model.lstm_ckpt_name is not None:
+                ckpt = torch.load(self.cfg.motion_model.lstm_ckpt_name)
+                try:
+                    self.cfg.motion_model.lstm.load_state_dict(
+                        ckpt["state_dict"]
+                    )
+                except (RuntimeError, KeyError) as ke:
+                    print("Cannot load full model: {}".format(ke))
+                    state = self.cfg.motion_model.lstm.state_dict()
+                    state.update(ckpt["state_dict"])
+                    self.cfg.motion_model.lstm.load_state_dict(state)
+                del ckpt
 
         self.cfg.feat_affinity_weight = 1 - self.cfg.bbox_affinity_weight
 
@@ -74,7 +71,7 @@ class QD3DTrackGraph(QDTrackGraph):
             bboxs,
             boxes_3d,
             embeds,
-            trackers,
+            motion_models,
             velocities,
             class_ids,
             ids,
@@ -84,7 +81,7 @@ class QD3DTrackGraph(QDTrackGraph):
                 bboxs.append(v["bbox"].unsqueeze(0))
                 boxes_3d.append(v["box_3d"].unsqueeze(0))
                 embeds.append(v["embed"].unsqueeze(0))
-                trackers.append(v["tracker"])
+                motion_models.append(v["motion_model"])
                 velocities.append(v["velocity"].unsqueeze(0))
                 class_ids.append(v["class_id"])
                 ids.append(k)
@@ -97,7 +94,7 @@ class QD3DTrackGraph(QDTrackGraph):
         boxes_3d = (
             torch.cat(boxes_3d)
             if len(boxes_3d) > 0
-            else torch.empty((0, self.cfg.loc_dim + 1), device=device)
+            else torch.empty((0, self.cfg.motion_dims + 1), device=device)
         )
         embeds = (
             torch.cat(embeds)
@@ -107,7 +104,7 @@ class QD3DTrackGraph(QDTrackGraph):
         velocities = (
             torch.cat(velocities)
             if len(velocities) > 0
-            else torch.empty((0, self.cfg.loc_dim), device=device)
+            else torch.empty((0, self.cfg.motion_dims), device=device)
         )
         class_ids = (
             torch.cat(class_ids)
@@ -130,9 +127,9 @@ class QD3DTrackGraph(QDTrackGraph):
                     [boxes_3d, backdrop["detections_3d"].boxes]
                 )
                 embeds = torch.cat([embeds, backdrop["embeddings"]])
-                trackers.extend(backdrop["tracker"])
+                motion_models.extend(backdrop["motion_model"])
                 backdrop_vs = torch.zeros_like(
-                    backdrop["detections_3d"].boxes[:, : self.cfg.loc_dim]
+                    backdrop["detections_3d"].boxes[:, : self.cfg.motion_dims]
                 )
                 velocities = torch.cat([velocities, backdrop_vs])
                 class_ids = torch.cat(
@@ -143,7 +140,7 @@ class QD3DTrackGraph(QDTrackGraph):
             Boxes2D(bboxs, class_ids, ids),
             Boxes3D(boxes_3d, class_ids, ids),
             embeds,
-            trackers,
+            motion_models,
             velocities,
         )
 
@@ -213,18 +210,16 @@ class QD3DTrackGraph(QDTrackGraph):
             memo_dets,
             memo_dets_3d,
             memo_embeds,
-            memo_trackers,
+            memo_motion_models,
             memo_vs,
         ) = self.get_tracks(detections.device, add_backdrops=True)
 
         memo_boxes_3d_predict = memo_dets_3d.boxes.detach().clone()
-        for ind, memo_tracker in enumerate(memo_trackers):
-            memo_velo = memo_tracker.predict(
-                update_state=memo_tracker.age != 0
+        for ind, memo_motion_model in enumerate(memo_motion_models):
+            memo_velo = memo_motion_model.predict(
+                update_state=memo_motion_model.cfg.age != 0
             )
-            memo_boxes_3d_predict[ind, :3] += memo_dets_3d.boxes.new_tensor(
-                memo_velo[7:]
-            )
+            memo_boxes_3d_predict[ind, :3] += memo_velo[7:]
 
         # BBox IoU
         depth_weight = F.pairwise_distance(
@@ -290,7 +285,8 @@ class QD3DTrackGraph(QDTrackGraph):
         )
 
         quat_det_yaws_world = get_yaw_world(
-            detections_3d.boxes[:, 6], cam_extrinsics.detach().cpu().numpy()
+            detections_3d.boxes[:, 6],
+            cam_extrinsics.detach().cpu().numpy(),
         )
 
         detections_3d.boxes[:, 6] = torch.from_numpy(
@@ -322,6 +318,14 @@ class QD3DTrackGraph(QDTrackGraph):
         result, result_3d, _, _, _ = self.get_tracks(
             detections.device, frame_id
         )
+
+        yaws_cam = get_yaw_cam(
+            result_3d.boxes[:, 6],
+            cam_extrinsics.detach().cpu().numpy(),
+            quat_det_yaws_world,
+        )
+
+        result_3d.boxes[:, 6] = torch.from_numpy(yaws_cam)
 
         return result, result_3d
 
@@ -356,12 +360,10 @@ class QD3DTrackGraph(QDTrackGraph):
                 and track_id > -1
             ):
                 self.tracks[track_id]["box_3d"][
-                    : self.cfg.loc_dim
-                ] = self.tracks[track_id]["box_3d"].new_tensor(
-                    self.tracks[track_id]["tracker"].predict()[
-                        : self.cfg.loc_dim
-                    ]
-                )
+                    : self.cfg.motion_dims
+                ] = self.tracks[track_id]["motion_model"].predict()[
+                    : self.cfg.motion_dims
+                ]
 
         backdrop_inds = torch.nonzero(ids == -1, as_tuple=False).squeeze(1)
         ious = bbox_iou(detections[backdrop_inds], detections)
@@ -370,11 +372,10 @@ class QD3DTrackGraph(QDTrackGraph):
                 backdrop_inds[i] = -1
         backdrop_inds = backdrop_inds[backdrop_inds > -1]
 
-        backdrop_tracker = [
-            build_motion_tracker(
-                detections.device,
-                self.cfg.motion_tracker,
-                detections_3d[bd_ind].boxes[0].cpu().numpy(),
+        backdrop_motion_model = [
+            build_motion_model(
+                self.cfg.motion_model,
+                detections_3d[bd_ind].boxes[0],
             )
             for bd_ind in backdrop_inds
         ]
@@ -385,7 +386,7 @@ class QD3DTrackGraph(QDTrackGraph):
                 detections=detections[backdrop_inds],
                 detections_3d=detections_3d[backdrop_inds],
                 embeddings=embeddings[backdrop_inds],
-                tracker=backdrop_tracker,
+                motion_model=backdrop_motion_model,
             ),
         )
 
@@ -415,18 +416,17 @@ class QD3DTrackGraph(QDTrackGraph):
             detection.class_ids[0],
         )
         self.tracks[track_id]["bbox"] = bbox
-        self.tracks[track_id]["tracker"].update(det_3d.cpu().numpy())
+        self.tracks[track_id]["motion_model"].update(det_3d)
 
-        tracker_box = self.tracks[track_id]["tracker"].get_state()[
-            : self.cfg.loc_dim
+        pd_box_3d = self.tracks[track_id]["motion_model"].get_state()[
+            : self.cfg.motion_dims
         ]
-        pd_box_3d = det_3d.new_tensor(tracker_box)
 
         velocity = (
-            pd_box_3d - self.tracks[track_id]["box_3d"][: self.cfg.loc_dim]
+            pd_box_3d - self.tracks[track_id]["box_3d"][: self.cfg.motion_dims]
         ) / (frame_id - self.tracks[track_id]["last_frame"])
 
-        self.tracks[track_id]["box_3d"][: self.cfg.loc_dim] = pd_box_3d
+        self.tracks[track_id]["box_3d"][: self.cfg.motion_dims] = pd_box_3d
         self.tracks[track_id]["embed"] = (
             1 - self.cfg.memo_momentum
         ) * self.tracks[track_id]["embed"] + self.cfg.memo_momentum * embedding
@@ -453,18 +453,17 @@ class QD3DTrackGraph(QDTrackGraph):
             detection_3d.boxes[0],
             detection.class_ids[0],
         )
-        built_tracker = build_motion_tracker(
-            detection.device,
-            self.cfg.motion_tracker,
-            det_3d.cpu().numpy(),
+        motion_model = build_motion_model(
+            self.cfg.motion_model,
+            det_3d,
         )
         self.tracks[track_id] = dict(
             bbox=bbox,
             box_3d=det_3d,
-            tracker=built_tracker,
+            motion_model=motion_model,
             embed=embedding,
             class_id=class_id,
             last_frame=frame_id,
-            velocity=torch.zeros_like(det_3d[: self.cfg.loc_dim]),
+            velocity=torch.zeros_like(det_3d[: self.cfg.motion_dims]),
             acc_frame=0,
         )
