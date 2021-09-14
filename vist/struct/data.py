@@ -284,7 +284,6 @@ class InputSample:
 
     def __getitem__(self, item: int) -> "InputSample":
         """Return single element."""
-        assert item < len(self.images), "Index out of bound for InputSample."
         return InputSample(
             [self.metadata[item]],
             self.images[item],
