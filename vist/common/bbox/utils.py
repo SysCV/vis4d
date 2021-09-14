@@ -157,6 +157,26 @@ def get_yaw_world(det_yaws, cam_extrinsics):
     return quat_det_yaws_world
 
 
+def get_yaw_cam(yaws_world, cam_extrinsics, quat_det_yaws_world):
+    """Transfer yaw in world to yaw in cam."""
+    r_camera_to_world = R.from_matrix(cam_extrinsics[:3, :3]).as_matrix()
+    cam_rot_quat = Quaternion(matrix=r_camera_to_world)
+
+    yaws_cam = []
+    for yaw_world, (roll_world, pitch_world) in zip(
+        yaws_world, quat_det_yaws_world["roll_pitch"]
+    ):
+        rotation_cam = cam_rot_quat.inverse * Quaternion(
+            euler_to_quaternion(
+                roll_world, pitch_world, yaw_world.cpu().numpy()
+            )
+        )
+        vtrans = np.dot(rotation_cam.rotation_matrix, np.array([1, 0, 0]))
+        yaws_cam.append(-np.arctan2(vtrans[2], vtrans[0]))
+
+    return np.array(yaws_cam)
+
+
 class Box3DCoder:
     """3D bounding box coder for QD-3DT."""
 

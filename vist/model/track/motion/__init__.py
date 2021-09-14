@@ -1,13 +1,13 @@
-"""Motion Tracker module."""
-from .base import BaseMotionTracker, MotionTrackerConfig, build_motion_tracker
-from .lstm_3d_tracker import LSTM3DMotionTracker, LSTM3DMotionTrackerConfig
-from .motion_model import get_lstm_model
+"""Motion Model module."""
+from .base import BaseMotionModel, MotionModelConfig, build_motion_model
+from .lstm_3d import LSTM3DMotionModel, LSTM3DMotionModelConfig
+from .velo_lstm import VeloLSTM
 
 __all__ = [
-    "BaseMotionTracker",
-    "MotionTrackerConfig",
-    "build_motion_tracker",
-    "LSTM3DMotionTracker",
-    "LSTM3DMotionTrackerConfig",
-    "get_lstm_model",
+    "BaseMotionModel",
+    "MotionModelConfig",
+    "build_motion_model",
+    "LSTM3DMotionModel",
+    "LSTM3DMotionModelConfig",
+    "VeloLSTM",
 ]
