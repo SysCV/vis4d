@@ -62,25 +62,8 @@ type = "QD3DT"
         allow_low_quality_matches = false
 
     [model.track_graph]
-    type = "QD3DTrackGraph"
+    type = "QDTrackGraph"
     keep_in_memory = 10  # timesteps
-    init_score_thr = 0.5
-    obj_score_thr = 0.5
-    match_score_thr = 0.5
-    memo_backdrop_frames = 1
-    memo_momentum = 0.8
-    motion_momentum = 0.9
-    nms_conf_thr = 0.5
-    nms_backdrop_iou_thr = 0.3
-    nms_class_iou_thr = 0.8
-    with_cats = true
-    bbox_affinity_weight = 0.5
-
-        [model.track_graph.motion_model]
-        type = "LSTM3DMotionModel"
-        num_frames = 5
-        motion_dims = 7
-        lstm_ckpt_name = "./checkpoints/batch8_min10_seq10_dim7_subtrain_VeloLSTM_kitti_100_linear.pth"
 
     [model.similarity]
     type = "QDSimilarityHead"

@@ -3,7 +3,7 @@ from typing import List
 
 import torch
 
-from vist.struct import InputSample, LossesType, ModelOutput
+from vist.struct import InputSample, LossesType, ModelOutput, Boxes3D
 
 from .detect.roi_head import BaseRoIHeadConfig, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
@@ -96,7 +96,7 @@ class QD3DT(QDTrack):
         )
         assert detections is not None
 
-        bbox_2d_preds, bbox_3d_preds, keep = self.bbox_3d_head.forward_test(
+        bbox_2d_preds, bbox_3d_preds = self.bbox_3d_head.forward_test(
             inputs,
             feat,
             detections,
@@ -104,9 +104,8 @@ class QD3DT(QDTrack):
 
         # similarity head
         embeddings = self.similarity_head.forward_test(
-            inputs, feat, detections
+            inputs, feat, [bbox_2d_preds]
         )
-        embeddings = embeddings[0][keep]
         assert inputs.metadata[0].size is not None
         input_size = (
             inputs[0].metadata[0].size.width,
@@ -117,12 +116,22 @@ class QD3DT(QDTrack):
         )
 
         # associate detections, update graph
-        tracks, tracks_3d = self.track_graph(
-            bbox_2d_preds,
-            bbox_3d_preds,
-            frame_id,
-            embeddings,
-            inputs.extrinsics.tensor[0],
+        tracks_2d = self.track_graph(bbox_2d_preds, frame_id, embeddings[0])
+
+        boxes_3d = []
+        for i in range(len(tracks_2d)):
+            for j in range(len(bbox_2d_preds)):
+                if torch.equal(tracks_2d.boxes[i], bbox_2d_preds.boxes[j]):
+                    boxes_3d.append(bbox_3d_preds[j].boxes)
+
+        boxes_3d = (
+            torch.cat(boxes_3d)
+            if len(boxes_3d) > 0
+            else torch.empty(
+                (0, bbox_3d_preds.boxes.shape[1]), device=bbox_3d_preds.device
+            )
         )
 
-        return dict(detect=[bbox_2d_preds], track=[tracks])
+        tracks_3d = Boxes3D(boxes_3d, tracks_2d.class_ids, tracks_2d.track_ids)
+
+        return dict(track=[tracks_3d])
