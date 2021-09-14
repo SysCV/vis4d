@@ -1,7 +1,6 @@
 """Motion model base class."""
 import abc
 
-import numpy as np
 import torch
 
 from pydantic import BaseModel, Field
@@ -24,14 +23,6 @@ class MotionModelConfig(BaseModel, extra="allow"):
 
 class BaseMotionModel(metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
     """Base class for motion tracker."""
-
-    def __init__(self, cfg: MotionModelConfig, detections: torch.Tensor):
-        """Init motion trakcer."""
-        self.pi = torch.tensor(np.pi)
-
-    def fix_angle(self, angle: torch.Tensor) -> torch.Tensor:
-        """Fix the angle value."""
-        return (angle + self.pi) % (2 * self.pi) - self.pi
 
     @staticmethod
     def update_array(

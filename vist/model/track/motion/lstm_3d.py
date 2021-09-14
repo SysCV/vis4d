@@ -1,5 +1,6 @@
 """LSTM 3D motion model."""
 import torch
+import numpy as np
 
 from .base import BaseMotionModel, MotionModelConfig
 
@@ -22,14 +23,13 @@ class LSTM3DMotionModel(BaseMotionModel):
             cfg: motion tracker config.
             detections_3d: x, y, z, h, w, l, ry, depth uncertainty
         """
-        super().__init__(cfg, detections_3d)
         self.cfg = LSTM3DMotionModelConfig(**cfg.dict())
 
         self.device = detections_3d.device
         self.lstm = self.cfg.lstm.to(self.device)
         self.lstm.eval()
 
-        self.pi = self.pi.to(self.device)
+        self.pi = torch.tensor(np.pi).to(self.device)
 
         bbox3D = detections_3d[: self.cfg.motion_dims]
         info = detections_3d[self.cfg.motion_dims :]
@@ -48,6 +48,10 @@ class LSTM3DMotionModel(BaseMotionModel):
         self.info = info
         self.hidden_pred = self.lstm.init_hidden(self.device)
         self.hidden_ref = self.lstm.init_hidden(self.device)
+
+    def fix_angle(self, angle: torch.Tensor) -> torch.Tensor:
+        """Fix the angle value."""
+        return (angle + self.pi) % (2 * self.pi) - self.pi
 
     def _update_history(self, bbox3D):
         self.ref_history = self.update_array(self.ref_history, bbox3D)
