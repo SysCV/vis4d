@@ -341,4 +341,4 @@ class Box3DCoder:
             bbox_2d_preds.class_ids,
         )
 
-        return bbox_2d_preds, bbox_3d_preds, keep
+        return bbox_2d_preds, bbox_3d_preds
