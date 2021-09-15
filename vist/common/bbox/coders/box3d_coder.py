@@ -1,176 +1,104 @@
 import numpy as np
 import torch
+from typing import List
+from vist.struct import Boxes2D, Boxes3D, Intrinsics
+from ...geometry.projection import project_points, unproject_points
+from ...geometry.rotation import yaw2alpha, get_alpha, gen_bin_rot
+from .base import BaseBoxCoderConfig, BaseBoxCoder3D
 
-from vist.common.bbox.utils import project_points_to_image, yaw2alpha, \
-    get_alpha
-from vist.struct import Boxes2D, Boxes3D
 
-
-class Box3DCoderConfig():
-    with_uncertainty: bool
+class Box3DCoderConfig(BaseBoxCoderConfig):
+    with_uncertainty: bool = True
     uncertainty_thres: float = 0.9
+    depth_log_scale: float = 2.0
+    dim_log_scale: float = 2.0
 
 
-class Box3DCoder:
-    """3D bounding box coder for QD-3DT."""
+class CenterProjBox3DCoder(BaseBoxCoder3D):
+    """3D bounding box coder based on center projection."""
 
-    def __init__(
-        self,
-        dep_log_scale: float = 2.0,
-        dim_log_scale: float = 2.0,
-    ):
-        self.depth_log_scale = dep_log_scale
-        self.dim_log_scale = dim_log_scale
+    def __init__(self, cfg: Box3DCoderConfig) -> None:
+        """Init."""
+        self.cfg = Box3DCoderConfig(**cfg.dict())
 
-    def encode(
-        self,
-        gt_bboxes_2d: Boxes2D,
-        gt_bboxes_3d: Boxes3D,
-        cam_intrinsics: torch.tensor,
-    ):
-        """Encode the GT into model prediction format for computing loss."""
-        # delta center 2d
-        projected_2dc = project_points_to_image(
-            gt_bboxes_3d.boxes[:, :3], cam_intrinsics
-        ).view(gt_bboxes_3d.boxes.shape[0], -1)
+    def encode(self, boxes: List[Boxes2D], targets: List[Boxes3D], intrinsics: Intrinsics) -> List[torch.Tensor]:
+        """Encode deltas between boxes and targets given intrinsics."""
+        result = []
+        for boxes_, targets_, intrinsics_ in zip(boxes, targets, intrinsics):
+            # delta center 2d
+            projected_3d_center = project_points(targets_.center, intrinsics_)
+            delta_center = projected_3d_center - boxes_.center
 
-        x_2d = (gt_bboxes_2d.boxes[:, 0] + gt_bboxes_2d.boxes[:, 2]) / 2
-        x_2d = x_2d.view(gt_bboxes_3d.boxes.shape[0], -1)
+            # depth
+            depth = torch.log(boxes_.center[:, -1]) * self.cfg.depth_log_scale
+            depth = depth.unsqueeze(-1)
 
-        y_2d = (gt_bboxes_2d.boxes[:, 1] + gt_bboxes_2d.boxes[:, 3]) / 2
-        y_2d = y_2d.view(gt_bboxes_3d.boxes.shape[0], -1)
+            # dimensions
+            dims = torch.log(targets_.dimensions) * self.cfg.dim_log_scale
 
-        center_2dc = torch.cat([x_2d, y_2d], 1)
+            # rotation
+            alpha = yaw2alpha(targets_.rot_y, targets_.center)
+            bin_cls = torch.zeros((alpha.shape[0], 2), device=alpha.device)
+            bin_res = torch.zeros((alpha.shape[0], 2), device=alpha.device)
+            for i in range(alpha.shape[0]):
+                if alpha[i] < np.pi / 6.0 or alpha[i] > 5 * np.pi / 6.0:
+                    bin_cls[i, 0] = 1
+                    bin_res[i, 0] = alpha[i] - (-0.5 * np.pi)
 
-        delta_center = projected_2dc - center_2dc
-        delta_center = delta_center.view(gt_bboxes_3d.boxes.shape[0], -1)
+                if alpha[i] > -np.pi / 6.0 or alpha[i] < -5 * np.pi / 6.0:
+                    bin_cls[i, 1] = 1
+                    bin_res[i, 1] = alpha[i] - (0.5 * np.pi)
 
-        # depth
-        depth = torch.log(gt_bboxes_3d.boxes[:, 2]) * self.depth_log_scale
-        depth = depth.view(gt_bboxes_3d.boxes.shape[0], -1)
+            result.append(torch.cat(
+            [delta_center, depth, dims, bin_cls, bin_res], -1
+            ))
 
-        # dimensions
-        dimensions = torch.log(gt_bboxes_3d.boxes[:, 3:6]) * self.dim_log_scale
-        dimensions = dimensions.view(gt_bboxes_3d.boxes.shape[0], -1)
+        return result
 
-        # roty to bins
-        rot_y = gt_bboxes_3d.boxes[:, 6].view(gt_bboxes_3d.boxes.shape[0], -1)
+    def decode(self, boxes: List[Boxes2D], box_deltas: List[torch.Tensor], intrinsics: Intrinsics) -> List[Boxes3D]:
+        """Decode the predicted box_deltas according to given base boxes."""
+        results = []
+        for boxes_, box_deltas_, intrinsics_ in zip(boxes, box_deltas, intrinsics):
+            boxes_ = boxes_[torch.arange(box_deltas_.shape[0]), boxes_.class_ids]
 
-        # alpha
-        alpha = yaw2alpha(
-            rot_y, gt_bboxes_3d.boxes[:, 0:1], gt_bboxes_3d.boxes[:, 2:3]
-        )
+            # depth uncertainty
+            if self.cfg.with_uncertainty:
+                depth_uncertainty = box_deltas_[:, 14:15]
+            else:
+                depth_uncertainty = torch.ones_like(box_deltas_[:, :1])
 
-        alpha = alpha % (2 * np.pi) - np.pi
-        bin_cls = torch.zeros((alpha.shape[0], 2), device=alpha.device)
-        bin_res = torch.zeros((alpha.shape[0], 2), device=alpha.device)
-        for i in range(alpha.shape[0]):
-            if alpha[i] < np.pi / 6.0 or alpha[i] > 5 * np.pi / 6.0:
-                bin_cls[i, 0] = 1
-                bin_res[i, 0] = alpha[i] - (-0.5 * np.pi)
+            depth_uncertainty = depth_uncertainty.clamp(min=0.0, max=1.0)
 
-            if alpha[i] > -np.pi / 6.0 or alpha[i] < -5 * np.pi / 6.0:
-                bin_cls[i, 1] = 1
-                bin_res[i, 1] = alpha[i] - (0.5 * np.pi)
+            # Depth filter
+            keep = (depth_uncertainty > self.cfg.uncertainty_thres).view(
+                box_deltas_.shape[0]
+            )
+            depth_uncertainty = depth_uncertainty[keep]
 
-        return torch.cat(
-            [delta_center, depth, dimensions, bin_cls, bin_res], -1
-        )
+            # TODO do we really want to filter here? This is supposed to be a decoding function
+            boxes_ = boxes_[keep]
+            box_deltas_ = box_deltas_[keep]
 
-    def decode(
-        self,
-        bbox_2d_preds: Boxes2D,
-        bbox_3d_preds: torch.Tensor,
-        cam_intrinsics: torch.Tensor,
-    ):
-        """Decode the model prediction."""
-        bbox_3d_preds = bbox_3d_preds[
-            torch.arange(bbox_3d_preds.shape[0]), bbox_2d_preds.class_ids
-        ]
+            # center
+            delta_center = box_deltas_[:, 0:2]
+            center_2d = boxes_.center + delta_center
+            depth = torch.exp(box_deltas_[:, 2:3] / self.cfg.depth_log_scale)
+            center_3d = unproject_points(center_2d, depth, intrinsics_)
 
-        # depth uncertainty
-        if with_uncertainty:
-            depth_uncertainty = bbox_3d_preds[:, 14:15]
-        else:
-            depth_uncertainty = torch.ones_like(bbox_3d_preds[:, :1])
+            # dimensions
+            # TODO shouldn't this regress from the mean?
+            dimensions = torch.exp(box_deltas_[:, 3:6] / self.cfg.dim_log_scale)
 
-        depth_uncertainty = torch.clamp(depth_uncertainty, min=0.0, max=1.0)
+            # rotation
+            rot = gen_bin_rot(box_deltas_[:, 6:14])
 
-        # Depth filter
-        keep = (depth_uncertainty > uncertainty_thres).view(
-            bbox_3d_preds.shape[0]
-        )
-        depth_uncertainty = depth_uncertainty[keep]
+            # alpha2rot_y
+            intrinsic_matrix = intrinsics_.tensor.squeeze(0)
+            rot_y = get_alpha(rot) + torch.atan2(delta_center[..., 0] - intrinsic_matrix[0, 2], intrinsic_matrix[0, 0])
+            rot_y = rot_y % (2 * np.pi) - np.pi
+            rot_y = rot_y.unsqueeze(-1)
 
-        bbox_2d_preds = bbox_2d_preds[keep]
-        bbox_3d_preds = bbox_3d_preds[keep]
+            boxes3d = Boxes3D(torch.cat([center_3d, dimensions, rot_y, depth_uncertainty], 1), boxes_.class_ids)
+            results.append(boxes3d)
 
-        # center 2d
-        delta_center = bbox_3d_preds[:, 0:2]
-
-        pred_x = (bbox_2d_preds.boxes[:, 0] + bbox_2d_preds.boxes[:, 2]) * 0.5
-        pred_y = (bbox_2d_preds.boxes[:, 1] + bbox_2d_preds.boxes[:, 3]) * 0.5
-
-        pred_x = pred_x.view(bbox_3d_preds.shape[0], 1)
-        pred_y = pred_y.view(bbox_3d_preds.shape[0], 1)
-
-        box_cen = torch.cat([pred_x, pred_y], 1)
-
-        cen2d_pred = box_cen + delta_center
-
-        # depth
-        depth = torch.exp(bbox_3d_preds[:, 2] / self.depth_log_scale)
-        depth = depth.view(bbox_3d_preds.shape[0], 1)
-
-        # dimensions
-        dimensions = torch.exp(bbox_3d_preds[:, 3:6] / self.dim_log_scale)
-
-        # rotation
-        orientation = bbox_3d_preds[:, 6:14]
-
-        # bin 1
-        divider1 = torch.sqrt(
-            orientation[:, 2:3] ** 2 + orientation[:, 3:4] ** 2
-        )
-        b1sin = orientation[:, 2:3] / divider1
-        b1cos = orientation[:, 3:4] / divider1
-
-        # bin 2
-        divider2 = torch.sqrt(
-            orientation[:, 6:7] ** 2 + orientation[:, 7:8] ** 2
-        )
-        b2sin = orientation[:, 6:7] / divider2
-        b2cos = orientation[:, 7:8] / divider2
-
-        rot = torch.cat(
-            [
-                orientation[:, 0:2],
-                b1sin,
-                b1cos,
-                orientation[:, 4:6],
-                b2sin,
-                b2cos,
-            ],
-            1,
-        )
-
-        # alpha2rot_y
-        rot_y = get_alpha(rot) + torch.atan2(
-            delta_center[..., 0] - cam_intrinsics[0, 2], cam_intrinsics[0, 0]
-        )
-        rot_y = rot_y % (2 * np.pi) - np.pi
-        rot_y = rot_y.view(bbox_3d_preds.shape[0], 1)
-
-        # center 3d
-        center = (
-            torch.cat([cen2d_pred, torch.ones_like(cen2d_pred)[..., 0:1]], -1)
-            @ torch.inverse(cam_intrinsics).T
-        )
-        center *= depth
-
-        bbox_3d_preds = Boxes3D(
-            torch.cat([center, dimensions, rot_y, depth_uncertainty], 1),
-            bbox_2d_preds.class_ids,
-        )
-
-        return bbox_2d_preds, bbox_3d_preds
+        return results

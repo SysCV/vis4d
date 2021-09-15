@@ -5,6 +5,9 @@ import torch
 import torch.nn.functional as F
 from mmdet.models.losses import smooth_l1_loss
 
+from ...common.geometry.rotation import gen_bin_rot
+from vist.struct import LossesType
+
 from .base import BaseLoss, LossConfig
 
 
@@ -27,7 +30,22 @@ class Box3DUncertaintyLoss(BaseLoss):
         pred: torch.Tensor,
         target: torch.Tensor,
         labels: torch.Tensor,
-    ):
+    ) -> LossesType:
+
+        if pred.size(0) == 0:
+            loss_ctr3d = loss_dep3d = loss_dim3d = loss_rot3d = loss_conf3d = (
+                pred.sum() * 0
+            )
+            result_dict = dict(
+                loss_ctr3d=loss_ctr3d,
+                loss_dep3d=loss_dep3d,
+                loss_dim3d=loss_dim3d,
+                loss_rot3d=loss_rot3d,
+                loss_conf3d=loss_conf3d,
+            )
+
+            return result_dict
+
         pred = pred[torch.arange(pred.shape[0]), labels]
 
         # delta 2dc loss
@@ -48,32 +66,8 @@ class Box3DUncertaintyLoss(BaseLoss):
         )
 
         # rotation loss
-        orientation = pred[:, 6:14]
-        # bin 1
-        divider1 = torch.sqrt(
-            orientation[:, 2:3] ** 2 + orientation[:, 3:4] ** 2
-        )
-        b1sin = orientation[:, 2:3] / divider1
-        b1cos = orientation[:, 3:4] / divider1
+        rot = gen_bin_rot(pred[:, 6:14])
 
-        # bin 2
-        divider2 = torch.sqrt(
-            orientation[:, 6:7] ** 2 + orientation[:, 7:8] ** 2
-        )
-        b2sin = orientation[:, 6:7] / divider2
-        b2cos = orientation[:, 7:8] / divider2
-
-        rot = torch.cat(
-            [
-                orientation[:, 0:2],
-                b1sin,
-                b1cos,
-                orientation[:, 4:6],
-                b2sin,
-                b2cos,
-            ],
-            1,
-        )
         loss_rot = rotation_loss(rot, target[..., 6:8], target[..., 8:]).mean(
             dim=-1
         )

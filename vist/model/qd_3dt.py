@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """Quasi-dense 3D Tracking model."""
 from typing import List
 
@@ -41,11 +42,11 @@ class QD3DT(QDTrack):
         key_proposals, rpn_losses = self.detector.generate_proposals(
             key_inputs, key_x
         )
-        with torch.no_grad():
-            ref_proposals = [
-                self.detector.generate_proposals(inp, x)[0]
-                for inp, x in zip(ref_inputs, ref_x)
-            ]
+
+        # 3d bbox head
+        loss_bbox_3d, _ = self.bbox_3d_head.forward_train(
+            key_inputs, key_x, key_proposals
+        )
 
         # bbox head
         _, roi_losses = self.detector.generate_detections(
@@ -55,12 +56,13 @@ class QD3DT(QDTrack):
             compute_detections=False,
         )
 
-        # 3d bbox head
-        loss_bbox_3d = self.bbox_3d_head.forward_train(
-            key_inputs, key_x, key_proposals
-        )
-
         det_losses = {**rpn_losses, **roi_losses, **loss_bbox_3d}
+
+        with torch.no_grad():
+            ref_proposals = [
+                self.detector.generate_proposals(inp, x)[0]
+                for inp, x in zip(ref_inputs, ref_x)
+            ]
 
         # track head
         track_losses, _ = self.similarity_head.forward_train(
@@ -90,15 +92,15 @@ class QD3DT(QDTrack):
         feat = self.detector.extract_features(inputs)
         proposals, _ = self.detector.generate_proposals(inputs, feat)
 
-        detections, _ = self.detector.generate_detections(
+        bbox_2d_preds, _ = self.detector.generate_detections(
             inputs, feat, proposals
         )
-        assert detections is not None
+        assert bbox_2d_preds is not None
 
         bbox_2d_preds, bbox_3d_preds = self.bbox_3d_head.forward_test(
             inputs,
             feat,
-            detections,
+            bbox_2d_preds,
         )
 
         # similarity head
