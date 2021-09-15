@@ -11,8 +11,9 @@ from vist.common.bbox.samplers import (
     SamplerConfig,
     SamplingResult,
     build_sampler,
+    match_and_sample_proposals,
 )
-from vist.common.layers import Conv2d
+from vist.common.layers import add_conv_branch
 from vist.model.losses import BaseLoss, LossConfig, build_loss
 from vist.struct import Boxes2D, InputSample, LossesType
 
@@ -85,27 +86,14 @@ class QDSimilarityHead(BaseSimilarityHead):
         """Init modules of head."""
         last_layer_dim = self.cfg.in_dim
         # add branch specific conv layers
-        convs = nn.ModuleList()
-        norm = getattr(nn, self.cfg.norm)
-        if norm == nn.GroupNorm:
-            norm = lambda x: nn.GroupNorm(self.cfg.num_groups, x)
-        if self.cfg.num_convs > 0:
-            for i in range(self.cfg.num_convs):
-                conv_in_dim = (
-                    last_layer_dim if i == 0 else self.cfg.conv_out_dim
-                )
-                convs.append(
-                    Conv2d(
-                        conv_in_dim,
-                        self.cfg.conv_out_dim,
-                        kernel_size=3,
-                        padding=1,
-                        bias=self.cfg.conv_has_bias,
-                        norm=norm(self.cfg.conv_out_dim),
-                        activation=nn.ReLU(inplace=True),
-                    )
-                )
-            last_layer_dim = self.cfg.conv_out_dim
+        convs, last_layer_dim = add_conv_branch(
+            self.cfg.num_convs,
+            self.cfg.in_dim,
+            self.cfg.conv_out_dim,
+            self.cfg.conv_has_bias,
+            self.cfg.norm,
+            self.cfg.num_groups,
+        )
 
         fcs = nn.ModuleList()
         if self.cfg.num_fcs > 0:
@@ -120,18 +108,6 @@ class QDSimilarityHead(BaseSimilarityHead):
                 )
             last_layer_dim = self.cfg.fc_out_dim
         return convs, fcs, last_layer_dim
-
-    @torch.no_grad()  # type: ignore
-    def match_and_sample_proposals(
-        self, proposals: List[Boxes2D], targets: List[Boxes2D]
-    ) -> SamplingResult:
-        """Match proposals to targets and subsample."""
-        if self.cfg.proposal_append_gt:
-            proposals = [
-                Boxes2D.merge([p, t]) for p, t in zip(proposals, targets)
-            ]
-        matching = self.matcher.match(proposals, targets)
-        return self.sampler.sample(matching, proposals, targets)
 
     def forward(
         self, features: Dict[str, torch.Tensor], boxes: List[Boxes2D]
@@ -177,7 +153,13 @@ class QDSimilarityHead(BaseSimilarityHead):
         """
         sampling_results, sampled_boxes, sampled_targets = [], [], []
         for i, (box, inp) in enumerate(zip(boxes, inputs)):
-            sampling_result = self.match_and_sample_proposals(box, inp.boxes2d)
+            sampling_result = match_and_sample_proposals(
+                self.matcher,
+                self.sampler,
+                box,
+                inp.boxes2d,
+                self.cfg.proposal_append_gt,
+            )
             sampling_results.append(sampling_result)
 
             sampled_box = sampling_result.sampled_boxes

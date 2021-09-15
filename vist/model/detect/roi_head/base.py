@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from vist.common.bbox.samplers import SamplingResult
 from vist.common.registry import RegistryHolder
-from vist.struct import Boxes2D, InputSample, LabelInstance, LossesType
+from vist.struct import Boxes2D, Boxes3D, InputSample, LossesType
 
 
 class BaseRoIHeadConfig(BaseModel, extra="allow"):
@@ -46,7 +46,7 @@ class BaseRoIHead(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
-    ) -> List[LabelInstance]:
+    ) -> Tuple[List[Boxes2D], Optional[List[Boxes3D]]]:
         """Forward pass during testing stage.
 
         Args:

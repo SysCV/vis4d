@@ -1,5 +1,6 @@
 """Utility functions for bounding boxes."""
 import math
+from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -178,6 +179,33 @@ def get_yaw_cam(yaws_world, cam_extrinsics, quat_det_yaws_world):
     return np.array(yaws_cam)
 
 
+def gen_bin_rot(orientation):
+    """Transform rotation with bins."""
+    # bin 1
+    divider1 = torch.sqrt(orientation[:, 2:3] ** 2 + orientation[:, 3:4] ** 2)
+    b1sin = orientation[:, 2:3] / divider1
+    b1cos = orientation[:, 3:4] / divider1
+
+    # bin 2
+    divider2 = torch.sqrt(orientation[:, 6:7] ** 2 + orientation[:, 7:8] ** 2)
+    b2sin = orientation[:, 6:7] / divider2
+    b2cos = orientation[:, 7:8] / divider2
+
+    rot = torch.cat(
+        [
+            orientation[:, 0:2],
+            b1sin,
+            b1cos,
+            orientation[:, 4:6],
+            b2sin,
+            b2cos,
+        ],
+        1,
+    )
+
+    return rot
+
+
 class Box3DCoder:
     """3D bounding box coder for QD-3DT."""
 
@@ -251,7 +279,7 @@ class Box3DCoder:
         cam_intrinsics: torch.Tensor,
         with_uncertainty: bool,
         uncertainty_thres: float = 0.9,
-    ):
+    ) -> Tuple[List[Boxes2D], List[Boxes3D]]:
         """Decode the model prediction."""
         bbox_3d_preds = bbox_3d_preds[
             torch.arange(bbox_3d_preds.shape[0]), bbox_2d_preds.class_ids
@@ -295,33 +323,7 @@ class Box3DCoder:
         dimensions = torch.exp(bbox_3d_preds[:, 3:6] / self.dim_log_scale)
 
         # rotation
-        orientation = bbox_3d_preds[:, 6:14]
-
-        # bin 1
-        divider1 = torch.sqrt(
-            orientation[:, 2:3] ** 2 + orientation[:, 3:4] ** 2
-        )
-        b1sin = orientation[:, 2:3] / divider1
-        b1cos = orientation[:, 3:4] / divider1
-
-        # bin 2
-        divider2 = torch.sqrt(
-            orientation[:, 6:7] ** 2 + orientation[:, 7:8] ** 2
-        )
-        b2sin = orientation[:, 6:7] / divider2
-        b2cos = orientation[:, 7:8] / divider2
-
-        rot = torch.cat(
-            [
-                orientation[:, 0:2],
-                b1sin,
-                b1cos,
-                orientation[:, 4:6],
-                b2sin,
-                b2cos,
-            ],
-            1,
-        )
+        rot = gen_bin_rot(bbox_3d_preds[:, 6:14])
 
         # alpha2rot_y
         rot_y = get_alpha(rot) + torch.atan2(

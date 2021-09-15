@@ -11,17 +11,12 @@ from vist.common.bbox.samplers import (
     SamplerConfig,
     SamplingResult,
     build_sampler,
+    match_and_sample_proposals,
 )
 from vist.common.bbox.utils import Box3DCoder
-from vist.common.layers import Conv2d
+from vist.common.layers import add_conv_branch
 from vist.model.losses import LossConfig, build_loss
-from vist.struct import (
-    Boxes2D,
-    Boxes3D,
-    InputSample,
-    LabelInstance,
-    LossesType,
-)
+from vist.struct import Boxes2D, Boxes3D, InputSample, LossesType
 
 from .base import BaseRoIHead, BaseRoIHeadConfig
 
@@ -217,27 +212,14 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         """Init modules of head."""
         last_layer_dim = in_channels
         # add branch specific conv layers
-        convs = nn.ModuleList()
-        norm = getattr(nn, self.cfg.norm)
-        if norm == nn.GroupNorm:
-            norm = lambda x: nn.GroupNorm(self.cfg.num_groups, x)
-        if num_branch_convs > 0:
-            for i in range(num_branch_convs):
-                conv_in_dim = (
-                    last_layer_dim if i == 0 else self.cfg.conv_out_dim
-                )
-                convs.append(
-                    Conv2d(
-                        conv_in_dim,
-                        self.cfg.conv_out_dim,
-                        kernel_size=3,
-                        padding=1,
-                        bias=self.cfg.conv_has_bias,
-                        norm=norm(self.cfg.conv_out_dim),
-                        activation=nn.ReLU(inplace=True),
-                    )
-                )
-            last_layer_dim = self.cfg.conv_out_dim
+        convs, last_layer_dim = add_conv_branch(
+            num_branch_convs,
+            in_channels,
+            self.cfg.conv_out_dim,
+            self.cfg.conv_has_bias,
+            self.cfg.norm,
+            self.cfg.num_groups,
+        )
 
         fcs = nn.ModuleList()
         if num_branch_fcs > 0:
@@ -254,7 +236,9 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
             last_layer_dim = self.cfg.fc_out_dim
         return convs, fcs, last_layer_dim
 
-    def get_embeds(self, feat):
+    def get_embeds(
+        self, feat: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Generate embedding from bbox feature."""
         # shared part
         if self.cfg.num_shared_convs > 0:
@@ -302,10 +286,18 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
 
         return x_dep, x_dim, x_rot, x_2dc
 
-    def get_logits(self, x_dep, x_dim, x_rot, x_2dc):
+    def get_logits(
+        self,
+        x_dep: torch.Tensor,
+        x_dim: torch.Tensor,
+        x_rot: torch.Tensor,
+        x_2dc: torch.Tensor,
+    ) -> Tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor
+    ]:
         """Generate logits for bbox 3d."""
 
-        def get_rot(pred):
+        def get_rot(pred: torch.Tensor) -> torch.Tensor:
             """Estimate alpha from bins."""
             pred = pred.view(pred.size(0), -1, 8)
 
@@ -349,23 +341,11 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
             delta_2dc_preds,
         )
 
-    @torch.no_grad()  # type: ignore
-    def match_and_sample_proposals(
-        self, proposals: List[Boxes2D], targets: List[Boxes2D]
-    ) -> SamplingResult:
-        """Match proposals to targets and subsample."""
-        if self.cfg.proposal_append_gt:
-            proposals = [
-                Boxes2D.merge([p, t]) for p, t in zip(proposals, targets)
-            ]
-        matching = self.matcher.match(proposals, targets)
-        return self.sampler.sample(matching, proposals, targets)
-
     def forward(
         self,
         features_list: List[torch.Tensor],
         pos_proposals: List[Boxes2D],
-    ):
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Forward bbox 3d estimation."""
         roi_feats = self.roi_pooler.pool(features_list, pos_proposals)
 
@@ -393,11 +373,11 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
     def _get_target_single(
         self,
         pos_proposals: Boxes2D,
-        pos_assigned_gt_inds: torch.tensor,
+        pos_assigned_gt_inds: torch.Tensor,
         gt_bboxes_2d: Boxes2D,
         gt_bboxes_3d: Boxes3D,
-        cam_intrinsics: torch.tensor,
-    ):
+        cam_intrinsics: torch.Tensor,
+    ) -> torch.Tensor:
         """Get single box3d target for training."""
         num_pos = pos_proposals.boxes.size(0)
         bbox_targets = pos_proposals.boxes.new_zeros(
@@ -415,12 +395,12 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
     def get_targets(
         self,
         pos_proposals: List[Boxes2D],
-        pos_assigned_gt_inds: List[torch.tensor],
+        pos_assigned_gt_inds: List[torch.Tensor],
         gt_bboxes_2d: List[Boxes2D],
         gt_bboxes_3d: List[Boxes3D],
-        cam_intrinsics: List[torch.tensor],
-        concat=True,
-    ):
+        cam_intrinsics: List[torch.Tensor],
+        concat: bool = True,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get box3d target for training."""
         bbox_targets = list(
             map(
@@ -463,8 +443,12 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         features_list = [features[f] for f in self.cfg.in_features]
 
         # match and sample
-        sampling_results = self.match_and_sample_proposals(
-            boxes, inputs.boxes2d
+        sampling_results = match_and_sample_proposals(
+            self.matcher,
+            self.sampler,
+            boxes,
+            inputs.boxes2d,
+            self.cfg.proposal_append_gt,
         )
         positives = [l == 1 for l in sampling_results.sampled_labels]
         pos_assigned_gt_inds = [
@@ -489,36 +473,16 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
             cam_intrinsics,
         )
 
-        loss_bbox_3d = self.loss(bbox_3d_preds, bbox3d_targets, labels)
+        loss_bbox_3d = self.loss_3d(bbox_3d_preds, bbox3d_targets, labels)
 
-        return loss_bbox_3d
-
-    def loss(self, bbox3d_pred, bbox_targets, labels):
-        """Compute loss for 3D bbox head."""
-        # if any positive boxes
-        if not bbox3d_pred.size(0) == 0:
-            losses = self.loss_3d(bbox3d_pred, bbox_targets, labels)
-        else:
-            loss_ctr3d = loss_dep3d = loss_dim3d = loss_rot3d = loss_conf3d = (
-                bbox3d_pred.sum() * 0
-            )
-            losses = dict(
-                loss_ctr3d=loss_ctr3d,
-                loss_dep3d=loss_dep3d,
-                loss_dim3d=loss_dim3d,
-                loss_rot3d=loss_rot3d,
-            )
-            if self.with_confidence:
-                losses["loss_conf3d"] = loss_conf3d
-
-        return losses
+        return loss_bbox_3d, sampling_results
 
     def forward_test(
         self,
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
-    ) -> List[LabelInstance]:
+    ) -> Tuple[List[Boxes2D], Optional[List[Boxes3D]]]:
         """Forward pass during testing stage.
 
         Args:
