@@ -3,8 +3,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from torch import nn
 
 from vist.common.bbox.matchers import MatcherConfig, build_matcher
 from vist.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
@@ -15,7 +14,6 @@ from vist.common.bbox.samplers import (
 )
 from vist.common.bbox.utils import Box3DCoder
 from vist.common.layers import Conv2d
-from vist.model.detect.mmdet_utils import proposals_to_mmdet
 from vist.model.losses import LossConfig, build_loss
 from vist.struct import (
     Boxes2D,
@@ -67,7 +65,9 @@ class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
     proposal_matcher: MatcherConfig
 
 
-class QD3DTBBox3DHead(BaseRoIHead):
+class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
+    BaseRoIHead
+):
     """QD-3DT 3D Bounding Box Head."""
 
     def __init__(self, cfg: BaseRoIHeadConfig) -> None:
@@ -241,7 +241,8 @@ class QD3DTBBox3DHead(BaseRoIHead):
 
         fcs = nn.ModuleList()
         if num_branch_fcs > 0:
-            last_layer_dim *= np.prod(self.cfg.proposal_pooler.resolution)
+            if is_shared or self.cfg.num_shared_fcs == 0:
+                last_layer_dim *= np.prod(self.cfg.proposal_pooler.resolution)
             for i in range(num_branch_fcs):
                 fc_in_dim = last_layer_dim if i == 0 else self.cfg.fc_out_dim
                 fcs.append(
@@ -253,23 +254,23 @@ class QD3DTBBox3DHead(BaseRoIHead):
             last_layer_dim = self.cfg.fc_out_dim
         return convs, fcs, last_layer_dim
 
-    def get_embeds(self, x):
+    def get_embeds(self, feat):
         """Generate embedding from bbox feature."""
         # shared part
         if self.cfg.num_shared_convs > 0:
             for conv in self.shared_convs:
-                x = conv(x)
+                feat = conv(feat)
 
         if self.cfg.num_shared_fcs > 0:
-            x = x.view(x.size(0), -1)
+            feat = feat.view(feat.size(0), -1)
             for fc in self.shared_fcs:
-                x = self.relu(fc(x))
+                feat = self.relu(fc(feat))
 
         # separate branches
-        x_dep = x
-        x_dim = x
-        x_rot = x
-        x_2dc = x
+        x_dep = feat
+        x_dim = feat
+        x_rot = feat
+        x_2dc = feat
 
         for conv in self.dep_convs:
             x_dep = conv(x_dep)
@@ -397,6 +398,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
         gt_bboxes_3d: Boxes3D,
         cam_intrinsics: torch.tensor,
     ):
+        """Get single box3d target for training."""
         num_pos = pos_proposals.boxes.size(0)
         bbox_targets = pos_proposals.boxes.new_zeros(
             num_pos, 2 + 1 + 3 + 4
@@ -419,6 +421,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
         cam_intrinsics: List[torch.tensor],
         concat=True,
     ):
+        """Get box3d target for training."""
         bbox_targets = list(
             map(
                 self._get_target_single,
@@ -483,7 +486,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
             pos_assigned_gt_inds,
             inputs.boxes2d,
             inputs.boxes3d,
-            inputs.intrinsics.tensor,
+            cam_intrinsics,
         )
 
         loss_bbox_3d = self.loss(bbox_3d_preds, bbox3d_targets, labels)
@@ -491,6 +494,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
         return loss_bbox_3d
 
     def loss(self, bbox3d_pred, bbox_targets, labels):
+        """Compute loss for 3D bbox head."""
         # if any positive boxes
         if not bbox3d_pred.size(0) == 0:
             losses = self.loss_3d(bbox3d_pred, bbox_targets, labels)

@@ -6,11 +6,17 @@ path = "../configs/models/mmdetection/qd3dt_R_50_FPN.toml"
 
 [model]
 category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
+    [model.optimizer]
+    type = "SGD"
+    lr = 0.005
+    kwargs = {"momentum" = 0.9}
+
     [model.lr_scheduler]
-    type = "StepLR"
-    mode = "step"
-    warmup = "exponential"
-    kwargs = {"step_size" = 10}
+    type = "MultiStepLR"
+    kwargs = {"milestones" = [9, 11]}
+
+    [model.bbox_3d_head]
+    num_classes = 3
 
 [launch]
 samples_per_gpu = 1

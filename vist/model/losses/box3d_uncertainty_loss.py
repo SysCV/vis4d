@@ -1,10 +1,9 @@
 """Box3d loss with uncertainty for QD-3DT."""
-from typing import List, Optional, Tuple
+from typing import List
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from mmdet.models.losses import l1_loss, smooth_l1_loss
+from mmdet.models.losses import smooth_l1_loss
 
 from .base import BaseLoss, LossConfig
 
@@ -16,21 +15,37 @@ class Box3DUncertaintyLossConfig(LossConfig):
 
 
 class Box3DUncertaintyLoss(BaseLoss):
+    """Box3d loss for QD-3DT."""
+
     def __init__(self, cfg: LossConfig):
         """Init."""
         super().__init__()
         self.cfg = Box3DUncertaintyLossConfig(**cfg.dict())
 
-    def forward(self, pred, target, labels, **kwargs):
+    def forward(  # type: ignore # pylint: disable=arguments-differ
+        self,
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        labels: torch.Tensor,
+    ):
         pred = pred[torch.arange(pred.shape[0]), labels]
 
-        loss_cen = smooth_l1_loss(
+        # delta 2dc loss
+        loss_cen = smooth_l1_loss(  # pylint: disable=unexpected-keyword-arg
             pred[:, :2], target[:, :2], beta=1 / 9, reduction="none"
         ).mean(dim=-1)
-        loss_dim = smooth_l1_loss(
+
+        # dimension loss
+        loss_dim = smooth_l1_loss(  # pylint: disable=unexpected-keyword-arg
             pred[:, 3:6], target[:, 3:6], beta=1 / 9, reduction="none"
         ).mean(dim=-1)
-        loss_dep = l1_loss(pred[:, 2], target[:, 2], reduction="none")
+
+        # depth loss
+        depth_weights = target.new_ones(target[:, 2].shape)
+        depth_weights[target[:, 2] <= 0] = 0
+        loss_dep = smooth_l1_loss(  # pylint: disable=unexpected-keyword-arg
+            pred[:, 2], target[:, 2], weight=depth_weights, reduction="none"
+        )
 
         # rotation loss
         orientation = pred[:, 6:14]
@@ -70,6 +85,7 @@ class Box3DUncertaintyLoss(BaseLoss):
             loss_rot3d=self.cfg.loss_weights[3] * loss_rot,
         )
 
+        # uncertainty loss
         pos_depth_self_labels = torch.exp(
             -torch.abs(pred[:, 14] - target[:, 2]) * 5.0
         )
@@ -79,11 +95,12 @@ class Box3DUncertaintyLoss(BaseLoss):
             pos_depth_self_labels.new_ones(1) * 0.1,
         )
 
-        loss_unc3d = smooth_l1_loss(
+        loss_unc3d = smooth_l1_loss(  # pylint: disable=unexpected-keyword-arg
             pred[:, 14],
             pos_depth_self_labels.detach().clone(),
-            beta=1 / 9,
+            weight=pos_depth_self_weights,
             reduction="none",
+            beta=1 / 9,
         ).mean(dim=-1)
 
         result_dict.update(
@@ -97,10 +114,15 @@ class Box3DUncertaintyLoss(BaseLoss):
 
 
 def rotation_loss(output, target_bin, target_res):
-    # output: (B, 8) [bin1_cls[0], bin1_cls[1], bin1_sin, bin1_cos,
-    #                 bin2_cls[0], bin2_cls[1], bin2_sin, bin2_cos]
-    # target_bin: (B, 2) [bin1_cls, bin2_cls]
-    # target_res: (B, 2) [bin1_res, bin2_res]
+    """
+    Rot Bin loss.
+
+    Inputs:
+        -output: (B, 8) [bin1_cls[0], bin1_cls[1], bin1_sin, bin1_cos,
+                        bin2_cls[0], bin2_cls[1], bin2_sin, bin2_cos]
+        - target_bin: (B, 2) [bin1_cls, bin2_cls]
+        - target_res: (B, 2) [bin1_res, bin2_res]
+    """
     loss_bin1 = F.cross_entropy(
         output[:, 0:2], target_bin[:, 0].long(), reduction="none"
     )
@@ -115,13 +137,13 @@ def rotation_loss(output, target_bin, target_res):
     if idx1.shape[0] > 0:
         valid_output1 = torch.index_select(output, 0, idx1.long())
         valid_target_res1 = torch.index_select(target_res, 0, idx1.long())
-        loss_sin1 = smooth_l1_loss(
+        loss_sin1 = smooth_l1_loss(  # pylint: disable=unexpected-keyword-arg
             valid_output1[:, 2],
             torch.sin(valid_target_res1[:, 0]),
             beta=1 / 9,
             reduction="none",
         )
-        loss_cos1 = smooth_l1_loss(
+        loss_cos1 = smooth_l1_loss(  # pylint: disable=unexpected-keyword-arg
             valid_output1[:, 3],
             torch.cos(valid_target_res1[:, 0]),
             beta=1 / 9,
@@ -131,13 +153,13 @@ def rotation_loss(output, target_bin, target_res):
     if idx2.shape[0] > 0:
         valid_output2 = torch.index_select(output, 0, idx2.long())
         valid_target_res2 = torch.index_select(target_res, 0, idx2.long())
-        loss_sin2 = smooth_l1_loss(
+        loss_sin2 = smooth_l1_loss(  # pylint: disable=unexpected-keyword-arg
             valid_output2[:, 6],
             torch.sin(valid_target_res2[:, 1]),
             beta=1 / 9,
             reduction="none",
         )
-        loss_cos2 = smooth_l1_loss(
+        loss_cos2 = smooth_l1_loss(  # pylint: disable=unexpected-keyword-arg
             valid_output2[:, 7],
             torch.cos(valid_target_res2[:, 1]),
             beta=1 / 9,
