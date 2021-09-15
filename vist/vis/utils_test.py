@@ -7,12 +7,14 @@ import torch
 from PIL import Image
 
 from vist.unittest.utils import generate_dets
+from vist.struct import Intrinsics
 
 from .utils import (
     box3d_to_corners,
     generate_colors,
     preprocess_boxes,
     preprocess_image,
+preprocess_intrinsics
 )
 
 
@@ -38,6 +40,13 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(proc_img.shape, (128, 128, 3))
         self.assertTrue(np.min(proc_img) >= 0)  # type: ignore
         self.assertTrue(np.max(proc_img) < 256)  # type: ignore
+
+    def test_preprocess_intrinsics(self) -> None:
+        """Test preprocess_intrinsics method."""
+        intrinsic_matrix = np.eye(3)
+        mat1 = preprocess_intrinsics(intrinsic_matrix)
+        mat2 = preprocess_intrinsics(Intrinsics(intrinsic_matrix))
+        self.assertTrue(np.isclose(mat1, mat2).all())
 
     def test_preprocess_boxes(self) -> None:
         """Test preprocess_boxes method."""

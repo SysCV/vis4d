@@ -1,7 +1,7 @@
 """VisT Input data structures."""
 
 import itertools
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 from scalabel.label.typing import Frame
@@ -191,10 +191,10 @@ class InputSample:
 
     def __init__(
         self,
-        metadata: List[Frame],
+        metadata: Sequence[Frame],
         images: Images,
-        boxes2d: Optional[List[Boxes2D]] = None,
-        boxes3d: Optional[List[Boxes3D]] = None,
+        boxes2d: Optional[Sequence[Boxes2D]] = None,
+        boxes3d: Optional[Sequence[Boxes3D]] = None,
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
     ) -> None:
@@ -208,42 +208,45 @@ class InputSample:
                 Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
                 for _ in range(len(images))
             ]
-        self.boxes2d = boxes2d
+        self.boxes2d: Sequence[Boxes2D] = boxes2d
 
         if boxes3d is None:
             boxes3d = [
                 Boxes3D(torch.empty(0, 8), torch.empty(0), torch.empty(0))
                 for _ in range(len(images))
             ]
-        self.boxes3d = boxes3d
+        self.boxes3d: Sequence[Boxes3D] = boxes3d
 
         if intrinsics is None:
             intrinsics = Intrinsics(
                 torch.cat([torch.eye(3) for _ in range(len(images))])
             )
-        self.intrinsics = intrinsics
+        self.intrinsics: Intrinsics = intrinsics
 
         if extrinsics is None:
             extrinsics = Extrinsics(
                 torch.cat([torch.eye(4) for _ in range(len(images))])
             )
-        self.extrinsics = extrinsics
+        self.extrinsics: Extrinsics = extrinsics
 
     def get(
         self, key: str
-    ) -> Union[List[Frame], DataInstance, List[DataInstance]]:
+    ) -> Union[Sequence[Frame], DataInstance, Sequence[DataInstance]]:
         """Get attribute by key."""
-        if key in self.__dict__:
-            value = self.__dict__[key]
-            # assert isinstance(value, (Frame, DataInstance)) TODO adjust
+        if key in self.dict():
+            value = self.dict()[key]
             return value
         raise AttributeError(f"Attribute {key} not found!")
 
     def dict(
         self,
-    ) -> Dict[str, Union[List[Frame], DataInstance, List[DataInstance]]]:
+    ) -> Dict[
+        str, Union[Sequence[Frame], DataInstance, Sequence[DataInstance]]
+    ]:
         """Return InputSample object as dict."""
-        obj_dict: Dict[str, Union[Frame, DataInstance]] = {
+        obj_dict: Dict[
+            str, Union[Sequence[Frame], DataInstance, Sequence[DataInstance]]
+        ] = {
             "metadata": self.metadata,
             "images": self.images,
             "boxes2d": self.boxes2d,
@@ -260,16 +263,15 @@ class InputSample:
         device: Optional[torch.device] = None,
     ) -> "InputSample":
         """Concatenate N InputSample objects."""
-        cat_dict = {}
+        cat_dict: Dict[
+            str, Union[Sequence[Frame], DataInstance, Sequence[DataInstance]]
+        ] = {}
         for k, v in instances[0].dict().items():
             if isinstance(v, list):
                 cat_dict[k] = []
                 for inst in instances:
                     attr = inst.get(k)
-                    if hasattr(attr[0], "to"):
-                        cat_dict[k] += [attr_v.to(device) for attr_v in attr]
-                    else:
-                        cat_dict[k] += attr
+                    cat_dict[k] += [attr_v.to(device) if hasattr(attr_v, "to") else attr_v for attr_v in attr]
             elif hasattr(type(v), "cat"):
                 cat_dict[k] = type(v).cat(
                     [inst.get(k) for inst in instances], device

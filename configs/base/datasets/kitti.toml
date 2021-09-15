@@ -14,7 +14,7 @@ num_processes = 0
 
     [train.dataloader.ref_sampling]
     type = 'uniform'
-    scope = 10
+    scope = 5
     num_ref_imgs = 1
     skip_nomatch_samples = true
 
@@ -42,7 +42,7 @@ num_processes = 0
 
     [train.dataloader.ref_sampling]
     type = 'uniform'
-    scope = 10
+    scope = 5
     num_ref_imgs = 1
     skip_nomatch_samples = true
 
@@ -55,7 +55,7 @@ num_processes = 0
     kwargs = {"p" = 0.5}
 
 [[test]]
-name = "kitti_sample_train"
+name = "kitti_track_val"
 annotations = "data/KITTI/anns/tracking_training.json"
 type = "KITTI"
 data_root = "data/KITTI"

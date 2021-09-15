@@ -165,10 +165,9 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
         dataset_loader: BaseDatasetLoader,
         category_mapping: Dict[str, int],
         output_dir: Optional[str] = None,
-        collect: str = "cpu",
     ) -> None:
         """Init."""
-        super().__init__(collect)
+        super().__init__(dataset_loader.cfg.collect_device)
         self.output_dir = output_dir
         self.ignore_unknown_cats = dataset_loader.cfg.ignore_unkown_cats
         self.cats_id2name = {v: k for k, v in category_mapping.items()}
@@ -198,7 +197,8 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
     def evaluate(self) -> Dict[str, Result]:
         """Evaluate the performance after processing all input/output pairs."""
         results = {}
-        logger.info("Running evaluation for dataset %s...", self.name)
+        if not self.logging_disabled:
+            logger.info("Running evaluation for dataset %s...", self.name)
         for key, predictions in self._predictions.items():
             if self.output_dir:
                 os.makedirs(self.output_dir, exist_ok=True)

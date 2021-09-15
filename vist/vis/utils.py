@@ -7,7 +7,7 @@ import torch
 from PIL import Image
 from scipy.spatial.transform import Rotation as R
 
-from vist.struct import Boxes2D, Boxes3D, NDArrayF64, NDArrayUI8
+from vist.struct import Boxes2D, Boxes3D, NDArrayF64, NDArrayUI8, Intrinsics
 
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
@@ -128,6 +128,27 @@ def preprocess_image(image: ImageType, mode: str = "RGB") -> Image.Image:
         mode = "RGB"
 
     return Image.fromarray(image.astype(np.uint8), mode=mode).convert("RGB")
+
+
+def preprocess_intrinsics(intrinsics: Union[NDArrayF64, Intrinsics]) -> NDArrayF64:
+    """Preprocess intrinsics to a 3x3 matrix."""
+    if isinstance(intrinsics, Intrinsics):
+        assert (
+            len(intrinsics.tensor) == 1
+        ), "Please specify a batch element via intrinsics[batch_elem]"
+        intrinsic_matrix = (
+            intrinsics.tensor[0].cpu().numpy()
+        )  # type: NDArrayF64
+    elif isinstance(intrinsics, np.ndarray):
+        intrinsic_matrix = intrinsics
+    else:
+        raise ValueError(f"Invalid type for intrinsics: {type(intrinsics)}")
+
+    assert intrinsic_matrix.shape == (
+        3,
+        3,
+    ), f"Intrinsics must be of shape 3x3, got {intrinsic_matrix.shape}"
+    return intrinsic_matrix
 
 
 def box3d_to_corners(box3d: List[float]) -> NDArrayF64:

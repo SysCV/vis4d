@@ -12,7 +12,7 @@ from vist.common.bbox.samplers import (
     SamplingResult,
     build_sampler,
 )
-from vist.common.bbox.utils import Box3DCoder
+from vist.common.bbox.coders.box3d_coder import Box3DCoder
 from vist.common.layers import Conv2d
 from vist.model.losses import LossConfig, build_loss
 from vist.struct import (

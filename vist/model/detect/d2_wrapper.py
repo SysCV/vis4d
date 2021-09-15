@@ -114,7 +114,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         """
         images_d2 = images_to_imagelist(inputs.images)
         is_training = self.d2_detector.proposal_generator.training
-        if inputs.boxes2d is not None:
+        if self.training:
             targets = target_to_instance(
                 inputs.boxes2d, inputs.images.image_sizes
             )

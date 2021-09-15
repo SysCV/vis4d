@@ -11,7 +11,7 @@ from scalabel.label.io import save
 from scalabel.label.typing import Frame
 
 from ..common.utils.distributed import get_rank, get_world_size
-from ..struct import Boxes2D, InputSample, ModelOutput
+from ..struct import Boxes2D, InputSample, ModelOutput, Boxes3D
 from ..vis.image import draw_image
 
 
@@ -99,10 +99,12 @@ class ScalabelWriterCallback(VisTWriterCallback):
                         video_name,
                         prediction.name,
                     )
-                    assert isinstance(
-                        out, Boxes2D
-                    ), "Visualization only for boxes2d currently."
-                    image = draw_image(inp[0].images.tensor[0], out)
+                    if isinstance(out, Boxes2D):
+                        image = draw_image(inp[0].images.tensor[0], boxes2d=out)
+                    elif isinstance(out, Boxes3D):
+                        image = draw_image(inp[0].images.tensor[0], boxes3d=out, intrinsics=inp[0].intrinsics)
+                    else:
+                        raise ValueError(f"Unknown result type: f{type(out)}")
                     os.makedirs(os.path.dirname(save_path), exist_ok=True)
                     image.save(save_path)
 

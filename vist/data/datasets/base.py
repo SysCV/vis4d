@@ -69,6 +69,7 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     ignore_unkown_cats: bool = False
     cache_as_binary: bool = False
     num_processes: int = 4
+    collect_device = "cpu"
 
 
 class BaseDatasetLoader(metaclass=RegistryHolder):

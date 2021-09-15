@@ -1,5 +1,4 @@
 """Quasi-dense 3D Tracking model."""
-import pdb
 from typing import List
 
 import torch

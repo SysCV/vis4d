@@ -112,7 +112,7 @@ def all_gather_predictions(
     predictions: Dict[str, List[Frame]],
     pl_module: pl.LightningModule,
     collect_fn: str,
-) -> Optional[Dict[str, List[Frame]]]:
+) -> Optional[Dict[str, List[Frame]]]:  # pragma: no cover
     """Gather prediction dict in distributed setting."""
     if collect_fn == "gpu":
         predictions_list = all_gather_object_gpu(predictions, pl_module)
@@ -133,7 +133,7 @@ def all_gather_predictions(
 
 def all_gather_gts(
     gts: List[Frame], pl_module: pl.LightningModule, collect_fn: str
-) -> Optional[List[Frame]]:
+) -> Optional[List[Frame]]:  # pragma: no cover
     """Gather gts list in distributed setting."""
     if collect_fn == "gpu":
         gts_list = all_gather_object_gpu(gts, pl_module)

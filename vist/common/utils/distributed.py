@@ -2,8 +2,8 @@
 import logging
 import os
 import pickle
-import tempfile
 import shutil
+import tempfile
 from typing import Any, List, Optional, Tuple
 
 import pytorch_lightning as pl
@@ -85,7 +85,6 @@ def _pad_to_largest_tensor(
     local_size = torch.tensor(
         [tensor.numel()], dtype=torch.int64, device=tensor.device
     )
-    print(local_size)
     size_list = pl_module.all_gather(local_size)
     size_list = [int(size.item()) for size in size_list]
     max_size = max(size_list)
@@ -136,14 +135,16 @@ def all_gather_object_gpu(  # type: ignore
     return data_list
 
 
-def create_tmpdir(pl_module: pl.LightningModule, rank: int, tmpdir: Optional[str] = None) -> str:
+def create_tmpdir(
+    pl_module: pl.LightningModule, rank: int, tmpdir: Optional[str] = None
+) -> str:  # pragma: no cover
     """Create and distribute a temporary directory across all processes."""
     if tmpdir is not None:
         os.makedirs(tmpdir, exist_ok=True)
         return tmpdir
     if rank == 0:
-        os.makedirs('.dist_tmp', exist_ok=True)
-        tmpdir = tempfile.mkdtemp(dir='.dist_tmp')
+        os.makedirs(".dist_tmp", exist_ok=True)
+        tmpdir = tempfile.mkdtemp(dir=".dist_tmp")
     else:
         tmpdir = None
     tmp_list = all_gather_object_gpu(tmpdir, pl_module, rank_zero_only=False)
@@ -152,12 +153,17 @@ def create_tmpdir(pl_module: pl.LightningModule, rank: int, tmpdir: Optional[str
 
 
 def all_gather_object_cpu(  # type: ignore
-    data: Any, pl_module: pl.LightningModule, tmpdir: Optional[str] = None, rank_zero_only: bool = True
+    data: Any,
+    pl_module: pl.LightningModule,
+    tmpdir: Optional[str] = None,
+    rank_zero_only: bool = True,
 ) -> Optional[List[Any]]:  # pragma: no cover
     """Share arbitrary picklable data via file system caching.
 
     Args:
         data: any picklable object.
+        pl_module: LightningModule that contains the gathering op for the
+        backend currently in use.
         tmpdir: Save path for temporary files. If None, savely create tmpdir.
         rank_zero_only: if results should only be returned on rank 0
 
