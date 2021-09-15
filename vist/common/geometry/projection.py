@@ -1,5 +1,6 @@
 """Projection utilities."""
 import torch
+
 from vist.struct import Intrinsics
 
 
@@ -27,7 +28,9 @@ def project_points(
     return pts_2d[..., :2]
 
 
-def unproject_points(points: torch.Tensor, depths: torch.Tensor, intrinsics: Intrinsics) -> torch.Tensor:
+def unproject_points(
+    points: torch.Tensor, depths: torch.Tensor, intrinsics: Intrinsics
+) -> torch.Tensor:
     """Un-projects pixel coordinates to 3D coordinates with given intrinsics.
 
     Args:

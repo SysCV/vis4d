@@ -13,7 +13,6 @@ from vist.common.bbox.samplers import (
     build_sampler,
     match_and_sample_proposals,
 )
-from vist.common.bbox.utils import Box3DCoder
 from vist.common.layers import add_conv_branch
 from vist.model.losses import LossConfig, build_loss
 from vist.struct import Boxes2D, Boxes3D, InputSample, LossesType
@@ -76,7 +75,7 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         self.matcher = build_matcher(self.cfg.proposal_matcher)
         self.roi_pooler = build_roi_pooler(self.cfg.proposal_pooler)
 
-        self.bbox_coder = Box3DCoder()
+        self.bbox_coder = Box3DCoder()  # TODO init from new module
 
         # add shared convs and fcs
         (

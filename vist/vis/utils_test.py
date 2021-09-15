@@ -6,15 +6,15 @@ import numpy as np
 import torch
 from PIL import Image
 
-from vist.unittest.utils import generate_dets
 from vist.struct import Intrinsics
+from vist.unittest.utils import generate_dets
 
 from .utils import (
     box3d_to_corners,
     generate_colors,
     preprocess_boxes,
     preprocess_image,
-preprocess_intrinsics
+    preprocess_intrinsics,
 )
 
 

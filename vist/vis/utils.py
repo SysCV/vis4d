@@ -7,7 +7,7 @@ import torch
 from PIL import Image
 from scipy.spatial.transform import Rotation as R
 
-from vist.struct import Boxes2D, Boxes3D, NDArrayF64, NDArrayUI8, Intrinsics
+from vist.struct import Boxes2D, Boxes3D, Intrinsics, NDArrayF64, NDArrayUI8
 
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
@@ -130,7 +130,9 @@ def preprocess_image(image: ImageType, mode: str = "RGB") -> Image.Image:
     return Image.fromarray(image.astype(np.uint8), mode=mode).convert("RGB")
 
 
-def preprocess_intrinsics(intrinsics: Union[NDArrayF64, Intrinsics]) -> NDArrayF64:
+def preprocess_intrinsics(
+    intrinsics: Union[NDArrayF64, Intrinsics]
+) -> NDArrayF64:
     """Preprocess intrinsics to a 3x3 matrix."""
     if isinstance(intrinsics, Intrinsics):
         assert (

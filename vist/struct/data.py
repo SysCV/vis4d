@@ -271,7 +271,10 @@ class InputSample:
                 cat_dict[k] = []
                 for inst in instances:
                     attr = inst.get(k)
-                    cat_dict[k] += [attr_v.to(device) if hasattr(attr_v, "to") else attr_v for attr_v in attr]
+                    cat_dict[k] += [
+                        attr_v.to(device) if hasattr(attr_v, "to") else attr_v
+                        for attr_v in attr
+                    ]
             elif hasattr(type(v), "cat"):
                 cat_dict[k] = type(v).cat(
                     [inst.get(k) for inst in instances], device

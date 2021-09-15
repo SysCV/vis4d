@@ -5,9 +5,9 @@ import torch
 import torch.nn.functional as F
 from mmdet.models.losses import smooth_l1_loss
 
-from ...common.geometry.rotation import gen_bin_rot
 from vist.struct import LossesType
 
+from ...common.geometry.rotation import gen_bin_rot
 from .base import BaseLoss, LossConfig
 
 

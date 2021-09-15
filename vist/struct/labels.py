@@ -291,8 +291,7 @@ class Boxes3D(Boxes, LabelInstance):
         """Return rotation in y direction of 3D bounding boxes as tensor."""
         if self.boxes.shape[-1] in [7, 8]:
             return self.boxes[:, 6]
-        else:
-            return self.boxes[:, 7]
+        return self.boxes[:, 7]
 
     @property
     def rot_z(self) -> Optional[torch.Tensor]:
