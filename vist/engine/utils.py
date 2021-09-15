@@ -117,7 +117,7 @@ def all_gather_predictions(
     if collect_fn == "gpu":
         predictions_list = all_gather_object_gpu(predictions, pl_module)
     elif collect_fn == "cpu":
-        predictions_list = all_gather_object_cpu(predictions)
+        predictions_list = all_gather_object_cpu(predictions, pl_module)
     else:
         raise ValueError(f"Collect arg {collect_fn} unknown.")
 
@@ -138,7 +138,7 @@ def all_gather_gts(
     if collect_fn == "gpu":
         gts_list = all_gather_object_gpu(gts, pl_module)
     elif collect_fn == "cpu":
-        gts_list = all_gather_object_cpu(gts)
+        gts_list = all_gather_object_cpu(gts, pl_module)
     else:
         raise ValueError(f"Collect arg {collect_fn} unknown.")
 

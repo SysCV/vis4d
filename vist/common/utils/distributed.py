@@ -2,14 +2,13 @@
 import logging
 import os
 import pickle
+import tempfile
 import shutil
 from typing import Any, List, Optional, Tuple
 
 import pytorch_lightning as pl
 import torch
 import torch.distributed as dist
-
-TORCH_VERSION = tuple(int(x) for x in torch.__version__.split(".")[:2])
 
 
 # no coverage for these functions, since we don't unittest distributed setting
@@ -40,12 +39,7 @@ def synchronize() -> None:  # pragma: no cover
     world_size = dist.get_world_size()
     if world_size == 1:
         return
-    if dist.get_backend() == dist.Backend.NCCL and TORCH_VERSION >= (1, 8):
-        # This argument is needed to avoid warnings.
-        # It's valid only for NCCL backend.
-        dist.barrier(device_ids=[torch.cuda.current_device()])
-    else:
-        dist.barrier()
+    dist.barrier()
 
 
 def _serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: disable=line-too-long # pragma: no cover
@@ -91,6 +85,7 @@ def _pad_to_largest_tensor(
     local_size = torch.tensor(
         [tensor.numel()], dtype=torch.int64, device=tensor.device
     )
+    print(local_size)
     size_list = pl_module.all_gather(local_size)
     size_list = [int(size.item()) for size in size_list]
     max_size = max(size_list)
@@ -105,9 +100,9 @@ def _pad_to_largest_tensor(
     return size_list, tensor
 
 
-def all_gather_object_gpu(
-        data: Any, pl_module: pl.LightningModule, rank_zero_only: bool = True
-) -> Optional[List[Any]]:  # type: ignore # pragma: no cover
+def all_gather_object_gpu(  # type: ignore
+    data: Any, pl_module: pl.LightningModule, rank_zero_only: bool = True
+) -> Optional[List[Any]]:  # pragma: no cover
     """Run pl_module.all_gather on arbitrary picklable data.
 
     Args:
@@ -141,14 +136,29 @@ def all_gather_object_gpu(
     return data_list
 
 
-def all_gather_object_cpu(
-        data: Any, tmpdir: str = ".dist_tmp", rank_zero_only: bool = True
-) -> Optional[List[Any]]:  # type: ignore # pragma: no cover
+def create_tmpdir(pl_module: pl.LightningModule, rank: int, tmpdir: Optional[str] = None) -> str:
+    """Create and distribute a temporary directory across all processes."""
+    if tmpdir is not None:
+        os.makedirs(tmpdir, exist_ok=True)
+        return tmpdir
+    if rank == 0:
+        os.makedirs('.dist_tmp', exist_ok=True)
+        tmpdir = tempfile.mkdtemp(dir='.dist_tmp')
+    else:
+        tmpdir = None
+    tmp_list = all_gather_object_gpu(tmpdir, pl_module, rank_zero_only=False)
+    tmpdir = [tmp for tmp in tmp_list if tmp is not None][0]
+    return tmpdir
+
+
+def all_gather_object_cpu(  # type: ignore
+    data: Any, pl_module: pl.LightningModule, tmpdir: Optional[str] = None, rank_zero_only: bool = True
+) -> Optional[List[Any]]:  # pragma: no cover
     """Share arbitrary picklable data via file system caching.
 
     Args:
         data: any picklable object.
-        tmpdir: Save path for temporary files.
+        tmpdir: Save path for temporary files. If None, savely create tmpdir.
         rank_zero_only: if results should only be returned on rank 0
 
     Returns:
@@ -159,7 +169,7 @@ def all_gather_object_cpu(
         return [data]
 
     # mk dir
-    os.makedirs(tmpdir, exist_ok=True)
+    tmpdir = create_tmpdir(pl_module, rank, tmpdir)
 
     # encode & save
     with open(os.path.join(tmpdir, f"part_{rank}.pkl"), "wb") as f:

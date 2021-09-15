@@ -144,6 +144,24 @@ class TestTrackMM(BaseEngineTests.TestTrack):
             os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
 
 
+class TestTrack3D(BaseEngineTests.TestTrack):
+    """3D tracking test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_track_3d/"
+        cls.args = Namespace(
+            config=get_test_file("track/qd3dt_kitti.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(cls.args)
+        if os.path.exists(
+            cls.cfg.train[0].annotations.rstrip("/") + ".pkl"
+        ):  # pragma: no cover
+            os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
+
+
 class TestTrackMMKITTI(BaseEngineTests.TestTrack):
     """MMDetection tracking test cases on KITTI."""
 

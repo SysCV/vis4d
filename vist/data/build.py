@@ -162,10 +162,9 @@ class VisTDataModule(pl.LightningDataModule):
             test_dataloader = data.DataLoader(
                 dataset,
                 batch_size=1,
-                num_workers=self.workers_per_gpu,
+                num_workers=0,
                 sampler=sampler,
                 collate_fn=identity_batch_collator,
-                persistent_workers=self.workers_per_gpu > 0,
             )
             dataloaders.append(test_dataloader)
         return dataloaders

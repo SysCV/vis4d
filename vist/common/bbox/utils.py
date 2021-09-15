@@ -1,10 +1,11 @@
 """Utility functions for bounding boxes."""
 import math
+
 import numpy as np
 import torch
-
-from scipy.spatial.transform import Rotation as R
 from pyquaternion import Quaternion
+from scipy.spatial.transform import Rotation as R
+
 from vist.struct import Boxes2D, Boxes3D
 
 

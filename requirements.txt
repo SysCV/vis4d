@@ -24,7 +24,6 @@ mmcv-full
 devtools
 utm
 kornia
-filterpy
 pyquaternion
 
 types-toml
