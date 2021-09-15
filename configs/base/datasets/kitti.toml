@@ -26,10 +26,6 @@ num_processes = 0
     type = "RandomHorizontalFlip"
     kwargs = {"p" = 0.5}
 
-    [[train.dataloader.transformations]]
-    type = "RandomRotation"
-    kwargs = {"p" = 0.5, "degrees" = 10.0}
-
 [[train]]
 name = "kitti_det_train"
 annotations = "data/KITTI/anns/detection_training.json"
@@ -57,10 +53,6 @@ num_processes = 0
     [[train.dataloader.transformations]]
     type = "RandomHorizontalFlip"
     kwargs = {"p" = 0.5}
-
-    [[train.dataloader.transformations]]
-    type = "RandomRotation"
-    kwargs = {"p" = 0.5, "degrees" = 10.0}
 
 [[test]]
 name = "kitti_sample_train"

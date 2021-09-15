@@ -3,12 +3,11 @@ from typing import List
 
 import torch
 
-from vist.struct import InputSample, LossesType, ModelOutput, Boxes3D
+from vist.struct import Boxes3D, InputSample, LossesType, ModelOutput
 
 from .detect.roi_head import BaseRoIHeadConfig, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
 from .track.graph import build_track_graph
-import pdb
 
 
 class QD3DTConfig(QDTrackConfig):

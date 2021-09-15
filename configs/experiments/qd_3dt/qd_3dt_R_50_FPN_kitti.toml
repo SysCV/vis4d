@@ -8,7 +8,7 @@ path = "../../base/models/mmdetection/qd_3dt_R_50_FPN.toml"
 category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
     [model.optimizer]
     type = "SGD"
-    lr = 0.03
+    lr = 0.005
     kwargs = {"momentum" = 0.9}
 
     [model.lr_scheduler]
@@ -19,7 +19,7 @@ category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
     num_classes = 3
 
 [launch]
-samples_per_gpu = 6
+samples_per_gpu = 8
 workers_per_gpu = 2
 
 [trainer]

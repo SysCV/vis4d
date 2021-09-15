@@ -1,10 +1,11 @@
 """Utility functions for bounding boxes."""
 import math
+
 import numpy as np
 import torch
-
-from scipy.spatial.transform import Rotation as R
 from pyquaternion import Quaternion
+from scipy.spatial.transform import Rotation as R
+
 from vist.struct import Boxes2D, Boxes3D
 
 
@@ -95,17 +96,17 @@ def get_alpha(rot):
     return alpha1 * idx + alpha2 * (1 - idx)
 
 
-def quaternion_to_euler(w, x, y, z):
+def quaternion_to_euler(quat_w, quat_x, quat_y, quat_z):
     """Transform quaternion into euler."""
-    t0 = +2.0 * (w * x + y * z)
-    t1 = +1.0 - 2.0 * (x * x + y * y)
+    t0 = +2.0 * (quat_w * quat_x + quat_y * quat_z)
+    t1 = +1.0 - 2.0 * (quat_x * quat_x + quat_y * quat_y)
     roll = math.atan2(t0, t1)
-    t2 = +2.0 * (w * y - z * x)
+    t2 = +2.0 * (quat_w * quat_y - quat_z * quat_x)
     t2 = +1.0 if t2 > +1.0 else t2
     t2 = -1.0 if t2 < -1.0 else t2
     pitch = math.asin(t2)
-    t3 = +2.0 * (w * z + x * y)
-    t4 = +1.0 - 2.0 * (y * y + z * z)
+    t3 = +2.0 * (quat_w * quat_z + quat_x * quat_y)
+    t4 = +1.0 - 2.0 * (quat_y * quat_y + quat_z * quat_z)
     yaw = math.atan2(t3, t4)
 
     return roll, pitch, yaw

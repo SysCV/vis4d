@@ -106,7 +106,7 @@ def _pad_to_largest_tensor(
 
 
 def all_gather_object_gpu(
-        data: Any, pl_module: pl.LightningModule, rank_zero_only: bool = True
+    data: Any, pl_module: pl.LightningModule, rank_zero_only: bool = True
 ) -> Optional[List[Any]]:  # type: ignore # pragma: no cover
     """Run pl_module.all_gather on arbitrary picklable data.
 
@@ -142,7 +142,7 @@ def all_gather_object_gpu(
 
 
 def all_gather_object_cpu(
-        data: Any, tmpdir: str = ".dist_tmp", rank_zero_only: bool = True
+    data: Any, tmpdir: str = ".dist_tmp", rank_zero_only: bool = True
 ) -> Optional[List[Any]]:  # type: ignore # pragma: no cover
     """Share arbitrary picklable data via file system caching.
 
