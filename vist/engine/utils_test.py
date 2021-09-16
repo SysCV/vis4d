@@ -1,5 +1,6 @@
 """Unit tests for engine utils."""
 import unittest
+import logging
 from argparse import Namespace
 
 from .utils import setup_logger, split_args
@@ -26,7 +27,8 @@ class TestTrack(unittest.TestCase):
         logger.warning("WARN")
         logger.error("ERROR")
         logger.critical("CRITICAL")
-        logger = setup_logger(color=False)
+        setup_logger(color=False)
+        logger = logging.getLogger("pytorch_lightning")
         logger.debug("DEBUG")
         logger.info("INFO")
         logger.warning("WARN")

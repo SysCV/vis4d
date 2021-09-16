@@ -35,8 +35,8 @@ def bbox_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
     Returns:
         Tensor: IoU (N, M).
     """
-    area1 = boxes1.area()
-    area2 = boxes2.area()
+    area1 = boxes1.area
+    area2 = boxes2.area
     inter = bbox_intersection(boxes1, boxes2)
 
     iou = torch.where(

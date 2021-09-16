@@ -7,6 +7,7 @@ import pytorch_lightning as pl
 import yaml
 from devtools import debug
 from torch.utils.collect_env import get_pretty_env_info
+from pytorch_lightning.utilities.distributed import rank_zero_info
 
 from ..config import Config, default_argument_parser, parse_config
 from ..data import VisTDataModule, build_dataset_loaders
@@ -86,16 +87,16 @@ def default_setup(
     trainer = pl.Trainer(**trainer_args)
 
     # setup cmd line logging
-    logger = setup_logger(osp.join(output_dir, "log.txt"))
+    setup_logger(osp.join(output_dir, "log.txt"))
 
     # print env / config
-    logger.info("Environment info: %s", get_pretty_env_info())
-    logger.info(
+    rank_zero_info("Environment info: %s", get_pretty_env_info())
+    rank_zero_info(
         "Running with full config:\n %s",
         str(debug.format(cfg)).split("\n", 1)[1],
     )
     if cfg.launch.seed is not None:
-        logger.info("Using a fixed random seed: %s", cfg.launch.seed)
+        rank_zero_info("Using a fixed random seed: %s", cfg.launch.seed)
 
     # save trainer args (converted to string)
     path = osp.join(output_dir, "trainer_args.yaml")
@@ -103,13 +104,13 @@ def default_setup(
         trainer_args[key] = str(arg)
     with open(path, "w", encoding="utf-8") as outfile:
         yaml.dump(trainer_args, outfile, default_flow_style=False)
-    logger.info("Trainer arguments saved to %s", path)
+    rank_zero_info("Trainer arguments saved to %s", path)
 
     # save VisT config
     path = osp.join(output_dir, "config.json")
     with open(path, "w", encoding="utf-8") as outfile:
         json.dump(trainer_args, outfile)
-    logger.info("VisT Config saved to %s", path)
+    rank_zero_info("VisT Config saved to %s", path)
 
     return trainer
 

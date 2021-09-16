@@ -192,7 +192,9 @@ def all_gather_object_cpu(  # type: ignore
             data_list.append(pickle.load(f))
 
     # rm dir
-    synchronize()
+    if not rank_zero_only:
+        # wait for all processes to finish loading before removing tmpdir
+        synchronize()
     if rank == 0:
         shutil.rmtree(tmpdir)
 

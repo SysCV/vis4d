@@ -59,7 +59,7 @@ def setup_logger(
     filepath: Optional[str] = None,
     color: bool = True,
     std_out_level: int = logging.DEBUG,
-) -> logging.Logger:
+):
     """Configure logging for VisT using the pytorch lightning logger."""
     # get PL logger, remove handlers to re-define behavior
     # https://pytorch-lightning.readthedocs.io/en/stable/extensions/logging.html#configure-console-logging
@@ -92,7 +92,6 @@ def setup_logger(
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(plain_formatter)
         logger.addHandler(fh)
-    return logger
 
 
 def split_args(args: Namespace) -> Tuple[Namespace, Namespace]:
@@ -111,15 +110,15 @@ def split_args(args: Namespace) -> Tuple[Namespace, Namespace]:
 def all_gather_predictions(
     predictions: Dict[str, List[Frame]],
     pl_module: pl.LightningModule,
-    collect_fn: str,
+    collect_device: str,
 ) -> Optional[Dict[str, List[Frame]]]:  # pragma: no cover
     """Gather prediction dict in distributed setting."""
-    if collect_fn == "gpu":
+    if collect_device == "gpu":
         predictions_list = all_gather_object_gpu(predictions, pl_module)
-    elif collect_fn == "cpu":
+    elif collect_device == "cpu":
         predictions_list = all_gather_object_cpu(predictions, pl_module)
     else:
-        raise ValueError(f"Collect arg {collect_fn} unknown.")
+        raise ValueError(f"Collect device {collect_device} unknown.")
 
     if predictions_list is None:
         return None
@@ -132,15 +131,15 @@ def all_gather_predictions(
 
 
 def all_gather_gts(
-    gts: List[Frame], pl_module: pl.LightningModule, collect_fn: str
+    gts: List[Frame], pl_module: pl.LightningModule, collect_device: str
 ) -> Optional[List[Frame]]:  # pragma: no cover
     """Gather gts list in distributed setting."""
-    if collect_fn == "gpu":
+    if collect_device == "gpu":
         gts_list = all_gather_object_gpu(gts, pl_module)
-    elif collect_fn == "cpu":
+    elif collect_device == "cpu":
         gts_list = all_gather_object_cpu(gts, pl_module)
     else:
-        raise ValueError(f"Collect arg {collect_fn} unknown.")
+        raise ValueError(f"Collect device {collect_device} unknown.")
 
     if gts_list is None:
         return None

@@ -198,7 +198,7 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
         """Evaluate the performance after processing all input/output pairs."""
         results = {}
         if not self.logging_disabled:
-            logger.info("Running evaluation for dataset %s...", self.name)
+            logger.info("Running evaluation on dataset %s...", self.name)
         for key, predictions in self._predictions.items():
             if self.output_dir:
                 os.makedirs(self.output_dir, exist_ok=True)
