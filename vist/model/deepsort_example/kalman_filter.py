@@ -2,6 +2,7 @@
 from typing import Optional, Tuple
 
 import torch
+import torch.nn as nn
 
 from .kf_parameters import cov_motion_Q, cov_P0, cov_project_R
 
@@ -22,7 +23,7 @@ chi2inv95 = {
 }
 
 
-class KalmanFilter:
+class KalmanFilter(nn.Module):  # type: ignore
     """Kalman filter.
 
     The 8-dimensional state space
@@ -35,13 +36,15 @@ class KalmanFilter:
 
     def __init__(self):
         """Init."""
+        super().__init__()
         ndim, dt = 4, 1.0
 
         # Create Kalman filter model matrices.
-        self._motion_mat = torch.eye(2 * ndim, 2 * ndim).cuda()
+        motion_mat = torch.eye(2 * ndim, 2 * ndim)
         for i in range(ndim):
-            self._motion_mat[i, ndim + i] = dt
-        self._update_mat = torch.eye(ndim, 2 * ndim).cuda()
+            motion_mat[i, ndim + i] = dt
+        self.register_buffer("_motion_mat", motion_mat)
+        self.register_buffer("_update_mat", torch.eye(ndim, 2 * ndim))
         self.idx2cls_mapping = {
             0: "pedestrian",
             1: "rider",
