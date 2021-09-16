@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from torch import nn
 
+from vist.common.bbox.coders import QD3DTBox3DCoderConfig, build_box3d_coder
 from vist.common.bbox.matchers import MatcherConfig, build_matcher
 from vist.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
 from vist.common.bbox.samplers import (
@@ -15,7 +16,14 @@ from vist.common.bbox.samplers import (
 )
 from vist.common.layers import add_conv_branch
 from vist.model.losses import LossConfig, build_loss
-from vist.struct import Boxes2D, Boxes3D, InputSample, LossesType
+from vist.struct import (
+    Boxes2D,
+    Boxes3D,
+    InputSample,
+    Intrinsics,
+    LabelInstance,
+    LossesType,
+)
 
 from .base import BaseRoIHead, BaseRoIHeadConfig
 
@@ -51,6 +59,7 @@ class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
     with_2dc: bool
 
     loss_3d: LossConfig
+    box3d_coder: QD3DTBox3DCoderConfig
 
     proposal_append_gt: bool
     in_features: List[str] = ["p2", "p3", "p4", "p5"]
@@ -75,7 +84,7 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         self.matcher = build_matcher(self.cfg.proposal_matcher)
         self.roi_pooler = build_roi_pooler(self.cfg.proposal_pooler)
 
-        self.bbox_coder = Box3DCoder()  # TODO init from new module
+        self.bbox_coder = build_box3d_coder(self.cfg.box3d_coder)
 
         # add shared convs and fcs
         (
@@ -369,47 +378,26 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
 
         return bbox_3d_preds, roi_feats
 
-    def _get_target_single(
-        self,
-        pos_proposals: Boxes2D,
-        pos_assigned_gt_inds: torch.Tensor,
-        gt_bboxes_2d: Boxes2D,
-        gt_bboxes_3d: Boxes3D,
-        cam_intrinsics: torch.Tensor,
-    ) -> torch.Tensor:
-        """Get single box3d target for training."""
-        num_pos = pos_proposals.boxes.size(0)
-        bbox_targets = pos_proposals.boxes.new_zeros(
-            num_pos, 2 + 1 + 3 + 4
-        )  # angle only 4 params in GT (2 bin, res cos/sin)
-
-        if num_pos > 0:
-            bbox_targets = self.bbox_coder.encode(
-                gt_bboxes_2d[pos_assigned_gt_inds],
-                gt_bboxes_3d[pos_assigned_gt_inds],
-                cam_intrinsics,
-            )
-        return bbox_targets
-
     def get_targets(
         self,
-        pos_proposals: List[Boxes2D],
         pos_assigned_gt_inds: List[torch.Tensor],
         gt_bboxes_2d: List[Boxes2D],
         gt_bboxes_3d: List[Boxes3D],
-        cam_intrinsics: List[torch.Tensor],
+        cam_intrinsics: Intrinsics,
         concat: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get box3d target for training."""
-        bbox_targets = list(
-            map(
-                self._get_target_single,
-                pos_proposals,
-                pos_assigned_gt_inds,
-                gt_bboxes_2d,
-                gt_bboxes_3d,
-                cam_intrinsics,
-            )
+        gt_bboxes_2d = [
+            b[p] for b, p in zip(gt_bboxes_2d, pos_assigned_gt_inds)
+        ]
+        gt_bboxes_3d = [
+            b[p] for b, p in zip(gt_bboxes_3d, pos_assigned_gt_inds)
+        ]
+
+        bbox_targets = self.bbox_coder.encode(
+            gt_bboxes_2d,
+            gt_bboxes_3d,
+            cam_intrinsics,
         )
 
         labels = [
@@ -460,16 +448,11 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
 
         bbox_3d_preds, _ = self.forward(features_list, pos_proposals)
 
-        cam_intrinsics = [
-            inputs.intrinsics.tensor[i]
-            for i in range(inputs.intrinsics.tensor.shape[0])
-        ]
         bbox3d_targets, labels = self.get_targets(
-            pos_proposals,
             pos_assigned_gt_inds,
             inputs.boxes2d,
             inputs.boxes3d,
-            cam_intrinsics,
+            inputs.intrinsics,
         )
 
         loss_bbox_3d = self.loss_3d(bbox_3d_preds, bbox3d_targets, labels)
@@ -481,7 +464,7 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
-    ) -> Tuple[List[Boxes2D], Optional[List[Boxes3D]]]:
+    ) -> List[LabelInstance]:
         """Forward pass during testing stage.
 
         Args:
@@ -496,9 +479,5 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         bbox_3d_preds, _ = self.forward(features_list, boxes)
 
         return self.bbox_coder.decode(
-            boxes[0],
-            bbox_3d_preds,
-            inputs.intrinsics.tensor[0],
-            self.cfg.with_uncertainty,
-            self.cfg.uncertainty_thres,
+            boxes, [bbox_3d_preds], inputs.intrinsics
         )

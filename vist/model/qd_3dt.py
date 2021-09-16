@@ -97,7 +97,7 @@ class QD3DT(QDTrack):
         )
         assert bbox_2d_preds is not None
 
-        bbox_2d_preds, bbox_3d_preds = self.bbox_3d_head.forward_test(
+        bbox_3d_preds = self.bbox_3d_head.forward_test(
             inputs,
             feat,
             bbox_2d_preds,
@@ -105,7 +105,7 @@ class QD3DT(QDTrack):
 
         # similarity head
         embeddings = self.similarity_head.forward_test(
-            inputs, feat, [bbox_2d_preds]
+            inputs, feat, bbox_2d_preds
         )
         assert inputs.metadata[0].size is not None
         input_size = (
@@ -113,23 +113,24 @@ class QD3DT(QDTrack):
             inputs[0].metadata[0].size.height,
         )
         self.postprocess(
-            input_size, inputs.images.image_sizes[0], bbox_2d_preds
+            input_size, inputs.images.image_sizes[0], bbox_2d_preds[0]
         )
 
         # associate detections, update graph
-        tracks_2d = self.track_graph(bbox_2d_preds, frame_id, embeddings[0])
+        tracks_2d = self.track_graph(bbox_2d_preds[0], frame_id, embeddings[0])
 
         boxes_3d = []
         for i in range(len(tracks_2d)):
-            for j in range(len(bbox_2d_preds)):
-                if torch.equal(tracks_2d.boxes[i], bbox_2d_preds.boxes[j]):
-                    boxes_3d.append(bbox_3d_preds[j].boxes)
+            for j in range(len(bbox_2d_preds[0])):
+                if torch.equal(tracks_2d.boxes[i], bbox_2d_preds[0].boxes[j]):
+                    boxes_3d.append(bbox_3d_preds[0][j].boxes)
 
         boxes_3d = (
             torch.cat(boxes_3d)
             if len(boxes_3d) > 0
             else torch.empty(
-                (0, bbox_3d_preds.boxes.shape[1]), device=bbox_3d_preds.device
+                (0, bbox_3d_preds[0].boxes.shape[1]),
+                device=bbox_3d_preds[0].device,
             )
         )
 

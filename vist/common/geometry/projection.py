@@ -15,6 +15,9 @@ def project_points(
 
     Returns:
         torch.Tensor: (N, 2) or (B, N, 2) 2D pixel coordinates.
+
+    Raises:
+        ValueError: Shape of input points is not valid for computation.
     """
     assert points.shape[-1] == 3, "Input coordinates must be 3 dimensional!"
     hom_coords = points / points[..., 2:3]
@@ -40,6 +43,9 @@ def unproject_points(
 
     Returns:
         torch.Tensor: (N, 3) or (B, N, 3) 3D coordinates.
+
+    Raises:
+        ValueError: Shape of input points is not valid for computation.
     """
     if len(points.shape) == 2:
         inv_intrinsics = torch.inverse(intrinsics.tensor).squeeze(0).T

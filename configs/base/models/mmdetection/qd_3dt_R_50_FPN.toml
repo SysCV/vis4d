@@ -61,6 +61,11 @@ type = "QD3DT"
         labels = [0, -1, 1]
         allow_low_quality_matches = false
 
+        [model.bbox_3d_head.box3d_coder]
+        type = "QD3DTBox3DCoder"
+        depth_log_scale = 2.0
+        dim_log_scale = 2.0
+
     [model.track_graph]
     type = "QDTrackGraph"
     keep_in_memory = 10  # timesteps

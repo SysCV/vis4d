@@ -14,8 +14,6 @@ from .base import BaseBoxCoder3D, BaseBoxCoderConfig
 class QD3DTBox3DCoderConfig(BaseBoxCoderConfig):
     """Config for QD3DTBox3DCoder"""
 
-    with_uncertainty: bool = True
-    uncertainty_thres: float = 0.9
     depth_log_scale: float = 2.0
     dim_log_scale: float = 2.0
 
@@ -38,10 +36,14 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
         for boxes_, targets_, intrinsics_ in zip(boxes, targets, intrinsics):
             # delta center 2d
             projected_3d_center = project_points(targets_.center, intrinsics_)
-            delta_center = projected_3d_center - boxes_.center
+            delta_center = projected_3d_center - boxes_.center.view(
+                targets_.boxes.shape[0], 2
+            )
 
             # depth
-            depth = torch.log(boxes_.center[:, -1]) * self.cfg.depth_log_scale
+            depth = (
+                torch.log(targets_.center[:, -1]) * self.cfg.depth_log_scale
+            )
             depth = depth.unsqueeze(-1)
 
             # dimensions
@@ -77,36 +79,24 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
         for boxes_, box_deltas_, intrinsics_ in zip(
             boxes, box_deltas, intrinsics
         ):
-            boxes_ = boxes_[
+            box_deltas_ = box_deltas_[
                 torch.arange(box_deltas_.shape[0]), boxes_.class_ids
             ]
 
             # depth uncertainty
-            if self.cfg.with_uncertainty:
-                depth_uncertainty = box_deltas_[:, 14:15]
-            else:
-                depth_uncertainty = torch.ones_like(box_deltas_[:, :1])
+            depth_uncertainty = box_deltas_[:, 14:15]
 
             depth_uncertainty = depth_uncertainty.clamp(min=0.0, max=1.0)
 
-            # Depth filter
-            keep = (depth_uncertainty > self.cfg.uncertainty_thres).view(
-                box_deltas_.shape[0]
-            )
-            depth_uncertainty = depth_uncertainty[keep]
-
-            # TODO do we really want to filter here? This is supposed to be a decoding function
-            boxes_ = boxes_[keep]
-            box_deltas_ = box_deltas_[keep]
-
             # center
             delta_center = box_deltas_[:, 0:2]
-            center_2d = boxes_.center + delta_center
+            center_2d = (
+                boxes_.center.view(box_deltas_.shape[0], 2) + delta_center
+            )
             depth = torch.exp(box_deltas_[:, 2:3] / self.cfg.depth_log_scale)
             center_3d = unproject_points(center_2d, depth, intrinsics_)
 
             # dimensions
-            # TODO shouldn't this regress from the mean?
             dimensions = torch.exp(
                 box_deltas_[:, 3:6] / self.cfg.dim_log_scale
             )

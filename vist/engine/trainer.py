@@ -6,8 +6,8 @@ from typing import Optional
 import pytorch_lightning as pl
 import yaml
 from devtools import debug
-from torch.utils.collect_env import get_pretty_env_info
 from pytorch_lightning.utilities.distributed import rank_zero_info
+from torch.utils.collect_env import get_pretty_env_info
 
 from ..config import Config, default_argument_parser, parse_config
 from ..data import VisTDataModule, build_dataset_loaders

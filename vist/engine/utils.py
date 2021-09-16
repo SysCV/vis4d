@@ -92,6 +92,7 @@ def setup_logger(
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(plain_formatter)
         logger.addHandler(fh)
+    return logger
 
 
 def split_args(args: Namespace) -> Tuple[Namespace, Namespace]:

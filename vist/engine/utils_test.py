@@ -1,6 +1,6 @@
 """Unit tests for engine utils."""
-import unittest
 import logging
+import unittest
 from argparse import Namespace
 
 from .utils import setup_logger, split_args
