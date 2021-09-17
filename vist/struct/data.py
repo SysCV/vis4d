@@ -271,12 +271,14 @@ class InputSample:
                 cat_dict[k] = []
                 for inst in instances:
                     attr = inst.get(k)
-                    cat_dict[k] += [
-                        attr_v.to(device) if hasattr(attr_v, "to") else attr_v
-                        for attr_v in attr
+                    cat_dict[k] += [  # type: ignore
+                        attr_v.to(device)
+                        if isinstance(attr_v, DataInstance)
+                        else attr_v
+                        for attr_v in attr  # type: ignore
                     ]
-            elif hasattr(type(v), "cat"):
-                cat_dict[k] = type(v).cat(
+            elif isinstance(v, DataInstance) and hasattr(type(v), "cat"):
+                cat_dict[k] = type(v).cat(  # type: ignore
                     [inst.get(k) for inst in instances], device
                 )
             else:
@@ -285,7 +287,7 @@ class InputSample:
                     f" list or implement the cat() function (see e.g. Images)!"
                 )
 
-        return InputSample(**cat_dict)
+        return InputSample(**cat_dict)  # type: ignore
 
     def __getitem__(self, item: int) -> "InputSample":
         """Return single element."""

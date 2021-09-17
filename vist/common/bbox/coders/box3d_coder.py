@@ -12,7 +12,7 @@ from .base import BaseBoxCoder3D, BaseBoxCoderConfig
 
 
 class QD3DTBox3DCoderConfig(BaseBoxCoderConfig):
-    """Config for QD3DTBox3DCoder"""
+    """Config for QD3DTBox3DCoder."""
 
     depth_log_scale: float = 2.0
     dim_log_scale: float = 2.0
@@ -33,7 +33,7 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
     ) -> List[torch.Tensor]:
         """Encode deltas between boxes and targets given intrinsics."""
         result = []
-        for boxes_, targets_, intrinsics_ in zip(boxes, targets, intrinsics):
+        for boxes_, targets_, intrinsics_ in zip(boxes, targets, intrinsics):  # type: ignore # pylint: disable=line-too-long
             # delta center 2d
             projected_3d_center = project_points(targets_.center, intrinsics_)
             delta_center = projected_3d_center - boxes_.center.view(
@@ -78,14 +78,13 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
         results = []
         for boxes_, box_deltas_, intrinsics_ in zip(
             boxes, box_deltas, intrinsics
-        ):
+        ):  # type: ignore
             box_deltas_ = box_deltas_[
                 torch.arange(box_deltas_.shape[0]), boxes_.class_ids
             ]
 
             # depth uncertainty
             depth_uncertainty = box_deltas_[:, 14:15]
-
             depth_uncertainty = depth_uncertainty.clamp(min=0.0, max=1.0)
 
             # center

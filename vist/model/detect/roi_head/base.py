@@ -1,7 +1,7 @@
 """RoI Head interface for VisT."""
 
 import abc
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import torch
 from pydantic import BaseModel, Field
@@ -46,7 +46,7 @@ class BaseRoIHead(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
-    ) -> List[LabelInstance]:
+    ) -> Sequence[LabelInstance]:
         """Forward pass during testing stage.
 
         Args:

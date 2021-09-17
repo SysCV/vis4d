@@ -6,6 +6,7 @@ import torch
 
 from vist.struct import Boxes3D, InputSample, LossesType, ModelOutput
 
+from .base import BaseModelConfig
 from .detect.roi_head import BaseRoIHeadConfig, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
 from .track.graph import build_track_graph
@@ -20,7 +21,7 @@ class QD3DTConfig(QDTrackConfig):
 class QD3DT(QDTrack):
     """QD-3DT model class."""
 
-    def __init__(self, cfg) -> None:
+    def __init__(self, cfg: BaseModelConfig) -> None:
         """Init."""
         super().__init__(cfg)
         self.cfg = QD3DTConfig(**cfg.dict())
@@ -75,9 +76,9 @@ class QD3DT(QDTrack):
 
     def forward_test(
         self,
-        batch_inputs: List[InputSample],
+        batch_inputs: List[List[InputSample]],
     ) -> ModelOutput:
-        """Forward function during inference."""
+        """Compute qd-3dt output during inference."""
         assert len(batch_inputs) == 1, "No reference views during test!"
         raw_inputs = [inp[0] for inp in batch_inputs]
         assert len(raw_inputs) == 1, "Currently only BS=1 supported!"
@@ -101,7 +102,8 @@ class QD3DT(QDTrack):
             inputs,
             feat,
             bbox_2d_preds,
-        )
+        )[0]
+        assert isinstance(bbox_3d_preds, Boxes3D)
 
         # similarity head
         embeddings = self.similarity_head.forward_test(
@@ -123,14 +125,14 @@ class QD3DT(QDTrack):
         for i in range(len(tracks_2d)):
             for j in range(len(bbox_2d_preds[0])):
                 if torch.equal(tracks_2d.boxes[i], bbox_2d_preds[0].boxes[j]):
-                    boxes_3d.append(bbox_3d_preds[0][j].boxes)
+                    boxes_3d.append(bbox_3d_preds[j].boxes)
 
         boxes_3d = (
             torch.cat(boxes_3d)
             if len(boxes_3d) > 0
             else torch.empty(
-                (0, bbox_3d_preds[0].boxes.shape[1]),
-                device=bbox_3d_preds[0].device,
+                (0, bbox_3d_preds.boxes.shape[1]),
+                device=bbox_3d_preds.device,
             )
         )
 

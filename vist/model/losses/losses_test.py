@@ -4,12 +4,13 @@ import unittest
 import torch
 
 from .base import LossConfig
+from .box3d_uncertainty_loss import Box3DUncertaintyLoss
 from .embedding_distance import EmbeddingDistanceLoss
 from .multi_pos_cross_entropy import MultiPosCrossEntropyLoss
 
 
-class TestLosses(unittest.TestCase):
-    """Testcases for loss functions."""
+class TestQDLosses(unittest.TestCase):
+    """Testcases for loss functions in qdtrack."""
 
     pred = torch.Tensor(
         [
@@ -183,3 +184,17 @@ class TestLosses(unittest.TestCase):
         self.assertTrue(abs(x - 34.0866) < 1e-4)
         x = loss(self.pred, self.target, reduction_override="mean")
         self.assertTrue(abs(x - 3.4087) < 1e-4)
+
+
+class TestLossBox3D(unittest.TestCase):
+    """Testclass for Box3d loss."""
+
+    def test_box3d_loss(self) -> None:
+        """Testcase for box3d loss."""
+        cfg = LossConfig(type="box3dloss")
+        box3d_loss = Box3DUncertaintyLoss(cfg)
+        loss_dict = box3d_loss(
+            torch.empty(0, 5), torch.empty(0, 5), torch.empty(0)
+        )
+        for v in loss_dict.values():
+            self.assertEqual(v.item(), 0.0)

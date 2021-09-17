@@ -148,7 +148,8 @@ def create_tmpdir(
     else:
         tmpdir = None
     tmp_list = all_gather_object_gpu(tmpdir, pl_module, rank_zero_only=False)
-    tmpdir = [tmp for tmp in tmp_list if tmp is not None][0]
+    tmpdir = [tmp for tmp in tmp_list if tmp is not None][0]  # type: ignore
+    assert isinstance(tmpdir, str), "Gather failed, tmpdir not a string!"
     return tmpdir
 
 

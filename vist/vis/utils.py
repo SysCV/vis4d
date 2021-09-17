@@ -53,9 +53,9 @@ def preprocess_boxes(
 
     assert isinstance(boxes, (Boxes2D, Boxes3D))
 
-    if boxes.boxes.shape[-1] in [5, 8, 10]:  # 4, 7, 9 DoF boxes + score
+    if boxes.score is not None:
         boxes_list = boxes.boxes[:, :-1].cpu().numpy().tolist()
-        scores = boxes.boxes[:, -1].cpu().numpy().tolist()
+        scores = boxes.score.cpu().numpy().tolist()
     else:
         boxes_list = boxes.boxes.cpu().numpy().tolist()
         scores = [None for _ in range(len(boxes_list))]

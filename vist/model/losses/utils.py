@@ -39,3 +39,38 @@ def weight_reduce_loss(
         elif reduction != "none":  # pragma: no cover
             raise ValueError('avg_factor can not be used with reduction="sum"')
     return loss
+
+
+def smooth_l1_loss(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    weight: Optional[torch.Tensor] = None,
+    reduction: str = "mean",
+    avg_factor: Optional[float] = None,
+    beta: float = 1.0,
+) -> torch.Tensor:
+    """Smooth L1 loss."""
+    assert beta > 0
+    assert pred.size() == target.size() and target.numel() > 0
+    diff = torch.abs(pred - target)
+    loss = torch.where(
+        diff < beta, 0.5 * diff * diff / beta, diff - 0.5 * beta
+    )
+    if weight is not None:
+        weight = weight.float()
+    return weight_reduce_loss(loss, weight, reduction, avg_factor)
+
+
+def l2_loss(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    weight: Optional[torch.Tensor] = None,
+    reduction: str = "mean",
+    avg_factor: Optional[float] = None,
+) -> torch.Tensor:
+    """L2 loss."""
+    assert pred.size() == target.size() and target.numel() > 0
+    loss = torch.abs(pred - target) ** 2
+    if weight is not None:
+        weight = weight.float()
+    return weight_reduce_loss(loss, weight, reduction, avg_factor)

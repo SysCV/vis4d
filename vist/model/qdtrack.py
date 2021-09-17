@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """Quasi-dense instance similarity learning model."""
 
 from typing import List, Tuple

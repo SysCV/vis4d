@@ -57,7 +57,9 @@ class BaseBoxCoder3D(metaclass=RegistryHolder):
         raise NotImplementedError
 
 
-def build_box2d_coder(cfg: BaseBoxCoderConfig) -> BaseBoxCoder2D:
+def build_box2d_coder(
+    cfg: BaseBoxCoderConfig,
+) -> BaseBoxCoder2D:  # pragma: no cover
     """Build a 2D bounding box coder from config."""
     registry = RegistryHolder.get_registry(BaseBoxCoder2D)
     if cfg.type in registry:

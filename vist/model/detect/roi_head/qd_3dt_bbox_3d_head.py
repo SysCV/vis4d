@@ -1,5 +1,5 @@
 """3D Box Head definition for QD-3DT."""
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -381,8 +381,8 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
     def get_targets(
         self,
         pos_assigned_gt_inds: List[torch.Tensor],
-        gt_bboxes_2d: List[Boxes2D],
-        gt_bboxes_3d: List[Boxes3D],
+        gt_bboxes_2d: Sequence[Boxes2D],
+        gt_bboxes_3d: Sequence[Boxes3D],
         cam_intrinsics: Intrinsics,
         concat: bool = True,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -464,7 +464,7 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
-    ) -> List[LabelInstance]:
+    ) -> Sequence[LabelInstance]:
         """Forward pass during testing stage.
 
         Args:

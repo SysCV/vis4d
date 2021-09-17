@@ -5,6 +5,8 @@ from argparse import Namespace
 
 from .utils import setup_logger, split_args
 
+logger = logging.getLogger("pytorch_lightning")
+
 
 class TestTrack(unittest.TestCase):
     """Test cases for vist tracking."""
@@ -21,14 +23,13 @@ class TestTrack(unittest.TestCase):
     @staticmethod
     def test_setup_logger() -> None:
         """Test setup_logger."""
-        logger = setup_logger()
+        setup_logger()
         logger.debug("DEBUG")
         logger.info("INFO")
         logger.warning("WARN")
         logger.error("ERROR")
         logger.critical("CRITICAL")
         setup_logger(color=False)
-        logger = logging.getLogger("pytorch_lightning")
         logger.debug("DEBUG")
         logger.info("INFO")
         logger.warning("WARN")

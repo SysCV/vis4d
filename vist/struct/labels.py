@@ -276,7 +276,7 @@ class Boxes3D(Boxes, LabelInstance):
 
     @property
     def dimensions(self) -> torch.Tensor:
-        """Return dimensions (h,w,l) of 3D bounding boxes as tensor."""
+        """Return (h, w, l) of 3D bounding boxes as tensor."""
         return self.boxes[:, 3:6]
 
     @property

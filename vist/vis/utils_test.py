@@ -43,9 +43,8 @@ class TestUtils(unittest.TestCase):
 
     def test_preprocess_intrinsics(self) -> None:
         """Test preprocess_intrinsics method."""
-        intrinsic_matrix = np.eye(3)
-        mat1 = preprocess_intrinsics(intrinsic_matrix)
-        mat2 = preprocess_intrinsics(Intrinsics(intrinsic_matrix))
+        mat1 = preprocess_intrinsics(np.eye(3))
+        mat2 = preprocess_intrinsics(Intrinsics(torch.eye(3)))
         self.assertTrue(np.isclose(mat1, mat2).all())
 
     def test_preprocess_boxes(self) -> None:

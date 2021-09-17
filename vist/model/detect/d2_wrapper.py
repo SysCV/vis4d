@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.modeling import GeneralizedRCNN
+from detectron2.structures import Instances
 from detectron2.utils.events import EventStorage
 from torch.nn.modules.batchnorm import _BatchNorm
 
@@ -86,7 +87,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         detections, _ = self.generate_detections(inputs, features, proposals)
         assert detections is not None
 
-        for inp, det in zip(inputs, detections):
+        for inp, det in zip(inputs, detections):  # type: ignore
             assert inp.metadata[0].size is not None
             input_size = (
                 inp.metadata[0].size.width,
@@ -115,7 +116,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         images_d2 = images_to_imagelist(inputs.images)
         is_training = self.d2_detector.proposal_generator.training
         if self.training:
-            targets = target_to_instance(
+            targets: Optional[List[Instances]] = target_to_instance(
                 inputs.boxes2d, inputs.images.image_sizes
             )
         else:
@@ -147,7 +148,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         proposals = box2d_to_proposal(proposals, inputs.images.image_sizes)
         is_training = self.d2_detector.roi_heads.training
         if self.training:
-            targets = target_to_instance(
+            targets: Optional[List[Instances]] = target_to_instance(
                 inputs.boxes2d, inputs.images.image_sizes
             )
         else:

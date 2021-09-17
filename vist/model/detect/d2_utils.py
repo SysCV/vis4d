@@ -1,6 +1,6 @@
 """Detection utils."""
 import os
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 from detectron2 import model_zoo
@@ -86,7 +86,7 @@ def box2d_to_proposal(
 
 
 def target_to_instance(
-    targets: List[Boxes2D], imgs_wh: List[Tuple[int, int]]
+    targets: Sequence[Boxes2D], imgs_wh: List[Tuple[int, int]]
 ) -> List[Instances]:
     """Convert Boxes2D representing targets to d2 Instances."""
     result = []

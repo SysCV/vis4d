@@ -59,7 +59,7 @@ def setup_logger(
     filepath: Optional[str] = None,
     color: bool = True,
     std_out_level: int = logging.DEBUG,
-):
+) -> None:
     """Configure logging for VisT using the pytorch lightning logger."""
     # get PL logger, remove handlers to re-define behavior
     # https://pytorch-lightning.readthedocs.io/en/stable/extensions/logging.html#configure-console-logging
@@ -92,7 +92,6 @@ def setup_logger(
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(plain_formatter)
         logger.addHandler(fh)
-    return logger
 
 
 def split_args(args: Namespace) -> Tuple[Namespace, Namespace]:
