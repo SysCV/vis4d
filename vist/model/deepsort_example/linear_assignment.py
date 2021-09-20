@@ -1,28 +1,42 @@
 """LInear assignment."""
 from __future__ import absolute_import
 
-from typing import Callable, List, Optional, Tuple
-
+from typing import Callable, List, Optional, Tuple, Dict, Any
 import torch
-
-# from sklearn.utils.linear_assignment_ import linear_assignment
 from scipy.optimize import linear_sum_assignment as linear_assignment
 
-from .detection import Detection
+from vist.struct.labels import Boxes2D
 from .kalman_filter import KalmanFilter, chi2inv95
-from .track import Track
+
 
 INFTY_COST = 1e5
 
 
+def tlbr_to_xyah(bbox_tlbr: torch.tensor) -> torch.tensor:
+    """Convert a batched tlbr box to xyah.
+
+    Args:
+        bbox_tlbr: shape (N, 4)
+                    [top_left_x, top_left_y, bottom_right_x, bottom_right_y]
+
+    Returns:
+        bbox_xyah: (N, 4 ) [center_x, center_y, aspect_ratio, height]
+    """
+    bbox_xyah = bbox_tlbr.clone().detach()
+    bbox_xyah[:, :2] = (bbox_tlbr[:, 2:] + bbox_tlbr[:, :2]) / 2.0
+    height = bbox_tlbr[:, 3] - bbox_tlbr[:, 1]
+    width = bbox_tlbr[:, 2] - bbox_tlbr[:, 0]
+    bbox_xyah[:, 2] = width / height
+    bbox_xyah[:, 3] = height
+    return bbox_xyah
+
+
 def min_cost_matching(
-    distance_metric: Callable[
-        [List[Track], List[Detection], List[int], List[int]], torch.tensor
-    ],
+    cost_matrix,
     max_distance: float,
-    tracks: List[Track],
-    detections: List[Detection],
-    track_indices: Optional[List[int]] = None,
+    tracks: Dict[int, Dict[str, Any]],
+    detections: Boxes2D,
+    track_ids: Optional[List[int]] = None,
     detection_indices: Optional[List[int]] = None,
 ) -> Tuple[
     List[Tuple[int, int]], List[int], List[int]
@@ -40,7 +54,7 @@ def min_cost_matching(
             this value are disregarded.
         tracks :A list of predicted tracks at the current time step.
         detections : A list of detections at the current time step.
-        track_indices :List of track indices that maps rows in `cost_matrix` to tracks in
+        track_ids :List of track ids that maps rows in `cost_matrix` to tracks in
         `tracks` (see description above).
         detection_indices : List of detection indices that maps columns in `cost_matrix` to
         detections in `detections` (see description above).
@@ -50,17 +64,14 @@ def min_cost_matching(
         unmatched_tracks: A list of unmatched track indices.
         unmatched_detections: A list of unmatched detection indices.
     """
-    if track_indices is None:
-        track_indices = torch.arange(len(tracks))
+    if track_ids is None:
+        track_ids = torch.tensor(list(tracks.keys())).to(detections.device)
     if detection_indices is None:
-        detection_indices = torch.arange(len(detections))
+        detection_indices = torch.arange(len(detections)).to(detections.device)
 
-    if len(detection_indices) == 0 or len(track_indices) == 0:
-        return [], track_indices, detection_indices  # Nothing to match.
+    if len(detection_indices) == 0 or len(track_ids) == 0:
+        return [], track_ids, detection_indices  # Nothing to match.
 
-    cost_matrix = distance_metric(
-        tracks, detections, track_indices, detection_indices
-    )
     cost_matrix[cost_matrix > max_distance] = max_distance + 1e-5
     cost_matrix = cost_matrix.cpu()
     row_indices, col_indices = linear_assignment(cost_matrix)
@@ -69,29 +80,37 @@ def min_cost_matching(
     for col, detection_idx in enumerate(detection_indices):
         if col not in col_indices:
             unmatched_detections.append(detection_idx)
-    for row, track_idx in enumerate(track_indices):
+    for row, track_id in enumerate(track_ids):
         if row not in row_indices:
-            unmatched_tracks.append(track_idx)
+            unmatched_tracks.append(track_id)
     for row, col in zip(row_indices, col_indices):
-        track_idx = track_indices[row]
+        track_id = track_ids[row]
         detection_idx = detection_indices[col]
         if cost_matrix[row, col] > max_distance:
-            unmatched_tracks.append(track_idx)
+            unmatched_tracks.append(track_id)
             unmatched_detections.append(detection_idx)
         else:
-            matches.append((track_idx, detection_idx))
+            matches.append((track_id, detection_idx))
     return matches, unmatched_tracks, unmatched_detections
 
 
 def matching_cascade(
     distance_metric: Callable[
-        [List[Track], List[Detection], List[int], List[int]], torch.tensor
+        [
+            Dict[int, Dict[str, Any]],
+            Boxes2D,
+            torch.tensor,
+            List[int],
+            List[int],
+        ],
+        torch.tensor,
     ],
     max_distance: float,
     cascade_depth: int,
-    tracks: List[Track],
-    detections: List[Detection],
-    track_indices: Optional[List[int]] = None,
+    tracks: Dict[int, Dict[str, Any]],
+    detections: Boxes2D,
+    det_features: torch.tensor,
+    track_ids: Optional[List[int]] = None,
     detection_indices: Optional[List[int]] = None,
 ) -> Tuple[
     List[Tuple[int, int]], List[int], List[int]
@@ -114,8 +133,8 @@ def matching_cascade(
         A list of predicted tracks at the current time step.
     detections : List[detection.Detection]
         A list of detections at the current time step.
-    track_indices : Optional[List[int]]
-        List of track indices that maps rows in `cost_matrix` to tracks in
+    track_ids : Optional[List[int]]
+        List of track ids that maps rows in `cost_matrix` to tracks in
         `tracks` (see description above). Defaults to all tracks.
     detection_indices : Optional[List[int]]
         List of detection indices that maps columns in `cost_matrix` to
@@ -127,8 +146,8 @@ def matching_cascade(
         unmatched_tracks: A list of unmatched track indices.
         unmatched_detections: A list of unmatched detection indices.
     """
-    if track_indices is None:
-        track_indices = list(range(len(tracks)))
+    if track_ids is None:
+        track_ids = list(tracks.keys())
     if detection_indices is None:
         detection_indices = list(range(len(detections)))
 
@@ -138,33 +157,34 @@ def matching_cascade(
         if len(unmatched_detections) == 0:  # No detections left
             break
 
-        track_indices_l = [
-            k
-            for k in track_indices
-            if tracks[k].time_since_update == 1 + level
+        track_ids_l = [
+            k for k in track_ids if tracks[k]["time_since_update"] == 1 + level
         ]
-        if len(track_indices_l) == 0:  # Nothing to match at this level
+        if len(track_ids_l) == 0:  # Nothing to match at this level
             continue
 
+        cost_matrix = distance_metric(
+            tracks, detections, det_features, track_ids_l, unmatched_detections
+        )
         matches_l, _, unmatched_detections = min_cost_matching(
-            distance_metric,
+            cost_matrix,
             max_distance,
             tracks,
             detections,
-            track_indices_l,
+            track_ids_l,
             unmatched_detections,
         )
         matches += matches_l
-    unmatched_tracks = list(set(track_indices) - set(k for k, _ in matches))
+    unmatched_tracks = list(set(track_ids) - set(k for k, _ in matches))
     return matches, unmatched_tracks, unmatched_detections
 
 
 def gate_cost_matrix(
     kf: KalmanFilter,
     cost_matrix: torch.tensor,
-    tracks: List[Track],
-    detections: List[Detection],
-    track_indices: List[int],
+    tracks: Dict[int, Dict[str, Any]],
+    detections: Boxes2D,
+    track_ids: List[int],
     detection_indices: List[int],
     gated_cost: Optional[float] = INFTY_COST,
     only_position: Optional[bool] = False,
@@ -179,14 +199,14 @@ def gate_cost_matrix(
         cost_matrix :
             The NxM dimensional cost matrix, where N is the number of track indices
             and M is the number of detection indices, such that entry (i, j) is the
-            association cost between `tracks[track_indices[i]]` and
+            association cost between `tracks[track_ids[i]]` and
             `detections[detection_indices[j]]`.
         tracks :
             A list of predicted tracks at the current time step.
         detections : List[detection.Detection]
             A list of detections at the current time step.
-        track_indices :
-            List of track indices that maps rows in `cost_matrix` to tracks in
+        track_ids :
+            List of track ids that maps rows in `cost_matrix` to tracks in
             `tracks` (see description above).
         detection_indices :
             List of detection indices that maps columns in `cost_matrix` to
@@ -203,17 +223,14 @@ def gate_cost_matrix(
     """
     gating_dim = 2 if only_position else 4
     gating_threshold = chi2inv95[gating_dim]
-    measurements = torch.cat(
-        [detections[i].to_xyah().unsqueeze(0) for i in detection_indices],
-        dim=0,
-    )
-    for row, track_idx in enumerate(track_indices):
-        track = tracks[track_idx]
+    measurements = tlbr_to_xyah(detections.boxes[detection_indices][:, :4])
+    for row, track_id in enumerate(track_ids):
+        track = tracks[track_id]
         gating_distance = kf.gating_distance(
-            track.mean,
-            track.covariance,
+            track["mean"],
+            track["covariance"],
             measurements,
-            track.class_id,
+            track["class_id"],
             only_position,
         )
         cost_matrix[row, gating_distance > gating_threshold] = gated_cost

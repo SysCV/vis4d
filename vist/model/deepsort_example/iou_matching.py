@@ -1,65 +1,40 @@
 """IOU matching."""
 from __future__ import absolute_import
 
-from typing import List, Optional
-
+from typing import List, Optional, Dict, Any
 import torch
 
-from .detection import Detection
+from vist.struct.labels import Boxes2D
+from vist.common.bbox.utils import compute_iou
 from .linear_assignment import INFTY_COST
-from .track import Track
 
 
-def iou(bbox: torch.tensor, candidates: torch.tensor) -> torch.tensor:
-    """Computer intersection over union.
+def xyah_to_tlbr(bbox_xyah: torch.tensor) -> torch.tensor:
+    """Convert a single one dimension tlbr box to xyah.
 
     Args:
-        bbox :
-            A bounding box in format `(top left x, top left y, width, height)`.
-        candidates :
-            A matrix of candidate bounding boxes (one per row) in the same
-            format as `bbox`.
+        bbox_xyah: (4, ) [center_x, center_y, aspect_ratio, height]
 
     Returns:
-        iou_res: The intersection over union in [0, 1] between the `bbox` and
-            each candidate. A higher score means a larger fraction of the
-            `bbox` is occluded by the candidate.
+        bbox_tlbr: shape (4,)
+                    [top_left_x, top_left_y, bottom_right_x, bottom_right_y]
     """
-    bbox_tl, bbox_br = bbox[:2], bbox[:2] + bbox[2:]
-    candidates_tl = candidates[:, :2]
-    candidates_br = candidates[:, :2] + candidates[:, 2:]
+    bbox_tlbr = bbox_xyah.clone().detach()
+    height = bbox_xyah[3]
+    half_width = (height * bbox_xyah[2]) / 2.0
+    half_height = height / 2.0
 
-    tl = torch.stack(
-        [
-            torch.maximum(bbox_tl[0], candidates_tl[:, 0]),
-            torch.maximum(bbox_tl[1], candidates_tl[:, 1]),
-        ],
-        dim=1,
-    )
-
-    br = torch.stack(
-        [
-            torch.minimum(bbox_br[0], candidates_br[:, 0]),
-            torch.minimum(bbox_br[1], candidates_br[:, 1]),
-        ],
-        dim=1,
-    )
-    wh = br - tl
-    wh = torch.maximum(torch.zeros_like(wh), wh)
-    area_intersection = wh.prod(axis=1)
-    area_bbox = bbox[2:].prod()
-    area_candidates = candidates[:, 2:].prod(axis=1)
-
-    iou_res = area_intersection / (
-        area_bbox + area_candidates - area_intersection
-    )
-    return iou_res
+    bbox_tlbr[0] = bbox_xyah[0] - half_width
+    bbox_tlbr[1] = bbox_xyah[1] - half_height
+    bbox_tlbr[2] = bbox_xyah[0] + half_width
+    bbox_tlbr[3] = bbox_xyah[1] + half_height
+    return bbox_tlbr
 
 
 def iou_cost(
-    tracks: List[Track],
-    detections: List[Detection],
-    track_indices: Optional[List[int]] = None,
+    tracks: Dict[int, Dict[str, Any]],
+    detections: Boxes2D,
+    track_ids: Optional[List[int]] = None,
     detection_indices: Optional[List[int]] = None,
 ):
     """An intersection over union distance metric.
@@ -67,7 +42,7 @@ def iou_cost(
     Args:
         tracks : A list of tracks.
         detections : A list of detections.
-        track_indices : A list of indices to tracks that should be matched.
+        track_ids : A list of track ids that should be matched.
             Defaults to all `tracks`.
         detection_indices : A list of indices to detections that should be
             matched. Defaults to all `detections`.
@@ -77,21 +52,26 @@ def iou_cost(
         [len(track_indices), len(detection_indices)], where entry (i, j) is
         `1 - iou(tracks[track_indices[i]], detections[detection_indices[j]])`.
     """
-    if track_indices is None:
-        track_indices = torch.arange(len(tracks))
+    if track_ids is None:
+        track_ids = torch.tensor(list(tracks.keys())).to(detections.device)
     if detection_indices is None:
-        detection_indices = torch.arange(len(detections))
+        detection_indices = torch.arange(len(detections)).to(detections.device)
 
-    cost_matrix = torch.zeros((len(track_indices), len(detection_indices)))
-    for row, track_idx in enumerate(track_indices):
-        if tracks[track_idx].time_since_update > 1:
+    cost_matrix = torch.zeros((len(track_ids), len(detection_indices)))
+    for row, track_id in enumerate(track_ids):
+        if tracks[track_id]["time_since_update"] > 1:
             cost_matrix[row, :] = INFTY_COST
             continue
 
-        bbox = tracks[track_idx].to_tlwh()
-        candidates = torch.cat(
-            [detections[i].tlwh.unsqueeze(0) for i in detection_indices], dim=0
-        )
-        iou_res = iou(bbox, candidates)
+        bbox = xyah_to_tlbr(tracks[track_id]["mean"][:4])
+        conf = tracks[track_id]["confidence"]
+        bbox = torch.cat(
+            (bbox, torch.tensor([conf]).to(bbox.device))
+        ).unsqueeze(0)
+        box2d = Boxes2D(bbox)
+        candidates = detections[detection_indices]
+
+        iou_res = compute_iou(box2d, candidates).squeeze()
+
         cost_matrix[row, :] = torch.ones_like(iou_res) - iou_res
     return cost_matrix

@@ -2,7 +2,7 @@
 from typing import List, Tuple
 
 import torch
-import torch.nn as nn
+from torch import nn
 from detectron2.structures import Boxes, pairwise_iou
 from scipy.optimize import linear_sum_assignment as linear_assignment
 

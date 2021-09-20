@@ -4,30 +4,6 @@ from typing import Dict, List, Optional
 import torch
 
 
-def _pdist(
-    a: List[torch.tensor], b: List[torch.tensor]
-) -> torch.tensor:  # pylint: disable = invalid-name
-    """Compute pair-wise squared distance between points in `a` and `b`.
-
-    Args:
-        a : An NxM matrix of N samples of dimensionality M.
-        b : An LxM matrix of L samples of dimensionality M.
-
-    Returns:
-        r2: a matrix of size [len(a), len(b)] such that eleement (i, j)
-        contains the squared distance between `a[i]` and `b[j]`.
-    """
-    samples_a, samples_b = torch.stack(a, dmi=0), torch.stack(b, dim=0)
-    if len(samples_a) == 0 or len(samples_b) == 0:
-        return torch.zeros((len(samples_a), len(samples_b)))
-    a2, b2 = torch.square(samples_a).sum(axis=1), torch.square(samples_b).sum(
-        axis=1
-    )
-    r2 = -2.0 * torch.dot(samples_a, samples_b.T) + a2[:, None] + b2[None, :]
-    r2 = torch.clip(r2, 0.0, float("inf"))
-    return r2
-
-
 def _cosine_distance(
     a: List[torch.tensor],
     b: List[torch.tensor],
@@ -58,23 +34,6 @@ def _cosine_distance(
     return 1.0 - torch.matmul(normed_a, normed_b.T)
 
 
-def _nn_euclidean_distance(
-    x: List[torch.tensor], y: List[torch.tensor]
-):  # pylint: disable = invalid-name
-    """Helper function for nearest neighbor distance metric (Euclidean).
-
-    Args:
-        x : A matrix of N row-vectors (sample points).
-        y : A matrix of M row-vectors (query points).
-
-    Returns:
-        A vector of length M that contains for each entry in `y` the
-        smallest Euclidean distance to a sample in `x`.
-    """
-    distances = _pdist(x, y)
-    return torch.maximum(0.0, distances.min(axis=0))
-
-
 def _nn_cosine_distance(
     x: List[torch.tensor], y: List[torch.tensor]
 ) -> torch.tensor:  # pylint: disable = invalid-name
@@ -100,8 +59,6 @@ class NearestNeighborDistanceMetric(object):
     observed so far.
 
     Args:
-        metric : str
-            Either "euclidean" or "cosine".
         matching_threshold: float
             The matching threshold. Samples with larger distance are considered
             an invalid match.
@@ -115,19 +72,11 @@ class NearestNeighborDistanceMetric(object):
 
     def __init__(
         self,
-        metric: str,
         matching_threshold: float,
         budget: Optional[int] = None,
     ):
         """Init."""
-        if metric == "euclidean":
-            self._metric = _nn_euclidean_distance
-        elif metric == "cosine":
-            self._metric = _nn_cosine_distance
-        else:
-            raise ValueError(
-                "Invalid metric; must be either 'euclidean' or 'cosine'"
-            )
+        self._metric = _nn_cosine_distance
         self.matching_threshold = matching_threshold
         self.budget = budget
         self.samples: Dict[int, List[torch.tensor]] = {}

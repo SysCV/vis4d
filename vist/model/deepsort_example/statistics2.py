@@ -1,4 +1,4 @@
-"""Calculate statistics."""
+"""This script is for visualisation plot and do logarithmic fitting."""
 # type: ignore
 import pickle
 

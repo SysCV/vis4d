@@ -1,12 +1,13 @@
 """Track graph of deep SORT."""
 from collections import defaultdict
-from typing import List, Tuple
+from typing import List, Tuple, Optional
+from numpy.linalg import det
 
 import torch
 
 from vist.struct import Boxes2D
 
-from ...deepsort_example.detection import Detection
+
 from ...deepsort_example.iou_matching import iou_cost
 from ...deepsort_example.kalman_filter import KalmanFilter
 from ...deepsort_example.linear_assignment import (
@@ -15,31 +16,54 @@ from ...deepsort_example.linear_assignment import (
     min_cost_matching,
 )
 from ...deepsort_example.nn_matching import NearestNeighborDistanceMetric
-from ...deepsort_example.track import Track
 from .base import BaseTrackGraph, TrackGraphConfig
 
 
-def tlbr_to_tlwh(bbox_tlbr: torch.tensor) -> torch.tensor:
-    """Convert tlbr boxes to tlwh.
+def tlbr_to_xyah(bbox_tlbr: torch.tensor) -> torch.tensor:
+    """Convert a single one dimension tlbr box to xyah.
 
     Args:
-        bbox_tlbr: torch.FloatTensor: (N, 4) where each entry is defined by
-            [x1, y1, x2, y2]
+        bbox_tlbr: shape (4,)
+                    [top_left_x, top_left_y, bottom_right_x, bottom_right_y]
 
     Returns:
-        bbox_tlwh: torch.FloatTensor: (N, 4), [x1, y1, w, h]
+        bbox_xyah: (4, ) [center_x, center_y, aspect_ratio, height]
     """
-    bbox_tlwh = bbox_tlbr.clone().detach()
-    bbox_tlwh[:, 2] = bbox_tlbr[:, 2] - bbox_tlbr[:, 0]
-    bbox_tlwh[:, 3] = bbox_tlbr[:, 3] - bbox_tlbr[:, 1]
-    return bbox_tlwh
+    bbox_xyah = bbox_tlbr.clone().detach()
+    bbox_xyah[:2] = (bbox_tlbr[2:] + bbox_tlbr[:2]) / 2.0
+    height = bbox_tlbr[3] - bbox_tlbr[1]
+    width = bbox_tlbr[2] - bbox_tlbr[0]
+    bbox_xyah[2] = width / height
+    bbox_xyah[3] = height
+    return bbox_xyah
+
+
+def xyah_to_tlbr(bbox_xyah: torch.tensor) -> torch.tensor:
+    """Convert a single one dimension tlbr box to xyah.
+
+    Args:
+        bbox_xyah: (4, ) [center_x, center_y, aspect_ratio, height]
+
+    Returns:
+        bbox_tlbr: shape (4,)
+                    [top_left_x, top_left_y, bottom_right_x, bottom_right_y]
+    """
+    bbox_tlbr = bbox_xyah.clone().detach()
+    height = bbox_xyah[3]
+    half_width = (height * bbox_xyah[2]) / 2.0
+    half_height = height / 2.0
+
+    bbox_tlbr[0] = bbox_xyah[0] - half_width
+    bbox_tlbr[1] = bbox_xyah[1] - half_height
+    bbox_tlbr[2] = bbox_xyah[0] + half_width
+    bbox_tlbr[3] = bbox_xyah[1] + half_height
+    return bbox_tlbr
 
 
 class DeepSORTTrackGraphConfig(TrackGraphConfig):
     """deep SORT graph config."""
 
     min_confidence: float = 0.3
-    metric = "cosine"
     max_cosine_distance = 0.2
     max_age = 70
     n_init = 1
@@ -60,37 +84,27 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         self.max_age = self.cfg.max_age
         self.n_init = self.cfg.n_init
         self.metric = NearestNeighborDistanceMetric(
-            self.cfg.metric, self.cfg.max_cosine_distance, self.cfg.nn_budget
+            self.cfg.max_cosine_distance, self.cfg.nn_budget
         )
-        self._next_id = 1
-        self.tracks = []  # type: ignore
         self.reset()
 
-    def reset(self) -> None:
-        """Reset tracks."""
-        self._next_id = 1
-        self.tracks = []  # type: ignore
-
     def get_output(self) -> Boxes2D:
-        """Get active tracks at given frame.
-
-        If frame_id is None, return all tracks in memory.
-        """
+        """Get active tracks at current frame."""
         track_boxes = []
         class_ids = []
         track_ids = []
-        for track in self.tracks:
+        for track_id, track in self.tracks.items():
             # if not track.is_confirmed() or track.time_since_update > 1:
             #     continue
-            if track.time_since_update >= 1:
+            if track["time_since_update"] >= 1:
                 continue
-            x1, y1, x2, y2 = track.to_tlbr()
-            conf = track.confidence
+            x1, y1, x2, y2 = xyah_to_tlbr(track["mean"][:4])
+            conf = track["confidence"]
             track_boxes.append(
                 torch.tensor([x1, y1, x2, y2, conf]).unsqueeze(0)
             )
-            class_ids.append(track.class_id)
-            track_ids.append(track.track_id)
+            class_ids.append(track["class_id"])
+            track_ids.append(track_id)
 
         track_boxes = (
             torch.cat(track_boxes)
@@ -113,17 +127,13 @@ class DeepSORTTrackGraph(BaseTrackGraph):
     ) -> Boxes2D:
         """Process inputs, match detections with existing tracks."""
         det_boxes = detections.boxes
-        bbox_tlbr = det_boxes[:, :-1]
         confidences = det_boxes[:, -1]
-        class_ids = detections.class_ids
-        bbox_tlwh = tlbr_to_tlwh(bbox_tlbr)
-        dets = [
-            Detection(bbox_tlwh[i], conf, int(class_id), det_features[i])
-            for i, (conf, class_id) in enumerate(zip(confidences, class_ids))
-            if conf >= self.cfg.min_confidence
-        ]
+        select_idx = confidences >= self.cfg.min_confidence
+        detections_selected = detections[select_idx]
+        det_features_selected = det_features[select_idx]
+
         self.predict()
-        self.update(dets)
+        self.update(detections_selected, det_features_selected, frame_id)
 
         output = self.get_output()
         return output
@@ -133,14 +143,20 @@ class DeepSORTTrackGraph(BaseTrackGraph):
 
         This function should be called once every time step, before `update`.
         """
-        for track in self.tracks:
-            track.predict(self.kf)
+        for _, track in self.tracks.items():
+            mean, covariance = self.kf.predict(
+                track["mean"], track["covariance"], track["class_id"]
+            )
+            track["mean"] = mean
+            track["covariance"] = covariance
+            track["age"] += 1
+            track["time_since_update"] += 1
 
-    def update(self, detections: List[Detection]):  # type: ignore # pylint: disable=arguments-differ
+    def update(self, detections: Boxes2D, det_features: torch.tensor, frame_id):  # type: ignore # pylint: disable=arguments-differ
         """Perform association and track management."""
         cls_detidx_mapping = defaultdict(list)
-        for i, det in enumerate(detections):
-            cls_detidx_mapping[det.class_id].append(i)
+        for i, class_id in enumerate(detections.class_ids):
+            cls_detidx_mapping[int(class_id)].append(i)
         # Run matching cascade.
         matches, unmatched_tracks, unmatched_detections = [], [], []
         for class_id, detidx in cls_detidx_mapping.items():
@@ -148,7 +164,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
                 matches_cls,
                 unmatched_tracks_cls,
                 unmatched_detections_cls,
-            ) = self._match(detections, detidx, class_id)
+            ) = self._match(detections, detidx, class_id, det_features)
             matches.extend(matches_cls)
             unmatched_tracks.extend(unmatched_tracks_cls)
             unmatched_detections.extend(unmatched_detections_cls)
@@ -156,17 +172,47 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         matched_det_set = set()
         unmatched_det_set = set()
         # Update track set.
-        for track_idx, detection_idx in matches:
-            assert detection_idx not in matched_det_set
-            matched_det_set.add(detection_idx)
-            self.tracks[track_idx].update(self.kf, detections[detection_idx])
-        for track_idx in unmatched_tracks:
-            self.tracks[track_idx].mark_missed()
-        for detection_idx in unmatched_detections:
-            self._initiate_track(detections[detection_idx])
-        self.tracks = [
-            t for t in self.tracks if not t.is_deleted()
-        ]  # type:ignore
+        for track_id, det_idx in matches:
+            assert det_idx not in matched_det_set
+            matched_det_set.add(det_idx)
+
+            track = self.tracks[track_id]
+            # kf measurement update step and update the feature cache.
+            new_pos = tlbr_to_xyah(detections.boxes[det_idx][:4])
+            track["mean"], track["covariance"] = self.kf.update(
+                track["mean"],
+                track["covariance"],
+                new_pos,
+                int(detections.class_ids[det_idx]),
+            )
+            track["mean"][:4] = new_pos
+            track["confidence"] = float(detections.boxes[det_idx][4])
+            track["features"].append(det_features[det_idx])
+            track["hits"] += 1
+            track["time_since_update"] = 0
+            if track["state"] == "Tentative" and track["hits"] >= self._n_init:
+                track["state"] = "Confirmed"
+
+        # mark unmatched tracks to 'delete' in certain cases
+        for track_id in unmatched_tracks:
+            track = self.tracks[track_id]
+            if track["state"] == "Tentative":
+                track["state"] = "Deleted"
+            elif track["time_since_update"] > self.max_age:
+                track["state"] = "Deleted"
+
+        for det_idx in unmatched_detections:
+            det_box = tlbr_to_xyah(detections.boxes[det_idx][:4])
+            confidence = float(detections.boxes[det_idx][4])
+            class_id = int(detections.class_ids[det_idx])
+            self._initiate_track(
+                det_box, det_features[det_idx], class_id, confidence
+            )
+        # may cut this step and merge with the marking process above
+        for t_id in list(self.tracks.keys()):
+            if self.tracks[t_id]["state"] == "Deleted":
+                self.tracks.pop(t_id)
+
         for unmatched_det in unmatched_detections:
             assert unmatched_det not in unmatched_det_set
             unmatched_det_set.add(unmatched_det)
@@ -174,14 +220,18 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         assert len(matched_det_set | unmatched_det_set) == len(detections)
 
         # Update distance metric.
-        active_targets = [t.track_id for t in self.tracks if t.is_confirmed()]
+        active_targets = [
+            t_id
+            for t_id, t in self.tracks.items()
+            if t["state"] == "Confirmed"
+        ]
         features, targets = [], []
-        for track in self.tracks:
-            if not track.is_confirmed():
+        for t_id, track in self.tracks.items():
+            if not track["state"] == "Confirmed":
                 continue
-            features += track.features
-            targets += [track.track_id for _ in track.features]
-            track.features = []
+            features += track["features"]
+            targets += [t_id for _ in track["features"]]
+            track["features"] = []
         self.metric.partial_fit(
             features,
             targets,
@@ -190,40 +240,45 @@ class DeepSORTTrackGraph(BaseTrackGraph):
 
     def _match(
         self,
-        detections: List[Detection],
+        detections: Boxes2D,
         detection_indices: List[int],
         class_id: int,
+        det_features: torch.tensor,
     ) -> Tuple[List[Tuple[int, int]], List[int], List[int]]:
         """Matching."""
 
-        def gated_metric(tracks, dets, track_indices, detection_indices):
+        def gated_metric(
+            tracks,
+            dets: Boxes2D,
+            dets_features: torch.tensor,
+            track_ids: List[int],
+            detection_indices: List[int],
+        ):
             """Calculate cost matrix."""
-            features = [dets[i].feature for i in detection_indices]
-            targets = [tracks[i].track_id for i in track_indices]
+            features = [dets_features[i] for i in detection_indices]
             # calculate cost matrix using deep feature
-            cost_matrix = self.metric.distance(features, targets)
+            cost_matrix = self.metric.distance(features, track_ids)
             # use mahalanobis distance to gate cost matrix
             cost_matrix = gate_cost_matrix(
                 self.kf,
                 cost_matrix,
                 tracks,
                 dets,
-                track_indices,
+                track_ids,
                 detection_indices,
             )
-
             return cost_matrix
 
         # Split track set into confirmed and unconfirmed tracks.
         confirmed_tracks = [
-            i
-            for i, t in enumerate(self.tracks)
-            if t.is_confirmed() and t.class_id == class_id
+            t_id
+            for t_id, t in self.tracks.items()
+            if t["state"] == "Confirmed" and t["class_id"] == class_id
         ]
         unconfirmed_tracks = [
-            i
-            for i, t in enumerate(self.tracks)
-            if not t.is_confirmed() and t.class_id == class_id
+            t_id
+            for t_id, t in self.tracks.items()
+            if not t["state"] == "Confirmed" and t["class_id"] == class_id
         ]
 
         # Associate confirmed tracks using appearance features.
@@ -235,31 +290,39 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             gated_metric,
             self.metric.matching_threshold,
             self.max_age,
-            self.tracks,  # type:ignore
+            self.tracks,
             detections,
+            det_features,
             confirmed_tracks,
             detection_indices,
         )
 
         # Associate remaining tracks together with unconfirmed tracks using IOU
+        # This helps to account for sudden appearance changes
         iou_track_candidates = unconfirmed_tracks + [
             k
             for k in unmatched_tracks_a
-            if self.tracks[k].time_since_update == 1
+            if self.tracks[k]["time_since_update"] == 1
         ]
         unmatched_tracks_a = [
             k
             for k in unmatched_tracks_a
-            if self.tracks[k].time_since_update != 1
+            if self.tracks[k]["time_since_update"] != 1
         ]
+        iou_cost_matrix = iou_cost(
+            self.tracks,
+            detections,
+            iou_track_candidates,
+            unmatched_detections,
+        )
         (
             matches_b,
             unmatched_tracks_b,
             unmatched_detections,
         ) = min_cost_matching(
-            iou_cost,
+            iou_cost_matrix,
             self.max_iou_distance,
-            self.tracks,  # type:ignore
+            self.tracks,
             detections,
             iou_track_candidates,
             unmatched_detections,
@@ -269,22 +332,25 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         unmatched_tracks = list(set(unmatched_tracks_a + unmatched_tracks_b))
         return matches, unmatched_tracks, unmatched_detections
 
-    def _initiate_track(self, detection: Detection) -> None:
+    def _initiate_track(
+        self,
+        det_box: torch.tensor,
+        det_feature: torch.tensor,
+        class_id: int,
+        confidence: float,
+    ) -> None:
         """Initiate a track."""
-        mean, covariance = self.kf.initiate(
-            detection.to_xyah(), detection.class_id
-        )
-        confidence, class_id = detection.confidence, detection.class_id
-        self.tracks.append(  # type:ignore
-            Track(
-                mean,
-                covariance,
-                confidence,
-                class_id,
-                self._next_id,
-                self.n_init,
-                self.max_age,
-                detection.feature,
-            )
-        )
-        self._next_id += 1
+        mean, covariance = self.kf.initiate(det_box, class_id)
+        track = {
+            "mean": mean,
+            "covariance": covariance,
+            "confidence": confidence,
+            "class_id": class_id,
+            "features": [det_feature],
+            "state": "Confirmed",
+            "hits": 1,
+            "age": 1,
+            "time_since_update": 0,
+        }
+        self.tracks[self.num_tracks] = track
+        self.num_tracks += 1
