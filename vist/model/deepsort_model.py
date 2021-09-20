@@ -60,13 +60,13 @@ class DeepSORT(BaseModel):
 
         instance_boxes = torch.empty([0, 5])
         for batch_index, label in enumerate(labels):
-            boxes = label.boxes[:, :-1].float()  # type: ignore
+            boxes = label.boxes[:, :-1].float()
             batch_column = torch.ones(len(boxes), 1) * batch_index
             batch_boxes = torch.cat((batch_column, boxes), dim=1)
             instance_boxes = torch.cat((instance_boxes, batch_boxes), dim=0)
         instance_boxes = instance_boxes.to(self.device)
         instance_ids = torch.cat(
-            [label.track_ids for label in labels], dim=0  # type:ignore
+            [label.track_ids for label in labels], dim=0
         ).to(self.device)
         batch_size = min(
             self.cfg.max_boxes_num, len(instance_boxes)  # type:ignore

@@ -2,7 +2,7 @@
 from typing import Optional, Tuple
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from .kf_parameters import cov_motion_Q, cov_P0, cov_project_R
 
@@ -34,7 +34,7 @@ class KalmanFilter(nn.Module):  # type: ignore
     and their respective velocities.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Init."""
         super().__init__()
         ndim, dt = 4, 1.0

@@ -21,7 +21,7 @@ fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
 skip_empty_samples = true
     [dataloader.data_backend]
     type = "FileBackend"
-    [dataloader.ref_sampling_cfg]
+    [dataloader.ref_sampling]
     type = 'uniform'
     scope = 3
     num_ref_imgs = 1

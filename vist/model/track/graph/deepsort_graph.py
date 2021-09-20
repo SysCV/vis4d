@@ -1,12 +1,10 @@
 """Track graph of deep SORT."""
 from collections import defaultdict
-from typing import List, Tuple, Optional
-from numpy.linalg import det
+from typing import List, Optional, Tuple
 
 import torch
 
 from vist.struct import Boxes2D
-
 
 from ...deepsort_example.iou_matching import iou_cost
 from ...deepsort_example.kalman_filter import KalmanFilter

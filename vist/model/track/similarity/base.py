@@ -1,12 +1,14 @@
-"""RoIHead interface for backend."""
+"""VisT base class for similarity networks."""
 
 import abc
-from typing import Any
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from pydantic import BaseModel, Field
 
+from vist.common.bbox.samplers import SamplingResult
 from vist.common.registry import RegistryHolder
+from vist.struct import Boxes2D, Images, LossesType
 
 
 class SimilarityLearningConfig(BaseModel, extra="allow"):
@@ -16,14 +18,44 @@ class SimilarityLearningConfig(BaseModel, extra="allow"):
 
 
 class BaseSimilarityHead(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
-    """Base similarity head class."""
+    """Base similarity learning head class."""
 
     @abc.abstractmethod
-    def forward(self, *args: Any, **kwargs: Any) -> Any:  # type: ignore
-        """Forward method.
+    def forward_train(
+        self,
+        inputs: Union[List[Images], List[Dict[str, torch.Tensor]]],
+        boxes: List[List[Boxes2D]],
+        targets: List[List[Boxes2D]],
+    ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
+        """Forward pass during training stage.
 
-        Process proposals, output predictions and possibly target
-        assignments.
+        Args:
+            inputs: Either images or feature maps. Batched, including possible
+                reference views.
+            boxes: Detected boxes to apply similarity learning on.
+            targets: Target boxes with tracking identities.
+
+        Returns:
+            LossesType: A dict of scalar loss tensors.
+             Optional[List[SamplingResult]]: Sampling result for
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def forward_test(
+        self,
+        inputs: Union[Images, Dict[str, torch.Tensor]],
+        boxes: List[Boxes2D],
+    ) -> List[torch.Tensor]:
+        """Forward pass during testing stage.
+
+        Args:
+            inputs: Model input (batched).
+            boxes: Input boxes to compute similarity embedding for.
+
+        Returns:
+            List[torch.Tensor]: Similarity embeddings (one vector per box, one
+            tensor per batch element).
         """
         raise NotImplementedError
 

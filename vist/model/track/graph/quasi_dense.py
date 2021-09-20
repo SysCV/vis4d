@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 from pydantic import validator
 
-from vist.common.bbox.utils import compute_iou
+from vist.common.bbox.utils import bbox_iou
 from vist.struct import Boxes2D
 
 from .base import BaseTrackGraph, TrackGraphConfig
@@ -123,7 +123,7 @@ class QDTrackGraph(BaseTrackGraph):
         _, inds = detections.boxes[:, -1].sort(descending=True)
         detections, embeddings = detections[inds], embeddings[inds]
         valids = embeddings.new_ones((len(detections),))
-        ious = compute_iou(detections, detections)
+        ious = bbox_iou(detections, detections)
         for i in range(1, len(detections)):
             if detections.boxes[i, -1] < self.cfg.obj_score_thr:
                 thr = self.cfg.nms_backdrop_iou_thr
@@ -216,7 +216,7 @@ class QDTrackGraph(BaseTrackGraph):
                 self.create_track(cur_id, det, embed, frame_id)
 
         backdrop_inds = torch.nonzero(ids == -1, as_tuple=False).squeeze(1)
-        ious = compute_iou(detections[backdrop_inds], detections)
+        ious = bbox_iou(detections[backdrop_inds], detections)
         for i, ind in enumerate(backdrop_inds):
             if (ious[i, :ind] > self.cfg.nms_backdrop_iou_thr).any():
                 backdrop_inds[i] = -1

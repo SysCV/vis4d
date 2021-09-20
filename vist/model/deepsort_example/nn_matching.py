@@ -52,7 +52,7 @@ def _nn_cosine_distance(
     return min_distance
 
 
-class NearestNeighborDistanceMetric(object):
+class NearestNeighborDistanceMetric:
     """A nearest neighbor distance metric.
 
     For each target, returns the closest distance to any sample that has been

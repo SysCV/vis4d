@@ -1,11 +1,13 @@
 """IOU matching."""
 from __future__ import absolute_import
 
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
 import torch
 
-from vist.struct.labels import Boxes2D
 from vist.common.bbox.utils import compute_iou
+from vist.struct.labels import Boxes2D
+
 from .linear_assignment import INFTY_COST
 
 

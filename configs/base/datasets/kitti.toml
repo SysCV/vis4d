@@ -10,7 +10,7 @@ num_processes = 0
     [train.dataloader]
     skip_empty_samples = true
 
-    [train.dataloader.ref_sampling_cfg]
+    [train.dataloader.ref_sampling]
     type = 'uniform'
     scope = 3
     num_ref_imgs = 1

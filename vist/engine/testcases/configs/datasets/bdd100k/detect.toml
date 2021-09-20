@@ -5,7 +5,7 @@ annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation_coco.json
 data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
 config_path = "vist/engine/testcases/detect/bdd100k-samples/config.toml"
 num_processes = 0
-    [train.dataloader.ref_sampling_cfg]
+    [train.dataloader.ref_sampling]
     type = 'uniform'
     scope = 1
     num_ref_imgs = 0

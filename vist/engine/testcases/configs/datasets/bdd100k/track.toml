@@ -5,6 +5,7 @@ annotations = "vist/engine/testcases/track/bdd100k-samples/labels/"
 data_root = "vist/engine/testcases/track/bdd100k-samples/images/"
 config_path = "box_track"
 num_processes = 0
+cache_as_binary = true
     [train.dataloader]
     compute_global_instance_ids = true
         [train.dataloader.ref_sampling]
@@ -28,6 +29,7 @@ annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "vist/engine/testcases/detect/bdd100k-samples/images/"
 config_path = "det"
 num_processes = 0
+cache_as_binary = true
     [train.dataloader]
         [train.dataloader.ref_sampling]
         scope = 0
@@ -49,6 +51,7 @@ data_root = "vist/engine/testcases/track/bdd100k-samples/images/"
 eval_metrics = ["detect", "track"]
 config_path = "box_track"
 num_processes = 0
+cache_as_binary = true
     [[test.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}

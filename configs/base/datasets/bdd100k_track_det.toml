@@ -5,6 +5,7 @@ annotations = "data/bdd100k/labels/box_track_20/train/"
 data_root = "data/bdd100k/images/track/train/"
 config_path = "box_track"
 num_processes = 0
+cache_as_binary = true
     [train.dataloader]
     skip_empty_samples = true
 
@@ -30,6 +31,7 @@ annotations = "data/bdd100k/labels/det_20/det_train.json"
 data_root = "data/bdd100k/images/100k/train/"
 config_path = "det"
 num_processes = 0
+cache_as_binary = true
     [train.dataloader.ref_sampling]
     scope = 0
     num_ref_imgs = 1
@@ -50,6 +52,7 @@ data_root = "data/bdd100k/images/track/val/"
 eval_metrics = ["detect", "track"]
 config_path = "box_track"
 num_processes = 0
+cache_as_binary = true
     [[test.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}

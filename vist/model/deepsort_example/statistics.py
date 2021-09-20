@@ -222,9 +222,7 @@ def load_from_gt(dataset_cfg):
                 )
         gt_dict[video_name][frame_index] = Boxes2D(boxes, class_ids)
 
-    with open(
-        "/home/yinjiang/systm/data/instance_dict.pickle", "wb"
-    ) as handle:
+    with open("data/instance_dict.pickle", "wb") as handle:
         pickle.dump(instance_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
     return gt_dict, instance_dict
 
@@ -302,15 +300,15 @@ if __name__ == "__main__":
                     pred_xyah[np.newaxis, :] - gt_xyah[np.newaxis, :],
                     axis=0,
                 )
-    with open("/home/yinjiang/systm/data/det_cov_R.pickle", "wb") as handle:
+    with open("data/det_cov_R.pickle", "wb") as handle:
         pickle.dump(detect_cov_R, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    """
     ###########################################################################
     # motion covariance Q, calculated from instance_dict
     print("calculate motion covariance")
 
     def calculate_motion_cov_Q():
+        """Calculate motion covariance Q."""
         with open(
             "/home/yinjiang/systm/data/instance_dict.pickle", "rb"
         ) as handle:
@@ -415,15 +413,44 @@ if __name__ == "__main__":
     motion_cov_Q, position_dict, velocity_dict = calculate_motion_cov_Q()
 
     print("saving")
-    with open("/home/yinjiang/systm/data/motion_cov_Q.pickle", "wb") as handle:
+    with open("data/motion_cov_Q.pickle", "wb") as handle:
         pickle.dump(motion_cov_Q, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    with open(
-        "/home/yinjiang/systm/data/position_dict.pickle", "wb"
-    ) as handle:
+    with open("data/position_dict.pickle", "wb") as handle:
         pickle.dump(position_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    with open(
-        "/home/yinjiang/systm/data/velocity_dict.pickle", "wb"
-    ) as handle:
+    with open("data/velocity_dict.pickle", "wb") as handle:
         pickle.dump(velocity_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    """
-    print("done")
+
+    print("printing statistics")
+
+    ### output statistics result
+    with open("data/motion_cov_Q.pickle", "rb") as handle:
+        motion_cov_Q = pickle.load(handle)
+    with open("data/position_dict.pickle", "rb") as handle:
+        position_dict = pickle.load(handle)
+    with open("data/velocity_dict.pickle", "rb") as handle:
+        velocity_dict = pickle.load(handle)
+    with open("data/det_cov_R.pickle", "rb") as handle:
+        detect_cov_R = pickle.load(handle)
+
+    for cat in Categories:
+        print("-" * 100)
+        print(cat)
+        Q_mean = np.mean(motion_cov_Q[cat]["deviation"], axis=0)
+        Q_cov = np.cov(motion_cov_Q[cat]["deviation"], rowvar=False)
+        P0_cov_pos = np.cov(position_dict[cat], rowvar=False)
+        P0_cov_vel = np.cov(velocity_dict[cat], rowvar=False)
+        print("Q_mean: \n", Q_mean)
+        print("Q_cov: \n", Q_cov)
+        print("P0_cov_pos: \n", P0_cov_pos)
+        print("P0_cov_vel: \n", P0_cov_vel)
+        print("-" * 100)
+
+    print("#" * 100)
+    for cat in Categories:
+        print("-" * 100)
+        print(cat)
+        R_mean = np.mean(detect_cov_R[cat]["deviation"], axis=0)
+        R_cov = np.cov(detect_cov_R[cat]["deviation"], rowvar=False)
+        print("R_mean: \n", R_mean)
+        print("R_cov: \n", R_cov)
+        print("-" * 100)

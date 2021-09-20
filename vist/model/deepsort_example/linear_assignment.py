@@ -1,13 +1,14 @@
 """LInear assignment."""
 from __future__ import absolute_import
 
-from typing import Callable, List, Optional, Tuple, Dict, Any
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import torch
 from scipy.optimize import linear_sum_assignment as linear_assignment
 
 from vist.struct.labels import Boxes2D
-from .kalman_filter import KalmanFilter, chi2inv95
 
+from .kalman_filter import KalmanFilter, chi2inv95
 
 INFTY_COST = 1e5
 

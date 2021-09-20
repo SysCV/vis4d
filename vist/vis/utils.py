@@ -83,13 +83,12 @@ def preprocess_boxes(
 
         label = ""
         if t is not None:
-            label += str(int(t)) + ","
+            label += str(int(t))
         if c is not None:
-            str_c = str(int(c))
-            label += str_c + ","
+            label += "," + str(int(c))
 
         if s is not None:
-            label += "{:.1f}%".format(s * 100)
+            label += ",{:.1f}%".format(s * 100)
         labels.append(label)
         draw_colors.append(draw_color)
 

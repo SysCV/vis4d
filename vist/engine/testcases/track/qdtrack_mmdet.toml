@@ -12,6 +12,7 @@ path = "../configs/models/mmdetection/qdtrack_R_50_FPN.toml"
     [model.lr_scheduler]
     type = "MultiStepLR"
     warmup = "constant"
+    warmup_steps = 1
     kwargs = {"milestones" = [9, 11]}
 
 [launch]
@@ -20,4 +21,4 @@ workers_per_gpu = 0
 
 [trainer]
 max_steps = 2
-log_every_n_steps = 50
+log_every_n_steps = 1

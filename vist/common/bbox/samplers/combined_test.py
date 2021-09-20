@@ -52,8 +52,10 @@ class TestCombined(unittest.TestCase):
         matching, boxes, targets = self._get_boxes_targets(
             num_gts, num_samples
         )
-        sampled_boxes, sampled_targets = sampler.sample(
-            matching, boxes, targets
+        sampling_result = sampler.sample(matching, boxes, targets)
+        sampled_boxes, sampled_targets = (
+            sampling_result.sampled_boxes,
+            sampling_result.sampled_targets,
         )
         self.assertEqual(len(sampled_boxes[0]), samples_per_img)
         self.assertEqual(len(sampled_boxes[0]), len(sampled_targets[0]))
