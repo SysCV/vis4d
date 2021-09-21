@@ -9,6 +9,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
+from scalabel import enable_quiet
 from scalabel.eval.detect import evaluate_det
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
 from scalabel.eval.result import Result
@@ -19,6 +20,7 @@ from ..data.datasets import BaseDatasetLoader
 from ..struct import InputSample, LabelInstance, ModelOutput
 from .utils import all_gather_gts, all_gather_predictions
 
+enable_quiet()  # turn off undesired logs during eval
 logger = logging.getLogger("pytorch_lightning")
 
 
@@ -87,7 +89,7 @@ class VisTEvaluatorCallback(Callback):
         """Process the pair of inputs and outputs."""
         raise NotImplementedError
 
-    def evaluate(self) -> Dict[str, Result]:
+    def evaluate(self, epoch: int) -> Dict[str, Result]:
         """Evaluate the performance after processing all input/output pairs."""
         raise NotImplementedError
 
@@ -108,7 +110,7 @@ class VisTEvaluatorCallback(Callback):
         """Wait for on_test_epoch_end PL hook to call 'evaluate'."""
         self.gather(pl_module)
         if trainer.is_global_zero:
-            self.evaluate()
+            self.evaluate(trainer.current_epoch)
         self.reset()
 
     def on_validation_epoch_end(
@@ -117,7 +119,7 @@ class VisTEvaluatorCallback(Callback):
         """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
         self.gather(pl_module)
         if trainer.is_global_zero:
-            self.evaluate()
+            self.evaluate(trainer.current_epoch)
         self.reset()
 
     def on_test_batch_end(  # type: ignore
@@ -194,7 +196,7 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
                 prediction.labels = out_cpu.to_scalabel(self.cats_id2name)
                 self._predictions[key].append(prediction)
 
-    def evaluate(self) -> Dict[str, Result]:
+    def evaluate(self, epoch: int) -> Dict[str, Result]:
         """Evaluate the performance after processing all input/output pairs."""
         results = {}
         if not self.logging_disabled:
@@ -220,7 +222,7 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
                             f"{key}/{metric}": value
                             for metric, value in results[key].summary().items()
                         }
-                        self.logger.log_metrics(log_dict)
+                        self.logger.log_metrics(log_dict, epoch)
                     logger.info("Showing results for %s", key)
                     logger.info(results[key])
         return results

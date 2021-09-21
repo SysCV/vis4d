@@ -64,11 +64,11 @@ class QDTrack(BaseModel):
 
         # from vist.vis.image import imshow_bboxes
         # for batch_i, key_inp in enumerate(key_inputs):
-        #     imshow_bboxes(key_inp.image.tensor[0], key_targets[batch_i])
+        #     imshow_bboxes(key_inp.images.tensor[0], key_inp.boxes2d)
         #     for ref_i, ref_inp in enumerate(ref_inputs):
         #         imshow_bboxes(
-        #             ref_inp[batch_i].image.tensor[0],
-        #             ref_targets[ref_i][batch_i],
+        #             ref_inp[batch_i].images.tensor[0],
+        #             ref_inp[batch_i].boxes2d,
         #         )
 
         # feature extraction

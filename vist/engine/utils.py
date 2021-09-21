@@ -1,17 +1,23 @@
 """VisT engine utils."""
 import inspect
 import itertools
+import json
 import logging
 import os
 import sys
 import warnings
 from argparse import Namespace
+from os import path as osp
 from typing import Dict, List, Optional, Tuple, no_type_check
 
 import pytorch_lightning as pl
+import yaml
+from devtools import debug
 from pytorch_lightning.callbacks.progress import reset
+from pytorch_lightning.utilities import rank_zero_only, rank_zero_info
 from scalabel.label.typing import Frame
 from termcolor import colored
+from torch.utils.collect_env import get_pretty_env_info
 
 from ..common.utils.distributed import (
     all_gather_object_cpu,
@@ -19,6 +25,9 @@ from ..common.utils.distributed import (
 )
 
 # ignore DeprecationWarning by default (e.g. numpy)
+from ..config import Config
+from ..struct import DictStrAny
+
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
@@ -92,6 +101,35 @@ def setup_logger(
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(plain_formatter)
         logger.addHandler(fh)
+
+
+@rank_zero_only
+def setup_logging(output_dir: str, trainer_args: DictStrAny, cfg: Config) -> None:
+    """Setup command line logger, create output dir, save info."""
+    setup_logger(osp.join(output_dir, "log.txt"))
+
+    # print env / config
+    rank_zero_info("Environment info: %s", get_pretty_env_info())
+    rank_zero_info(
+        "Running with full config:\n %s",
+        str(debug.format(cfg)).split("\n", 1)[1],
+    )
+    if cfg.launch.seed is not None:
+        rank_zero_info("Using a fixed random seed: %s", cfg.launch.seed)
+
+    # save trainer args (converted to string)
+    path = osp.join(output_dir, "trainer_args.yaml")
+    for key, arg in trainer_args.items():
+        trainer_args[key] = str(arg)
+    with open(path, "w", encoding="utf-8") as outfile:
+        yaml.dump(trainer_args, outfile, default_flow_style=False)
+    rank_zero_info("Trainer arguments saved to %s", path)
+
+    # save VisT config
+    path = osp.join(output_dir, "config.json")
+    with open(path, "w", encoding="utf-8") as outfile:
+        json.dump(trainer_args, outfile)
+    rank_zero_info("VisT Config saved to %s", path)
 
 
 def split_args(args: Namespace) -> Tuple[Namespace, Namespace]:

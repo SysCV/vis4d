@@ -99,7 +99,7 @@ def load_config_from_mmdet(url: str) -> str:
     """Get config from mmdetection GitHub repository."""
     full_url = (
         "https://raw.githubusercontent.com/"
-        "open-mmlab/mmdetection/master/configs/" + url
+        "syscv/mmdetection/master/configs/" + url
     )
     response = requests.get(full_url)
     assert (

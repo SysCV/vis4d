@@ -110,25 +110,13 @@ class VisTDataModule(pl.LightningDataModule):
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""
         train_dataset = data.ConcatDataset(self.train_datasets)
-
-        init_fn = (
-            partial(
-                worker_init_fn,
-                num_workers=self.workers_per_gpu,
-                rank=get_rank(),
-                seed=self.seed,
-            )
-            if self.seed is not None
-            else None
-        )
-
         train_dataloader = data.DataLoader(
             train_dataset,
             batch_size=self.samples_per_gpu,
             num_workers=self.workers_per_gpu,
             collate_fn=identity_batch_collator,
-            worker_init_fn=init_fn,
             persistent_workers=self.workers_per_gpu > 0,
+            pin_memory=True
         )
         return train_dataloader
 
@@ -169,17 +157,3 @@ class VisTDataModule(pl.LightningDataModule):
             )
             dataloaders.append(test_dataloader)
         return dataloaders
-
-
-def worker_init_fn(
-    worker_id: int, num_workers: int, rank: int, seed: int
-) -> None:  # pragma: no cover
-    """Init worker with unique seed.
-
-    The seed of each worker equals to:
-    num_worker * rank + worker_id + user_seed
-    """
-    worker_seed = num_workers * rank + worker_id + seed
-    torch.manual_seed(worker_seed)
-    np.random.seed(worker_seed)
-    random.seed(worker_seed)

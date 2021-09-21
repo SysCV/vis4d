@@ -36,6 +36,7 @@ class Launch(BaseModel):
     i.e. no specific random seed is chosen.
     weights: Filepath for weights to load in test / predict. Default: "best",
     will load the best checkpoint in work_dir/exp_name/version.
+    checkpoint_period: After N epochs, save out checkpoints. Default: 1
     resume: Whether to resume from weights (if specified), or last ckpt in
     work_dir/exp_name/version.
     """
@@ -56,6 +57,7 @@ class Launch(BaseModel):
     visualize: bool = False
     seed: Optional[int]
     weights: Optional[str]
+    checkpoint_period: int = 1
     resume: bool = False
 
     @validator("input_dir", always=True)

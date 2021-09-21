@@ -1,13 +1,10 @@
 """DefaultTrainer for VisT."""
-import json
 import os.path as osp
 from typing import Optional
 
 import pytorch_lightning as pl
-import yaml
-from devtools import debug
-from pytorch_lightning.utilities.distributed import rank_zero_info
-from torch.utils.collect_env import get_pretty_env_info
+from pytorch_lightning.plugins import DDPPlugin, DDPSpawnPlugin, DDP2Plugin
+from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 
 from ..config import Config, default_argument_parser, parse_config
 from ..data import VisTDataModule, build_dataset_loaders
@@ -15,7 +12,7 @@ from ..model import build_model
 from ..struct import DictStrAny
 from ..vis import ScalabelWriterCallback
 from .evaluator import ScalabelEvaluatorCallback
-from .utils import VisTProgressBar, setup_logger, split_args
+from .utils import VisTProgressBar, split_args, setup_logging
 
 
 def default_setup(
@@ -32,7 +29,7 @@ def default_setup(
     """
     # set seeds
     if cfg.launch.seed is not None:
-        pl.seed_everything(cfg.launch.seed)
+        pl.seed_everything(cfg.launch.seed, workers=True)
 
     # prepare trainer args
     if trainer_args is None:
@@ -59,7 +56,7 @@ def default_setup(
     checkpoint = pl.callbacks.ModelCheckpoint(
         verbose=True,
         save_last=True,
-        every_n_epochs=1,
+        every_n_epochs=cfg.launch.checkpoint_period,
         save_on_train_epoch_end=True,
     )
 
@@ -82,36 +79,26 @@ def default_setup(
 
         trainer_args["resume_from_checkpoint"] = resume_path
 
+    # add distributed plugin
+    gpu_ids = parse_gpu_ids(trainer_args["gpus"])
+    num_gpus = len(gpu_ids) if gpu_ids is not None else 0
+    if num_gpus > 1:
+        if trainer_args["accelerator"] == "ddp" or trainer_args["accelerator"] is None:
+            ddp_plugin = DDPPlugin(find_unused_parameters=cfg.launch.find_unused_parameters)
+            trainer_args["plugins"] = [ddp_plugin]
+        elif trainer_args["accelerator"] == "ddp_spawn":
+            ddp_plugin = DDPSpawnPlugin(find_unused_parameters=cfg.launch.find_unused_parameters)
+            trainer_args["plugins"] = [ddp_plugin]
+        elif trainer_args["accelerator"] == "ddp2":
+            ddp_plugin = DDP2Plugin(find_unused_parameters=cfg.launch.find_unused_parameters)
+            trainer_args["plugins"] = [ddp_plugin]
+
     # create trainer
     trainer_args["callbacks"] = [lr_monitor, progress_bar, checkpoint]
     trainer = pl.Trainer(**trainer_args)
 
-    # setup cmd line logging
-    setup_logger(osp.join(output_dir, "log.txt"))
-
-    # print env / config
-    rank_zero_info("Environment info: %s", get_pretty_env_info())
-    rank_zero_info(
-        "Running with full config:\n %s",
-        str(debug.format(cfg)).split("\n", 1)[1],
-    )
-    if cfg.launch.seed is not None:
-        rank_zero_info("Using a fixed random seed: %s", cfg.launch.seed)
-
-    # save trainer args (converted to string)
-    path = osp.join(output_dir, "trainer_args.yaml")
-    for key, arg in trainer_args.items():
-        trainer_args[key] = str(arg)
-    with open(path, "w", encoding="utf-8") as outfile:
-        yaml.dump(trainer_args, outfile, default_flow_style=False)
-    rank_zero_info("Trainer arguments saved to %s", path)
-
-    # save VisT config
-    path = osp.join(output_dir, "config.json")
-    with open(path, "w", encoding="utf-8") as outfile:
-        json.dump(trainer_args, outfile)
-    rank_zero_info("VisT Config saved to %s", path)
-
+    # setup cmd line logging, print and save info about trainer / cfg / env
+    setup_logging(output_dir, trainer_args, cfg)
     return trainer
 
 
