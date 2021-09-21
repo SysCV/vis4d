@@ -9,7 +9,8 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-from scalabel import enable_quiet
+
+from scalabel import mute
 from scalabel.eval.detect import evaluate_det
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
 from scalabel.eval.result import Result
@@ -20,7 +21,7 @@ from ..data.datasets import BaseDatasetLoader
 from ..struct import InputSample, LabelInstance, ModelOutput
 from .utils import all_gather_gts, all_gather_predictions
 
-enable_quiet()  # turn off undesired logs during eval
+mute(True)  # turn off undesired logs during eval
 logger = logging.getLogger("pytorch_lightning")
 
 
