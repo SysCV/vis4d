@@ -138,4 +138,6 @@ class QD3DT(QDTrack):
 
         tracks_3d = Boxes3D(boxes_3d, tracks_2d.class_ids, tracks_2d.track_ids)
 
-        return dict(track=[tracks_3d])
+        return dict(
+            detect=bbox_2d_preds, track=[tracks_2d], track_3d=[tracks_3d]
+        )

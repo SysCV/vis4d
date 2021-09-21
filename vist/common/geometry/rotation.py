@@ -24,30 +24,3 @@ def get_alpha(rot: torch.Tensor) -> torch.Tensor:
     alpha1 = torch.atan(rot[:, 2] / rot[:, 3]) + (-0.5 * np.pi)
     alpha2 = torch.atan(rot[:, 6] / rot[:, 7]) + (0.5 * np.pi)
     return alpha1 * idx + alpha2 * (1 - idx)
-
-
-def gen_bin_rot(orientation: torch.Tensor) -> torch.Tensor:
-    """Transform rotation with bins."""
-    # bin 1
-    divider1 = torch.sqrt(orientation[:, 2:3] ** 2 + orientation[:, 3:4] ** 2)
-    b1sin = orientation[:, 2:3] / divider1
-    b1cos = orientation[:, 3:4] / divider1
-
-    # bin 2
-    divider2 = torch.sqrt(orientation[:, 6:7] ** 2 + orientation[:, 7:8] ** 2)
-    b2sin = orientation[:, 6:7] / divider2
-    b2cos = orientation[:, 7:8] / divider2
-
-    rot = torch.cat(
-        [
-            orientation[:, 0:2],
-            b1sin,
-            b1cos,
-            orientation[:, 4:6],
-            b2sin,
-            b2cos,
-        ],
-        1,
-    )
-
-    return rot
