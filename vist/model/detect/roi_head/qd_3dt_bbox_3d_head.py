@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from vist.common.bbox.coders import QD3DTBox3DCoderConfig, build_box3d_coder
+from vist.common.bbox.coders import BaseBoxCoderConfig, build_box3d_coder
 from vist.common.bbox.matchers import MatcherConfig, build_matcher
 from vist.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
 from vist.common.bbox.samplers import (
@@ -31,35 +31,27 @@ from .base import BaseRoIHead, BaseRoIHeadConfig
 class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
     """QD-3DT 3D Bounding Box Head config."""
 
-    num_shared_convs: int
-    num_shared_fcs: int
-    num_dep_convs: int
-    num_dep_fcs: int
-    num_dim_convs: int
-    num_dim_fcs: int
-    num_rot_convs: int
-    num_rot_fcs: int
-    num_2dc_convs: int
-    num_2dc_fcs: int
-    in_channels: int
-    conv_out_dim: int
-    fc_out_dim: int
-    roi_feat_size: int
+    num_shared_convs: int = 2
+    num_shared_fcs: int = 0
+    num_dep_convs: int = 4
+    num_dep_fcs: int = 0
+    num_dim_convs: int = 4
+    num_dim_fcs: int = 0
+    num_rot_convs: int = 4
+    num_rot_fcs: int = 0
+    num_2dc_convs: int = 4
+    num_2dc_fcs: int = 0
+    in_channels: int = 256
+    conv_out_dim: int = 256
+    fc_out_dim: int = 1024
+    roi_feat_size: int = 7
     num_classes: int
-    center_scale: float
-    reg_class_agnostic: bool
-    conv_has_bias: bool
+    conv_has_bias: bool = False
     norm: str
     num_groups: int = 32
-    with_depth: bool
-    with_uncertainty: bool
-    uncertainty_thres: float
-    with_dim: bool
-    with_rot: bool
-    with_2dc: bool
 
     loss_3d: LossConfig
-    box3d_coder: QD3DTBox3DCoderConfig
+    box3d_coder: BaseBoxCoderConfig
 
     proposal_append_gt: bool
     in_features: List[str] = ["p2", "p3", "p4", "p5"]
@@ -162,28 +154,19 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
 
         self.relu = nn.ReLU(inplace=True)
         # reconstruct fc_cls and fc_reg since input channels are changed
-        if self.cfg.with_depth:
-            out_dim_dep = (
-                1 if self.cfg.reg_class_agnostic else self.cls_out_channels
-            )
-            if self.cfg.with_uncertainty:
-                self.fc_dep_uncer = nn.Linear(self.dep_last_dim, out_dim_dep)
-            self.fc_dep = nn.Linear(self.dep_last_dim, out_dim_dep)
-        if self.cfg.with_dim:
-            out_dim_size = (
-                3 if self.cfg.reg_class_agnostic else 3 * self.cls_out_channels
-            )
-            self.fc_dim = nn.Linear(self.dim_last_dim, out_dim_size)
-        if self.cfg.with_rot:
-            out_rot_size = (
-                8 if self.cfg.reg_class_agnostic else 8 * self.cls_out_channels
-            )
-            self.fc_rot = nn.Linear(self.rot_last_dim, out_rot_size)
-        if self.cfg.with_2dc:
-            out_2dc_size = (
-                2 if self.cfg.reg_class_agnostic else 2 * self.cls_out_channels
-            )
-            self.fc_2dc = nn.Linear(self.cen_2d_last_dim, out_2dc_size)
+        out_dim_dep = self.cls_out_channels
+        self.fc_dep = nn.Linear(self.dep_last_dim, out_dim_dep)
+
+        self.fc_dep_uncer = nn.Linear(self.dep_last_dim, out_dim_dep)
+
+        out_dim_size = 3 * self.cls_out_channels
+        self.fc_dim = nn.Linear(self.dim_last_dim, out_dim_size)
+
+        out_rot_size = 8 * self.cls_out_channels
+        self.fc_rot = nn.Linear(self.rot_last_dim, out_rot_size)
+
+        out_2dc_size = 2 * self.cls_out_channels
+        self.fc_2dc = nn.Linear(self.cen_2d_last_dim, out_2dc_size)
 
         self._init_weights()
 
@@ -193,16 +176,11 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
     def _init_weights(self) -> None:
         """Init weights of modules in head."""
         module_lists = [self.shared_fcs]
-        if self.cfg.with_depth:
-            if self.cfg.with_uncertainty:
-                module_lists += [self.fc_dep_uncer]
-            module_lists += [self.fc_dep, self.dep_fcs]
-        if self.cfg.with_dim:
-            module_lists += [self.fc_dim, self.dim_fcs]
-        if self.cfg.with_rot:
-            module_lists += [self.fc_rot, self.rot_fcs]
-        if self.cfg.with_2dc:
-            module_lists += [self.fc_2dc, self.cen_2d_fcs]
+        module_lists += [self.fc_dep_uncer]
+        module_lists += [self.fc_dep, self.dep_fcs]
+        module_lists += [self.fc_dim, self.dim_fcs]
+        module_lists += [self.fc_rot, self.rot_fcs]
+        module_lists += [self.fc_2dc, self.cen_2d_fcs]
 
         for module_list in module_lists:
             for m in module_list.modules():
@@ -305,8 +283,8 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
     ]:
         """Generate logits for bbox 3d."""
 
-        def get_rot(pred: torch.Tensor) -> torch.Tensor:
-            """Estimate alpha from bins."""
+        def generate_rot_bin(pred: torch.Tensor) -> torch.Tensor:
+            """Estimate alpha with bins."""
             pred = pred.view(pred.size(0), -1, 8)
 
             # bin 1
@@ -329,17 +307,11 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
             )
             return rot
 
-        depth_preds = self.fc_dep(x_dep) if self.cfg.with_depth else None
-        depth_uncertainty_preds = (
-            self.fc_dep_uncer(x_dep)
-            if self.cfg.with_depth and self.cfg.with_uncertainty
-            else None
-        )
-        dim_preds = self.fc_dim(x_dim) if self.cfg.with_dim else None
-        alpha_preds = (
-            get_rot(self.fc_rot(x_rot)) if self.cfg.with_rot else None
-        )
-        delta_2dc_preds = self.fc_2dc(x_2dc) if self.cfg.with_2dc else None
+        depth_preds = self.fc_dep(x_dep)
+        depth_uncertainty_preds = self.fc_dep_uncer(x_dep)
+        dim_preds = self.fc_dim(x_dim)
+        alpha_preds = generate_rot_bin(self.fc_rot(x_rot))
+        delta_2dc_preds = self.fc_2dc(x_2dc)
 
         return (
             depth_preds,

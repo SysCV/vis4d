@@ -22,10 +22,6 @@ num_processes = 0
     type = "Resize"
     kwargs = {"shape" = [375, 1242]}
 
-    [[train.dataloader.transformations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
-
 [[train]]
 name = "kitti_det_train"
 annotations = "data/KITTI/anns/detection_training.json"
@@ -49,10 +45,6 @@ num_processes = 0
     [[train.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [375, 1242]}
-
-    [[train.dataloader.transformations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
 
 [[test]]
 name = "kitti_track_val"

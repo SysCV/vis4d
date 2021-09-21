@@ -166,7 +166,7 @@ class Boxes2D(Boxes, LabelInstance):
         """Return center of 2D bounding boxes as tensor."""
         ctr_x = (self.boxes[:, 0] + self.boxes[:, 2]) / 2
         ctr_y = (self.boxes[:, 1] + self.boxes[:, 3]) / 2
-        return torch.cat([ctr_x, ctr_y], -1)
+        return torch.stack([ctr_x, ctr_y], -1)
 
     @property
     def area(self) -> torch.Tensor:

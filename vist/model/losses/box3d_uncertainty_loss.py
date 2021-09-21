@@ -6,7 +6,6 @@ import torch.nn.functional as F
 
 from vist.struct import LossesType
 
-from ...common.geometry.rotation import gen_bin_rot
 from .base import BaseLoss, LossConfig
 from .utils import smooth_l1_loss
 
@@ -72,11 +71,9 @@ class Box3DUncertaintyLoss(BaseLoss):
         )
 
         # rotation loss
-        rot = gen_bin_rot(pred[:, 6:14])
-
-        loss_rot = rotation_loss(rot, target[..., 6:8], target[..., 8:]).mean(
-            dim=-1
-        )
+        loss_rot = loss_rot = rotation_loss(
+            pred[:, 6:14], target[:, 6:8], target[:, 8:]
+        ).mean(dim=-1)
 
         result_dict = dict(
             loss_ctr3d=self.cfg.loss_weights[0] * loss_cen,

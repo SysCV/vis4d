@@ -10,31 +10,11 @@ type = "QD3DT"
 
     [model.bbox_3d_head]
     type = "QD3DTBBox3DHead"
-    num_shared_convs = 2
-    num_shared_fcs = 0
-    num_dep_convs = 4
-    num_dep_fcs = 0
-    num_dim_convs = 4
-    num_dim_fcs = 0
-    num_rot_convs = 4
-    num_rot_fcs = 0
-    num_2dc_convs = 4
-    num_2dc_fcs = 0
     in_channels = 256
-    conv_out_dim = 1024
     fc_out_dim = 1024
     roi_feat_size = 7
-
-    center_scale = 10.0
-    reg_class_agnostic = false
     conv_has_bias = false
     norm = "GroupNorm"
-    with_depth = true
-    with_uncertainty = true
-    uncertainty_thres = 0.9
-    with_dim = true
-    with_rot = true
-    with_2dc = true
     proposal_append_gt = true
 
         [model.bbox_3d_head.loss_3d]
@@ -63,6 +43,7 @@ type = "QD3DT"
 
         [model.bbox_3d_head.box3d_coder]
         type = "QD3DTBox3DCoder"
+        center_scale = 10.0
         depth_log_scale = 2.0
         dim_log_scale = 2.0
 

@@ -19,7 +19,7 @@ category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
     num_classes = 3
 
 [launch]
-samples_per_gpu = 8
+samples_per_gpu = 2
 workers_per_gpu = 2
 
 [trainer]
