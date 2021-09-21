@@ -3,7 +3,7 @@ import os.path as osp
 from typing import Optional
 
 import pytorch_lightning as pl
-from pytorch_lightning.plugins import DDPPlugin, DDPSpawnPlugin, DDP2Plugin
+from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 
 from ..config import Config, default_argument_parser, parse_config
@@ -12,7 +12,7 @@ from ..model import build_model
 from ..struct import DictStrAny
 from ..vis import ScalabelWriterCallback
 from .evaluator import ScalabelEvaluatorCallback
-from .utils import VisTProgressBar, split_args, setup_logging
+from .utils import VisTProgressBar, setup_logging, split_args
 
 
 def default_setup(
@@ -83,14 +83,23 @@ def default_setup(
     gpu_ids = parse_gpu_ids(trainer_args["gpus"])
     num_gpus = len(gpu_ids) if gpu_ids is not None else 0
     if num_gpus > 1:
-        if trainer_args["accelerator"] == "ddp" or trainer_args["accelerator"] is None:
-            ddp_plugin = DDPPlugin(find_unused_parameters=cfg.launch.find_unused_parameters)
+        if (
+            trainer_args["accelerator"] == "ddp"
+            or trainer_args["accelerator"] is None
+        ):
+            ddp_plugin = DDPPlugin(
+                find_unused_parameters=cfg.launch.find_unused_parameters
+            )
             trainer_args["plugins"] = [ddp_plugin]
         elif trainer_args["accelerator"] == "ddp_spawn":
-            ddp_plugin = DDPSpawnPlugin(find_unused_parameters=cfg.launch.find_unused_parameters)
+            ddp_plugin = DDPSpawnPlugin(
+                find_unused_parameters=cfg.launch.find_unused_parameters
+            )
             trainer_args["plugins"] = [ddp_plugin]
         elif trainer_args["accelerator"] == "ddp2":
-            ddp_plugin = DDP2Plugin(find_unused_parameters=cfg.launch.find_unused_parameters)
+            ddp_plugin = DDP2Plugin(
+                find_unused_parameters=cfg.launch.find_unused_parameters
+            )
             trainer_args["plugins"] = [ddp_plugin]
 
     # create trainer

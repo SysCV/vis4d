@@ -2,10 +2,9 @@
 import inspect
 import math
 import os
+from typing import List
 
 import torch
-
-from typing import List
 
 from vist.struct import Boxes2D, Boxes3D
 
@@ -75,7 +74,6 @@ def generate_feature_list(
 ) -> List[torch.Tensor]:
     """Create random feature lists."""
     features_list = []
-    state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
 
     for i in range(list_len):

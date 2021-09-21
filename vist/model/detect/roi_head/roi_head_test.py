@@ -1,21 +1,15 @@
 """Testcases for roi head."""
 import unittest
 
-import torch
-
-from vist.unittest.utils import (
-    generate_feature_list,
-    generate_dets,
-)
-
 from vist.common.bbox.coders import BaseBoxCoderConfig
 from vist.common.bbox.matchers import MatcherConfig
 from vist.common.bbox.poolers import RoIPoolerConfig
 from vist.common.bbox.samplers import SamplerConfig
 from vist.model.losses import LossConfig
+from vist.unittest.utils import generate_dets, generate_feature_list
 
 from .base import BaseRoIHeadConfig
-from .qd_3dt_bbox_3d_head import QD3DTBBox3DHead, QD3DTBBox3DHeadConfig
+from .qd_3dt_bbox_3d_head import QD3DTBBox3DHead
 
 
 class TestQDTBBox3DHead(unittest.TestCase):

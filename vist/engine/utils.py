@@ -14,7 +14,7 @@ import pytorch_lightning as pl
 import yaml
 from devtools import debug
 from pytorch_lightning.callbacks.progress import reset
-from pytorch_lightning.utilities import rank_zero_only, rank_zero_info
+from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 from scalabel.label.typing import Frame
 from termcolor import colored
 from torch.utils.collect_env import get_pretty_env_info
@@ -104,7 +104,9 @@ def setup_logger(
 
 
 @rank_zero_only
-def setup_logging(output_dir: str, trainer_args: DictStrAny, cfg: Config) -> None:
+def setup_logging(
+    output_dir: str, trainer_args: DictStrAny, cfg: Config
+) -> None:
     """Setup command line logger, create output dir, save info."""
     setup_logger(osp.join(output_dir, "log.txt"))
 

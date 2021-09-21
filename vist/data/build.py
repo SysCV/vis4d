@@ -1,15 +1,11 @@
 """Build VisT data loading pipeline."""
 import os
-import random
-from functools import partial
 from typing import Dict, List, Optional, Tuple, Union
 
-import numpy as np
 import pytorch_lightning as pl
-import torch
 from torch.utils import data
 
-from ..common.utils import get_rank, get_world_size
+from ..common.utils import get_world_size
 from .dataset import ScalabelDataset
 from .datasets import (
     BaseDatasetConfig,
@@ -116,7 +112,7 @@ class VisTDataModule(pl.LightningDataModule):
             num_workers=self.workers_per_gpu,
             collate_fn=identity_batch_collator,
             persistent_workers=self.workers_per_gpu > 0,
-            pin_memory=True
+            pin_memory=True,
         )
         return train_dataloader
 
