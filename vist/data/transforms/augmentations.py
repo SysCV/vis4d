@@ -1,9 +1,11 @@
 """VisT augmentations."""
 import random
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
+
+from vist.struct import DictStrAny
 
 from .base import AugParams, BaseAugmentation
 
@@ -119,3 +121,13 @@ class Resize(BaseAugmentation):
             align_corners=align_corners,
         )
         return output
+
+    def inverse_transform(
+            self,
+            inputs: torch.Tensor,
+            transform: Optional[torch.Tensor] = None,
+            size: Optional[Tuple[int, int]] = None,
+            **kwargs: DictStrAny,
+    ) -> torch.Tensor:
+        """Apply inverse of transform given input and transform parameters."""
+        raise NotImplementedError

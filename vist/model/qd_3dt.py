@@ -81,7 +81,7 @@ class QD3DT(QDTrack):
         """Compute qd-3dt output during inference."""
         assert len(batch_inputs) == 1, "No reference views during test!"
         raw_inputs = [inp[0] for inp in batch_inputs]
-        assert len(raw_inputs) == 1, "Currently only BS=1 supported!"
+        assert len(raw_inputs) == 1, "Currently only BS = 1 supported!"
         inputs = self.detector.preprocess_inputs(raw_inputs)
 
         # init graph at begin of sequence
