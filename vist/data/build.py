@@ -43,7 +43,9 @@ def build_dataset_loaders(
     return train_loaders, test_loaders, predict_loaders
 
 
-class VisTDataModule(pl.LightningDataModule):
+class VisTDataModule(  # pylint: disable=too-many-instance-attributes
+    pl.LightningDataModule
+):
     """Data module for VisT."""
 
     def __init__(
@@ -56,6 +58,7 @@ class VisTDataModule(pl.LightningDataModule):
         category_mapping: Optional[Dict[str, int]] = None,
         image_channel_mode: str = "RGB",
         seed: Optional[int] = None,
+        pin_memory: bool = False,
     ) -> None:
         """Init."""
         super().__init__()  # type: ignore
@@ -73,6 +76,7 @@ class VisTDataModule(pl.LightningDataModule):
         self.category_mapping = category_mapping
         self.image_channel_mode = image_channel_mode
         self.seed = seed
+        self.pin_memory = pin_memory
         self.train_datasets: Optional[List[ScalabelDataset]] = None
         self.test_datasets: Optional[List[ScalabelDataset]] = None
         self.predict_datasets: Optional[List[ScalabelDataset]] = None
@@ -112,7 +116,7 @@ class VisTDataModule(pl.LightningDataModule):
             num_workers=self.workers_per_gpu,
             collate_fn=identity_batch_collator,
             persistent_workers=self.workers_per_gpu > 0,
-            pin_memory=True,
+            pin_memory=self.pin_memory,
         )
         return train_dataloader
 

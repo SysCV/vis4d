@@ -80,10 +80,10 @@ def default_setup(
         trainer_args["resume_from_checkpoint"] = resume_path
 
     # add distributed plugin
-    if "gpus" in trainer_args:
+    if "gpus" in trainer_args:  # pragma: no cover
         gpu_ids = parse_gpu_ids(trainer_args["gpus"])
         num_gpus = len(gpu_ids) if gpu_ids is not None else 0
-        if num_gpus > 1:  # pragma: no cover
+        if num_gpus > 1:
             if (
                 trainer_args["accelerator"] == "ddp"
                 or trainer_args["accelerator"] is None
@@ -131,6 +131,7 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.model.category_mapping,
         cfg.model.image_channel_mode,
         seed=cfg.launch.seed,
+        pin_memory=cfg.launch.pin_memory,
     )
 
     if len(test_loaders) > 0:
@@ -165,6 +166,7 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.model.category_mapping,
         cfg.model.image_channel_mode,
         seed=cfg.launch.seed,
+        pin_memory=cfg.launch.pin_memory,
     )
 
     assert len(test_loaders), "No test datasets specified!"
@@ -207,6 +209,7 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.model.category_mapping,
         cfg.model.image_channel_mode,
         seed=cfg.launch.seed,
+        pin_memory=cfg.launch.pin_memory,
     )
 
     out_dir = osp.join(

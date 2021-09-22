@@ -39,6 +39,8 @@ class Launch(BaseModel):
     checkpoint_period: After N epochs, save out checkpoints. Default: 1
     resume: Whether to resume from weights (if specified), or last ckpt in
     work_dir/exp_name/version.
+    pin_memory: Enable/Disable pin_memory option for dataloader workers in
+    training.
     """
 
     action: str = ""
@@ -59,6 +61,7 @@ class Launch(BaseModel):
     weights: Optional[str]
     checkpoint_period: int = 1
     resume: bool = False
+    pin_memory: bool = False
 
     @validator("input_dir", always=True)
     def validate_input_dir(  # pylint: disable=no-self-argument,no-self-use
