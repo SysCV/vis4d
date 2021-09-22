@@ -1,11 +1,15 @@
 """Testcases for roi head."""
 import unittest
 
+import torch
+from scalabel.label.typing import Frame
+
 from vist.common.bbox.coders import BaseBoxCoderConfig
 from vist.common.bbox.matchers import MatcherConfig
 from vist.common.bbox.poolers import RoIPoolerConfig
 from vist.common.bbox.samplers import SamplerConfig
 from vist.model.losses import LossConfig
+from vist.struct import Images, InputSample
 from vist.unittest.utils import generate_dets, generate_feature_list
 
 from .base import BaseRoIHeadConfig
@@ -72,3 +76,16 @@ class TestQDTBBox3DHead(unittest.TestCase):
         boxes_3d_pred = box3d_head(features_list, [detections])
 
         self.assertTrue(len(boxes_3d_pred) == len(detections))
+
+        # Test no detections corner case
+        detections = generate_dets(h, w, 0)
+
+        inputs = InputSample(
+            [Frame(name="test")], Images(torch.rand(1, 3, 1, 1), [(1, 1)])
+        )
+
+        boxes_3d_pred = box3d_head.forward_test(
+            inputs, {"test": torch.rand(1)}, [detections]
+        )
+
+        self.assertTrue(len(boxes_3d_pred[0]) == len(detections) == 0)

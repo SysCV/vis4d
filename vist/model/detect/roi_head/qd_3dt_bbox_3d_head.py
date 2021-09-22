@@ -388,6 +388,9 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         Returns:
             List[LabelInstance]: Prediction output.
         """
+        if boxes[0].boxes.nelement() == 0:
+            return [Boxes3D(boxes[0].boxes.new(0, 8), boxes[0].class_ids)]
+
         features_list = [features[f] for f in self.cfg.in_features]
         predictions = self.forward(features_list, boxes)
 
