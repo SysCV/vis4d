@@ -80,27 +80,28 @@ def default_setup(
         trainer_args["resume_from_checkpoint"] = resume_path
 
     # add distributed plugin
-    gpu_ids = parse_gpu_ids(trainer_args["gpus"])
-    num_gpus = len(gpu_ids) if gpu_ids is not None else 0
-    if num_gpus > 1:  # pragma: no cover
-        if (
-            trainer_args["accelerator"] == "ddp"
-            or trainer_args["accelerator"] is None
-        ):
-            ddp_plugin = DDPPlugin(
-                find_unused_parameters=cfg.launch.find_unused_parameters
-            )
-            trainer_args["plugins"] = [ddp_plugin]
-        elif trainer_args["accelerator"] == "ddp_spawn":
-            ddp_plugin = DDPSpawnPlugin(
-                find_unused_parameters=cfg.launch.find_unused_parameters
-            )  # type: ignore
-            trainer_args["plugins"] = [ddp_plugin]
-        elif trainer_args["accelerator"] == "ddp2":
-            ddp_plugin = DDP2Plugin(
-                find_unused_parameters=cfg.launch.find_unused_parameters
-            )
-            trainer_args["plugins"] = [ddp_plugin]
+    if "gpus" in trainer_args:
+        gpu_ids = parse_gpu_ids(trainer_args["gpus"])
+        num_gpus = len(gpu_ids) if gpu_ids is not None else 0
+        if num_gpus > 1:  # pragma: no cover
+            if (
+                trainer_args["accelerator"] == "ddp"
+                or trainer_args["accelerator"] is None
+            ):
+                ddp_plugin = DDPPlugin(
+                    find_unused_parameters=cfg.launch.find_unused_parameters
+                )
+                trainer_args["plugins"] = [ddp_plugin]
+            elif trainer_args["accelerator"] == "ddp_spawn":
+                ddp_plugin = DDPSpawnPlugin(
+                    find_unused_parameters=cfg.launch.find_unused_parameters
+                )  # type: ignore
+                trainer_args["plugins"] = [ddp_plugin]
+            elif trainer_args["accelerator"] == "ddp2":
+                ddp_plugin = DDP2Plugin(
+                    find_unused_parameters=cfg.launch.find_unused_parameters
+                )
+                trainer_args["plugins"] = [ddp_plugin]
 
     # create trainer
     trainer_args["callbacks"] = [lr_monitor, progress_bar, checkpoint]
