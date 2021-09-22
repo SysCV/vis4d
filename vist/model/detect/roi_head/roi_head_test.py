@@ -56,7 +56,7 @@ class TestQDTBBox3DHead(unittest.TestCase):
                 num_2dc_fcs=1,
                 norm="GroupNorm",
                 proposal_append_gt=True,
-                loss_3d=loss_cfg,
+                loss=loss_cfg,
                 box3d_coder=boxcoder_cfg,
                 proposal_pooler=pooler_cfg,
                 proposal_sampler=sampler_cfg,
@@ -69,6 +69,6 @@ class TestQDTBBox3DHead(unittest.TestCase):
         detections = generate_dets(h, w, 1)
         features_list = generate_feature_list(c, h, w, list_len)
 
-        boxes_3d_pred, _ = box3d_head(features_list, detections)
+        boxes_3d_pred = box3d_head(features_list, [detections])
 
         self.assertTrue(len(boxes_3d_pred) == len(detections))

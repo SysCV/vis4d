@@ -17,7 +17,7 @@ type = "QD3DT"
     norm = "GroupNorm"
     proposal_append_gt = true
 
-        [model.bbox_3d_head.loss_3d]
+        [model.bbox_3d_head.loss]
         type = 'Box3DUncertaintyLoss'
         loss_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
 

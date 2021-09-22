@@ -14,7 +14,10 @@ import pytorch_lightning as pl
 import yaml
 from devtools import debug
 from pytorch_lightning.callbacks.progress import reset
-from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
+from pytorch_lightning.utilities.distributed import (
+    rank_zero_info,
+    rank_zero_only,
+)
 from scalabel.label.typing import Frame
 from termcolor import colored
 from torch.utils.collect_env import get_pretty_env_info
@@ -54,10 +57,7 @@ class _ColorFormatter(logging.Formatter):
         log = super().formatMessage(record)
         if record.levelno == logging.WARNING:
             prefix = colored("WARNING", "red", attrs=["blink"])
-        elif (
-            record.levelno == logging.ERROR
-            or record.levelno == logging.CRITICAL
-        ):
+        elif record.levelno in [logging.ERROR, logging.CRITICAL]:
             prefix = colored("ERROR", "red", attrs=["blink", "underline"])
         else:
             return log
@@ -103,7 +103,7 @@ def setup_logger(
         logger.addHandler(fh)
 
 
-@rank_zero_only
+@rank_zero_only  # type: ignore
 def setup_logging(
     output_dir: str, trainer_args: DictStrAny, cfg: Config
 ) -> None:

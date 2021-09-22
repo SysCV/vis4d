@@ -82,7 +82,7 @@ def default_setup(
     # add distributed plugin
     gpu_ids = parse_gpu_ids(trainer_args["gpus"])
     num_gpus = len(gpu_ids) if gpu_ids is not None else 0
-    if num_gpus > 1:
+    if num_gpus > 1:  # pragma: no cover
         if (
             trainer_args["accelerator"] == "ddp"
             or trainer_args["accelerator"] is None
@@ -94,7 +94,7 @@ def default_setup(
         elif trainer_args["accelerator"] == "ddp_spawn":
             ddp_plugin = DDPSpawnPlugin(
                 find_unused_parameters=cfg.launch.find_unused_parameters
-            )
+            )  # type: ignore
             trainer_args["plugins"] = [ddp_plugin]
         elif trainer_args["accelerator"] == "ddp2":
             ddp_plugin = DDP2Plugin(

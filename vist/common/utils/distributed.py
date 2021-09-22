@@ -55,9 +55,10 @@ def _serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: d
     if len(buffer) > 1024 ** 3:
         logger = logging.getLogger(__name__)
         logger.warning(
-            "Rank {} tries all-gather {:.2f} GB of data on device {}".format(
-                get_rank(), len(buffer) / (1024 ** 3), device
-            )
+            "Rank %s tries all-gather %.2f GB of data on device %s",
+            get_rank(),
+            len(buffer) / (1024 ** 3),
+            device,
         )
     storage = torch.ByteStorage.from_buffer(buffer)
     tensor = torch.ByteTensor(storage).to(device=device)

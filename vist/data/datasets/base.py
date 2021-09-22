@@ -98,11 +98,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
         assert dataset.config is not None
         add_data_path(cfg.data_root, dataset.frames)
-        rank_zero_info(
-            "Loading %s takes %s seconds.",
-            cfg.name,
-            "{:.2f}".format(timer.time()),
-        )
+        rank_zero_info(f"Loading {cfg.name} takes {timer.time():.2f} seconds.")
         self.metadata_cfg = dataset.config
         self.frames = dataset.frames
 

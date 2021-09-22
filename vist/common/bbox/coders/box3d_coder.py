@@ -7,7 +7,7 @@ import torch
 from vist.struct import Boxes2D, Boxes3D, Intrinsics
 
 from ...geometry.projection import project_points, unproject_points
-from ...geometry.rotation import get_alpha, yaw2alpha
+from ...geometry.rotation import alpha2yaw, rotation_output_to_alpha, yaw2alpha
 from .base import BaseBoxCoder3D, BaseBoxCoderConfig
 
 
@@ -88,7 +88,7 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
             ]
 
             # depth uncertainty
-            depth_uncertainty = box_deltas_[:, 14:15]
+            depth_uncertainty = box_deltas_[:, 12:13]
             depth_uncertainty = depth_uncertainty.clamp(min=0.0, max=1.0)
 
             # center
@@ -103,12 +103,8 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
             )
 
             # rot_y
-            intrinsic_matrix = intrinsics_.tensor.squeeze(0)
-            rot_y = get_alpha(box_deltas_[:, 6:14]) + torch.atan2(
-                delta_center[..., 0] - intrinsic_matrix[0, 2],
-                intrinsic_matrix[0, 0],
-            )
-            rot_y = rot_y % (2 * np.pi) - np.pi
+            alpha = rotation_output_to_alpha(box_deltas_[:, 6:12])
+            rot_y = alpha2yaw(alpha, center_3d)
             rot_y = rot_y.unsqueeze(-1)
 
             boxes3d = Boxes3D(

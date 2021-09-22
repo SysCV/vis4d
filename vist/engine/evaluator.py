@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-from scalabel import mute
+from scalabel.common import mute
 from scalabel.eval.detect import evaluate_det
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
 from scalabel.eval.result import Result

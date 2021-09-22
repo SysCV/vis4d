@@ -88,7 +88,7 @@ def preprocess_boxes(
             label += "," + str(int(c))
 
         if s is not None:
-            label += ",{:.1f}%".format(s * 100)
+            label += f",{s * 100:.1f}%"
         labels.append(label)
         draw_colors.append(draw_color)
 

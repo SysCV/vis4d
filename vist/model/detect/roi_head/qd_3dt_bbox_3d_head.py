@@ -14,6 +14,7 @@ from vist.common.bbox.samplers import (
     build_sampler,
     match_and_sample_proposals,
 )
+from vist.common.geometry.rotation import generate_rotation_output
 from vist.common.layers import add_conv_branch
 from vist.model.losses import LossConfig, build_loss
 from vist.struct import (
@@ -50,7 +51,7 @@ class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
     norm: str
     num_groups: int = 32
 
-    loss_3d: LossConfig
+    loss: LossConfig
     box3d_coder: BaseBoxCoderConfig
 
     proposal_append_gt: bool
@@ -162,7 +163,7 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         out_dim_size = 3 * self.cls_out_channels
         self.fc_dim = nn.Linear(self.dim_last_dim, out_dim_size)
 
-        out_rot_size = 8 * self.cls_out_channels
+        out_rot_size = 6 * self.cls_out_channels
         self.fc_rot = nn.Linear(self.rot_last_dim, out_rot_size)
 
         out_2dc_size = 2 * self.cls_out_channels
@@ -171,7 +172,7 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         self._init_weights()
 
         # losses
-        self.loss_3d = build_loss(self.cfg.loss_3d)
+        self.loss = build_loss(self.cfg.loss)
 
     def _init_weights(self) -> None:
         """Init weights of modules in head."""
@@ -272,114 +273,54 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
 
         return x_dep, x_dim, x_rot, x_2dc
 
-    def get_logits(
+    def get_outputs(
         self,
         x_dep: torch.Tensor,
         x_dim: torch.Tensor,
         x_rot: torch.Tensor,
         x_2dc: torch.Tensor,
-    ) -> Tuple[
-        torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor
-    ]:
-        """Generate logits for bbox 3d."""
-
-        def generate_rot_bin(pred: torch.Tensor) -> torch.Tensor:
-            """Estimate alpha with bins."""
-            pred = pred.view(pred.size(0), -1, 8)
-
-            # bin 1
-            divider1 = torch.sqrt(
-                pred[:, :, 2:3] ** 2 + pred[:, :, 3:4] ** 2 + 1e-10
-            )
-            b1sin = pred[:, :, 2:3] / divider1
-            b1cos = pred[:, :, 3:4] / divider1
-
-            # bin 2
-            divider2 = torch.sqrt(
-                pred[:, :, 6:7] ** 2 + pred[:, :, 7:8] ** 2 + 1e-10
-            )
-            b2sin = pred[:, :, 6:7] / divider2
-            b2cos = pred[:, :, 7:8] / divider2
-
-            rot = torch.cat(
-                [pred[:, :, 0:2], b1sin, b1cos, pred[:, :, 4:6], b2sin, b2cos],
-                2,
-            )
-            return rot
-
-        depth_preds = self.fc_dep(x_dep)
-        depth_uncertainty_preds = self.fc_dep_uncer(x_dep)
-        dim_preds = self.fc_dim(x_dim)
-        alpha_preds = generate_rot_bin(self.fc_rot(x_rot))
-        delta_2dc_preds = self.fc_2dc(x_2dc)
-
-        return (
-            depth_preds,
-            depth_uncertainty_preds,
-            dim_preds,
-            alpha_preds,
-            delta_2dc_preds,
+    ) -> torch.Tensor:
+        """Generate output 3D bounding box parameters."""
+        depth = self.fc_dep(x_dep).view(-1, self.cfg.num_classes, 1)
+        depth_uncertainty = self.fc_dep_uncer(x_dep).view(
+            -1, self.cfg.num_classes, 1
         )
+        dim = self.fc_dim(x_dim).view(-1, self.cfg.num_classes, 3)
+        alpha = generate_rotation_output(self.fc_rot(x_rot))
+        delta_2dc = self.fc_2dc(x_2dc).view(-1, self.cfg.num_classes, 2)
+        return torch.cat([delta_2dc, depth, dim, alpha, depth_uncertainty], -1)
 
     def forward(
         self,
         features_list: List[torch.Tensor],
-        pos_proposals: List[Boxes2D],
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Forward bbox 3d estimation."""
-        roi_feats = self.roi_pooler.pool(features_list, pos_proposals)
-
+        boxes: List[Boxes2D],
+    ) -> List[torch.Tensor]:
+        """Forward 3D bounding box estimation."""
+        roi_feats = self.roi_pooler.pool(features_list, boxes)
         x_dep, x_dim, x_rot, x_2dc = self.get_embeds(roi_feats)
-        (
-            depth_preds,
-            depth_uncertainty_preds,
-            dim_preds,
-            alpha_preds,
-            delta_2dc_preds,
-        ) = self.get_logits(x_dep, x_dim, x_rot, x_2dc)
-
-        outputs = [
-            delta_2dc_preds.view(-1, self.cfg.num_classes, 2),
-            depth_preds.view(-1, self.cfg.num_classes, 1),
-            dim_preds.view(-1, self.cfg.num_classes, 3),
-            alpha_preds.view(-1, self.cfg.num_classes, 8),
-            depth_uncertainty_preds.view(-1, self.cfg.num_classes, 1),
-        ]
-
-        bbox_3d_preds = torch.cat(outputs, -1)
-
-        return bbox_3d_preds, roi_feats
+        outputs: List[torch.Tensor] = self.get_outputs(
+            x_dep, x_dim, x_rot, x_2dc
+        ).split([len(b) for b in boxes])
+        return outputs
 
     def get_targets(
         self,
         pos_assigned_gt_inds: List[torch.Tensor],
-        gt_bboxes_2d: Sequence[Boxes2D],
-        gt_bboxes_3d: Sequence[Boxes3D],
+        targets_2d: Sequence[Boxes2D],
+        targets_3d: Sequence[Boxes3D],
         cam_intrinsics: Intrinsics,
-        concat: bool = True,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Get box3d target for training."""
-        gt_bboxes_2d = [
-            b[p] for b, p in zip(gt_bboxes_2d, pos_assigned_gt_inds)
-        ]
-        gt_bboxes_3d = [
-            b[p] for b, p in zip(gt_bboxes_3d, pos_assigned_gt_inds)
-        ]
+    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+        """Get 3D bounding box targets for training."""
+        targets_2d = [b[p] for b, p in zip(targets_2d, pos_assigned_gt_inds)]
+        targets_3d = [b[p] for b, p in zip(targets_3d, pos_assigned_gt_inds)]
 
         bbox_targets = self.bbox_coder.encode(
-            gt_bboxes_2d,
-            gt_bboxes_3d,
-            cam_intrinsics,
+            targets_2d, targets_3d, cam_intrinsics
         )
 
         labels = [
-            t.class_ids[p] for t, p in zip(gt_bboxes_2d, pos_assigned_gt_inds)
+            t.class_ids[p] for t, p in zip(targets_2d, pos_assigned_gt_inds)
         ]
-
-        if concat:
-            bbox_targets = torch.cat(bbox_targets, 0)
-            labels = torch.cat(labels, 0)
-
         return bbox_targets, labels
 
     def forward_train(
@@ -414,22 +355,22 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
             i[p]
             for i, p in zip(sampling_results.sampled_target_indices, positives)
         ]
-        pos_proposals = [
+        pos_boxes = [
             b[p] for b, p in zip(sampling_results.sampled_boxes, positives)
         ]
 
-        bbox_3d_preds, _ = self.forward(features_list, pos_proposals)
+        predictions = self.forward(features_list, pos_boxes)
 
-        bbox3d_targets, labels = self.get_targets(
+        targets, labels = self.get_targets(
             pos_assigned_gt_inds,
             inputs.boxes2d,
             inputs.boxes3d,
             inputs.intrinsics,
         )
-
-        loss_bbox_3d = self.loss_3d(bbox_3d_preds, bbox3d_targets, labels)
-
-        return loss_bbox_3d, sampling_results
+        loss = self.loss(
+            torch.cat(predictions), torch.cat(targets), torch.cat(labels)
+        )
+        return loss, sampling_results
 
     def forward_test(
         self,
@@ -448,8 +389,6 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
             List[LabelInstance]: Prediction output.
         """
         features_list = [features[f] for f in self.cfg.in_features]
-        bbox_3d_preds, _ = self.forward(features_list, boxes)
+        predictions = self.forward(features_list, boxes)
 
-        return self.bbox_coder.decode(
-            boxes, [bbox_3d_preds], inputs.intrinsics
-        )
+        return self.bbox_coder.decode(boxes, predictions, inputs.intrinsics)
