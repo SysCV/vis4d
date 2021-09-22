@@ -8,9 +8,9 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name="vist",
     version="0.0",
-    author="CVL @ ETHZ",
+    author="VIS @ ETH",
     author_email="i@yf.io",
-    description="VisT Python Package for perception and motion understanding",
+    description="VisT Python package for Visual Tracking",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://cv.ethz.ch/",
@@ -22,7 +22,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: BSD License",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.7",
