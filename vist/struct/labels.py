@@ -97,8 +97,8 @@ class Boxes(DataInstance):
         )
 
     @classmethod
-    def cat(cls: Type["TBoxes"], instances: List["TBoxes"]) -> "TBoxes":
-        """Concatenates a list of Boxes into a single Boxes.
+    def merge(cls: Type["TBoxes"], instances: List["TBoxes"]) -> "TBoxes":
+        """Merges a list of Boxes into a single Boxes.
 
         If the Boxes instances have different number of parameters per entry,
         this function will take the minimum and cut additional parameters
@@ -107,6 +107,7 @@ class Boxes(DataInstance):
         assert isinstance(instances, (list, tuple))
         assert len(instances) > 0
         assert all((isinstance(inst, Boxes) for inst in instances))
+        assert all(instances[0].device == inst.device for inst in instances)
 
         boxes, class_ids, track_ids = [], [], []
         has_class_ids = all((b.class_ids is not None for b in instances))
@@ -153,6 +154,21 @@ class Boxes2D(Boxes, LabelInstance):
         self.boxes[:, [0, 2]] = self.boxes[:, [0, 2]].clamp(0, image_wh[0] - 1)
         self.boxes[:, [1, 3]] = self.boxes[:, [1, 3]].clamp(0, image_wh[1] - 1)
 
+    @property
+    def score(self) -> Optional[torch.Tensor]:
+        """Return scores of 2D bounding boxes as tensor."""
+        if not self.boxes.shape[-1] == 5:
+            return None
+        return self.boxes[:, -1]
+
+    @property
+    def center(self) -> torch.Tensor:
+        """Return center of 2D bounding boxes as tensor."""
+        ctr_x = (self.boxes[:, 0] + self.boxes[:, 2]) / 2
+        ctr_y = (self.boxes[:, 1] + self.boxes[:, 3]) / 2
+        return torch.stack([ctr_x, ctr_y], -1)
+
+    @property
     def area(self) -> torch.Tensor:
         """Compute area of each bounding box."""
         area = (self.boxes[:, 2] - self.boxes[:, 0]) * (
@@ -245,6 +261,44 @@ class Boxes3D(Boxes, LabelInstance):
     height second (y), width last (z). The rotations are axis angles w.r.t.
     each axis (x,y,z).
     """
+
+    @property
+    def score(self) -> Optional[torch.Tensor]:
+        """Return scores of 3D bounding boxes as tensor."""
+        if not self.boxes.shape[-1] in [8, 10]:
+            return None
+        return self.boxes[:, -1]
+
+    @property
+    def center(self) -> torch.Tensor:
+        """Return center of 3D bounding boxes as tensor."""
+        return self.boxes[:, :3]
+
+    @property
+    def dimensions(self) -> torch.Tensor:
+        """Return (h, w, l) of 3D bounding boxes as tensor."""
+        return self.boxes[:, 3:6]
+
+    @property
+    def rot_x(self) -> Optional[torch.Tensor]:
+        """Return rotation in x direction of 3D bounding boxes as tensor."""
+        if self.boxes.shape[-1] in [7, 8]:
+            return None
+        return self.boxes[:, 6]
+
+    @property
+    def rot_y(self) -> torch.Tensor:
+        """Return rotation in y direction of 3D bounding boxes as tensor."""
+        if self.boxes.shape[-1] in [7, 8]:
+            return self.boxes[:, 6]
+        return self.boxes[:, 7]
+
+    @property
+    def rot_z(self) -> Optional[torch.Tensor]:
+        """Return rotation in z direction of 3D bounding boxes as tensor."""
+        if self.boxes.shape[-1] in [7, 8]:
+            return None
+        return self.boxes[:, 8]
 
     @classmethod
     def from_scalabel(

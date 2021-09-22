@@ -1,5 +1,5 @@
 """Similarity Head for quasi-dense instance similarity learning."""
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -11,10 +11,11 @@ from vist.common.bbox.samplers import (
     SamplerConfig,
     SamplingResult,
     build_sampler,
+    match_and_sample_proposals,
 )
-from vist.common.layers import Conv2d
+from vist.common.layers import add_conv_branch
 from vist.model.losses import BaseLoss, LossConfig, build_loss
-from vist.struct import Boxes2D, Images, LossesType
+from vist.struct import Boxes2D, InputSample, LossesType
 
 from ..utils import cosine_similarity
 from .base import BaseSimilarityHead, SimilarityLearningConfig
@@ -23,16 +24,16 @@ from .base import BaseSimilarityHead, SimilarityLearningConfig
 class QDSimilarityHeadConfig(SimilarityLearningConfig):
     """Quasi-dense Similarity Head config."""
 
-    in_dim: int
-    num_convs: int
-    conv_out_dim: int
-    conv_has_bias: bool
-    num_fcs: int
-    fc_out_dim: int
-    embedding_dim: int
-    norm: str
+    in_dim: int = 256
+    num_convs: int = 4
+    conv_out_dim: int = 256
+    conv_has_bias: bool = False
+    num_fcs: int = 1
+    fc_out_dim: int = 1024
+    embedding_dim: int = 256
+    norm: str = "GroupNorm"
     num_groups: int = 32
-    proposal_append_gt: bool
+    proposal_append_gt: bool = True
     softmax_temp: float = -1.0
     in_features: List[str] = ["p2", "p3", "p4", "p5"]
     track_loss: LossConfig
@@ -83,29 +84,14 @@ class QDSimilarityHead(BaseSimilarityHead):
         self,
     ) -> Tuple[torch.nn.ModuleList, torch.nn.ModuleList, int]:
         """Init modules of head."""
-        last_layer_dim = self.cfg.in_dim
-        # add branch specific conv layers
-        convs = nn.ModuleList()
-        norm = getattr(nn, self.cfg.norm)
-        if norm == nn.GroupNorm:
-            norm = lambda x: nn.GroupNorm(self.cfg.num_groups, x)
-        if self.cfg.num_convs > 0:
-            for i in range(self.cfg.num_convs):
-                conv_in_dim = (
-                    last_layer_dim if i == 0 else self.cfg.conv_out_dim
-                )
-                convs.append(
-                    Conv2d(
-                        conv_in_dim,
-                        self.cfg.conv_out_dim,
-                        kernel_size=3,
-                        padding=1,
-                        bias=self.cfg.conv_has_bias,
-                        norm=norm(self.cfg.conv_out_dim),
-                        activation=nn.ReLU(inplace=True),
-                    )
-                )
-            last_layer_dim = self.cfg.conv_out_dim
+        convs, last_layer_dim = add_conv_branch(
+            self.cfg.num_convs,
+            self.cfg.in_dim,
+            self.cfg.conv_out_dim,
+            self.cfg.conv_has_bias,
+            self.cfg.norm,
+            self.cfg.num_groups,
+        )
 
         fcs = nn.ModuleList()
         if self.cfg.num_fcs > 0:
@@ -121,24 +107,13 @@ class QDSimilarityHead(BaseSimilarityHead):
             last_layer_dim = self.cfg.fc_out_dim
         return convs, fcs, last_layer_dim
 
-    @torch.no_grad()  # type: ignore
-    def match_and_sample_proposals(
-        self, proposals: List[Boxes2D], targets: List[Boxes2D]
-    ) -> SamplingResult:
-        """Match proposals to targets and subsample."""
-        if self.cfg.proposal_append_gt:
-            proposals = [
-                Boxes2D.cat([p, t]) for p, t in zip(proposals, targets)
-            ]
-        matching = self.matcher.match(proposals, targets)
-        return self.sampler.sample(matching, proposals, targets)
-
     def forward(
         self, features: Dict[str, torch.Tensor], boxes: List[Boxes2D]
     ) -> List[torch.Tensor]:
         """Similarity head forward pass."""
         features_list = [features[f] for f in self.cfg.in_features]
         x = self.roi_pooler.pool(features_list, boxes)
+
         # convs
         if self.cfg.num_convs > 0:
             for conv in self.convs:
@@ -157,17 +132,18 @@ class QDSimilarityHead(BaseSimilarityHead):
 
     def forward_train(
         self,
-        inputs: Union[List[Images], List[Dict[str, torch.Tensor]]],
+        inputs: List[InputSample],
+        features: List[Dict[str, torch.Tensor]],
         boxes: List[List[Boxes2D]],
-        targets: List[List[Boxes2D]],
     ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
 
         Args:
-            inputs: Either images or feature maps. Batched, including possible
-                reference views. The keyframe is assumed to be at index 0.
+            inputs: InputSamples (images, metadata, etc). Batched, including
+                possible reference views. The keyframe is at index 0.
+            features: Input feature maps. Batched, including possible
+                reference views. The keyframe is at index 0.
             boxes: Detected boxes to apply similarity learning on.
-            targets: Target boxes with tracking identities.
 
         Returns:
             LossesType: A dict of scalar loss tensors.
@@ -175,25 +151,31 @@ class QDSimilarityHead(BaseSimilarityHead):
                 reference views.
         """
         sampling_results, sampled_boxes, sampled_targets = [], [], []
-        for i, (box, tgt) in enumerate(zip(boxes, targets)):
-            sampling_result = self.match_and_sample_proposals(box, tgt)
+        for i, (box, inp) in enumerate(zip(boxes, inputs)):
+            sampling_result = match_and_sample_proposals(
+                self.matcher,
+                self.sampler,
+                box,
+                inp.boxes2d,
+                self.cfg.proposal_append_gt,
+            )
             sampling_results.append(sampling_result)
 
             sampled_box = sampling_result.sampled_boxes
             sampled_tgt = sampling_result.sampled_targets
-            if i == 0:  # we assume the keyframe is first
-                positives = [l == 1 for l in sampling_result.sampled_labels]
+            positives = [l == 1 for l in sampling_result.sampled_labels]
+            if i == 0:  # take only positives for keyframe (assumed at i=0)
                 sampled_box = [b[p] for b, p in zip(sampled_box, positives)]
                 sampled_tgt = [t[p] for t, p in zip(sampled_tgt, positives)]
+            else:  # set track_ids to -1 for all negatives
+                for pos, samp_tgt in zip(positives, sampled_tgt):
+                    samp_tgt.track_ids[~pos] = -1
 
             sampled_boxes.append(sampled_box)
             sampled_targets.append(sampled_tgt)
 
         embeddings = []
-        for feat, box in zip(inputs, sampled_boxes):
-            assert isinstance(
-                feat, dict
-            ), "QDSimilarityHead expects feature maps as input!"
+        for feat, box in zip(features, sampled_boxes):
             embeddings.append(self.forward(feat, box))
 
         track_losses = self.loss(
@@ -206,23 +188,22 @@ class QDSimilarityHead(BaseSimilarityHead):
 
     def forward_test(
         self,
-        inputs: Union[Images, Dict[str, torch.Tensor]],
+        inputs: InputSample,
+        features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
     ) -> List[torch.Tensor]:
         """Forward pass during testing stage.
 
         Args:
-            inputs: Model input (batched).
+            inputs: InputSamples (images, metadata, etc). Batched.
+            features: Input feature maps. Batched.
             boxes: Input boxes to compute similarity embedding for.
 
         Returns:
             List[torch.Tensor]: Similarity embeddings (one vector per box, one
             tensor per batch element).
         """
-        assert isinstance(
-            inputs, dict
-        ), "QDSimilarityHead expects feature maps as input!"
-        return self.forward(inputs, boxes)
+        return self.forward(features, boxes)
 
     @staticmethod
     def get_targets(
@@ -240,6 +221,8 @@ class QDSimilarityHead(BaseSimilarityHead):
                     and ref_target_.track_ids is not None
                 )
                 # target shape: len(key_target) x len(ref_target_)
+                # NOTE: this only works if key only contains positives and all
+                # negatives in ref have track_id -1 (see forward_train)
                 target = (
                     key_target.track_ids.view(-1, 1)
                     == ref_target_.track_ids.view(1, -1)

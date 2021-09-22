@@ -123,13 +123,22 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         losses = self.forward_train(batch)
         losses["loss"] = sum(list(losses.values()))
 
+        losses_detached = {k: v.clone().detach() for k, v in losses.items()}
+        # tensorboard logging with prefix
         self.log_dict(
-            {k: v.clone().detach() for k, v in losses.items()},
-            prog_bar=True,
+            {"train/" + k: v for k, v in losses_detached.items()},
+            prog_bar=False,
             logger=True,
             on_step=True,
-            on_epoch=True,
-            sync_dist=True,
+            on_epoch=False,
+        )
+        # progress bar logging without prefix
+        self.log_dict(
+            losses_detached,
+            prog_bar=True,
+            logger=False,
+            on_step=True,
+            on_epoch=False,
         )
         return losses
 

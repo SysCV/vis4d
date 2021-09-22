@@ -11,7 +11,7 @@ cache_as_binary = true
 
     [train.dataloader.ref_sampling]
     type = 'uniform'
-    scope = 2
+    scope = 3
     num_ref_imgs = 1
     skip_nomatch_samples = true
 

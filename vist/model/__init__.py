@@ -1,5 +1,6 @@
 """VisT model module."""
 from .base import BaseModel, BaseModelConfig, build_model
+from .qd_3dt import QD3DT
 from .qdtrack import QDTrack
 
 __all__ = [
@@ -7,4 +8,5 @@ __all__ = [
     "build_model",
     "BaseModel",
     "QDTrack",
+    "QD3DT",
 ]

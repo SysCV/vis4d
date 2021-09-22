@@ -5,7 +5,7 @@ import torch
 from mmcv.runner.checkpoint import load_checkpoint
 from mmdet.models import TwoStageDetector, build_detector
 
-from vist.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
+from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
 from ..base import BaseModelConfig
 from .base import BaseTwoStageDetector
@@ -54,11 +54,13 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             "pixel_std", torch.tensor(self.cfg.pixel_std).view(-1, 1, 1), False
         )
 
-    def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
+    def preprocess_inputs(self, inputs: List[InputSample]) -> InputSample:
         """Batch, pad (standard stride=32) and normalize the input images."""
-        images = Images.cat([inp.image for inp in batched_inputs], self.device)
-        images.tensor = (images.tensor - self.pixel_mean) / self.pixel_std
-        return images
+        batched_inputs = InputSample.cat(inputs, self.device)
+        batched_inputs.images.tensor = (
+            batched_inputs.images.tensor - self.pixel_mean
+        ) / self.pixel_std
+        return batched_inputs
 
     def forward_train(
         self,
@@ -68,18 +70,12 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         assert all(
             len(inp) == 1 for inp in batch_inputs
         ), "No reference views allowed in MMTwoStageDetector training!"
-        inputs = [inp[0] for inp in batch_inputs]
-
-        targets = []
-        for x in inputs:
-            assert x.boxes2d is not None
-            targets.append(x.boxes2d.to(self.device))
-
-        images = self.preprocess_image(inputs)
-        image_metas = get_img_metas(images)
-        gt_bboxes, gt_labels = targets_to_mmdet(targets)
+        raw_inputs = [inp[0] for inp in batch_inputs]
+        inputs = self.preprocess_inputs(raw_inputs)
+        image_metas = get_img_metas(inputs.images)
+        gt_bboxes, gt_labels = targets_to_mmdet(inputs.boxes2d)
         losses = self.mm_detector.forward_train(
-            images.tensor,
+            inputs.images.tensor,
             image_metas,
             gt_bboxes,
             gt_labels,
@@ -91,28 +87,29 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         batch_inputs: List[List[InputSample]],
     ) -> ModelOutput:
         """Forward pass during testing stage."""
-        inputs = [inp[0] for inp in batch_inputs]
-
-        images = self.preprocess_image(inputs)
-        image_metas = get_img_metas(images)
-        outs = self.mm_detector.simple_test(images.tensor, image_metas)
+        raw_inputs = [inp[0] for inp in batch_inputs]
+        inputs = self.preprocess_inputs(raw_inputs)
+        image_metas = get_img_metas(inputs.images)
+        outs = self.mm_detector.simple_test(inputs.images.tensor, image_metas)
         detections = results_from_mmdet(outs, self.device)
-        assert inputs[0].metadata.size is not None
-        input_size = (
-            inputs[0].metadata.size.width,
-            inputs[0].metadata.size.height,
-        )
-        for inp, det in zip(inputs, detections):
-            self.postprocess(input_size, inp.image.image_sizes[0], det)
+        assert detections is not None
+
+        for inp, det in zip(inputs, detections):  # type: ignore
+            assert inp.metadata[0].size is not None
+            input_size = (
+                inp.metadata[0].size.width,
+                inp.metadata[0].size.height,
+            )
+            self.postprocess(input_size, inp.images.image_sizes[0], det)
 
         return dict(detect=detections)  # type: ignore
 
-    def extract_features(self, images: Images) -> Dict[str, torch.Tensor]:
+    def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.
 
-        Return preprocessed images, backbone output features.
+        Return backbone output features.
         """
-        outs = self.mm_detector.extract_feat(images.tensor)
+        outs = self.mm_detector.extract_feat(inputs.images.tensor)
         if self.cfg.backbone_output_names is None:  # pragma: no cover
             return {f"out{i}": v for i, v in enumerate(outs)}
 
@@ -120,18 +117,17 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
     def generate_proposals(
         self,
-        images: Images,
+        inputs: InputSample,
         features: Dict[str, torch.Tensor],
-        targets: Optional[List[Boxes2D]] = None,
     ) -> Tuple[List[Boxes2D], LossesType]:
         """Detector RPN stage.
 
         Return proposals per image and losses (empty if no targets).
         """
         feat_list = list(features.values())
-        img_metas = get_img_metas(images)
-        if targets is not None:
-            gt_bboxes, _ = targets_to_mmdet(targets)
+        img_metas = get_img_metas(inputs.images)
+        if self.training:
+            gt_bboxes, _ = targets_to_mmdet(inputs.boxes2d)
 
             proposal_cfg = self.mm_detector.train_cfg.get(
                 "rpn_proposal", self.mm_detector.test_cfg.rpn
@@ -153,21 +149,23 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
     def generate_detections(
         self,
-        images: Images,
+        inputs: InputSample,
         features: Dict[str, torch.Tensor],
-        proposals: List[Boxes2D],
-        targets: Optional[List[Boxes2D]] = None,
+        proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
     ) -> Tuple[Optional[List[Boxes2D]], LossesType]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if no targets) and optionally detections.
         """
+        assert (
+            proposals is not None
+        ), "Generating detections with MMTwoStageDetector requires proposals."
         proposal_list = proposals_to_mmdet(proposals)
         feat_list = list(features.values())
-        img_metas = get_img_metas(images)
-        if targets is not None:
-            gt_bboxes, gt_labels = targets_to_mmdet(targets)
+        img_metas = get_img_metas(inputs.images)
+        if self.training:
+            gt_bboxes, gt_labels = targets_to_mmdet(inputs.boxes2d)
             detect_losses = self.mm_detector.roi_head.forward_train(
                 feat_list,
                 img_metas,

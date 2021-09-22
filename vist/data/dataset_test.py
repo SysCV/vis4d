@@ -107,13 +107,13 @@ class TestScalabelDataset(unittest.TestCase):
     def test_transform_annotations(self) -> None:
         """Test the transform annotations method in DatasetMapper."""
         input_sample = InputSample(
-            Frame(name="0"),
+            [Frame(name="0")],
             Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
         )
         self.dataset.transform_annotation(input_sample, None, torch.eye(3))
-        self.assertEqual(len(input_sample.boxes2d), 0)
+        self.assertEqual(len(input_sample.boxes2d[0]), 0)
         self.dataset.transform_annotation(input_sample, [], torch.eye(3))
-        self.assertEqual(len(input_sample.boxes2d), 0)
+        self.assertEqual(len(input_sample.boxes2d[0]), 0)
 
         labels = [
             Label(
@@ -137,27 +137,27 @@ class TestScalabelDataset(unittest.TestCase):
         ]
         self.dataset.transform_annotation(input_sample, labels, torch.eye(3))
 
-        self.assertTrue(all(input_sample.boxes2d.class_ids == 0))
-        self.assertEqual(input_sample.boxes2d.boxes[0, 0], 10)
-        self.assertEqual(input_sample.boxes2d.boxes[1, 0], 11)
-        self.assertEqual(input_sample.boxes2d.boxes[2, 0], 12)
+        self.assertTrue(all(input_sample.boxes2d[0].class_ids == 0))
+        self.assertEqual(input_sample.boxes2d[0].boxes[0, 0], 10)
+        self.assertEqual(input_sample.boxes2d[0].boxes[1, 0], 11)
+        self.assertEqual(input_sample.boxes2d[0].boxes[2, 0], 12)
 
-        self.assertEqual(input_sample.boxes2d.track_ids[0], 2)
-        self.assertEqual(input_sample.boxes2d.track_ids[1], 1)
-        self.assertEqual(input_sample.boxes2d.track_ids[2], 0)
+        self.assertEqual(input_sample.boxes2d[0].track_ids[0], 2)
+        self.assertEqual(input_sample.boxes2d[0].track_ids[1], 1)
+        self.assertEqual(input_sample.boxes2d[0].track_ids[2], 0)
 
     def test_sort_samples(self) -> None:
         """Test the sort_samples method in MapDataset."""
         input_samples = [
             InputSample(
-                Frame(name="1", frameIndex=1),
+                [Frame(name="1", frameIndex=1)],
                 Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
             ),
             InputSample(
-                Frame(name="0", frameIndex=0),
+                [Frame(name="0", frameIndex=0)],
                 Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
             ),
         ]
         sorted_samples = self.dataset.sort_samples(input_samples)
-        self.assertEqual(sorted_samples[0].metadata.frameIndex, 0)
-        self.assertEqual(sorted_samples[1].metadata.frameIndex, 1)
+        self.assertEqual(sorted_samples[0].metadata[0].frameIndex, 0)
+        self.assertEqual(sorted_samples[1].metadata[0].frameIndex, 1)

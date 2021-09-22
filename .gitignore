@@ -15,7 +15,7 @@ bin/
 app/dist/
 
 # default data directory
-local-data/
+data/
 
 # potential integration testing data directory
 test_data/

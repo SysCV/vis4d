@@ -1,15 +1,11 @@
 """Build VisT data loading pipeline."""
 import os
-import random
-from functools import partial
 from typing import Dict, List, Optional, Tuple, Union
 
-import numpy as np
 import pytorch_lightning as pl
-import torch
 from torch.utils import data
 
-from ..common.utils import get_rank, get_world_size
+from ..common.utils import get_world_size
 from .dataset import ScalabelDataset
 from .datasets import (
     BaseDatasetConfig,
@@ -47,7 +43,9 @@ def build_dataset_loaders(
     return train_loaders, test_loaders, predict_loaders
 
 
-class VisTDataModule(pl.LightningDataModule):
+class VisTDataModule(  # pylint: disable=too-many-instance-attributes
+    pl.LightningDataModule
+):
     """Data module for VisT."""
 
     def __init__(
@@ -60,6 +58,7 @@ class VisTDataModule(pl.LightningDataModule):
         category_mapping: Optional[Dict[str, int]] = None,
         image_channel_mode: str = "RGB",
         seed: Optional[int] = None,
+        pin_memory: bool = False,
     ) -> None:
         """Init."""
         super().__init__()  # type: ignore
@@ -77,6 +76,7 @@ class VisTDataModule(pl.LightningDataModule):
         self.category_mapping = category_mapping
         self.image_channel_mode = image_channel_mode
         self.seed = seed
+        self.pin_memory = pin_memory
         self.train_datasets: Optional[List[ScalabelDataset]] = None
         self.test_datasets: Optional[List[ScalabelDataset]] = None
         self.predict_datasets: Optional[List[ScalabelDataset]] = None
@@ -110,25 +110,13 @@ class VisTDataModule(pl.LightningDataModule):
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""
         train_dataset = data.ConcatDataset(self.train_datasets)
-
-        init_fn = (
-            partial(
-                worker_init_fn,
-                num_workers=self.workers_per_gpu,
-                rank=get_rank(),
-                seed=self.seed,
-            )
-            if self.seed is not None
-            else None
-        )
-
         train_dataloader = data.DataLoader(
             train_dataset,
             batch_size=self.samples_per_gpu,
             num_workers=self.workers_per_gpu,
             collate_fn=identity_batch_collator,
-            worker_init_fn=init_fn,
             persistent_workers=self.workers_per_gpu > 0,
+            pin_memory=self.pin_memory,
         )
         return train_dataloader
 
@@ -169,17 +157,3 @@ class VisTDataModule(pl.LightningDataModule):
             )
             dataloaders.append(test_dataloader)
         return dataloaders
-
-
-def worker_init_fn(
-    worker_id: int, num_workers: int, rank: int, seed: int
-) -> None:  # pragma: no cover
-    """Init worker with unique seed.
-
-    The seed of each worker equals to:
-    num_worker * rank + worker_id + user_seed
-    """
-    worker_seed = num_workers * rank + worker_id + seed
-    torch.manual_seed(worker_seed)
-    np.random.seed(worker_seed)
-    random.seed(worker_seed)

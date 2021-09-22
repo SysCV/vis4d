@@ -15,6 +15,7 @@ from .utils import (
     box3d_to_corners,
     preprocess_boxes,
     preprocess_image,
+    preprocess_intrinsics,
 )
 
 
@@ -55,17 +56,7 @@ def imshow_bboxes3d(
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode)
     box_list, color_list, label_list = preprocess_boxes(boxes)
-    if isinstance(intrinsics, Intrinsics):
-        intrinsic_matrix = intrinsics.tensor.cpu().numpy()  # type: NDArrayF64
-    elif isinstance(intrinsics, np.ndarray):
-        intrinsic_matrix = intrinsics
-    else:
-        raise ValueError(f"Invalid type for intrinsics: {type(intrinsics)}")
-
-    assert intrinsic_matrix.shape == (
-        3,
-        3,
-    ), f"Intrinsics must be of shape 3x3, got {intrinsic_matrix.shape}"
+    intrinsic_matrix = preprocess_intrinsics(intrinsics)
 
     for box, col, label in zip(box_list, color_list, label_list):
         draw_bbox3d(image, box, intrinsic_matrix, col, label)
@@ -75,7 +66,9 @@ def imshow_bboxes3d(
 
 def draw_image(
     frame: Union[ImageType, Image.Image],
-    boxes2d: BoxType,
+    boxes2d: Optional[BoxType] = None,
+    boxes3d: Optional[Box3DType] = None,
+    intrinsics: Optional[Union[NDArrayF64, Intrinsics]] = None,
     mode: str = "RGB",
 ) -> Image.Image:
     """Draw boxes2d on an image."""
@@ -84,9 +77,16 @@ def draw_image(
         if not isinstance(frame, Image.Image)
         else frame
     )
-    box_list, col_list, label_list = preprocess_boxes(boxes2d)
-    for box, col, label in zip(box_list, col_list, label_list):
-        draw_bbox(image, box, col, label)
+    if boxes2d is not None:
+        box_list, col_list, label_list = preprocess_boxes(boxes2d)
+        for box, col, label in zip(box_list, col_list, label_list):
+            draw_bbox(image, box, col, label)
+    if boxes3d is not None:
+        assert intrinsics is not None, "Drawing 3D boxes requires intrinsics!"
+        intr_matrix = preprocess_intrinsics(intrinsics)
+        box_list, col_list, label_list = preprocess_boxes(boxes3d)
+        for box, col, label in zip(box_list, col_list, label_list):
+            draw_bbox3d(image, box, intr_matrix, col, label)
     return image
 
 

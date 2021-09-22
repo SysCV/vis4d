@@ -1,7 +1,7 @@
 """Utilities for mmdet wrapper."""
 
 import os
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import requests
@@ -87,11 +87,10 @@ def results_from_mmdet(
 
 
 def targets_to_mmdet(
-    targets: List[Boxes2D],
+    targets: Sequence[Boxes2D],
 ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
     """Convert VisT targets to mmdetection compatible format."""
     gt_bboxes = [t.boxes for t in targets]
-
     gt_labels = [t.class_ids for t in targets]
     return gt_bboxes, gt_labels
 
@@ -100,7 +99,7 @@ def load_config_from_mmdet(url: str) -> str:
     """Get config from mmdetection GitHub repository."""
     full_url = (
         "https://raw.githubusercontent.com/"
-        "open-mmlab/mmdetection/master/configs/" + url
+        "syscv/mmdetection/master/configs/" + url
     )
     response = requests.get(full_url)
     assert (

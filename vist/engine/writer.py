@@ -11,7 +11,7 @@ from scalabel.label.io import save
 from scalabel.label.typing import Frame
 
 from ..common.utils.distributed import get_rank, get_world_size
-from ..struct import Boxes2D, InputSample, ModelOutput
+from ..struct import Boxes2D, Boxes3D, InputSample, ModelOutput
 from ..vis.image import draw_image
 
 
@@ -82,7 +82,7 @@ class ScalabelWriterCallback(VisTWriterCallback):
         """Process the pair of inputs and outputs."""
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):
-                prediction = copy.deepcopy(inp[0].metadata)
+                prediction = copy.deepcopy(inp[0].metadata[0])
                 out = out.to(torch.device("cpu"))  # type: ignore
                 prediction.labels = out.to_scalabel(self.cats_id2name)
                 self._predictions[key].append(prediction)
@@ -99,10 +99,18 @@ class ScalabelWriterCallback(VisTWriterCallback):
                         video_name,
                         prediction.name,
                     )
-                    assert isinstance(
-                        out, Boxes2D
-                    ), "Visualization only for boxes2d currently."
-                    image = draw_image(inp[0].image.tensor[0], out)
+                    if isinstance(out, Boxes2D):
+                        image = draw_image(
+                            inp[0].images.tensor[0], boxes2d=out
+                        )
+                    elif isinstance(out, Boxes3D):
+                        image = draw_image(
+                            inp[0].images.tensor[0],
+                            boxes3d=out,
+                            intrinsics=inp[0].intrinsics,
+                        )
+                    else:
+                        raise ValueError(f"Unknown result type: f{type(out)}")
                     os.makedirs(os.path.dirname(save_path), exist_ok=True)
                     image.save(save_path)
 

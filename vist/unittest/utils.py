@@ -2,6 +2,7 @@
 import inspect
 import math
 import os
+from typing import List
 
 import torch
 
@@ -66,3 +67,20 @@ def generate_dets3d(num_dets: int, track_ids: bool = False) -> Boxes3D:
     dets = Boxes3D(box_tensor, torch.zeros(num_dets), tracks)
     torch.random.set_rng_state(state)
     return dets
+
+
+def generate_feature_list(
+    channels: int, init_height: int, init_width: int, list_len: int
+) -> List[torch.Tensor]:
+    """Create random feature lists."""
+    features_list = []
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
+
+    for i in range(list_len):
+        features_list.append(
+            torch.rand(
+                1, channels, init_height // (2 ** i), init_width // (2 ** i)
+            )
+        )
+
+    return features_list

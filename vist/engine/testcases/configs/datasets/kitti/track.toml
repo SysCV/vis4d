@@ -6,7 +6,7 @@ annotations = "vist/engine/testcases/track/kitti-samples/tracking_training.json"
 num_processes = 0
     [train.dataloader]
     image_channel_mode = "RGB"
-    fields_to_load = ["boxes2d", "boxes3d"]
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
         [train.dataloader.ref_sampling]
         type = 'uniform'
         scope = 2

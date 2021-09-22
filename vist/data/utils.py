@@ -144,9 +144,7 @@ def prepare_labels(
         instance_ids_to_global(frames, instance_ids)
 
     rank_zero_info(
-        "Preprocessing %s labels takes %s seconds.",
-        len(frames),
-        "{:.2f}".format(timer.time()),
+        f"Preprocessing {len(frames)} labels takes {timer.time():.2f} seconds."
     )
     return frequencies
 
