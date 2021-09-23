@@ -13,7 +13,7 @@ from vist.struct import Images, InputSample
 from vist.unittest.utils import generate_dets, generate_feature_list
 
 from .base import BaseRoIHeadConfig
-from .qd_3dt_bbox_3d_head import QD3DTBBox3DHead
+from .qd_3dt_bbox3d_head import QD3DTBBox3DHead
 
 
 class TestQDTBBox3DHead(unittest.TestCase):

@@ -74,7 +74,7 @@ def generate_rotation_output(
     See: 3D Bounding Box Estimation Using Deep Learning and Geometry,
      Mousavian et al., CVPR'17
     """
-    pred = pred.view(pred.size(0), -1, num_bins + 2 * num_bins)
+    pred = pred.view(pred.size(0), -1, 3 * num_bins)
     bin_logits = pred[..., :num_bins]
 
     bin_residuals = []

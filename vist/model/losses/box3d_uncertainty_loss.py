@@ -56,27 +56,27 @@ class Box3DUncertaintyLoss(BaseLoss):
 
         # delta 2dc loss
         loss_cen = smooth_l1_loss(
-            pred[:, :2], target[:, :2], beta=1 / 9, reduction="none"
-        ).mean(dim=-1)
+            pred[:, :2], target[:, :2], beta=1 / 9, reduction="mean"
+        )
 
         # dimension loss
         loss_dim = smooth_l1_loss(
-            pred[:, 3:6], target[:, 3:6], beta=1 / 9, reduction="none"
-        ).mean(dim=-1)
+            pred[:, 3:6], target[:, 3:6], beta=1 / 9, reduction="mean"
+        )
 
         # depth loss
         depth_weights = (target[:, 2] > 0).float()
         loss_dep = smooth_l1_loss(
-            pred[:, 2], target[:, 2], weight=depth_weights, reduction="none"
+            pred[:, 2], target[:, 2], weight=depth_weights, reduction="mean"
         )
 
         # rotation loss
         loss_rot = rotation_loss(
-            pred[:, 6:12],
-            target[:, 6:8],
-            target[:, 8:],
+            pred[:, 6 : 6 + self.cfg.num_rotation_bins * 3],
+            target[:, 6 : 6 + self.cfg.num_rotation_bins],
+            target[:, 6 + self.cfg.num_rotation_bins:],
             self.cfg.num_rotation_bins,
-        ).mean(dim=-1)
+        ).mean()
 
         result_dict = dict(
             loss_ctr3d=self.cfg.loss_weights[0] * loss_cen,
@@ -96,12 +96,12 @@ class Box3DUncertaintyLoss(BaseLoss):
         )
 
         loss_unc3d = smooth_l1_loss(
-            pred[:, 12],
+            pred[:, -1],
             pos_depth_self_labels.detach().clone(),
             weight=pos_depth_self_weights,
-            reduction="none",
+            reduction="mean",
             beta=1 / 9,
-        ).mean(dim=-1)
+        )
 
         result_dict.update(
             dict(loss_unc3d=self.cfg.loss_weights[4] * loss_unc3d)

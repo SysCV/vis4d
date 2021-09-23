@@ -111,7 +111,7 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
             ]
 
             # depth uncertainty
-            depth_uncertainty = box_deltas_[:, 12:13]
+            depth_uncertainty = box_deltas_[:, -1].unsqueeze(-1)
             depth_uncertainty = depth_uncertainty.clamp(min=0.0, max=1.0)
 
             # center
@@ -126,7 +126,9 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
             )
 
             # rot_y
-            alpha = rotation_output_to_alpha(box_deltas_[:, 6:12])
+            alpha = rotation_output_to_alpha(
+                box_deltas_[:, 6:-1], self.cfg.num_rotation_bins
+            )
             rot_y = alpha2yaw(alpha, center_3d)
             rot_y = rot_y.unsqueeze(-1)
 

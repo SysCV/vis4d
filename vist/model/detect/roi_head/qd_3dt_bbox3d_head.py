@@ -50,6 +50,7 @@ class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
     conv_has_bias: bool = False
     norm: str
     num_groups: int = 32
+    num_rotation_bins: int = 2
 
     loss: LossConfig
     box3d_coder: BaseBoxCoderConfig
@@ -163,7 +164,7 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         out_dim_size = 3 * self.cls_out_channels
         self.fc_dim = nn.Linear(self.dim_last_dim, out_dim_size)
 
-        out_rot_size = 6 * self.cls_out_channels
+        out_rot_size = 3 * self.cfg.num_rotation_bins * self.cls_out_channels
         self.fc_rot = nn.Linear(self.rot_last_dim, out_rot_size)
 
         out_2dc_size = 2 * self.cls_out_channels
@@ -173,6 +174,14 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
 
         # losses
         self.loss = build_loss(self.cfg.loss)
+        assert (
+            self.bbox_coder.cfg.num_rotation_bins  # type: ignore
+            == self.cfg.num_rotation_bins
+            == self.loss.cfg.num_rotation_bins
+        ), (
+            "num_rotation_bins must be consistent between head, "
+            "loss and box coder."
+        )
 
     def _init_weights(self) -> None:
         """Init weights of modules in head."""
@@ -286,7 +295,9 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
             -1, self.cfg.num_classes, 1
         )
         dim = self.fc_dim(x_dim).view(-1, self.cfg.num_classes, 3)
-        alpha = generate_rotation_output(self.fc_rot(x_rot))
+        alpha = generate_rotation_output(
+            self.fc_rot(x_rot), self.cfg.num_rotation_bins
+        )
         delta_2dc = self.fc_2dc(x_2dc).view(-1, self.cfg.num_classes, 2)
         return torch.cat([delta_2dc, depth, dim, alpha, depth_uncertainty], -1)
 
