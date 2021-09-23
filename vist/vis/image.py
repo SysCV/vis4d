@@ -4,7 +4,6 @@ from typing import List, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from scalabel.label.utils import project_points_to_image
 
 from vist.struct import Intrinsics, NDArrayF64
 
@@ -110,31 +109,69 @@ def draw_bbox3d(
     intrinsics: NDArrayF64,
     color: Tuple[int],
     label: Optional[str] = None,
+    camera_near_clip: float = 0.15,
 ) -> None:  # pragma: no cover
     """Draw 3D box onto image."""
     draw = ImageDraw.Draw(image)
-    corners = project_points_to_image(box3d_to_corners(box3d), intrinsics)
+    corners = box3d_to_corners(box3d)
+    corners_proj = corners / corners[:, 2:3]
+    corners_proj = np.dot(corners_proj, intrinsics.T)  # type: ignore
+
+    def draw_line(
+        point1: NDArrayF64, point2: NDArrayF64, color: Tuple[int]
+    ) -> None:
+        if point1[2] < camera_near_clip and point2[2] < camera_near_clip:
+            return
+        if point1[2] < camera_near_clip:
+            point1 = get_intersection_point(point1, point2, camera_near_clip)
+        elif point2[2] < camera_near_clip:
+            point2 = get_intersection_point(point1, point2, camera_near_clip)
+        draw.line((tuple(point1[:2]), tuple(point2[:2])), fill=color)
 
     def draw_rect(selected_corners: NDArrayF64) -> None:
         prev = selected_corners[-1]
         for corner in selected_corners:
-            draw.line((tuple(prev), tuple(corner)), fill=color)
+            draw_line(prev, corner, color)
             prev = corner
 
     # Draw the sides
     for i in range(4):
-        draw.line((tuple(corners[i]), tuple(corners[i + 4])), fill=color)
+        draw_line(corners_proj[i], corners_proj[i + 4], color)
 
     # Draw bottom (first 4 corners) and top (last 4 corners)
-    draw_rect(corners[:4])
-    draw_rect(corners[4:])
+    draw_rect(corners_proj[:4])
+    draw_rect(corners_proj[4:])
 
     # Draw line indicating the front
-    center_bottom_forward = np.mean(corners[:2], axis=0)
-    center_bottom = np.mean(corners[:4], axis=0)
-    draw.line((tuple(center_bottom), tuple(center_bottom_forward)), fill=color)
+    center_bottom_forward = np.mean(corners_proj[:2], axis=0)
+    center_bottom = np.mean(corners_proj[:4], axis=0)
+    draw_line(center_bottom, center_bottom_forward, color)
 
     if label is not None:
         font = ImageFont.load_default()
-        center_top_forward = tuple(np.mean(corners[2:4], axis=0))
+        center_top_forward = tuple(np.mean(corners_proj[2:4], axis=0)[:2])
         draw.text(center_top_forward, label, (255, 255, 255), font=font)
+
+
+def get_intersection_point(
+    point1: NDArrayF64, point2: NDArrayF64, camera_near_clip: float
+) -> NDArrayF64:  # pragma: no cover
+    """Get point intersecting with camera near plane on line point1 -> point2.
+
+    The line is defined by two points (3 dimensional) in camera coordinates.
+    """
+    cam_dir = np.array([0, 0, 1])
+    center_pt: NDArrayF64 = cam_dir * camera_near_clip
+
+    c1, c2, c3 = center_pt
+    a1, a2, a3 = cam_dir
+    x1, y1, z1 = point1
+    x2, y2, z2 = point2
+
+    k_up = abs(a1 * (x1 - c1) + a2 * (y1 - c2) + a3 * (z1 - c3))
+    k_down = abs(a1 * (x1 - x2) + a2 * (y1 - y2) + a3 * (z1 - z2))
+    if k_up > k_down:
+        k = 1
+    else:
+        k = k_up / k_down
+    return (1 - k) * point1 + k * point2  # type: ignore

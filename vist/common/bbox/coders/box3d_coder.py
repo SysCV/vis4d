@@ -7,7 +7,12 @@ import torch
 from vist.struct import Boxes2D, Boxes3D, Intrinsics
 
 from ...geometry.projection import project_points, unproject_points
-from ...geometry.rotation import alpha2yaw, rotation_output_to_alpha, yaw2alpha
+from ...geometry.rotation import (
+    alpha2yaw,
+    normalize_angle,
+    rotation_output_to_alpha,
+    yaw2alpha,
+)
 from .base import BaseBoxCoder3D, BaseBoxCoderConfig
 
 
@@ -17,6 +22,8 @@ class QD3DTBox3DCoderConfig(BaseBoxCoderConfig):
     center_scale: float = 10.0
     depth_log_scale: float = 2.0
     dim_log_scale: float = 2.0
+    num_rotation_bins: int = 2
+    bin_overlap: float = 1 / 6
 
 
 class QD3DTBox3DCoder(BaseBoxCoder3D):
@@ -53,18 +60,34 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
             dims = torch.log(targets_.dimensions) * self.cfg.dim_log_scale
 
             # rotation
+            num_bins, bin_overlap = (
+                self.cfg.num_rotation_bins,
+                self.cfg.bin_overlap,
+            )
             alpha = yaw2alpha(targets_.rot_y, targets_.center)
-
-            bin_cls = torch.zeros((alpha.shape[0], 2), device=alpha.device)
-            bin_res = torch.zeros((alpha.shape[0], 2), device=alpha.device)
+            bin_cls = torch.zeros(
+                (alpha.shape[0], num_bins), device=alpha.device
+            )
+            bin_res = torch.zeros(
+                (alpha.shape[0], num_bins), device=alpha.device
+            )
+            bin_centers = torch.arange(
+                -np.pi, np.pi, 2 * np.pi / num_bins, device=alpha.device
+            )
+            bin_centers += np.pi / num_bins
             for i in range(alpha.shape[0]):
-                if alpha[i] < np.pi / 6.0 or alpha[i] > 5 * np.pi / 6.0:
-                    bin_cls[i, 0] = 1
-                    bin_res[i, 0] = alpha[i] - (-0.5 * np.pi)
-
-                if alpha[i] > -np.pi / 6.0 or alpha[i] < -5 * np.pi / 6.0:
-                    bin_cls[i, 1] = 1
-                    bin_res[i, 1] = alpha[i] - (0.5 * np.pi)
+                overlap_value = np.pi * 2 / num_bins * bin_overlap
+                alpha_hi = normalize_angle(alpha[i] + overlap_value)
+                alpha_lo = normalize_angle(alpha[i] - overlap_value)
+                for bin_idx in range(self.cfg.num_rotation_bins):
+                    bin_min = bin_centers[bin_idx] - np.pi / num_bins
+                    bin_max = bin_centers[bin_idx] + np.pi / num_bins
+                    if (
+                        bin_min <= alpha_lo <= bin_max
+                        or bin_min <= alpha_hi <= bin_max
+                    ):
+                        bin_cls[i, bin_idx] = 1
+                        bin_res[i, bin_idx] = alpha[i] - bin_centers[bin_idx]
 
             result.append(
                 torch.cat([delta_center, depth, dims, bin_cls, bin_res], -1)

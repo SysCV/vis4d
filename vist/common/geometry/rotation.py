@@ -3,6 +3,11 @@ import numpy as np
 import torch
 
 
+def normalize_angle(input_angles: torch.Tensor) -> torch.Tensor:
+    """Normalize content of input_angles to range [-pi, pi]."""
+    return (input_angles + np.pi) % (2 * np.pi) - np.pi
+
+
 def yaw2alpha(rot_y: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
     """Get alpha by rotation_y - theta.
 
@@ -13,10 +18,8 @@ def yaw2alpha(rot_y: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
     Returns:
         alpha: Observation angle of object, ranging [-pi..pi]
     """
-    torch_pi = rot_y.new_tensor([np.pi])
     alpha = rot_y - torch.atan2(center[..., 0], center[..., 2])
-    alpha = (alpha + torch_pi) % (2 * torch_pi) - torch_pi
-    return alpha
+    return normalize_angle(alpha)
 
 
 def alpha2yaw(alpha: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
@@ -29,51 +32,59 @@ def alpha2yaw(alpha: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
     Returns:
         rot_y: Rotation around Y-axis in camera coordinates [-pi..pi]
     """
-    torch_pi = alpha.new_tensor([np.pi])
     rot_y = alpha + torch.atan2(center[..., 0], center[..., 2])
-    rot_y = (rot_y + torch_pi) % (2 * torch_pi) - torch_pi
-    return rot_y
+    return normalize_angle(rot_y)
 
 
-def rotation_output_to_alpha(output: torch.Tensor) -> torch.Tensor:
+def rotation_output_to_alpha(
+    output: torch.Tensor, num_bins: int = 2
+) -> torch.Tensor:
     """Get alpha from bin-based regression output.
 
     Uses method described in (with two bins):
     See: 3D Bounding Box Estimation Using Deep Learning and Geometry,
      Mousavian et al., CVPR'17
     """
-    idx = (output[:, 0] > output[:, 1]).float()
-    alpha1 = torch.atan(output[:, 2] / output[:, 3]) + (-0.5 * np.pi)
-    alpha2 = torch.atan(output[:, 4] / output[:, 5]) + (0.5 * np.pi)
-    return alpha1 * idx + alpha2 * (1 - idx)
+    out_range = torch.tensor(list(range(len(output))), device=output.device)
+    bin_idx = output[:, :num_bins].argmax(dim=-1)
+    res_idx = num_bins * (bin_idx + 1)
+    bin_centers = torch.arange(
+        -np.pi, np.pi, 2 * np.pi / num_bins, device=output.device
+    )
+    bin_centers += np.pi / num_bins
+    alpha = (
+        torch.atan(output[out_range, res_idx] / output[out_range, res_idx + 1])
+        + bin_centers[bin_idx]
+    )
+    return alpha
 
 
-def generate_rotation_output(pred: torch.Tensor) -> torch.Tensor:
+def generate_rotation_output(
+    pred: torch.Tensor, num_bins: int = 2
+) -> torch.Tensor:
     """Convert output to bin confidence and cos / sin of residual.
 
-    The viewpoint (alpha) prediction (N, 6) consists of:
-    bin confidences (N, 2): softmax logits for bin probability.
+    The viewpoint (alpha) prediction (N, num_bins + 2 * num_bins) consists of:
+    bin confidences (N, num_bins): softmax logits for bin probability.
         1st entry is probability for orientation being in bin 1,
         2nd entry is probability for orientation being in bin 2.
-    bin1 residual (N, 2): angle residual w.r.t. bin1 orientation,
+    bin residual (N, num_bins * 2): angle residual w.r.t. bin N orientation,
         represented as sin and cos values.
-    bin2 residual (N, 2): like above for bin2.
 
     See: 3D Bounding Box Estimation Using Deep Learning and Geometry,
      Mousavian et al., CVPR'17
     """
-    pred = pred.view(pred.size(0), -1, 6)
-    bin_logits = pred[..., 0:2]
+    pred = pred.view(pred.size(0), -1, num_bins + 2 * num_bins)
+    bin_logits = pred[..., :num_bins]
 
-    # bin 1 residuals
-    norm1 = pred[..., 2:4].norm(dim=-1, keepdim=True)
-    b1sin = pred[..., 2:3] / norm1
-    b1cos = pred[..., 3:4] / norm1
+    bin_residuals = []
+    for i in range(num_bins):
+        res_idx = num_bins * (i + 1)
+        norm = pred[..., res_idx : res_idx + 2].norm(dim=-1, keepdim=True)
+        bsin = pred[..., res_idx : res_idx + 1] / norm
+        bcos = pred[..., res_idx + 1 : res_idx + 2] / norm
+        bin_residuals.append(bsin)
+        bin_residuals.append(bcos)
 
-    # bin 2 residuals
-    norm2 = pred[..., 4:6].norm(dim=-1, keepdim=True)
-    b2sin = pred[..., 4:5] / norm2
-    b2cos = pred[..., 5:6] / norm2
-
-    rot = torch.cat([bin_logits, b1sin, b1cos, b2sin, b2cos], -1)
+    rot = torch.cat([bin_logits, *bin_residuals], -1)
     return rot
