@@ -20,6 +20,7 @@ class Box3DUncertaintyLossConfig(LossConfig):
         1.0,
         1.0,
     )
+    num_rotation_bins: int = 2
 
 
 class Box3DUncertaintyLoss(BaseLoss):
@@ -55,24 +56,27 @@ class Box3DUncertaintyLoss(BaseLoss):
 
         # delta 2dc loss
         loss_cen = smooth_l1_loss(
-            pred[:, :2], target[:, :2], beta=1 / 9, reduction="none"
-        ).mean(dim=-1)
+            pred[:, :2], target[:, :2], beta=1 / 9, reduction="mean"
+        )
 
         # dimension loss
         loss_dim = smooth_l1_loss(
-            pred[:, 3:6], target[:, 3:6], beta=1 / 9, reduction="none"
-        ).mean(dim=-1)
+            pred[:, 3:6], target[:, 3:6], beta=1 / 9, reduction="mean"
+        )
 
         # depth loss
         depth_weights = (target[:, 2] > 0).float()
         loss_dep = smooth_l1_loss(
-            pred[:, 2], target[:, 2], weight=depth_weights, reduction="none"
+            pred[:, 2], target[:, 2], weight=depth_weights, reduction="mean"
         )
 
         # rotation loss
         loss_rot = rotation_loss(
-            pred[:, 6:12], target[:, 6:8], target[:, 8:]
-        ).mean(dim=-1)
+            pred[:, 6 : 6 + self.cfg.num_rotation_bins * 3],
+            target[:, 6 : 6 + self.cfg.num_rotation_bins],
+            target[:, 6 + self.cfg.num_rotation_bins :],
+            self.cfg.num_rotation_bins,
+        ).mean()
 
         result_dict = dict(
             loss_ctr3d=self.cfg.loss_weights[0] * loss_cen,
@@ -83,7 +87,7 @@ class Box3DUncertaintyLoss(BaseLoss):
 
         # uncertainty loss
         pos_depth_self_labels = torch.exp(
-            -torch.abs(pred[:, 12] - target[:, 2]) * 5.0
+            -torch.abs(pred[:, 2] - target[:, 2]) * 5.0
         )
         pos_depth_self_weights = torch.where(
             pos_depth_self_labels > 0.8,
@@ -92,12 +96,12 @@ class Box3DUncertaintyLoss(BaseLoss):
         )
 
         loss_unc3d = smooth_l1_loss(
-            pred[:, 12],
+            pred[:, -1],
             pos_depth_self_labels.detach().clone(),
             weight=pos_depth_self_weights,
-            reduction="none",
+            reduction="mean",
             beta=1 / 9,
-        ).mean(dim=-1)
+        )
 
         result_dict.update(
             dict(loss_unc3d=self.cfg.loss_weights[4] * loss_unc3d)
@@ -110,46 +114,37 @@ class Box3DUncertaintyLoss(BaseLoss):
 
 
 def rotation_loss(
-    output: torch.Tensor, target_bin: torch.Tensor, target_res: torch.Tensor
+    output: torch.Tensor,
+    target_bin: torch.Tensor,
+    target_res: torch.Tensor,
+    num_bins: int,
 ) -> torch.Tensor:
     """Rotation loss.
 
     Consists of bin-based classification loss and residual-based regression
     loss.
     """
-    target_bin_i = target_bin[:, :2].argmax(dim=-1)
-    loss_bins = F.cross_entropy(output[:, :2], target_bin_i, reduction="none")
+    loss_bins = F.binary_cross_entropy_with_logits(
+        output[:, :num_bins], target_bin, reduction="none"
+    ).mean(dim=-1)
 
-    bin1_mask = target_bin_i == 0
-    bin2_mask = target_bin_i == 1
     loss_res = torch.zeros_like(loss_bins)
-    if bin1_mask.any():
-        loss_sin1 = smooth_l1_loss(
-            output[bin1_mask, 2],
-            torch.sin(target_res[bin1_mask, 0]),
-            beta=1 / 9,
-            reduction="none",
-        )
-        loss_cos1 = smooth_l1_loss(
-            output[bin1_mask, 3],
-            torch.cos(target_res[bin1_mask, 0]),
-            beta=1 / 9,
-            reduction="none",
-        )
-        loss_res[bin1_mask] += loss_sin1 + loss_cos1
-    if bin2_mask.any():
-        loss_sin2 = smooth_l1_loss(
-            output[bin2_mask, 4],
-            torch.sin(target_res[bin2_mask, 1]),
-            beta=1 / 9,
-            reduction="none",
-        )
-        loss_cos2 = smooth_l1_loss(
-            output[bin2_mask, 5],
-            torch.cos(target_res[bin2_mask, 1]),
-            beta=1 / 9,
-            reduction="none",
-        )
-        loss_res[bin2_mask] += loss_sin2 + loss_cos2
+    for i in range(num_bins):
+        bin_mask = target_bin[:, i] == 1
+        res_idx = num_bins + 2 * i
+        if bin_mask.any():
+            loss_sin = smooth_l1_loss(
+                output[bin_mask, res_idx],
+                torch.sin(target_res[bin_mask, i]),
+                beta=1 / 9,
+                reduction="none",
+            )
+            loss_cos = smooth_l1_loss(
+                output[bin_mask, res_idx + 1],
+                torch.cos(target_res[bin_mask, i]),
+                beta=1 / 9,
+                reduction="none",
+            )
+            loss_res[bin_mask] += loss_sin + loss_cos
 
     return loss_bins + loss_res
