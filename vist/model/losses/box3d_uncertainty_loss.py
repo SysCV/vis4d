@@ -74,7 +74,7 @@ class Box3DUncertaintyLoss(BaseLoss):
         loss_rot = rotation_loss(
             pred[:, 6 : 6 + self.cfg.num_rotation_bins * 3],
             target[:, 6 : 6 + self.cfg.num_rotation_bins],
-            target[:, 6 + self.cfg.num_rotation_bins:],
+            target[:, 6 + self.cfg.num_rotation_bins :],
             self.cfg.num_rotation_bins,
         ).mean()
 
@@ -131,7 +131,7 @@ def rotation_loss(
     loss_res = torch.zeros_like(loss_bins)
     for i in range(num_bins):
         bin_mask = target_bin[:, i] == 1
-        res_idx = num_bins * (i + 1)
+        res_idx = num_bins + 2 * i
         if bin_mask.any():
             loss_sin = smooth_l1_loss(
                 output[bin_mask, res_idx],

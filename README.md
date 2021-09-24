@@ -44,17 +44,17 @@ python3 setup.py install
 Training
 
 ```bash
-python3 tools/launch.py train --config <config_path> <maybe other arguments>
+python3 -m vist.engine.trainer train --config <config_path> <maybe other arguments>
 ```
 
 Testing
 
 ```bash
-python3 tools/launch.py test --config <config_path> <maybe other arguments>
+python3 -m vist.engine.trainer test --config <config_path> <maybe other arguments>
 ```
 
 Prediction
 
 ```bash
-python3 tools/launch.py predict --config <config_path> <maybe other arguments>
+python3 -m vist.engine.trainer predict --config <config_path> <maybe other arguments>
 ```

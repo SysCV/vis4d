@@ -47,7 +47,7 @@ def rotation_output_to_alpha(
     """
     out_range = torch.tensor(list(range(len(output))), device=output.device)
     bin_idx = output[:, :num_bins].argmax(dim=-1)
-    res_idx = num_bins * (bin_idx + 1)
+    res_idx = num_bins + 2 * bin_idx
     bin_centers = torch.arange(
         -np.pi, np.pi, 2 * np.pi / num_bins, device=output.device
     )
@@ -67,7 +67,8 @@ def generate_rotation_output(
     The viewpoint (alpha) prediction (N, num_bins + 2 * num_bins) consists of:
     bin confidences (N, num_bins): softmax logits for bin probability.
         1st entry is probability for orientation being in bin 1,
-        2nd entry is probability for orientation being in bin 2.
+        2nd entry is probability for orientation being in bin 2,
+        and so on.
     bin residual (N, num_bins * 2): angle residual w.r.t. bin N orientation,
         represented as sin and cos values.
 
@@ -79,7 +80,7 @@ def generate_rotation_output(
 
     bin_residuals = []
     for i in range(num_bins):
-        res_idx = num_bins * (i + 1)
+        res_idx = num_bins + 2 * i
         norm = pred[..., res_idx : res_idx + 2].norm(dim=-1, keepdim=True)
         bsin = pred[..., res_idx : res_idx + 1] / norm
         bcos = pred[..., res_idx + 1 : res_idx + 2] / norm
