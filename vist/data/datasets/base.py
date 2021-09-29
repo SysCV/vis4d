@@ -169,3 +169,4 @@ def filter_attributes(frames: List[Frame], attributes_dict: Optional[Dict[
                 f for f in frames if f.attributes and check_attributes(
                     f.attributes[attributes_key], attributes)]
     return frames
+    

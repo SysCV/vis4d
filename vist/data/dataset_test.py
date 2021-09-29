@@ -233,4 +233,4 @@ class TestScalabelDataset(unittest.TestCase):
 
         dataset = ScalabelDataset(dataset_loader, True)
         self.assertTrue(len(dataset) == 0)
-
+        
