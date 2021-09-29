@@ -144,7 +144,8 @@ def check_attributes(frame_attributes: Union[bool, float, str],
     Returns:
         boolean, whether frame attributes are allowed.
     """
-    if isinstance(filter_attributes, list):
+    if isinstance(allowed_attributes, list):
+        # assert frame_attributes not in allowed_attributes
         return frame_attributes in allowed_attributes
     return frame_attributes == allowed_attributes
 
