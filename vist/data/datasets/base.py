@@ -2,7 +2,7 @@
 import abc
 import os
 import pickle
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, validator
 from pytorch_lightning.utilities.distributed import rank_zero_info
@@ -63,6 +63,9 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     data_root: str
     dataloader: DataloaderConfig = DataloaderConfig()
     annotations: Optional[str]
+    attributes: Optional[
+        Dict[str, Union[bool, float, str, List[float], List[str]]]
+    ]
     config_path: Optional[str]
     eval_metrics: List[str] = []
     validate_frames: bool = False
@@ -97,6 +100,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
             dataset = self.load_dataset()
 
         assert dataset.config is not None
+        dataset.frames = filter_attributes(dataset.frames, cfg.attributes)
         add_data_path(cfg.data_root, dataset.frames)
         rank_zero_info(f"Loading {cfg.name} takes {timer.time():.2f} seconds.")
         self.metadata_cfg = dataset.config
@@ -126,3 +130,43 @@ def add_data_path(data_root: str, frames: List[Frame]) -> None:
             ann.url = os.path.join(data_root, ann.videoName, ann.name)
         else:
             ann.url = os.path.join(data_root, ann.name)
+
+
+def check_attributes(frame_attributes: Union[bool, float, str],
+        allowed_attributes: Union[bool, float, str, List[float],
+                                  List[str]]) -> bool:
+    """Check if attributes for current frame are allowed.
+
+    Args:
+        frame_attributes: Attributes of current frame.
+        allowed_attributes: Attributes allowed.
+
+    Returns:
+        boolean, whether frame attributes are allowed.
+    """
+    if isinstance(allowed_attributes, list):
+        # assert frame_attributes not in allowed_attributes
+        return frame_attributes in allowed_attributes
+    return frame_attributes == allowed_attributes
+
+
+def filter_attributes(frames: List[Frame], attributes_dict: Optional[Dict[
+        str, Union[bool, float, str, List[float], List[str]]]]) -> List[Frame]:
+    """Filter samples according to allowed attributes.
+
+    Args:
+        frames: A list of Frame instances to filter.
+        attributes_dict: Dictionary of allowed attributes. Each dictionary
+            entry contains all allowed attributes for that key.
+
+    Returns:
+        A list of filtered Frame instances.
+    """
+    if attributes_dict:
+        for attributes_key in attributes_dict:
+            attributes = attributes_dict[attributes_key]
+            frames = [
+                f for f in frames if f.attributes and check_attributes(
+                    f.attributes[attributes_key], attributes)]
+    return frames
+    

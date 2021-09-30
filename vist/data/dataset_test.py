@@ -161,3 +161,76 @@ class TestScalabelDataset(unittest.TestCase):
         sorted_samples = self.dataset.sort_samples(input_samples)
         self.assertEqual(sorted_samples[0].metadata[0].frameIndex, 0)
         self.assertEqual(sorted_samples[1].metadata[0].frameIndex, 1)
+
+    def test_filter_attributes(self) -> None:
+        """Testcase for attribute filtering."""
+        cfg = BaseDatasetConfig(
+            name="test",
+            type="Scalabel",
+            data_root="/path/to/root",
+            dataloader=DataloaderConfig(
+                ref_sampling=ReferenceSamplingConfig(
+                    type="sequential",
+                    num_ref_imgs=2,
+                    scope=3,
+                    frame_order="temporal",
+                )
+            ),
+            attributes={'timeofday': ['daytime', 'night'],
+                        'weather': 'clear'},
+        )
+
+        # Testcase 1
+        dataset_loader = MockDatasetLoader(
+            cfg,
+            [
+                Frame(
+                    name=str(i),
+                    videoName=str(i % 2),
+                    frameIndex=i - i // 2 - i % 2,
+                    attributes={'timeofday': 'daytime',
+                                'weather': 'clear'},
+                )
+                for i in range(6)
+            ],
+        )
+
+        dataset = ScalabelDataset(dataset_loader, True)
+        self.assertTrue(len(dataset) == 6)
+
+        # Testcase 2
+        dataset_loader = MockDatasetLoader(
+            cfg,
+            [
+                Frame(
+                    name=str(i),
+                    videoName=str(i % 2),
+                    frameIndex=i - i // 2 - i % 2,
+                    attributes={'timeofday': 'night',
+                                'weather': 'clear'},
+                )
+                for i in range(6)
+            ],
+        )
+
+        dataset = ScalabelDataset(dataset_loader, True)
+        self.assertTrue(len(dataset) == 6)
+
+        # Testcase 3
+        dataset_loader = MockDatasetLoader(
+            cfg,
+            [
+                Frame(
+                    name=str(i),
+                    videoName=str(i % 2),
+                    frameIndex=i - i // 2 - i % 2,
+                    attributes={'timeofday': 'daytime',
+                                'weather': 'snowy'},
+                )
+                for i in range(6)
+            ],
+        )
+
+        dataset = ScalabelDataset(dataset_loader, True)
+        self.assertTrue(len(dataset) == 0)
+        
