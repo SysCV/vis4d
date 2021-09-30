@@ -2,10 +2,9 @@
 from typing import Dict, List
 
 import torch
-from torchvision.ops import roi_align
 
 from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
-
+from vist.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
 from .base import BaseModel, BaseModelConfig
 from .deepsort_example.deep import FeatureNet
 from .load_predictions import load_predictions
@@ -20,6 +19,7 @@ class DeepSORTConfig(BaseModelConfig, extra="allow"):
     max_boxes_num: int = 512
     dataset: str
     num_instances: int
+    roi_align_config: RoIPoolerConfig
     prediction_path: str
 
 
@@ -30,10 +30,10 @@ class DeepSORT(BaseModel):
         """Init detector."""
         super().__init__(cfg)
         self.cfg = DeepSORTConfig(**cfg.dict())
-        # self.detector = build_detector(self.cfg.detection)
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.search_dict: Dict[str, Dict[int, Boxes2D]] = dict()
         self.feature_net = FeatureNet(num_classes=self.cfg.num_instances)
+        self.roi_align = build_roi_pooler(self.cfg.roi_align_config)
 
     @property
     def device(self) -> torch.device:
@@ -56,40 +56,25 @@ class DeepSORT(BaseModel):
             inp[0].image.tensor[0].unsqueeze(0) for inp in batch_inputs
         ]  # no ref views
         inputs_images = torch.cat(inputs_images, dim=0).to(self.device)
-        labels = [inp[0].instances for inp in batch_inputs]  # type:ignore
-
-        instance_boxes = torch.empty([0, 5])
-        for batch_index, label in enumerate(labels):
-            boxes = label.boxes[:, :-1].float()
-            batch_column = torch.ones(len(boxes), 1) * batch_index
-            batch_boxes = torch.cat((batch_column, boxes), dim=1)
-            instance_boxes = torch.cat((instance_boxes, batch_boxes), dim=0)
-        instance_boxes = instance_boxes.to(self.device)
-        instance_ids = torch.cat(
-            [label.track_ids for label in labels], dim=0
-        ).to(self.device)
+        labels = []
+        for inp in batch_inputs:
+            assert inp[0].boxes2d is not None
+            labels.append(inp[0].boxes2d.to(self.device))
+        instance_ids = torch.cat([label.track_ids for label in labels], dim=0)
+        instance_images = self.roi_align.pool([inputs_images], labels)
         batch_size = min(
-            self.cfg.max_boxes_num, len(instance_boxes)  # type:ignore
+            self.cfg.max_boxes_num, len(instance_images)  # type:ignore
         )
-        indices = torch.randperm(len(instance_boxes))[:batch_size]
-        instance_boxes = instance_boxes[indices]
+        indices = torch.randperm(len(instance_images))[:batch_size]
+        instance_images = instance_images[indices]
         instance_ids = instance_ids[indices]
-
-        resize = (
-            (128, 64)
-            if self.cfg.dataset == "MOT16"  # type:ignore
-            else (64, 128)
-        )
-        instance_images = roi_align(
-            inputs_images, instance_boxes, resize, aligned=True
-        )
 
         cls_output = self.feature_net(instance_images, train=True)
         instance_ids = instance_ids.long()
         feature_net_loss = torch.nn.functional.cross_entropy(
             cls_output, instance_ids, reduction="mean"
         )
-        return feature_net_loss  # type: ignore
+        return {"feature_net_loss": feature_net_loss}  # type: ignore
 
     def forward_test(
         self, batch_inputs: List[List[InputSample]]
@@ -144,15 +129,9 @@ class DeepSORT(BaseModel):
                 torch.empty(0, 5), torch.empty(0), torch.empty(0)
             ).to(self.device)
         else:
-            instance_boxes = detections[0].boxes[:, :-1]
             image_tensor = image.tensor.to(self.device)
-            resize = (
-                (128, 64)
-                if self.cfg.dataset == "MOT16"  # type:ignore
-                else (64, 128)
-            )
-            instance_images = roi_align(
-                image_tensor, [instance_boxes], resize, aligned=True
+            instance_images = self.roi_align.pool(
+                [image_tensor], [detections[0]]
             )
             det_features = self.feature_net(instance_images, train=False)
             tracks = self.track_graph(detections[0], frame_id, det_features)
