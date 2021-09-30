@@ -1,12 +1,12 @@
 """Track graph of deep SORT."""
 from collections import defaultdict
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import torch
 
 from vist.struct import Boxes2D
+from vist.common.bbox.utils import bbox_iou
 
-from ...deepsort_example.iou_matching import iou_cost
 from ...deepsort_example.kalman_filter import KalmanFilter
 from ...deepsort_example.linear_assignment import (
     gate_cost_matrix,
@@ -307,12 +307,29 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             for k in unmatched_tracks_a
             if self.tracks[k]["time_since_update"] != 1
         ]
-        iou_cost_matrix = iou_cost(
-            self.tracks,
-            detections,
-            iou_track_candidates,
-            unmatched_detections,
+        # iou_cost_matrix = iou_cost(
+        #     self.tracks,
+        #     detections,
+        #     iou_track_candidates,
+        #     unmatched_detections,
+        # )
+
+        bbox = torch.empty((0, 5)).to(detections.device)
+
+        for _, track_id in enumerate(iou_track_candidates):
+            bbox_t = xyah_to_tlbr(self.tracks[track_id]["mean"][:4])
+            conf = self.tracks[track_id]["confidence"]
+            bbox_t = torch.cat(
+                (bbox_t, torch.tensor([conf]).to(bbox_t.device))
+            ).unsqueeze(0)
+            bbox = torch.cat((bbox, bbox_t), dim=0)
+        iou_track_candidates_box2d = Boxes2D(bbox)
+        unmatch_detections_box2d = detections[unmatched_detections]
+        iou_res = bbox_iou(
+            iou_track_candidates_box2d, unmatch_detections_box2d
         )
+        iou_cost_matrix = torch.ones_like(iou_res) - iou_res
+
         (
             matches_b,
             unmatched_tracks_b,
