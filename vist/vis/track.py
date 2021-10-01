@@ -18,7 +18,7 @@ def draw_sequence(
     """Draw predictions of a complete sequence."""
     results = []
     for frame, box in zip(frames, boxes):
-        results.append(draw_image(frame, box, mode))
+        results.append(draw_image(frame, boxes2d=box, mode=mode))
     return results
 
 

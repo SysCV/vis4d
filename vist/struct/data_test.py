@@ -53,9 +53,15 @@ class TestDataStructures(unittest.TestCase):
             "extrinsics",
         ]
         sample = InputSample([Frame(name="f1")], self.im2)
+<<<<<<< HEAD
         meta = sample.get("metadata")[0]
         assert isinstance(meta, Frame)
         self.assertEqual(meta.name, "f1")
+=======
+        meta = sample.get("metadata")[0]  # type: ignore
+        assert isinstance(meta, Frame)
+        self.assertEqual(meta.name, "f1")  # pylint: disable=no-member
+>>>>>>> main
         self.assertEqual(sample.images.tensor.shape, self.im2.tensor.shape)
         self.assertEqual(list(sample.dict().keys()), attributes)
         for attr in attributes:

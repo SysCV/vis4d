@@ -126,6 +126,12 @@ class TestBoxes3D(unittest.TestCase):
                 (str(i) == det.id for i, det in enumerate(dets_without_tracks))
             )
         )
+
+        rotx, roty, rotz = detections.rot_x, detections.rot_y, detections.rot_z
+        self.assertIsNotNone(rotx)
+        self.assertIsNotNone(roty)
+        self.assertIsNotNone(rotz)
+
         # test 7 DoF
         detections_7dof = detections.clone()
         detections_7dof.boxes = detections_7dof.boxes[
@@ -139,11 +145,21 @@ class TestBoxes3D(unittest.TestCase):
             self.assertEqual(d.box3d.orientation[0], 0)
             self.assertEqual(d.box3d.orientation[2], 0)
 
+        rotx, roty, rotz = (
+            detections_7dof.rot_x,  # pylint: disable=no-member
+            detections_7dof.rot_y,  # pylint: disable=no-member
+            detections_7dof.rot_z,  # pylint: disable=no-member
+        )
+        self.assertIsNone(rotx)
+        self.assertIsNotNone(roty)
+        self.assertIsNone(rotz)
+
         # 7DoF without score
         detections_7dof.boxes = detections_7dof.boxes[:, :-1]
         scalabel_dets_no_score = detections_7dof.to_scalabel(  # pylint: disable=no-member,line-too-long
             idx_to_class
         )
+        self.assertIsNone(detections_7dof.score)  # pylint: disable=no-member
         for d in scalabel_dets_no_score:
             self.assertIsNone(d.score)
             assert d.box3d is not None

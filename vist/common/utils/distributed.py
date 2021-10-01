@@ -1,13 +1,14 @@
 """VisT utils for distributed setting."""
 import logging
+import os
 import pickle
-from typing import Any, List, Tuple
+import shutil
+import tempfile
+from typing import Any, List, Optional, Tuple
 
 import pytorch_lightning as pl
 import torch
 import torch.distributed as dist
-
-TORCH_VERSION = tuple(int(x) for x in torch.__version__.split(".")[:2])
 
 
 # no coverage for these functions, since we don't unittest distributed setting
@@ -38,12 +39,7 @@ def synchronize() -> None:  # pragma: no cover
     world_size = dist.get_world_size()
     if world_size == 1:
         return
-    if dist.get_backend() == dist.Backend.NCCL and TORCH_VERSION >= (1, 8):
-        # This argument is needed to avoid warnings.
-        # It's valid only for NCCL backend.
-        dist.barrier(device_ids=[torch.cuda.current_device()])
-    else:
-        dist.barrier()
+    dist.barrier()
 
 
 def _serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: disable=line-too-long # pragma: no cover
@@ -59,9 +55,10 @@ def _serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: d
     if len(buffer) > 1024 ** 3:
         logger = logging.getLogger(__name__)
         logger.warning(
-            "Rank {} tries all-gather {:.2f} GB of data on device {}".format(
-                get_rank(), len(buffer) / (1024 ** 3), device
-            )
+            "Rank %s tries all-gather %.2f GB of data on device %s",
+            get_rank(),
+            len(buffer) / (1024 ** 3),
+            device,
         )
     storage = torch.ByteStorage.from_buffer(buffer)
     tensor = torch.ByteTensor(storage).to(device=device)
@@ -103,18 +100,22 @@ def _pad_to_largest_tensor(
     return size_list, tensor
 
 
-def all_gather_object(data: Any, pl_module: pl.LightningModule) -> List[Any]:  # type: ignore # pylint: disable=line-too-long # pragma: no cover
+def all_gather_object_gpu(  # type: ignore
+    data: Any, pl_module: pl.LightningModule, rank_zero_only: bool = True
+) -> Optional[List[Any]]:  # pragma: no cover
     """Run pl_module.all_gather on arbitrary picklable data.
 
     Args:
         data: any picklable object
         pl_module: LightningModule that contains the gathering op for the
         backend currently in use.
+        rank_zero_only: if results should only be returned on rank 0
 
     Returns:
         List[Any]: list of data gathered from each process
     """
-    if get_world_size() == 1:
+    rank, world_size = get_rank(), get_world_size()
+    if world_size == 1:
         return [data]
 
     # encode
@@ -123,10 +124,80 @@ def all_gather_object(data: Any, pl_module: pl.LightningModule) -> List[Any]:  #
 
     tensors = pl_module.all_gather(tensor)  # (world_size, N)
 
+    if rank_zero_only and not rank == 0:
+        return None
+
     # decode
     data_list = []
     for size, tensor in zip(size_list, tensors):
         buffer = tensor.cpu().numpy().tobytes()[:size]
         data_list.append(pickle.loads(buffer))
+
+    return data_list
+
+
+def create_tmpdir(
+    pl_module: pl.LightningModule, rank: int, tmpdir: Optional[str] = None
+) -> str:  # pragma: no cover
+    """Create and distribute a temporary directory across all processes."""
+    if tmpdir is not None:
+        os.makedirs(tmpdir, exist_ok=True)
+        return tmpdir
+    if rank == 0:
+        os.makedirs(".dist_tmp", exist_ok=True)
+        tmpdir = tempfile.mkdtemp(dir=".dist_tmp")
+    else:
+        tmpdir = None
+    tmp_list = all_gather_object_gpu(tmpdir, pl_module, rank_zero_only=False)
+    tmpdir = [tmp for tmp in tmp_list if tmp is not None][0]  # type: ignore
+    assert isinstance(tmpdir, str), "Gather failed, tmpdir not a string!"
+    return tmpdir
+
+
+def all_gather_object_cpu(  # type: ignore
+    data: Any,
+    pl_module: pl.LightningModule,
+    tmpdir: Optional[str] = None,
+    rank_zero_only: bool = True,
+) -> Optional[List[Any]]:  # pragma: no cover
+    """Share arbitrary picklable data via file system caching.
+
+    Args:
+        data: any picklable object.
+        pl_module: LightningModule that contains the gathering op for the
+        backend currently in use.
+        tmpdir: Save path for temporary files. If None, savely create tmpdir.
+        rank_zero_only: if results should only be returned on rank 0
+
+    Returns:
+        List[Any]: list of data gathered from each process.
+    """
+    rank, world_size = get_rank(), get_world_size()
+    if world_size == 1:
+        return [data]
+
+    # mk dir
+    tmpdir = create_tmpdir(pl_module, rank, tmpdir)
+
+    # encode & save
+    with open(os.path.join(tmpdir, f"part_{rank}.pkl"), "wb") as f:
+        pickle.dump(data, f)
+    synchronize()
+
+    if rank_zero_only and not rank == 0:
+        return None
+
+    # load & decode
+    data_list = []
+    for i in range(world_size):
+        with open(os.path.join(tmpdir, f"part_{i}.pkl"), "rb") as f:
+            data_list.append(pickle.load(f))
+
+    # rm dir
+    if not rank_zero_only:
+        # wait for all processes to finish loading before removing tmpdir
+        synchronize()
+    if rank == 0:
+        shutil.rmtree(tmpdir)
 
     return data_list

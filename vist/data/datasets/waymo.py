@@ -11,8 +11,8 @@ try:
     from scalabel.label.from_waymo import from_waymo
 
     WAYMO_INSTALLED = True  # pragma: no cover
-except NameError:  # pragma: no cover
-    WAYMO_INSTALLED = False  # pragma: no cover
+except NameError:
+    WAYMO_INSTALLED = False
 
 
 class WaymoDatasetConfig(BaseDatasetConfig):
@@ -48,10 +48,18 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
             )
         metadata_cfg = load_label_config(cfg_path)
 
-        scalabel_anns_path = os.path.join(
-            self.cfg.output_dir, "scalabel_anns.json"
-        )
+        # cfg.annotations is the path to the label file in scalabel format.
+        # It's an optional attribute. When passed, if the file exists load it,
+        # else create it to that location
+        if self.cfg.annotations:
+            scalabel_anns_path = self.cfg.annotations
+        else:
+            scalabel_anns_path = os.path.join(
+                self.cfg.output_dir, "scalabel_anns.json"
+            )
+
         if not os.path.exists(scalabel_anns_path):
+            # Read labels from tfrecords and save them to scalabel format
             frames = from_waymo(
                 self.cfg.input_dir,
                 self.cfg.output_dir,
@@ -61,9 +69,11 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
             )
             save(scalabel_anns_path, frames)
         else:
+            # Load labels from existing file
             frames = load(
                 scalabel_anns_path,
                 validate_frames=self.cfg.validate_frames,
                 nprocs=self.cfg.num_processes,
             ).frames
+
         return Dataset(frames=frames, config=metadata_cfg)

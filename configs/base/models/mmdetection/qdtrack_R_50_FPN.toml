@@ -55,6 +55,3 @@ type = "QDTrack"
         thresholds = [0.3, 0.7]
         labels = [0, -1, 1]
         allow_low_quality_matches = false
-
-[dataloader]
-image_channel_mode = "RGB"

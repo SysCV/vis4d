@@ -4,6 +4,7 @@ type = "BDD100K"
 annotations = "data/bdd100k/labels/det_20/det_train.json"
 data_root = "data/bdd100k/images/100k/train/"
 config_path = "det"
+cache_as_binary = true
     [train.dataloader]
     skip_empty_samples = true
 
@@ -27,6 +28,7 @@ annotations = "data/bdd100k/labels/det_20/det_val.json"
 data_root = "data/bdd100k/images/100k/val/"
 eval_metrics = ["detect"]
 config_path = "det"
+cache_as_binary = true
     [[test.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [720, 1280]}

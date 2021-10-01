@@ -6,7 +6,7 @@ import torch
 from vist.common.bbox.utils import random_choice
 
 from .base import BaseLoss, LossConfig
-from .utils import weight_reduce_loss
+from .utils import l2_loss
 
 
 class EmbeddingDistanceLossConfig(LossConfig):
@@ -102,18 +102,3 @@ class EmbeddingDistanceLoss(BaseLoss):
 
         avg_factor = (weight > 0).sum()
         return pred, weight, avg_factor
-
-
-def l2_loss(
-    pred: torch.Tensor,
-    target: torch.Tensor,
-    weight: Optional[torch.Tensor] = None,
-    reduction: str = "mean",
-    avg_factor: Optional[float] = None,
-) -> torch.Tensor:
-    """L2 loss."""
-    assert pred.size() == target.size() and target.numel() > 0
-    loss = torch.abs(pred - target) ** 2
-    if weight is not None:
-        weight = weight.float()
-    return weight_reduce_loss(loss, weight, reduction, avg_factor)

@@ -94,7 +94,11 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         detections = results_from_mmdet(outs, self.device)
         assert detections is not None
 
+<<<<<<< HEAD
         for inp, det in zip(inputs, detections):
+=======
+        for inp, det in zip(inputs, detections):  # type: ignore
+>>>>>>> main
             assert inp.metadata[0].size is not None
             input_size = (
                 inp.metadata[0].size.width,
