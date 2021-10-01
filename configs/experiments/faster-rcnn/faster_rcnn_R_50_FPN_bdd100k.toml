@@ -13,7 +13,7 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
 
     [model.lr_scheduler]
     type = "MultiStepLR"
-    kwargs = {"milestones" = [9, 11]}
+    kwargs = {"milestones" = [8, 11]}
 
 [launch]
 samples_per_gpu = 8

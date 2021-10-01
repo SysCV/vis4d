@@ -13,7 +13,7 @@ categories = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
 
     [model.lr_scheduler]
     type = "MultiStepLR"
-    kwargs = {"milestones" = [9, 11]}
+    kwargs = {"milestones" = [8, 11]}
 
 [launch]
 samples_per_gpu = 6
