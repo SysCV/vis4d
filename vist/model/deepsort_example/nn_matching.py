@@ -116,7 +116,6 @@ class NearestNeighborDistanceMetric:
             `targets[i]` and `features[j]`.
         """
         cost_matrix = torch.empty((0, len(features))).to(features[0].device)
-        # cost_matrix = torch.zeros((len(targets), len(features)))
         for _, target in enumerate(targets):
             min_dist = self._metric(self.samples[target], features)
             cost_matrix = torch.cat(

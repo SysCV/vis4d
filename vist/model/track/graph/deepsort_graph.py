@@ -14,6 +14,11 @@ from ...deepsort_example.linear_assignment import (
     min_cost_matching,
 )
 from ...deepsort_example.nn_matching import NearestNeighborDistanceMetric
+from ...deepsort_example.kf_parameters import (
+    cov_motion_Q,
+    cov_P0,
+    cov_project_R,
+)
 from .base import BaseTrackGraph, TrackGraphConfig
 
 
@@ -77,13 +82,37 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         """Init."""
         super().__init__(cfg)
         self.cfg = DeepSORTTrackGraphConfig(**cfg.dict())
-        self.kf = KalmanFilter()
         self.max_iou_distance = self.cfg.max_iou_distance
         self.max_age = self.cfg.max_age
         self.n_init = self.cfg.n_init
         self.metric = NearestNeighborDistanceMetric(
             self.cfg.max_cosine_distance, self.cfg.nn_budget
         )
+        kf_motion_mat = torch.eye(8, 8)
+        for i in range(4):
+            kf_motion_mat[i, 4 + i] = 1.0
+        kf_update_mat = torch.eye(4, 8)
+        self.kf = torch.nn.ModuleDict()
+        self.idx2cls_mapping = {
+            0: "pedestrian",
+            1: "rider",
+            2: "car",
+            3: "truck",
+            4: "bus",
+            5: "train",
+            6: "motorcycle",
+            7: "bicycle",
+        }
+        for class_id, cls in self.idx2cls_mapping.items():
+            print(cls)
+
+            self.kf[str(class_id)] = KalmanFilter(
+                kf_motion_mat,
+                kf_update_mat,
+                cov_motion_Q[cls],
+                cov_project_R[cls],
+                cov_P0[cls],
+            )
         self.reset()
 
     def get_output(self) -> Boxes2D:
@@ -142,8 +171,9 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         This function should be called once every time step, before `update`.
         """
         for _, track in self.tracks.items():
-            mean, covariance = self.kf.predict(
-                track["mean"], track["covariance"], track["class_id"]
+            class_id = track["class_id"]
+            mean, covariance = self.kf[str(class_id)].predict(
+                track["mean"], track["covariance"]
             )
             track["mean"] = mean
             track["covariance"] = covariance
@@ -175,13 +205,13 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             matched_det_set.add(det_idx)
 
             track = self.tracks[track_id]
+            class_id = track["class_id"]
             # kf measurement update step and update the feature cache.
             new_pos = tlbr_to_xyah(detections.boxes[det_idx][:4])
-            track["mean"], track["covariance"] = self.kf.update(
+            track["mean"], track["covariance"] = self.kf[str(class_id)].update(
                 track["mean"],
                 track["covariance"],
                 new_pos,
-                int(detections.class_ids[det_idx]),
             )
             track["mean"][:4] = new_pos
             track["confidence"] = float(detections.boxes[det_idx][4])
@@ -245,6 +275,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
     ) -> Tuple[List[Tuple[int, int]], List[int], List[int]]:
         """Matching."""
 
+        # define such a callback function is for using in matching_cascade()
         def gated_metric(
             tracks,
             dets: Boxes2D,
@@ -258,7 +289,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             cost_matrix = self.metric.distance(features, track_ids)
             # use mahalanobis distance to gate cost matrix
             cost_matrix = gate_cost_matrix(
-                self.kf,
+                self.kf[str(class_id)],
                 cost_matrix,
                 tracks,
                 dets,
@@ -355,7 +386,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         confidence: float,
     ) -> None:
         """Initiate a track."""
-        mean, covariance = self.kf.initiate(det_box, class_id)
+        mean, covariance = self.kf[str(class_id)].initiate(det_box)
         track = {
             "mean": mean,
             "covariance": covariance,

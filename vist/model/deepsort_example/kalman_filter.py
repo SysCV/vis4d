@@ -4,7 +4,6 @@ from typing import Optional, Tuple
 import torch
 from torch import nn
 
-from .kf_parameters import cov_motion_Q, cov_P0, cov_project_R
 
 # Table for the 0.95 quantile of the chi-square distribution with N degrees of
 # freedom (contains values for N=1, ..., 9). Taken from MATLAB/Octave's chi2inv
@@ -34,37 +33,31 @@ class KalmanFilter(nn.Module):  # type: ignore
     and their respective velocities.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        motion_mat: torch.Tensor,
+        update_mat: torch.Tensor,
+        cov_motion_Q: torch.Tensor,
+        cov_project_R: torch.Tensor,
+        cov_P0: torch.Tensor,
+    ) -> None:
         """Init."""
         super().__init__()
-        ndim, dt = 4, 1.0
-
-        # Create Kalman filter model matrices.
-        motion_mat = torch.eye(2 * ndim, 2 * ndim)
-        for i in range(ndim):
-            motion_mat[i, ndim + i] = dt
         self.register_buffer("_motion_mat", motion_mat)
-        self.register_buffer("_update_mat", torch.eye(ndim, 2 * ndim))
-        self.idx2cls_mapping = {
-            0: "pedestrian",
-            1: "rider",
-            2: "car",
-            3: "truck",
-            4: "bus",
-            5: "train",
-            6: "motorcycle",
-            7: "bicycle",
-        }
+        self.register_buffer("_update_mat", update_mat)
+        self.register_buffer("_cov_motion_Q", cov_motion_Q)
+        self.register_buffer("_cov_project_R", cov_project_R)
+        self.register_buffer("_cov_P0", cov_P0)
 
     def initiate(
-        self, measurement: torch.tensor, class_id: int
+        self,
+        measurement: torch.Tensor,
     ) -> Tuple[torch.tensor, torch.tensor]:
-        """Create track from unassociated measurement.
+        """Initiate a Kalman filter state based on the first measurement
 
         Args:
             measurement: Bounding box coordinates (x, y, a, h) with center
                 position (x, y), aspect ratio a, and height h.
-            class_id: class id of this detection measurement
 
         Returns:
             mean, covariance: the mean vector (8 dimensional) and covariance
@@ -75,14 +68,13 @@ class KalmanFilter(nn.Module):  # type: ignore
         mean_vel = torch.zeros_like(mean_pos)
         mean = torch.cat([mean_pos, mean_vel], dim=0)
 
-        covariance = cov_P0[self.idx2cls_mapping[class_id]].to(mean_pos.device)
+        covariance = self._cov_P0
         return mean, covariance
 
     def predict(
         self,
         mean: torch.tensor,
         covariance: torch.tensor,
-        class_id: torch.tensor,
     ) -> Tuple[torch.tensor, torch.tensor]:
         """Run Kalman filter prediction step.
 
@@ -91,28 +83,26 @@ class KalmanFilter(nn.Module):  # type: ignore
                 previous time step.
             covariance: The 8x8 dimensional covariance matrix of the object
                 state at the previous time step.
-            class_id: class id of this detection measurement
 
         Returns:
             mean: the mean vector, Unobserved velocities are initialized to
                 0 mean.
             covariance: covariance matrix of the predicted state.
         """
-        motion_cov = cov_motion_Q[self.idx2cls_mapping[class_id]].to(
-            mean.device
-        )
+        print("_motion_mat: ", self._motion_mat.device)
+        print("mean: ", mean)
         mean = torch.matmul(self._motion_mat, mean)
         covariance = (
             torch.matmul(
                 self._motion_mat, torch.matmul(covariance, self._motion_mat.T)
             )
-            + motion_cov
+            + self._cov_motion_Q
         )
 
         return mean, covariance
 
     def project(
-        self, mean: torch.tensor, covariance: torch.tensor, class_id: int
+        self, mean: torch.tensor, covariance: torch.tensor
     ) -> Tuple[torch.tensor, torch.tensor]:
         """Project state distribution to measurement space.
 
@@ -121,23 +111,17 @@ class KalmanFilter(nn.Module):  # type: ignore
                 The state's mean vector (8 dimensional vector).
             covariance :
                 The state's covariance matrix (8x8 dimensional).
-            class_id :
-                class id of this detection measurement
 
         Returns:
             mean: the projected mean of the given state estimate.
             projected_cov: the projected covariance matrix of the given state
                 estimate.
         """
-        innovation_cov = cov_project_R[self.idx2cls_mapping[class_id]].to(
-            mean.device
-        )
-
         mean = torch.matmul(self._update_mat, mean)
         covariance = torch.matmul(
             self._update_mat, torch.matmul(covariance, self._update_mat.T)
         )
-        projected_cov = covariance + innovation_cov
+        projected_cov = covariance + self._cov_project_R
         return mean, projected_cov
 
     def update(
@@ -145,7 +129,6 @@ class KalmanFilter(nn.Module):  # type: ignore
         mean: torch.tensor,
         covariance: torch.tensor,
         measurement: torch.tensor,
-        class_id: int,
     ) -> Tuple[torch.tensor, torch.tensor]:
         """Run Kalman filter correction step.
 
@@ -158,16 +141,12 @@ class KalmanFilter(nn.Module):  # type: ignore
                 The 4 dimensional measurement vector (x, y, a, h), where (x, y)
                 is the center position, a the aspect ratio, and h the height of
                 the bounding box.
-            class_id : int
-                class id of this detection measurement
 
         Returns:
             new_mean: updated mean
             new_covariance: updated covariance
         """
-        projected_mean, projected_cov = self.project(
-            mean, covariance, class_id
-        )
+        projected_mean, projected_cov = self.project(mean, covariance)
 
         chol_factor = torch.cholesky(projected_cov)
         kalman_gain = torch.cholesky_solve(
@@ -189,7 +168,6 @@ class KalmanFilter(nn.Module):  # type: ignore
         mean: torch.tensor,
         covariance: torch.tensor,
         measurements: torch.tensor,
-        class_id: int,
         only_position: Optional[bool] = False,
     ) -> torch.tensor:
         """Compute gating distance between state distribution and measurements.
@@ -209,14 +187,13 @@ class KalmanFilter(nn.Module):  # type: ignore
                 position, a the aspect ratio, and h the height.
             only_position: If True, distance computation is done with respect
                 to the bounding box center position only.
-            class_id : class id of this detection measurement
 
         Returns:
             squared_maha: a vector of length N, where the i-th element contains
                 the squared Mahalanobis distance between (mean, covariance) and
                 `measurements[i]`.
         """
-        mean, covariance = self.project(mean, covariance, class_id)
+        mean, covariance = self.project(mean, covariance)
         if only_position:
             mean, covariance = mean[:2], covariance[:2, :2]
             measurements = measurements[:, :2]
