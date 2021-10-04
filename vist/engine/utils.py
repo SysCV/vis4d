@@ -45,7 +45,7 @@ class VisTProgressBar(pl.callbacks.ProgressBar):
         self._train_batch_idx = 0
         reset(self.main_progress_bar, self.total_train_batches)
         self.main_progress_bar.set_description(
-            f"Epoch {trainer.current_epoch}"
+            f"Epoch {trainer.current_epoch + 1}"
         )
 
 

@@ -13,7 +13,7 @@ category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
 
     [model.lr_scheduler]
     type = "MultiStepLR"
-    kwargs = {"milestones" = [9, 11]}
+    kwargs = {"milestones" = [8, 11]}
 
     [model.bbox_3d_head]
     num_classes = 3

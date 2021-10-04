@@ -32,6 +32,9 @@ data_root = "data/bdd100k/images/100k/train/"
 config_path = "det"
 num_processes = 0
 cache_as_binary = true
+    [train.dataloader]
+    skip_empty_samples = true
+
     [train.dataloader.ref_sampling]
     scope = 0
     num_ref_imgs = 1

@@ -13,7 +13,7 @@ path = "../configs/models/mmdetection/qdtrack_R_50_FPN.toml"
     type = "MultiStepLR"
     warmup = "constant"
     warmup_steps = 1
-    kwargs = {"milestones" = [9, 11]}
+    kwargs = {"milestones" = [8, 11]}
 
 [launch]
 samples_per_gpu = 1

@@ -1,4 +1,3 @@
-# pylint: disable=duplicate-code
 """Quasi-dense 3D Tracking model."""
 from typing import List
 
