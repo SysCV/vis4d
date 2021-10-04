@@ -186,7 +186,7 @@ def build_model(cfg: BaseModelConfig, ckpt: Optional[str] = None) -> BaseModel:
         if ckpt is None:
             module = registry[cfg.type](cfg)
         else:
-            module = registry[cfg.type].load_from_checkpoint(ckpt, cfg=cfg)  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+            module = registry[cfg.type].load_from_checkpoint(ckpt, strict=False, cfg=cfg)  # type: ignore # pragma: no cover # pylint: disable=line-too-long
         assert isinstance(module, BaseModel)
         return module
     raise NotImplementedError(f"Model {cfg.type} not found.")

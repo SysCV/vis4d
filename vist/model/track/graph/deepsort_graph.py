@@ -7,13 +7,13 @@ import torch
 from vist.struct import Boxes2D
 from vist.common.bbox.utils import bbox_iou
 
-from ...deepsort_example.kalman_filter import KalmanFilter
-from ...deepsort_example.linear_assignment import (
+from ..utils import (
+    KalmanFilter,
     gate_cost_matrix,
     matching_cascade,
     min_cost_matching,
+    NearestNeighborDistanceMetric,
 )
-from ...deepsort_example.nn_matching import NearestNeighborDistanceMetric
 from ...deepsort_example.kf_parameters import (
     cov_motion_Q,
     cov_P0,
@@ -104,8 +104,6 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             7: "bicycle",
         }
         for class_id, cls in self.idx2cls_mapping.items():
-            print(cls)
-
             self.kf[str(class_id)] = KalmanFilter(
                 kf_motion_mat,
                 kf_update_mat,
