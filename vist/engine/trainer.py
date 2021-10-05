@@ -37,10 +37,8 @@ def default_setup(
         trainer_args.update(cfg.dict()["trainer"])
 
     # setup experiment logging
-    if (
-        "logger" in trainer_args
-        and isinstance(trainer_args["logger"], bool)
-        and trainer_args["logger"]
+    if "logger" not in trainer_args or (
+        isinstance(trainer_args["logger"], bool) and trainer_args["logger"]
     ):
         if cfg.launch.wandb:  # pragma: no cover
             exp_logger = pl.loggers.WandbLogger(
@@ -56,7 +54,6 @@ def default_setup(
                 default_hp_metric=False,
             )
         trainer_args["logger"] = exp_logger
-
 
     # add learning rate / GPU stats monitor (logs to tensorboard)
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval="step")
