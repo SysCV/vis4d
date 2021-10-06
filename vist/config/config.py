@@ -42,7 +42,7 @@ class Launch(BaseModel):
     work_dir/exp_name/version.
     pin_memory: Enable/Disable pin_memory option for dataloader workers in
     training.
-    wandb: Use weights and biases logging instead of tensorflow.
+    wandb: Use weights and biases logging instead of tensorboard (default).
     """
 
     action: str = ""
