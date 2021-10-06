@@ -28,8 +28,7 @@ def default_setup(
     6. Backup the args / config to the output directory
     """
     # set seeds
-    if cfg.launch.seed is not None:
-        pl.seed_everything(cfg.launch.seed, workers=True)
+    pl.seed_everything(cfg.launch.seed, workers=True)
 
     # prepare trainer args
     if trainer_args is None:
@@ -38,13 +37,23 @@ def default_setup(
         trainer_args.update(cfg.dict()["trainer"])
 
     # setup experiment logging
-    exp_logger = pl.loggers.TensorBoardLogger(
-        save_dir=cfg.launch.work_dir,
-        name=cfg.launch.exp_name,
-        version=cfg.launch.version,
-        default_hp_metric=False,
-    )
-    trainer_args["logger"] = exp_logger
+    if "logger" not in trainer_args or (
+        isinstance(trainer_args["logger"], bool) and trainer_args["logger"]
+    ):
+        if cfg.launch.wandb:  # pragma: no cover
+            exp_logger = pl.loggers.WandbLogger(
+                save_dir=cfg.launch.work_dir,
+                project=cfg.launch.exp_name,
+                name=cfg.launch.version,
+            )
+        else:
+            exp_logger = pl.loggers.TensorBoardLogger(  # type: ignore
+                save_dir=cfg.launch.work_dir,
+                name=cfg.launch.exp_name,
+                version=cfg.launch.version,
+                default_hp_metric=False,
+            )
+        trainer_args["logger"] = exp_logger
 
     # add learning rate / GPU stats monitor (logs to tensorboard)
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval="step")
@@ -237,17 +246,16 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 def cli_main() -> None:  # pragma: no cover
     """Main function when called from command line."""
     parser = default_argument_parser()
-    pl.Trainer.add_argparse_args(parser)
     args = parser.parse_args()
     vist_args, trainer_args = split_args(args)
     cfg = parse_config(vist_args)
 
     if args.action == "train":
-        train(cfg, vars(trainer_args))
+        train(cfg, trainer_args)
     elif args.action == "test":
-        test(cfg, vars(trainer_args))
+        test(cfg, trainer_args)
     elif args.action == "predict":
-        predict(cfg, vars(trainer_args))
+        predict(cfg, trainer_args)
     else:
         raise NotImplementedError(f"Action {args.action} not known!")
 

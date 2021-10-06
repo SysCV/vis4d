@@ -23,11 +23,12 @@ def get_world_size() -> int:  # pragma: no cover
 
 def get_rank() -> int:  # pragma: no cover
     """Get global rank of torch.distributed."""
-    if not dist.is_available():
-        return 0
-    if not dist.is_initialized():
-        return 0
-    return int(dist.get_rank())
+    rank_keys = ("RANK", "SLURM_PROCID", "LOCAL_RANK")
+    for key in rank_keys:
+        rank = os.environ.get(key)
+        if rank is not None:
+            return int(rank)
+    return 0
 
 
 def synchronize() -> None:  # pragma: no cover
