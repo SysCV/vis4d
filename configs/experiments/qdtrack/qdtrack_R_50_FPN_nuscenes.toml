@@ -1,11 +1,11 @@
 [[config]]
-path = "../../base/datasets/kitti.toml"
+path = "../../base/datasets/nuscenes.toml"
 
 [[config]]
 path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"
 
 [model]
-category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
+category_mapping = {"car" = 0, "truck" = 1, "bus" = 2, "trailer" = 3, "construction_vehicle" = 4, "pedestrian" = 5, "motorcycle" = 6, "bicycle" = 7}
     [model.optimizer]
     type = "SGD"
     lr = 0.03
@@ -16,7 +16,7 @@ category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
     kwargs = {"milestones" = [8, 11]}
 
 [launch]
-samples_per_gpu = 6
+samples_per_gpu = 4
 workers_per_gpu = 2
 
 [trainer]

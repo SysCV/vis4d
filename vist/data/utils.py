@@ -208,3 +208,42 @@ def print_class_histogram(class_frequencies: Dict[str, int]) -> None:
         f"Distribution of instances among all {num_classes} categories:\n"
         + colored(table, "cyan")
     )
+
+
+def check_attributes(frame_attributes: Union[bool, float, str],
+                     allowed_attributes: Union[bool, float, str, List[float],
+                                               List[str]]) -> bool:
+    """Check if attributes for current frame are allowed.
+
+    Args:
+        frame_attributes: Attributes of current frame.
+        allowed_attributes: Attributes allowed.
+
+    Returns:
+        boolean, whether frame attributes are allowed.
+    """
+    if isinstance(allowed_attributes, list):
+        # assert frame_attributes not in allowed_attributes
+        return frame_attributes in allowed_attributes
+    return frame_attributes == allowed_attributes
+
+
+def filter_attributes(frames: List[Frame], attributes_dict: Optional[Dict[
+    str, Union[bool, float, str, List[float], List[str]]]]) -> List[Frame]:
+    """Filter samples according to allowed attributes.
+
+    Args:
+        frames: A list of Frame instances to filter.
+        attributes_dict: Dictionary of allowed attributes. Each dictionary
+            entry contains all allowed attributes for that key.
+
+    Returns:
+        A list of filtered Frame instances.
+    """
+    if attributes_dict:
+        for attributes_key in attributes_dict:
+            attributes = attributes_dict[attributes_key]
+            frames = [
+                f for f in frames if f.attributes and check_attributes(
+                    f.attributes[attributes_key], attributes)]
+    return frames

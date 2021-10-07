@@ -12,6 +12,7 @@ from .custom import Custom
 from .kitti import KITTI
 from .motchallenge import MOTChallenge
 from .scalabel import Scalabel
+from .nuscenes import NuScenes
 from .waymo import Waymo
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "Custom",
     "MOTChallenge",
     "Waymo",
+    "NuScenes",
     "KITTI",
     "DataloaderConfig",
     "ReferenceSamplingConfig",

@@ -100,11 +100,11 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
             dataset = self.load_dataset()
 
         assert dataset.config is not None
-        dataset.frames = filter_attributes(dataset.frames, cfg.attributes)
         add_data_path(cfg.data_root, dataset.frames)
         rank_zero_info(f"Loading {cfg.name} takes {timer.time():.2f} seconds.")
         self.metadata_cfg = dataset.config
         self.frames = dataset.frames
+        self.groups = dataset.groups
 
     @abc.abstractmethod
     def load_dataset(self) -> Dataset:
@@ -123,50 +123,13 @@ def build_dataset_loader(cfg: BaseDatasetConfig) -> BaseDatasetLoader:
 
 
 def add_data_path(data_root: str, frames: List[Frame]) -> None:
-    """Add filepath to frame using data_root and frame.name."""
+    """Add filepath to frame using data_root."""
     for ann in frames:
         assert ann.name is not None
-        if ann.videoName is not None:
-            ann.url = os.path.join(data_root, ann.videoName, ann.name)
+        if ann.url is None:
+            if ann.videoName is not None:
+                ann.url = os.path.join(data_root, ann.videoName, ann.name)
+            else:
+                ann.url = os.path.join(data_root, ann.name)
         else:
-            ann.url = os.path.join(data_root, ann.name)
-
-
-def check_attributes(frame_attributes: Union[bool, float, str],
-        allowed_attributes: Union[bool, float, str, List[float],
-                                  List[str]]) -> bool:
-    """Check if attributes for current frame are allowed.
-
-    Args:
-        frame_attributes: Attributes of current frame.
-        allowed_attributes: Attributes allowed.
-
-    Returns:
-        boolean, whether frame attributes are allowed.
-    """
-    if isinstance(allowed_attributes, list):
-        # assert frame_attributes not in allowed_attributes
-        return frame_attributes in allowed_attributes
-    return frame_attributes == allowed_attributes
-
-
-def filter_attributes(frames: List[Frame], attributes_dict: Optional[Dict[
-        str, Union[bool, float, str, List[float], List[str]]]]) -> List[Frame]:
-    """Filter samples according to allowed attributes.
-
-    Args:
-        frames: A list of Frame instances to filter.
-        attributes_dict: Dictionary of allowed attributes. Each dictionary
-            entry contains all allowed attributes for that key.
-
-    Returns:
-        A list of filtered Frame instances.
-    """
-    if attributes_dict:
-        for attributes_key in attributes_dict:
-            attributes = attributes_dict[attributes_key]
-            frames = [
-                f for f in frames if f.attributes and check_attributes(
-                    f.attributes[attributes_key], attributes)]
-    return frames
-    
+            ann.url = os.path.join(data_root, ann.url)

@@ -1,4 +1,4 @@
-"""Load and convert bdd100k labels to scalabel format."""
+"""Load and convert waymo labels to scalabel format."""
 import inspect
 import os
 

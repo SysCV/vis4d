@@ -1,4 +1,4 @@
-"""Dataset mapper in vist."""
+"""Class for processing Scalabel type datasets."""
 import copy
 import random
 from collections import defaultdict
@@ -42,6 +42,7 @@ from .utils import (
     prepare_labels,
     print_class_histogram,
     transform_bbox,
+    filter_attributes
 )
 
 __all__ = ["ScalabelDataset"]
@@ -97,6 +98,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                 )
             }
         self.cats_name2id = cats_name2id
+        self.dataset.frames = filter_attributes(self.dataset.frames, self.dataset.cfg.attributes)
 
         frequencies = prepare_labels(
             self.dataset.frames,
@@ -105,26 +107,47 @@ class ScalabelDataset(Dataset):  # type: ignore
         )
         print_class_histogram(frequencies)
 
+        self.has_groups = dataset.groups is not None
         self._fallback_candidates = set(range(len(self.dataset.frames)))
         self.video_to_indices: Dict[str, List[int]] = defaultdict(list)
         self._create_video_mapping()
         self.has_sequences = bool(self.video_to_indices)
+
+        if self.has_groups:
+            self.frame_name_to_idx = {f.name: i for i, f in enumerate(self.dataset.frames)}
+            self.frame_to_group: Dict[int, int] = {}
+            self.frame_to_sensor_id: Dict[int, int] = {}
+            for i, g in enumerate(self.dataset.groups):
+                for sensor_id, fname in enumerate(g.frames):
+                    self.frame_to_group[self.frame_name_to_idx[fname]] = i
+                    self.frame_to_sensor_id[self.frame_name_to_idx[fname]] = sensor_id
 
     def __len__(self) -> int:
         """Return length of dataset."""
         return len(self.dataset.frames)
 
     def _create_video_mapping(self) -> None:
-        """Create a mapping that returns all img idx for a given video id."""
-        for idx, entry in enumerate(self.dataset.frames):
-            if entry.videoName is not None:
-                self.video_to_indices[entry.videoName].append(idx)
+        """Creating mapping from video id to frame / group indices."""
+        # TODO sort by frame id
+        if self.has_groups:
+            for idx, entry in enumerate(self.dataset.groups):
+                if entry.videoName is not None:
+                    self.video_to_indices[entry.videoName].append(idx)
+        else:
+            for idx, entry in enumerate(self.dataset.frames):
+                if entry.videoName is not None:
+                    self.video_to_indices[entry.videoName].append(idx)
 
     def sample_ref_indices(
         self, video: str, key_dataset_index: int
     ) -> List[int]:
         """Sample reference dataset indices given video and keyframe index."""
         dataset_indices = self.video_to_indices[video]
+        sensor_id: Optional[int] = None
+        if self.has_groups:
+            sensor_id = self.frame_to_sensor_id[key_dataset_index]
+            key_dataset_index = self.frame_to_group[key_dataset_index]
+
         key_index = dataset_indices.index(key_dataset_index)
 
         if self.sampling_cfg.type == "uniform":
@@ -154,6 +177,11 @@ class ScalabelDataset(Dataset):  # type: ignore
                 f"Reference view sampling {self.sampling_cfg.type} not "
                 f"implemented."
             )
+
+        if sensor_id is not None:
+            for i, ref_id in enumerate(ref_dataset_indices):
+                fname = self.dataset.groups[ref_id].frames[sensor_id]
+                ref_dataset_indices[i] = self.frame_name_to_idx[fname]
 
         return ref_dataset_indices
 
@@ -223,34 +251,50 @@ class ScalabelDataset(Dataset):  # type: ignore
         retry_count = 0
         cur_idx = int(idx)
 
-        while True:
-            input_data, parameters = self.get_sample(
-                self.dataset.frames[cur_idx]
-            )
-            if input_data is not None:
-                if input_data.metadata[0].attributes is None:
-                    input_data.metadata[0].attributes = {}
-                if self.training:
-                    input_data.metadata[0].attributes["keyframe"] = True
-
-                if self.training and self.sampling_cfg.num_ref_imgs > 0:
-                    ref_data = self.sample_ref_views(
-                        cur_idx, input_data, parameters
+        if not self.training:
+            if self.has_groups:
+                group = self.dataset.groups[self.frame_to_group[idx]]
+                input_data = []
+                for fname in group.frames:
+                    cur_data, _ = self.get_sample(
+                        self.dataset.frames[self.frame_name_to_idx[fname]]
                     )
-                    if ref_data is not None:
-                        return self.sort_samples([input_data] + ref_data)
-                else:
-                    return [input_data]
-
-            retry_count += 1
-            self._fallback_candidates.discard(cur_idx)
-            cur_idx = random.sample(self._fallback_candidates, k=1)[0]
-
-            if retry_count >= 5:
-                rank_zero_warn(
-                    f"Failed to get sample for idx: {idx}, "
-                    f"retry count: {retry_count}"
+                    input_data.append(cur_data)
+                return input_data
+            else:
+                input_data, _ = self.get_sample(
+                    self.dataset.frames[cur_idx]
                 )
+                return [input_data]
+        else:
+            while True:
+                input_data, parameters = self.get_sample(
+                    self.dataset.frames[cur_idx]
+                )
+                if input_data is not None:
+                    if input_data.metadata[0].attributes is None:
+                        input_data.metadata[0].attributes = {}
+                    if self.training:
+                        input_data.metadata[0].attributes["keyframe"] = True
+
+                    if self.training and self.sampling_cfg.num_ref_imgs > 0:
+                        ref_data = self.sample_ref_views(
+                            cur_idx, input_data, parameters
+                        )
+                        if ref_data is not None:
+                            return self.sort_samples([input_data] + ref_data)
+                    else:
+                        return [input_data]
+
+                retry_count += 1
+                self._fallback_candidates.discard(cur_idx)
+                cur_idx = random.sample(self._fallback_candidates, k=1)[0]
+
+                if retry_count >= 5:
+                    rank_zero_warn(
+                        f"Failed to get sample for idx: {idx}, "
+                        f"retry count: {retry_count}"
+                    )
 
     def load_image(
         self,

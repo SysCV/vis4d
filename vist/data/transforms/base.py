@@ -82,7 +82,6 @@ class BaseAugmentation(GeometricAugmentationBase2D, metaclass=RegistryHolder):  
         raise NotImplementedError
 
 
-
 def build_augmentation(cfg: AugmentationConfig) -> BaseAugmentation:
     """Build a single augmentation."""
     registry = RegistryHolder.get_registry(BaseAugmentation)
