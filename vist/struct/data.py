@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 import torch
 from scalabel.label.typing import Frame
 
-from .labels import Boxes2D, Boxes3D
+from .labels import Boxes2D, Boxes3D, Poly2D
 from .structures import DataInstance
 
 
@@ -191,10 +191,11 @@ class InputSample:
 
     def __init__(
         self,
-        metadata: Sequence[Frame],
-        images: Images,
+        metadata: Frame,
+        image: Images,
         boxes2d: Optional[Sequence[Boxes2D]] = None,
         boxes3d: Optional[Sequence[Boxes3D]] = None,
+        poly2d: Optional[Sequence[Poly2D]] = None,
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
     ) -> None:
@@ -216,6 +217,10 @@ class InputSample:
                 for _ in range(len(images))
             ]
         self.boxes3d: Sequence[Boxes3D] = boxes3d
+
+        if poly2d is None:
+            poly2d = Poly2D()
+        self.poly2d = poly2d
 
         if intrinsics is None:
             intrinsics = Intrinsics(
@@ -251,6 +256,7 @@ class InputSample:
             "images": self.images,
             "boxes2d": self.boxes2d,
             "boxes3d": self.boxes3d,
+            "poly2d": self.poly2d,
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
         }

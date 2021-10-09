@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import torch
 from scalabel.label.typing import Box2D, Box3D, Label
+from scalabel.label.to_coco import scalabel2coco_ins_seg
 
 from .structures import DataInstance, LabelInstance
 
@@ -383,6 +384,88 @@ class Boxes3D(Boxes, LabelInstance):
                 alpha=-1.0,
             )
             label_dict = dict(id=label_id, box3d=box, score=score)
+
+            if idx_to_class is not None:
+                cls = idx_to_class[int(self.class_ids[i])]
+            else:
+                cls = str(int(self.class_ids[i]))  # pragma: no cover
+            label_dict["category"] = cls
+            labels.append(Label(**label_dict))
+
+        return labels
+
+
+class Poly2D(LabelInstance):  # type: ignore
+    """Container class for 2D polygons.
+
+    boxes: torch.FloatTensor: (N, [4, 5]) where each entry is defined by
+    [x1, y1, x2, y2, Optional[score]]
+    class_ids: torch.LongTensor: (N,) where each entry is the class id of
+    the respective box.
+    track_ids: torch.LongTensor (N,) where each entry is the track id of
+    the respective box.
+    """
+
+    @classmethod
+    def from_scalabel(
+        cls,
+        labels: List[Label],
+        class_to_idx: Dict[str, int],
+        label_id_to_idx: Optional[Dict[str, int]] = None,
+    ) -> "Boxes2D":
+        """Convert from scalabel format to internal."""
+        box_list, cls_list, idx_list = [], [], []
+        has_class_ids = all((b.category is not None for b in labels))
+        for i, label in enumerate(labels):
+            if not label.poly2d:
+                continue
+            poly2d = label.poly2d
+            vertices, types, closed = (
+                poly2d[0].vertices,
+                poly2d[0].types,
+                poly2d[0].closed,
+            )
+            if vertices is None:
+                continue
+
+            if score is None:
+                box_list.append([box.x1, box.y1, box.x2, box.y2])
+            else:
+                box_list.append([box.x1, box.y1, box.x2, box.y2, score])
+
+            if has_class_ids:
+                cls_list.append(class_to_idx[box_cls])  # type: ignore
+            idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
+            idx_list.append(idx)
+
+        box_tensor = torch.tensor(box_list, dtype=torch.float32)
+        class_ids = (
+            torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
+        )
+        track_ids = torch.tensor(idx_list, dtype=torch.long)
+        return Boxes2D(box_tensor, class_ids, track_ids)
+
+    def to_scalabel(
+        self, idx_to_class: Optional[Dict[int, str]] = None
+    ) -> List[Label]:
+        """Convert from internal to scalabel format."""
+        labels = []
+        for i in range(len(self.boxes)):
+            if self.track_ids is not None:
+                label_id = str(self.track_ids[i].item())
+            else:
+                label_id = str(i)
+            box = Box2D(
+                x1=float(self.boxes[i, 0]),
+                y1=float(self.boxes[i, 1]),
+                x2=float(self.boxes[i, 2]),
+                y2=float(self.boxes[i, 3]),
+            )
+            if self.boxes.shape[-1] == 5:
+                score = float(self.boxes[i, 4])  # type: Optional[float]
+            else:
+                score = None
+            label_dict = dict(id=label_id, box2d=box, score=score)
 
             if idx_to_class is not None:
                 cls = idx_to_class[int(self.class_ids[i])]
