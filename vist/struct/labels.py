@@ -2,7 +2,8 @@
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import torch
-from scalabel.label.typing import Box2D, Box3D, Label
+from scalabel.label.transforms import poly2ds_to_mask
+from scalabel.label.typing import Box2D, Box3D, Label, ImageSize
 from scalabel.label.to_coco import scalabel2coco_ins_seg
 
 from .structures import DataInstance, LabelInstance
@@ -395,8 +396,8 @@ class Boxes3D(Boxes, LabelInstance):
         return labels
 
 
-class Poly2D(LabelInstance):  # type: ignore
-    """Container class for 2D polygons.
+class Bitmask(LabelInstance):  # type: ignore
+    """Container class for bitmasks.
 
     boxes: torch.FloatTensor: (N, [4, 5]) where each entry is defined by
     [x1, y1, x2, y2, Optional[score]]
@@ -406,72 +407,77 @@ class Poly2D(LabelInstance):  # type: ignore
     the respective box.
     """
 
+    def __init__(
+        self,
+        bitmasks: torch.Tensor,
+        class_ids: torch.Tensor = None,
+        track_ids: torch.Tensor = None,
+        metadata: Optional[Dict[str, Union[bool, int, float, str]]] = None,
+    ) -> None:
+        """Init."""
+        assert isinstance(bitmasks, torch.Tensor) and len(boxes.shape) == 2
+        # if class_ids is not None:
+        #     assert isinstance(class_ids, torch.Tensor)
+        #     assert len(boxes) == len(class_ids)
+        #     assert boxes.device == class_ids.device
+        # if track_ids is not None:
+        #     assert isinstance(track_ids, torch.Tensor)
+        #     assert len(boxes) == len(track_ids)
+        #     assert boxes.device == track_ids.device
+
+        self.bitmasks = bitmasks
+        # self.class_ids = class_ids
+        # self.track_ids = track_ids
+        self.metadata = metadata
+
     @classmethod
     def from_scalabel(
         cls,
         labels: List[Label],
         class_to_idx: Dict[str, int],
+        image_size: ImageSize,
         label_id_to_idx: Optional[Dict[str, int]] = None,
-    ) -> "Boxes2D":
+    ) -> "Bitmask":
         """Convert from scalabel format to internal."""
-        box_list, cls_list, idx_list = [], [], []
-        has_class_ids = all((b.category is not None for b in labels))
-        for i, label in enumerate(labels):
-            if not label.poly2d:
+        # box_list, cls_list, idx_list = [], [], []
+        # has_class_ids = all((b.category is not None for b in labels))
+        bitmask_list = []
+        for label in labels:
+            if label.poly2d is None:
                 continue
             poly2d = label.poly2d
-            vertices, types, closed = (
-                poly2d[0].vertices,
-                poly2d[0].types,
-                poly2d[0].closed,
-            )
-            if vertices is None:
-                continue
+            bitmask = poly2ds_to_mask(image_size, poly2d)
+            bitmask_list.append(bitmask)
 
-            if score is None:
-                box_list.append([box.x1, box.y1, box.x2, box.y2])
-            else:
-                box_list.append([box.x1, box.y1, box.x2, box.y2, score])
+            # if has_class_ids:
+            #     cls_list.append(class_to_idx[box_cls])  # type: ignore
+            # idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
+            # idx_list.append(idx)
 
-            if has_class_ids:
-                cls_list.append(class_to_idx[box_cls])  # type: ignore
-            idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
-            idx_list.append(idx)
+        box_tensor = torch.tensor(bitmask_list, dtype=torch.uint8)
+        # class_ids = (
+        #     torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
+        # )
+        # track_ids = torch.tensor(idx_list, dtype=torch.long)
+        return Bitmask(box_tensor, class_ids, track_ids)
 
-        box_tensor = torch.tensor(box_list, dtype=torch.float32)
+    def to(self: Bitmask, device: torch.device) -> Bitmask:
+        """Move data to given device."""
         class_ids = (
-            torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
+            self.class_ids.to(device=device)
+            if self.class_ids is not None
+            else None
         )
-        track_ids = torch.tensor(idx_list, dtype=torch.long)
-        return Boxes2D(box_tensor, class_ids, track_ids)
+        track_ids = (
+            self.track_ids.to(device=device)
+            if self.track_ids is not None
+            else None
+        )
+        return type(self)(
+            self.boxes.to(device=device), class_ids, track_ids, self.metadata
+        )
 
-    def to_scalabel(
-        self, idx_to_class: Optional[Dict[int, str]] = None
-    ) -> List[Label]:
-        """Convert from internal to scalabel format."""
-        labels = []
-        for i in range(len(self.boxes)):
-            if self.track_ids is not None:
-                label_id = str(self.track_ids[i].item())
-            else:
-                label_id = str(i)
-            box = Box2D(
-                x1=float(self.boxes[i, 0]),
-                y1=float(self.boxes[i, 1]),
-                x2=float(self.boxes[i, 2]),
-                y2=float(self.boxes[i, 3]),
-            )
-            if self.boxes.shape[-1] == 5:
-                score = float(self.boxes[i, 4])  # type: Optional[float]
-            else:
-                score = None
-            label_dict = dict(id=label_id, box2d=box, score=score)
-
-            if idx_to_class is not None:
-                cls = idx_to_class[int(self.class_ids[i])]
-            else:
-                cls = str(int(self.class_ids[i]))  # pragma: no cover
-            label_dict["category"] = cls
-            labels.append(Label(**label_dict))
-
-        return labels
+    @property
+    def device(self) -> torch.device:
+        """Get current device of data."""
+        return self.boxes.device

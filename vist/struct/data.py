@@ -191,8 +191,8 @@ class InputSample:
 
     def __init__(
         self,
-        metadata: Frame,
-        image: Images,
+        metadata: Sequence[Frame],
+        images: Images,
         boxes2d: Optional[Sequence[Boxes2D]] = None,
         boxes3d: Optional[Sequence[Boxes3D]] = None,
         poly2d: Optional[Sequence[Poly2D]] = None,
