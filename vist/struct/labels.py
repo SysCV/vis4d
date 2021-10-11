@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 import torch
 from scalabel.label.transforms import poly2ds_to_mask
 from scalabel.label.typing import Box2D, Box3D, Label, ImageSize
-from scalabel.label.to_coco import scalabel2coco_ins_seg
 
 from .structures import DataInstance, LabelInstance
 
@@ -184,6 +183,7 @@ class Boxes2D(Boxes, LabelInstance):
         labels: List[Label],
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
+        image_sizes: Optional[List[Tuple[int, int]]] = None,
     ) -> "Boxes2D":
         """Convert from scalabel format to internal."""
         box_list, cls_list, idx_list = [], [], []
@@ -308,6 +308,7 @@ class Boxes3D(Boxes, LabelInstance):
         labels: List[Label],
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
+        image_sizes: Optional[List[Tuple[int, int]]] = None,
     ) -> "Boxes3D":
         """Convert from scalabel format to internal."""
         box_list, cls_list, idx_list = [], [], []
@@ -396,10 +397,10 @@ class Boxes3D(Boxes, LabelInstance):
         return labels
 
 
-class Bitmask(LabelInstance):  # type: ignore
+class Bitmasks(LabelInstance):  # type: ignore
     """Container class for bitmasks.
 
-    boxes: torch.FloatTensor: (N, [4, 5]) where each entry is defined by
+    boxes: torch.FloatTensor: (N, W, H) where each entry is defined by
     [x1, y1, x2, y2, Optional[score]]
     class_ids: torch.LongTensor: (N,) where each entry is the class id of
     the respective box.
@@ -415,19 +416,19 @@ class Bitmask(LabelInstance):  # type: ignore
         metadata: Optional[Dict[str, Union[bool, int, float, str]]] = None,
     ) -> None:
         """Init."""
-        assert isinstance(bitmasks, torch.Tensor) and len(boxes.shape) == 2
-        # if class_ids is not None:
-        #     assert isinstance(class_ids, torch.Tensor)
-        #     assert len(boxes) == len(class_ids)
-        #     assert boxes.device == class_ids.device
-        # if track_ids is not None:
-        #     assert isinstance(track_ids, torch.Tensor)
-        #     assert len(boxes) == len(track_ids)
-        #     assert boxes.device == track_ids.device
+        assert isinstance(bitmasks, torch.Tensor) and len(bitmasks.shape) == 3
+        if class_ids is not None:
+            assert isinstance(class_ids, torch.Tensor)
+            assert len(bitmasks) == len(class_ids)
+            assert bitmasks.device == class_ids.device
+        if track_ids is not None:
+            assert isinstance(track_ids, torch.Tensor)
+            assert len(bitmasks) == len(track_ids)
+            assert bitmasks.device == track_ids.device
 
         self.bitmasks = bitmasks
-        # self.class_ids = class_ids
-        # self.track_ids = track_ids
+        self.class_ids = class_ids
+        self.track_ids = track_ids
         self.metadata = metadata
 
     @classmethod
@@ -435,33 +436,44 @@ class Bitmask(LabelInstance):  # type: ignore
         cls,
         labels: List[Label],
         class_to_idx: Dict[str, int],
-        image_size: ImageSize,
         label_id_to_idx: Optional[Dict[str, int]] = None,
-    ) -> "Bitmask":
+        image_sizes: Optional[List[Tuple[int, int]]] = None,
+    ) -> "Bitmasks":
         """Convert from scalabel format to internal."""
-        # box_list, cls_list, idx_list = [], [], []
-        # has_class_ids = all((b.category is not None for b in labels))
-        bitmask_list = []
-        for label in labels:
+        bitmask_list, cls_list, idx_list = [], [], []
+        has_class_ids = all((b.category is not None for b in labels))
+        for i, label in enumerate(labels):
             if label.poly2d is None:
                 continue
+            if image_sizes is None:
+                continue
             poly2d = label.poly2d
-            bitmask = poly2ds_to_mask(image_size, poly2d)
+            img_size = image_sizes[0]
+            bitmask = poly2ds_to_mask(
+                ImageSize(width=img_size[0], height=img_size[1]), poly2d
+            )
             bitmask_list.append(bitmask)
+            mask_cls, l_id = label.category, label.id
 
-            # if has_class_ids:
-            #     cls_list.append(class_to_idx[box_cls])  # type: ignore
-            # idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
-            # idx_list.append(idx)
+            if has_class_ids:
+                cls_list.append(class_to_idx[mask_cls])  # type: ignore
+            idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
+            idx_list.append(idx)
 
         box_tensor = torch.tensor(bitmask_list, dtype=torch.uint8)
-        # class_ids = (
-        #     torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
-        # )
-        # track_ids = torch.tensor(idx_list, dtype=torch.long)
-        return Bitmask(box_tensor, class_ids, track_ids)
+        class_ids = (
+            torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
+        )
+        track_ids = torch.tensor(idx_list, dtype=torch.long)
+        return Bitmasks(box_tensor, class_ids, track_ids)
 
-    def to(self: Bitmask, device: torch.device) -> Bitmask:
+    def to_scalabel(
+        self, idx_to_class: Optional[Dict[int, str]] = None
+    ) -> List[Label]:
+        """Convert from internal to scalabel format."""
+        raise NotImplementedError
+
+    def to(self: "Bitmasks", device: torch.device) -> "Bitmasks":
         """Move data to given device."""
         class_ids = (
             self.class_ids.to(device=device)
@@ -474,10 +486,13 @@ class Bitmask(LabelInstance):  # type: ignore
             else None
         )
         return type(self)(
-            self.boxes.to(device=device), class_ids, track_ids, self.metadata
+            self.bitmasks.to(device=device),
+            class_ids,
+            track_ids,
+            self.metadata,
         )
 
     @property
     def device(self) -> torch.device:
         """Get current device of data."""
-        return self.boxes.device
+        return self.bitmasks.device

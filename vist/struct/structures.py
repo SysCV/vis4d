@@ -1,6 +1,6 @@
 """Base classes for data structures in VisT."""
 import abc
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -35,6 +35,7 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
         labels: List[Label],
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
+        image_sizes: Optional[List[Tuple[int, int]]] = None,
     ) -> "LabelInstance":
         """Convert from scalabel format to ours."""
         raise NotImplementedError

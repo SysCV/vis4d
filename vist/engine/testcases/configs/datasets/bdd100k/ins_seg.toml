@@ -1,41 +1,31 @@
 [[train]]
-name = "bdd100k_track_sample_train"
+name = "bdd100k_ins_seg_sample_train"
 type = "BDD100K"
-annotations = "vist/engine/testcases/seg_track/bdd100k-samples/labels/"
-data_root = "vist/engine/testcases/seg_track/bdd100k-samples/images/"
-config_path = "seg_track"
+annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation.json"
+data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
+config_path = "ins_seg"
 num_processes = 0
     [train.dataloader]
-    compute_global_instance_ids = true
+        fields_to_load = ["bitmasks"]
+
         [train.dataloader.ref_sampling]
         type = 'uniform'
-        scope = 2
-        num_ref_imgs = 1
-        skip_nomatch_samples = true
+        scope = 1
+        num_ref_imgs = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
-
-    [[train.dataloader.transformations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
-
-[[train]]
-name = "bdd100k_det_sample_train"
-type = "BDD100K"
-annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation.json"
-data_root = "vist/engine/testcases/detect/bdd100k-samples/images/"
-config_path = "det"
-num_processes = 0
-    [train.dataloader]
-        [train.dataloader.ref_sampling]
-        scope = 0
-        num_ref_imgs = 1
+    kwargs = {"shape" = [360, 640], "scale_range" = [1.2, 1.5], "interpolation" = "bicubic"}
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
+    [train.dataloader.transformations.kwargs]
+        shape = [
+            [360, 640],
+            [480, 960]
+        ]
+        keep_ratio = true
+        multiscale_mode = "list"
 
     [[train.dataloader.transformations]]
     type = "RandomHorizontalFlip"
@@ -44,10 +34,10 @@ num_processes = 0
 [[test]]
 name = "bdd100k_sample_val"
 type = "BDD100K"
-annotations = "vist/engine/testcases/seg_track/bdd100k-samples/labels/"
-data_root = "vist/engine/testcases/seg_track/bdd100k-samples/images/"
-eval_metrics = ["detect", "track", "segment"]
-config_path = "seg_track"
+annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation.json"
+data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
+eval_metrics = ["detect"]
+config_path = "ins_seg"
 num_processes = 0
     [[test.dataloader.transformations]]
     type = "Resize"

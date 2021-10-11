@@ -26,6 +26,7 @@ from torch.utils.data import Dataset
 from vist.common.io import build_data_backend
 
 from ..struct import (
+    Bitmasks,
     Boxes2D,
     Boxes3D,
     Extrinsics,
@@ -75,7 +76,13 @@ class ScalabelDataset(Dataset):  # type: ignore
         rank_zero_info("Transformations used: %s", self.transformations)
 
         for field in self.cfg.dataloader.fields_to_load:
-            assert field in ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
+            assert field in [
+                "bitmasks",
+                "boxes2d",
+                "boxes3d",
+                "intrinsics",
+                "extrinsics",
+            ]
 
         self.dataset = dataset
         self.training = training
@@ -335,6 +342,21 @@ class ScalabelDataset(Dataset):  # type: ignore
                     labels_used, category_dict, instance_id_dict
                 )
                 input_sample.boxes3d = [boxes3d]
+
+            if (
+                "bitmasks" in self.cfg.dataloader.fields_to_load
+                and labels_used
+            ):
+                bitmasks = Bitmasks.from_scalabel(
+                    labels_used,
+                    category_dict,
+                    instance_id_dict,
+                    input_sample.images.image_sizes,
+                )
+
+                # TODO: add bitmask transforms
+
+                input_sample.bitmasks = [bitmasks]
 
     @staticmethod
     def transform_intrinsics(

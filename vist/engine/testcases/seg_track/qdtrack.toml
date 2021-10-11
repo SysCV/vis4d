@@ -1,5 +1,5 @@
 [[config]]
-path = "../configs/datasets/bdd100k/ins_seg.toml"
+path = "../configs/datasets/bdd100k/seg_track.toml"
 
 [[config]]
 path = "../configs/models/mmdetection/qdtrack_R_50_FPN.toml"
