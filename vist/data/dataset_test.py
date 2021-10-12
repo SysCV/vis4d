@@ -176,8 +176,7 @@ class TestScalabelDataset(unittest.TestCase):
                     frame_order="temporal",
                 )
             ),
-            attributes={'timeofday': ['daytime', 'night'],
-                        'weather': 'clear'},
+            attributes={"timeofday": ["daytime", "night"], "weather": "clear"},
         )
 
         # Testcase 1
@@ -188,8 +187,7 @@ class TestScalabelDataset(unittest.TestCase):
                     name=str(i),
                     videoName=str(i % 2),
                     frameIndex=i - i // 2 - i % 2,
-                    attributes={'timeofday': 'daytime',
-                                'weather': 'clear'},
+                    attributes={"timeofday": "daytime", "weather": "clear"},
                 )
                 for i in range(6)
             ],
@@ -206,8 +204,7 @@ class TestScalabelDataset(unittest.TestCase):
                     name=str(i),
                     videoName=str(i % 2),
                     frameIndex=i - i // 2 - i % 2,
-                    attributes={'timeofday': 'night',
-                                'weather': 'clear'},
+                    attributes={"timeofday": "night", "weather": "clear"},
                 )
                 for i in range(6)
             ],
@@ -224,13 +221,10 @@ class TestScalabelDataset(unittest.TestCase):
                     name=str(i),
                     videoName=str(i % 2),
                     frameIndex=i - i // 2 - i % 2,
-                    attributes={'timeofday': 'daytime',
-                                'weather': 'snowy'},
+                    attributes={"timeofday": "daytime", "weather": "snowy"},
                 )
                 for i in range(6)
             ],
         )
 
-        dataset = ScalabelDataset(dataset_loader, True)
-        self.assertTrue(len(dataset) == 0)
-        
+        self.assertRaises(ValueError, ScalabelDataset, dataset_loader, True)

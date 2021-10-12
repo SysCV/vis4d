@@ -37,8 +37,9 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
 
         # cfg.annotations is the path to the label file in scalabel format.
         # if the file exists load it, else create it to that location
-        assert self.cfg.annotations is not None, \
-            "Need a path to an annotation file to either load or create it."
+        assert (
+            self.cfg.annotations is not None
+        ), "Need a path to an annotation file to either load or create it."
         if not os.path.exists(self.cfg.annotations):
             dataset = from_nuscenes(
                 self.cfg.data_root,

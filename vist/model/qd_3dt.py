@@ -24,7 +24,7 @@ class QD3DT(QDTrack):
         """Init."""
         super().__init__(cfg)
         self.cfg = QD3DTConfig(**cfg.dict())
-        self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)  # type: ignore
+        self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)  # type: ignore # pylint: disable=line-too-long
         self.bbox_3d_head = build_roi_head(self.cfg.bbox_3d_head)
         self.track_graph = build_track_graph(self.cfg.track_graph)
 
