@@ -430,6 +430,24 @@ class Bitmasks(LabelInstance):  # type: ignore
         self.track_ids = track_ids
         self.metadata = metadata
 
+    def __getitem__(self: "Bitmasks", item) -> "Bitmasks":  # type: ignore
+        """Shadows tensor based indexing while returning new Bitmasks."""
+        if isinstance(item, tuple):
+            item = item[0]
+        masks = self.masks[item]
+        class_ids = (
+            self.class_ids[item] if self.class_ids is not None else None
+        )
+        track_ids = (
+            self.track_ids[item] if self.track_ids is not None else None
+        )
+
+        return type(self)(masks, class_ids, track_ids, self.metadata)
+
+    def __len__(self) -> int:
+        """Get length of the object."""
+        return len(self.masks)
+
     @classmethod
     def from_scalabel(
         cls,

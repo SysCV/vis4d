@@ -1,6 +1,6 @@
 """Base classes for data structures in VisT."""
 import abc
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import numpy.typing as npt

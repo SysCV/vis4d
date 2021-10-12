@@ -29,7 +29,7 @@ class AugmentationConfig(BaseModel):
     """Data augmentation instance config."""
 
     type: str
-    kornia_type: str
+    kornia_type: Optional[str]
     kwargs: Dict[
         str,
         Union[
@@ -88,21 +88,9 @@ class KorniaAugWrapper(GeometricAugmentationBase2D, metaclass=RegistryHolder):  
 class BaseAugmentation(metaclass=RegistryHolder):
     """Base augmentation class."""
 
-    def __init__(self, cfg: AugmentationConfig):
+    def __init__(self, augmentor: KorniaAugWrapper):
         """Initialize augmentation."""
-        self.cfg = cfg
-
-        # get Kornia augmentation
-        registry = RegistryHolder.get_registry(KorniaAugWrapper)
-        if cfg.kornia_type in registry:
-            augmentation = registry[cfg.kornia_type]
-        elif hasattr(kornia_augmentation, cfg.kornia_type):
-            augmentation = getattr(kornia_augmentation, cfg.kornia_type)
-        else:
-            raise ValueError(
-                f"Kornia Augmentation {cfg.kornia_type} not known!"
-            )
-        self.augmentor = augmentation(**cfg.kwargs)
+        self.augmentor = augmentor
 
     def generate_parameters(self, batch_shape: torch.Size) -> DictStrAny:
         """Generate parameters for augmentation."""
@@ -133,10 +121,11 @@ class BaseAugmentation(metaclass=RegistryHolder):
     ) -> Sequence[Boxes2D]:
         """Apply augmentation to input box2d."""
         assert "transform_matrix" in parameters
-        boxes[0].boxes[:, :4] = transform_bbox(
-            parameters["transform_matrix"][0],
-            boxes[0].boxes[:, :4],
-        )
+        if len(boxes[0]) != 0:
+            boxes[0].boxes[:, :4] = transform_bbox(
+                parameters["transform_matrix"][0],
+                boxes[0].boxes[:, :4],
+            )
         return boxes
 
     def apply_box3d(  # pylint: disable=unused-argument
@@ -149,6 +138,12 @@ class BaseAugmentation(metaclass=RegistryHolder):
         self, masks: Sequence[Bitmasks], parameters: DictStrAny
     ) -> Sequence[Bitmasks]:
         """Apply augmentation to input mask."""
+        if len(masks[0]) != 0:
+            masks[0].masks = (
+                self.augmentor(masks[0].masks.float().unsqueeze(1), parameters)
+                .squeeze(1)
+                .type(masks[0].masks.dtype)
+            )
         return masks
 
     def __repr__(self) -> str:
@@ -160,16 +155,25 @@ def build_augmentation(
     cfg: AugmentationConfig,
 ) -> BaseAugmentation:
     """Build a single augmentation."""
-    registry = RegistryHolder.get_registry(BaseAugmentation)
-
-    if cfg.type in registry:
-        augmentation = registry[cfg.type]
-    elif hasattr(kornia_augmentation, cfg.type):
-        augmentation = getattr(kornia_augmentation, cfg.type)
+    # get kornia augmentation
+    kornia_registry = RegistryHolder.get_registry(KorniaAugWrapper)
+    kornia_type = cfg.kornia_type if cfg.kornia_type is not None else cfg.type
+    if kornia_type in kornia_registry:
+        augmentation = kornia_registry[kornia_type]
+    elif hasattr(kornia_augmentation, kornia_type):
+        augmentation = getattr(kornia_augmentation, kornia_type)
     else:
-        raise ValueError(f"VisT Augmentation {cfg.type} not known!")
-    module = augmentation(cfg)
-    return module  # type: ignore
+        raise ValueError(f"Kornia Augmentation {kornia_type} not known!")
+    augmentor = augmentation(**cfg.kwargs)
+
+    # get VisT augmentation if it exists or create one
+    registry = RegistryHolder.get_registry(BaseAugmentation)
+    if cfg.type in registry:
+        base_aug = registry[cfg.type]
+    else:
+        base_aug = BaseAugmentation
+
+    return base_aug(augmentor)  # type: ignore
 
 
 def build_augmentations(

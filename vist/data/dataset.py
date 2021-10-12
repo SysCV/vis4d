@@ -2,7 +2,7 @@
 import copy
 import random
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -34,7 +34,6 @@ from ..struct import (
     Images,
     InputSample,
     Intrinsics,
-    NDArrayUI8,
 )
 from .datasets import BaseDatasetLoader
 from .transforms import AugParams, build_augmentations
@@ -43,7 +42,6 @@ from .utils import (
     im_decode,
     prepare_labels,
     print_class_histogram,
-    transform_bbox,
 )
 
 __all__ = ["ScalabelDataset"]
@@ -330,13 +328,6 @@ class ScalabelDataset(Dataset):  # type: ignore
                 boxes2d = Boxes2D.from_scalabel(
                     labels_used, category_dict, instance_id_dict
                 )[0]
-                # boxes2d.boxes[:, :4] = transform_bbox(
-                #     transform_matrix,
-                #     boxes2d.boxes[:, :4],
-                # )
-                # if self.cfg.dataloader.clip_bboxes_to_image:
-                #     boxes2d.clip(input_sample.images.image_sizes[0])
-
                 input_sample.boxes2d = [boxes2d]
 
             if "boxes3d" in self.cfg.dataloader.fields_to_load and labels_used:
@@ -355,18 +346,6 @@ class ScalabelDataset(Dataset):  # type: ignore
                     instance_id_dict,
                     input_sample.metadata[0].size,
                 )
-                # bitmasks.masks = self.transform_image(
-                #     bitmasks.masks,
-                #     parameters,
-                #     transform_mask=True,
-                # )
-                # boxes2d.boxes[:, :4] = transform_bbox(
-                #     transform_matrix,
-                #     boxes2d.boxes[:, :4],
-                # )
-                # if self.cfg.dataloader.clip_bboxes_to_image:
-                #     boxes2d.clip(input_sample.images.image_sizes[0])
-
                 input_sample.bitmasks = [bitmasks]
                 input_sample.boxes2d = [boxes2d]
 
@@ -445,6 +424,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.cfg.dataloader.skip_empty_samples
             and len(input_data.boxes2d[0]) == 0
             and len(input_data.boxes3d[0]) == 0
+            and len(input_data.bitmasks[0]) == 0
         ):
             return None, None  # pragma: no cover
 
