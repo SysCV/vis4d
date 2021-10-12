@@ -15,7 +15,7 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [360, 640], "scale_range" = [1.2, 1.5], "interpolation" = "bicubic"}
+    kwargs = {"shape" = [360, 640], "scale_range" = [1.2, 1.5], "interpolation" = "nearest"}
 
     [[train.dataloader.transformations]]
     type = "Resize"

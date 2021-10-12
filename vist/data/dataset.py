@@ -2,7 +2,7 @@
 import copy
 import random
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -272,14 +272,18 @@ class ScalabelDataset(Dataset):  # type: ignore
 
     def transform_image(
         self,
-        image: NDArrayUI8,
+        image: Union[NDArrayUI8, torch.Tensor],
         parameters: Optional[List[AugParams]] = None,
+        transform_mask: Optional[bool] = False,
     ) -> Tuple[Images, List[AugParams], torch.Tensor]:
         """Apply image augmentations and convert to torch tensor."""
-        image = torch.as_tensor(
-            np.ascontiguousarray(image.transpose(2, 0, 1)),
-            dtype=torch.float32,
-        ).unsqueeze(0)
+        if not transform_mask:
+            image = torch.as_tensor(
+                np.ascontiguousarray(image.transpose(2, 0, 1)),
+                dtype=torch.float32,
+            ).unsqueeze(0)
+        else:
+            image = image.float().unsqueeze(0)
 
         if parameters is None:
             parameters = []
@@ -296,14 +300,18 @@ class ScalabelDataset(Dataset):  # type: ignore
             image, tm = aug(image, parameters[i], return_transform=True)
             transform_matrix = torch.mm(tm[0], transform_matrix)
 
-        image_processed = Images(image, [(image.shape[3], image.shape[2])])
-        return image_processed, parameters, transform_matrix
+        if not transform_mask:
+            image_processed = Images(image, [(image.shape[3], image.shape[2])])
+            return image_processed, parameters, transform_matrix
+        else:
+            return image.squeeze(0)
 
     def transform_annotation(
         self,
         input_sample: InputSample,
         labels: Optional[List[Label]],
         transform_matrix: torch.Tensor,
+        parameters: Optional[List[AugParams]] = None,
     ) -> None:
         """Transform annotations."""
         labels_used = []
@@ -327,7 +335,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             if "boxes2d" in self.cfg.dataloader.fields_to_load and labels_used:
                 boxes2d = Boxes2D.from_scalabel(
                     labels_used, category_dict, instance_id_dict
-                )
+                )[0]
                 boxes2d.boxes[:, :4] = transform_bbox(
                     transform_matrix,
                     boxes2d.boxes[:, :4],
@@ -340,23 +348,33 @@ class ScalabelDataset(Dataset):  # type: ignore
             if "boxes3d" in self.cfg.dataloader.fields_to_load and labels_used:
                 boxes3d = Boxes3D.from_scalabel(
                     labels_used, category_dict, instance_id_dict
-                )
+                )[0]
                 input_sample.boxes3d = [boxes3d]
 
             if (
                 "bitmasks" in self.cfg.dataloader.fields_to_load
                 and labels_used
             ):
-                bitmasks = Bitmasks.from_scalabel(
+                bitmasks, boxes2d = Bitmasks.from_scalabel(
                     labels_used,
                     category_dict,
                     instance_id_dict,
-                    input_sample.images.image_sizes,
+                    input_sample.metadata[0].size,
                 )
-
-                # TODO: add bitmask transforms
+                bitmasks.masks = self.transform_image(
+                    bitmasks.masks,
+                    parameters,
+                    transform_mask=True,
+                )
+                boxes2d.boxes[:, :4] = transform_bbox(
+                    transform_matrix,
+                    boxes2d.boxes[:, :4],
+                )
+                if self.cfg.dataloader.clip_bboxes_to_image:
+                    boxes2d.clip(input_sample.images.image_sizes[0])
 
                 input_sample.bitmasks = [bitmasks]
+                input_sample.boxes2d = [boxes2d]
 
     @staticmethod
     def transform_intrinsics(
@@ -419,7 +437,9 @@ class ScalabelDataset(Dataset):  # type: ignore
         if not self.training:
             return input_data, parameters
 
-        self.transform_annotation(input_data, sample.labels, transform_matrix)
+        self.transform_annotation(
+            input_data, sample.labels, transform_matrix, parameters
+        )
 
         if (
             self.cfg.dataloader.skip_empty_samples
