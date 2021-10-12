@@ -24,6 +24,7 @@ class QD3DT(QDTrack):
         """Init."""
         super().__init__(cfg)
         self.cfg = QD3DTConfig(**cfg.dict())
+        self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)  # type: ignore
         self.bbox_3d_head = build_roi_head(self.cfg.bbox_3d_head)
         self.track_graph = build_track_graph(self.cfg.track_graph)
 
@@ -45,7 +46,7 @@ class QD3DT(QDTrack):
 
         # 3d bbox head
         loss_bbox_3d, _ = self.bbox_3d_head.forward_train(
-            key_inputs, key_x, key_proposals
+            key_inputs, key_proposals, key_x
         )
 
         # bbox head
@@ -99,8 +100,8 @@ class QD3DT(QDTrack):
 
         bbox_3d_preds = self.bbox_3d_head.forward_test(
             inputs,
-            feat,
             bbox_2d_preds,
+            feat,
         )[0]
         assert isinstance(bbox_3d_preds, Boxes3D)
 

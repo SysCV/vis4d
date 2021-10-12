@@ -43,9 +43,7 @@ def build_dataset_loaders(
     return train_loaders, test_loaders, predict_loaders
 
 
-class VisTDataModule(  # pylint: disable=too-many-instance-attributes
-    pl.LightningDataModule
-):
+class VisTDataModule(pl.LightningDataModule):
     """Data module for VisT."""
 
     def __init__(
@@ -68,9 +66,6 @@ class VisTDataModule(  # pylint: disable=too-many-instance-attributes
             == len(predict_loaders)
             == 0
         ), "Please specify either train, test or predict datasets."
-        self.train_loaders = train_loaders
-        self.test_loaders = test_loaders
-        self.predict_loaders = predict_loaders
         self.samples_per_gpu = samples_per_gpu
         self.workers_per_gpu = workers_per_gpu
         self.category_mapping = category_mapping
@@ -80,31 +75,28 @@ class VisTDataModule(  # pylint: disable=too-many-instance-attributes
         self.train_datasets: Optional[List[ScalabelDataset]] = None
         self.test_datasets: Optional[List[ScalabelDataset]] = None
         self.predict_datasets: Optional[List[ScalabelDataset]] = None
-
-    def setup(self, stage: Optional[str] = None) -> None:
-        """Initialize dataset classes."""
-        if len(self.train_loaders) > 0:
+        if len(train_loaders) > 0:
             self.train_datasets = [
                 ScalabelDataset(
                     dl, True, self.category_mapping, self.image_channel_mode
                 )
-                for dl in self.train_loaders
+                for dl in train_loaders
             ]
 
-        if len(self.test_loaders) > 0:
+        if len(test_loaders) > 0:
             self.test_datasets = [
                 ScalabelDataset(
                     dl, False, self.category_mapping, self.image_channel_mode
                 )
-                for dl in self.test_loaders
+                for dl in test_loaders
             ]
 
-        if len(self.predict_loaders) > 0:
+        if len(predict_loaders) > 0:
             self.predict_datasets = [
                 ScalabelDataset(
                     dl, False, self.category_mapping, self.image_channel_mode
                 )
-                for dl in self.predict_loaders
+                for dl in predict_loaders
             ]
 
     def train_dataloader(self) -> data.DataLoader:

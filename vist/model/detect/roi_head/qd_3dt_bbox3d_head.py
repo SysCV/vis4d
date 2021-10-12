@@ -62,9 +62,7 @@ class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
     proposal_matcher: MatcherConfig
 
 
-class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
-    BaseRoIHead
-):
+class QD3DTBBox3DHead(BaseRoIHead):
     """QD-3DT 3D Bounding Box Head."""
 
     def __init__(self, cfg: BaseRoIHeadConfig) -> None:
@@ -337,8 +335,8 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
     def forward_train(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
+        features: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Forward pass during training stage.
 
@@ -351,6 +349,7 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
             LossesType: A dict of scalar loss tensors.
             Optional[List[SamplingResult]]: Sampling result.
         """
+        assert features is not None, "QD-3DT box3D head requires features!"
         features_list = [features[f] for f in self.cfg.in_features]
 
         # match and sample
@@ -386,8 +385,8 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
     def forward_test(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
+        features: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Sequence[LabelInstance]:
         """Forward pass during testing stage.
 
@@ -399,6 +398,7 @@ class QD3DTBBox3DHead(  # pylint: disable=too-many-instance-attributes
         Returns:
             List[LabelInstance]: Prediction output.
         """
+        assert features is not None, "QD-3DT box3D head requires features!"
         if sum(len(b) for b in boxes) == 0:
             dev = boxes[0].device
             return [

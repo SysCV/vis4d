@@ -1,5 +1,4 @@
 """Load and convert NuScenes labels to scalabel format."""
-import inspect
 import os
 
 from scalabel.label.io import load, load_label_config, save
@@ -28,7 +27,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
     def __init__(self, cfg: BaseDatasetConfig):
         """Init dataset loader."""
         super().__init__(cfg)
-        self.cfg = NuScenesDatasetConfig(**cfg.dict())  # type: NuScenesDatasetConfig
+        self.cfg: NuScenesDatasetConfig = NuScenesDatasetConfig(**cfg.dict())
 
     def load_dataset(self) -> Dataset:
         """Convert NuScenes annotations to Scalabel format."""
@@ -44,9 +43,10 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             dataset = from_nuscenes(
                 self.cfg.data_root,
                 self.cfg.version,
+                self.cfg.split,
                 self.cfg.num_processes,
             )
-            save(self.cfg.annotations, frames)
+            save(self.cfg.annotations, dataset)
         else:
             # Load labels from existing file
             dataset = load(

@@ -11,8 +11,8 @@ from .coco import COCO
 from .custom import Custom
 from .kitti import KITTI
 from .motchallenge import MOTChallenge
-from .scalabel import Scalabel
 from .nuscenes import NuScenes
+from .scalabel import Scalabel
 from .waymo import Waymo
 
 __all__ = [

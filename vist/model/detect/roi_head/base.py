@@ -24,8 +24,8 @@ class BaseRoIHead(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     def forward_train(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
+        features: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Forward pass during training stage.
 
@@ -44,8 +44,8 @@ class BaseRoIHead(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
     def forward_test(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
+        features: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Sequence[LabelInstance]:
         """Forward pass during testing stage.
 

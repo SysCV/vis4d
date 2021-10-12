@@ -1,8 +1,9 @@
 """Class for processing Scalabel type datasets."""
 import copy
+import pickle
 import random
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -11,7 +12,7 @@ from pytorch_lightning.utilities.distributed import (
     rank_zero_warn,
 )
 from scalabel.label.typing import Extrinsics as ScalabelExtrinsics
-from scalabel.label.typing import Frame, ImageSize
+from scalabel.label.typing import Frame, FrameGroup, ImageSize
 from scalabel.label.typing import Intrinsics as ScalabelIntrinsics
 from scalabel.label.typing import Label
 from scalabel.label.utils import (
@@ -38,11 +39,11 @@ from .datasets import BaseDatasetLoader
 from .transforms import AugParams, build_augmentations
 from .utils import (
     discard_labels_outside_set,
+    filter_attributes,
     im_decode,
     prepare_labels,
     print_class_histogram,
     transform_bbox,
-    filter_attributes
 )
 
 __all__ = ["ScalabelDataset"]
@@ -77,13 +78,11 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         for field in self.cfg.dataloader.fields_to_load:
             assert field in ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
-
-        self.dataset = dataset
         self.training = training
 
         if cats_name2id is not None:
             discard_labels_outside_set(
-                self.dataset.frames, list(cats_name2id.keys())
+                dataset.frames, list(cats_name2id.keys())
             )
         else:
             cats_name2id = {
@@ -92,22 +91,28 @@ class ScalabelDataset(Dataset):  # type: ignore
                     [
                         c.name
                         for c in get_leaf_categories(
-                            self.dataset.metadata_cfg.categories
+                            dataset.metadata_cfg.categories
                         )
                     ]
                 )
             }
         self.cats_name2id = cats_name2id
-        self.dataset.frames = filter_attributes(self.dataset.frames, self.dataset.cfg.attributes)
+        dataset.frames = filter_attributes(dataset.frames, dataset.cfg.attributes)
 
         frequencies = prepare_labels(
-            self.dataset.frames,
+            dataset.frames,
             cats_name2id,
             self.cfg.dataloader.compute_global_instance_ids,
         )
         print_class_histogram(frequencies)
 
+        self.dataset = dataset
+        self.dataset.frames = DatasetFromList(self.dataset.frames)
         self.has_groups = dataset.groups is not None
+        self.groups: Optional[Dataset] = None
+        if self.has_groups:
+            self.dataset.groups = DatasetFromList(self.dataset.groups)
+
         self._fallback_candidates = set(range(len(self.dataset.frames)))
         self.video_to_indices: Dict[str, List[int]] = defaultdict(list)
         self._create_video_mapping()
@@ -128,15 +133,22 @@ class ScalabelDataset(Dataset):  # type: ignore
 
     def _create_video_mapping(self) -> None:
         """Creating mapping from video id to frame / group indices."""
-        # TODO sort by frame id
+        video_to_frameidx: Dict[str, List[int]] = defaultdict(list)
         if self.has_groups:
             for idx, entry in enumerate(self.dataset.groups):
                 if entry.videoName is not None:
+                    video_to_frameidx[entry.videoName].append(entry.frameIndex)
                     self.video_to_indices[entry.videoName].append(idx)
         else:
             for idx, entry in enumerate(self.dataset.frames):
                 if entry.videoName is not None:
+                    video_to_frameidx[entry.videoName].append(entry.frameIndex)
                     self.video_to_indices[entry.videoName].append(idx)
+
+        # sort dataset indices by frame indices
+        for key, idcs in self.video_to_indices.items():
+            zip_frame_idx = sorted(zip(video_to_frameidx[key], idcs))
+            self.video_to_indices[key] = [idx for _, idx in zip_frame_idx]
 
     def sample_ref_indices(
         self, video: str, key_dataset_index: int
@@ -208,29 +220,31 @@ class ScalabelDataset(Dataset):  # type: ignore
         cur_idx: int,
         key_data: InputSample,
         parameters: Optional[List[AugParams]],
+        num_retry: int = 3
     ) -> Optional[List[InputSample]]:
         """Sample reference views from key view."""
         vid_id = key_data.metadata[0].videoName
-        if vid_id is not None:
-            ref_data = []
-            for ref_idx in self.sample_ref_indices(vid_id, cur_idx):
-                ref_sample = self.get_sample(
-                    self.dataset.frames[ref_idx],
-                    parameters=parameters,
-                )[0]
-                if ref_sample is None:
-                    break  # pragma: no cover
-                ref_data.append(ref_sample)
-        else:
-            ref_data = [  # pragma: no cover
-                key_data for _ in range(self.sampling_cfg.num_ref_imgs)
-            ]
+        for _ in range(num_retry):
+            if vid_id is not None:
+                ref_data = []
+                for ref_idx in self.sample_ref_indices(vid_id, cur_idx):
+                    ref_sample = self.get_sample(
+                        self.dataset.frames[ref_idx],
+                        parameters=parameters,
+                    )[0]
+                    if ref_sample is None:
+                        break  # pragma: no cover
+                    ref_data.append(ref_sample)
+            else:
+                ref_data = [  # pragma: no cover
+                    key_data for _ in range(self.sampling_cfg.num_ref_imgs)
+                ]
 
-        if (
-            not self.sampling_cfg.skip_nomatch_samples
-            or self.has_matches(key_data, ref_data)
-        ) and self.sampling_cfg.num_ref_imgs == len(ref_data):
-            return ref_data
+            if (
+                not self.sampling_cfg.skip_nomatch_samples
+                or self.has_matches(key_data, ref_data)
+            ) and self.sampling_cfg.num_ref_imgs == len(ref_data):
+                return ref_data
         return None
 
     @staticmethod
@@ -253,19 +267,16 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         if not self.training:
             if self.has_groups:
-                group = self.dataset.groups[self.frame_to_group[idx]]
-                input_data = []
+                group = self.groups[self.frame_to_group[idx]]
+                data = []
                 for fname in group.frames:
                     cur_data, _ = self.get_sample(
                         self.dataset.frames[self.frame_name_to_idx[fname]]
                     )
-                    input_data.append(cur_data)
-                return input_data
-            else:
-                input_data, _ = self.get_sample(
-                    self.dataset.frames[cur_idx]
-                )
-                return [input_data]
+                    data.append(cur_data)
+                return data
+            return [self.get_sample(self.dataset.frames[cur_idx])[0]]
+
         else:
             while True:
                 input_data, parameters = self.get_sample(
@@ -274,10 +285,9 @@ class ScalabelDataset(Dataset):  # type: ignore
                 if input_data is not None:
                     if input_data.metadata[0].attributes is None:
                         input_data.metadata[0].attributes = {}
-                    if self.training:
-                        input_data.metadata[0].attributes["keyframe"] = True
+                    input_data.metadata[0].attributes["keyframe"] = True
 
-                    if self.training and self.sampling_cfg.num_ref_imgs > 0:
+                    if self.sampling_cfg.num_ref_imgs > 0:
                         ref_data = self.sample_ref_views(
                             cur_idx, input_data, parameters
                         )
@@ -292,7 +302,7 @@ class ScalabelDataset(Dataset):  # type: ignore
 
                 if retry_count >= 5:
                     rank_zero_warn(
-                        f"Failed to get sample for idx: {idx}, "
+                        f"Failed to get samples for idx: {cur_idx}, "
                         f"retry count: {retry_count}"
                     )
 
@@ -451,3 +461,58 @@ class ScalabelDataset(Dataset):  # type: ignore
             return None, None  # pragma: no cover
 
         return input_data, parameters
+
+
+# reference:
+# https://github.com/facebookresearch/detectron2/blob/7f8f29deae278b75625872c8a0b00b74129446ac/detectron2/data/common.py#L109
+class DatasetFromList(Dataset):  # type: ignore
+    """Wrap a list to a torch Dataset.
+
+    We serialize and wrap big python objects in a torch.Dataset due to a
+    memory leak when dealing with large python objects using multiple workers.
+    See: https://github.com/pytorch/pytorch/issues/13246
+    """
+
+    def __init__(self, lst: List[Any], copy: bool = False, serialize: bool = True):  # type: ignore
+        """Init.
+
+        Args:
+            lst: a list which contains elements to produce.
+            copy: whether to deepcopy the element when producing it, so that
+            the result can be modified in place without affecting the source
+            in the list.
+            serialize: whether to hold memory using serialized objects. When
+            enabled, data loader workers can use shared RAM from master
+            process instead of making a copy.
+        """
+        self._lst = lst
+        self._copy = copy
+        self._serialize = serialize
+
+        def _serialize(data: Any) -> NDArrayUI8:  # type: ignore
+            """Serialize python object to numpy array."""
+            buffer = pickle.dumps(data, protocol=-1)
+            return np.frombuffer(buffer, dtype=np.uint8)  # type: ignore
+
+        if self._serialize:
+            self._lst = [_serialize(x) for x in self._lst]
+            self._addr = np.asarray([len(x) for x in self._lst], dtype=np.int64)
+            self._addr = np.cumsum(self._addr)
+            self._lst = np.concatenate(self._lst)  # type: ignore
+
+    def __len__(self) -> int:
+        """Return len of list."""
+        if self._serialize:
+            return len(self._addr)
+        return len(self._lst)
+
+    def __getitem__(self, idx: int) -> Any:  # type: ignore
+        """Return item of list at idx."""
+        if self._serialize:
+            start_addr = 0 if idx == 0 else self._addr[idx - 1].item()
+            end_addr = self._addr[idx].item()
+            return pickle.loads(memoryview(self._lst[start_addr:end_addr]))
+        if self._copy:
+            return copy.deepcopy(self._lst[idx])
+
+        return self._lst[idx]

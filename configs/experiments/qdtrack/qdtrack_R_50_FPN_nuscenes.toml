@@ -1,5 +1,5 @@
 [[config]]
-path = "../../base/datasets/nuscenes.toml"
+path = "../../base/datasets/nuscenes_mini.toml"
 
 [[config]]
 path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"
