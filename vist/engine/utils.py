@@ -117,7 +117,7 @@ def setup_logging(
         str(debug.format(cfg)).split("\n", 1)[1],
     )
     if cfg.launch.seed is not None:
-        rank_zero_info("Using a fixed random seed: %s", cfg.launch.seed)
+        rank_zero_info("Using random seed: %s", cfg.launch.seed)
 
     # save trainer args (converted to string)
     path = osp.join(output_dir, "trainer_args.yaml")
@@ -134,7 +134,7 @@ def setup_logging(
     rank_zero_info("VisT Config saved to %s", path)
 
 
-def split_args(args: Namespace) -> Tuple[Namespace, Namespace]:
+def split_args(args: Namespace) -> Tuple[Namespace, DictStrAny]:
     """Split argparse Namespace into VisT and pl.Trainer arguments."""
     params = vars(args)
     valid_kwargs = inspect.signature(pl.Trainer.__init__).parameters
@@ -144,7 +144,7 @@ def split_args(args: Namespace) -> Tuple[Namespace, Namespace]:
     vist_kwargs = Namespace(
         **{name: params[name] for name in params if name not in valid_kwargs}
     )
-    return vist_kwargs, trainer_kwargs
+    return vist_kwargs, vars(trainer_kwargs)
 
 
 def all_gather_predictions(

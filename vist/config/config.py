@@ -8,6 +8,7 @@ import toml
 import yaml
 from pydantic import BaseModel, validator
 
+from vist.common.utils.distributed import get_rank
 from vist.data.datasets import BaseDatasetConfig
 from vist.model import BaseModelConfig
 from vist.struct import DictStrAny
@@ -41,6 +42,7 @@ class Launch(BaseModel):
     work_dir/exp_name/version.
     pin_memory: Enable/Disable pin_memory option for dataloader workers in
     training.
+    wandb: Use weights and biases logging instead of tensorboard (default).
     """
 
     action: str = ""
@@ -62,6 +64,18 @@ class Launch(BaseModel):
     checkpoint_period: int = 1
     resume: bool = False
     pin_memory: bool = False
+    wandb: bool = False
+
+    @validator("version", always=True)
+    def validate_version(  # pylint: disable=no-self-argument,no-self-use
+        cls, value: str
+    ) -> str:
+        """Sync version in distributed setting."""
+        if get_rank() == 0:
+            os.environ["RUN_VERSION"] = value
+        else:
+            value = os.environ["RUN_VERSION"]
+        return value
 
     @validator("input_dir", always=True)
     def validate_input_dir(  # pylint: disable=no-self-argument,no-self-use
@@ -79,8 +93,8 @@ class Launch(BaseModel):
 class Config(BaseModel, extra="allow"):
     """Overall config object."""
 
-    model: BaseModelConfig
     launch: Launch = Launch()
+    model: BaseModelConfig
     train: List[BaseDatasetConfig] = []
     test: List[BaseDatasetConfig] = []
 

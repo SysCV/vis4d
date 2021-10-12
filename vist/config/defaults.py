@@ -1,6 +1,8 @@
 """Default argument parser for vist."""
 import argparse
 
+import pytorch_lightning as pl
+
 from .config import Launch
 
 
@@ -46,4 +48,6 @@ def default_argument_parser() -> argparse.ArgumentParser:
                 type=Launch.__fields__[key].type_,
                 help=help_from_docstring(key, Launch.__doc__),
             )
+
+    pl.Trainer.add_argparse_args(parser)
     return parser

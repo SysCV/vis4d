@@ -61,9 +61,9 @@ class MaxIoUMatcher(BaseMatcher):
         result = []
         for b, t in zip(boxes, targets):
             if len(t) == 0:
-                matches = torch.zeros(len(b)).to(b.device)
-                match_labels = torch.zeros(len(b)).to(b.device)
-                match_iou = torch.zeros(len(b)).to(b.device)
+                matches = torch.zeros(len(b), device=b.device)
+                match_labels = torch.zeros(len(b), device=b.device)
+                match_iou = torch.zeros(len(b), device=b.device)
             else:
                 # M x N matrix, where M = num gt, N = num proposals
                 match_quality_matrix = bbox_iou(t, b)
@@ -74,7 +74,7 @@ class MaxIoUMatcher(BaseMatcher):
                     match_quality_matrix
                 )
                 match_iou = match_quality_matrix[
-                    matches, torch.arange(0, len(b)).to(b.device)
+                    matches, torch.arange(0, len(b), device=b.device)
                 ]
 
             result.append(
