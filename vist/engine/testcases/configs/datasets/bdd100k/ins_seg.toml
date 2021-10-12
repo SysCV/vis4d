@@ -14,22 +14,24 @@ num_processes = 0
         num_ref_imgs = 0
 
     [[train.dataloader.transformations]]
-    type = "Resize"
-    kwargs = {"shape" = [360, 640], "scale_range" = [1.2, 1.5], "interpolation" = "nearest"}
+    type = "VisTResize"
+    kornia_type = "Resize"
+    kwargs = {"shape" = [360, 640], "scale_range" = [1.2, 1.5], "interpolation" = "bicubic"}
 
-    [[train.dataloader.transformations]]
-    type = "Resize"
-    [train.dataloader.transformations.kwargs]
-        shape = [
-            [360, 640],
-            [480, 960]
-        ]
-        keep_ratio = true
-        multiscale_mode = "list"
+    # [[train.dataloader.transformations]]
+    # type = "VisTResize"
+    # kornia_type = "Resize"
+    # [train.dataloader.transformations.kwargs]
+    #     shape = [
+    #         [360, 640],
+    #         [480, 960]
+    #     ]
+    #     keep_ratio = true
+    #     multiscale_mode = "list"
 
-    [[train.dataloader.transformations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
+    # [[train.dataloader.transformations]]
+    # type = "RandomHorizontalFlip"
+    # kwargs = {"p" = 0.5}
 
 [[test]]
 name = "bdd100k_sample_val"
@@ -39,6 +41,10 @@ data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
 eval_metrics = ["detect"]
 config_path = "ins_seg"
 num_processes = 0
+    [test.dataloader]
+        fields_to_load = ["bitmasks"]
+
     [[test.dataloader.transformations]]
-    type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
+    type = "VisTResize"
+    kornia_type = "Resize"
+    kwargs = {"shape" = [360, 640]}

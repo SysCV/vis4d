@@ -72,6 +72,21 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         ), "No reference views allowed in MMTwoStageDetector training!"
         raw_inputs = [inp[0] for inp in batch_inputs]
         inputs = self.preprocess_inputs(raw_inputs)
+
+        from vist.vis.image import imshow_bboxes, imshow_bitmasks
+
+        for batch_i, key_inp in enumerate(inputs):
+            imshow_bboxes(
+                key_inp.images.tensor[0],
+                key_inp.boxes2d,
+                label_str="train_det" + str(batch_i),
+            )
+            imshow_bitmasks(
+                key_inp.images.tensor[0],
+                key_inp.bitmasks,
+                label_str="train_mask" + str(batch_i),
+            )
+
         image_metas = get_img_metas(inputs.images)
         gt_bboxes, gt_labels = targets_to_mmdet(inputs.boxes2d)
         losses = self.mm_detector.forward_train(

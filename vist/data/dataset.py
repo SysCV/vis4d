@@ -29,6 +29,7 @@ from ..struct import (
     Bitmasks,
     Boxes2D,
     Boxes3D,
+    DictStrAny,
     Extrinsics,
     Images,
     InputSample,
@@ -262,29 +263,24 @@ class ScalabelDataset(Dataset):  # type: ignore
     def load_image(
         self,
         sample: Frame,
-    ) -> NDArrayUI8:
+    ) -> torch.FloatTensor:
         """Load image according to data_backend."""
         assert sample.url is not None
         im_bytes = self.data_backend.get(sample.url)
         image = im_decode(im_bytes, mode=self.image_channel_mode)
         sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
+        image = torch.as_tensor(
+            np.ascontiguousarray(image.transpose(2, 0, 1)),
+            dtype=torch.float32,
+        ).unsqueeze(0)
         return image
 
-    def transform_image(
+    def transform_input(
         self,
-        image: Union[NDArrayUI8, torch.Tensor],
+        sample: InputSample,
         parameters: Optional[List[AugParams]] = None,
-        transform_mask: Optional[bool] = False,
-    ) -> Tuple[Images, List[AugParams], torch.Tensor]:
-        """Apply image augmentations and convert to torch tensor."""
-        if not transform_mask:
-            image = torch.as_tensor(
-                np.ascontiguousarray(image.transpose(2, 0, 1)),
-                dtype=torch.float32,
-            ).unsqueeze(0)
-        else:
-            image = image.float().unsqueeze(0)
-
+    ) -> Tuple[List[DictStrAny], torch.Tensor]:
+        """Apply augmentations to input sample."""
         if parameters is None:
             parameters = []
         else:
@@ -296,22 +292,20 @@ class ScalabelDataset(Dataset):  # type: ignore
         transform_matrix = torch.eye(3)
         for i, aug in enumerate(self.transformations):
             if len(parameters) < len(self.transformations):
-                parameters.append(aug.forward_parameters(image.shape))
-            image, tm = aug(image, parameters[i], return_transform=True)
-            transform_matrix = torch.mm(tm[0], transform_matrix)
+                parameters.append(
+                    aug.generate_parameters(sample.images.tensor.shape)
+                )
+            sample = aug(sample, parameters[i])
+            transform_matrix = torch.mm(
+                parameters[i]["transform_matrix"][0], transform_matrix
+            )
 
-        if not transform_mask:
-            image_processed = Images(image, [(image.shape[3], image.shape[2])])
-            return image_processed, parameters, transform_matrix
-        else:
-            return image.squeeze(0)
+        return parameters, transform_matrix
 
-    def transform_annotation(
+    def load_annotation(
         self,
         input_sample: InputSample,
         labels: Optional[List[Label]],
-        transform_matrix: torch.Tensor,
-        parameters: Optional[List[AugParams]] = None,
     ) -> None:
         """Transform annotations."""
         labels_used = []
@@ -336,12 +330,12 @@ class ScalabelDataset(Dataset):  # type: ignore
                 boxes2d = Boxes2D.from_scalabel(
                     labels_used, category_dict, instance_id_dict
                 )[0]
-                boxes2d.boxes[:, :4] = transform_bbox(
-                    transform_matrix,
-                    boxes2d.boxes[:, :4],
-                )
-                if self.cfg.dataloader.clip_bboxes_to_image:
-                    boxes2d.clip(input_sample.images.image_sizes[0])
+                # boxes2d.boxes[:, :4] = transform_bbox(
+                #     transform_matrix,
+                #     boxes2d.boxes[:, :4],
+                # )
+                # if self.cfg.dataloader.clip_bboxes_to_image:
+                #     boxes2d.clip(input_sample.images.image_sizes[0])
 
                 input_sample.boxes2d = [boxes2d]
 
@@ -361,17 +355,17 @@ class ScalabelDataset(Dataset):  # type: ignore
                     instance_id_dict,
                     input_sample.metadata[0].size,
                 )
-                bitmasks.masks = self.transform_image(
-                    bitmasks.masks,
-                    parameters,
-                    transform_mask=True,
-                )
-                boxes2d.boxes[:, :4] = transform_bbox(
-                    transform_matrix,
-                    boxes2d.boxes[:, :4],
-                )
-                if self.cfg.dataloader.clip_bboxes_to_image:
-                    boxes2d.clip(input_sample.images.image_sizes[0])
+                # bitmasks.masks = self.transform_image(
+                #     bitmasks.masks,
+                #     parameters,
+                #     transform_mask=True,
+                # )
+                # boxes2d.boxes[:, :4] = transform_bbox(
+                #     transform_matrix,
+                #     boxes2d.boxes[:, :4],
+                # )
+                # if self.cfg.dataloader.clip_bboxes_to_image:
+                #     boxes2d.clip(input_sample.images.image_sizes[0])
 
                 input_sample.bitmasks = [bitmasks]
                 input_sample.boxes2d = [boxes2d]
@@ -411,12 +405,22 @@ class ScalabelDataset(Dataset):  # type: ignore
             List[AugParams]: augmentation parameters, s.t. ref views can be
             augmented with the same parameters.
         """
-        # image loading, augmentation / to torch.tensor
-        image, parameters, transform_matrix = self.transform_image(
-            self.load_image(sample),
+        # load image
+        image = self.load_image(sample)
+        image = Images(image, [(image.shape[3], image.shape[2])])
+        input_data = InputSample([copy.deepcopy(sample)], image)
+
+        # load annotations to input sample
+        self.load_annotation(input_data, sample.labels)
+
+        # apply transforms to input sample
+        parameters, transform_matrix = self.transform_input(
+            input_data,
             parameters=parameters,
         )
-        input_data = InputSample([copy.deepcopy(sample)], image)
+
+        if self.cfg.dataloader.clip_bboxes_to_image:
+            input_data.boxes2d[0].clip(input_data.images.image_sizes[0])
 
         if (
             sample.intrinsics is not None
@@ -436,10 +440,6 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         if not self.training:
             return input_data, parameters
-
-        self.transform_annotation(
-            input_data, sample.labels, transform_matrix, parameters
-        )
 
         if (
             self.cfg.dataloader.skip_empty_samples

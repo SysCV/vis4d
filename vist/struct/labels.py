@@ -2,7 +2,7 @@
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import torch
-from scalabel.label.transforms import mask_to_bbox, poly2ds_to_mask
+from scalabel.label.transforms import mask_to_box2d, poly2ds_to_mask
 from scalabel.label.typing import Box2D, Box3D, Label, ImageSize
 
 from .structures import DataInstance, LabelInstance
@@ -448,10 +448,11 @@ class Bitmasks(LabelInstance):  # type: ignore
             if label.poly2d is None:
                 continue
             poly2d = label.poly2d
-            bitmask = poly2ds_to_mask(image_size, poly2d)
+            bitmask_raw = poly2ds_to_mask(image_size, poly2d)
+            bitmask = (bitmask_raw > 0).astype(bitmask_raw.dtype)
             bitmask_list.append(bitmask)
-            bbox = mask_to_bbox(bitmask)
-            box_list.append(bbox)
+            bbox = mask_to_box2d(bitmask)  # type: ignore
+            box_list.append([bbox.x1, bbox.y1, bbox.x2, bbox.y2])
             mask_cls, l_id = label.category, label.id
 
             if has_class_ids:

@@ -61,14 +61,21 @@ class QDTrack(BaseModel):
         """Forward function for training."""
         key_inputs, ref_inputs = self.preprocess_inputs(batch_inputs)
 
-        # from vist.vis.image import imshow_bboxes
-        # for batch_i, key_inp in enumerate(key_inputs):
-        #     imshow_bboxes(key_inp.images.tensor[0], key_inp.boxes2d)
-        #     for ref_i, ref_inp in enumerate(ref_inputs):
-        #         imshow_bboxes(
-        #             ref_inp[batch_i].images.tensor[0],
-        #             ref_inp[batch_i].boxes2d,
-        #         )
+        from vist.vis.image import imshow_bboxes
+
+        for batch_i, key_inp in enumerate(key_inputs):
+            print(key_inp.boxes2d[0].boxes)
+            imshow_bboxes(
+                key_inp.images.tensor[0],
+                key_inp.boxes2d,
+                label_str="train_batch" + str(batch_i),
+            )
+            for ref_i, ref_inp in enumerate(ref_inputs):
+                imshow_bboxes(
+                    ref_inp[batch_i].images.tensor[0],
+                    ref_inp[batch_i].boxes2d,
+                    label_str="train_ref" + str(ref_i),
+                )
 
         # feature extraction
         key_x = self.detector.extract_features(key_inputs)
@@ -130,8 +137,12 @@ class QDTrack(BaseModel):
         )
         assert detections is not None
 
-        # from vist.vis.image import imshow_bboxes
-        # imshow_bboxes(inputs.images.tensor[0], detections)
+        from vist.vis.image import imshow, imshow_bboxes
+
+        imshow(inputs.images.tensor[0])
+        imshow_bboxes(
+            inputs.images.tensor[0], detections, label_str="test_det"
+        )
 
         # similarity head
         embeddings = self.similarity_head.forward_test(

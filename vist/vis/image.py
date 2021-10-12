@@ -5,9 +5,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from vist.struct import Intrinsics, NDArrayF64
+from vist.struct import Intrinsics, NDArrayF64, NDArrayUI8
 
 from .utils import (
+    BitmaskType,
     Box3DType,
     BoxType,
     ImageType,
@@ -15,6 +16,7 @@ from .utils import (
     preprocess_boxes,
     preprocess_image,
     preprocess_intrinsics,
+    preprocess_masks,
 )
 
 
@@ -31,11 +33,15 @@ def imshow(
     if not isinstance(image, Image.Image):
         image = preprocess_image(image, mode)
     plt.imshow(np.asarray(image))
-    plt.show()
+    # plt.show()
+    plt.savefig("test_img.png")
 
 
 def imshow_bboxes(
-    image: ImageType, boxes: BoxType, mode: str = "RGB"
+    image: ImageType,
+    boxes: BoxType,
+    mode: str = "RGB",
+    label_str: str = "",
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode)
@@ -43,7 +49,9 @@ def imshow_bboxes(
     for box, col, label in zip(box_list, color_list, label_list):
         draw_bbox(image, box, col, label)
 
-    imshow(image)
+    # imshow(image)
+    plt.imshow(np.asarray(image))
+    plt.savefig(f"test_bbox_{label_str}.png")
 
 
 def imshow_bboxes3d(
@@ -61,6 +69,23 @@ def imshow_bboxes3d(
         draw_bbox3d(image, box, intrinsic_matrix, col, label)
 
     imshow(image)
+
+
+def imshow_bitmasks(
+    image: ImageType,
+    masks: BitmaskType,
+    mode: str = "RGB",
+    label_str: str = "",
+) -> None:  # pragma: no cover
+    """Show image with bitmasks."""
+    image = preprocess_image(image, mode)
+    mask_list, color_list = preprocess_masks(masks)
+    for mask, col in zip(mask_list, color_list):
+        draw_mask(image, mask, col)
+
+    # imshow(image)
+    plt.imshow(np.asarray(image))
+    plt.savefig(f"test_mask_{label_str}.png")
 
 
 def draw_image(
@@ -151,6 +176,12 @@ def draw_bbox3d(
         font = ImageFont.load_default()
         center_top_forward = tuple(np.mean(corners_proj[2:4], axis=0)[:2])
         draw.text(center_top_forward, label, (255, 255, 255), font=font)
+
+
+def draw_mask(image: Image.Image, mask: NDArrayUI8, color: Tuple[int]) -> None:
+    """Draw mask onto image."""
+    draw = ImageDraw.Draw(image)
+    draw.bitmap([0, 0], Image.fromarray(mask, mode="L"), fill=color)
 
 
 def get_intersection_point(

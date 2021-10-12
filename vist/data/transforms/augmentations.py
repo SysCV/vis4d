@@ -1,16 +1,21 @@
 """VisT augmentations."""
 import random
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
 
 from vist.struct import DictStrAny
+from vist.struct.labels import Bitmasks
 
-from .base import AugParams, BaseAugmentation
+from .base import (
+    AugParams,
+    BaseAugmentation,
+    KorniaAugWrapper,
+)
 
 
-class Resize(BaseAugmentation):
+class Resize(KorniaAugWrapper):
     """Simple resize augmentation class."""
 
     def __init__(
@@ -123,11 +128,26 @@ class Resize(BaseAugmentation):
         return output
 
     def inverse_transform(
-            self,
-            inputs: torch.Tensor,
-            transform: Optional[torch.Tensor] = None,
-            size: Optional[Tuple[int, int]] = None,
-            **kwargs: DictStrAny,
+        self,
+        inputs: torch.Tensor,
+        transform: Optional[torch.Tensor] = None,
+        size: Optional[Tuple[int, int]] = None,
+        **kwargs: DictStrAny,
     ) -> torch.Tensor:
         """Apply inverse of transform given input and transform parameters."""
         raise NotImplementedError
+
+
+class VisTResize(BaseAugmentation):
+    """Simple resize augmentation class."""
+
+    def apply_mask(
+        self, masks: Sequence[Bitmasks], parameters: DictStrAny
+    ) -> Sequence[Bitmasks]:
+        """Apply augmentation to input mask."""
+        if self.augmentor.interpolation != "nearest":
+            self.augmentor.interpolation = "nearest"
+        masks[0].masks = self.augmentor(
+            masks[0].masks.float().unsqueeze(1), parameters
+        ).squeeze(1)
+        return masks
