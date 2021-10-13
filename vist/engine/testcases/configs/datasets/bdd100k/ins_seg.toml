@@ -17,6 +17,26 @@ num_processes = 0
     type = "Resize"
     kwargs = {"shape" = [360, 640], "scale_range" = [1.2, 1.5], "interpolation" = "bicubic"}
 
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    [train.dataloader.transformations.kwargs]
+        shape = [
+            [360, 640],
+            [480, 960]
+        ]
+        keep_ratio = true
+        multiscale_mode = "list"
+
+    [[train.dataloader.transformations]]
+    type = "RandomHorizontalFlip"
+    kornia_type = "RandomHorizontalFlip"
+    kwargs = {"p" = 0.5}
+
+    [[train.dataloader.transformations]]
+    type = "KorniaColorJitter"
+    kornia_type = "ColorJitter"
+    kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
+
 [[test]]
 name = "bdd100k_sample_val"
 type = "BDD100K"

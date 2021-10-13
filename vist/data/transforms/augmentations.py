@@ -5,7 +5,8 @@ from typing import List, Sequence, Tuple, Union
 import torch
 import torch.nn.functional as F
 
-from vist.struct import DictStrAny, Bitmasks
+from vist.data.utils import transform_bbox
+from vist.struct import Bitmasks, Boxes2D, DictStrAny, Images
 
 from .base import AugParams, AugmentationConfig, BaseAugmentation
 
@@ -112,7 +113,7 @@ class Resize(BaseAugmentation):
         transform[1, 1] = params["shape"][0] / h
         return torch.stack([transform for _ in range(n)], 0)
 
-    def apply_transform(
+    def apply_transform(  # pylint: disable=unused-argument
         self, inputs: torch.Tensor, params: AugParams, transform: torch.Tensor
     ) -> torch.Tensor:
         """Apply resize."""
@@ -125,6 +126,27 @@ class Resize(BaseAugmentation):
         )
         return output
 
+    def apply_image(  # pylint: disable=unused-argument
+        self, image: Images, parameters: DictStrAny, transform: torch.Tensor
+    ) -> Images:
+        """Apply augmentation to input image."""
+        imaget = self.apply_transform(image.tensor, parameters, transform)
+        return Images(imaget, [(imaget.shape[3], imaget.shape[2])])
+
+    def apply_box2d(  # pylint: disable=unused-argument
+        self,
+        boxes: Sequence[Boxes2D],
+        parameters: DictStrAny,
+        transform: torch.Tensor,
+    ) -> Sequence[Boxes2D]:
+        """Apply augmentation to input box2d."""
+        if len(boxes[0]) != 0:
+            boxes[0].boxes[:, :4] = transform_bbox(
+                transform[0],
+                boxes[0].boxes[:, :4],
+            )
+        return boxes
+
     def apply_mask(
         self,
         masks: Sequence[Bitmasks],
@@ -133,15 +155,23 @@ class Resize(BaseAugmentation):
     ) -> Sequence[Bitmasks]:
         """Apply augmentation to input mask."""
         interp = self.interpolation
-        if interp != "nearest":
-            self.interpolation = "nearest"
-        super().apply_mask(masks, parameters, transform)
+        if len(masks[0]) != 0:
+            if interp != "nearest":
+                self.interpolation = "nearest"
+            masks[0].masks = (
+                self.apply_transform(
+                    masks[0].masks.float().unsqueeze(1), parameters, transform
+                )
+                .squeeze(1)
+                .type(masks[0].masks.dtype)
+            )
         self.interpolation = interp
         return masks
 
     def __repr__(self) -> str:
         """Print class & params, s.t. user can inspect easily via cmd line."""
         return (
-            self.__class__.__name__
-            + f"(shape={self.shape}, {super().__repr__()})"
+            super().__repr__()
+            + f"(shape={self.shape}, p={self.prob}, p_batch={self.prob_batch}"
+            f", same_on_batch={self.same_on_batch})"
         )

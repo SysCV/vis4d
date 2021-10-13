@@ -291,7 +291,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         for i, aug in enumerate(self.transformations):
             if len(parameters) < len(self.transformations):
                 parameters.append(
-                    aug.forward_parameters(sample.images.tensor.shape)
+                    aug.generate_parameters(sample.images.tensor.shape)
                 )
             sample, tm = aug(sample, parameters[i])
             transform_matrix = torch.mm(tm[0], transform_matrix)

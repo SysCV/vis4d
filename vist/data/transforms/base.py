@@ -10,7 +10,6 @@ to maintain valid projective geometry in 3D tracking.
 
 Reference: https://kornia.readthedocs.io/en/latest/augmentation.base.html
 """
-import warnings
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -19,8 +18,14 @@ from pydantic.main import BaseModel
 
 from vist.common.registry import RegistryHolder
 from vist.data.utils import transform_bbox
-from vist.struct import DictStrAny, Images, InputSample
-from vist.struct.labels import Bitmasks, Boxes2D, Boxes3D
+from vist.struct import (
+    Bitmasks,
+    Boxes2D,
+    Boxes3D,
+    DictStrAny,
+    Images,
+    InputSample,
+)
 
 from .utils import identity_matrix, batch_prob_generator
 
@@ -31,6 +36,7 @@ class AugmentationConfig(BaseModel):
     """Data augmentation instance config."""
 
     type: str
+    kornia_type: Optional[str] = None
     kwargs: Dict[
         str,
         Union[
@@ -53,15 +59,16 @@ class BaseAugmentation(metaclass=RegistryHolder):
         self.prob = 0.5
         self.prob_batch = 1.0
         self.same_on_batch = False
-        self.set_rng_device_and_dtype(
-            torch.device("cpu"), torch.get_default_dtype()
-        )
 
     def generate_parameters(self, batch_shape: torch.Size) -> DictStrAny:
         """Generate current parameters."""
-        raise NotImplementedError
+        parameters = {}
+        parameters["batch_prob"] = batch_prob_generator(
+            batch_shape, self.prob, self.prob_batch, self.same_on_batch
+        )
+        return parameters
 
-    def compute_transformation(
+    def compute_transformation(  # pylint: disable=unused-argument
         self, inputs: torch.Tensor, params: Dict[str, torch.Tensor]
     ) -> torch.Tensor:
         """Get the corresponding deterministic transform for a given input.
@@ -73,13 +80,99 @@ class BaseAugmentation(metaclass=RegistryHolder):
         Returns:
             Transform: Returns the deterministic transform.
         """
-        raise NotImplementedError
+        return identity_matrix(inputs)
+
+    def apply_image(  # pylint: disable=unused-argument
+        self, image: Images, parameters: DictStrAny, transform: torch.Tensor
+    ) -> Images:
+        """Apply augmentation to input image."""
+        return image
+
+    def apply_box2d(  # pylint: disable=unused-argument
+        self,
+        boxes: Sequence[Boxes2D],
+        parameters: DictStrAny,
+        transform: torch.Tensor,
+    ) -> Sequence[Boxes2D]:
+        """Apply augmentation to input box2d."""
+        return boxes
+
+    def apply_box3d(  # pylint: disable=unused-argument
+        self,
+        boxes: Sequence[Boxes3D],
+        parameters: DictStrAny,
+        transform: torch.Tensor,
+    ) -> Sequence[Boxes3D]:
+        """Apply augmentation to input box3d."""
+        return boxes
+
+    def apply_mask(  # pylint: disable=unused-argument
+        self,
+        masks: Sequence[Bitmasks],
+        parameters: DictStrAny,
+        transform: torch.Tensor,
+    ) -> Sequence[Bitmasks]:
+        """Apply augmentation to input mask."""
+        return masks
+
+    def __call__(
+        self, sample: InputSample, parameters: DictStrAny
+    ) -> Tuple[InputSample, torch.Tensor]:  # type: ignore
+        """Apply augmentations to input sample."""
+        transform = self.compute_transformation(
+            sample.images.tensor, parameters
+        )
+        sample.images = self.apply_image(sample.images, parameters, transform)
+        sample.boxes2d = self.apply_box2d(
+            sample.boxes2d, parameters, transform
+        )
+        sample.boxes3d = self.apply_box3d(
+            sample.boxes3d, parameters, transform
+        )
+        sample.bitmasks = self.apply_mask(
+            sample.bitmasks, parameters, transform
+        )
+        return sample, transform
+
+    def __repr__(self) -> str:
+        """Print class & params, s.t. user can inspect easily via cmd line."""
+        return self.__class__.__name__
+
+
+class KorniaAugmentationWrapper(BaseAugmentation, metaclass=RegistryHolder):
+    """Kornia augmentation wrapper class."""
+
+    def __init__(self, cfg: AugmentationConfig):
+        """Initialize wrapper."""
+        super().__init__(cfg)
+        self.prob = 1.0
+        augmentation = getattr(kornia_augmentation, cfg.kornia_type)  # type: ignore
+        self.augmentor = augmentation(**cfg.kwargs)
+
+    def generate_parameters(self, batch_shape: torch.Size) -> DictStrAny:
+        """Generate current parameters."""
+        parameters = super().generate_parameters(batch_shape)
+        to_apply = parameters["batch_prob"]
+        _params = self.augmentor.generate_parameters(
+            torch.Size((int(to_apply.sum().item()), *batch_shape[1:]))
+        )
+        parameters.update(_params)
+        return parameters
+
+    def compute_transformation(
+        self, inputs: torch.Tensor, params: Dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        """Get the corresponding deterministic transform for a given input."""
+        return self.augmentor.compute_transformation(inputs, params)
 
     def apply_transform(
-        self, inputs: torch.Tensor, params: AugParams, transform: torch.Tensor
+        self,
+        inputs: torch.Tensor,
+        params: AugParams,
+        transform: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Apply the transformation given parameters and transform."""
-        raise NotImplementedError
+        return self.augmentor.apply_transform(inputs, params, transform)
 
     def apply_image(
         self, image: Images, parameters: DictStrAny, transform: torch.Tensor
@@ -128,100 +221,52 @@ class BaseAugmentation(metaclass=RegistryHolder):
             )
         return masks
 
-    def _apply_func(  # type: ignore
-        self,
-        sample: InputSample,
-        parameters: Dict[str, torch.Tensor],
-        transform: torch.Tensor,
-    ) -> None:
-        """Apply transform to input sample."""
-        sample.images = self.apply_image(sample.images, parameters, transform)
-        sample.boxes2d = self.apply_box2d(
-            sample.boxes2d, parameters, transform
-        )
-        sample.boxes3d = self.apply_box3d(
-            sample.boxes3d, parameters, transform
-        )
-        sample.bitmasks = self.apply_mask(
-            sample.bitmasks, parameters, transform
-        )
-
     def __call__(
-        self,
-        sample: InputSample,
-        parameters: DictStrAny,
+        self, sample: InputSample, parameters: DictStrAny
     ) -> Tuple[InputSample, torch.Tensor]:  # type: ignore
         """Apply augmentations to input sample."""
-        if "batch_prob" not in parameters:
-            batch_size = sample.images.tensor.shape[0]
-            parameters["batch_prob"] = torch.tensor([True] * batch_size)
-            warnings.warn(
-                "`batch_prob` is not found in params."
-                " Will assume applying on all data."
-            )
-
-        to_apply = parameters["batch_prob"]
+        bprob = parameters["batch_prob"]
         # if no augmentation needed
-        if torch.sum(to_apply) == 0:
-            trans_matrix = identity_matrix(sample)
+        if torch.sum(bprob) == 0:
+            trans_matrix = [identity_matrix(sample.images.tensor)]
         # if all data needs to be augmented
-        elif torch.sum(to_apply) == len(to_apply):
-            trans_matrix = self.compute_transformation(
-                sample.images.tensor, parameters
-            )
-            self._apply_func(sample, parameters, trans_matrix)
+        elif torch.sum(bprob) == len(bprob):
+            _, trans_matrix = super().__call__(sample, parameters)
         else:
-            trans_matrix = identity_matrix(sample)
-            trans_matrix[to_apply] = self.compute_transformation(
-                sample[to_apply], parameters
+            trans_matrix = identity_matrix(sample.images.tensor)
+            _, trans_matrix[bprob] = super().__call__(
+                sample[bprob], parameters
             )
-            self._apply_func(sample[to_apply], parameters, trans_matrix)
 
         return sample, trans_matrix
 
-    def forward_parameters(self, batch_shape) -> Dict[str, torch.Tensor]:
-        """Generate parameters for forward pass."""
-        to_apply = batch_prob_generator(
-            batch_shape, self.prob, self.prob_batch, self.same_on_batch
-        )
-        _params = self.generate_parameters(
-            torch.Size((int(to_apply.sum().item()), *batch_shape[1:]))
-        )
-        if _params is None:
-            _params = {}
-        _params["batch_prob"] = to_apply
-        return _params
-
-    def set_rng_device_and_dtype(
-        self, device: torch.device, dtype: torch.dtype
-    ) -> None:
-        """Change the random generation device and dtype.
-
-        Note:
-            The generated random numbers are not reproducible across different
-            devices and dtypes.
-        """
-        self.device = device
-        self.dtype = dtype
-
     def __repr__(self) -> str:
         """Print class & params, s.t. user can inspect easily via cmd line."""
-        return (
-            f"p={self.prob}, p_batch={self.prob_batch},"
-            f" same_on_batch={self.same_on_batch}"
-        )
+        return self.augmentor.__repr__()
 
 
 def build_augmentation(cfg: AugmentationConfig) -> BaseAugmentation:
     """Build a single augmentation."""
-    registry = RegistryHolder.get_registry(BaseAugmentation)
-    if cfg.type in registry:
-        augmentation = registry[cfg.type]
-    # elif hasattr(kornia_augmentation, cfg.type):
-    #     augmentation = getattr(kornia_augmentation, cfg.type)
+    if cfg.kornia_type is not None:
+        # use Kornia augmentation
+        kornia_registry = RegistryHolder.get_registry(
+            KorniaAugmentationWrapper
+        )
+        if cfg.type in kornia_registry:
+            augmentation = kornia_registry[cfg.type]
+            module = augmentation(cfg)
+        elif hasattr(kornia_augmentation, cfg.kornia_type):
+            module = KorniaAugmentationWrapper(cfg)
+        else:
+            raise ValueError(f"Kornia Augmentation {cfg.type} not known!")
     else:
-        raise ValueError(f"Augmentation {cfg.type} not known!")
-    module = augmentation(cfg, **cfg.kwargs)
+        # use VisT augmentation
+        registry = RegistryHolder.get_registry(BaseAugmentation)
+        if cfg.type in registry:
+            augmentation = registry[cfg.type]
+            module = augmentation(cfg, **cfg.kwargs)
+        else:
+            raise ValueError(f"VisT Augmentation {cfg.type} not known!")
     return module  # type: ignore
 
 
