@@ -395,7 +395,9 @@ class ScalabelDataset(Dataset):  # type: ignore
                 if self.cfg.dataloader.clip_bboxes_to_image:
                     boxes2d.clip(input_sample.images.image_sizes[0])
 
-                input_sample.boxes2d = [boxes2d]
+                keep = boxes2d.area >= self.cfg.dataloader.min_bboxes_area
+                input_sample.boxes2d = [boxes2d[keep]]
+                labels_used = [l for l, k in zip(labels_used, keep) if k]
 
             if "boxes3d" in self.cfg.dataloader.fields_to_load and labels_used:
                 boxes3d = Boxes3D.from_scalabel(

@@ -3,8 +3,7 @@ from typing import List
 
 import torch
 
-from vist.struct import Boxes3D, InputSample, LossesType, ModelOutput
-
+from ..struct import Boxes2D, Boxes3D, InputSample, LossesType, ModelOutput
 from .base import BaseModelConfig
 from .detect.roi_head import BaseRoIHeadConfig, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
@@ -34,6 +33,17 @@ class QD3DT(QDTrack):
     ) -> LossesType:
         """Forward function for training."""
         key_inputs, ref_inputs = self.preprocess_inputs(batch_inputs)
+
+        # from vist.vis.image import imshow_bboxes3d
+        # for batch_i, key_inp in enumerate(key_inputs):
+        #     imshow_bboxes3d(key_inp.images.tensor[0], key_inp.boxes3d,
+        #                     key_inp.intrinsics)
+        #     for ref_i, ref_inp in enumerate(ref_inputs):
+        #         imshow_bboxes3d(
+        #             ref_inp[batch_i].images.tensor[0],
+        #             ref_inp[batch_i].boxes3d,
+        #             ref_inp[batch_i].intrinsics
+        #         )
 
         # feature extraction
         key_x = self.detector.extract_features(key_inputs)
@@ -79,65 +89,69 @@ class QD3DT(QDTrack):
         batch_inputs: List[List[InputSample]],
     ) -> ModelOutput:
         """Compute qd-3dt output during inference."""
-        assert len(batch_inputs) == 1, "No reference views during test!"
-        raw_inputs = [inp[0] for inp in batch_inputs]
-        assert len(raw_inputs) == 1, "Currently only BS = 1 supported!"
-        inputs = self.detector.preprocess_inputs(raw_inputs)
+        assert len(batch_inputs) == 1, "Currently only BS = 1 supported!"
 
         # init graph at begin of sequence
-        frame_id = inputs.metadata[0].frameIndex
+        frame_id = batch_inputs[0][0].metadata[0].frameIndex
         if frame_id == 0:
             self.track_graph.reset()
 
-        # Detector
-        feat = self.detector.extract_features(inputs)
-        proposals, _ = self.detector.generate_proposals(inputs, feat)
+        boxes2d_list = []
+        boxes3d_list = []
+        embeddings_list = []
+        for sensor_inputs in batch_inputs[0]:
+            inputs = self.detector.preprocess_inputs(sensor_inputs)
 
-        bbox_2d_preds, _ = self.detector.generate_detections(
-            inputs, feat, proposals
-        )
-        assert bbox_2d_preds is not None
+            # Detector
+            feat = self.detector.extract_features(inputs)
+            proposals, _ = self.detector.generate_proposals(inputs, feat)
 
-        bbox_3d_preds = self.bbox_3d_head.forward_test(
-            inputs,
-            bbox_2d_preds,
-            feat,
-        )[0]
-        assert isinstance(bbox_3d_preds, Boxes3D)
+            boxes2d, _ = self.detector.generate_detections(
+                inputs, feat, proposals
+            )[0]
+            assert isinstance(boxes2d, Boxes2D)
 
-        # similarity head
-        embeddings = self.similarity_head.forward_test(
-            inputs, feat, bbox_2d_preds
-        )
-        assert inputs.metadata[0].size is not None
-        input_size = (
-            inputs[0].metadata[0].size.width,
-            inputs[0].metadata[0].size.height,
-        )
-        self.postprocess(
-            input_size, inputs.images.image_sizes[0], bbox_2d_preds[0]
-        )
+            boxes3d = self.bbox_3d_head.forward_test(
+                inputs,
+                [boxes2d],
+                feat,
+            )[0]
+            assert isinstance(boxes3d, Boxes3D)
+
+            # similarity head
+            embeddings = self.similarity_head.forward_test(
+                inputs, feat, [boxes2d]
+            )[0]
+            assert inputs.metadata[0].size is not None
+            input_size = (
+                inputs[0].metadata[0].size.width,
+                inputs[0].metadata[0].size.height,
+            )
+            self.postprocess(input_size, inputs.images.image_sizes[0], boxes2d)
+            boxes2d_list.append(boxes2d)
+            boxes3d_list.append(boxes3d)
+            embeddings_list.append(embeddings)
+
+        boxes2d = Boxes2D.merge(boxes2d_list)
+        boxes3d = Boxes3D.merge(boxes3d_list)
+        embeddings = torch.cat(embeddings_list)
 
         # associate detections, update graph
-        tracks_2d = self.track_graph(bbox_2d_preds[0], frame_id, embeddings[0])
+        tracks_2d = self.track_graph(boxes2d, frame_id, embeddings)
 
         boxes_3d = []
         for i in range(len(tracks_2d)):
-            for j in range(len(bbox_2d_preds[0])):
-                if torch.equal(tracks_2d.boxes[i], bbox_2d_preds[0].boxes[j]):
-                    boxes_3d.append(bbox_3d_preds[j].boxes)
+            for j in range(len(boxes2d)):
+                if torch.equal(tracks_2d.boxes[i], boxes2d.boxes[j]):
+                    boxes_3d.append(boxes3d[j].boxes)
 
         boxes_3d = (
             torch.cat(boxes_3d)
             if len(boxes_3d) > 0
             else torch.empty(
-                (0, bbox_3d_preds.boxes.shape[1]),
-                device=bbox_3d_preds.device,
+                (0, boxes3d.boxes.shape[1]), device=boxes3d.device
             )
         )
-
         tracks_3d = Boxes3D(boxes_3d, tracks_2d.class_ids, tracks_2d.track_ids)
 
-        return dict(
-            detect=bbox_2d_preds, track=[tracks_2d], track_3d=[tracks_3d]
-        )
+        return dict(detect=[boxes2d], track=[tracks_2d], track_3d=[tracks_3d])

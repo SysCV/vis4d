@@ -112,7 +112,7 @@ class QDTrack(BaseModel):
         batch_inputs: List[List[InputSample]],
     ) -> ModelOutput:
         """Compute model output during inference."""
-        assert len(batch_inputs) == 1, "No reference views during test!"
+        assert len(batch_inputs[0]) == 1, "No reference views during test!"
         raw_inputs = [inp[0] for inp in batch_inputs]
         assert len(raw_inputs) == 1, "Currently only BS=1 supported!"
         inputs = self.detector.preprocess_inputs(raw_inputs)

@@ -50,6 +50,7 @@ class DataloaderConfig(BaseModel):
     fields_to_load: List[str] = ["boxes2d"]
     skip_empty_samples: bool = False
     clip_bboxes_to_image: bool = True
+    min_bboxes_area: float = 7.0 * 7.0
     compute_global_instance_ids: bool = False
     transformations: Optional[List[AugmentationConfig]] = None
     ref_sampling: ReferenceSamplingConfig = ReferenceSamplingConfig()

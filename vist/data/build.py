@@ -109,6 +109,7 @@ class VisTDataModule(pl.LightningDataModule):
             collate_fn=identity_batch_collator,
             persistent_workers=self.workers_per_gpu > 0,
             pin_memory=self.pin_memory,
+            shuffle=True,
         )
         return train_dataloader
 

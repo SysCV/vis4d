@@ -171,9 +171,9 @@ class Boxes2D(Boxes, LabelInstance):
     @property
     def area(self) -> torch.Tensor:
         """Compute area of each bounding box."""
-        area = (self.boxes[:, 2] - self.boxes[:, 0]) * (
+        area = (self.boxes[:, 2] - self.boxes[:, 0]).clamp(0) * (
             self.boxes[:, 3] - self.boxes[:, 1]
-        )
+        ).clamp(0)
         return area
 
     @classmethod
