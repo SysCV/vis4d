@@ -62,7 +62,11 @@ def default_setup(
     progress_bar = VisTProgressBar()
 
     # add Model checkpointer
+    output_dir = osp.join(
+        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
+    )
     checkpoint = pl.callbacks.ModelCheckpoint(
+        dirpath=osp.join(output_dir, "checkpoints"),
         verbose=True,
         save_last=True,
         every_n_epochs=cfg.launch.checkpoint_period,
@@ -70,9 +74,6 @@ def default_setup(
     )
 
     # resume from checkpoint if specified
-    output_dir = osp.join(
-        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
-    )
     if cfg.launch.resume:  # pragma: no cover
         if cfg.launch.weights is not None:
             resume_path = cfg.launch.weights
