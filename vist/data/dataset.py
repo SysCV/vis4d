@@ -105,6 +105,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             dataset.frames,
             cats_name2id,
             self.cfg.dataloader.compute_global_instance_ids,
+            self.cfg.dataloader.skip_empty_samples
         )
         print_class_histogram(frequencies)
 
@@ -427,7 +428,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         self,
         sample: Frame,
         parameters: Optional[List[AugParams]] = None,
-    ) -> Tuple[Optional[InputSample], Optional[List[AugParams]]]:
+    ) -> Tuple[InputSample, List[AugParams]]:
         """Prepare a single sample in detect format.
 
         Args:
@@ -467,12 +468,4 @@ class ScalabelDataset(Dataset):  # type: ignore
             return input_data, parameters
 
         self.transform_annotation(input_data, sample.labels, transform_matrix)
-
-        if (
-            self.cfg.dataloader.skip_empty_samples
-            and len(input_data.boxes2d[0]) == 0
-            and len(input_data.boxes3d[0]) == 0
-        ):
-            return None, None  # pragma: no cover
-
         return input_data, parameters

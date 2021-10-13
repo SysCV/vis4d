@@ -168,8 +168,8 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
             dataloader_idx: index of dataloader if there are multiple.
 
         Returns:
-            ModelOutput: Dict of LabelInstance results, e.g. tracking and
-            separate models result.
+            ModelOutput: Dict of LabelInstance results, e.g. separate detection
+             and tracking results.
         """
         return self.forward_test(batch)
 

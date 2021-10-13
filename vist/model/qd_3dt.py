@@ -96,41 +96,27 @@ class QD3DT(QDTrack):
         if frame_id == 0:
             self.track_graph.reset()
 
-        boxes2d_list = []
-        boxes3d_list = []
-        embeddings_list = []
-        for sensor_inputs in batch_inputs[0]:
-            inputs = self.detector.preprocess_inputs(sensor_inputs)
+        # detector
+        inputs = self.detector.preprocess_inputs(batch_inputs[0])
+        feat = self.detector.extract_features(inputs)
+        proposals, _ = self.detector.generate_proposals(inputs, feat)
 
-            # Detector
-            feat = self.detector.extract_features(inputs)
-            proposals, _ = self.detector.generate_proposals(inputs, feat)
+        boxes2d_list, _ = self.detector.generate_detections(
+            inputs, feat, proposals
+        )
 
-            boxes2d, _ = self.detector.generate_detections(
-                inputs, feat, proposals
-            )[0]
-            assert isinstance(boxes2d, Boxes2D)
+        # 3d head
+        boxes3d_list = self.bbox_3d_head.forward_test(inputs, boxes2d_list, feat)
 
-            boxes3d = self.bbox_3d_head.forward_test(
-                inputs,
-                [boxes2d],
-                feat,
-            )[0]
-            assert isinstance(boxes3d, Boxes3D)
+        # similarity head
+        embeddings_list = self.similarity_head.forward_test(
+            inputs, feat, boxes2d_list
+        )
 
-            # similarity head
-            embeddings = self.similarity_head.forward_test(
-                inputs, feat, [boxes2d]
-            )[0]
-            assert inputs.metadata[0].size is not None
-            input_size = (
-                inputs[0].metadata[0].size.width,
-                inputs[0].metadata[0].size.height,
-            )
-            self.postprocess(input_size, inputs.images.image_sizes[0], boxes2d)
-            boxes2d_list.append(boxes2d)
-            boxes3d_list.append(boxes3d)
-            embeddings_list.append(embeddings)
+        for inp, boxes2d in zip(inputs, boxes2d_list):
+            assert inp.metadata[0].size is not None
+            input_size = (inp.metadata[0].size.width, inp.metadata[0].size.height)
+            self.postprocess(input_size, inp.images.image_sizes[0], boxes2d)
 
         boxes2d = Boxes2D.merge(boxes2d_list)
         boxes3d = Boxes3D.merge(boxes3d_list)
