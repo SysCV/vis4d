@@ -14,29 +14,8 @@ num_processes = 0
         num_ref_imgs = 0
 
     [[train.dataloader.transformations]]
-    type = "VisTResize"
-    kornia_type = "Resize"
+    type = "Resize"
     kwargs = {"shape" = [360, 640], "scale_range" = [1.2, 1.5], "interpolation" = "bicubic"}
-
-    [[train.dataloader.transformations]]
-    type = "VisTResize"
-    kornia_type = "Resize"
-    [train.dataloader.transformations.kwargs]
-        shape = [
-            [360, 640],
-            [480, 960]
-        ]
-        keep_ratio = true
-        multiscale_mode = "list"
-
-    [[train.dataloader.transformations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
-
-    [[train.dataloader.transformations]]
-    type = "VisTColorJitter"
-    kornia_type = "ColorJitter"
-    kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
 
 [[test]]
 name = "bdd100k_sample_val"
@@ -50,6 +29,5 @@ num_processes = 0
         fields_to_load = ["bitmasks"]
 
     [[test.dataloader.transformations]]
-    type = "VisTResize"
-    kornia_type = "Resize"
+    type = "Resize"
     kwargs = {"shape" = [360, 640]}
