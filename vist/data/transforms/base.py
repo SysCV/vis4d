@@ -106,9 +106,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         sample.bitmasks = self.apply_mask(sample.bitmasks, parameters)
         return sample
 
-    def apply_image(  # pylint: disable=unused-argument
-        self, image: Images, parameters: DictStrAny
-    ) -> Images:
+    def apply_image(self, image: Images, parameters: DictStrAny) -> Images:
         """Apply augmentation to input image."""
         imaget, tm = self.augmentor(
             image.tensor, parameters, return_transform=True
@@ -116,7 +114,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         parameters["transform_matrix"] = tm
         return Images(imaget, [(imaget.shape[3], imaget.shape[2])])
 
-    def apply_box2d(  # pylint: disable=unused-argument
+    def apply_box2d(
         self, boxes: Sequence[Boxes2D], parameters: DictStrAny
     ) -> Sequence[Boxes2D]:
         """Apply augmentation to input box2d."""
@@ -134,7 +132,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Apply augmentation to input box3d."""
         return boxes
 
-    def apply_mask(  # pylint: disable=unused-argument
+    def apply_mask(
         self, masks: Sequence[Bitmasks], parameters: DictStrAny
     ) -> Sequence[Bitmasks]:
         """Apply augmentation to input mask."""
