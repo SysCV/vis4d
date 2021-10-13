@@ -8,11 +8,16 @@ import requests
 import torch
 from mmcv import Config as MMConfig
 
-from vist.struct import Boxes2D, Images, LossesType
+from vist.struct import Bitmasks, Boxes2D, Images, LossesType
 
 from ..base import BaseModelConfig
 
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, float]]
+MMDetResult = List[torch.Tensor]
+MMSegmResult = List[List[torch.Tensor]]
+MMResults = Union[
+    List[MMDetResult], List[Tuple[List[MMDetResult], List[MMSegmResult]]]
+]
 
 
 class MMTwoStageDetectorConfig(BaseModelConfig):
@@ -70,20 +75,55 @@ def detections_from_mmdet(
     return detections_boxes2d
 
 
+def detection_from_mmdet_results(
+    detection: MMDetResult, device: torch.device
+) -> Boxes2D:
+    """Convert bbox_result to VisT format."""
+    if len(detection) == 0:
+        return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+    bboxes = torch.from_numpy(np.vstack(detection)).to(device)  # Nx5
+    labels = [
+        torch.full((bbox.shape[0],), i, dtype=torch.int32, device=device)
+        for i, bbox in enumerate(detection)
+    ]
+    labels = torch.cat(labels)
+    return Boxes2D(bboxes, labels)
+
+
+def segmentation_from_mmdet_results(
+    segmentation: MMSegmResult, device: torch.device
+) -> Bitmasks:
+    """Convert segm_result to VisT format."""
+    if len(segmentation) == 0:
+        return Bitmasks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
+    segms = [np.stack(segm) for segm in segmentation if len(segm) != 0]
+    masks = torch.from_numpy(np.concatenate(segms)).to(device)  # NxWxH
+    labels = [
+        torch.full((len(segm),), i, dtype=torch.int32, device=device)
+        for i, segm in enumerate(segmentation)
+    ]
+    labels = torch.cat(labels)
+    return Bitmasks(masks, labels)
+
+
 def results_from_mmdet(
-    detections: List[torch.Tensor], device: torch.device
-) -> List[Boxes2D]:
-    """Convert mmdetection bbox_results to VisT format."""
-    detections_boxes2d = []
-    for detection in detections:
-        bboxes = torch.from_numpy(np.vstack(detection)).to(device)  # Nx5
-        labels = [
-            torch.full((bbox.shape[0],), i, dtype=torch.int32, device=device)
-            for i, bbox in enumerate(detection)
-        ]
-        labels = torch.cat(labels)
-        detections_boxes2d.append(Boxes2D(bboxes, labels))
-    return detections_boxes2d
+    results: MMResults, device: torch.device, with_mask: bool
+) -> Union[List[Boxes2D], Tuple[List[Boxes2D], List[Bitmasks]]]:
+    """Convert mmdetection bbox_results and segm_results to VisT format."""
+    results_boxes2d = []
+    if with_mask:
+        results_bitmasks = []
+        for detections, segmentations in results:
+            box2d = detection_from_mmdet_results(detections, device)
+            results_boxes2d.append(box2d)
+            bitmask = segmentation_from_mmdet_results(segmentations, device)
+            results_bitmasks.append(bitmask)
+        return results_boxes2d, results_bitmasks
+    else:
+        for detection in results:
+            box2d = detection_from_mmdet_results(detection, device)  # type: ignore
+            results_boxes2d.append(box2d)
+        return results_boxes2d
 
 
 def targets_to_mmdet(

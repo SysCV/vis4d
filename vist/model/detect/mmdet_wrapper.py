@@ -36,6 +36,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         self.mm_cfg = get_mmdet_config(self.cfg)
         self.mm_detector = build_detector(self.mm_cfg)
         assert isinstance(self.mm_detector, TwoStageDetector)
+        self.with_mask = self.mm_detector.roi_head.with_mask
         self.mm_detector.init_weights()
         self.mm_detector.train()
         if self.cfg.weights is not None:
@@ -106,8 +107,11 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         inputs = self.preprocess_inputs(raw_inputs)
         image_metas = get_img_metas(inputs.images)
         outs = self.mm_detector.simple_test(inputs.images.tensor, image_metas)
-        detections = results_from_mmdet(outs, self.device)
-        assert detections is not None
+        results = results_from_mmdet(outs, self.device, self.with_mask)
+        if self.with_mask:
+            detections, segmentations = results
+        else:
+            detections = results  # type: ignore
 
         for inp, det in zip(inputs, detections):  # type: ignore
             assert inp.metadata[0].size is not None
