@@ -1,10 +1,11 @@
 [[train]]
 name = "nuscenes_mini_train"
 type = "NuScenes"
-data_root = "data/nuscenes_mini"
+data_root = "data/nuscenes"
 version = "v1.0-mini"
 split = "mini_train"
-annotations = "data/nuscenes_mini/scalabel_mini_train.json"
+add_non_key = false
+annotations = "data/nuscenes/scalabel_mini_train.json"
 cache_as_binary = true
     [train.dataloader]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
@@ -25,19 +26,15 @@ cache_as_binary = true
 [[test]]
 name = "nuscenes_mini_val"
 type = "NuScenes"
-data_root = "data/nuscenes_mini"
+data_root = "data/nuscenes"
 version = "v1.0-mini"
 split = "mini_val"
-annotations = "data/nuscenes_mini/scalabel_mini_val.json"
+add_non_key = true
+annotations = "data/nuscenes/scalabel_mini_val_full.json"
 cache_as_binary = true
     [test.dataloader]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
-    skip_empty_samples = true
 
     [[test.dataloader.transformations]]
     type = "Resize"
     kwargs = {"shape" = [900, 1600]}
-
-    [[test.dataloader.transformations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
