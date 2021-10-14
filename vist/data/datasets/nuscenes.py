@@ -19,6 +19,7 @@ class NuScenesDatasetConfig(BaseDatasetConfig):
 
     version: str
     split: str
+    add_non_key: bool
 
 
 class NuScenes(BaseDatasetLoader):  # pragma: no cover
@@ -46,6 +47,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
                 self.cfg.version,
                 self.cfg.split,
                 self.cfg.num_processes,
+                self.cfg.add_non_key,
             )
             save(self.cfg.annotations, dataset)
         else:

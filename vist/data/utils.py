@@ -139,14 +139,13 @@ def prepare_labels(
                     attr["instance_id"] = instance_ids[video_name].index(
                         label.id
                     )
-
                 label.attributes = attr
 
     if global_instance_ids:
         instance_ids_to_global(frames, instance_ids)
 
     rank_zero_info(
-        f"Preprocessing {len(frames)} labels takes {timer.time():.2f} seconds."
+        f"Preprocessing {len(frames)} frames takes {timer.time():.2f} seconds."
     )
     return frequencies
 

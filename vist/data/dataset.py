@@ -128,14 +128,24 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.frame_name_to_idx = {
                 f.name: i for i, f in enumerate(self.dataset.frames)
             }
-            self.frame_to_group: Dict[int, int] = {}
-            self.frame_to_sensor_id: Dict[int, int] = {}
-            for i, g in enumerate(self.dataset.groups):
-                for sensor_id, fname in enumerate(g.frames):
-                    self.frame_to_group[self.frame_name_to_idx[fname]] = i
-                    self.frame_to_sensor_id[
-                        self.frame_name_to_idx[fname]
-                    ] = sensor_id
+            if self.cfg.multi_sensor_inference:
+                self.frame_to_group: Dict[int, int] = {}
+                self.frame_to_sensor_id: Dict[int, int] = {}
+                for i, g in enumerate(self.dataset.groups):
+                    for sensor_id, fname in enumerate(g.frames):
+                        self.frame_to_group[self.frame_name_to_idx[fname]] = i
+                        self.frame_to_sensor_id[
+                            self.frame_name_to_idx[fname]
+                        ] = sensor_id
+            else:
+                single_sensor_frames = []
+                for i, g in enumerate(self.dataset.groups):
+                    single_sensor_frames.append(
+                        self.dataset.frames[
+                            self.frame_name_to_idx[g.frames[0]]
+                        ]
+                    )
+                self.dataset.frames = single_sensor_frames
 
     def __len__(self) -> int:
         """Return length of dataset."""
@@ -282,7 +292,10 @@ class ScalabelDataset(Dataset):  # type: ignore
         cur_idx = int(idx)
 
         if not self.training:
-            if self.dataset.groups is not None:
+            if (
+                self.dataset.groups is not None
+                and self.cfg.multi_sensor_inference
+            ):
                 group = self.dataset.groups[self.frame_to_group[idx]]
                 group_data, group_parameters = self.get_sample(group)
                 assert group_data is not None
