@@ -28,11 +28,13 @@ class QDTrack(BaseModel):
         """Init."""
         super().__init__(cfg)
         self.cfg = QDTrackConfig(**cfg.dict())  # type: QDTrackConfig
+        assert self.cfg.category_mapping is not None
         self.cfg.detection.category_mapping = self.cfg.category_mapping
         self.detector = build_model(self.cfg.detection)
         assert isinstance(self.detector, BaseTwoStageDetector)
         self.similarity_head = build_similarity_head(self.cfg.similarity)
         self.track_graph = build_track_graph(self.cfg.track_graph)
+        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
 
     def preprocess_inputs(
         self,
@@ -148,4 +150,9 @@ class QDTrack(BaseModel):
 
         # associate detections, update graph
         tracks = self.track_graph(detections[0], frame_id, embeddings[0])
-        return dict(detect=detections, track=[tracks])
+
+        detects = (
+            detections[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
+        )
+        tracks_ = tracks.to(torch.device("cpu")).to_scalabel(self.cat_mapping)
+        return dict(detect=[detects], track=[tracks_])

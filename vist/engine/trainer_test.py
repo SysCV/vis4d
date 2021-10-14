@@ -162,22 +162,22 @@ class TestTrack3D(BaseEngineTests.TestTrack):
             os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
 
 
-class TestTrackMMKITTI(BaseEngineTests.TestTrack):
-    """MMDetection tracking test cases on KITTI."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_track_mm_kitti/"
-        cls.args = Namespace(
-            config=get_test_file("track/qdtrack_mmdet_kitti.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(cls.args)
-        cls.predict_dir = (
-            "vist/engine/testcases/track/kitti-samples/"
-            "tracking/training/image_02/0001/"
-        )
+# class TestTrackMMKITTI(BaseEngineTests.TestTrack):
+#     """MMDetection tracking test cases on KITTI."""
+#
+#     @classmethod
+#     def setUpClass(cls) -> None:
+#         """Set up class."""
+#         cls.work_dir = "./unittests/unittest_track_mm_kitti/"
+#         cls.args = Namespace(
+#             config=get_test_file("track/qdtrack_mmdet_kitti.toml"),
+#             work_dir=cls.work_dir,
+#         )
+#         cls.cfg = config.parse_config(cls.args)
+#         cls.predict_dir = (
+#             "vist/engine/testcases/track/kitti-samples/"
+#             "tracking/training/image_02/0001/"
+#         )
 
 
 class TestDetectD2(BaseEngineTests.TestDetect):

@@ -145,16 +145,7 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     )
 
     if len(test_loaders) > 0:
-        assert (
-            cfg.model.category_mapping is not None
-        ), "Need category mapping to evaluate model!"
-        evaluators = [
-            ScalabelEvaluatorCallback(
-                dl,
-                cfg.model.category_mapping,
-            )
-            for dl in test_loaders
-        ]
+        evaluators = [ScalabelEvaluatorCallback(dl) for dl in test_loaders]
         trainer.callbacks += evaluators  # pylint: disable=no-member
     trainer.fit(model, data_module)
 
@@ -180,16 +171,11 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     )
 
     assert len(test_loaders), "No test datasets specified!"
-    assert (
-        cfg.model.category_mapping is not None
-    ), "Need category mapping to evaluate model!"
     out_dir = osp.join(
         cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
     )
     evaluators = [
-        ScalabelEvaluatorCallback(
-            dl, cfg.model.category_mapping, osp.join(out_dir, dl.cfg.name)
-        )
+        ScalabelEvaluatorCallback(dl, osp.join(out_dir, dl.cfg.name))
         for dl in test_loaders
     ]
     trainer.callbacks += evaluators  # pylint: disable=no-member
@@ -234,9 +220,7 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     assert len(dataloaders) > 0, "No datasets for prediction specified!"
     evaluators = [
         ScalabelWriterCallback(
-            osp.join(out_dir, dl.cfg.name),
-            cfg.model.category_mapping,
-            cfg.launch.visualize,
+            osp.join(out_dir, dl.cfg.name), cfg.launch.visualize
         )
         for dl in dataloaders
     ]

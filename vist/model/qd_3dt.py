@@ -8,7 +8,6 @@ from .base import BaseModelConfig
 from .detect.roi_head import BaseRoIHeadConfig, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
 from .track.graph import build_track_graph
-import pdb
 
 
 class QD3DTConfig(QDTrackConfig):
@@ -24,9 +23,11 @@ class QD3DT(QDTrack):
         """Init."""
         super().__init__(cfg)
         self.cfg = QD3DTConfig(**cfg.dict())
+        assert self.cfg.category_mapping is not None
         self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)  # type: ignore # pylint: disable=line-too-long
         self.bbox_3d_head = build_roi_head(self.cfg.bbox_3d_head)
         self.track_graph = build_track_graph(self.cfg.track_graph)
+        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
 
     def forward_train(
         self,
@@ -80,7 +81,14 @@ class QD3DT(QDTrack):
     ) -> ModelOutput:
         """Compute qd-3dt output during inference."""
         assert len(batch_inputs) == 1, "Currently only BS = 1 supported!"
-        group, frames = batch_inputs[0][0], batch_inputs[0][1:]
+
+        # if there is more than one InputSample per batch element, we switch
+        # to multi-sensor mode: 1st elem is group, rest are sensor frames
+        group = batch_inputs[0][0]
+        if len(batch_inputs[0]) > 1:
+            frames = batch_inputs[0][1:]
+        else:
+            frames = batch_inputs[0]
 
         # init graph at begin of sequence
         frame_id = group.metadata[0].frameIndex
@@ -115,28 +123,33 @@ class QD3DT(QDTrack):
             self.postprocess(input_size, inp.images.image_sizes[0], boxes2d)
 
         boxes2d = Boxes2D.merge(boxes2d_list)
-        boxes3d = Boxes3D.merge(boxes3d_list)
+        boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
         embeddings = torch.cat(embeddings_list)
 
         # associate detections, update graph
-        tracks_2d = self.track_graph(boxes2d, frame_id, embeddings)
+        tracks2d = self.track_graph(boxes2d, frame_id, embeddings)
 
         boxes_3d = torch.empty(
             (0, boxes3d.boxes.shape[1]), device=boxes3d.device
         )
         class_ids_3d = torch.empty((0), device=boxes3d.device)
         track_ids_3d = torch.empty((0), device=boxes3d.device)
-        for i in range(len(tracks_2d)):
-            for j in range(len(boxes2d)):
-                if torch.equal(tracks_2d.boxes[i], boxes2d.boxes[j]):
-                    boxes_3d = torch.cat([boxes_3d, boxes3d[j].boxes])
-                    class_ids_3d = torch.cat(
-                        [class_ids_3d, tracks_2d[i].class_ids]
-                    )
-                    track_ids_3d = torch.cat(
-                        [track_ids_3d, tracks_2d[i].track_ids]
-                    )
+        for track in tracks2d:
+            for i, box in enumerate(boxes2d):
+                if torch.equal(track.boxes, box.boxes):
+                    boxes_3d = torch.cat([boxes_3d, boxes3d[i].boxes])
+                    class_ids_3d = torch.cat([class_ids_3d, track.class_ids])
+                    track_ids_3d = torch.cat([track_ids_3d, track.track_ids])
 
-        tracks_3d = Boxes3D(boxes_3d, class_ids_3d, track_ids_3d)
-
-        return dict(detect=[boxes2d], track=[tracks_2d], track_3d=[tracks_3d])
+        boxes_2d = boxes2d.to(torch.device("cpu")).to_scalabel(
+            self.cat_mapping
+        )
+        tracks_2d = tracks2d.to(torch.device("cpu")).to_scalabel(
+            self.cat_mapping
+        )
+        tracks_3d = (
+            Boxes3D(boxes_3d, class_ids_3d, track_ids_3d)
+            .to(torch.device("cpu"))
+            .to_scalabel(self.cat_mapping)
+        )
+        return dict(detect=[boxes_2d], track=[tracks_2d], track_3d=[tracks_3d])

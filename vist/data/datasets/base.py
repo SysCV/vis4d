@@ -74,7 +74,7 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     cache_as_binary: bool = False
     num_processes: int = 4
     collect_device = "cpu"
-    multi_sensor_inference: bool = False
+    multi_sensor_inference: bool = True
 
 
 class BaseDatasetLoader(metaclass=RegistryHolder):

@@ -45,6 +45,8 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 )
             load_checkpoint(self.mm_detector, self.cfg.weights)
 
+        assert self.cfg.category_mapping is not None
+        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
         self.register_buffer(
             "pixel_mean",
             torch.tensor(self.cfg.pixel_mean).view(-1, 1, 1),
@@ -102,7 +104,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             )
             self.postprocess(input_size, inp.images.image_sizes[0], det)
 
-        return dict(detect=detections)  # type: ignore
+        return dict(
+            detect=[d.to_scalabel(self.cat_mapping) for d in detections]
+        )
 
     def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.

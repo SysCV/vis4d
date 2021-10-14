@@ -81,7 +81,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         self.training = training
 
         if self.cfg.dataloader.skip_empty_samples and not self.training:
-            rank_zero_warn(
+            rank_zero_warn(  # pragma: no cover
                 f"'skip_empty_samples' activated for dataset {self.cfg.name}"
                 "in test mode. This option is only available in training."
             )
@@ -128,27 +128,23 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.frame_name_to_idx = {
                 f.name: i for i, f in enumerate(self.dataset.frames)
             }
-            if self.cfg.multi_sensor_inference:
-                self.frame_to_group: Dict[int, int] = {}
-                self.frame_to_sensor_id: Dict[int, int] = {}
-                for i, g in enumerate(self.dataset.groups):
-                    for sensor_id, fname in enumerate(g.frames):
-                        self.frame_to_group[self.frame_name_to_idx[fname]] = i
-                        self.frame_to_sensor_id[
-                            self.frame_name_to_idx[fname]
-                        ] = sensor_id
-            else:
-                single_sensor_frames = []
-                for i, g in enumerate(self.dataset.groups):
-                    single_sensor_frames.append(
-                        self.dataset.frames[
-                            self.frame_name_to_idx[g.frames[0]]
-                        ]
-                    )
-                self.dataset.frames = single_sensor_frames
+            self.frame_to_group: Dict[int, int] = {}
+            self.frame_to_sensor_id: Dict[int, int] = {}
+            for i, g in enumerate(self.dataset.groups):
+                for sensor_id, fname in enumerate(g.frames):
+                    self.frame_to_group[self.frame_name_to_idx[fname]] = i
+                    self.frame_to_sensor_id[
+                        self.frame_name_to_idx[fname]
+                    ] = sensor_id
 
     def __len__(self) -> int:
         """Return length of dataset."""
+        if (
+            self.dataset.groups is not None
+            and not self.training
+            and not self.cfg.multi_sensor_inference
+        ):
+            return len(self.dataset.groups)
         return len(self.dataset.frames)
 
     def _create_video_mapping(self) -> None:
@@ -292,10 +288,17 @@ class ScalabelDataset(Dataset):  # type: ignore
         cur_idx = int(idx)
 
         if not self.training:
-            if (
-                self.dataset.groups is not None
-                and self.cfg.multi_sensor_inference
-            ):
+            if self.dataset.groups is not None:
+                if not self.cfg.multi_sensor_inference:
+                    group = self.dataset.groups[idx]
+                    cur_data = self.get_sample(
+                        self.dataset.frames[
+                            self.frame_name_to_idx[group.frames[0]]
+                        ]
+                    )[0]
+                    assert cur_data is not None
+                    return [cur_data]
+
                 group = self.dataset.groups[self.frame_to_group[idx]]
                 group_data, group_parameters = self.get_sample(group)
                 assert group_data is not None
