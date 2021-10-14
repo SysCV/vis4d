@@ -1,12 +1,12 @@
 [[train]]
 name = "kitti_track_train"
-annotations = "data/KITTI/anns/tracking_training.json"
+annotations = "data/KITTI/tracking_training.json"
 type = "KITTI"
 data_root = "data/KITTI"
 input_dir = "data/KITTI"
 split = "training"
 data_type = "tracking"
-output_dir = "data/KITTI/anns"
+output_dir = "data/KITTI"
 num_processes = 0
     [train.dataloader]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
@@ -24,13 +24,13 @@ num_processes = 0
 
 [[train]]
 name = "kitti_det_train"
-annotations = "data/KITTI/anns/detection_training.json"
+annotations = "data/KITTI/detection_training.json"
 type = "KITTI"
 data_root = "data/KITTI"
 input_dir = "data/KITTI"
 split = "training"
 data_type = "detection"
-output_dir = "data/KITTI/anns"
+output_dir = "data/KITTI"
 num_processes = 0
     [train.dataloader]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
@@ -48,13 +48,14 @@ num_processes = 0
 
 [[test]]
 name = "kitti_track_val"
-annotations = "data/KITTI/anns/tracking_training.json"
+annotations = "data/KITTI/tracking_training.json"
 type = "KITTI"
 data_root = "data/KITTI"
 input_dir = "data/KITTI"
 split = "training"
 data_type = "tracking"
-output_dir = "data/KITTI/anns"
+output_dir = "data/KITTI"
+multi_sensor_inference = false
 num_processes = 0
     [test.dataloader]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]

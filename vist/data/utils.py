@@ -143,7 +143,7 @@ def prepare_labels(
                     )
 
                 label.attributes = attr
-        else:
+        elif skip_empty_samples:
             frames.remove(ann)
 
     if global_instance_ids:
@@ -152,10 +152,8 @@ def prepare_labels(
     rank_zero_info(
         f"Preprocessing {len(frames)} frames takes {timer.time():.2f} seconds."
     )
-    rank_zero_info(
-        f"Discarded {orig_len - len(frames)} empty frames."
-    )
-    return result
+    rank_zero_info(f"Discarded {orig_len - len(frames)} empty frames.")
+    return frequencies
 
 
 def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:
