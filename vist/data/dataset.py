@@ -11,7 +11,7 @@ from pytorch_lightning.utilities.distributed import (
     rank_zero_warn,
 )
 from scalabel.label.typing import Extrinsics as ScalabelExtrinsics
-from scalabel.label.typing import Frame, ImageSize
+from scalabel.label.typing import Frame, FrameGroup, ImageSize
 from scalabel.label.typing import Intrinsics as ScalabelIntrinsics
 from scalabel.label.typing import Label
 from scalabel.label.utils import (
@@ -80,6 +80,12 @@ class ScalabelDataset(Dataset):  # type: ignore
             assert field in ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
         self.training = training
 
+        if self.cfg.dataloader.skip_empty_samples and not self.training:
+            rank_zero_warn(
+                f"'skip_empty_samples' activated for dataset {self.cfg.name}"
+                "in test mode. This option is only available in training."
+            )
+
         if cats_name2id is not None:
             discard_labels_outside_set(
                 dataset.frames, list(cats_name2id.keys())
@@ -105,7 +111,6 @@ class ScalabelDataset(Dataset):  # type: ignore
             dataset.frames,
             cats_name2id,
             self.cfg.dataloader.compute_global_instance_ids,
-            self.cfg.dataloader.skip_empty_samples
         )
         print_class_histogram(frequencies)
 
@@ -182,9 +187,9 @@ class ScalabelDataset(Dataset):  # type: ignore
                 dataset_indices[left:key_index]
                 + dataset_indices[key_index + 1 : right + 1]
             )
-            ref_dataset_indices = np.random.choice(
+            ref_dataset_indices: List[int] = np.random.choice(
                 valid_inds, self.sampling_cfg.num_ref_imgs, replace=False
-            ).tolist()  # type: List[int]
+            ).tolist()
         elif self.sampling_cfg.type == "sequential":
             right = key_index + 1 + self.sampling_cfg.num_ref_imgs
             if right <= len(dataset_indices):
@@ -279,14 +284,18 @@ class ScalabelDataset(Dataset):  # type: ignore
         if not self.training:
             if self.dataset.groups is not None:
                 group = self.dataset.groups[self.frame_to_group[idx]]
-                data = []
+                group_data, group_parameters = self.get_sample(group)
+                assert group_data is not None
+                data = [group_data]
                 for fname in group.frames:
                     cur_data, _ = self.get_sample(
-                        self.dataset.frames[self.frame_name_to_idx[fname]]
+                        self.dataset.frames[self.frame_name_to_idx[fname]],
+                        parameters=group_parameters,
                     )
                     assert cur_data is not None
                     data.append(cur_data)
                 return data
+
             cur_data = self.get_sample(self.dataset.frames[cur_idx])[0]
             assert cur_data is not None
             data = [cur_data]
@@ -428,7 +437,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         self,
         sample: Frame,
         parameters: Optional[List[AugParams]] = None,
-    ) -> Tuple[InputSample, List[AugParams]]:
+    ) -> Tuple[Optional[InputSample], Optional[List[AugParams]]]:
         """Prepare a single sample in detect format.
 
         Args:
@@ -441,11 +450,25 @@ class ScalabelDataset(Dataset):  # type: ignore
             List[AugParams]: augmentation parameters, s.t. ref views can be
             augmented with the same parameters.
         """
-        # image loading, augmentation / to torch.tensor
-        image, parameters, transform_matrix = self.transform_image(
-            self.load_image(sample),
-            parameters=parameters,
-        )
+        if (
+            self.cfg.dataloader.skip_empty_samples
+            and (sample.labels is None or len(sample.labels) == 0)
+            and self.training
+        ):
+            return None, None  # pragma: no cover
+
+        if not isinstance(sample, FrameGroup):
+            # image loading, augmentation / to torch.tensor
+            image, parameters, transform_matrix = self.transform_image(
+                self.load_image(sample),
+                parameters=parameters,
+            )
+        else:
+            image, parameters, transform_matrix = self.transform_image(
+                np.empty((128, 128, 3), dtype=np.uint8),
+                parameters=parameters,
+            )
+
         input_data = InputSample([copy.deepcopy(sample)], image)
 
         if (
@@ -468,4 +491,11 @@ class ScalabelDataset(Dataset):  # type: ignore
             return input_data, parameters
 
         self.transform_annotation(input_data, sample.labels, transform_matrix)
+
+        if (
+            self.cfg.dataloader.skip_empty_samples
+            and len(input_data.boxes2d[0]) == 0
+            and len(input_data.boxes3d[0]) == 0
+        ):
+            return None, None  # pragma: no cover
         return input_data, parameters

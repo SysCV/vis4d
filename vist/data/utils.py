@@ -112,15 +112,13 @@ def prepare_labels(
     frames: List[Frame],
     cat_name2id: Dict[str, int],
     global_instance_ids: bool = False,
-    skip_empty_samples: bool = False,
 ) -> Dict[str, int]:
     """Add category id and instance id to labels, return class frequencies."""
     timer = Timer()
     instance_ids: Dict[str, List[str]] = defaultdict(list)
     frequencies = {cat: 0 for cat in cat_name2id}
-    orig_len = len(frames)
-    for frame_id, ann in enumerate(frames[:]):  # TODO deletion of empty frames
-        if ann.labels is not None and len(ann.labels) > 0:
+    for frame_id, ann in enumerate(frames):
+        if ann.labels is not None:
             for label in ann.labels:
                 attr: Dict[str, Union[bool, int, float, str]] = {}
                 if label.attributes is not None:
@@ -143,19 +141,14 @@ def prepare_labels(
                     )
 
                 label.attributes = attr
-        else:
-            frames.remove(ann)
 
     if global_instance_ids:
         instance_ids_to_global(frames, instance_ids)
 
     rank_zero_info(
-        f"Preprocessing {len(frames)} frames takes {timer.time():.2f} seconds."
+        f"Preprocessing {len(frames)} labels takes {timer.time():.2f} seconds."
     )
-    rank_zero_info(
-        f"Discarded {orig_len - len(frames)} empty frames."
-    )
-    return result
+    return frequencies
 
 
 def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:

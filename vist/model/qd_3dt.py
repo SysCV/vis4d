@@ -90,14 +90,15 @@ class QD3DT(QDTrack):
     ) -> ModelOutput:
         """Compute qd-3dt output during inference."""
         assert len(batch_inputs) == 1, "Currently only BS = 1 supported!"
+        group, frames = batch_inputs[0][0], batch_inputs[0][1:]
 
         # init graph at begin of sequence
-        frame_id = batch_inputs[0][0].metadata[0].frameIndex
+        frame_id = group.metadata[0].frameIndex
         if frame_id == 0:
             self.track_graph.reset()
 
         # detector
-        inputs = self.detector.preprocess_inputs(batch_inputs[0])
+        inputs = self.detector.preprocess_inputs(frames)
         feat = self.detector.extract_features(inputs)
         proposals, _ = self.detector.generate_proposals(inputs, feat)
 
@@ -106,7 +107,9 @@ class QD3DT(QDTrack):
         )
 
         # 3d head
-        boxes3d_list = self.bbox_3d_head.forward_test(inputs, boxes2d_list, feat)
+        boxes3d_list = self.bbox_3d_head.forward_test(
+            inputs, boxes2d_list, feat
+        )
 
         # similarity head
         embeddings_list = self.similarity_head.forward_test(
@@ -115,7 +118,10 @@ class QD3DT(QDTrack):
 
         for inp, boxes2d in zip(inputs, boxes2d_list):
             assert inp.metadata[0].size is not None
-            input_size = (inp.metadata[0].size.width, inp.metadata[0].size.height)
+            input_size = (
+                inp.metadata[0].size.width,
+                inp.metadata[0].size.height,
+            )
             self.postprocess(input_size, inp.images.image_sizes[0], boxes2d)
 
         boxes2d = Boxes2D.merge(boxes2d_list)

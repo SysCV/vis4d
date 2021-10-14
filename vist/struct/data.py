@@ -111,7 +111,7 @@ class Images(DataInstance):
         Args:
             tensor (torch.Tensor): shape (N, C_1, ..., C_K, H, W) where K >= 1.
             image_sizes (list[tuple[int, int]]): Each tuple is (w, h). It can
-                be smaller than (w, h) due to padding.
+                be smaller than (W, H) due to padding.
         """
         assert len(tensor.shape) > 3
         self.tensor = tensor
