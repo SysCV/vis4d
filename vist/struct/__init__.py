@@ -1,6 +1,7 @@
 """VisT struct module."""
-from .data import Extrinsics, Images, InputSample, Intrinsics
+from .data import Extrinsics, Images, Intrinsics
 from .labels import Boxes2D, Boxes3D
+from .sample import InputSample
 from .structures import (
     DataInstance,
     DictStrAny,
@@ -21,10 +22,10 @@ __all__ = [
     "NDArrayF64",
     "NDArrayUI8",
     "LossesType",
-    "InputSample",
     "Images",
     "Intrinsics",
     "Extrinsics",
     "ModelOutput",
     "DictStrAny",
+    "InputSample",
 ]

@@ -84,7 +84,7 @@ class QD3DT(QDTrack):
 
         # if there is more than one InputSample per batch element, we switch
         # to multi-sensor mode: 1st elem is group, rest are sensor frames
-        group = batch_inputs[0][0]
+        group = batch_inputs[0][0].to(self.device)
         if len(batch_inputs[0]) > 1:
             frames = batch_inputs[0][1:]
         else:
@@ -126,7 +126,7 @@ class QD3DT(QDTrack):
 
         for idx, boxes3d in enumerate(boxes3d_list):
             boxes3d.transfrom(
-                frames[idx].extrinsics.tensor[0].to(boxes3d.device)
+                frames[idx].extrinsics @ group.extrinsics.inverse()
             )
         boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
 
