@@ -19,10 +19,11 @@ from ..vis.utils import preprocess_image
 class VisTWriterCallback(Callback):
     """VisT prediction writer base class."""
 
-    def __init__(self, output_dir: str):
+    def __init__(self, dataloader_idx: int, output_dir: str):
         """Init."""
         self._output_dir = output_dir
         self._predictions: Dict[str, List[Frame]] = defaultdict(list)
+        self.dataloader_idx = dataloader_idx
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""
@@ -48,7 +49,8 @@ class VisTWriterCallback(Callback):
         dataloader_idx: int,
     ) -> None:
         """Hook for on_predict_batch_end."""
-        self.process(batch, outputs)
+        if dataloader_idx == self.dataloader_idx:
+            self.process(batch, outputs)
 
     def on_predict_epoch_end(  # type: ignore
         self,
@@ -66,11 +68,12 @@ class ScalabelWriterCallback(VisTWriterCallback):
 
     def __init__(
         self,
+        dataloader_idx: int,
         output_dir: str,
         visualize: bool = True,
     ) -> None:
         """Init."""
-        super().__init__(output_dir)
+        super().__init__(dataloader_idx, output_dir)
         self._visualize = visualize
         self.viewer = LabelViewer()
 
@@ -84,8 +87,8 @@ class ScalabelWriterCallback(VisTWriterCallback):
                 prediction.labels = out
                 self._predictions[key].append(prediction)
 
-                if self._visualize and not isinstance(prediction, FrameGroup):
-                    rank_zero_warn(
+                if self._visualize and isinstance(prediction, FrameGroup):
+                    rank_zero_warn(  # pragma: no cover
                         "Visualization not supported for multi-sensor datasets"
                     )
                 elif self._visualize:

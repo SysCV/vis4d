@@ -145,7 +145,10 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     )
 
     if len(test_loaders) > 0:
-        evaluators = [ScalabelEvaluatorCallback(dl) for dl in test_loaders]
+        evaluators = [
+            ScalabelEvaluatorCallback(i, dl)
+            for i, dl in enumerate(test_loaders)
+        ]
         trainer.callbacks += evaluators  # pylint: disable=no-member
     trainer.fit(model, data_module)
 
@@ -175,8 +178,8 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
     )
     evaluators = [
-        ScalabelEvaluatorCallback(dl, osp.join(out_dir, dl.cfg.name))
-        for dl in test_loaders
+        ScalabelEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
+        for i, dl in enumerate(test_loaders)
     ]
     trainer.callbacks += evaluators  # pylint: disable=no-member
     trainer.test(
@@ -220,9 +223,9 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     assert len(dataloaders) > 0, "No datasets for prediction specified!"
     evaluators = [
         ScalabelWriterCallback(
-            osp.join(out_dir, dl.cfg.name), cfg.launch.visualize
+            i, osp.join(out_dir, dl.cfg.name), cfg.launch.visualize
         )
-        for dl in dataloaders
+        for i, dl in enumerate(dataloaders)
     ]
     trainer.callbacks += evaluators  # pylint: disable=no-member
     trainer.predict(model, data_module)
