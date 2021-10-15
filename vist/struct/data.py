@@ -59,6 +59,10 @@ class Intrinsics(DataInstance):
         """Transpose of intrinsics."""
         return Intrinsics(self.tensor.permute(0, 2, 1))
 
+    def __len__(self) -> int:
+        """Get length."""
+        return len(self.tensor)
+
 
 class Extrinsics(DataInstance):
     """Data structure for extrinsic calibration."""
@@ -103,10 +107,20 @@ class Extrinsics(DataInstance):
             tensors.append(tensor)
         return Extrinsics(torch.cat(tensors, 0))
 
+    @property
+    def rotation(self) -> torch.Tensor:
+        """Return (N, 3, 3) rotation matrices."""
+        return self.tensor[:, :3, :3]
+
+    @property
+    def translation(self) -> torch.Tensor:
+        """Return (N, 3, 1) translation vectors."""
+        return self.tensor[:, :3, 3:4]
+
     def inverse(self) -> "Extrinsics":
         """Invert rigid transformation matrix [R^T, -R^T * t]."""
-        rot = self.tensor[:, :3, :3].permute(0, 2, 1)
-        t = -rot @ self.tensor[:, :3, 3:4]
+        rot = self.rotation.permute(0, 2, 1)
+        t = -rot @ self.translation
         inv = torch.cat([torch.cat([rot, t], -1), self.tensor[:, 3:4]], 1)
         return Extrinsics(inv)
 
@@ -123,6 +137,10 @@ class Extrinsics(DataInstance):
         if isinstance(other, torch.Tensor):
             return Extrinsics(self.tensor @ other)
         raise ValueError("other must be of type Extrinsics or Tensor")
+
+    def __len__(self) -> int:
+        """Get length."""
+        return len(self.tensor)
 
 
 class Images(DataInstance):

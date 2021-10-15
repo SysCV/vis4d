@@ -125,6 +125,7 @@ class QD3DT(QDTrack):
         boxes2d = Boxes2D.merge(boxes2d_list)
 
         for idx, boxes3d in enumerate(boxes3d_list):
+            assert isinstance(boxes3d, Boxes3D)
             boxes3d.transfrom(
                 frames[idx].extrinsics @ group.extrinsics.inverse()
             )

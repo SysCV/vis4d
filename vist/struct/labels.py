@@ -1,11 +1,14 @@
 """OpenMT Label data structures."""
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
-import numpy as np
 import torch
 from scalabel.label.typing import Box2D, Box3D, Label
-from scipy.spatial.transform import Rotation as R
 
+from ..common.geometry.rotation import (
+    euler_angles_to_matrix,
+    matrix_to_euler_angles,
+)
+from .data import Extrinsics
 from .structures import DataInstance, LabelInstance
 
 TBoxes = TypeVar("TBoxes", bound="Boxes")
@@ -395,37 +398,38 @@ class Boxes3D(Boxes, LabelInstance):
 
         return labels
 
-    def transfrom(self, transform_matrix: torch.Tensor) -> None:
-        """Transform Box3D with given transform matrix."""
-        self.boxes[:, :3] = torch.matmul(
-            transform_matrix,
-            torch.cat(
-                [
-                    self.boxes[:, :3],
-                    torch.ones_like(self.boxes[:, 0]).view(-1, 1),
-                ],
-                axis=1,
-            ).T,
-        ).T[:, :3]
+    def transfrom(self, extrinsics: Extrinsics) -> None:
+        """Transform Boxes3D with given Extrinsics.
 
-        rotation_matrix = transform_matrix[:3, :3]
+        Note: Mutates current Boxes3D.
+        """
+        if len(extrinsics) > 1:
+            raise ValueError("Extrinsics must not contain multiple elements!")
+
+        center_hom = torch.cat(
+            [self.center, torch.ones_like(self.boxes[:, 0:1])], -1
+        )
+        self.boxes[:, :3] = torch.matmul(
+            center_hom, extrinsics.transpose().tensor[0]
+        )[:, :3]
+
+        rot_x = (
+            self.rot_x
+            if self.rot_x is not None
+            else torch.zeros_like(self.rot_y)
+        )
+        rot_z = (
+            self.rot_z
+            if self.rot_z is not None
+            else torch.zeros_like(self.rot_y)
+        )
+        euler_angles = torch.stack([rot_x, self.rot_y, rot_z], -1)
+        boxes_rotation = euler_angles_to_matrix(euler_angles)
+        new_rotation = torch.matmul(
+            extrinsics.rotation,
+            boxes_rotation.permute(0, 2, 1),
+        )
         if self.boxes.shape[-1] < 9:
-            new_rotation = np.dot(
-                rotation_matrix.detach().cpu().numpy(),
-                R.from_euler("y", self.boxes[:, 6].detach().cpu().numpy())
-                .as_matrix()
-                .T,
-            )
-            self.boxes[:, 6] = torch.tensor(
-                R.from_matrix(new_rotation.T).as_euler("xyz")[:, 1]
-            ).to(self.boxes.device)
+            self.boxes[:, 6] = matrix_to_euler_angles(new_rotation)[:, 1]
         else:
-            new_rotation = np.dot(
-                rotation_matrix.detach().cpu().numpy(),
-                R.from_euler("xyz", self.boxes[:, 6:9].detach().cpu().numpy())
-                .as_matrix()
-                .T,
-            )
-            self.boxes[:, 6:9] = torch.tensor(
-                R.from_matrix(new_rotation.T).as_euler("xyz")
-            ).to(self.boxes.device)
+            self.boxes[:, 6:9] = matrix_to_euler_angles(new_rotation)
