@@ -123,7 +123,13 @@ class QD3DT(QDTrack):
             self.postprocess(input_size, inp.images.image_sizes[0], boxes2d)
 
         boxes2d = Boxes2D.merge(boxes2d_list)
+
+        for idx, boxes3d in enumerate(boxes3d_list):
+            boxes3d.transfrom(
+                frames[idx].extrinsics.tensor[0].to(boxes3d.device)
+            )
         boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
+
         embeddings = torch.cat(embeddings_list)
 
         # associate detections, update graph

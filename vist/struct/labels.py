@@ -1,8 +1,10 @@
 """OpenMT Label data structures."""
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
+import numpy as np
 import torch
 from scalabel.label.typing import Box2D, Box3D, Label
+from scipy.spatial.transform import Rotation as R
 
 from .structures import DataInstance, LabelInstance
 
@@ -392,3 +394,38 @@ class Boxes3D(Boxes, LabelInstance):
             labels.append(Label(**label_dict))
 
         return labels
+
+    def transfrom(self, transform_matrix: torch.Tensor) -> None:
+        """Transform Box3D with given transform matrix."""
+        self.boxes[:, :3] = torch.matmul(
+            transform_matrix,
+            torch.cat(
+                [
+                    self.boxes[:, :3],
+                    torch.ones_like(self.boxes[:, 0]).view(100, 1),
+                ],
+                axis=1,
+            ).T,
+        ).T[:, :3]
+
+        rotation_matrix = transform_matrix[:3, :3]
+        if self.boxes.shape[-1] < 9:
+            new_rotation = np.dot(
+                rotation_matrix.detach().cpu().numpy(),
+                R.from_euler("y", self.boxes[:, 6].detach().cpu().numpy())
+                .as_matrix()
+                .T,
+            )
+            self.boxes[:, 6] = torch.tensor(
+                R.from_matrix(new_rotation.T).as_euler("xyz")[:, 1]
+            ).to(self.boxes.device)
+        else:
+            new_rotation = np.dot(
+                rotation_matrix.detach().cpu().numpy(),
+                R.from_euler("xyz", self.boxes[:, 6:9].detach().cpu().numpy())
+                .as_matrix()
+                .T,
+            )
+            self.boxes[:, 6:9] = torch.tensor(
+                R.from_matrix(new_rotation.T).as_euler("xyz")
+            ).to(self.boxes.device)
