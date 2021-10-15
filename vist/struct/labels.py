@@ -491,7 +491,7 @@ class Bitmasks(LabelInstance):  # type: ignore
                 True,
             ).squeeze(1)
             if binarize:
-                resized_masks = (targets >= 0.5)
+                resized_masks = targets >= 0.5
             else:
                 resized_masks = targets
         else:

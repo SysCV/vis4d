@@ -131,12 +131,11 @@ def results_from_mmdet(
 def targets_to_mmdet(
     targets: InputSample,
 ) -> Tuple[
-    List[torch.Tensor], List[torch.Tensor], Optional[List[torch.Tensor]]
+    List[torch.Tensor], List[torch.Tensor], Optional[Sequence[Bitmasks]]
 ]:
     """Convert VisT targets to mmdetection compatible format."""
     gt_bboxes = [t.boxes for t in targets.boxes2d]
     gt_labels = [t.class_ids for t in targets.boxes2d]
-    # gt_masks = [t.masks for t in targets.bitmasks] if with_mask else None
     gt_masks = targets.bitmasks if len(targets.bitmasks) > 0 else None
     return gt_bboxes, gt_labels, gt_masks
 
