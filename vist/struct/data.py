@@ -134,7 +134,7 @@ class Extrinsics(DataInstance):
         """Multiply extrinsics with another extrinsics or a tensor."""
         if isinstance(other, Extrinsics):
             return Extrinsics(self.tensor @ other.tensor)
-        if isinstance(other, torch.Tensor):
+        if isinstance(other, torch.Tensor):  # pragma: no cover
             return Extrinsics(self.tensor @ other)
         raise ValueError("other must be of type Extrinsics or Tensor")
 

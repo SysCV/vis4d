@@ -22,6 +22,9 @@ def project_points(
     assert points.shape[-1] == 3, "Input coordinates must be 3 dimensional!"
     hom_coords = points / points[..., 2:3]
     if len(hom_coords.shape) == 2:
+        assert (
+            len(intrinsics) == 1
+        ), "Got multiple intrinsics for single point set!"
         intrinsic_matrix = intrinsics.transpose().tensor.squeeze(0)
     elif len(hom_coords.shape) == 3:
         intrinsic_matrix = intrinsics.transpose().tensor
@@ -48,6 +51,9 @@ def unproject_points(
         ValueError: Shape of input points is not valid for computation.
     """
     if len(points.shape) == 2:
+        assert (
+            len(intrinsics) == 1
+        ), "Got multiple intrinsics for single point set!"
         inv_intrinsics = intrinsics.inverse().transpose().tensor.squeeze(0)
         if len(depths.shape) == 1:
             depths = depths.unsqueeze(-1)

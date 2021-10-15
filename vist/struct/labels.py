@@ -2,12 +2,12 @@
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import torch
+from kornia.geometry.conversions import (
+    angle_axis_to_rotation_matrix,
+    rotation_matrix_to_angle_axis,
+)
 from scalabel.label.typing import Box2D, Box3D, Label
 
-from ..common.geometry.rotation import (
-    euler_angles_to_matrix,
-    matrix_to_euler_angles,
-)
 from .data import Extrinsics
 from .structures import DataInstance, LabelInstance
 
@@ -404,7 +404,9 @@ class Boxes3D(Boxes, LabelInstance):
         Note: Mutates current Boxes3D.
         """
         if len(extrinsics) > 1:
-            raise ValueError("Extrinsics must not contain multiple elements!")
+            raise ValueError(
+                f"Expected single Extrinsics but got len {len(extrinsics)}!"
+            )
 
         center_hom = torch.cat(
             [self.center, torch.ones_like(self.boxes[:, 0:1])], -1
@@ -423,13 +425,13 @@ class Boxes3D(Boxes, LabelInstance):
             if self.rot_z is not None
             else torch.zeros_like(self.rot_y)
         )
-        euler_angles = torch.stack([rot_x, self.rot_y, rot_z], -1)
-        boxes_rotation = euler_angles_to_matrix(euler_angles)
-        new_rotation = torch.matmul(
+        angles = torch.stack([rot_x, self.rot_y, rot_z], -1)
+        boxes_rotation = angle_axis_to_rotation_matrix(angles)
+        rotation = torch.matmul(
             extrinsics.rotation,
-            boxes_rotation.permute(0, 2, 1),
+            boxes_rotation,
         )
         if self.boxes.shape[-1] < 9:
-            self.boxes[:, 6] = matrix_to_euler_angles(new_rotation)[:, 1]
+            self.boxes[:, 6] = rotation_matrix_to_angle_axis(rotation)[:, 1]
         else:
-            self.boxes[:, 6:9] = matrix_to_euler_angles(new_rotation)
+            self.boxes[:, 6:9] = rotation_matrix_to_angle_axis(rotation)
