@@ -402,7 +402,7 @@ class Boxes3D(Boxes, LabelInstance):
             torch.cat(
                 [
                     self.boxes[:, :3],
-                    torch.ones_like(self.boxes[:, 0]).view(100, 1),
+                    torch.ones_like(self.boxes[:, 0]).view(-1, 1),
                 ],
                 axis=1,
             ).T,
