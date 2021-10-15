@@ -110,22 +110,20 @@ def segmentation_from_mmdet_results(
 
 def results_from_mmdet(
     results: MMResults, device: torch.device, with_mask: bool
-) -> Union[List[Boxes2D], Tuple[List[Boxes2D], List[Bitmasks]]]:
+) -> Tuple[List[Boxes2D], List[Bitmasks]]:
     """Convert mmdetection bbox_results and segm_results to VisT format."""
-    results_boxes2d = []
-    if with_mask:
-        results_bitmasks = []
-        for detections, segmentations in results:
-            box2d = detection_from_mmdet_results(detections, device)
-            results_boxes2d.append(box2d)
-            bitmask = segmentation_from_mmdet_results(segmentations, device)
+    results_boxes2d, results_bitmasks = [], []
+    for result in results:
+        if with_mask:
+            detection, segmentation = result
+            bitmask = segmentation_from_mmdet_results(segmentation, device)
             results_bitmasks.append(bitmask)
-        return results_boxes2d, results_bitmasks
-    else:
-        for detection in results:
-            box2d = detection_from_mmdet_results(detection, device)  # type: ignore
-            results_boxes2d.append(box2d)
-        return results_boxes2d
+        else:
+            detection = result
+            results_bitmasks.append(None)  # type: ignore
+        box2d = detection_from_mmdet_results(detection, device)
+        results_boxes2d.append(box2d)
+    return results_boxes2d, results_bitmasks
 
 
 def targets_to_mmdet(

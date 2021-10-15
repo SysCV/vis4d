@@ -109,11 +109,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         image_metas = get_img_metas(inputs.images)
         outs = self.mm_detector.simple_test(inputs.images.tensor, image_metas)
         results = results_from_mmdet(outs, self.device, self.with_mask)
-        if self.with_mask:
-            detections, segmentations = results
-        else:
-            detections = results  # type: ignore
-            segmentations = [None] * len(detections)  # type: ignore
+        detections, segmentations = results
 
         for inp, det, segm in zip(  # type: ignore
             inputs, detections, segmentations
@@ -125,7 +121,10 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             )
             self.postprocess(input_size, inp.images.image_sizes[0], det, segm)
 
-        return dict(detect=detections, segment=segmentations)  # type: ignore
+        outputs = dict(detect=detections)
+        if self.with_mask:
+            outputs.update(segment=segmentations)  # type: ignore
+        return outputs  # type: ignore
 
     def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.
