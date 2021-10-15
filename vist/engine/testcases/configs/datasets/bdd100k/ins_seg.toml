@@ -1,7 +1,7 @@
 [[train]]
 name = "bdd100k_ins_seg_sample_train"
 type = "BDD100K"
-annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation.json"
+annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation_rle.json"
 data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
 config_path = "ins_seg"
 num_processes = 0
@@ -40,9 +40,9 @@ num_processes = 0
 [[test]]
 name = "bdd100k_sample_val"
 type = "BDD100K"
-annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation.json"
+annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation_rle.json"
 data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
-eval_metrics = ["detect", "ins_seg"]
+eval_metrics = ["detect", "segment"]
 config_path = "ins_seg"
 num_processes = 0
     [test.dataloader]

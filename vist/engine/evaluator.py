@@ -59,7 +59,7 @@ def _track(
     )
 
 
-_eval_mapping = dict(detect=_detect, track=_track, ins_seg=_ins_seg)
+_eval_mapping = dict(detect=_detect, track=_track, segment=_ins_seg)
 
 
 class VisTEvaluatorCallback(Callback):
@@ -206,6 +206,17 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
                 assert isinstance(out_cpu, LabelInstance)
                 prediction.labels = out_cpu.to_scalabel(self.cats_id2name)
                 self._predictions[key].append(prediction)
+
+        if "segment" in outputs:
+            assert "detect" in outputs  # detection predictions required
+            for det, segm in zip(
+                self._predictions["detect"], self._predictions["segment"]
+            ):
+                if det.labels is None or segm.labels is None:
+                    continue
+                id2score = {label.id: label.score for label in det.labels}
+                for label in segm.labels:
+                    label.score = id2score[label.id]
 
     def evaluate(self, epoch: int) -> Dict[str, Result]:
         """Evaluate the performance after processing all input/output pairs."""
