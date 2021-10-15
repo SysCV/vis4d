@@ -42,7 +42,7 @@ name = "bdd100k_sample_val"
 type = "BDD100K"
 annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation.json"
 data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
-eval_metrics = ["detect"]
+eval_metrics = ["detect", "ins_seg"]
 config_path = "ins_seg"
 num_processes = 0
     [test.dataloader]

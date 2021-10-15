@@ -76,7 +76,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
         from vist.vis.image import imshow_bboxes, imshow_bitmasks
 
-        for batch_i, key_inp in enumerate(inputs):
+        for batch_i, key_inp in enumerate(inputs):  # type: ignore
             imshow_bboxes(
                 key_inp.images.tensor[0],
                 key_inp.boxes2d,
@@ -89,12 +89,13 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             )
 
         image_metas = get_img_metas(inputs.images)
-        gt_bboxes, gt_labels = targets_to_mmdet(inputs.boxes2d)
+        gt_bboxes, gt_labels, gt_masks = targets_to_mmdet(inputs)
         losses = self.mm_detector.forward_train(
             inputs.images.tensor,
             image_metas,
             gt_bboxes,
             gt_labels,
+            gt_masks=gt_masks,
         )
         return _parse_losses(losses)
 
@@ -112,16 +113,19 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             detections, segmentations = results
         else:
             detections = results  # type: ignore
+            segmentations = [None] * len(detections)  # type: ignore
 
-        for inp, det in zip(inputs, detections):  # type: ignore
+        for inp, det, segm in zip(  # type: ignore
+            inputs, detections, segmentations
+        ):
             assert inp.metadata[0].size is not None
             input_size = (
                 inp.metadata[0].size.width,
                 inp.metadata[0].size.height,
             )
-            self.postprocess(input_size, inp.images.image_sizes[0], det)
+            self.postprocess(input_size, inp.images.image_sizes[0], det, segm)
 
-        return dict(detect=detections)  # type: ignore
+        return dict(detect=detections, segment=segmentations)  # type: ignore
 
     def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.

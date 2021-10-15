@@ -8,7 +8,7 @@ import requests
 import torch
 from mmcv import Config as MMConfig
 
-from vist.struct import Bitmasks, Boxes2D, Images, LossesType
+from vist.struct import Bitmasks, Boxes2D, Images, InputSample, LossesType
 
 from ..base import BaseModelConfig
 
@@ -97,7 +97,9 @@ def segmentation_from_mmdet_results(
     if len(segmentation) == 0:
         return Bitmasks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
     segms = [np.stack(segm) for segm in segmentation if len(segm) != 0]
-    masks = torch.from_numpy(np.concatenate(segms)).to(device)  # NxWxH
+    masks = (
+        torch.from_numpy(np.concatenate(segms)).type(torch.uint8).to(device)
+    )  # NxWxH
     labels = [
         torch.full((len(segm),), i, dtype=torch.int32, device=device)
         for i, segm in enumerate(segmentation)
@@ -127,12 +129,16 @@ def results_from_mmdet(
 
 
 def targets_to_mmdet(
-    targets: Sequence[Boxes2D],
-) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+    targets: InputSample,
+) -> Tuple[
+    List[torch.Tensor], List[torch.Tensor], Optional[List[torch.Tensor]]
+]:
     """Convert VisT targets to mmdetection compatible format."""
-    gt_bboxes = [t.boxes for t in targets]
-    gt_labels = [t.class_ids for t in targets]
-    return gt_bboxes, gt_labels
+    gt_bboxes = [t.boxes for t in targets.boxes2d]
+    gt_labels = [t.class_ids for t in targets.boxes2d]
+    # gt_masks = [t.masks for t in targets.bitmasks] if with_mask else None
+    gt_masks = targets.bitmasks if len(targets.bitmasks) > 0 else None
+    return gt_bboxes, gt_labels, gt_masks
 
 
 def load_config_from_mmdet(url: str) -> str:

@@ -1,7 +1,11 @@
 """OpenMT Label data structures."""
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
+import numpy as np
 import torch
+import torch.nn.functional as F
+from pycocotools import mask as mask_utils  # type: ignore
+from mmcv.ops.roi_align import roi_align
 from scalabel.label.transforms import mask_to_box2d, poly2ds_to_mask
 from scalabel.label.typing import Box2D, Box3D, Label, ImageSize
 
@@ -430,6 +434,70 @@ class Bitmasks(LabelInstance):  # type: ignore
         self.track_ids = track_ids
         self.metadata = metadata
 
+    @property
+    def height(self) -> int:
+        """Return height of masks."""
+        return self.masks.size(2)
+
+    @property
+    def width(self) -> int:
+        """Return width of masks."""
+        return self.masks.size(1)
+
+    def resize(self, out_size: Tuple[int, int]) -> None:
+        """Resize bitmasks according to factor."""
+        self.masks = F.interpolate(
+            self.masks.unsqueeze(1), size=out_size, mode="nearest"
+        ).squeeze(1)
+
+    def crop_and_resize(  # pylint: disable=unused-argument
+        self,
+        bboxes: torch.Tensor,
+        out_shape: Tuple[int, int],
+        inds: torch.Tensor,
+        device: Optional[str] = "cpu",
+        interpolation: Optional[str] = "bilinear",
+        binarize: Optional[bool] = True,
+    ) -> "Bitmasks":
+        """Crop and resize masks with input bboxes."""
+        if len(self) == 0:
+            return self
+
+        # convert bboxes to tensor
+        if isinstance(bboxes, np.ndarray):
+            bboxes = torch.from_numpy(bboxes).to(device=device)
+        if isinstance(inds, np.ndarray):
+            inds = torch.from_numpy(inds).to(device=device)
+
+        num_bbox = bboxes.shape[0]
+        fake_inds = torch.arange(num_bbox, device=device).to(
+            dtype=bboxes.dtype
+        )[:, None]
+        rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
+        rois = rois.to(device=device)
+        if num_bbox > 0:
+            gt_masks_th = (
+                self.masks.to(device)
+                .index_select(0, inds)
+                .to(dtype=rois.dtype)
+            )
+            targets = roi_align(
+                gt_masks_th[:, None, :, :],
+                rois,
+                out_shape,
+                1.0,
+                0,
+                "avg",
+                True,
+            ).squeeze(1)
+            if binarize:
+                resized_masks = (targets >= 0.5)
+            else:
+                resized_masks = targets
+        else:
+            resized_masks = []
+        return type(self)(resized_masks)
+
     def __getitem__(self: "Bitmasks", item) -> "Bitmasks":  # type: ignore
         """Shadows tensor based indexing while returning new Bitmasks."""
         if isinstance(item, tuple):
@@ -492,7 +560,32 @@ class Bitmasks(LabelInstance):  # type: ignore
         self, idx_to_class: Optional[Dict[int, str]] = None
     ) -> List[Label]:
         """Convert from internal to scalabel format."""
-        raise NotImplementedError
+        labels = []
+        for i, mask in enumerate(self.masks):
+            if self.track_ids is not None:
+                label_id = str(self.track_ids[i].item())
+            else:
+                label_id = str(i)
+            rle = mask_utils.encode(
+                np.array(mask[:, :, None].numpy(), order="F", dtype="uint8")
+            )[0]
+            rle_label = dict(
+                counts=rle["counts"].decode("utf-8"), size=rle["size"]
+            )
+            label_dict = dict(id=label_id, rle=rle_label)
+
+            if idx_to_class is not None:
+                cls = idx_to_class[int(self.class_ids[i])]
+            else:
+                cls = str(int(self.class_ids[i]))  # pragma: no cover
+            label_dict["category"] = cls
+            labels.append(Label(**label_dict))
+
+        return labels
+
+    def to_ndarray(self):
+        """Convert masks to ndarray."""
+        return self.masks.numpy()
 
     def to(self: "Bitmasks", device: torch.device) -> "Bitmasks":
         """Move data to given device."""

@@ -124,6 +124,7 @@ model = dict(
                 neg_pos_ub=-1,
                 add_gt_as_proposals=True,
             ),
+            mask_size=28,
             pos_weight=-1,
             debug=False,
         ),
