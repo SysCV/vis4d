@@ -2,9 +2,10 @@
 import unittest
 
 import torch
+from scalabel.label.typing import ImageSize
 
-from vist.struct import Boxes2D, Boxes3D
-from vist.unittest.utils import generate_dets, generate_dets3d
+from vist.struct import Bitmasks, Boxes2D, Boxes3D
+from vist.unittest.utils import generate_dets, generate_dets3d, generate_masks
 
 
 class TestBoxes2D(unittest.TestCase):
@@ -18,10 +19,10 @@ class TestBoxes2D(unittest.TestCase):
         class_to_idx = {"car": 0}
         scalabel_dets = detections.to_scalabel(idx_to_class)
 
-        detections_new = Boxes2D.from_scalabel(scalabel_dets, class_to_idx)
+        detections_new = Boxes2D.from_scalabel(scalabel_dets, class_to_idx)[0]
 
         scalabel_dets[0].box2d = None
-        dets_with_none = Boxes2D.from_scalabel(scalabel_dets, class_to_idx)
+        dets_with_none = Boxes2D.from_scalabel(scalabel_dets, class_to_idx)[0]
         self.assertTrue(
             torch.isclose(
                 dets_with_none.boxes[0], detections_new.boxes[1]
@@ -100,10 +101,10 @@ class TestBoxes3D(unittest.TestCase):
         class_to_idx = {"car": 0}
         scalabel_dets = detections.to_scalabel(idx_to_class)
 
-        detections_new = Boxes3D.from_scalabel(scalabel_dets, class_to_idx)
+        detections_new = Boxes3D.from_scalabel(scalabel_dets, class_to_idx)[0]
 
         scalabel_dets[0].box3d = None
-        dets_with_none = Boxes3D.from_scalabel(scalabel_dets, class_to_idx)
+        dets_with_none = Boxes3D.from_scalabel(scalabel_dets, class_to_idx)[0]
         self.assertTrue(
             torch.isclose(
                 dets_with_none.boxes[0], detections_new.boxes[1]
@@ -209,3 +210,69 @@ class TestBoxes3D(unittest.TestCase):
                 torch.cat([det.track_ids, det.track_ids]), det_new.track_ids
             ).all()
         )
+
+
+class TestBitmasks(unittest.TestCase):
+    """Test cases VisT Bitmasks."""
+
+    def test_scalabel(self) -> None:
+        """Testcase for conversion to / from scalabel."""
+        h, w, num_masks = 128, 128, 10
+        segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        idx_to_class = {0: "car"}
+        class_to_idx = {"car": 0}
+        scalabel_segms = segmentations.to_scalabel(idx_to_class)
+
+        segms_new = Bitmasks.from_scalabel(
+            scalabel_segms,
+            class_to_idx,
+            image_size=ImageSize(width=w, height=h),
+        )[0]
+
+        scalabel_segms[0].rle = None
+        segms_with_none = Bitmasks.from_scalabel(
+            scalabel_segms,
+            class_to_idx,
+            image_size=ImageSize(width=w, height=h),
+        )[0]
+        self.assertTrue(
+            torch.isclose(segms_with_none.masks[0], segms_new.masks[1]).all()
+        )
+
+        for segm, segm_new in zip(segmentations, segms_new):  # type: ignore
+            self.assertTrue(torch.isclose(segm.masks, segm_new.masks).all())
+            self.assertTrue(
+                torch.isclose(segm.class_ids.long(), segm_new.class_ids).all()
+            )
+            self.assertTrue(
+                torch.isclose(segm.track_ids.long(), segm_new.track_ids).all()
+            )
+
+        segms_new.track_ids = None
+        segms_without_tracks = segms_new.to_scalabel(idx_to_class)
+        self.assertTrue(
+            all(
+                (
+                    str(i) == segm.id
+                    for i, segm in enumerate(segms_without_tracks)
+                )
+            )
+        )
+
+        scalabel_segms_no_score = segmentations.to_scalabel(idx_to_class)
+        self.assertTrue(all(d.score is None for d in scalabel_segms_no_score))
+
+    def test_clone(self) -> None:
+        """Testcase for cloning a Bitmasks object."""
+        h, w, num_masks = 128, 128, 10
+        segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        segms_new = segmentations.clone()
+
+        for segm, segm_new in zip(segmentations, segms_new):  # type: ignore
+            self.assertTrue(torch.isclose(segm.masks, segm_new.masks).all())
+            self.assertTrue(
+                torch.isclose(segm.class_ids, segm_new.class_ids).all()
+            )
+            self.assertTrue(
+                torch.isclose(segm.track_ids, segm_new.track_ids).all()
+            )

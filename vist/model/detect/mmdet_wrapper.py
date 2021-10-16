@@ -74,20 +74,6 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         raw_inputs = [inp[0] for inp in batch_inputs]
         inputs = self.preprocess_inputs(raw_inputs)
 
-        from vist.vis.image import imshow_bboxes, imshow_bitmasks
-
-        for batch_i, key_inp in enumerate(inputs):  # type: ignore
-            imshow_bboxes(
-                key_inp.images.tensor[0],
-                key_inp.boxes2d,
-                label_str="train_det" + str(batch_i),
-            )
-            imshow_bitmasks(
-                key_inp.images.tensor[0],
-                key_inp.bitmasks,
-                label_str="train_mask" + str(batch_i),
-            )
-
         image_metas = get_img_metas(inputs.images)
         gt_bboxes, gt_labels, gt_masks = targets_to_mmdet(inputs)
         losses = self.mm_detector.forward_train(
@@ -120,6 +106,20 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 inp.metadata[0].size.height,
             )
             self.postprocess(input_size, inp.images.image_sizes[0], det, segm)
+
+            from vist.vis.image import imshow_bboxes, imshow_bitmasks
+
+            imshow_bboxes(
+                inp.images.tensor[0],
+                det,
+                label_str="test_det",
+            )
+            if segm and len(segm) > 0:
+                imshow_bitmasks(
+                    inp.images.tensor[0],
+                    segm,
+                    label_str="test_mask",
+                )
 
         outputs = dict(detect=detections)
         if self.with_mask:

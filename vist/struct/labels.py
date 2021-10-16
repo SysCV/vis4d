@@ -509,12 +509,19 @@ class Bitmasks(LabelInstance):
         track_ids = (
             self.track_ids[item] if self.track_ids is not None else None
         )
+        if len(masks.shape) < 3:
+            if class_ids is not None:
+                class_ids = class_ids.view(1, -1)
+            if track_ids is not None:
+                track_ids = track_ids.view(1, -1)
+            return type(self)(
+                masks.view(1, masks.size(0), masks.size(1)),
+                class_ids,
+                track_ids,
+                self.metadata,
+            )
 
         return type(self)(masks, class_ids, track_ids, self.metadata)
-
-    def __len__(self) -> int:
-        """Get length of the object."""
-        return len(self.masks)
 
     @classmethod
     def from_scalabel(
@@ -525,19 +532,21 @@ class Bitmasks(LabelInstance):
         image_size: Optional[ImageSize] = None,
     ) -> Tuple["Bitmasks", "Boxes2D"]:
         """Convert from scalabel format to internal."""
-        assert (
-            image_size is not None
-        ), "image size must be specified for bitmasks!"
         box_list, bitmask_list, cls_list, idx_list = [], [], [], []
         has_class_ids = all((b.category is not None for b in labels))
         for i, label in enumerate(labels):
-            if label.poly2d is None:
+            if label.poly2d is None and label.rle is None:
                 continue
-            poly2d = label.poly2d
-            bitmask_raw = poly2ds_to_mask(image_size, poly2d)
-            bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
-                bitmask_raw.dtype
-            )
+            if label.rle is not None:
+                bitmask = mask_utils.decode(dict(label.rle))
+            elif label.poly2d is not None:
+                assert (
+                    image_size is not None
+                ), "image size must be specified for bitmasks with polygons!"
+                bitmask_raw = poly2ds_to_mask(image_size, label.poly2d)
+                bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
+                    bitmask_raw.dtype
+                )
             bitmask_list.append(bitmask)
             bbox = mask_to_box2d(bitmask)
             box_list.append([bbox.x1, bbox.y1, bbox.x2, bbox.y2])
@@ -588,6 +597,22 @@ class Bitmasks(LabelInstance):
     def to_ndarray(self) -> NDArrayUI8:
         """Convert masks to ndarray."""
         return self.masks.numpy()  # type: ignore
+
+    def __len__(self) -> int:
+        """Get length of the object."""
+        return len(self.masks)
+
+    def clone(self: "Bitmasks") -> "Bitmasks":
+        """Create a copy of the object."""
+        class_ids = (
+            self.class_ids.clone() if self.class_ids is not None else None
+        )
+        track_ids = (
+            self.track_ids.clone() if self.track_ids is not None else None
+        )
+        return type(self)(
+            self.masks.clone(), class_ids, track_ids, self.metadata
+        )
 
     def to(self: "Bitmasks", device: torch.device) -> "Bitmasks":
         """Move data to given device."""

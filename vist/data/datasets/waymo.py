@@ -70,7 +70,7 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
             save(scalabel_anns_path, frames)
         else:
             # Load labels from existing file
-            frames = load(
+            frames = load(  # type: ignore
                 scalabel_anns_path,
                 validate_frames=self.cfg.validate_frames,
                 nprocs=self.cfg.num_processes,

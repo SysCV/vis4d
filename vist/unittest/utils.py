@@ -6,7 +6,7 @@ from typing import List
 
 import torch
 
-from vist.struct import Boxes2D, Boxes3D
+from vist.struct import Bitmasks, Boxes2D, Boxes3D
 
 
 def get_test_file(file_name: str) -> str:
@@ -67,6 +67,21 @@ def generate_dets3d(num_dets: int, track_ids: bool = False) -> Boxes3D:
     dets = Boxes3D(box_tensor, torch.zeros(num_dets), tracks)
     torch.random.set_rng_state(state)
     return dets
+
+
+def generate_masks(
+    height: int, width: int, num_masks: int, track_ids: bool = False
+) -> Bitmasks:
+    """Create random masks."""
+    state = torch.random.get_rng_state()
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
+    mask_tensor = (torch.rand(num_masks, width, height) > 0.5).type(
+        torch.uint8
+    )
+    tracks = torch.arange(0, num_masks) if track_ids else None
+    masks = Bitmasks(mask_tensor, torch.zeros(num_masks), tracks)
+    torch.random.set_rng_state(state)
+    return masks
 
 
 def generate_feature_list(

@@ -46,7 +46,7 @@ class KITTI(BaseDatasetLoader):  # pragma: no cover
             frames = from_kitti(data_dir, self.cfg.data_type)
             save(self.cfg.annotations, frames)
         else:
-            frames = load(
+            frames = load(  # type: ignore
                 self.cfg.annotations,
                 validate_frames=self.cfg.validate_frames,
                 nprocs=self.cfg.num_processes,
