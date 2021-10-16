@@ -51,7 +51,7 @@ def imshow_bboxes(
 
     # imshow(image)
     plt.imshow(np.asarray(image))
-    plt.savefig(f"test_bbox_{label_str}.png")
+    plt.savefig(f"{label_str}.png")
 
 
 def imshow_bboxes3d(
@@ -85,7 +85,7 @@ def imshow_bitmasks(
 
     # imshow(image)
     plt.imshow(np.asarray(image))
-    plt.savefig(f"test_mask_{label_str}.png")
+    plt.savefig(f"{label_str}.png")
 
 
 def draw_image(

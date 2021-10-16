@@ -110,7 +110,7 @@ def preprocess_masks(
     if isinstance(masks, list):
         result_mask, result_color = [], []
         for i, m in enumerate(masks):
-            mask, color = preprocess_masks(m, i)  # type: ignore
+            mask, color = preprocess_masks(m, i)
             result_mask.extend(mask)
             result_color.extend(color)
         return result_mask, result_color

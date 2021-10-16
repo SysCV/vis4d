@@ -2,6 +2,7 @@
 from typing import Sequence
 
 import torch
+
 from vist.struct import DictStrAny, Images
 from vist.struct.labels import Bitmasks
 

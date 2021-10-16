@@ -98,7 +98,9 @@ def segmentation_from_mmdet_results(
         return Bitmasks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
     segms = [np.stack(segm) for segm in segmentation if len(segm) != 0]
     masks = (
-        torch.from_numpy(np.concatenate(segms)).type(torch.uint8).to(device)
+        torch.from_numpy(np.concatenate(segms))  # type: ignore
+        .type(torch.uint8)
+        .to(device)
     )  # NxWxH
     labels = [
         torch.full((len(segm),), i, dtype=torch.int32, device=device)

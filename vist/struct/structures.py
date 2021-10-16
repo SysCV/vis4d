@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 import numpy as np
 import numpy.typing as npt
 import torch
-from scalabel.label.typing import Label, ImageSize
+from scalabel.label.typing import ImageSize, Label
 
 
 class DataInstance(metaclass=abc.ABCMeta):

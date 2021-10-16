@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from vist.data.utils import transform_bbox
 from vist.struct import Bitmasks, Boxes2D, DictStrAny, Images
 
-from .base import AugParams, AugmentationConfig, BaseAugmentation
+from .base import AugmentationConfig, AugParams, BaseAugmentation
 
 
 class Resize(BaseAugmentation):

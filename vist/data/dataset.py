@@ -277,6 +277,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         self,
         sample: InputSample,
         parameters: Optional[List[AugParams]] = None,
+        training: bool = False,
     ) -> Tuple[List[DictStrAny], torch.Tensor]:
         """Apply augmentations to input sample."""
         if parameters is None:
@@ -293,7 +294,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                 parameters.append(
                     aug.generate_parameters(sample.images.tensor.shape)
                 )
-            sample, tm = aug(sample, parameters[i])
+            sample, tm = aug(sample, parameters[i], training)
             transform_matrix = torch.mm(tm[0], transform_matrix)
 
         return parameters, transform_matrix
@@ -394,6 +395,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         parameters, transform_matrix = self.transform_input(
             input_data,
             parameters=parameters,
+            training=self.training,
         )
 
         if self.cfg.dataloader.clip_bboxes_to_image:

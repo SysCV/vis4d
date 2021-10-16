@@ -27,7 +27,7 @@ from vist.struct import (
     InputSample,
 )
 
-from .utils import identity_matrix, batch_prob_generator
+from .utils import batch_prob_generator, identity_matrix
 
 AugParams = Dict[str, torch.Tensor]
 
@@ -68,7 +68,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         )
         return parameters
 
-    def compute_transformation(  # pylint: disable=unused-argument
+    def compute_transformation(  # pylint: disable=unused-argument,no-self-use
         self, inputs: torch.Tensor, params: Dict[str, torch.Tensor]
     ) -> torch.Tensor:
         """Get the corresponding deterministic transform for a given input.
@@ -82,13 +82,13 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """
         return identity_matrix(inputs)
 
-    def apply_image(  # pylint: disable=unused-argument
+    def apply_image(  # pylint: disable=unused-argument,no-self-use
         self, image: Images, parameters: DictStrAny, transform: torch.Tensor
     ) -> Images:
         """Apply augmentation to input image."""
         return image
 
-    def apply_box2d(  # pylint: disable=unused-argument
+    def apply_box2d(  # pylint: disable=unused-argument,no-self-use
         self,
         boxes: Sequence[Boxes2D],
         parameters: DictStrAny,
@@ -97,7 +97,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Apply augmentation to input box2d."""
         return boxes
 
-    def apply_box3d(  # pylint: disable=unused-argument
+    def apply_box3d(  # pylint: disable=unused-argument,no-self-use
         self,
         boxes: Sequence[Boxes3D],
         parameters: DictStrAny,
@@ -106,7 +106,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Apply augmentation to input box3d."""
         return boxes
 
-    def apply_mask(  # pylint: disable=unused-argument
+    def apply_mask(  # pylint: disable=unused-argument,no-self-use
         self,
         masks: Sequence[Bitmasks],
         parameters: DictStrAny,
@@ -116,22 +116,23 @@ class BaseAugmentation(metaclass=RegistryHolder):
         return masks
 
     def __call__(
-        self, sample: InputSample, parameters: DictStrAny
-    ) -> Tuple[InputSample, torch.Tensor]:  # type: ignore
+        self, sample: InputSample, parameters: DictStrAny, training: bool
+    ) -> Tuple[InputSample, torch.Tensor]:
         """Apply augmentations to input sample."""
         transform = self.compute_transformation(
             sample.images.tensor, parameters
         )
         sample.images = self.apply_image(sample.images, parameters, transform)
-        sample.boxes2d = self.apply_box2d(
-            sample.boxes2d, parameters, transform
-        )
-        sample.boxes3d = self.apply_box3d(
-            sample.boxes3d, parameters, transform
-        )
-        sample.bitmasks = self.apply_mask(
-            sample.bitmasks, parameters, transform
-        )
+        if training:
+            sample.boxes2d = self.apply_box2d(
+                sample.boxes2d, parameters, transform
+            )
+            sample.boxes3d = self.apply_box3d(
+                sample.boxes3d, parameters, transform
+            )
+            sample.bitmasks = self.apply_mask(
+                sample.bitmasks, parameters, transform
+            )
         return sample, transform
 
     def __repr__(self) -> str:
@@ -146,7 +147,9 @@ class KorniaAugmentationWrapper(BaseAugmentation, metaclass=RegistryHolder):
         """Initialize wrapper."""
         super().__init__(cfg)
         self.prob = 1.0
-        augmentation = getattr(kornia_augmentation, cfg.kornia_type)  # type: ignore
+        augmentation = getattr(
+            kornia_augmentation, cfg.kornia_type  # type: ignore
+        )
         self.augmentor = augmentation(**cfg.kwargs)
 
     def generate_parameters(self, batch_shape: torch.Size) -> DictStrAny:
@@ -222,8 +225,8 @@ class KorniaAugmentationWrapper(BaseAugmentation, metaclass=RegistryHolder):
         return masks
 
     def __call__(
-        self, sample: InputSample, parameters: DictStrAny
-    ) -> Tuple[InputSample, torch.Tensor]:  # type: ignore
+        self, sample: InputSample, parameters: DictStrAny, training: bool
+    ) -> Tuple[InputSample, torch.Tensor]:
         """Apply augmentations to input sample."""
         bprob = parameters["batch_prob"]
         # if no augmentation needed
@@ -231,18 +234,18 @@ class KorniaAugmentationWrapper(BaseAugmentation, metaclass=RegistryHolder):
             trans_matrix = [identity_matrix(sample.images.tensor)]
         # if all data needs to be augmented
         elif torch.sum(bprob) == len(bprob):
-            _, trans_matrix = super().__call__(sample, parameters)
+            _, trans_matrix = super().__call__(sample, parameters, training)
         else:
             trans_matrix = identity_matrix(sample.images.tensor)
             _, trans_matrix[bprob] = super().__call__(
-                sample[bprob], parameters
+                sample[bprob], parameters, training
             )
 
         return sample, trans_matrix
 
     def __repr__(self) -> str:
         """Print class & params, s.t. user can inspect easily via cmd line."""
-        return self.augmentor.__repr__()
+        return self.augmentor.__repr__()  # type: ignore
 
 
 def build_augmentation(cfg: AugmentationConfig) -> BaseAugmentation:

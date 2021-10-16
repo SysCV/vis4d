@@ -4,12 +4,12 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
-from pycocotools import mask as mask_utils  # type: ignore
 from mmcv.ops.roi_align import roi_align
+from pycocotools import mask as mask_utils
 from scalabel.label.transforms import mask_to_box2d, poly2ds_to_mask
-from scalabel.label.typing import Box2D, Box3D, Label, ImageSize
+from scalabel.label.typing import Box2D, Box3D, ImageSize, Label
 
-from .structures import DataInstance, LabelInstance
+from .structures import DataInstance, LabelInstance, NDArrayUI8
 
 TBoxes = TypeVar("TBoxes", bound="Boxes")
 
@@ -401,7 +401,7 @@ class Boxes3D(Boxes, LabelInstance):
         return labels
 
 
-class Bitmasks(LabelInstance):  # type: ignore
+class Bitmasks(LabelInstance):
     """Container class for bitmasks.
 
     masks: torch.FloatTensor: (N, W, H) where each entry is a binary mask
@@ -437,12 +437,12 @@ class Bitmasks(LabelInstance):  # type: ignore
     @property
     def height(self) -> int:
         """Return height of masks."""
-        return self.masks.size(2)
+        return self.masks.size(2)  # type: ignore
 
     @property
     def width(self) -> int:
         """Return width of masks."""
-        return self.masks.size(1)
+        return self.masks.size(1)  # type: ignore
 
     def resize(self, out_size: Tuple[int, int]) -> None:
         """Resize bitmasks according to factor."""
@@ -535,9 +535,11 @@ class Bitmasks(LabelInstance):  # type: ignore
                 continue
             poly2d = label.poly2d
             bitmask_raw = poly2ds_to_mask(image_size, poly2d)
-            bitmask = (bitmask_raw > 0).astype(bitmask_raw.dtype)
+            bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
+                bitmask_raw.dtype
+            )
             bitmask_list.append(bitmask)
-            bbox = mask_to_box2d(bitmask)  # type: ignore
+            bbox = mask_to_box2d(bitmask)
             box_list.append([bbox.x1, bbox.y1, bbox.x2, bbox.y2])
             mask_cls, l_id = label.category, label.id
 
@@ -583,9 +585,9 @@ class Bitmasks(LabelInstance):  # type: ignore
 
         return labels
 
-    def to_ndarray(self):
+    def to_ndarray(self) -> NDArrayUI8:
         """Convert masks to ndarray."""
-        return self.masks.numpy()
+        return self.masks.numpy()  # type: ignore
 
     def to(self: "Bitmasks", device: torch.device) -> "Bitmasks":
         """Move data to given device."""
