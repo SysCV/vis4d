@@ -107,20 +107,6 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             )
             self.postprocess(input_size, inp.images.image_sizes[0], det, segm)
 
-            from vist.vis.image import imshow_bboxes, imshow_bitmasks
-
-            imshow_bboxes(
-                inp.images.tensor[0],
-                det,
-                label_str="test_det",
-            )
-            if segm and len(segm) > 0:
-                imshow_bitmasks(
-                    inp.images.tensor[0],
-                    segm,
-                    label_str="test_mask",
-                )
-
         outputs = dict(detect=detections)
         if self.with_mask:
             outputs.update(segment=segmentations)  # type: ignore

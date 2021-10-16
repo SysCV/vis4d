@@ -8,11 +8,18 @@ import requests
 import torch
 from mmcv import Config as MMConfig
 
-from vist.struct import Bitmasks, Boxes2D, Images, InputSample, LossesType
+from vist.struct import (
+    Bitmasks,
+    Boxes2D,
+    Images,
+    InputSample,
+    LossesType,
+    NDArrayF64,
+)
 
 from ..base import BaseModelConfig
 
-MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, float]]
+MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
 MMDetResult = List[torch.Tensor]
 MMSegmResult = List[List[torch.Tensor]]
 MMResults = Union[
@@ -39,7 +46,7 @@ def get_img_metas(images: Images) -> List[MMDetMetaData]:
         meta: MMDetMetaData = {}
         w, h = images.image_sizes[i]
         meta["img_shape"] = meta["ori_shape"] = (h, w, c)
-        meta["scale_factor"] = 1.0
+        meta["scale_factor"] = np.ones(4, dtype=np.float64)
         meta["flip"] = False
         meta["pad_shape"] = (padh, padw, c)
         img_metas.append(meta)
