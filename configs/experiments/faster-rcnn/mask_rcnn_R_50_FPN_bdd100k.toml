@@ -1,0 +1,25 @@
+[[config]]
+path = "../../base/datasets/bdd100k_ins_seg.toml"
+
+[[config]]
+path = "../../base/models/mmdetection/mask_rcnn_R_50_FPN.toml"
+
+[model]
+category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
+    [model.optimizer]
+    type = "SGD"
+    lr = 0.02
+    kwargs = {"momentum" = 0.9}
+
+    [model.lr_scheduler]
+    type = "MultiStepLR"
+    kwargs = {"milestones" = [8, 11]}
+
+[launch]
+samples_per_gpu = 2
+workers_per_gpu = 2
+
+[trainer]
+max_epochs = 12
+log_every_n_steps = 50
+check_val_every_n_epoch = 1

@@ -248,29 +248,40 @@ class KorniaAugmentationWrapper(BaseAugmentation, metaclass=RegistryHolder):
         return self.augmentor.__repr__()  # type: ignore
 
 
+def build_kornia_augmentation(
+    cfg: AugmentationConfig,
+) -> KorniaAugmentationWrapper:
+    """Build Kornia augmentation."""
+    assert cfg.kornia_type is not None
+    kornia_registry = RegistryHolder.get_registry(KorniaAugmentationWrapper)
+    if cfg.type in kornia_registry:
+        augmentation = kornia_registry[cfg.type]
+        module: KorniaAugmentationWrapper = augmentation(cfg)
+    elif hasattr(kornia_augmentation, cfg.kornia_type):
+        module = KorniaAugmentationWrapper(cfg)
+    else:
+        raise ValueError(f"Kornia Augmentation {cfg.type} not known!")
+    return module
+
+
 def build_augmentation(cfg: AugmentationConfig) -> BaseAugmentation:
     """Build a single augmentation."""
     if cfg.kornia_type is not None:
         # use Kornia augmentation
-        kornia_registry = RegistryHolder.get_registry(
-            KorniaAugmentationWrapper
-        )
-        if cfg.type in kornia_registry:
-            augmentation = kornia_registry[cfg.type]
-            module = augmentation(cfg)
-        elif hasattr(kornia_augmentation, cfg.kornia_type):
-            module = KorniaAugmentationWrapper(cfg)
-        else:
-            raise ValueError(f"Kornia Augmentation {cfg.type} not known!")
+        module = build_kornia_augmentation(cfg)
     else:
         # use VisT augmentation
         registry = RegistryHolder.get_registry(BaseAugmentation)
         if cfg.type in registry:
             augmentation = registry[cfg.type]
             module = augmentation(cfg, **cfg.kwargs)
+        elif hasattr(kornia_augmentation, cfg.type):
+            # default to using Kornia augmentation
+            cfg.kornia_type = cfg.type
+            module = build_kornia_augmentation(cfg)
         else:
             raise ValueError(f"VisT Augmentation {cfg.type} not known!")
-    return module  # type: ignore
+    return module
 
 
 def build_augmentations(

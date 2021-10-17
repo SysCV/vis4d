@@ -476,11 +476,7 @@ class Bitmasks(LabelInstance):
         rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
         rois = rois.to(device=device)
         if num_bbox > 0:
-            gt_masks_th = (
-                self.masks.to(device)
-                .index_select(0, inds)
-                .to(dtype=rois.dtype)
-            )
+            gt_masks_th = self.masks.index_select(0, inds).to(dtype=rois.dtype)
             targets = roi_align(
                 gt_masks_th[:, None, :, :],
                 rois,
@@ -547,6 +543,8 @@ class Bitmasks(LabelInstance):
                 bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
                     bitmask_raw.dtype
                 )
+            if np.count_nonzero(bitmask) == 0:
+                continue
             bitmask_list.append(bitmask)
             bbox = mask_to_box2d(bitmask)
             box_list.append([bbox.x1, bbox.y1, bbox.x2, bbox.y2])
@@ -596,7 +594,7 @@ class Bitmasks(LabelInstance):
 
     def to_ndarray(self) -> NDArrayUI8:
         """Convert masks to ndarray."""
-        return self.masks.numpy()  # type: ignore
+        return self.masks.cpu().numpy()  # type: ignore
 
     def __len__(self) -> int:
         """Get length of the object."""
