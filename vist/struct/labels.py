@@ -404,7 +404,7 @@ class Boxes3D(Boxes, LabelInstance):
 class Bitmasks(LabelInstance):
     """Container class for bitmasks.
 
-    masks: torch.FloatTensor: (N, W, H) where each entry is a binary mask
+    masks: torch.FloatTensor: (N, H, W) where each entry is a binary mask
     class_ids: torch.LongTensor: (N,) where each entry is the class id of
     the respective box.
     track_ids: torch.LongTensor (N,) where each entry is the track id of
@@ -437,17 +437,18 @@ class Bitmasks(LabelInstance):
     @property
     def height(self) -> int:
         """Return height of masks."""
-        return self.masks.size(2)  # type: ignore
+        return self.masks.size(1)  # type: ignore
 
     @property
     def width(self) -> int:
         """Return width of masks."""
-        return self.masks.size(1)  # type: ignore
+        return self.masks.size(2)  # type: ignore
 
     def resize(self, out_size: Tuple[int, int]) -> None:
         """Resize bitmasks according to factor."""
+        width, height = out_size
         self.masks = F.interpolate(
-            self.masks.unsqueeze(1), size=out_size, mode="nearest"
+            self.masks.unsqueeze(1), size=(height, width), mode="nearest"
         ).squeeze(1)
 
     def crop_and_resize(  # pylint: disable=unused-argument
@@ -576,7 +577,11 @@ class Bitmasks(LabelInstance):
             else:
                 label_id = str(i)
             rle = mask_utils.encode(
-                np.array(mask[:, :, None].numpy(), order="F", dtype="uint8")
+                np.array(
+                    mask[:, :, None].numpy(),
+                    order="F",
+                    dtype="uint8",
+                )
             )[0]
             rle_label = dict(
                 counts=rle["counts"].decode("utf-8"), size=rle["size"]

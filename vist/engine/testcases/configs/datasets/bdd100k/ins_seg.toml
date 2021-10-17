@@ -15,39 +15,23 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [360, 640], "scale_range" = [1.2, 1.5], "interpolation" = "bicubic"}
-
-    [[train.dataloader.transformations]]
-    type = "Resize"
-    [train.dataloader.transformations.kwargs]
-        shape = [
-            [360, 640],
-            [480, 960]
-        ]
-        keep_ratio = true
-        multiscale_mode = "list"
+    kwargs = {"shape" = [720, 1280]}
 
     [[train.dataloader.transformations]]
     type = "RandomHorizontalFlip"
-    kornia_type = "RandomHorizontalFlip"
     kwargs = {"p" = 0.5}
-
-    [[train.dataloader.transformations]]
-    type = "KorniaColorJitter"
-    kornia_type = "ColorJitter"
-    kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
 
 [[test]]
 name = "bdd100k_sample_val"
 type = "BDD100K"
 annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation_rle.json"
 data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
-eval_metrics = ["detect", "segment"]
 config_path = "ins_seg"
 num_processes = 0
+eval_metrics = ["detect", "segment"]
     [test.dataloader]
         fields_to_load = ["bitmasks"]
 
     [[test.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [360, 640]}
+    kwargs = {"shape" = [720, 1280]}

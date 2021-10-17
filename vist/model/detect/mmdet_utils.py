@@ -101,9 +101,9 @@ def segmentation_from_mmdet_results(
     segmentation: MMSegmResult, device: torch.device
 ) -> Bitmasks:
     """Convert segm_result to VisT format."""
-    if len(segmentation) == 0:
-        return Bitmasks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
     segms = [np.stack(segm) for segm in segmentation if len(segm) != 0]
+    if len(segms) == 0:
+        return Bitmasks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
     masks = (
         torch.from_numpy(np.concatenate(segms))  # type: ignore
         .type(torch.uint8)

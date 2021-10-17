@@ -185,3 +185,18 @@ def all_gather_gts(
         return None
 
     return list(itertools.chain(*gts_list))
+
+
+def check_empty_predictions(predictions: List[Frame], metric: str) -> bool:
+    """Check whether predictions are empty."""
+    for pred in predictions:
+        if pred.labels is None:
+            continue
+        for label in pred.labels:
+            if metric == "detect":
+                if label.box2d is not None:
+                    return False
+            elif metric == "segment":
+                if label.rle is not None:
+                    return False
+    return True

@@ -19,7 +19,11 @@ from scalabel.label.typing import Config, Frame
 
 from ..data.datasets import BaseDatasetLoader
 from ..struct import InputSample, LabelInstance, ModelOutput
-from .utils import all_gather_gts, all_gather_predictions
+from .utils import (
+    all_gather_gts,
+    all_gather_predictions,
+    check_empty_predictions,
+)
 
 mute(True)  # turn off undesired logs during eval
 logger = logging.getLogger("pytorch_lightning")
@@ -224,6 +228,10 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
         if not self.logging_disabled:
             logger.info("Running evaluation on dataset %s...", self.name)
         for key, predictions in self._predictions.items():
+            if check_empty_predictions(predictions, key):
+                logger.info("No predictions for %s, skipping", key)
+                continue
+
             if self.output_dir:
                 os.makedirs(self.output_dir, exist_ok=True)
                 file_path = os.path.join(
