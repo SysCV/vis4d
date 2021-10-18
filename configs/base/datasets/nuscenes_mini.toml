@@ -1,10 +1,12 @@
 [[train]]
-name = "waymo_sample_train"
-type = "Waymo"
-data_root = "data/Waymo_scalabel"
-input_dir = "data/Waymo/train"
-output_dir = "data/Waymo_scalabel"
-num_processes = 0
+name = "nuscenes_mini_train"
+type = "NuScenes"
+data_root = "data/nuscenes"
+version = "v1.0-mini"
+split = "mini_train"
+add_non_key = false
+annotations = "data/nuscenes/scalabel_mini_train.json"
+cache_as_binary = true
     [train.dataloader]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
     skip_empty_samples = true
@@ -15,29 +17,24 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [1080, 1920]}
+    kwargs = {"shape" = [900, 1600]}
 
     [[train.dataloader.transformations]]
     type = "RandomHorizontalFlip"
     kwargs = {"p" = 0.5}
 
-    [[train.dataloader.transformations]]
-    type = "Resize"
-    kwargs = {"shape" = [1080, 1920]}
-
-
 [[test]]
-name = "waymo_sample_val"
-type = "Waymo"
-data_root = "data/Waymo_scalabel"
-input_dir = "data/Waymo/train"
-output_dir = "data/Waymo_scalabel"
-eval_metrics = ["track"]
-num_processes = 0
+name = "nuscenes_mini_val"
+type = "NuScenes"
+data_root = "data/nuscenes"
+version = "v1.0-mini"
+split = "mini_val"
+add_non_key = true
+annotations = "data/nuscenes/scalabel_mini_val_full.json"
+cache_as_binary = true
     [test.dataloader]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
 
     [[test.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [1080, 1920]}
-
+    kwargs = {"shape" = [900, 1600]}

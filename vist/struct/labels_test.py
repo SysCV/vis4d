@@ -4,7 +4,7 @@ import unittest
 import torch
 from scalabel.label.typing import ImageSize
 
-from vist.struct import Bitmasks, Boxes2D, Boxes3D
+from vist.struct import Bitmasks, Boxes2D, Boxes3D, Extrinsics
 from vist.unittest.utils import generate_dets, generate_dets3d, generate_masks
 
 
@@ -126,6 +126,13 @@ class TestBoxes3D(unittest.TestCase):
             all(
                 (str(i) == det.id for i, det in enumerate(dets_without_tracks))
             )
+        )
+
+        # test transform
+        dets_tr = detections.clone()
+        dets_tr.transfrom(Extrinsics(torch.eye(4).unsqueeze(0)))
+        self.assertTrue(
+            torch.isclose(dets_tr.boxes, detections.boxes, atol=1e-4).all()
         )
 
         rotx, roty, rotz = detections.rot_x, detections.rot_y, detections.rot_z

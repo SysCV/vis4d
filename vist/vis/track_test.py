@@ -4,8 +4,9 @@ import unittest
 import numpy as np
 import torch
 
-from vist.unittest.utils import generate_dets
+from vist.unittest.utils import generate_dets, generate_dets3d
 
+from ..struct import Intrinsics
 from .track import draw_sequence
 from .utils import preprocess_image
 
@@ -20,7 +21,9 @@ class TestTrackVis(unittest.TestCase):
         seq_dets = [
             generate_dets(128, 128, 10, track_ids=True) for _ in range(10)
         ]
-        seq = draw_sequence(seq_imgs, seq_dets)
+        seq_dets3d = [generate_dets3d(10, track_ids=True) for _ in range(10)]
+        intrinsics = [Intrinsics(torch.eye(3)) for _ in range(10)]
+        seq = draw_sequence(seq_imgs, seq_dets, seq_dets3d, intrinsics)
 
         self.assertEqual(len(seq), 10)
 

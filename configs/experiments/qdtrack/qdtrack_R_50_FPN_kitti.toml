@@ -5,7 +5,7 @@ path = "../../base/datasets/kitti.toml"
 path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"
 
 [model]
-categories = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
+category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
     [model.optimizer]
     type = "SGD"
     lr = 0.03

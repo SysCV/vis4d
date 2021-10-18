@@ -174,6 +174,7 @@ class TestTrackMMKITTI(BaseEngineTests.TestTrack):
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
+        cls.cfg.test = [cls.cfg.test[0]]  # remove multi-sensor kitti dataset
         cls.predict_dir = (
             "vist/engine/testcases/track/kitti-samples/"
             "tracking/training/image_02/0001/"

@@ -4,7 +4,8 @@ import unittest
 import torch
 from scalabel.label.typing import Frame
 
-from .data import Extrinsics, Images, InputSample, Intrinsics
+from .data import Extrinsics, Images, Intrinsics
+from .sample import InputSample
 
 
 class TestDataStructures(unittest.TestCase):

@@ -52,5 +52,5 @@ NDArrayF64 = npt.NDArray[np.float64]
 NDArrayUI8 = npt.NDArray[np.uint8]
 TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
 LossesType = Dict[str, torch.Tensor]
-ModelOutput = Dict[str, List[LabelInstance]]
+ModelOutput = Dict[str, List[List[Label]]]
 DictStrAny = Dict[str, Any]  # type: ignore

@@ -4,11 +4,16 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
+from kornia.geometry.conversions import (
+    angle_axis_to_rotation_matrix,
+    rotation_matrix_to_angle_axis,
+)
 from mmcv.ops.roi_align import roi_align
 from pycocotools import mask as mask_utils
 from scalabel.label.transforms import mask_to_box2d, poly2ds_to_mask
 from scalabel.label.typing import Box2D, Box3D, ImageSize, Label
 
+from .data import Extrinsics
 from .structures import DataInstance, LabelInstance, NDArrayUI8
 
 TBoxes = TypeVar("TBoxes", bound="Boxes")
@@ -176,9 +181,9 @@ class Boxes2D(Boxes, LabelInstance):
     @property
     def area(self) -> torch.Tensor:
         """Compute area of each bounding box."""
-        area = (self.boxes[:, 2] - self.boxes[:, 0]) * (
+        area = (self.boxes[:, 2] - self.boxes[:, 0]).clamp(0) * (
             self.boxes[:, 3] - self.boxes[:, 1]
-        )
+        ).clamp(0)
         return area
 
     @classmethod
@@ -399,6 +404,44 @@ class Boxes3D(Boxes, LabelInstance):
             labels.append(Label(**label_dict))
 
         return labels
+
+    def transfrom(self, extrinsics: Extrinsics) -> None:
+        """Transform Boxes3D with given Extrinsics.
+
+        Note: Mutates current Boxes3D.
+        """
+        if len(extrinsics) > 1:
+            raise ValueError(
+                f"Expected single Extrinsics but got len {len(extrinsics)}!"
+            )
+
+        center_hom = torch.cat(
+            [self.center, torch.ones_like(self.boxes[:, 0:1])], -1
+        )
+        self.boxes[:, :3] = torch.matmul(
+            center_hom, extrinsics.transpose().tensor[0]
+        )[:, :3]
+
+        rot_x = (
+            self.rot_x
+            if self.rot_x is not None
+            else torch.zeros_like(self.rot_y)
+        )
+        rot_z = (
+            self.rot_z
+            if self.rot_z is not None
+            else torch.zeros_like(self.rot_y)
+        )
+        angles = torch.stack([rot_x, self.rot_y, rot_z], -1)
+        boxes_rotation = angle_axis_to_rotation_matrix(angles)
+        rotation = torch.matmul(
+            extrinsics.rotation,
+            boxes_rotation,
+        )
+        if self.boxes.shape[-1] < 9:
+            self.boxes[:, 6] = rotation_matrix_to_angle_axis(rotation)[:, 1]
+        else:
+            self.boxes[:, 6:9] = rotation_matrix_to_angle_axis(rotation)
 
 
 class Bitmasks(LabelInstance):

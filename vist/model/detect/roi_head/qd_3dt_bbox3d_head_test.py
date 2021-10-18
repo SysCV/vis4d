@@ -85,7 +85,7 @@ class TestQDTBBox3DHead(unittest.TestCase):
         )
 
         boxes_3d_pred = box3d_head.forward_test(
-            inputs, {"test": torch.rand(1)}, [detections]
+            inputs, [detections], {"test": torch.rand(1)}
         )
 
         self.assertTrue(len(boxes_3d_pred[0]) == len(detections) == 0)

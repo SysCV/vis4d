@@ -32,6 +32,8 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         self.cfg = D2TwoStageDetectorConfig(
             **cfg.dict()
         )  # type: D2TwoStageDetectorConfig
+        assert self.cfg.category_mapping is not None
+        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
         self.d2_cfg = model_to_detectron2(self.cfg)
         # pylint: disable=too-many-function-args,missing-kwoa
         self.d2_detector = GeneralizedRCNN(self.d2_cfg)
@@ -95,7 +97,9 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             )
             self.postprocess(input_size, inp.images.image_sizes[0], det)
 
-        return dict(detect=detections)  # type: ignore
+        return dict(
+            detect=[d.to_scalabel(self.cat_mapping) for d in detections]
+        )
 
     def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.

@@ -2,26 +2,28 @@
 import copy
 import os
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Sequence
 
 import pytorch_lightning as pl
-import torch
 from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.utilities.distributed import rank_zero_warn
 from scalabel.label.io import save
-from scalabel.label.typing import Frame
+from scalabel.label.typing import Frame, FrameGroup
+from scalabel.vis.label import LabelViewer
 
 from ..common.utils.distributed import get_rank, get_world_size
-from ..struct import Boxes2D, Boxes3D, InputSample, ModelOutput
-from ..vis.image import draw_image
+from ..struct import InputSample, ModelOutput
+from ..vis.utils import preprocess_image
 
 
 class VisTWriterCallback(Callback):
     """VisT prediction writer base class."""
 
-    def __init__(self, output_dir: str):
+    def __init__(self, dataloader_idx: int, output_dir: str):
         """Init."""
         self._output_dir = output_dir
         self._predictions: Dict[str, List[Frame]] = defaultdict(list)
+        self.dataloader_idx = dataloader_idx
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""
@@ -47,7 +49,8 @@ class VisTWriterCallback(Callback):
         dataloader_idx: int,
     ) -> None:
         """Hook for on_predict_batch_end."""
-        self.process(batch, outputs)
+        if dataloader_idx == self.dataloader_idx:
+            self.process(batch, outputs)
 
     def on_predict_epoch_end(  # type: ignore
         self,
@@ -65,16 +68,14 @@ class ScalabelWriterCallback(VisTWriterCallback):
 
     def __init__(
         self,
+        dataloader_idx: int,
         output_dir: str,
-        category_mapping: Optional[Dict[str, int]],
         visualize: bool = True,
     ) -> None:
         """Init."""
-        super().__init__(output_dir)
+        super().__init__(dataloader_idx, output_dir)
         self._visualize = visualize
-        self.cats_id2name: Optional[Dict[int, str]] = None
-        if category_mapping is not None:
-            self.cats_id2name = {v: k for k, v in category_mapping.items()}
+        self.viewer = LabelViewer()
 
     def process(
         self, inputs: List[List[InputSample]], outputs: ModelOutput
@@ -83,11 +84,14 @@ class ScalabelWriterCallback(VisTWriterCallback):
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):
                 prediction = copy.deepcopy(inp[0].metadata[0])
-                out = out.to(torch.device("cpu"))  # type: ignore
-                prediction.labels = out.to_scalabel(self.cats_id2name)
+                prediction.labels = out
                 self._predictions[key].append(prediction)
 
-                if self._visualize:
+                if self._visualize and isinstance(prediction, FrameGroup):
+                    rank_zero_warn(  # pragma: no cover
+                        "Visualization not supported for multi-sensor datasets"
+                    )
+                elif self._visualize:
                     video_name = (
                         prediction.videoName
                         if prediction.videoName is not None
@@ -99,20 +103,11 @@ class ScalabelWriterCallback(VisTWriterCallback):
                         video_name,
                         prediction.name,
                     )
-                    if isinstance(out, Boxes2D):
-                        image = draw_image(
-                            inp[0].images.tensor[0], boxes2d=out
-                        )
-                    elif isinstance(out, Boxes3D):
-                        image = draw_image(
-                            inp[0].images.tensor[0],
-                            boxes3d=out,
-                            intrinsics=inp[0].intrinsics,
-                        )
-                    else:
-                        raise ValueError(f"Unknown result type: f{type(out)}")
+                    self.viewer.draw(
+                        preprocess_image(inp[0].images.tensor[0]), prediction
+                    )
                     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-                    image.save(save_path)
+                    self.viewer.save(save_path)
 
     def write(self) -> None:
         """Write the aggregated output."""

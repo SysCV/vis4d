@@ -62,7 +62,11 @@ def default_setup(
     progress_bar = VisTProgressBar()
 
     # add Model checkpointer
+    output_dir = osp.join(
+        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
+    )
     checkpoint = pl.callbacks.ModelCheckpoint(
+        dirpath=osp.join(output_dir, "checkpoints"),
         verbose=True,
         save_last=True,
         every_n_epochs=cfg.launch.checkpoint_period,
@@ -70,9 +74,6 @@ def default_setup(
     )
 
     # resume from checkpoint if specified
-    output_dir = osp.join(
-        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
-    )
     if cfg.launch.resume:  # pragma: no cover
         if cfg.launch.weights is not None:
             resume_path = cfg.launch.weights
@@ -144,15 +145,9 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     )
 
     if len(test_loaders) > 0:
-        assert (
-            cfg.model.category_mapping is not None
-        ), "Need category mapping to evaluate model!"
         evaluators = [
-            ScalabelEvaluatorCallback(
-                dl,
-                cfg.model.category_mapping,
-            )
-            for dl in test_loaders
+            ScalabelEvaluatorCallback(i, dl)
+            for i, dl in enumerate(test_loaders)
         ]
         trainer.callbacks += evaluators  # pylint: disable=no-member
     trainer.fit(model, data_module)
@@ -179,17 +174,12 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     )
 
     assert len(test_loaders), "No test datasets specified!"
-    assert (
-        cfg.model.category_mapping is not None
-    ), "Need category mapping to evaluate model!"
     out_dir = osp.join(
         cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
     )
     evaluators = [
-        ScalabelEvaluatorCallback(
-            dl, cfg.model.category_mapping, osp.join(out_dir, dl.cfg.name)
-        )
-        for dl in test_loaders
+        ScalabelEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
+        for i, dl in enumerate(test_loaders)
     ]
     trainer.callbacks += evaluators  # pylint: disable=no-member
     trainer.test(
@@ -233,11 +223,9 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     assert len(dataloaders) > 0, "No datasets for prediction specified!"
     evaluators = [
         ScalabelWriterCallback(
-            osp.join(out_dir, dl.cfg.name),
-            cfg.model.category_mapping,
-            cfg.launch.visualize,
+            i, osp.join(out_dir, dl.cfg.name), cfg.launch.visualize
         )
-        for dl in dataloaders
+        for i, dl in enumerate(dataloaders)
     ]
     trainer.callbacks += evaluators  # pylint: disable=no-member
     trainer.predict(model, data_module)

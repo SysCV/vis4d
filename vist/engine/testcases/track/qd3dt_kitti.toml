@@ -15,9 +15,6 @@ category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
     type = "MultiStepLR"
     kwargs = {"milestones" = [8, 11]}
 
-    [model.bbox_3d_head]
-    num_classes = 3
-
 [launch]
 samples_per_gpu = 1
 workers_per_gpu = 0
