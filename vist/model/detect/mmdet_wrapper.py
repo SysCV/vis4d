@@ -5,7 +5,7 @@ import torch
 from mmcv.runner.checkpoint import load_checkpoint
 from mmdet.models import TwoStageDetector, build_detector
 
-from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
+from vist.struct import Bitmasks, Boxes2D, InputSample, LossesType, ModelOutput
 
 from ..base import BaseModelConfig
 from .base import BaseTwoStageDetector
@@ -18,6 +18,7 @@ from .mmdet_utils import (
     proposals_from_mmdet,
     proposals_to_mmdet,
     results_from_mmdet,
+    segmentations_from_mmdet,
     targets_to_mmdet,
 )
 
@@ -122,7 +123,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
         outputs = dict(detect=detections)
         if self.with_mask:
-            outputs.update(segment=segmentations)  # type: ignore
+            outputs.update(segment=segmentations)
         return outputs
 
     def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
@@ -174,7 +175,8 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         features: Dict[str, torch.Tensor],
         proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
-    ) -> Tuple[Optional[List[Boxes2D]], LossesType]:
+        compute_segmentations: bool = False,
+    ) -> Tuple[Optional[List[Boxes2D]], LossesType, Optional[List[Bitmasks]]]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if no targets) and optionally detections.
@@ -186,19 +188,23 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         feat_list = list(features.values())
         img_metas = get_img_metas(inputs.images)
         if self.training:
-            gt_bboxes, gt_labels, _ = targets_to_mmdet(inputs)
+            gt_bboxes, gt_labels, gt_masks = targets_to_mmdet(inputs)
             detect_losses = self.mm_detector.roi_head.forward_train(
                 feat_list,
                 img_metas,
                 proposal_list,
                 gt_bboxes,
                 gt_labels,
+                gt_masks=gt_masks,
             )
             detect_losses = _parse_losses(detect_losses)
             assert (
                 not compute_detections
             ), "mmdetection does not compute detections during train!"
-            detections = None
+            assert (
+                not compute_segmentations
+            ), "mmdetection does not compute segmentations during train!"
+            detections, segmentations = None, None
         else:
             bboxes, labels = self.mm_detector.roi_head.simple_test_bboxes(
                 feat_list,
@@ -207,6 +213,16 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 self.mm_detector.roi_head.test_cfg,
             )
             detections = detections_from_mmdet(bboxes, labels)
+            if compute_segmentations:
+                masks = self.mm_detector.roi_head.simple_test_mask(
+                    feat_list,
+                    img_metas,
+                    bboxes,
+                    labels,
+                )
+                segmentations = segmentations_from_mmdet(masks, labels)
+            else:
+                segmentations = None
             detect_losses = {}
 
-        return detections, detect_losses
+        return detections, detect_losses, segmentations

@@ -17,7 +17,7 @@ from vist.model.detect.d2_utils import (
     proposal_to_box2d,
     target_to_instance,
 )
-from vist.struct import Boxes2D, InputSample, LossesType, ModelOutput
+from vist.struct import Bitmasks, Boxes2D, InputSample, LossesType, ModelOutput
 
 from ..base import BaseModelConfig
 from .base import BaseTwoStageDetector
@@ -72,7 +72,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         inputs = self.preprocess_inputs(raw_inputs)
         features = self.extract_features(inputs)
         proposals, rpn_losses = self.generate_proposals(inputs, features)
-        _, detect_losses = self.generate_detections(
+        _, detect_losses, _ = self.generate_detections(
             inputs, features, proposals, compute_detections=False
         )
         return {**rpn_losses, **detect_losses}
@@ -86,7 +86,9 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         inputs = self.preprocess_inputs(raw_inputs)
         features = self.extract_features(inputs)
         proposals, _ = self.generate_proposals(inputs, features)
-        detections, _ = self.generate_detections(inputs, features, proposals)
+        detections, _, _ = self.generate_detections(
+            inputs, features, proposals
+        )
         assert detections is not None
 
         for inp, det in zip(inputs, detections):  # type: ignore
@@ -140,7 +142,8 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         features: Dict[str, torch.Tensor],
         proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
-    ) -> Tuple[Optional[List[Boxes2D]], LossesType]:
+        compute_segmentations: bool = False,
+    ) -> Tuple[Optional[List[Boxes2D]], LossesType, Optional[List[Bitmasks]]]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if no targets) and optionally detections.
@@ -173,4 +176,4 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             detections = proposal_to_box2d(detections)  # pragma: no cover
         else:
             detections = None
-        return detections, detect_losses
+        return detections, detect_losses, None

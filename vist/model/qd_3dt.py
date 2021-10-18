@@ -51,7 +51,7 @@ class QD3DT(QDTrack):
         )
 
         # bbox head
-        _, roi_losses = self.detector.generate_detections(
+        _, roi_losses, _ = self.detector.generate_detections(
             key_inputs,
             key_x,
             key_proposals,
@@ -100,7 +100,7 @@ class QD3DT(QDTrack):
         feat = self.detector.extract_features(inputs)
         proposals, _ = self.detector.generate_proposals(inputs, feat)
 
-        boxes2d_list, _ = self.detector.generate_detections(
+        boxes2d_list, _, _ = self.detector.generate_detections(
             inputs, feat, proposals
         )
 

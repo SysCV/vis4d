@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 
 from vist.common.registry import RegistryHolder
-from vist.struct import Boxes2D, InputSample, LossesType
+from vist.struct import Bitmasks, Boxes2D, InputSample, LossesType
 
 from ..base import BaseModel
 
@@ -34,7 +34,8 @@ class BaseDetector(BaseModel, metaclass=RegistryHolder):
         features: Dict[str, torch.Tensor],
         proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
-    ) -> Tuple[Optional[List[Boxes2D]], LossesType]:
+        compute_segmentations: bool = False,
+    ) -> Tuple[Optional[List[Boxes2D]], LossesType, Optional[List[Bitmasks]]]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if not training) and optionally detections.

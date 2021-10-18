@@ -226,6 +226,8 @@ class TestBitmasks(unittest.TestCase):
         """Testcase for conversion to / from scalabel."""
         h, w, num_masks = 128, 128, 10
         segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        self.assertEqual(segmentations.height, 128)
+        self.assertEqual(segmentations.width, 128)
         idx_to_class = {0: "car"}
         class_to_idx = {"car": 0}
         scalabel_segms = segmentations.to_scalabel(idx_to_class)
@@ -283,3 +285,24 @@ class TestBitmasks(unittest.TestCase):
             self.assertTrue(
                 torch.isclose(segm.track_ids, segm_new.track_ids).all()
             )
+
+    def test_resize(self) -> None:
+        """Testcase for resizing a Bitmasks object."""
+        h, w, num_masks = 128, 128, 10
+        segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        segmentations.resize((64, 256))
+        self.assertEqual(segmentations.height, 256)
+        self.assertEqual(segmentations.width, 64)
+
+    def test_crop_and_resize(self) -> None:
+        """Testcase for cropping and resizing a Bitmasks object."""
+        h, w, num_masks, num_dets = 128, 128, 10, 4
+        out_h, out_w = 64, 32
+        segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        detections = generate_dets(h, w, num_dets, track_ids=True)
+        segmentations = segmentations.crop_and_resize(
+            detections.boxes[:, :-1], (out_h, out_w), torch.arange(num_masks)
+        )
+        self.assertEqual(len(segmentations.masks), num_dets)
+        self.assertEqual(segmentations.masks.size(1), out_h)
+        self.assertEqual(segmentations.masks.size(2), out_w)

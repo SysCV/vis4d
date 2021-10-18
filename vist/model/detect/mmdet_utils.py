@@ -82,6 +82,18 @@ def detections_from_mmdet(
     return detections_boxes2d
 
 
+def segmentations_from_mmdet(
+    masks: List[torch.Tensor], labels: List[torch.Tensor]
+) -> List[Bitmasks]:
+    """Convert mmdetection segmentations to VisT format."""
+    segmentations_bitmasks = []
+    for mask, label in zip(masks, labels):
+        if not label.device == mask.device:
+            label = label.to(mask.device)  # pragma: no cover
+        segmentations_bitmasks.append(Bitmasks(mask, label))
+    return segmentations_bitmasks
+
+
 def detection_from_mmdet_results(
     detection: MMDetResult, device: torch.device
 ) -> Boxes2D:
