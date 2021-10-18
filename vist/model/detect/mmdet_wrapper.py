@@ -95,26 +95,35 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         raw_inputs = [inp[0] for inp in batch_inputs]
         inputs = self.preprocess_inputs(raw_inputs)
         image_metas = get_img_metas(inputs.images)
-        outs = self.mm_detector.simple_test(inputs.images.tensor, image_metas)
-        results = results_from_mmdet(outs, self.device, self.with_mask)
-        detections, segmentations = results
-
-        for inp, det, segm in zip(  # type: ignore
-            inputs, detections, segmentations
+        detections, segmentations = [], []
+        for input_sample, image_meta in zip(  # type: ignore
+            inputs, image_metas
         ):
-            assert inp.metadata[0].size is not None
-            input_size = (
-                inp.metadata[0].size.width,
-                inp.metadata[0].size.height,
+            outs = self.mm_detector.simple_test(
+                input_sample.images.tensor, [image_meta]
             )
-            self.postprocess(input_size, inp.images.image_sizes[0], det, segm)
+            results = results_from_mmdet(outs, self.device, self.with_mask)
+            dets, segms = results
 
-        outputs = dict(
-            detect=[d.to_scalabel(self.cat_mapping) for d in detections]
-        )
+            assert input_sample.metadata[0].size is not None
+            input_size = (
+                input_sample.metadata[0].size.width,
+                input_sample.metadata[0].size.height,
+            )
+            self.postprocess(
+                input_size,
+                input_sample.images.image_sizes[0],
+                dets[0],
+                segms[0],
+            )
+            detections.append(dets[0].to_scalabel(self.cat_mapping))
+            if self.with_mask:
+                segmentations.append(segms[0].to_scalabel(self.cat_mapping))
+
+        outputs = dict(detect=detections)
         if self.with_mask:
             outputs.update(segment=segmentations)  # type: ignore
-        return outputs  # type: ignore
+        return outputs
 
     def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.

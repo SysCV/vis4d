@@ -621,7 +621,7 @@ class Bitmasks(LabelInstance):
                 label_id = str(i)
             rle = mask_utils.encode(
                 np.array(
-                    mask[:, :, None].numpy(),
+                    mask[:, :, None].cpu().numpy(),
                     order="F",
                     dtype="uint8",
                 )

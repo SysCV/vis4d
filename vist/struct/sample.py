@@ -5,7 +5,7 @@ import torch
 from scalabel.label.typing import Frame
 
 from .data import Extrinsics, Images, Intrinsics
-from .labels import Boxes2D, Boxes3D, Bitmasks
+from .labels import Bitmasks, Boxes2D, Boxes3D
 from .structures import DataInstance
 
 
