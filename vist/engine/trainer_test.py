@@ -251,6 +251,20 @@ class TestDetectMM(BaseEngineTests.TestDetect):
         cls.cfg = config.parse_config(args)
 
 
+class TestInsSegD2(BaseEngineTests.TestInsSeg):
+    """Detectron2 instance segmentation test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_ins_seg_d2/"
+        cls.args = Namespace(
+            config=get_test_file("ins_seg/mask_rcnn_d2.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(cls.args)
+
+
 class TestInsSegMM(BaseEngineTests.TestInsSeg):
     """MMDetection instance segmentation test cases."""
 

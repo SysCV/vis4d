@@ -15,6 +15,7 @@ from vist.model.detect.d2_utils import (
     images_to_imagelist,
     model_to_detectron2,
     proposal_to_box2d,
+    segmentations_to_bitmask,
     target_to_instance,
 )
 from vist.struct import Bitmasks, Boxes2D, InputSample, LossesType, ModelOutput
@@ -40,6 +41,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         # detectron2 requires an EventStorage for logging
         self.d2_event_storage = EventStorage()
         self.checkpointer = DetectionCheckpointer(self.d2_detector)
+        self.with_mask = self.d2_detector.roi_heads.mask_on
         if self.d2_cfg.MODEL.WEIGHTS != "":
             self.checkpointer.load(self.d2_cfg.MODEL.WEIGHTS)
         if self.cfg.set_batchnorm_eval:
@@ -86,22 +88,33 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         inputs = self.preprocess_inputs(raw_inputs)
         features = self.extract_features(inputs)
         proposals, _ = self.generate_proposals(inputs, features)
-        detections, _, _ = self.generate_detections(
+        detections, _, segmentations = self.generate_detections(
             inputs, features, proposals
         )
         assert detections is not None
+        if segmentations is None:
+            segmentations = [None] * len(detections)  # type: ignore
 
-        for inp, det in zip(inputs, detections):  # type: ignore
+        for inp, det, segm in zip(  # type: ignore
+            inputs, detections, segmentations
+        ):
             assert inp.metadata[0].size is not None
             input_size = (
                 inp.metadata[0].size.width,
                 inp.metadata[0].size.height,
             )
-            self.postprocess(input_size, inp.images.image_sizes[0], det)
+            self.postprocess(input_size, inp.images.image_sizes[0], det, segm)
 
-        return dict(
+        outputs = dict(
             detect=[d.to_scalabel(self.cat_mapping) for d in detections]
         )
+        if self.with_mask:
+            outputs.update(
+                segment=[
+                    s.to_scalabel(self.cat_mapping) for s in segmentations
+                ]
+            )
+        return outputs
 
     def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.
@@ -156,7 +169,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         is_training = self.d2_detector.roi_heads.training
         if self.training:
             targets: Optional[List[Instances]] = target_to_instance(
-                inputs.boxes2d, inputs.images.image_sizes
+                inputs.boxes2d, inputs.images.image_sizes, inputs.bitmasks
             )
         else:
             targets = None
@@ -170,10 +183,15 @@ class D2TwoStageDetector(BaseTwoStageDetector):
                 targets,
             )
         self.d2_detector.roi_heads.training = is_training
+        segmentations = None
         if not self.d2_detector.training:
+            if self.with_mask:
+                segmentations = segmentations_to_bitmask(detections)
             detections = detections_to_box2d(detections)
         elif compute_detections:
+            if compute_segmentations:
+                segmentations = segmentations_to_bitmask(detections)
             detections = proposal_to_box2d(detections)  # pragma: no cover
         else:
             detections = None
-        return detections, detect_losses, None
+        return detections, detect_losses, segmentations

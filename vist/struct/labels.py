@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
+from detectron2.layers.mask_ops import _do_paste_mask
 from mmcv.ops.roi_align import roi_align
 from pycocotools import mask as mask_utils
 from scalabel.label.transforms import mask_to_box2d, poly2ds_to_mask
@@ -16,6 +17,8 @@ from ..common.geometry.rotation import (
 from .data import Extrinsics
 from .structures import DataInstance, LabelInstance, NDArrayUI8
 
+BYTES_PER_FLOAT = 4
+GPU_MEM_LIMIT = 1024 ** 3  # 1 GB memory limit
 TBoxes = TypeVar("TBoxes", bound="Boxes")
 
 
@@ -416,7 +419,7 @@ class Boxes3D(Boxes, LabelInstance):
 class Bitmasks(LabelInstance):
     """Container class for bitmasks.
 
-    masks: torch.FloatTensor: (N, H, W) where each entry is a binary mask
+    masks: torch.ByteTensor: (N, H, W) where each entry is a binary mask
     class_ids: torch.LongTensor: (N,) where each entry is the class id of
     the respective box.
     track_ids: torch.LongTensor (N,) where each entry is the track id of
@@ -506,6 +509,77 @@ class Bitmasks(LabelInstance):
         else:
             resized_masks = []
         return type(self)(resized_masks)
+
+    def paste_masks_in_image(
+        self,
+        boxes: Boxes2D,
+        image_shape: Tuple[int, int],
+        threshold: float = 0.5,
+    ) -> None:
+        """Paste masks that are of a fixed resolution into an image.
+
+        This implementation is modified from
+        https://github.com/facebookresearch/detectron2/
+        """
+        assert (
+            self.masks.shape[-1] == self.masks.shape[-2]
+        ), "Only square mask predictions are supported"
+        num_masks = len(self.masks)
+        if num_masks == 0:
+            return
+        assert len(boxes) == num_masks, boxes.boxes.shape
+
+        img_w, img_h = image_shape
+
+        # The actual implementation split the input into chunks,
+        # and paste them chunk by chunk.
+        if self.device.type == "cpu":
+            # CPU is most efficient when they are pasted one by one with
+            # skip_empty=True so that it performs minimal number of operations.
+            num_chunks = num_masks
+        else:
+            # GPU benefits from parallelism for larger chunks, but may have
+            # memory issue int(img_h) because shape may be tensors in tracing
+            num_chunks = int(
+                np.ceil(
+                    num_masks
+                    * int(img_h)
+                    * int(img_w)
+                    * BYTES_PER_FLOAT
+                    / GPU_MEM_LIMIT
+                )
+            )
+            assert (
+                num_chunks <= num_masks
+            ), "Default GPU_MEM_LIMIT is too small; try increasing it"
+        chunks = torch.chunk(
+            torch.arange(num_masks, device=self.device), num_chunks
+        )
+
+        img_masks = torch.zeros(
+            num_masks,
+            img_h,
+            img_w,
+            device=self.device,
+            dtype=torch.bool if threshold >= 0 else torch.uint8,
+        )
+        for inds in chunks:
+            masks_chunk, spatial_inds = _do_paste_mask(
+                self.masks[inds, None, :, :],
+                boxes.boxes[inds, :4],
+                img_h,
+                img_w,
+                skip_empty=self.device.type == "cpu",
+            )
+
+            if threshold >= 0:
+                masks_chunk = (masks_chunk >= threshold).to(dtype=torch.bool)
+            else:
+                # for visualization and debugging
+                masks_chunk = (masks_chunk * 255).to(dtype=torch.uint8)
+
+            img_masks[(inds,) + spatial_inds] = masks_chunk
+        self.masks = img_masks.type(torch.uint8)
 
     def __getitem__(self: "Bitmasks", item) -> "Bitmasks":  # type: ignore
         """Shadows tensor based indexing while returning new Bitmasks."""
