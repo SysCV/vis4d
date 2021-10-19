@@ -95,8 +95,5 @@ class TestUtils(unittest.TestCase):
             [9.0, 9.0, 12.0],
             [11.0, 9.0, 12.0],
         ]
-        corners = box3d_to_corners([10, 10, 10, 2, 2, 4, math.pi / 2])
-        self.assertTrue((corners == box_corners).all())
-
         corners = box3d_to_corners([10, 10, 10, 2, 2, 4, 0, math.pi / 2, 0])
         self.assertTrue((corners == box_corners).all())

@@ -35,7 +35,7 @@ class InputSample:
 
         if boxes3d is None:
             boxes3d = [
-                Boxes3D(torch.empty(0, 8), torch.empty(0), torch.empty(0))
+                Boxes3D(torch.empty(0, 10), torch.empty(0), torch.empty(0))
                 for _ in range(len(images))
             ]
         self.boxes3d: Sequence[Boxes3D] = boxes3d

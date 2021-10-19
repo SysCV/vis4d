@@ -2,12 +2,12 @@
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import torch
-from kornia.geometry.conversions import (
-    angle_axis_to_rotation_matrix,
-    rotation_matrix_to_angle_axis,
-)
 from scalabel.label.typing import Box2D, Box3D, Label
 
+from ..common.geometry.rotation import (
+    euler_angles_to_matrix,
+    matrix_to_euler_angles,
+)
 from .data import Extrinsics
 from .structures import DataInstance, LabelInstance
 
@@ -253,15 +253,14 @@ class Boxes2D(Boxes, LabelInstance):
 class Boxes3D(Boxes, LabelInstance):
     """Container class for 3D boxes.
 
-    boxes: torch.FloatTensor: (N, [7, 8]) where each entry is defined as
-    [x, y, z, h, w, l, ry, Optional[score]] or (N, [9, 10]) where each entry
-    is defined by [x, y, z, h, w, l, rx, ry, rz, Optional[score]].
+    boxes: torch.FloatTensor: (N, [9, 10]) where each entry is defined by
+    [x, y, z, h, w, l, rx, ry, rz, Optional[score]].
     class_ids: torch.LongTensor: (N,) where each entry is the class id of
     the respective box.
     track_ids: torch.LongTensor (N,) where each entry is the track id of
     the respective box.
 
-    x,y,z are in OpenCV camera coordinate system. l, h, w, are the 3D box
+    x,y,z are in OpenCV camera coordinate system. h, w, l are the 3D box
     dimensions and correspond to their respective axis (length first (x),
     height second (y), width last (z). The rotations are axis angles w.r.t.
     each axis (x,y,z).
@@ -270,8 +269,6 @@ class Boxes3D(Boxes, LabelInstance):
     @property
     def score(self) -> Optional[torch.Tensor]:
         """Return scores of 3D bounding boxes as tensor."""
-        if not self.boxes.shape[-1] in [8, 10]:
-            return None
         return self.boxes[:, -1]
 
     @property
@@ -287,23 +284,22 @@ class Boxes3D(Boxes, LabelInstance):
     @property
     def rot_x(self) -> Optional[torch.Tensor]:
         """Return rotation in x direction of 3D bounding boxes as tensor."""
-        if self.boxes.shape[-1] in [7, 8]:
-            return None
         return self.boxes[:, 6]
 
     @property
     def rot_y(self) -> torch.Tensor:
         """Return rotation in y direction of 3D bounding boxes as tensor."""
-        if self.boxes.shape[-1] in [7, 8]:
-            return self.boxes[:, 6]
         return self.boxes[:, 7]
 
     @property
     def rot_z(self) -> Optional[torch.Tensor]:
         """Return rotation in z direction of 3D bounding boxes as tensor."""
-        if self.boxes.shape[-1] in [7, 8]:
-            return None
         return self.boxes[:, 8]
+
+    @property
+    def orientation(self) -> Optional[torch.Tensor]:
+        """Return full orientation of 3D bounding boxes as tensor."""
+        return self.boxes[:, 6:9]
 
     @classmethod
     def from_scalabel(
@@ -356,22 +352,13 @@ class Boxes3D(Boxes, LabelInstance):
             else:
                 label_id = str(i)
 
-            if self.boxes.shape[-1] < 9:
-                rx = 0.0
-                ry = float(self.boxes[i, 6])
-                rz = 0.0
-                if self.boxes.shape[-1] == 8:
-                    score: Optional[float] = float(self.boxes[i, 7])
-                else:
-                    score = None
+            rx = float(self.boxes[i, 6])
+            ry = float(self.boxes[i, 7])
+            rz = float(self.boxes[i, 8])
+            if self.boxes.shape[-1] == 10:
+                score: Optional[float] = float(self.boxes[i, 9])
             else:
-                rx = float(self.boxes[i, 6])
-                ry = float(self.boxes[i, 7])
-                rz = float(self.boxes[i, 8])
-                if self.boxes.shape[-1] == 10:
-                    score = float(self.boxes[i, 9])
-                else:
-                    score = None
+                score = None
 
             box = Box3D(
                 location=[
@@ -398,7 +385,7 @@ class Boxes3D(Boxes, LabelInstance):
 
         return labels
 
-    def transfrom(self, extrinsics: Extrinsics) -> None:
+    def transform(self, extrinsics: Extrinsics) -> None:
         """Transform Boxes3D with given Extrinsics.
 
         Note: Mutates current Boxes3D.
@@ -408,30 +395,12 @@ class Boxes3D(Boxes, LabelInstance):
                 f"Expected single Extrinsics but got len {len(extrinsics)}!"
             )
 
-        center_hom = torch.cat(
+        center = torch.cat(
             [self.center, torch.ones_like(self.boxes[:, 0:1])], -1
         )
-        self.boxes[:, :3] = torch.matmul(
-            center_hom, extrinsics.transpose().tensor[0]
-        )[:, :3]
-
-        rot_x = (
-            self.rot_x
-            if self.rot_x is not None
-            else torch.zeros_like(self.rot_y)
-        )
-        rot_z = (
-            self.rot_z
-            if self.rot_z is not None
-            else torch.zeros_like(self.rot_y)
-        )
-        angles = torch.stack([rot_x, self.rot_y, rot_z], -1)
-        boxes_rotation = angle_axis_to_rotation_matrix(angles)
-        rotation = torch.matmul(
-            extrinsics.rotation,
-            boxes_rotation,
-        )
-        if self.boxes.shape[-1] < 9:
-            self.boxes[:, 6] = rotation_matrix_to_angle_axis(rotation)[:, 1]
-        else:
-            self.boxes[:, 6:9] = rotation_matrix_to_angle_axis(rotation)
+        self.boxes[:, :3] = (center @ extrinsics.transpose().tensor[0])[:, :3]
+        angles = torch.stack([self.rot_x, self.rot_y, self.rot_z], -1)
+        rot = extrinsics.rotation @ euler_angles_to_matrix(angles)
+        # we use XZY convention here, since Z usually points up, but we assume
+        # OpenCV cam coordinates (Y points down).
+        self.boxes[:, 6:9] = matrix_to_euler_angles(rot, "XZY")[:, [0, 2, 1]]
