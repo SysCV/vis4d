@@ -3,19 +3,11 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
 import torch
-<<<<<<< HEAD
 import torch.nn.functional as F
-from kornia.geometry.conversions import (
-    angle_axis_to_rotation_matrix,
-    rotation_matrix_to_angle_axis,
-)
 from mmcv.ops.roi_align import roi_align
 from pycocotools import mask as mask_utils
 from scalabel.label.transforms import mask_to_box2d, poly2ds_to_mask
 from scalabel.label.typing import Box2D, Box3D, ImageSize, Label
-=======
-from scalabel.label.typing import Box2D, Box3D, Label
->>>>>>> multi-sensor
 
 from ..common.geometry.rotation import (
     euler_angles_to_matrix,
