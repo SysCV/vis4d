@@ -13,7 +13,10 @@ class BaseOptimizerConfig(BaseModel):
 
     type: str = "SGD"
     lr: float = 1.0e-3
-    kwargs: Dict[str, Union[float, bool]] = {"momentum": 0.9}
+    kwargs: Dict[str, Union[float, bool]] = {
+        "momentum": 0.9,
+        "weight_decay": 0.0001,
+    }
 
 
 class BaseOptimizer(optim.Optimizer, metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long

@@ -9,7 +9,7 @@ category_mapping = {"car" = 0, "truck" = 1, "bus" = 2, "trailer" = 3, "construct
     [model.optimizer]
     type = "SGD"
     lr = 0.005
-    kwargs = {"momentum" = 0.9}
+    kwargs = {"momentum" = 0.9, "weight_decay" = 0.0001}
 
     [model.lr_scheduler]
     type = "MultiStepLR"

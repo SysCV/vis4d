@@ -3,6 +3,7 @@ import functools
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 
 def normalize_angle(input_angles: torch.Tensor) -> torch.Tensor:
@@ -11,7 +12,7 @@ def normalize_angle(input_angles: torch.Tensor) -> torch.Tensor:
 
 
 def yaw2alpha(rot_y: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
-    """Get alpha by rotation_y - theta.
+    """Get alpha by vertical rotation - theta.
 
     Args:
         rot_y: Rotation around Y-axis in camera coordinates [-pi..pi]
@@ -25,14 +26,14 @@ def yaw2alpha(rot_y: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
 
 
 def alpha2yaw(alpha: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
-    """Get rotation_y by alpha + theta.
+    """Get vertical rotation by alpha + theta.
 
     Args:
         alpha: Observation angle of object, ranging [-pi..pi]
         center: 3D object center in camera coordinates
 
     Returns:
-        rot_y: Rotation around Y-axis in camera coordinates [-pi..pi]
+        rot_y: Vertical rotation in camera coordinates [-pi..pi]
     """
     rot_y = alpha + torch.atan2(center[..., 0], center[..., 2])
     return normalize_angle(rot_y)
@@ -151,7 +152,7 @@ def euler_angles_to_matrix(
     return functools.reduce(torch.matmul, matrices)
 
 
-def _index_from_letter(letter: str) -> int:
+def _index_from_letter(letter: str) -> int:  # pragma: no cover
     """Retunr index from letter."""
     if letter == "X":
         return 0
@@ -243,3 +244,205 @@ def matrix_to_euler_angles(
         ),
     )
     return torch.stack(o, -1)
+
+
+def quaternion_to_matrix(quaternions: torch.Tensor) -> torch.Tensor:
+    """Convert rotations given as quaternions to rotation matrices.
+
+    Args:
+        quaternions: quaternions with real part first,
+            as tensor of shape (..., 4).
+
+    Returns:
+        Rotation matrices as tensor of shape (..., 3, 3).
+    """
+    r, i, j, k = torch.unbind(quaternions, -1)
+    two_s = 2.0 / (quaternions * quaternions).sum(-1)
+
+    o = torch.stack(
+        (
+            1 - two_s * (j * j + k * k),
+            two_s * (i * j - k * r),
+            two_s * (i * k + j * r),
+            two_s * (i * j + k * r),
+            1 - two_s * (i * i + k * k),
+            two_s * (j * k - i * r),
+            two_s * (i * k - j * r),
+            two_s * (j * k + i * r),
+            1 - two_s * (i * i + j * j),
+        ),
+        -1,
+    )
+    return o.reshape(quaternions.shape[:-1] + (3, 3))
+
+
+def _sqrt_positive_part(quat: torch.Tensor) -> torch.Tensor:
+    """Returns sqrt(max(0, x)) but with a zero subgradient where x is 0."""
+    ret = torch.zeros_like(quat)
+    positive_mask = quat > 0
+    ret[positive_mask] = torch.sqrt(quat[positive_mask])
+    return ret
+
+
+def matrix_to_quaternion(matrix: torch.Tensor) -> torch.Tensor:
+    """Convert rotations given as rotation matrices to quaternions.
+
+    Args:
+        matrix: Rotation matrices as tensor of shape (..., 3, 3).
+
+    Returns:
+        quaternions with real part first, as tensor of shape (..., 4).
+
+    Raises:
+        ValueError: If shape of input matrix is not correct.
+    """
+    if matrix.size(-1) != 3 or matrix.size(-2) != 3:
+        raise ValueError(f"Invalid rotation matrix shape {matrix.shape}.")
+
+    batch_dim = matrix.shape[:-2]
+    m00, m01, m02, m10, m11, m12, m20, m21, m22 = torch.unbind(
+        matrix.reshape(*batch_dim, 9), dim=-1
+    )
+
+    q_abs = _sqrt_positive_part(
+        torch.stack(
+            [
+                1.0 + m00 + m11 + m22,
+                1.0 + m00 - m11 - m22,
+                1.0 - m00 + m11 - m22,
+                1.0 - m00 - m11 + m22,
+            ],
+            dim=-1,
+        )
+    )
+
+    # we produce the desired quaternion multiplied by each of r, i, j, k
+    quat_by_rijk = torch.stack(
+        [
+            torch.stack(
+                [q_abs[..., 0] ** 2, m21 - m12, m02 - m20, m10 - m01], dim=-1
+            ),
+            torch.stack(
+                [m21 - m12, q_abs[..., 1] ** 2, m10 + m01, m02 + m20], dim=-1
+            ),
+            torch.stack(
+                [m02 - m20, m10 + m01, q_abs[..., 2] ** 2, m12 + m21], dim=-1
+            ),
+            torch.stack(
+                [m10 - m01, m20 + m02, m21 + m12, q_abs[..., 3] ** 2], dim=-1
+            ),
+        ],
+        dim=-2,
+    )
+
+    # We floor here at 0.1 but the exact level is not important; if q_abs is
+    # small, the candidate won't be picked.
+    quat_candidates = quat_by_rijk / (
+        2.0 * q_abs[..., None].max(q_abs.new_tensor(0.1))
+    )
+
+    # if not for numerical problems, quat_candidates[i] should be same
+    # (up to a sign), forall i; we pick the best-conditioned one
+    # (with the largest denominator)
+
+    return quat_candidates[
+        F.one_hot(q_abs.argmax(dim=-1), num_classes=4) > 0.5,
+        :,  # pyre-ignore[16]
+    ].reshape(*batch_dim, 4)
+
+
+def standardize_quaternion(quaternions: torch.Tensor) -> torch.Tensor:
+    """Convert a unit quaternion to a standard form.
+
+    Standard form: One in which the real part is non negative.
+
+    Args:
+        quaternions: Quaternions with real part first,
+            as tensor of shape (..., 4).
+
+    Returns:
+        Standardized quaternions as tensor of shape (..., 4).
+    """
+    return torch.where(quaternions[..., 0:1] < 0, -quaternions, quaternions)
+
+
+def quaternion_raw_multiply(
+    quat1: torch.Tensor, quat2: torch.Tensor
+) -> torch.Tensor:
+    """Multiply two quaternions.
+
+    Usual torch rules for broadcasting apply.
+
+    Args:
+        quat1: Quaternions as tensor of shape (..., 4), real part first.
+        quat2: Quaternions as tensor of shape (..., 4), real part first.
+
+    Returns:
+        The product of quat1 and quat2, tensor of quaternions shape (..., 4).
+    """
+    aw, ax, ay, az = torch.unbind(quat1, -1)
+    bw, bx, by, bz = torch.unbind(quat2, -1)
+    ow = aw * bw - ax * bx - ay * by - az * bz
+    ox = aw * bx + ax * bw + ay * bz - az * by
+    oy = aw * by - ax * bz + ay * bw + az * bx
+    oz = aw * bz + ax * by - ay * bx + az * bw
+    return torch.stack((ow, ox, oy, oz), -1)
+
+
+def quaternion_multiply(
+    quat1: torch.Tensor, quat2: torch.Tensor
+) -> torch.Tensor:
+    """Multiply two quaternions representing rotations.
+
+    Returns the quaternion representing their composition, i.e. the version
+    with nonnegative real part. Usual torch rules for broadcasting apply.
+
+    Args:
+        quat1: Quaternions as tensor of shape (..., 4), real part first.
+        quat2: Quaternions as tensor of shape (..., 4), real part first.
+
+    Returns:
+        The product of quat1 and quat2, tensor of quaternions shape (..., 4).
+    """
+    return standardize_quaternion(quaternion_raw_multiply(quat1, quat2))
+
+
+def quaternion_invert(quaternion: torch.Tensor) -> torch.Tensor:
+    """Return quaternion that represents inverse rotation.
+
+    Args:
+        quaternion: Quaternions as tensor of shape (..., 4), with real part
+            first, which must be versors (unit quaternions).
+
+    Returns:
+        The inverse, a tensor of quaternions of shape (..., 4).
+    """
+    return quaternion * quaternion.new_tensor([1, -1, -1, -1])
+
+
+def quaternion_apply(
+    quaternion: torch.Tensor, points: torch.Tensor
+) -> torch.Tensor:
+    """Apply the rotation given by a quaternion to a 3D point.
+
+    Usual torch rules for broadcasting apply.
+
+    Args:
+        quaternion: Tensor of quaternions, real part first, of shape (..., 4).
+        points: Tensor of 3D points of shape (..., 3).
+
+    Returns:
+        Tensor of rotated points of shape (..., 3).
+
+    Raises:
+        ValueError: If points is not a valid 3D point set.
+    """
+    if points.size(-1) != 3:
+        raise ValueError(f"Points are not in 3D, {points.shape}.")
+    real_parts = points.new_zeros(points.shape[:-1] + (1,))
+    point_as_quaternion = torch.cat((real_parts, points), -1)
+    out = quaternion_raw_multiply(
+        quaternion_raw_multiply(quaternion, point_as_quaternion),
+        quaternion_invert(quaternion),
+    )
+    return out[..., 1:]

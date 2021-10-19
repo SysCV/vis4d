@@ -399,8 +399,7 @@ class Boxes3D(Boxes, LabelInstance):
             [self.center, torch.ones_like(self.boxes[:, 0:1])], -1
         )
         self.boxes[:, :3] = (center @ extrinsics.transpose().tensor[0])[:, :3]
-        angles = torch.stack([self.rot_x, self.rot_y, self.rot_z], -1)
-        rot = extrinsics.rotation @ euler_angles_to_matrix(angles)
+        rot = extrinsics.rotation @ euler_angles_to_matrix(self.orientation)
         # we use XZY convention here, since Z usually points up, but we assume
         # OpenCV cam coordinates (Y points down).
         self.boxes[:, 6:9] = matrix_to_euler_angles(rot, "XZY")[:, [0, 2, 1]]
