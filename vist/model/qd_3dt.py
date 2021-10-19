@@ -126,7 +126,7 @@ class QD3DT(QDTrack):
 
         for idx, boxes3d in enumerate(boxes3d_list):
             assert isinstance(boxes3d, Boxes3D)
-            boxes3d.transfrom(
+            boxes3d.transform(
                 frames[idx].extrinsics @ group.extrinsics.inverse()
             )
         boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
@@ -148,6 +148,7 @@ class QD3DT(QDTrack):
                     class_ids_3d = torch.cat([class_ids_3d, track.class_ids])
                     track_ids_3d = torch.cat([track_ids_3d, track.track_ids])
 
+        # pylint: disable=no-member
         boxes_2d = boxes2d.to(torch.device("cpu")).to_scalabel(
             self.cat_mapping
         )

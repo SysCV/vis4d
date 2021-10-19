@@ -403,7 +403,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
             dev = boxes[0].device
             return [
                 Boxes3D(
-                    torch.empty(0, 8, device=dev),
+                    torch.empty(0, 10, device=dev),
                     torch.empty(0, device=dev),
                     torch.empty(0, device=dev),
                 )
