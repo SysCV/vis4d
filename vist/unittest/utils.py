@@ -79,7 +79,9 @@ def generate_masks(
         torch.uint8
     )
     tracks = torch.arange(0, num_masks) if track_ids else None
-    masks = Bitmasks(mask_tensor, torch.zeros(num_masks), tracks)
+    masks = Bitmasks(
+        mask_tensor, torch.zeros(num_masks), tracks, torch.rand(num_masks)
+    )
     torch.random.set_rng_state(state)
     return masks
 

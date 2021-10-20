@@ -236,9 +236,12 @@ class KorniaAugmentationWrapper(BaseAugmentation, metaclass=RegistryHolder):
         elif torch.sum(bprob) == len(bprob):
             _, trans_matrix = super().__call__(sample, parameters, training)
         else:
+            subsample = InputSample.cat(
+                [sample[i] for i, bp in enumerate(bprob) if bp]
+            )
             trans_matrix = identity_matrix(sample.images.tensor)
             _, trans_matrix[bprob] = super().__call__(
-                sample[bprob], parameters, training
+                subsample, parameters, training
             )
 
         return sample, trans_matrix

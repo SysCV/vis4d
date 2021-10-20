@@ -21,6 +21,11 @@ num_processes = 0
     type = "RandomHorizontalFlip"
     kwargs = {"p" = 0.5}
 
+    [[train.dataloader.transformations]]
+    type = "KorniaColorJitter"
+    kornia_type = "ColorJitter"
+    kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
+
 [[test]]
 name = "bdd100k_sample_val"
 type = "BDD100K"

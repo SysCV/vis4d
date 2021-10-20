@@ -210,7 +210,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 self.mm_detector.roi_head.test_cfg,
             )
             detections = detections_from_mmdet(bboxes, labels)
-            if compute_segmentations:
+            if compute_segmentations:  # pragma: no cover
                 masks = self.mm_detector.roi_head.simple_test_mask(
                     feat_list,
                     img_metas,

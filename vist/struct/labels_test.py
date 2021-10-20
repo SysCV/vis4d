@@ -293,6 +293,9 @@ class TestBitmasks(unittest.TestCase):
             self.assertTrue(
                 torch.isclose(segm.track_ids.long(), segm_new.track_ids).all()
             )
+            self.assertTrue(
+                torch.isclose(segm.scores.float(), segm_new.scores).all()
+            )
 
         segms_new.track_ids = None
         segms_without_tracks = segms_new.to_scalabel(idx_to_class)
@@ -305,6 +308,7 @@ class TestBitmasks(unittest.TestCase):
             )
         )
 
+        segmentations.scores = None
         scalabel_segms_no_score = segmentations.to_scalabel(idx_to_class)
         self.assertTrue(all(d.score is None for d in scalabel_segms_no_score))
 
@@ -337,9 +341,27 @@ class TestBitmasks(unittest.TestCase):
         out_h, out_w = 64, 32
         segmentations = generate_masks(h, w, num_masks, track_ids=True)
         detections = generate_dets(h, w, num_dets, track_ids=True)
-        segmentations = segmentations.crop_and_resize(
+        segm_crops = segmentations.crop_and_resize(
             detections.boxes[:, :-1], (out_h, out_w), torch.arange(num_masks)
         )
-        self.assertEqual(len(segmentations.masks), num_dets)
-        self.assertEqual(segmentations.masks.size(1), out_h)
-        self.assertEqual(segmentations.masks.size(2), out_w)
+        self.assertEqual(len(segm_crops.masks), num_dets)
+        self.assertEqual(segm_crops.masks.size(1), out_h)
+        self.assertEqual(segm_crops.masks.size(2), out_w)
+        segm_crops = segmentations.crop_and_resize(
+            detections.boxes[:, :-1],
+            (out_h, out_w),
+            torch.arange(num_masks),
+            binarize=False,
+        )
+        self.assertEqual(len(segm_crops.masks), num_dets)
+        self.assertEqual(segm_crops.masks.size(1), out_h)
+        self.assertEqual(segm_crops.masks.size(2), out_w)
+
+    def test_paste_masks_in_image(self) -> None:
+        """Testcase for pasting masks in image."""
+        h, w, num_masks, num_dets = 28, 28, 5, 5
+        out_h, out_w = 64, 32
+        segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        detections = generate_dets(h, w, num_dets, track_ids=True)
+        segmentations.paste_masks_in_image(detections, (out_w, out_h))
+        self.assertEqual(segmentations.size, (out_w, out_h))

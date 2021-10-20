@@ -1,5 +1,5 @@
 """Utilities for augmentation."""
-from typing import Tuple, Union
+from typing import Sequence, Tuple, Union
 
 import torch
 from torch.distributions import Bernoulli
@@ -13,7 +13,7 @@ def identity_matrix(inputs: torch.Tensor) -> torch.Tensor:
 
 
 def adapted_sampling(
-    shape: Union[Tuple, torch.Size],  # type: ignore
+    shape: Union[Sequence[int], torch.Size],
     dist: torch.distributions.Distribution,
     same_on_batch: bool = False,
 ) -> torch.Tensor:

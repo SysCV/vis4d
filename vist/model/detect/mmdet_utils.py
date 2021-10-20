@@ -110,7 +110,7 @@ def detection_from_mmdet_results(
 
 
 def segmentation_from_mmdet_results(
-    segmentation: MMSegmResult, device: torch.device
+    segmentation: MMSegmResult, boxes: Boxes2D, device: torch.device
 ) -> Bitmasks:
     """Convert segm_result to VisT format."""
     segms = [np.stack(segm) for segm in segmentation if len(segm) != 0]
@@ -125,8 +125,9 @@ def segmentation_from_mmdet_results(
         torch.full((len(segm),), i, dtype=torch.int32, device=device)
         for i, segm in enumerate(segmentation)
     ]
+    scores = boxes.boxes[:, -1]
     labels = torch.cat(labels)
-    return Bitmasks(masks, labels)
+    return Bitmasks(masks, labels, scores=scores)
 
 
 def results_from_mmdet(
@@ -137,13 +138,17 @@ def results_from_mmdet(
     for result in results:
         if with_mask:
             detection, segmentation = result
-            bitmask = segmentation_from_mmdet_results(segmentation, device)
-            results_bitmasks.append(bitmask)
         else:
             detection = result
-            results_bitmasks.append(None)  # type: ignore
         box2d = detection_from_mmdet_results(detection, device)
         results_boxes2d.append(box2d)
+        if with_mask:
+            bitmask = segmentation_from_mmdet_results(
+                segmentation, box2d, device
+            )
+            results_bitmasks.append(bitmask)
+        else:
+            results_bitmasks.append(None)  # type: ignore
     return results_boxes2d, results_bitmasks
 
 
