@@ -3,8 +3,7 @@ from typing import List
 
 import torch
 
-from vist.struct import Boxes3D, InputSample, LossesType, ModelOutput
-
+from ..struct import Boxes2D, Boxes3D, InputSample, LossesType, ModelOutput
 from .base import BaseModelConfig
 from .detect.roi_head import BaseRoIHeadConfig, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
@@ -24,8 +23,11 @@ class QD3DT(QDTrack):
         """Init."""
         super().__init__(cfg)
         self.cfg = QD3DTConfig(**cfg.dict())
+        assert self.cfg.category_mapping is not None
+        self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)  # type: ignore # pylint: disable=line-too-long
         self.bbox_3d_head = build_roi_head(self.cfg.bbox_3d_head)
         self.track_graph = build_track_graph(self.cfg.track_graph)
+        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
 
     def forward_train(
         self,
@@ -45,7 +47,7 @@ class QD3DT(QDTrack):
 
         # 3d bbox head
         loss_bbox_3d, _ = self.bbox_3d_head.forward_train(
-            key_inputs, key_x, key_proposals
+            key_inputs, key_proposals, key_x
         )
 
         # bbox head
@@ -78,65 +80,84 @@ class QD3DT(QDTrack):
         batch_inputs: List[List[InputSample]],
     ) -> ModelOutput:
         """Compute qd-3dt output during inference."""
-        assert len(batch_inputs) == 1, "No reference views during test!"
-        raw_inputs = [inp[0] for inp in batch_inputs]
-        assert len(raw_inputs) == 1, "Currently only BS = 1 supported!"
-        inputs = self.detector.preprocess_inputs(raw_inputs)
+        assert len(batch_inputs) == 1, "Currently only BS = 1 supported!"
+
+        # if there is more than one InputSample per batch element, we switch
+        # to multi-sensor mode: 1st elem is group, rest are sensor frames
+        group = batch_inputs[0][0].to(self.device)
+        if len(batch_inputs[0]) > 1:
+            frames = batch_inputs[0][1:]
+        else:
+            frames = batch_inputs[0]
 
         # init graph at begin of sequence
-        frame_id = inputs.metadata[0].frameIndex
+        frame_id = group.metadata[0].frameIndex
         if frame_id == 0:
             self.track_graph.reset()
 
-        # Detector
+        # detector
+        inputs = self.detector.preprocess_inputs(frames)
         feat = self.detector.extract_features(inputs)
         proposals, _ = self.detector.generate_proposals(inputs, feat)
 
-        bbox_2d_preds, _ = self.detector.generate_detections(
+        boxes2d_list, _ = self.detector.generate_detections(
             inputs, feat, proposals
         )
-        assert bbox_2d_preds is not None
 
-        bbox_3d_preds = self.bbox_3d_head.forward_test(
-            inputs,
-            feat,
-            bbox_2d_preds,
-        )[0]
-        assert isinstance(bbox_3d_preds, Boxes3D)
+        # 3d head
+        boxes3d_list = self.bbox_3d_head.forward_test(
+            inputs, boxes2d_list, feat
+        )
 
         # similarity head
-        embeddings = self.similarity_head.forward_test(
-            inputs, feat, bbox_2d_preds
+        embeddings_list = self.similarity_head.forward_test(
+            inputs, feat, boxes2d_list
         )
-        assert inputs.metadata[0].size is not None
-        input_size = (
-            inputs[0].metadata[0].size.width,
-            inputs[0].metadata[0].size.height,
-        )
-        self.postprocess(
-            input_size, inputs.images.image_sizes[0], bbox_2d_preds[0]
-        )
+
+        for inp, boxes2d in zip(inputs, boxes2d_list):
+            assert inp.metadata[0].size is not None
+            input_size = (
+                inp.metadata[0].size.width,
+                inp.metadata[0].size.height,
+            )
+            self.postprocess(input_size, inp.images.image_sizes[0], boxes2d)
+
+        boxes2d = Boxes2D.merge(boxes2d_list)
+
+        for idx, boxes3d in enumerate(boxes3d_list):
+            assert isinstance(boxes3d, Boxes3D)
+            boxes3d.transform(
+                frames[idx].extrinsics @ group.extrinsics.inverse()
+            )
+        boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
+
+        embeddings = torch.cat(embeddings_list)
 
         # associate detections, update graph
-        tracks_2d = self.track_graph(bbox_2d_preds[0], frame_id, embeddings[0])
+        tracks2d = self.track_graph(boxes2d, frame_id, embeddings)
 
-        boxes_3d = []
-        for i in range(len(tracks_2d)):
-            for j in range(len(bbox_2d_preds[0])):
-                if torch.equal(tracks_2d.boxes[i], bbox_2d_preds[0].boxes[j]):
-                    boxes_3d.append(bbox_3d_preds[j].boxes)
-
-        boxes_3d = (
-            torch.cat(boxes_3d)
-            if len(boxes_3d) > 0
-            else torch.empty(
-                (0, bbox_3d_preds.boxes.shape[1]),
-                device=bbox_3d_preds.device,
-            )
+        boxes_3d = torch.empty(
+            (0, boxes3d.boxes.shape[1]), device=boxes3d.device
         )
+        class_ids_3d = torch.empty((0), device=boxes3d.device)
+        track_ids_3d = torch.empty((0), device=boxes3d.device)
+        for track in tracks2d:
+            for i, box in enumerate(boxes2d):
+                if torch.equal(track.boxes, box.boxes):
+                    boxes_3d = torch.cat([boxes_3d, boxes3d[i].boxes])
+                    class_ids_3d = torch.cat([class_ids_3d, track.class_ids])
+                    track_ids_3d = torch.cat([track_ids_3d, track.track_ids])
 
-        tracks_3d = Boxes3D(boxes_3d, tracks_2d.class_ids, tracks_2d.track_ids)
-
-        return dict(
-            detect=bbox_2d_preds, track=[tracks_2d], track_3d=[tracks_3d]
+        # pylint: disable=no-member
+        boxes_2d = boxes2d.to(torch.device("cpu")).to_scalabel(
+            self.cat_mapping
         )
+        tracks_2d = tracks2d.to(torch.device("cpu")).to_scalabel(
+            self.cat_mapping
+        )
+        tracks_3d = (
+            Boxes3D(boxes_3d, class_ids_3d, track_ids_3d)
+            .to(torch.device("cpu"))
+            .to_scalabel(self.cat_mapping)
+        )
+        return dict(detect=[boxes_2d], track=[tracks_2d], track_3d=[tracks_3d])

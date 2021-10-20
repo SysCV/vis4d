@@ -123,11 +123,11 @@ class Resize(BaseAugmentation):
         return output
 
     def inverse_transform(
-            self,
-            inputs: torch.Tensor,
-            transform: Optional[torch.Tensor] = None,
-            size: Optional[Tuple[int, int]] = None,
-            **kwargs: DictStrAny,
+        self,
+        inputs: torch.Tensor,
+        transform: Optional[torch.Tensor] = None,
+        size: Optional[Tuple[int, int]] = None,
+        **kwargs: DictStrAny,
     ) -> torch.Tensor:
         """Apply inverse of transform given input and transform parameters."""
         raise NotImplementedError

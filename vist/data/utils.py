@@ -1,5 +1,7 @@
 """data utils."""
+import copy
 import itertools
+import pickle
 import sys
 from collections import defaultdict
 from io import BytesIO
@@ -137,14 +139,13 @@ def prepare_labels(
                     attr["instance_id"] = instance_ids[video_name].index(
                         label.id
                     )
-
                 label.attributes = attr
 
     if global_instance_ids:
         instance_ids_to_global(frames, instance_ids)
 
     rank_zero_info(
-        f"Preprocessing {len(frames)} labels takes {timer.time():.2f} seconds."
+        f"Preprocessing {len(frames)} frames takes {timer.time():.2f} seconds."
     )
     return frequencies
 
@@ -208,3 +209,116 @@ def print_class_histogram(class_frequencies: Dict[str, int]) -> None:
         f"Distribution of instances among all {num_classes} categories:\n"
         + colored(table, "cyan")
     )
+
+
+def check_attributes(
+    frame_attributes: Union[bool, float, str],
+    allowed_attributes: Union[bool, float, str, List[float], List[str]],
+) -> bool:
+    """Check if attributes for current frame are allowed.
+
+    Args:
+        frame_attributes: Attributes of current frame.
+        allowed_attributes: Attributes allowed.
+
+    Returns:
+        boolean, whether frame attributes are allowed.
+    """
+    if isinstance(allowed_attributes, list):
+        # assert frame_attributes not in allowed_attributes
+        return frame_attributes in allowed_attributes
+    return frame_attributes == allowed_attributes
+
+
+def filter_attributes(
+    frames: List[Frame],
+    attributes_dict: Optional[
+        Dict[str, Union[bool, float, str, List[float], List[str]]]
+    ],
+) -> List[Frame]:
+    """Filter samples according to allowed attributes.
+
+    Args:
+        frames: A list of Frame instances to filter.
+        attributes_dict: Dictionary of allowed attributes. Each dictionary
+            entry contains all allowed attributes for that key.
+
+    Returns:
+        A list of filtered Frame instances.
+
+    Raises:
+        ValueError: If the filtering removes all frames, we throw an error.
+    """
+    if attributes_dict:
+        for attributes_key in attributes_dict:
+            attributes = attributes_dict[attributes_key]
+            frames = [
+                f
+                for f in frames
+                if f.attributes
+                and check_attributes(f.attributes[attributes_key], attributes)
+            ]
+        if len(frames) == 0:
+            raise ValueError("Dataset empty after filtering by attributes!")
+    return frames
+
+
+# reference:
+# https://github.com/facebookresearch/detectron2/blob/7f8f29deae278b75625872c8a0b00b74129446ac/detectron2/data/common.py#L109
+class DatasetFromList(torch.utils.data.Dataset):  # type: ignore
+    """Wrap a list to a torch Dataset.
+
+    We serialize and wrap big python objects in a torch.Dataset due to a
+    memory leak when dealing with large python objects using multiple workers.
+    See: https://github.com/pytorch/pytorch/issues/13246
+    """
+
+    def __init__(  # type: ignore
+        self, lst: List[Any], deepcopy: bool = False, serialize: bool = True
+    ):
+        """Init.
+
+        Args:
+            lst: a list which contains elements to produce.
+            deepcopy: whether to deepcopy the element when producing it, s.t.
+            the result can be modified in place without affecting the source
+            in the list.
+            serialize: whether to hold memory using serialized objects. When
+            enabled, data loader workers can use shared RAM from master
+            process instead of making a copy.
+        """
+        self._copy = deepcopy
+        self._serialize = serialize
+
+        def _serialize(data: Any) -> NDArrayUI8:  # type: ignore
+            """Serialize python object to numpy array."""
+            buffer = pickle.dumps(data, protocol=-1)
+            return np.frombuffer(buffer, dtype=np.uint8)  # type: ignore
+
+        if self._serialize:
+            self._lst = [_serialize(x) for x in lst]
+            self._addr = np.asarray(
+                [len(x) for x in self._lst], dtype=np.int64
+            )
+            self._addr = np.cumsum(self._addr)
+            self._lst = np.concatenate(self._lst)  # type: ignore
+        else:
+            self._lst = lst  # pragma: no cover
+
+    def __len__(self) -> int:
+        """Return len of list."""
+        if self._serialize:
+            return len(self._addr)
+        return len(self._lst)  # pragma: no cover
+
+    def __getitem__(self, idx: int) -> Any:  # type: ignore
+        """Return item of list at idx."""
+        if self._serialize:
+            start_addr = 0 if idx == 0 else self._addr[idx - 1].item()
+            end_addr = self._addr[idx].item()
+            bytes_ = memoryview(self._lst[start_addr:end_addr])  # type: ignore
+            return pickle.loads(bytes_)
+        if self._copy:  # pragma: no cover
+            return copy.deepcopy(self._lst[idx])
+
+        return self._lst[idx]  # pragma: no cover

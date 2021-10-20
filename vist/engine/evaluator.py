@@ -6,7 +6,6 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 import pytorch_lightning as pl
-import torch
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from scalabel.common import mute
@@ -17,7 +16,7 @@ from scalabel.label.io import group_and_sort, save
 from scalabel.label.typing import Config, Frame
 
 from ..data.datasets import BaseDatasetLoader
-from ..struct import InputSample, LabelInstance, ModelOutput
+from ..struct import InputSample, ModelOutput
 from .utils import all_gather_gts, all_gather_predictions
 
 mute(True)  # turn off undesired logs during eval
@@ -58,7 +57,7 @@ class VisTEvaluatorCallback(Callback):
     evaluation results in 'evaluate'.
     """
 
-    def __init__(self, collect: str = "cpu") -> None:
+    def __init__(self, dataloader_idx: int, collect: str = "cpu") -> None:
         """Init class."""
         assert collect in ["cpu", "gpu"], f"Collect arg {collect} unknown."
         self._predictions: Dict[str, List[Frame]] = defaultdict(list)
@@ -66,6 +65,7 @@ class VisTEvaluatorCallback(Callback):
         self.logger: Optional[pl.loggers.LightningLoggerBase] = None
         self.logging_disabled = False
         self.collect = collect
+        self.dataloader_idx = dataloader_idx
 
     def reset(self) -> None:
         """Preparation for a new round of evaluation."""
@@ -132,7 +132,8 @@ class VisTEvaluatorCallback(Callback):
         dataloader_idx: int,
     ) -> None:
         """Wait for on_test_batch_end PL hook to call 'process'."""
-        self.process(batch, outputs)  # type: ignore
+        if dataloader_idx == self.dataloader_idx:
+            self.process(batch, outputs)  # type: ignore
 
     def on_validation_batch_end(  # type: ignore
         self,
@@ -144,7 +145,8 @@ class VisTEvaluatorCallback(Callback):
         dataloader_idx: int,
     ) -> None:
         """Wait for on_validation_batch_end PL hook to call 'process'."""
-        self.process(batch, outputs)  # type: ignore
+        if dataloader_idx == self.dataloader_idx:
+            self.process(batch, outputs)  # type: ignore
 
     def on_sanity_check_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -164,15 +166,14 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
 
     def __init__(
         self,
+        dataloader_idx: int,
         dataset_loader: BaseDatasetLoader,
-        category_mapping: Dict[str, int],
         output_dir: Optional[str] = None,
     ) -> None:
         """Init."""
-        super().__init__(dataset_loader.cfg.collect_device)
+        super().__init__(dataloader_idx, dataset_loader.cfg.collect_device)
         self.output_dir = output_dir
         self.ignore_unknown_cats = dataset_loader.cfg.ignore_unkown_cats
-        self.cats_id2name = {v: k for k, v in category_mapping.items()}
         self.name = dataset_loader.cfg.name
         self.dataset_config = dataset_loader.metadata_cfg
 
@@ -191,15 +192,13 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):
                 prediction = copy.deepcopy(inp[0].metadata[0])
-                out_cpu = out.to(torch.device("cpu"))
-                assert isinstance(out_cpu, LabelInstance)
-                prediction.labels = out_cpu.to_scalabel(self.cats_id2name)
+                prediction.labels = out
                 self._predictions[key].append(prediction)
 
     def evaluate(self, epoch: int) -> Dict[str, Result]:
         """Evaluate the performance after processing all input/output pairs."""
         results = {}
-        if not self.logging_disabled:
+        if not self.logging_disabled and len(self.metrics) > 0:
             logger.info("Running evaluation on dataset %s...", self.name)
         for key, predictions in self._predictions.items():
             if self.output_dir:

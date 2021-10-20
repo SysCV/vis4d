@@ -130,11 +130,13 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
                 box_deltas_[:, 6:-1], self.cfg.num_rotation_bins
             )
             rot_y = alpha2yaw(alpha, center_3d)
-            rot_y = rot_y.unsqueeze(-1)
+            orientation = torch.stack(
+                [torch.zeros_like(rot_y), rot_y, torch.zeros_like(rot_y)], -1
+            )
 
             boxes3d = Boxes3D(
                 torch.cat(
-                    [center_3d, dimensions, rot_y, depth_uncertainty], 1
+                    [center_3d, dimensions, orientation, depth_uncertainty], 1
                 ),
                 boxes_.class_ids,
             )

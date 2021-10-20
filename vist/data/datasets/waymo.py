@@ -1,8 +1,7 @@
-"""Load and convert bdd100k labels to scalabel format."""
-import inspect
+"""Load and convert waymo labels to scalabel format."""
 import os
 
-from scalabel.label.io import load, load_label_config, save
+from scalabel.label.io import load, save
 from scalabel.label.typing import Dataset
 
 from .base import BaseDatasetConfig, BaseDatasetLoader
@@ -40,13 +39,6 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
         assert (
             self.cfg.data_root == self.cfg.output_dir
         ), "Waymo requires conversion output path to be equal to data_root."
-        cfg_path = self.cfg.config_path
-        if cfg_path is None:
-            cfg_path = os.path.join(
-                os.path.dirname(os.path.abspath(inspect.stack()[1][1])),
-                "waymo.toml",
-            )
-        metadata_cfg = load_label_config(cfg_path)
 
         # cfg.annotations is the path to the label file in scalabel format.
         # It's an optional attribute. When passed, if the file exists load it,
@@ -60,20 +52,20 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
 
         if not os.path.exists(scalabel_anns_path):
             # Read labels from tfrecords and save them to scalabel format
-            frames = from_waymo(
+            dataset = from_waymo(
                 self.cfg.input_dir,
                 self.cfg.output_dir,
                 self.cfg.save_images,
                 self.cfg.use_lidar_labels,
                 self.cfg.num_processes,
             )
-            save(scalabel_anns_path, frames)
+            save(scalabel_anns_path, dataset)
         else:
             # Load labels from existing file
-            frames = load(
+            dataset = load(
                 scalabel_anns_path,
                 validate_frames=self.cfg.validate_frames,
                 nprocs=self.cfg.num_processes,
-            ).frames
+            )
 
-        return Dataset(frames=frames, config=metadata_cfg)
+        return dataset

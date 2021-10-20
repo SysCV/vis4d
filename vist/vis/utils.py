@@ -157,10 +157,7 @@ def box3d_to_corners(box3d: List[float]) -> NDArrayF64:
     """Convert Boxes3D style box to its respective corner points."""
     x_loc, y_loc, z_loc = box3d[:3]
     h, w, l = box3d[3:6]
-    if len(box3d) < 9:  # if 7 DoF box type
-        rx, ry, rz = 0.0, box3d[6], 0.0
-    else:
-        rx, ry, rz = box3d[6], box3d[7], box3d[8]
+    rx, ry, rz = box3d[6], box3d[7], box3d[8]
 
     x_corners = np.array(
         [

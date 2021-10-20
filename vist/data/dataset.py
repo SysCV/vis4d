@@ -1,4 +1,4 @@
-"""Dataset mapper in vist."""
+"""Class for processing Scalabel type datasets."""
 import copy
 import random
 from collections import defaultdict
@@ -11,7 +11,7 @@ from pytorch_lightning.utilities.distributed import (
     rank_zero_warn,
 )
 from scalabel.label.typing import Extrinsics as ScalabelExtrinsics
-from scalabel.label.typing import Frame, ImageSize
+from scalabel.label.typing import Frame, FrameGroup, ImageSize
 from scalabel.label.typing import Intrinsics as ScalabelIntrinsics
 from scalabel.label.typing import Label
 from scalabel.label.utils import (
@@ -37,7 +37,9 @@ from ..struct import (
 from .datasets import BaseDatasetLoader
 from .transforms import AugParams, build_augmentations
 from .utils import (
+    DatasetFromList,
     discard_labels_outside_set,
+    filter_attributes,
     im_decode,
     prepare_labels,
     print_class_histogram,
@@ -76,13 +78,17 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         for field in self.cfg.dataloader.fields_to_load:
             assert field in ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
-
-        self.dataset = dataset
         self.training = training
+
+        if self.cfg.dataloader.skip_empty_samples and not self.training:
+            rank_zero_warn(  # pragma: no cover
+                f"'skip_empty_samples' activated for dataset {self.cfg.name}"
+                "in test mode. This option is only available in training."
+            )
 
         if cats_name2id is not None:
             discard_labels_outside_set(
-                self.dataset.frames, list(cats_name2id.keys())
+                dataset.frames, list(cats_name2id.keys())
             )
         else:
             cats_name2id = {
@@ -91,40 +97,87 @@ class ScalabelDataset(Dataset):  # type: ignore
                     [
                         c.name
                         for c in get_leaf_categories(
-                            self.dataset.metadata_cfg.categories
+                            dataset.metadata_cfg.categories
                         )
                     ]
                 )
             }
         self.cats_name2id = cats_name2id
+        dataset.frames = filter_attributes(
+            dataset.frames, dataset.cfg.attributes
+        )
 
         frequencies = prepare_labels(
-            self.dataset.frames,
+            dataset.frames,
             cats_name2id,
             self.cfg.dataloader.compute_global_instance_ids,
         )
         print_class_histogram(frequencies)
+
+        self.dataset = dataset
+        self.dataset.frames = DatasetFromList(self.dataset.frames)
+        if self.dataset.groups is not None:
+            self.dataset.groups = DatasetFromList(self.dataset.groups)
 
         self._fallback_candidates = set(range(len(self.dataset.frames)))
         self.video_to_indices: Dict[str, List[int]] = defaultdict(list)
         self._create_video_mapping()
         self.has_sequences = bool(self.video_to_indices)
 
+        if self.dataset.groups is not None:
+            self.frame_name_to_idx = {
+                f.name: i for i, f in enumerate(self.dataset.frames)
+            }
+            self.frame_to_group: Dict[int, int] = {}
+            self.frame_to_sensor_id: Dict[int, int] = {}
+            for i, g in enumerate(self.dataset.groups):
+                for sensor_id, fname in enumerate(g.frames):
+                    self.frame_to_group[self.frame_name_to_idx[fname]] = i
+                    self.frame_to_sensor_id[
+                        self.frame_name_to_idx[fname]
+                    ] = sensor_id
+
     def __len__(self) -> int:
         """Return length of dataset."""
+        if self.dataset.groups is not None and not self.training:
+            return len(self.dataset.groups)
         return len(self.dataset.frames)
 
     def _create_video_mapping(self) -> None:
-        """Create a mapping that returns all img idx for a given video id."""
-        for idx, entry in enumerate(self.dataset.frames):
-            if entry.videoName is not None:
-                self.video_to_indices[entry.videoName].append(idx)
+        """Creating mapping from video id to frame / group indices."""
+        video_to_frameidx: Dict[str, List[int]] = defaultdict(list)
+        if self.dataset.groups is not None:
+            for idx, group in enumerate(self.dataset.groups):
+                if group.videoName is not None:
+                    assert (
+                        group.frameIndex is not None
+                    ), "found videoName but no frameIndex!"
+                    video_to_frameidx[group.videoName].append(group.frameIndex)
+                    self.video_to_indices[group.videoName].append(idx)
+        else:
+            for idx, frame in enumerate(self.dataset.frames):
+                if frame.videoName is not None:
+                    assert (
+                        frame.frameIndex is not None
+                    ), "found videoName but no frameIndex!"
+                    video_to_frameidx[frame.videoName].append(frame.frameIndex)
+                    self.video_to_indices[frame.videoName].append(idx)
+
+        # sort dataset indices by frame indices
+        for key, idcs in self.video_to_indices.items():
+            zip_frame_idx = sorted(zip(video_to_frameidx[key], idcs))
+            self.video_to_indices[key] = [idx for _, idx in zip_frame_idx]
 
     def sample_ref_indices(
         self, video: str, key_dataset_index: int
     ) -> List[int]:
         """Sample reference dataset indices given video and keyframe index."""
         dataset_indices = self.video_to_indices[video]
+        sensor_id: Optional[int] = None
+        if self.dataset.groups is not None:
+            sensor_id = self.frame_to_sensor_id[key_dataset_index]
+            key_dataset_index = self.frame_to_group[key_dataset_index]
+
         key_index = dataset_indices.index(key_dataset_index)
 
         if self.sampling_cfg.type == "uniform":
@@ -136,9 +189,9 @@ class ScalabelDataset(Dataset):  # type: ignore
                 dataset_indices[left:key_index]
                 + dataset_indices[key_index + 1 : right + 1]
             )
-            ref_dataset_indices = np.random.choice(
+            ref_dataset_indices: List[int] = np.random.choice(
                 valid_inds, self.sampling_cfg.num_ref_imgs, replace=False
-            ).tolist()  # type: List[int]
+            ).tolist()
         elif self.sampling_cfg.type == "sequential":
             right = key_index + 1 + self.sampling_cfg.num_ref_imgs
             if right <= len(dataset_indices):
@@ -154,6 +207,11 @@ class ScalabelDataset(Dataset):  # type: ignore
                 f"Reference view sampling {self.sampling_cfg.type} not "
                 f"implemented."
             )
+
+        if self.dataset.groups is not None and sensor_id is not None:
+            for i, ref_id in enumerate(ref_dataset_indices):
+                fname = self.dataset.groups[ref_id].frames[sensor_id]
+                ref_dataset_indices[i] = self.frame_name_to_idx[fname]
 
         return ref_dataset_indices
 
@@ -180,29 +238,31 @@ class ScalabelDataset(Dataset):  # type: ignore
         cur_idx: int,
         key_data: InputSample,
         parameters: Optional[List[AugParams]],
+        num_retry: int = 3,
     ) -> Optional[List[InputSample]]:
         """Sample reference views from key view."""
         vid_id = key_data.metadata[0].videoName
-        if vid_id is not None:
-            ref_data = []
-            for ref_idx in self.sample_ref_indices(vid_id, cur_idx):
-                ref_sample = self.get_sample(
-                    self.dataset.frames[ref_idx],
-                    parameters=parameters,
-                )[0]
-                if ref_sample is None:
-                    break  # pragma: no cover
-                ref_data.append(ref_sample)
-        else:
-            ref_data = [  # pragma: no cover
-                key_data for _ in range(self.sampling_cfg.num_ref_imgs)
-            ]
+        for _ in range(num_retry):
+            if vid_id is not None:
+                ref_data = []
+                for ref_idx in self.sample_ref_indices(vid_id, cur_idx):
+                    ref_sample = self.get_sample(
+                        self.dataset.frames[ref_idx],
+                        parameters=parameters,
+                    )[0]
+                    if ref_sample is None:
+                        break  # pragma: no cover
+                    ref_data.append(ref_sample)
+            else:
+                ref_data = [  # pragma: no cover
+                    key_data for _ in range(self.sampling_cfg.num_ref_imgs)
+                ]
 
-        if (
-            not self.sampling_cfg.skip_nomatch_samples
-            or self.has_matches(key_data, ref_data)
-        ) and self.sampling_cfg.num_ref_imgs == len(ref_data):
-            return ref_data
+            if (
+                not self.sampling_cfg.skip_nomatch_samples
+                or self.has_matches(key_data, ref_data)
+            ) and self.sampling_cfg.num_ref_imgs == len(ref_data):
+                return ref_data
         return None
 
     @staticmethod
@@ -223,6 +283,35 @@ class ScalabelDataset(Dataset):  # type: ignore
         retry_count = 0
         cur_idx = int(idx)
 
+        if not self.training:
+            if self.dataset.groups is not None:
+                group = self.dataset.groups[cur_idx]
+                if not self.cfg.multi_sensor_inference:
+                    cur_data = self.get_sample(
+                        self.dataset.frames[
+                            self.frame_name_to_idx[group.frames[0]]
+                        ]
+                    )[0]
+                    assert cur_data is not None
+                    return [cur_data]
+
+                group_data, group_parameters = self.get_sample(group)
+                assert group_data is not None
+                data = [group_data]
+                for fname in group.frames:
+                    cur_data, _ = self.get_sample(
+                        self.dataset.frames[self.frame_name_to_idx[fname]],
+                        parameters=group_parameters,
+                    )
+                    assert cur_data is not None
+                    data.append(cur_data)
+                return data
+
+            cur_data = self.get_sample(self.dataset.frames[cur_idx])[0]
+            assert cur_data is not None
+            data = [cur_data]
+            return data
+
         while True:
             input_data, parameters = self.get_sample(
                 self.dataset.frames[cur_idx]
@@ -230,10 +319,9 @@ class ScalabelDataset(Dataset):  # type: ignore
             if input_data is not None:
                 if input_data.metadata[0].attributes is None:
                     input_data.metadata[0].attributes = {}
-                if self.training:
-                    input_data.metadata[0].attributes["keyframe"] = True
+                input_data.metadata[0].attributes["keyframe"] = True
 
-                if self.training and self.sampling_cfg.num_ref_imgs > 0:
+                if self.sampling_cfg.num_ref_imgs > 0:
                     ref_data = self.sample_ref_views(
                         cur_idx, input_data, parameters
                     )
@@ -248,7 +336,7 @@ class ScalabelDataset(Dataset):  # type: ignore
 
             if retry_count >= 5:
                 rank_zero_warn(
-                    f"Failed to get sample for idx: {idx}, "
+                    f"Failed to get samples for idx: {cur_idx}, "
                     f"retry count: {retry_count}"
                 )
 
@@ -328,7 +416,9 @@ class ScalabelDataset(Dataset):  # type: ignore
                 if self.cfg.dataloader.clip_bboxes_to_image:
                     boxes2d.clip(input_sample.images.image_sizes[0])
 
-                input_sample.boxes2d = [boxes2d]
+                keep = boxes2d.area >= self.cfg.dataloader.min_bboxes_area
+                input_sample.boxes2d = [boxes2d[keep]]
+                labels_used = [l for l, k in zip(labels_used, keep) if k]
 
             if "boxes3d" in self.cfg.dataloader.fields_to_load and labels_used:
                 boxes3d = Boxes3D.from_scalabel(
@@ -371,11 +461,25 @@ class ScalabelDataset(Dataset):  # type: ignore
             List[AugParams]: augmentation parameters, s.t. ref views can be
             augmented with the same parameters.
         """
-        # image loading, augmentation / to torch.tensor
-        image, parameters, transform_matrix = self.transform_image(
-            self.load_image(sample),
-            parameters=parameters,
-        )
+        if (
+            self.cfg.dataloader.skip_empty_samples
+            and (sample.labels is None or len(sample.labels) == 0)
+            and self.training
+        ):
+            return None, None  # pragma: no cover
+
+        if not isinstance(sample, FrameGroup):
+            # image loading, augmentation / to torch.tensor
+            image, parameters, transform_matrix = self.transform_image(
+                self.load_image(sample),
+                parameters=parameters,
+            )
+        else:
+            image, parameters, transform_matrix = self.transform_image(
+                np.empty((128, 128, 3), dtype=np.uint8),
+                parameters=parameters,
+            )
+
         input_data = InputSample([copy.deepcopy(sample)], image)
 
         if (
@@ -405,5 +509,4 @@ class ScalabelDataset(Dataset):  # type: ignore
             and len(input_data.boxes3d[0]) == 0
         ):
             return None, None  # pragma: no cover
-
         return input_data, parameters

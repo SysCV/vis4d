@@ -72,15 +72,14 @@ class BaseAugmentation(GeometricAugmentationBase2D, metaclass=RegistryHolder):  
         raise NotImplementedError
 
     def inverse_transform(  # pylint: disable=arguments-renamed
-            self,
-            inputs: torch.Tensor,
-            transform: Optional[torch.Tensor] = None,
-            size: Optional[Tuple[int, int]] = None,
-            **kwargs: DictStrAny,
+        self,
+        inputs: torch.Tensor,
+        transform: Optional[torch.Tensor] = None,
+        size: Optional[Tuple[int, int]] = None,
+        **kwargs: DictStrAny,
     ) -> torch.Tensor:
         """Apply inverse of transform given input and transform parameters."""
         raise NotImplementedError
-
 
 
 def build_augmentation(cfg: AugmentationConfig) -> BaseAugmentation:

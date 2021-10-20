@@ -1,11 +1,11 @@
 [[config]]
-path = "../../base/datasets/kitti.toml"
+path = "../../base/datasets/nuscenes_mini.toml"
 
 [[config]]
 path = "../../base/models/mmdetection/qd_3dt_R_50_FPN.toml"
 
 [model]
-category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
+category_mapping = {"car" = 0, "truck" = 1, "bus" = 2, "trailer" = 3, "construction_vehicle" = 4, "pedestrian" = 5, "motorcycle" = 6, "bicycle" = 7}
     [model.optimizer]
     type = "SGD"
     lr = 0.005
@@ -23,4 +23,4 @@ workers_per_gpu = 2
 max_epochs = 12
 log_every_n_steps = 50
 check_val_every_n_epoch = 1
-num_sanity_val_steps = 0
+num_sanity_val_steps = 2

@@ -5,11 +5,11 @@ path = "../../base/datasets/kitti.toml"
 path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"
 
 [model]
-categories = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
+category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
     [model.optimizer]
     type = "SGD"
     lr = 0.03
-    kwargs = {"momentum" = 0.9}
+    kwargs = {"momentum" = 0.9, "weight_decay" = 0.0001}
 
     [model.lr_scheduler]
     type = "MultiStepLR"
