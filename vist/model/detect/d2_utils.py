@@ -116,7 +116,7 @@ def target_to_instance(
         fields = dict(gt_boxes=Boxes(boxes), gt_classes=cls)
         if track_ids is not None:
             fields["track_ids"] = track_ids
-        if gt_mask is not None:
+        if gt_mask is not None and len(gt_mask) > 0:
             fields["gt_masks"] = BitMasks(gt_mask.masks)
         result.append(Instances((img_wh[1], img_wh[0]), **fields))
     return result

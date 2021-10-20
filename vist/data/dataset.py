@@ -492,7 +492,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         if not isinstance(sample, FrameGroup):
             image = self.load_image(sample)
         else:
-            image = np.empty((128, 128, 3), dtype=np.uint8)
+            image = np.empty((1, 3, 128, 128), dtype=np.uint8)
         image = Images(image, [(image.shape[3], image.shape[2])])
         input_data = InputSample([copy.deepcopy(sample)], image)
 

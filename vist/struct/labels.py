@@ -17,7 +17,7 @@ from ..common.geometry.rotation import (
 from .data import Extrinsics
 from .structures import DataInstance, LabelInstance, NDArrayUI8
 
-BYTES_PER_FLOAT = 4
+BYTES_PER_FLOAT = 4  # TODO: make argument of function
 GPU_MEM_LIMIT = 1024 ** 3  # 1 GB memory limit
 TBoxes = TypeVar("TBoxes", bound="Boxes")
 
@@ -458,6 +458,11 @@ class Bitmasks(LabelInstance):
         """Return width of masks."""
         return self.masks.size(2)  # type: ignore
 
+    @property
+    def size(self) -> Tuple[int, int]:
+        """Return size of masks (w, h)."""
+        return self.width, self.height  # type: ignore
+
     def resize(self, out_size: Tuple[int, int]) -> None:
         """Resize bitmasks according to factor."""
         width, height = out_size
@@ -563,7 +568,10 @@ class Bitmasks(LabelInstance):
             dtype=torch.bool if threshold >= 0 else torch.uint8,
         )
         for inds in chunks:
-            masks_chunk, spatial_inds = _do_paste_mask(
+            (
+                masks_chunk,
+                spatial_inds,
+            ) = _do_paste_mask(  # TODO: copy function over
                 self.masks[inds, None, :, :],
                 boxes.boxes[inds, :4],
                 img_h,

@@ -188,7 +188,8 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         detections.scale(scale_factor)
         detections.clip(original_wh)
         if segmentations is not None:
-            segmentations.paste_masks_in_image(detections, original_wh)
+            if segmentations.size != output_wh:
+                segmentations.paste_masks_in_image(detections, original_wh)
 
 
 def build_model(cfg: BaseModelConfig, ckpt: Optional[str] = None) -> BaseModel:
