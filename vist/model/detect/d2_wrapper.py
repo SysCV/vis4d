@@ -92,8 +92,6 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             inputs, features, proposals
         )
         assert detections is not None
-        if segmentations is None:
-            segmentations = [None] * len(detections)  # type: ignore
 
         for inp, det, segm in zip(  # type: ignore
             inputs, detections, segmentations
@@ -156,7 +154,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
         compute_segmentations: bool = False,
-    ) -> Tuple[Optional[List[Boxes2D]], LossesType, Optional[List[Bitmasks]]]:
+    ) -> Tuple[Optional[List[Boxes2D]], LossesType, List[Bitmasks]]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if no targets) and optionally detections.
@@ -194,4 +192,6 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             detections = proposal_to_box2d(detections)  # pragma: no cover
         else:
             detections = None
+        if segmentations is None:
+            segmentations = [None] * len(detections)  # type: ignore
         return detections, detect_losses, segmentations

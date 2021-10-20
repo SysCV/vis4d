@@ -14,7 +14,6 @@ type = "QD3DT"
     fc_out_dim = 1024
     roi_feat_size = 7
     conv_has_bias = false
-    norm = "GroupNorm"
     proposal_append_gt = true
 
         [model.bbox_3d_head.loss]
