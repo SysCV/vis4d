@@ -1,5 +1,5 @@
 """Wrapper for conv2d."""
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 from torch import nn
@@ -53,12 +53,15 @@ def add_conv_branch(
     last_layer_dim: int,
     conv_out_dim: int,
     conv_has_bias: bool,
-    norm_cfg: str,
+    norm_cfg: Optional[str],
     num_groups: int,
 ) -> Tuple[nn.ModuleList, int]:
     """Init conv branch for head."""
     convs = nn.ModuleList()
-    norm = getattr(nn, norm_cfg)
+    if norm_cfg is not None:
+        norm = getattr(nn, norm_cfg)
+    else:
+        norm = None
     if norm == nn.GroupNorm:
         norm = lambda x: nn.GroupNorm(num_groups, x)
     if num_branch_convs > 0:
@@ -71,7 +74,7 @@ def add_conv_branch(
                     kernel_size=3,
                     padding=1,
                     bias=conv_has_bias,
-                    norm=norm(conv_out_dim),
+                    norm=norm(conv_out_dim) if norm is not None else norm,
                     activation=nn.ReLU(inplace=True),
                 )
             )
