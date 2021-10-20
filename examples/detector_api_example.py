@@ -56,8 +56,8 @@ class MyDetector(BaseDetector):
             batch_inputs: Model input (batched).
 
         Returns:
-            ModelOutput: Dict of LabelInstance results, e.g. tracking and
-            separate models result.
+            ModelOutput: Dict of Scalabel results (List[Label]), e.g. tracking
+            and separate detection result.
         """
         raise NotImplementedError
 

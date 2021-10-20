@@ -23,7 +23,7 @@ class NuScenesDatasetConfig(BaseDatasetConfig):
 
 
 class NuScenes(BaseDatasetLoader):  # pragma: no cover
-    """NuScenes Open dataloading class."""
+    """NuScenes dataloading class."""
 
     def __init__(self, cfg: BaseDatasetConfig):
         """Init dataset loader."""
