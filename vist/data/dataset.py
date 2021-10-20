@@ -347,13 +347,15 @@ class ScalabelDataset(Dataset):  # type: ignore
                 )
 
     def load_image(
-        self,
-        sample: Frame,
+        self, sample: Frame, use_empty: Optional[bool] = False
     ) -> torch.FloatTensor:
         """Load image according to data_backend."""
-        assert sample.url is not None
-        im_bytes = self.data_backend.get(sample.url)
-        image = im_decode(im_bytes, mode=self.image_channel_mode)
+        if not use_empty:
+            assert sample.url is not None
+            im_bytes = self.data_backend.get(sample.url)
+            image = im_decode(im_bytes, mode=self.image_channel_mode)
+        else:
+            image = np.empty((128, 128, 3), dtype=np.uint8)
         sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
         image = torch.as_tensor(
             np.ascontiguousarray(image.transpose(2, 0, 1)),
@@ -489,15 +491,15 @@ class ScalabelDataset(Dataset):  # type: ignore
             return None, None  # pragma: no cover
 
         # load image
-        if not isinstance(sample, FrameGroup):
-            image = self.load_image(sample)
-        else:
-            image = np.empty((1, 3, 128, 128), dtype=np.uint8)
+        image = self.load_image(
+            sample, use_empty=isinstance(sample, FrameGroup)
+        )
         image = Images(image, [(image.shape[3], image.shape[2])])
         input_data = InputSample([copy.deepcopy(sample)], image)
 
-        # load annotations to input sample
-        self.load_annotation(input_data, sample.labels)
+        if self.training:
+            # load annotations to input sample
+            self.load_annotation(input_data, sample.labels)
 
         # apply transforms to input sample
         parameters, transform_matrix = self.transform_input(
@@ -505,9 +507,6 @@ class ScalabelDataset(Dataset):  # type: ignore
             parameters=parameters,
             training=self.training,
         )
-
-        # postprocess boxes after transforms
-        self.postprocess_annotation(input_data)
 
         if (
             sample.intrinsics is not None
@@ -527,6 +526,9 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         if not self.training:
             return input_data, parameters
+
+        # postprocess boxes after transforms
+        self.postprocess_annotation(input_data)
 
         if (
             self.cfg.dataloader.skip_empty_samples
