@@ -19,7 +19,7 @@ class BaseOptimizerConfig(BaseModel):
     }
 
 
-class BaseOptimizer(optim.Optimizer, metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
+class BaseOptimizer(optim.Optimizer, metaclass=RegistryHolder):  # type: ignore
     """Dummy Optimizer class supporting VisT registry."""
 
     def step(self, closure):  # type: ignore

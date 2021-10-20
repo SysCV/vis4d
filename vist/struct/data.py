@@ -47,9 +47,9 @@ class Intrinsics(DataInstance):
         if device is None:
             device = instances[0].tensor.device
         for inst in instances:
-            tensor = inst.tensor.to(device)
+            tensor = inst.tensor
             tensors.append(tensor)
-        return Intrinsics(torch.cat(tensors, 0))
+        return Intrinsics(torch.cat(tensors, 0).to(device))
 
     def inverse(self) -> "Intrinsics":
         """Invert intrinsics."""
@@ -103,9 +103,9 @@ class Extrinsics(DataInstance):
         if device is None:
             device = instances[0].tensor.device
         for inst in instances:
-            tensor = inst.tensor.to(device)
+            tensor = inst.tensor
             tensors.append(tensor)
-        return Extrinsics(torch.cat(tensors, 0))
+        return Extrinsics(torch.cat(tensors, 0).to(device))
 
     @property
     def rotation(self) -> torch.Tensor:
