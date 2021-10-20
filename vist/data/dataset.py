@@ -139,11 +139,7 @@ class ScalabelDataset(Dataset):  # type: ignore
 
     def __len__(self) -> int:
         """Return length of dataset."""
-        if (
-            self.dataset.groups is not None
-            and not self.training
-            and not self.cfg.multi_sensor_inference
-        ):
+        if self.dataset.groups is not None and not self.training:
             return len(self.dataset.groups)
         return len(self.dataset.frames)
 
@@ -289,8 +285,8 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         if not self.training:
             if self.dataset.groups is not None:
+                group = self.dataset.groups[cur_idx]
                 if not self.cfg.multi_sensor_inference:
-                    group = self.dataset.groups[idx]
                     cur_data = self.get_sample(
                         self.dataset.frames[
                             self.frame_name_to_idx[group.frames[0]]
@@ -299,7 +295,6 @@ class ScalabelDataset(Dataset):  # type: ignore
                     assert cur_data is not None
                     return [cur_data]
 
-                group = self.dataset.groups[self.frame_to_group[idx]]
                 group_data, group_parameters = self.get_sample(group)
                 assert group_data is not None
                 data = [group_data]
