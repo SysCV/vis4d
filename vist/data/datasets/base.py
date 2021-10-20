@@ -75,6 +75,7 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     num_processes: int = 4
     collect_device = "cpu"
     multi_sensor_inference: bool = True
+    use_lidar: bool = False
 
 
 class BaseDatasetLoader(metaclass=RegistryHolder):
@@ -103,6 +104,8 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
         assert dataset.config is not None
         add_data_path(cfg.data_root, dataset.frames)
+        if dataset.groups is not None:
+            add_data_path(cfg.data_root, dataset.groups)
         rank_zero_info(f"Loading {cfg.name} takes {timer.time():.2f} seconds.")
         self.metadata_cfg = dataset.config
         self.frames = dataset.frames

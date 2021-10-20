@@ -5,6 +5,7 @@ data_root = "data/nuscenes"
 version = "v1.0-mini"
 split = "mini_train"
 add_non_key = false
+use_lidar = true
 annotations = "data/nuscenes/scalabel_mini_train.json"
 cache_as_binary = true
     [train.dataloader]

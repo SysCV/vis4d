@@ -313,8 +313,13 @@ class ScalabelDataset(Dataset):  # type: ignore
             return data
 
         while True:
+            frame = self.dataset.frames[cur_idx]
+            if self.cfg.use_lidar:
+                lidar_url = self.dataset.groups[
+                    self.frame_to_group[self.frame_name_to_idx[frame.name]]
+                ].url
             input_data, parameters = self.get_sample(
-                self.dataset.frames[cur_idx]
+                self.dataset.frames[cur_idx], lidar_url=lidar_url
             )
             if input_data is not None:
                 if input_data.metadata[0].attributes is None:
@@ -350,6 +355,20 @@ class ScalabelDataset(Dataset):  # type: ignore
         image = im_decode(im_bytes, mode=self.image_channel_mode)
         sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
         return image
+
+    def load_point(self, url: str, num_point_feature=4, radius=1.0):
+        assert url is not None
+        points = np.fromfile(url, dtype=np.float32)
+        s = points.shape[0]
+        if s % 5 != 0:
+            points = points[: s - (s % 5)]
+        points = points.reshape(-1, 5)[:, :num_point_feature].T
+
+        x_filt = np.abs(points[0, :]) < radius
+        y_filt = np.abs(points[1, :]) < radius
+        not_close = np.logical_not(np.logical_and(x_filt, y_filt))
+        points = points[:, not_close]
+        return points.T
 
     def transform_image(
         self,
@@ -448,6 +467,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         self,
         sample: Frame,
         parameters: Optional[List[AugParams]] = None,
+        lidar_url: Optional[str] = None,
     ) -> Tuple[Optional[InputSample], Optional[List[AugParams]]]:
         """Prepare a single sample in detect format.
 
@@ -480,7 +500,13 @@ class ScalabelDataset(Dataset):  # type: ignore
                 parameters=parameters,
             )
 
-        input_data = InputSample([copy.deepcopy(sample)], image)
+        # load point cloud
+        if self.cfg.use_lidar and lidar_url is not None:
+            points = self.load_point(lidar_url)
+        else:
+            points = None
+
+        input_data = InputSample([copy.deepcopy(sample)], image, points=points)
 
         if (
             sample.intrinsics is not None

@@ -6,7 +6,7 @@ from scalabel.label.typing import Frame
 
 from .data import Extrinsics, Images, Intrinsics
 from .labels import Boxes2D, Boxes3D
-from .structures import DataInstance
+from .structures import DataInstance, NDArrayF32
 
 
 class InputSample:
@@ -20,6 +20,7 @@ class InputSample:
         boxes3d: Optional[Sequence[Boxes3D]] = None,
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
+        points: Optional[Sequence[NDArrayF32]] = None,
     ) -> None:
         """Init."""
         self.metadata = metadata
@@ -52,6 +53,10 @@ class InputSample:
             )
         self.extrinsics: Extrinsics = extrinsics
 
+        if points is None:
+            points = [torch.empty(0, 4) for _ in range(len(images))]
+        self.points = [points]
+
     def get(
         self, key: str
     ) -> Union[Sequence[Frame], DataInstance, Sequence[DataInstance]]:
@@ -76,6 +81,7 @@ class InputSample:
             "boxes3d": self.boxes3d,
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
+            "points": self.points,
         }
         return obj_dict
 
@@ -90,6 +96,7 @@ class InputSample:
             [b.to(device) for b in self.boxes3d],
             self.intrinsics.to(device),
             self.extrinsics.to(device),
+            self.points,
         )
 
     @classmethod
@@ -134,4 +141,5 @@ class InputSample:
             [self.boxes3d[item]],
             self.intrinsics[item],
             self.extrinsics[item],
+            [self.points[item]],
         )
