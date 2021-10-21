@@ -29,6 +29,7 @@ from ..struct import (
     Bitmasks,
     Boxes2D,
     Boxes3D,
+    DictStrAny,
     Extrinsics,
     Images,
     InputSample,
@@ -425,6 +426,25 @@ class ScalabelDataset(Dataset):  # type: ignore
                     if "boxes2d" not in self.cfg.dataloader.fields_to_load:
                         sample.boxes2d = [boxes2d]
 
+    def transform_input(
+        self,
+        sample: InputSample,
+        parameters: Optional[List[AugParams]] = None,
+    ) -> List[DictStrAny]:
+        """Apply transforms to input sample."""
+        if parameters is None:
+            parameters = []
+        else:
+            assert len(parameters) == len(self.transformations), (
+                "Length of augmentation parameters must equal the number of "
+                "augmentations!"
+            )
+        for i, aug in enumerate(self.transformations):
+            if len(parameters) < len(self.transformations):
+                parameters.append(aug.generate_parameters(sample))
+            sample, _ = aug(sample, parameters[i])
+        return parameters
+
     def postprocess_annotation(self, sample: InputSample) -> None:
         """Process annotations after transform."""
         if self.cfg.dataloader.clip_bboxes_to_image:
@@ -486,17 +506,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.load_annotation(input_data, sample.labels)
 
         # apply transforms to input sample
-        if parameters is None:
-            parameters = []
-        else:
-            assert len(parameters) == len(self.transformations), (
-                "Length of augmentation parameters must equal the number of "
-                "augmentations!"
-            )
-        for i, aug in enumerate(self.transformations):
-            if len(parameters) < len(self.transformations):
-                parameters.append(aug.generate_parameters(input_data))
-            input_data, _ = aug(input_data, parameters[i])
+        parameters = self.transform_input(input_data, parameters)
 
         if not self.training:
             return input_data, parameters

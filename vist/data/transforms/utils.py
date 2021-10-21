@@ -16,7 +16,7 @@ def sample_bernoulli(num: int, prob: float) -> torch.Tensor:
 
 
 def sample_batched(num: int, prob: float, same: bool = False) -> torch.Tensor:
-    """Sample num / 1 times from from a Bernoulli distribution with given p."""
+    """Sample num / 1 times from a Bernoulli distribution with given p."""
     if same:
         return sample_bernoulli(1, prob).repeat(num)
     return sample_bernoulli(num, prob)

@@ -84,7 +84,7 @@ def detections_from_mmdet(
 
 def segmentations_from_mmdet(
     masks: List[torch.Tensor], labels: List[torch.Tensor]
-) -> List[Bitmasks]:
+) -> List[Bitmasks]:  # pragma: no cover
     """Convert mmdetection segmentations to VisT format."""
     segmentations_bitmasks = []
     for mask, label in zip(masks, labels):
@@ -98,7 +98,7 @@ def detection_from_mmdet_results(
     detection: MMDetResult, device: torch.device
 ) -> Boxes2D:
     """Convert bbox_result to VisT format."""
-    if len(detection) == 0:
+    if len(detection) == 0:  # pragma: no cover
         return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
     bboxes = torch.from_numpy(np.vstack(detection)).to(device)  # Nx5
     labels = [
@@ -114,7 +114,7 @@ def segmentation_from_mmdet_results(
 ) -> Bitmasks:
     """Convert segm_result to VisT format."""
     segms = [np.stack(segm) for segm in segmentation if len(segm) != 0]
-    if len(segms) == 0:
+    if len(segms) == 0:  # pragma: no cover
         return Bitmasks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
     masks = (
         torch.from_numpy(np.concatenate(segms))  # type: ignore

@@ -639,7 +639,7 @@ class Bitmasks(LabelInstance):
                 continue
             if label.rle is not None:
                 bitmask = mask_utils.decode(dict(label.rle))
-            elif label.poly2d is not None:
+            elif label.poly2d is not None:  # pragma: no cover
                 assert (
                     image_size is not None
                 ), "image size must be specified for bitmasks with polygons!"

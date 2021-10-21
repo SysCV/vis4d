@@ -105,7 +105,7 @@ class TestScalabelDataset(unittest.TestCase):
         self.assertRaises(ValueError, dataset.__getitem__, 0)
 
     def test_transform_input(self) -> None:
-        """Test the transform_input method in DatasetMapper."""
+        """Test the transform_input method in ScalabelDataset."""
         input_sample = InputSample(
             [Frame(name="0")],
             Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
