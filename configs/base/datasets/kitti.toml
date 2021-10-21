@@ -44,7 +44,7 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [375, 1242]}
+    shape = [375, 1242]
 
 [[test]]
 name = "kitti_track_val"
@@ -62,4 +62,4 @@ num_processes = 0
 
     [[test.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [375, 1242]}
+    shape = [375, 1242]

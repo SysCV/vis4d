@@ -461,7 +461,7 @@ class Bitmasks(LabelInstance):
     @property
     def size(self) -> Tuple[int, int]:
         """Return size of masks (w, h)."""
-        return self.width, self.height  # type: ignore
+        return self.width, self.height
 
     def resize(self, out_size: Tuple[int, int]) -> None:
         """Resize bitmasks according to factor."""
@@ -470,13 +470,12 @@ class Bitmasks(LabelInstance):
             self.masks.unsqueeze(1), size=(height, width), mode="nearest"
         ).squeeze(1)
 
-    def crop_and_resize(  # pylint: disable=unused-argument
+    def crop_and_resize(
         self,
         bboxes: torch.Tensor,
         out_shape: Tuple[int, int],
         inds: torch.Tensor,
         device: Optional[str] = "cpu",
-        interpolation: Optional[str] = "bilinear",
         binarize: Optional[bool] = True,
     ) -> "Bitmasks":
         """Crop and resize masks with input bboxes."""

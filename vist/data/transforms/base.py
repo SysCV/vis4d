@@ -1,7 +1,6 @@
 """Interface VisT augmentations."""
 from typing import List, Optional, Sequence, Tuple
 
-import torch
 from pydantic.main import BaseModel
 
 from vist.common.registry import RegistryHolder
@@ -10,21 +9,22 @@ from vist.struct import (
     Boxes2D,
     Boxes3D,
     DictStrAny,
+    Extrinsics,
     Images,
     InputSample,
     Intrinsics,
-    Extrinsics,
 )
 
-from .utils import sample_bernoulli
+from .utils import sample_batched
 
 AugParams = DictStrAny
 
 
-class BaseAugmentationConfig(BaseModel):
+class BaseAugmentationConfig(BaseModel, extra="allow"):
     """Data augmentation instance config."""
 
     prob: float = 1.0
+    same_on_batch: bool = False
     type: str
 
 
@@ -35,18 +35,18 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Initialize augmentation."""
         self.cfg = cfg
 
-    def generate_parameters(self, sample: InputSample) -> DictStrAny:
+    def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
         parameters = {}
-        parameters["apply"] = sample_bernoulli(self.cfg.prob)
+        parameters["apply"] = sample_batched(
+            len(sample), self.cfg.prob, self.cfg.same_on_batch
+        )
         return parameters
 
     # pylint: disable=unused-argument,no-self-use
-    def apply_image(
-        self, image: Images, parameters: AugParams
-    ) -> Images:
+    def apply_image(self, images: Images, parameters: AugParams) -> Images:
         """Apply augmentation to input image."""
-        return image
+        return images
 
     def apply_box2d(
         self,
@@ -72,7 +72,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Apply augmentation to input extrinsics."""
         return extrinsics
 
-    def apply_box3d(  # pylint: disable=unused-argument,no-self-use
+    def apply_box3d(
         self,
         boxes: Sequence[Boxes3D],
         parameters: AugParams,
@@ -80,7 +80,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Apply augmentation to input box3d."""
         return boxes
 
-    def apply_mask(  # pylint: disable=unused-argument,no-self-use
+    def apply_mask(
         self,
         masks: Sequence[Bitmasks],
         parameters: AugParams,
@@ -96,27 +96,25 @@ class BaseAugmentation(metaclass=RegistryHolder):
             parameters = self.generate_parameters(sample)
 
         sample.images = self.apply_image(sample.images, parameters)
-        sample.intrinsics = self.apply_intrinsics(sample.intrinsics, parameters)
-        sample.extrinsics = self.apply_extrinsics(sample.extrinsics, parameters)
+        sample.intrinsics = self.apply_intrinsics(
+            sample.intrinsics, parameters
+        )
+        sample.extrinsics = self.apply_extrinsics(
+            sample.extrinsics, parameters
+        )
 
         if len(sample.boxes2d):
-            sample.boxes2d = self.apply_box2d(
-                sample.boxes2d, parameters
-            )
+            sample.boxes2d = self.apply_box2d(sample.boxes2d, parameters)
         if len(sample.boxes3d):
-            sample.boxes3d = self.apply_box3d(
-                sample.boxes3d, parameters
-            )
+            sample.boxes3d = self.apply_box3d(sample.boxes3d, parameters)
         if len(sample.bitmasks):
-            sample.bitmasks = self.apply_mask(
-                sample.bitmasks, parameters
-            )
+            sample.bitmasks = self.apply_mask(sample.bitmasks, parameters)
         return sample, parameters
 
     def __repr__(self) -> str:
         """Print class & params, s.t. user can inspect easily via cmd line."""
         attr_str = ""
-        for k, v in self.cfg.dict():
+        for k, v in self.cfg.dict().items():
             attr_str += f"{k}={str(v)}, "
         attr_str.rstrip(", ")
         return f"{self.__class__.__name__}({attr_str})"
@@ -126,17 +124,16 @@ def build_augmentation(cfg: BaseAugmentationConfig) -> BaseAugmentation:
     """Build a single augmentation."""
     registry = RegistryHolder.get_registry(BaseAugmentation)
     if cfg.type in registry:
-        augmentation = registry[cfg.type]
-        module = augmentation(cfg, **cfg.kwargs)
-    else:
-        raise ValueError(f"VisT Augmentation {cfg.type} not known!")
-    return module
+        module = registry[cfg.type](cfg)
+        assert isinstance(module, BaseAugmentation)
+        return module
+    raise NotImplementedError(f"Augmentation {cfg.type} not known!")
 
 
 def build_augmentations(
     cfgs: Optional[List[BaseAugmentationConfig]],
 ) -> List[BaseAugmentation]:
-    """Build a list of augmentations and return these as List."""
+    """Build a list of augmentations."""
     augmentations = []
     if cfgs is not None:
         for aug_cfg in cfgs:

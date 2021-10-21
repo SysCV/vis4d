@@ -146,3 +146,7 @@ class InputSample:
             self.intrinsics[item],
             self.extrinsics[item],
         )
+
+    def __len__(self) -> int:
+        """Return number of elements in InputSample."""
+        return len(self.metadata)

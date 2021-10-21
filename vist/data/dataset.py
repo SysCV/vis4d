@@ -29,7 +29,6 @@ from ..struct import (
     Bitmasks,
     Boxes2D,
     Boxes3D,
-    DictStrAny,
     Extrinsics,
     Images,
     InputSample,
@@ -346,9 +345,9 @@ class ScalabelDataset(Dataset):  # type: ignore
                     f"retry count: {retry_count}"
                 )
 
-    def load_image(
+    def load_input(
         self, sample: Frame, use_empty: Optional[bool] = False
-    ) -> torch.FloatTensor:
+    ) -> InputSample:
         """Load image according to data_backend."""
         if not use_empty:
             assert sample.url is not None
@@ -356,47 +355,27 @@ class ScalabelDataset(Dataset):  # type: ignore
             image = im_decode(im_bytes, mode=self.image_channel_mode)
         else:
             image = np.empty((128, 128, 3), dtype=np.uint8)
+
         sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
         image = torch.as_tensor(
             np.ascontiguousarray(image.transpose(2, 0, 1)),
             dtype=torch.float32,
         ).unsqueeze(0)
-        return image
+        images = Images(image, [(image.shape[3], image.shape[2])])
+        input_data = InputSample([copy.deepcopy(sample)], images)
 
-    def transform_input(
-        self,
-        sample: InputSample,
-        parameters: Optional[List[AugParams]] = None,
-        training: bool = False,
-    ) -> List[DictStrAny]:
-        """Apply augmentations to input sample."""
-        if parameters is None:
-            parameters = []
-        else:
-            assert len(parameters) == len(self.transformations), (
-                "Length of augmentation parameters must equal the number of "
-                "augmentations!"
-            )
+        if (
+            sample.intrinsics is not None
+            and "intrinsics" in self.cfg.dataloader.fields_to_load
+        ):
+            input_data.intrinsics = self.load_intrinsics(sample.intrinsics)
 
-        transform_matrix = torch.eye(3)
-        for i, aug in enumerate(self.transformations):
-            if len(parameters) < len(self.transformations):
-                parameters.append(
-                    aug.generate_parameters(sample.images.tensor.shape)
-                )
-            sample, tm = aug(sample, parameters[i], training)
-            transform_matrix = torch.mm(tm[0], transform_matrix)
-
-        if "intrinsics" in self.cfg.dataloader.fields_to_load:
-            sample.intrinsics = self.transform_intrinsics(
-                sample.intrinsics, transform_matrix
-            )
-
-        if "extrinsics" in self.cfg.dataloader.fields_to_load:
-            sample.extrinsics = self.transform_extrinsics(
-                sample.extrinsics
-            )
-        return parameters
+        if (
+            sample.extrinsics is not None
+            and "extrinsics" in self.cfg.dataloader.fields_to_load
+        ):
+            input_data.extrinsics = self.load_extrinsics(sample.extrinsics)
+        return input_data
 
     def load_annotation(
         self,
@@ -458,17 +437,15 @@ class ScalabelDataset(Dataset):  # type: ignore
             sample.bitmasks = [sample.bitmasks[0][keep]]
 
     @staticmethod
-    def transform_intrinsics(
-        intrinsics: ScalabelIntrinsics, transform_matrix: torch.Tensor
-    ) -> Intrinsics:
+    def load_intrinsics(intrinsics: ScalabelIntrinsics) -> Intrinsics:
         """Transform intrinsic camera matrix according to augmentations."""
         intrinsic_matrix = torch.from_numpy(
             get_matrix_from_intrinsics(intrinsics)
         ).to(torch.float32)
-        return Intrinsics(torch.mm(transform_matrix, intrinsic_matrix))
+        return Intrinsics(intrinsic_matrix)
 
     @staticmethod
-    def transform_extrinsics(extrinsics: ScalabelExtrinsics) -> Extrinsics:
+    def load_extrinsics(extrinsics: ScalabelExtrinsics) -> Extrinsics:
         """Transform extrinsics from Scalabel to VisT."""
         extrinsics_matrix = torch.from_numpy(
             get_matrix_from_extrinsics(extrinsics)
@@ -499,23 +476,27 @@ class ScalabelDataset(Dataset):  # type: ignore
         ):
             return None, None  # pragma: no cover
 
-        # load image
-        image = self.load_image(
+        # load input data
+        input_data = self.load_input(
             sample, use_empty=isinstance(sample, FrameGroup)
         )
-        image = Images(image, [(image.shape[3], image.shape[2])])
-        input_data = InputSample([copy.deepcopy(sample)], image)
 
         if self.training:
             # load annotations to input sample
             self.load_annotation(input_data, sample.labels)
 
         # apply transforms to input sample
-        parameters = self.transform_input(
-            input_data,
-            parameters=parameters,
-            training=self.training,
-        )
+        if parameters is None:
+            parameters = []
+        else:
+            assert len(parameters) == len(self.transformations), (
+                "Length of augmentation parameters must equal the number of "
+                "augmentations!"
+            )
+        for i, aug in enumerate(self.transformations):
+            if len(parameters) < len(self.transformations):
+                parameters.append(aug.generate_parameters(input_data))
+            input_data, _ = aug(input_data, parameters[i])
 
         if not self.training:
             return input_data, parameters
