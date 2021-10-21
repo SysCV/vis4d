@@ -1,5 +1,5 @@
 """VisT struct module."""
-from .data import Extrinsics, Images, Intrinsics
+from .data import Extrinsics, Images, Intrinsics, PointCloud
 from .labels import Boxes2D, Boxes3D
 from .sample import InputSample
 from .structures import (
@@ -8,6 +8,7 @@ from .structures import (
     LabelInstance,
     LossesType,
     ModelOutput,
+    NDArrayF32,
     NDArrayF64,
     NDArrayUI8,
     TorchCheckpoint,
@@ -20,6 +21,7 @@ __all__ = [
     "LabelInstance",
     "TorchCheckpoint",
     "NDArrayF64",
+    "NDArrayF32",
     "NDArrayUI8",
     "LossesType",
     "Images",
@@ -28,4 +30,5 @@ __all__ = [
     "ModelOutput",
     "DictStrAny",
     "InputSample",
+    "PointCloud",
 ]

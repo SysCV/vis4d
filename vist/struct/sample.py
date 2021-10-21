@@ -4,9 +4,9 @@ from typing import Dict, List, Optional, Sequence, Union
 import torch
 from scalabel.label.typing import Frame
 
-from .data import Extrinsics, Images, Intrinsics
+from .data import Extrinsics, Images, Intrinsics, PointCloud
 from .labels import Boxes2D, Boxes3D
-from .structures import DataInstance, NDArrayF32
+from .structures import DataInstance
 
 
 class InputSample:
@@ -20,7 +20,7 @@ class InputSample:
         boxes3d: Optional[Sequence[Boxes3D]] = None,
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
-        points: Optional[Sequence[NDArrayF32]] = None,
+        points: Optional[PointCloud] = None,
     ) -> None:
         """Init."""
         self.metadata = metadata
@@ -54,8 +54,10 @@ class InputSample:
         self.extrinsics: Extrinsics = extrinsics
 
         if points is None:
-            points = [torch.empty(0, 4) for _ in range(len(images))]
-        self.points = [points]
+            points = PointCloud(
+                torch.cat([torch.empty(1, 4) for _ in range(len(images))])
+            )
+        self.points = points
 
     def get(
         self, key: str
@@ -96,7 +98,7 @@ class InputSample:
             [b.to(device) for b in self.boxes3d],
             self.intrinsics.to(device),
             self.extrinsics.to(device),
-            self.points,
+            self.points.to(device),
         )
 
     @classmethod
@@ -141,5 +143,5 @@ class InputSample:
             [self.boxes3d[item]],
             self.intrinsics[item],
             self.extrinsics[item],
-            [self.points[item]],
+            self.points[item],
         )

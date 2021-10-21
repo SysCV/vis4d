@@ -229,3 +229,68 @@ class Images(DataInstance):
     def device(self) -> torch.device:
         """Returns current device."""
         return self.tensor.device
+
+
+class PointCloud(DataInstance):
+    """Data structure for loading point cloud."""
+
+    num_point_feature: int = 4
+
+    def __init__(self, tensor: torch.tensor):
+        """Init PointCloud class.
+
+        Args:
+            tensor (torch.Tensor): shape (N, C)
+        """
+        self.tensor = tensor
+
+    def __len__(self) -> int:
+        """Return number of PoinCloud."""
+        return int(self.tensor.shape[0])
+
+    def __getitem__(self, idx: int) -> "PointCloud":
+        """Access single points."""
+        return PointCloud(self.tensor[idx])
+
+    def to(self, device: torch.device) -> "PointCloud":
+        """Put PoinCloud on device."""
+        cast_tensor = self.tensor.to(device)
+        return PointCloud(cast_tensor)
+
+    @classmethod
+    def cat(
+        cls,
+        instances: List["PointCloud"],
+        device: Optional[torch.device] = None,
+    ) -> "PointCloud":
+        """Concatenate N PointCloud objects into Padded foramt.
+
+        Returns:
+            Tensor: [Batch, N_max, num_point_feature].
+        """
+        assert isinstance(instances, (list, tuple))
+        assert len(instances) > 0
+
+        if device is None:
+            device = instances[0].tensor.device
+
+        points_list = [p.tensor for p in instances]
+        num_points_per_cloud = torch.tensor(
+            [len(p) for p in points_list], device=device
+        )
+        max_p = int(num_points_per_cloud.max())
+
+        pad_points = torch.zeros(
+            (len(instances), max_p, cls.num_point_feature), device=device
+        )
+
+        for i, points in enumerate(points_list):
+            cur_len = points.shape[0]
+            pad_points[i, :cur_len, :] = points
+
+        return PointCloud(pad_points)
+
+    @property
+    def device(self) -> torch.device:
+        """Returns current device."""
+        return self.tensor.device

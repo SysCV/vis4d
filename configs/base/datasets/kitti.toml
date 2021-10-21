@@ -7,10 +7,9 @@ input_dir = "data/KITTI"
 split = "training"
 data_type = "tracking"
 output_dir = "data/KITTI"
-use_lidar = true
 num_processes = 0
     [train.dataloader]
-    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "lidar"]
     skip_empty_samples = true
 
     [train.dataloader.ref_sampling]
@@ -32,10 +31,9 @@ input_dir = "data/KITTI"
 split = "training"
 data_type = "detection"
 output_dir = "data/KITTI"
-use_lidar = true
 num_processes = 0
     [train.dataloader]
-    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "lidar"]
     skip_empty_samples = true
 
     [train.dataloader.ref_sampling]

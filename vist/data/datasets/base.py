@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, validator
 from pytorch_lightning.utilities.distributed import rank_zero_info
-from scalabel.label.typing import Dataset, Frame
+from scalabel.label.typing import Dataset, Frame, FrameGroup
 
 from vist.common.io import DataBackendConfig
 from vist.common.registry import RegistryHolder
@@ -75,7 +75,6 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     num_processes: int = 4
     collect_device = "cpu"
     multi_sensor_inference: bool = True
-    use_lidar: bool = False
 
 
 class BaseDatasetLoader(metaclass=RegistryHolder):
@@ -127,7 +126,9 @@ def build_dataset_loader(cfg: BaseDatasetConfig) -> BaseDatasetLoader:
     raise NotImplementedError(f"Dataset type {cfg.type} not found.")
 
 
-def add_data_path(data_root: str, frames: List[Frame]) -> None:
+def add_data_path(
+    data_root: str, frames: Union[List[Frame], List[FrameGroup]]
+) -> None:
     """Add filepath to frame using data_root."""
     for ann in frames:
         assert ann.name is not None
