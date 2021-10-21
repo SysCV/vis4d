@@ -368,7 +368,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         sample: InputSample,
         parameters: Optional[List[AugParams]] = None,
         training: bool = False,
-    ) -> Tuple[List[DictStrAny], torch.Tensor]:
+    ) -> List[DictStrAny]:
         """Apply augmentations to input sample."""
         if parameters is None:
             parameters = []
@@ -387,7 +387,16 @@ class ScalabelDataset(Dataset):  # type: ignore
             sample, tm = aug(sample, parameters[i], training)
             transform_matrix = torch.mm(tm[0], transform_matrix)
 
-        return parameters, transform_matrix
+        if "intrinsics" in self.cfg.dataloader.fields_to_load:
+            sample.intrinsics = self.transform_intrinsics(
+                sample.intrinsics, transform_matrix
+            )
+
+        if "extrinsics" in self.cfg.dataloader.fields_to_load:
+            sample.extrinsics = self.transform_extrinsics(
+                sample.extrinsics
+            )
+        return parameters
 
     def load_annotation(
         self,
@@ -502,27 +511,11 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.load_annotation(input_data, sample.labels)
 
         # apply transforms to input sample
-        parameters, transform_matrix = self.transform_input(
+        parameters = self.transform_input(
             input_data,
             parameters=parameters,
             training=self.training,
         )
-
-        if (
-            sample.intrinsics is not None
-            and "intrinsics" in self.cfg.dataloader.fields_to_load
-        ):
-            input_data.intrinsics = self.transform_intrinsics(
-                sample.intrinsics, transform_matrix
-            )
-
-        if (
-            sample.extrinsics is not None
-            and "extrinsics" in self.cfg.dataloader.fields_to_load
-        ):
-            input_data.extrinsics = self.transform_extrinsics(
-                sample.extrinsics
-            )
 
         if not self.training:
             return input_data, parameters
