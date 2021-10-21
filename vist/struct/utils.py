@@ -31,7 +31,7 @@ def _do_paste_mask(
         y1_int = torch.clamp(boxes[:, 3].max().ceil() + 1, max=img_h).to(
             dtype=torch.int32
         )
-    else:
+    else:  # pragma: no cover
         x0_int, y0_int = 0, 0
         x1_int, y1_int = img_w, img_h
     x0, y0, x1, y1 = torch.split(boxes, 1, dim=1)  # each is Nx1
@@ -61,4 +61,4 @@ def _do_paste_mask(
             slice(y0_int, y1_int),
             slice(x0_int, x1_int),
         )
-    return img_masks[:, 0], ()
+    return img_masks[:, 0], ()  # pragma: no cover

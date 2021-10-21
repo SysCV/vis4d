@@ -546,7 +546,7 @@ class Bitmasks(LabelInstance):
             # CPU is most efficient when they are pasted one by one with
             # skip_empty=True so that it performs minimal number of operations.
             num_chunks = num_masks
-        else:
+        else:  # pragma: no cover
             # GPU benefits from parallelism for larger chunks, but may have
             # memory issue int(img_h) because shape may be tensors in tracing
             num_chunks = int(
