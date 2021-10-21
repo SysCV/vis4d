@@ -7,9 +7,9 @@ def sample_bernoulli(num: int, prob: float) -> torch.Tensor:
     """Sample from a Bernoulli distribution with given p."""
     curr_prob: torch.Tensor
     if prob == 1.0:
-        curr_prob = torch.tensor([True])
+        curr_prob = torch.tensor([True] * num)
     elif prob == 0.0:
-        curr_prob = torch.tensor([False])
+        curr_prob = torch.tensor([False] * num)
     else:
         curr_prob = Bernoulli(prob).sample((num,)).bool()
     return curr_prob

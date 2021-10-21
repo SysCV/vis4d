@@ -50,19 +50,21 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         augmentation = getattr(
             kornia_augmentation, self.cfg.kornia_type  # type: ignore
         )
-        self.augmentor = augmentation(**self.cfg.kwargs)
+        self.augmentor = augmentation(p=1.0, **self.cfg.kwargs)
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
         parameters = super().generate_parameters(sample)
         _params = self.augmentor.generate_parameters(
             sample.images.tensor.shape
-        )  # TODO check
+        )
         parameters.update(_params)
-        parameters["transform"] = self.augmentor.compute_transformation(
+        parameters["batch_prob"] = parameters["apply"]
+        transf = self.augmentor.compute_transformation(
             sample.images.tensor, _params
         )
-        parameters["batch_prob"] = parameters["apply"]
+        transf[~parameters["apply"]] = torch.eye(3, device=transf.device)
+        parameters["transform"] = transf
         return parameters
 
     def apply_intrinsics(
@@ -116,10 +118,6 @@ class KorniaAugmentationWrapper(BaseAugmentation):
                     .type(mask.masks.dtype)
                 )
         return masks
-
-    def __repr__(self) -> str:
-        """Print class & params, s.t. user can inspect easily via cmd line."""
-        return self.augmentor.__repr__()  # type: ignore
 
 
 class KorniaColorJitter(KorniaAugmentationWrapper):

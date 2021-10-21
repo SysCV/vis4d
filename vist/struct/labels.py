@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
-from detectron2.layers.mask_ops import _do_paste_mask
 from mmcv.ops.roi_align import roi_align
 from pycocotools import mask as mask_utils
 from scalabel.label.transforms import mask_to_box2d, poly2ds_to_mask
@@ -16,9 +15,8 @@ from ..common.geometry.rotation import (
 )
 from .data import Extrinsics
 from .structures import DataInstance, LabelInstance, NDArrayUI8
+from .utils import _do_paste_mask
 
-BYTES_PER_FLOAT = 4  # TODO: make argument of function
-GPU_MEM_LIMIT = 1024 ** 3  # 1 GB memory limit
 TBoxes = TypeVar("TBoxes", bound="Boxes")
 
 
@@ -430,6 +428,7 @@ class Bitmasks(LabelInstance):
         masks: torch.Tensor,
         class_ids: torch.Tensor = None,
         track_ids: torch.Tensor = None,
+        scores: torch.Tensor = None,
         metadata: Optional[Dict[str, Union[bool, int, float, str]]] = None,
     ) -> None:
         """Init."""
@@ -442,10 +441,15 @@ class Bitmasks(LabelInstance):
             assert isinstance(track_ids, torch.Tensor)
             assert len(masks) == len(track_ids)
             assert masks.device == track_ids.device
+        if scores is not None:
+            assert isinstance(scores, torch.Tensor)
+            assert len(masks) == len(scores)
+            assert masks.device == scores.device
 
         self.masks = masks
         self.class_ids = class_ids
         self.track_ids = track_ids
+        self.scores = scores
         self.metadata = metadata
 
     @property
@@ -479,7 +483,7 @@ class Bitmasks(LabelInstance):
         binarize: Optional[bool] = True,
     ) -> "Bitmasks":
         """Crop and resize masks with input bboxes."""
-        if len(self) == 0:
+        if len(self) == 0:  # pragma: no cover
             return self
 
         # convert bboxes to tensor
@@ -510,7 +514,7 @@ class Bitmasks(LabelInstance):
             else:
                 resized_masks = targets
         else:
-            resized_masks = []
+            resized_masks = []  # pragma: no cover
         return type(self)(resized_masks)
 
     def paste_masks_in_image(
@@ -518,6 +522,8 @@ class Bitmasks(LabelInstance):
         boxes: Boxes2D,
         image_shape: Tuple[int, int],
         threshold: float = 0.5,
+        bytes_per_float: int = 4,
+        gpu_mem_limit: int = 1024 ** 3,
     ) -> None:
         """Paste masks that are of a fixed resolution into an image.
 
@@ -528,7 +534,7 @@ class Bitmasks(LabelInstance):
             self.masks.shape[-1] == self.masks.shape[-2]
         ), "Only square mask predictions are supported"
         num_masks = len(self.masks)
-        if num_masks == 0:
+        if num_masks == 0:  # pragma: no cover
             return
         assert len(boxes) == num_masks, boxes.boxes.shape
 
@@ -548,13 +554,13 @@ class Bitmasks(LabelInstance):
                     num_masks
                     * int(img_h)
                     * int(img_w)
-                    * BYTES_PER_FLOAT
-                    / GPU_MEM_LIMIT
+                    * bytes_per_float
+                    / gpu_mem_limit
                 )
             )
             assert (
                 num_chunks <= num_masks
-            ), "Default GPU_MEM_LIMIT is too small; try increasing it"
+            ), "Default gpu_mem_limit is too small; try increasing it"
         chunks = torch.chunk(
             torch.arange(num_masks, device=self.device), num_chunks
         )
@@ -567,10 +573,7 @@ class Bitmasks(LabelInstance):
             dtype=torch.bool if threshold >= 0 else torch.uint8,
         )
         for inds in chunks:
-            (
-                masks_chunk,
-                spatial_inds,
-            ) = _do_paste_mask(  # TODO: copy function over
+            (masks_chunk, spatial_inds,) = _do_paste_mask(
                 self.masks[inds, None, :, :],
                 boxes.boxes[inds, :4],
                 img_h,
@@ -582,14 +585,16 @@ class Bitmasks(LabelInstance):
                 masks_chunk = (masks_chunk >= threshold).to(dtype=torch.bool)
             else:
                 # for visualization and debugging
-                masks_chunk = (masks_chunk * 255).to(dtype=torch.uint8)
+                masks_chunk = (masks_chunk * 255).to(  # pragma: no cover
+                    dtype=torch.uint8
+                )
 
             img_masks[(inds,) + spatial_inds] = masks_chunk
         self.masks = img_masks.type(torch.uint8)
 
     def __getitem__(self: "Bitmasks", item) -> "Bitmasks":  # type: ignore
         """Shadows tensor based indexing while returning new Bitmasks."""
-        if isinstance(item, tuple):
+        if isinstance(item, tuple):  # pragma: no cover
             item = item[0]
         masks = self.masks[item]
         class_ids = (
@@ -598,19 +603,23 @@ class Bitmasks(LabelInstance):
         track_ids = (
             self.track_ids[item] if self.track_ids is not None else None
         )
+        scores = self.scores[item] if self.scores is not None else None
         if len(masks.shape) < 3:
             if class_ids is not None:
                 class_ids = class_ids.view(1, -1)
             if track_ids is not None:
                 track_ids = track_ids.view(1, -1)
+            if scores is not None:
+                scores = scores.view(1, -1)
             return type(self)(
                 masks.view(1, masks.size(0), masks.size(1)),
                 class_ids,
                 track_ids,
+                scores,
                 self.metadata,
             )
 
-        return type(self)(masks, class_ids, track_ids, self.metadata)
+        return type(self)(masks, class_ids, track_ids, scores, self.metadata)
 
     @classmethod
     def from_scalabel(
@@ -622,7 +631,9 @@ class Bitmasks(LabelInstance):
     ) -> Tuple["Bitmasks", "Boxes2D"]:
         """Convert from scalabel format to internal."""
         box_list, bitmask_list, cls_list, idx_list = [], [], [], []
+        score_list = []
         has_class_ids = all((b.category is not None for b in labels))
+        has_scores = all((b.score is not None for b in labels))
         for i, label in enumerate(labels):
             if label.poly2d is None and label.rle is None:
                 continue
@@ -636,17 +647,22 @@ class Bitmasks(LabelInstance):
                 bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
                     bitmask_raw.dtype
                 )
-            if np.count_nonzero(bitmask) == 0:
+            if np.count_nonzero(bitmask) == 0:  # pragma: no cover
                 continue
             bitmask_list.append(bitmask)
-            bbox = mask_to_box2d(bitmask)
-            box_list.append([bbox.x1, bbox.y1, bbox.x2, bbox.y2])
-            mask_cls, l_id = label.category, label.id
+            box = mask_to_box2d(bitmask)
+            mask_cls, l_id, score = label.category, label.id, label.score
+            if score is None:
+                box_list.append([box.x1, box.y1, box.x2, box.y2])
+            else:
+                box_list.append([box.x1, box.y1, box.x2, box.y2, score])
 
             if has_class_ids:
                 cls_list.append(class_to_idx[mask_cls])  # type: ignore
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
+            if has_scores:
+                score_list.append(score)
 
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         mask_tensor = torch.tensor(bitmask_list, dtype=torch.uint8)
@@ -654,7 +670,12 @@ class Bitmasks(LabelInstance):
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
         track_ids = torch.tensor(idx_list, dtype=torch.long)
-        return Bitmasks(mask_tensor, class_ids, track_ids), Boxes2D(
+        scores = (
+            torch.tensor(score_list, dtype=torch.float32)
+            if has_scores
+            else None
+        )
+        return Bitmasks(mask_tensor, class_ids, track_ids, scores), Boxes2D(
             box_tensor, class_ids, track_ids
         )
 
@@ -664,10 +685,17 @@ class Bitmasks(LabelInstance):
         """Convert from internal to scalabel format."""
         labels = []
         for i, mask in enumerate(self.masks):
+            if idx_to_class is not None:
+                cls = idx_to_class[int(self.class_ids[i])]
+            else:
+                cls = str(int(self.class_ids[i]))  # pragma: no cover
             if self.track_ids is not None:
                 label_id = str(self.track_ids[i].item())
             else:
                 label_id = str(i)
+            score = None
+            if self.scores is not None:
+                score = self.scores[i].item()
             rle = mask_utils.encode(
                 np.array(
                     mask[:, :, None].cpu().numpy(),
@@ -678,13 +706,9 @@ class Bitmasks(LabelInstance):
             rle_label = dict(
                 counts=rle["counts"].decode("utf-8"), size=rle["size"]
             )
-            label_dict = dict(id=label_id, rle=rle_label)
-
-            if idx_to_class is not None:
-                cls = idx_to_class[int(self.class_ids[i])]
-            else:
-                cls = str(int(self.class_ids[i]))  # pragma: no cover
-            label_dict["category"] = cls
+            label_dict = dict(
+                id=label_id, category=cls, score=score, rle=rle_label
+            )
             labels.append(Label(**label_dict))
 
         return labels

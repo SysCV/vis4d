@@ -33,15 +33,11 @@ def imshow(
     if not isinstance(image, Image.Image):
         image = preprocess_image(image, mode)
     plt.imshow(np.asarray(image))
-    # plt.show()
-    plt.savefig("test_img.png")
+    plt.show()
 
 
 def imshow_bboxes(
-    image: ImageType,
-    boxes: BoxType,
-    mode: str = "RGB",
-    label_str: str = "",
+    image: ImageType, boxes: BoxType, mode: str = "RGB"
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode)
@@ -49,9 +45,7 @@ def imshow_bboxes(
     for box, col, label in zip(box_list, color_list, label_list):
         draw_bbox(image, box, col, label)
 
-    # imshow(image)
-    plt.imshow(np.asarray(image))
-    plt.savefig(f"{label_str}.png")
+    imshow(image)
 
 
 def imshow_bboxes3d(
@@ -72,10 +66,7 @@ def imshow_bboxes3d(
 
 
 def imshow_bitmasks(
-    image: ImageType,
-    masks: BitmaskType,
-    mode: str = "RGB",
-    label_str: str = "",
+    image: ImageType, masks: BitmaskType, mode: str = "RGB"
 ) -> None:  # pragma: no cover
     """Show image with bitmasks."""
     image = preprocess_image(image, mode)
@@ -83,9 +74,7 @@ def imshow_bitmasks(
     for mask, col in zip(mask_list, color_list):
         draw_mask(image, mask, col)
 
-    # imshow(image)
-    plt.imshow(np.asarray(image))
-    plt.savefig(f"{label_str}.png")
+    imshow(image)
 
 
 def draw_image(
@@ -178,7 +167,9 @@ def draw_bbox3d(
         draw.text(center_top_forward, label, (255, 255, 255), font=font)
 
 
-def draw_mask(image: Image.Image, mask: NDArrayUI8, color: Tuple[int]) -> None:
+def draw_mask(
+    image: Image.Image, mask: NDArrayUI8, color: Tuple[int]
+) -> None:  # pragma: no cover
     """Draw mask onto image."""
     draw = ImageDraw.Draw(image)
     draw.bitmap([0, 0], Image.fromarray(mask, mode="L"), fill=color)

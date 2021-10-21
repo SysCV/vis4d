@@ -81,6 +81,7 @@ class Resize(BaseAugmentation):
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
+        params = super().generate_parameters(sample)
         if self.multiscale_mode == "range":
             assert isinstance(self.shape, tuple)
             if self.scale_range[0] < self.scale_range[1]:  # do multi-scale
@@ -119,10 +120,14 @@ class Resize(BaseAugmentation):
             .repeat(len(sample), 1, 1)
         )
         for i, sh in enumerate(shape):
-            w, h = sample.images.image_sizes[i]
-            transform[i, 0, 0] = sh[1] / w
-            transform[i, 1, 1] = sh[0] / h
-        return dict(shape=shape, transform=transform)
+            if params["apply"][i]:
+                w, h = sample.images.image_sizes[i]
+                transform[i, 0, 0] = sh[1] / w
+                transform[i, 1, 1] = sh[0] / h
+
+        params["shape"] = shape
+        params["transform"] = transform
+        return params
 
     def _apply_tensor(
         self, inputs: torch.Tensor, shape: torch.Tensor
@@ -150,8 +155,12 @@ class Resize(BaseAugmentation):
         all_ims = []
         for i, im in enumerate(images):  # type: ignore
             im: Images  # type: ignore
-            im_t = self._apply_tensor(im.tensor, parameters["shape"][i])
-            all_ims.append(Images(im_t, [(im_t.shape[3], im_t.shape[2])]))
+            if parameters["apply"][i]:
+                im_t = self._apply_tensor(im.tensor, parameters["shape"][i])
+                all_ims.append(Images(im_t, [(im_t.shape[3], im_t.shape[2])]))
+            else:
+                all_ims.append(im)
+
         if len(all_ims) == 1:
             return all_ims[0]
         return Images.cat(all_ims)
@@ -161,7 +170,7 @@ class Resize(BaseAugmentation):
     ) -> Sequence[Boxes2D]:
         """Apply augmentation to input box2d."""
         for i, box in enumerate(boxes):
-            if len(box) > 0:
+            if len(box) > 0 and parameters["apply"][i]:
                 box.boxes[:, :4] = transform_bbox(
                     parameters["transform"][i],
                     box.boxes[:, :4],
@@ -175,7 +184,7 @@ class Resize(BaseAugmentation):
         interp = self.interpolation
         self.interpolation = "nearest"
         for i, mask in enumerate(masks):
-            if len(mask) > 0:
+            if len(mask) > 0 and parameters["apply"][i]:
                 mask.masks = (
                     self._apply_tensor(
                         mask.masks.float().unsqueeze(1), parameters["shape"][i]

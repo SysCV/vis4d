@@ -78,6 +78,7 @@ def segmentations_to_bitmask(segmentations: List[Instances]) -> List[Bitmasks]:
             Bitmasks(
                 (segmentation.pred_masks.squeeze(1) >= 0.5).type(torch.uint8),
                 class_ids=segmentation.pred_classes,
+                scores=segmentation.scores,
             )
         )
     return result

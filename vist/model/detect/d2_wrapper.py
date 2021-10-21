@@ -188,10 +188,10 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             if self.with_mask:
                 segmentations = segmentations_to_bitmask(detections)
             detections = detections_to_box2d(detections)
-        elif compute_detections:
+        elif compute_detections:  # pragma: no cover
             if compute_segmentations:
                 segmentations = segmentations_to_bitmask(detections)
-            detections = proposal_to_box2d(detections)  # pragma: no cover
+            detections = proposal_to_box2d(detections)
         else:
             detections = None
         return detections, detect_losses, segmentations

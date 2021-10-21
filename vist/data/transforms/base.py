@@ -102,13 +102,9 @@ class BaseAugmentation(metaclass=RegistryHolder):
         sample.extrinsics = self.apply_extrinsics(
             sample.extrinsics, parameters
         )
-
-        if len(sample.boxes2d):
-            sample.boxes2d = self.apply_box2d(sample.boxes2d, parameters)
-        if len(sample.boxes3d):
-            sample.boxes3d = self.apply_box3d(sample.boxes3d, parameters)
-        if len(sample.bitmasks):
-            sample.bitmasks = self.apply_mask(sample.bitmasks, parameters)
+        sample.boxes2d = self.apply_box2d(sample.boxes2d, parameters)
+        sample.boxes3d = self.apply_box3d(sample.boxes3d, parameters)
+        sample.bitmasks = self.apply_mask(sample.bitmasks, parameters)
         return sample, parameters
 
     def __repr__(self) -> str:

@@ -210,17 +210,6 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
                 prediction.labels = out
                 self._predictions[key].append(prediction)
 
-        if "segment" in outputs:  # TODO: move to forward test
-            assert "detect" in outputs  # detection predictions required
-            for det, segm in zip(
-                self._predictions["detect"], self._predictions["segment"]
-            ):
-                if det.labels is None or segm.labels is None:
-                    continue
-                id2score = {label.id: label.score for label in det.labels}
-                for label in segm.labels:
-                    label.score = id2score[label.id]
-
     def evaluate(self, epoch: int) -> Dict[str, Result]:
         """Evaluate the performance after processing all input/output pairs."""
         results = {}

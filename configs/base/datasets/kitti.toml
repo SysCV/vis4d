@@ -20,7 +20,7 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [375, 1242]}
+    shape = [375, 1242]
 
 [[train]]
 name = "kitti_det_train"
