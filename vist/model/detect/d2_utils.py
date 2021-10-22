@@ -5,9 +5,9 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 import torch
 from detectron2 import model_zoo
 from detectron2.config import CfgNode, get_cfg
-from detectron2.structures import Boxes, ImageList, Instances
+from detectron2.structures import BitMasks, Boxes, ImageList, Instances
 
-from vist.struct import Boxes2D, Images
+from vist.struct import Boxes2D, Images, Masks
 
 from ..base import BaseModelConfig
 
@@ -70,6 +70,20 @@ def proposal_to_box2d(proposals: List[Instances]) -> List[Boxes2D]:
     return result
 
 
+def segmentations_to_bitmask(segmentations: List[Instances]) -> List[Masks]:
+    """Convert d2 Instances representing segmentations to Masks."""
+    result = []
+    for segmentation in segmentations:
+        result.append(
+            Masks(
+                (segmentation.pred_masks.squeeze(1) >= 0.5).type(torch.uint8),
+                class_ids=segmentation.pred_classes,
+                scores=segmentation.scores,
+            )
+        )
+    return result
+
+
 def box2d_to_proposal(
     proposals: List[Boxes2D], imgs_wh: List[Tuple[int, int]]
 ) -> List[Instances]:
@@ -86,19 +100,25 @@ def box2d_to_proposal(
 
 
 def target_to_instance(
-    targets: Sequence[Boxes2D], imgs_wh: List[Tuple[int, int]]
+    gt_boxes: Sequence[Boxes2D],
+    imgs_wh: List[Tuple[int, int]],
+    gt_masks: Optional[Sequence[Masks]] = None,
 ) -> List[Instances]:
-    """Convert Boxes2D representing targets to d2 Instances."""
+    """Convert Boxes2D and Masks representing targets to d2 Instances."""
     result = []
-    for target, img_wh in zip(targets, imgs_wh):
+    if gt_masks is None:
+        gt_masks = [None] * len(gt_boxes)  # type: ignore
+    for gt_box, gt_mask, img_wh in zip(gt_boxes, gt_masks, imgs_wh):
         boxes, cls, track_ids = (
-            target.boxes,
-            target.class_ids,
-            target.track_ids,
+            gt_box.boxes,
+            gt_box.class_ids,
+            gt_box.track_ids,
         )
         fields = dict(gt_boxes=Boxes(boxes), gt_classes=cls)
         if track_ids is not None:
             fields["track_ids"] = track_ids
+        if gt_mask is not None and len(gt_mask) > 0:
+            fields["gt_masks"] = BitMasks(gt_mask.masks)
         result.append(Instances((img_wh[1], img_wh[0]), **fields))
     return result
 

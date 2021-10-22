@@ -7,18 +7,18 @@ from collections import defaultdict
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
 
-import kornia
 import numpy as np
 import torch
 from PIL import Image
 from pytorch_lightning.utilities.distributed import rank_zero_info
-from scalabel.label.typing import Frame
+from scalabel.label.typing import Frame, FrameGroup
 from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
 from termcolor import colored
 
-from vist.common.utils.time import Timer
 from vist.struct import NDArrayUI8
+
+from ..common.geometry.transform import transform_points
 
 D2BoxType = Dict[str, Union[bool, float, str]]
 
@@ -37,8 +37,8 @@ def transform_bbox(
         x2y2 = x2y2.unsqueeze(0)
         trans_mat = trans_mat.unsqueeze(0)
 
-    x1y1 = kornia.transform_points(trans_mat, x1y1)
-    x2y2 = kornia.transform_points(trans_mat, x2y2)
+    x1y1 = transform_points(x1y1, trans_mat)
+    x2y2 = transform_points(x2y2, trans_mat)
 
     x1x2 = torch.stack((x1y1[..., 0], x2y2[..., 0]), -1)
     y1y2 = torch.stack((x1y1[..., 1], x2y2[..., 1]), -1)
@@ -77,7 +77,8 @@ def im_decode(im_bytes: bytes, mode: str = "RGB") -> NDArrayUI8:
 
 
 def instance_ids_to_global(
-    frames: List[Frame], local_instance_ids: Dict[str, List[str]]
+    frames: Union[List[Frame], List[FrameGroup]],
+    local_instance_ids: Dict[str, List[str]],
 ) -> None:
     """Use local (per video) instance ids to produce global ones."""
     video_names = list(local_instance_ids.keys())
@@ -109,12 +110,11 @@ def instance_ids_to_global(
 
 
 def prepare_labels(
-    frames: List[Frame],
+    frames: Union[List[Frame], List[FrameGroup]],
     cat_name2id: Dict[str, int],
     global_instance_ids: bool = False,
 ) -> Dict[str, int]:
     """Add category id and instance id to labels, return class frequencies."""
-    timer = Timer()
     instance_ids: Dict[str, List[str]] = defaultdict(list)
     frequencies = {cat: 0 for cat in cat_name2id}
     for frame_id, ann in enumerate(frames):
@@ -144,9 +144,6 @@ def prepare_labels(
     if global_instance_ids:
         instance_ids_to_global(frames, instance_ids)
 
-    rank_zero_info(
-        f"Preprocessing {len(frames)} frames takes {timer.time():.2f} seconds."
-    )
     return frequencies
 
 

@@ -63,7 +63,7 @@ class QD3DT(QDTrack):
         )
 
         # bbox head
-        _, roi_losses = self.detector.generate_detections(
+        _, roi_losses, _ = self.detector.generate_detections(
             key_inputs,
             key_x,
             key_proposals,
@@ -112,7 +112,7 @@ class QD3DT(QDTrack):
         feat = self.detector.extract_features(inputs)
         proposals, _ = self.detector.generate_proposals(inputs, feat)
 
-        boxes2d_list, _ = self.detector.generate_detections(
+        boxes2d_list, _, _ = self.detector.generate_detections(
             inputs, feat, proposals
         )
 
@@ -139,7 +139,7 @@ class QD3DT(QDTrack):
         for idx, boxes3d in enumerate(boxes3d_list):
             assert isinstance(boxes3d, Boxes3D)
             boxes3d.transform(
-                group.extrinsics.inverse() @ frames[idx].extrinsics
+                group.extrinsics.inverse() @ inputs[idx].extrinsics
             )
         boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
 
@@ -156,6 +156,8 @@ class QD3DT(QDTrack):
         for track in tracks2d:
             for i, box in enumerate(boxes2d):
                 if torch.equal(track.boxes, box.boxes):
+                    if boxes3d[i].score is not None:
+                        boxes3d[i].boxes[:, -1] *= track.score
                     boxes_3d = torch.cat([boxes_3d, boxes3d[i].boxes])
                     class_ids_3d = torch.cat([class_ids_3d, track.class_ids])
                     track_ids_3d = torch.cat([track_ids_3d, track.track_ids])

@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-import torch
-from vist.struct import Intrinsics, Extrinsics, NDArrayF64
+from vist.struct import Intrinsics, Extrinsics, NDArrayF64, NDArrayUI8
 
 from .utils import (
+    BitmaskType,
     Box3DType,
     BoxType,
     ImageType,
@@ -16,6 +16,7 @@ from .utils import (
     preprocess_boxes,
     preprocess_image,
     preprocess_intrinsics,
+    preprocess_masks,
 )
 
 
@@ -60,6 +61,18 @@ def imshow_bboxes3d(
 
     for box, col, label in zip(box_list, color_list, label_list):
         draw_bbox3d(image, box, intrinsic_matrix, col, label)
+
+    imshow(image)
+
+
+def imshow_masks(
+    image: ImageType, masks: BitmaskType, mode: str = "RGB"
+) -> None:  # pragma: no cover
+    """Show image with masks."""
+    image = preprocess_image(image, mode)
+    mask_list, color_list = preprocess_masks(masks)
+    for mask, col in zip(mask_list, color_list):
+        draw_mask(image, mask, col)
 
     imshow(image)
 
@@ -152,6 +165,14 @@ def draw_bbox3d(
         font = ImageFont.load_default()
         center_top_forward = tuple(np.mean(corners_proj[2:4], axis=0)[:2])
         draw.text(center_top_forward, label, (255, 255, 255), font=font)
+
+
+def draw_mask(
+    image: Image.Image, mask: NDArrayUI8, color: Tuple[int]
+) -> None:  # pragma: no cover
+    """Draw mask onto image."""
+    draw = ImageDraw.Draw(image)
+    draw.bitmap([0, 0], Image.fromarray(mask, mode="L"), fill=color)
 
 
 def get_intersection_point(

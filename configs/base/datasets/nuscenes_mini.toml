@@ -17,11 +17,12 @@ cache_as_binary = true
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [900, 1600]}
+    shape = [900, 1600]
 
     [[train.dataloader.transformations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
+    type = "KorniaAugmentationWrapper"
+    kornia_type = "RandomHorizontalFlip"
+    prob = 0.5
 
 [[test]]
 name = "nuscenes_mini_val"
@@ -37,4 +38,4 @@ cache_as_binary = true
 
     [[test.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [900, 1600]}
+    shape = [900, 1600]

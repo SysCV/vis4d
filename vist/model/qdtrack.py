@@ -87,7 +87,7 @@ class QDTrack(BaseModel):
             ]
 
         # bbox head
-        _, roi_losses = self.detector.generate_detections(
+        _, roi_losses, _ = self.detector.generate_detections(
             key_inputs,
             key_x,
             key_proposals,
@@ -127,7 +127,7 @@ class QDTrack(BaseModel):
         # detector
         feat = self.detector.extract_features(inputs)
         proposals, _ = self.detector.generate_proposals(inputs, feat)
-        detections, _ = self.detector.generate_detections(
+        detections, _, _ = self.detector.generate_detections(
             inputs, feat, proposals
         )
         assert detections is not None

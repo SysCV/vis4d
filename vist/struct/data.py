@@ -47,9 +47,9 @@ class Intrinsics(DataInstance):
         if device is None:
             device = instances[0].tensor.device
         for inst in instances:
-            tensor = inst.tensor.to(device)
+            tensor = inst.tensor
             tensors.append(tensor)
-        return Intrinsics(torch.cat(tensors, 0))
+        return Intrinsics(torch.cat(tensors, 0).to(device))
 
     def inverse(self) -> "Intrinsics":
         """Invert intrinsics."""
@@ -103,9 +103,9 @@ class Extrinsics(DataInstance):
         if device is None:
             device = instances[0].tensor.device
         for inst in instances:
-            tensor = inst.tensor.to(device)
+            tensor = inst.tensor
             tensors.append(tensor)
-        return Extrinsics(torch.cat(tensors, 0))
+        return Extrinsics(torch.cat(tensors, 0).to(device))
 
     @property
     def rotation(self) -> torch.Tensor:
@@ -159,6 +159,10 @@ class Images(DataInstance):
                 be smaller than (W, H) due to padding.
         """
         assert len(tensor.shape) > 3
+        assert len(image_sizes) == tensor.shape[0], (
+            f"Tensor shape ({tensor.shape[0]}) and image_sizes"
+            f" ({len(image_sizes)}) do not match!"
+        )
         self.tensor = tensor
         self.image_sizes = image_sizes
 

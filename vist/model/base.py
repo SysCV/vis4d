@@ -9,7 +9,7 @@ from pydantic import Field
 from torch.optim import Optimizer
 
 from ..common.registry import ABCRegistryHolder
-from ..struct import Boxes2D, InputSample, LossesType, ModelOutput
+from ..struct import Boxes2D, InputSample, LossesType, Masks, ModelOutput
 from .optimize import (
     BaseLRScheduler,
     BaseLRSchedulerConfig,
@@ -178,6 +178,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         detections: Boxes2D,
+        segmentations: Optional[Masks] = None,
     ) -> None:
         """Postprocess results."""
         scale_factor = (
@@ -186,6 +187,9 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         )
         detections.scale(scale_factor)
         detections.clip(original_wh)
+        if segmentations is not None:
+            if segmentations.size != output_wh:
+                segmentations.paste_masks_in_image(detections, original_wh)
 
 
 def build_model(cfg: BaseModelConfig, ckpt: Optional[str] = None) -> BaseModel:

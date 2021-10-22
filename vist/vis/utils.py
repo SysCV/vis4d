@@ -7,12 +7,20 @@ import torch
 from PIL import Image
 from scipy.spatial.transform import Rotation as R
 
-from vist.struct import Boxes2D, Boxes3D, Intrinsics, NDArrayF64, NDArrayUI8
+from vist.struct import (
+    Boxes2D,
+    Boxes3D,
+    Intrinsics,
+    Masks,
+    NDArrayF64,
+    NDArrayUI8,
+)
 
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
 BoxType = Union[Boxes2D, List[Boxes2D]]
 Box3DType = Union[Boxes3D, List[Boxes3D]]
+BitmaskType = Union[Masks, List[Masks]]
 
 ColorType = Union[
     Union[Tuple[int], str],
@@ -93,6 +101,47 @@ def preprocess_boxes(
         draw_colors.append(draw_color)
 
     return boxes_list, draw_colors, labels
+
+
+def preprocess_masks(
+    masks: BitmaskType, color_idx: int = 0
+) -> Tuple[List[NDArrayUI8], List[Tuple[int]]]:
+    """Preprocess BitmaskType to masks / colors / labels for drawing."""
+    if isinstance(masks, list):
+        result_mask, result_color = [], []
+        for i, m in enumerate(masks):
+            mask, color = preprocess_masks(m, i)
+            result_mask.extend(mask)
+            result_color.extend(color)
+        return result_mask, result_color
+
+    assert isinstance(masks, Masks)
+
+    masks_list = (masks.masks.cpu().numpy() * 255).astype(np.uint8)
+
+    if masks.track_ids is not None:
+        track_ids = masks.track_ids.cpu().numpy()
+        if len(track_ids.shape) > 1:
+            track_ids = track_ids.squeeze(-1)
+    else:
+        track_ids = [None for _ in range(len(masks_list))]
+
+    if masks.class_ids is not None:
+        class_ids = masks.class_ids.cpu().numpy()
+    else:
+        class_ids = [None for _ in range(len(masks_list))]
+
+    draw_colors = []
+    for t, c in zip(track_ids, class_ids):
+        if t is not None:
+            draw_color = COLOR_PALETTE[int(t) % NUM_COLORS]
+        elif c is not None:
+            draw_color = COLOR_PALETTE[int(c) % NUM_COLORS]
+        else:
+            draw_color = COLOR_PALETTE[color_idx % NUM_COLORS]
+        draw_colors.append(draw_color)
+
+    return masks_list, draw_colors
 
 
 def preprocess_image(image: ImageType, mode: str = "RGB") -> Image.Image:

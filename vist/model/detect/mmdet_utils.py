@@ -8,11 +8,23 @@ import requests
 import torch
 from mmcv import Config as MMConfig
 
-from vist.struct import Boxes2D, Images, LossesType
+from vist.struct import (
+    Boxes2D,
+    Images,
+    InputSample,
+    LossesType,
+    Masks,
+    NDArrayF64,
+)
 
 from ..base import BaseModelConfig
 
-MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, float]]
+MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
+MMDetResult = List[torch.Tensor]
+MMSegmResult = List[List[torch.Tensor]]
+MMResults = Union[
+    List[MMDetResult], List[Tuple[List[MMDetResult], List[MMSegmResult]]]
+]
 
 
 class MMTwoStageDetectorConfig(BaseModelConfig):
@@ -34,7 +46,7 @@ def get_img_metas(images: Images) -> List[MMDetMetaData]:
         meta: MMDetMetaData = {}
         w, h = images.image_sizes[i]
         meta["img_shape"] = meta["ori_shape"] = (h, w, c)
-        meta["scale_factor"] = 1.0
+        meta["scale_factor"] = np.ones(4, dtype=np.float64)
         meta["flip"] = False
         meta["pad_shape"] = (padh, padw, c)
         img_metas.append(meta)
@@ -70,29 +82,84 @@ def detections_from_mmdet(
     return detections_boxes2d
 
 
+def segmentations_from_mmdet(
+    masks: List[torch.Tensor], labels: List[torch.Tensor]
+) -> List[Masks]:  # pragma: no cover
+    """Convert mmdetection segmentations to VisT format."""
+    segmentations_masks = []
+    for mask, label in zip(masks, labels):
+        if not label.device == mask.device:
+            label = label.to(mask.device)  # pragma: no cover
+        segmentations_masks.append(Masks(mask, label))
+    return segmentations_masks
+
+
+def detection_from_mmdet_results(
+    detection: MMDetResult, device: torch.device
+) -> Boxes2D:
+    """Convert bbox_result to VisT format."""
+    if len(detection) == 0:  # pragma: no cover
+        return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+    bboxes = torch.from_numpy(np.vstack(detection)).to(device)  # Nx5
+    labels = [
+        torch.full((bbox.shape[0],), i, dtype=torch.int32, device=device)
+        for i, bbox in enumerate(detection)
+    ]
+    labels = torch.cat(labels)
+    return Boxes2D(bboxes, labels)
+
+
+def segmentation_from_mmdet_results(
+    segmentation: MMSegmResult, boxes: Boxes2D, device: torch.device
+) -> Masks:
+    """Convert segm_result to VisT format."""
+    segms = [np.stack(segm) for segm in segmentation if len(segm) != 0]
+    if len(segms) == 0:  # pragma: no cover
+        return Masks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
+    masks = (
+        torch.from_numpy(np.concatenate(segms))  # type: ignore
+        .type(torch.uint8)
+        .to(device)
+    )  # NxWxH
+    labels = [
+        torch.full((len(segm),), i, dtype=torch.int32, device=device)
+        for i, segm in enumerate(segmentation)
+    ]
+    scores = boxes.boxes[:, -1]
+    labels = torch.cat(labels)
+    return Masks(masks, labels, scores=scores)
+
+
 def results_from_mmdet(
-    detections: List[torch.Tensor], device: torch.device
-) -> List[Boxes2D]:
-    """Convert mmdetection bbox_results to VisT format."""
-    detections_boxes2d = []
-    for detection in detections:
-        bboxes = torch.from_numpy(np.vstack(detection)).to(device)  # Nx5
-        labels = [
-            torch.full((bbox.shape[0],), i, dtype=torch.int32, device=device)
-            for i, bbox in enumerate(detection)
-        ]
-        labels = torch.cat(labels)
-        detections_boxes2d.append(Boxes2D(bboxes, labels))
-    return detections_boxes2d
+    results: MMResults, device: torch.device, with_mask: bool
+) -> Tuple[List[Boxes2D], List[Masks]]:
+    """Convert mmdetection bbox_results and segm_results to VisT format."""
+    results_boxes2d, results_masks = [], []
+    for result in results:
+        if with_mask:
+            detection, segmentation = result
+        else:
+            detection = result
+        box2d = detection_from_mmdet_results(detection, device)
+        results_boxes2d.append(box2d)
+        if with_mask:
+            bitmask = segmentation_from_mmdet_results(
+                segmentation, box2d, device
+            )
+            results_masks.append(bitmask)
+        else:
+            results_masks.append(None)  # type: ignore
+    return results_boxes2d, results_masks
 
 
 def targets_to_mmdet(
-    targets: Sequence[Boxes2D],
-) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+    targets: InputSample,
+) -> Tuple[List[torch.Tensor], List[torch.Tensor], Optional[Sequence[Masks]]]:
     """Convert VisT targets to mmdetection compatible format."""
-    gt_bboxes = [t.boxes for t in targets]
-    gt_labels = [t.class_ids for t in targets]
-    return gt_bboxes, gt_labels
+    gt_bboxes = [t.boxes for t in targets.boxes2d]
+    gt_labels = [t.class_ids for t in targets.boxes2d]
+    gt_masks = targets.masks if len(targets.masks) > 0 else None
+    return gt_bboxes, gt_labels, gt_masks
 
 
 def load_config_from_mmdet(url: str) -> str:
@@ -115,9 +182,9 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
         if cfg.get("model"):
             cfg = cfg["model"]
     elif config.model_base.startswith("mmdet://"):
-        ext = os.path.splitext(config.model_base)[1]
+        ex = os.path.splitext(config.model_base)[1]
         cfg = MMConfig.fromstring(
-            load_config_from_mmdet(config.model_base.strip("mmdet://")), ext
+            load_config_from_mmdet(config.model_base.split("mmdet://")[-1]), ex
         ).model
     else:
         raise FileNotFoundError(
