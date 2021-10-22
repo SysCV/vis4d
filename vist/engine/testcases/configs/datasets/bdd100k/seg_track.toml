@@ -28,12 +28,14 @@ cache_as_binary = true
 [[train]]
 name = "bdd100k_det_sample_train"
 type = "BDD100K"
-annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation.json"
-data_root = "vist/engine/testcases/detect/bdd100k-samples/images/"
-config_path = "det"
+annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation_rle.json"
+data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
+config_path = "ins_seg"
 num_processes = 0
 cache_as_binary = true
     [train.dataloader]
+    fields_to_load = ["masks"]
+
         [train.dataloader.ref_sampling]
         scope = 0
         num_ref_imgs = 1
