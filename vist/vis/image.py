@@ -202,6 +202,7 @@ def imshow_lidar(
     intrinsic_matrix = preprocess_intrinsics(camera_intrinsics)
 
     pts2d = np.dot(points_cam.cpu().numpy(), intrinsic_matrix.T)  # type: ignore
+    pts2d = pts2d / pts2d[:, 2:3]
 
     image = preprocess_image(image, mode)
 
@@ -215,12 +216,12 @@ def imshow_lidar(
     mask = np.logical_and(mask, pts2d[:, 1] > 1)
     mask = np.logical_and(mask, pts2d[:, 1] < image.size[1] - 1)
 
-    points = pts2d[mask, :]
+    pts2d = pts2d[mask, :]
     coloring = coloring[mask]
 
     plt.figure(figsize=(16, 9))
     plt.imshow(image)
-    plt.scatter(points[:, 0], points[:, 1], c=coloring, s=dot_size)
+    plt.scatter(pts2d[:, 0], pts2d[:, 1], c=coloring, s=dot_size)
     plt.axis("off")
     plt.savefig("test.png")
 
