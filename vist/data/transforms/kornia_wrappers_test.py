@@ -2,10 +2,6 @@
 import copy
 import unittest
 
-import torch
-from scalabel.label.typing import Frame
-
-from vist.struct import Images, InputSample
 from vist.unittest.utils import generate_input_sample
 
 from . import KorniaAugmentationConfig, KorniaAugmentationWrapper
@@ -38,12 +34,8 @@ class TestKorniaAugmentation(unittest.TestCase):
         self.assertFalse(params["batch_prob"].any())
         self.assertFalse(params["apply"].any())
         kor_aug.cfg.prob = 0.5
-        num_exps = 100
-        testt = torch.zeros(num_exps, 3, 5, 5)
-        test_image = Images(
-            testt, [(testt.shape[3], testt.shape[2])] * num_exps
-        )
-        sample = InputSample([Frame(name="test_frame")] * num_exps, test_image)
+        num_imgs = 100
+        sample = generate_input_sample(height, width, num_imgs, num_objs)
         params = kor_aug.generate_parameters(sample)
         self.assertGreater(params["batch_prob"].sum(), 0)
 
@@ -84,3 +76,14 @@ class TestKorniaAugmentation(unittest.TestCase):
         self.assertEqual(pre_boxes.shape, new_boxes.shape)
         self.assertEqual(pre_masks.shape, new_masks.shape)
         self.assertFalse((pre_intrs == new_intrs).all())
+        aug_cfg = KorniaAugmentationConfig(
+            type="test", kornia_type="RandomHorizontalFlip", kwargs={}
+        )
+        kor_aug = KorniaAugmentationWrapper(aug_cfg)
+        kor_aug.cfg.prob = 1.0
+        num_imgs = 3
+        sample = generate_input_sample(height, width, num_imgs, num_objs)
+        results, _ = kor_aug(sample, None)
+        self.assertEqual(len(sample.images.tensor), num_imgs)
+        self.assertEqual(len(sample.boxes2d), num_imgs)
+        self.assertEqual(len(sample.masks), num_imgs)
