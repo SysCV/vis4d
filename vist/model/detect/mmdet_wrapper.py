@@ -217,7 +217,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                     bboxes,
                     labels,
                 )
-                segmentations = segmentations_from_mmdet(masks, labels)
+                segmentations = segmentations_from_mmdet(
+                    masks, detections, self.device
+                )
             else:
                 segmentations = None
             detect_losses = {}

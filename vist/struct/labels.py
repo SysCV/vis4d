@@ -731,8 +731,9 @@ class Masks(LabelInstance):
         track_ids = (
             self.track_ids.clone() if self.track_ids is not None else None
         )
+        scores = self.scores.clone() if self.scores is not None else None
         return type(self)(
-            self.masks.clone(), class_ids, track_ids, self.metadata
+            self.masks.clone(), class_ids, track_ids, scores, self.metadata
         )
 
     def to(self: "Masks", device: torch.device) -> "Masks":
@@ -747,10 +748,14 @@ class Masks(LabelInstance):
             if self.track_ids is not None
             else None
         )
+        scores = (
+            self.scores.to(device=device) if self.scores is not None else None
+        )
         return type(self)(
             self.masks.to(device=device),
             class_ids,
             track_ids,
+            scores,
             self.metadata,
         )
 

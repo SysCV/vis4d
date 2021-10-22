@@ -15,13 +15,14 @@ from vist.struct import (
     LossesType,
     Masks,
     NDArrayF64,
+    NDArrayUI8,
 )
 
 from ..base import BaseModelConfig
 
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
 MMDetResult = List[torch.Tensor]
-MMSegmResult = List[List[torch.Tensor]]
+MMSegmResult = List[List[NDArrayUI8]]
 MMResults = Union[
     List[MMDetResult], List[Tuple[List[MMDetResult], List[MMSegmResult]]]
 ]
@@ -83,14 +84,13 @@ def detections_from_mmdet(
 
 
 def segmentations_from_mmdet(
-    masks: List[torch.Tensor], labels: List[torch.Tensor]
-) -> List[Masks]:  # pragma: no cover
+    masks: List[MMSegmResult], boxes: List[Boxes2D], device: torch.device
+) -> List[Masks]:
     """Convert mmdetection segmentations to VisT format."""
     segmentations_masks = []
-    for mask, label in zip(masks, labels):
-        if not label.device == mask.device:
-            label = label.to(mask.device)  # pragma: no cover
-        segmentations_masks.append(Masks(mask, label))
+    for mask_res, box_res in zip(masks, boxes):
+        mask = segmentation_from_mmdet_results(mask_res, box_res, device)
+        segmentations_masks.append(mask)
     return segmentations_masks
 
 
@@ -144,7 +144,7 @@ def results_from_mmdet(
         results_boxes2d.append(box2d)
         if with_mask:
             bitmask = segmentation_from_mmdet_results(
-                segmentation, box2d, device
+                segmentation, box2d, device  # type: ignore
             )
             results_masks.append(bitmask)
         else:
