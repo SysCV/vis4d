@@ -6,7 +6,7 @@ data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
 config_path = "ins_seg"
 num_processes = 0
     [train.dataloader]
-        fields_to_load = ["masks"]
+    fields_to_load = ["masks"]
 
         [train.dataloader.ref_sampling]
         type = 'uniform'
@@ -36,7 +36,7 @@ config_path = "ins_seg"
 num_processes = 0
 eval_metrics = ["detect", "segment"]
     [test.dataloader]
-        fields_to_load = ["masks"]
+    fields_to_load = ["masks"]
 
     [[test.dataloader.transformations]]
     type = "Resize"
