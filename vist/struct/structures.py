@@ -1,11 +1,11 @@
 """Base classes for data structures in VisT."""
 import abc
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import numpy.typing as npt
 import torch
-from scalabel.label.typing import Label
+from scalabel.label.typing import ImageSize, Label
 
 
 class DataInstance(metaclass=abc.ABCMeta):
@@ -35,7 +35,8 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
         labels: List[Label],
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
-    ) -> "LabelInstance":
+        image_size: Optional[ImageSize] = None,
+    ) -> Sequence["LabelInstance"]:
         """Convert from scalabel format to ours."""
         raise NotImplementedError
 

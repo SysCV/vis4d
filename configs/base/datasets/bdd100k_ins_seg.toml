@@ -1,12 +1,16 @@
 [[train]]
-name = "bdd100k_det_train"
+name = "bdd100k_ins_seg_train"
 type = "BDD100K"
-annotations = "data/bdd100k/labels/det_20/det_train.json"
-data_root = "data/bdd100k/images/100k/train/"
-config_path = "det"
+annotations = "data/bdd100k/labels/ins_seg_train_rle.json"
+data_root = "data/bdd100k/images/hdf5s/10k_train.hdf5"
+config_path = "ins_seg"
 cache_as_binary = true
     [train.dataloader]
+    fields_to_load = ["masks"]
     skip_empty_samples = true
+
+    [train.dataloader.data_backend]
+    type = "HDF5Backend"
 
     [train.dataloader.ref_sampling]
     type = 'uniform'
@@ -23,13 +27,16 @@ cache_as_binary = true
     prob = 0.5
 
 [[test]]
-name = "bdd100k_det_val"
+name = "bdd100k_ins_seg_val"
 type = "BDD100K"
-annotations = "data/bdd100k/labels/det_20/det_val.json"
-data_root = "data/bdd100k/images/100k/val/"
-eval_metrics = ["detect"]
-config_path = "det"
+annotations = "data/bdd100k/labels/ins_seg_val_rle.json"
+data_root = "data/bdd100k/images/hdf5s/10k_val.hdf5"
+eval_metrics = ["detect", "segment"]
+config_path = "ins_seg"
 cache_as_binary = true
+    [test.dataloader.data_backend]
+    type = "HDF5Backend"
+
     [[test.dataloader.transformations]]
     type = "Resize"
     shape = [720, 1280]

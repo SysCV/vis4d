@@ -43,6 +43,8 @@ class MaxIoUMatcherConfig(MatcherConfig):
         return value
 
 
+# implementation modified from:
+# https://github.com/facebookresearch/detectron2/
 class MaxIoUMatcher(BaseMatcher):
     """MaxIoUMatcher class."""
 
