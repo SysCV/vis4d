@@ -36,9 +36,15 @@ class QD3DT(QDTrack):
         """Forward function for training."""
         key_inputs, ref_inputs = self.preprocess_inputs(batch_inputs)
 
-        from vist.vis.image import imshow_lidar
+        from vist.vis.image import imshow_lidar, show_pointcloud
 
         for batch_i, key_inp in enumerate(key_inputs):
+            show_pointcloud(
+                key_inp.points.tensor,
+                key_inp.points_extrinsics[0],
+                key_inp.extrinsics[0],
+                key_inp.boxes3d[0],
+            )
             imshow_lidar(
                 key_inp.points.tensor,
                 key_inp.points_extrinsics[0],

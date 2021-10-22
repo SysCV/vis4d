@@ -226,3 +226,107 @@ def imshow_lidar(
     plt.savefig("test.png")
 
     pdb.set_trace()
+
+
+import plotly.graph_objects as go
+import dash_core_components as dcc
+import dash_html_components as html
+import dash
+from multiprocessing import Process
+
+
+def plotly_draw_bbox3d(box: List[float]):
+    x_lines = []
+    y_lines = []
+    z_lines = []
+
+    def f_lines_add_nones():
+        x_lines.append(None)
+        y_lines.append(None)
+        z_lines.append(None)
+
+    ixs_box_0 = [0, 1, 2, 3, 0]
+    ixs_box_1 = [4, 5, 6, 7, 4]
+    corners = box3d_to_corners(box)
+
+    x_lines.extend(corners[ixs_box_0, 0])
+    y_lines.extend(corners[ixs_box_0, 1])
+    z_lines.extend(corners[ixs_box_0, 2])
+    f_lines_add_nones()
+    x_lines.extend(corners[ixs_box_1, 0])
+    y_lines.extend(corners[ixs_box_1, 1])
+    z_lines.extend(corners[ixs_box_1, 2])
+    f_lines_add_nones()
+    for i in range(4):
+        x_lines.extend(corners[[ixs_box_0[i], ixs_box_1[i]], 0])
+        y_lines.extend(corners[[ixs_box_0[i], ixs_box_1[i]], 1])
+        z_lines.extend(corners[[ixs_box_0[i], ixs_box_1[i]], 2])
+        f_lines_add_nones()
+
+    # heading
+    x_lines.extend(corners[[0, 5], 0])
+    y_lines.extend(corners[[0, 5], 1])
+    z_lines.extend(corners[[0, 5], 2])
+    f_lines_add_nones()
+
+    x_lines.extend(corners[[1, 4], 0])
+    y_lines.extend(corners[[1, 4], 1])
+    z_lines.extend(corners[[1, 4], 2])
+    f_lines_add_nones()
+    return x_lines, y_lines, z_lines
+
+
+def show_pointcloud(points: torch.tensor,
+    points_extrinsics: Extrinsics,
+    camera_extrinsics: Extrinsics,
+    boxes3d: Box3DType = None,
+    thickness=2):
+    """Show lidar points."""
+    points = torch.cat([points[:, :3], torch.ones_like(points[:, 0:1])], -1)
+    points_world = points @ points_extrinsics.transpose().tensor[0]
+    points = (
+            points_world @ camera_extrinsics.inverse().transpose().tensor[0]
+    )[:, :3]
+
+    scatter = go.Scatter3d(
+        x=points[:, 0],
+        y=points[:, 1],
+        z=points[:, 2],
+        mode="markers",
+        marker=dict(size=thickness),
+    )
+
+    data = [scatter]
+    if boxes3d is not None:
+        #boxes3d.transform(points_extrinsics)
+        #boxes3d.transform(camera_extrinsics.inverse())
+        box_list, col_list, label_list = preprocess_boxes(boxes3d)
+        for box, color, label in zip(box_list, col_list, label_list):
+            x_lines, y_lines, z_lines = plotly_draw_bbox3d(box)
+            lines = go.Scatter3d(x=x_lines, y=y_lines, z=z_lines, mode="lines", name="lines",
+                                 marker=dict(size=thickness, color=f'rgb{color}'))
+            data.append(lines)
+
+    fig = go.Figure(data=data)
+
+    # set to OpenCV based camera system
+    camera = dict(
+        up=dict(x=0, y=-1, z=0),
+        center=dict(x=0, y=0, z=0),
+        eye=dict(x=0., y=0., z=-1.25)
+    )
+    fig.update_layout(scene_camera=camera, scene_aspectmode="data")
+
+    def dash_app():
+        app = dash.Dash(__name__)
+        app.layout = html.Div([
+                        html.Div([
+                            dcc.Graph(id='visualization', figure=fig)
+                        ]),
+                    ])
+        app.run_server(debug=False, port=8080, host='0.0.0.0')
+
+    p = Process(target=dash_app)
+    p.start()
+    input("Press Enter to continue...")
+    p.terminate()
