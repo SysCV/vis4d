@@ -417,7 +417,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         points = points[:, not_close].T
 
         assert group.extrinsics is not None
-        points_extrinsics = self.transform_extrinsics(group.extrinsics)
+        points_extrinsics = self.load_extrinsics(group.extrinsics)
         return PointCloud(torch.as_tensor(points)), points_extrinsics
 
     def load_annotation(

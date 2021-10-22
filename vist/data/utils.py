@@ -124,7 +124,11 @@ def prepare_labels(
                 if label.attributes is not None:
                     attr = label.attributes
 
-                if not check_crowd(label) and not check_ignored(label):
+                if (
+                    not check_crowd(label)
+                    and not check_ignored(label)
+                    and label.category in frequencies
+                ):
                     assert label.category is not None
                     frequencies[label.category] += 1
                     attr["category_id"] = cat_name2id[label.category]

@@ -2,6 +2,7 @@
 from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
+import torch
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
