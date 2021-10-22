@@ -23,8 +23,8 @@ from scalabel.label.utils import (
 )
 from torch.utils.data import Dataset
 
-from vist.common.io import build_data_backend
-
+from ..common.io import build_data_backend
+from ..common.utils.time import Timer
 from ..struct import (
     Boxes2D,
     Boxes3D,
@@ -113,16 +113,31 @@ class ScalabelDataset(Dataset):  # type: ignore
             dataset.frames, dataset.cfg.attributes
         )
 
+        t = Timer()
         frequencies = prepare_labels(
             dataset.frames,
             cats_name2id,
             self.cfg.dataloader.compute_global_instance_ids,
+        )
+        rank_zero_info(
+            f"Preprocessing {len(dataset.frames)} frames takes {t.time():.2f}"
+            " seconds."
         )
         print_class_histogram(frequencies)
 
         self.dataset = dataset
         self.dataset.frames = DatasetFromList(self.dataset.frames)
         if self.dataset.groups is not None:
+            t.reset()
+            prepare_labels(
+                self.dataset.groups,
+                cats_name2id,
+                self.cfg.dataloader.compute_global_instance_ids,
+            )
+            rank_zero_info(
+                f"Preprocessing {len(self.dataset.groups)} groups takes "
+                f"{t.time():.2f} seconds."
+            )
             self.dataset.groups = DatasetFromList(self.dataset.groups)
 
         self._fallback_candidates = set(range(len(self.dataset.frames)))
