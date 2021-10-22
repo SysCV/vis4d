@@ -21,6 +21,7 @@ class InputSample:
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
         points: Optional[PointCloud] = None,
+        points_extrinsics: Optional[Extrinsics] = None,
     ) -> None:
         """Init."""
         self.metadata = metadata
@@ -59,6 +60,12 @@ class InputSample:
             )
         self.points = points
 
+        if points_extrinsics is None:
+            points_extrinsics = Extrinsics(
+                torch.cat([torch.eye(4) for _ in range(len(images))])
+            )
+        self.points_extrinsics = points_extrinsics
+
     def get(
         self, key: str
     ) -> Union[Sequence[Frame], DataInstance, Sequence[DataInstance]]:
@@ -84,6 +91,7 @@ class InputSample:
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
             "points": self.points,
+            "points_extrinsics": self.points_extrinsics,
         }
         return obj_dict
 
@@ -99,6 +107,7 @@ class InputSample:
             self.intrinsics.to(device),
             self.extrinsics.to(device),
             self.points.to(device),
+            self.points_extrinsics.to(device),
         )
 
     @classmethod
@@ -144,4 +153,5 @@ class InputSample:
             self.intrinsics[item],
             self.extrinsics[item],
             self.points[item],
+            self.points_extrinsics[item],
         )

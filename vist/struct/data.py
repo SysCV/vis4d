@@ -240,7 +240,7 @@ class PointCloud(DataInstance):
         """Init PointCloud class.
 
         Args:
-            tensor (torch.Tensor): shape (N, C)
+            tensor (torch.Tensor): (N, C) or (B, N, C)
         """
         self.tensor = tensor
 

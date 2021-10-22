@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from vist.struct import Intrinsics, NDArrayF64
+import torch
+from vist.struct import Intrinsics, Extrinsics, NDArrayF64
 
 from .utils import (
     Box3DType,
@@ -16,6 +17,7 @@ from .utils import (
     preprocess_image,
     preprocess_intrinsics,
 )
+import pdb
 
 
 def imshow(
@@ -175,3 +177,51 @@ def get_intersection_point(
     else:
         k = k_up / k_down
     return (1 - k) * point1 + k * point2  # type: ignore
+
+
+def imshow_lidar(
+    points: torch.tensor,
+    points_extrinsics: Extrinsics,
+    image: ImageType,
+    camera_extrinsics: Extrinsics,
+    camera_intrinsics: Union[NDArrayF64, Intrinsics],
+    dot_size=2,
+    mode: str = "RGB",
+):
+    """Show image with lidar points."""
+    center = torch.cat([points[:, :3], torch.ones_like(points[:, 0:1])], -1)
+
+    points_world = center @ points_extrinsics.transpose().tensor[0][:, :3]
+
+    center = torch.cat([points_world, torch.ones_like(points[:, 0:1])], -1)
+
+    points_cam = (
+        center @ camera_extrinsics.inverse().transpose().tensor[0][:, :3]
+    )
+
+    intrinsic_matrix = preprocess_intrinsics(camera_intrinsics)
+
+    pts2d = np.dot(points_cam.cpu().numpy(), intrinsic_matrix.T)  # type: ignore
+
+    image = preprocess_image(image, mode)
+
+    depths = points_cam[:, 2].cpu().numpy()
+    coloring = depths
+
+    mask = np.ones(depths.shape[0], dtype=bool)
+    mask = np.logical_and(mask, depths > 1.0)
+    mask = np.logical_and(mask, pts2d[:, 0] > 1)
+    mask = np.logical_and(mask, pts2d[:, 0] < image.size[0] - 1)
+    mask = np.logical_and(mask, pts2d[:, 1] > 1)
+    mask = np.logical_and(mask, pts2d[:, 1] < image.size[1] - 1)
+
+    points = pts2d[mask, :]
+    coloring = coloring[mask]
+
+    plt.figure(figsize=(16, 9))
+    plt.imshow(image)
+    plt.scatter(points[:, 0], points[:, 1], c=coloring, s=dot_size)
+    plt.axis("off")
+    plt.savefig("test.png")
+
+    pdb.set_trace()

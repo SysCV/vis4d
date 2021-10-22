@@ -360,11 +360,14 @@ class ScalabelDataset(Dataset):  # type: ignore
         return image
 
     def load_point(
-        self, url: str, num_point_feature: int = 4, radius: float = 1.0
-    ) -> NDArrayF32:
+        self, sample: Frame, num_point_feature: int = 4, radius: float = 1.0
+    ) -> PointCloud:
         """Load lidar points and filter the near ones."""
-        assert url is not None
-        points: NDArrayF32 = np.fromfile(url, dtype=np.float32)  # type: ignore
+        group = self.dataset.groups[
+            self.frame_to_group[self.frame_name_to_idx[sample.name]]
+        ]
+        assert group.url is not None
+        points: NDArrayF32 = np.fromfile(group.url, dtype=np.float32)  # type: ignore # pylint: disable=line-too-long
         s = points.shape[0]
         if s % 5 != 0:
             points = points[: s - (s % 5)]
@@ -374,7 +377,10 @@ class ScalabelDataset(Dataset):  # type: ignore
         y_filt = np.abs(points[1, :]) < radius
         not_close = np.logical_not(np.logical_and(x_filt, y_filt))
         points = points[:, not_close].T
-        return points
+
+        assert group.extrinsics is not None
+        points_extrinsics = self.transform_extrinsics(group.extrinsics)
+        return PointCloud(torch.as_tensor(points)), points_extrinsics
 
     def transform_image(
         self,
@@ -404,10 +410,6 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         image_processed = Images(image, [(image.shape[3], image.shape[2])])
         return image_processed, parameters, transform_matrix
-
-    def transform_points(self, points: NDArrayF32) -> PointCloud:
-        """Apply augmentations and convert to PointCloud data class."""
-        return PointCloud(torch.as_tensor(points))
 
     def transform_annotation(
         self,
@@ -537,13 +539,9 @@ class ScalabelDataset(Dataset):  # type: ignore
             "lidar" in self.cfg.dataloader.fields_to_load
             and self.dataset.groups is not None
         ):
-            lidar_url = self.dataset.groups[
-                self.frame_to_group[self.frame_name_to_idx[sample.name]]
-            ].url
-            assert lidar_url is not None
-            points_np = self.load_point(lidar_url)
-            points = self.transform_points(points_np)
+            points, points_extrinsics = self.load_point(sample)
             input_data.points = points
+            input_data.points_extrinsics = points_extrinsics
 
         if (
             self.cfg.dataloader.skip_empty_samples
