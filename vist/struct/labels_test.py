@@ -47,6 +47,7 @@ class TestBoxes2D(unittest.TestCase):
         )
 
         detections.boxes = detections.boxes[:, :-1]
+        self.assertEqual(detections.score, None)
         scalabel_dets_no_score = detections.to_scalabel(idx_to_class)
         self.assertTrue(all(d.score is None for d in scalabel_dets_no_score))
 
@@ -213,6 +214,7 @@ class TestBoxes3D(unittest.TestCase):
 
         # without score
         detections.boxes = detections.boxes[:, :-1]
+        self.assertEqual(detections.score, None)
         scalabel_dets_no_score = detections.to_scalabel(idx_to_class)
         self.assertTrue(all(d.score is None for d in scalabel_dets_no_score))
 

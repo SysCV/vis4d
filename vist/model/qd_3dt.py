@@ -127,7 +127,7 @@ class QD3DT(QDTrack):
         for idx, boxes3d in enumerate(boxes3d_list):
             assert isinstance(boxes3d, Boxes3D)
             boxes3d.transform(
-                frames[idx].extrinsics @ group.extrinsics.inverse()
+                inputs[idx].extrinsics @ group.extrinsics.inverse()
             )
         boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
 
