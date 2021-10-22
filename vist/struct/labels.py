@@ -276,6 +276,8 @@ class Boxes3D(Boxes, LabelInstance):
     @property
     def score(self) -> Optional[torch.Tensor]:
         """Return scores of 3D bounding boxes as tensor."""
+        if not self.boxes.shape[-1] == 10:
+            return None
         return self.boxes[:, -1]
 
     @property
