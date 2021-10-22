@@ -127,7 +127,7 @@ class QD3DT(QDTrack):
         for idx, boxes3d in enumerate(boxes3d_list):
             assert isinstance(boxes3d, Boxes3D)
             boxes3d.transform(
-                inputs[idx].extrinsics @ group.extrinsics.inverse()
+                group.extrinsics.inverse() @ inputs[idx].extrinsics
             )
         boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
 
@@ -144,6 +144,8 @@ class QD3DT(QDTrack):
         for track in tracks2d:
             for i, box in enumerate(boxes2d):
                 if torch.equal(track.boxes, box.boxes):
+                    if boxes3d[i].score is not None:
+                        boxes3d[i].boxes[:, -1] *= track.score
                     boxes_3d = torch.cat([boxes_3d, boxes3d[i].boxes])
                     class_ids_3d = torch.cat([class_ids_3d, track.class_ids])
                     track_ids_3d = torch.cat([track_ids_3d, track.track_ids])

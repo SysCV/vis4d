@@ -7,7 +7,6 @@ from collections import defaultdict
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
 
-import kornia
 import numpy as np
 import torch
 from PIL import Image
@@ -18,6 +17,8 @@ from tabulate import tabulate
 from termcolor import colored
 
 from vist.struct import NDArrayUI8
+
+from ..common.geometry.transform import transform_points
 
 D2BoxType = Dict[str, Union[bool, float, str]]
 
@@ -36,8 +37,8 @@ def transform_bbox(
         x2y2 = x2y2.unsqueeze(0)
         trans_mat = trans_mat.unsqueeze(0)
 
-    x1y1 = kornia.transform_points(trans_mat, x1y1)
-    x2y2 = kornia.transform_points(trans_mat, x2y2)
+    x1y1 = transform_points(x1y1, trans_mat)
+    x2y2 = transform_points(x2y2, trans_mat)
 
     x1x2 = torch.stack((x1y1[..., 0], x2y2[..., 0]), -1)
     y1y2 = torch.stack((x1y1[..., 1], x2y2[..., 1]), -1)
