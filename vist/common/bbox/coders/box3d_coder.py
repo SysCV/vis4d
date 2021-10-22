@@ -43,6 +43,8 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
         result = []
         for boxes_, targets_, intrinsics_ in zip(boxes, targets, intrinsics):  # type: ignore # pylint: disable=line-too-long
             # delta center 2d
+            if len(boxes_) == 0:
+                continue
             projected_3d_center = project_points(targets_.center, intrinsics_)
             delta_center = (
                 projected_3d_center - boxes_.center

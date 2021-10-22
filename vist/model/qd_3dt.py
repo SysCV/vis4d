@@ -36,16 +36,17 @@ class QD3DT(QDTrack):
         """Forward function for training."""
         key_inputs, ref_inputs = self.preprocess_inputs(batch_inputs)
 
-        from vist.vis.image import imshow_lidar
+        # from vist.vis.image import imshow_lidar
 
-        for batch_i, key_inp in enumerate(key_inputs):
-            imshow_lidar(
-                key_inp.points.tensor,
-                key_inp.points_extrinsics[0],
-                key_inp.images.tensor[0],
-                key_inp.extrinsics[0],
-                key_inp.intrinsics[0],
-            )
+        # for batch_i, key_inp in enumerate(key_inputs):
+        #     imshow_lidar(
+        #         key_inp.points.tensor,
+        #         key_inp.points_extrinsics[0],
+        #         key_inp.images.tensor[0],
+        #         key_inp.extrinsics[0],
+        #         key_inp.intrinsics[0],
+        #         key_inp.boxes3d,
+        #     )
 
         # feature extraction
         key_x = self.detector.extract_features(key_inputs)
@@ -138,7 +139,7 @@ class QD3DT(QDTrack):
         for idx, boxes3d in enumerate(boxes3d_list):
             assert isinstance(boxes3d, Boxes3D)
             boxes3d.transform(
-                frames[idx].extrinsics @ group.extrinsics.inverse()
+                group.extrinsics.inverse() @ frames[idx].extrinsics
             )
         boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
 
