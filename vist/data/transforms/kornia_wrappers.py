@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 import torch
 from kornia import augmentation as kornia_augmentation
 
-from vist.struct import Bitmasks, Boxes2D, Images, InputSample, Intrinsics
+from vist.struct import Boxes2D, Images, InputSample, Intrinsics, Masks
 
 from ..utils import transform_bbox
 from .base import AugParams, BaseAugmentation, BaseAugmentationConfig
@@ -78,13 +78,22 @@ class KorniaAugmentationWrapper(BaseAugmentation):
 
     def apply_image(self, images: Images, parameters: AugParams) -> Images:
         """Apply augmentation to input image."""
-        imaget = self.augmentor.apply_transform(
-            images.tensor / 255.0, parameters, parameters["transform"]
-        )
-        return Images(
-            (imaget * 255).type(images.tensor.dtype),
-            [(imaget.shape[3], imaget.shape[2])],
-        )
+        all_ims = []
+        for i, im in enumerate(images):  # type: ignore
+            im: Images  # type: ignore
+            if parameters["apply"][i]:
+                im_t = self.augmentor.apply_transform(
+                    im.tensor / 255.0, parameters, parameters["transform"]
+                )
+                all_ims.append(
+                    Images(im_t * 255, [(im_t.shape[3], im_t.shape[2])])
+                )
+            else:
+                all_ims.append(im)
+
+        if len(all_ims) == 1:
+            return all_ims[0]
+        return Images.cat(all_ims)
 
     def apply_box2d(
         self,
@@ -93,8 +102,8 @@ class KorniaAugmentationWrapper(BaseAugmentation):
     ) -> Sequence[Boxes2D]:
         """Apply augmentation to input box2d."""
         for i, box in enumerate(boxes):
-            if len(box) > 0:
-                box.boxes[:, :4] = transform_bbox(
+            if len(box) > 0 and parameters["apply"][i]:
+                boxes[i].boxes[:, :4] = transform_bbox(
                     parameters["transform"][i],
                     box.boxes[:, :4],
                 )
@@ -102,12 +111,12 @@ class KorniaAugmentationWrapper(BaseAugmentation):
 
     def apply_mask(
         self,
-        masks: Sequence[Bitmasks],
+        masks: Sequence[Masks],
         parameters: AugParams,
-    ) -> Sequence[Bitmasks]:
+    ) -> Sequence[Masks]:
         """Apply augmentation to input mask."""
         for i, mask in enumerate(masks):
-            if len(mask) > 0:
+            if len(mask) > 0 and parameters["apply"][i]:
                 mask.masks = (
                     self.augmentor.apply_transform(
                         mask.masks.float().unsqueeze(1),
@@ -124,7 +133,7 @@ class KorniaColorJitter(KorniaAugmentationWrapper):
     """Wrapper for Kornia color jitter augmentation class."""
 
     def apply_mask(
-        self, masks: Sequence[Bitmasks], parameters: AugParams
-    ) -> Sequence[Bitmasks]:
+        self, masks: Sequence[Masks], parameters: AugParams
+    ) -> Sequence[Masks]:
         """Skip augmentation for mask."""
         return masks

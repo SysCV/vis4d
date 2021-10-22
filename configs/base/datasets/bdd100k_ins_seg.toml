@@ -6,7 +6,7 @@ data_root = "data/bdd100k/images/hdf5s/10k_train.hdf5"
 config_path = "ins_seg"
 cache_as_binary = true
     [train.dataloader]
-    fields_to_load = ["bitmasks"]
+    fields_to_load = ["masks"]
     skip_empty_samples = true
 
     [train.dataloader.data_backend]

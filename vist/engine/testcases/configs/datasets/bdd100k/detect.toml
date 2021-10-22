@@ -28,7 +28,7 @@ num_processes = 0
     [[train.dataloader.transformations]]
     type = "KorniaAugmentationWrapper"
     kornia_type = "RandomHorizontalFlip"
-    "p" = 0.5
+    prob = 0.5
 
 [[test]]
 name = "bdd100k_det_sample_val"

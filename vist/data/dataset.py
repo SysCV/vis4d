@@ -26,7 +26,6 @@ from torch.utils.data import Dataset
 from vist.common.io import build_data_backend
 
 from ..struct import (
-    Bitmasks,
     Boxes2D,
     Boxes3D,
     DictStrAny,
@@ -34,6 +33,7 @@ from ..struct import (
     Images,
     InputSample,
     Intrinsics,
+    Masks,
 )
 from .datasets import BaseDatasetLoader
 from .transforms import AugParams, build_augmentations
@@ -78,7 +78,7 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         for field in self.cfg.dataloader.fields_to_load:
             assert field in [
-                "bitmasks",
+                "masks",
                 "boxes2d",
                 "boxes3d",
                 "intrinsics",
@@ -415,14 +415,14 @@ class ScalabelDataset(Dataset):  # type: ignore
                     )[0]
                     sample.boxes3d = [boxes3d]
 
-                if "bitmasks" in self.cfg.dataloader.fields_to_load:
-                    bitmasks, boxes2d = Bitmasks.from_scalabel(
+                if "masks" in self.cfg.dataloader.fields_to_load:
+                    masks, boxes2d = Masks.from_scalabel(
                         labels_used,
                         category_dict,
                         instance_id_dict,
                         sample.metadata[0].size,
                     )
-                    sample.bitmasks = [bitmasks]
+                    sample.masks = [masks]
                     if "boxes2d" not in self.cfg.dataloader.fields_to_load:
                         sample.boxes2d = [boxes2d]
 
@@ -453,8 +453,8 @@ class ScalabelDataset(Dataset):  # type: ignore
         sample.boxes2d = [sample.boxes2d[0][keep]]
         if len(sample.boxes3d[0]) > 0:
             sample.boxes3d = [sample.boxes3d[0][keep]]
-        if len(sample.bitmasks[0]) > 0:
-            sample.bitmasks = [sample.bitmasks[0][keep]]
+        if len(sample.masks[0]) > 0:
+            sample.masks = [sample.masks[0][keep]]
 
     @staticmethod
     def load_intrinsics(intrinsics: ScalabelIntrinsics) -> Intrinsics:
@@ -518,7 +518,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.cfg.dataloader.skip_empty_samples
             and len(input_data.boxes2d[0]) == 0
             and len(input_data.boxes3d[0]) == 0
-            and len(input_data.bitmasks[0]) == 0
+            and len(input_data.masks[0]) == 0
         ):
             return None, None  # pragma: no cover
         return input_data, parameters

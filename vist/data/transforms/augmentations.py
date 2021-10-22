@@ -1,4 +1,4 @@
-"""Kornia augmentation wrappers."""
+"""VisT augmentations."""
 import random
 from typing import List, Sequence, Tuple, Union
 
@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from vist.data.utils import transform_bbox
-from vist.struct import Bitmasks, Boxes2D, Images, InputSample, Intrinsics
+from vist.struct import Boxes2D, Images, InputSample, Intrinsics, Masks
 
 from .base import AugParams, BaseAugmentation, BaseAugmentationConfig
 
@@ -178,8 +178,8 @@ class Resize(BaseAugmentation):
         return boxes
 
     def apply_mask(
-        self, masks: Sequence[Bitmasks], parameters: AugParams
-    ) -> Sequence[Bitmasks]:
+        self, masks: Sequence[Masks], parameters: AugParams
+    ) -> Sequence[Masks]:
         """Apply augmentation to input mask."""
         interp = self.interpolation
         self.interpolation = "nearest"

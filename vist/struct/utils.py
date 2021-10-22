@@ -3,18 +3,16 @@ import torch
 import torch.nn.functional as F
 
 
-def _do_paste_mask(
+# implementation modified from:
+# https://github.com/facebookresearch/detectron2/
+def do_paste_mask(
     masks: torch.Tensor,
     boxes: torch.Tensor,
     img_h: int,
     img_w: int,
     skip_empty: bool = True,
 ) -> torch.Tensor:
-    """Paste mask onto image.
-
-    This implementation is modified from
-        https://github.com/facebookresearch/detectron2/
-    """
+    """Paste mask onto image."""
     # On GPU, paste all masks together (up to chunk size)
     # by using the entire image to sample the masks
     # Compared to pasting them one by one,

@@ -4,7 +4,7 @@ import unittest
 import torch
 from scalabel.label.typing import ImageSize
 
-from vist.struct import Bitmasks, Boxes2D, Boxes3D, Extrinsics
+from vist.struct import Boxes2D, Boxes3D, Extrinsics, Masks
 from vist.unittest.utils import generate_dets, generate_dets3d, generate_masks
 
 
@@ -256,8 +256,8 @@ class TestBoxes3D(unittest.TestCase):
         )
 
 
-class TestBitmasks(unittest.TestCase):
-    """Test cases VisT Bitmasks."""
+class TestMasks(unittest.TestCase):
+    """Test cases VisT Masks."""
 
     def test_scalabel(self) -> None:
         """Testcase for conversion to / from scalabel."""
@@ -269,14 +269,14 @@ class TestBitmasks(unittest.TestCase):
         class_to_idx = {"car": 0}
         scalabel_segms = segmentations.to_scalabel(idx_to_class)
 
-        segms_new = Bitmasks.from_scalabel(
+        segms_new = Masks.from_scalabel(
             scalabel_segms,
             class_to_idx,
             image_size=ImageSize(width=w, height=h),
         )[0]
 
         scalabel_segms[0].rle = None
-        segms_with_none = Bitmasks.from_scalabel(
+        segms_with_none = Masks.from_scalabel(
             scalabel_segms,
             class_to_idx,
             image_size=ImageSize(width=w, height=h),
@@ -313,7 +313,7 @@ class TestBitmasks(unittest.TestCase):
         self.assertTrue(all(d.score is None for d in scalabel_segms_no_score))
 
     def test_clone(self) -> None:
-        """Testcase for cloning a Bitmasks object."""
+        """Testcase for cloning a Masks object."""
         h, w, num_masks = 128, 128, 10
         segmentations = generate_masks(h, w, num_masks, track_ids=True)
         segms_new = segmentations.clone()
@@ -328,7 +328,7 @@ class TestBitmasks(unittest.TestCase):
             )
 
     def test_resize(self) -> None:
-        """Testcase for resizing a Bitmasks object."""
+        """Testcase for resizing a Masks object."""
         h, w, num_masks = 128, 128, 10
         segmentations = generate_masks(h, w, num_masks, track_ids=True)
         segmentations.resize((64, 256))
@@ -336,7 +336,7 @@ class TestBitmasks(unittest.TestCase):
         self.assertEqual(segmentations.width, 64)
 
     def test_crop_and_resize(self) -> None:
-        """Testcase for cropping and resizing a Bitmasks object."""
+        """Testcase for cropping and resizing a Masks object."""
         h, w, num_masks, num_dets = 128, 128, 10, 4
         out_h, out_w = 64, 32
         segmentations = generate_masks(h, w, num_masks, track_ids=True)

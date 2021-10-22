@@ -8,10 +8,10 @@ from PIL import Image
 from scipy.spatial.transform import Rotation as R
 
 from vist.struct import (
-    Bitmasks,
     Boxes2D,
     Boxes3D,
     Intrinsics,
+    Masks,
     NDArrayF64,
     NDArrayUI8,
 )
@@ -20,7 +20,7 @@ ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
 BoxType = Union[Boxes2D, List[Boxes2D]]
 Box3DType = Union[Boxes3D, List[Boxes3D]]
-BitmaskType = Union[Bitmasks, List[Bitmasks]]
+BitmaskType = Union[Masks, List[Masks]]
 
 ColorType = Union[
     Union[Tuple[int], str],
@@ -115,7 +115,7 @@ def preprocess_masks(
             result_color.extend(color)
         return result_mask, result_color
 
-    assert isinstance(masks, Bitmasks)
+    assert isinstance(masks, Masks)
 
     masks_list = (masks.masks.cpu().numpy() * 255).astype(np.uint8)
 

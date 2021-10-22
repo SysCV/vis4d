@@ -5,7 +5,7 @@ import torch
 from scalabel.label.typing import Frame
 
 from .data import Extrinsics, Images, Intrinsics
-from .labels import Bitmasks, Boxes2D, Boxes3D
+from .labels import Boxes2D, Boxes3D, Masks
 from .structures import DataInstance
 
 
@@ -18,7 +18,7 @@ class InputSample:
         images: Images,
         boxes2d: Optional[Sequence[Boxes2D]] = None,
         boxes3d: Optional[Sequence[Boxes3D]] = None,
-        bitmasks: Optional[Sequence[Bitmasks]] = None,
+        masks: Optional[Sequence[Masks]] = None,
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
     ) -> None:
@@ -41,12 +41,12 @@ class InputSample:
             ]
         self.boxes3d: Sequence[Boxes3D] = boxes3d
 
-        if bitmasks is None:
-            bitmasks = [
-                Bitmasks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
+        if masks is None:
+            masks = [
+                Masks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
                 for i in range(len(images))
             ]
-        self.bitmasks = bitmasks
+        self.masks = masks
 
         if intrinsics is None:
             intrinsics = Intrinsics(
@@ -82,7 +82,7 @@ class InputSample:
             "images": self.images,
             "boxes2d": self.boxes2d,
             "boxes3d": self.boxes3d,
-            "bitmasks": self.bitmasks,
+            "masks": self.masks,
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
         }
@@ -97,7 +97,7 @@ class InputSample:
             self.images.to(device),
             [b.to(device) for b in self.boxes2d],
             [b.to(device) for b in self.boxes3d],
-            [b.to(device) for b in self.bitmasks],
+            [b.to(device) for b in self.masks],
             self.intrinsics.to(device),
             self.extrinsics.to(device),
         )
@@ -142,7 +142,7 @@ class InputSample:
             self.images[item],
             [self.boxes2d[item]],
             [self.boxes3d[item]],
-            [self.bitmasks[item]],
+            [self.masks[item]],
             self.intrinsics[item],
             self.extrinsics[item],
         )

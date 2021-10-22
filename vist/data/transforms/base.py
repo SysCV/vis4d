@@ -5,7 +5,6 @@ from pydantic.main import BaseModel
 
 from vist.common.registry import RegistryHolder
 from vist.struct import (
-    Bitmasks,
     Boxes2D,
     Boxes3D,
     DictStrAny,
@@ -13,6 +12,7 @@ from vist.struct import (
     Images,
     InputSample,
     Intrinsics,
+    Masks,
 )
 
 from .utils import sample_batched
@@ -82,9 +82,9 @@ class BaseAugmentation(metaclass=RegistryHolder):
 
     def apply_mask(
         self,
-        masks: Sequence[Bitmasks],
+        masks: Sequence[Masks],
         parameters: AugParams,
-    ) -> Sequence[Bitmasks]:
+    ) -> Sequence[Masks]:
         """Apply augmentation to input mask."""
         return masks
 
@@ -104,7 +104,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         )
         sample.boxes2d = self.apply_box2d(sample.boxes2d, parameters)
         sample.boxes3d = self.apply_box3d(sample.boxes3d, parameters)
-        sample.bitmasks = self.apply_mask(sample.bitmasks, parameters)
+        sample.masks = self.apply_mask(sample.masks, parameters)
         return sample, parameters
 
     def __repr__(self) -> str:

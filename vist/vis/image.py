@@ -65,10 +65,10 @@ def imshow_bboxes3d(
     imshow(image)
 
 
-def imshow_bitmasks(
+def imshow_masks(
     image: ImageType, masks: BitmaskType, mode: str = "RGB"
 ) -> None:  # pragma: no cover
-    """Show image with bitmasks."""
+    """Show image with masks."""
     image = preprocess_image(image, mode)
     mask_list, color_list = preprocess_masks(masks)
     for mask, col in zip(mask_list, color_list):

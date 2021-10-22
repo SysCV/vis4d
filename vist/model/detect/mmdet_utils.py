@@ -9,11 +9,11 @@ import torch
 from mmcv import Config as MMConfig
 
 from vist.struct import (
-    Bitmasks,
     Boxes2D,
     Images,
     InputSample,
     LossesType,
+    Masks,
     NDArrayF64,
 )
 
@@ -84,14 +84,14 @@ def detections_from_mmdet(
 
 def segmentations_from_mmdet(
     masks: List[torch.Tensor], labels: List[torch.Tensor]
-) -> List[Bitmasks]:  # pragma: no cover
+) -> List[Masks]:  # pragma: no cover
     """Convert mmdetection segmentations to VisT format."""
-    segmentations_bitmasks = []
+    segmentations_masks = []
     for mask, label in zip(masks, labels):
         if not label.device == mask.device:
             label = label.to(mask.device)  # pragma: no cover
-        segmentations_bitmasks.append(Bitmasks(mask, label))
-    return segmentations_bitmasks
+        segmentations_masks.append(Masks(mask, label))
+    return segmentations_masks
 
 
 def detection_from_mmdet_results(
@@ -111,11 +111,11 @@ def detection_from_mmdet_results(
 
 def segmentation_from_mmdet_results(
     segmentation: MMSegmResult, boxes: Boxes2D, device: torch.device
-) -> Bitmasks:
+) -> Masks:
     """Convert segm_result to VisT format."""
     segms = [np.stack(segm) for segm in segmentation if len(segm) != 0]
     if len(segms) == 0:  # pragma: no cover
-        return Bitmasks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
+        return Masks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
     masks = (
         torch.from_numpy(np.concatenate(segms))  # type: ignore
         .type(torch.uint8)
@@ -127,14 +127,14 @@ def segmentation_from_mmdet_results(
     ]
     scores = boxes.boxes[:, -1]
     labels = torch.cat(labels)
-    return Bitmasks(masks, labels, scores=scores)
+    return Masks(masks, labels, scores=scores)
 
 
 def results_from_mmdet(
     results: MMResults, device: torch.device, with_mask: bool
-) -> Tuple[List[Boxes2D], List[Bitmasks]]:
+) -> Tuple[List[Boxes2D], List[Masks]]:
     """Convert mmdetection bbox_results and segm_results to VisT format."""
-    results_boxes2d, results_bitmasks = [], []
+    results_boxes2d, results_masks = [], []
     for result in results:
         if with_mask:
             detection, segmentation = result
@@ -146,21 +146,19 @@ def results_from_mmdet(
             bitmask = segmentation_from_mmdet_results(
                 segmentation, box2d, device
             )
-            results_bitmasks.append(bitmask)
+            results_masks.append(bitmask)
         else:
-            results_bitmasks.append(None)  # type: ignore
-    return results_boxes2d, results_bitmasks
+            results_masks.append(None)  # type: ignore
+    return results_boxes2d, results_masks
 
 
 def targets_to_mmdet(
     targets: InputSample,
-) -> Tuple[
-    List[torch.Tensor], List[torch.Tensor], Optional[Sequence[Bitmasks]]
-]:
+) -> Tuple[List[torch.Tensor], List[torch.Tensor], Optional[Sequence[Masks]]]:
     """Convert VisT targets to mmdetection compatible format."""
     gt_bboxes = [t.boxes for t in targets.boxes2d]
     gt_labels = [t.class_ids for t in targets.boxes2d]
-    gt_masks = targets.bitmasks if len(targets.bitmasks) > 0 else None
+    gt_masks = targets.masks if len(targets.masks) > 0 else None
     return gt_bboxes, gt_labels, gt_masks
 
 

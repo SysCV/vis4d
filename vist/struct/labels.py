@@ -15,7 +15,7 @@ from ..common.geometry.rotation import (
 )
 from .data import Extrinsics
 from .structures import DataInstance, LabelInstance, NDArrayUI8
-from .utils import _do_paste_mask
+from .utils import do_paste_mask
 
 TBoxes = TypeVar("TBoxes", bound="Boxes")
 
@@ -413,8 +413,8 @@ class Boxes3D(Boxes, LabelInstance):
         self.boxes[:, 6:9] = matrix_to_euler_angles(rot, "XZY")[:, [0, 2, 1]]
 
 
-class Bitmasks(LabelInstance):
-    """Container class for bitmasks.
+class Masks(LabelInstance):
+    """Container class for segmentation masks.
 
     masks: torch.ByteTensor: (N, H, W) where each entry is a binary mask
     class_ids: torch.LongTensor: (N,) where each entry is the class id of
@@ -468,7 +468,7 @@ class Bitmasks(LabelInstance):
         return self.width, self.height
 
     def resize(self, out_size: Tuple[int, int]) -> None:
-        """Resize bitmasks according to factor."""
+        """Resize masks according to factor."""
         width, height = out_size
         self.masks = F.interpolate(
             self.masks.unsqueeze(1), size=(height, width), mode="nearest"
@@ -481,7 +481,7 @@ class Bitmasks(LabelInstance):
         inds: torch.Tensor,
         device: Optional[str] = "cpu",
         binarize: Optional[bool] = True,
-    ) -> "Bitmasks":
+    ) -> "Masks":
         """Crop and resize masks with input bboxes."""
         if len(self) == 0:  # pragma: no cover
             return self
@@ -573,7 +573,7 @@ class Bitmasks(LabelInstance):
             dtype=torch.bool if threshold >= 0 else torch.uint8,
         )
         for inds in chunks:
-            (masks_chunk, spatial_inds,) = _do_paste_mask(
+            (masks_chunk, spatial_inds,) = do_paste_mask(
                 self.masks[inds, None, :, :],
                 boxes.boxes[inds, :4],
                 img_h,
@@ -592,8 +592,8 @@ class Bitmasks(LabelInstance):
             img_masks[(inds,) + spatial_inds] = masks_chunk
         self.masks = img_masks.type(torch.uint8)
 
-    def __getitem__(self: "Bitmasks", item) -> "Bitmasks":  # type: ignore
-        """Shadows tensor based indexing while returning new Bitmasks."""
+    def __getitem__(self: "Masks", item) -> "Masks":  # type: ignore
+        """Shadows tensor based indexing while returning new Masks."""
         if isinstance(item, tuple):  # pragma: no cover
             item = item[0]
         masks = self.masks[item]
@@ -628,7 +628,7 @@ class Bitmasks(LabelInstance):
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
-    ) -> Tuple["Bitmasks", "Boxes2D"]:
+    ) -> Tuple["Masks", "Boxes2D"]:
         """Convert from scalabel format to internal."""
         box_list, bitmask_list, cls_list, idx_list = [], [], [], []
         score_list = []
@@ -642,7 +642,7 @@ class Bitmasks(LabelInstance):
             elif label.poly2d is not None:  # pragma: no cover
                 assert (
                     image_size is not None
-                ), "image size must be specified for bitmasks with polygons!"
+                ), "image size must be specified for masks with polygons!"
                 bitmask_raw = poly2ds_to_mask(image_size, label.poly2d)
                 bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
                     bitmask_raw.dtype
@@ -675,7 +675,7 @@ class Bitmasks(LabelInstance):
             if has_scores
             else None
         )
-        return Bitmasks(mask_tensor, class_ids, track_ids, scores), Boxes2D(
+        return Masks(mask_tensor, class_ids, track_ids, scores), Boxes2D(
             box_tensor, class_ids, track_ids
         )
 
@@ -721,7 +721,7 @@ class Bitmasks(LabelInstance):
         """Get length of the object."""
         return len(self.masks)
 
-    def clone(self: "Bitmasks") -> "Bitmasks":
+    def clone(self: "Masks") -> "Masks":
         """Create a copy of the object."""
         class_ids = (
             self.class_ids.clone() if self.class_ids is not None else None
@@ -733,7 +733,7 @@ class Bitmasks(LabelInstance):
             self.masks.clone(), class_ids, track_ids, self.metadata
         )
 
-    def to(self: "Bitmasks", device: torch.device) -> "Bitmasks":
+    def to(self: "Masks", device: torch.device) -> "Masks":
         """Move data to given device."""
         class_ids = (
             self.class_ids.to(device=device)

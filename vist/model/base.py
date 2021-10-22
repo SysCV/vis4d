@@ -9,7 +9,7 @@ from pydantic import Field
 from torch.optim import Optimizer
 
 from ..common.registry import ABCRegistryHolder
-from ..struct import Bitmasks, Boxes2D, InputSample, LossesType, ModelOutput
+from ..struct import Boxes2D, InputSample, LossesType, Masks, ModelOutput
 from .optimize import (
     BaseLRScheduler,
     BaseLRSchedulerConfig,
@@ -178,7 +178,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         detections: Boxes2D,
-        segmentations: Optional[Bitmasks] = None,
+        segmentations: Optional[Masks] = None,
     ) -> None:
         """Postprocess results."""
         scale_factor = (
