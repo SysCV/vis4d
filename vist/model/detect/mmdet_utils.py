@@ -182,9 +182,9 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
         if cfg.get("model"):
             cfg = cfg["model"]
     elif config.model_base.startswith("mmdet://"):
-        ext = os.path.splitext(config.model_base)[1]
+        ex = os.path.splitext(config.model_base)[1]
         cfg = MMConfig.fromstring(
-            load_config_from_mmdet(config.model_base.strip("mmdet://")), ext
+            load_config_from_mmdet(config.model_base.split("mmdet://")[-1]), ex
         ).model
     else:
         raise FileNotFoundError(
