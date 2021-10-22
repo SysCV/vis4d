@@ -10,6 +10,7 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from scalabel.common import mute
 from scalabel.eval.detect import evaluate_det
+from scalabel.eval.ins_seg import evaluate_ins_seg
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
 from scalabel.eval.result import Result
 from scalabel.label.io import group_and_sort, save
@@ -33,6 +34,16 @@ def _detect(
     return evaluate_det(gt, pred, cfg, nproc=1)
 
 
+def _ins_seg(
+    pred: List[Frame],
+    gt: List[Frame],
+    cfg: Config,
+    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
+) -> Result:
+    """Wrapper for evaluate_ins_seg function."""
+    return evaluate_ins_seg(gt, pred, cfg, nproc=1)
+
+
 def _track(
     pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
 ) -> Result:
@@ -47,7 +58,7 @@ def _track(
     )
 
 
-_eval_mapping = dict(detect=_detect, track=_track)
+_eval_mapping = dict(detect=_detect, track=_track, segment=_ins_seg)
 
 
 class VisTEvaluatorCallback(Callback):

@@ -11,7 +11,7 @@ from scalabel.label.typing import Dataset, Frame
 from vist.common.io import DataBackendConfig
 from vist.common.registry import RegistryHolder
 from vist.common.utils.time import Timer
-from vist.data.transforms import AugmentationConfig
+from vist.data.transforms import BaseAugmentationConfig
 
 
 class ReferenceSamplingConfig(BaseModel):
@@ -52,7 +52,7 @@ class DataloaderConfig(BaseModel):
     clip_bboxes_to_image: bool = True
     min_bboxes_area: float = 7.0 * 7.0
     compute_global_instance_ids: bool = False
-    transformations: Optional[List[AugmentationConfig]] = None
+    transformations: Optional[List[BaseAugmentationConfig]] = None
     ref_sampling: ReferenceSamplingConfig = ReferenceSamplingConfig()
 
 

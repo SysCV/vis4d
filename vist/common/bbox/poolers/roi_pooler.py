@@ -43,6 +43,8 @@ class MultiScaleRoIPoolerConfig(RoIPoolerConfig):
     aligned: bool = True
 
 
+# implementation modified from:
+# https://github.com/facebookresearch/detectron2/
 class MultiScaleRoIPooler(BaseRoIPooler):
     """VisT wrapper for torchvision roi pooling class.
 

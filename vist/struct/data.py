@@ -159,6 +159,10 @@ class Images(DataInstance):
                 be smaller than (W, H) due to padding.
         """
         assert len(tensor.shape) > 3
+        assert len(image_sizes) == tensor.shape[0], (
+            f"Tensor shape ({tensor.shape[0]}) and image_sizes"
+            f" ({len(image_sizes)}) do not match!"
+        )
         self.tensor = tensor
         self.image_sizes = image_sizes
 
