@@ -23,7 +23,12 @@
             "truncated": false
           },
           "category": "truck",
-          "box2d": null,
+          "box2d": {
+            "x1": 491.0,
+            "y1": 259.0,
+            "x2": 626.0,
+            "y2": 349.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -89,7 +94,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "c_i:^1Re0]1cNN2O1O100O1000000O11O00001O1O3M000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001O0N2O1O1O1\\Od00000000000c0]O1O2N1O2N0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000L4O]lZ>",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -104,7 +115,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 433.0,
+            "y1": 325.0,
+            "x2": 692.0,
+            "y2": 587.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -294,7 +310,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "Um`9f1cd0g0YOe0[Oh0[O9H6jNnKe_OW4U`0oKf_OU4W`0nKe_OW4X`0jKe_OZ4Z`0gKb_O\\4]`0eK`_O_4_`0aK^_Oc4a`0f001O0O2O00000000000000000000O01N1O2N1O1O2N001N10O1G92N2N2N2N2O1O1N2O1O1O100O1O100O100O10000L4N2O1O100O1000000O11O00001O1O3M00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000N2O1O1O1\\Od00000000000c0]O1O2N1O2N0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000L4O10000002N7I0000001O001O001O001O1O1O001O1O1O2N16J100O0100N2O1O1O2M3M3N1N3M5K100O2N1O1O2M2O1O1O2N2M3N2M3N1N3M3M3M3M2M<D=B>_O<C=F:F9F>Bg0POnWl<",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -309,7 +331,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 684.0,
+            "y1": 321.0,
+            "x2": 906.0,
+            "y2": 512.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -463,7 +490,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "^[Q?:Ye0I`[Oc0Td0@h[Om0lc0UOQ\\OS1ic0nNT\\OZ1ec0gNY\\Oa1ac0`N\\\\Og1^c0ZN`\\Oj1^c0WN_\\Ol1`c0TN^\\Oo1ac0a0O00000001O00O1M2O1O1O1O0000N31N3M2O1N3N1O5K9G5K4L3M3M3M2N2O1N2N2O0O2O001N100O10000O1000000O0100O100O001O1O1N2N2N1M4I70000000O100000000000000L4L4L4L4L4O100O100O103L3N2M3N2M3N1N100O100O100O100O100O100O10000000000001O0000001O2N2N3M2N3M2N2N3M2N3M2N3M000000000000000000000000000000001O000000000000000000000000000000001O0000000000000000000002N1O1O1O1O10O01O0100O1O1O1O101N1N2O2N1O2N1N3N1N3N1N3M3M2N3M3M3L4L3L5F:M3M3L4L5K4L4K6K5I;BbkU8",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -478,7 +511,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 174.0,
+            "y1": 395.0,
+            "x2": 328.0,
+            "y2": 491.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -600,7 +638,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "`ij3=ce0f0I3M3L3N2N2M2O2N1N2O2N1N20000O100O10O010O010O001O001L3100O100O1O1O1O1O1N2O1O1O1O1N2O1O1O1O1N2O1O1O100O100O10000O100000000000000O100000000000000000O10000000000000O100000000000000000000000000000000O0100000000000000001O2N1O1O001O001N1000000000O100O1O1O1O1O2M2K6L301N2O1N2O1N3N12O01N1O3L010O1O1O001N2O1N2N6I6I7\\O\\Xld0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -615,7 +659,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 326.0,
+            "y1": 404.0,
+            "x2": 406.0,
+            "y2": 452.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -713,7 +762,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "WdU75Zf05L4M:E000O1O100O1O100O1N200O1O1O1O100O1O5L1N1O2OO0100O01O1L40000000O1000000000000000000000000O100000000000002N1O1O0000000001O2N1N2N2O0N3N20000O002N1O2N1N5J5K4GZ]Uc0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -728,7 +783,12 @@
             "truncated": true
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 0.0,
+            "y1": 383.0,
+            "x2": 149.0,
+            "y2": 629.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -794,7 +854,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "o;g7i>0000O100O100O100O100O100O100O101N100O100O100O100O101N100O100O101N100O100O2O0O101N100O100O2O0O100O2O0O101N100O2O0O101N101N101N101N101N101N101N2O0O2O0O2O1N101N2O0O2O1N101N2O1N2O01000000O100000000000O1000O0100O1O100O1O100O2N1O1O1O1O1O1O2M2O1O2M2O1N2O2N1N3M2N2O2M3M3M2M4M3M4K4M3L5K4L5K5K5J7I7I7H9F;Cd0YOPQjh0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -809,7 +875,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 143.0,
+            "y1": 405.0,
+            "x2": 220.0,
+            "y2": 471.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -887,7 +958,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "XoT3?oe06K4L5K3N2M2O0O2O000O1000000N101N10O1M31O1O1O100O1O100O1O100O1OA`0O001N101O0O2O1O1N2O001N20O10O100O010O100O10O0100O010O100O100O1O001O1O1N2O1O001O1N2O1O1O1OlVXg0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -902,7 +979,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 390.0,
+            "y1": 402.0,
+            "x2": 429.0,
+            "y2": 428.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -972,7 +1054,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "ecb82^f01O1O1O0O2O1O1O1O0O3N1O2N1O4L3L2O001O00O10000O1O1000000001O010O01O002N1O1N2O1NWXeb0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -987,7 +1075,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1067.0,
+            "y1": 370.0,
+            "x2": 1106.0,
+            "y2": 469.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -1089,7 +1182,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "oc^g0a0le06J5L5K5L4L3MS1mN2DfM_\\O\\2^c0<00O100O0100O20O001000O1O4M4K0000001lNd\\ORO\\c0h0Q]OPOQc0j0Y]OQOhb0o0Z]OlNib0S1\\1O1N3M3M4K6J;EaWi3",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -1104,7 +1203,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 663.0,
+            "y1": 386.0,
+            "x2": 701.0,
+            "y2": 429.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -1166,7 +1270,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "hab>7Vf04M3O2N1N2O2N100O1O2N2N2N2N2N1O2N2N2N2N1O00SOnZO;Te0CoZO9Se0FoZO7Se0InZO4Te0KmZO3Ue0MlZO0Ve0OkZOOWe01jZOLXe04hZOJZe06a0O00001O002N2NfPf<",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -1181,7 +1291,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1024.0,
+            "y1": 373.0,
+            "x2": 1057.0,
+            "y2": 465.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -1299,7 +1414,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "k\\`f0f0fe0P1PO5K5L3N3M2O1O1N11N1D<J7H71H8N2O1O100000=C=C3M100001\\M[\\OZ2nc0O2N3fNW\\OGkc06\\\\ODhc07_\\OBic06dgk4",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -1314,7 +1435,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 183.0,
+            "y1": 399.0,
+            "x2": 197.0,
+            "y2": 411.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -1356,7 +1482,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "ZRQ42\\f02N2N101M3O01000000O2O3M1O2NZ\\hg0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -1371,7 +1503,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 329.0,
+            "y1": 400.0,
+            "x2": 338.0,
+            "y2": 422.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -1413,7 +1550,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "TgW7c0je03O10O1O100O1O3N9FfWed0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         }
       ]
@@ -1441,7 +1584,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 436.0,
+            "y1": 343.0,
+            "x2": 688.0,
+            "y2": 593.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -1643,7 +1791,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "oPc9e0e04`c0T2WO`0B9G8I6nNULX_OP4d`0VLT_Oo3j`0SLS_OQ4k`0PLR_OS4l`0oKQ_OT4n`0h0O001O001O0O101O0000000000O10O1N2O0O2N2O0O101L3N2N2N2O1N20O010O1O1O1N2N30O100O100O1000000L4N2O1O1O10000001O001O2N1O0000000000000000000000000000000000000000000000000000O1000000000000000000000000000000000000000000000000O100O100O100O1]Oc00000O1e0[O001O001O00001O00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000N2N2N2M3001O1O1O3M6J00001O1O001O1O001O1O1O1O1O13M5L2M1O10O1O100N2O1O2M3N1N3N2M5K3M2N1O1O2N1O1O2N1N2O2N1N3M2O1N3M3M2M4L9G8G9D<@`0E;E;F`0]Og0mNoQo<",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -1658,7 +1812,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 680.0,
+            "y1": 339.0,
+            "x2": 890.0,
+            "y2": 525.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -1800,7 +1959,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "Ran>3i03dd00Z[O6_d0L_[O;Zd0Gc[Oa0Wd0_Og[Oi0Rd0YOk[Oo0oc0QOo[OW1kc0jNS\\Oc1ac0]N]\\Oh1`c0XN^\\Ok1ac0UN]\\On1bc0`001O01O000000N2N1O2N1O1O1O01L3002O2M2N2O?A6J4L3M3M2N2N2N2N101N100O2O0O100O100O010000O010O1O1O001O1N2N2M2I8000000000O10000000000000000L4M3M3L4M3M3O102M3N2M3N2M2O0O100O100O100O100O100O100O100O100O100000000001O0000001O2N3M2N3M2N3M3M2N3M2N3N2M00000000000000000000000000001O00000000000000000000000000001O0000000000000002N001O1O1O010O0100O1O1O1O010O1O2N1O1N2O1O2N1N2O1N3N1N3M3M2N3L4L4L4F:M3M3M4K5K5J6I9F?_OmRa8",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -1815,7 +1980,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 134.0,
+            "y1": 410.0,
+            "x2": 311.0,
+            "y2": 514.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -1937,7 +2107,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "ien2e0ie06L8G4K4L3M3M3N1N3M2N2N200O100O100O010O010O0001O001O0O2L3100O100O1O1O1O1O1O1O1O1O1O1O1O1O1O1O1O1N2O1O1O1O1O1N2O001O10000O10000O10000O100000000000000O100000000000000O10O100000000000000000000000000000000000000000000000000000000000000000000003M1O1O2N001O1O0000001O000000O10000O100O1O1O1O2N1N3M3M2K6O1O001N2O1O1N2O1O12N01O000O101N1O2N1O1N2O2M2O1N2M4M2M3K5AP1[OcUXe0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -1952,7 +2128,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 311.0,
+            "y1": 419.0,
+            "x2": 397.0,
+            "y2": 469.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -2074,7 +2255,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "[Sk6e0je04L2N2N101N100O10000L300100O1N1N3000O100O1N2O100O4L2O1N1O100O10000000O1O1M210000000000000000000000O10000000000000000000003M1O001O000000O101O0O2N2L5O0O100O1O1O1O1O1O1N6J5K4JVg[c0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -2089,7 +2276,12 @@
             "truncated": true
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 0.0,
+            "y1": 473.0,
+            "x2": 39.0,
+            "y2": 614.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -2143,7 +2335,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "i>]4Sb01O01O00001O001O00001O0O2O001N101N101N2N2N1N3M3M4K4L4J6N3M2N3M3L4L5K5K5J8H?@`0_O\\[Wk0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -2158,7 +2356,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 131.0,
+            "y1": 425.0,
+            "x2": 182.0,
+            "y2": 470.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -2220,7 +2423,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "hal2;Qf06M2N2N1O10O0O1O2N1O2O0O2N1O2N20O001O010O0010O01O00010O0010O01O0010O01O01O001O001O1O001O1O1O1O1O1O1O1OXmRh0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -2235,7 +2444,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 385.0,
+            "y1": 417.0,
+            "x2": 426.0,
+            "y2": 443.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -2309,7 +2523,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "fS_82]f02O1N2O1O1N2O1O1O1N6K4L1O001O0000000O100000O10001N1000000000100O2N1O1O1O1O1N2N2N4KR[gb0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -2324,7 +2544,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1095.0,
+            "y1": 384.0,
+            "x2": 1138.0,
+            "y2": 489.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -2450,7 +2675,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "\\ZRh0?me08mZO8Tc0M^\\O`0^c0Z1N2O1O1D]Mi\\Od2Vc0;0M4J5K6J6J600O12O2M2O2N1O2O0013LO1O02N2POU\\OVOmc0c0Y\\O[Okc0>[\\O_Ohc0:^\\ODec04b\\OJ_c0Ml\\OOVc01k\\OLWc04c10000O1O1O1O1O2MRgR3",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -2465,7 +2696,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 660.0,
+            "y1": 402.0,
+            "x2": 698.0,
+            "y2": 445.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -2535,7 +2771,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "i^`>7Vf06L3M2N2O2M2O1O2N1O1O2N1O2N1O1O2N2N1O2NUOnZO9Qe0FR[O8nd0GT[O7md0HU[O5nd0JR[O4Pe0KR[O2Pe0NP[O0Re0OP[OOQe01oZOMSe03mZOKUe05kZOIXe06a00001O1N2O1O1OgSh<",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -2550,7 +2792,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1047.0,
+            "y1": 390.0,
+            "x2": 1081.0,
+            "y2": 486.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -2676,7 +2923,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "PcPg09Rf07mZOFgc0`0U\\ODec0a0X\\OCdc0a0X\\OBfc0`0W\\OCgc0`0V\\OBhc0`0V\\OBic0`0T\\OAlc0`0R\\OAnc0`0P\\O@Rd0a0k[O^OWd0[12N3OG9000O2O1O0h0ZO0O1O0001O1O2XM_\\O\\2lc0dNf\\O@\\c0>]1N3M3M6Ia0^O]iZ4",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -2691,7 +2944,12 @@
             "truncated": false
           },
           "category": "truck",
-          "box2d": null,
+          "box2d": {
+            "x1": 491.0,
+            "y1": 277.0,
+            "x2": 623.0,
+            "y2": 371.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -2757,7 +3015,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "U`i:o2ac0L4N2O1O1O10000001O001O2N1O0000000000000000000000000000000000000000000000000000O100000001O000000000000000000000000000000000000000O100O100O100O1]Oc00000O1e0[O001O001O00001O0000000001O000000000000000000000000000000000000000000000000000000000000000000000000000000000N2N2N[o\\>",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -2772,7 +3036,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 324.0,
+            "y1": 415.0,
+            "x2": 333.0,
+            "y2": 431.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -2806,7 +3075,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "[WT75Wf04L4M201000O100O2KThhd0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -2821,7 +3096,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 175.0,
+            "y1": 409.0,
+            "x2": 188.0,
+            "y2": 424.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -2867,7 +3147,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "e^k34Yf03O1N200L4O1O1000O1O3M6J2N`fng0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         }
       ]
@@ -2895,7 +3181,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 434.0,
+            "y1": 339.0,
+            "x2": 682.0,
+            "y2": 579.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -3093,7 +3384,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "oda9g0od0T1\\Oa0_Og0ZO=gNgLo^O_3j`0hLP_O]3n`0dLo^Oa3n`0aLm^Od3Ra0]Lj^Og3Ta0ZLh^Ok3Wa0h0O001N101O0000001O00000000000O1N1O2N2N1O2O0O1O1O1O1O1O00O1HZ_OdJj`0^531N2O1N2O1O1O100O1O100O10000L4N200O1N2O10000001O1O2N4L00000000000000000000000000000000O1000000000000000000000000000000O1000000000000000000000000000000O100O100O100O010O1\\Od00000d0\\O1O1O001O1O001O00000000000000000000000000000000000000001O00000000000000000000000000000000000000000000O1N2O1O1O1O100O10000001O002nIf_Oj5a`0O001O001O1O1O001O1O1O1O16K1N2N10O00100O1N2O1O1N3N1N3M2N6K1N3M2N2N1O1O1N3N1O1N2O2M3N2M2N3M3M2M7J7H8G9G9C=C=F:F]YS=",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -3108,7 +3405,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 675.0,
+            "y1": 336.0,
+            "x2": 878.0,
+            "y2": 511.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -3266,7 +3568,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "XQk>5^e0N[[O9^d0I_[O?Zd0Cd[Od0Vd0]Og[Ok0Sd0UOl[OR1mc0POP\\OX1jc0hNT\\O`1fc0aNX\\Oe1cc0[N[\\Oi1cc0XN[\\Oj1dc0VNZ\\Om1ec0`0O001O00000N2N1O2O0O1O1O00O2L32O2M2O2N:F6J4L3M2N3N1N1O2N2O0O101N100O1000O01000O001O1O001N2M3G8100000000O1000000O10000000002N1O2K4L4L4L4L4L4M3N1O2O0O100O100O1O100O100O100O1O100O100O1000000000000000000000000002N3M3M2N3M3M3M2N3M3M3NO00000000000000000001O0000000000000000001O000000000000000000001O00000000000000000011N1O1O1O0100O1O1O2N1O2N1O2N2N2M3N2M3M3N2M3M3M3L4M3L5J5I7H9L3M4L4K5K:E>@g`i8",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -3281,7 +3589,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 75.0,
+            "y1": 407.0,
+            "x2": 290.0,
+            "y2": 530.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -3423,7 +3736,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "eVe1>me0:H7J4L4L3N3M3N5J3N1N2N2N2O0O2N101N1O1O100O2N10O01O100O1O0010O00DjM_\\OV2`c0nM^\\OQ2bc0RN[\\Ol1hc0:3O200000000000001O00001O00O1O1N2O1O1O1N2O1O1O1O1O2N1O1O1O1O1O100O1O100O1O100O10000O100O1000000O10000000O1000000000O100000000000000000000000000000000000O1000000000000000000000000O10000000000000000O10000000000002N2N1O1O1O1O1O001O00000000000000O1000O01O100O1O1N2O1N2N3M2M3I8O000O2O001N2O001N101O1N2O1O0O2O1O11O1O1O0001O0O101N2N001O0O2O1N2N1O2N3L3M3L5J6C=N3M4K8HTnfe0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -3438,7 +3757,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 295.0,
+            "y1": 418.0,
+            "x2": 390.0,
+            "y2": 470.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -3568,7 +3892,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "_k_69Rf0:J3M5K2N2O1N1O101N1O100O0100O001O0N30O10000O1000000O1O1O4L2N2N1O2N1O001000O001L400000000000000000000000000000000000000000000O100000000002N1O1O001O01O000O2O1N2N2N2N4M100O2N1O1O3M2N2M3M1O1N9Ddd`c0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -3583,7 +3913,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 378.0,
+            "y1": 415.0,
+            "x2": 421.0,
+            "y2": 442.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -3665,7 +4000,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "VVZ85Zf02M3O2M2N2O3L3N2N2N0000000000O0100000001O1O0000000000O1M300000000001000O2N1O3M3M1O4K5K^kjb0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -3680,7 +4021,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1120.0,
+            "y1": 378.0,
+            "x2": 1168.0,
+            "y2": 487.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -3798,7 +4144,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "dnch0a0Sd0MX\\OW1`c0Q1L4M2O1O1O1O1J6M3N10G9G:H7I80000000001:E;F9G2N01N5K4L2N1O2N1O2N1gN]\\OBfc0:b\\O@_c0<j\\O]OYc0?o\\OZOSc0b0V]OVOnb0d0b1L5N2O0O2N2M2O2M3NWd]2",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -3813,7 +4165,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 656.0,
+            "y1": 398.0,
+            "x2": 692.0,
+            "y2": 439.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -3879,7 +4236,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "gd]>4\\f02N3L3L4M2N2N2N3M2O1O1O2N2N2N1O2N2N1O00SOlZO=Ue0BmZO;Ue0DmZO:Te0FmZO7Ue0IkZO6Ve0IlZO4Ue0MkZO1We0OjZOOWe01iZOMYe03hZOKZe04fZOJ\\e06?01O002N1OmZl<",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -3894,7 +4257,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1067.0,
+            "y1": 377.0,
+            "x2": 1119.0,
+            "y2": 481.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -4000,7 +4368,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "jd^g08Vf03M3K5L3L5K4M3M4M2N2i[OPOlb0R1Q]OROmb0o0Q]OSOnb0n0o\\OUOPc0l0m\\OXOQc0i0l\\OZOTc0f0g\\O_OXc0m1G9N2O00100000000000O2H8G9G9G:I?A6J6J6J7J5000001O001O001O1O001N2N2N2N3KkR`3",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -4015,7 +4389,12 @@
             "truncated": false
           },
           "category": "truck",
-          "box2d": null,
+          "box2d": {
+            "x1": 490.0,
+            "y1": 275.0,
+            "x2": 623.0,
+            "y2": 365.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -4089,7 +4468,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "cih:\\1Te0[1eN00O1N2O10000001O1O2N4L00000000000000000000000000000000O1000000000000000000000000000000O1000000000000000000000000000000O100O100O100O100O1[Oe00000e0[O1O1O001O1O001O00000000000000000000000000000000000000001O00000000000000000000000000000000000000000000O1N2O1O1O1O100O10X1hNUn\\>",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -4104,7 +4489,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 319.0,
+            "y1": 411.0,
+            "x2": 329.0,
+            "y2": 428.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -4146,7 +4536,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "dfP76Wf06L1L3001O1O1O2N2N4LQbkd0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -4161,7 +4557,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 417.0,
+            "y1": 408.0,
+            "x2": 428.0,
+            "y2": 435.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -4219,7 +4620,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "^cU99Vf04I5N5L4L1O0001O1L6J6Jcneb0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -4234,7 +4641,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 276.0,
+            "y1": 408.0,
+            "x2": 286.0,
+            "y2": 424.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -4268,7 +4680,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "V_R63Zf03M3N2M3N200O11O004Lciie0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -4283,7 +4701,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 290.0,
+            "y1": 408.0,
+            "x2": 300.0,
+            "y2": 423.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -4317,7 +4740,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "kY\\6=Rf01O1O100001O2N3M3M3M\\n_e0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         }
       ]
@@ -4345,7 +4774,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 437.0,
+            "y1": 326.0,
+            "x2": 679.0,
+            "y2": 571.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -4547,7 +4981,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "lfc9b1gd0h0ZO>B?`NRMe^OX3Sa0lLg^O]3Ta0eLg^Oa3Va0`Le^Oh3Xa0XLd^Om3[a0f0M3N1O1O1O100O001O000N2N3M2M3N1O2N2N2N1O1O2N1O1O0010O001N1N3J61O1O1O100O100O1O10000K5N200O1O1O1001O001O6J000000000000000000000000000000000000000O1000000000O1000000000000000000000000000000000000000000000000O100O1O1O1O1O1\\Od000001O0Of0[O1O1O1O000000000000000000000000000000000000000000001O00000000000000000000000000000O100000000000000000N2N2O1O1O100O11O00001O1O1O2N3M1O1O001O1O1O001O1O1O1O1O2N1O1O2N15L2N000O1000O2N1O1O1O1N2O1N2N5L1N1O2N2N1O2N2N2M3N2M2O2M3M4L4L6J6I7J6H8H9Ch]U=",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -4562,7 +5002,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 677.0,
+            "y1": 326.0,
+            "x2": 870.0,
+            "y2": 494.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -4708,7 +5153,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "m\\l>1^f03M2O1ZZOo0jc0ROT\\OW1ec0jNX\\O[1ec0eNY\\O_1ec0bNX\\Ob1fc0^NX\\Oe1gc0[NW\\Oh1hc0XNV\\Ok1ic0?0O0000000000N2N1O1O1L30M32N2N2O1O1N?B5K2N3M2N2N2N2O0O2N100O100O100O10000O0100O001O1O1N1O2N2H800000O100000O10000000000002J5L5K4L4L5K4N2O1N2O0O100O100O100O100O100O100O1000000000000000000000001O000002N3M3M3M3M3M3M3M3M00000000000000000000000000010O00000000000000000000000000001O00000000000000000002N1O1O1O010O0100O1O1O1O2N1O1O2M2O2M2O2M2N3M3M2N3L4M3K5K6D;M4K4L5J8G<C<AeUo8",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -4723,7 +5174,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 2.0,
+            "y1": 395.0,
+            "x2": 259.0,
+            "y2": 537.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -4861,7 +5317,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "bl12me0l0@:F9J4L4L2N6K4M1N2N2O1N2N101N100O2O0O100O100O100O10000O100O01000O010O10O010O1O010O001OG^Mf\\O`2Yc0eMd\\OX2_c0jM`\\OV2_c0lM_\\OU2`c0>0000O1000000000000000000000000O1O1O1O100O1O1O10O01O1O100O1O100O1O100O1O100O100O1O100O100O100O100O100O100O100O10000O10O10O10000O1000000O10000000000O10000000000000000000O10000000000000000000000000000O100000000000000000000O1000O10000000001O2N2N1O1O1O1O1O001O00001O000000000000O100O100O100O1O1O1N2O1N2N2N2M2M4J601O0O10000O10001N10001N101O0O101O1N101O0O2O1O1N2O001N2O11O1O1O0010N100O100O1O1O2N1N2O1N2N2N3M2N3L3M4L5J5J7F;[Oah\\f0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -4876,7 +5338,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 281.0,
+            "y1": 406.0,
+            "x2": 381.0,
+            "y2": 462.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -5010,7 +5477,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "SPV6<oe0:J4M3L2O1O1N2O0O101O0O10O01000O001N2M12O1N2O1O1O1N2O1O102M2N2N101N1000000000O1O1O1M30000000000000O100000001O000000000000O10000000000002N1O1O00001O0001O0O100O2O0O1M4L4O1O1O1O1000001N3N1N1O1O1N2O1N3K<B^ofc0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -5025,7 +5498,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 373.0,
+            "y1": 401.0,
+            "x2": 418.0,
+            "y2": 428.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -5115,7 +5593,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "`eV85Yf04L3O1M3N2N1N2O1O1O100000000O10000000000000001O0O2O000001O00000O1O1O1010O01O2N001O2N1N3N3Kcolb0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -5130,7 +5614,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1154.0,
+            "y1": 353.0,
+            "x2": 1211.0,
+            "y2": 471.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -5252,7 +5741,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "Qi[i0f0ee0a0A5L3M3W\\OgNXb0Z1c]OlN[b0V1_]OPO_b0R1[]OSOeb0m0U]OYOjb0h0Q]O\\Oob0e0l\\O@Tc0n1K4M3O01O1O1O2M3M2M4J6E;F;O01O0100O102M5K40N1O1O1O100O2O0000bNe[Od0]d0SOi[On0md01000O1N2M3M3M3M3M3M3M3L4M3L5Jb[_1",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -5267,7 +5762,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 658.0,
+            "y1": 383.0,
+            "x2": 698.0,
+            "y2": 421.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -5325,7 +5825,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "_Q_>4[f03L3M4L4L3M4M3L4M3N2M2O00000000000000WOhZO:Xe0EkZO9Ue0FmZO9Se0GnZO8Re0GoZO7Se0InZO4Te0LlZO2Ve0NkZOOWe01iZOMZe02fZOL\\e04dZOJ^e06>1O0000000000N2N2N2NbTh<",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -5340,7 +5846,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1100.0,
+            "y1": 358.0,
+            "x2": 1151.0,
+            "y2": 464.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -5462,7 +5973,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "cjUh0<oe07J6K4L3N3M2N3M2m[OiNlb0X1P]OnNmb0S1P]OPOob0Q1n\\OSOPc0n0m\\OUORc0k0l\\OYORc0h0h\\O^OXc0b0c\\OC\\c0>_\\OGac0e1N100G9N2O1O01000O10O2N1G9\\Oe0L4L4L5Ga0VOa00100O00100O2N100O2N100N2O2M2M3MZci2",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -5477,7 +5994,12 @@
             "truncated": false
           },
           "category": "truck",
-          "box2d": null,
+          "box2d": {
+            "x1": 489.0,
+            "y1": 261.0,
+            "x2": 626.0,
+            "y2": 352.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -5551,7 +6073,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "fRh:f2jc000O1O1O1001O001O6J00000000000000000000000000000000000000000000000000O1000000000000000000000000000000000000000000000000O100O1O1O1O1[Oe00O10000000f0ZO1O1O1O000000000000000000000000000000000000000000001O000000000000000000000000000000000000000000000000N2N2O1O1O100O11O00001O1O1O2N3XlZ>",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -5566,7 +6094,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 419.0,
+            "y1": 396.0,
+            "x2": 428.0,
+            "y2": 423.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -5628,7 +6161,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "QPW9=Pf0;F4N000000N3L4L7JPoeb0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -5643,7 +6182,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 287.0,
+            "y1": 399.0,
+            "x2": 299.0,
+            "y2": 412.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -5685,7 +6229,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "UVZ68Vf02O1M3000000001O1O2N3M3MWe`e0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -5700,7 +6250,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 273.0,
+            "y1": 398.0,
+            "x2": 282.0,
+            "y2": 413.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -5734,7 +6289,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "Z[P64Xf04L4M3O10000001O3Mncle0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         }
       ]
@@ -5762,7 +6323,12 @@
             "truncated": false
           },
           "category": "truck",
-          "box2d": null,
+          "box2d": {
+            "x1": 488.0,
+            "y1": 264.0,
+            "x2": 624.0,
+            "y2": 353.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -5844,7 +6410,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "X\\g:e2kc0O1O100O1001O001O1O5K000000000000000000000000000000000000000000000000O1000000000000000000000000000000000000000000000000O1O1O1O1O1O100]Oc0000000002Na0_O2N2N2N00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000O1N2N2O1O1000000001O001O1O2VY\\>",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -5859,7 +6431,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 436.0,
+            "y1": 329.0,
+            "x2": 678.0,
+            "y2": 573.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -6057,7 +6634,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "bPc9^1ld0g0XO`0A`0_NVMd^OS3Ta0QMg^OW3Ta0kLg^O\\3Ua0eLh^O`3Ua0aLg^Oe3Wa0[Le^Ok3Xa0h0O1O2M2O001O1O001O000000000O1N2N1O2N2N1O1O1O10O01O00O2M2J62N2N2N2O1O1N2O1O1O1O100K5M3O1O100O1001O001O1O5K0000000000000000000O1000000000000000000000000000O10000000000000000000000000000000000000O1000000000O1O1O1O1O1O100^Ob0000000001Oa0_O2N2N2N000000000000000000000O1000000000000000000000000000000000000000000000000000000000000000000O10O1N2N2O1O1000000001O001O1O2N4QJ__Og5e`001O1O001O1O001O1O1O1O1O2N1O1O2N24K3N0001O000O1O1OO12N1N3N1N3M100O2N1O2N1O1O2N2M3N2N2M3M3N3L4L6J6I7J6I7H9GRTV=",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -6072,7 +6655,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 676.0,
+            "y1": 331.0,
+            "x2": 864.0,
+            "y2": 500.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -6210,7 +6798,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "bfk>1]f04M2O1N2lZOa0Uc0_O[\\OT1bc0mN[\\OX1bc0hN\\\\O[1cc0eNZ\\O`1dc0`NZ\\Oc1fc0\\NW\\Oh1hc0XNV\\Oj1jc0?O01O01O00OO2N2N1O1OO1MO6N2O1N6K8H4K4M3M2N3M2N101N1O2O0O100O100O10O010O1O001O1O0O2N2M3K50O100000000O10O1000000000000001L4L5K4L4L5K4N2O1N100O100O10000O100O100O10000O100000000O10000000000004L4L4L4L4L5K000000000000000000001O0000000000000000001O000000000000000000001O00000000000000000013L2N101O000O0101N100O1O1O2N1O2N1O2N1N3N2M2N3M3M3M3L4L4J6_Oa0L4L5K5J5K7G:Ec\\S9",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -6225,7 +6819,12 @@
             "truncated": true
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 0.0,
+            "y1": 395.0,
+            "x2": 222.0,
+            "y2": 559.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -6327,7 +6926,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "W=Q4^b01O1O1O1O101N1O1O1O100O1O100O1O100O2O0O100O10000O100O10O10O1000000O1000000O100000000O100000O1000000000O1000O1000000000000O1000000000O0100000000O100000000O1000000O100000000O1000O1000O1000000O1000000O100004L3M2N2N1O1O1O1O1N101O00001O000000000000O1000000O100O100O100O001O1O1O1O1N2O1N2N2N2L4I7K500O100O10000O100O10O10O101N10000O101N10001N101N101O0O2O1N101O1N101N2O1O0O2O1N3N13M2N1O1O00000000O1O100O1O1O1O1O1N2O1O0O2N2O1N2N2M3N2M3N2L3M7H8XOh0J6J6J6K4KPhVg0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -6342,7 +6947,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 264.0,
+            "y1": 407.0,
+            "x2": 371.0,
+            "y2": 467.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -6460,7 +7070,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "iQj5:Sf0<F3M2N2O1N2O1O0O1O2O0O1O10O0100O0001O0M40N2O1O1N2O1O1O1O1O1O3M3N0O2N101N10000O1000000O0100O1O1O1L40000000000000000000000O1000O1000000000000000003M2N1O001O00000000000000O1O1O1O2N1L401O1N2O11O01N101N2N2N1N2O2M2M4L3KfPnc0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -6475,7 +7091,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 370.0,
+            "y1": 403.0,
+            "x2": 413.0,
+            "y2": 430.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -6561,7 +7182,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "PbT8=Qf03N2N1O1N2O1O1O10O0010000000O1000000000000O2O0000001O000000O100O1O20O01O002N1O1O2M2O1NT`Pc0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -6576,7 +7203,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1191.0,
+            "y1": 354.0,
+            "x2": 1251.0,
+            "y2": 478.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -6702,7 +7334,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "biUj0>le0h0[O7J3M4M2O1N2N2O1o[OZNVc0f1h\\OaNmb0f1Q]O`Ngb0d1W]ObNbb0a1]]ObN^b0a1`]ObN^b0_1`]OcN^b0_1`]OcN^b0_1a]OaN_b0a1^]OaN`b0h200000O100O1N3L3E<D<L4L5K5J<H001N101O1N2O11O2N2N2N2N106J6J01Ol0RO6K3L4M3L4L4K5L4K5L4JeWc0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -6717,7 +7355,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 659.0,
+            "y1": 384.0,
+            "x2": 699.0,
+            "y2": 429.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -6791,7 +7434,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "Sh_>6Wf04L5L3M3M4M3M3M3M3N2N1N2O1O0O101OTOnZO:Re0DR[O:nd0ET[O:ld0FU[O8kd0HW[O7id0IW[O5kd0KV[O2ld0NT[O0nd00R[OMQe03oZOKSe06lZOGWe09iZOEYe0;>001O000000N2N2N2N2N2NR^g<",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -6806,7 +7455,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1134.0,
+            "y1": 362.0,
+            "x2": 1181.0,
+            "y2": 476.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -6928,7 +7582,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "ngmh0<me08J6K4M4L3N2M3O2P\\OkNab0W1[]OnNbb0T1Y]OQOfb0P1V]OTOib0m0R]OXOmb0i0o\\O[OPc0f0l\\O^OSc0c0i\\OAWc0?e\\OD[c0i1O01LK52M4M3L5L4m0SO001O0001O1O1O1O2M:G1N3gNX1N3M4M6I:F7J5J4L4L3Mm_T2",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -6943,7 +7603,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 185.0,
+            "y1": 409.0,
+            "x2": 236.0,
+            "y2": 472.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -7009,7 +7674,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "Y_R42^f01O1O1O1O1O1O1O1O1O1O1O1O1O100O1O1O100O010O1O100O10000O1000O04M3M3M3M3M3M2N4L0001N00001N2O1N2N3L5F;J9Gbmlf0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -7024,7 +7695,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 902.0,
+            "y1": 385.0,
+            "x2": 925.0,
+            "y2": 407.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -7058,7 +7734,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "ecjc03[f02N2N2N2O1J6N2O1O100O1000000001O001O1O1O2N5K6J^`h7",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -7073,7 +7755,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 417.0,
+            "y1": 401.0,
+            "x2": 426.0,
+            "y2": 425.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -7135,7 +7822,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "WcU97Wf08G7K3N0001O1N3G:Gn[gb0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -7150,7 +7843,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 284.0,
+            "y1": 401.0,
+            "x2": 293.0,
+            "y2": 415.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -7192,7 +7890,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "iRX67Vf03O1O1M30000001O1O]lde0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -7207,7 +7911,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 270.0,
+            "y1": 400.0,
+            "x2": 280.0,
+            "y2": 415.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -7241,7 +7950,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "bWn5>Qf0100O100001O002N2N5KfPne0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -7256,7 +7971,12 @@
             "truncated": false
           },
           "category": "truck",
-          "box2d": null,
+          "box2d": {
+            "x1": 625.0,
+            "y1": 358.0,
+            "x2": 651.0,
+            "y2": 391.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -7302,7 +8022,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "fig=1_f0001O1O001O1O001O1O1O1O101N1O1O2N2N101N2O2N1N2O1002L_Vi=",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         }
       ]
@@ -7330,7 +8056,12 @@
             "truncated": false
           },
           "category": "truck",
-          "box2d": null,
+          "box2d": {
+            "x1": 489.0,
+            "y1": 267.0,
+            "x2": 625.0,
+            "y2": 357.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -7404,7 +8135,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "lRh:Z1Ve0Y1gNO100O1001O001O1O5K0000000000000000000000000000000000000000000000O100000000000000000000000000000000000000000000000000O1O1O1O1O1\\Od0000O10000000e0[O1O1O2N000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000O1O1O1O100O1000000001O001O1O2N2cb[>",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -7419,7 +8156,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 437.0,
+            "y1": 331.0,
+            "x2": 677.0,
+            "y2": 576.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -7613,7 +8355,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "Ugc9e2ec0:E:G8I7gN[L__Ok3]`0\\LZ_Oj3b`0ZLW_Ol3g`0VLV_Om3h`0ULV_Om3i`0TLR_OQ4l`0k0O001N101O0000001O0000O1000O1O0O2O001N1O100O001O00O1N2K52O1N2N2O1N2O1O1O1O1O100K5M3O1O100O1001O001O1O5J1000000000000000000000000000000000000000000000O0100000000000000000000000000000000000000000000O1000O1O1O1O1O1\\Od0000000000000e0[O1O1O2N00000000000O100000000000000000000000000000000000000000000O10000000000000000000000000000000O1O1O1O100O1000O10001O001O1O2N2N001O001O1WJZ_Of5i`0O1O1O1O1O1O1O1O2N15K2O1OO010O2N1O1O1O1OO02O1N3M2O2M3M1O2N1O1O2N1O1N4M2M4M2M4L3M4K6J7G:TOl0H8F:CcjV=",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -7628,7 +8376,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 678.0,
+            "y1": 336.0,
+            "x2": 857.0,
+            "y2": 499.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -7766,7 +8519,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "bSm>5Yf03O1N1\\ZOR1fc0oNX\\OU1ec0kNY\\OY1ec0hNY\\OZ1fc0fNX\\O]1gc0cNX\\O_1gc0aNW\\Oa1ic0_NV\\Ob1jc0_NS\\Oc1nc0\\NQ\\Od1Pd0=2M2K5000N2N2N2N<D5GUMe\\OP3Vc08L3N2M3N2N2M2O1O2N100O1O00100O01O001O1N1O2M3L31000000O100000000O1000000000001O1O1O1O0M4L4L4M3L3M4M2O100O10000O10000O100O10000O10000O100000000000000003M3M4L3M4L3M4L00000001O0000000000000000000001O0000000000000000000000000000001O00000000000000000004L2N2N1O10O101N2O0O2N2N1O2N2N2N2N1N3N2M3M3M3M3M3M3L5J6J6E;G;H8G<BiYX9",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -7781,7 +8540,12 @@
             "truncated": true
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 0.0,
+            "y1": 396.0,
+            "x2": 172.0,
+            "y2": 592.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -7863,7 +8627,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "^<c5m`03M2N2N2N1O1O1O1O001O1O00001O0000000000000000000000O10000O100O100O100O1O100O1O1O1O1O1O1O1O1N2N2O1N2M3N2L4H80O10O10000O10O10O100O10000O10000O100O10000O10000O100O10000O10000O2O0O10000O101O0O101N10000O2O001N100O2O001N101O0O2O0O2O001N2O001N2O0101O1O00001N100003M0O101O0O100O2O0O1O1O1O1O001O1O001O1N1O2O1N1O2N2N1O2M3N1N3M3M2M4L3L7I7G9E:^Oc0M3L3L5L4K4KhlYh0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -7878,7 +8648,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 242.0,
+            "y1": 410.0,
+            "x2": 360.0,
+            "y2": 474.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -7996,7 +8771,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "TcZ52Wf0a0D5K3N2N3M2N1O2O1O0O1O101N00100O1O010O01N2O0N30O1O100O100O1O100O1M3O1O103L200O001N1O100O10000O1000O10O01O1N2M3000000000000000O10000000000000000000000O100000001O2N001O00001O00O10000O100O1O2N1K5000001N101O1001N10O100O1O2N1O1N3N1N3M3L4L4JRhUd0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8011,7 +8792,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 367.0,
+            "y1": 405.0,
+            "x2": 411.0,
+            "y2": 434.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8105,7 +8891,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "f^R89Vf03M2N1O2K4O001N10001O100000000O1000000000000O10001O00001OO10000O1M30001O01002M1O1O2N2N2LPmQc0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8120,7 +8912,12 @@
             "truncated": true
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1234.0,
+            "y1": 360.0,
+            "x2": 1279.0,
+            "y2": 488.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8250,7 +9047,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "ZRTk01Yf09J4R[OEac0`0[\\OFZc0c0e\\O^OQc0k0m\\OXOlb0o0Q]OTOjb0P1U]OQOhb0S1U]OoNhb0U1V]OlNhb0V1V]OlNhb0W1U]OkNjb0V1U]OkNjb0V1T]OkNlb0W1R]OiNjb0]1S]OcNlb0`1R]O`Nnb0c1P]O]NPc0e1m\\O[NTc0_2101N2N2O1N2f0ZO3N2N0000O2^N`]OPOab0o0f]OjN\\b0T1k]OeNUb0[1o]OaNoa0a1V^OYNia0i1[^ORNda0P2a^OjM_a0W2\\1e0\\Oj0VO2N10O1N4KdD",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8265,7 +9068,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 659.0,
+            "y1": 386.0,
+            "x2": 701.0,
+            "y2": 431.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8331,7 +9139,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "Wh_>4Zf03M3N3L3M3N4L3L5L3M4L3M100O1O100O1000ROR[O:md0EV[O:jd0FW[O8jd0GW[O5md0KT[O3md0MS[O1od0OR[OOod01Q[OMQe03oZOLRe04nZOJTe06lZOIUe07lZOFVe0;iZODXe0<>1O000000N2N2N2N2N2NPQf<",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8346,7 +9160,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 1172.0,
+            "y1": 365.0,
+            "x2": 1234.0,
+            "y2": 482.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8480,7 +9299,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "]_hi07Uf06J5L4X[O_O[c0e0c\\O^Ojb0U1R]OnNkb0U1S]OmNjb0V1S]OmNkb0V1R]OlNlb0V1R]OlNmb0\\2O1O1O1O1O10O0M4K4M4K5K002N4L41O010O3N3M3L3N3M3M3M2O2M3MZMh\\OW2Vc0fMm\\O[2Rc0cMQ]O^2nb0]MX]O[1GB_d0@f[O>_d0ZOf[Oc0]d0XOh[Od0Ve0M3L4L000O10000O100O1O10O01N3O0O2O1MlUo0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8495,7 +9320,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 129.0,
+            "y1": 411.0,
+            "x2": 226.0,
+            "y2": 476.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8565,7 +9395,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "bSk23]f01O1N3N1O1O1O2N1O1O1O1N2O001O1N101O1O001N2O001O1M201O1N101O1O001O003M3M3M2N3M3M2N3M3M2N000000000000000000O101O00000000001N10001O1O001O001O0O2O001O001O0000010000000O100O1O1O2N0O2O1O1N2N2N2N3L6I<ZOjnSg0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8580,7 +9416,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 920.0,
+            "y1": 389.0,
+            "x2": 940.0,
+            "y2": 409.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8614,7 +9455,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "fXWd04Yf03M3J6N2O1O1O10000000000001O1O1O3M5K3M3Mjn]7",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8629,7 +9476,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 136.0,
+            "y1": 404.0,
+            "x2": 153.0,
+            "y2": 416.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8663,7 +9515,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "oPP32\\f02N2O1L4O00100001N2O2N001O1N101O1OTZgh0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8678,7 +9536,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 418.0,
+            "y1": 402.0,
+            "x2": 425.0,
+            "y2": 429.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8736,7 +9599,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "cYV9h0ge04M0001N2N4E;JYRhb0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8751,7 +9620,12 @@
             "truncated": false
           },
           "category": "car",
-          "box2d": null,
+          "box2d": {
+            "x1": 438.0,
+            "y1": 409.0,
+            "x2": 447.0,
+            "y2": 430.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8801,7 +9675,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "T\\d97Rf09K4N1005L1M2O1N2KQcXb0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8816,7 +9696,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 365.0,
+            "y1": 403.0,
+            "x2": 371.0,
+            "y2": 421.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8858,7 +9743,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "VQQ8:Tf08I10O1O2N1O]Qnc0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8873,7 +9764,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 281.0,
+            "y1": 403.0,
+            "x2": 289.0,
+            "y2": 416.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8915,7 +9811,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "XoU69Sf04O10O1O101N101O[fge0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8930,7 +9832,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 263.0,
+            "y1": 402.0,
+            "x2": 275.0,
+            "y2": 428.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -8964,7 +9871,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "bZi5;ke0:M201O000100O2O0O3M4M6ISaQf0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -8979,7 +9892,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 243.0,
+            "y1": 403.0,
+            "x2": 256.0,
+            "y2": 417.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -9013,7 +9931,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "\\X[56Tf06N2O100000000001O1O1O3M4Lcl^f0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -9028,7 +9952,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 228.0,
+            "y1": 401.0,
+            "x2": 242.0,
+            "y2": 417.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -9062,7 +9991,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "kfP57Sf06M3O100000000002N2N2N3M2N3Maghf0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -9077,7 +10012,12 @@
             "truncated": false
           },
           "category": "pedestrian",
-          "box2d": null,
+          "box2d": {
+            "x1": 194.0,
+            "y1": 403.0,
+            "x2": 222.0,
+            "y2": 419.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -9127,7 +10067,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "miX42]f0101N1O2O0O2O0K6N101O01O1O00O1O100001O001N2O2N1O2N2N1O2N`iVg0",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         },
         {
@@ -9142,7 +10088,12 @@
             "truncated": false
           },
           "category": "truck",
-          "box2d": null,
+          "box2d": {
+            "x1": 630.0,
+            "y1": 362.0,
+            "x2": 651.0,
+            "y2": 392.0
+          },
           "box3d": null,
           "poly2d": [
             {
@@ -9180,7 +10131,13 @@
               "closed": true
             }
           ],
-          "rle": null,
+          "rle": {
+            "counts": "ZZk=1_f01O1O1O1O1O1O1O1O2N1O1O2N2N1O2N3M2N2O11O<BTVi=",
+            "size": [
+              720,
+              1280
+            ]
+          },
           "graph": null
         }
       ]

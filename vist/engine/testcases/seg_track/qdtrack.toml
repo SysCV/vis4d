@@ -12,6 +12,7 @@ path = "../configs/models/mmdetection/mask_qdtrack_R_50_FPN.toml"
     [model.lr_scheduler]
     type = "MultiStepLR"
     warmup = "constant"
+    warmup_steps = 1
     kwargs = {"milestones" = [9, 11]}
 
 [launch]

@@ -126,10 +126,11 @@ def segmentation_from_mmdet_results(
         for i, segm in enumerate(segmentation)
     ]
     labels = torch.cat(labels)
-    scores = boxes.boxes[:, -1]
+    scores = boxes.score
+    assert scores is not None, "segmentation results require scores"
     scores = [scores[boxes.class_ids == i] for i, _ in enumerate(segmentation)]
     scores = torch.cat(scores)
-    return Masks(masks, labels, scores=scores)
+    return Masks(masks, labels, score=scores)
 
 
 def results_from_mmdet(

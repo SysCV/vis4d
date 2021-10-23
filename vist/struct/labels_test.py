@@ -296,7 +296,7 @@ class TestMasks(unittest.TestCase):
                 torch.isclose(segm.track_ids.long(), segm_new.track_ids).all()
             )
             self.assertTrue(
-                torch.isclose(segm.scores.float(), segm_new.scores).all()
+                torch.isclose(segm.score.float(), segm_new.score).all()
             )
 
         segms_new.track_ids = None
@@ -310,7 +310,7 @@ class TestMasks(unittest.TestCase):
             )
         )
 
-        segmentations.scores = None
+        segmentations.score = None
         scalabel_segms_no_score = segmentations.to_scalabel(idx_to_class)
         self.assertTrue(all(d.score is None for d in scalabel_segms_no_score))
 
