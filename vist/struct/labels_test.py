@@ -358,6 +358,17 @@ class TestMasks(unittest.TestCase):
         self.assertEqual(len(segm_crops.masks), num_dets)
         self.assertEqual(segm_crops.masks.size(1), out_h)
         self.assertEqual(segm_crops.masks.size(2), out_w)
+        segmentations = generate_masks(h, w, 0, track_ids=True)
+        detections = generate_dets(h, w, 0, track_ids=True)
+        segm_crops = segmentations.crop_and_resize(
+            detections.boxes[:, :-1], (out_h, out_w), torch.arange(num_masks)
+        )
+        self.assertEqual(len(segm_crops), 0)
+        segmentations = generate_masks(h, w, 1, track_ids=True)
+        segm_crops = segmentations.crop_and_resize(
+            detections.boxes[:, :-1], (out_h, out_w), torch.arange(num_masks)
+        )
+        self.assertEqual(len(segm_crops), 0)
 
     def test_paste_masks_in_image(self) -> None:
         """Testcase for pasting masks in image."""

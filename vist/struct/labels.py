@@ -485,7 +485,7 @@ class Masks(LabelInstance):
         binarize: Optional[bool] = True,
     ) -> "Masks":
         """Crop and resize masks with input bboxes."""
-        if len(self) == 0:  # pragma: no cover
+        if len(self) == 0:
             return self
 
         # convert bboxes to tensor
@@ -495,12 +495,12 @@ class Masks(LabelInstance):
             inds = torch.from_numpy(inds).to(device=device)
 
         num_bbox = bboxes.shape[0]
-        fake_inds = torch.arange(num_bbox, device=device).to(
-            dtype=bboxes.dtype
-        )[:, None]
-        rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
-        rois = rois.to(device=device)
         if num_bbox > 0:
+            fake_inds = torch.arange(num_bbox, device=device).to(
+                dtype=bboxes.dtype
+            )[:, None]
+            rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
+            rois = rois.to(device=device)
             gt_masks_th = self.masks.index_select(0, inds).to(dtype=rois.dtype)
             targets = roi_align(
                 gt_masks_th[:, None, :, :],
@@ -516,7 +516,7 @@ class Masks(LabelInstance):
             else:
                 resized_masks = targets
         else:
-            resized_masks = []  # pragma: no cover
+            resized_masks = torch.empty(0, *out_shape)
         return type(self)(resized_masks)
 
     def paste_masks_in_image(
@@ -641,7 +641,7 @@ class Masks(LabelInstance):
                 continue
             if label.rle is not None:
                 bitmask = mask_utils.decode(dict(label.rle))
-            elif label.poly2d is not None:  # pragma: no cover
+            elif label.poly2d is not None:
                 assert (
                     image_size is not None
                 ), "image size must be specified for masks with polygons!"

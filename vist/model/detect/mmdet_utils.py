@@ -125,8 +125,10 @@ def segmentation_from_mmdet_results(
         torch.full((len(segm),), i, dtype=torch.int32, device=device)
         for i, segm in enumerate(segmentation)
     ]
-    scores = boxes.boxes[:, -1]
     labels = torch.cat(labels)
+    scores = boxes.boxes[:, -1]
+    scores = [scores[boxes.class_ids == i] for i, _ in enumerate(segmentation)]
+    scores = torch.cat(scores)
     return Masks(masks, labels, scores=scores)
 
 
