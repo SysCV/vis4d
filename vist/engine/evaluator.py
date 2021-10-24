@@ -12,6 +12,7 @@ from scalabel.common import mute
 from scalabel.eval.detect import evaluate_det
 from scalabel.eval.ins_seg import evaluate_ins_seg
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
+from scalabel.eval.mots import acc_single_video_mots, evaluate_seg_track
 from scalabel.eval.result import Result
 from scalabel.label.io import group_and_sort, save
 from scalabel.label.typing import Config, Frame
@@ -58,7 +59,23 @@ def _track(
     )
 
 
-_eval_mapping = dict(detect=_detect, track=_track, segment=_ins_seg)
+def _seg_track(
+    pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
+) -> Result:
+    """Wrapper for evaluate_seg_track function."""
+    return evaluate_seg_track(
+        acc_single_video_mots,
+        group_and_sort(gt),
+        group_and_sort(pred),
+        cfg,
+        nproc=1,
+        ignore_unknown_cats=ignore_unknown_cats,
+    )
+
+
+_eval_mapping = dict(
+    detect=_detect, track=_track, segment=_ins_seg, seg_track=_seg_track
+)
 
 
 class VisTEvaluatorCallback(Callback):

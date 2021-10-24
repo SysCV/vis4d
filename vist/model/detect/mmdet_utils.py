@@ -113,23 +113,23 @@ def segmentation_from_mmdet_results(
     segmentation: MMSegmResult, boxes: Boxes2D, device: torch.device
 ) -> Masks:
     """Convert segm_result to VisT format."""
-    segms = [np.stack(segm) for segm in segmentation if len(segm) != 0]
+    segms = [
+        np.stack(segm) if len(segm) != 0 else np.empty_like(segm)
+        for segm in segmentation
+    ]
     if len(segms) == 0:  # pragma: no cover
         return Masks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
-    masks = (
-        torch.from_numpy(np.concatenate(segms))  # type: ignore
-        .type(torch.uint8)
-        .to(device)
-    )  # NxWxH
-    labels = [
-        torch.full((len(segm),), i, dtype=torch.int32, device=device)
-        for i, segm in enumerate(segmentation)
-    ]
-    labels = torch.cat(labels)
+    masks_list, labels_list = [], []  # type: ignore
+    for class_id in boxes.class_ids:
+        masks_list.append(
+            torch.from_numpy(segms[class_id][labels_list.count(class_id)])
+            .type(torch.uint8)
+            .to(device)
+        )
+        labels_list.append(class_id)
+    masks = torch.stack(masks_list)
+    labels = torch.stack(labels_list)
     scores = boxes.score
-    assert scores is not None, "segmentation results require scores"
-    scores = [scores[boxes.class_ids == i] for i, _ in enumerate(segmentation)]
-    scores = torch.cat(scores)
     return Masks(masks, labels, score=scores)
 
 

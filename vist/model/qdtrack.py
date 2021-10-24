@@ -168,5 +168,5 @@ class QDTrack(BaseModel):
                 .to(torch.device("cpu"))
                 .to_scalabel(self.cat_mapping)
             )
-            outputs.update(segment=[segms])
+            outputs.update(segment=[segms], seg_track=[segms])
         return outputs

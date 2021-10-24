@@ -6,7 +6,11 @@ import torch
 import torch.nn.functional as F
 from mmcv.ops.roi_align import roi_align
 from pycocotools import mask as mask_utils
-from scalabel.label.transforms import mask_to_box2d, poly2ds_to_mask
+from scalabel.label.transforms import (
+    mask_to_box2d,
+    mask_to_rle,
+    poly2ds_to_mask,
+)
 from scalabel.label.typing import Box2D, Box3D, ImageSize, Label
 
 from ..common.geometry.rotation import (
@@ -698,19 +702,8 @@ class Masks(LabelInstance):
             score = None
             if self.score is not None:
                 score = self.score[i].item()
-            rle = mask_utils.encode(
-                np.array(
-                    mask[:, :, None].cpu().numpy(),
-                    order="F",
-                    dtype="uint8",
-                )
-            )[0]
-            rle_label = dict(
-                counts=rle["counts"].decode("utf-8"), size=rle["size"]
-            )
-            label_dict = dict(
-                id=label_id, category=cls, score=score, rle=rle_label
-            )
+            rle = mask_to_rle(mask.cpu().numpy())
+            label_dict = dict(id=label_id, category=cls, score=score, rle=rle)
             labels.append(Label(**label_dict))
 
         return labels
