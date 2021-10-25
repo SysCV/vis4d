@@ -2,13 +2,14 @@
 from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
+import torch
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-import torch
-from vist.struct import Intrinsics, Extrinsics, NDArrayF64
+from vist.struct import Intrinsics, Extrinsics, NDArrayF64, NDArrayUI8
 
 from .utils import (
+    BitmaskType,
     Box3DType,
     BoxType,
     ImageType,
@@ -16,8 +17,8 @@ from .utils import (
     preprocess_boxes,
     preprocess_image,
     preprocess_intrinsics,
+    preprocess_masks,
 )
-import pdb
 
 
 def imshow(
@@ -61,6 +62,18 @@ def imshow_bboxes3d(
 
     for box, col, label in zip(box_list, color_list, label_list):
         draw_bbox3d(image, box, intrinsic_matrix, col, label)
+
+    imshow(image)
+
+
+def imshow_masks(
+    image: ImageType, masks: BitmaskType, mode: str = "RGB"
+) -> None:  # pragma: no cover
+    """Show image with masks."""
+    image = preprocess_image(image, mode)
+    mask_list, color_list = preprocess_masks(masks)
+    for mask, col in zip(mask_list, color_list):
+        draw_mask(image, mask, col)
 
     imshow(image)
 
@@ -155,6 +168,14 @@ def draw_bbox3d(
         draw.text(center_top_forward, label, (255, 255, 255), font=font)
 
 
+def draw_mask(
+    image: Image.Image, mask: NDArrayUI8, color: Tuple[int]
+) -> None:  # pragma: no cover
+    """Draw mask onto image."""
+    draw = ImageDraw.Draw(image)
+    draw.bitmap([0, 0], Image.fromarray(mask, mode="L"), fill=color)
+
+
 def get_intersection_point(
     point1: NDArrayF64, point2: NDArrayF64, camera_near_clip: float
 ) -> NDArrayF64:  # pragma: no cover
@@ -185,7 +206,9 @@ def imshow_lidar(
     image: ImageType,
     camera_extrinsics: Extrinsics,
     camera_intrinsics: Union[NDArrayF64, Intrinsics],
-    dot_size=2,
+    boxes: Union[BoxType, Box3DType],
+    box_mode: str = "3D",
+    dot_size: int = 3,
     mode: str = "RGB",
 ):
     """Show image with lidar points."""
@@ -204,7 +227,7 @@ def imshow_lidar(
     pts2d = np.dot(points_cam.cpu().numpy(), intrinsic_matrix.T)  # type: ignore
     pts2d = pts2d / pts2d[:, 2:3]
 
-    image = preprocess_image(image, mode)
+    image_p = preprocess_image(image, mode)
 
     depths = points_cam[:, 2].cpu().numpy()
     coloring = depths
@@ -212,20 +235,20 @@ def imshow_lidar(
     mask = np.ones(depths.shape[0], dtype=bool)
     mask = np.logical_and(mask, depths > 1.0)
     mask = np.logical_and(mask, pts2d[:, 0] > 1)
-    mask = np.logical_and(mask, pts2d[:, 0] < image.size[0] - 1)
+    mask = np.logical_and(mask, pts2d[:, 0] < image_p.size[0] - 1)
     mask = np.logical_and(mask, pts2d[:, 1] > 1)
-    mask = np.logical_and(mask, pts2d[:, 1] < image.size[1] - 1)
+    mask = np.logical_and(mask, pts2d[:, 1] < image_p.size[1] - 1)
 
     pts2d = pts2d[mask, :]
     coloring = coloring[mask]
 
     plt.figure(figsize=(16, 9))
-    plt.imshow(image)
     plt.scatter(pts2d[:, 0], pts2d[:, 1], c=coloring, s=dot_size)
-    plt.axis("off")
-    plt.savefig("test.png")
 
-    pdb.set_trace()
+    if box_mode == "3D":
+        imshow_bboxes3d(image, boxes, camera_intrinsics)
+    elif box_mode == "2D":
+        imshow_bboxes(image, boxes)
 
 
 import plotly.graph_objects as go

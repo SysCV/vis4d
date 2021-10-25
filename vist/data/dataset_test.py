@@ -12,7 +12,7 @@ from scalabel.label.typing import (
     Label,
 )
 
-from ..struct import Images, InputSample
+from ..struct import Boxes2D, Images, InputSample
 from .dataset import ScalabelDataset
 from .datasets.base import (
     BaseDatasetConfig,
@@ -104,15 +104,15 @@ class TestScalabelDataset(unittest.TestCase):
         dataset = ScalabelDataset(dataset_loader, True)
         self.assertRaises(ValueError, dataset.__getitem__, 0)
 
-    def test_transform_annotations(self) -> None:
-        """Test the transform annotations method in DatasetMapper."""
+    def test_transform_input(self) -> None:
+        """Test the transform_input method in ScalabelDataset."""
         input_sample = InputSample(
             [Frame(name="0")],
             Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
         )
-        self.dataset.transform_annotation(input_sample, None, torch.eye(3))
+        self.dataset.transform_input(input_sample, None)
         self.assertEqual(len(input_sample.boxes2d[0]), 0)
-        self.dataset.transform_annotation(input_sample, [], torch.eye(3))
+        self.dataset.transform_input(input_sample, [])
         self.assertEqual(len(input_sample.boxes2d[0]), 0)
 
         labels = [
@@ -135,7 +135,10 @@ class TestScalabelDataset(unittest.TestCase):
                 attributes={"category_id": 0, "instance_id": 0},
             ),
         ]
-        self.dataset.transform_annotation(input_sample, labels, torch.eye(3))
+        input_sample.boxes2d = Boxes2D.from_scalabel(
+            labels, {"car": 0}, {"a": 2, "b": 1, "c": 0}
+        )
+        self.dataset.transform_input(input_sample, [])
 
         self.assertTrue(all(input_sample.boxes2d[0].class_ids == 0))
         self.assertEqual(input_sample.boxes2d[0].boxes[0, 0], 10)

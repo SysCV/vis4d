@@ -106,6 +106,16 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
         for boxes_, box_deltas_, intrinsics_ in zip(
             boxes, box_deltas, intrinsics
         ):  # type: ignore
+            if len(boxes_) == 0:
+                results.append(
+                    Boxes3D(
+                        torch.empty(0, 10, device=boxes_.device),
+                        torch.empty(0, device=boxes_.device),
+                        torch.empty(0, device=boxes_.device),
+                    )
+                )
+                continue
+
             box_deltas_ = box_deltas_[
                 torch.arange(box_deltas_.shape[0]), boxes_.class_ids
             ]

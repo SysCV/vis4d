@@ -23,11 +23,12 @@ from scalabel.label.utils import (
 )
 from torch.utils.data import Dataset
 
-from vist.common.io import build_data_backend
-
+from ..common.io import build_data_backend
+from ..common.utils.time import Timer
 from ..struct import (
     Boxes2D,
     Boxes3D,
+    DictStrAny,
     Extrinsics,
     Images,
     InputSample,
@@ -35,6 +36,7 @@ from ..struct import (
     NDArrayF32,
     NDArrayUI8,
     PointCloud,
+    Masks,
 )
 from .datasets import BaseDatasetLoader
 from .transforms import AugParams, build_augmentations
@@ -45,7 +47,6 @@ from .utils import (
     im_decode,
     prepare_labels,
     print_class_histogram,
-    transform_bbox,
 )
 
 __all__ = ["ScalabelDataset"]
@@ -80,6 +81,7 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         for field in self.cfg.dataloader.fields_to_load:
             assert field in [
+                "masks",
                 "boxes2d",
                 "boxes3d",
                 "intrinsics",
@@ -115,16 +117,31 @@ class ScalabelDataset(Dataset):  # type: ignore
             dataset.frames, dataset.cfg.attributes
         )
 
+        t = Timer()
         frequencies = prepare_labels(
             dataset.frames,
             cats_name2id,
             self.cfg.dataloader.compute_global_instance_ids,
+        )
+        rank_zero_info(
+            f"Preprocessing {len(dataset.frames)} frames takes {t.time():.2f}"
+            " seconds."
         )
         print_class_histogram(frequencies)
 
         self.dataset = dataset
         self.dataset.frames = DatasetFromList(self.dataset.frames)
         if self.dataset.groups is not None:
+            t.reset()
+            prepare_labels(
+                self.dataset.groups,
+                cats_name2id,
+                self.cfg.dataloader.compute_global_instance_ids,
+            )
+            rank_zero_info(
+                f"Preprocessing {len(self.dataset.groups)} groups takes "
+                f"{t.time():.2f} seconds."
+            )
             self.dataset.groups = DatasetFromList(self.dataset.groups)
 
         self._fallback_candidates = set(range(len(self.dataset.frames)))
@@ -348,16 +365,37 @@ class ScalabelDataset(Dataset):  # type: ignore
                     f"retry count: {retry_count}"
                 )
 
-    def load_image(
-        self,
-        sample: Frame,
-    ) -> NDArrayUI8:
+    def load_input(
+        self, sample: Frame, use_empty: Optional[bool] = False
+    ) -> InputSample:
         """Load image according to data_backend."""
-        assert sample.url is not None
-        im_bytes = self.data_backend.get(sample.url)
-        image = im_decode(im_bytes, mode=self.image_channel_mode)
+        if not use_empty:
+            assert sample.url is not None
+            im_bytes = self.data_backend.get(sample.url)
+            image = im_decode(im_bytes, mode=self.image_channel_mode)
+        else:
+            image = np.empty((128, 128, 3), dtype=np.uint8)
+
         sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
-        return image
+        image = torch.as_tensor(
+            np.ascontiguousarray(image.transpose(2, 0, 1)),
+            dtype=torch.float32,
+        ).unsqueeze(0)
+        images = Images(image, [(image.shape[3], image.shape[2])])
+        input_data = InputSample([copy.deepcopy(sample)], images)
+
+        if (
+            sample.intrinsics is not None
+            and "intrinsics" in self.cfg.dataloader.fields_to_load
+        ):
+            input_data.intrinsics = self.load_intrinsics(sample.intrinsics)
+
+        if (
+            sample.extrinsics is not None
+            and "extrinsics" in self.cfg.dataloader.fields_to_load
+        ):
+            input_data.extrinsics = self.load_extrinsics(sample.extrinsics)
+        return input_data
 
     def load_point(
         self, sample: Frame, num_point_feature: int = 4, radius: float = 1.0
@@ -379,43 +417,13 @@ class ScalabelDataset(Dataset):  # type: ignore
         points = points[:, not_close].T
 
         assert group.extrinsics is not None
-        points_extrinsics = self.transform_extrinsics(group.extrinsics)
+        points_extrinsics = self.load_extrinsics(group.extrinsics)
         return PointCloud(torch.as_tensor(points)), points_extrinsics
 
-    def transform_image(
+    def load_annotation(
         self,
-        image: NDArrayUI8,
-        parameters: Optional[List[AugParams]] = None,
-    ) -> Tuple[Images, List[AugParams], torch.Tensor]:
-        """Apply image augmentations and convert to torch tensor."""
-        image = torch.as_tensor(
-            np.ascontiguousarray(image.transpose(2, 0, 1)),
-            dtype=torch.float32,
-        ).unsqueeze(0)
-
-        if parameters is None:
-            parameters = []
-        else:
-            assert len(parameters) == len(self.transformations), (
-                "Length of augmentation parameters must equal the number of "
-                "augmentations!"
-            )
-
-        transform_matrix = torch.eye(3)
-        for i, aug in enumerate(self.transformations):
-            if len(parameters) < len(self.transformations):
-                parameters.append(aug.forward_parameters(image.shape))
-            image, tm = aug(image, parameters[i], return_transform=True)
-            transform_matrix = torch.mm(tm[0], transform_matrix)
-
-        image_processed = Images(image, [(image.shape[3], image.shape[2])])
-        return image_processed, parameters, transform_matrix
-
-    def transform_annotation(
-        self,
-        input_sample: InputSample,
+        sample: InputSample,
         labels: Optional[List[Label]],
-        transform_matrix: torch.Tensor,
     ) -> None:
         """Transform annotations."""
         labels_used = []
@@ -436,39 +444,70 @@ class ScalabelDataset(Dataset):  # type: ignore
                             label.attributes["instance_id"]
                         )
 
-            if "boxes2d" in self.cfg.dataloader.fields_to_load and labels_used:
-                boxes2d = Boxes2D.from_scalabel(
-                    labels_used, category_dict, instance_id_dict
-                )
-                boxes2d.boxes[:, :4] = transform_bbox(
-                    transform_matrix,
-                    boxes2d.boxes[:, :4],
-                )
-                if self.cfg.dataloader.clip_bboxes_to_image:
-                    boxes2d.clip(input_sample.images.image_sizes[0])
+            if labels_used:
+                if "boxes2d" in self.cfg.dataloader.fields_to_load:
+                    boxes2d = Boxes2D.from_scalabel(
+                        labels_used, category_dict, instance_id_dict
+                    )[0]
+                    sample.boxes2d = [boxes2d]
 
-                keep = boxes2d.area >= self.cfg.dataloader.min_bboxes_area
-                input_sample.boxes2d = [boxes2d[keep]]
-                labels_used = [l for l, k in zip(labels_used, keep) if k]
+                if "boxes3d" in self.cfg.dataloader.fields_to_load:
+                    boxes3d = Boxes3D.from_scalabel(
+                        labels_used, category_dict, instance_id_dict
+                    )[0]
+                    sample.boxes3d = [boxes3d]
 
-            if "boxes3d" in self.cfg.dataloader.fields_to_load and labels_used:
-                boxes3d = Boxes3D.from_scalabel(
-                    labels_used, category_dict, instance_id_dict
-                )
-                input_sample.boxes3d = [boxes3d]
+                if "masks" in self.cfg.dataloader.fields_to_load:
+                    masks, boxes2d = Masks.from_scalabel(
+                        labels_used,
+                        category_dict,
+                        instance_id_dict,
+                        sample.metadata[0].size,
+                    )
+                    sample.masks = [masks]
+                    if "boxes2d" not in self.cfg.dataloader.fields_to_load:
+                        sample.boxes2d = [boxes2d]
+
+    def transform_input(
+        self,
+        sample: InputSample,
+        parameters: Optional[List[AugParams]] = None,
+    ) -> List[DictStrAny]:
+        """Apply transforms to input sample."""
+        if parameters is None:
+            parameters = []
+        else:
+            assert len(parameters) == len(self.transformations), (
+                "Length of augmentation parameters must equal the number of "
+                "augmentations!"
+            )
+        for i, aug in enumerate(self.transformations):
+            if len(parameters) < len(self.transformations):
+                parameters.append(aug.generate_parameters(sample))
+            sample, _ = aug(sample, parameters[i])
+        return parameters
+
+    def postprocess_annotation(self, sample: InputSample) -> None:
+        """Process annotations after transform."""
+        if self.cfg.dataloader.clip_bboxes_to_image:
+            sample.boxes2d[0].clip(sample.images.image_sizes[0])
+        keep = sample.boxes2d[0].area >= self.cfg.dataloader.min_bboxes_area
+        sample.boxes2d = [sample.boxes2d[0][keep]]
+        if len(sample.boxes3d[0]) > 0:
+            sample.boxes3d = [sample.boxes3d[0][keep]]
+        if len(sample.masks[0]) > 0:
+            sample.masks = [sample.masks[0][keep]]
 
     @staticmethod
-    def transform_intrinsics(
-        intrinsics: ScalabelIntrinsics, transform_matrix: torch.Tensor
-    ) -> Intrinsics:
+    def load_intrinsics(intrinsics: ScalabelIntrinsics) -> Intrinsics:
         """Transform intrinsic camera matrix according to augmentations."""
         intrinsic_matrix = torch.from_numpy(
             get_matrix_from_intrinsics(intrinsics)
         ).to(torch.float32)
-        return Intrinsics(torch.mm(transform_matrix, intrinsic_matrix))
+        return Intrinsics(intrinsic_matrix)
 
     @staticmethod
-    def transform_extrinsics(extrinsics: ScalabelExtrinsics) -> Extrinsics:
+    def load_extrinsics(extrinsics: ScalabelExtrinsics) -> Extrinsics:
         """Transform extrinsics from Scalabel to VisT."""
         extrinsics_matrix = torch.from_numpy(
             get_matrix_from_extrinsics(extrinsics)
@@ -499,40 +538,23 @@ class ScalabelDataset(Dataset):  # type: ignore
         ):
             return None, None  # pragma: no cover
 
-        if not isinstance(sample, FrameGroup):
-            # image loading, augmentation / to torch.tensor
-            image, parameters, transform_matrix = self.transform_image(
-                self.load_image(sample),
-                parameters=parameters,
-            )
-        else:
-            image, parameters, transform_matrix = self.transform_image(
-                np.empty((128, 128, 3), dtype=np.uint8),
-                parameters=parameters,
-            )
+        # load input data
+        input_data = self.load_input(
+            sample, use_empty=isinstance(sample, FrameGroup)
+        )
 
-        input_data = InputSample([copy.deepcopy(sample)], image)
+        if self.training:
+            # load annotations to input sample
+            self.load_annotation(input_data, sample.labels)
 
-        if (
-            sample.intrinsics is not None
-            and "intrinsics" in self.cfg.dataloader.fields_to_load
-        ):
-            input_data.intrinsics = self.transform_intrinsics(
-                sample.intrinsics, transform_matrix
-            )
-
-        if (
-            sample.extrinsics is not None
-            and "extrinsics" in self.cfg.dataloader.fields_to_load
-        ):
-            input_data.extrinsics = self.transform_extrinsics(
-                sample.extrinsics
-            )
+        # apply transforms to input sample
+        parameters = self.transform_input(input_data, parameters)
 
         if not self.training:
             return input_data, parameters
 
-        self.transform_annotation(input_data, sample.labels, transform_matrix)
+        # postprocess boxes after transforms
+        self.postprocess_annotation(input_data)
 
         # load point cloud
         if (
@@ -547,6 +569,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.cfg.dataloader.skip_empty_samples
             and len(input_data.boxes2d[0]) == 0
             and len(input_data.boxes3d[0]) == 0
+            and len(input_data.masks[0]) == 0
         ):
             return None, None  # pragma: no cover
         return input_data, parameters
