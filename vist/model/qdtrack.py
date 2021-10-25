@@ -168,5 +168,20 @@ class QDTrack(BaseModel):
                 .to(torch.device("cpu"))
                 .to_scalabel(self.cat_mapping)
             )
-            outputs.update(segment=[segms], seg_track=[segms])
+            track_inds = torch.empty((0), dtype=torch.int)
+            track_ids = torch.empty((0), dtype=torch.int, device=tracks.device)
+            for track in tracks:
+                for i, box in enumerate(detections[0]):
+                    if torch.equal(track.boxes, box.boxes):
+                        track_inds = torch.cat(
+                            [track_inds, torch.LongTensor([i])]
+                        )
+                        track_ids = torch.cat([track_ids, track.track_ids])
+                        break
+            segm_tracks = segmentations[0][track_inds]
+            segm_tracks.track_ids = track_ids
+            segm_tracks_ = segm_tracks.to(torch.device("cpu")).to_scalabel(
+                self.cat_mapping
+            )
+            outputs.update(segment=[segms], seg_track=[segm_tracks_])
         return outputs
