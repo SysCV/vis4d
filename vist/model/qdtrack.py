@@ -178,10 +178,13 @@ class QDTrack(BaseModel):
                         )
                         track_ids = torch.cat([track_ids, track.track_ids])
                         break
-            segm_tracks = segmentations[0][track_inds]
-            segm_tracks.track_ids = track_ids
-            segm_tracks_ = segm_tracks.to(torch.device("cpu")).to_scalabel(
-                self.cat_mapping
-            )
+            if len(track_inds) == 0:
+                segm_tracks_ = []
+            else:
+                segm_tracks = segmentations[0][track_inds]
+                segm_tracks.track_ids = track_ids
+                segm_tracks_ = segm_tracks.to(torch.device("cpu")).to_scalabel(
+                    self.cat_mapping
+                )
             outputs.update(segment=[segms], seg_track=[segm_tracks_])
         return outputs

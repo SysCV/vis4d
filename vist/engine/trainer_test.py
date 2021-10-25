@@ -60,12 +60,27 @@ class BaseEngineTests:
             """Clean up dataset registry, files."""
             shutil.rmtree(cls.work_dir, ignore_errors=True)
 
-    class TestTrack(unittest.TestCase):
+    class TestInsSeg(TestDetect):
+        """Test cases for vist instance segmentation."""
+
+        def test_poly2d(self) -> None:
+            """Testcase for poly2d loading."""
+            self.assertIsNotNone(self.cfg)
+            self.cfg.launch.action = "train"
+            ann_path = (
+                "vist/engine/testcases/ins_seg/bdd100k-samples/annotation.json"
+            )
+            self.cfg.train[0].annotations = ann_path
+            self.cfg.launch.seed = 42
+            trainer_args = {}
+            if torch.cuda.is_available():
+                trainer_args["gpus"] = "0,"  # pragma: no cover
+            train(self.cfg, trainer_args)
+            self.cfg.launch.seed = -1
+
+    class TestTrack(TestDetect):
         """Test cases for vist tracking."""
 
-        cfg = None
-        work_dir = None
-        args = None
         predict_dir = (
             "vist/engine/testcases/track/bdd100k-samples/images/"
             "00091078-875c1f73/"
@@ -82,30 +97,13 @@ class BaseEngineTests:
             self.cfg.launch.visualize = True
             predict(self.cfg, trainer_args)
 
-        def test_testfunc(self) -> None:
-            """Testcase for test function."""
-            self.assertIsNotNone(self.cfg)
-            self.cfg.launch.action = "test"
-            trainer_args = {}
-            if torch.cuda.is_available():
-                trainer_args["gpus"] = "0,"  # pragma: no cover
-            evaluate(self.cfg, trainer_args)
+    class TestSegTrack(TestTrack):
+        """Test cases for vist segmentation tracking."""
 
-        def test_train(self) -> None:
-            """Testcase for training."""
-            self.assertIsNotNone(self.cfg)
-            self.cfg.launch.action = "train"
-            self.cfg.launch.seed = 42
-            trainer_args = {}
-            if torch.cuda.is_available():
-                trainer_args["gpus"] = "0,"  # pragma: no cover
-            train(self.cfg, trainer_args)
-            self.cfg.launch.seed = -1
-
-        @classmethod
-        def tearDownClass(cls) -> None:
-            """Clean up dataset registry, files."""
-            shutil.rmtree(cls.work_dir, ignore_errors=True)
+        predict_dir = (
+            "vist/engine/testcases/seg_track/bdd100k-samples/images/"
+            "00091078-875c1f73/"
+        )
 
 
 class TestTrackD2(BaseEngineTests.TestTrack):
@@ -223,7 +221,7 @@ class TestInsSegD2(BaseEngineTests.TestDetect):
         cls.cfg = config.parse_config(cls.args)
 
 
-class TestInsSegMM(BaseEngineTests.TestDetect):
+class TestInsSegMM(BaseEngineTests.TestInsSeg):
     """MMDetection instance segmentation test cases."""
 
     @classmethod
@@ -237,7 +235,21 @@ class TestInsSegMM(BaseEngineTests.TestDetect):
         cls.cfg = config.parse_config(args)
 
 
-class TestSegTrackMM(BaseEngineTests.TestDetect):
+class TestSegTrackD2(BaseEngineTests.TestSegTrack):
+    """Detectron2 segmentation tracking test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_seg_track_d2/"
+        args = Namespace(
+            config=get_test_file("seg_track/qdtrack_d2.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(args)
+
+
+class TestSegTrackMM(BaseEngineTests.TestSegTrack):
     """MMDetection segmentation tracking test cases."""
 
     @classmethod
@@ -245,7 +257,7 @@ class TestSegTrackMM(BaseEngineTests.TestDetect):
         """Set up class."""
         cls.work_dir = "./unittests/unittest_seg_track_mm/"
         args = Namespace(
-            config=get_test_file("seg_track/qdtrack.toml"),
+            config=get_test_file("seg_track/qdtrack_mmdet.toml"),
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)
