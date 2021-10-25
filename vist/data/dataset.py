@@ -389,7 +389,6 @@ class ScalabelDataset(Dataset):  # type: ignore
             and "intrinsics" in self.cfg.dataloader.fields_to_load
         ):
             input_data.intrinsics = self.load_intrinsics(sample.intrinsics)
-
         if (
             sample.extrinsics is not None
             and "extrinsics" in self.cfg.dataloader.fields_to_load

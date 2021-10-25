@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from vist.struct import Intrinsics, Extrinsics, NDArrayF64, NDArrayUI8
 
+
 from .utils import (
     BitmaskType,
     Box3DType,
