@@ -246,6 +246,9 @@ class PointCloud(DataInstance):
         Args:
             tensor (torch.Tensor): (N, C) or (B, N, C)
         """
+        assert 2 <= len(tensor.shape) <= 3
+        if len(tensor.shape) == 2:
+            tensor = tensor.unsqueeze(0)
         self.tensor = tensor
 
     def __len__(self) -> int:
@@ -278,19 +281,15 @@ class PointCloud(DataInstance):
         if device is None:
             device = instances[0].tensor.device
 
-        points_list = [p.tensor for p in instances]
-        num_points_per_cloud = torch.tensor(
-            [len(p) for p in points_list], device=device
-        )
-        max_p = int(num_points_per_cloud.max())
-
+        max_points = max([p.tensor.shape[1] for p in instances])
+        max_feature = max([p.tensor.shape[2] for p in instances])
         pad_points = torch.zeros(
-            (len(instances), max_p, cls.num_point_feature), device=device
+            (len(instances), max_points, max_feature), device=device
         )
 
-        for i, points in enumerate(points_list):
-            cur_len = points.shape[0]
-            pad_points[i, :cur_len, :] = points
+        for i, inst in enumerate(instances):
+            cur_len = inst.tensor.shape[1]
+            pad_points[i, :cur_len, :] = inst.tensor
 
         return PointCloud(pad_points)
 

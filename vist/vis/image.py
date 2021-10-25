@@ -201,6 +201,79 @@ def get_intersection_point(
     return (1 - k) * point1 + k * point2  # type: ignore
 
 
+def drawlinesMatch(img1, img2, pts1, pts2, concat_row=True, radius=5):
+    img1 = np.array(img1)
+    img2 = np.array(img2)
+    rows1 = img1.shape[0]
+    cols1 = img1.shape[1]
+    rows2 = img2.shape[0]
+    cols2 = img2.shape[1]
+    interval = 5
+    if concat_row:
+        out = 255 * np.ones((max([rows1, rows2]), cols1 + cols2+interval, 3), dtype='uint8')
+        out[:rows2, cols1+interval:cols1+cols2+interval, :] = img2
+        pts2[:, 0] += cols1 + interval
+    else:
+        out = 255 * np.ones((rows1 + rows2 + interval, max(cols1, cols2), 3), dtype='uint8')
+        out[rows1+interval:rows1+rows2+interval, :cols2] = img2
+        pts2[:, 1] += rows1 + interval
+
+    # Place the first image to the left
+    out[:rows1, :cols1, :] = img1
+
+    out_im = Image.fromarray(out)
+    draw = ImageDraw.Draw(out_im)
+
+    for pt1, pt2 in zip(pts1, pts2):
+        draw.ellipse([tuple(pt1.astype(int) - radius), tuple(pt1.astype(int) + radius)], outline=(255, 0, 0))
+        draw.ellipse([tuple(pt2.astype(int) - radius), tuple(pt2.astype(int) + radius)], outline=(255, 0, 0))
+        draw.line([tuple(pt1.astype(int)), tuple(pt2.astype(int))], fill=(0, 255, 0), width=1)
+    return out_im
+
+
+from vist.common.geometry.projection import project_points
+
+def imshow_correspondence(key_image: ImageType, key_extrinsics: Extrinsics,
+                          key_intrinsics: Intrinsics, ref_image: ImageType,
+                          ref_extrinsics: Extrinsics, ref_intrinsics: Intrinsics,
+                          key_points: torch.tensor, key_points_extrinsics: Extrinsics,
+                          ):
+    key_im, ref_im = preprocess_image(key_image), preprocess_image(ref_image)
+
+    hom_points = torch.cat([key_points[:, :3], torch.ones_like(key_points[:, 0:1])], -1)
+    points_world = hom_points @ key_points_extrinsics.transpose().tensor[0]
+
+    points_key = (
+        points_world @ key_extrinsics.inverse().transpose().tensor[0]
+    )[:, :3]
+    points_ref = (
+        points_world @ ref_extrinsics.inverse().transpose().tensor[0]
+    )[:, :3]
+    key_pix = project_points(points_key, key_intrinsics).cpu().numpy()
+    ref_pix = project_points(points_ref, ref_intrinsics).cpu().numpy()
+
+    mask = np.ones(key_pix.shape[0], dtype=bool)
+    mask = np.logical_and(mask, points_key.cpu().numpy()[:, -1] > 0)
+    mask = np.logical_and(mask, points_ref.cpu().numpy()[:, -1] > 0)
+    mask = np.logical_and(mask, key_pix[:, 0] > 0)
+    mask = np.logical_and(mask, key_pix[:, 0] < key_im.size[0] - 1)
+    mask = np.logical_and(mask, key_pix[:, 1] > 0)
+    mask = np.logical_and(mask, key_pix[:, 1] < key_im.size[1] - 1)
+    mask = np.logical_and(mask, ref_pix[:, 0] > 0)
+    mask = np.logical_and(mask, ref_pix[:, 0] < ref_im.size[0] - 1)
+    mask = np.logical_and(mask, ref_pix[:, 1] > 0)
+    mask = np.logical_and(mask, ref_pix[:, 1] < ref_im.size[1] - 1)
+    ref_pix = ref_pix[mask]
+    key_pix = key_pix[mask]
+
+    perm = torch.randperm(key_pix.shape[0])[:10]
+    key_pix = key_pix[perm]
+    ref_pix = ref_pix[perm]
+
+    corresp_im = drawlinesMatch(key_im, ref_im, key_pix, ref_pix)
+    imshow(corresp_im)
+
+
 def imshow_lidar(
     points: torch.tensor,
     points_extrinsics: Extrinsics,
