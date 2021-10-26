@@ -1,8 +1,8 @@
 [[train]]
 name = "bdd100k_seg_track_sample_train"
 type = "BDD100K"
-annotations = "vist/engine/testcases/seg_track/bdd100k-samples/labels/"
-data_root = "vist/engine/testcases/seg_track/bdd100k-samples/images/"
+annotations = "vist/engine/testcases/track/bdd100k-samples/labels/"
+data_root = "vist/engine/testcases/track/bdd100k-samples/images/"
 config_path = "seg_track"
 num_processes = 0
 cache_as_binary = true
@@ -26,13 +26,12 @@ cache_as_binary = true
     prob = 0.5
 
 [[train]]
-name = "bdd100k_det_sample_train"
-type = "BDD100K"
-annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation_rle.json"
-data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
-config_path = "ins_seg"
+name = "bdd100k_ins_seg_sample_train"
+type = "COCO"
+annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation_coco.json"
+data_root = "vist/engine/testcases/detect/bdd100k-samples/images/"
+config_path = "vist/engine/testcases/detect/bdd100k-samples/ins_seg_config.toml"
 num_processes = 0
-cache_as_binary = true
     [train.dataloader]
     fields_to_load = ["masks"]
 
@@ -52,12 +51,11 @@ cache_as_binary = true
 [[test]]
 name = "bdd100k_sample_val"
 type = "BDD100K"
-annotations = "vist/engine/testcases/seg_track/bdd100k-samples/labels/"
-data_root = "vist/engine/testcases/seg_track/bdd100k-samples/images/"
+annotations = "vist/engine/testcases/track/bdd100k-samples/labels/"
+data_root = "vist/engine/testcases/track/bdd100k-samples/images/"
 eval_metrics = ["detect", "track", "segment", "seg_track"]
 config_path = "seg_track"
 num_processes = 0
-cache_as_binary = true
     [test.dataloader]
     fields_to_load = ["masks"]
 

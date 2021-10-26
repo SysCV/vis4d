@@ -506,7 +506,7 @@ class Masks(LabelInstance):
             resized_masks = targets >= 0.5
         else:
             resized_masks = targets
-        return type(self)(resized_masks)
+        return Masks(resized_masks)
 
     def paste_masks_in_image(
         self,
@@ -602,7 +602,7 @@ class Masks(LabelInstance):
                 track_ids = track_ids.view(1, -1)
             if score is not None:
                 score = score.view(1, -1)
-            return type(self)(
+            return Masks(
                 masks.view(1, masks.size(0), masks.size(1)),
                 class_ids,
                 track_ids,
@@ -610,7 +610,7 @@ class Masks(LabelInstance):
                 self.metadata,
             )
 
-        return type(self)(masks, class_ids, track_ids, score, self.metadata)
+        return Masks(masks, class_ids, track_ids, score, self.metadata)
 
     @classmethod
     def from_scalabel(
@@ -710,7 +710,7 @@ class Masks(LabelInstance):
             self.track_ids.clone() if self.track_ids is not None else None
         )
         score = self.score.clone() if self.score is not None else None
-        return type(self)(
+        return Masks(
             self.masks.clone(), class_ids, track_ids, score, self.metadata
         )
 
@@ -729,7 +729,7 @@ class Masks(LabelInstance):
         score = (
             self.score.to(device=device) if self.score is not None else None
         )
-        return type(self)(
+        return Masks(
             self.masks.to(device=device),
             class_ids,
             track_ids,

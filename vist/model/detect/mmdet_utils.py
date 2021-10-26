@@ -24,9 +24,7 @@ from ..base import BaseModelConfig
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
 MMDetResult = List[torch.Tensor]
 MMSegmResult = List[List[NDArrayUI8]]
-MMResults = Union[
-    List[MMDetResult], List[Tuple[List[MMDetResult], List[MMSegmResult]]]
-]
+MMResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
 
 
 class MMTwoStageDetectorConfig(BaseModelConfig):
@@ -148,7 +146,7 @@ def results_from_mmdet(
         results_boxes2d.append(box2d)
         if with_mask:
             bitmask = segmentation_from_mmdet_results(
-                segmentation, box2d, device  # type: ignore
+                segmentation, box2d, device
             )
             results_masks.append(bitmask)
         else:

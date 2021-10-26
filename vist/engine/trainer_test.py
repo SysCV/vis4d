@@ -60,24 +60,6 @@ class BaseEngineTests:
             """Clean up dataset registry, files."""
             shutil.rmtree(cls.work_dir, ignore_errors=True)
 
-    class TestInsSeg(TestDetect):
-        """Test cases for vist instance segmentation."""
-
-        def test_poly2d(self) -> None:
-            """Testcase for poly2d loading."""
-            self.assertIsNotNone(self.cfg)
-            self.cfg.launch.action = "train"
-            ann_path = (
-                "vist/engine/testcases/ins_seg/bdd100k-samples/annotation.json"
-            )
-            self.cfg.train[0].annotations = ann_path
-            self.cfg.launch.seed = 42
-            trainer_args = {}
-            if torch.cuda.is_available():
-                trainer_args["gpus"] = "0,"  # pragma: no cover
-            train(self.cfg, trainer_args)
-            self.cfg.launch.seed = -1
-
     class TestTrack(TestDetect):
         """Test cases for vist tracking."""
 
@@ -96,14 +78,6 @@ class BaseEngineTests:
             self.cfg.launch.input_dir = self.predict_dir
             self.cfg.launch.visualize = True
             predict(self.cfg, trainer_args)
-
-    class TestSegTrack(TestTrack):
-        """Test cases for vist segmentation tracking."""
-
-        predict_dir = (
-            "vist/engine/testcases/seg_track/bdd100k-samples/images/"
-            "00091078-875c1f73/"
-        )
 
 
 class TestTrackD2(BaseEngineTests.TestTrack):
@@ -215,13 +189,13 @@ class TestInsSegD2(BaseEngineTests.TestDetect):
         """Set up class."""
         cls.work_dir = "./unittests/unittest_ins_seg_d2/"
         cls.args = Namespace(
-            config=get_test_file("ins_seg/mask_rcnn_d2.toml"),
+            config=get_test_file("detect/mask_rcnn_d2.toml"),
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
 
 
-class TestInsSegMM(BaseEngineTests.TestInsSeg):
+class TestInsSegMM(BaseEngineTests.TestDetect):
     """MMDetection instance segmentation test cases."""
 
     @classmethod
@@ -229,13 +203,13 @@ class TestInsSegMM(BaseEngineTests.TestInsSeg):
         """Set up class."""
         cls.work_dir = "./unittests/unittest_ins_seg_mm/"
         args = Namespace(
-            config=get_test_file("ins_seg/mask_rcnn_mmdet.toml"),
+            config=get_test_file("detect/mask_rcnn_mmdet.toml"),
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)
 
 
-class TestSegTrackD2(BaseEngineTests.TestSegTrack):
+class TestSegTrackD2(BaseEngineTests.TestTrack):
     """Detectron2 segmentation tracking test cases."""
 
     @classmethod
@@ -243,13 +217,13 @@ class TestSegTrackD2(BaseEngineTests.TestSegTrack):
         """Set up class."""
         cls.work_dir = "./unittests/unittest_seg_track_d2/"
         args = Namespace(
-            config=get_test_file("seg_track/qdtrack_d2.toml"),
+            config=get_test_file("track/mask_qdtrack_d2.toml"),
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)
 
 
-class TestSegTrackMM(BaseEngineTests.TestSegTrack):
+class TestSegTrackMM(BaseEngineTests.TestTrack):
     """MMDetection segmentation tracking test cases."""
 
     @classmethod
@@ -257,7 +231,7 @@ class TestSegTrackMM(BaseEngineTests.TestSegTrack):
         """Set up class."""
         cls.work_dir = "./unittests/unittest_seg_track_mm/"
         args = Namespace(
-            config=get_test_file("seg_track/qdtrack_mmdet.toml"),
+            config=get_test_file("track/mask_qdtrack_mmdet.toml"),
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)
