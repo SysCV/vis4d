@@ -482,38 +482,27 @@ class Masks(LabelInstance):
 
     def crop_and_resize(
         self,
-        bboxes: torch.Tensor,
+        boxes: Boxes2D,
         out_shape: Tuple[int, int],
         inds: torch.Tensor,
-        device: Optional[str] = "cpu",
         binarize: Optional[bool] = True,
     ) -> "Masks":
         """Crop and resize masks with input bboxes."""
         if len(self) == 0:
             return self
 
-        # convert bboxes to tensor
-        if isinstance(bboxes, np.ndarray):
-            bboxes = torch.from_numpy(bboxes).to(device=device)
-        if isinstance(inds, np.ndarray):
-            inds = torch.from_numpy(inds).to(device=device)
-
-        num_bbox = bboxes.shape[0]
+        num_bbox = len(boxes)
         if num_bbox > 0:
-            fake_inds = torch.arange(num_bbox, device=device).to(
-                dtype=bboxes.dtype
-            )[:, None]
+            fake_inds = torch.arange(num_bbox, device=boxes.device)[:, None]
+            bboxes = (
+                boxes.boxes[:, :-1] if boxes.score is not None else boxes.boxes
+            )
             rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
-            rois = rois.to(device=device)
-            gt_masks_th = self.masks.index_select(0, inds).to(dtype=rois.dtype)
+            gt_masks_th = self.masks.index_select(0, inds)[:, None, :, :].type(
+                rois.dtype
+            )
             targets = roi_align(
-                gt_masks_th[:, None, :, :],
-                rois,
-                out_shape,
-                1.0,
-                0,
-                "avg",
-                True,
+                gt_masks_th, rois, out_shape, 1.0, 0, "avg", True
             ).squeeze(1)
             if binarize:
                 resized_masks = targets >= 0.5

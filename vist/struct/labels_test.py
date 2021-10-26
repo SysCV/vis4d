@@ -344,13 +344,13 @@ class TestMasks(unittest.TestCase):
         segmentations = generate_masks(h, w, num_masks, track_ids=True)
         detections = generate_dets(h, w, num_dets, track_ids=True)
         segm_crops = segmentations.crop_and_resize(
-            detections.boxes[:, :-1], (out_h, out_w), torch.arange(num_masks)
+            detections, (out_h, out_w), torch.arange(num_masks)
         )
         self.assertEqual(len(segm_crops.masks), num_dets)
         self.assertEqual(segm_crops.masks.size(1), out_h)
         self.assertEqual(segm_crops.masks.size(2), out_w)
         segm_crops = segmentations.crop_and_resize(
-            detections.boxes[:, :-1],
+            detections,
             (out_h, out_w),
             torch.arange(num_masks),
             binarize=False,
@@ -361,12 +361,12 @@ class TestMasks(unittest.TestCase):
         segmentations = generate_masks(h, w, 0, track_ids=True)
         detections = generate_dets(h, w, 0, track_ids=True)
         segm_crops = segmentations.crop_and_resize(
-            detections.boxes[:, :-1], (out_h, out_w), torch.arange(num_masks)
+            detections, (out_h, out_w), torch.arange(num_masks)
         )
         self.assertEqual(len(segm_crops), 0)
         segmentations = generate_masks(h, w, 1, track_ids=True)
         segm_crops = segmentations.crop_and_resize(
-            detections.boxes[:, :-1], (out_h, out_w), torch.arange(num_masks)
+            detections, (out_h, out_w), torch.arange(num_masks)
         )
         self.assertEqual(len(segm_crops), 0)
 

@@ -7,6 +7,7 @@ import numpy as np
 import requests
 import torch
 from mmcv import Config as MMConfig
+from mmdet.core.mask import BitmapMasks
 
 from vist.struct import (
     Boxes2D,
@@ -155,13 +156,22 @@ def results_from_mmdet(
     return results_boxes2d, results_masks
 
 
+def masks_to_mmdet_masks(masks: Sequence[Masks]) -> BitmapMasks:
+    """Convert VisT Masks to mmdetection BitmapMasks."""
+    return [
+        BitmapMasks(m.masks.cpu().numpy(), m.height, m.width) for m in masks
+    ]
+
+
 def targets_to_mmdet(
     targets: InputSample,
 ) -> Tuple[List[torch.Tensor], List[torch.Tensor], Optional[Sequence[Masks]]]:
     """Convert VisT targets to mmdetection compatible format."""
     gt_bboxes = [t.boxes for t in targets.boxes2d]
     gt_labels = [t.class_ids for t in targets.boxes2d]
-    gt_masks = targets.masks if len(targets.masks) > 0 else None
+    gt_masks = (
+        masks_to_mmdet_masks(targets.masks) if len(targets.masks) > 0 else None
+    )
     return gt_bboxes, gt_labels, gt_masks
 
 
