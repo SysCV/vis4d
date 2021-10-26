@@ -339,35 +339,24 @@ class TestMasks(unittest.TestCase):
 
     def test_crop_and_resize(self) -> None:
         """Testcase for cropping and resizing a Masks object."""
-        h, w, num_masks, num_dets = 128, 128, 10, 4
+        h, w, num_masks, num_dets = 128, 128, 4, 10
         out_h, out_w = 64, 32
-        segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        inds = torch.LongTensor([0, 1, 2, 3, 0, 1, 2, 3, 0, 1])
+        segmentations = generate_masks(h, w, num_masks, track_ids=True)[inds]
         detections = generate_dets(h, w, num_dets, track_ids=True)
-        segm_crops = segmentations.crop_and_resize(
-            detections, (out_h, out_w), torch.arange(num_masks)
-        )
+        segm_crops = segmentations.crop_and_resize(detections, (out_h, out_w))
         self.assertEqual(len(segm_crops.masks), num_dets)
         self.assertEqual(segm_crops.masks.size(1), out_h)
         self.assertEqual(segm_crops.masks.size(2), out_w)
         segm_crops = segmentations.crop_and_resize(
-            detections,
-            (out_h, out_w),
-            torch.arange(num_masks),
-            binarize=False,
+            detections, (out_h, out_w), binarize=False
         )
         self.assertEqual(len(segm_crops.masks), num_dets)
         self.assertEqual(segm_crops.masks.size(1), out_h)
         self.assertEqual(segm_crops.masks.size(2), out_w)
         segmentations = generate_masks(h, w, 0, track_ids=True)
         detections = generate_dets(h, w, 0, track_ids=True)
-        segm_crops = segmentations.crop_and_resize(
-            detections, (out_h, out_w), torch.arange(num_masks)
-        )
-        self.assertEqual(len(segm_crops), 0)
-        segmentations = generate_masks(h, w, 1, track_ids=True)
-        segm_crops = segmentations.crop_and_resize(
-            detections, (out_h, out_w), torch.arange(num_masks)
-        )
+        segm_crops = segmentations.crop_and_resize(detections, (out_h, out_w))
         self.assertEqual(len(segm_crops), 0)
 
     def test_paste_masks_in_image(self) -> None:

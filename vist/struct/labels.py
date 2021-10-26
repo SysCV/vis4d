@@ -484,32 +484,28 @@ class Masks(LabelInstance):
         self,
         boxes: Boxes2D,
         out_shape: Tuple[int, int],
-        inds: torch.Tensor,
         binarize: Optional[bool] = True,
     ) -> "Masks":
         """Crop and resize masks with input bboxes."""
         if len(self) == 0:
             return self
 
-        num_bbox = len(boxes)
-        if num_bbox > 0:
-            fake_inds = torch.arange(num_bbox, device=boxes.device)[:, None]
-            bboxes = (
-                boxes.boxes[:, :-1] if boxes.score is not None else boxes.boxes
-            )
-            rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
-            gt_masks_th = self.masks.index_select(0, inds)[:, None, :, :].type(
-                rois.dtype
-            )
-            targets = roi_align(
-                gt_masks_th, rois, out_shape, 1.0, 0, "avg", True
-            ).squeeze(1)
-            if binarize:
-                resized_masks = targets >= 0.5
-            else:
-                resized_masks = targets
+        assert len(boxes) == len(
+            self.masks
+        ), "Number of boxes should be the same as masks"
+        fake_inds = torch.arange(len(boxes), device=boxes.device)[:, None]
+        bboxes = (
+            boxes.boxes[:, :-1] if boxes.score is not None else boxes.boxes
+        )
+        rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
+        gt_masks_th = self.masks[:, None, :, :].type(rois.dtype)
+        targets = roi_align(
+            gt_masks_th, rois, out_shape, 1.0, 0, "avg", True
+        ).squeeze(1)
+        if binarize:
+            resized_masks = targets >= 0.5
         else:
-            resized_masks = torch.empty(0, *out_shape)
+            resized_masks = targets
         return type(self)(resized_masks)
 
     def paste_masks_in_image(

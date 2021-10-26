@@ -118,8 +118,10 @@ def segmentation_from_mmdet_results(
         np.stack(segm) if len(segm) != 0 else np.empty_like(segm)
         for segm in segmentation
     ]
-    if len(segms) == 0:  # pragma: no cover
-        return Masks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
+    if (  # pragma: no cover
+        len(segms) == 0 or sum([len(segm) for segm in segmentation]) == 0
+    ):
+        return Masks(torch.empty(0, 1, 1))
     masks_list, labels_list = [], []  # type: ignore
     for class_id in boxes.class_ids:
         masks_list.append(
@@ -158,9 +160,7 @@ def results_from_mmdet(
 
 def masks_to_mmdet_masks(masks: Sequence[Masks]) -> BitmapMasks:
     """Convert VisT Masks to mmdetection BitmapMasks."""
-    return [
-        BitmapMasks(m.masks.cpu().numpy(), m.height, m.width) for m in masks
-    ]
+    return [BitmapMasks(m.to_ndarray(), m.height, m.width) for m in masks]
 
 
 def targets_to_mmdet(
