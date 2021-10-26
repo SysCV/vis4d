@@ -9,24 +9,11 @@ from .labels import Boxes2D, Boxes3D, Masks
 from .structures import DataInstance
 
 
-class InputSample:
-    """Container holding varying types of DataInstances and Frame metadata."""
+class LabelInstances(DataInstance):
+    """Container for holding ground truth annotations or predictions."""
 
-    def __init__(
-        self,
-        metadata: Sequence[Frame],
-        images: Images,
-        boxes2d: Optional[Sequence[Boxes2D]] = None,
-        boxes3d: Optional[Sequence[Boxes3D]] = None,
-        masks: Optional[Sequence[Masks]] = None,
-        intrinsics: Optional[Intrinsics] = None,
-        extrinsics: Optional[Extrinsics] = None,
-    ) -> None:
+    def __init__(self, boxes2d: Optional[Boxes2D] = None, boxes3d: Optional[Boxes3D] = None, masks: Optional[Masks] = None) -> None:
         """Init."""
-        self.metadata = metadata
-        self.images = images
-        assert len(metadata) == len(images)
-
         if boxes2d is None:
             boxes2d = [
                 Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
@@ -47,6 +34,47 @@ class InputSample:
                 for i in range(len(images))
             ]
         self.masks = masks
+
+    def to(
+            self, device: torch.device
+    ) -> "LabelInstances":
+        """Move to device (CPU / GPU / ...)."""
+        return
+
+    @property
+    def device(self) -> torch.device:
+        """Returns current device if applicable."""
+        if len(self.boxes2d) == 0:
+            if len(self.boxes3d) > 0:
+                return self.boxes3d.device
+            elif len(self.masks) > 0:
+                return self.masks.device
+        return self.boxes2d.device
+
+    def __getitem__(self, item) -> Instances:
+        self.boxes2d = self.boxes2d[mask]
+        self.boxes2d = self.boxes2d[mask]
+        self.boxes2d = self.boxes2d[mask]
+
+
+class InputSample(DataInstance):
+    """Container holding varying types of DataInstances and Frame metadata."""
+
+    def __init__(
+        self,
+        metadata: Sequence[Frame],
+        images: Images,
+        intrinsics: Optional[Intrinsics] = None,
+        extrinsics: Optional[Extrinsics] = None,
+        targets: LabelInstances = LabelInstances(),
+        predictions: LabelInstances = LabelInstances(),
+    ) -> None:
+        """Init."""
+        self.metadata = metadata
+        self.images = images
+        assert len(metadata) == len(images)
+        self.targets = targets
+        self.predictions = predictions
 
         if intrinsics is None:
             intrinsics = Intrinsics(
@@ -95,12 +123,15 @@ class InputSample:
         return InputSample(
             self.metadata,
             self.images.to(device),
-            [b.to(device) for b in self.boxes2d],
-            [b.to(device) for b in self.boxes3d],
-            [b.to(device) for b in self.masks],
             self.intrinsics.to(device),
             self.extrinsics.to(device),
+            self.
         )
+
+    @property
+    def device(self) -> torch.device:
+        """Returns current device if applicable."""
+        return self.images.device
 
     @classmethod
     def cat(

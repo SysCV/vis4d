@@ -35,15 +35,21 @@ class BaseTrackGraph(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
         return not self.tracks
 
     @abc.abstractmethod
-    def forward(  # type: ignore
-        self, detections: Boxes2D, frame_id: int, *args, **kwargs
-    ) -> Boxes2D:
+    def forward_train(  # type: ignore
+        self,
+            inputs: List[InputSample],
+            predictions: List[Instances],
+    ) -> Instances:
         """Process inputs, match detections with existing tracks."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def update(self, *args, **kwargs) -> None:  # type: ignore
-        """Update track memory using matched detections."""
+    def forward_test(  # type: ignore
+        self,
+            inputs: InputSample,
+            predictions: Instances,
+    ) -> Instances:
+        """Process inputs, match detections with existing tracks."""
         raise NotImplementedError
 
 

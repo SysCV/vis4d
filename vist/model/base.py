@@ -31,19 +31,13 @@ class BaseModelConfig(PydanticBaseModel, extra="allow"):
     lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig()
 
 
-class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
-    """Base VisT model class."""
-
-    def __init__(self, cfg: BaseModelConfig):
-        """Init."""
-        super().__init__()
-        self.cfg = cfg
+class VisTModule(torch.nn.Module):
 
     @abc.abstractmethod
     def forward_train(
-        self,
-        batch_inputs: List[List[InputSample]],
-    ) -> LossesType:
+            self,
+            batch_inputs: List[List[InputSample]],
+    ) -> Tuple[LossesType, ]:
         """Forward pass during training stage.
 
         Args:
@@ -57,8 +51,8 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
 
     @abc.abstractmethod
     def forward_test(
-        self,
-        batch_inputs: List[List[InputSample]],
+            self,
+            batch_inputs: List[List[InputSample]],
     ) -> ModelOutput:
         """Forward pass during testing stage.
 
@@ -70,6 +64,15 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
             and separate detection result.
         """
         raise NotImplementedError
+
+
+class BaseModel(pl.LightningModule, VisTModule, metaclass=ABCRegistryHolder):
+    """Base VisT model class."""
+
+    def __init__(self, cfg: BaseModelConfig):
+        """Init."""
+        super().__init__()
+        self.cfg = cfg
 
     def configure_optimizers(
         self,

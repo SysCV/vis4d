@@ -18,7 +18,7 @@ from tabulate import tabulate
 from termcolor import colored
 
 from vist.common.utils.time import Timer
-from vist.struct import NDArrayUI8
+from vist.struct import NDArrayUI8, InputSample
 
 D2BoxType = Dict[str, Union[bool, float, str]]
 
@@ -32,10 +32,6 @@ def transform_bbox(
     ), "trans_mat and boxes must have same number of dimensions!"
     x1y1 = boxes[..., :2]
     x2y2 = boxes[..., 2:]
-    if len(boxes.shape) == 2:
-        x1y1 = x1y1.unsqueeze(0)
-        x2y2 = x2y2.unsqueeze(0)
-        trans_mat = trans_mat.unsqueeze(0)
 
     x1y1 = kornia.transform_points(trans_mat, x1y1)
     x2y2 = kornia.transform_points(trans_mat, x2y2)
@@ -57,9 +53,7 @@ def transform_bbox(
     return transformed_boxes
 
 
-def identity_batch_collator(  # type: ignore
-    batch: List[List[Dict[str, Any]]]
-) -> List[List[Dict[str, Any]]]:
+def identity_batch_collator(batch: List[List[InputSample]]) -> List[List[InputSample]]:
     """Identity function batch collator."""
     return batch
 
