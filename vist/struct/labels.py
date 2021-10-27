@@ -6,7 +6,11 @@ import torch
 import torch.nn.functional as F
 from mmcv.ops.roi_align import roi_align
 from pycocotools import mask as mask_utils
-from scalabel.label.transforms import mask_to_box2d, poly2ds_to_mask
+from scalabel.label.transforms import (
+    mask_to_box2d,
+    mask_to_rle,
+    poly2ds_to_mask,
+)
 from scalabel.label.typing import Box2D, Box3D, ImageSize, Label
 
 from ..common.geometry.rotation import (
@@ -430,7 +434,7 @@ class Masks(LabelInstance):
         masks: torch.Tensor,
         class_ids: torch.Tensor = None,
         track_ids: torch.Tensor = None,
-        scores: torch.Tensor = None,
+        score: torch.Tensor = None,
         metadata: Optional[Dict[str, Union[bool, int, float, str]]] = None,
     ) -> None:
         """Init."""
@@ -443,15 +447,15 @@ class Masks(LabelInstance):
             assert isinstance(track_ids, torch.Tensor)
             assert len(masks) == len(track_ids)
             assert masks.device == track_ids.device
-        if scores is not None:
-            assert isinstance(scores, torch.Tensor)
-            assert len(masks) == len(scores)
-            assert masks.device == scores.device
+        if score is not None:
+            assert isinstance(score, torch.Tensor)
+            assert len(masks) == len(score)
+            assert masks.device == score.device
 
         self.masks = masks
         self.class_ids = class_ids
         self.track_ids = track_ids
-        self.scores = scores
+        self.score = score
         self.metadata = metadata
 
     @property
@@ -478,46 +482,31 @@ class Masks(LabelInstance):
 
     def crop_and_resize(
         self,
-        bboxes: torch.Tensor,
+        boxes: Boxes2D,
         out_shape: Tuple[int, int],
-        inds: torch.Tensor,
-        device: Optional[str] = "cpu",
         binarize: Optional[bool] = True,
     ) -> "Masks":
         """Crop and resize masks with input bboxes."""
-        if len(self) == 0:  # pragma: no cover
+        if len(self) == 0:
             return self
 
-        # convert bboxes to tensor
-        if isinstance(bboxes, np.ndarray):
-            bboxes = torch.from_numpy(bboxes).to(device=device)
-        if isinstance(inds, np.ndarray):
-            inds = torch.from_numpy(inds).to(device=device)
-
-        num_bbox = bboxes.shape[0]
-        fake_inds = torch.arange(num_bbox, device=device).to(
-            dtype=bboxes.dtype
-        )[:, None]
+        assert len(boxes) == len(
+            self.masks
+        ), "Number of boxes should be the same as masks"
+        fake_inds = torch.arange(len(boxes), device=boxes.device)[:, None]
+        bboxes = (
+            boxes.boxes[:, :-1] if boxes.score is not None else boxes.boxes
+        )
         rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
-        rois = rois.to(device=device)
-        if num_bbox > 0:
-            gt_masks_th = self.masks.index_select(0, inds).to(dtype=rois.dtype)
-            targets = roi_align(
-                gt_masks_th[:, None, :, :],
-                rois,
-                out_shape,
-                1.0,
-                0,
-                "avg",
-                True,
-            ).squeeze(1)
-            if binarize:
-                resized_masks = targets >= 0.5
-            else:
-                resized_masks = targets
+        gt_masks_th = self.masks[:, None, :, :].type(rois.dtype)
+        targets = roi_align(
+            gt_masks_th, rois, out_shape, 1.0, 0, "avg", True
+        ).squeeze(1)
+        if binarize:
+            resized_masks = targets >= 0.5
         else:
-            resized_masks = []  # pragma: no cover
-        return type(self)(resized_masks)
+            resized_masks = targets
+        return Masks(resized_masks)
 
     def paste_masks_in_image(
         self,
@@ -605,23 +594,23 @@ class Masks(LabelInstance):
         track_ids = (
             self.track_ids[item] if self.track_ids is not None else None
         )
-        scores = self.scores[item] if self.scores is not None else None
+        score = self.score[item] if self.score is not None else None
         if len(masks.shape) < 3:
             if class_ids is not None:
                 class_ids = class_ids.view(1, -1)
             if track_ids is not None:
                 track_ids = track_ids.view(1, -1)
-            if scores is not None:
-                scores = scores.view(1, -1)
-            return type(self)(
+            if score is not None:
+                score = score.view(1, -1)
+            return Masks(
                 masks.view(1, masks.size(0), masks.size(1)),
                 class_ids,
                 track_ids,
-                scores,
+                score,
                 self.metadata,
             )
 
-        return type(self)(masks, class_ids, track_ids, scores, self.metadata)
+        return Masks(masks, class_ids, track_ids, score, self.metadata)
 
     @classmethod
     def from_scalabel(
@@ -635,13 +624,13 @@ class Masks(LabelInstance):
         box_list, bitmask_list, cls_list, idx_list = [], [], [], []
         score_list = []
         has_class_ids = all((b.category is not None for b in labels))
-        has_scores = all((b.score is not None for b in labels))
+        has_score = all((b.score is not None for b in labels))
         for i, label in enumerate(labels):
             if label.poly2d is None and label.rle is None:
                 continue
             if label.rle is not None:
                 bitmask = mask_utils.decode(dict(label.rle))
-            elif label.poly2d is not None:  # pragma: no cover
+            elif label.poly2d is not None:
                 assert (
                     image_size is not None
                 ), "image size must be specified for masks with polygons!"
@@ -663,7 +652,7 @@ class Masks(LabelInstance):
                 cls_list.append(class_to_idx[mask_cls])  # type: ignore
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
-            if has_scores:
+            if has_score:
                 score_list.append(score)
 
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
@@ -672,12 +661,12 @@ class Masks(LabelInstance):
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
         track_ids = torch.tensor(idx_list, dtype=torch.long)
-        scores = (
+        score = (
             torch.tensor(score_list, dtype=torch.float32)
-            if has_scores
+            if has_score
             else None
         )
-        return Masks(mask_tensor, class_ids, track_ids, scores), Boxes2D(
+        return Masks(mask_tensor, class_ids, track_ids, score), Boxes2D(
             box_tensor, class_ids, track_ids
         )
 
@@ -696,21 +685,10 @@ class Masks(LabelInstance):
             else:
                 label_id = str(i)
             score = None
-            if self.scores is not None:
-                score = self.scores[i].item()
-            rle = mask_utils.encode(
-                np.array(
-                    mask[:, :, None].cpu().numpy(),
-                    order="F",
-                    dtype="uint8",
-                )
-            )[0]
-            rle_label = dict(
-                counts=rle["counts"].decode("utf-8"), size=rle["size"]
-            )
-            label_dict = dict(
-                id=label_id, category=cls, score=score, rle=rle_label
-            )
+            if self.score is not None:
+                score = self.score[i].item()
+            rle = mask_to_rle(mask.cpu().numpy())
+            label_dict = dict(id=label_id, category=cls, score=score, rle=rle)
             labels.append(Label(**label_dict))
 
         return labels
@@ -731,8 +709,9 @@ class Masks(LabelInstance):
         track_ids = (
             self.track_ids.clone() if self.track_ids is not None else None
         )
-        return type(self)(
-            self.masks.clone(), class_ids, track_ids, self.metadata
+        score = self.score.clone() if self.score is not None else None
+        return Masks(
+            self.masks.clone(), class_ids, track_ids, score, self.metadata
         )
 
     def to(self: "Masks", device: torch.device) -> "Masks":
@@ -747,10 +726,14 @@ class Masks(LabelInstance):
             if self.track_ids is not None
             else None
         )
-        return type(self)(
+        score = (
+            self.score.to(device=device) if self.score is not None else None
+        )
+        return Masks(
             self.masks.to(device=device),
             class_ids,
             track_ids,
+            score,
             self.metadata,
         )
 

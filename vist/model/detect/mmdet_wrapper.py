@@ -42,8 +42,8 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         self.mm_detector.train()
         if self.cfg.weights is not None:
             if self.cfg.weights.startswith("mmdet://"):
-                self.cfg.weights = MMDET_MODEL_PREFIX + self.cfg.weights.strip(
-                    "mmdet://"
+                self.cfg.weights = (
+                    MMDET_MODEL_PREFIX + self.cfg.weights.split("mmdet://")[-1]
                 )
             load_checkpoint(self.mm_detector, self.cfg.weights)
 
@@ -217,7 +217,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                     bboxes,
                     labels,
                 )
-                segmentations = segmentations_from_mmdet(masks, labels)
+                segmentations = segmentations_from_mmdet(
+                    masks, detections, self.device
+                )
             else:
                 segmentations = None
             detect_losses = {}
