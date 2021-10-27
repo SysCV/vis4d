@@ -1,9 +1,9 @@
 [[train]]
 name = "bdd100k_ins_seg_sample_train"
-type = "BDD100K"
-annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation_rle.json"
-data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
-config_path = "ins_seg"
+type = "COCO"
+annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation_coco.json"
+data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
+config_path = "vist/engine/testcases/detect/bdd100k-samples/ins_seg_config.toml"
 num_processes = 0
     [train.dataloader]
     fields_to_load = ["masks"]
@@ -31,14 +31,14 @@ num_processes = 0
 
 [[test]]
 name = "bdd100k_sample_val"
-type = "BDD100K"
-annotations = "vist/engine/testcases/ins_seg/bdd100k-samples/annotation_rle.json"
-data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
-config_path = "ins_seg"
+type = "Scalabel"
+annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation.json"
+data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
+config_path = "vist/engine/testcases/detect/bdd100k-samples/ins_seg_config.toml"
 num_processes = 0
 eval_metrics = ["detect", "segment"]
     [test.dataloader]
-        fields_to_load = ["masks"]
+    fields_to_load = ["masks"]
 
     [[test.dataloader.transformations]]
     type = "Resize"
