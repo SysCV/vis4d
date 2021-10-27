@@ -2,7 +2,7 @@
 name = "bdd100k_ins_seg_sample_train"
 type = "COCO"
 annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation_coco.json"
-data_root = "vist/engine/testcases/detect/bdd100k-samples/images/"
+data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
 config_path = "vist/engine/testcases/detect/bdd100k-samples/ins_seg_config.toml"
 num_processes = 0
     [train.dataloader]
@@ -29,9 +29,9 @@ num_processes = 0
 
 [[test]]
 name = "bdd100k_sample_val"
-type = "COCO"
-annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation_coco.json"
-data_root = "vist/engine/testcases/detect/bdd100k-samples/images/"
+type = "Scalabel"
+annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation.json"
+data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
 config_path = "vist/engine/testcases/detect/bdd100k-samples/ins_seg_config.toml"
 num_processes = 0
 eval_metrics = ["detect", "segment"]
