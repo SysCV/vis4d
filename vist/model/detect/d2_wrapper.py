@@ -95,9 +95,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         if segmentations is None:
             segmentations = [None] * len(detections)  # type: ignore
 
-        for inp, det, segm in zip(  # type: ignore
-            inputs, detections, segmentations
-        ):
+        for inp, det, segm in zip(inputs, detections, segmentations):
             assert inp.metadata[0].size is not None
             input_size = (
                 inp.metadata[0].size.width,

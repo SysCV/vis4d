@@ -421,17 +421,17 @@ class ScalabelDataset(Dataset):  # type: ignore
                 if "boxes2d" in self.cfg.dataloader.fields_to_load:
                     boxes2d = Boxes2D.from_scalabel(
                         labels_used, category_dict, instance_id_dict
-                    )[0]
+                    )
                     sample.boxes2d = [boxes2d]
 
                 if "boxes3d" in self.cfg.dataloader.fields_to_load:
                     boxes3d = Boxes3D.from_scalabel(
                         labels_used, category_dict, instance_id_dict
-                    )[0]
+                    )
                     sample.boxes3d = [boxes3d]
 
                 if "masks" in self.cfg.dataloader.fields_to_load:
-                    masks, boxes2d = Masks.from_scalabel(
+                    masks = Masks.from_scalabel(
                         labels_used,
                         category_dict,
                         instance_id_dict,
@@ -439,7 +439,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                     )
                     sample.masks = [masks]
                     if "boxes2d" not in self.cfg.dataloader.fields_to_load:
-                        sample.boxes2d = [boxes2d]
+                        sample.boxes2d = [masks.get_boxes2d()]
 
     def transform_input(
         self,

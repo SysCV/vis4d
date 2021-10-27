@@ -1,5 +1,5 @@
 """Interface VisT augmentations."""
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Tuple
 
 from pydantic.main import BaseModel
 
@@ -50,9 +50,9 @@ class BaseAugmentation(metaclass=RegistryHolder):
 
     def apply_box2d(
         self,
-        boxes: Sequence[Boxes2D],
+        boxes: List[Boxes2D],
         parameters: AugParams,
-    ) -> Sequence[Boxes2D]:
+    ) -> List[Boxes2D]:
         """Apply augmentation to input box2d."""
         return boxes
 
@@ -74,17 +74,17 @@ class BaseAugmentation(metaclass=RegistryHolder):
 
     def apply_box3d(
         self,
-        boxes: Sequence[Boxes3D],
+        boxes: List[Boxes3D],
         parameters: AugParams,
-    ) -> Sequence[Boxes3D]:
+    ) -> List[Boxes3D]:
         """Apply augmentation to input box3d."""
         return boxes
 
     def apply_mask(
         self,
-        masks: Sequence[Masks],
+        masks: List[Masks],
         parameters: AugParams,
-    ) -> Sequence[Masks]:
+    ) -> List[Masks]:
         """Apply augmentation to input mask."""
         return masks
 

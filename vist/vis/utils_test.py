@@ -59,7 +59,7 @@ class TestUtils(unittest.TestCase):
             len(dets[0]) == len(proc_dets) == len(cols) == len(labels)
         )
         self.assertTrue(len(cols) == len(set(cols)))
-        for det, proc_det, label in zip(dets[0], proc_dets, labels):  # type: ignore # pylint: disable=line-too-long
+        for det, proc_det, label in zip(dets[0], proc_dets, labels):
             det_box = det.boxes[0, :4].numpy().tolist()
             self.assertEqual(det_box, proc_det)
             self.assertEqual(0, int(label[2]))
@@ -71,7 +71,7 @@ class TestUtils(unittest.TestCase):
             len(dets[0]) == len(proc_dets) == len(cols) == len(labels)
         )
         self.assertTrue(len(cols) == len(set(cols)))
-        for det, proc_det, label in zip(dets[0], proc_dets, labels):  # type: ignore # pylint: disable=line-too-long
+        for det, proc_det, label in zip(dets[0], proc_dets, labels):
             det_box = det.boxes[0, :4].numpy().tolist()
             self.assertEqual(det_box, proc_det)
             self.assertEqual(0, int(label[2]))
@@ -93,7 +93,7 @@ class TestUtils(unittest.TestCase):
         proc_masks, cols = preprocess_masks(masks)
         self.assertTrue(len(masks[0]) == len(proc_masks) == len(cols))
         self.assertTrue(len(cols) == len(set(cols)))
-        for mask, proc_mask in zip(masks[0], proc_masks):  # type: ignore # pylint: disable=line-too-long
+        for mask, proc_mask in zip(masks[0], proc_masks):
             self.assertTrue((mask.masks.numpy() == proc_mask / 255).all())
 
         masks[0].track_ids = None

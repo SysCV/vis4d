@@ -1,4 +1,4 @@
-"""OpenMT Label data structures."""
+"""VisT Label data structures."""
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from mmcv.ops.roi_align import roi_align
 from pycocotools import mask as mask_utils
-from scalabel.label.transforms import mask_to_box2d, poly2ds_to_mask
+from scalabel.label.transforms import poly2ds_to_mask
 from scalabel.label.typing import Box2D, Box3D, ImageSize, Label
 
 from ..common.geometry.rotation import (
@@ -194,7 +194,7 @@ class Boxes2D(Boxes, LabelInstance):
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
-    ) -> Tuple["Boxes2D"]:
+    ) -> "Boxes2D":
         """Convert from scalabel format to internal."""
         box_list, cls_list, idx_list = [], [], []
         has_class_ids = all((b.category is not None for b in labels))
@@ -223,7 +223,7 @@ class Boxes2D(Boxes, LabelInstance):
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
         track_ids = torch.tensor(idx_list, dtype=torch.long)
-        return (Boxes2D(box_tensor, class_ids, track_ids),)
+        return Boxes2D(box_tensor, class_ids, track_ids)
 
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
@@ -317,7 +317,7 @@ class Boxes3D(Boxes, LabelInstance):
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
-    ) -> Tuple["Boxes3D"]:
+    ) -> "Boxes3D":
         """Convert from scalabel format to internal."""
         box_list, cls_list, idx_list = [], [], []
         has_class_ids = all((b.category is not None for b in labels))
@@ -349,7 +349,7 @@ class Boxes3D(Boxes, LabelInstance):
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
         track_ids = torch.tensor(idx_list, dtype=torch.long)
-        return (Boxes3D(box_tensor, class_ids, track_ids),)
+        return Boxes3D(box_tensor, class_ids, track_ids)
 
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
@@ -418,11 +418,11 @@ class Boxes3D(Boxes, LabelInstance):
 class Masks(LabelInstance):
     """Container class for segmentation masks.
 
-    masks: torch.ByteTensor: (N, H, W) where each entry is a binary mask
-    class_ids: torch.LongTensor: (N,) where each entry is the class id of
-    the respective box.
-    track_ids: torch.LongTensor (N,) where each entry is the track id of
-    the respective box.
+    masks: torch.ByteTensor (N, H, W) where each entry is a binary mask
+    class_ids: torch.LongTensor (N,) where each entry is class id of the mask.
+    track_ids: torch.LongTensor (N,) where each entry is track id of the mask.
+    track_ids: torch.FloatTensor (N,) where each entry is the confidence score
+    of mask.
     """
 
     def __init__(
@@ -630,9 +630,9 @@ class Masks(LabelInstance):
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
-    ) -> Tuple["Masks", "Boxes2D"]:
+    ) -> "Masks":
         """Convert from scalabel format to internal."""
-        box_list, bitmask_list, cls_list, idx_list = [], [], [], []
+        bitmask_list, cls_list, idx_list = [], [], []
         score_list = []
         has_class_ids = all((b.category is not None for b in labels))
         has_scores = all((b.score is not None for b in labels))
@@ -652,13 +652,7 @@ class Masks(LabelInstance):
             if np.count_nonzero(bitmask) == 0:  # pragma: no cover
                 continue
             bitmask_list.append(bitmask)
-            box = mask_to_box2d(bitmask)
             mask_cls, l_id, score = label.category, label.id, label.score
-            if score is None:
-                box_list.append([box.x1, box.y1, box.x2, box.y2])
-            else:
-                box_list.append([box.x1, box.y1, box.x2, box.y2, score])
-
             if has_class_ids:
                 cls_list.append(class_to_idx[mask_cls])  # type: ignore
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
@@ -666,7 +660,6 @@ class Masks(LabelInstance):
             if has_scores:
                 score_list.append(score)
 
-        box_tensor = torch.tensor(box_list, dtype=torch.float32)
         mask_tensor = torch.tensor(bitmask_list, dtype=torch.uint8)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
@@ -677,9 +670,7 @@ class Masks(LabelInstance):
             if has_scores
             else None
         )
-        return Masks(mask_tensor, class_ids, track_ids, scores), Boxes2D(
-            box_tensor, class_ids, track_ids
-        )
+        return Masks(mask_tensor, class_ids, track_ids, scores)
 
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
@@ -758,3 +749,19 @@ class Masks(LabelInstance):
     def device(self) -> torch.device:
         """Get current device of data."""
         return self.masks.device
+
+    def get_boxes2d(self) -> Boxes2D:
+        """Return corresponding Boxes2D for the masks inside self."""
+        if len(self) == 0:
+            return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+
+        boxes_list = []
+        for i, mask in enumerate(self.masks):
+            foreground = mask.nonzero()
+            y1, x1 = foreground.min(dim=0)[0].float()
+            y2, x2 = foreground.max(dim=0)[0].float()
+            entries = [x1, y1, x2, y2]
+            if self.scores is not None:
+                entries.append(self.scores[i])
+            boxes_list.append(torch.stack(entries))
+        return Boxes2D(torch.stack(boxes_list), self.class_ids, self.track_ids)

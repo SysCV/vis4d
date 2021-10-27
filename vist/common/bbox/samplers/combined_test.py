@@ -61,9 +61,9 @@ class TestCombined(unittest.TestCase):
         self.assertEqual(len(sampled_boxes[0]), len(sampled_targets[0]))
 
         sampled_idx = []
-        for sampled_target in sampled_targets[0]:  # type: ignore
+        for sampled_target in sampled_targets[0]:
             found = False
-            for i, target in enumerate(targets[0]):  # type: ignore
+            for i, target in enumerate(targets[0]):
                 if torch.isclose(target.boxes, sampled_target.boxes).all():
                     sampled_idx.append(i)
                     found = True

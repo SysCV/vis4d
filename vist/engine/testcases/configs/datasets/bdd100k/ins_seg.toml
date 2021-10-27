@@ -6,16 +6,18 @@ data_root = "vist/engine/testcases/ins_seg/bdd100k-samples/images/"
 config_path = "ins_seg"
 num_processes = 0
     [train.dataloader]
-        fields_to_load = ["masks"]
-
-        [train.dataloader.ref_sampling]
-        type = 'uniform'
-        scope = 1
-        num_ref_imgs = 0
+    fields_to_load = ["masks"]
 
     [[train.dataloader.transformations]]
     type = "Resize"
     shape = [720, 1280]
+
+    [[train.dataloader.transformations]]
+    type = "RandomCrop"
+    crop_type = "relative_range"
+    shape = [[0.4, 0.5], [0.5, 0.6]]
+    allow_empty_crop = false
+    recompute_boxes2d = true
 
     [[train.dataloader.transformations]]
     type = "KorniaAugmentationWrapper"
