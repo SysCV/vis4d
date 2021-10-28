@@ -108,7 +108,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         )
         if self.with_mask:
             outputs.update(
-                segment=[
+                ins_seg=[
                     s.to_scalabel(self.cat_mapping) for s in segmentations
                 ]
             )

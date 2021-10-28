@@ -46,11 +46,9 @@ def results_from_mmseg(
     ]
 
 
-def targets_to_mmseg(
-    targets: InputSample,
-) -> List[torch.Tensor]:
+def targets_to_mmseg(targets: InputSample) -> torch.Tensor:
     """Convert VisT targets to mmsegmentation compatible format."""
-    return [t.to_hwc_mask() for t in targets.masks]
+    return torch.stack([t.to_hwc_mask() for t in targets.masks]).unsqueeze(1)
 
 
 def load_config_from_mmseg(url: str) -> str:

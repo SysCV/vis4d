@@ -12,6 +12,8 @@ path = "../configs/models/mmsegmentation/deeplabv3plus_R_50_D8.toml"
 
     [model.lr_scheduler]
     type = "MultiStepLR"
+    warmup = "constant"
+    warmup_steps = 1
     kwargs = {"milestones" = [50, 100]}
 
 [launch]
@@ -19,6 +21,6 @@ samples_per_gpu = 2
 workers_per_gpu = 0
 
 [trainer]
-max_steps = 200
+max_steps = 1
 log_every_n_steps = 50
-check_val_every_n_epoch = 10
+check_val_every_n_epoch = 1

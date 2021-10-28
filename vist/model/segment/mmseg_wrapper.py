@@ -99,7 +99,7 @@ class MMEncDecSegmentor(BaseEncDecSegmentor):
         #     self.postprocess(input_size, inp.images.image_sizes[0], segm)
 
         return dict(
-            segment=[s.to_scalabel(self.cat_mapping) for s in segmentations]
+            sem_seg=[s.to_scalabel(self.cat_mapping) for s in segmentations]
         )
 
     def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
