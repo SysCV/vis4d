@@ -135,9 +135,9 @@ class TestScalabelDataset(unittest.TestCase):
                 attributes={"category_id": 0, "instance_id": 0},
             ),
         ]
-        input_sample.boxes2d = Boxes2D.from_scalabel(
-            labels, {"car": 0}, {"a": 2, "b": 1, "c": 0}
-        )
+        input_sample.boxes2d = [
+            Boxes2D.from_scalabel(labels, {"car": 0}, {"a": 2, "b": 1, "c": 0})
+        ]
         self.dataset.transform_input(input_sample, [])
 
         self.assertTrue(all(input_sample.boxes2d[0].class_ids == 0))

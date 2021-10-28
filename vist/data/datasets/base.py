@@ -22,6 +22,7 @@ class ReferenceSamplingConfig(BaseModel):
     scope: int = 1
     frame_order: str = "key_first"
     skip_nomatch_samples: bool = False
+    consistent_ref_aug: bool = True
 
     @validator("scope")
     def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long

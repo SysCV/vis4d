@@ -7,6 +7,7 @@ import numpy as np
 import requests
 import torch
 from mmcv import Config as MMConfig
+from mmdet.core.mask import BitmapMasks
 
 from vist.struct import (
     Boxes2D,
@@ -15,16 +16,15 @@ from vist.struct import (
     LossesType,
     Masks,
     NDArrayF64,
+    NDArrayUI8,
 )
 
 from ..base import BaseModelConfig
 
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
 MMDetResult = List[torch.Tensor]
-MMSegmResult = List[List[torch.Tensor]]
-MMResults = Union[
-    List[MMDetResult], List[Tuple[List[MMDetResult], List[MMSegmResult]]]
-]
+MMSegmResult = List[List[NDArrayUI8]]
+MMResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
 
 
 class MMTwoStageDetectorConfig(BaseModelConfig):
@@ -83,14 +83,13 @@ def detections_from_mmdet(
 
 
 def segmentations_from_mmdet(
-    masks: List[torch.Tensor], labels: List[torch.Tensor]
-) -> List[Masks]:  # pragma: no cover
+    masks: List[MMSegmResult], boxes: List[Boxes2D], device: torch.device
+) -> List[Masks]:
     """Convert mmdetection segmentations to VisT format."""
     segmentations_masks = []
-    for mask, label in zip(masks, labels):
-        if not label.device == mask.device:
-            label = label.to(mask.device)  # pragma: no cover
-        segmentations_masks.append(Masks(mask, label))
+    for mask_res, box_res in zip(masks, boxes):
+        mask = segmentation_from_mmdet_results(mask_res, box_res, device)
+        segmentations_masks.append(mask)
     return segmentations_masks
 
 
@@ -113,21 +112,24 @@ def segmentation_from_mmdet_results(
     segmentation: MMSegmResult, boxes: Boxes2D, device: torch.device
 ) -> Masks:
     """Convert segm_result to VisT format."""
-    segms = [np.stack(segm) for segm in segmentation if len(segm) != 0]
-    if len(segms) == 0:  # pragma: no cover
-        return Masks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
-    masks = (
-        torch.from_numpy(np.concatenate(segms))  # type: ignore
-        .type(torch.uint8)
-        .to(device)
-    )  # NxWxH
-    labels = [
-        torch.full((len(segm),), i, dtype=torch.int32, device=device)
-        for i, segm in enumerate(segmentation)
+    segms = [
+        np.stack(segm) if len(segm) != 0 else np.empty_like(segm)
+        for segm in segmentation
     ]
-    scores = boxes.boxes[:, -1]
-    labels = torch.cat(labels)
-    return Masks(masks, labels, scores=scores)
+    if len(segms) == 0 or sum([len(segm) for segm in segmentation]) == 0:
+        return Masks(torch.empty(0, 1, 1))  # pragma: no cover
+    masks_list, labels_list = [], []  # type: ignore
+    for class_id in boxes.class_ids:
+        masks_list.append(
+            torch.from_numpy(segms[class_id][labels_list.count(class_id)])
+            .type(torch.uint8)
+            .to(device)
+        )
+        labels_list.append(class_id)
+    masks = torch.stack(masks_list)
+    labels = torch.stack(labels_list)
+    scores = boxes.score
+    return Masks(masks, labels, score=scores)
 
 
 def results_from_mmdet(
@@ -152,13 +154,20 @@ def results_from_mmdet(
     return results_boxes2d, results_masks
 
 
+def masks_to_mmdet_masks(masks: Sequence[Masks]) -> BitmapMasks:
+    """Convert VisT Masks to mmdetection BitmapMasks."""
+    return [BitmapMasks(m.to_ndarray(), m.height, m.width) for m in masks]
+
+
 def targets_to_mmdet(
     targets: InputSample,
 ) -> Tuple[List[torch.Tensor], List[torch.Tensor], Optional[Sequence[Masks]]]:
     """Convert VisT targets to mmdetection compatible format."""
     gt_bboxes = [t.boxes for t in targets.boxes2d]
     gt_labels = [t.class_ids for t in targets.boxes2d]
-    gt_masks = targets.masks if len(targets.masks) > 0 else None
+    gt_masks = (
+        masks_to_mmdet_masks(targets.masks) if len(targets.masks) > 0 else None
+    )
     return gt_bboxes, gt_labels, gt_masks
 
 
@@ -182,9 +191,9 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
         if cfg.get("model"):
             cfg = cfg["model"]
     elif config.model_base.startswith("mmdet://"):
-        ext = os.path.splitext(config.model_base)[1]
+        ex = os.path.splitext(config.model_base)[1]
         cfg = MMConfig.fromstring(
-            load_config_from_mmdet(config.model_base.strip("mmdet://")), ext
+            load_config_from_mmdet(config.model_base.split("mmdet://")[-1]), ex
         ).model
     else:
         raise FileNotFoundError(
@@ -193,7 +202,16 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
 
     # convert detect attributes
     assert config.category_mapping is not None
-    cfg["roi_head"]["bbox_head"]["num_classes"] = len(config.category_mapping)
+    if "bbox_head" in cfg:  # pragma: no cover
+        cfg["bbox_head"]["num_classes"] = len(config.category_mapping)
+    if "roi_head" in cfg:
+        cfg["roi_head"]["bbox_head"]["num_classes"] = len(
+            config.category_mapping
+        )
+        if "mask_head" in cfg["roi_head"]:
+            cfg["roi_head"]["mask_head"]["num_classes"] = len(
+                config.category_mapping
+            )
 
     # add keyword args in config
     if config.model_kwargs:

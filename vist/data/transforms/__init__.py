@@ -1,5 +1,5 @@
 """Package for data transformations / augmentations."""
-from .augmentations import Resize, ResizeAugmentationConfig
+from .augmentations import Resize, ResizeConfig
 from .base import (
     AugParams,
     BaseAugmentation,
@@ -18,7 +18,7 @@ __all__ = [
     "BaseAugmentationConfig",
     "AugParams",
     "Resize",
-    "ResizeAugmentationConfig",
+    "ResizeConfig",
     "KorniaAugmentationConfig",
     "KorniaAugmentationWrapper",
     "KorniaColorJitter",

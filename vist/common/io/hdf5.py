@@ -1,4 +1,5 @@
 """Hdf5 data backend."""
+import copy
 import os
 from typing import Dict
 
@@ -32,16 +33,20 @@ class HDF5Backend(BaseDataBackend):
 
     def get(self, filepath: str) -> bytes:
         """Get values according to the filepath as bytes."""
+        orig_filepath = copy.deepcopy(filepath)
         filepath_as_list = filepath.split("/")
         keys = []
 
-        while filepath and not self.is_hdf5(filepath):
+        while filepath != ".hdf5" and not self.is_hdf5(filepath):
             keys.append(filepath_as_list.pop())
             filepath = "/".join(filepath_as_list)
+            # in case data_root is not explicitly set to a .hdf5 file
+            if not filepath.endswith(".hdf5"):
+                filepath = filepath + ".hdf5"
 
         if not os.path.exists(filepath):
             raise FileNotFoundError(
-                f"Corresponding HDF5 file not found:" f" {filepath}"
+                f"Corresponding HDF5 file not found:" f" {orig_filepath}"
             )
 
         if filepath not in self.db_cache.keys():

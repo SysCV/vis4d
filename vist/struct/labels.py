@@ -1,4 +1,4 @@
-"""OpenMT Label data structures."""
+"""VisT Label data structures."""
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from mmcv.ops.roi_align import roi_align
 from pycocotools import mask as mask_utils
-from scalabel.label.transforms import mask_to_box2d, poly2ds_to_mask
+from scalabel.label.transforms import mask_to_rle, poly2ds_to_mask
 from scalabel.label.typing import Box2D, Box3D, ImageSize, Label
 
 from ..common.geometry.rotation import (
@@ -194,7 +194,7 @@ class Boxes2D(Boxes, LabelInstance):
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
-    ) -> Tuple["Boxes2D"]:
+    ) -> "Boxes2D":
         """Convert from scalabel format to internal."""
         box_list, cls_list, idx_list = [], [], []
         has_class_ids = all((b.category is not None for b in labels))
@@ -223,7 +223,7 @@ class Boxes2D(Boxes, LabelInstance):
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
         track_ids = torch.tensor(idx_list, dtype=torch.long)
-        return (Boxes2D(box_tensor, class_ids, track_ids),)
+        return Boxes2D(box_tensor, class_ids, track_ids)
 
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
@@ -276,6 +276,8 @@ class Boxes3D(Boxes, LabelInstance):
     @property
     def score(self) -> Optional[torch.Tensor]:
         """Return scores of 3D bounding boxes as tensor."""
+        if not self.boxes.shape[-1] == 10:
+            return None
         return self.boxes[:, -1]
 
     @property
@@ -315,7 +317,7 @@ class Boxes3D(Boxes, LabelInstance):
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
-    ) -> Tuple["Boxes3D"]:
+    ) -> "Boxes3D":
         """Convert from scalabel format to internal."""
         box_list, cls_list, idx_list = [], [], []
         has_class_ids = all((b.category is not None for b in labels))
@@ -347,7 +349,7 @@ class Boxes3D(Boxes, LabelInstance):
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
         track_ids = torch.tensor(idx_list, dtype=torch.long)
-        return (Boxes3D(box_tensor, class_ids, track_ids),)
+        return Boxes3D(box_tensor, class_ids, track_ids)
 
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
@@ -416,11 +418,11 @@ class Boxes3D(Boxes, LabelInstance):
 class Masks(LabelInstance):
     """Container class for segmentation masks.
 
-    masks: torch.ByteTensor: (N, H, W) where each entry is a binary mask
-    class_ids: torch.LongTensor: (N,) where each entry is the class id of
-    the respective box.
-    track_ids: torch.LongTensor (N,) where each entry is the track id of
-    the respective box.
+    masks: torch.ByteTensor (N, H, W) where each entry is a binary mask
+    class_ids: torch.LongTensor (N,) where each entry is the class id of mask.
+    track_ids: torch.LongTensor (N,) where each entry is the track id of mask.
+    score: torch.FloatTensor (N,) where each entry is the confidence score
+    of mask.
     """
 
     def __init__(
@@ -428,7 +430,7 @@ class Masks(LabelInstance):
         masks: torch.Tensor,
         class_ids: torch.Tensor = None,
         track_ids: torch.Tensor = None,
-        scores: torch.Tensor = None,
+        score: torch.Tensor = None,
         metadata: Optional[Dict[str, Union[bool, int, float, str]]] = None,
     ) -> None:
         """Init."""
@@ -441,15 +443,15 @@ class Masks(LabelInstance):
             assert isinstance(track_ids, torch.Tensor)
             assert len(masks) == len(track_ids)
             assert masks.device == track_ids.device
-        if scores is not None:
-            assert isinstance(scores, torch.Tensor)
-            assert len(masks) == len(scores)
-            assert masks.device == scores.device
+        if score is not None:
+            assert isinstance(score, torch.Tensor)
+            assert len(masks) == len(score)
+            assert masks.device == score.device
 
         self.masks = masks
         self.class_ids = class_ids
         self.track_ids = track_ids
-        self.scores = scores
+        self.score = score
         self.metadata = metadata
 
     @property
@@ -476,46 +478,31 @@ class Masks(LabelInstance):
 
     def crop_and_resize(
         self,
-        bboxes: torch.Tensor,
+        boxes: Boxes2D,
         out_shape: Tuple[int, int],
-        inds: torch.Tensor,
-        device: Optional[str] = "cpu",
         binarize: Optional[bool] = True,
     ) -> "Masks":
         """Crop and resize masks with input bboxes."""
-        if len(self) == 0:  # pragma: no cover
+        if len(self) == 0:
             return self
 
-        # convert bboxes to tensor
-        if isinstance(bboxes, np.ndarray):
-            bboxes = torch.from_numpy(bboxes).to(device=device)
-        if isinstance(inds, np.ndarray):
-            inds = torch.from_numpy(inds).to(device=device)
-
-        num_bbox = bboxes.shape[0]
-        fake_inds = torch.arange(num_bbox, device=device).to(
-            dtype=bboxes.dtype
-        )[:, None]
+        assert len(boxes) == len(
+            self.masks
+        ), "Number of boxes should be the same as masks"
+        fake_inds = torch.arange(len(boxes), device=boxes.device)[:, None]
+        bboxes = (
+            boxes.boxes[:, :-1] if boxes.score is not None else boxes.boxes
+        )
         rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
-        rois = rois.to(device=device)
-        if num_bbox > 0:
-            gt_masks_th = self.masks.index_select(0, inds).to(dtype=rois.dtype)
-            targets = roi_align(
-                gt_masks_th[:, None, :, :],
-                rois,
-                out_shape,
-                1.0,
-                0,
-                "avg",
-                True,
-            ).squeeze(1)
-            if binarize:
-                resized_masks = targets >= 0.5
-            else:
-                resized_masks = targets
+        gt_masks_th = self.masks[:, None, :, :].type(rois.dtype)
+        targets = roi_align(
+            gt_masks_th, rois, out_shape, 1.0, 0, "avg", True
+        ).squeeze(1)
+        if binarize:
+            resized_masks = targets >= 0.5
         else:
-            resized_masks = []  # pragma: no cover
-        return type(self)(resized_masks)
+            resized_masks = targets
+        return Masks(resized_masks)
 
     def paste_masks_in_image(
         self,
@@ -603,23 +590,23 @@ class Masks(LabelInstance):
         track_ids = (
             self.track_ids[item] if self.track_ids is not None else None
         )
-        scores = self.scores[item] if self.scores is not None else None
+        score = self.score[item] if self.score is not None else None
         if len(masks.shape) < 3:
             if class_ids is not None:
                 class_ids = class_ids.view(1, -1)
             if track_ids is not None:
                 track_ids = track_ids.view(1, -1)
-            if scores is not None:
-                scores = scores.view(1, -1)
-            return type(self)(
+            if score is not None:
+                score = score.view(1, -1)
+            return Masks(
                 masks.view(1, masks.size(0), masks.size(1)),
                 class_ids,
                 track_ids,
-                scores,
+                score,
                 self.metadata,
             )
 
-        return type(self)(masks, class_ids, track_ids, scores, self.metadata)
+        return Masks(masks, class_ids, track_ids, score, self.metadata)
 
     @classmethod
     def from_scalabel(
@@ -628,18 +615,18 @@ class Masks(LabelInstance):
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
-    ) -> Tuple["Masks", "Boxes2D"]:
+    ) -> "Masks":
         """Convert from scalabel format to internal."""
-        box_list, bitmask_list, cls_list, idx_list = [], [], [], []
+        bitmask_list, cls_list, idx_list = [], [], []
         score_list = []
         has_class_ids = all((b.category is not None for b in labels))
-        has_scores = all((b.score is not None for b in labels))
+        has_score = all((b.score is not None for b in labels))
         for i, label in enumerate(labels):
             if label.poly2d is None and label.rle is None:
                 continue
             if label.rle is not None:
                 bitmask = mask_utils.decode(dict(label.rle))
-            elif label.poly2d is not None:  # pragma: no cover
+            elif label.poly2d is not None:
                 assert (
                     image_size is not None
                 ), "image size must be specified for masks with polygons!"
@@ -650,34 +637,25 @@ class Masks(LabelInstance):
             if np.count_nonzero(bitmask) == 0:  # pragma: no cover
                 continue
             bitmask_list.append(bitmask)
-            box = mask_to_box2d(bitmask)
             mask_cls, l_id, score = label.category, label.id, label.score
-            if score is None:
-                box_list.append([box.x1, box.y1, box.x2, box.y2])
-            else:
-                box_list.append([box.x1, box.y1, box.x2, box.y2, score])
-
             if has_class_ids:
                 cls_list.append(class_to_idx[mask_cls])  # type: ignore
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
-            if has_scores:
+            if has_score:
                 score_list.append(score)
 
-        box_tensor = torch.tensor(box_list, dtype=torch.float32)
         mask_tensor = torch.tensor(bitmask_list, dtype=torch.uint8)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
         track_ids = torch.tensor(idx_list, dtype=torch.long)
-        scores = (
+        score = (
             torch.tensor(score_list, dtype=torch.float32)
-            if has_scores
+            if has_score
             else None
         )
-        return Masks(mask_tensor, class_ids, track_ids, scores), Boxes2D(
-            box_tensor, class_ids, track_ids
-        )
+        return Masks(mask_tensor, class_ids, track_ids, score)
 
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
@@ -694,21 +672,10 @@ class Masks(LabelInstance):
             else:
                 label_id = str(i)
             score = None
-            if self.scores is not None:
-                score = self.scores[i].item()
-            rle = mask_utils.encode(
-                np.array(
-                    mask[:, :, None].cpu().numpy(),
-                    order="F",
-                    dtype="uint8",
-                )
-            )[0]
-            rle_label = dict(
-                counts=rle["counts"].decode("utf-8"), size=rle["size"]
-            )
-            label_dict = dict(
-                id=label_id, category=cls, score=score, rle=rle_label
-            )
+            if self.score is not None:
+                score = self.score[i].item()
+            rle = mask_to_rle(mask.cpu().numpy())
+            label_dict = dict(id=label_id, category=cls, score=score, rle=rle)
             labels.append(Label(**label_dict))
 
         return labels
@@ -729,8 +696,9 @@ class Masks(LabelInstance):
         track_ids = (
             self.track_ids.clone() if self.track_ids is not None else None
         )
-        return type(self)(
-            self.masks.clone(), class_ids, track_ids, self.metadata
+        score = self.score.clone() if self.score is not None else None
+        return Masks(
+            self.masks.clone(), class_ids, track_ids, score, self.metadata
         )
 
     def to(self: "Masks", device: torch.device) -> "Masks":
@@ -745,10 +713,14 @@ class Masks(LabelInstance):
             if self.track_ids is not None
             else None
         )
-        return type(self)(
+        score = (
+            self.score.to(device=device) if self.score is not None else None
+        )
+        return Masks(
             self.masks.to(device=device),
             class_ids,
             track_ids,
+            score,
             self.metadata,
         )
 
@@ -756,3 +728,19 @@ class Masks(LabelInstance):
     def device(self) -> torch.device:
         """Get current device of data."""
         return self.masks.device
+
+    def get_boxes2d(self) -> Boxes2D:
+        """Return corresponding Boxes2D for the masks inside self."""
+        if len(self) == 0:
+            return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+
+        boxes_list = []
+        for i, mask in enumerate(self.masks):
+            foreground = mask.nonzero()
+            y1, x1 = foreground.min(dim=0)[0].float()
+            y2, x2 = foreground.max(dim=0)[0].float()
+            entries = [x1, y1, x2, y2]
+            if self.score is not None:
+                entries.append(self.score[i])
+            boxes_list.append(torch.stack(entries))
+        return Boxes2D(torch.stack(boxes_list), self.class_ids, self.track_ids)

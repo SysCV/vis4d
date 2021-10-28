@@ -3,9 +3,11 @@ import os
 from typing import Dict, List, Optional, Tuple, Union
 
 import pytorch_lightning as pl
+import torch
 from torch.utils import data
 
 from ..common.utils import get_world_size
+from ..struct import InputSample
 from .dataset import ScalabelDataset
 from .datasets import (
     BaseDatasetConfig,
@@ -129,6 +131,15 @@ class VisTDataModule(pl.LightningDataModule):
         """Return dataloaders for testing."""
         assert self.test_datasets is not None
         return self._build_inference_dataloaders(self.test_datasets)
+
+    def transfer_batch_to_device(
+        self,
+        batch: List[List[InputSample]],
+        device: torch.device,
+        dataloader_idx: int,
+    ) -> List[List[InputSample]]:
+        """Dummy to_device function."""
+        return batch
 
     def _build_inference_dataloaders(
         self, datasets: List[ScalabelDataset]

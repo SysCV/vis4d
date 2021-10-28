@@ -1,17 +1,26 @@
 """VisT augmentations."""
 import random
-from typing import List, Sequence, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 
+from vist.common.bbox.utils import bbox_intersection
 from vist.data.utils import transform_bbox
-from vist.struct import Boxes2D, Images, InputSample, Intrinsics, Masks
+from vist.struct import (
+    Boxes2D,
+    Boxes3D,
+    Images,
+    InputSample,
+    Intrinsics,
+    Masks,
+)
 
 from .base import AugParams, BaseAugmentation, BaseAugmentationConfig
 
 
-class ResizeAugmentationConfig(BaseAugmentationConfig):
+class ResizeConfig(BaseAugmentationConfig):
     """Resize augmentation config.
 
     shape: Image shape to be resized to in (H, W) format. In
@@ -51,9 +60,7 @@ class Resize(BaseAugmentation):
             cfg: Augmentation config.
         """
         super().__init__(cfg)
-        self.cfg: ResizeAugmentationConfig = ResizeAugmentationConfig(
-            **cfg.dict()
-        )
+        self.cfg: ResizeConfig = ResizeConfig(**cfg.dict())
         self.shape = self.cfg.shape
         self.keep_ratio = self.cfg.keep_ratio
         self.multiscale_mode = self.cfg.multiscale_mode
@@ -115,7 +122,7 @@ class Resize(BaseAugmentation):
                 sh[0] = sh[1] / (w / h)
 
         transform = (
-            torch.eye(3, device=sample.images.device)
+            torch.eye(3, device=sample.device)
             .unsqueeze(0)
             .repeat(len(sample), 1, 1)
         )
@@ -153,8 +160,7 @@ class Resize(BaseAugmentation):
     def apply_image(self, images: Images, parameters: AugParams) -> Images:
         """Apply augmentation to input image."""
         all_ims = []
-        for i, im in enumerate(images):  # type: ignore
-            im: Images  # type: ignore
+        for i, im in enumerate(images):
             if parameters["apply"][i]:
                 im_t = self._apply_tensor(im.tensor, parameters["shape"][i])
                 all_ims.append(Images(im_t, [(im_t.shape[3], im_t.shape[2])]))
@@ -166,8 +172,8 @@ class Resize(BaseAugmentation):
         return Images.cat(all_ims)
 
     def apply_box2d(
-        self, boxes: Sequence[Boxes2D], parameters: AugParams
-    ) -> Sequence[Boxes2D]:
+        self, boxes: List[Boxes2D], parameters: AugParams
+    ) -> List[Boxes2D]:
         """Apply augmentation to input box2d."""
         for i, box in enumerate(boxes):
             if len(box) > 0 and parameters["apply"][i]:
@@ -178,8 +184,8 @@ class Resize(BaseAugmentation):
         return boxes
 
     def apply_mask(
-        self, masks: Sequence[Masks], parameters: AugParams
-    ) -> Sequence[Masks]:
+        self, masks: List[Masks], parameters: AugParams
+    ) -> List[Masks]:
         """Apply augmentation to input mask."""
         interp = self.interpolation
         self.interpolation = "nearest"
@@ -194,3 +200,245 @@ class Resize(BaseAugmentation):
                 )
         self.interpolation = interp
         return masks
+
+
+class RandomCropConfig(BaseAugmentationConfig):
+    """Config for RandomCrop."""
+
+    shape: Union[
+        Tuple[float, float],
+        Tuple[int, int],
+        List[Tuple[float, float]],
+        List[Tuple[int, int]],
+    ]
+    crop_type: str = "absolute"
+    allow_empty_crop: bool = True
+    recompute_boxes2d: bool = False
+
+
+class RandomCrop(BaseAugmentation):
+    """RandomCrop augmentation class."""
+
+    def __init__(
+        self,
+        cfg: BaseAugmentationConfig,
+    ) -> None:
+        """Init function.
+
+        Args:
+            cfg: Augmentation config.
+        """
+        super().__init__(cfg)
+        self.cfg: RandomCropConfig = RandomCropConfig(**cfg.dict())
+        assert self.cfg.crop_type in [
+            "absolute",
+            "relative",
+            "absolute_range",
+            "relative_range",
+        ], f"Unknown crop type {self.cfg.crop_type}."
+
+        if self.cfg.crop_type == "absolute":
+            assert isinstance(self.cfg.shape, tuple)
+            assert self.cfg.shape[0] > 0 and self.cfg.shape[1] > 0
+            self.shape: Tuple[int, int] = (
+                int(self.cfg.shape[0]),
+                int(self.cfg.shape[1]),
+            )
+
+        elif self.cfg.crop_type == "relative":
+            assert isinstance(self.cfg.shape, tuple)
+            assert 0 < self.cfg.shape[0] <= 1 and 0 < self.cfg.shape[1] <= 1
+            self.scale: Tuple[float, float] = self.cfg.shape
+
+        elif "range" in self.cfg.crop_type:
+            assert isinstance(self.cfg.shape, list)
+            assert len(self.cfg.shape) == 2
+            assert self.cfg.shape[1][0] >= self.cfg.shape[0][0]
+            assert self.cfg.shape[1][1] >= self.cfg.shape[0][1]
+
+            if "absolute" in self.cfg.crop_type:
+                for crop in self.cfg.shape:
+                    assert crop[0] > 0 and crop[1] > 0
+                self.shape_min: Tuple[int, int] = (
+                    int(self.cfg.shape[0][0]),
+                    int(self.cfg.shape[0][1]),
+                )
+                self.shape_max: Tuple[int, int] = (
+                    int(self.cfg.shape[1][0]),
+                    int(self.cfg.shape[1][1]),
+                )
+            else:
+                for crop in self.cfg.shape:
+                    assert 0 < crop[0] <= 1 and 0 < crop[1] <= 1
+                self.scale_min: Tuple[float, float] = self.cfg.shape[0]
+                self.scale_max: Tuple[float, float] = self.cfg.shape[1]
+
+    def _get_crop_size(self, im_wh: torch.Tensor) -> Tuple[int, int]:
+        """Generate random absolute crop size."""
+        w, h = im_wh
+        if self.cfg.crop_type == "absolute":
+            return (
+                min(int(self.shape[0]), h),
+                min(int(self.shape[1]), w),
+            )
+        if self.cfg.crop_type == "absolute_range":
+            crop_h = np.random.randint(
+                min(h, self.shape_min[0]), min(h, self.shape_max[0]) + 1
+            )
+            crop_w = np.random.randint(
+                min(w, self.shape_min[1]), min(w, self.shape_max[1]) + 1
+            )
+            return int(crop_h), int(crop_w)
+        if self.cfg.crop_type == "relative":
+            crop_h, crop_w = self.scale
+            return int(h * crop_h + 0.5), int(w * crop_w + 0.5)
+        # relative range
+        crop_h = (
+            np.random.rand() * (self.scale_max[0] - self.scale_min[0])
+            + self.scale_min[0]
+        )
+        crop_w = (
+            np.random.rand() * (self.scale_max[1] - self.scale_min[1])
+            + self.scale_min[1]
+        )
+        return int(h * crop_h + 0.5), int(w * crop_w + 0.5)
+
+    def _sample_crop(self, im_wh: torch.Tensor) -> torch.Tensor:
+        """Sample crop parameters according to config."""
+        crop_size = self._get_crop_size(im_wh)
+        margin_h = max(im_wh[1] - crop_size[0], 0)
+        margin_w = max(im_wh[0] - crop_size[1], 0)
+        offset_h = np.random.randint(0, margin_h + 1)
+        offset_w = np.random.randint(0, margin_w + 1)
+        crop_y1, crop_y2 = offset_h, offset_h + crop_size[0]
+        crop_x1, crop_x2 = offset_w, offset_w + crop_size[1]
+        return torch.LongTensor([crop_x1, crop_y1, crop_x2, crop_y2])
+
+    @staticmethod
+    def _get_keep_mask(
+        sample: InputSample, crop_param: torch.Tensor
+    ) -> torch.Tensor:
+        """Get mask for 2D annotations to keep."""
+        assert len(sample) == 1, "Please provide a single sample!"
+        assert len(crop_param.shape) == 1, "Please provide single crop_param"
+        cropbox = Boxes2D(crop_param.float().unsqueeze(0))
+        overlap = bbox_intersection(sample.boxes2d[0], cropbox)
+        return overlap.squeeze(-1) > 0
+
+    def generate_parameters(self, sample: InputSample) -> AugParams:
+        """Generate current parameters."""
+        parameters = super().generate_parameters(sample)
+        image_whs = []
+        crop_params = []
+        keep_masks = []
+        current_sample: InputSample
+        for i, current_sample in enumerate(sample):
+            im_wh = torch.tensor(current_sample.images.image_sizes[0])
+            image_whs.append(im_wh)
+            if not parameters["apply"][i]:
+                crop_params.append(torch.tensor([0, 0, *im_wh]))
+                keep_masks.append(
+                    torch.tensor([True] * len(current_sample.boxes2d))
+                )
+                continue
+
+            crop_param = self._sample_crop(im_wh)
+            keep_mask = self._get_keep_mask(current_sample, crop_param)
+            while (
+                len(current_sample.boxes2d[0]) > 0
+                and not self.cfg.allow_empty_crop
+                and keep_mask.sum() == 0
+            ):  # pragma: no cover
+                crop_param = self._sample_crop(im_wh)
+                keep_mask = self._get_keep_mask(current_sample, crop_param)
+            crop_params.append(crop_param)
+            keep_masks.append(keep_mask)
+
+        parameters["image_wh"] = torch.stack(image_whs)
+        parameters["crop_params"] = torch.stack(crop_params)
+        parameters["keep"] = keep_masks
+        return parameters
+
+    def apply_image(self, images: Images, parameters: AugParams) -> Images:
+        """Apply augmentation to input image."""
+        all_ims: List[Images] = []
+        for i, im in enumerate(images):
+            if parameters["apply"][i]:
+                im_wh = im.image_sizes[0]
+                x1, y1, x2, y2 = parameters["crop_params"][i]
+                w, h = (x2 - x1).item(), (y2 - y1).item()
+                im.tensor = im.tensor[:, :, y1:y2, x1:x2]
+                im.image_sizes[i] = (min(im_wh[0], w), min(im_wh[1], h))
+            all_ims.append(im)
+        return Images.cat(all_ims)
+
+    def apply_box2d(
+        self,
+        boxes: List[Boxes2D],
+        parameters: AugParams,
+    ) -> List[Boxes2D]:
+        """Apply augmentation to input box2d."""
+        for i, box in enumerate(boxes):
+            if len(box) > 0 and parameters["apply"][i]:
+                offset = parameters["crop_params"][i, :2]
+                box.boxes[:, :4] -= torch.cat([offset, offset])
+                boxes[i] = box[parameters["keep"][i]]
+        return boxes
+
+    def apply_box3d(
+        self,
+        boxes: List[Boxes3D],
+        parameters: AugParams,
+    ) -> List[Boxes3D]:
+        """Apply augmentation to input box3d."""
+        for i, box in enumerate(boxes):
+            if len(box) > 0 and parameters["apply"][i]:
+                boxes[i] = box[parameters["keep"][i]]
+        return boxes
+
+    def apply_intrinsics(
+        self,
+        intrinsics: Intrinsics,
+        parameters: AugParams,
+    ) -> Intrinsics:
+        """Apply augmentation to input intrinsics."""
+        x1, y1, _, _ = parameters["crop_params"].T
+        intrinsics.tensor[:, 0, 2] -= x1
+        intrinsics.tensor[:, 1, 2] -= y1
+        return intrinsics
+
+    def apply_mask(
+        self,
+        masks: List[Masks],
+        parameters: AugParams,
+    ) -> List[Masks]:
+        """Apply augmentation to input mask."""
+        for i, mask in enumerate(masks):
+            if len(mask) > 0 and parameters["apply"][i]:
+                x1, y1, x2, y2 = parameters["crop_params"][i]
+                mask.masks = mask.masks[:, y1:y2, x1:x2]
+                masks[i] = mask[parameters["keep"][i]]
+        return masks
+
+    def __call__(
+        self, sample: InputSample, parameters: Optional[AugParams] = None
+    ) -> Tuple[InputSample, AugParams]:
+        """Apply augmentations to input sample."""
+        # if parameters is given, still re-calculate keep / image_wh parameters
+        if parameters is not None:
+            parameters["image_wh"] = torch.stack(
+                [torch.tensor(s.images.image_sizes[0]) for s in sample]
+            )
+            parameters["keep"] = [
+                self._get_keep_mask(s, c)
+                for s, c in zip(sample, parameters["crop_params"])
+            ]
+        sample, parameters = super().__call__(sample, parameters)
+        if self.cfg.recompute_boxes2d:
+            for i in range(len(sample)):
+                assert len(sample.masks[i]) == len(sample.boxes2d[i]), (
+                    "recompute_boxes2d activated but annotations do not "
+                    "contain masks!"
+                )
+                sample.boxes2d[i] = sample.masks[i].get_boxes2d()
+        return sample, parameters

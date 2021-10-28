@@ -35,6 +35,7 @@ class QDTrack(BaseModel):
         self.similarity_head = build_similarity_head(self.cfg.similarity)
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
+        self.with_mask = self.detector.with_mask
 
     def preprocess_inputs(
         self,
@@ -86,7 +87,7 @@ class QDTrack(BaseModel):
                 for inp, x in zip(ref_inputs, ref_x)
             ]
 
-        # bbox head
+        # roi head
         _, roi_losses, _ = self.detector.generate_detections(
             key_inputs,
             key_x,
@@ -127,10 +128,12 @@ class QDTrack(BaseModel):
         # detector
         feat = self.detector.extract_features(inputs)
         proposals, _ = self.detector.generate_proposals(inputs, feat)
-        detections, _, _ = self.detector.generate_detections(
-            inputs, feat, proposals
+        detections, _, segmentations = self.detector.generate_detections(
+            inputs, feat, proposals, compute_segmentations=self.with_mask
         )
         assert detections is not None
+        if segmentations is None or len(segmentations) == 0:
+            segmentations = [None]
 
         # from vist.vis.image import imshow_bboxes
         # imshow_bboxes(inputs.images.tensor[0], detections)
@@ -145,7 +148,10 @@ class QDTrack(BaseModel):
             inputs.metadata[0].size.height,
         )
         self.postprocess(
-            input_size, inputs.images.image_sizes[0], detections[0]
+            input_size,
+            inputs.images.image_sizes[0],
+            detections[0],
+            segmentations[0],
         )
 
         # associate detections, update graph
@@ -155,4 +161,32 @@ class QDTrack(BaseModel):
             detections[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
         )
         tracks_ = tracks.to(torch.device("cpu")).to_scalabel(self.cat_mapping)
-        return dict(detect=[detects], track=[tracks_])
+        outputs = dict(detect=[detects], track=[tracks_])
+        # Temporary hack to align masks with boxes for MOTS support
+        # Remove in refactor-api PR!
+        if segmentations[0] is not None:  # pragma: no cover
+            segms = (
+                segmentations[0]
+                .to(torch.device("cpu"))
+                .to_scalabel(self.cat_mapping)
+            )
+            track_inds = torch.empty((0), dtype=torch.int)
+            track_ids = torch.empty((0), dtype=torch.int, device=tracks.device)
+            for track in tracks:
+                for i, box in enumerate(detections[0]):
+                    if torch.equal(track.boxes, box.boxes):
+                        track_inds = torch.cat(
+                            [track_inds, torch.LongTensor([i])]
+                        )
+                        track_ids = torch.cat([track_ids, track.track_ids])
+                        break
+            if len(track_inds) == 0:
+                segm_tracks_ = []
+            else:
+                segm_tracks = segmentations[0][track_inds]
+                segm_tracks.track_ids = track_ids
+                segm_tracks_ = segm_tracks.to(torch.device("cpu")).to_scalabel(
+                    self.cat_mapping
+                )
+            outputs.update(segment=[segms], seg_track=[segm_tracks_])
+        return outputs
