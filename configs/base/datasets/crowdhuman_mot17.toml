@@ -12,12 +12,19 @@ num_processes = 0
     type = 'uniform'
     scope = 0
     num_ref_imgs = 1
+    consistent_ref_aug = false
 
     [[train.dataloader.transformations]]
     type = "Resize"
     shape = [800, 1440]
     scale_range = [0.8, 1.2]
     keep_ratio = true
+
+    [[train.dataloader.transformations]]
+    type = "KorniaAugmentationWrapper"
+    kornia_type = "RandomAffine"
+    kwargs = {degrees = 5, translate = 0.05}
+    prob = 1.0
 
     [[train.dataloader.transformations]]
     type = "RandomCrop"
@@ -31,7 +38,7 @@ num_processes = 0
     [[train.dataloader.transformations]]
     type = "KorniaColorJitter"
     prob = 0.5
-    kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
+    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.8, 1.2], "saturation" = [0.8, 1.2]}
 
 
 [[train]]
@@ -67,9 +74,7 @@ num_processes = 0
     [[train.dataloader.transformations]]
     type = "KorniaColorJitter"
     prob = 0.5
-    kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
-
-
+    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.8, 1.2], "saturation" = [0.8, 1.2]}
 
 [[test]]
 name = "mot17_val"

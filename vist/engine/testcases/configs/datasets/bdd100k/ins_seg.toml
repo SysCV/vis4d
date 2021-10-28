@@ -26,8 +26,8 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "KorniaColorJitter"
-    kornia_type = "ColorJitter"
-    kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
+    prob = 0.5
+    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.8, 1.2], "saturation" = [0.8, 1.2]}
 
 [[test]]
 name = "bdd100k_sample_val"

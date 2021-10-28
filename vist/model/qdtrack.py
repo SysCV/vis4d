@@ -162,7 +162,9 @@ class QDTrack(BaseModel):
         )
         tracks_ = tracks.to(torch.device("cpu")).to_scalabel(self.cat_mapping)
         outputs = dict(detect=[detects], track=[tracks_])
-        if segmentations[0] is not None:
+        # Temporary hack to align masks with boxes for MOTS support
+        # Remove in refactor-api PR!
+        if segmentations[0] is not None:  # pragma: no cover
             segms = (
                 segmentations[0]
                 .to(torch.device("cpu"))

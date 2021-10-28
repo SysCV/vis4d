@@ -111,8 +111,9 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Print class & params, s.t. user can inspect easily via cmd line."""
         attr_str = ""
         for k, v in self.cfg.dict().items():
-            attr_str += f"{k}={str(v)}, "
-        attr_str.rstrip(", ")
+            if k != "type":
+                attr_str += f"{k}={str(v)}, "
+        attr_str = attr_str.rstrip(", ")
         return f"{self.__class__.__name__}({attr_str})"
 
 
