@@ -1,8 +1,8 @@
 [[train]]
 name = "crowdhuman_trainval"
 type = "Scalabel"
-annotations = "data/CrowdHuman/trainval_scalabel.json"
-data_root = "data/CrowdHuman/"
+annotations = "data/CrowdHuman/trainval/trainval_scalabel.json"
+data_root = "data/CrowdHuman/trainval"
 num_processes = 0
     [train.dataloader]
     clip_bboxes_to_image = false
@@ -50,6 +50,7 @@ num_processes = 0
     [train.dataloader]
     clip_bboxes_to_image = false
     skip_empty_samples = true
+
     [train.dataloader.ref_sampling]
     type = 'uniform'
     scope = 10
