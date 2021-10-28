@@ -1,7 +1,8 @@
 """Base class for VisT models."""
 import abc
 from collections.abc import Iterable
-from typing import Callable, Dict, List, Optional, Tuple, no_type_check
+from typing import Callable, Dict, List, Optional, Tuple, no_type_check, TypeVar
+from dataclasses import dataclass
 
 import pytorch_lightning as pl
 from pydantic import BaseModel as PydanticBaseModel
@@ -9,7 +10,7 @@ from pydantic import Field
 from torch.optim import Optimizer
 
 from ..common.registry import ABCRegistryHolder
-from ..struct import Boxes2D, InputSample, LossesType, Masks, ModelOutput
+from ..struct import Boxes2D, InputSample, LossesType, Masks, ModelOutput, LabelInstances
 from .optimize import (
     BaseLRScheduler,
     BaseLRSchedulerConfig,
@@ -21,14 +22,13 @@ from .optimize import (
 )
 
 
-class BaseModelConfig(PydanticBaseModel, extra="allow"):
-    """Config for default VisT tracker."""
+TModuleReturn = TypeVar("TModuleReturn", bound="ModuleReturn")
 
-    type: str = Field(...)
-    category_mapping: Optional[Dict[str, int]] = None
-    image_channel_mode: str = "RGB"
-    optimizer: BaseOptimizerConfig = BaseOptimizerConfig()
-    lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig()
+@dataclass
+class ModuleReturn:
+    """Base Container for the output of a VisTModule."""
+    losses: Optional[LossesType]
+    predictions: Optional[LabelInstances]
 
 
 class VisTModule(torch.nn.Module):
@@ -36,8 +36,9 @@ class VisTModule(torch.nn.Module):
     @abc.abstractmethod
     def forward_train(
             self,
-            batch_inputs: List[List[InputSample]],
-    ) -> Tuple[LossesType, ]:
+            batch_inputs: List[InputSample],
+            prev_returns: Optional[List[TModuleReturn]] = None
+    ) -> TModuleReturn:
         """Forward pass during training stage.
 
         Args:
@@ -52,8 +53,9 @@ class VisTModule(torch.nn.Module):
     @abc.abstractmethod
     def forward_test(
             self,
-            batch_inputs: List[List[InputSample]],
-    ) -> ModelOutput:
+            batch_inputs: InputSample,
+            prev_returns: Optional[List[TModuleReturn]] = None
+    ) -> TModuleReturn:
         """Forward pass during testing stage.
 
         Args:
@@ -64,6 +66,16 @@ class VisTModule(torch.nn.Module):
             and separate detection result.
         """
         raise NotImplementedError
+
+
+class BaseModelConfig(PydanticBaseModel, extra="allow"):
+    """Config for default VisT tracker."""
+
+    type: str = Field(...)
+    category_mapping: Optional[Dict[str, int]] = None
+    image_channel_mode: str = "RGB"
+    optimizer: BaseOptimizerConfig = BaseOptimizerConfig()
+    lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig()
 
 
 class BaseModel(pl.LightningModule, VisTModule, metaclass=ABCRegistryHolder):

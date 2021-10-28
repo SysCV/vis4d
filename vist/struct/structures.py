@@ -9,6 +9,8 @@ from scalabel.label.typing import ImageSize, Label
 
 TDataInstance = TypeVar("TDataInstance", bound="DataInstance")
 
+TLabelInstance = TypeVar("TLabelInstance", bound="LabelInstance")
+
 
 class DataInstance(metaclass=abc.ABCMeta):
     """Meta class for input data."""
@@ -38,6 +40,19 @@ class DataInstance(metaclass=abc.ABCMeta):
         """Iterator definition of Images."""
         for i in range(len(self)):
             yield self[i]
+
+
+class InputInstance(DataInstance, metaclass=abc.ABCMeta):
+    """Interface for images, intrinsics, etc."""
+
+    @classmethod
+    def cat(
+            cls,
+            instances: List["InputInstance"],
+            device: Optional[torch.device] = None,
+    ) -> "InputInstance":
+        """Concatenate multiple instances into a single one (batching)."""
+        raise NotImplementedError
 
 
 class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
