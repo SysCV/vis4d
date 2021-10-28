@@ -34,7 +34,7 @@ annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
 config_path = "vist/engine/testcases/detect/bdd100k-samples/ins_seg_config.toml"
 num_processes = 0
-eval_metrics = ["detect", "segment"]
+eval_metrics = ["detect", "ins_seg"]
     [test.dataloader]
     fields_to_load = ["masks"]
 

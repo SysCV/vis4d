@@ -90,13 +90,13 @@ class MMEncDecSegmentor(BaseEncDecSegmentor):
         segmentations = results_from_mmseg(outs, self.device)
         assert segmentations is not None
 
-        for inp, segm in zip(inputs, segmentations):  # type: ignore
-            assert inp.metadata[0].size is not None
-            input_size = (
-                inp.metadata[0].size.width,
-                inp.metadata[0].size.height,
-            )
-            self.postprocess(input_size, inp.images.image_sizes[0], segm)
+        # for inp, segm in zip(inputs, segmentations):  # type: ignore
+        #     assert inp.metadata[0].size is not None
+        #     input_size = (
+        #         inp.metadata[0].size.width,
+        #         inp.metadata[0].size.height,
+        #     )
+        #     self.postprocess(input_size, inp.images.image_sizes[0], segm)
 
         return dict(
             segment=[s.to_scalabel(self.cat_mapping) for s in segmentations]

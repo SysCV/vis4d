@@ -1,9 +1,9 @@
 [[train]]
 name = "bdd100k_sem_seg_sample_train"
-type = "BDD100K"
+type = "Scalabel"
 annotations = "vist/engine/testcases/segment/bdd100k-samples/annotation.json"
-data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
-config_path = "sem_seg"
+data_root = "vist/engine/testcases/segment/bdd100k-samples/images"
+config_path = "vist/engine/testcases/segment/bdd100k-samples/config.toml"
 num_processes = 0
     [train.dataloader]
     fields_to_load = ["masks"]
@@ -15,7 +15,7 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    shape = [720, 1280]
+    shape = [360, 640]
 
     [[train.dataloader.transformations]]
     type = "KorniaAugmentationWrapper"
@@ -24,16 +24,17 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "KorniaColorJitter"
+    kornia_type = "ColorJitter"
     kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
 
 [[test]]
 name = "bdd100k_sem_seg_sample_val"
-type = "BDD100K"
+type = "Scalabel"
 annotations = "vist/engine/testcases/segment/bdd100k-samples/annotation.json"
-data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
-config_path = "sem_seg"
+data_root = "vist/engine/testcases/segment/bdd100k-samples/images"
+config_path = "vist/engine/testcases/segment/bdd100k-samples/config.toml"
 num_processes = 0
-eval_metrics = ["segment"]
+eval_metrics = ["sem_seg"]
     [test.dataloader]
     fields_to_load = ["masks"]
 

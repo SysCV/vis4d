@@ -30,7 +30,10 @@ def segmentations_from_mmseg(
     masks: torch.Tensor, device: torch.device
 ) -> List[Masks]:
     """Convert mmsegmentation segmentations to VisT format."""
-    return [Masks(mask).to(device) for mask in F.softmax(masks, dim=1)]
+    return [
+        Masks(mask).to_nhw_mask().to(device)
+        for mask in F.softmax(masks, dim=1)
+    ]
 
 
 def results_from_mmseg(
@@ -38,7 +41,8 @@ def results_from_mmseg(
 ) -> List[Masks]:
     """Convert mmsegmentation seg_pred to VisT format."""
     return [
-        Masks(torch.ByteTensor([result], device=device)) for result in results
+        Masks(torch.ByteTensor([result])).to_nhw_mask().to(device)
+        for result in results
     ]
 
 
@@ -46,7 +50,7 @@ def targets_to_mmseg(
     targets: InputSample,
 ) -> List[torch.Tensor]:
     """Convert VisT targets to mmsegmentation compatible format."""
-    return [t.masks for t in targets.masks]
+    return [t.to_hwc_mask() for t in targets.masks]
 
 
 def load_config_from_mmseg(url: str) -> str:

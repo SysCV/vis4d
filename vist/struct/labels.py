@@ -5,11 +5,11 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from mmcv.ops.roi_align import roi_align
-from pycocotools import mask as mask_utils
 from scalabel.label.transforms import (
     mask_to_box2d,
     mask_to_rle,
     poly2ds_to_mask,
+    rle_to_mask,
 )
 from scalabel.label.typing import Box2D, Box3D, ImageSize, Label
 
@@ -629,7 +629,7 @@ class Masks(LabelInstance):
             if label.poly2d is None and label.rle is None:
                 continue
             if label.rle is not None:
-                bitmask = mask_utils.decode(dict(label.rle))
+                bitmask = rle_to_mask(label.rle)
             elif label.poly2d is not None:
                 assert (
                     image_size is not None
@@ -692,6 +692,25 @@ class Masks(LabelInstance):
             labels.append(Label(**label_dict))
 
         return labels
+
+    def to_nhw_mask(self) -> "Masks":
+        """Convert HxW semantic mask to N binary HxW masks."""
+        assert self.masks.size(0) == 1
+        nhw_masks, cls_list = [], []
+        for cat_id in torch.unique(self.masks):
+            nhw_masks.append((self.masks == cat_id).type(torch.uint8))
+            cls_list.append(cat_id)
+        return Masks(
+            torch.cat(nhw_masks).type(torch.uint8),
+            torch.tensor(cls_list, dtype=torch.long),
+        )
+
+    def to_hwc_mask(self) -> torch.Tensor:
+        """Convert N binary HxW masks to HxW semantic mask."""
+        hwc_mask = torch.full(self.masks.shape[1:], 255, device=self.device)
+        for mask, cat_id in zip(self.masks, self.class_ids):
+            hwc_mask[mask > 0] = cat_id
+        return hwc_mask
 
     def to_ndarray(self) -> NDArrayUI8:
         """Convert masks to ndarray."""

@@ -53,7 +53,7 @@ name = "bdd100k_sample_val"
 type = "BDD100K"
 annotations = "vist/engine/testcases/track/bdd100k-samples/labels/"
 data_root = "vist/engine/testcases/track/bdd100k-samples/images/"
-eval_metrics = ["detect", "track", "segment", "seg_track"]
+eval_metrics = ["detect", "track", "ins_seg", "seg_track"]
 config_path = "seg_track"
 num_processes = 0
     [test.dataloader]

@@ -15,7 +15,7 @@ path = "../configs/models/mmsegmentation/deeplabv3plus_R_50_D8.toml"
     kwargs = {"milestones" = [50, 100]}
 
 [launch]
-samples_per_gpu = 1
+samples_per_gpu = 2
 workers_per_gpu = 0
 
 [trainer]
