@@ -49,7 +49,7 @@ class BaseEncDecSegmentor(BaseSegmentor):
         self,
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
-    ) -> Tuple[LossesType]:
+    ) -> LossesType:
         """Segmentor auxiliary head stage.
 
         Return auxiliary losses (empty if no targets).

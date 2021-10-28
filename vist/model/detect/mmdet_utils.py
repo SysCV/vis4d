@@ -220,11 +220,15 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
     return cfg
 
 
-def _parse_losses(losses: Dict[str, torch.Tensor]) -> LossesType:
+def _parse_losses(
+    losses: Dict[str, torch.Tensor], prefix: Optional[str] = None
+) -> LossesType:
     """Parse losses to a scalar tensor."""
     log_vars = {}
     for name, value in losses.items():
         if "loss" in name:
+            if prefix is not None:
+                name = f"{prefix}.{name}"
             if isinstance(value, torch.Tensor):
                 log_vars[name] = value.mean()
             elif isinstance(value, list):

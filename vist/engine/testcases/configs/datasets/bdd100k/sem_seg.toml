@@ -1,0 +1,42 @@
+[[train]]
+name = "bdd100k_sem_seg_sample_train"
+type = "BDD100K"
+annotations = "vist/engine/testcases/segment/bdd100k-samples/annotation.json"
+data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
+config_path = "sem_seg"
+num_processes = 0
+    [train.dataloader]
+    fields_to_load = ["masks"]
+
+        [train.dataloader.ref_sampling]
+        type = 'uniform'
+        scope = 1
+        num_ref_imgs = 0
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    shape = [720, 1280]
+
+    [[train.dataloader.transformations]]
+    type = "KorniaAugmentationWrapper"
+    kornia_type = "RandomHorizontalFlip"
+    prob = 0.5
+
+    [[train.dataloader.transformations]]
+    type = "KorniaColorJitter"
+    kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
+
+[[test]]
+name = "bdd100k_sem_seg_sample_val"
+type = "BDD100K"
+annotations = "vist/engine/testcases/segment/bdd100k-samples/annotation.json"
+data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
+config_path = "sem_seg"
+num_processes = 0
+eval_metrics = ["segment"]
+    [test.dataloader]
+    fields_to_load = ["masks"]
+
+    [[test.dataloader.transformations]]
+    type = "Resize"
+    shape = [720, 1280]

@@ -8,8 +8,8 @@ from mmseg.models import EncoderDecoder, build_segmentor
 from vist.struct import InputSample, LossesType, Masks, ModelOutput
 
 from ..base import BaseModelConfig
-from .base import BaseEncDecSegmentor
 from ..detect.mmdet_utils import _parse_losses, get_img_metas
+from .base import BaseEncDecSegmentor
 from .mmseg_utils import (
     MMEncDecSegmentorConfig,
     get_mmseg_config,
@@ -127,17 +127,17 @@ class MMEncDecSegmentor(BaseEncDecSegmentor):
         img_metas = get_img_metas(inputs.images)
         if self.training:
             gt_masks = targets_to_mmseg(inputs)
-            segment_losses = self.mm_segmentor._decode_head_forward_train(
-                feat_list, img_metas, gt_masks
+            segment_losses = self.mm_segmentor.decode_head.forward_train(
+                feat_list, img_metas, gt_masks, self.mm_segmentor.train_cfg
             )
-            segment_losses = _parse_losses(segment_losses)
+            segment_losses = _parse_losses(segment_losses, "decode")
             assert (
                 not compute_segmentations
             ), "mmsegmentation does not compute segmentations during train!"
             segmentations = None
         else:
-            masks = self.mm_segmentor._decode_head_forward_test(
-                feat_list, img_metas
+            masks = self.mm_segmentor.decode_head.forward_test(
+                feat_list, img_metas, self.mm_segmentor.test_cfg
             )
             segmentations = segmentations_from_mmseg(masks, self.device)
             segment_losses = {}
@@ -148,9 +148,33 @@ class MMEncDecSegmentor(BaseEncDecSegmentor):
         self,
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
-    ) -> Tuple[LossesType]:
+    ) -> LossesType:
         """Segmentor auxiliary head stage.
 
         Return auxiliary losses (empty if no targets).
         """
-        raise NotImplementedError
+        aux_losses = {}
+        if self.training:
+            feat_list = list(features.values())
+            img_metas = get_img_metas(inputs.images)
+            gt_masks = targets_to_mmseg(inputs)
+            if isinstance(
+                self.mm_segmentor.auxiliary_head, torch.nn.ModuleList
+            ):
+                for idx, aux_head in enumerate(
+                    self.mm_segmentor.auxiliary_head
+                ):
+                    loss_aux = aux_head.forward_train(
+                        feat_list,
+                        img_metas,
+                        gt_masks,
+                        self.mm_segmentor.train_cfg,
+                    )
+                    aux_losses.update(_parse_losses(loss_aux, f"aux_{idx}"))
+            else:
+                loss_aux = self.mm_segmentor.auxiliary_head.forward_train(
+                    feat_list, img_metas, gt_masks, self.mm_segmentor.train_cfg
+                )
+                aux_losses.update(_parse_losses(loss_aux, "aux"))
+
+        return aux_losses
