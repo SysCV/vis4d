@@ -10,7 +10,7 @@ to maintain valid projective geometry in 3D tracking.
 
 Reference: https://kornia.readthedocs.io/en/latest/augmentation.base.html
 """
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import torch
 from kornia import augmentation as kornia_augmentation
@@ -24,7 +24,7 @@ from .base import AugParams, BaseAugmentation, BaseAugmentationConfig
 class KorniaAugmentationConfig(BaseAugmentationConfig):
     """Config for Kornia augmentation wrapper."""
 
-    kornia_type: Optional[str] = None
+    kornia_type: str
     kwargs: Dict[
         str,
         Union[
@@ -47,9 +47,7 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         self.cfg: KorniaAugmentationConfig = KorniaAugmentationConfig(
             **cfg.dict()
         )
-        augmentation = getattr(
-            kornia_augmentation, self.cfg.kornia_type  # type: ignore
-        )
+        augmentation = getattr(kornia_augmentation, self.cfg.kornia_type)
         self.augmentor = augmentation(p=1.0, **self.cfg.kwargs)
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
@@ -79,8 +77,7 @@ class KorniaAugmentationWrapper(BaseAugmentation):
     def apply_image(self, images: Images, parameters: AugParams) -> Images:
         """Apply augmentation to input image."""
         all_ims = []
-        for i, im in enumerate(images):  # type: ignore
-            im: Images  # type: ignore
+        for i, im in enumerate(images):
             if parameters["apply"][i]:
                 im_t = self.augmentor.apply_transform(
                     im.tensor / 255.0, parameters, parameters["transform"]
@@ -97,9 +94,9 @@ class KorniaAugmentationWrapper(BaseAugmentation):
 
     def apply_box2d(
         self,
-        boxes: Sequence[Boxes2D],
+        boxes: List[Boxes2D],
         parameters: AugParams,
-    ) -> Sequence[Boxes2D]:
+    ) -> List[Boxes2D]:
         """Apply augmentation to input box2d."""
         for i, box in enumerate(boxes):
             if len(box) > 0 and parameters["apply"][i]:
@@ -111,9 +108,9 @@ class KorniaAugmentationWrapper(BaseAugmentation):
 
     def apply_mask(
         self,
-        masks: Sequence[Masks],
+        masks: List[Masks],
         parameters: AugParams,
-    ) -> Sequence[Masks]:
+    ) -> List[Masks]:
         """Apply augmentation to input mask."""
         for i, mask in enumerate(masks):
             if len(mask) > 0 and parameters["apply"][i]:
@@ -132,8 +129,13 @@ class KorniaAugmentationWrapper(BaseAugmentation):
 class KorniaColorJitter(KorniaAugmentationWrapper):
     """Wrapper for Kornia color jitter augmentation class."""
 
+    def __init__(self, cfg: BaseAugmentationConfig):
+        """Init."""
+        cfg.__dict__.update({"kornia_type": "ColorJitter"})
+        super().__init__(cfg)
+
     def apply_mask(
-        self, masks: Sequence[Masks], parameters: AugParams
-    ) -> Sequence[Masks]:
+        self, masks: List[Masks], parameters: AugParams
+    ) -> List[Masks]:
         """Skip augmentation for mask."""
         return masks

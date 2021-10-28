@@ -202,7 +202,16 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
 
     # convert detect attributes
     assert config.category_mapping is not None
-    cfg["roi_head"]["bbox_head"]["num_classes"] = len(config.category_mapping)
+    if "bbox_head" in cfg:  # pragma: no cover
+        cfg["bbox_head"]["num_classes"] = len(config.category_mapping)
+    if "roi_head" in cfg:
+        cfg["roi_head"]["bbox_head"]["num_classes"] = len(
+            config.category_mapping
+        )
+        if "mask_head" in cfg["roi_head"]:
+            cfg["roi_head"]["mask_head"]["num_classes"] = len(
+                config.category_mapping
+            )
 
     # add keyword args in config
     if config.model_kwargs:

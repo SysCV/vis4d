@@ -8,14 +8,16 @@ num_processes = 0
     [train.dataloader]
     fields_to_load = ["masks"]
 
-        [train.dataloader.ref_sampling]
-        type = 'uniform'
-        scope = 1
-        num_ref_imgs = 0
-
     [[train.dataloader.transformations]]
     type = "Resize"
     shape = [720, 1280]
+
+    [[train.dataloader.transformations]]
+    type = "RandomCrop"
+    crop_type = "relative_range"
+    shape = [[0.4, 0.5], [0.5, 0.6]]
+    allow_empty_crop = false
+    recompute_boxes2d = true
 
     [[train.dataloader.transformations]]
     type = "KorniaAugmentationWrapper"
@@ -24,8 +26,8 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "KorniaColorJitter"
-    kornia_type = "ColorJitter"
-    kwargs = {"brightness" = [0.5, 1.5], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
+    prob = 0.5
+    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.8, 1.2], "saturation" = [0.8, 1.2]}
 
 [[test]]
 name = "bdd100k_sample_val"
