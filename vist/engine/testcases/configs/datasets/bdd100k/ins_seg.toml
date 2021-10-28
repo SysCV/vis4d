@@ -6,7 +6,7 @@ data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
 config_path = "vist/engine/testcases/detect/bdd100k-samples/ins_seg_config.toml"
 num_processes = 0
     [train.dataloader]
-    fields_to_load = ["masks"]
+    fields_to_load = ["boxes2d", "masks"]
 
     [[train.dataloader.transformations]]
     type = "Resize"
@@ -30,7 +30,7 @@ num_processes = 0
     kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.8, 1.2], "saturation" = [0.8, 1.2]}
 
 [[test]]
-name = "bdd100k_sample_val"
+name = "bdd100k_ins_seg_sample_val"
 type = "Scalabel"
 annotations = "vist/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "vist/engine/testcases/detect/bdd100k-samples/images"
@@ -38,7 +38,7 @@ config_path = "vist/engine/testcases/detect/bdd100k-samples/ins_seg_config.toml"
 num_processes = 0
 eval_metrics = ["detect", "ins_seg"]
     [test.dataloader]
-    fields_to_load = ["masks"]
+    fields_to_load = ["boxes2d", "masks"]
 
     [[test.dataloader.transformations]]
     type = "Resize"

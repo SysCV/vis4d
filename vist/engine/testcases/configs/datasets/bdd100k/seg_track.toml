@@ -8,7 +8,7 @@ num_processes = 0
 cache_as_binary = true
     [train.dataloader]
     compute_global_instance_ids = true
-    fields_to_load = ["masks"]
+    fields_to_load = ["boxes2d", "masks"]
 
         [train.dataloader.ref_sampling]
         type = 'uniform'
@@ -33,7 +33,7 @@ data_root = "vist/engine/testcases/detect/bdd100k-samples/images/"
 config_path = "vist/engine/testcases/detect/bdd100k-samples/ins_seg_config.toml"
 num_processes = 0
     [train.dataloader]
-    fields_to_load = ["masks"]
+    fields_to_load = ["boxes2d", "masks"]
 
         [train.dataloader.ref_sampling]
         scope = 0
@@ -57,7 +57,7 @@ eval_metrics = ["detect", "track", "ins_seg", "seg_track"]
 config_path = "seg_track"
 num_processes = 0
     [test.dataloader]
-    fields_to_load = ["masks"]
+    fields_to_load = ["boxes2d", "masks"]
 
         [[test.dataloader.transformations]]
         type = "Resize"
