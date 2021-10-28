@@ -419,9 +419,9 @@ class Masks(LabelInstance):
     """Container class for segmentation masks.
 
     masks: torch.ByteTensor (N, H, W) where each entry is a binary mask
-    class_ids: torch.LongTensor (N,) where each entry is class id of the mask.
-    track_ids: torch.LongTensor (N,) where each entry is track id of the mask.
-    track_ids: torch.FloatTensor (N,) where each entry is the confidence score
+    class_ids: torch.LongTensor (N,) where each entry is the class id of mask.
+    track_ids: torch.LongTensor (N,) where each entry is the track id of mask.
+    score: torch.FloatTensor (N,) where each entry is the confidence score
     of mask.
     """
 

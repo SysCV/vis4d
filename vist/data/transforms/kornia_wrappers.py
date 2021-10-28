@@ -44,7 +44,6 @@ class KorniaAugmentationWrapper(BaseAugmentation):
     def __init__(self, cfg: BaseAugmentationConfig):
         """Initialize wrapper."""
         super().__init__(cfg)
-        print(cfg)
         self.cfg: KorniaAugmentationConfig = KorniaAugmentationConfig(
             **cfg.dict()
         )
