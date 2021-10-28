@@ -9,16 +9,16 @@ from .labels import Boxes2D, Boxes3D, Masks
 from .structures import DataInstance
 
 
-class InputSample:
+class InputSample(DataInstance):
     """Container holding varying types of DataInstances and Frame metadata."""
 
     def __init__(
         self,
-        metadata: Sequence[Frame],
+        metadata: List[Frame],
         images: Images,
-        boxes2d: Optional[Sequence[Boxes2D]] = None,
-        boxes3d: Optional[Sequence[Boxes3D]] = None,
-        masks: Optional[Sequence[Masks]] = None,
+        boxes2d: Optional[List[Boxes2D]] = None,
+        boxes3d: Optional[List[Boxes3D]] = None,
+        masks: Optional[List[Masks]] = None,
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
     ) -> None:
@@ -32,14 +32,14 @@ class InputSample:
                 Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
                 for _ in range(len(images))
             ]
-        self.boxes2d: Sequence[Boxes2D] = boxes2d
+        self.boxes2d = boxes2d
 
         if boxes3d is None:
             boxes3d = [
                 Boxes3D(torch.empty(0, 10), torch.empty(0), torch.empty(0))
                 for _ in range(len(images))
             ]
-        self.boxes3d: Sequence[Boxes3D] = boxes3d
+        self.boxes3d = boxes3d
 
         if masks is None:
             masks = [
@@ -49,20 +49,20 @@ class InputSample:
         self.masks = masks
 
         if intrinsics is None:
-            intrinsics = Intrinsics(
-                torch.cat([torch.eye(3) for _ in range(len(images))])
+            intrinsics = Intrinsics.cat(
+                [Intrinsics(torch.eye(3)) for _ in range(len(images))]
             )
-        self.intrinsics: Intrinsics = intrinsics
+        self.intrinsics = intrinsics
 
         if extrinsics is None:
-            extrinsics = Extrinsics(
-                torch.cat([torch.eye(4) for _ in range(len(images))])
+            extrinsics = Extrinsics.cat(
+                [Extrinsics(torch.eye(4)) for _ in range(len(images))]
             )
-        self.extrinsics: Extrinsics = extrinsics
+        self.extrinsics = extrinsics
 
     def get(
         self, key: str
-    ) -> Union[Sequence[Frame], DataInstance, Sequence[DataInstance]]:
+    ) -> Union[List[Frame], DataInstance, List[DataInstance]]:
         """Get attribute by key."""
         if key in self.dict():
             value = self.dict()[key]
@@ -71,18 +71,16 @@ class InputSample:
 
     def dict(
         self,
-    ) -> Dict[
-        str, Union[Sequence[Frame], DataInstance, Sequence[DataInstance]]
-    ]:
+    ) -> Dict[str, Union[List[Frame], DataInstance, List[DataInstance]]]:
         """Return InputSample object as dict."""
         obj_dict: Dict[
-            str, Union[Sequence[Frame], DataInstance, Sequence[DataInstance]]
+            str, Union[List[Frame], DataInstance, List[DataInstance]]
         ] = {
             "metadata": self.metadata,
             "images": self.images,
-            "boxes2d": self.boxes2d,
-            "boxes3d": self.boxes3d,
-            "masks": self.masks,
+            "boxes2d": self.boxes2d,  # type: ignore
+            "boxes3d": self.boxes3d,  # type: ignore
+            "masks": self.masks,  # type: ignore
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
         }
@@ -101,6 +99,11 @@ class InputSample:
             self.intrinsics.to(device),
             self.extrinsics.to(device),
         )
+
+    @property
+    def device(self) -> torch.device:
+        """Returns current device if applicable."""
+        return self.images.device
 
     @classmethod
     def cat(
@@ -121,7 +124,7 @@ class InputSample:
                         attr_v.to(device)
                         if isinstance(attr_v, DataInstance)
                         else attr_v
-                        for attr_v in attr  # type: ignore
+                        for attr_v in attr
                     ]
             elif isinstance(v, DataInstance) and hasattr(type(v), "cat"):
                 cat_dict[k] = type(v).cat(  # type: ignore

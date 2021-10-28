@@ -1,5 +1,5 @@
 [[config]]
-path = "../../base/datasets/mot16.toml"
+path = "../../base/datasets/crowdhuman_mot17.toml"
 
 [[config]]
 path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"

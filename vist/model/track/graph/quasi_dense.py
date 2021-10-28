@@ -208,7 +208,7 @@ class QDTrackGraph(BaseTrackGraph):
             ids[tracklet_inds],
             detections[tracklet_inds],
             embeddings[tracklet_inds],
-        ):  # type: ignore
+        ):
             cur_id = int(cur_id)
             if cur_id in self.tracks:
                 self.update_track(cur_id, det, embed, frame_id)

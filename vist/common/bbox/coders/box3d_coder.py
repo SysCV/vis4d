@@ -41,7 +41,7 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
     ) -> List[torch.Tensor]:
         """Encode deltas between boxes and targets given intrinsics."""
         result = []
-        for boxes_, targets_, intrinsics_ in zip(boxes, targets, intrinsics):  # type: ignore # pylint: disable=line-too-long
+        for boxes_, targets_, intrinsics_ in zip(boxes, targets, intrinsics):
             # delta center 2d
             projected_3d_center = project_points(targets_.center, intrinsics_)
             delta_center = (
@@ -105,7 +105,7 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
         results = []
         for boxes_, box_deltas_, intrinsics_ in zip(
             boxes, box_deltas, intrinsics
-        ):  # type: ignore
+        ):
             if len(boxes_) == 0:
                 results.append(
                     Boxes3D(

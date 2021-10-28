@@ -215,7 +215,7 @@ class ScalabelEvaluatorCallback(VisTEvaluatorCallback):
     ) -> None:
         """Process the pair of inputs and outputs."""
         for inp in inputs:
-            self._gts.append(inp[0].metadata[0])
+            self._gts.append(copy.deepcopy(inp[0].metadata[0]))
 
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):

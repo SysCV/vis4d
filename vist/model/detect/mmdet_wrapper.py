@@ -102,9 +102,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         )
         assert detections is not None
 
-        for inp, det, segm in zip(  # type: ignore
-            inputs, detections, segmentations
-        ):
+        for inp, det, segm in zip(inputs, detections, segmentations):
             assert inp.metadata[0].size is not None
             input_size = (
                 inp.metadata[0].size.width,
