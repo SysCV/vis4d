@@ -325,8 +325,7 @@ class RandomCrop(BaseAugmentation):
             cropbox = Boxes2D(crop_param.float().unsqueeze(0))
             overlap = bbox_intersection(sample.boxes2d[0], cropbox)
             return overlap.squeeze(-1) > 0
-        else:
-            return torch.tensor([True] * len(sample.masks[0]))
+        return torch.tensor([True] * len(sample.masks[0]))
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
