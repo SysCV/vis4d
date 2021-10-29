@@ -28,7 +28,7 @@ class MMEncDecSegmentorConfig(BaseModelConfig):
 
 def segmentations_from_mmseg(
     masks: torch.Tensor, device: torch.device
-) -> List[Masks]:
+) -> List[Masks]:  # pragma: no cover
     """Convert mmsegmentation segmentations to VisT format."""
     return [
         Masks(mask).to_nhw_mask().to(device)
@@ -66,7 +66,7 @@ def load_config_from_mmseg(url: str) -> str:
 
 def get_mmseg_config(config: MMEncDecSegmentorConfig) -> MMConfig:
     """Convert a Segmentor config to a mmseg readable config."""
-    if os.path.exists(config.model_base):
+    if os.path.exists(config.model_base):  # pragma: no cover
         cfg = MMConfig.fromfile(config.model_base)
         if cfg.get("model"):
             cfg = cfg["model"]
@@ -97,6 +97,6 @@ def get_mmseg_config(config: MMEncDecSegmentorConfig) -> MMConfig:
             if attr.get(last_key) is not None:
                 attr[last_key] = type(attr.get(last_key))(v)
             else:
-                attr[last_key] = v
+                attr[last_key] = v  # pragma: no cover
 
     return cfg

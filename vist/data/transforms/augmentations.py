@@ -321,9 +321,12 @@ class RandomCrop(BaseAugmentation):
         """Get mask for 2D annotations to keep."""
         assert len(sample) == 1, "Please provide a single sample!"
         assert len(crop_param.shape) == 1, "Please provide single crop_param"
-        cropbox = Boxes2D(crop_param.float().unsqueeze(0))
-        overlap = bbox_intersection(sample.boxes2d[0], cropbox)
-        return overlap.squeeze(-1) > 0
+        if len(sample.boxes2d[0]) > 0:
+            cropbox = Boxes2D(crop_param.float().unsqueeze(0))
+            overlap = bbox_intersection(sample.boxes2d[0], cropbox)
+            return overlap.squeeze(-1) > 0
+        else:
+            return torch.tensor([True] * len(sample.masks[0]))
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
@@ -337,9 +340,11 @@ class RandomCrop(BaseAugmentation):
             image_whs.append(im_wh)
             if not parameters["apply"][i]:
                 crop_params.append(torch.tensor([0, 0, *im_wh]))
-                keep_masks.append(
-                    torch.tensor([True] * len(current_sample.boxes2d))
+                num_objs = max(
+                    len(current_sample.boxes2d),
+                    len(current_sample.masks),
                 )
+                keep_masks.append(torch.tensor([True] * num_objs))
                 continue
 
             crop_param = self._sample_crop(im_wh)

@@ -475,6 +475,8 @@ class ScalabelDataset(Dataset):  # type: ignore
 
     def postprocess_annotation(self, sample: InputSample) -> None:
         """Process annotations after transform."""
+        if len(sample.boxes2d[0]) == 0:
+            return
         if self.cfg.dataloader.clip_bboxes_to_image:
             sample.boxes2d[0].clip(sample.images.image_sizes[0])
         keep = sample.boxes2d[0].area >= self.cfg.dataloader.min_bboxes_area

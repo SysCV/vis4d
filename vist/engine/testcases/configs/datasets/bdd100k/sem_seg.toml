@@ -15,7 +15,13 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    shape = [360, 640]
+    shape = [720, 1280]
+    scale_range = [0.5, 2.0]
+
+    [[train.dataloader.transformations]]
+    type = "RandomCrop"
+    crop_type = "absolute"
+    shape = [512, 1024]
 
     [[train.dataloader.transformations]]
     type = "KorniaAugmentationWrapper"

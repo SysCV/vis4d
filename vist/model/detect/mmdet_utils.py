@@ -236,7 +236,7 @@ def _parse_losses(
     log_vars = {}
     for name, value in losses.items():
         if "loss" in name:
-            if prefix is not None:
+            if prefix is not None:  # pragma: no cover
                 name = f"{prefix}.{name}"
             if isinstance(value, torch.Tensor):
                 log_vars[name] = value.mean()

@@ -90,25 +90,19 @@ class MMEncDecSegmentor(BaseEncDecSegmentor):
         segmentations = results_from_mmseg(outs, self.device)
         assert segmentations is not None
 
-        # for inp, segm in zip(inputs, segmentations):  # type: ignore
-        #     assert inp.metadata[0].size is not None
-        #     input_size = (
-        #         inp.metadata[0].size.width,
-        #         inp.metadata[0].size.height,
-        #     )
-        #     self.postprocess(input_size, inp.images.image_sizes[0], segm)
-
         return dict(
             sem_seg=[s.to_scalabel(self.cat_mapping) for s in segmentations]
         )
 
-    def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
+    def extract_features(
+        self, inputs: InputSample
+    ) -> Dict[str, torch.Tensor]:  # pragma: no cover
         """Segmentor feature extraction stage.
 
         Return backbone output features
         """
         outs = self.mm_segmentor.extract_feat(inputs.images.tensor)
-        if self.cfg.backbone_output_names is None:  # pragma: no cover
+        if self.cfg.backbone_output_names is None:
             return {f"out{i}": v for i, v in enumerate(outs)}
 
         return dict(zip(self.cfg.backbone_output_names, outs))
@@ -118,7 +112,7 @@ class MMEncDecSegmentor(BaseEncDecSegmentor):
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
         compute_segmentations: bool = True,
-    ) -> Tuple[Optional[List[Masks]], LossesType]:
+    ) -> Tuple[Optional[List[Masks]], LossesType]:  # pragma: no cover
         """Segmentor decode stage.
 
         Return losses (empty if not training) and optionally segmentations.
@@ -148,7 +142,7 @@ class MMEncDecSegmentor(BaseEncDecSegmentor):
         self,
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
-    ) -> LossesType:
+    ) -> LossesType:  # pragma: no cover
         """Segmentor auxiliary head stage.
 
         Return auxiliary losses (empty if no targets).
