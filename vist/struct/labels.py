@@ -217,6 +217,8 @@ class Boxes2D(Boxes, LabelInstance):
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
 
+        if len(box_list) == 0:
+            return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
@@ -254,6 +256,17 @@ class Boxes2D(Boxes, LabelInstance):
             labels.append(Label(**label_dict))
 
         return labels
+
+    def postprocess(
+        self, original_wh: Tuple[int, int], output_wh: Tuple[int, int]
+    ) -> None:
+        """Postprocess boxes."""
+        scale_factor = (
+            original_wh[0] / output_wh[0],
+            original_wh[1] / output_wh[1],
+        )
+        self.scale(scale_factor)
+        self.clip(original_wh)
 
 
 class Boxes3D(Boxes, LabelInstance):
@@ -343,6 +356,8 @@ class Boxes3D(Boxes, LabelInstance):
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
 
+        if len(box_list) == 0:
+            return Boxes3D(torch.empty(0, 10), torch.empty(0), torch.empty(0))
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
@@ -644,6 +659,8 @@ class Masks(LabelInstance):
             if has_score:
                 score_list.append(score)
 
+        if len(bitmask_list) == 0:  # pragma: no cover
+            return Masks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
         mask_tensor = torch.tensor(bitmask_list, dtype=torch.uint8)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
@@ -688,7 +705,7 @@ class Masks(LabelInstance):
             cls_list.append(cat_id)
         return Masks(
             torch.cat(nhw_masks).type(torch.uint8),
-            torch.tensor(cls_list, dtype=torch.long),
+            torch.tensor(cls_list, dtype=torch.long, device=self.device),
         )
 
     def to_hwc_mask(self) -> torch.Tensor:
@@ -762,3 +779,13 @@ class Masks(LabelInstance):
                 entries.append(self.score[i])
             boxes_list.append(torch.stack(entries))
         return Boxes2D(torch.stack(boxes_list), self.class_ids, self.track_ids)
+
+    def postprocess(
+        self,
+        original_wh: Tuple[int, int],
+        output_wh: Tuple[int, int],
+        detections: Boxes2D,
+    ) -> None:
+        """Postprocess masks."""
+        if self.size != output_wh:
+            self.paste_masks_in_image(detections, original_wh)

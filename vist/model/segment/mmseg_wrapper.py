@@ -9,7 +9,7 @@ from vist.struct import InputSample, LossesType, Masks, ModelOutput
 
 from ..base import BaseModelConfig
 from ..detect.mmdet_utils import _parse_losses, get_img_metas
-from .base import BaseEncDecSegmentor
+from .base import BaseSegmentor
 from .mmseg_utils import (
     MMEncDecSegmentorConfig,
     get_mmseg_config,
@@ -21,7 +21,7 @@ from .mmseg_utils import (
 MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
 
 
-class MMEncDecSegmentor(BaseEncDecSegmentor):
+class MMEncDecSegmentor(BaseSegmentor):
     """mmsegmentation encoder-decoder segmentor wrapper."""
 
     def __init__(self, cfg: BaseModelConfig):

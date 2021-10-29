@@ -1,9 +1,5 @@
 """Segmentor module."""
-from .base import BaseEncDecSegmentor, BaseSegmentor
+from .base import BaseSegmentor
 from .mmseg_wrapper import MMEncDecSegmentor
 
-__all__ = [
-    "BaseSegmentor",
-    "BaseEncDecSegmentor",
-    "MMEncDecSegmentor",
-]
+__all__ = ["BaseSegmentor", "MMEncDecSegmentor"]

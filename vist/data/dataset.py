@@ -440,12 +440,11 @@ class ScalabelDataset(Dataset):  # type: ignore
                     sample.masks = [masks]
 
                 if "boxes2d" in self.cfg.dataloader.fields_to_load:
-                    if "masks" in self.cfg.dataloader.fields_to_load:
+                    boxes2d = Boxes2D.from_scalabel(
+                        labels_used, category_dict, instance_id_dict
+                    )
+                    if len(boxes2d) == 0 and len(sample.masks[0]) > 0:
                         boxes2d = masks.get_boxes2d()
-                    else:
-                        boxes2d = Boxes2D.from_scalabel(
-                            labels_used, category_dict, instance_id_dict
-                        )
                     sample.boxes2d = [boxes2d]
 
                 if "boxes3d" in self.cfg.dataloader.fields_to_load:

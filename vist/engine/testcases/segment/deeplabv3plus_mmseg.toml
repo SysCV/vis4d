@@ -8,7 +8,6 @@ path = "../configs/models/mmsegmentation/deeplabv3plus_R_50_D8.toml"
     [model.optimizer]
     type = "SGD"
     lr = 0.02
-    kwargs = {"momentum" = 0.9}
 
     [model.lr_scheduler]
     type = "MultiStepLR"

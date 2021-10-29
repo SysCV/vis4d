@@ -41,7 +41,7 @@ def results_from_mmseg(
 ) -> List[Masks]:
     """Convert mmsegmentation seg_pred to VisT format."""
     return [
-        Masks(torch.ByteTensor([result])).to_nhw_mask().to(device)
+        Masks(torch.tensor([result], device=device).byte()).to_nhw_mask()
         for result in results
     ]
 

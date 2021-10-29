@@ -322,6 +322,7 @@ class RandomCrop(BaseAugmentation):
         assert len(sample) == 1, "Please provide a single sample!"
         assert len(crop_param.shape) == 1, "Please provide single crop_param"
         if len(sample.boxes2d[0]) > 0:
+            # will be better to compute mask intersection (if exists) instead
             cropbox = Boxes2D(crop_param.float().unsqueeze(0))
             overlap = bbox_intersection(sample.boxes2d[0], cropbox)
             return overlap.squeeze(-1) > 0

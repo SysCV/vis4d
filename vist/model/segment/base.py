@@ -40,10 +40,6 @@ class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
         """
         raise NotImplementedError
 
-
-class BaseEncDecSegmentor(BaseSegmentor):
-    """Base class for encoder-decoder segmentors."""
-
     @abc.abstractmethod
     def generate_auxiliaries(
         self,
