@@ -84,7 +84,11 @@ def get_mmseg_config(config: MMEncDecSegmentorConfig) -> MMConfig:
     assert config.category_mapping is not None
     cfg["decode_head"]["num_classes"] = len(config.category_mapping)
     if "auxiliary_head" in cfg:
-        cfg["auxiliary_head"]["num_classes"] = len(config.category_mapping)
+        if isinstance(cfg["auxiliary_head"], list):  # pragma: no cover
+            for aux_head in cfg["auxiliary_head"]:
+                aux_head["num_classes"] = len(config.category_mapping)
+        else:
+            cfg["auxiliary_head"]["num_classes"] = len(config.category_mapping)
 
     # add keyword args in config
     if config.model_kwargs:

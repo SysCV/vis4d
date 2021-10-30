@@ -101,7 +101,9 @@ class D2TwoStageDetector(BaseTwoStageDetector):
                 inp.metadata[0].size.width,
                 inp.metadata[0].size.height,
             )
-            self.postprocess(input_size, inp.images.image_sizes[0], det, segm)
+            det.postprocess(input_size, inp.images.image_sizes[0])
+            if segm is not None:
+                segm.postprocess(input_size, inp.images.image_sizes[0], det)
 
         outputs = dict(
             detect=[d.to_scalabel(self.cat_mapping) for d in detections]
