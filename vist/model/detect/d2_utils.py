@@ -7,7 +7,7 @@ from detectron2 import model_zoo
 from detectron2.config import CfgNode, get_cfg
 from detectron2.structures import BitMasks, Boxes, ImageList, Instances
 
-from vist.struct import Boxes2D, Images, Masks
+from vist.struct import Boxes2D, Images, InsMasks
 
 from ..base import BaseModelConfig
 
@@ -70,12 +70,12 @@ def proposal_to_box2d(proposals: List[Instances]) -> List[Boxes2D]:
     return result
 
 
-def segmentations_to_bitmask(segmentations: List[Instances]) -> List[Masks]:
+def segmentations_to_bitmask(segmentations: List[Instances]) -> List[InsMasks]:
     """Convert d2 Instances representing segmentations to Masks."""
     result = []
     for segmentation in segmentations:
         result.append(
-            Masks(
+            InsMasks(
                 (segmentation.pred_masks.squeeze(1) >= 0.5).type(torch.uint8),
                 class_ids=segmentation.pred_classes,
                 score=segmentation.scores,
@@ -102,7 +102,7 @@ def box2d_to_proposal(
 def target_to_instance(
     gt_boxes: Sequence[Boxes2D],
     imgs_wh: List[Tuple[int, int]],
-    gt_masks: Optional[Sequence[Masks]] = None,
+    gt_masks: Optional[Sequence[InsMasks]] = None,
 ) -> List[Instances]:
     """Convert Boxes2D and Masks representing targets to d2 Instances."""
     result = []

@@ -104,7 +104,12 @@ class BaseAugmentation(metaclass=RegistryHolder):
         )
         sample.boxes2d = self.apply_box2d(sample.boxes2d, parameters)
         sample.boxes3d = self.apply_box3d(sample.boxes3d, parameters)
-        sample.masks = self.apply_mask(sample.masks, parameters)
+        sample.insmasks = self.apply_mask(
+            sample.insmasks, parameters  # type: ignore
+        )
+        sample.semmasks = self.apply_mask(
+            sample.semmasks, parameters  # type: ignore
+        )
         return sample, parameters
 
     def __repr__(self) -> str:

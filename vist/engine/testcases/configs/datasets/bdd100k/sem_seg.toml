@@ -6,7 +6,7 @@ data_root = "vist/engine/testcases/segment/bdd100k-samples/images"
 config_path = "vist/engine/testcases/segment/bdd100k-samples/config.toml"
 num_processes = 0
     [train.dataloader]
-    fields_to_load = ["masks"]
+    fields_to_load = ["semmasks"]
 
         [train.dataloader.ref_sampling]
         type = 'uniform'
@@ -42,7 +42,7 @@ config_path = "vist/engine/testcases/segment/bdd100k-samples/config.toml"
 num_processes = 0
 eval_metrics = ["sem_seg"]
     [test.dataloader]
-    fields_to_load = ["masks"]
+    fields_to_load = ["semmasks"]
 
     [[test.dataloader.transformations]]
     type = "Resize"

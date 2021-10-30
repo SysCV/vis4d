@@ -5,7 +5,7 @@ import torch
 from mmcv.runner.checkpoint import load_checkpoint
 from mmseg.models import EncoderDecoder, build_segmentor
 
-from vist.struct import InputSample, LossesType, Masks, ModelOutput
+from vist.struct import InputSample, LossesType, ModelOutput, SemMasks
 
 from ..base import BaseModelConfig
 from ..detect.mmdet_utils import _parse_losses, get_img_metas
@@ -112,7 +112,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
         compute_segmentations: bool = True,
-    ) -> Tuple[Optional[List[Masks]], LossesType]:  # pragma: no cover
+    ) -> Tuple[Optional[List[SemMasks]], LossesType]:  # pragma: no cover
         """Segmentor decode stage.
 
         Return losses (empty if not training) and optionally segmentations.

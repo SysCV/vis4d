@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 from mmcv import Config as MMConfig
 
-from vist.struct import InputSample, Masks, NDArrayUI8
+from vist.struct import InputSample, NDArrayUI8, SemMasks
 
 from ..base import BaseModelConfig
 
@@ -28,27 +28,29 @@ class MMEncDecSegmentorConfig(BaseModelConfig):
 
 def segmentations_from_mmseg(
     masks: torch.Tensor, device: torch.device
-) -> List[Masks]:  # pragma: no cover
+) -> List[SemMasks]:  # pragma: no cover
     """Convert mmsegmentation segmentations to VisT format."""
     return [
-        Masks(mask).to_nhw_mask().to(device)
+        SemMasks(mask).to_nhw_mask().to(device)
         for mask in F.softmax(masks, dim=1)
     ]
 
 
 def results_from_mmseg(
     results: MMResults, device: torch.device
-) -> List[Masks]:
+) -> List[SemMasks]:
     """Convert mmsegmentation seg_pred to VisT format."""
     return [
-        Masks(torch.tensor([result], device=device).byte()).to_nhw_mask()
+        SemMasks(torch.tensor([result], device=device).byte()).to_nhw_mask()
         for result in results
     ]
 
 
 def targets_to_mmseg(targets: InputSample) -> torch.Tensor:
     """Convert VisT targets to mmsegmentation compatible format."""
-    return torch.stack([t.to_hwc_mask() for t in targets.masks]).unsqueeze(1)
+    return torch.stack([t.to_hwc_mask() for t in targets.semmasks]).unsqueeze(
+        1
+    )
 
 
 def load_config_from_mmseg(url: str) -> str:

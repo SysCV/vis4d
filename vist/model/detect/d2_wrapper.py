@@ -18,7 +18,7 @@ from vist.model.detect.d2_utils import (
     segmentations_to_bitmask,
     target_to_instance,
 )
-from vist.struct import Boxes2D, InputSample, LossesType, Masks, ModelOutput
+from vist.struct import Boxes2D, InputSample, InsMasks, LossesType, ModelOutput
 
 from ..base import BaseModelConfig
 from .base import BaseTwoStageDetector
@@ -156,7 +156,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
         compute_segmentations: bool = False,
-    ) -> Tuple[Optional[List[Boxes2D]], LossesType, Optional[List[Masks]]]:
+    ) -> Tuple[Optional[List[Boxes2D]], LossesType, Optional[List[InsMasks]]]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if no targets) and optionally detections.
@@ -169,7 +169,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         is_training = self.d2_detector.roi_heads.training
         if self.training:
             targets: Optional[List[Instances]] = target_to_instance(
-                inputs.boxes2d, inputs.images.image_sizes, inputs.masks
+                inputs.boxes2d, inputs.images.image_sizes, inputs.insmasks
             )
         else:
             targets = None

@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 
 from vist.common.registry import RegistryHolder
-from vist.struct import InputSample, LossesType, Masks
+from vist.struct import InputSample, LossesType, SemMasks
 
 from ..base import BaseModel
 
@@ -33,7 +33,7 @@ class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
         compute_segmentations: bool = True,
-    ) -> Tuple[Optional[List[Masks]], LossesType]:
+    ) -> Tuple[Optional[List[SemMasks]], LossesType]:
         """Segmentor decode stage.
 
         Return losses (empty if not training) and optionally segmentations.

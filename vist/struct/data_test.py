@@ -50,7 +50,8 @@ class TestDataStructures(unittest.TestCase):
             "images",
             "boxes2d",
             "boxes3d",
-            "masks",
+            "insmasks",
+            "semmasks",
             "intrinsics",
             "extrinsics",
         ]

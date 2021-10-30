@@ -17,6 +17,7 @@ from .structures import DataInstance, LabelInstance, NDArrayUI8
 from .utils import do_paste_mask
 
 TBoxes = TypeVar("TBoxes", bound="Boxes")
+TMasks = TypeVar("TMasks", bound="Masks")
 
 
 class Boxes(DataInstance):
@@ -430,7 +431,7 @@ class Boxes3D(Boxes, LabelInstance):
 
 
 class Masks(LabelInstance):
-    """Container class for segmentation masks.
+    """Abstract container for Instance / Semantic Masks.
 
     masks: torch.ByteTensor (N, H, W) where each entry is a binary mask
     class_ids: torch.LongTensor (N,) where each entry is the class id of mask.
@@ -491,11 +492,11 @@ class Masks(LabelInstance):
         ).squeeze(1)
 
     def crop_and_resize(
-        self,
+        self: "TMasks",
         boxes: Boxes2D,
         out_shape: Tuple[int, int],
         binarize: Optional[bool] = True,
-    ) -> "Masks":
+    ) -> "TMasks":
         """Crop and resize masks with input bboxes."""
         if len(self) == 0:
             return self
@@ -516,7 +517,7 @@ class Masks(LabelInstance):
             resized_masks = targets >= 0.5
         else:
             resized_masks = targets
-        return Masks(resized_masks)
+        return type(self)(resized_masks)
 
     def paste_masks_in_image(
         self,
@@ -593,43 +594,14 @@ class Masks(LabelInstance):
             img_masks[(inds,) + spatial_inds] = masks_chunk
         self.masks = img_masks.type(torch.uint8)
 
-    def __getitem__(self: "Masks", item) -> "Masks":  # type: ignore
-        """Shadows tensor based indexing while returning new Masks."""
-        if isinstance(item, tuple):  # pragma: no cover
-            item = item[0]
-        masks = self.masks[item]
-        class_ids = (
-            self.class_ids[item] if self.class_ids is not None else None
-        )
-        track_ids = (
-            self.track_ids[item] if self.track_ids is not None else None
-        )
-        score = self.score[item] if self.score is not None else None
-        if len(masks.shape) < 3:
-            if class_ids is not None:
-                class_ids = class_ids.view(1, -1)
-            if track_ids is not None:
-                track_ids = track_ids.view(1, -1)
-            if score is not None:
-                score = score.view(1, -1)
-            return Masks(
-                masks.view(1, masks.size(0), masks.size(1)),
-                class_ids,
-                track_ids,
-                score,
-                self.metadata,
-            )
-
-        return Masks(masks, class_ids, track_ids, score, self.metadata)
-
     @classmethod
     def from_scalabel(
-        cls,
+        cls: Type["TMasks"],
         labels: List[Label],
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
-    ) -> "Masks":
+    ) -> "TMasks":
         """Convert from scalabel format to internal."""
         bitmask_list, cls_list, idx_list = [], [], []
         score_list = []
@@ -660,7 +632,7 @@ class Masks(LabelInstance):
                 score_list.append(score)
 
         if len(bitmask_list) == 0:  # pragma: no cover
-            return Masks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
+            return cls(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
         mask_tensor = torch.tensor(bitmask_list, dtype=torch.uint8)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
@@ -671,7 +643,7 @@ class Masks(LabelInstance):
             if has_score
             else None
         )
-        return Masks(mask_tensor, class_ids, track_ids, score)
+        return cls(mask_tensor, class_ids, track_ids, score)
 
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
@@ -696,24 +668,34 @@ class Masks(LabelInstance):
 
         return labels
 
-    def to_nhw_mask(self) -> "Masks":
-        """Convert HxW semantic mask to N binary HxW masks."""
-        assert self.masks.size(0) == 1
-        nhw_masks, cls_list = [], []
-        for cat_id in torch.unique(self.masks):
-            nhw_masks.append((self.masks == cat_id).type(torch.uint8))
-            cls_list.append(cat_id)
-        return Masks(
-            torch.cat(nhw_masks).type(torch.uint8),
-            torch.tensor(cls_list, dtype=torch.long, device=self.device),
+    def __getitem__(self: "TMasks", item) -> "TMasks":  # type: ignore
+        """Shadows tensor based indexing while returning new Masks."""
+        if isinstance(item, tuple):  # pragma: no cover
+            item = item[0]
+        masks = self.masks[item]
+        class_ids = (
+            self.class_ids[item] if self.class_ids is not None else None
         )
+        track_ids = (
+            self.track_ids[item] if self.track_ids is not None else None
+        )
+        score = self.score[item] if self.score is not None else None
+        if len(masks.shape) < 3:
+            if class_ids is not None:
+                class_ids = class_ids.view(1, -1)
+            if track_ids is not None:
+                track_ids = track_ids.view(1, -1)
+            if score is not None:
+                score = score.view(1, -1)
+            return type(self)(
+                masks.view(1, masks.size(0), masks.size(1)),
+                class_ids,
+                track_ids,
+                score,
+                self.metadata,
+            )
 
-    def to_hwc_mask(self) -> torch.Tensor:
-        """Convert N binary HxW masks to HxW semantic mask."""
-        hwc_mask = torch.full(self.masks.shape[1:], 255, device=self.device)
-        for mask, cat_id in zip(self.masks, self.class_ids):
-            hwc_mask[mask > 0] = cat_id
-        return hwc_mask
+        return type(self)(masks, class_ids, track_ids, score, self.metadata)
 
     def to_ndarray(self) -> NDArrayUI8:
         """Convert masks to ndarray."""
@@ -723,7 +705,7 @@ class Masks(LabelInstance):
         """Get length of the object."""
         return len(self.masks)
 
-    def clone(self: "Masks") -> "Masks":
+    def clone(self: "TMasks") -> "TMasks":
         """Create a copy of the object."""
         class_ids = (
             self.class_ids.clone() if self.class_ids is not None else None
@@ -732,11 +714,11 @@ class Masks(LabelInstance):
             self.track_ids.clone() if self.track_ids is not None else None
         )
         score = self.score.clone() if self.score is not None else None
-        return Masks(
+        return type(self)(
             self.masks.clone(), class_ids, track_ids, score, self.metadata
         )
 
-    def to(self: "Masks", device: torch.device) -> "Masks":
+    def to(self: "TMasks", device: torch.device) -> "TMasks":
         """Move data to given device."""
         class_ids = (
             self.class_ids.to(device=device)
@@ -751,7 +733,7 @@ class Masks(LabelInstance):
         score = (
             self.score.to(device=device) if self.score is not None else None
         )
-        return Masks(
+        return type(self)(
             self.masks.to(device=device),
             class_ids,
             track_ids,
@@ -780,6 +762,17 @@ class Masks(LabelInstance):
             boxes_list.append(torch.stack(entries))
         return Boxes2D(torch.stack(boxes_list), self.class_ids, self.track_ids)
 
+
+class InsMasks(Masks):
+    """Container class for instance segmentation masks.
+
+    masks: torch.ByteTensor (N, H, W) where each entry is a binary mask
+    class_ids: torch.LongTensor (N,) where each entry is the class id of mask.
+    track_ids: torch.LongTensor (N,) where each entry is the track id of mask.
+    score: torch.FloatTensor (N,) where each entry is the confidence score
+    of mask.
+    """
+
     def postprocess(
         self,
         original_wh: Tuple[int, int],
@@ -789,3 +782,33 @@ class Masks(LabelInstance):
         """Postprocess masks."""
         if self.size != output_wh:
             self.paste_masks_in_image(detections, original_wh)
+
+
+class SemMasks(Masks):
+    """Container class for semantic segmentation masks.
+
+    masks: torch.ByteTensor (N, H, W) where each entry is a binary mask
+    class_ids: torch.LongTensor (N,) where each entry is the class id of mask.
+    track_ids: torch.LongTensor (N,) where each entry is the track id of mask.
+    score: torch.FloatTensor (N,) where each entry is the confidence score
+    of mask.
+    """
+
+    def to_nhw_mask(self) -> "SemMasks":
+        """Convert HxW semantic mask to N binary HxW masks."""
+        assert self.masks.size(0) == 1
+        nhw_masks, cls_list = [], []
+        for cat_id in torch.unique(self.masks):
+            nhw_masks.append((self.masks == cat_id).type(torch.uint8))
+            cls_list.append(cat_id)
+        return SemMasks(
+            torch.cat(nhw_masks).type(torch.uint8),
+            torch.tensor(cls_list, dtype=torch.long, device=self.device),
+        )
+
+    def to_hwc_mask(self) -> torch.Tensor:
+        """Convert N binary HxW masks to HxW semantic mask."""
+        hwc_mask = torch.full(self.masks.shape[1:], 255, device=self.device)
+        for mask, cat_id in zip(self.masks, self.class_ids):
+            hwc_mask[mask > 0] = cat_id
+        return hwc_mask

@@ -8,10 +8,11 @@ from PIL import Image, ImageDraw, ImageFont
 from vist.struct import Intrinsics, NDArrayF64, NDArrayUI8
 
 from .utils import (
-    BitmaskType,
     Box3DType,
     BoxType,
     ImageType,
+    InsMaskType,
+    SemMaskType,
     box3d_to_corners,
     preprocess_boxes,
     preprocess_image,
@@ -66,7 +67,7 @@ def imshow_bboxes3d(
 
 
 def imshow_masks(
-    image: ImageType, masks: BitmaskType, mode: str = "RGB"
+    image: ImageType, masks: Union[InsMaskType, SemMaskType], mode: str = "RGB"
 ) -> None:  # pragma: no cover
     """Show image with masks."""
     image = preprocess_image(image, mode)
