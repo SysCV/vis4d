@@ -218,7 +218,7 @@ class Boxes2D(Boxes, LabelInstance):
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
 
-        if len(box_list) == 0:
+        if len(box_list) == 0:  # pragma: no cover
             return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         class_ids = (
@@ -357,7 +357,7 @@ class Boxes3D(Boxes, LabelInstance):
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
 
-        if len(box_list) == 0:
+        if len(box_list) == 0:  # pragma: no cover
             return Boxes3D(torch.empty(0, 10), torch.empty(0), torch.empty(0))
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         class_ids = (
