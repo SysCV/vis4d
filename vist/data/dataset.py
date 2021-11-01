@@ -94,8 +94,8 @@ class ScalabelDataset(Dataset):  # type: ignore
             not "instance_masks" in fields_to_load
             or not "semantic_masks" in fields_to_load
         ), (
-            f"Both instance_masks and semantic_masks are specified, "
-            f"but only one should be."
+            "Both instance_masks and semantic_masks are specified, "
+            "but only one should be."
         )
         self.training = training
 
