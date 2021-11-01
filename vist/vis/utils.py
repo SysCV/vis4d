@@ -10,19 +10,19 @@ from scipy.spatial.transform import Rotation as R
 from vist.struct import (
     Boxes2D,
     Boxes3D,
-    InsMasks,
+    InstanceMasks,
     Intrinsics,
     NDArrayF64,
     NDArrayUI8,
-    SemMasks,
+    SemanticMasks,
 )
 
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
 BoxType = Union[Boxes2D, List[Boxes2D]]
 Box3DType = Union[Boxes3D, List[Boxes3D]]
-InsMaskType = Union[InsMasks, List[InsMasks]]
-SemMaskType = Union[SemMasks, List[SemMasks]]
+InsMaskType = Union[InstanceMasks, List[InstanceMasks]]
+SemMaskType = Union[SemanticMasks, List[SemanticMasks]]
 
 ColorType = Union[
     Union[Tuple[int], str],
@@ -117,7 +117,7 @@ def preprocess_masks(
             result_color.extend(color)
         return result_mask, result_color
 
-    assert isinstance(masks, (InsMasks, SemMasks))
+    assert isinstance(masks, (InstanceMasks, SemanticMasks))
 
     masks_list = (masks.masks.cpu().numpy() * 255).astype(np.uint8)
 

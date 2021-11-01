@@ -5,7 +5,13 @@ import torch
 from mmcv.runner.checkpoint import load_checkpoint
 from mmdet.models import TwoStageDetector, build_detector
 
-from vist.struct import Boxes2D, InputSample, InsMasks, LossesType, ModelOutput
+from vist.struct import (
+    Boxes2D,
+    InputSample,
+    InstanceMasks,
+    LossesType,
+    ModelOutput,
+)
 
 from ..base import BaseModelConfig
 from .base import BaseTwoStageDetector
@@ -173,7 +179,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
         compute_segmentations: bool = False,
-    ) -> Tuple[Optional[List[Boxes2D]], LossesType, Optional[List[InsMasks]]]:
+    ) -> Tuple[
+        Optional[List[Boxes2D]], LossesType, Optional[List[InstanceMasks]]
+    ]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if no targets) and optionally detections.

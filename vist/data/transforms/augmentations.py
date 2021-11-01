@@ -326,7 +326,7 @@ class RandomCrop(BaseAugmentation):
             cropbox = Boxes2D(crop_param.float().unsqueeze(0))
             overlap = bbox_intersection(sample.boxes2d[0], cropbox)
             return overlap.squeeze(-1) > 0
-        return torch.tensor([True] * len(sample.semmasks[0]))
+        return torch.tensor([True] * len(sample.semantic_masks[0]))
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
@@ -342,7 +342,7 @@ class RandomCrop(BaseAugmentation):
                 crop_params.append(torch.tensor([0, 0, *im_wh]))
                 num_objs = max(
                     len(current_sample.boxes2d),
-                    len(current_sample.semmasks),
+                    len(current_sample.semantic_masks),
                 )
                 keep_masks.append(torch.tensor([True] * num_objs))
                 continue
@@ -441,9 +441,11 @@ class RandomCrop(BaseAugmentation):
         sample, parameters = super().__call__(sample, parameters)
         if self.cfg.recompute_boxes2d:
             for i in range(len(sample)):
-                assert len(sample.insmasks[i]) == len(sample.boxes2d[i]), (
+                assert len(sample.instance_masks[i]) == len(
+                    sample.boxes2d[i]
+                ), (
                     "recompute_boxes2d activated but annotations do not "
                     "contain instance masks!"
                 )
-                sample.boxes2d[i] = sample.insmasks[i].get_boxes2d()
+                sample.boxes2d[i] = sample.instance_masks[i].get_boxes2d()
         return sample, parameters

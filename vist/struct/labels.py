@@ -763,7 +763,7 @@ class Masks(LabelInstance):
         return Boxes2D(torch.stack(boxes_list), self.class_ids, self.track_ids)
 
 
-class InsMasks(Masks):
+class InstanceMasks(Masks):
     """Container class for instance segmentation masks.
 
     masks: torch.ByteTensor (N, H, W) where each entry is a binary mask
@@ -784,7 +784,7 @@ class InsMasks(Masks):
             self.paste_masks_in_image(detections, original_wh)
 
 
-class SemMasks(Masks):
+class SemanticMasks(Masks):
     """Container class for semantic segmentation masks.
 
     masks: torch.ByteTensor (N, H, W) where each entry is a binary mask
@@ -794,14 +794,14 @@ class SemMasks(Masks):
     of mask.
     """
 
-    def to_nhw_mask(self) -> "SemMasks":
+    def to_nhw_mask(self) -> "SemanticMasks":
         """Convert HxW semantic mask to N binary HxW masks."""
         assert self.masks.size(0) == 1
         nhw_masks, cls_list = [], []
         for cat_id in torch.unique(self.masks):
             nhw_masks.append((self.masks == cat_id).type(torch.uint8))
             cls_list.append(cat_id)
-        return SemMasks(
+        return SemanticMasks(
             torch.cat(nhw_masks).type(torch.uint8),
             torch.tensor(cls_list, dtype=torch.long, device=self.device),
         )

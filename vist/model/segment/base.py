@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 
 from vist.common.registry import RegistryHolder
-from vist.struct import InputSample, LossesType, SemMasks
+from vist.struct import InputSample, LossesType, SemanticMasks
 
 from ..base import BaseModel
 
@@ -33,21 +33,9 @@ class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
         inputs: InputSample,
         features: Dict[str, torch.Tensor],
         compute_segmentations: bool = True,
-    ) -> Tuple[Optional[List[SemMasks]], LossesType]:
+    ) -> Tuple[Optional[List[SemanticMasks]], LossesType]:
         """Segmentor decode stage.
 
         Return losses (empty if not training) and optionally segmentations.
-        """
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def generate_auxiliaries(
-        self,
-        inputs: InputSample,
-        features: Dict[str, torch.Tensor],
-    ) -> LossesType:
-        """Segmentor auxiliary head stage.
-
-        Return auxiliary losses (empty if no targets).
         """
         raise NotImplementedError

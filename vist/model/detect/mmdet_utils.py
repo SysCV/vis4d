@@ -13,7 +13,7 @@ from vist.struct import (
     Boxes2D,
     Images,
     InputSample,
-    InsMasks,
+    InstanceMasks,
     LossesType,
     NDArrayF64,
     NDArrayUI8,
@@ -84,7 +84,7 @@ def detections_from_mmdet(
 
 def segmentations_from_mmdet(
     masks: List[MMSegmResult], boxes: List[Boxes2D], device: torch.device
-) -> List[InsMasks]:
+) -> List[InstanceMasks]:
     """Convert mmdetection segmentations to VisT format."""
     segmentations_masks = []
     for mask_res, box_res in zip(masks, boxes):
@@ -110,14 +110,14 @@ def detection_from_mmdet_results(
 
 def segmentation_from_mmdet_results(
     segmentation: MMSegmResult, boxes: Boxes2D, device: torch.device
-) -> InsMasks:
+) -> InstanceMasks:
     """Convert segm_result to VisT format."""
     segms = [
         np.stack(segm) if len(segm) != 0 else np.empty_like(segm)
         for segm in segmentation
     ]
     if len(segms) == 0 or sum([len(segm) for segm in segmentation]) == 0:
-        return InsMasks(torch.empty(0, 1, 1))  # pragma: no cover
+        return InstanceMasks(torch.empty(0, 1, 1))  # pragma: no cover
     masks_list, labels_list = [], []  # type: ignore
     for class_id in boxes.class_ids:
         masks_list.append(
@@ -129,12 +129,12 @@ def segmentation_from_mmdet_results(
     masks = torch.stack(masks_list)
     labels = torch.stack(labels_list)
     scores = boxes.score
-    return InsMasks(masks, labels, score=scores)
+    return InstanceMasks(masks, labels, score=scores)
 
 
 def results_from_mmdet(
     results: MMResults, device: torch.device, with_mask: bool
-) -> Tuple[List[Boxes2D], List[InsMasks]]:
+) -> Tuple[List[Boxes2D], List[InstanceMasks]]:
     """Convert mmdetection bbox_results and segm_results to VisT format."""
     results_boxes2d, results_masks = [], []
     for result in results:
@@ -154,7 +154,7 @@ def results_from_mmdet(
     return results_boxes2d, results_masks
 
 
-def masks_to_mmdet_masks(masks: Sequence[InsMasks]) -> BitmapMasks:
+def masks_to_mmdet_masks(masks: Sequence[InstanceMasks]) -> BitmapMasks:
     """Convert VisT Masks to mmdetection BitmapMasks."""
     return [BitmapMasks(m.to_ndarray(), m.height, m.width) for m in masks]
 
@@ -162,14 +162,14 @@ def masks_to_mmdet_masks(masks: Sequence[InsMasks]) -> BitmapMasks:
 def targets_to_mmdet(
     targets: InputSample,
 ) -> Tuple[
-    List[torch.Tensor], List[torch.Tensor], Optional[Sequence[InsMasks]]
+    List[torch.Tensor], List[torch.Tensor], Optional[Sequence[InstanceMasks]]
 ]:
     """Convert VisT targets to mmdetection compatible format."""
     gt_bboxes = [t.boxes for t in targets.boxes2d]
     gt_labels = [t.class_ids for t in targets.boxes2d]
     gt_masks = (
-        masks_to_mmdet_masks(targets.insmasks)
-        if len(targets.insmasks) > 0
+        masks_to_mmdet_masks(targets.instance_masks)
+        if len(targets.instance_masks) > 0
         else None
     )
     return gt_bboxes, gt_labels, gt_masks
