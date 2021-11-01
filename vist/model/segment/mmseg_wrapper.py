@@ -125,6 +125,9 @@ class MMEncDecSegmentor(BaseSegmentor):
                 feat_list, img_metas, gt_masks, self.mm_segmentor.train_cfg
             )
             segment_losses = _parse_losses(segment_losses, "decode")
+            if self.mm_segmentor.with_auxiliary_head:
+                aux_losses = self.generate_auxiliaries(inputs, features)
+                segment_losses.update(aux_losses)
             assert (
                 not compute_segmentations
             ), "mmsegmentation does not compute segmentations during train!"
