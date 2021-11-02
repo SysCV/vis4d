@@ -3,12 +3,12 @@
 from sort_graph import SORTTrackGraph
 from sort_model import SORT
 
-import vist.data.datasets.base
-from vist import config
-from vist.data.datasets import DataloaderConfig as Dataloader
-from vist.engine.trainer import test
-from vist.model import BaseModelConfig
-from vist.model.optimize import BaseOptimizerConfig
+import vis4d.data.datasets.base
+from vis4d import config
+from vis4d.data.datasets import DataloaderConfig as Dataloader
+from vis4d.engine.trainer import test
+from vis4d.model import BaseModelConfig
+from vis4d.model.optimize import BaseOptimizerConfig
 
 # Disable pylint for this file due to high overlap with detector example
 # pylint: skip-file
@@ -40,12 +40,12 @@ if __name__ == "__main__":
         model=BaseModelConfig(**sort_cfg),
         launch=config.Launch(samples_per_gpu=2, workers_per_gpu=0),
         train=[
-            vist.data.datasets.base.BaseDatasetConfig(
+            vis4d.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_train",
                 type="BDD100K",
-                annotations="vist/engine/testcases/track/bdd100k-samples/"
+                annotations="vis4d/engine/testcases/track/bdd100k-samples/"
                 "labels",
-                data_root="vist/engine/testcases/track/bdd100k-samples/"
+                data_root="vis4d/engine/testcases/track/bdd100k-samples/"
                 "images/",
                 config_path="box_track",
                 eval_metrics=["detect"],
@@ -53,12 +53,12 @@ if __name__ == "__main__":
             )
         ],
         test=[
-            vist.data.datasets.base.BaseDatasetConfig(
+            vis4d.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_val",
                 type="BDD100K",
-                annotations="vist/engine/testcases/track/bdd100k-samples/"
+                annotations="vis4d/engine/testcases/track/bdd100k-samples/"
                 "labels",
-                data_root="vist/engine/testcases/track/bdd100k-samples/"
+                data_root="vis4d/engine/testcases/track/bdd100k-samples/"
                 "images/",
                 config_path="box_track",
                 eval_metrics=["detect"],
