@@ -10,8 +10,8 @@ try:
     from detectron2.utils.events import EventStorage
 
     D2_INSTALLED = True
-except (ImportError, NameError):
-    D2_INSTALLED = False  # pragma: no cover
+except (ImportError, NameError):  # pragma: no cover
+    D2_INSTALLED = False
 
 
 from torch.nn.modules.batchnorm import _BatchNorm

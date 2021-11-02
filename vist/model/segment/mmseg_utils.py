@@ -11,8 +11,8 @@ try:
     from mmcv import Config as MMConfig
 
     MMCV_INSTALLED = True
-except (ImportError, NameError):
-    MMCV_INSTALLED = False  # pragma: no cover
+except (ImportError, NameError):  # pragma: no cover
+    MMCV_INSTALLED = False
 
 
 from vist.struct import InputSample, NDArrayUI8, SemanticMasks

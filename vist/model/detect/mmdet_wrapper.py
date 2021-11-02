@@ -7,15 +7,15 @@ try:
     from mmcv.runner.checkpoint import load_checkpoint
 
     MMCV_INSTALLED = True
-except (ImportError, NameError):
-    MMCV_INSTALLED = False  # pragma: no cover
+except (ImportError, NameError):  # pragma: no cover
+    MMCV_INSTALLED = False
 
 try:
     from mmdet.models import TwoStageDetector, build_detector
 
     MMDET_INSTALLED = True
-except (ImportError, NameError):
-    MMDET_INSTALLED = False  # pragma: no cover
+except (ImportError, NameError):  # pragma: no cover
+    MMDET_INSTALLED = False
 
 
 from vist.struct import (

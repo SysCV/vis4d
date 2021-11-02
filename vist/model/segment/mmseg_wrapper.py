@@ -7,15 +7,15 @@ try:
     from mmcv.runner.checkpoint import load_checkpoint
 
     MMCV_INSTALLED = True
-except (ImportError, NameError):
-    MMCV_INSTALLED = False  # pragma: no cover
+except (ImportError, NameError):  # pragma: no cover
+    MMCV_INSTALLED = False
 
 try:
     from mmseg.models import EncoderDecoder, build_segmentor
 
     MMSEG_INSTALLED = True
-except (ImportError, NameError):
-    MMSEG_INSTALLED = False  # pragma: no cover
+except (ImportError, NameError):  # pragma: no cover
+    MMSEG_INSTALLED = False
 
 
 from vist.struct import InputSample, LossesType, ModelOutput, SemanticMasks
