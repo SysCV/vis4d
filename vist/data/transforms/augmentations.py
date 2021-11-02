@@ -322,6 +322,10 @@ class RandomCrop(BaseAugmentation):
         assert len(sample) == 1, "Please provide a single sample!"
         assert len(crop_param.shape) == 1, "Please provide single crop_param"
         if len(sample.boxes2d[0]) > 0:
+            assert len(sample.semantic_masks[0]) == 0, (
+                "Currently RandomCrop for both boxes2d and semantic_masks is "
+                "not supported"
+            )  # revisit in refactor-api
             # will be better to compute mask intersection (if exists) instead
             cropbox = Boxes2D(crop_param.float().unsqueeze(0))
             overlap = bbox_intersection(sample.boxes2d[0], cropbox)
