@@ -12,8 +12,8 @@ from vist.struct import (
     Boxes3D,
     Images,
     InputSample,
+    InstanceMasks,
     Intrinsics,
-    Masks,
 )
 
 
@@ -79,7 +79,7 @@ def generate_dets3d(num_dets: int, track_ids: bool = False) -> Boxes3D:
 
 def generate_masks(
     height: int, width: int, num_masks: int, track_ids: bool = False
-) -> Masks:
+) -> InstanceMasks:
     """Create random masks."""
     state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
@@ -87,7 +87,7 @@ def generate_masks(
         torch.uint8
     )
     tracks = torch.arange(0, num_masks) if track_ids else None
-    masks = Masks(
+    masks = InstanceMasks(
         mask_tensor, torch.zeros(num_masks), tracks, torch.rand(num_masks)
     )
     torch.random.set_rng_state(state)
@@ -132,7 +132,7 @@ def generate_input_sample(
     sample.boxes2d = [
         generate_dets(height, width, num_objs, track_ids)
     ] * num_imgs
-    sample.masks = [
+    sample.instance_masks = [
         generate_masks(height, width, num_objs, track_ids)
     ] * num_imgs
     torch.random.set_rng_state(state)

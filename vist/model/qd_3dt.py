@@ -120,7 +120,7 @@ class QD3DT(QDTrack):
                 inp.metadata[0].size.width,
                 inp.metadata[0].size.height,
             )
-            self.postprocess(input_size, inp.images.image_sizes[0], boxes2d)
+            boxes2d.postprocess(input_size, inp.images.image_sizes[0])
 
         boxes2d = Boxes2D.merge(boxes2d_list)
 

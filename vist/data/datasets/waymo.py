@@ -10,7 +10,7 @@ try:
     from scalabel.label.from_waymo import from_waymo
 
     WAYMO_INSTALLED = True  # pragma: no cover
-except NameError:
+except (ImportError, NameError):
     WAYMO_INSTALLED = False
 
 

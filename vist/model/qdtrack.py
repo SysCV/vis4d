@@ -147,12 +147,11 @@ class QDTrack(BaseModel):
             inputs.metadata[0].size.width,
             inputs.metadata[0].size.height,
         )
-        self.postprocess(
-            input_size,
-            inputs.images.image_sizes[0],
-            detections[0],
-            segmentations[0],
-        )
+        detections[0].postprocess(input_size, inputs.images.image_sizes[0])
+        if segmentations[0] is not None:
+            segmentations[0].postprocess(
+                input_size, inputs.images.image_sizes[0], detections[0]
+            )
 
         # associate detections, update graph
         tracks = self.track_graph(detections[0], frame_id, embeddings[0])

@@ -37,4 +37,4 @@ class TestBaseAugmentation(unittest.TestCase):
         results, _ = base_aug(sample, None)
         self.assertTrue(torch.isclose(results.images.tensor, pre_image).all())
         self.assertEqual(len(results.boxes2d[0].boxes), num_objs)
-        self.assertEqual(len(results.masks[0].masks), num_objs)
+        self.assertEqual(len(results.instance_masks[0].masks), num_objs)

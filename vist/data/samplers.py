@@ -1,6 +1,7 @@
 """VisT data Samplers."""
 from typing import Generator, Optional
 
+import numpy as np
 from torch.utils.data.distributed import DistributedSampler
 
 from .dataset import ScalabelDataset
@@ -33,15 +34,11 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
             f"Number of sequences ({self.num_seqs}) must be greater or "
             f"equal to number of replicas ({self.num_replicas})!"
         )
-
-        shard_size = (self.num_seqs - 1) // self.num_replicas + 1
-        begin = shard_size * self.rank
-        end = min(shard_size * (self.rank + 1), self.num_seqs)
+        chunks = np.array_split(self.sequences, self.num_replicas)  # type: ignore # pylint: disable=line-too-long
+        self._local_seqs = chunks[self.rank]
         self._local_idcs = []
-        for i in range(begin, end):
-            self._local_idcs.extend(
-                dataset.video_to_indices[self.sequences[i]]
-            )
+        for seq in self._local_seqs:
+            self._local_idcs.extend(dataset.video_to_indices[seq])
 
     def __iter__(self) -> Generator[int, None, None]:
         """Iteration method."""

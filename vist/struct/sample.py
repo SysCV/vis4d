@@ -5,7 +5,7 @@ import torch
 from scalabel.label.typing import Frame
 
 from .data import Extrinsics, Images, Intrinsics
-from .labels import Boxes2D, Boxes3D, Masks
+from .labels import Boxes2D, Boxes3D, InstanceMasks, SemanticMasks
 from .structures import DataInstance
 
 
@@ -18,7 +18,8 @@ class InputSample(DataInstance):
         images: Images,
         boxes2d: Optional[List[Boxes2D]] = None,
         boxes3d: Optional[List[Boxes3D]] = None,
-        masks: Optional[List[Masks]] = None,
+        instance_masks: Optional[List[InstanceMasks]] = None,
+        semantic_masks: Optional[List[SemanticMasks]] = None,
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
     ) -> None:
@@ -41,12 +42,23 @@ class InputSample(DataInstance):
             ]
         self.boxes3d = boxes3d
 
-        if masks is None:
-            masks = [
-                Masks(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
+        if instance_masks is None:
+            instance_masks = [
+                InstanceMasks(
+                    torch.empty(0, 1, 1), torch.empty(0), torch.empty(0)
+                )
                 for i in range(len(images))
             ]
-        self.masks = masks
+        self.instance_masks = instance_masks
+
+        if semantic_masks is None:
+            semantic_masks = [
+                SemanticMasks(
+                    torch.empty(0, 1, 1), torch.empty(0), torch.empty(0)
+                )
+                for i in range(len(images))
+            ]
+        self.semantic_masks = semantic_masks
 
         if intrinsics is None:
             intrinsics = Intrinsics.cat(
@@ -80,7 +92,8 @@ class InputSample(DataInstance):
             "images": self.images,
             "boxes2d": self.boxes2d,  # type: ignore
             "boxes3d": self.boxes3d,  # type: ignore
-            "masks": self.masks,  # type: ignore
+            "instance_masks": self.instance_masks,  # type: ignore
+            "semantic_masks": self.semantic_masks,  # type: ignore
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
         }
@@ -95,7 +108,8 @@ class InputSample(DataInstance):
             self.images.to(device),
             [b.to(device) for b in self.boxes2d],
             [b.to(device) for b in self.boxes3d],
-            [b.to(device) for b in self.masks],
+            [m.to(device) for m in self.instance_masks],
+            [m.to(device) for m in self.semantic_masks],
             self.intrinsics.to(device),
             self.extrinsics.to(device),
         )
@@ -145,7 +159,8 @@ class InputSample(DataInstance):
             self.images[item],
             [self.boxes2d[item]],
             [self.boxes3d[item]],
-            [self.masks[item]],
+            [self.instance_masks[item]],
+            [self.semantic_masks[item]],
             self.intrinsics[item],
             self.extrinsics[item],
         )

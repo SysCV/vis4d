@@ -2,10 +2,29 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from mmcv.runner.checkpoint import load_checkpoint
-from mmdet.models import TwoStageDetector, build_detector
 
-from vist.struct import Boxes2D, InputSample, LossesType, Masks, ModelOutput
+try:
+    from mmcv.runner.checkpoint import load_checkpoint
+
+    MMCV_INSTALLED = True
+except (ImportError, NameError):  # pragma: no cover
+    MMCV_INSTALLED = False
+
+try:
+    from mmdet.models import TwoStageDetector, build_detector
+
+    MMDET_INSTALLED = True
+except (ImportError, NameError):  # pragma: no cover
+    MMDET_INSTALLED = False
+
+
+from vist.struct import (
+    Boxes2D,
+    InputSample,
+    InstanceMasks,
+    LossesType,
+    ModelOutput,
+)
 
 from ..base import BaseModelConfig
 from .base import BaseTwoStageDetector
@@ -30,6 +49,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
     def __init__(self, cfg: BaseModelConfig):
         """Init."""
+        assert (
+            MMDET_INSTALLED and MMCV_INSTALLED
+        ), "MMTwoStageDetector requires both mmcv and mmdet to be installed!"
         super().__init__(cfg)
         self.cfg = MMTwoStageDetectorConfig(
             **cfg.dict()
@@ -108,14 +130,16 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 inp.metadata[0].size.width,
                 inp.metadata[0].size.height,
             )
-            self.postprocess(input_size, inp.images.image_sizes[0], det, segm)
+            det.postprocess(input_size, inp.images.image_sizes[0])
+            if segm is not None:
+                segm.postprocess(input_size, inp.images.image_sizes[0], det)
 
         outputs = dict(
             detect=[d.to_scalabel(self.cat_mapping) for d in detections]
         )
         if self.with_mask:
             outputs.update(
-                segment=[
+                ins_seg=[
                     s.to_scalabel(self.cat_mapping) for s in segmentations
                 ]
             )
@@ -171,7 +195,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
         compute_segmentations: bool = False,
-    ) -> Tuple[Optional[List[Boxes2D]], LossesType, Optional[List[Masks]]]:
+    ) -> Tuple[
+        Optional[List[Boxes2D]], LossesType, Optional[List[InstanceMasks]]
+    ]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if no targets) and optionally detections.

@@ -2,10 +2,18 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.modeling import GeneralizedRCNN
-from detectron2.structures import Instances
-from detectron2.utils.events import EventStorage
+
+try:
+    from detectron2.checkpoint import DetectionCheckpointer
+    from detectron2.modeling import GeneralizedRCNN
+    from detectron2.structures import Instances
+    from detectron2.utils.events import EventStorage
+
+    D2_INSTALLED = True
+except (ImportError, NameError):  # pragma: no cover
+    D2_INSTALLED = False
+
+
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from vist.model.detect.d2_utils import (
@@ -18,7 +26,13 @@ from vist.model.detect.d2_utils import (
     segmentations_to_bitmask,
     target_to_instance,
 )
-from vist.struct import Boxes2D, InputSample, LossesType, Masks, ModelOutput
+from vist.struct import (
+    Boxes2D,
+    InputSample,
+    InstanceMasks,
+    LossesType,
+    ModelOutput,
+)
 
 from ..base import BaseModelConfig
 from .base import BaseTwoStageDetector
@@ -29,6 +43,9 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
     def __init__(self, cfg: BaseModelConfig):
         """Init."""
+        assert (
+            D2_INSTALLED
+        ), "D2TwoStageDetector requires detectron2 to be installed!"
         super().__init__(cfg)
         self.cfg = D2TwoStageDetectorConfig(
             **cfg.dict()
@@ -101,14 +118,16 @@ class D2TwoStageDetector(BaseTwoStageDetector):
                 inp.metadata[0].size.width,
                 inp.metadata[0].size.height,
             )
-            self.postprocess(input_size, inp.images.image_sizes[0], det, segm)
+            det.postprocess(input_size, inp.images.image_sizes[0])
+            if segm is not None:
+                segm.postprocess(input_size, inp.images.image_sizes[0], det)
 
         outputs = dict(
             detect=[d.to_scalabel(self.cat_mapping) for d in detections]
         )
         if self.with_mask:
             outputs.update(
-                segment=[
+                ins_seg=[
                     s.to_scalabel(self.cat_mapping) for s in segmentations
                 ]
             )
@@ -154,7 +173,9 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
         compute_segmentations: bool = False,
-    ) -> Tuple[Optional[List[Boxes2D]], LossesType, Optional[List[Masks]]]:
+    ) -> Tuple[
+        Optional[List[Boxes2D]], LossesType, Optional[List[InstanceMasks]]
+    ]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if no targets) and optionally detections.
@@ -167,7 +188,9 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         is_training = self.d2_detector.roi_heads.training
         if self.training:
             targets: Optional[List[Instances]] = target_to_instance(
-                inputs.boxes2d, inputs.images.image_sizes, inputs.masks
+                inputs.boxes2d,
+                inputs.images.image_sizes,
+                inputs.instance_masks,
             )
         else:
             targets = None

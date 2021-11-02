@@ -14,7 +14,7 @@ from vist.struct import (
     Images,
     InputSample,
     Intrinsics,
-    Masks,
+    TMasks,
 )
 
 from .base import AugParams, BaseAugmentation, BaseAugmentationConfig
@@ -184,8 +184,8 @@ class Resize(BaseAugmentation):
         return boxes
 
     def apply_mask(
-        self, masks: List[Masks], parameters: AugParams
-    ) -> List[Masks]:
+        self, masks: List[TMasks], parameters: AugParams
+    ) -> List[TMasks]:
         """Apply augmentation to input mask."""
         interp = self.interpolation
         self.interpolation = "nearest"
@@ -321,9 +321,16 @@ class RandomCrop(BaseAugmentation):
         """Get mask for 2D annotations to keep."""
         assert len(sample) == 1, "Please provide a single sample!"
         assert len(crop_param.shape) == 1, "Please provide single crop_param"
-        cropbox = Boxes2D(crop_param.float().unsqueeze(0))
-        overlap = bbox_intersection(sample.boxes2d[0], cropbox)
-        return overlap.squeeze(-1) > 0
+        if len(sample.boxes2d[0]) > 0:
+            assert len(sample.semantic_masks[0]) == 0, (
+                "Currently RandomCrop for both boxes2d and semantic_masks is "
+                "not supported"
+            )  # revisit in refactor-api
+            # will be better to compute mask intersection (if exists) instead
+            cropbox = Boxes2D(crop_param.float().unsqueeze(0))
+            overlap = bbox_intersection(sample.boxes2d[0], cropbox)
+            return overlap.squeeze(-1) > 0
+        return torch.tensor([True] * len(sample.semantic_masks[0]))
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
@@ -337,9 +344,11 @@ class RandomCrop(BaseAugmentation):
             image_whs.append(im_wh)
             if not parameters["apply"][i]:
                 crop_params.append(torch.tensor([0, 0, *im_wh]))
-                keep_masks.append(
-                    torch.tensor([True] * len(current_sample.boxes2d))
+                num_objs = max(
+                    len(current_sample.boxes2d),
+                    len(current_sample.semantic_masks),
                 )
+                keep_masks.append(torch.tensor([True] * num_objs))
                 continue
 
             crop_param = self._sample_crop(im_wh)
@@ -409,9 +418,9 @@ class RandomCrop(BaseAugmentation):
 
     def apply_mask(
         self,
-        masks: List[Masks],
+        masks: List[TMasks],
         parameters: AugParams,
-    ) -> List[Masks]:
+    ) -> List[TMasks]:
         """Apply augmentation to input mask."""
         for i, mask in enumerate(masks):
             if len(mask) > 0 and parameters["apply"][i]:
@@ -436,9 +445,11 @@ class RandomCrop(BaseAugmentation):
         sample, parameters = super().__call__(sample, parameters)
         if self.cfg.recompute_boxes2d:
             for i in range(len(sample)):
-                assert len(sample.masks[i]) == len(sample.boxes2d[i]), (
+                assert len(sample.instance_masks[i]) == len(
+                    sample.boxes2d[i]
+                ), (
                     "recompute_boxes2d activated but annotations do not "
-                    "contain masks!"
+                    "contain instance masks!"
                 )
-                sample.boxes2d[i] = sample.masks[i].get_boxes2d()
+                sample.boxes2d[i] = sample.instance_masks[i].get_boxes2d()
         return sample, parameters
