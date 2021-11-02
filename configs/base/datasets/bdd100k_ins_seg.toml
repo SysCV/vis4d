@@ -1,0 +1,45 @@
+[[train]]
+name = "bdd100k_ins_seg_train"
+type = "BDD100K"
+annotations = "data/bdd100k/labels/ins_seg_train_rle.json"
+data_root = "data/bdd100k/images/hdf5s/10k_train.hdf5"
+config_path = "ins_seg"
+cache_as_binary = true
+    [train.dataloader]
+    fields_to_load = ["instance_masks"]
+    skip_empty_samples = true
+
+    [train.dataloader.data_backend]
+    type = "HDF5Backend"
+
+    [train.dataloader.ref_sampling]
+    type = 'uniform'
+    scope = 1
+    num_ref_imgs = 0
+
+    [[train.dataloader.transformations]]
+    type = "Resize"
+    shape = [720, 1280]
+
+    [[train.dataloader.transformations]]
+    type = "KorniaAugmentationWrapper"
+    kornia_type = "RandomHorizontalFlip"
+    prob = 0.5
+
+[[test]]
+name = "bdd100k_ins_seg_val"
+type = "BDD100K"
+annotations = "data/bdd100k/labels/ins_seg_val_rle.json"
+data_root = "data/bdd100k/images/hdf5s/10k_val.hdf5"
+eval_metrics = ["detect", "ins_seg"]
+config_path = "ins_seg"
+cache_as_binary = true
+    [test.dataloader]
+    fields_to_load = ["instance_masks"]
+
+    [test.dataloader.data_backend]
+    type = "HDF5Backend"
+
+    [[test.dataloader.transformations]]
+    type = "Resize"
+    shape = [720, 1280]

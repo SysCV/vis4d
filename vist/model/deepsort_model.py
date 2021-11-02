@@ -219,14 +219,14 @@ class DeepSORT(BaseModel):
                 self.cfg.dataset, self.cfg.prediction_path  # type:ignore
             )
 
-        frame_id = inputs[0].metadata.frameIndex
+        frame_id = inputs[0].metadata[0].frameIndex
         # init graph at begin of sequence
         if frame_id == 0:
             self.track_graph.reset()
 
         # using given detections
-        image = inputs[0].image
-        video_name = inputs[0].metadata.videoName
+        image = inputs[0].images
+        video_name = inputs[0].metadata[0].videoName
         assert video_name in self.search_dict
         # there might be no detections in one frame, e.g. MOT16-12 frame 443
         if frame_id not in self.search_dict[video_name]:
@@ -246,8 +246,8 @@ class DeepSORT(BaseModel):
         # detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
 
         ori_wh = (
-            inputs[0].metadata.size.width,  # type: ignore
-            inputs[0].metadata.size.height,  # type: ignore
+            inputs[0].metadata[0].size.width,  # type: ignore
+            inputs[0].metadata[0].size.height,  # type: ignore
         )
         self.postprocess(ori_wh, image.image_sizes[0], detections[0])
 
@@ -263,4 +263,9 @@ class DeepSORT(BaseModel):
             )
             det_features = self.feature_net(instance_images, train=False)
             tracks = self.track_graph(detections[0], frame_id, det_features)
-        return dict(detect=detections, track=[tracks])  # type:ignore
+        detects = (
+            detections[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
+        )
+        tracks_ = tracks.to(torch.device("cpu")).to_scalabel(self.cat_mapping)
+
+        return dict(detect=[detects], track=[tracks_])

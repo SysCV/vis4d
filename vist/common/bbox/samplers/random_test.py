@@ -46,7 +46,7 @@ class TestRandom(unittest.TestCase):
         )
         self.assertEqual(len(sampled_boxes[0]), len(sampled_targets[0]))
 
-        for target in sampled_targets[0]:  # type: ignore
+        for target in sampled_targets[0]:
             self.assertTrue(
                 torch.isclose(targets[0][0].boxes, target.boxes).all()
             )

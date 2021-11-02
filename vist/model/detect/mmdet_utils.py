@@ -1,18 +1,42 @@
 """Utilities for mmdet wrapper."""
 
 import os
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import requests
 import torch
-from mmcv import Config as MMConfig
 
-from vist.struct import Boxes2D, Images, LossesType
+try:
+    from mmcv import Config as MMConfig
+
+    MMCV_INSTALLED = True
+except (ImportError, NameError):  # pragma: no cover
+    MMCV_INSTALLED = False
+
+try:
+    from mmdet.core.mask import BitmapMasks
+
+    MMDET_INSTALLED = True
+except (ImportError, NameError):  # pragma: no cover
+    MMDET_INSTALLED = False
+
+from vist.struct import (
+    Boxes2D,
+    Images,
+    InputSample,
+    InstanceMasks,
+    LossesType,
+    NDArrayF64,
+    NDArrayUI8,
+)
 
 from ..base import BaseModelConfig
 
-MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, float]]
+MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
+MMDetResult = List[torch.Tensor]
+MMSegmResult = List[List[NDArrayUI8]]
+MMResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
 
 
 class MMTwoStageDetectorConfig(BaseModelConfig):
@@ -34,7 +58,7 @@ def get_img_metas(images: Images) -> List[MMDetMetaData]:
         meta: MMDetMetaData = {}
         w, h = images.image_sizes[i]
         meta["img_shape"] = meta["ori_shape"] = (h, w, c)
-        meta["scale_factor"] = 1.0
+        meta["scale_factor"] = np.ones(4, dtype=np.float64)
         meta["flip"] = False
         meta["pad_shape"] = (padh, padw, c)
         img_metas.append(meta)
@@ -70,37 +94,104 @@ def detections_from_mmdet(
     return detections_boxes2d
 
 
+def segmentations_from_mmdet(
+    masks: List[MMSegmResult], boxes: List[Boxes2D], device: torch.device
+) -> List[InstanceMasks]:
+    """Convert mmdetection segmentations to VisT format."""
+    segmentations_masks = []
+    for mask_res, box_res in zip(masks, boxes):
+        mask = segmentation_from_mmdet_results(mask_res, box_res, device)
+        segmentations_masks.append(mask)
+    return segmentations_masks
+
+
+def detection_from_mmdet_results(
+    detection: MMDetResult, device: torch.device
+) -> Boxes2D:
+    """Convert bbox_result to VisT format."""
+    if len(detection) == 0:  # pragma: no cover
+        return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+    bboxes = torch.from_numpy(np.vstack(detection)).to(device)  # Nx5
+    labels = [
+        torch.full((bbox.shape[0],), i, dtype=torch.int32, device=device)
+        for i, bbox in enumerate(detection)
+    ]
+    labels = torch.cat(labels)
+    return Boxes2D(bboxes, labels)
+
+
+def segmentation_from_mmdet_results(
+    segmentation: MMSegmResult, boxes: Boxes2D, device: torch.device
+) -> InstanceMasks:
+    """Convert segm_result to VisT format."""
+    segms = [
+        np.stack(segm) if len(segm) != 0 else np.empty_like(segm)
+        for segm in segmentation
+    ]
+    if len(segms) == 0 or sum([len(segm) for segm in segmentation]) == 0:
+        return InstanceMasks(torch.empty(0, 1, 1))  # pragma: no cover
+    masks_list, labels_list = [], []  # type: ignore
+    for class_id in boxes.class_ids:
+        masks_list.append(
+            torch.from_numpy(segms[class_id][labels_list.count(class_id)])
+            .type(torch.uint8)
+            .to(device)
+        )
+        labels_list.append(class_id)
+    masks = torch.stack(masks_list)
+    labels = torch.stack(labels_list)
+    scores = boxes.score
+    return InstanceMasks(masks, labels, score=scores)
+
+
 def results_from_mmdet(
-    detections: List[torch.Tensor], device: torch.device
-) -> List[Boxes2D]:
-    """Convert mmdetection bbox_results to VisT format."""
-    detections_boxes2d = []
-    for detection in detections:
-        bboxes = torch.from_numpy(np.vstack(detection)).to(device)  # Nx5
-        labels = [
-            torch.full((bbox.shape[0],), i, dtype=torch.int32, device=device)
-            for i, bbox in enumerate(detection)
-        ]
-        labels = torch.cat(labels)
-        detections_boxes2d.append(Boxes2D(bboxes, labels))
-    return detections_boxes2d
+    results: MMResults, device: torch.device, with_mask: bool
+) -> Tuple[List[Boxes2D], List[InstanceMasks]]:
+    """Convert mmdetection bbox_results and segm_results to VisT format."""
+    results_boxes2d, results_masks = [], []
+    for result in results:
+        if with_mask:
+            detection, segmentation = result
+        else:
+            detection = result
+        box2d = detection_from_mmdet_results(detection, device)
+        results_boxes2d.append(box2d)
+        if with_mask:
+            bitmask = segmentation_from_mmdet_results(
+                segmentation, box2d, device
+            )
+            results_masks.append(bitmask)
+        else:
+            results_masks.append(None)  # type: ignore
+    return results_boxes2d, results_masks
+
+
+def masks_to_mmdet_masks(masks: Sequence[InstanceMasks]) -> BitmapMasks:
+    """Convert VisT Masks to mmdetection BitmapMasks."""
+    return [BitmapMasks(m.to_ndarray(), m.height, m.width) for m in masks]
 
 
 def targets_to_mmdet(
-    targets: List[Boxes2D],
-) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+    targets: InputSample,
+) -> Tuple[
+    List[torch.Tensor], List[torch.Tensor], Optional[Sequence[InstanceMasks]]
+]:
     """Convert VisT targets to mmdetection compatible format."""
-    gt_bboxes = [t.boxes for t in targets]
-
-    gt_labels = [t.class_ids for t in targets]
-    return gt_bboxes, gt_labels
+    gt_bboxes = [t.boxes for t in targets.boxes2d]
+    gt_labels = [t.class_ids for t in targets.boxes2d]
+    gt_masks = (
+        masks_to_mmdet_masks(targets.instance_masks)
+        if len(targets.instance_masks) > 0
+        else None
+    )
+    return gt_bboxes, gt_labels, gt_masks
 
 
 def load_config_from_mmdet(url: str) -> str:
     """Get config from mmdetection GitHub repository."""
     full_url = (
         "https://raw.githubusercontent.com/"
-        "open-mmlab/mmdetection/master/configs/" + url
+        "syscv/mmdetection/master/configs/" + url
     )
     response = requests.get(full_url)
     assert (
@@ -116,9 +207,9 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
         if cfg.get("model"):
             cfg = cfg["model"]
     elif config.model_base.startswith("mmdet://"):
-        ext = os.path.splitext(config.model_base)[1]
+        ex = os.path.splitext(config.model_base)[1]
         cfg = MMConfig.fromstring(
-            load_config_from_mmdet(config.model_base.strip("mmdet://")), ext
+            load_config_from_mmdet(config.model_base.split("mmdet://")[-1]), ex
         ).model
     else:
         raise FileNotFoundError(
@@ -127,7 +218,16 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
 
     # convert detect attributes
     assert config.category_mapping is not None
-    cfg["roi_head"]["bbox_head"]["num_classes"] = len(config.category_mapping)
+    if "bbox_head" in cfg:  # pragma: no cover
+        cfg["bbox_head"]["num_classes"] = len(config.category_mapping)
+    if "roi_head" in cfg:
+        cfg["roi_head"]["bbox_head"]["num_classes"] = len(
+            config.category_mapping
+        )
+        if "mask_head" in cfg["roi_head"]:
+            cfg["roi_head"]["mask_head"]["num_classes"] = len(
+                config.category_mapping
+            )
 
     # add keyword args in config
     if config.model_kwargs:
@@ -145,11 +245,15 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
     return cfg
 
 
-def _parse_losses(losses: Dict[str, torch.Tensor]) -> LossesType:
+def _parse_losses(
+    losses: Dict[str, torch.Tensor], prefix: Optional[str] = None
+) -> LossesType:
     """Parse losses to a scalar tensor."""
     log_vars = {}
     for name, value in losses.items():
         if "loss" in name:
+            if prefix is not None:  # pragma: no cover
+                name = f"{prefix}.{name}"
             if isinstance(value, torch.Tensor):
                 log_vars[name] = value.mean()
             elif isinstance(value, list):

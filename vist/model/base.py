@@ -9,7 +9,7 @@ from pydantic import Field
 from torch.optim import Optimizer
 
 from ..common.registry import ABCRegistryHolder
-from ..struct import Boxes2D, InputSample, LossesType, ModelOutput
+from ..struct import InputSample, LossesType, ModelOutput
 from .optimize import (
     BaseLRScheduler,
     BaseLRSchedulerConfig,
@@ -66,8 +66,8 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
             batch_inputs: Model input (batched).
 
         Returns:
-            ModelOutput: Dict of LabelInstance results, e.g. tracking and
-            separate models result.
+            ModelOutput: Dict of Scalabel results (List[Label]), e.g. tracking
+            and separate detection result.
         """
         raise NotImplementedError
 
@@ -123,13 +123,22 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         losses = self.forward_train(batch)
         losses["loss"] = sum(list(losses.values()))
 
+        losses_detached = {k: v.detach() for k, v in losses.items()}
+        # tensorboard logging with prefix
         self.log_dict(
-            {k: v.clone().detach() for k, v in losses.items()},
-            prog_bar=True,
+            {"train/" + k: v for k, v in losses_detached.items()},
+            prog_bar=False,
             logger=True,
             on_step=True,
-            on_epoch=True,
-            sync_dist=True,
+            on_epoch=False,
+        )
+        # progress bar logging without prefix
+        self.log_dict(
+            losses_detached,
+            prog_bar=True,
+            logger=False,
+            on_step=True,
+            on_epoch=False,
         )
         return losses
 
@@ -159,24 +168,10 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
             dataloader_idx: index of dataloader if there are multiple.
 
         Returns:
-            ModelOutput: Dict of LabelInstance results, e.g. tracking and
-            separate models result.
+            ModelOutput: Dict of Scalabel results (List[Label]), e.g. tracking
+            and separate detection result.
         """
         return self.forward_test(batch)
-
-    @staticmethod
-    def postprocess(
-        original_wh: Tuple[int, int],
-        output_wh: Tuple[int, int],
-        detections: Boxes2D,
-    ) -> None:
-        """Postprocess results."""
-        scale_factor = (
-            original_wh[0] / output_wh[0],
-            original_wh[1] / output_wh[1],
-        )
-        detections.scale(scale_factor)
-        detections.clip(original_wh)
 
 
 def build_model(cfg: BaseModelConfig, ckpt: Optional[str] = None) -> BaseModel:

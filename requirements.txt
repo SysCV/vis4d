@@ -17,7 +17,6 @@ wheel
 h5py
 git+git://github.com/scalabel/scalabel.git
 git+git://github.com/bdd100k/bdd100k.git
-mmcv-full
 devtools
 utm
 kornia

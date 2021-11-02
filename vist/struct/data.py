@@ -1,12 +1,10 @@
 """VisT Input data structures."""
 
 import itertools
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
-from scalabel.label.typing import Frame
 
-from .labels import Boxes2D, Boxes3D
 from .structures import DataInstance
 
 
@@ -20,16 +18,18 @@ class Intrinsics(DataInstance):
             tensor (torch.Tensor): (N, 3, 3) or (3, 3)
         """
         assert 2 <= len(tensor.shape) <= 3
-        if len(tensor.shape) == 3:
-            self.batched = True
-        else:
-            self.batched = False
+        if len(tensor.shape) == 2:
+            tensor = tensor.unsqueeze(0)
         self.tensor = tensor
 
     def to(self, device: torch.device) -> "Intrinsics":
         """Put images on device."""
         cast_tensor = self.tensor.to(device)
         return Intrinsics(cast_tensor)
+
+    def __getitem__(self, item: int) -> "Intrinsics":
+        """Return single element."""
+        return Intrinsics(self.tensor[item])
 
     @property
     def device(self) -> torch.device:
@@ -47,11 +47,21 @@ class Intrinsics(DataInstance):
         if device is None:
             device = instances[0].tensor.device
         for inst in instances:
-            tensor = inst.tensor.to(device)
-            if not inst.batched:
-                tensor = tensor.unsqueeze(0)
+            tensor = inst.tensor
             tensors.append(tensor)
-        return Intrinsics(torch.cat(tensors, 0))
+        return Intrinsics(torch.cat(tensors, 0).to(device))
+
+    def inverse(self) -> "Intrinsics":
+        """Invert intrinsics."""
+        return Intrinsics(torch.inverse(self.tensor))
+
+    def transpose(self) -> "Intrinsics":
+        """Transpose of intrinsics."""
+        return Intrinsics(self.tensor.permute(0, 2, 1))
+
+    def __len__(self) -> int:
+        """Get length."""
+        return len(self.tensor)
 
 
 class Extrinsics(DataInstance):
@@ -64,10 +74,8 @@ class Extrinsics(DataInstance):
             tensor (torch.Tensor): (N, 4, 4) or (4, 4)
         """
         assert 2 <= len(tensor.shape) <= 3
-        if len(tensor.shape) == 3:
-            self.batched = True
-        else:
-            self.batched = False
+        if len(tensor.shape) == 2:
+            tensor = tensor.unsqueeze(0)
         self.tensor = tensor
 
     def to(self, device: torch.device) -> "Extrinsics":
@@ -80,6 +88,10 @@ class Extrinsics(DataInstance):
         """Returns current device."""
         return self.tensor.device
 
+    def __getitem__(self, item: int) -> "Extrinsics":
+        """Return single element."""
+        return Extrinsics(self.tensor[item])
+
     @classmethod
     def cat(
         cls,
@@ -91,11 +103,44 @@ class Extrinsics(DataInstance):
         if device is None:
             device = instances[0].tensor.device
         for inst in instances:
-            tensor = inst.tensor.to(device)
-            if not inst.batched:
-                tensor = tensor.unsqueeze(0)
+            tensor = inst.tensor
             tensors.append(tensor)
-        return Extrinsics(torch.cat(tensors, 0))
+        return Extrinsics(torch.cat(tensors, 0).to(device))
+
+    @property
+    def rotation(self) -> torch.Tensor:
+        """Return (N, 3, 3) rotation matrices."""
+        return self.tensor[:, :3, :3]
+
+    @property
+    def translation(self) -> torch.Tensor:
+        """Return (N, 3, 1) translation vectors."""
+        return self.tensor[:, :3, 3:4]
+
+    def inverse(self) -> "Extrinsics":
+        """Invert rigid transformation matrix [R^T, -R^T * t]."""
+        rot = self.rotation.permute(0, 2, 1)
+        t = -rot @ self.translation
+        inv = torch.cat([torch.cat([rot, t], -1), self.tensor[:, 3:4]], 1)
+        return Extrinsics(inv)
+
+    def transpose(self) -> "Extrinsics":
+        """Transpose of extrinsics."""
+        return Extrinsics(self.tensor.permute(0, 2, 1))
+
+    def __matmul__(
+        self, other: Union["Extrinsics", torch.Tensor]
+    ) -> "Extrinsics":
+        """Multiply extrinsics with another extrinsics or a tensor."""
+        if isinstance(other, Extrinsics):
+            return Extrinsics(self.tensor @ other.tensor)
+        if isinstance(other, torch.Tensor):  # pragma: no cover
+            return Extrinsics(self.tensor @ other)
+        raise ValueError("other must be of type Extrinsics or Tensor")
+
+    def __len__(self) -> int:
+        """Get length."""
+        return len(self.tensor)
 
 
 class Images(DataInstance):
@@ -111,9 +156,13 @@ class Images(DataInstance):
         Args:
             tensor (torch.Tensor): shape (N, C_1, ..., C_K, H, W) where K >= 1.
             image_sizes (list[tuple[int, int]]): Each tuple is (w, h). It can
-                be smaller than (w, h) due to padding.
+                be smaller than (W, H) due to padding.
         """
         assert len(tensor.shape) > 3
+        assert len(image_sizes) == tensor.shape[0], (
+            f"Tensor shape ({tensor.shape[0]}) and image_sizes"
+            f" ({len(image_sizes)}) do not match!"
+        )
         self.tensor = tensor
         self.image_sizes = image_sizes
 
@@ -184,67 +233,3 @@ class Images(DataInstance):
     def device(self) -> torch.device:
         """Returns current device."""
         return self.tensor.device
-
-
-class InputSample:
-    """Container holding varying types of DataInstances and Frame metadata."""
-
-    def __init__(
-        self,
-        metadata: Frame,
-        image: Images,
-        boxes2d: Optional[Boxes2D] = None,
-        boxes3d: Optional[Boxes3D] = None,
-        intrinsics: Optional[Intrinsics] = None,
-        extrinsics: Optional[Extrinsics] = None,
-        **kwargs: DataInstance,
-    ) -> None:
-        """Init."""
-        self.metadata = metadata
-        self.image = image
-        if boxes2d is None:
-            boxes2d = Boxes2D(
-                torch.empty(0, 5), torch.empty(0), torch.empty(0)
-            )
-        self.boxes2d = boxes2d
-
-        if boxes3d is None:
-            boxes3d = Boxes3D(
-                torch.empty(0, 8), torch.empty(0), torch.empty(0)
-            )
-        self.boxes3d = boxes3d
-
-        if intrinsics is None:
-            intrinsics = Intrinsics(torch.eye(3))
-        self.intrinsics = intrinsics
-
-        if extrinsics is None:
-            extrinsics = Extrinsics(torch.eye(4))
-        self.extrinsics = extrinsics
-
-        self.attributes: Dict[str, DataInstance] = {}
-        for k, v in kwargs.items():
-            self.attributes[k] = v
-
-    def get(self, key: str) -> Union[Frame, DataInstance]:
-        """Get attribute by key."""
-        if key in self.attributes:
-            return self.attributes[key]
-        if key in self.__dict__:
-            value = self.__dict__[key]
-            assert isinstance(value, (Frame, DataInstance))
-            return value
-        raise AttributeError(f"Attribute {key} not found!")
-
-    def dict(self) -> Dict[str, Union[Frame, DataInstance]]:
-        """Return InputSample object as dict."""
-        obj_dict: Dict[str, Union[Frame, DataInstance]] = {
-            "metadata": self.metadata,
-            "image": self.image,
-            "boxes2d": self.boxes2d,
-            "boxes3d": self.boxes3d,
-            "intrinsics": self.intrinsics,
-            "extrinsics": self.extrinsics,
-        }
-        obj_dict.update(self.attributes)
-        return obj_dict

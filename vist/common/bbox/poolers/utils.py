@@ -29,7 +29,7 @@ def assign_boxes_to_levels(
         element is the feature map index, as an offset from min_level, for the
         corresponding box (so value i means the box is at self.min_level + i).
     """
-    box_sizes = torch.sqrt(torch.cat([boxes.area() for boxes in box_lists]))
+    box_sizes = torch.sqrt(torch.cat([boxes.area for boxes in box_lists]))
     # Eqn.(1) in FPN paper
     level_assignments = torch.floor(
         canonical_level + torch.log2(box_sizes / canonical_box_size + 1e-8)

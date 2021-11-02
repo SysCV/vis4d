@@ -29,7 +29,7 @@ class MyDetector(BaseDetector):
         self.cfg = MyDetectorConfig(**cfg.dict())  # type: MyDetectorConfig
         self.retinanet = retinanet.retinanet_resnet50_fpn(pretrained=True)
 
-    def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
+    def preprocess_inputs(self, inputs: List[InputSample]) -> Images:
         """Normalize, pad and batch the input images."""
         raise NotImplementedError
 
@@ -56,12 +56,12 @@ class MyDetector(BaseDetector):
             batch_inputs: Model input (batched).
 
         Returns:
-            ModelOutput: Dict of LabelInstance results, e.g. tracking and
-            separate models result.
+            ModelOutput: Dict of Scalabel results (List[Label]), e.g. tracking
+            and separate detection result.
         """
         raise NotImplementedError
 
-    def extract_features(self, images: Images) -> Dict[str, torch.Tensor]:
+    def extract_features(self, inputs: Images) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.
 
         Return backbone output features

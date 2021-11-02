@@ -11,7 +11,7 @@ def timeit(func):
         tic = perf_counter()
         result = func(*args, **kwargs)
         toc = perf_counter()
-        print("%r  %2.2f ms" % (func.__name__, (toc - tic) * 1000))
+        print(f"{func.__name__}  {(toc - tic) * 1000:.2f} ms")
         return result
 
     return timed

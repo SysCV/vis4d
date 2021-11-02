@@ -98,7 +98,7 @@ class QDTrackGraph(BaseTrackGraph):
             if len(cls) > 0
             else torch.empty((0,), device=device)
         )
-        ids = torch.tensor(ids).to(device)
+        ids = torch.tensor(ids, device=device)
 
         if add_backdrops:
             for backdrop in self.backdrops:
@@ -208,9 +208,9 @@ class QDTrackGraph(BaseTrackGraph):
             ids[tracklet_inds],
             detections[tracklet_inds],
             embeddings[tracklet_inds],
-        ):  # type: ignore
+        ):
             cur_id = int(cur_id)
-            if cur_id in self.tracks.keys():
+            if cur_id in self.tracks:
                 self.update_track(cur_id, det, embed, frame_id)
             else:
                 self.create_track(cur_id, det, embed, frame_id)

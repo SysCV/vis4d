@@ -4,7 +4,7 @@ from typing import List, Tuple
 
 import torch
 
-from vist.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
+from vist.struct import InputSample, LossesType, ModelOutput
 
 from .base import BaseModel, BaseModelConfig, build_model
 from .detect import BaseTwoStageDetector
@@ -28,49 +28,20 @@ class QDTrack(BaseModel):
         """Init."""
         super().__init__(cfg)
         self.cfg = QDTrackConfig(**cfg.dict())  # type: QDTrackConfig
+        assert self.cfg.category_mapping is not None
         self.cfg.detection.category_mapping = self.cfg.category_mapping
         self.detector = build_model(self.cfg.detection)
         assert isinstance(self.detector, BaseTwoStageDetector)
         self.similarity_head = build_similarity_head(self.cfg.similarity)
         self.track_graph = build_track_graph(self.cfg.track_graph)
+        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
+        self.with_mask = self.detector.with_mask
 
-    def prepare_targets(
-        self,
-        key_inputs: List[InputSample],
-        ref_inputs: List[List[InputSample]],
-    ) -> Tuple[List[Boxes2D], List[List[Boxes2D]]]:
-        """Prepare targets from key / ref input samples."""
-        key_targets = []
-        for x in key_inputs:
-            assert x.boxes2d is not None
-            key_targets.append(x.boxes2d.to(self.device))
-        ref_targets = []
-        for inputs in ref_inputs:
-            ref_target = []
-            for x in inputs:
-                assert x.boxes2d is not None
-                ref_target.append(x.boxes2d.to(self.device))
-            ref_targets.append(ref_target)
-
-        return key_targets, ref_targets
-
-    def prepare_images(
-        self,
-        key_inputs: List[InputSample],
-        ref_inputs: List[List[InputSample]],
-    ) -> Tuple[Images, List[Images]]:
-        """Prepare images from key / ref input samples."""
-        key_images = self.detector.preprocess_image(key_inputs)
-        ref_images = [
-            self.detector.preprocess_image(inp) for inp in ref_inputs
-        ]
-        return key_images, ref_images
-
-    def forward_train(
+    def preprocess_inputs(
         self,
         batch_inputs: List[List[InputSample]],
-    ) -> LossesType:
-        """Forward function for training."""
+    ) -> Tuple[InputSample, List[InputSample]]:
+        """Prepare images from key / ref input samples."""
         # split into key / ref pairs NxM input --> key: N, ref: Nx(M-1)
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
 
@@ -80,38 +51,47 @@ class QDTrack(BaseModel):
             for i in range(len(ref_inputs[0]))
         ]
 
-        key_images, ref_images = self.prepare_images(key_inputs, ref_inputs)
-        key_targets, ref_targets = self.prepare_targets(key_inputs, ref_inputs)
+        key_inputs_batch = self.detector.preprocess_inputs(key_inputs)
+        ref_inputs_batch = [
+            self.detector.preprocess_inputs(inp) for inp in ref_inputs
+        ]
+        return key_inputs_batch, ref_inputs_batch
+
+    def forward_train(
+        self,
+        batch_inputs: List[List[InputSample]],
+    ) -> LossesType:
+        """Forward function for training."""
+        key_inputs, ref_inputs = self.preprocess_inputs(batch_inputs)
 
         # from vist.vis.image import imshow_bboxes
         # for batch_i, key_inp in enumerate(key_inputs):
-        #     imshow_bboxes(key_inp.image.tensor[0], key_targets[batch_i])
+        #     imshow_bboxes(key_inp.images.tensor[0], key_inp.boxes2d)
         #     for ref_i, ref_inp in enumerate(ref_inputs):
         #         imshow_bboxes(
-        #             ref_inp[batch_i].image.tensor[0],
-        #             ref_targets[ref_i][batch_i],
+        #             ref_inp[batch_i].images.tensor[0],
+        #             ref_inp[batch_i].boxes2d,
         #         )
 
         # feature extraction
-        key_x = self.detector.extract_features(key_images)
-        ref_x = [self.detector.extract_features(img) for img in ref_images]
+        key_x = self.detector.extract_features(key_inputs)
+        ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]
 
         # proposal generation
         key_proposals, rpn_losses = self.detector.generate_proposals(
-            key_images, key_x, key_targets
+            key_inputs, key_x
         )
         with torch.no_grad():
             ref_proposals = [
-                self.detector.generate_proposals(img, x)[0]
-                for img, x in zip(ref_images, ref_x)
+                self.detector.generate_proposals(inp, x)[0]
+                for inp, x in zip(ref_inputs, ref_x)
             ]
 
-        # bbox head
-        _, roi_losses = self.detector.generate_detections(
-            key_images,
+        # roi head
+        _, roi_losses, _ = self.detector.generate_detections(
+            key_inputs,
             key_x,
             key_proposals,
-            key_targets,
             compute_detections=False,
         )
         det_losses = {**rpn_losses, **roi_losses}
@@ -124,9 +104,9 @@ class QDTrack(BaseModel):
 
         # track head
         track_losses, _ = self.similarity_head.forward_train(
+            [key_inputs, *ref_inputs],
             [key_x, *ref_x],
             [key_proposals, *ref_proposals],
-            [key_targets, *ref_targets],
         )
         return {**det_losses, **track_losses}
 
@@ -135,36 +115,77 @@ class QDTrack(BaseModel):
         batch_inputs: List[List[InputSample]],
     ) -> ModelOutput:
         """Compute model output during inference."""
-        assert len(batch_inputs) == 1, "No reference views during test!"
-        inputs = [inp[0] for inp in batch_inputs]
-        assert len(inputs) == 1, "Currently only BS=1 supported!"
+        assert len(batch_inputs[0]) == 1, "No reference views during test!"
+        raw_inputs = [inp[0] for inp in batch_inputs]
+        assert len(raw_inputs) == 1, "Currently only BS=1 supported!"
+        inputs = self.detector.preprocess_inputs(raw_inputs)
 
         # init graph at begin of sequence
-        frame_id = inputs[0].metadata.frameIndex
+        frame_id = inputs.metadata[0].frameIndex
         if frame_id == 0:
             self.track_graph.reset()
 
         # detector
-        image = self.detector.preprocess_image(inputs)
-        feat = self.detector.extract_features(image)
-        proposals, _ = self.detector.generate_proposals(image, feat)
-        detections, _ = self.detector.generate_detections(
-            image, feat, proposals
+        feat = self.detector.extract_features(inputs)
+        proposals, _ = self.detector.generate_proposals(inputs, feat)
+        detections, _, segmentations = self.detector.generate_detections(
+            inputs, feat, proposals, compute_segmentations=self.with_mask
         )
         assert detections is not None
+        if segmentations is None or len(segmentations) == 0:
+            segmentations = [None]
 
         # from vist.vis.image import imshow_bboxes
-        # imshow_bboxes(image.tensor[0], detections)
+        # imshow_bboxes(inputs.images.tensor[0], detections)
 
         # similarity head
-        embeddings = self.similarity_head.forward_test(feat, detections)
-        assert inputs[0].metadata.size is not None
-        input_size = (
-            inputs[0].metadata.size.width,
-            inputs[0].metadata.size.height,
+        embeddings = self.similarity_head.forward_test(
+            inputs, feat, detections
         )
-        self.postprocess(input_size, image.image_sizes[0], detections[0])
+        assert inputs.metadata[0].size is not None
+        input_size = (
+            inputs.metadata[0].size.width,
+            inputs.metadata[0].size.height,
+        )
+        detections[0].postprocess(input_size, inputs.images.image_sizes[0])
+        if segmentations[0] is not None:
+            segmentations[0].postprocess(
+                input_size, inputs.images.image_sizes[0], detections[0]
+            )
 
         # associate detections, update graph
         tracks = self.track_graph(detections[0], frame_id, embeddings[0])
-        return dict(detect=detections, track=[tracks])
+
+        detects = (
+            detections[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
+        )
+        tracks_ = tracks.to(torch.device("cpu")).to_scalabel(self.cat_mapping)
+        outputs = dict(detect=[detects], track=[tracks_])
+        # Temporary hack to align masks with boxes for MOTS support
+        # Remove in refactor-api PR!
+        if segmentations[0] is not None:  # pragma: no cover
+            segms = (
+                segmentations[0]
+                .to(torch.device("cpu"))
+                .to_scalabel(self.cat_mapping)
+            )
+            track_inds = torch.empty((0), dtype=torch.int)
+            track_ids = torch.empty((0), dtype=torch.int, device=tracks.device)
+            for track in tracks:
+                for i, box in enumerate(detections[0]):
+                    if torch.equal(track.boxes, box.boxes):
+                        track_inds = torch.cat(
+                            [track_inds, torch.LongTensor([i])]
+                        )
+                        track_ids = torch.cat([track_ids, track.track_ids])
+                        break
+            if len(track_inds) == 0:
+                segm_tracks_ = []
+            else:
+                segm_tracks = segmentations[0][track_inds]
+                segm_tracks.track_ids = track_ids
+                segm_tracks_ = segm_tracks.to(torch.device("cpu")).to_scalabel(
+                    self.cat_mapping
+                )
+            outputs.update(segment=[segms], seg_track=[segm_tracks_])
+        return outputs

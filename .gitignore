@@ -14,9 +14,6 @@ bin/
 # don't upload webpack bundle file
 app/dist/
 
-# default data directory
-local-data/
-
 # potential integration testing data directory
 test_data/
 

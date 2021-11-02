@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from vist.common.registry import RegistryHolder
 from vist.struct import Boxes2D
 
-from ..matchers.base import MatchResult
+from ..matchers.base import BaseMatcher, MatchResult
 
 
 class SamplingResult(NamedTuple):
@@ -61,3 +61,18 @@ def build_sampler(cfg: SamplerConfig) -> BaseSampler:
         assert isinstance(module, BaseSampler)
         return module
     raise NotImplementedError(f"Sampler {cfg.type} not found.")
+
+
+@torch.no_grad()  # type: ignore
+def match_and_sample_proposals(
+    matcher: BaseMatcher,
+    sampler: BaseSampler,
+    proposals: List[Boxes2D],
+    targets: List[Boxes2D],
+    proposal_append_gt: bool,
+) -> SamplingResult:
+    """Match proposals to targets and subsample."""
+    if proposal_append_gt:
+        proposals = [Boxes2D.merge([p, t]) for p, t in zip(proposals, targets)]
+    matching = matcher.match(proposals, targets)
+    return sampler.sample(matching, proposals, targets)

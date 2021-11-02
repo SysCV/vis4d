@@ -11,17 +11,18 @@ cache_as_binary = true
 
     [train.dataloader.ref_sampling]
     type = 'uniform'
-    scope = 2
+    scope = 3
     num_ref_imgs = 1
     skip_nomatch_samples = true
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
+    shape = [720, 1280]
 
     [[train.dataloader.transformations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
+    type = "KorniaAugmentationWrapper"
+    kornia_type = "RandomHorizontalFlip"
+    prob = 0.5
 
 
 [[train]]
@@ -32,17 +33,21 @@ data_root = "data/bdd100k/images/100k/train/"
 config_path = "det"
 num_processes = 0
 cache_as_binary = true
+    [train.dataloader]
+    skip_empty_samples = true
+
     [train.dataloader.ref_sampling]
     scope = 0
     num_ref_imgs = 1
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
+    shape = [720, 1280]
 
     [[train.dataloader.transformations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
+    type = "KorniaAugmentationWrapper"
+    kornia_type = "RandomHorizontalFlip"
+    prob = 0.5
 
 [[test]]
 name = "bdd100k_track_val"
@@ -55,4 +60,4 @@ num_processes = 0
 cache_as_binary = true
     [[test.dataloader.transformations]]
     type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
+    shape = [720, 1280]

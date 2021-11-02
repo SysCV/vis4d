@@ -2,10 +2,19 @@
 import inspect
 import math
 import os
+from typing import List
 
 import torch
+from scalabel.label.typing import Frame
 
-from vist.struct import Boxes2D, Boxes3D
+from vist.struct import (
+    Boxes2D,
+    Boxes3D,
+    Images,
+    InputSample,
+    InstanceMasks,
+    Intrinsics,
+)
 
 
 def get_test_file(file_name: str) -> str:
@@ -66,3 +75,65 @@ def generate_dets3d(num_dets: int, track_ids: bool = False) -> Boxes3D:
     dets = Boxes3D(box_tensor, torch.zeros(num_dets), tracks)
     torch.random.set_rng_state(state)
     return dets
+
+
+def generate_masks(
+    height: int, width: int, num_masks: int, track_ids: bool = False
+) -> InstanceMasks:
+    """Create random masks."""
+    state = torch.random.get_rng_state()
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
+    mask_tensor = (torch.rand(num_masks, width, height) > 0.5).type(
+        torch.uint8
+    )
+    tracks = torch.arange(0, num_masks) if track_ids else None
+    masks = InstanceMasks(
+        mask_tensor, torch.zeros(num_masks), tracks, torch.rand(num_masks)
+    )
+    torch.random.set_rng_state(state)
+    return masks
+
+
+def generate_feature_list(
+    channels: int, init_height: int, init_width: int, list_len: int
+) -> List[torch.Tensor]:
+    """Create random feature lists."""
+    features_list = []
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
+
+    for i in range(list_len):
+        features_list.append(
+            torch.rand(
+                1, channels, init_height // (2 ** i), init_width // (2 ** i)
+            )
+        )
+
+    return features_list
+
+
+def generate_input_sample(
+    height: int,
+    width: int,
+    num_imgs: int,
+    num_objs: int,
+    track_ids: bool = False,
+) -> InputSample:
+    """Create random InputSample."""
+    state = torch.random.get_rng_state()
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
+    image_tensor = (torch.rand(num_imgs, 3, height, width) * 255).type(
+        torch.float32
+    )
+    images = Images(image_tensor, [(width, height)] * num_imgs)
+    sample = InputSample([Frame(name="test_frame")] * num_imgs, images)
+    sample.intrinsics = Intrinsics.cat(
+        [Intrinsics(torch.eye(3)) for _ in range(num_imgs)]
+    )
+    sample.boxes2d = [
+        generate_dets(height, width, num_objs, track_ids)
+    ] * num_imgs
+    sample.instance_masks = [
+        generate_masks(height, width, num_objs, track_ids)
+    ] * num_imgs
+    torch.random.set_rng_state(state)
+    return sample

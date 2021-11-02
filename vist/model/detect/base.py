@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 
 from vist.common.registry import RegistryHolder
-from vist.struct import Boxes2D, Images, InputSample, LossesType
+from vist.struct import Boxes2D, InputSample, InstanceMasks, LossesType
 
 from ..base import BaseModel
 
@@ -15,12 +15,12 @@ class BaseDetector(BaseModel, metaclass=RegistryHolder):
     """Base detector class."""
 
     @abc.abstractmethod
-    def preprocess_image(self, batched_inputs: List[InputSample]) -> Images:
-        """Normalize, pad and batch the input images."""
+    def preprocess_inputs(self, inputs: List[InputSample]) -> InputSample:
+        """Normalize, pad and batch input images. Preprocess other inputs."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def extract_features(self, images: Images) -> Dict[str, torch.Tensor]:
+    def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.
 
         Return backbone output features
@@ -30,15 +30,17 @@ class BaseDetector(BaseModel, metaclass=RegistryHolder):
     @abc.abstractmethod
     def generate_detections(
         self,
-        images: Images,
+        inputs: InputSample,
         features: Dict[str, torch.Tensor],
-        proposals: List[Boxes2D],
-        targets: Optional[List[Boxes2D]] = None,
+        proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
-    ) -> Tuple[Optional[List[Boxes2D]], LossesType]:
+        compute_segmentations: bool = False,
+    ) -> Tuple[
+        Optional[List[Boxes2D]], LossesType, Optional[List[InstanceMasks]]
+    ]:
         """Detector second stage (RoI Head).
 
-        Return losses (empty if no targets) and optionally detections.
+        Return losses (empty if not training) and optionally detections.
         """
         raise NotImplementedError
 
@@ -49,9 +51,8 @@ class BaseTwoStageDetector(BaseDetector):
     @abc.abstractmethod
     def generate_proposals(
         self,
-        images: Images,
+        inputs: InputSample,
         features: Dict[str, torch.Tensor],
-        targets: Optional[List[Boxes2D]] = None,
     ) -> Tuple[List[Boxes2D], LossesType]:
         """Detector RPN stage.
 

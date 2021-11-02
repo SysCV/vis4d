@@ -6,13 +6,16 @@ import numpy as np
 import torch
 from PIL import Image
 
-from vist.unittest.utils import generate_dets
+from vist.struct import Intrinsics
+from vist.unittest.utils import generate_dets, generate_masks
 
 from .utils import (
     box3d_to_corners,
     generate_colors,
     preprocess_boxes,
     preprocess_image,
+    preprocess_intrinsics,
+    preprocess_masks,
 )
 
 
@@ -39,6 +42,12 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(np.min(proc_img) >= 0)  # type: ignore
         self.assertTrue(np.max(proc_img) < 256)  # type: ignore
 
+    def test_preprocess_intrinsics(self) -> None:
+        """Test preprocess_intrinsics method."""
+        mat1 = preprocess_intrinsics(np.eye(3))
+        mat2 = preprocess_intrinsics(Intrinsics(torch.eye(3)))
+        self.assertTrue(np.isclose(mat1, mat2).all())
+
     def test_preprocess_boxes(self) -> None:
         """Test preprocess_boxes method."""
         dets = [generate_dets(128, 128, 10, track_ids=True)]
@@ -50,7 +59,7 @@ class TestUtils(unittest.TestCase):
             len(dets[0]) == len(proc_dets) == len(cols) == len(labels)
         )
         self.assertTrue(len(cols) == len(set(cols)))
-        for det, proc_det, label in zip(dets[0], proc_dets, labels):  # type: ignore # pylint: disable=line-too-long
+        for det, proc_det, label in zip(dets[0], proc_dets, labels):
             det_box = det.boxes[0, :4].numpy().tolist()
             self.assertEqual(det_box, proc_det)
             self.assertEqual(0, int(label[2]))
@@ -62,7 +71,7 @@ class TestUtils(unittest.TestCase):
             len(dets[0]) == len(proc_dets) == len(cols) == len(labels)
         )
         self.assertTrue(len(cols) == len(set(cols)))
-        for det, proc_det, label in zip(dets[0], proc_dets, labels):  # type: ignore # pylint: disable=line-too-long
+        for det, proc_det, label in zip(dets[0], proc_dets, labels):
             det_box = det.boxes[0, :4].numpy().tolist()
             self.assertEqual(det_box, proc_det)
             self.assertEqual(0, int(label[2]))
@@ -73,6 +82,26 @@ class TestUtils(unittest.TestCase):
 
         dets[0].class_ids = None
         proc_dets, cols, _ = preprocess_boxes(dets)
+        self.assertTrue(len(set(cols)) == 1)
+
+    def test_preprocess_masks(self) -> None:
+        """Test preprocess_masks method."""
+        masks = [generate_masks(128, 128, 10, track_ids=True)]
+        masks[0].track_ids = masks[0].track_ids.unsqueeze(-1)
+
+        # with score
+        proc_masks, cols = preprocess_masks(masks)
+        self.assertTrue(len(masks[0]) == len(proc_masks) == len(cols))
+        self.assertTrue(len(cols) == len(set(cols)))
+        for mask, proc_mask in zip(masks[0], proc_masks):
+            self.assertTrue((mask.masks.numpy() == proc_mask / 255).all())
+
+        masks[0].track_ids = None
+        proc_masks, cols = preprocess_masks(masks)
+        self.assertTrue(len(set(cols)) == 1)
+
+        masks[0].class_ids = None
+        proc_masks, cols = preprocess_masks(masks)
         self.assertTrue(len(set(cols)) == 1)
 
     def test_box3d_to_corners(self) -> None:
@@ -87,8 +116,5 @@ class TestUtils(unittest.TestCase):
             [9.0, 9.0, 12.0],
             [11.0, 9.0, 12.0],
         ]
-        corners = box3d_to_corners([10, 10, 10, 2, 2, 4, math.pi / 2])
-        self.assertTrue((corners == box_corners).all())
-
         corners = box3d_to_corners([10, 10, 10, 2, 2, 4, 0, math.pi / 2, 0])
         self.assertTrue((corners == box_corners).all())

@@ -7,12 +7,22 @@ import torch
 from PIL import Image
 from scipy.spatial.transform import Rotation as R
 
-from vist.struct import Boxes2D, Boxes3D, NDArrayF64, NDArrayUI8
+from vist.struct import (
+    Boxes2D,
+    Boxes3D,
+    InstanceMasks,
+    Intrinsics,
+    NDArrayF64,
+    NDArrayUI8,
+    SemanticMasks,
+)
 
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
 BoxType = Union[Boxes2D, List[Boxes2D]]
 Box3DType = Union[Boxes3D, List[Boxes3D]]
+InsMaskType = Union[InstanceMasks, List[InstanceMasks]]
+SemMaskType = Union[SemanticMasks, List[SemanticMasks]]
 
 ColorType = Union[
     Union[Tuple[int], str],
@@ -53,9 +63,9 @@ def preprocess_boxes(
 
     assert isinstance(boxes, (Boxes2D, Boxes3D))
 
-    if boxes.boxes.shape[-1] in [5, 8, 10]:  # 4, 7, 9 DoF boxes + score
+    if boxes.score is not None:
         boxes_list = boxes.boxes[:, :-1].cpu().numpy().tolist()
-        scores = boxes.boxes[:, -1].cpu().numpy().tolist()
+        scores = boxes.score.cpu().numpy().tolist()
     else:
         boxes_list = boxes.boxes.cpu().numpy().tolist()
         scores = [None for _ in range(len(boxes_list))]
@@ -88,11 +98,52 @@ def preprocess_boxes(
             label += "," + str(int(c))
 
         if s is not None:
-            label += ",{:.1f}%".format(s * 100)
+            label += f",{s * 100:.1f}%"
         labels.append(label)
         draw_colors.append(draw_color)
 
     return boxes_list, draw_colors, labels
+
+
+def preprocess_masks(
+    masks: Union[InsMaskType, SemMaskType], color_idx: int = 0
+) -> Tuple[List[NDArrayUI8], List[Tuple[int]]]:
+    """Preprocess BitmaskType to masks / colors / labels for drawing."""
+    if isinstance(masks, list):
+        result_mask, result_color = [], []
+        for i, m in enumerate(masks):
+            mask, color = preprocess_masks(m, i)  # type: ignore
+            result_mask.extend(mask)
+            result_color.extend(color)
+        return result_mask, result_color
+
+    assert isinstance(masks, (InstanceMasks, SemanticMasks))
+
+    masks_list = (masks.masks.cpu().numpy() * 255).astype(np.uint8)
+
+    if masks.track_ids is not None:
+        track_ids = masks.track_ids.cpu().numpy()
+        if len(track_ids.shape) > 1:
+            track_ids = track_ids.squeeze(-1)
+    else:
+        track_ids = [None for _ in range(len(masks_list))]
+
+    if masks.class_ids is not None:
+        class_ids = masks.class_ids.cpu().numpy()
+    else:
+        class_ids = [None for _ in range(len(masks_list))]
+
+    draw_colors = []
+    for t, c in zip(track_ids, class_ids):
+        if t is not None:
+            draw_color = COLOR_PALETTE[int(t) % NUM_COLORS]
+        elif c is not None:
+            draw_color = COLOR_PALETTE[int(c) % NUM_COLORS]
+        else:
+            draw_color = COLOR_PALETTE[color_idx % NUM_COLORS]
+        draw_colors.append(draw_color)
+
+    return masks_list, draw_colors
 
 
 def preprocess_image(image: ImageType, mode: str = "RGB") -> Image.Image:
@@ -130,14 +181,34 @@ def preprocess_image(image: ImageType, mode: str = "RGB") -> Image.Image:
     return Image.fromarray(image.astype(np.uint8), mode=mode).convert("RGB")
 
 
+def preprocess_intrinsics(
+    intrinsics: Union[NDArrayF64, Intrinsics]
+) -> NDArrayF64:
+    """Preprocess intrinsics to a 3x3 matrix."""
+    if isinstance(intrinsics, Intrinsics):
+        assert (
+            len(intrinsics.tensor) == 1
+        ), "Please specify a batch element via intrinsics[batch_elem]"
+        intrinsic_matrix = (
+            intrinsics.tensor[0].cpu().numpy()
+        )  # type: NDArrayF64
+    elif isinstance(intrinsics, np.ndarray):
+        intrinsic_matrix = intrinsics
+    else:
+        raise ValueError(f"Invalid type for intrinsics: {type(intrinsics)}")
+
+    assert intrinsic_matrix.shape == (
+        3,
+        3,
+    ), f"Intrinsics must be of shape 3x3, got {intrinsic_matrix.shape}"
+    return intrinsic_matrix
+
+
 def box3d_to_corners(box3d: List[float]) -> NDArrayF64:
     """Convert Boxes3D style box to its respective corner points."""
     x_loc, y_loc, z_loc = box3d[:3]
     h, w, l = box3d[3:6]
-    if len(box3d) < 9:  # if 7 DoF box type
-        rx, ry, rz = 0.0, box3d[6], 0.0
-    else:
-        rx, ry, rz = box3d[6], box3d[7], box3d[8]
+    rx, ry, rz = box3d[6], box3d[7], box3d[8]
 
     x_corners = np.array(
         [

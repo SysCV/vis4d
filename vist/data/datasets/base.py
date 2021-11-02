@@ -2,7 +2,7 @@
 import abc
 import os
 import pickle
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, validator
 from pytorch_lightning.utilities.distributed import rank_zero_info
@@ -11,7 +11,7 @@ from scalabel.label.typing import Dataset, Frame
 from vist.common.io import DataBackendConfig
 from vist.common.registry import RegistryHolder
 from vist.common.utils.time import Timer
-from vist.data.transforms import AugmentationConfig
+from vist.data.transforms import BaseAugmentationConfig
 
 
 class ReferenceSamplingConfig(BaseModel):
@@ -22,6 +22,7 @@ class ReferenceSamplingConfig(BaseModel):
     scope: int = 1
     frame_order: str = "key_first"
     skip_nomatch_samples: bool = False
+    consistent_ref_aug: bool = True
 
     @validator("scope")
     def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long
@@ -50,8 +51,9 @@ class DataloaderConfig(BaseModel):
     fields_to_load: List[str] = ["boxes2d"]
     skip_empty_samples: bool = False
     clip_bboxes_to_image: bool = True
+    min_bboxes_area: float = 7.0 * 7.0
     compute_global_instance_ids: bool = False
-    transformations: Optional[List[AugmentationConfig]] = None
+    transformations: Optional[List[BaseAugmentationConfig]] = None
     ref_sampling: ReferenceSamplingConfig = ReferenceSamplingConfig()
 
 
@@ -63,12 +65,17 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     data_root: str
     dataloader: DataloaderConfig = DataloaderConfig()
     annotations: Optional[str]
+    attributes: Optional[
+        Dict[str, Union[bool, float, str, List[float], List[str]]]
+    ]
     config_path: Optional[str]
     eval_metrics: List[str] = []
     validate_frames: bool = False
     ignore_unkown_cats: bool = False
     cache_as_binary: bool = False
     num_processes: int = 4
+    collect_device = "cpu"
+    multi_sensor_inference: bool = True
 
 
 class BaseDatasetLoader(metaclass=RegistryHolder):
@@ -97,13 +104,10 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
         assert dataset.config is not None
         add_data_path(cfg.data_root, dataset.frames)
-        rank_zero_info(
-            "Loading %s takes %s seconds.",
-            cfg.name,
-            "{:.2f}".format(timer.time()),
-        )
+        rank_zero_info(f"Loading {cfg.name} takes {timer.time():.2f} seconds.")
         self.metadata_cfg = dataset.config
         self.frames = dataset.frames
+        self.groups = dataset.groups
 
     @abc.abstractmethod
     def load_dataset(self) -> Dataset:
@@ -122,10 +126,13 @@ def build_dataset_loader(cfg: BaseDatasetConfig) -> BaseDatasetLoader:
 
 
 def add_data_path(data_root: str, frames: List[Frame]) -> None:
-    """Add filepath to frame using data_root and frame.name."""
+    """Add filepath to frame using data_root."""
     for ann in frames:
         assert ann.name is not None
-        if ann.videoName is not None:
-            ann.url = os.path.join(data_root, ann.videoName, ann.name)
+        if ann.url is None:
+            if ann.videoName is not None:
+                ann.url = os.path.join(data_root, ann.videoName, ann.name)
+            else:
+                ann.url = os.path.join(data_root, ann.name)
         else:
-            ann.url = os.path.join(data_root, ann.name)
+            ann.url = os.path.join(data_root, ann.url)

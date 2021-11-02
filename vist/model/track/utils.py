@@ -19,10 +19,9 @@ def split_key_ref_inputs(
     for input_samples in batched_input_samples:
         curr_ref_indices = list(range(0, len(input_samples)))
         for i, sample in enumerate(input_samples):
-            if (
-                sample.metadata.attributes is not None
-                and sample.metadata.attributes.get("keyframe", False)
-            ):
+            if sample.metadata[0].attributes is not None and sample.metadata[
+                0
+            ].attributes.get("keyframe", False):
                 key_indices.append(curr_ref_indices.pop(i))
                 ref_indices.append(curr_ref_indices)
                 break

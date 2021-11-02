@@ -1,24 +1,39 @@
 """Tracking visualziations."""
-from typing import List, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 import torch
 from PIL import Image
 
-from vist.struct import Boxes2D
+from vist.struct import Boxes2D, Intrinsics, NDArrayF64
 
 from .image import draw_image, imshow_bboxes
-from .utils import BoxType, ImageType
+from .utils import Box3DType, BoxType, ImageType
 
 
 def draw_sequence(
     frames: List[Union[ImageType, Image.Image]],
-    boxes: Sequence[BoxType],
+    boxes2d: Optional[Sequence[BoxType]] = None,
+    boxes3d: Optional[Sequence[Box3DType]] = None,
+    intrinsics: Optional[Sequence[Union[NDArrayF64, Intrinsics]]] = None,
     mode: str = "RGB",
 ) -> List[Image.Image]:
     """Draw predictions of a complete sequence."""
     results = []
-    for frame, box in zip(frames, boxes):
-        results.append(draw_image(frame, box, mode))
+    for i, frame in enumerate(frames):
+        box2d = None
+        if boxes2d is not None:
+            box2d = boxes2d[i]
+        box3d = None
+        if boxes3d is not None:
+            box3d = boxes3d[i]
+        intr = None
+        if intrinsics is not None:
+            intr = intrinsics[i]
+        results.append(
+            draw_image(
+                frame, boxes2d=box2d, boxes3d=box3d, intrinsics=intr, mode=mode
+            )
+        )
     return results
 
 

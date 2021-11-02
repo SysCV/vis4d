@@ -1,4 +1,4 @@
-"""Dataset mapper in vist."""
+"""Class for processing Scalabel type datasets."""
 import copy
 import random
 from collections import defaultdict
@@ -11,7 +11,7 @@ from pytorch_lightning.utilities.distributed import (
     rank_zero_warn,
 )
 from scalabel.label.typing import Extrinsics as ScalabelExtrinsics
-from scalabel.label.typing import Frame, ImageSize
+from scalabel.label.typing import Frame, FrameGroup, ImageSize
 from scalabel.label.typing import Intrinsics as ScalabelIntrinsics
 from scalabel.label.typing import Label
 from scalabel.label.utils import (
@@ -23,25 +23,28 @@ from scalabel.label.utils import (
 )
 from torch.utils.data import Dataset
 
-from vist.common.io import build_data_backend
-
+from ..common.io import build_data_backend
+from ..common.utils.time import Timer
 from ..struct import (
     Boxes2D,
     Boxes3D,
+    DictStrAny,
     Extrinsics,
     Images,
     InputSample,
+    InstanceMasks,
     Intrinsics,
-    NDArrayUI8,
+    SemanticMasks,
 )
 from .datasets import BaseDatasetLoader
 from .transforms import AugParams, build_augmentations
 from .utils import (
+    DatasetFromList,
     discard_labels_outside_set,
+    filter_attributes,
     im_decode,
     prepare_labels,
     print_class_histogram,
-    transform_bbox,
 )
 
 __all__ = ["ScalabelDataset"]
@@ -74,15 +77,37 @@ class ScalabelDataset(Dataset):  # type: ignore
         )
         rank_zero_info("Transformations used: %s", self.transformations)
 
-        for field in self.cfg.dataloader.fields_to_load:
-            assert field in ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
-
-        self.dataset = dataset
+        fields_to_load = self.cfg.dataloader.fields_to_load
+        allowed_files = [
+            "boxes2d",
+            "boxes3d",
+            "instance_masks",
+            "semantic_masks",
+            "intrinsics",
+            "extrinsics",
+        ]
+        for field in fields_to_load:
+            assert (
+                field in allowed_files
+            ), f"Unrecognized field={field}, allowed fields={allowed_files}"
+        assert (
+            not "instance_masks" in fields_to_load
+            or not "semantic_masks" in fields_to_load
+        ), (
+            "Both instance_masks and semantic_masks are specified, "
+            "but only one should be."
+        )
         self.training = training
+
+        if self.cfg.dataloader.skip_empty_samples and not self.training:
+            rank_zero_warn(  # pragma: no cover
+                f"'skip_empty_samples' activated for dataset {self.cfg.name}"
+                "in test mode. This option is only available in training."
+            )
 
         if cats_name2id is not None:
             discard_labels_outside_set(
-                self.dataset.frames, list(cats_name2id.keys())
+                dataset.frames, list(cats_name2id.keys())
             )
         else:
             cats_name2id = {
@@ -91,40 +116,102 @@ class ScalabelDataset(Dataset):  # type: ignore
                     [
                         c.name
                         for c in get_leaf_categories(
-                            self.dataset.metadata_cfg.categories
+                            dataset.metadata_cfg.categories
                         )
                     ]
                 )
             }
         self.cats_name2id = cats_name2id
+        dataset.frames = filter_attributes(
+            dataset.frames, dataset.cfg.attributes
+        )
 
+        t = Timer()
         frequencies = prepare_labels(
-            self.dataset.frames,
+            dataset.frames,
             cats_name2id,
             self.cfg.dataloader.compute_global_instance_ids,
         )
+        rank_zero_info(
+            f"Preprocessing {len(dataset.frames)} frames takes {t.time():.2f}"
+            " seconds."
+        )
         print_class_histogram(frequencies)
+
+        self.dataset = dataset
+        self.dataset.frames = DatasetFromList(self.dataset.frames)
+        if self.dataset.groups is not None:
+            t.reset()
+            prepare_labels(
+                self.dataset.groups,
+                cats_name2id,
+                self.cfg.dataloader.compute_global_instance_ids,
+            )
+            rank_zero_info(
+                f"Preprocessing {len(self.dataset.groups)} groups takes "
+                f"{t.time():.2f} seconds."
+            )
+            self.dataset.groups = DatasetFromList(self.dataset.groups)
 
         self._fallback_candidates = set(range(len(self.dataset.frames)))
         self.video_to_indices: Dict[str, List[int]] = defaultdict(list)
         self._create_video_mapping()
         self.has_sequences = bool(self.video_to_indices)
 
+        if self.dataset.groups is not None:
+            self.frame_name_to_idx = {
+                f.name: i for i, f in enumerate(self.dataset.frames)
+            }
+            self.frame_to_group: Dict[int, int] = {}
+            self.frame_to_sensor_id: Dict[int, int] = {}
+            for i, g in enumerate(self.dataset.groups):
+                for sensor_id, fname in enumerate(g.frames):
+                    self.frame_to_group[self.frame_name_to_idx[fname]] = i
+                    self.frame_to_sensor_id[
+                        self.frame_name_to_idx[fname]
+                    ] = sensor_id
+
     def __len__(self) -> int:
         """Return length of dataset."""
+        if self.dataset.groups is not None and not self.training:
+            return len(self.dataset.groups)
         return len(self.dataset.frames)
 
     def _create_video_mapping(self) -> None:
-        """Create a mapping that returns all img idx for a given video id."""
-        for idx, entry in enumerate(self.dataset.frames):
-            if entry.videoName is not None:
-                self.video_to_indices[entry.videoName].append(idx)
+        """Creating mapping from video id to frame / group indices."""
+        video_to_frameidx: Dict[str, List[int]] = defaultdict(list)
+        if self.dataset.groups is not None:
+            for idx, group in enumerate(self.dataset.groups):
+                if group.videoName is not None:
+                    assert (
+                        group.frameIndex is not None
+                    ), "found videoName but no frameIndex!"
+                    video_to_frameidx[group.videoName].append(group.frameIndex)
+                    self.video_to_indices[group.videoName].append(idx)
+        else:
+            for idx, frame in enumerate(self.dataset.frames):
+                if frame.videoName is not None:
+                    assert (
+                        frame.frameIndex is not None
+                    ), "found videoName but no frameIndex!"
+                    video_to_frameidx[frame.videoName].append(frame.frameIndex)
+                    self.video_to_indices[frame.videoName].append(idx)
+
+        # sort dataset indices by frame indices
+        for key, idcs in self.video_to_indices.items():
+            zip_frame_idx = sorted(zip(video_to_frameidx[key], idcs))
+            self.video_to_indices[key] = [idx for _, idx in zip_frame_idx]
 
     def sample_ref_indices(
         self, video: str, key_dataset_index: int
     ) -> List[int]:
         """Sample reference dataset indices given video and keyframe index."""
         dataset_indices = self.video_to_indices[video]
+        sensor_id: Optional[int] = None
+        if self.dataset.groups is not None:
+            sensor_id = self.frame_to_sensor_id[key_dataset_index]
+            key_dataset_index = self.frame_to_group[key_dataset_index]
+
         key_index = dataset_indices.index(key_dataset_index)
 
         if self.sampling_cfg.type == "uniform":
@@ -136,9 +223,9 @@ class ScalabelDataset(Dataset):  # type: ignore
                 dataset_indices[left:key_index]
                 + dataset_indices[key_index + 1 : right + 1]
             )
-            ref_dataset_indices = np.random.choice(
+            ref_dataset_indices: List[int] = np.random.choice(
                 valid_inds, self.sampling_cfg.num_ref_imgs, replace=False
-            ).tolist()  # type: List[int]
+            ).tolist()
         elif self.sampling_cfg.type == "sequential":
             right = key_index + 1 + self.sampling_cfg.num_ref_imgs
             if right <= len(dataset_indices):
@@ -155,6 +242,11 @@ class ScalabelDataset(Dataset):  # type: ignore
                 f"implemented."
             )
 
+        if self.dataset.groups is not None and sensor_id is not None:
+            for i, ref_id in enumerate(ref_dataset_indices):
+                fname = self.dataset.groups[ref_id].frames[sensor_id]
+                ref_dataset_indices[i] = self.frame_name_to_idx[fname]
+
         return ref_dataset_indices
 
     def sort_samples(
@@ -166,8 +258,8 @@ class ScalabelDataset(Dataset):  # type: ignore
         if self.sampling_cfg.frame_order == "temporal":
             return sorted(
                 input_samples,
-                key=lambda x: x.metadata.frameIndex
-                if x.metadata.frameIndex is not None
+                key=lambda x: x.metadata[0].frameIndex
+                if x.metadata[0].frameIndex is not None
                 else 0,
             )
         raise NotImplementedError(
@@ -180,29 +272,40 @@ class ScalabelDataset(Dataset):  # type: ignore
         cur_idx: int,
         key_data: InputSample,
         parameters: Optional[List[AugParams]],
+        num_retry: int = 3,
     ) -> Optional[List[InputSample]]:
         """Sample reference views from key view."""
-        vid_id = key_data.metadata.videoName
-        if vid_id is not None:
-            ref_data = []
-            for ref_idx in self.sample_ref_indices(vid_id, cur_idx):
-                ref_sample = self.get_sample(
-                    self.dataset.frames[ref_idx],
-                    parameters=parameters,
-                )[0]
-                if ref_sample is None:
-                    break  # pragma: no cover
-                ref_data.append(ref_sample)
-        else:
-            ref_data = [  # pragma: no cover
-                key_data for _ in range(self.sampling_cfg.num_ref_imgs)
-            ]
-
-        if (
-            not self.sampling_cfg.skip_nomatch_samples
-            or self.has_matches(key_data, ref_data)
-        ) and self.sampling_cfg.num_ref_imgs == len(ref_data):
-            return ref_data
+        vid_id = key_data.metadata[0].videoName
+        for _ in range(num_retry):
+            if vid_id is not None:
+                ref_data = []
+                for ref_idx in self.sample_ref_indices(vid_id, cur_idx):
+                    ref_sample = self.get_sample(
+                        self.dataset.frames[ref_idx],
+                        parameters=parameters,
+                    )[0]
+                    if ref_sample is None:
+                        break  # pragma: no cover
+                    ref_data.append(ref_sample)
+            else:  # pragma: no cover
+                if parameters is not None:
+                    ref_data = [
+                        key_data for _ in range(self.sampling_cfg.num_ref_imgs)
+                    ]
+                else:
+                    ref_data = []
+                    for _ in range(self.sampling_cfg.num_ref_imgs):
+                        ref_sample = self.get_sample(
+                            self.dataset.frames[cur_idx]
+                        )[0]
+                        if ref_sample is None:
+                            break
+                        ref_data.append(ref_sample)
+            if (
+                not self.sampling_cfg.skip_nomatch_samples
+                or self.has_matches(key_data, ref_data)
+            ) and self.sampling_cfg.num_ref_imgs == len(ref_data):
+                return ref_data
         return None
 
     @staticmethod
@@ -210,11 +313,9 @@ class ScalabelDataset(Dataset):  # type: ignore
         key_data: InputSample, ref_data: List[InputSample]
     ) -> bool:
         """Check if key / ref data have matches."""
-        assert key_data.boxes2d is not None
-        key_track_ids = key_data.boxes2d.track_ids
+        key_track_ids = key_data.boxes2d[0].track_ids
         for ref_view in ref_data:
-            assert isinstance(ref_view.boxes2d, Boxes2D)
-            ref_track_ids = ref_view.boxes2d.track_ids
+            ref_track_ids = ref_view.boxes2d[0].track_ids
             match = key_track_ids.view(-1, 1) == ref_track_ids.view(1, -1)
             if match.any():
                 return True
@@ -225,19 +326,50 @@ class ScalabelDataset(Dataset):  # type: ignore
         retry_count = 0
         cur_idx = int(idx)
 
+        if not self.training:
+            if self.dataset.groups is not None:
+                group = self.dataset.groups[cur_idx]
+                if not self.cfg.multi_sensor_inference:
+                    cur_data = self.get_sample(
+                        self.dataset.frames[
+                            self.frame_name_to_idx[group.frames[0]]
+                        ]
+                    )[0]
+                    assert cur_data is not None
+                    return [cur_data]
+
+                group_data, group_parameters = self.get_sample(group)
+                assert group_data is not None
+                data = [group_data]
+                for fname in group.frames:
+                    cur_data, _ = self.get_sample(
+                        self.dataset.frames[self.frame_name_to_idx[fname]],
+                        parameters=group_parameters,
+                    )
+                    assert cur_data is not None
+                    data.append(cur_data)
+                return data
+
+            cur_data = self.get_sample(self.dataset.frames[cur_idx])[0]
+            assert cur_data is not None
+            data = [cur_data]
+            return data
+
         while True:
             input_data, parameters = self.get_sample(
                 self.dataset.frames[cur_idx]
             )
+            ref_parameters = (
+                parameters if self.sampling_cfg.consistent_ref_aug else None
+            )
             if input_data is not None:
-                if input_data.metadata.attributes is None:
-                    input_data.metadata.attributes = {}
-                if self.training:
-                    input_data.metadata.attributes["keyframe"] = True
+                if input_data.metadata[0].attributes is None:
+                    input_data.metadata[0].attributes = {}
+                input_data.metadata[0].attributes["keyframe"] = True
 
-                if self.training and self.sampling_cfg.num_ref_imgs > 0:
+                if self.sampling_cfg.num_ref_imgs > 0:
                     ref_data = self.sample_ref_views(
-                        cur_idx, input_data, parameters
+                        cur_idx, input_data, ref_parameters
                     )
                     if ref_data is not None:
                         return self.sort_samples([input_data] + ref_data)
@@ -250,55 +382,46 @@ class ScalabelDataset(Dataset):  # type: ignore
 
             if retry_count >= 5:
                 rank_zero_warn(
-                    f"Failed to get sample for idx: {idx}, "
+                    f"Failed to get samples for idx: {cur_idx}, "
                     f"retry count: {retry_count}"
                 )
 
-    def load_image(
-        self,
-        sample: Frame,
-    ) -> NDArrayUI8:
+    def load_input(
+        self, sample: Frame, use_empty: Optional[bool] = False
+    ) -> InputSample:
         """Load image according to data_backend."""
-        assert sample.url is not None
-        im_bytes = self.data_backend.get(sample.url)
-        image = im_decode(im_bytes, mode=self.image_channel_mode)
-        sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
-        return image
+        if not use_empty:
+            assert sample.url is not None
+            im_bytes = self.data_backend.get(sample.url)
+            image = im_decode(im_bytes, mode=self.image_channel_mode)
+        else:
+            image = np.empty((128, 128, 3), dtype=np.uint8)
 
-    def transform_image(
-        self,
-        image: NDArrayUI8,
-        parameters: Optional[List[AugParams]] = None,
-    ) -> Tuple[Images, List[AugParams], torch.Tensor]:
-        """Apply image augmentations and convert to torch tensor."""
+        sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
         image = torch.as_tensor(
             np.ascontiguousarray(image.transpose(2, 0, 1)),
             dtype=torch.float32,
         ).unsqueeze(0)
+        images = Images(image, [(image.shape[3], image.shape[2])])
+        input_data = InputSample([copy.deepcopy(sample)], images)
 
-        if parameters is None:
-            parameters = []
-        else:
-            assert len(parameters) == len(self.transformations), (
-                "Length of augmentation parameters must equal the number of "
-                "augmentations!"
-            )
+        if (
+            sample.intrinsics is not None
+            and "intrinsics" in self.cfg.dataloader.fields_to_load
+        ):
+            input_data.intrinsics = self.load_intrinsics(sample.intrinsics)
 
-        transform_matrix = torch.eye(3)
-        for i, aug in enumerate(self.transformations):
-            if len(parameters) < len(self.transformations):
-                parameters.append(aug.forward_parameters(image.shape))
-            image, tm = aug(image, parameters[i], return_transform=True)
-            transform_matrix = torch.mm(tm[0], transform_matrix)
+        if (
+            sample.extrinsics is not None
+            and "extrinsics" in self.cfg.dataloader.fields_to_load
+        ):
+            input_data.extrinsics = self.load_extrinsics(sample.extrinsics)
+        return input_data
 
-        image_processed = Images(image, [(image.shape[3], image.shape[2])])
-        return image_processed, parameters, transform_matrix
-
-    def transform_annotation(
+    def load_annotation(
         self,
-        input_sample: InputSample,
+        sample: InputSample,
         labels: Optional[List[Label]],
-        transform_matrix: torch.Tensor,
     ) -> None:
         """Transform annotations."""
         labels_used = []
@@ -319,37 +442,83 @@ class ScalabelDataset(Dataset):  # type: ignore
                             label.attributes["instance_id"]
                         )
 
-            if "boxes2d" in self.cfg.dataloader.fields_to_load and labels_used:
-                boxes2d = Boxes2D.from_scalabel(
-                    labels_used, category_dict, instance_id_dict
-                )
-                boxes2d.boxes[:, :4] = transform_bbox(
-                    transform_matrix,
-                    boxes2d.boxes[:, :4],
-                )
-                if self.cfg.dataloader.clip_bboxes_to_image:
-                    boxes2d.clip(input_sample.image.image_sizes[0])
+            if labels_used:
+                if "instance_masks" in self.cfg.dataloader.fields_to_load:
+                    instance_masks = InstanceMasks.from_scalabel(
+                        labels_used,
+                        category_dict,
+                        instance_id_dict,
+                        sample.metadata[0].size,
+                    )
+                    sample.instance_masks = [instance_masks]
 
-                input_sample.boxes2d = boxes2d
+                if "semantic_masks" in self.cfg.dataloader.fields_to_load:
+                    semantic_masks = SemanticMasks.from_scalabel(
+                        labels_used,
+                        category_dict,
+                        instance_id_dict,
+                        sample.metadata[0].size,
+                    )
+                    sample.semantic_masks = [semantic_masks]
 
-            if "boxes3d" in self.cfg.dataloader.fields_to_load and labels_used:
-                boxes3d = Boxes3D.from_scalabel(
-                    labels_used, category_dict, instance_id_dict
-                )
-                input_sample.boxes3d = boxes3d
+                if "boxes2d" in self.cfg.dataloader.fields_to_load:
+                    boxes2d = Boxes2D.from_scalabel(
+                        labels_used, category_dict, instance_id_dict
+                    )
+                    if (
+                        len(boxes2d) == 0 and len(sample.instance_masks[0]) > 0
+                    ):  # pragma: no cover
+                        boxes2d = sample.instance_masks[0].get_boxes2d()
+                    sample.boxes2d = [boxes2d]
+
+                if "boxes3d" in self.cfg.dataloader.fields_to_load:
+                    boxes3d = Boxes3D.from_scalabel(
+                        labels_used, category_dict, instance_id_dict
+                    )
+                    sample.boxes3d = [boxes3d]
+
+    def transform_input(
+        self,
+        sample: InputSample,
+        parameters: Optional[List[AugParams]] = None,
+    ) -> List[DictStrAny]:
+        """Apply transforms to input sample."""
+        if parameters is None:
+            parameters = []
+        else:
+            assert len(parameters) == len(self.transformations), (
+                "Length of augmentation parameters must equal the number of "
+                "augmentations!"
+            )
+        for i, aug in enumerate(self.transformations):
+            if len(parameters) < len(self.transformations):
+                parameters.append(aug.generate_parameters(sample))
+            sample, _ = aug(sample, parameters[i])
+        return parameters
+
+    def postprocess_annotation(self, sample: InputSample) -> None:
+        """Process annotations after transform."""
+        if len(sample.boxes2d[0]) == 0:
+            return
+        if self.cfg.dataloader.clip_bboxes_to_image:
+            sample.boxes2d[0].clip(sample.images.image_sizes[0])
+        keep = sample.boxes2d[0].area >= self.cfg.dataloader.min_bboxes_area
+        sample.boxes2d = [sample.boxes2d[0][keep]]
+        if len(sample.boxes3d[0]) > 0:
+            sample.boxes3d = [sample.boxes3d[0][keep]]
+        if len(sample.instance_masks[0]) > 0:
+            sample.instance_masks = [sample.instance_masks[0][keep]]
 
     @staticmethod
-    def transform_intrinsics(
-        intrinsics: ScalabelIntrinsics, transform_matrix: torch.Tensor
-    ) -> Intrinsics:
+    def load_intrinsics(intrinsics: ScalabelIntrinsics) -> Intrinsics:
         """Transform intrinsic camera matrix according to augmentations."""
         intrinsic_matrix = torch.from_numpy(
             get_matrix_from_intrinsics(intrinsics)
         ).to(torch.float32)
-        return Intrinsics(torch.mm(transform_matrix, intrinsic_matrix))
+        return Intrinsics(intrinsic_matrix)
 
     @staticmethod
-    def transform_extrinsics(extrinsics: ScalabelExtrinsics) -> Extrinsics:
+    def load_extrinsics(extrinsics: ScalabelExtrinsics) -> Extrinsics:
         """Transform extrinsics from Scalabel to VisT."""
         extrinsics_matrix = torch.from_numpy(
             get_matrix_from_extrinsics(extrinsics)
@@ -373,41 +542,37 @@ class ScalabelDataset(Dataset):  # type: ignore
             List[AugParams]: augmentation parameters, s.t. ref views can be
             augmented with the same parameters.
         """
-        # image loading, augmentation / to torch.tensor
-        image, parameters, transform_matrix = self.transform_image(
-            self.load_image(sample),
-            parameters=parameters,
+        if (
+            self.cfg.dataloader.skip_empty_samples
+            and (sample.labels is None or len(sample.labels) == 0)
+            and self.training
+        ):
+            return None, None  # pragma: no cover
+
+        # load input data
+        input_data = self.load_input(
+            sample, use_empty=isinstance(sample, FrameGroup)
         )
-        input_data = InputSample(copy.deepcopy(sample), image)
 
-        if (
-            input_data.metadata.intrinsics is not None
-            and "intrinsics" in self.cfg.dataloader.fields_to_load
-        ):
-            input_data.intrinsics = self.transform_intrinsics(
-                input_data.metadata.intrinsics, transform_matrix
-            )
+        if self.training:
+            # load annotations to input sample
+            self.load_annotation(input_data, sample.labels)
 
-        if (
-            input_data.metadata.extrinsics is not None
-            and "extrinsics" in self.cfg.dataloader.fields_to_load
-        ):
-            input_data.extrinsics = self.transform_extrinsics(
-                input_data.metadata.extrinsics
-            )
+        # apply transforms to input sample
+        parameters = self.transform_input(input_data, parameters)
 
         if not self.training:
             return input_data, parameters
 
-        self.transform_annotation(
-            input_data, input_data.metadata.labels, transform_matrix
-        )
+        # postprocess boxes after transforms
+        self.postprocess_annotation(input_data)
 
         if (
             self.cfg.dataloader.skip_empty_samples
-            and len(input_data.boxes2d) == 0
-            and len(input_data.boxes3d) == 0
+            and len(input_data.boxes2d[0]) == 0
+            and len(input_data.boxes3d[0]) == 0
+            and len(input_data.instance_masks[0]) == 0
+            and len(input_data.semantic_masks[0]) == 0
         ):
             return None, None  # pragma: no cover
-
         return input_data, parameters
