@@ -11,7 +11,7 @@ try:
     from mmcv import Config as MMConfig
 
     MMCV_INSTALLED = True
-except:
+except ImportError:
     MMCV_INSTALLED = False  # pragma: no cover
 
 

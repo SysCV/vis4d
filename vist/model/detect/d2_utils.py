@@ -10,7 +10,7 @@ try:
     from detectron2.structures import BitMasks, Boxes, ImageList, Instances
 
     D2_INSTALLED = True
-except:
+except ImportError:
     D2_INSTALLED = False  # pragma: no cover
 
 from vist.struct import Boxes2D, Images, InstanceMasks

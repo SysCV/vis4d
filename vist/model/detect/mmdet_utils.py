@@ -11,14 +11,14 @@ try:
     from mmcv import Config as MMConfig
 
     MMCV_INSTALLED = True
-except:
+except ImportError:
     MMCV_INSTALLED = False  # pragma: no cover
 
 try:
     from mmdet.core.mask import BitmapMasks
 
     MMDET_INSTALLED = True
-except:
+except ImportError:
     MMDET_INSTALLED = False  # pragma: no cover
 
 from vist.struct import (

@@ -10,7 +10,7 @@ try:
     from detectron2.utils.events import EventStorage
 
     D2_INSTALLED = True
-except:
+except ImportError:
     D2_INSTALLED = False  # pragma: no cover
 
 
