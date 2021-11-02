@@ -15,7 +15,7 @@ from typing import Dict, List, Tuple, Union
 import torch
 from kornia import augmentation as kornia_augmentation
 
-from vist.struct import Boxes2D, Images, InputSample, Intrinsics, Masks
+from vist.struct import Boxes2D, Images, InputSample, Intrinsics, TMasks
 
 from ..utils import transform_bbox
 from .base import AugParams, BaseAugmentation, BaseAugmentationConfig
@@ -108,9 +108,9 @@ class KorniaAugmentationWrapper(BaseAugmentation):
 
     def apply_mask(
         self,
-        masks: List[Masks],
+        masks: List[TMasks],
         parameters: AugParams,
-    ) -> List[Masks]:
+    ) -> List[TMasks]:
         """Apply augmentation to input mask."""
         for i, mask in enumerate(masks):
             if len(mask) > 0 and parameters["apply"][i]:
@@ -135,7 +135,7 @@ class KorniaColorJitter(KorniaAugmentationWrapper):
         super().__init__(cfg)
 
     def apply_mask(
-        self, masks: List[Masks], parameters: AugParams
-    ) -> List[Masks]:
+        self, masks: List[TMasks], parameters: AugParams
+    ) -> List[TMasks]:
         """Skip augmentation for mask."""
         return masks

@@ -4,9 +4,9 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
-from mmcv.ops.roi_align import roi_align
 from scalabel.label.transforms import mask_to_rle, poly2ds_to_mask, rle_to_mask
 from scalabel.label.typing import Box2D, Box3D, ImageSize, Label
+from torchvision.ops import roi_align
 
 from ..common.geometry.rotation import (
     euler_angles_to_matrix,
@@ -511,7 +511,7 @@ class Masks(LabelInstance):
         rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
         gt_masks_th = self.masks[:, None, :, :].type(rois.dtype)
         targets = roi_align(
-            gt_masks_th, rois, out_shape, 1.0, 0, "avg", True
+            gt_masks_th, rois, out_shape, 1.0, 0, True
         ).squeeze(1)
         if binarize:
             resized_masks = targets >= 0.5
