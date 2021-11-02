@@ -1,7 +1,7 @@
 #!/bin/bash
 eval "$(conda shell.bash hook)"
-conda create --name vist python=3.8
-conda activate vist
+conda create --name vis4d python=3.8
+conda activate vis4d
 conda install pytorch torchvision torchaudio cpuonly -c pytorch
 python3 -m pip install --ignore-installed  -r requirements.txt
 python3 -m pip install mmcv-full

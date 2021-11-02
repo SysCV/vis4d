@@ -3,9 +3,9 @@ from typing import List
 
 import torch
 
-from vist.model import BaseModel, BaseModelConfig, build_model
-from vist.model.track.graph import TrackGraphConfig, build_track_graph
-from vist.struct import InputSample, LossesType, ModelOutput
+from vis4d.model import BaseModel, BaseModelConfig, build_model
+from vis4d.model.track.graph import TrackGraphConfig, build_track_graph
+from vis4d.struct import InputSample, LossesType, ModelOutput
 
 
 class SORTConfig(BaseModelConfig, extra="allow"):

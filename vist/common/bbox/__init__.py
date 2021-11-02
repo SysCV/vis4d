@@ -1,1 +1,0 @@
-"""VisT common.bbox package."""
