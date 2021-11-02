@@ -10,7 +10,7 @@ try:
     from scalabel.label.from_nuscenes import from_nuscenes
 
     NUSC_INSTALLED = True  # pragma: no cover
-except ImportError:
+except (ImportError, NameError):
     NUSC_INSTALLED = False
 
 

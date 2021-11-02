@@ -7,14 +7,14 @@ try:
     from mmcv.runner.checkpoint import load_checkpoint
 
     MMCV_INSTALLED = True
-except ImportError:
+except (ImportError, NameError):
     MMCV_INSTALLED = False  # pragma: no cover
 
 try:
     from mmseg.models import EncoderDecoder, build_segmentor
 
     MMSEG_INSTALLED = True
-except ImportError:
+except (ImportError, NameError):
     MMSEG_INSTALLED = False  # pragma: no cover
 
 
