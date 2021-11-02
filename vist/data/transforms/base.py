@@ -12,7 +12,7 @@ from vist.struct import (
     Images,
     InputSample,
     Intrinsics,
-    Masks,
+    TMasks,
 )
 
 from .utils import sample_batched
@@ -82,9 +82,9 @@ class BaseAugmentation(metaclass=RegistryHolder):
 
     def apply_mask(
         self,
-        masks: List[Masks],
+        masks: List[TMasks],
         parameters: AugParams,
-    ) -> List[Masks]:
+    ) -> List[TMasks]:
         """Apply augmentation to input mask."""
         return masks
 
@@ -105,10 +105,10 @@ class BaseAugmentation(metaclass=RegistryHolder):
         sample.boxes2d = self.apply_box2d(sample.boxes2d, parameters)
         sample.boxes3d = self.apply_box3d(sample.boxes3d, parameters)
         sample.instance_masks = self.apply_mask(
-            sample.instance_masks, parameters  # type: ignore
+            sample.instance_masks, parameters
         )
         sample.semantic_masks = self.apply_mask(
-            sample.semantic_masks, parameters  # type: ignore
+            sample.semantic_masks, parameters
         )
         return sample, parameters
 

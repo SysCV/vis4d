@@ -14,7 +14,7 @@ from vist.struct import (
     Images,
     InputSample,
     Intrinsics,
-    Masks,
+    TMasks,
 )
 
 from .base import AugParams, BaseAugmentation, BaseAugmentationConfig
@@ -184,8 +184,8 @@ class Resize(BaseAugmentation):
         return boxes
 
     def apply_mask(
-        self, masks: List[Masks], parameters: AugParams
-    ) -> List[Masks]:
+        self, masks: List[TMasks], parameters: AugParams
+    ) -> List[TMasks]:
         """Apply augmentation to input mask."""
         interp = self.interpolation
         self.interpolation = "nearest"
@@ -414,9 +414,9 @@ class RandomCrop(BaseAugmentation):
 
     def apply_mask(
         self,
-        masks: List[Masks],
+        masks: List[TMasks],
         parameters: AugParams,
-    ) -> List[Masks]:
+    ) -> List[TMasks]:
         """Apply augmentation to input mask."""
         for i, mask in enumerate(masks):
             if len(mask) > 0 and parameters["apply"][i]:
