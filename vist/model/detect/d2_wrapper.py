@@ -2,10 +2,18 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.modeling import GeneralizedRCNN
-from detectron2.structures import Instances
-from detectron2.utils.events import EventStorage
+
+try:
+    from detectron2.checkpoint import DetectionCheckpointer
+    from detectron2.modeling import GeneralizedRCNN
+    from detectron2.structures import Instances
+    from detectron2.utils.events import EventStorage
+
+    D2_INSTALLED = True
+except:
+    D2_INSTALLED = False  # pragma: no cover
+
+
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from vist.model.detect.d2_utils import (
@@ -35,6 +43,9 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
     def __init__(self, cfg: BaseModelConfig):
         """Init."""
+        assert (
+            D2_INSTALLED
+        ), "D2TwoStageDetector requires detectron2 to be installed!"
         super().__init__(cfg)
         self.cfg = D2TwoStageDetectorConfig(
             **cfg.dict()

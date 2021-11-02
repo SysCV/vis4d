@@ -6,8 +6,20 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import requests
 import torch
-from mmcv import Config as MMConfig
-from mmdet.core.mask import BitmapMasks
+
+try:
+    from mmcv import Config as MMConfig
+
+    MMCV_INSTALLED = True
+except:
+    MMCV_INSTALLED = False  # pragma: no cover
+
+try:
+    from mmdet.core.mask import BitmapMasks
+
+    MMDET_INSTALLED = True
+except:
+    MMDET_INSTALLED = False  # pragma: no cover
 
 from vist.struct import (
     Boxes2D,

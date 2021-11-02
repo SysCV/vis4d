@@ -6,7 +6,14 @@ from typing import Dict, List, Optional, Tuple, Union
 import requests
 import torch
 import torch.nn.functional as F
-from mmcv import Config as MMConfig
+
+try:
+    from mmcv import Config as MMConfig
+
+    MMCV_INSTALLED = True
+except:
+    MMCV_INSTALLED = False  # pragma: no cover
+
 
 from vist.struct import InputSample, NDArrayUI8, SemanticMasks
 

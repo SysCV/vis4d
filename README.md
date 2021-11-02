@@ -1,12 +1,13 @@
 # VisT
 
-A perception system of tracking and motion understanding.
+A framework for dynamic scene understanding.
 
 ## Installation
 
 We currently support Python 3.7, 3.8 and 3.9.
 
-You can install the package dependency via vanilla python and pip:
+### Minimal requirements
+You can install the minimal package dependencies via vanilla python and pip:
 
 ```bash
 python3 -m pip install -r requirements.txt \
@@ -26,13 +27,23 @@ conda install pytorch torchvision torchaudio cudatoolkit=11.0 -c pytorch
 pip install -r requirements.txt
 ```
 
-You can also use [python](./scripts/install_cpu_dep.sh) and [conda](./scripts/install_cpu_conda_dep.sh) scripts on CPU machine installation.
-
 More information about torch and pytorch-lightning installation
 
 - [Pytorch](https://pytorch.org/get-started/locally)
 - [PytorchLightning](https://www.pytorchlightning.ai/)
 
+### Full requirements
+To install the full package dependencies, please refer to the [python](scripts/install_cpu_dep_full.sh) and [conda](scripts/install_cpu_conda_dep_full.sh) scripts.
+Or install the following packages:
+
+- [mmcv](https://github.com/open-mmlab/mmcv)
+- [mmdet](https://github.com/open-mmlab/mmdetection)
+- [mmseg](https://github.com/open-mmlab/mmsegmentation)
+- [detectron2](https://github.com/facebookresearch/detectron2)
+
+Please note that specific models will require some of these packages.
+
+### Package installation
 To install `vist` package,
 
 ```bash

@@ -2,8 +2,21 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from mmcv.runner.checkpoint import load_checkpoint
-from mmseg.models import EncoderDecoder, build_segmentor
+
+try:
+    from mmcv.runner.checkpoint import load_checkpoint
+
+    MMCV_INSTALLED = True
+except:
+    MMCV_INSTALLED = False  # pragma: no cover
+
+try:
+    from mmseg.models import EncoderDecoder, build_segmentor
+
+    MMSEG_INSTALLED = True
+except:
+    MMSEG_INSTALLED = False  # pragma: no cover
+
 
 from vist.struct import InputSample, LossesType, ModelOutput, SemanticMasks
 
@@ -26,6 +39,9 @@ class MMEncDecSegmentor(BaseSegmentor):
 
     def __init__(self, cfg: BaseModelConfig):
         """Init."""
+        assert (
+            MMSEG_INSTALLED and MMCV_INSTALLED
+        ), "MMEncDecSegmentor requires both mmcv and mmseg to be installed!"
         super().__init__(cfg)
         self.cfg = MMEncDecSegmentorConfig(
             **cfg.dict()

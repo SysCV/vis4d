@@ -20,7 +20,6 @@ torch
 torchaudio
 torchvision
 git+git://github.com/bdd100k/bdd100k.git
-mmcv-full
 devtools
 utm
 kornia

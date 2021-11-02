@@ -2,8 +2,21 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from mmcv.runner.checkpoint import load_checkpoint
-from mmdet.models import TwoStageDetector, build_detector
+
+try:
+    from mmcv.runner.checkpoint import load_checkpoint
+
+    MMCV_INSTALLED = True
+except:
+    MMCV_INSTALLED = False  # pragma: no cover
+
+try:
+    from mmdet.models import TwoStageDetector, build_detector
+
+    MMDET_INSTALLED = True
+except:
+    MMDET_INSTALLED = False  # pragma: no cover
+
 
 from vist.struct import (
     Boxes2D,
@@ -36,6 +49,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
     def __init__(self, cfg: BaseModelConfig):
         """Init."""
+        assert (
+            MMDET_INSTALLED and MMCV_INSTALLED
+        ), "MMTwoStageDetector requires both mmcv and mmdet to be installed!"
         super().__init__(cfg)
         self.cfg = MMTwoStageDetectorConfig(
             **cfg.dict()

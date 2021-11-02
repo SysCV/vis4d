@@ -3,9 +3,15 @@ import os
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
-from detectron2 import model_zoo
-from detectron2.config import CfgNode, get_cfg
-from detectron2.structures import BitMasks, Boxes, ImageList, Instances
+
+try:
+    from detectron2 import model_zoo
+    from detectron2.config import CfgNode, get_cfg
+    from detectron2.structures import BitMasks, Boxes, ImageList, Instances
+
+    D2_INSTALLED = True
+except:
+    D2_INSTALLED = False  # pragma: no cover
 
 from vist.struct import Boxes2D, Images, InstanceMasks
 
