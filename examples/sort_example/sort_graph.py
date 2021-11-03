@@ -1,6 +1,6 @@
 """Track graph of SORT."""
-from vist.model.track.graph import BaseTrackGraph, TrackGraphConfig
-from vist.struct import Boxes2D
+from vis4d.model.track.graph import BaseTrackGraph, TrackGraphConfig
+from vis4d.struct import Boxes2D
 
 
 class SORTTrackGraphConfig(TrackGraphConfig):
