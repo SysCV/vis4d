@@ -1,0 +1,13 @@
+[[config]]
+path = "../configs/datasets/bdd100k/seg_track.toml"
+
+[[config]]
+path = "../configs/models/detectron2/mask_qdtrack_R_50_FPN.toml"
+
+[launch]
+samples_per_gpu = 1
+workers_per_gpu = 0
+
+[trainer]
+max_steps = 1
+log_every_n_steps = 50

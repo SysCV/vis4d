@@ -5,30 +5,28 @@ path = "../../base/datasets/mot16.toml"
 path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"
 
 [model]
-image_channel_mode = "BGR"
+category_mapping = {"pedestrian" = 0}
     [model.detection]
     model_kwargs= {"backbone.style" = "caffe", "backbone.norm_cfg.requires_grad" = false, "backbone.init_cfg.checkpoint" = "open-mmlab://detectron2/resnet50_caffe"}
     pixel_mean = [103.530, 116.280, 123.675]
     pixel_std = [1.0, 1.0, 1.0]
     weights = "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco-person/faster_rcnn_r50_fpn_1x_coco-person_20201216_175929-d022e227.pth"
 
-[model]
-category_mapping = {"pedestrian" = 0}
     [model.optimizer]
     type = "SGD"
-    lr = 0.03
+    lr = 0.01
     kwargs = {"momentum" = 0.9, "weight_decay" = 0.0001}
 
     [model.lr_scheduler]
     type = "MultiStepLR"
-    kwargs = {"milestones" = [8, 11]}
+    kwargs = {"milestones" = [50, 70]}
 
 [launch]
 samples_per_gpu = 6
-workers_per_gpu = 2
+workers_per_gpu = 3
 
 [trainer]
-max_epochs = 12
+max_epochs = 80
 log_every_n_steps = 50
-check_val_every_n_epoch = 1
-num_sanity_val_steps = 0
+check_val_every_n_epoch = 10
+num_sanity_val_steps = 2

@@ -24,23 +24,23 @@ jobs:
       - name: install
         run: |
           python3 -m pip install --upgrade pip
-          bash ./scripts/install_cpu_dep.sh
+          bash ./scripts/install_cpu_dep_full.sh
           python3 -m pip freeze
 
       - name: isort
-        run: python3 -m isort -c vist
+        run: python3 -m isort -c vis4d
 
       - name: black
-        run: python3 -m black --check vist
+        run: python3 -m black --check vis4d
 
       - name: lint
-        run: python3 -m pylint vist
+        run: python3 -m pylint vis4d
 
       - name: docstyle
-        run: python3 -m pydocstyle --convention=google vist
+        run: python3 -m pydocstyle --convention=google vis4d
 
       - name: mypy
-        run: python3 -m mypy --strict vist
+        run: python3 -m mypy --strict vis4d
 
   test:
     name: test py${{ matrix.python-version }}
@@ -59,16 +59,16 @@ jobs:
       - name: install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          bash ./scripts/install_cpu_dep.sh
+          bash ./scripts/install_cpu_dep_full.sh
           python3 -m pip freeze
 
       # - name: test
-      #   run: python3 -m pytest --pyargs vist
+      #   run: python3 -m pytest --pyargs vis4d
 
       - name: test
-        run: python3 -m coverage run --source=vist -m pytest --pyargs vist
+        run: python3 -m coverage run --source=vis4d -m pytest --pyargs vis4d
 
-      - name: test converage
+      - name: test coverage
         run: python3 -m coverage report --fail-under=100 -m
 
       - name: build

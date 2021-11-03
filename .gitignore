@@ -67,7 +67,7 @@ scalabel.egg-info
 .coverage
 
 # package default workspace
-vist-workspace
-vist.egg-info
+vis4d-workspace
+vis4d.egg-info
 
 *.tmp

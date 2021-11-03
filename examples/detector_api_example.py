@@ -4,14 +4,14 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from torchvision.models.detection import retinanet  # type: ignore
 
-import vist.data.datasets.base
-from vist import config
-from vist.data.datasets import DataloaderConfig as Dataloader
-from vist.engine.trainer import train
-from vist.model import BaseModelConfig
-from vist.model.detect import BaseDetector
-from vist.model.optimize import BaseOptimizerConfig
-from vist.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
+import vis4d.data.datasets.base
+from vis4d import config
+from vis4d.data.datasets import DataloaderConfig as Dataloader
+from vis4d.engine.trainer import train
+from vis4d.model import BaseModelConfig
+from vis4d.model.detect import BaseDetector
+from vis4d.model.optimize import BaseOptimizerConfig
+from vis4d.struct import Boxes2D, Images, InputSample, LossesType, ModelOutput
 
 
 class MyDetectorConfig(BaseModelConfig, extra="allow"):
@@ -103,12 +103,12 @@ if __name__ == "__main__":
         ),
         launch=config.Launch(samples_per_gpu=2, workers_per_gpu=0),
         train=[
-            vist.data.datasets.base.BaseDatasetConfig(
+            vis4d.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_train",
                 type="BDD100K",
-                annotations="vist/engine/testcases/track/bdd100k-samples/"
+                annotations="vis4d/engine/testcases/track/bdd100k-samples/"
                 "labels",
-                data_root="vist/engine/testcases/track/bdd100k-samples/"
+                data_root="vis4d/engine/testcases/track/bdd100k-samples/"
                 "images/",
                 config_path="box_track",
                 eval_metrics=["detect"],
@@ -116,12 +116,12 @@ if __name__ == "__main__":
             )
         ],
         test=[
-            vist.data.datasets.base.BaseDatasetConfig(
+            vis4d.data.datasets.base.BaseDatasetConfig(
                 name="bdd100k_sample_val",
                 type="BDD100K",
-                annotations="vist/engine/testcases/track/bdd100k-samples/"
+                annotations="vis4d/engine/testcases/track/bdd100k-samples/"
                 "labels",
-                data_root="vist/engine/testcases/track/bdd100k-samples/"
+                data_root="vis4d/engine/testcases/track/bdd100k-samples/"
                 "images/",
                 config_path="box_track",
                 eval_metrics=["detect"],
