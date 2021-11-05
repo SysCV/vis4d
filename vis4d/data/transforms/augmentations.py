@@ -201,6 +201,17 @@ class Resize(BaseAugmentation):
         self.interpolation = interp
         return masks
 
+    def __call__(
+        self, sample: InputSample, parameters: Optional[AugParams] = None
+    ) -> Tuple[InputSample, AugParams]:
+        """Apply augmentations to input sample."""
+        # if parameters is given, still re-calculate parameters
+        if parameters is not None:
+            parameters = self.generate_parameters(sample)
+        sample, parameters = super().__call__(sample, parameters)
+
+        return sample, parameters
+
 
 class RandomCropConfig(BaseAugmentationConfig):
     """Config for RandomCrop."""

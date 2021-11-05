@@ -6,7 +6,14 @@ import torch
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+import plotly.graph_objects as go
+import dash_core_components as dcc
+import dash_html_components as html
+import dash
+from multiprocessing import Process
+
 from vis4d.struct import Intrinsics, Extrinsics, NDArrayF64, NDArrayUI8
+from vis4d.common.geometry.projection import project_points
 
 from .utils import (
     Box3DType,
@@ -245,9 +252,6 @@ def drawlinesMatch(img1, img2, pts1, pts2, concat_row=True, radius=5):
     return out_im
 
 
-from vist.common.geometry.projection import project_points
-
-
 def imshow_correspondence(
     key_image: ImageType,
     key_extrinsics: Extrinsics,
@@ -318,10 +322,7 @@ def imshow_lidar(
         center @ camera_extrinsics.inverse().transpose().tensor[0][:, :3]
     )
 
-    intrinsic_matrix = preprocess_intrinsics(camera_intrinsics)
-
-    pts2d = np.dot(points_cam.cpu().numpy(), intrinsic_matrix.T)  # type: ignore
-    pts2d = pts2d / pts2d[:, 2:3]
+    pts2d = project_points(points_cam, camera_intrinsics).cpu().numpy()
 
     image_p = preprocess_image(image, mode)
 
@@ -345,13 +346,6 @@ def imshow_lidar(
         imshow_bboxes3d(image, boxes, camera_intrinsics)
     elif box_mode == "2D":
         imshow_bboxes(image, boxes)
-
-
-import plotly.graph_objects as go
-import dash_core_components as dcc
-import dash_html_components as html
-import dash
-from multiprocessing import Process
 
 
 def plotly_draw_bbox3d(box: List[float]):

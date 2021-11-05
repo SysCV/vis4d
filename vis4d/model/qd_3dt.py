@@ -36,19 +36,19 @@ class QD3DT(QDTrack):
         """Forward function for training."""
         key_inputs, ref_inputs = self.preprocess_inputs(batch_inputs)
 
-        from vist.vis.image import imshow_correspondence
-        for batch_i, key_inp in enumerate(key_inputs):
-            for ref_inp in ref_inputs:
-                imshow_correspondence(
-                    key_inp.images.tensor[0],
-                    key_inp.extrinsics[0],
-                    key_inp.intrinsics[0],
-                    ref_inp.images.tensor[batch_i],
-                    ref_inp.extrinsics[batch_i],
-                    ref_inp.intrinsics[batch_i],
-                    key_inp.points.tensor[0],
-                    key_inp.points_extrinsics[0],
-                )
+        # from vis4d.vis.image import imshow_correspondence
+        # for batch_i, key_inp in enumerate(key_inputs):
+        #     for ref_inp in ref_inputs:
+        #         imshow_correspondence(
+        #             key_inp.images.tensor[0],
+        #             key_inp.extrinsics[0],
+        #             key_inp.intrinsics[0],
+        #             ref_inp.images.tensor[batch_i],
+        #             ref_inp.extrinsics[batch_i],
+        #             ref_inp.intrinsics[batch_i],
+        #             key_inp.points.tensor[0],
+        #             key_inp.points_extrinsics[0],
+        #         )
 
         # feature extraction
         key_x = self.detector.extract_features(key_inputs)
@@ -140,9 +140,7 @@ class QD3DT(QDTrack):
 
         for idx, boxes3d in enumerate(boxes3d_list):
             assert isinstance(boxes3d, Boxes3D)
-            boxes3d.transform(
-                group.extrinsics.inverse() @ inputs[idx].extrinsics
-            )
+            boxes3d.transform(inputs[idx].extrinsics)
         boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
 
         embeddings = torch.cat(embeddings_list)
@@ -171,9 +169,11 @@ class QD3DT(QDTrack):
         tracks_2d = tracks2d.to(torch.device("cpu")).to_scalabel(
             self.cat_mapping
         )
-        tracks_3d = (
-            Boxes3D(boxes_3d, class_ids_3d, track_ids_3d)
-            .to(torch.device("cpu"))
-            .to_scalabel(self.cat_mapping)
+
+        tracks3d = Boxes3D(boxes_3d, class_ids_3d, track_ids_3d)
+        tracks3d.transform(group.extrinsics.inverse())
+
+        tracks_3d = tracks3d.to(torch.device("cpu")).to_scalabel(
+            self.cat_mapping
         )
         return dict(detect=[boxes_2d], track=[tracks_2d], track_3d=[tracks_3d])

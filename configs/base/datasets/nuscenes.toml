@@ -1,11 +1,11 @@
 [[train]]
-name = "nuscenes_mini_train"
+name = "nuscenes_train"
 type = "NuScenes"
 data_root = "data/nuscenes"
-version = "v1.0-mini"
-split = "mini_train"
+version = "v1.0-trainval"
+split = "train"
 add_non_key = false
-annotations = "data/nuscenes/scalabel_mini_train.json"
+annotations = "data/nuscenes/scalabel_train.json"
 cache_as_binary = true
     [train.dataloader]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "lidar"]
@@ -30,13 +30,13 @@ cache_as_binary = true
     kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.8, 1.2], "saturation" = [0.8, 1.2]}
 
 [[test]]
-name = "nuscenes_mini_val"
+name = "nuscenes_val"
 type = "NuScenes"
 data_root = "data/nuscenes"
-version = "v1.0-mini"
-split = "mini_val"
+version = "v1.0-trainval"
+split = "val"
 add_non_key = true
-annotations = "data/nuscenes/scalabel_mini_val_full.json"
+annotations = "data/nuscenes/scalabel_val_full.json"
 cache_as_binary = true
     [test.dataloader]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
