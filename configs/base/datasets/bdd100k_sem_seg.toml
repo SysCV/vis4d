@@ -1,17 +1,20 @@
 [[train]]
 name = "bdd100k_sem_seg_sample_train"
 type = "Scalabel"
-annotations = "vis4d/engine/testcases/segment/bdd100k-samples/annotation.json"
-data_root = "vis4d/engine/testcases/segment/bdd100k-samples/images"
-config_path = "vis4d/engine/testcases/segment/bdd100k-samples/config.toml"
-num_processes = 0
+annotations = "data/bdd100k/labels/sem_seg_train.json"
+data_root = "data/bdd100k/images/hdf5s/10k_train.hdf5"
+config_path = "configs/base/configs/sem_seg.toml"
+cache_as_binary = true
     [train.dataloader]
     fields_to_load = ["semantic_masks"]
 
-        [train.dataloader.ref_sampling]
-        type = 'uniform'
-        scope = 1
-        num_ref_imgs = 0
+    [train.dataloader.data_backend]
+    type = "HDF5Backend"
+
+    [train.dataloader.ref_sampling]
+    type = 'uniform'
+    scope = 1
+    num_ref_imgs = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
@@ -36,13 +39,16 @@ num_processes = 0
 [[test]]
 name = "bdd100k_sem_seg_sample_val"
 type = "Scalabel"
-annotations = "vis4d/engine/testcases/segment/bdd100k-samples/annotation.json"
-data_root = "vis4d/engine/testcases/segment/bdd100k-samples/images"
-config_path = "vis4d/engine/testcases/segment/bdd100k-samples/config.toml"
-num_processes = 0
+annotations = "data/bdd100k/labels/sem_seg_val.json"
+data_root = "data/bdd100k/images/hdf5s/10k_val.hdf5"
+config_path = "configs/base/configs/sem_seg.toml"
+cache_as_binary = true
 eval_metrics = ["sem_seg"]
     [test.dataloader]
     fields_to_load = ["semantic_masks"]
+
+    [test.dataloader.data_backend]
+    type = "HDF5Backend"
 
     [[test.dataloader.transformations]]
     type = "Resize"

@@ -75,6 +75,11 @@ class MMEncDecSegmentor(BaseSegmentor):
         batched_inputs.images.tensor = (
             batched_inputs.images.tensor - self.pixel_mean
         ) / self.pixel_std
+        if self.training:
+            batched_inputs.semantic_masks = SemanticMasks.pad(
+                batched_inputs.semantic_masks,
+                batched_inputs.images.tensor.shape[-2:][::-1],
+            )
         return batched_inputs
 
     def forward_train(

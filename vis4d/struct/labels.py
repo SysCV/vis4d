@@ -812,3 +812,32 @@ class SemanticMasks(Masks):
         for mask, cat_id in zip(self.masks, self.class_ids):
             hwc_mask[mask > 0] = cat_id
         return hwc_mask
+
+    @classmethod
+    def pad(
+        cls: Type["SemanticMasks"],
+        masks: List["SemanticMasks"],
+        image_size: Tuple[int, int],
+    ) -> List["SemanticMasks"]:
+        """Pad each semantic mask to image_size."""
+        pad_masks = []
+        for mask in masks:
+            pad_w = max(image_size[0] - mask.width, 0)
+            pad_h = max(image_size[1] - mask.height, 0)
+            if pad_w == 0 and pad_h == 0:
+                pad_masks.append(mask)
+            else:
+                pad_masks.append(
+                    cls(
+                        F.pad(
+                            mask.masks.unsqueeze(0),
+                            (0, pad_w, 0, pad_h),
+                            value=255,
+                        )[0],
+                        mask.class_ids,
+                        mask.track_ids,
+                        mask.score,
+                        mask.metadata,
+                    )
+                )
+        return pad_masks

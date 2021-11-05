@@ -9,7 +9,7 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
     [model.optimizer]
     type = "SGD"
     lr = 0.02
-    kwargs = {"momentum" = 0.9}
+    kwargs = {"momentum" = 0.9, "weight_decay" = 0.0001}
 
     [model.lr_scheduler]
     type = "MultiStepLR"
