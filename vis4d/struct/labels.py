@@ -620,8 +620,6 @@ class Masks(LabelInstance):
                 bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
                     bitmask_raw.dtype
                 )
-            if np.count_nonzero(bitmask) == 0:  # pragma: no cover
-                continue
             bitmask_list.append(bitmask)
             mask_cls, l_id, score = label.category, label.id, label.score
             if has_class_ids:
@@ -754,8 +752,16 @@ class Masks(LabelInstance):
         boxes_list = []
         for i, mask in enumerate(self.masks):
             foreground = mask.nonzero()
-            y1, x1 = foreground.min(dim=0)[0].float()
-            y2, x2 = foreground.max(dim=0)[0].float()
+            if len(foreground) == 0:
+                x1, y1, x2, y2 = (
+                    torch.tensor(0.0),
+                    torch.tensor(0.0),
+                    torch.tensor(0.0),
+                    torch.tensor(0.0),
+                )
+            else:
+                y1, x1 = foreground.min(dim=0)[0].float()
+                y2, x2 = foreground.max(dim=0)[0].float()
             entries = [x1, y1, x2, y2]
             if self.score is not None:
                 entries.append(self.score[i])
