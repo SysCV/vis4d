@@ -13,18 +13,12 @@ from .track.similarity import SimilarityLearningConfig, build_similarity_head
 from .track.utils import split_key_ref_inputs
 
 
-class QDTrackConfig(BaseModelConfig):
-    """Config for quasi-dense tracking model."""
-
-    detection: BaseModelConfig
-    similarity: SimilarityLearningConfig
-    track_graph: TrackGraphConfig
-
-
 class QDTrack(BaseModel):
     """QDTrack model - quasi-dense instance similarity learning."""
 
-    def __init__(self, cfg: BaseModelConfig) -> None:
+    def __init__(self, detection: BaseModel,
+    similarity: SimilarityLearning,
+    track_graph: TrackGraph) -> None:
         """Init."""
         super().__init__(cfg)
         self.cfg = QDTrackConfig(**cfg.dict())  # type: QDTrackConfig

@@ -37,13 +37,15 @@ class VisTModule(torch.nn.Module):
     def forward_train(
             self,
             batch_inputs: List[InputSample],
-            prev_returns: Optional[List[TModuleReturn]] = None
+            **kwargs: TModuleReturn
     ) -> TModuleReturn:
         """Forward pass during training stage.
 
         Args:
-            batch_inputs: Model input. Batched, including possible reference
-            views.
+            batch_inputs: List of batched model inputs. One InputSample
+            contains all batch elements of a single view. One view is either
+            the key frame or a reference frame.
+            **kwargs: TModuleReturn. Previous returns to be used.
 
         Returns:
             LossesType: A dict of scalar loss tensors.
@@ -54,7 +56,7 @@ class VisTModule(torch.nn.Module):
     def forward_test(
             self,
             batch_inputs: InputSample,
-            prev_returns: Optional[List[TModuleReturn]] = None
+            **kwargs: TModuleReturn
     ) -> TModuleReturn:
         """Forward pass during testing stage.
 
@@ -68,20 +70,14 @@ class VisTModule(torch.nn.Module):
         raise NotImplementedError
 
 
-class BaseModelConfig(PydanticBaseModel, extra="allow"):
-    """Config for default VisT tracker."""
-
-    type: str = Field(...)
-    category_mapping: Optional[Dict[str, int]] = None
-    image_channel_mode: str = "RGB"
-    optimizer: BaseOptimizerConfig = BaseOptimizerConfig()
-    lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig()
-
 
 class BaseModel(pl.LightningModule, VisTModule, metaclass=ABCRegistryHolder):
     """Base VisT model class."""
 
-    def __init__(self, cfg: BaseModelConfig):
+    def __init__(self, category_mapping: Optional[Dict[str, int]] = None,
+            image_channel_mode: str = "RGB",
+            optimizer: BaseOptimizerConfig = BaseOptimizerConfig(),
+            lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig(),):
         """Init."""
         super().__init__()
         self.cfg = cfg
