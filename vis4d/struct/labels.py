@@ -821,7 +821,7 @@ class SemanticMasks(Masks):
 
     @classmethod
     def pad(
-        cls: Type["SemanticMasks"],
+        cls,
         masks: List["SemanticMasks"],
         image_size: Tuple[int, int],
     ) -> List["SemanticMasks"]:
@@ -834,7 +834,7 @@ class SemanticMasks(Masks):
                 pad_masks.append(mask)
             else:
                 pad_masks.append(
-                    cls(
+                    SemanticMasks(
                         F.pad(
                             mask.masks.unsqueeze(0),
                             (0, pad_w, 0, pad_h),

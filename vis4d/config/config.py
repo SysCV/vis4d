@@ -43,6 +43,7 @@ class Launch(BaseModel):
     pin_memory: Enable/Disable pin_memory option for dataloader workers in
     training.
     wandb: Use weights and biases logging instead of tensorboard (default).
+    strict: Whether to enforce keys in weights to be consistent with model's.
     """
 
     action: str = ""
@@ -65,6 +66,7 @@ class Launch(BaseModel):
     resume: bool = False
     pin_memory: bool = False
     wandb: bool = False
+    not_strict: bool = False
 
     @validator("version", always=True)
     def validate_version(  # pylint: disable=no-self-argument,no-self-use
@@ -110,7 +112,11 @@ def parse_config(args: Namespace) -> Config:
     cfg = read_config(args.config)
     for attr, value in args.__dict__.items():
         if attr in Launch.__fields__ and value is not None:
-            setattr(cfg.launch, attr, getattr(args, attr))
+            if (
+                not isinstance(value, bool)
+                or not value == Launch().__dict__[attr]
+            ):
+                setattr(cfg.launch, attr, getattr(args, attr))
 
     if args.__dict__.get("cfg_options", "") != "":
         cfg_dict = cfg.dict()

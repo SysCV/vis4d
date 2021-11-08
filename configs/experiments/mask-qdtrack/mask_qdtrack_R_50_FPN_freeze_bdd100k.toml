@@ -6,6 +6,8 @@ path = "../../base/models/mmdetection/mask_qdtrack_R_50_FPN.toml"
 
 [model]
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
+freeze = true
+freeze_parameters = ["detector.mm_detector.backbone", "detector.mm_detector.neck", "detector.mm_detector.rpn_head", "detector.mm_detector.roi_head.bbox_head"]
     [model.optimizer]
     type = "SGD"
     lr = 0.01

@@ -29,7 +29,8 @@ class BaseModelConfig(PydanticBaseModel, extra="allow"):
     image_channel_mode: str = "RGB"
     optimizer: BaseOptimizerConfig = BaseOptimizerConfig()
     lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig()
-    strict: bool = True
+    freeze: bool = False
+    freeze_parameters: Optional[List[str]] = None
 
 
 class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
@@ -174,8 +175,34 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         """
         return self.forward_test(batch)
 
+    def freeze_parameters(self) -> None:
+        """Freeze model parameters according to config."""
+        if not self.cfg.freeze:
+            return
+        if self.cfg.freeze_parameters is not None:
+            pnames, params = [], []
+            for freeze_param in self.cfg.freeze_parameters:
+                for name, param in self.named_parameters():
+                    if name.startswith(freeze_param) and name not in pnames:
+                        params.append(param)
+                        pnames.append(name)
+        else:
+            params = self.parameters()
+        for param in params:
+            param.requires_grad = False
 
-def build_model(cfg: BaseModelConfig, ckpt: Optional[str] = None) -> BaseModel:
+    def unfreeze(self) -> None:
+        """Unfreeze all parameters for training."""
+        for param in self.parameters():
+            param.requires_grad = True
+        self.freeze_parameters()
+
+        self.train()
+
+
+def build_model(
+    cfg: BaseModelConfig, ckpt: Optional[str] = None, strict: bool = True
+) -> BaseModel:
     """Build Vis4D model and optionally load weights from ckpt."""
     registry = ABCRegistryHolder.get_registry(BaseModel)
     if cfg.type in registry:
@@ -183,7 +210,7 @@ def build_model(cfg: BaseModelConfig, ckpt: Optional[str] = None) -> BaseModel:
             module = registry[cfg.type](cfg)
         else:
             module = registry[cfg.type].load_from_checkpoint(  # type: ignore # pragma: no cover # pylint: disable=line-too-long
-                ckpt, strict=cfg.strict, cfg=cfg
+                ckpt, strict=strict, cfg=cfg
             )
         assert isinstance(module, BaseModel)
         return module
