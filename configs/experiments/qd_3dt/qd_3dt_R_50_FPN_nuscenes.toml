@@ -1,22 +1,28 @@
 [[config]]
-path = "../../base/datasets/nuscenes_mini.toml"
+path = "../../base/datasets/nuscenes.toml"
 
 [[config]]
 path = "../../base/models/mmdetection/qd_3dt_R_50_FPN.toml"
 
 [model]
-category_mapping = {"car" = 0, "truck" = 1, "bus" = 2, "trailer" = 3, "construction_vehicle" = 4, "pedestrian" = 5, "motorcycle" = 6, "bicycle" = 7}
+category_mapping = {"car" = 0, "truck" = 1, "bus" = 2, "trailer" = 3, "construction_vehicle" = 4, "pedestrian" = 5, "motorcycle" = 6, "bicycle" = 7, "traffic_cone" = 8, "barrier" = 9}
+    [model.detection]
+    pixel_mean = [106.07, 127.705, 128.08]
+    pixel_std = [73.458, 70.129, 70.463]
+
     [model.optimizer]
     type = "SGD"
-    lr = 0.005
+    lr = 0.01
     kwargs = {"momentum" = 0.9, "weight_decay" = 0.0001}
 
     [model.lr_scheduler]
     type = "MultiStepLR"
+    warmup_steps = 1000
+    warmup_ratio = 0.1
     kwargs = {"milestones" = [8, 11]}
 
 [launch]
-samples_per_gpu = 2
+samples_per_gpu = 4
 workers_per_gpu = 2
 
 [trainer]

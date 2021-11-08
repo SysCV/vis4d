@@ -26,8 +26,6 @@ class QD3DT(QDTrack):
         assert self.cfg.category_mapping is not None
         self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)  # type: ignore # pylint: disable=line-too-long
         self.bbox_3d_head = build_roi_head(self.cfg.bbox_3d_head)
-        self.track_graph = build_track_graph(self.cfg.track_graph)
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
 
     def forward_train(
         self,

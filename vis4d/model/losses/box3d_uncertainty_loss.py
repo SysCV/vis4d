@@ -52,7 +52,7 @@ class Box3DUncertaintyLoss(BaseLoss):
 
             return result_dict
 
-        pred = pred[torch.arange(pred.shape[0]), labels]
+        pred = pred[torch.arange(pred.shape[0], device=pred.device), labels]
 
         # delta 2dc loss
         loss_cen = smooth_l1_loss(
