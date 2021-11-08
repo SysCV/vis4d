@@ -75,7 +75,7 @@ def get_warmup_lr(
 class BaseLRScheduler(lr_scheduler._LRScheduler, metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long,protected-access
     """Dummy LRScheduler class supporting Vis4D registry."""
 
-    def get_lr(self) -> float:
+    def get_lr(self) -> List[float]:
         """Compute current learning rate."""
         raise NotImplementedError
 
@@ -98,7 +98,7 @@ class PolyLRScheduler(BaseLRScheduler):
         self.min_lr = min_lr
         super().__init__(optimizer, last_epoch, verbose)
 
-    def get_lr(self):
+    def get_lr(self) -> List[float]:
         """Compute current learning rate."""
         if self._step_count >= self.max_steps:
             return [self.min_lr for _ in self.base_lrs]

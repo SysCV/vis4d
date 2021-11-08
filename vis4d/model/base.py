@@ -22,13 +22,14 @@ from .optimize import (
 
 
 class BaseModelConfig(PydanticBaseModel, extra="allow"):
-    """Config for default Vis4D tracker."""
+    """Config for default Vis4D model."""
 
     type: str = Field(...)
     category_mapping: Optional[Dict[str, int]] = None
     image_channel_mode: str = "RGB"
     optimizer: BaseOptimizerConfig = BaseOptimizerConfig()
     lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig()
+    strict: bool = True
 
 
 class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
@@ -181,7 +182,9 @@ def build_model(cfg: BaseModelConfig, ckpt: Optional[str] = None) -> BaseModel:
         if ckpt is None:
             module = registry[cfg.type](cfg)
         else:
-            module = registry[cfg.type].load_from_checkpoint(ckpt, cfg=cfg)  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+            module = registry[cfg.type].load_from_checkpoint(  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+                ckpt, strict=cfg.strict, cfg=cfg
+            )
         assert isinstance(module, BaseModel)
         return module
     raise NotImplementedError(f"Model {cfg.type} not found.")
