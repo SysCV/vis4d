@@ -1,7 +1,7 @@
 [[train]]
 name = "bdd100k_seg_track_train"
 type = "BDD100K"
-annotations = "data/bdd100k/labels/seg_track_20/train/"
+annotations = "data/bdd100k/labels/seg_track_20_rle/train/"
 data_root = "data/bdd100k/images/hdf5s/track_train.hdf5"
 config_path = "seg_track"
 num_processes = 0
@@ -31,7 +31,7 @@ cache_as_binary = true
 [[test]]
 name = "bdd100k_seg_track_val"
 type = "BDD100K"
-annotations = "data/bdd100k/labels/seg_track_20/val/"
+annotations = "data/bdd100k/labels/seg_track_20_rle/val/"
 data_root = "data/bdd100k/images/hdf5s/track_val.hdf5"
 eval_metrics = ["detect", "track", "ins_seg", "seg_track"]
 config_path = "seg_track"

@@ -1,7 +1,7 @@
 [[train]]
 name = "bdd100k_sem_seg_sample_train"
 type = "Scalabel"
-annotations = "data/bdd100k/labels/sem_seg_train.json"
+annotations = "data/bdd100k/labels/sem_seg_train_rle.json"
 data_root = "data/bdd100k/images/hdf5s/10k_train.hdf5"
 config_path = "configs/base/configs/sem_seg.toml"
 cache_as_binary = true
@@ -34,12 +34,12 @@ cache_as_binary = true
     [[train.dataloader.transformations]]
     type = "KorniaColorJitter"
     kornia_type = "ColorJitter"
-    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.8, 1.2], "saturation" = [0.8, 1.2]}
+    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
 
 [[test]]
 name = "bdd100k_sem_seg_sample_val"
 type = "Scalabel"
-annotations = "data/bdd100k/labels/sem_seg_val.json"
+annotations = "data/bdd100k/labels/sem_seg_val_rle.json"
 data_root = "data/bdd100k/images/hdf5s/10k_val.hdf5"
 config_path = "configs/base/configs/sem_seg.toml"
 cache_as_binary = true
