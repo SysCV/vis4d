@@ -48,6 +48,29 @@ class QD3DT(QDTrack):
         #             key_inp.points_extrinsics[0],
         #         )
 
+        # from vis4d.vis.image import show_pointcloud
+        # for batch_i, key_inp in enumerate(key_inputs):
+        #     show_pointcloud(
+        #         key_inp.points.tensor[0],
+        #         key_inp.points_extrinsics[0],
+        #         key_inp.extrinsics[0],
+        #         key_inp.boxes3d[0],
+        #     )
+
+        # from vis4d.vis.image import imshow_bboxes3d
+        # for batch_i, key_inp in enumerate(key_inputs):
+        #     imshow_bboxes3d(
+        #         key_inp.images.tensor[0],
+        #         key_inp.boxes3d[0],
+        #         key_inp.intrinsics[0],
+        #     )
+        #     for ref_i, ref_inp in enumerate(ref_inputs):
+        #         imshow_bboxes3d(
+        #             ref_inp[batch_i].images.tensor[0],
+        #             ref_inp[batch_i].boxes3d[0],
+        #             ref_inp[batch_i].intrinsics[0],
+        #         )
+
         # feature extraction
         key_x = self.detector.extract_features(key_inputs)
         ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]

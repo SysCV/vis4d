@@ -12,10 +12,19 @@ Reference: https://kornia.readthedocs.io/en/latest/augmentation.base.html
 """
 from typing import Dict, List, Tuple, Union
 
+import numpy as np
 import torch
 from kornia import augmentation as kornia_augmentation
 
-from vis4d.struct import Boxes2D, Images, InputSample, Intrinsics, TMasks
+from vis4d.struct import (
+    Boxes2D,
+    Boxes3D,
+    Images,
+    InputSample,
+    Intrinsics,
+    TMasks,
+)
+from vis4d.common.geometry.rotation import normalize_angle
 
 from ..utils import transform_bbox
 from .base import AugParams, BaseAugmentation, BaseAugmentationConfig
@@ -139,3 +148,36 @@ class KorniaColorJitter(KorniaAugmentationWrapper):
     ) -> List[TMasks]:
         """Skip augmentation for mask."""
         return masks
+
+
+class KorniaRandomHorizontalFlip(KorniaAugmentationWrapper):
+    """Wrapper for Kornia random horizontal flip augmentation class."""
+
+    def __init__(self, cfg: BaseAugmentationConfig):
+        """Init."""
+        cfg.__dict__.update({"kornia_type": "RandomHorizontalFlip"})
+        super().__init__(cfg)
+
+    def apply_box3d(
+        self, boxes: List[Boxes3D], parameters: AugParams
+    ) -> List[Boxes3D]:
+        """Apply augmentation to input box3d."""
+        for i, box in enumerate(boxes):
+            if len(box) > 0 and parameters["apply"][i]:
+                box.boxes[:, 0] *= -1.0
+                box.boxes[:, 7] = normalize_angle(np.pi - box.boxes[:, 7])
+        return boxes
+
+    def apply_intrinsics(
+        self,
+        intrinsics: Intrinsics,
+        parameters: AugParams,
+    ) -> Intrinsics:
+        """Apply augmentation to input intrinsics."""
+        center = parameters["batch_shape"][3] / 2
+        for i, _intrinsics in enumerate(intrinsics):
+            if parameters["apply"]:
+                _intrinsics.tensor[i][0][2] = center - (
+                    _intrinsics.tensor[i][0][2] - center
+                )
+        return intrinsics

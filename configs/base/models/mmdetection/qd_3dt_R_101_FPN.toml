@@ -2,8 +2,8 @@
 type = "QD3DT"
     [model.detection]
     type = "MMTwoStageDetector"
-    model_base = "../packages/mmdetection/configs/_base_/models/faster_rcnn_r101_fpn.py"
-    model_kwargs= {"rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.beta" = 0.111, "roi_head.bbox_head.loss_bbox.type" = "SmoothL1Loss"}
+    model_base = "mmdet://_base_/models/faster_rcnn_r50_fpn.py"
+    model_kwargs = {"backbone.depth" = 101, "backbone.init_cfg.checkpoint"="torchvision://resnet101", "rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.beta" = 0.111, "roi_head.bbox_head.loss_bbox.type" = "SmoothL1Loss"}
     pixel_mean = [123.675, 116.28, 103.53]
     pixel_std = [58.395, 57.12, 57.375]
     backbone_output_names = ["p2", "p3", "p4", "p5", "p6"]
@@ -13,6 +13,7 @@ type = "QD3DT"
     in_channels = 256
     fc_out_dim = 1024
     roi_feat_size = 7
+    norm = "GroupNorm"
     proposal_append_gt = true
 
         [model.bbox_3d_head.loss]

@@ -402,6 +402,7 @@ def show_pointcloud(
     points = (
         points_world @ camera_extrinsics.inverse().transpose().tensor[0]
     )[:, :3]
+    points = points.cpu()
 
     scatter = go.Scatter3d(
         x=points[:, 0],
@@ -413,8 +414,6 @@ def show_pointcloud(
 
     data = [scatter]
     if boxes3d is not None:
-        # boxes3d.transform(points_extrinsics)
-        # boxes3d.transform(camera_extrinsics.inverse())
         box_list, col_list, label_list = preprocess_boxes(boxes3d)
         for box, color, label in zip(box_list, col_list, label_list):
             x_lines, y_lines, z_lines = plotly_draw_bbox3d(box)
