@@ -36,7 +36,6 @@ class QDTrack(BaseModel):
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
         self.with_mask = self.detector.with_mask
-        self.freeze_parameters()
 
     def preprocess_inputs(
         self,

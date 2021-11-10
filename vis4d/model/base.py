@@ -175,6 +175,10 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         """
         return self.forward_test(batch)
 
+    def on_train_start(self):
+        """Called at the beginning of training after sanity check."""
+        self.freeze_parameters()
+
     def freeze_parameters(self) -> None:
         """Freeze model parameters according to config."""
         if not self.cfg.freeze:
