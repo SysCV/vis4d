@@ -6,11 +6,11 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="vist",
+    name="vis4d",
     version="0.0",
     author="VIS @ ETH",
     author_email="i@yf.io",
-    description="VisT Python package for Visual Tracking",
+    description="Vis4D Python package for Visual 4D scene understanding",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://cv.ethz.ch/",
@@ -43,7 +43,7 @@ setuptools.setup(
         "devtools",
     ],
     package_data={
-        "vist": [
+        "vis4d": [
             "data/datasets/motchallenge.toml",
             "data/datasets/waymo.toml",
             "data/datasets/kitti.toml",

@@ -1,4 +1,4 @@
-# VisT
+# Vis4D
 
 A framework for dynamic scene understanding.
 
@@ -21,8 +21,8 @@ on your configurations and install pytorch first.
 If you're using conda, run the following commands:
 
 ```bash
-conda create --name vist python=3.8
-conda activate vist
+conda create --name vis4d python=3.8
+conda activate vis4d
 conda install pytorch torchvision torchaudio cudatoolkit=11.0 -c pytorch
 pip install -r requirements.txt
 ```
@@ -44,7 +44,7 @@ Or install the following packages:
 Please note that specific models will require some of these packages.
 
 ### Package installation
-To install `vist` package,
+To install `vis4d` package,
 
 ```bash
 python3 setup.py install
@@ -55,17 +55,17 @@ python3 setup.py install
 Training
 
 ```bash
-python3 -m vist.engine.trainer train --config <config_path> <maybe other arguments>
+python3 -m vis4d.engine.trainer train --config <config_path> <maybe other arguments>
 ```
 
 Testing
 
 ```bash
-python3 -m vist.engine.trainer test --config <config_path> <maybe other arguments>
+python3 -m vis4d.engine.trainer test --config <config_path> <maybe other arguments>
 ```
 
 Prediction
 
 ```bash
-python3 -m vist.engine.trainer predict --config <config_path> <maybe other arguments>
+python3 -m vis4d.engine.trainer predict --config <config_path> <maybe other arguments>
 ```
