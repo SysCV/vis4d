@@ -1,66 +1,27 @@
-[[train]]
-name = "bdd100k_track_train"
-type = "BDD100K"
-annotations = "data/bdd100k/labels/box_track_20/train/"
-data_root = "data/bdd100k/images/track/train/"
-config_path = "box_track"
-num_processes = 0
-    [train.dataloader]
-    skip_empty_samples = true
+[[config]]
+path = "../../base/datasets/bdd100k_track.toml"
 
-    [[train.dataloader.transformations]]
-    type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
-
-    [[train.dataloader.transformations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
-
-[[test]]
-name = "bdd100k_track_val"
-type = "BDD100K"
-annotations = "data/bdd100k/labels/box_track_20/val/"
-data_root = "data/bdd100k/images/track/val/"
-eval_metrics = ["detect", "track"]
-config_path = "box_track"
-num_processes = 0
-    [[test.dataloader.transformations]]
-    type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
+[[config]]
+path = "../../base/models/mmdetection/sort.toml"
 
 [model]
-type = "SORT"
-dataset = "BDD100K"
-prediction_path = "given_predictions/track_predictions_val.json"
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
-    [model.detection]
-    type = "D2TwoStageDetector"
-    model_base = "faster-rcnn/r50-fpn"
-    num_classes = 8
-    category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
-
-    [model.track_graph]
-    type = "SORTTrackGraph"
-
     [model.optimizer]
     type = "SGD"
-    lr = 0.04
+    lr = 0.001
     kwargs = {"momentum" = 0.9}
 
     [model.lr_scheduler]
     type = "MultiStepLR"
     kwargs = {"milestones" = [9, 11]}
 
-[dataloader]
-image_channel_mode = "RGB"
-
 [launch]
-samples_per_gpu = 8
-workers_per_gpu = 2
+samples_per_gpu = 32
+workers_per_gpu = 8
 
 [trainer]
 max_epochs = 12
 log_every_n_steps = 50
 check_val_every_n_epoch = 1
 num_sanity_val_steps = 0
-gpus = 1
+gpus = 3

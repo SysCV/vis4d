@@ -35,7 +35,6 @@ def imshow(
         image = preprocess_image(image, mode)
     plt.imshow(np.asarray(image))
     plt.show()
-    # image.save("visualization/" + "frame_" + str(frame_id).zfill(4) + ".png")
 
 
 def imshow_bboxes(
@@ -47,23 +46,7 @@ def imshow_bboxes(
     for box, col, label in zip(box_list, color_list, label_list):
         draw_bbox(image, box, col, label)
 
-    imshow(image, frame_id=frame_id)
-
-
-def imsave_bboxes(
-    image: ImageType,
-    boxes: BoxType,
-    mode: str = "BGR",
-    frame_id: int = 000,
-) -> None:
-    image = preprocess_image(image, mode)
-    box_list, color_list, label_list = preprocess_boxes(boxes)
-    for box, col, label in zip(box_list, color_list, label_list):
-        draw_bbox(image, box, col, label)
-
-    if not isinstance(image, Image.Image):
-        image = preprocess_image(image, mode)
-    image.save("visualization/" + "frame_" + str(frame_id).zfill(4) + ".png")
+    imshow(image)
 
 
 def imshow_bboxes3d(
@@ -101,7 +84,7 @@ def draw_image(
     boxes3d: Optional[Box3DType] = None,
     intrinsics: Optional[Union[NDArrayF64, Intrinsics]] = None,
     mode: str = "RGB",
-) -> Image.Image:
+) -> Image.Image:  # pragma: no cover
     """Draw boxes2d on an image."""
     image = (
         preprocess_image(frame, mode)
@@ -196,8 +179,8 @@ def draw_mask(
 def get_intersection_point(
     point1: NDArrayF64, point2: NDArrayF64, camera_near_clip: float
 ) -> NDArrayF64:  # pragma: no cover
-    """Get point intersecting with camera near plane on line point1 -> point2.
 
+    """Get point intersecting with camera near plane on line point1 -> point2.
     The line is defined by two points (3 dimensional) in camera coordinates.
     """
     cam_dir = np.array([0, 0, 1])

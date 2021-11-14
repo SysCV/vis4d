@@ -1,0 +1,4169 @@
+{
+  "frames": [
+    {
+      "name": "b1c66a42-6f7d68ca-0000001.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/b1c66a42-6f7d68ca/b1c66a42-6f7d68ca-0000001.jpg",
+      "videoName": "b1c66a42-6f7d68ca",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 0,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999799728393555,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 88.23165130615234,
+            "y1": 353.8598937988281,
+            "x2": 221.4349365234375,
+            "y2": 420.4853820800781
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "1",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999698400497437,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 813.8870239257812,
+            "y1": 363.74853515625,
+            "x2": 966.3001098632812,
+            "y2": 446.40875244140625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "2",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999009370803833,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 764.276611328125,
+            "y1": 372.7951965332031,
+            "x2": 840.554931640625,
+            "y2": 423.8020324707031
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "3",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9998583793640137,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 250.56103515625,
+            "y1": 352.1511535644531,
+            "x2": 287.525634765625,
+            "y2": 385.5036926269531
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "4",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.999788224697113,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 0.015987396240234375,
+            "y1": 349.1389465332031,
+            "x2": 75.74325561523438,
+            "y2": 406.8911437988281
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "5",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9995848536491394,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 206.66749572753906,
+            "y1": 350.5950927734375,
+            "x2": 257.3294677734375,
+            "y2": 387.818603515625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "6",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.999491810798645,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 729.1412353515625,
+            "y1": 361.60302734375,
+            "x2": 797.226318359375,
+            "y2": 412.638427734375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "7",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9982267022132874,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 373.29827880859375,
+            "y1": 354.6434631347656,
+            "x2": 409.91436767578125,
+            "y2": 380.3235168457031
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "8",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9982134103775024,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 581.0950317382812,
+            "y1": 357.4377746582031,
+            "x2": 615.3096313476562,
+            "y2": 384.9934997558594
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "9",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9938628673553467,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 65.7387466430664,
+            "y1": 352.47161865234375,
+            "x2": 122.84024810791016,
+            "y2": 397.54071044921875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9925345182418823,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 418.5999450683594,
+            "y1": 357.846435546875,
+            "x2": 444.3124084472656,
+            "y2": 377.45916748046875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9924865961074829,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 535.5662841796875,
+            "y1": 359.371337890625,
+            "x2": 555.01904296875,
+            "y2": 375.82568359375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "12",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.990613579750061,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 295.280517578125,
+            "y1": 356.6373596191406,
+            "x2": 318.2301025390625,
+            "y2": 382.0231628417969
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "13",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9892304539680481,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 279.0457458496094,
+            "y1": 355.96917724609375,
+            "x2": 303.3626403808594,
+            "y2": 383.04248046875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "14",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9835748672485352,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 685.4959716796875,
+            "y1": 360.0363464355469,
+            "x2": 713.7529296875,
+            "y2": 398.0779724121094
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.977189838886261,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 649.052978515625,
+            "y1": 360.4803161621094,
+            "x2": 681.62060546875,
+            "y2": 387.5348815917969
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "16",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9281466603279114,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 439.1823425292969,
+            "y1": 354.97821044921875,
+            "x2": 459.9560852050781,
+            "y2": 374.72906494140625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "17",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9265643954277039,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 570.9666137695312,
+            "y1": 357.7218322753906,
+            "x2": 588.2611694335938,
+            "y2": 380.6863708496094
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "18",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9250513315200806,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 612.727294921875,
+            "y1": 359.74267578125,
+            "x2": 632.8525390625,
+            "y2": 379.6534423828125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "19",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9246394038200378,
+          "attributes": null,
+          "category": "rider",
+          "box2d": {
+            "x1": 642.4013671875,
+            "y1": 357.7955017089844,
+            "x2": 664.649658203125,
+            "y2": 402.5050964355469
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "20",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8645215034484863,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 699.4419555664062,
+            "y1": 356.11749267578125,
+            "x2": 754.6495971679688,
+            "y2": 404.69171142578125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "21",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8013617396354675,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 363.4630432128906,
+            "y1": 349.7286376953125,
+            "x2": 390.6470642089844,
+            "y2": 375.14532470703125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "22",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.7671833038330078,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 406.1243896484375,
+            "y1": 357.2703857421875,
+            "x2": 421.9908447265625,
+            "y2": 374.92742919921875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    },
+    {
+      "name": "b1c66a42-6f7d68ca-0000002.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/b1c66a42-6f7d68ca/b1c66a42-6f7d68ca-0000002.jpg",
+      "videoName": "b1c66a42-6f7d68ca",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 1,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999687671661377,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 80.98841857910156,
+            "y1": 353.43182373046875,
+            "x2": 219.1774444580078,
+            "y2": 420.766845703125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "1",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999556541442871,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 814.5128784179688,
+            "y1": 363.347412109375,
+            "x2": 969.2804565429688,
+            "y2": 447.1865234375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "2",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9998661279678345,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 765.2677612304688,
+            "y1": 372.5651550292969,
+            "x2": 841.8523559570312,
+            "y2": 423.7781677246094
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "3",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9996249675750732,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 250.74551391601562,
+            "y1": 352.32049560546875,
+            "x2": 286.8647766113281,
+            "y2": 385.2313232421875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "4",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9997796416282654,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 0.0,
+            "y1": 348.9458312988281,
+            "x2": 74.17478942871094,
+            "y2": 406.9175109863281
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "5",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9991010427474976,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 205.65231323242188,
+            "y1": 350.6189270019531,
+            "x2": 256.4682922363281,
+            "y2": 387.4038391113281
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "6",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9994726777076721,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 730.2120361328125,
+            "y1": 361.8136291503906,
+            "x2": 800.224609375,
+            "y2": 412.5229797363281
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "7",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9988834261894226,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 371.92938232421875,
+            "y1": 353.2686462402344,
+            "x2": 405.66796875,
+            "y2": 380.3998107910156
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "8",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9988942742347717,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 581.391845703125,
+            "y1": 357.0537414550781,
+            "x2": 614.9869384765625,
+            "y2": 384.3812561035156
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "9",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9903948903083801,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 63.59270477294922,
+            "y1": 351.60565185546875,
+            "x2": 120.80582427978516,
+            "y2": 396.6907958984375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9872654676437378,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 417.9815368652344,
+            "y1": 357.5433349609375,
+            "x2": 444.3401794433594,
+            "y2": 377.3253173828125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9914150834083557,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 535.5451049804688,
+            "y1": 359.2674560546875,
+            "x2": 554.9880981445312,
+            "y2": 375.701904296875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "12",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9946238994598389,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 295.4234619140625,
+            "y1": 355.75439453125,
+            "x2": 318.01153564453125,
+            "y2": 381.822265625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "13",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9922603964805603,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 278.713623046875,
+            "y1": 355.5438537597656,
+            "x2": 302.77081298828125,
+            "y2": 382.7947692871094
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "14",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9811747074127197,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 687.2539672851562,
+            "y1": 360.2279052734375,
+            "x2": 716.0371704101562,
+            "y2": 398.445068359375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9884132742881775,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 648.339111328125,
+            "y1": 359.81268310546875,
+            "x2": 682.00927734375,
+            "y2": 387.04876708984375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "16",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9110309481620789,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 438.3116760253906,
+            "y1": 354.5108337402344,
+            "x2": 459.8963928222656,
+            "y2": 374.7130432128906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "17",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9199322462081909,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 570.8865356445312,
+            "y1": 357.56036376953125,
+            "x2": 587.4161987304688,
+            "y2": 380.488525390625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "18",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9078948497772217,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 613.0977172851562,
+            "y1": 359.6578674316406,
+            "x2": 632.9125366210938,
+            "y2": 379.2214050292969
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "19",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9638075828552246,
+          "attributes": null,
+          "category": "rider",
+          "box2d": {
+            "x1": 641.5956420898438,
+            "y1": 358.7972717285156,
+            "x2": 662.3082885742188,
+            "y2": 399.0091857910156
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "20",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.817427933216095,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 700.1843872070312,
+            "y1": 356.06793212890625,
+            "x2": 754.9473266601562,
+            "y2": 404.61651611328125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "21",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.6790491342544556,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 362.57171630859375,
+            "y1": 350.5538635253906,
+            "x2": 391.080810546875,
+            "y2": 376.7415466308594
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "22",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8293139338493347,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 403.9169616699219,
+            "y1": 356.7623291015625,
+            "x2": 420.7132263183594,
+            "y2": 374.70782470703125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "23",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.917613685131073,
+          "attributes": null,
+          "category": "motorcycle",
+          "box2d": {
+            "x1": 641.7733764648438,
+            "y1": 372.1610412597656,
+            "x2": 662.0242309570312,
+            "y2": 407.5689392089844
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    },
+    {
+      "name": "b1c66a42-6f7d68ca-0000003.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/b1c66a42-6f7d68ca/b1c66a42-6f7d68ca-0000003.jpg",
+      "videoName": "b1c66a42-6f7d68ca",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 2,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999780654907227,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 64.8182373046875,
+            "y1": 358.30426025390625,
+            "x2": 209.2432861328125,
+            "y2": 428.009521484375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "1",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999600648880005,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 819.3006591796875,
+            "y1": 366.9254150390625,
+            "x2": 978.8460693359375,
+            "y2": 454.90777587890625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "2",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9997373223304749,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 769.7261962890625,
+            "y1": 377.8624267578125,
+            "x2": 846.6650390625,
+            "y2": 429.32666015625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "3",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9992708563804626,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 247.90493774414062,
+            "y1": 356.8037109375,
+            "x2": 281.2792053222656,
+            "y2": 390.10516357421875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "4",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9994174242019653,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 0.11104583740234375,
+            "y1": 352.1693420410156,
+            "x2": 64.53343963623047,
+            "y2": 412.7931213378906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "5",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9995378255844116,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 198.0108642578125,
+            "y1": 355.8235168457031,
+            "x2": 252.38836669921875,
+            "y2": 391.3724060058594
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "6",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9995437264442444,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 733.512451171875,
+            "y1": 366.6698913574219,
+            "x2": 803.89599609375,
+            "y2": 417.6008605957031
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "7",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9972923398017883,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 361.6529235839844,
+            "y1": 354.4587097167969,
+            "x2": 399.0066833496094,
+            "y2": 385.1512145996094
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "8",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9988279938697815,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 580.8525390625,
+            "y1": 361.2293395996094,
+            "x2": 613.62158203125,
+            "y2": 389.2628479003906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "9",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9694482684135437,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 55.40064239501953,
+            "y1": 356.82147216796875,
+            "x2": 104.15026092529297,
+            "y2": 394.072265625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9832742810249329,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 414.20660400390625,
+            "y1": 362.1797180175781,
+            "x2": 440.9595947265625,
+            "y2": 382.5303649902344
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9873095154762268,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 535.2235107421875,
+            "y1": 362.6589050292969,
+            "x2": 554.4112548828125,
+            "y2": 379.6548156738281
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "12",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9394932985305786,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 294.9750671386719,
+            "y1": 360.9989929199219,
+            "x2": 315.3086853027344,
+            "y2": 385.5063781738281
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "13",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9801660180091858,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 276.0491027832031,
+            "y1": 360.62139892578125,
+            "x2": 299.5506286621094,
+            "y2": 387.73565673828125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "14",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9753029346466064,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 688.4199829101562,
+            "y1": 364.9378356933594,
+            "x2": 716.6204223632812,
+            "y2": 403.6658020019531
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9965798258781433,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 651.0031127929688,
+            "y1": 366.3219299316406,
+            "x2": 682.3302612304688,
+            "y2": 391.4865417480469
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "16",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8491577506065369,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 434.70245361328125,
+            "y1": 358.39019775390625,
+            "x2": 456.452880859375,
+            "y2": 379.7833251953125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "17",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9572112560272217,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 569.557861328125,
+            "y1": 361.11334228515625,
+            "x2": 587.0401611328125,
+            "y2": 384.61285400390625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "18",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.841486394405365,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 613.0353393554688,
+            "y1": 365.3755798339844,
+            "x2": 633.3637084960938,
+            "y2": 384.2579650878906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "19",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8224538564682007,
+          "attributes": null,
+          "category": "rider",
+          "box2d": {
+            "x1": 634.7756958007812,
+            "y1": 361.13616943359375,
+            "x2": 656.0039672851562,
+            "y2": 405.04083251953125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "20",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.7891342043876648,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 702.78857421875,
+            "y1": 361.13275146484375,
+            "x2": 756.8485107421875,
+            "y2": 408.6884765625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "22",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8816876411437988,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 398.48944091796875,
+            "y1": 362.6989440917969,
+            "x2": 418.8065185546875,
+            "y2": 380.5779113769531
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "23",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.47142213582992554,
+          "attributes": null,
+          "category": "motorcycle",
+          "box2d": {
+            "x1": 636.4493408203125,
+            "y1": 378.1444091796875,
+            "x2": 654.7969970703125,
+            "y2": 410.6873779296875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    },
+    {
+      "name": "b1c66a42-6f7d68ca-0000004.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/b1c66a42-6f7d68ca/b1c66a42-6f7d68ca-0000004.jpg",
+      "videoName": "b1c66a42-6f7d68ca",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 3,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999665021896362,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 44.90234375,
+            "y1": 358.20330810546875,
+            "x2": 198.41770935058594,
+            "y2": 430.23468017578125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "1",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.999901533126831,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 825.0718383789062,
+            "y1": 366.9793395996094,
+            "x2": 991.5491333007812,
+            "y2": 454.9023132324219
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "2",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9997468590736389,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 773.9461059570312,
+            "y1": 377.55706787109375,
+            "x2": 854.2028198242188,
+            "y2": 430.00445556640625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "3",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9995067119598389,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 246.99215698242188,
+            "y1": 357.4494934082031,
+            "x2": 279.4357604980469,
+            "y2": 390.6773376464844
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "4",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.998327910900116,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 0.43468666076660156,
+            "y1": 351.69268798828125,
+            "x2": 57.288299560546875,
+            "y2": 413.35321044921875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "5",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9993839263916016,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 193.63528442382812,
+            "y1": 356.115234375,
+            "x2": 249.70416259765625,
+            "y2": 392.1947021484375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "6",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9997538924217224,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 736.8883056640625,
+            "y1": 366.42828369140625,
+            "x2": 806.5831298828125,
+            "y2": 418.1219482421875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "7",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9990193843841553,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 354.4825134277344,
+            "y1": 356.2554626464844,
+            "x2": 397.2671813964844,
+            "y2": 386.0655822753906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "8",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9988856911659241,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 580.5992431640625,
+            "y1": 361.29034423828125,
+            "x2": 612.788330078125,
+            "y2": 388.88427734375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "9",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.83199542760849,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 45.822235107421875,
+            "y1": 357.17169189453125,
+            "x2": 92.04362487792969,
+            "y2": 386.10906982421875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9966087341308594,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 409.33917236328125,
+            "y1": 362.00115966796875,
+            "x2": 438.72027587890625,
+            "y2": 383.11151123046875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.989956259727478,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 535.949462890625,
+            "y1": 362.3127136230469,
+            "x2": 554.6376953125,
+            "y2": 379.3233947753906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "12",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9497589468955994,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 292.2005310058594,
+            "y1": 361.2230224609375,
+            "x2": 313.5700378417969,
+            "y2": 385.994873046875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "13",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9891794919967651,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 274.2408447265625,
+            "y1": 360.9318542480469,
+            "x2": 298.49554443359375,
+            "y2": 387.5385437011719
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "14",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9756245017051697,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 689.5661010742188,
+            "y1": 363.8750305175781,
+            "x2": 720.2678833007812,
+            "y2": 403.8719787597656
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9979591369628906,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 649.66943359375,
+            "y1": 367.1898498535156,
+            "x2": 684.453857421875,
+            "y2": 392.4329528808594
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "16",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.7918663620948792,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 431.3490905761719,
+            "y1": 357.4938659667969,
+            "x2": 453.6604919433594,
+            "y2": 379.0462951660156
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "17",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9557142853736877,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 569.1942138671875,
+            "y1": 361.6211853027344,
+            "x2": 586.5006103515625,
+            "y2": 384.3792419433594
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "18",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9007146954536438,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 613.6477661132812,
+            "y1": 364.8591003417969,
+            "x2": 632.7553100585938,
+            "y2": 383.9438781738281
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "20",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9016628861427307,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 705.8833618164062,
+            "y1": 360.03997802734375,
+            "x2": 759.7229614257812,
+            "y2": 409.25909423828125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "22",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.743353545665741,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 395.5439453125,
+            "y1": 363.0603332519531,
+            "x2": 413.612060546875,
+            "y2": 381.0311584472656
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "24",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.7936145067214966,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 631.1315307617188,
+            "y1": 352.6864318847656,
+            "x2": 652.0126342773438,
+            "y2": 408.1786193847656
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "25",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.7879143357276917,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 460.7587890625,
+            "y1": 360.2054748535156,
+            "x2": 484.59002685546875,
+            "y2": 375.8339538574219
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    },
+    {
+      "name": "b1c66a42-6f7d68ca-0000005.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/b1c66a42-6f7d68ca/b1c66a42-6f7d68ca-0000005.jpg",
+      "videoName": "b1c66a42-6f7d68ca",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 4,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.999954342842102,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 26.19847869873047,
+            "y1": 361.17779541015625,
+            "x2": 188.63104248046875,
+            "y2": 436.497802734375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "1",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9998447895050049,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 831.3939208984375,
+            "y1": 370.60443115234375,
+            "x2": 1004.0621337890625,
+            "y2": 460.2596435546875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "2",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9997695088386536,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 780.1593017578125,
+            "y1": 380.9051208496094,
+            "x2": 861.1463623046875,
+            "y2": 434.1958923339844
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "3",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9995380640029907,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 242.98648071289062,
+            "y1": 360.13037109375,
+            "x2": 279.8172302246094,
+            "y2": 393.52825927734375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "4",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8789681196212769,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 0.009853363037109375,
+            "y1": 353.3540344238281,
+            "x2": 50.244564056396484,
+            "y2": 416.8889465332031
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "5",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9996926784515381,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 188.09323120117188,
+            "y1": 359.4298095703125,
+            "x2": 247.94528198242188,
+            "y2": 396.60748291015625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "6",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9995042085647583,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 741.225830078125,
+            "y1": 369.728271484375,
+            "x2": 812.88916015625,
+            "y2": 422.09771728515625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "7",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.991441547870636,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 349.8104553222656,
+            "y1": 361.3994140625,
+            "x2": 392.9804382324219,
+            "y2": 389.7833251953125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "8",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9985542893409729,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 582.0430908203125,
+            "y1": 365.4750671386719,
+            "x2": 614.4473876953125,
+            "y2": 392.3789978027344
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "9",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.6417826414108276,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 38.7890510559082,
+            "y1": 354.7803955078125,
+            "x2": 112.70391845703125,
+            "y2": 387.243408203125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9925574064254761,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 408.71966552734375,
+            "y1": 365.3664245605469,
+            "x2": 437.26708984375,
+            "y2": 386.7717590332031
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9815235733985901,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 538.5610961914062,
+            "y1": 367.28521728515625,
+            "x2": 556.6409301757812,
+            "y2": 382.75927734375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "12",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9733202457427979,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 291.9255065917969,
+            "y1": 364.2904052734375,
+            "x2": 313.2640075683594,
+            "y2": 389.48541259765625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "13",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9685479998588562,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 273.2845458984375,
+            "y1": 363.96978759765625,
+            "x2": 298.27093505859375,
+            "y2": 390.86126708984375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "14",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9831488132476807,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 693.2730102539062,
+            "y1": 368.53424072265625,
+            "x2": 723.2446899414062,
+            "y2": 407.2161865234375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9953824877738953,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 652.041748046875,
+            "y1": 370.29638671875,
+            "x2": 686.8377685546875,
+            "y2": 396.19671630859375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "16",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9136857390403748,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 431.2452087402344,
+            "y1": 362.0997619628906,
+            "x2": 453.8531799316406,
+            "y2": 383.3836975097656
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "17",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9727608561515808,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 570.805419921875,
+            "y1": 365.3283996582031,
+            "x2": 587.7757568359375,
+            "y2": 387.7477111816406
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "18",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9026802778244019,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 616.23828125,
+            "y1": 367.4355163574219,
+            "x2": 634.978271484375,
+            "y2": 387.7597961425781
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "21",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.34206780791282654,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 363.20330810546875,
+            "y1": 357.4014587402344,
+            "x2": 395.4146728515625,
+            "y2": 383.8233947753906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "22",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.6033807396888733,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 392.34344482421875,
+            "y1": 366.6100769042969,
+            "x2": 411.741943359375,
+            "y2": 384.6766662597656
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "24",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.6355207562446594,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 630.1455078125,
+            "y1": 356.69830322265625,
+            "x2": 651.1268310546875,
+            "y2": 411.75469970703125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "25",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.7468571662902832,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 462.2967834472656,
+            "y1": 363.6995544433594,
+            "x2": 484.8125305175781,
+            "y2": 379.3711242675781
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "26",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9096037745475769,
+          "attributes": null,
+          "category": "truck",
+          "box2d": {
+            "x1": 708.612548828125,
+            "y1": 364.0274963378906,
+            "x2": 766.072021484375,
+            "y2": 414.0173645019531
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    },
+    {
+      "name": "b1c66a42-6f7d68ca-0000006.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/b1c66a42-6f7d68ca/b1c66a42-6f7d68ca-0000006.jpg",
+      "videoName": "b1c66a42-6f7d68ca",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 5,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999649524688721,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 3.9591064453125,
+            "y1": 362.66278076171875,
+            "x2": 169.19384765625,
+            "y2": 440.71588134765625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "1",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9997743964195251,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 840.6796875,
+            "y1": 372.5757141113281,
+            "x2": 1025.8043212890625,
+            "y2": 466.6632385253906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "2",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9998239874839783,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 787.0335083007812,
+            "y1": 383.240966796875,
+            "x2": 873.7955932617188,
+            "y2": 439.11444091796875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "3",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.998358428478241,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 241.08950805664062,
+            "y1": 361.2793273925781,
+            "x2": 278.5303649902344,
+            "y2": 395.2054138183594
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "4",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.47246748208999634,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 0.0,
+            "y1": 356.4304504394531,
+            "x2": 31.17460823059082,
+            "y2": 396.1915588378906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "5",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9996570348739624,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 183.09088134765625,
+            "y1": 360.216552734375,
+            "x2": 245.6524658203125,
+            "y2": 398.47088623046875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "6",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9995575547218323,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 746.6707763671875,
+            "y1": 371.2369689941406,
+            "x2": 822.130126953125,
+            "y2": 425.2223815917969
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "7",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9963661432266235,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 340.1395568847656,
+            "y1": 363.0910949707031,
+            "x2": 384.6178894042969,
+            "y2": 393.0118713378906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "8",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9984222650527954,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 582.182861328125,
+            "y1": 366.1419982910156,
+            "x2": 615.579345703125,
+            "y2": 393.8224182128906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9529477953910828,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 405.7503662109375,
+            "y1": 366.2458190917969,
+            "x2": 435.75958251953125,
+            "y2": 389.6848449707031
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9746130704879761,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 539.5321044921875,
+            "y1": 368.09375,
+            "x2": 557.8441162109375,
+            "y2": 383.82635498046875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "12",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8797786831855774,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 292.3905944824219,
+            "y1": 365.84521484375,
+            "x2": 311.9552307128906,
+            "y2": 388.592529296875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "13",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.960432231426239,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 271.184814453125,
+            "y1": 365.6142272949219,
+            "x2": 296.25372314453125,
+            "y2": 391.8832092285156
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "14",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9677153825759888,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 697.0782470703125,
+            "y1": 369.4540710449219,
+            "x2": 730.38232421875,
+            "y2": 410.5621643066406
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9935383200645447,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 655.1665649414062,
+            "y1": 372.11151123046875,
+            "x2": 690.6998901367188,
+            "y2": 397.723388671875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "16",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.7251814603805542,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 430.3796691894531,
+            "y1": 364.78851318359375,
+            "x2": 453.5863342285156,
+            "y2": 385.4249267578125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "17",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9487490653991699,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 572.2679443359375,
+            "y1": 366.6513366699219,
+            "x2": 589.1092529296875,
+            "y2": 389.2594299316406
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "18",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8158895373344421,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 616.8305053710938,
+            "y1": 368.7522888183594,
+            "x2": 635.0221557617188,
+            "y2": 389.0904235839844
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "19",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.7375537753105164,
+          "attributes": null,
+          "category": "rider",
+          "box2d": {
+            "x1": 627.9015502929688,
+            "y1": 354.2511291503906,
+            "x2": 650.4524536132812,
+            "y2": 406.6043395996094
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "21",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.44717392325401306,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 367.7044677734375,
+            "y1": 358.1528015136719,
+            "x2": 394.3123779296875,
+            "y2": 385.4773864746094
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "22",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.381734162569046,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 387.404541015625,
+            "y1": 368.61865234375,
+            "x2": 408.06036376953125,
+            "y2": 386.219970703125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "25",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.5836969614028931,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 464.33038330078125,
+            "y1": 365.98065185546875,
+            "x2": 483.69232177734375,
+            "y2": 380.82159423828125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "26",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8174945116043091,
+          "attributes": null,
+          "category": "truck",
+          "box2d": {
+            "x1": 712.2178344726562,
+            "y1": 365.7945556640625,
+            "x2": 771.9712524414062,
+            "y2": 416.7386474609375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    },
+    {
+      "name": "00091078-875c1f73-0000166.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/00091078-875c1f73/00091078-875c1f73-0000166.jpg",
+      "videoName": "00091078-875c1f73",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 165,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9997662901878357,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 328.4161376953125,
+            "y1": 404.4084777832031,
+            "x2": 405.5194091796875,
+            "y2": 451.8013000488281
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "9",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9987491369247437,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 143.2282257080078,
+            "y1": 408.592041015625,
+            "x2": 217.3099822998047,
+            "y2": 470.73828125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9998569488525391,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 175.62844848632812,
+            "y1": 395.4233703613281,
+            "x2": 331.0412292480469,
+            "y2": 492.9760437011719
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999147653579712,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 434.08868408203125,
+            "y1": 339.1405944824219,
+            "x2": 694.9804077148438,
+            "y2": 590.3229370117188
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9689674377441406,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 661.9991455078125,
+            "y1": 382.2419738769531,
+            "x2": 703.74658203125,
+            "y2": 429.5916442871094
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "27",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999728202819824,
+          "attributes": null,
+          "category": "truck",
+          "box2d": {
+            "x1": 492.583251953125,
+            "y1": 258.37176513671875,
+            "x2": 626.384521484375,
+            "y2": 356.6627197265625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "28",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.999667763710022,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 0.0,
+            "y1": 385.528076171875,
+            "x2": 149.9560546875,
+            "y2": 626.4564819335938
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "29",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.999372661113739,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 684.0777587890625,
+            "y1": 320.251953125,
+            "x2": 906.202392578125,
+            "y2": 511.47003173828125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "30",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9959652423858643,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1066.4246826171875,
+            "y1": 371.8023376464844,
+            "x2": 1108.3409423828125,
+            "y2": 465.5135803222656
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "31",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9890902638435364,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 394.39910888671875,
+            "y1": 402.0219421386719,
+            "x2": 429.43450927734375,
+            "y2": 427.5674133300781
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "32",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9696791768074036,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1019.6473999023438,
+            "y1": 372.8045349121094,
+            "x2": 1057.9290771484375,
+            "y2": 458.8297424316406
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    },
+    {
+      "name": "00091078-875c1f73-0000167.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/00091078-875c1f73/00091078-875c1f73-0000167.jpg",
+      "videoName": "00091078-875c1f73",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 166,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9998501539230347,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 313.1990966796875,
+            "y1": 419.6073303222656,
+            "x2": 399.3414306640625,
+            "y2": 469.6876525878906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "9",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8354322910308838,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 132.65467834472656,
+            "y1": 430.1116638183594,
+            "x2": 174.67295837402344,
+            "y2": 465.3327331542969
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9997376799583435,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 133.2993621826172,
+            "y1": 405.6269836425781,
+            "x2": 310.60528564453125,
+            "y2": 516.91552734375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999315738677979,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 433.788330078125,
+            "y1": 356.10638427734375,
+            "x2": 689.987548828125,
+            "y2": 594.7538452148438
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.7941657304763794,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 658.2933959960938,
+            "y1": 400.0068359375,
+            "x2": 703.0940551757812,
+            "y2": 449.625244140625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "27",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999550580978394,
+          "attributes": null,
+          "category": "truck",
+          "box2d": {
+            "x1": 494.13897705078125,
+            "y1": 276.4075622558594,
+            "x2": 624.2671508789062,
+            "y2": 373.9981384277344
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "28",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9828689694404602,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 1.0004901885986328,
+            "y1": 469.01666259765625,
+            "x2": 47.272560119628906,
+            "y2": 653.2454223632812
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "29",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9994049072265625,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 679.8131103515625,
+            "y1": 345.29864501953125,
+            "x2": 893.609375,
+            "y2": 528.2006225585938
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "30",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.990064799785614,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1091.2008056640625,
+            "y1": 384.73199462890625,
+            "x2": 1136.8143310546875,
+            "y2": 485.36651611328125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "31",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9967359900474548,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 384.38433837890625,
+            "y1": 417.3436279296875,
+            "x2": 424.9539794921875,
+            "y2": 443.64404296875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "32",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9879379868507385,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1046.4022216796875,
+            "y1": 387.7173156738281,
+            "x2": 1083.4000244140625,
+            "y2": 484.2681579589844
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "33",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.7944459319114685,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 418.8831481933594,
+            "y1": 413.2847595214844,
+            "x2": 432.1602478027344,
+            "y2": 441.8251647949219
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    },
+    {
+      "name": "00091078-875c1f73-0000168.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/00091078-875c1f73/00091078-875c1f73-0000168.jpg",
+      "videoName": "00091078-875c1f73",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 167,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9997405409812927,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 297.8853759765625,
+            "y1": 416.46209716796875,
+            "x2": 388.1038818359375,
+            "y2": 469.01751708984375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9997908473014832,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 76.76587677001953,
+            "y1": 405.4268798828125,
+            "x2": 288.5120849609375,
+            "y2": 531.4078369140625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999125003814697,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 434.750732421875,
+            "y1": 352.35137939453125,
+            "x2": 684.955078125,
+            "y2": 592.5363159179688
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.8903486728668213,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 656.811279296875,
+            "y1": 393.1504821777344,
+            "x2": 699.99755859375,
+            "y2": 444.0255432128906
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "27",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999706745147705,
+          "attributes": null,
+          "category": "truck",
+          "box2d": {
+            "x1": 492.6596984863281,
+            "y1": 273.3180847167969,
+            "x2": 622.5596313476562,
+            "y2": 371.1126403808594
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "29",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9996187686920166,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 677.434326171875,
+            "y1": 347.228759765625,
+            "x2": 877.66552734375,
+            "y2": 516.1947021484375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "30",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9908472299575806,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1118.636962890625,
+            "y1": 376.8345947265625,
+            "x2": 1166.2421875,
+            "y2": 483.19970703125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "31",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9982812404632568,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 377.887451171875,
+            "y1": 412.6398010253906,
+            "x2": 420.80078125,
+            "y2": 440.2622375488281
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "32",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.984670877456665,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1067.6485595703125,
+            "y1": 375.3816223144531,
+            "x2": 1118.4378662109375,
+            "y2": 480.3093566894531
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "33",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.5281431674957275,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 417.2427673339844,
+            "y1": 407.6332702636719,
+            "x2": 430.0427551269531,
+            "y2": 438.7519836425781
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    },
+    {
+      "name": "00091078-875c1f73-0000169.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/00091078-875c1f73/00091078-875c1f73-0000169.jpg",
+      "videoName": "00091078-875c1f73",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 168,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9998217225074768,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 282.11041259765625,
+            "y1": 404.85430908203125,
+            "x2": 380.77288818359375,
+            "y2": 462.30865478515625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "9",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.48857778310775757,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 279.44122314453125,
+            "y1": 411.1043395996094,
+            "x2": 309.076171875,
+            "y2": 431.8577575683594
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.999357283115387,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 1.9854583740234375,
+            "y1": 393.9447937011719,
+            "x2": 258.00262451171875,
+            "y2": 541.0943603515625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9998565912246704,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 434.9345703125,
+            "y1": 335.38677978515625,
+            "x2": 681.278564453125,
+            "y2": 578.4581298828125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9894118905067444,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 661.196044921875,
+            "y1": 379.0018615722656,
+            "x2": 698.8380126953125,
+            "y2": 425.2187805175781
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "27",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999606609344482,
+          "attributes": null,
+          "category": "truck",
+          "box2d": {
+            "x1": 492.09747314453125,
+            "y1": 259.0098571777344,
+            "x2": 621.9631958007812,
+            "y2": 357.3594665527344
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "29",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9996589422225952,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 677.1220703125,
+            "y1": 327.064697265625,
+            "x2": 868.979736328125,
+            "y2": 497.561279296875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "30",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9913300275802612,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1153.4779052734375,
+            "y1": 352.9217834472656,
+            "x2": 1205.9918212890625,
+            "y2": 462.9978942871094
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "31",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9983125925064087,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 373.92694091796875,
+            "y1": 400.9507751464844,
+            "x2": 418.61224365234375,
+            "y2": 427.6662902832031
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "32",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.994654655456543,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1099.634033203125,
+            "y1": 357.4334716796875,
+            "x2": 1148.468505859375,
+            "y2": 465.379638671875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "33",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.6156589984893799,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 417.2242431640625,
+            "y1": 396.2438049316406,
+            "x2": 429.7410888671875,
+            "y2": 426.1825866699219
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    },
+    {
+      "name": "00091078-875c1f73-0000170.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/00091078-875c1f73/00091078-875c1f73-0000170.jpg",
+      "videoName": "00091078-875c1f73",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 169,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.999855637550354,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 264.9277648925781,
+            "y1": 406.3948669433594,
+            "x2": 371.4062805175781,
+            "y2": 467.3073425292969
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9996415376663208,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 0.0,
+            "y1": 394.6216125488281,
+            "x2": 220.61398315429688,
+            "y2": 558.6248779296875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9998219609260559,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 435.478515625,
+            "y1": 341.6518859863281,
+            "x2": 679.0460205078125,
+            "y2": 584.3057250976562
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9884806871414185,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 661.2913818359375,
+            "y1": 384.3338928222656,
+            "x2": 698.6087646484375,
+            "y2": 429.5283508300781
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "27",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999457597732544,
+          "attributes": null,
+          "category": "truck",
+          "box2d": {
+            "x1": 492.27813720703125,
+            "y1": 264.06298828125,
+            "x2": 622.7926635742188,
+            "y2": 360.7960205078125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "29",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.999519944190979,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 677.42333984375,
+            "y1": 330.88836669921875,
+            "x2": 864.000244140625,
+            "y2": 497.773193359375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "30",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9894806146621704,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1193.494384765625,
+            "y1": 353.3529968261719,
+            "x2": 1248.50634765625,
+            "y2": 472.3808898925781
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "31",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.997330904006958,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 370.5350341796875,
+            "y1": 403.7388000488281,
+            "x2": 415.57000732421875,
+            "y2": 430.7864685058594
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "32",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9948470592498779,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1135.4112548828125,
+            "y1": 357.9661560058594,
+            "x2": 1181.7716064453125,
+            "y2": 473.3447570800781
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "33",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.43817847967147827,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 416.21502685546875,
+            "y1": 398.83050537109375,
+            "x2": 427.9949951171875,
+            "y2": 428.35650634765625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "34",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.996055006980896,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 186.96600341796875,
+            "y1": 410.4136047363281,
+            "x2": 233.68954467773438,
+            "y2": 471.7120056152344
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "35",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.7506417036056519,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 440.9386291503906,
+            "y1": 398.5173034667969,
+            "x2": 463.8793029785156,
+            "y2": 428.7875061035156
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    },
+    {
+      "name": "00091078-875c1f73-0000171.jpg",
+      "url": "vis4d/engine/testcases/track/bdd100k-samples/images/00091078-875c1f73/00091078-875c1f73-0000171.jpg",
+      "videoName": "00091078-875c1f73",
+      "intrinsics": null,
+      "extrinsics": null,
+      "attributes": null,
+      "timestamp": null,
+      "frameIndex": 170,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "labels": [
+        {
+          "id": "0",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999339580535889,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 243.60191345214844,
+            "y1": 408.247802734375,
+            "x2": 361.0507507324219,
+            "y2": 473.21417236328125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "10",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9996404647827148,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 0.16898345947265625,
+            "y1": 396.8529357910156,
+            "x2": 168.37905883789062,
+            "y2": 593.295166015625
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "11",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999098777770996,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 434.1962585449219,
+            "y1": 342.7817687988281,
+            "x2": 682.0800170898438,
+            "y2": 580.818359375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "15",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9751685857772827,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 662.5227661132812,
+            "y1": 386.7328186035156,
+            "x2": 699.8961791992188,
+            "y2": 430.9914855957031
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "27",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9999725818634033,
+          "attributes": null,
+          "category": "truck",
+          "box2d": {
+            "x1": 490.45635986328125,
+            "y1": 266.7550354003906,
+            "x2": 623.6401977539062,
+            "y2": 362.9884948730469
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "29",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9994059801101685,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 676.7568969726562,
+            "y1": 336.21551513671875,
+            "x2": 857.8637084960938,
+            "y2": 496.864501953125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "30",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9920086860656738,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1231.132080078125,
+            "y1": 356.9974670410156,
+            "x2": 1278.230224609375,
+            "y2": 486.6145935058594
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "31",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9987775683403015,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 367.14306640625,
+            "y1": 403.428955078125,
+            "x2": 413.07415771484375,
+            "y2": 432.75146484375
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "32",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.989051103591919,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 1169.3087158203125,
+            "y1": 363.28961181640625,
+            "x2": 1221.7037353515625,
+            "y2": 481.45654296875
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "33",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.543302595615387,
+          "attributes": null,
+          "category": "pedestrian",
+          "box2d": {
+            "x1": 415.0591125488281,
+            "y1": 397.9554138183594,
+            "x2": 428.7953186035156,
+            "y2": 429.5948181152344
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "34",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9997875094413757,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 130.29486083984375,
+            "y1": 412.9286804199219,
+            "x2": 224.83572387695312,
+            "y2": 480.0232238769531
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "35",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9760664701461792,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 438.9021301269531,
+            "y1": 399.5082702636719,
+            "x2": 464.7480773925781,
+            "y2": 430.0082092285156
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        },
+        {
+          "id": "36",
+          "index": null,
+          "manualShape": null,
+          "manualAttributes": null,
+          "score": 0.9321960210800171,
+          "attributes": null,
+          "category": "car",
+          "box2d": {
+            "x1": 205.646728515625,
+            "y1": 415.157958984375,
+            "x2": 268.4048767089844,
+            "y2": 437.428955078125
+          },
+          "box3d": null,
+          "poly2d": null,
+          "rle": null,
+          "graph": null
+        }
+      ]
+    }
+  ],
+  "groups": null,
+  "config": null
+}

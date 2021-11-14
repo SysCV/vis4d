@@ -1,0 +1,24 @@
+[[config]]
+path = "../configs/datasets/bdd100k/track_deepsort.toml"
+
+[[config]]
+path = "../configs/models/mmdetection/deepsort.toml"
+
+[model]
+    [model.optimizer]
+    type = "SGD"
+    lr = 0.001
+
+    [model.lr_scheduler]
+    type = "MultiStepLR"
+    warmup = "constant"
+    warmup_steps = 1
+    kwargs = {"milestones" = [8, 11]}
+
+[launch]
+samples_per_gpu = 1
+workers_per_gpu = 0
+
+[trainer]
+max_steps = 2
+log_every_n_steps = 1

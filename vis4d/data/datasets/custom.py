@@ -19,7 +19,9 @@ class Custom(BaseDatasetLoader):
         source_dir = os.path.join(self.cfg.data_root, "")  # add trailing slash
         for (root, dirs, files) in sub_dirs:
             if not dirs:
-                video_name = os.path.join(root, "").replace(source_dir, "")
+                video_name = (
+                    os.path.join(root, "").replace(source_dir, "").rstrip("/")
+                )
                 img_files = sorted(
                     [
                         f

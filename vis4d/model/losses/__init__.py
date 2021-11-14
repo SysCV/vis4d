@@ -2,6 +2,7 @@
 
 from .base import BaseLoss, LossConfig, build_loss
 from .box3d_uncertainty_loss import Box3DUncertaintyLoss
+from .cross_entropy_loss import CrossEntropyLoss
 from .embedding_distance import EmbeddingDistanceLoss
 from .multi_pos_cross_entropy import MultiPosCrossEntropyLoss
 
@@ -12,4 +13,5 @@ __all__ = [
     "EmbeddingDistanceLoss",
     "MultiPosCrossEntropyLoss",
     "Box3DUncertaintyLoss",
+    "CrossEntropyLoss",
 ]

@@ -1,53 +1,11 @@
-[[train]]
-name = "bdd100k_track_train"
-type = "BDD100K"
-annotations = "data/bdd100k/labels/box_track_20/train/"
-data_root = "data/bdd100k/images/track/train/"
-config_path = "box_track"
-num_processes = 0
-    [train.dataloader]
-    skip_empty_samples = true
+[[config]]
+path = "../../base/datasets/bdd100k_track.toml"
 
-    [[train.dataloader.transformations]]
-    type = "Resize"
-    kwargs = {"shape" = [720, 1280]}
-
-    [[train.dataloader.transformations]]
-    type = "RandomHorizontalFlip"
-    kwargs = {"p" = 0.5}
-
-[[test]]
-name = "bdd100k_track_val"
-type = "BDD100K"
-annotations = "data/bdd100k/labels/box_track_20/val/"
-data_root = "data/bdd100k/images/track/val/"
-eval_metrics = ["track"]
-config_path = "box_track"
-num_processes = 0
+[[config]]
+path = "../../base/models/mmdetection/deepsort.toml"
 
 [model]
-type = "DeepSORT"
-dataset = "BDD100K"
-max_boxes_num=512
-num_instances=108524
-prediction_path = "given_predictions/track_predictions_val.json"
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
-    [model.detection]
-    type = "D2TwoStageDetector"
-    model_base = "faster-rcnn/r50-fpn"
-    num_classes = 8
-    category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
-
-    [model.track_graph]
-    type = "DeepSORTTrackGraph"
-
-    [model.roi_align_config]
-    type = "MultiScaleRoIPooler"
-    pooling_op = "RoIAlign"
-    resolution = [64, 128]
-    strides = [1]
-    sampling_ratio = 0
-
     [model.optimizer]
     type = "SGD"
     lr = 0.001
@@ -56,9 +14,6 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
     [model.lr_scheduler]
     type = "MultiStepLR"
     kwargs = {"milestones" = [9, 11]}
-
-[dataloader]
-image_channel_mode = "RGB"
 
 [launch]
 samples_per_gpu = 32

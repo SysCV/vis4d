@@ -116,6 +116,71 @@ class TestTrackMM(BaseEngineTests.TestTrack):
             os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
 
 
+class TestTrackDeepSort(BaseEngineTests.TestTrack):
+    """DeepSort tracking test cases."""
+
+    predict_dir = "vis4d/engine/testcases/track/bdd100k-samples/images/"
+
+    def test_predict(self) -> None:
+        """Testcase for predict."""
+        self.assertIsNotNone(self.cfg)
+        self.cfg.launch.action = "predict"
+        trainer_args = {}
+        if torch.cuda.is_available():
+            trainer_args["gpus"] = "0,"  # pragma: no cover
+        self.cfg.launch.input_dir = self.predict_dir
+        self.cfg.launch.visualize = True
+        predict(self.cfg, trainer_args)
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_track_deepsort/"
+        cls.args = Namespace(
+            config=get_test_file("track/deepsort_mmdet.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(cls.args)
+        if os.path.exists(
+            cls.cfg.train[0].annotations.rstrip("/") + ".pkl"
+        ):  # pragma: no cover
+            os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
+
+
+class TestTrackSort(BaseEngineTests.TestTrack):
+    """Sort tracking test cases."""
+
+    predict_dir = "vis4d/engine/testcases/track/bdd100k-samples/images/"
+
+    def test_train(self) -> None:
+        """Testcase for train."""
+
+    def test_predict(self) -> None:
+        """Testcase for predict."""
+        self.assertIsNotNone(self.cfg)
+        self.cfg.launch.action = "predict"
+        trainer_args = {}
+        if torch.cuda.is_available():
+            trainer_args["gpus"] = "0,"  # pragma: no cover
+        self.cfg.launch.input_dir = self.predict_dir
+        self.cfg.launch.visualize = True
+        predict(self.cfg, trainer_args)
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_track_sort/"
+        cls.args = Namespace(
+            config=get_test_file("track/sort_mmdet.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(cls.args)
+        if os.path.exists(
+            cls.cfg.train[0].annotations.rstrip("/") + ".pkl"
+        ):  # pragma: no cover
+            os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
+
+
 class TestTrack3D(BaseEngineTests.TestTrack):
     """3D tracking test cases."""
 

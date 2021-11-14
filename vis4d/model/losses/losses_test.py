@@ -5,6 +5,7 @@ import torch
 
 from .base import LossConfig
 from .box3d_uncertainty_loss import Box3DUncertaintyLoss
+from .cross_entropy_loss import CrossEntropyLoss
 from .embedding_distance import EmbeddingDistanceLoss
 from .multi_pos_cross_entropy import MultiPosCrossEntropyLoss
 
@@ -198,3 +199,46 @@ class TestLossBox3D(unittest.TestCase):
         )
         for v in loss_dict.values():
             self.assertEqual(v.item(), 0.0)
+
+
+class TestCrossEntropyLoss(unittest.TestCase):
+    """Testclass for CrossEntropyLoss."""
+
+    pred = torch.Tensor(
+        [
+            [
+                0.1747,
+                0.0020,
+                0.0909,
+                0.2534,
+                0.4916,
+                -0.4987,
+                0.0686,
+                0.3338,
+                0.3276,
+                0.4907,
+            ],
+            [
+                0.4417,
+                -0.0452,
+                0.0429,
+                -0.4182,
+                0.4432,
+                0.3206,
+                0.2496,
+                0.0600,
+                -0.2923,
+                -0.0241,
+            ],
+        ]
+    )
+    target = torch.tensor([4, 4], dtype=torch.int64)
+
+    def test_cross_entropy_loss(self) -> None:
+        """Testcase for cross_entropy loss."""
+        cfg = LossConfig(type="celoss")
+        loss = CrossEntropyLoss(cfg)
+        x = loss(self.pred, self.target, reduction_override="sum")
+        self.assertTrue(abs(x - 3.9928) < 1e-4)
+        x = loss(self.pred, self.target, reduction_override="mean")
+        self.assertTrue(abs(x - 1.9964) < 1e-4)
