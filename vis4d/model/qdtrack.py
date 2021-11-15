@@ -147,7 +147,7 @@ class QDTrack(BaseModel):
             inputs.metadata[0].size.width,
             inputs.metadata[0].size.height,
         )
-        detections[0].postprocess(input_size, inputs.images.image_sizes[0])
+        detections[0].postprocess(input_size, inputs.images.image_sizes[0], self.detector.cfg.clip_bboxes_to_image)
         if segmentations[0] is not None:
             segmentations[0].postprocess(
                 input_size, inputs.images.image_sizes[0], detections[0]

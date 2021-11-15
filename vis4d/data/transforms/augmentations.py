@@ -379,6 +379,8 @@ class RandomCrop(BaseAugmentation):
                 im.tensor = im.tensor[:, :, y1:y2, x1:x2]
                 im.image_sizes[i] = (min(im_wh[0], w), min(im_wh[1], h))
             all_ims.append(im)
+        if len(all_ims) == 1:
+            return all_ims[0]
         return Images.cat(all_ims)
 
     def apply_box2d(

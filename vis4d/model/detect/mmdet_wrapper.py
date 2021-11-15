@@ -130,7 +130,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 inp.metadata[0].size.width,
                 inp.metadata[0].size.height,
             )
-            det.postprocess(input_size, inp.images.image_sizes[0])
+            det.postprocess(input_size, inp.images.image_sizes[0], self.cfg.clip_bboxes_to_image)
             if segm is not None:
                 segm.postprocess(input_size, inp.images.image_sizes[0], det)
 

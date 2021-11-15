@@ -31,7 +31,7 @@ from vis4d.struct import (
     NDArrayUI8,
 )
 
-from ..base import BaseModelConfig
+from .base import BaseDetectorConfig
 
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
 MMDetResult = List[torch.Tensor]
@@ -39,7 +39,7 @@ MMSegmResult = List[List[NDArrayUI8]]
 MMResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
 
 
-class MMTwoStageDetectorConfig(BaseModelConfig):
+class MMTwoStageDetectorConfig(BaseDetectorConfig):
     """Config for mmdetection two stage models."""
 
     model_base: str
