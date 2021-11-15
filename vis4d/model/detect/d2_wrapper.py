@@ -36,6 +36,7 @@ from vis4d.struct import (
 
 from ..base import BaseModelConfig
 from .base import BaseTwoStageDetector
+from .utils import postprocess
 
 
 class D2TwoStageDetector(BaseTwoStageDetector):
@@ -112,16 +113,9 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         if segmentations is None:
             segmentations = [None] * len(detections)  # type: ignore
 
-        for inp, det, segm in zip(inputs, detections, segmentations):
-            assert inp.metadata[0].size is not None
-            input_size = (
-                inp.metadata[0].size.width,
-                inp.metadata[0].size.height,
-            )
-            det.postprocess(input_size, inp.images.image_sizes[0], self.cfg.clip_bboxes_to_image)
-            if segm is not None:
-                segm.postprocess(input_size, inp.images.image_sizes[0], det)
-
+        postprocess(
+            inputs, detections, segmentations, self.cfg.clip_bboxes_to_image
+        )
         outputs = dict(
             detect=[d.to_scalabel(self.cat_mapping) for d in detections]
         )

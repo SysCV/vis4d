@@ -16,13 +16,13 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    shape = [1088, 1088]
+    shape = [800, 1440]
     scale_range = [0.8, 1.2]
     keep_ratio = true
 
     [[train.dataloader.transformations]]
     type = "RandomCrop"
-    shape = [1088, 1088]
+    shape = [800, 1440]
 
     [[train.dataloader.transformations]]
     type = "KorniaAugmentationWrapper"
@@ -45,5 +45,5 @@ num_processes = 0
 
     [[test.dataloader.transformations]]
     type = "Resize"
-    shape = [1088, 1088]
+    shape = [800, 1440]
     keep_ratio = true

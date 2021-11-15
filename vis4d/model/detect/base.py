@@ -23,7 +23,7 @@ class BaseDetector(BaseModel, metaclass=RegistryHolder):
     def __init__(self, cfg: BaseModelConfig):
         """Init."""
         super().__init__(cfg)
-        self.cfg = BaseDetectorConfig(**cfg.dict())
+        self.cfg: BaseDetectorConfig = BaseDetectorConfig(**cfg.dict())
 
     @abc.abstractmethod
     def preprocess_inputs(self, inputs: List[InputSample]) -> InputSample:

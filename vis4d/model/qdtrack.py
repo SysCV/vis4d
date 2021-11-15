@@ -30,7 +30,7 @@ class QDTrack(BaseModel):
         self.cfg = QDTrackConfig(**cfg.dict())  # type: QDTrackConfig
         assert self.cfg.category_mapping is not None
         self.cfg.detection.category_mapping = self.cfg.category_mapping
-        self.detector = build_model(self.cfg.detection)
+        self.detector: BaseTwoStageDetector = build_model(self.cfg.detection)
         assert isinstance(self.detector, BaseTwoStageDetector)
         self.similarity_head = build_similarity_head(self.cfg.similarity)
         self.track_graph = build_track_graph(self.cfg.track_graph)
@@ -133,7 +133,7 @@ class QDTrack(BaseModel):
         )
         assert detections is not None
         if segmentations is None or len(segmentations) == 0:
-            segmentations = [None]
+            segmentations = [None]  # type: ignore
 
         # from vis4d.vis.image import imshow_bboxes
         # imshow_bboxes(inputs.images.tensor[0], detections)
@@ -147,7 +147,11 @@ class QDTrack(BaseModel):
             inputs.metadata[0].size.width,
             inputs.metadata[0].size.height,
         )
-        detections[0].postprocess(input_size, inputs.images.image_sizes[0], self.detector.cfg.clip_bboxes_to_image)
+        detections[0].postprocess(
+            input_size,
+            inputs.images.image_sizes[0],
+            self.detector.cfg.clip_bboxes_to_image,
+        )
         if segmentations[0] is not None:
             segmentations[0].postprocess(
                 input_size, inputs.images.image_sizes[0], detections[0]
