@@ -62,18 +62,16 @@ class BasicBlock(nn.Module):  # type: ignore
             )
             self.is_downsample = True
 
-    def forward(
-        self, x: torch.Tensor
-    ) -> torch.Tensor:  # pylint: disable = # invalid-name
+    def forward(self, input_x: torch.Tensor) -> torch.Tensor:
         """Forward."""
-        y = self.conv1(x)
+        y = self.conv1(input_x)
         y = self.bn1(y)
         y = self.relu(y)
         y = self.conv2(y)
         y = self.bn2(y)
         if self.is_downsample:
-            x = self.downsample(x)
-        return F.relu(x.add(y), True)
+            input_x = self.downsample(input_x)
+        return F.relu(input_x.add(y), True)
 
 
 def make_layers(
@@ -161,9 +159,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
                 * np.prod(self.cfg.roi_align_config.resolution)
                 // 64
             )
-            for i in range(
-                self.cfg.num_fcs
-            ):  # pylint: disable = unused-variable
+            for _ in range(self.cfg.num_fcs):
                 fcs.append(
                     nn.Sequential(
                         nn.Dropout(p=self.cfg.drop_prob),

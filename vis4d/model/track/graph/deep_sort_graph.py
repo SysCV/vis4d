@@ -62,10 +62,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             7: "bicycle",
         }
 
-        for (
-            class_id,
-            cls,
-        ) in self.idx2cls_mapping.items():  # pylint: disable=unused-variable
+        for class_id, _ in self.idx2cls_mapping.items():
             self.kf[str(class_id)] = KalmanFilter(
                 kf_motion_mat,
                 kf_update_mat,

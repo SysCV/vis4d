@@ -496,9 +496,6 @@ def load_predictions(
     """Function for calling specific prediction loader."""
     if dataset_name == "BDD100K":
         return load_bdd100k_preds(pred_path)
-    if (
-        dataset_name == "MOT16"
-    ):  # pylint: disable=no-else-return # pragma: no cover
+    if dataset_name == "MOT16":
         return load_mot16_preds(pred_path)
-    else:
-        raise NotImplementedError("not implemented dataset")
+    raise NotImplementedError("not implemented dataset")
