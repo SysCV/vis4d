@@ -17,6 +17,7 @@ num_processes = 0
     type = "Resize"
     shape = [720, 1280]
     scale_range = [0.5, 2.0]
+    keep_ratio = true
 
     [[train.dataloader.transformations]]
     type = "RandomCrop"

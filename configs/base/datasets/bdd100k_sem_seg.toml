@@ -18,6 +18,7 @@ cache_as_binary = true
 
     [[train.dataloader.transformations]]
     type = "Resize"
+    keep_ratio = true
     shape = [720, 1280]
     scale_range = [0.5, 2.0]
 

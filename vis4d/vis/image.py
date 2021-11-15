@@ -173,7 +173,10 @@ def draw_mask(
 ) -> None:  # pragma: no cover
     """Draw mask onto image."""
     draw = ImageDraw.Draw(image)
-    draw.bitmap([0, 0], Image.fromarray(mask, mode="L"), fill=color)
+    # create overlay mask
+    mask = np.repeat(mask[:, :, None], 4, axis=2)
+    mask[:, :, -1][mask[:, :, -1] == 255] = 128
+    draw.bitmap([0, 0], Image.fromarray(mask, mode="RGBA"), fill=color)
 
 
 def get_intersection_point(
