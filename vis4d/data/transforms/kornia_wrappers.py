@@ -53,16 +53,26 @@ class KorniaAugmentationWrapper(BaseAugmentation):
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
         parameters = super().generate_parameters(sample)
-        _params = self.augmentor.generate_parameters(
-            sample.images.tensor.shape
-        )
-        parameters.update(_params)
+        kornia_params = []
+        transforms = []
+        for im in sample.images:
+            im_size = im.image_sizes[0]
+            _params = self.augmentor.generate_parameters(
+                (1, 3, *reversed(im_size))
+            )
+            kornia_params += [_params]
+            transf = self.augmentor.compute_transformation(im.tensor, _params)
+            transforms += [transf]
+
+        for key in kornia_params[0]:
+            parameters[key] = torch.cat([p[key] for p in kornia_params])
+
         parameters["batch_prob"] = parameters["apply"]
-        transf = self.augmentor.compute_transformation(
-            sample.images.tensor, _params
+        transform_tensor = torch.cat(transforms)
+        transform_tensor[~parameters["apply"]] = torch.eye(
+            3, device=transform_tensor.device
         )
-        transf[~parameters["apply"]] = torch.eye(3, device=transf.device)
-        parameters["transform"] = transf
+        parameters["transform"] = transform_tensor
         return parameters
 
     def apply_intrinsics(
