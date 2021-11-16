@@ -1,12 +1,12 @@
 """DeepSORT utils."""
 import glob
 import os
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 from scalabel.label.io import load
-from scipy.optimize import linear_sum_assignment as linear_assignment
+from scipy.optimize import linear_sum_assignment  # type: ignore
 
 from vis4d.model.track.motion import KalmanFilter
 from vis4d.struct import Boxes2D, NDArrayF64
@@ -92,9 +92,9 @@ chi2inv95 = {
 
 
 def min_cost_matching(
-    cost_matrix: Any,
+    cost_matrix: torch.Tensor,
     max_distance: float,
-    tracks: Dict[int, Dict[str, Any]],
+    tracks: Dict[int, Dict[str, Union[int, float, torch.Tensor]]],
     detections: Boxes2D,
     track_ids: Optional[List[int]] = None,
     detection_indices: Optional[List[int]] = None,
@@ -132,13 +132,12 @@ def min_cost_matching(
         detection_indices = torch.arange(len(detections)).to(
             detections.device
         )  # pragma: no cover
-
     if len(detection_indices) == 0 or len(track_ids) == 0:
         return [], track_ids, detection_indices  # Nothing to match.
 
     cost_matrix[cost_matrix > max_distance] = max_distance + 1e-5
     cost_matrix = cost_matrix.cpu()
-    row_indices, col_indices = linear_assignment(cost_matrix)
+    row_indices, col_indices = linear_sum_assignment(cost_matrix)
 
     matches, unmatched_tracks, unmatched_detections = [], [], []
     for col, detection_idx in enumerate(detection_indices):
@@ -161,7 +160,7 @@ def min_cost_matching(
 def matching_cascade(
     distance_metric: Callable[
         [
-            Dict[int, Dict[str, Any]],
+            Dict[int, Dict[str, Union[int, float, torch.Tensor]]],
             Boxes2D,
             torch.tensor,
             List[int],
@@ -171,7 +170,7 @@ def matching_cascade(
     ],
     max_distance: float,
     cascade_depth: int,
-    tracks: Dict[int, Dict[str, Any]],
+    tracks: Dict[int, Dict[str, Union[int, float, torch.Tensor]]],
     detections: Boxes2D,
     det_features: torch.tensor,
     track_ids: Optional[List[int]] = None,
@@ -226,7 +225,6 @@ def matching_cascade(
         ]
         if len(track_ids_l) == 0:  # Nothing to match at this level
             continue
-
         cost_matrix = distance_metric(
             tracks, detections, det_features, track_ids_l, unmatched_detections
         )
@@ -246,7 +244,7 @@ def matching_cascade(
 def gate_cost_matrix(
     kf: KalmanFilter,
     cost_matrix: torch.tensor,
-    tracks: Dict[int, Dict[str, Any]],
+    tracks: Dict[int, Dict[str, Union[int, float, torch.Tensor]]],
     detections: Boxes2D,
     track_ids: List[int],
     detection_indices: List[int],
@@ -422,34 +420,26 @@ class NearestNeighborDistanceMetric:
         return cost_matrix
 
 
-def load_bdd100k_preds(pred_path: str) -> Dict[str, Dict[int, Boxes2D]]:
+def load_bdd100k_preds(
+    pred_path: str, idx_to_class_mapping: Dict[int, str]
+) -> Dict[str, Dict[int, Boxes2D]]:
     """Function for loading BDD100K predictions."""
     search_dict: Dict[str, Dict[int, Boxes2D]] = {}
     given_predictions = load(pred_path)
-    idx_to_class_mapping = {
-        0: "pedestrian",
-        1: "rider",
-        2: "car",
-        3: "truck",
-        4: "bus",
-        5: "train",
-        6: "motorcycle",
-        7: "bicycle",
-    }
     class_to_idx_mapping = {v: k for k, v in idx_to_class_mapping.items()}
-    given_predictions = given_predictions.frames
+    given_predictions = given_predictions.frames  # type: ignore
     for prediction in given_predictions:
-        video_name = prediction.videoName
-        frame_index = prediction.frameIndex
+        video_name = prediction.videoName  # type: ignore
+        frame_index = prediction.frameIndex  # type: ignore
         if video_name not in search_dict:
             search_dict[video_name] = {}
-        if prediction.labels is None:
+        if prediction.labels is None:  # type: ignore
             search_dict[video_name][frame_index] = Boxes2D(
                 torch.empty((0, 5))
             )  # pragma: no cover
         else:
             search_dict[video_name][frame_index] = Boxes2D.from_scalabel(
-                prediction.labels,
+                prediction.labels,  # type: ignore
                 class_to_idx_mapping,
             )
     return search_dict
@@ -465,9 +455,9 @@ def load_mot16_preds(
         video_name, _ = os.path.splitext(os.path.split(v)[1])
         video_name = video_name[:-4]
         search_dict[video_name] = {}
-        detections = np.loadtxt(v, delimiter=",")
+        detections = np.loadtxt(v, delimiter=",")  # type: ignore
         detections[:, 2:6] = tlwh_to_xyxy(detections[:, 2:6])
-        frames = np.unique(detections[:, 0])
+        frames = np.unique(detections[:, 0])  # type: ignore
         for f_id in frames:
             frame_data = detections[detections[:, 0] == f_id]
             boxes = torch.from_numpy(frame_data[:, 2:7]).float()
@@ -486,16 +476,16 @@ def tlwh_to_xyxy(tlwh: NDArrayF64) -> NDArrayF64:  # pragma: no cover
     x2 = tlwh[:, [0]] + tlwh[:, [2]]
     y1 = tlwh[:, [1]]
     y2 = tlwh[:, [1]] + tlwh[:, [3]]
-    xyxy = np.concatenate([x1, y1, x2, y2], axis=1)
-    return xyxy
+    xyxy = np.concatenate([x1, y1, x2, y2], axis=1)  # type: ignore
+    return xyxy  # type: ignore
 
 
 def load_predictions(
-    dataset_name: str, pred_path: str
+    dataset_name: str, pred_path: str, idx_to_class_mapping: Dict[int, str]
 ) -> Dict[str, Dict[int, Boxes2D]]:
     """Function for calling specific prediction loader."""
     if dataset_name == "BDD100K":
-        return load_bdd100k_preds(pred_path)
+        return load_bdd100k_preds(pred_path, idx_to_class_mapping)
     if dataset_name == "MOT16":
         return load_mot16_preds(pred_path)
     raise NotImplementedError("not implemented dataset")

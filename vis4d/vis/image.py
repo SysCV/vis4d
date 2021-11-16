@@ -179,9 +179,9 @@ def draw_mask(
 def get_intersection_point(
     point1: NDArrayF64, point2: NDArrayF64, camera_near_clip: float
 ) -> NDArrayF64:  # pragma: no cover
-
     """Get point intersecting with camera near plane on line point1 -> point2.
-    The line is defined by two points (3 dimensional) in camera coordinates.
+
+    The line is defined by two points (3 dimensional).
     """
     cam_dir = np.array([0, 0, 1])
     center_pt: NDArrayF64 = cam_dir * camera_near_clip

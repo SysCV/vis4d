@@ -1,11 +1,15 @@
 """Track graph of deep SORT."""
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 
 from vis4d.common.bbox.utils import bbox_iou
-from vis4d.model.track.deep_sort_utils import (
+from vis4d.struct import Boxes2D
+
+from ..motion import KalmanFilter
+from .base import BaseTrackGraph, TrackGraphConfig
+from .deep_sort_utils import (
     NearestNeighborDistanceMetric,
     gate_cost_matrix,
     matching_cascade,
@@ -13,10 +17,6 @@ from vis4d.model.track.deep_sort_utils import (
     tlbr_to_xyah,
     xyah_to_tlbr,
 )
-from vis4d.struct import Boxes2D
-
-from ..motion import KalmanFilter
-from .base import BaseTrackGraph, TrackGraphConfig
 
 
 class DeepSORTTrackGraphConfig(TrackGraphConfig):
@@ -137,7 +137,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         output = self.get_tracks()
         return output
 
-    def predict(self):
+    def predict(self) -> None:
         """Propagate all tracklet one time step forward.
 
         This function should be called once every time step, before `update`.
@@ -152,9 +152,9 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             track["age"] += 1
             track["time_since_update"] += 1
 
-    def update(
+    def update(  # type: ignore # pylint: disable=arguments-differ
         self, detections: Boxes2D, det_features: torch.tensor = None
-    ):  # type: ignore # pylint: disable=arguments-differ
+    ) -> None:  # pylint: disable=arguments-differ
         """Perform association and track management."""
         cls_detidx_mapping = defaultdict(list)
         for i, class_id in enumerate(detections.class_ids):
@@ -268,12 +268,12 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         if det_features is not None:
 
             def gated_metric(
-                tracks,
+                tracks: Dict[int, Dict[str, Union[int, float, torch.Tensor]]],
                 dets: Boxes2D,
                 dets_features: torch.tensor,
                 track_ids: List[int],
                 detection_indices: List[int],
-            ):
+            ) -> torch.tensor:
                 """Calculate cost matrix."""
                 features = [dets_features[i] for i in detection_indices]
                 # calculate cost matrix using deep feature

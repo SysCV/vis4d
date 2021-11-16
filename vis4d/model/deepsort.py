@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 import torch
 
-from vis4d.model.track.deep_sort_utils import load_predictions
+from vis4d.model.track.graph.deep_sort_utils import load_predictions
 from vis4d.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
 from .base import BaseModel, BaseModelConfig
@@ -27,9 +27,8 @@ class DeepSORT(BaseModel):
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init detector."""
         super().__init__(cfg)
-        self.cfg = DeepSORTConfig(**cfg.dict())
+        self.cfg = DeepSORTConfig(**cfg.dict())  # type: DeepSORTConfig
         assert self.cfg.category_mapping is not None
-        self.cfg.detection.category_mapping = self.cfg.category_mapping
         if self.cfg.similarity is not None:
             self.similarity_head = build_similarity_head(self.cfg.similarity)
         self.track_graph = build_track_graph(self.cfg.track_graph)
@@ -66,9 +65,9 @@ class DeepSORT(BaseModel):
         instance_ids = torch.cat([label.track_ids for label in labels], dim=0)
 
         track_losses = self.similarity_head.forward_train(
-            inputs_images, labels, instance_ids
+            [inputs_images], [labels], instance_ids  # type: ignore
         )
-        return track_losses
+        return track_losses  # type: ignore
 
     def forward_test(
         self, batch_inputs: List[List[InputSample]]
@@ -82,7 +81,7 @@ class DeepSORT(BaseModel):
         assert len(inputs) == 1, "Currently only BS=1 supported!"
         if not self.search_dict:
             self.search_dict = load_predictions(
-                self.cfg.dataset, self.cfg.prediction_path  # type:ignore
+                self.cfg.dataset, self.cfg.prediction_path, self.cat_mapping
             )
 
         frame_id = inputs[0].metadata[0].frameIndex
@@ -93,7 +92,7 @@ class DeepSORT(BaseModel):
         # using given detections
         image = inputs[0].images
         video_name = inputs[0].metadata[0].videoName
-        # assert video_name in self.search_dict
+        assert video_name in self.search_dict
         # there might be no detections in one frame, e.g. MOT16-12 frame 443
         if frame_id not in self.search_dict[video_name]:
             detections = [

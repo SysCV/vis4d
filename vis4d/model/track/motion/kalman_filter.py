@@ -6,8 +6,8 @@ from torch import nn
 
 
 class KalmanFilter(
-    nn.Module
-):  # pylint: disable = abstract-method # type: ignore
+    nn.Module  # type: ignore
+):  # pylint: disable = abstract-method
     """Kalman filter.
 
     The 8-dimensional state space
@@ -38,7 +38,7 @@ class KalmanFilter(
         self,
         measurement: torch.Tensor,
     ) -> Tuple[torch.tensor, torch.tensor]:
-        """Initiate a Kalman filter state based on the first measurement
+        """Initiate a Kalman filter state based on the first measurement.
 
         Args:
             measurement: Bounding box coordinates (x, y, a, h) with center

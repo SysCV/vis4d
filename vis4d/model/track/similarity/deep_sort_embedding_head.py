@@ -25,8 +25,8 @@ class DeepSortSimilarityHeadConfig(SimilarityLearningConfig):
     loss_cls: Optional[LossConfig]
     roi_align_config: RoIPoolerConfig
     backbone: Optional[str]
-    pixel_mean: list = [0.485, 0.456, 0.406]
-    pixel_std: list = [0.229, 0.224, 0.225]
+    pixel_mean: List[float] = [0.485, 0.456, 0.406]
+    pixel_std: List[float] = [0.229, 0.224, 0.225]
 
 
 class BasicBlock(nn.Module):  # type: ignore
@@ -76,7 +76,7 @@ class BasicBlock(nn.Module):  # type: ignore
 
 def make_layers(
     c_in: int, c_out: int, repeat_times: int = 2, is_downsample: bool = False
-) -> nn.Sequential():
+) -> torch.nn.modules.container.Sequential:
     """Make layers."""
     blocks = []
     for i in range(repeat_times):
@@ -174,7 +174,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         self,
         batch_inputs: torch.Tensor,
     ) -> torch.Tensor:
-        """preprocess images samples."""
+        """Preprocess images samples."""
         batch_inputs = batch_inputs / 255.0
         batch_inputs = (batch_inputs - self.pixel_mean) / self.pixel_std
         return batch_inputs
@@ -195,7 +195,6 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         Returns:
             torch.Tensor: embedding after feature backbone extractor.
         """
-
         x = self.roi_pooler.pool([inputs], boxes)
         if indices is not None:
             x = x[indices]
@@ -207,10 +206,10 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
 
         return x
 
-    def forward_train(  # pylint: disable = arguments-renamed
+    def forward_train(  # type: ignore # pylint: disable=arguments-renamed
         self,
-        inputs: InputSample,
-        boxes: List[Boxes2D],
+        inputs: List[InputSample],
+        boxes: List[List[Boxes2D]],
         instance_ids: torch.Tensor,
     ) -> LossesType:
         """Forward pass during training stage.
@@ -227,7 +226,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         indices = torch.randperm(len(instance_ids))[:batch_size]
         instance_ids = instance_ids[indices]
 
-        x = self.forward(inputs, boxes, indices)
+        x = self.forward(inputs[0], boxes[0], indices)
 
         if self.cfg.num_fcs > 0:
             for fc in self.fcs:
@@ -265,7 +264,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         if self.cfg.num_fcs > 0:
             for fc in self.fcs:
                 x = fc[1](x)
-        return x.div(x.norm(p=2, dim=1, keepdim=True))
+        return x.div(x.norm(p=2, dim=1, keepdim=True))  # type: ignore
 
     def loss(
         self,
@@ -274,6 +273,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         feats: List[List[torch.Tensor]],  # pylint: disable = unused-argument
     ) -> LossesType:
         """Calculate losses for reid similarity learning.
+
         use identity loss to learn embedding
         """
         losses = {}

@@ -24,8 +24,7 @@ class CrossEntropyLoss(BaseLoss):
         reduction_override: Optional[str] = None,
         avg_factor: Optional[float] = None,
     ) -> torch.Tensor:
-        """Multi-positive cross entropy loss forward."""
-
+        """Cross entropy loss forward."""
         assert reduction_override in (None, "none", "mean", "sum")
         reduction = (
             reduction_override
@@ -49,8 +48,7 @@ def cross_entropy(
     reduction: str = "mean",
     avg_factor: Optional[float] = None,
 ) -> torch.Tensor:
-    """Calculate multi-positive cross-entropy loss."""
-
+    """Calculate cross-entropy loss."""
     loss = F.cross_entropy(
         pred,
         target,
