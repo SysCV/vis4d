@@ -16,9 +16,9 @@ tqdm
 wheel
 h5py
 git+https://github.com/scalabel/scalabel.git
-#torch
+torch
 torchaudio
-#torchvision
+torchvision
 git+https://github.com/bdd100k/bdd100k.git
 devtools
 utm
