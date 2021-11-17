@@ -121,17 +121,6 @@ class TestTrackDeepSort(BaseEngineTests.TestTrack):
 
     predict_dir = "vis4d/engine/testcases/track/bdd100k-samples/images/"
 
-    def test_predict(self) -> None:
-        """Testcase for predict."""
-        self.assertIsNotNone(self.cfg)
-        self.cfg.launch.action = "predict"
-        trainer_args = {}
-        if torch.cuda.is_available():
-            trainer_args["gpus"] = "0,"  # pragma: no cover
-        self.cfg.launch.input_dir = self.predict_dir
-        self.cfg.launch.visualize = True
-        predict(self.cfg, trainer_args)
-
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
@@ -154,17 +143,17 @@ class TestTrackSort(BaseEngineTests.TestTrack):
 
     def test_train(self) -> None:
         """Testcase for train."""
-
-    def test_predict(self) -> None:
-        """Testcase for predict."""
+        # TODO add an exception that says "No Re-ID model specified" if there
+        #  is no re-id model
+        #  (i.e. the user wants to execute sort instead of deepsort)
         self.assertIsNotNone(self.cfg)
-        self.cfg.launch.action = "predict"
+        self.cfg.launch.action = "train"
+        self.cfg.launch.seed = 42
         trainer_args = {}
         if torch.cuda.is_available():
             trainer_args["gpus"] = "0,"  # pragma: no cover
-        self.cfg.launch.input_dir = self.predict_dir
-        self.cfg.launch.visualize = True
-        predict(self.cfg, trainer_args)
+        self.assertRaises(AttributeError, train, (self.cfg, trainer_args))
+        self.cfg.launch.seed = -1
 
     @classmethod
     def setUpClass(cls) -> None:

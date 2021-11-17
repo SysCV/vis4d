@@ -98,9 +98,7 @@ def min_cost_matching(
     detections: Boxes2D,
     track_ids: Optional[List[int]] = None,
     detection_indices: Optional[List[int]] = None,
-) -> Tuple[
-    List[Tuple[int, int]], List[int], List[int]
-]:  # pylint: disable= line-too-long
+) -> Tuple[List[Tuple[int, int]], List[int], List[int]]:
     """Solve linear assignment problem.
 
     Args:
@@ -175,9 +173,7 @@ def matching_cascade(
     det_features: torch.tensor,
     track_ids: Optional[List[int]] = None,
     detection_indices: Optional[List[int]] = None,
-) -> Tuple[
-    List[Tuple[int, int]], List[int], List[int]
-]:  # pylint: disable =line-too-long
+) -> Tuple[List[Tuple[int, int]], List[int], List[int]]:
     """Run matching cascade.
 
     Args:
@@ -304,7 +300,7 @@ def _cosine_distance(
     matrix_a: List[torch.tensor],
     matrix_b: List[torch.tensor],
     data_is_normalized: bool = False,
-) -> torch.tensor:  # pylint: disable = invalid-name
+) -> torch.tensor:
     """Compute pair-wise cosine distance between points in `a` and `b`.
 
     Args:
@@ -332,7 +328,7 @@ def _cosine_distance(
 
 def _nn_cosine_distance(
     matrix_x: List[torch.tensor], matrix_y: List[torch.tensor]
-) -> torch.tensor:  # pylint: disable = invalid-name
+) -> torch.tensor:
     """Helper function for nearest neighbor distance metric (cosine).
 
     Args:
@@ -420,72 +416,19 @@ class NearestNeighborDistanceMetric:
         return cost_matrix
 
 
-def load_bdd100k_preds(
-    pred_path: str, idx_to_class_mapping: Dict[int, str]
-) -> Dict[str, Dict[int, Boxes2D]]:
-    """Function for loading BDD100K predictions."""
-    search_dict: Dict[str, Dict[int, Boxes2D]] = {}
-    given_predictions = load(pred_path)
-    class_to_idx_mapping = {v: k for k, v in idx_to_class_mapping.items()}
-    given_predictions = given_predictions.frames  # type: ignore
-    for prediction in given_predictions:
-        video_name = prediction.videoName  # type: ignore
-        frame_index = prediction.frameIndex  # type: ignore
-        if video_name not in search_dict:
-            search_dict[video_name] = {}
-        if prediction.labels is None:  # type: ignore
-            search_dict[video_name][frame_index] = Boxes2D(
-                torch.empty((0, 5))
-            )  # pragma: no cover
-        else:
-            search_dict[video_name][frame_index] = Boxes2D.from_scalabel(
-                prediction.labels,  # type: ignore
-                class_to_idx_mapping,
-            )
-    return search_dict
-
-
-def load_mot16_preds(
-    pred_path: str,
-) -> Dict[str, Dict[int, Boxes2D]]:  # pragma: no cover
-    """Function for loading MOT16 predictions."""
-    search_dict: Dict[str, Dict[int, Boxes2D]] = {}
-    video_names = glob.glob(os.path.join(pred_path, "MOT16-*_det.txt"))
-    for v in video_names:
-        video_name, _ = os.path.splitext(os.path.split(v)[1])
-        video_name = video_name[:-4]
-        search_dict[video_name] = {}
-        detections = np.loadtxt(v, delimiter=",")  # type: ignore
-        detections[:, 2:6] = tlwh_to_xyxy(detections[:, 2:6])
-        frames = np.unique(detections[:, 0])  # type: ignore
-        for f_id in frames:
-            frame_data = detections[detections[:, 0] == f_id]
-            boxes = torch.from_numpy(frame_data[:, 2:7]).float()
-            class_ids = torch.zeros(boxes.shape[0])
-            search_dict[video_name][f_id - 1] = Boxes2D(boxes, class_ids)
-
-    return search_dict
-
-
-def tlwh_to_xyxy(tlwh: NDArrayF64) -> NDArrayF64:  # pragma: no cover
-    """Convert tlwh boxes to xyxy.
-
-    tlwh: shape(n x 4), where axis 1 is [x1, y1, w, h]
-    """
-    x1 = tlwh[:, [0]]
-    x2 = tlwh[:, [0]] + tlwh[:, [2]]
-    y1 = tlwh[:, [1]]
-    y2 = tlwh[:, [1]] + tlwh[:, [3]]
-    xyxy = np.concatenate([x1, y1, x2, y2], axis=1)  # type: ignore
-    return xyxy  # type: ignore
-
-
 def load_predictions(
-    dataset_name: str, pred_path: str, idx_to_class_mapping: Dict[int, str]
-) -> Dict[str, Dict[int, Boxes2D]]:
-    """Function for calling specific prediction loader."""
-    if dataset_name == "BDD100K":
-        return load_bdd100k_preds(pred_path, idx_to_class_mapping)
-    if dataset_name == "MOT16":  # pragma: no cover
-        return load_mot16_preds(pred_path)
-    raise NotImplementedError("not implemented dataset")
+    pred_path: str, category_mapping: Dict[str, int]
+) -> Dict[str, Boxes2D]:
+    """Load scalabel format predictions into Vis4D."""
+    preds_per_frame: Dict[str, Boxes2D] = {}
+    given_predictions = load(pred_path).frames
+    for prediction in given_predictions:
+        name = prediction.name
+        if prediction.labels is None:
+            preds_per_frame[name] = Boxes2D(torch.empty((0, 5)))
+        else:
+            preds_per_frame[name] = Boxes2D.from_scalabel(
+                prediction.labels,
+                category_mapping,
+            )
+    return preds_per_frame

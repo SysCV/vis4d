@@ -22,7 +22,7 @@ class DeepSortSimilarityHeadConfig(SimilarityLearningConfig):
     fc_out_dim: int = 128
     max_boxes_num: int = 512
     drop_prob: float = 0.6
-    loss_cls: Optional[LossConfig]
+    loss_cls: LossConfig
     roi_align_config: RoIPoolerConfig
     backbone: Optional[str]
     pixel_mean: List[float] = [0.485, 0.456, 0.406]
@@ -101,6 +101,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         self.roi_pooler = build_roi_pooler(self.cfg.roi_align_config)
         self.fcs = self._init_layers()
 
+        # TODO let's use vis4d.common.layers.conv2d here
         self.backbone = nn.Sequential(
             nn.Conv2d(3, self.cfg.proj_dim, 3, stride=1, padding=1),
             nn.BatchNorm2d(self.cfg.proj_dim),
@@ -133,10 +134,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         self.classifier = nn.Linear(
             self.cfg.fc_out_dim, self.cfg.num_instances
         )
-
-        self.loss_cls: Optional[BaseLoss] = None
-        if self.cfg.loss_cls is not None:
-            self.loss_cls = build_loss(self.cfg.loss_cls)
+        self.loss_cls = build_loss(self.cfg.loss_cls)
 
         self.register_buffer(
             "pixel_mean",
@@ -206,7 +204,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
 
         return x
 
-    def forward_train(  # type: ignore # pylint: disable=arguments-renamed
+    def forward_train(
         self,
         inputs: List[InputSample],
         boxes: List[List[Boxes2D]],
@@ -235,13 +233,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         feats = x
         cls_score = self.classifier(x)
 
-        track_losses = self.loss(
-            instance_ids,
-            cls_score,
-            feats,
-        )
-
-        return track_losses
+        return {"ce_loss": self.loss_cls(instance_ids, cls_score)}
 
     def forward_test(
         self,
@@ -265,20 +257,3 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
             for fc in self.fcs:
                 x = fc[1](x)
         return x.div(x.norm(p=2, dim=1, keepdim=True))  # type: ignore
-
-    def loss(
-        self,
-        gt_label: List[torch.Tensor],
-        cls_score: List[Boxes2D],
-        feats: List[List[torch.Tensor]],  # pylint: disable = unused-argument
-    ) -> LossesType:
-        """Calculate losses for reid similarity learning.
-
-        use identity loss to learn embedding
-        """
-        losses = {}
-
-        if self.loss_cls is not None:
-            losses["ce_loss"] = self.loss_cls(cls_score, gt_label)
-
-        return losses

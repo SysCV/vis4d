@@ -174,14 +174,20 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         return self.forward_test(batch)
 
 
-def build_model(cfg: BaseModelConfig, ckpt: Optional[str] = None) -> BaseModel:
+def build_model(
+    cfg: BaseModelConfig, ckpt: Optional[str] = None, strict: bool = True
+) -> BaseModel:
     """Build Vis4D model and optionally load weights from ckpt."""
     registry = ABCRegistryHolder.get_registry(BaseModel)
     if cfg.type in registry:
+        module_cls = registry[cfg.type]
+        assert issubclass(module_cls, BaseModel)
         if ckpt is None:
-            module = registry[cfg.type](cfg)
+            module = module_cls(cfg)
         else:
-            module = registry[cfg.type].load_from_checkpoint(ckpt, strict=False, cfg=cfg)  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+            module = module_cls.load_from_checkpoint(  # type: ignore
+                ckpt, strict=strict, cfg=cfg
+            )
         assert isinstance(module, BaseModel)
         return module
     raise NotImplementedError(f"Model {cfg.type} not found.")

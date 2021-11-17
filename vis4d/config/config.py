@@ -65,6 +65,7 @@ class Launch(BaseModel):
     resume: bool = False
     pin_memory: bool = False
     wandb: bool = False
+    not_strict: bool = False
 
     @validator("version", always=True)
     def validate_version(  # pylint: disable=no-self-argument,no-self-use

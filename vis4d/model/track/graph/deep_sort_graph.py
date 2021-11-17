@@ -90,7 +90,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         track_ids = []
         for track_id, track in self.tracks.items():
             # if not track.is_confirmed() or track.time_since_update > 1:
-            #     continue
+            #     continue  # TODO why is this commented?
             if track["time_since_update"] >= 1:
                 continue
             x1, y1, x2, y2 = xyah_to_tlbr(track["mean"][:4])
@@ -152,9 +152,9 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             track["age"] += 1
             track["time_since_update"] += 1
 
-    def update(  # type: ignore # pylint: disable=arguments-differ
+    def update(
         self, detections: Boxes2D, det_features: torch.tensor = None
-    ) -> None:  # pylint: disable=arguments-differ
+    ) -> None:
         """Perform association and track management."""
         cls_detidx_mapping = defaultdict(list)
         for i, class_id in enumerate(detections.class_ids):
@@ -194,15 +194,15 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             track["hits"] += 1
             track["time_since_update"] = 0
             if track["state"] == "Tentative" and track["hits"] >= self._n_init:
-                track["state"] = "Confirmed"  # pragma: no cover
+                track["state"] = "Confirmed"
 
         # mark unmatched tracks to 'delete' in certain cases
         for track_id in unmatched_tracks:
             track = self.tracks[track_id]
             if track["state"] == "Tentative":
-                track["state"] = "Deleted"  # pragma: no cover
+                track["state"] = "Deleted"
             elif track["time_since_update"] > self.max_age:
-                track["state"] = "Deleted"  # pragma: no cover
+                track["state"] = "Deleted"
 
         for det_idx in unmatched_detections:
             det_box = tlbr_to_xyah(detections.boxes[det_idx][:4])
@@ -217,7 +217,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         # may cut this step and merge with the marking process above
         for t_id in list(self.tracks.keys()):
             if self.tracks[t_id]["state"] == "Deleted":
-                self.tracks.pop(t_id)  # pragma: no cover
+                self.tracks.pop(t_id)
 
         for unmatched_det in unmatched_detections:
             assert unmatched_det not in unmatched_det_set
@@ -235,7 +235,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             features, targets = [], []
             for t_id, track in self.tracks.items():
                 if not track["state"] == "Confirmed":
-                    continue  # pragma: no cover
+                    continue
                 features += track["features"]
                 targets += [t_id for _ in track["features"]]
                 track["features"] = []

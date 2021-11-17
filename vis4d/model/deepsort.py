@@ -6,7 +6,7 @@ import torch
 from vis4d.model.track.graph.deep_sort_utils import load_predictions
 from vis4d.struct import Boxes2D, InputSample, LossesType, ModelOutput
 
-from .base import BaseModel, BaseModelConfig
+from .base import BaseModel, BaseModelConfig, build_model
 from .track.graph import TrackGraphConfig, build_track_graph
 from .track.similarity import SimilarityLearningConfig, build_similarity_head
 
@@ -14,10 +14,9 @@ from .track.similarity import SimilarityLearningConfig, build_similarity_head
 class DeepSORTConfig(BaseModelConfig):
     """deep SORT config."""
 
-    detection: BaseModelConfig
+    detection: Optional[BaseModelConfig]
     track_graph: TrackGraphConfig
-    dataset: str
-    prediction_path: str
+    prediction_path: Optional[str]
     similarity: Optional[SimilarityLearningConfig]
 
 
@@ -27,12 +26,22 @@ class DeepSORT(BaseModel):
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init detector."""
         super().__init__(cfg)
-        self.cfg = DeepSORTConfig(**cfg.dict())  # type: DeepSORTConfig
+        self.cfg: DeepSORTConfig = DeepSORTConfig(**cfg.dict())
         assert self.cfg.category_mapping is not None
+
+        if self.cfg.detection is None:
+            assert (
+                self.cfg.prediction_path is not None
+            ), "No detector or pre-computed detections defined!"
+            self.search_dict = load_predictions(
+                self.cfg.prediction_path, self.cfg.category_mapping
+            )
+        else:
+            self.detector = build_model(self.cfg.detection)
+
         if self.cfg.similarity is not None:
             self.similarity_head = build_similarity_head(self.cfg.similarity)
         self.track_graph = build_track_graph(self.cfg.track_graph)
-        self.search_dict: Dict[str, Dict[int, Boxes2D]] = {}
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
 
     @property
@@ -79,10 +88,6 @@ class DeepSORT(BaseModel):
         assert len(batch_inputs) == 1, "No reference views during test!"
         inputs = [inp[0] for inp in batch_inputs]
         assert len(inputs) == 1, "Currently only BS=1 supported!"
-        if not self.search_dict:
-            self.search_dict = load_predictions(
-                self.cfg.dataset, self.cfg.prediction_path, self.cat_mapping
-            )
 
         frame_id = inputs[0].metadata[0].frameIndex
         # init graph at begin of sequence
@@ -105,16 +110,10 @@ class DeepSORT(BaseModel):
                 self.search_dict[video_name][frame_id].to(self.device)
             ]
 
-        # # using detectors
-        # image, _, _, detections, _ = self.detector(batch_inputs)
-        # # use this line only on 6 samples
-        # detections[0] = detections[0][detections[0].boxes[:, -1] > 0.5]
-
         ori_wh = (
             inputs[0].metadata[0].size.width,  # type: ignore
             inputs[0].metadata[0].size.height,  # type: ignore
         )
-        # self.postprocess(ori_wh, image.image_sizes[0], detections[0])
         detections[0].postprocess(ori_wh, image.image_sizes[0])
         # associate detections, update graph
         if len(detections[0]) == 0:

@@ -5,9 +5,7 @@ import torch
 from torch import nn
 
 
-class KalmanFilter(
-    nn.Module  # type: ignore
-):  # pylint: disable = abstract-method
+class KalmanFilter(nn.Module):  # type: ignore
     """Kalman filter.
 
     The 8-dimensional state space
