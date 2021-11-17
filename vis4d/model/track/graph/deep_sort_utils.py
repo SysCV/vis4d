@@ -486,6 +486,6 @@ def load_predictions(
     """Function for calling specific prediction loader."""
     if dataset_name == "BDD100K":
         return load_bdd100k_preds(pred_path, idx_to_class_mapping)
-    if dataset_name == "MOT16": # pragma: no cover
+    if dataset_name == "MOT16":  # pragma: no cover
         return load_mot16_preds(pred_path)
     raise NotImplementedError("not implemented dataset")
