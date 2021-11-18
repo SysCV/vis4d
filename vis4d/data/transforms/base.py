@@ -25,6 +25,7 @@ class BaseAugmentationConfig(BaseModel, extra="allow"):
 
     prob: float = 1.0
     same_on_batch: bool = False
+    same_on_ref: bool = True
     type: str
 
 
@@ -92,7 +93,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         self, sample: InputSample, parameters: Optional[AugParams] = None
     ) -> Tuple[InputSample, AugParams]:
         """Apply augmentations to input sample."""
-        if parameters is None:
+        if parameters is None or not self.cfg.same_on_ref:
             parameters = self.generate_parameters(sample)
 
         sample.images = self.apply_image(sample.images, parameters)

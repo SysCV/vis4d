@@ -359,9 +359,6 @@ class ScalabelDataset(Dataset):  # type: ignore
             input_data, parameters = self.get_sample(
                 self.dataset.frames[cur_idx]
             )
-            ref_parameters = (
-                parameters if self.sampling_cfg.consistent_ref_aug else None
-            )
             if input_data is not None:
                 if input_data.metadata[0].attributes is None:
                     input_data.metadata[0].attributes = {}
@@ -369,7 +366,7 @@ class ScalabelDataset(Dataset):  # type: ignore
 
                 if self.sampling_cfg.num_ref_imgs > 0:
                     ref_data = self.sample_ref_views(
-                        cur_idx, input_data, ref_parameters
+                        cur_idx, input_data, parameters
                     )
                     if ref_data is not None:
                         return self.sort_samples([input_data] + ref_data)
