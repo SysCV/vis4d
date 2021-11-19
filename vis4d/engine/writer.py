@@ -84,17 +84,14 @@ class ScalabelWriterCallback(Vis4DWriterCallback):
         """Process the pair of inputs and outputs."""
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):
-                prediction = copy.deepcopy(inp[0].metadata[0])
+                metadata = inp[0].metadata[0]
+                prediction = copy.deepcopy(metadata)
                 prediction.labels = out
                 self._predictions[key].append(prediction)
-                size = inp[0].metadata[0].size
+                size = metadata.size
                 assert size is not None
                 w, h = size.width, size.height
-                if self.viewer is None:
-                    self.viewer = LabelViewer(UIConfig(width=w, height=h))
-                elif inp[0].metadata[0].frameIndex is None:
-                    self.viewer = LabelViewer(UIConfig(width=w, height=h))
-                elif inp[0].metadata[0].frameIndex == 0:
+                if self.viewer is None or metadata.frameIndex in [None, 0]:
                     self.viewer = LabelViewer(UIConfig(width=w, height=h))
 
                 if self._visualize and isinstance(prediction, FrameGroup):
