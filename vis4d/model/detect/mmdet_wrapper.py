@@ -53,9 +53,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMTwoStageDetector requires both mmcv and mmdet to be installed!"
         super().__init__(cfg)
-        self.cfg = MMTwoStageDetectorConfig(
+        self.cfg: MMTwoStageDetectorConfig = MMTwoStageDetectorConfig(
             **cfg.dict()
-        )  # type: MMTwoStageDetectorConfig
+        )
         self.mm_cfg = get_mmdet_config(self.cfg)
         self.mm_detector = build_detector(self.mm_cfg)
         assert isinstance(self.mm_detector, TwoStageDetector)
@@ -80,24 +80,22 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             "pixel_std", torch.tensor(self.cfg.pixel_std).view(-1, 1, 1), False
         )
 
-    def preprocess_inputs(self, inputs: List[InputSample]) -> InputSample:
+    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
         """Batch, pad (standard stride=32) and normalize the input images."""
-        batched_inputs = InputSample.cat(inputs, self.device)
-        batched_inputs.images.tensor = (
-            batched_inputs.images.tensor - self.pixel_mean
+        inputs.images.tensor = (
+            inputs.images.tensor - self.pixel_mean
         ) / self.pixel_std
-        return batched_inputs
+        return inputs
 
     def forward_train(
         self,
-        batch_inputs: List[List[InputSample]],
+        batch_inputs: List[InputSample],
     ) -> LossesType:
         """Forward pass during training stage."""
-        assert all(
-            len(inp) == 1 for inp in batch_inputs
+        assert (
+            len(batch_inputs) == 1
         ), "No reference views allowed in MMTwoStageDetector training!"
-        raw_inputs = [inp[0] for inp in batch_inputs]
-        inputs = self.preprocess_inputs(raw_inputs)
+        inputs = self.preprocess_inputs(batch_inputs[0])
 
         image_metas = get_img_metas(inputs.images)
         gt_bboxes, gt_labels, gt_masks = targets_to_mmdet(inputs)
@@ -112,11 +110,13 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
     def forward_test(
         self,
-        batch_inputs: List[List[InputSample]],
+        batch_inputs: List[InputSample],
     ) -> ModelOutput:
         """Forward pass during testing stage."""
-        raw_inputs = [inp[0] for inp in batch_inputs]
-        inputs = self.preprocess_inputs(raw_inputs)
+        assert (
+            len(batch_inputs) == 1
+        ), "No reference views allowed in MMTwoStageDetector testing!"
+        inputs = self.preprocess_inputs(batch_inputs[0])
         image_metas = get_img_metas(inputs.images)
         outs = self.mm_detector.simple_test(inputs.images.tensor, image_metas)
         detections, segmentations = results_from_mmdet(

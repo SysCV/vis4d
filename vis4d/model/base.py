@@ -1,8 +1,7 @@
 """Base class for Vis4D models."""
 import abc
 from collections.abc import Iterable
-from typing import Callable, Dict, List, Optional, Tuple, no_type_check, TypeVar
-from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional, Tuple, Union, no_type_check
 
 import pytorch_lightning as pl
 from pydantic import BaseModel as PydanticBaseModel
@@ -10,8 +9,7 @@ from pydantic import Field
 from torch.optim import Optimizer
 
 from ..common.registry import ABCRegistryHolder
-from ..struct import Boxes2D, InputSample, LossesType, Masks, ModelOutput, LabelInstances
-
+from ..struct import InputSample, LossesType, ModelOutput
 from .optimize import (
     BaseLRScheduler,
     BaseLRSchedulerConfig,
@@ -22,30 +20,41 @@ from .optimize import (
     get_warmup_lr,
 )
 
-TModuleReturn = TypeVar("TModuleReturn", bound="ModuleReturn")
 
-@dataclass
-class ModuleReturn:
-    """Base Container for the output of a VisTModule."""
-    losses: Optional[LossesType]
-    predictions: Optional[LabelInstances]
+class BaseModelConfig(PydanticBaseModel, extra="allow"):
+    """Config for default Vis4D tracker."""
+
+    type: str = Field(...)
+    category_mapping: Optional[Dict[str, int]] = None
+    image_channel_mode: str = "RGB"
+    optimizer: BaseOptimizerConfig = BaseOptimizerConfig()
+    lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig()
 
 
-class VisTModule(torch.nn.Module):
+class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
+    """Base VisT model class."""
+
+    def __init__(self, cfg: BaseModelConfig):
+        """Init."""
+        super().__init__()
+        self.cfg = cfg
+
+    def forward(  # type: ignore # pylint: disable=arguments-differ
+        self, batch_inputs: List[InputSample]
+    ) -> Union[LossesType, ModelOutput]:
+        """Forward."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)
 
     @abc.abstractmethod
-    def forward_train(
-            self,
-            batch_inputs: List[InputSample],
-            **kwargs: TModuleReturn
-    ) -> TModuleReturn:
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage.
 
         Args:
             batch_inputs: List of batched model inputs. One InputSample
             contains all batch elements of a single view. One view is either
             the key frame or a reference frame.
-            **kwargs: TModuleReturn. Previous returns to be used.
 
         Returns:
             LossesType: A dict of scalar loss tensors.
@@ -53,11 +62,7 @@ class VisTModule(torch.nn.Module):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward_test(
-            self,
-            batch_inputs: InputSample,
-            **kwargs: TModuleReturn
-    ) -> TModuleReturn:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Forward pass during testing stage.
 
         Args:
@@ -68,19 +73,6 @@ class VisTModule(torch.nn.Module):
             and separate detection result.
         """
         raise NotImplementedError
-
-
-
-class BaseModel(pl.LightningModule, VisTModule, metaclass=ABCRegistryHolder):
-    """Base VisT model class."""
-
-    def __init__(self, category_mapping: Optional[Dict[str, int]] = None,
-            image_channel_mode: str = "RGB",
-            optimizer: BaseOptimizerConfig = BaseOptimizerConfig(),
-            lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig(),):
-        """Init."""
-        super().__init__()
-        self.cfg = cfg
 
     def configure_optimizers(
         self,
@@ -128,7 +120,7 @@ class BaseModel(pl.LightningModule, VisTModule, metaclass=ABCRegistryHolder):
                 lr_schedulers.step()
 
     def training_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[List[InputSample]], *args, **kwargs
+        self, batch: List[InputSample], *args, **kwargs
     ) -> LossesType:
         """Wrap training step of LightningModule. Add overall loss."""
         losses = self.forward_train(batch)
@@ -154,20 +146,20 @@ class BaseModel(pl.LightningModule, VisTModule, metaclass=ABCRegistryHolder):
         return losses
 
     def test_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[List[InputSample]], *args, **kwargs
+        self, batch: List[InputSample], *args, **kwargs
     ) -> ModelOutput:
         """Wrap test step of LightningModule."""
         return self.forward_test(batch)
 
     def validation_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[List[InputSample]], *args, **kwargs
+        self, batch: List[InputSample], *args, **kwargs
     ) -> ModelOutput:
         """Wrap validation step of LightningModule."""
         return self.forward_test(batch)
 
     def predict_step(
         self,
-        batch: List[List[InputSample]],
+        batch: List[InputSample],
         batch_idx: int,
         dataloader_idx: Optional[int] = None,
     ) -> ModelOutput:

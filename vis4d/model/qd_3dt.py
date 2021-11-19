@@ -31,7 +31,7 @@ class QD3DT(QDTrack):
 
     def forward_train(
         self,
-        batch_inputs: List[List[InputSample]],
+        batch_inputs: List[InputSample],
     ) -> LossesType:
         """Forward function for training."""
         key_inputs, ref_inputs = self.preprocess_inputs(batch_inputs)
@@ -77,16 +77,16 @@ class QD3DT(QDTrack):
 
     def forward_test(
         self,
-        batch_inputs: List[List[InputSample]],
+        batch_inputs: List[InputSample],
     ) -> ModelOutput:
         """Compute qd-3dt output during inference."""
-        assert len(batch_inputs) == 1, "Currently only BS = 1 supported!"
+        assert len(batch_inputs[0]) == 1, "Currently only BS = 1 supported!"
 
         # if there is more than one InputSample per batch element, we switch
         # to multi-sensor mode: 1st elem is group, rest are sensor frames
-        group = batch_inputs[0][0].to(self.device)
+        group = batch_inputs[0].to(self.device)
         if len(batch_inputs[0]) > 1:
-            frames = batch_inputs[0][1:]
+            frames = batch_inputs[1:]
         else:
             frames = batch_inputs[0]
 

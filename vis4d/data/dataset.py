@@ -478,7 +478,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         self,
         sample: InputSample,
         parameters: Optional[List[AugParams]] = None,
-    ) -> List[DictStrAny]:
+    ) -> List[AugParams]:
         """Apply transforms to input sample."""
         if parameters is None:
             parameters = []

@@ -70,25 +70,22 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             if isinstance(m, _BatchNorm):
                 m.eval()
 
-    def preprocess_inputs(self, inputs: List[InputSample]) -> InputSample:
+    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
         """Batch, pad (standard stride=32) and normalize the input images."""
-        batched_inputs = InputSample.cat(inputs, self.device)
-        batched_inputs.images.tensor = (
-            batched_inputs.images.tensor - self.d2_detector.pixel_mean
+        inputs.images.tensor = (
+            inputs.images.tensor - self.d2_detector.pixel_mean
         ) / self.d2_detector.pixel_std
-        return batched_inputs
+        return inputs
 
     def forward_train(
         self,
-        batch_inputs: List[List[InputSample]],
+        batch_inputs: List[InputSample],
     ) -> LossesType:
         """D2 model forward pass during training stage."""
-        assert all(
-            len(inp) == 1 for inp in batch_inputs
+        assert (
+            len(batch_inputs) == 1
         ), "No reference views allowed in D2TwoStageDetector training!"
-        raw_inputs = [inp[0] for inp in batch_inputs]
-
-        inputs = self.preprocess_inputs(raw_inputs)
+        inputs = self.preprocess_inputs(batch_inputs[0])
         features = self.extract_features(inputs)
         proposals, rpn_losses = self.generate_proposals(inputs, features)
         _, detect_losses, _ = self.generate_detections(
@@ -98,11 +95,13 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
     def forward_test(
         self,
-        batch_inputs: List[List[InputSample]],
+        batch_inputs: List[InputSample],
     ) -> ModelOutput:
         """Forward pass during testing stage."""
-        raw_inputs = [inp[0] for inp in batch_inputs]
-        inputs = self.preprocess_inputs(raw_inputs)
+        assert (
+            len(batch_inputs) == 1
+        ), "No reference views allowed in D2TwoStageDetector testing!"
+        inputs = self.preprocess_inputs(batch_inputs[0])
         features = self.extract_features(inputs)
         proposals, _ = self.generate_proposals(inputs, features)
         detections, _, segmentations = self.generate_detections(

@@ -5,71 +5,73 @@ import torch
 from scalabel.label.typing import Frame
 
 from .data import Extrinsics, Images, Intrinsics
-from .labels import Boxes2D, Boxes3D, Masks
-from .structures import DataInstance, TLabelInstance, InputInstance
+from .labels import Boxes2D, Boxes3D, InstanceMasks, SemanticMasks
+from .structures import DataInstance, InputInstance, TLabelInstance
 
 
-class LabelInstances(DataInstance):
-    """Container for holding ground truth annotations or predictions."""
+class Targets(InputInstance):
+    """Container for all ground truth annotations."""
 
-    def __init__(self, **kwargs: Dict[str, TLabelInstance]) -> None:
+    def __init__(
+        self,
+        boxes2d: Optional[List[Boxes2D]] = None,
+        boxes3d: Optional[List[Boxes3D]] = None,
+        instance_masks: Optional[List[InstanceMasks]] = None,
+        semantic_masks: Optional[List[SemanticMasks]] = None,
+    ) -> None:
         """Init."""
-        for k, v in kwargs.items():
-            self.__setattr__(k, v)
-        # if boxes2d is None:
-        #     boxes2d = [
-        #         Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
-        #         for _ in range(len(images))
-        #     ]
-        # self.boxes2d = boxes2d
-        #
-        # if boxes3d is None:
-        #     boxes3d = [
-        #         Boxes3D(torch.empty(0, 10), torch.empty(0), torch.empty(0))
-        #         for _ in range(len(images))
-        #     ]
-        # self.boxes3d = boxes3d
-        #
-        # if instance_masks is None:
-        #     instance_masks = [
-        #         InstanceMasks(
-        #             torch.empty(0, 1, 1), torch.empty(0), torch.empty(0)
-        #         )
-        #         for i in range(len(images))
-        #     ]
-        # self.instance_masks = instance_masks
-        #
-        # if semantic_masks is None:
-        #     semantic_masks = [
-        #         SemanticMasks(
-        #             torch.empty(0, 1, 1), torch.empty(0), torch.empty(0)
-        #         )
-        #         for i in range(len(images))
-        #     ]
-        # self.semantic_masks = semantic_masks
+        assert any([]), "Container should not be empty"
+        annotation_len = []
 
-    def to(
-            self, device: torch.device
-    ) -> "LabelInstances":
+        if boxes2d is None:
+            boxes2d = [
+                Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+                for _ in range()
+            ]
+        self.boxes2d = boxes2d
+
+        if boxes3d is None:
+            boxes3d = Boxes3D(
+                torch.empty(0, 10), torch.empty(0), torch.empty(0)
+            )
+        self.boxes3d = boxes3d
+
+        if instance_masks is None:
+            instance_masks = InstanceMasks(
+                torch.empty(0, 1, 1), torch.empty(0), torch.empty(0)
+            )
+        self.instance_masks = instance_masks
+
+        if semantic_masks is None:
+            semantic_masks = SemanticMasks(
+                torch.empty(0, 1, 1), torch.empty(0), torch.empty(0)
+            )
+        self.semantic_masks = semantic_masks
+
+    @abc.abstractmethod
+    def to(  # pylint: disable=invalid-name
+        self: "TDataInstance", device: torch.device
+    ) -> "TDataInstance":
         """Move to device (CPU / GPU / ...)."""
-        # TODO
-        return self
+        return Targets(
+            self.boxes2d.to(device),
+            self.boxes3d.to(device),
+            self.instance_masks.to(device),
+            self.semantic_masks.to(device),
+        )
 
     @property
     def device(self) -> torch.device:
         """Returns current device if applicable."""
-        # TODO
-        return self
-        # if len(self.boxes2d) == 0:
-        #     if len(self.boxes3d) > 0:
-        #         return self.boxes3d.device
-        #     elif len(self.masks) > 0:
-        #         return self.masks.device
-        # return self.boxes2d.device
+        raise NotImplementedError
 
-    def __getitem__(self, item) -> Instances:
-        """Get item of LabelInstances."""
-        raise NotImplementedError  # TODO
+    def __len__(self) -> int:
+        """Return length of DataInstance."""
+        raise NotImplementedError
+
+    def __getitem__(self: "TDataInstance", item: int) -> "TDataInstance":
+        """Return item of DataInstance."""
+        raise NotImplementedError
 
 
 class InputSample(DataInstance):
@@ -81,8 +83,7 @@ class InputSample(DataInstance):
         images: Images,
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
-        targets: List[LabelInstances] = LabelInstances(),
-        predictions: List[LabelInstances] = LabelInstances(),
+        targets: Optional[Targets] = None,
     ) -> None:
         """Init."""
         self.metadata = metadata
@@ -101,9 +102,11 @@ class InputSample(DataInstance):
             )
         self.extrinsics = extrinsics
 
-    def get(
-        self, key: str
-    ) -> Union[List[Frame], DataInstance]:
+        if targets is None:
+            targets = Targets()
+        self.targets = targets
+
+    def get(self, key: str) -> Union[List[Frame], DataInstance]:
         """Get attribute by key."""
         if key in self.dict():
             value = self.dict()[key]
@@ -114,15 +117,10 @@ class InputSample(DataInstance):
         self,
     ) -> Dict[str, Union[List[Frame], DataInstance]]:
         """Return InputSample object as dict."""
-        obj_dict: Dict[
-            str, Union[List[Frame], DataInstance]
-        ] = {
+        obj_dict: Dict[str, Union[List[Frame], DataInstance]] = {
             "metadata": self.metadata,
             "images": self.images,
-            "boxes2d": self.boxes2d,  # type: ignore
-            "boxes3d": self.boxes3d,  # type: ignore
-            "instance_masks": self.instance_masks,  # type: ignore
-            "semantic_masks": self.semantic_masks,  # type: ignore
+            "targets": self.targets,
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
         }
@@ -137,8 +135,7 @@ class InputSample(DataInstance):
             self.images.to(device),
             self.intrinsics.to(device),
             self.extrinsics.to(device),
-            self.targets.to(device),
-            self.predictions.to(device)
+            [t.to(device) for t in self.targets],
         )
 
     @property
@@ -166,7 +163,7 @@ class InputSample(DataInstance):
                         for attr_v in attr
                     ]
             elif isinstance(v, InputInstance):
-                cat_dict[k] = type(v).cat(  # type: ignore
+                cat_dict[k] = type(v).cat(
                     [inst.get(k) for inst in instances], device
                 )
             else:
@@ -184,6 +181,7 @@ class InputSample(DataInstance):
             self.images[item],
             self.intrinsics[item],
             self.extrinsics[item],
+            self.targets[item],
         )
 
     def __len__(self) -> int:

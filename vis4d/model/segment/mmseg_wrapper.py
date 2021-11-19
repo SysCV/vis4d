@@ -69,24 +69,19 @@ class MMEncDecSegmentor(BaseSegmentor):
             "pixel_std", torch.tensor(self.cfg.pixel_std).view(-1, 1, 1), False
         )
 
-    def preprocess_inputs(self, inputs: List[InputSample]) -> InputSample:
+    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
         """Batch, pad (standard stride=32) and normalize the input images."""
-        batched_inputs = InputSample.cat(inputs, self.device)
-        batched_inputs.images.tensor = (
-            batched_inputs.images.tensor - self.pixel_mean
+        inputs.images.tensor = (
+            inputs.images.tensor - self.pixel_mean
         ) / self.pixel_std
-        return batched_inputs
+        return inputs
 
-    def forward_train(
-        self, batch_inputs: List[List[InputSample]]
-    ) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
-        assert all(
-            len(inp) == 1 for inp in batch_inputs
+        assert (
+            len(batch_inputs) == 1
         ), "No reference views allowed in MMEncDecSegmentor training!"
-        raw_inputs = [inp[0] for inp in batch_inputs]
-        inputs = self.preprocess_inputs(raw_inputs)
-
+        inputs = self.preprocess_inputs(batch_inputs[0])
         image_metas = get_img_metas(inputs.images)
         gt_masks = targets_to_mmseg(inputs)
         losses = self.mm_segmentor.forward_train(
@@ -96,11 +91,13 @@ class MMEncDecSegmentor(BaseSegmentor):
 
     def forward_test(
         self,
-        batch_inputs: List[List[InputSample]],
+        batch_inputs: List[InputSample],
     ) -> ModelOutput:
         """Forward pass during testing stage."""
-        raw_inputs = [inp[0] for inp in batch_inputs]
-        inputs = self.preprocess_inputs(raw_inputs)
+        assert (
+            len(batch_inputs) == 1
+        ), "No reference views allowed in MMEncDecSegmentor testing!"
+        inputs = self.preprocess_inputs(batch_inputs[0])
         image_metas = get_img_metas(inputs.images)
         outs = self.mm_segmentor.simple_test(inputs.images.tensor, image_metas)
         segmentations = results_from_mmseg(outs, self.device)

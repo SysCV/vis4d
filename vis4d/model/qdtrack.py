@@ -13,12 +13,18 @@ from .track.similarity import SimilarityLearningConfig, build_similarity_head
 from .track.utils import split_key_ref_inputs
 
 
+class QDTrackConfig(BaseModelConfig):
+    """Config for quasi-dense tracking model."""
+
+    detection: BaseModelConfig
+    similarity: SimilarityLearningConfig
+    track_graph: TrackGraphConfig
+
+
 class QDTrack(BaseModel):
     """QDTrack model - quasi-dense instance similarity learning."""
 
-    def __init__(self, detection: BaseModel,
-    similarity: SimilarityLearning,
-    track_graph: TrackGraph) -> None:
+    def __init__(self, cfg: BaseModelConfig) -> None:
         """Init."""
         super().__init__(cfg)
         self.cfg = QDTrackConfig(**cfg.dict())  # type: QDTrackConfig
@@ -33,27 +39,17 @@ class QDTrack(BaseModel):
 
     def preprocess_inputs(
         self,
-        batch_inputs: List[List[InputSample]],
+        batch_inputs: List[InputSample],
     ) -> Tuple[InputSample, List[InputSample]]:
         """Prepare images from key / ref input samples."""
-        # split into key / ref pairs NxM input --> key: N, ref: Nx(M-1)
-        key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
-
-        # group by ref views by sequence: Nx(M-1) --> (M-1)xN
-        ref_inputs = [
-            [ref_inputs[j][i] for j in range(len(ref_inputs))]
-            for i in range(len(ref_inputs[0]))
+        inputs_batch = [
+            self.detector.preprocess_inputs(inp) for inp in batch_inputs
         ]
-
-        key_inputs_batch = self.detector.preprocess_inputs(key_inputs)
-        ref_inputs_batch = [
-            self.detector.preprocess_inputs(inp) for inp in ref_inputs
-        ]
-        return key_inputs_batch, ref_inputs_batch
+        return inputs_batch[0], inputs_batch[1:]  # TODO key index extraction
 
     def forward_train(
         self,
-        batch_inputs: List[List[InputSample]],
+        batch_inputs: List[InputSample],
     ) -> LossesType:
         """Forward function for training."""
         key_inputs, ref_inputs = self.preprocess_inputs(batch_inputs)
@@ -106,13 +102,12 @@ class QDTrack(BaseModel):
 
     def forward_test(
         self,
-        batch_inputs: List[List[InputSample]],
+        batch_inputs: List[InputSample],
     ) -> ModelOutput:
         """Compute model output during inference."""
-        assert len(batch_inputs[0]) == 1, "No reference views during test!"
-        raw_inputs = [inp[0] for inp in batch_inputs]
-        assert len(raw_inputs) == 1, "Currently only BS=1 supported!"
-        inputs = self.detector.preprocess_inputs(raw_inputs)
+        assert len(batch_inputs) == 1, "No reference views during test!"
+        assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
+        inputs = self.detector.preprocess_inputs(batch_inputs[0])
 
         # init graph at begin of sequence
         frame_id = inputs.metadata[0].frameIndex

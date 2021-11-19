@@ -17,14 +17,7 @@ from vis4d.common.bbox.samplers import (
 from vis4d.common.geometry.rotation import generate_rotation_output
 from vis4d.common.layers import add_conv_branch
 from vis4d.model.losses import LossConfig, build_loss
-from vis4d.struct import (
-    Boxes2D,
-    Boxes3D,
-    InputSample,
-    Intrinsics,
-    LabelInstance,
-    LossesType,
-)
+from vis4d.struct import Boxes2D, Boxes3D, InputSample, Intrinsics, LossesType
 
 from .base import BaseRoIHead, BaseRoIHeadConfig
 
@@ -62,7 +55,7 @@ class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
     proposal_matcher: MatcherConfig
 
 
-class QD3DTBBox3DHead(BaseRoIHead):
+class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
     """QD-3DT 3D Bounding Box Head."""
 
     def __init__(self, cfg: BaseRoIHeadConfig) -> None:
@@ -299,12 +292,12 @@ class QD3DTBBox3DHead(BaseRoIHead):
         delta_2dc = self.fc_2dc(x_2dc).view(-1, self.cfg.num_classes, 2)
         return torch.cat([delta_2dc, depth, dim, alpha, depth_uncertainty], -1)
 
-    def forward(
+    def get_predictions(
         self,
         features_list: List[torch.Tensor],
         boxes: List[Boxes2D],
     ) -> List[torch.Tensor]:
-        """Forward 3D bounding box estimation."""
+        """Get 3D bounding box prediction parameters."""
         roi_feats = self.roi_pooler.pool(features_list, boxes)
         x_dep, x_dim, x_rot, x_2dc = self.get_embeds(roi_feats)
         outputs: List[torch.Tensor] = self.get_outputs(
@@ -336,6 +329,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
+        targets: List[Boxes3D],
         features: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Forward pass during training stage.
@@ -369,7 +363,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
             b[p] for b, p in zip(sampling_results.sampled_boxes, positives)
         ]
 
-        predictions = self.forward(features_list, pos_boxes)
+        predictions = self.get_predictions(features_list, pos_boxes)
 
         targets, labels = self.get_targets(
             pos_assigned_gt_inds,
@@ -387,7 +381,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
         inputs: InputSample,
         boxes: List[Boxes2D],
         features: Optional[Dict[str, torch.Tensor]] = None,
-    ) -> Sequence[LabelInstance]:
+    ) -> Sequence[Boxes3D]:
         """Forward pass during testing stage.
 
         Args:
@@ -396,7 +390,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
             boxes: Input boxes to apply RoIHead on.
 
         Returns:
-            List[LabelInstance]: Prediction output.
+            List[Boxes3D]: Prediction output.
         """
         assert features is not None, "QD-3DT box3D head requires features!"
         if sum(len(b) for b in boxes) == 0:
@@ -411,6 +405,6 @@ class QD3DTBBox3DHead(BaseRoIHead):
             ]
 
         features_list = [features[f] for f in self.cfg.in_features]
-        predictions = self.forward(features_list, boxes)
+        predictions = self.get_predictions(features_list, boxes)
 
         return self.bbox_coder.decode(boxes, predictions, inputs.intrinsics)

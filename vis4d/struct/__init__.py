@@ -17,6 +17,7 @@ from .structures import (
     ModelOutput,
     NDArrayF64,
     NDArrayUI8,
+    TLabelInstance,
     TorchCheckpoint,
 )
 
@@ -39,4 +40,5 @@ __all__ = [
     "ModelOutput",
     "DictStrAny",
     "InputSample",
+    "TLabelInstance",
 ]

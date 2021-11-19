@@ -1,4 +1,5 @@
 """Vis4D Label data structures."""
+import abc
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
@@ -13,14 +14,14 @@ from ..common.geometry.rotation import (
     matrix_to_euler_angles,
 )
 from .data import Extrinsics
-from .structures import DataInstance, LabelInstance, NDArrayUI8
+from .structures import LabelInstance, NDArrayUI8
 from .utils import do_paste_mask
 
 TBoxes = TypeVar("TBoxes", bound="Boxes")
 TMasks = TypeVar("TMasks", bound="Masks")
 
 
-class Boxes(DataInstance):
+class Boxes(LabelInstance):
     """Abstract container for 2D / BEV / 3D / ... Boxes.
 
     boxes: torch.FloatTensor: (N, M) N elements of boxes with M parameters
@@ -143,8 +144,27 @@ class Boxes(DataInstance):
         """Get current device of data."""
         return self.boxes.device
 
+    @classmethod
+    @abc.abstractmethod
+    def from_scalabel(
+        cls: Type["TBoxes"],
+        labels: List[Label],
+        class_to_idx: Dict[str, int],
+        label_id_to_idx: Optional[Dict[str, int]] = None,
+        image_size: Optional[ImageSize] = None,
+    ) -> "TBoxes":
+        """Convert from scalabel format to ours."""
+        raise NotImplementedError
 
-class Boxes2D(Boxes, LabelInstance):
+    @abc.abstractmethod
+    def to_scalabel(
+        self, idx_to_class: Optional[Dict[int, str]] = None
+    ) -> List[Label]:
+        """Convert from ours to scalabel format."""
+        raise NotImplementedError
+
+
+class Boxes2D(Boxes):
     """Container class for 2D boxes.
 
     boxes: torch.FloatTensor: (N, [4, 5]) where each entry is defined by
@@ -270,7 +290,7 @@ class Boxes2D(Boxes, LabelInstance):
         self.clip(original_wh)
 
 
-class Boxes3D(Boxes, LabelInstance):
+class Boxes3D(Boxes):
     """Container class for 3D boxes.
 
     boxes: torch.FloatTensor: (N, [9, 10]) where each entry is defined by

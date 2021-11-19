@@ -137,7 +137,7 @@ class Vis4DDataModule(pl.LightningDataModule):
         batch: List[List[InputSample]],
         device: torch.device,
         dataloader_idx: int,
-    ) -> List[List[InputSample]]:
+    ) -> List[InputSample]:
         """Put input in correct format for model, move to device."""
         # group by ref views by sequence: NxM --> MxN, where M=num_refs, N=BS
         batch = [

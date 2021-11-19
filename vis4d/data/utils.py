@@ -19,6 +19,7 @@ from termcolor import colored
 from vis4d.struct import InputSample, NDArrayUI8
 
 from ..common.geometry.transform import transform_points
+
 D2BoxType = Dict[str, Union[bool, float, str]]
 
 

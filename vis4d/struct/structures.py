@@ -1,6 +1,6 @@
 """Base classes for data structures in Vis4D."""
 import abc
-from typing import Any, Dict, Iterator, List, Optional, TypeVar, Union
+from typing import Any, Dict, Iterator, List, Optional, Type, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -8,7 +8,7 @@ import torch
 from scalabel.label.typing import ImageSize, Label
 
 TDataInstance = TypeVar("TDataInstance", bound="DataInstance")
-
+TInputInstance = TypeVar("TInputInstance", bound="InputInstance")
 TLabelInstance = TypeVar("TLabelInstance", bound="LabelInstance")
 
 
@@ -46,11 +46,12 @@ class InputInstance(DataInstance, metaclass=abc.ABCMeta):
     """Interface for images, intrinsics, etc."""
 
     @classmethod
+    @abc.abstractmethod
     def cat(
-            cls,
-            instances: List["InputInstance"],
-            device: Optional[torch.device] = None,
-    ) -> "InputInstance":
+        cls: Type[TInputInstance],
+        instances: List[TInputInstance],
+        device: Optional[torch.device] = None,
+    ) -> TInputInstance:
         """Concatenate multiple instances into a single one (batching)."""
         raise NotImplementedError
 
