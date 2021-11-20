@@ -107,8 +107,10 @@ class MMEncDecSegmentor(BaseSegmentor):
         raw_inputs = [inp[0] for inp in batch_inputs]
         inputs = self.preprocess_inputs(raw_inputs)
         image_metas = get_img_metas(inputs.images)
-        outs = self.mm_segmentor.simple_test(inputs.images.tensor, image_metas)
-        segmentations = results_from_mmseg(outs, self.device)
+        outs = self.mm_segmentor.simple_test(
+            inputs.images.tensor, image_metas, rescale=False
+        )
+        segmentations = results_from_mmseg(outs, image_metas, self.device)
         assert segmentations is not None
 
         return dict(
