@@ -9,23 +9,23 @@ try:
     from detectron2.structures import Instances
     from detectron2.utils.events import EventStorage
 
+    from .d2_utils import (
+        D2TwoStageDetectorConfig,
+        box2d_to_proposal,
+        detections_to_box2d,
+        images_to_imagelist,
+        model_to_detectron2,
+        proposal_to_box2d,
+        segmentations_to_bitmask,
+        target_to_instance,
+    )
+
     D2_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
     D2_INSTALLED = False
 
-
 from torch.nn.modules.batchnorm import _BatchNorm
 
-from vis4d.model.detect.d2_utils import (
-    D2TwoStageDetectorConfig,
-    box2d_to_proposal,
-    detections_to_box2d,
-    images_to_imagelist,
-    model_to_detectron2,
-    proposal_to_box2d,
-    segmentations_to_bitmask,
-    target_to_instance,
-)
 from vis4d.struct import (
     Boxes2D,
     InputSample,
