@@ -190,12 +190,12 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
                     if name.startswith(freeze_param) and name not in pnames:
                         params.append(param)
                         pnames.append(name)
-        else:
+        else:  # pragma: no cover
             params = self.parameters()
         for param in params:
             param.requires_grad = False
 
-    def unfreeze(self) -> None:
+    def unfreeze(self) -> None:  # pragma: no cover
         """Unfreeze all parameters for training."""
         for param in self.parameters():
             param.requires_grad = True

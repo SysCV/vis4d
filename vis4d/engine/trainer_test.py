@@ -209,20 +209,6 @@ class TestInsSegMM(BaseEngineTests.TestDetect):
         cls.cfg = config.parse_config(args)
 
 
-class TestSegTrackD2(BaseEngineTests.TestTrack):
-    """Detectron2 segmentation tracking test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_seg_track_d2/"
-        args = Namespace(
-            config=get_test_file("track/mask_qdtrack_d2.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
-
-
 class TestSegTrackMM(BaseEngineTests.TestTrack):
     """MMDetection segmentation tracking test cases."""
 

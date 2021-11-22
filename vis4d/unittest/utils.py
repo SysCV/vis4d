@@ -14,6 +14,7 @@ from vis4d.struct import (
     InputSample,
     InstanceMasks,
     Intrinsics,
+    SemanticMasks,
 )
 
 
@@ -77,7 +78,7 @@ def generate_dets3d(num_dets: int, track_ids: bool = False) -> Boxes3D:
     return dets
 
 
-def generate_masks(
+def generate_instance_masks(
     height: int, width: int, num_masks: int, track_ids: bool = False
 ) -> InstanceMasks:
     """Create random masks."""
@@ -90,6 +91,20 @@ def generate_masks(
     masks = InstanceMasks(
         mask_tensor, torch.zeros(num_masks), tracks, torch.rand(num_masks)
     )
+    torch.random.set_rng_state(state)
+    return masks
+
+
+def generate_semantic_masks(
+    height: int, width: int, num_masks: int
+) -> SemanticMasks:
+    """Create random masks."""
+    state = torch.random.get_rng_state()
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
+    mask_tensor = (torch.rand(num_masks, width, height) > 0.5).type(
+        torch.uint8
+    )
+    masks = SemanticMasks(mask_tensor, torch.zeros(num_masks))
     torch.random.set_rng_state(state)
     return masks
 
@@ -133,7 +148,7 @@ def generate_input_sample(
         generate_dets(height, width, num_objs, track_ids)
     ] * num_imgs
     sample.instance_masks = [
-        generate_masks(height, width, num_objs, track_ids)
+        generate_instance_masks(height, width, num_objs, track_ids)
     ] * num_imgs
     torch.random.set_rng_state(state)
     return sample

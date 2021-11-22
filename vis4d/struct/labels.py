@@ -756,7 +756,7 @@ class Masks(LabelInstance):
         boxes_list = []
         for i, mask in enumerate(self.masks):
             foreground = mask.nonzero()
-            if len(foreground) == 0:
+            if len(foreground) == 0:  # pragma: no cover
                 x1, y1, x2, y2 = (
                     torch.tensor(0.0),
                     torch.tensor(0.0),
@@ -799,9 +799,6 @@ class SemanticMasks(Masks):
 
     masks: torch.ByteTensor (N, H, W) where each entry is a binary mask
     class_ids: torch.LongTensor (N,) where each entry is the class id of mask.
-    track_ids: torch.LongTensor (N,) where each entry is the track id of mask.
-    score: torch.FloatTensor (N,) where each entry is the confidence score
-    of mask.
     """
 
     def to_nhw_mask(self) -> "SemanticMasks":

@@ -100,7 +100,7 @@ class PolyLRScheduler(BaseLRScheduler):
 
     def get_lr(self) -> List[float]:
         """Compute current learning rate."""
-        if self._step_count >= self.max_steps:
+        if self._step_count >= self.max_steps:  # pragma: no cover
             return [self.min_lr for _ in self.base_lrs]
         coeff = (1 - self._step_count / self.max_steps) ** self.power
         return [
