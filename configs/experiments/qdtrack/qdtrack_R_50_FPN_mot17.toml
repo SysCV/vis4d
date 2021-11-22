@@ -21,7 +21,7 @@ image_channel_mode = "BGR"
 
     [model.lr_scheduler]
     type = "MultiStepLR"
-    kwargs = {"milestones" = [9]}
+    kwargs = {"milestones" = [8, 11]}
 
     [model.similarity.proposal_matcher]
     type = "MaxIoUMatcher"
