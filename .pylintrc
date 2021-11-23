@@ -57,7 +57,8 @@ enable=use-symbolic-message-instead,useless-supression,fixme
 # R0902: ignore errors for classes with more than 11 attributes
 # import-error: ignore this error due to optional requirements that may not
 # be installed
-disable=C0330,not-callable,too-many-ancestors,R0902,import-error
+# ignore arguments-differ due to variadic arguments in Vis4DModule
+disable=C0330,not-callable,too-many-ancestors,R0902,import-error,arguments-differ
 
 
 [REPORTS]

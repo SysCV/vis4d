@@ -321,16 +321,16 @@ class RandomCrop(BaseAugmentation):
         """Get mask for 2D annotations to keep."""
         assert len(sample) == 1, "Please provide a single sample!"
         assert len(crop_param.shape) == 1, "Please provide single crop_param"
-        if len(sample.boxes2d[0]) > 0:
-            assert len(sample.semantic_masks[0]) == 0, (
+        if len(sample.targets.boxes2d[0]) > 0:
+            assert len(sample.targets.semantic_masks[0]) == 0, (
                 "Currently RandomCrop for both boxes2d and semantic_masks is "
                 "not supported"
             )  # revisit in refactor-api
             # will be better to compute mask intersection (if exists) instead
             cropbox = Boxes2D(crop_param.float().unsqueeze(0))
-            overlap = bbox_intersection(sample.boxes2d[0], cropbox)
+            overlap = bbox_intersection(sample.targets.boxes2d[0], cropbox)
             return overlap.squeeze(-1) > 0
-        return torch.tensor([True] * len(sample.semantic_masks[0]))
+        return torch.tensor([True] * len(sample.targets.semantic_masks[0]))
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
@@ -344,17 +344,14 @@ class RandomCrop(BaseAugmentation):
             image_whs.append(im_wh)
             if not parameters["apply"][i]:
                 crop_params.append(torch.tensor([0, 0, *im_wh]))
-                num_objs = max(
-                    len(current_sample.boxes2d),
-                    len(current_sample.semantic_masks),
-                )
+                num_objs = len(current_sample.targets)
                 keep_masks.append(torch.tensor([True] * num_objs))
                 continue
 
             crop_param = self._sample_crop(im_wh)
             keep_mask = self._get_keep_mask(current_sample, crop_param)
             while (
-                len(current_sample.boxes2d[0]) > 0
+                current_sample.targets.empty
                 and not self.cfg.allow_empty_crop
                 and keep_mask.sum() == 0
             ):  # pragma: no cover
@@ -445,11 +442,13 @@ class RandomCrop(BaseAugmentation):
         sample, parameters = super().__call__(sample, parameters)
         if self.cfg.recompute_boxes2d:
             for i in range(len(sample)):
-                assert len(sample.instance_masks[i]) == len(
-                    sample.boxes2d[i]
+                assert len(sample.targets.instance_masks[i]) == len(
+                    sample.targets.boxes2d[i]
                 ), (
                     "recompute_boxes2d activated but annotations do not "
                     "contain instance masks!"
                 )
-                sample.boxes2d[i] = sample.instance_masks[i].get_boxes2d()
+                sample.targets.boxes2d[i] = sample.targets.instance_masks[
+                    i
+                ].get_boxes2d()
         return sample, parameters

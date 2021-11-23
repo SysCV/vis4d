@@ -8,7 +8,7 @@ from .labels import (
     SemanticMasks,
     TMasks,
 )
-from .sample import InputSample
+from .sample import InputSample, LabelInstances
 from .structures import (
     DataInstance,
     DictStrAny,
@@ -40,5 +40,6 @@ __all__ = [
     "ModelOutput",
     "DictStrAny",
     "InputSample",
+    "LabelInstances",
     "TLabelInstance",
 ]

@@ -1,5 +1,5 @@
 """3D Box Head definition for QD-3DT."""
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -17,7 +17,14 @@ from vis4d.common.bbox.samplers import (
 from vis4d.common.geometry.rotation import generate_rotation_output
 from vis4d.common.layers import add_conv_branch
 from vis4d.model.losses import LossConfig, build_loss
-from vis4d.struct import Boxes2D, Boxes3D, InputSample, Intrinsics, LossesType
+from vis4d.struct import (
+    Boxes2D,
+    Boxes3D,
+    InputSample,
+    Intrinsics,
+    LabelInstances,
+    LossesType,
+)
 
 from .base import BaseRoIHead, BaseRoIHeadConfig
 
@@ -308,13 +315,16 @@ class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
     def get_targets(
         self,
         pos_assigned_gt_inds: List[torch.Tensor],
-        targets_2d: Sequence[Boxes2D],
-        targets_3d: Sequence[Boxes3D],
+        targets: LabelInstances,
         cam_intrinsics: Intrinsics,
     ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         """Get 3D bounding box targets for training."""
-        targets_2d = [b[p] for b, p in zip(targets_2d, pos_assigned_gt_inds)]
-        targets_3d = [b[p] for b, p in zip(targets_3d, pos_assigned_gt_inds)]
+        targets_2d = [
+            b[p] for b, p in zip(targets.boxes2d, pos_assigned_gt_inds)
+        ]
+        targets_3d = [
+            b[p] for b, p in zip(targets.boxes3d, pos_assigned_gt_inds)
+        ]
 
         bbox_targets = self.bbox_coder.encode(
             targets_2d, targets_3d, cam_intrinsics
@@ -329,15 +339,16 @@ class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        targets: List[Boxes3D],
-        features: Optional[Dict[str, torch.Tensor]] = None,
+        features: Optional[Dict[str, torch.Tensor]],
+        targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Forward pass during training stage.
 
         Args:
             inputs: InputSamples (images, metadata, etc). Batched.
-            features: Input feature maps. Batched.
             boxes: Input boxes to apply RoIHead on.
+            features: Input feature maps. Batched.
+            targets: Targets corresponding to InputSamples.
 
         Returns:
             LossesType: A dict of scalar loss tensors.
@@ -351,7 +362,7 @@ class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
             self.matcher,
             self.sampler,
             boxes,
-            inputs.boxes2d,
+            inputs.targets.boxes2d,
             self.cfg.proposal_append_gt,
         )
         positives = [l == 1 for l in sampling_results.sampled_labels]
@@ -365,14 +376,11 @@ class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
 
         predictions = self.get_predictions(features_list, pos_boxes)
 
-        targets, labels = self.get_targets(
-            pos_assigned_gt_inds,
-            inputs.boxes2d,
-            inputs.boxes3d,
-            inputs.intrinsics,
+        tgt_params, labels = self.get_targets(
+            pos_assigned_gt_inds, targets, inputs.intrinsics
         )
         loss = self.loss(
-            torch.cat(predictions), torch.cat(targets), torch.cat(labels)
+            torch.cat(predictions), torch.cat(tgt_params), torch.cat(labels)
         )
         return loss, sampling_results
 
@@ -380,14 +388,14 @@ class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[Dict[str, torch.Tensor]] = None,
-    ) -> Sequence[Boxes3D]:
+        features: Optional[Dict[str, torch.Tensor]],
+    ) -> List[Boxes3D]:
         """Forward pass during testing stage.
 
         Args:
             inputs: InputSamples (images, metadata, etc). Batched.
-            features: Input feature maps. Batched.
             boxes: Input boxes to apply RoIHead on.
+            features: Input feature maps. Batched.
 
         Returns:
             List[Boxes3D]: Prediction output.

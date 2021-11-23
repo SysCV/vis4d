@@ -152,7 +152,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         is_training = self.d2_detector.proposal_generator.training
         if self.training:
             targets: Optional[List[Instances]] = target_to_instance(
-                inputs.boxes2d, inputs.images.image_sizes
+                inputs.targets.boxes2d, inputs.images.image_sizes
             )
         else:
             targets = None
@@ -187,9 +187,9 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         is_training = self.d2_detector.roi_heads.training
         if self.training:
             targets: Optional[List[Instances]] = target_to_instance(
-                inputs.boxes2d,
+                inputs.targets.boxes2d,
                 inputs.images.image_sizes,
-                inputs.instance_masks,
+                inputs.targets.instance_masks,
             )
         else:
             targets = None

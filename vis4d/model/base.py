@@ -39,7 +39,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         super().__init__()
         self.cfg = cfg
 
-    def forward(  # type: ignore # pylint: disable=arguments-differ
+    def forward(  # type: ignore[override]
         self, batch_inputs: List[InputSample]
     ) -> Union[LossesType, ModelOutput]:
         """Forward."""

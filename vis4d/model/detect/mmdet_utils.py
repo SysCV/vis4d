@@ -24,8 +24,8 @@ except (ImportError, NameError):  # pragma: no cover
 from vis4d.struct import (
     Boxes2D,
     Images,
-    InputSample,
     InstanceMasks,
+    LabelInstances,
     LossesType,
     NDArrayF64,
     NDArrayUI8,
@@ -172,7 +172,7 @@ def masks_to_mmdet_masks(masks: Sequence[InstanceMasks]) -> BitmapMasks:
 
 
 def targets_to_mmdet(
-    targets: InputSample,
+    targets: LabelInstances,
 ) -> Tuple[
     List[torch.Tensor], List[torch.Tensor], Optional[Sequence[InstanceMasks]]
 ]:

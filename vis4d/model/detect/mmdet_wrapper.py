@@ -98,7 +98,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         inputs = self.preprocess_inputs(batch_inputs[0])
 
         image_metas = get_img_metas(inputs.images)
-        gt_bboxes, gt_labels, gt_masks = targets_to_mmdet(inputs)
+        gt_bboxes, gt_labels, gt_masks = targets_to_mmdet(inputs.targets)
         losses = self.mm_detector.forward_train(
             inputs.images.tensor,
             image_metas,
@@ -168,7 +168,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         feat_list = list(features.values())
         img_metas = get_img_metas(inputs.images)
         if self.training:
-            gt_bboxes, _, _ = targets_to_mmdet(inputs)
+            gt_bboxes, _, _ = targets_to_mmdet(inputs.targets)
 
             proposal_cfg = self.mm_detector.train_cfg.get(
                 "rpn_proposal", self.mm_detector.test_cfg.rpn
@@ -209,7 +209,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         feat_list = list(features.values())
         img_metas = get_img_metas(inputs.images)
         if self.training:
-            gt_bboxes, gt_labels, gt_masks = targets_to_mmdet(inputs)
+            gt_bboxes, gt_labels, gt_masks = targets_to_mmdet(inputs.targets)
             detect_losses = self.mm_detector.roi_head.forward_train(
                 feat_list,
                 img_metas,

@@ -83,7 +83,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         ), "No reference views allowed in MMEncDecSegmentor training!"
         inputs = self.preprocess_inputs(batch_inputs[0])
         image_metas = get_img_metas(inputs.images)
-        gt_masks = targets_to_mmseg(inputs)
+        gt_masks = targets_to_mmseg(inputs.targets)
         losses = self.mm_segmentor.forward_train(
             inputs.images.tensor, image_metas, gt_masks
         )
@@ -133,7 +133,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         feat_list = list(features.values())
         img_metas = get_img_metas(inputs.images)
         if self.training:
-            gt_masks = targets_to_mmseg(inputs)
+            gt_masks = targets_to_mmseg(inputs.targets)
             segment_losses = self.mm_segmentor.decode_head.forward_train(
                 feat_list, img_metas, gt_masks, self.mm_segmentor.train_cfg
             )
@@ -167,7 +167,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         if self.training:
             feat_list = list(features.values())
             img_metas = get_img_metas(inputs.images)
-            gt_masks = targets_to_mmseg(inputs)
+            gt_masks = targets_to_mmseg(inputs.targets)
             if isinstance(
                 self.mm_segmentor.auxiliary_head, torch.nn.ModuleList
             ):

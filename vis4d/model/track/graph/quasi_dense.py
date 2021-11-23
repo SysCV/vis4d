@@ -1,11 +1,11 @@
 """Quasi-dense embedding similarity based graph."""
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, TypedDict, Union
 
 import torch
 from pydantic import validator
 
 from vis4d.common.bbox.utils import bbox_iou
-from vis4d.struct import Boxes2D
+from vis4d.struct import Boxes2D, InputSample, LabelInstances, LossesType
 
 from .base import BaseTrackGraph, TrackGraphConfig
 
@@ -52,17 +52,30 @@ class QDTrackGraphConfig(TrackGraphConfig):
         return value
 
 
+class Track(TypedDict):
+    """Track representation for QDTrack."""
+
+    bbox: torch.Tensor
+    embed: torch.Tensor
+    class_id: torch.Tensor
+    last_frame: int
+    velocity: torch.Tensor
+    acc_frame: int
+
+
 class QDTrackGraph(BaseTrackGraph):
     """Tracking graph construction for quasi-dense instance similarity."""
 
     def __init__(self, cfg: TrackGraphConfig) -> None:
         """Init."""
-        super().__init__(cfg)
+        super().__init__()
         self.cfg = QDTrackGraphConfig(**cfg.dict())
+        self.reset()
 
     def reset(self) -> None:
         """Reset tracks."""
-        super().reset()
+        self.num_tracks = 0
+        self.tracks: Dict[int, Track] = {}
         self.backdrops: List[Dict[str, Union[Boxes2D, torch.Tensor]]] = []
 
     def get_tracks(
@@ -117,7 +130,7 @@ class QDTrackGraph(BaseTrackGraph):
 
     def remove_duplicates(
         self, detections: Boxes2D, embeddings: torch.Tensor
-    ) -> Tuple[Boxes2D, torch.Tensor]:
+    ) -> Tuple[Boxes2D, torch.Tensor, torch.Tensor]:
         """Remove overlapping objects across classes via nms."""
         # duplicate removal for potential backdrops and cross classes
         _, inds = detections.boxes[:, -1].sort(descending=True)
@@ -135,13 +148,49 @@ class QDTrackGraph(BaseTrackGraph):
         valids = valids == 1
         detections = detections[valids, :]
         embeddings = embeddings[valids, :]
-        return detections, embeddings
+        return detections, embeddings, valids
 
-    def forward(  # type: ignore # pylint: disable=arguments-differ
-        self, detections: Boxes2D, frame_id: int, embeddings: torch.Tensor
-    ) -> Boxes2D:
+    @property
+    def empty(self) -> bool:
+        """Whether track memory is empty."""
+        return not self.tracks
+
+    def forward_train(
+        self,
+        inputs: List[InputSample],
+        predictions: List[LabelInstances],
+        targets: Optional[List[LabelInstances]],
+        **kwargs: List[torch.Tensor],
+    ) -> LossesType:
+        """Forward of QDTrackGraph in training stage."""
+        raise NotImplementedError
+
+    def forward_test(
+        self,
+        inputs: InputSample,
+        predictions: LabelInstances,
+        embeddings: Optional[torch.Tensor] = None,
+        **kwargs: torch.Tensor,
+    ) -> LabelInstances:
         """Process inputs, match detections with existing tracks."""
-        detections, embeddings = self.remove_duplicates(detections, embeddings)
+        assert (
+            embeddings is not None
+        ), "QDTrackGraph requires instance embeddings."
+        assert len(inputs) == 1, "QDTrackGraph support only BS=1 inference."
+        detections = predictions.boxes2d[0]
+        embeddings = embeddings[0]
+        frame_id = inputs.metadata[0].frameIndex
+        assert (
+            frame_id is not None
+        ), "Couldn't find current frame index in InputSample metadata!"
+
+        # reset graph at begin of sequence
+        if frame_id == 0:
+            self.reset()
+
+        detections, embeddings, valids = self.remove_duplicates(
+            detections, embeddings
+        )
 
         # init ids container
         ids = torch.full(
@@ -190,10 +239,16 @@ class QDTrackGraph(BaseTrackGraph):
         self.num_tracks += num_news
 
         self.update(ids, detections, embeddings, frame_id)
-        result, _ = self.get_tracks(detections.device, frame_id)
-        return result
 
-    def update(  # type: ignore # pylint: disable=arguments-differ
+        valids[valids.clone()] = ids != -2  # remove backdrops
+        for pred in predictions.get_instance_labels():
+            if len(pred[0]) > 0:
+                pred[0] = pred[0][valids]  # type: ignore
+                pred[0].track_ids = ids[ids != -2]  # type: ignore
+
+        return predictions
+
+    def update(
         self,
         ids: torch.Tensor,
         detections: Boxes2D,
@@ -275,7 +330,7 @@ class QDTrackGraph(BaseTrackGraph):
     ) -> None:
         """Create a new track from a models."""
         bbox, cls = detection.boxes[0], detection.class_ids[0]
-        self.tracks[track_id] = dict(
+        self.tracks[track_id] = Track(
             bbox=bbox,
             embed=embedding,
             class_id=cls,

@@ -3,9 +3,16 @@ from typing import List
 
 import torch
 
-from ..struct import Boxes2D, Boxes3D, InputSample, LossesType, ModelOutput
+from ..struct import (
+    Boxes2D,
+    Boxes3D,
+    InputSample,
+    LabelInstances,
+    LossesType,
+    ModelOutput,
+)
 from .base import BaseModelConfig
-from .detect.roi_head import BaseRoIHeadConfig, build_roi_head
+from .detect.roi_head import BaseRoIHead, BaseRoIHeadConfig, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
 from .track.graph import build_track_graph
 
@@ -25,7 +32,9 @@ class QD3DT(QDTrack):
         self.cfg = QD3DTConfig(**cfg.dict())
         assert self.cfg.category_mapping is not None
         self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)  # type: ignore # pylint: disable=line-too-long
-        self.bbox_3d_head = build_roi_head(self.cfg.bbox_3d_head)
+        self.bbox_3d_head: BaseRoIHead[Boxes3D] = build_roi_head(
+            self.cfg.bbox_3d_head
+        )
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
 
@@ -35,6 +44,9 @@ class QD3DT(QDTrack):
     ) -> LossesType:
         """Forward function for training."""
         key_inputs, ref_inputs = self.preprocess_inputs(batch_inputs)
+        key_targets, ref_targets = key_inputs.targets, [
+            x.targets for x in ref_inputs
+        ]
 
         # feature extraction
         key_x = self.detector.extract_features(key_inputs)
@@ -46,8 +58,8 @@ class QD3DT(QDTrack):
         )
 
         # 3d bbox head
-        loss_bbox_3d, _ = self.bbox_3d_head.forward_train(
-            key_inputs, key_proposals, key_x
+        loss_bbox_3d, _ = self.bbox_3d_head(
+            key_inputs, key_proposals, key_x, key_targets
         )
 
         # bbox head
@@ -67,10 +79,11 @@ class QD3DT(QDTrack):
             ]
 
         # track head
-        track_losses, _ = self.similarity_head.forward_train(
+        track_losses, _ = self.similarity_head(
             [key_inputs, *ref_inputs],
-            [key_x, *ref_x],
             [key_proposals, *ref_proposals],
+            [key_x, *ref_x],
+            [key_targets, *ref_targets],
         )
 
         return {**det_losses, **track_losses}
@@ -86,14 +99,9 @@ class QD3DT(QDTrack):
         # to multi-sensor mode: 1st elem is group, rest are sensor frames
         group = batch_inputs[0].to(self.device)
         if len(batch_inputs[0]) > 1:
-            frames = batch_inputs[1:]
+            frames = InputSample.cat(batch_inputs[1:])
         else:
             frames = batch_inputs[0]
-
-        # init graph at begin of sequence
-        frame_id = group.metadata[0].frameIndex
-        if frame_id == 0:
-            self.track_graph.reset()
 
         # detector
         inputs = self.detector.preprocess_inputs(frames)
@@ -105,14 +113,10 @@ class QD3DT(QDTrack):
         )
 
         # 3d head
-        boxes3d_list = self.bbox_3d_head.forward_test(
-            inputs, boxes2d_list, feat
-        )
+        boxes3d_list = self.bbox_3d_head(inputs, boxes2d_list, feat)
 
         # similarity head
-        embeddings_list = self.similarity_head.forward_test(
-            inputs, feat, boxes2d_list
-        )
+        embeddings_list = self.similarity_head(inputs, boxes2d_list, feat)
 
         for inp, boxes2d in zip(inputs, boxes2d_list):
             assert inp.metadata[0].size is not None
@@ -129,37 +133,18 @@ class QD3DT(QDTrack):
             boxes3d.transform(
                 group.extrinsics.inverse() @ inputs[idx].extrinsics
             )
-        boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
-
-        embeddings = torch.cat(embeddings_list)
+        boxes3d = Boxes3D.merge(boxes3d_list)
+        embeddings = [torch.cat(embeddings_list)]
 
         # associate detections, update graph
-        tracks2d = self.track_graph(boxes2d, frame_id, embeddings)
+        predictions = LabelInstances([boxes2d], [boxes3d])
+        tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
 
-        boxes_3d = torch.empty(
-            (0, boxes3d.boxes.shape[1]), device=boxes3d.device
-        )
-        class_ids_3d = torch.empty((0), device=boxes3d.device)
-        track_ids_3d = torch.empty((0), device=boxes3d.device)
-        for track in tracks2d:
-            for i, box in enumerate(boxes2d):
-                if torch.equal(track.boxes, box.boxes):
-                    if boxes3d[i].score is not None:
-                        boxes3d[i].boxes[:, -1] *= track.score
-                    boxes_3d = torch.cat([boxes_3d, boxes3d[i].boxes])
-                    class_ids_3d = torch.cat([class_ids_3d, track.class_ids])
-                    track_ids_3d = torch.cat([track_ids_3d, track.track_ids])
-
-        # pylint: disable=no-member
         boxes_2d = boxes2d.to(torch.device("cpu")).to_scalabel(
             self.cat_mapping
         )
-        tracks_2d = tracks2d.to(torch.device("cpu")).to_scalabel(
+        tracks_2d = tracks.boxes2d[0].to(torch.device("cpu")).to_scalabel(
             self.cat_mapping
         )
-        tracks_3d = (
-            Boxes3D(boxes_3d, class_ids_3d, track_ids_3d)
-            .to(torch.device("cpu"))
-            .to_scalabel(self.cat_mapping)
-        )
+        tracks_3d = tracks.boxes3d[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
         return dict(detect=[boxes_2d], track=[tracks_2d], track_3d=[tracks_3d])

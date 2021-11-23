@@ -28,12 +28,12 @@ from ..common.utils.time import Timer
 from ..struct import (
     Boxes2D,
     Boxes3D,
-    DictStrAny,
     Extrinsics,
     Images,
     InputSample,
     InstanceMasks,
     Intrinsics,
+    LabelInstances,
     SemanticMasks,
 )
 from .datasets import BaseDatasetLoader
@@ -313,9 +313,9 @@ class ScalabelDataset(Dataset):  # type: ignore
         key_data: InputSample, ref_data: List[InputSample]
     ) -> bool:
         """Check if key / ref data have matches."""
-        key_track_ids = key_data.boxes2d[0].track_ids
+        key_track_ids = key_data.targets.boxes2d[0].track_ids
         for ref_view in ref_data:
-            ref_track_ids = ref_view.boxes2d[0].track_ids
+            ref_track_ids = ref_view.targets.boxes2d[0].track_ids
             match = key_track_ids.view(-1, 1) == ref_track_ids.view(1, -1)
             if match.any():
                 return True
@@ -447,7 +447,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                         instance_id_dict,
                         sample.metadata[0].size,
                     )
-                    sample.instance_masks = [instance_masks]
+                    sample.targets.instance_masks = [instance_masks]
 
                 if "semantic_masks" in self.cfg.dataloader.fields_to_load:
                     semantic_masks = SemanticMasks.from_scalabel(
@@ -456,23 +456,26 @@ class ScalabelDataset(Dataset):  # type: ignore
                         instance_id_dict,
                         sample.metadata[0].size,
                     )
-                    sample.semantic_masks = [semantic_masks]
+                    sample.targets.semantic_masks = [semantic_masks]
 
                 if "boxes2d" in self.cfg.dataloader.fields_to_load:
                     boxes2d = Boxes2D.from_scalabel(
                         labels_used, category_dict, instance_id_dict
                     )
                     if (
-                        len(boxes2d) == 0 and len(sample.instance_masks[0]) > 0
+                        len(boxes2d) == 0
+                        and len(sample.targets.instance_masks[0]) > 0
                     ):  # pragma: no cover
-                        boxes2d = sample.instance_masks[0].get_boxes2d()
-                    sample.boxes2d = [boxes2d]
+                        boxes2d = sample.targets.instance_masks[
+                            0
+                        ].get_boxes2d()
+                    sample.targets.boxes2d = [boxes2d]
 
                 if "boxes3d" in self.cfg.dataloader.fields_to_load:
                     boxes3d = Boxes3D.from_scalabel(
                         labels_used, category_dict, instance_id_dict
                     )
-                    sample.boxes3d = [boxes3d]
+                    sample.targets.boxes3d = [boxes3d]
 
     def transform_input(
         self,
@@ -493,18 +496,20 @@ class ScalabelDataset(Dataset):  # type: ignore
             sample, _ = aug(sample, parameters[i])
         return parameters
 
-    def postprocess_annotation(self, sample: InputSample) -> None:
+    def postprocess_annotation(
+        self, im_wh: Tuple[int, int], targets: LabelInstances
+    ) -> None:
         """Process annotations after transform."""
-        if len(sample.boxes2d[0]) == 0:
+        if len(targets.boxes2d[0]) == 0:
             return
         if self.cfg.dataloader.clip_bboxes_to_image:
-            sample.boxes2d[0].clip(sample.images.image_sizes[0])
-        keep = sample.boxes2d[0].area >= self.cfg.dataloader.min_bboxes_area
-        sample.boxes2d = [sample.boxes2d[0][keep]]
-        if len(sample.boxes3d[0]) > 0:
-            sample.boxes3d = [sample.boxes3d[0][keep]]
-        if len(sample.instance_masks[0]) > 0:
-            sample.instance_masks = [sample.instance_masks[0][keep]]
+            targets.boxes2d[0].clip(im_wh)
+        keep = targets.boxes2d[0].area >= self.cfg.dataloader.min_bboxes_area
+        targets.boxes2d = [targets.boxes2d[0][keep]]
+        if len(targets.boxes3d[0]) > 0:
+            targets.boxes3d = [targets.boxes3d[0][keep]]
+        if len(targets.instance_masks[0]) > 0:
+            targets.instance_masks = [targets.instance_masks[0][keep]]
 
     @staticmethod
     def load_intrinsics(intrinsics: ScalabelIntrinsics) -> Intrinsics:
@@ -562,14 +567,10 @@ class ScalabelDataset(Dataset):  # type: ignore
             return input_data, parameters
 
         # postprocess boxes after transforms
-        self.postprocess_annotation(input_data)
+        self.postprocess_annotation(
+            input_data.images.image_sizes[0], input_data.targets
+        )
 
-        if (
-            self.cfg.dataloader.skip_empty_samples
-            and len(input_data.boxes2d[0]) == 0
-            and len(input_data.boxes3d[0]) == 0
-            and len(input_data.instance_masks[0]) == 0
-            and len(input_data.semantic_masks[0]) == 0
-        ):
+        if self.cfg.dataloader.skip_empty_samples and input_data.targets.empty:
             return None, None  # pragma: no cover
         return input_data, parameters
