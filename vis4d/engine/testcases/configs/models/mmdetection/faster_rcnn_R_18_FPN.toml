@@ -1,7 +1,7 @@
 [model]
 type = "MMTwoStageDetector"
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7, "traffic light" = 8, "traffic sign" = 9}
-model_base = "vis4d/engine/testcases/configs/models/mmdetection/mmdet_cfg_frcnn_r50fpn.py"
+model_base = "vis4d/engine/testcases/configs/models/mmdetection/mmdet_cfg_frcnn_r18fpn.py"
 model_kwargs= {"rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.beta" = 0.111, "roi_head.bbox_head.loss_bbox.type" = "SmoothL1Loss"}
 pixel_mean = [123.675, 116.28, 103.53]
 pixel_std = [58.395, 57.12, 57.375]

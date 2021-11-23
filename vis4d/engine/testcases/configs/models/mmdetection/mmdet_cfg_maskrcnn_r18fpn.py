@@ -3,25 +3,25 @@ model = dict(
     type="FasterRCNN",
     backbone=dict(
         type="ResNet",
-        depth=50,
+        depth=18,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
         norm_cfg=dict(type="BN", requires_grad=True),
         norm_eval=True,
         style="pytorch",
-        init_cfg=dict(type="Pretrained", checkpoint="torchvision://resnet50"),
+        init_cfg=dict(type="Pretrained", checkpoint="torchvision://resnet18"),
     ),
     neck=dict(
         type="FPN",
-        in_channels=[256, 512, 1024, 2048],
-        out_channels=256,
+        in_channels=[64, 128, 256, 512],
+        out_channels=64,
         num_outs=5,
     ),
     rpn_head=dict(
         type="RPNHead",
-        in_channels=256,
-        feat_channels=256,
+        in_channels=64,
+        feat_channels=64,
         anchor_generator=dict(
             type="AnchorGenerator",
             scales=[8],
@@ -43,13 +43,13 @@ model = dict(
         bbox_roi_extractor=dict(
             type="SingleRoIExtractor",
             roi_layer=dict(type="RoIAlign", output_size=7, sampling_ratio=0),
-            out_channels=256,
+            out_channels=64,
             featmap_strides=[4, 8, 16, 32],
         ),
         bbox_head=dict(
             type="Shared2FCBBoxHead",
-            in_channels=256,
-            fc_out_channels=1024,
+            in_channels=64,
+            fc_out_channels=512,
             roi_feat_size=7,
             num_classes=8,
             bbox_coder=dict(
@@ -66,13 +66,13 @@ model = dict(
         mask_roi_extractor=dict(
             type="SingleRoIExtractor",
             roi_layer=dict(type="RoIAlign", output_size=14, sampling_ratio=0),
-            out_channels=256,
+            out_channels=64,
             featmap_strides=[4, 8, 16, 32],
         ),
         mask_head=dict(
             type="FCNMaskHead",
             num_convs=4,
-            in_channels=256,
+            in_channels=64,
             conv_out_channels=256,
             num_classes=8,
             loss_mask=dict(

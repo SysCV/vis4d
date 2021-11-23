@@ -2,7 +2,7 @@
 path = "../configs/datasets/bdd100k/seg_track.toml"
 
 [[config]]
-path = "../configs/models/mmdetection/mask_qdtrack_R_50_FPN.toml"
+path = "../configs/models/mmdetection/mask_qdtrack_R_18_FPN.toml"
 
 [model]
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
@@ -23,5 +23,5 @@ samples_per_gpu = 1
 workers_per_gpu = 0
 
 [trainer]
-max_steps = 2
+max_steps = 1
 log_every_n_steps = 50

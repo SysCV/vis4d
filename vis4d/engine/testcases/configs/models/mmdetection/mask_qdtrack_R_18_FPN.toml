@@ -3,12 +3,10 @@ type = "QDTrack"
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
     [model.detection]
     type = "MMTwoStageDetector"
-    model_base = "mmdet://_base_/models/mask_rcnn_r50_fpn.py"
-    model_kwargs= {"rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.beta" = 0.111, "roi_head.bbox_head.loss_bbox.type" = "SmoothL1Loss"}
+    model_base = "vis4d/engine/testcases/configs/models/mmdetection/mmdet_cfg_maskrcnn_r18fpn.py"
     pixel_mean = [123.675, 116.28, 103.53]
     pixel_std = [58.395, 57.12, 57.375]
     backbone_output_names = ["p2", "p3", "p4", "p5", "p6"]
-    weights = "mmdet://mask_rcnn/mask_rcnn_r50_fpn_2x_coco/mask_rcnn_r50_fpn_2x_coco_bbox_mAP-0.392__segm_mAP-0.354_20200505_003907-3e542a40.pth"
 
     [model.track_graph]
     type = "QDTrackGraph"
@@ -16,12 +14,12 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
 
     [model.similarity]
     type = "QDSimilarityHead"
-    in_dim = 256
-    num_convs = 4
-    conv_out_dim = 256
+    in_dim = 64
+    num_convs = 2
+    conv_out_dim = 128
     num_fcs = 1
-    fc_out_dim = 1024
-    embedding_dim = 256
+    fc_out_dim = 512
+    embedding_dim = 128
     conv_has_bias = false
     norm = "GroupNorm"
     proposal_append_gt = true
@@ -47,7 +45,7 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
 
         [model.similarity.proposal_sampler]
         type = "CombinedSampler"
-        batch_size_per_image = 256
+        batch_size_per_image = 128
         positive_fraction = 0.5
         pos_strategy = "instance_balanced"
         neg_strategy = "iou_balanced"
