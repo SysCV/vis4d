@@ -279,7 +279,10 @@ class Boxes2D(Boxes):
         return labels
 
     def postprocess(
-        self, original_wh: Tuple[int, int], output_wh: Tuple[int, int]
+        self,
+        original_wh: Tuple[int, int],
+        output_wh: Tuple[int, int],
+        clip: bool = True,
     ) -> None:
         """Postprocess boxes."""
         scale_factor = (
@@ -287,7 +290,8 @@ class Boxes2D(Boxes):
             original_wh[1] / output_wh[1],
         )
         self.scale(scale_factor)
-        self.clip(original_wh)
+        if clip:
+            self.clip(original_wh)
 
 
 class Boxes3D(Boxes):

@@ -15,7 +15,7 @@ except (ImportError, NameError):  # pragma: no cover
 
 from vis4d.struct import Boxes2D, Images, InstanceMasks
 
-from ..base import BaseModelConfig
+from .base import BaseDetectorConfig
 
 model_mapping = {
     "faster-rcnn": "COCO-Detection/faster_rcnn_",
@@ -32,7 +32,7 @@ backbone_mapping = {
 }
 
 
-class D2TwoStageDetectorConfig(BaseModelConfig):
+class D2TwoStageDetectorConfig(BaseDetectorConfig):
     """Config for detectron2 two stage models."""
 
     model_base: str

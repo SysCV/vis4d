@@ -2,14 +2,15 @@
 import copy
 import os
 from collections import defaultdict
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
+import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.distributed import rank_zero_warn
 from scalabel.label.io import save
 from scalabel.label.typing import Frame, FrameGroup
-from scalabel.vis.label import LabelViewer
+from scalabel.vis.label import LabelViewer, UIConfig
 
 from ..common.utils.distributed import get_rank, get_world_size
 from ..struct import InputSample, ModelOutput
@@ -75,7 +76,7 @@ class ScalabelWriterCallback(Vis4DWriterCallback):
         """Init."""
         super().__init__(dataloader_idx, output_dir)
         self._visualize = visualize
-        self.viewer = LabelViewer()
+        self.viewer: Optional[LabelViewer] = None
 
     def process(
         self, inputs: List[List[InputSample]], outputs: ModelOutput
@@ -83,9 +84,15 @@ class ScalabelWriterCallback(Vis4DWriterCallback):
         """Process the pair of inputs and outputs."""
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):
-                prediction = copy.deepcopy(inp[0].metadata[0])
+                metadata = inp[0].metadata[0]
+                prediction = copy.deepcopy(metadata)
                 prediction.labels = out
                 self._predictions[key].append(prediction)
+                size = metadata.size
+                assert size is not None
+                w, h = size.width, size.height
+                if self.viewer is None or metadata.frameIndex in [None, 0]:
+                    self.viewer = LabelViewer(UIConfig(width=w, height=h))
 
                 if self._visualize and isinstance(prediction, FrameGroup):
                     rank_zero_warn(  # pragma: no cover
@@ -104,7 +111,8 @@ class ScalabelWriterCallback(Vis4DWriterCallback):
                         prediction.name,
                     )
                     self.viewer.draw(
-                        preprocess_image(inp[0].images.tensor[0]), prediction
+                        np.array(preprocess_image(inp[0].images.tensor[0])),
+                        prediction,
                     )
                     os.makedirs(os.path.dirname(save_path), exist_ok=True)
                     self.viewer.save(save_path)

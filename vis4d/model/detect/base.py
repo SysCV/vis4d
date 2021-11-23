@@ -8,11 +8,22 @@ import torch
 from vis4d.common.registry import RegistryHolder
 from vis4d.struct import Boxes2D, InputSample, InstanceMasks, LossesType
 
-from ..base import BaseModel
+from ..base import BaseModel, BaseModelConfig
+
+
+class BaseDetectorConfig(BaseModelConfig):
+    """Base configuration for detectors."""
+
+    clip_bboxes_to_image: bool = True
 
 
 class BaseDetector(BaseModel, metaclass=RegistryHolder):
     """Base detector class."""
+
+    def __init__(self, cfg: BaseModelConfig):
+        """Init."""
+        super().__init__(cfg)
+        self.cfg: BaseDetectorConfig = BaseDetectorConfig(**cfg.dict())
 
     @abc.abstractmethod
     def preprocess_inputs(self, inputs: InputSample) -> InputSample:

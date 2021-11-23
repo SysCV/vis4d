@@ -111,6 +111,7 @@ class QD3DT(QDTrack):
         boxes2d_list, _, _ = self.detector.generate_detections(
             inputs, feat, proposals
         )
+        assert boxes2d_list is not None
 
         # 3d head
         boxes3d_list = self.bbox_3d_head(inputs, boxes2d_list, feat)
@@ -124,7 +125,11 @@ class QD3DT(QDTrack):
                 inp.metadata[0].size.width,
                 inp.metadata[0].size.height,
             )
-            boxes2d.postprocess(input_size, inp.images.image_sizes[0])
+            boxes2d.postprocess(
+                input_size,
+                inp.images.image_sizes[0],
+                self.detector.cfg.clip_bboxes_to_image,
+            )
 
         boxes2d = Boxes2D.merge(boxes2d_list)
 

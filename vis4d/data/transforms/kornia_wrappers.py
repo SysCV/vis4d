@@ -57,7 +57,10 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         transforms = []
         for im in sample.images:
             im_size = im.image_sizes[0]
-            _params = self.augmentor.generate_parameters((1, 3, *im_size))
+
+            _params = self.augmentor.generate_parameters(
+                (1, 3, *reversed(im_size))
+            )
             kornia_params += [_params]
             transf = self.augmentor.compute_transformation(im.tensor, _params)
             transforms += [transf]
@@ -66,12 +69,11 @@ class KorniaAugmentationWrapper(BaseAugmentation):
             parameters[key] = torch.cat([p[key] for p in kornia_params])
 
         parameters["batch_prob"] = parameters["apply"]
-
-        transforms_tensor = torch.cat(transforms)
-        transforms_tensor[~parameters["apply"]] = torch.eye(
-            3, device=transforms_tensor.device
+        transform_tensor = torch.cat(transforms)
+        transform_tensor[~parameters["apply"]] = torch.eye(
+            3, device=transform_tensor.device
         )
-        parameters["transform"] = transforms_tensor
+        parameters["transform"] = transform_tensor
         return parameters
 
     def apply_intrinsics(

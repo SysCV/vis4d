@@ -40,6 +40,7 @@ from .mmdet_utils import (
     segmentations_from_mmdet,
     targets_to_mmdet,
 )
+from .utils import postprocess
 
 MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
 
@@ -124,16 +125,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         )
         assert detections is not None
 
-        for inp, det, segm in zip(inputs, detections, segmentations):
-            assert inp.metadata[0].size is not None
-            input_size = (
-                inp.metadata[0].size.width,
-                inp.metadata[0].size.height,
-            )
-            det.postprocess(input_size, inp.images.image_sizes[0])
-            if segm is not None:
-                segm.postprocess(input_size, inp.images.image_sizes[0], det)
-
+        postprocess(
+            inputs, detections, segmentations, self.cfg.clip_bboxes_to_image
+        )
         outputs = dict(
             detect=[d.to_scalabel(self.cat_mapping) for d in detections]
         )

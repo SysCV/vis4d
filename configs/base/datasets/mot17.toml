@@ -1,39 +1,4 @@
 [[train]]
-name = "crowdhuman_trainval"
-type = "Scalabel"
-annotations = "data/CrowdHuman/trainval/trainval_scalabel.json"
-data_root = "data/CrowdHuman/trainval"
-num_processes = 0
-    [train.dataloader]
-    clip_bboxes_to_image = false
-    skip_empty_samples = true
-
-    [train.dataloader.ref_sampling]
-    type = 'uniform'
-    scope = 0
-    num_ref_imgs = 1
-
-    [[train.dataloader.transformations]]
-    type = "Resize"
-    shape = [800, 1440]
-    scale_range = [0.8, 1.2]
-    keep_ratio = true
-
-    [[train.dataloader.transformations]]
-    type = "RandomCrop"
-    shape = [800, 1440]
-
-    [[train.dataloader.transformations]]
-    type = "KorniaAugmentationWrapper"
-    kornia_type = "RandomHorizontalFlip"
-    prob = 0.5
-
-    [[train.dataloader.transformations]]
-    type = "KorniaColorJitter"
-    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
-
-
-[[train]]
 name = "mot17_train"
 type = "Scalabel"
 data_root = "data/MOT17/train"
@@ -82,4 +47,3 @@ num_processes = 0
     type = "Resize"
     shape = [800, 1440]
     keep_ratio = true
-
