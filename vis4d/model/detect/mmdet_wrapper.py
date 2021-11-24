@@ -132,6 +132,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             detect=[d.to_scalabel(self.cat_mapping) for d in detections]
         )
         if self.with_mask:
+            assert segmentations is not None
             outputs.update(
                 ins_seg=[
                     s.to_scalabel(self.cat_mapping) for s in segmentations
