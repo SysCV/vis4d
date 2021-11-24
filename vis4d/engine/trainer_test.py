@@ -134,25 +134,6 @@ class TestTrack3D(BaseEngineTests.TestTrack):
             os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
 
 
-class TestTrackMMKITTI(BaseEngineTests.TestTrack):
-    """MMDetection tracking test cases on KITTI."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_track_mm_kitti/"
-        cls.args = Namespace(
-            config=get_test_file("track/qdtrack_mmdet_kitti.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(cls.args)
-        cls.cfg.test = [cls.cfg.test[0]]  # remove multi-sensor kitti dataset
-        cls.predict_dir = (
-            "vis4d/engine/testcases/track/kitti-samples/"
-            "tracking/training/image_02/0001/"
-        )
-
-
 class TestDetectD2(BaseEngineTests.TestDetect):
     """Detectron2 detection test cases."""
 
@@ -167,20 +148,6 @@ class TestDetectD2(BaseEngineTests.TestDetect):
         cls.cfg = config.parse_config(cls.args)
 
 
-class TestDetectMM(BaseEngineTests.TestDetect):
-    """MMDetection detection test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_detect_mm/"
-        args = Namespace(
-            config=get_test_file("detect/faster_rcnn_mmdet.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
-
-
 class TestInsSegD2(BaseEngineTests.TestDetect):
     """Detectron2 instance segmentation test cases."""
 
@@ -193,20 +160,6 @@ class TestInsSegD2(BaseEngineTests.TestDetect):
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
-
-
-class TestInsSegMM(BaseEngineTests.TestDetect):
-    """MMDetection instance segmentation test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_ins_seg_mm/"
-        args = Namespace(
-            config=get_test_file("detect/mask_rcnn_mmdet.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
 
 
 class TestSegTrackMM(BaseEngineTests.TestTrack):

@@ -125,3 +125,22 @@ class TestRandomCrop(unittest.TestCase):
         _, _ = crop(sample, None)
         self.assertEqual(len(sample.boxes2d), 2)
         self.assertEqual(len(sample.instance_masks), 2)
+        # segmentation masks
+        crop.cfg.prob = 1.0
+        sample = generate_input_sample(
+            height, width, num_imgs, num_objs, det_input=False
+        )
+        results, params = crop(sample, None)
+        new_masks = sample.semantic_masks[0].masks
+        self.assertEqual(new_masks.shape[0], params["keep"][0].sum().item())
+        aug_cfg = RandomCropConfig(
+            type="test", shape=(2, 2), cat_max_ratio=0.2
+        )
+        crop = RandomCrop(aug_cfg)
+        sample = generate_input_sample(
+            height, width, num_imgs, 2, det_input=False
+        )
+        results, params = crop(sample, None)
+        new_masks = sample.semantic_masks[0].masks
+        self.assertEqual(new_masks.shape[0], params["keep"][0].sum().item())
+        self.assertEqual(new_masks.shape[1:], (2, 2))

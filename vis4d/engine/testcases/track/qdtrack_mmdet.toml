@@ -2,7 +2,7 @@
 path = "../configs/datasets/bdd100k/track.toml"
 
 [[config]]
-path = "../configs/models/mmdetection/qdtrack_R_50_FPN.toml"
+path = "../configs/models/mmdetection/qdtrack_R_18_FPN.toml"
 
 [model]
     [model.optimizer]

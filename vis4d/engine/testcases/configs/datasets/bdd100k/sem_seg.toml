@@ -23,6 +23,7 @@ num_processes = 0
     type = "RandomCrop"
     crop_type = "absolute"
     shape = [512, 1024]
+    cat_max_ratio = 0.75
 
     [[train.dataloader.transformations]]
     type = "KorniaAugmentationWrapper"

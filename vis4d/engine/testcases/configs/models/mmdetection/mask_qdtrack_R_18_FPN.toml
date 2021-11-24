@@ -15,11 +15,11 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
     [model.similarity]
     type = "QDSimilarityHead"
     in_dim = 64
-    num_convs = 2
-    conv_out_dim = 128
+    num_convs = 1
+    conv_out_dim = 64
     num_fcs = 1
-    fc_out_dim = 512
-    embedding_dim = 128
+    fc_out_dim = 64
+    embedding_dim = 64
     conv_has_bias = false
     norm = "GroupNorm"
     proposal_append_gt = true
@@ -45,7 +45,7 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
 
         [model.similarity.proposal_sampler]
         type = "CombinedSampler"
-        batch_size_per_image = 128
+        batch_size_per_image = 64
         positive_fraction = 0.5
         pos_strategy = "instance_balanced"
         neg_strategy = "iou_balanced"

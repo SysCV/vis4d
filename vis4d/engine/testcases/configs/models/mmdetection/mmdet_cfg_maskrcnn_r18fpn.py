@@ -24,8 +24,8 @@ model = dict(
         feat_channels=64,
         anchor_generator=dict(
             type="AnchorGenerator",
-            scales=[8],
-            ratios=[0.5, 1.0, 2.0],
+            scales=[4],
+            ratios=[0.5, 1.0],
             strides=[4, 8, 16, 32, 64],
         ),
         bbox_coder=dict(
@@ -44,12 +44,12 @@ model = dict(
             type="SingleRoIExtractor",
             roi_layer=dict(type="RoIAlign", output_size=7, sampling_ratio=0),
             out_channels=64,
-            featmap_strides=[4, 8, 16],
+            featmap_strides=[4, 8],
         ),
         bbox_head=dict(
             type="Shared2FCBBoxHead",
             in_channels=64,
-            fc_out_channels=128,
+            fc_out_channels=64,
             roi_feat_size=7,
             num_classes=8,
             bbox_coder=dict(
@@ -67,13 +67,13 @@ model = dict(
             type="SingleRoIExtractor",
             roi_layer=dict(type="RoIAlign", output_size=14, sampling_ratio=0),
             out_channels=64,
-            featmap_strides=[4, 8, 16],
+            featmap_strides=[4, 8],
         ),
         mask_head=dict(
             type="FCNMaskHead",
-            num_convs=2,
+            num_convs=1,
             in_channels=64,
-            conv_out_channels=128,
+            conv_out_channels=64,
             num_classes=8,
             loss_mask=dict(
                 type="CrossEntropyLoss", use_mask=True, loss_weight=1.0
@@ -93,7 +93,7 @@ model = dict(
             ),
             sampler=dict(
                 type="RandomSampler",
-                num=256,
+                num=64,
                 pos_fraction=0.5,
                 neg_pos_ub=-1,
                 add_gt_as_proposals=False,
@@ -103,8 +103,8 @@ model = dict(
             debug=False,
         ),
         rpn_proposal=dict(
-            nms_pre=1000,
-            max_per_img=500,
+            nms_pre=200,
+            max_per_img=100,
             nms=dict(type="nms", iou_threshold=0.7),
             min_bbox_size=0,
         ),
@@ -119,7 +119,7 @@ model = dict(
             ),
             sampler=dict(
                 type="RandomSampler",
-                num=256,
+                num=64,
                 pos_fraction=0.25,
                 neg_pos_ub=-1,
                 add_gt_as_proposals=True,
@@ -131,8 +131,8 @@ model = dict(
     ),
     test_cfg=dict(
         rpn=dict(
-            nms_pre=500,
-            max_per_img=500,
+            nms_pre=200,
+            max_per_img=100,
             nms=dict(type="nms", iou_threshold=0.7),
             min_bbox_size=0,
         ),

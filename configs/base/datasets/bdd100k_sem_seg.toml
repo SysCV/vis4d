@@ -26,6 +26,7 @@ cache_as_binary = true
     type = "RandomCrop"
     crop_type = "absolute"
     shape = [512, 1024]
+    cat_max_ratio = 0.75
 
     [[train.dataloader.transformations]]
     type = "KorniaAugmentationWrapper"
