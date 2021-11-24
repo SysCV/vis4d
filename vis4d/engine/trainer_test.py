@@ -18,22 +18,20 @@ from vis4d.unittest.utils import get_test_file
 class BaseEngineTests:
     """Base class for engine tests."""
 
-    class TestDetect(unittest.TestCase):
-        """Test cases for vis4d models."""
+    class TestBase(unittest.TestCase):
+        """Base test case for vis4d models."""
 
         cfg = None
         work_dir = None
         args = None
 
-        def test_predict(self) -> None:
-            """Testcase for predict."""
-            self.assertIsNotNone(self.cfg)
-            self.cfg.launch.action = "predict"
-            trainer_args = {}
-            if torch.cuda.is_available():
-                trainer_args["gpus"] = "0,"  # pragma: no cover
-            self.cfg.launch.visualize = True
-            predict(self.cfg, trainer_args)
+        @classmethod
+        def tearDownClass(cls) -> None:
+            """Clean up dataset registry, files."""
+            shutil.rmtree(cls.work_dir, ignore_errors=True)
+
+    class TestTrain(TestBase):
+        """Base test case for vis4d models."""
 
         def test_train(self) -> None:
             """Testcase for training."""
@@ -46,6 +44,9 @@ class BaseEngineTests:
             train(self.cfg, trainer_args)
             self.cfg.launch.seed = -1
 
+    class TestTest(TestBase):
+        """Base test case for vis4d models."""
+
         def test_testfunc(self) -> None:
             """Testcase for test function."""
             self.assertIsNotNone(self.cfg)
@@ -55,10 +56,18 @@ class BaseEngineTests:
                 trainer_args["gpus"] = "0,"  # pragma: no cover
             evaluate(self.cfg, trainer_args)
 
-        @classmethod
-        def tearDownClass(cls) -> None:
-            """Clean up dataset registry, files."""
-            shutil.rmtree(cls.work_dir, ignore_errors=True)
+    class TestDetect(TestTrain, TestTest):
+        """Test cases for vis4d models."""
+
+        def test_predict(self) -> None:
+            """Testcase for predict."""
+            self.assertIsNotNone(self.cfg)
+            self.cfg.launch.action = "predict"
+            trainer_args = {}
+            if torch.cuda.is_available():
+                trainer_args["gpus"] = "0,"  # pragma: no cover
+            self.cfg.launch.visualize = True
+            predict(self.cfg, trainer_args)
 
     class TestTrack(TestDetect):
         """Test cases for vis4d tracking."""
@@ -80,7 +89,7 @@ class BaseEngineTests:
             predict(self.cfg, trainer_args)
 
 
-class TestTrackD2(BaseEngineTests.TestTrack):
+class TestTrackD2(BaseEngineTests.TestTrain, BaseEngineTests.TestTest):
     """Detectron2 tracking test cases."""
 
     @classmethod
@@ -89,24 +98,6 @@ class TestTrackD2(BaseEngineTests.TestTrack):
         cls.work_dir = "./unittests/unittest_track_d2/"
         cls.args = Namespace(
             config=get_test_file("track/qdtrack_d2.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(cls.args)
-        if os.path.exists(
-            cls.cfg.train[0].annotations.rstrip("/") + ".pkl"
-        ):  # pragma: no cover
-            os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
-
-
-class TestTrackMM(BaseEngineTests.TestTrack):
-    """MMDetection tracking test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_track_mm/"
-        cls.args = Namespace(
-            config=get_test_file("track/qdtrack_mmdet.toml"),
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(cls.args)
@@ -134,18 +125,18 @@ class TestTrack3D(BaseEngineTests.TestTrack):
             os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
 
 
-class TestDetectD2(BaseEngineTests.TestDetect):
-    """Detectron2 detection test cases."""
+class TestDetectMM(BaseEngineTests.TestTest):
+    """MMDetection detection test cases."""
 
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
-        cls.work_dir = "./unittests/unittest_detect_d2/"
-        cls.args = Namespace(
-            config=get_test_file("detect/faster_rcnn_d2.toml"),
+        cls.work_dir = "./unittests/unittest_detect_mm/"
+        args = Namespace(
+            config=get_test_file("detect/faster_rcnn_mmdet.toml"),
             work_dir=cls.work_dir,
         )
-        cls.cfg = config.parse_config(cls.args)
+        cls.cfg = config.parse_config(args)
 
 
 class TestInsSegD2(BaseEngineTests.TestDetect):
@@ -162,7 +153,21 @@ class TestInsSegD2(BaseEngineTests.TestDetect):
         cls.cfg = config.parse_config(cls.args)
 
 
-class TestSegTrackMM(BaseEngineTests.TestTrack):
+class TestInsSegMM(BaseEngineTests.TestTrain):
+    """MMDetection instance segmentation test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_ins_seg_mm/"
+        args = Namespace(
+            config=get_test_file("detect/mask_rcnn_mmdet.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(args)
+
+
+class TestSegTrackMM(BaseEngineTests.TestTrain):
     """MMDetection segmentation tracking test cases."""
 
     @classmethod
@@ -176,7 +181,7 @@ class TestSegTrackMM(BaseEngineTests.TestTrack):
         cls.cfg = config.parse_config(args)
 
 
-class TestSemSegMM(BaseEngineTests.TestDetect):
+class TestSemSegMM(BaseEngineTests.TestTrain):
     """MMSegmenation semantic segmentation test cases."""
 
     @classmethod

@@ -18,7 +18,7 @@ cache_as_binary = true
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    shape = [720, 1280]
+    shape = [360, 640]
 
     [[train.dataloader.transformations]]
     type = "KorniaAugmentationWrapper"
@@ -41,7 +41,7 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    shape = [720, 1280]
+    shape = [360, 640]
 
     [[train.dataloader.transformations]]
     type = "KorniaAugmentationWrapper"
