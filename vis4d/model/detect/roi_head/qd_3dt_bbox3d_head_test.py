@@ -73,7 +73,7 @@ class TestQDTBBox3DHead(unittest.TestCase):
         detections = generate_dets(h, w, 1)
         features_list = generate_feature_list(c, h, w, list_len)
 
-        boxes_3d_pred = box3d_head(features_list, [detections])
+        boxes_3d_pred = box3d_head.get_predictions(features_list, [detections])
 
         self.assertTrue(len(boxes_3d_pred) == len(detections))
 
@@ -84,7 +84,7 @@ class TestQDTBBox3DHead(unittest.TestCase):
             [Frame(name="test")], Images(torch.rand(1, 3, 1, 1), [(1, 1)])
         )
 
-        boxes_3d_pred = box3d_head.forward_test(
+        boxes_3d_pred = box3d_head(
             inputs, [detections], {"test": torch.rand(1)}
         )
 

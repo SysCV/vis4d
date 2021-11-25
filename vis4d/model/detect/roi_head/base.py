@@ -26,8 +26,8 @@ class BaseRoIHeadConfig(BaseModel, extra="allow"):
 
 class BaseRoIHead(
     Vis4DModule[
-            Tuple[LossesType, Optional[SamplingResult]],
-            Sequence[TLabelInstance],
+        Tuple[LossesType, Optional[SamplingResult]],
+        Sequence[TLabelInstance],
     ]
 ):
     """Base RoI head class."""

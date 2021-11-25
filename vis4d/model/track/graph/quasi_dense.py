@@ -1,4 +1,5 @@
 """Quasi-dense embedding similarity based graph."""
+import copy
 from typing import Dict, List, Optional, Tuple, TypedDict, Union
 
 import torch
@@ -130,15 +131,17 @@ class QDTrackGraph(BaseTrackGraph):
 
     def remove_duplicates(
         self, detections: Boxes2D, embeddings: torch.Tensor
-    ) -> Tuple[Boxes2D, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[Boxes2D, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Remove overlapping objects across classes via nms."""
         # duplicate removal for potential backdrops and cross classes
-        _, inds = detections.boxes[:, -1].sort(descending=True)
+        scores = detections.score
+        assert scores is not None
+        scores, inds = scores.sort(descending=True)
         detections, embeddings = detections[inds], embeddings[inds]
         valids = embeddings.new_ones((len(detections),))
         ious = bbox_iou(detections, detections)
         for i in range(1, len(detections)):
-            if detections.boxes[i, -1] < self.cfg.obj_score_thr:
+            if scores[i] < self.cfg.obj_score_thr:
                 thr = self.cfg.nms_backdrop_iou_thr
             else:
                 thr = self.cfg.nms_class_iou_thr
@@ -148,7 +151,7 @@ class QDTrackGraph(BaseTrackGraph):
         valids = valids == 1
         detections = detections[valids, :]
         embeddings = embeddings[valids, :]
-        return detections, embeddings, valids
+        return detections, embeddings, valids, inds
 
     @property
     def empty(self) -> bool:
@@ -177,8 +180,8 @@ class QDTrackGraph(BaseTrackGraph):
             embeddings is not None
         ), "QDTrackGraph requires instance embeddings."
         assert len(inputs) == 1, "QDTrackGraph support only BS=1 inference."
-        detections = predictions.boxes2d[0]
-        embeddings = embeddings[0]
+        detections = predictions.boxes2d[0].clone()
+        embeddings = embeddings[0].clone()
         frame_id = inputs.metadata[0].frameIndex
         assert (
             frame_id is not None
@@ -188,7 +191,7 @@ class QDTrackGraph(BaseTrackGraph):
         if frame_id == 0:
             self.reset()
 
-        detections, embeddings, valids = self.remove_duplicates(
+        detections, embeddings, valids, permute_inds = self.remove_duplicates(
             detections, embeddings
         )
 
@@ -198,6 +201,8 @@ class QDTrackGraph(BaseTrackGraph):
         )
 
         # match if buffer is not empty
+        detections_scores = detections.score
+        assert detections_scores is not None
         if len(detections) > 0 and not self.empty:
             memo_dets, memo_embeds = self.get_tracks(
                 detections.device, add_backdrops=True
@@ -207,28 +212,26 @@ class QDTrackGraph(BaseTrackGraph):
             feats = torch.mm(embeddings, memo_embeds.t())
             d2t_scores = feats.softmax(dim=1)
             t2d_scores = feats.softmax(dim=0)
-            scores = (d2t_scores + t2d_scores) / 2
+            similarity_scores = (d2t_scores + t2d_scores) / 2
 
             if self.cfg.with_cats:
                 cat_same = detections.class_ids.view(
                     -1, 1
                 ) == memo_dets.class_ids.view(1, -1)
-                scores *= cat_same.float()
+                similarity_scores *= cat_same.float()
 
             for i in range(len(detections)):
-                conf, memo_ind = torch.max(scores[i, :], dim=0)
+                conf, memo_ind = torch.max(similarity_scores[i, :], dim=0)
                 cur_id = memo_dets.track_ids[memo_ind]
                 if conf > self.cfg.match_score_thr:
                     if cur_id > -1:
-                        if detections.boxes[i, -1] > self.cfg.obj_score_thr:
+                        if detections_scores[i] > self.cfg.obj_score_thr:
                             ids[i] = cur_id
-                            scores[:i, memo_ind] = 0
-                            scores[(i + 1) :, memo_ind] = 0
+                            similarity_scores[:i, memo_ind] = 0
+                            similarity_scores[(i + 1) :, memo_ind] = 0
                         elif conf > self.cfg.nms_conf_thr:  # pragma: no cover
                             ids[i] = -2
-        new_inds = (ids == -1) & (
-            detections.boxes[:, -1] > self.cfg.init_score_thr
-        )
+        new_inds = (ids == -1) & (detections_scores > self.cfg.init_score_thr)
         num_news = new_inds.sum()
         ids[new_inds] = torch.arange(
             self.num_tracks,
@@ -240,13 +243,14 @@ class QDTrackGraph(BaseTrackGraph):
 
         self.update(ids, detections, embeddings, frame_id)
 
-        valids[valids.clone()] = ids != -2  # remove backdrops
-        for pred in predictions.get_instance_labels():
-            if len(pred[0]) > 0:
-                pred[0] = pred[0][valids]  # type: ignore
-                pred[0].track_ids = ids[ids != -2]  # type: ignore
+        valids[valids.clone()] = ids > -1  # remove backdrops, low score
+        result = copy.deepcopy(predictions)
+        for pred in result.get_instance_labels():
+            if len(pred[0]) > 0:  # type: ignore
+                pred[0] = pred[0][permute_inds][valids]  # type: ignore
+                pred[0].track_ids = ids[ids > -1]  # type: ignore
 
-        return predictions
+        return result
 
     def update(
         self,

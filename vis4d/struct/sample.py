@@ -136,6 +136,7 @@ class LabelInstances(InputInstance):
 
         return new_instance
 
+
 class InputSample(DataInstance):
     """Container holding varying types of DataInstances and Frame metadata."""
 

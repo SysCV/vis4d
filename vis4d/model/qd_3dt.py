@@ -141,15 +141,21 @@ class QD3DT(QDTrack):
         boxes3d = Boxes3D.merge(boxes3d_list)
         embeddings = [torch.cat(embeddings_list)]
 
+        boxes_2d = boxes2d.to(torch.device("cpu")).to_scalabel(
+            self.cat_mapping
+        )
         # associate detections, update graph
         predictions = LabelInstances([boxes2d], [boxes3d])
         tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
 
-        boxes_2d = boxes2d.to(torch.device("cpu")).to_scalabel(
-            self.cat_mapping
+        tracks_2d = (
+            tracks.boxes2d[0]
+            .to(torch.device("cpu"))
+            .to_scalabel(self.cat_mapping)
         )
-        tracks_2d = tracks.boxes2d[0].to(torch.device("cpu")).to_scalabel(
-            self.cat_mapping
+        tracks_3d = (
+            tracks.boxes3d[0]
+            .to(torch.device("cpu"))
+            .to_scalabel(self.cat_mapping)
         )
-        tracks_3d = tracks.boxes3d[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
         return dict(detect=[boxes_2d], track=[tracks_2d], track_3d=[tracks_3d])

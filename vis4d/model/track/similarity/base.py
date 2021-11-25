@@ -19,8 +19,8 @@ class SimilarityLearningConfig(BaseModel, extra="allow"):
 
 class BaseSimilarityHead(
     Vis4DModule[
-            Tuple[LossesType, Optional[List[SamplingResult]]],
-            List[torch.Tensor],
+        Tuple[LossesType, Optional[List[SamplingResult]]],
+        List[torch.Tensor],
     ]
 ):
     """Base similarity learning head class."""
@@ -48,7 +48,10 @@ class BaseSimilarityHead(
         self,
         inputs: Union[List[InputSample], InputSample],
         boxes: Union[List[List[Boxes2D]], List[Boxes2D]],
-        features: Union[Optional[List[Dict[str, torch.Tensor]]], Optional[Dict[str, torch.Tensor]]] = None,
+        features: Union[
+            Optional[List[Dict[str, torch.Tensor]]],
+            Optional[Dict[str, torch.Tensor]],
+        ] = None,
         targets: Optional[List[LabelInstances]] = None,
     ) -> Union[
         Tuple[LossesType, Optional[List[SamplingResult]]], List[torch.Tensor]

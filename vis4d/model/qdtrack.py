@@ -145,10 +145,20 @@ class QDTrack(BaseModel):
             inputs.images.image_sizes[0],
             self.detector.cfg.clip_bboxes_to_image,
         )
+        detects = (
+            detections[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
+        )
+        outputs = dict(detect=[detects])
         if segmentations[0] is not None:
             segmentations[0].postprocess(
                 input_size, inputs.images.image_sizes[0], detections[0]
             )
+            segms = (
+                segmentations[0]
+                .to(torch.device("cpu"))
+                .to_scalabel(self.cat_mapping)
+            )
+            outputs["segment"] = [segms]
 
         # associate detections, update graph
         predictions = LabelInstances(
@@ -159,26 +169,18 @@ class QDTrack(BaseModel):
         )
         tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
 
-        detects = (
-            detections[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
-        )
         tracks_ = (
             tracks.boxes2d[0]
             .to(torch.device("cpu"))
             .to_scalabel(self.cat_mapping)
         )
-        outputs = dict(detect=[detects], track=[tracks_])
+        outputs["track"] = [tracks_]
 
         if segmentations[0] is not None:
-            segms = (
-                segmentations[0]
-                .to(torch.device("cpu"))
-                .to_scalabel(self.cat_mapping)
-            )
             segm_tracks = (
                 tracks.instance_masks[0]
                 .to(torch.device("cpu"))
                 .to_scalabel(self.cat_mapping)
             )
-            outputs.update(segment=[segms], seg_track=[segm_tracks])
+            outputs["seg_track"] = [segm_tracks]
         return outputs
