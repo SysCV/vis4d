@@ -191,8 +191,8 @@ def random_quaternions(
     Args:
         num: Number of quaternions in a batch to return.
         dtype: Type to return.
-        device: Desired device of returned tensor. Default:
-            uses the current device for the default tensor type.
+        device: Desired device of returned tensor.
+            Default: uses the current device for the default tensor type.
 
     Returns:
         Quaternions as tensor of shape (N, 4).
