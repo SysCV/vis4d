@@ -213,8 +213,8 @@ def random_rotations(
     Args:
         num: Number of rotation matrices in a batch to return.
         dtype: Type to return.
-        device: Device of returned tensor. Default: if None,
-            uses the current device for the default tensor type.
+        device: Desired device of returned tensor.
+            Default: uses the current device for the default tensor type.
 
     Returns:
         Rotation matrices as tensor of shape (n, 3, 3).
