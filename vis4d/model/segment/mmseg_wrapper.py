@@ -18,7 +18,13 @@ except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
 
-from vis4d.struct import InputSample, LossesType, ModelOutput, SemanticMasks
+from vis4d.struct import (
+    Images,
+    InputSample,
+    LossesType,
+    ModelOutput,
+    SemanticMasks,
+)
 
 from ..base import BaseModelConfig
 from ..detect.mmdet_utils import _parse_losses, get_img_metas
@@ -70,12 +76,16 @@ class MMEncDecSegmentor(BaseSegmentor):
         )
 
     def preprocess_inputs(self, inputs: List[InputSample]) -> InputSample:
-        """Batch, pad (standard stride=32) and normalize the input images."""
+        """Batch, pad, and normalize the input images and masks."""
+        if not self.training:
+            # no padding during inference to match MMSegmentation
+            Images.stride = 1
         batched_inputs = InputSample.cat(inputs, self.device)
         batched_inputs.images.tensor = (
             batched_inputs.images.tensor - self.pixel_mean
         ) / self.pixel_std
-        if self.training:
+        if self.training and len(batched_inputs.semantic_masks) > 1:
+            # pad masks to same size for batching
             batched_inputs.semantic_masks = SemanticMasks.pad(
                 batched_inputs.semantic_masks,
                 batched_inputs.images.tensor.shape[-2:][::-1],

@@ -36,7 +36,7 @@ cache_as_binary = true
     [[train.dataloader.transformations]]
     type = "KorniaColorJitter"
     kornia_type = "ColorJitter"
-    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
+    kwargs = {"brightness" = [0.875, 1.125], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5], "hue" = [-0.1, 0.1]}
 
 [[test]]
 name = "bdd100k_sem_seg_sample_val"
