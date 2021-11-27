@@ -25,5 +25,5 @@ line_length = 79
             '@validator',
 
             # Don't complain about overloads
-            '...',
+            '@overload',
         ]
