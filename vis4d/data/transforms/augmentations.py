@@ -373,7 +373,9 @@ class RandomCrop(BaseAugmentation):
                     crop_param = self._sample_crop(im_wh)
                     keep_mask = self._get_keep_mask(cur_sample, crop_param)
             elif self.cfg.cat_max_ratio != 1.0:
+                # resample if any category occupies more than cat_max_ratio
                 for _ in range(10):
+                    # try resampling 10 times, otherwise use last crop
                     if keep_mask.all():  # pragma: no cover
                         break
                     crop_param = self._sample_crop(im_wh)
