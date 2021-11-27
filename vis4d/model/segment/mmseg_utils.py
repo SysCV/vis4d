@@ -18,6 +18,7 @@ except (ImportError, NameError):  # pragma: no cover
 from vis4d.struct import InputSample, NDArrayUI8, SemanticMasks
 
 from ..base import BaseModelConfig
+from ..detect.mmdet_utils import MMDetMetaData
 
 MMResults = List[NDArrayUI8]
 
@@ -44,15 +45,18 @@ def segmentations_from_mmseg(
 
 
 def results_from_mmseg(
-    results: MMResults, device: torch.device
+    results: MMResults, img_metas: List[MMDetMetaData], device: torch.device
 ) -> List[SemanticMasks]:
     """Convert mmsegmentation seg_pred to Vis4D format."""
-    return [
-        SemanticMasks(
-            torch.tensor([result], device=device).byte()
-        ).to_nhw_mask()
-        for result in results
-    ]
+    masks = []
+    for result, img_meta in zip(results, img_metas):
+        ori_h, ori_w = img_meta["ori_shape"][:2]  # type: ignore
+        masks.append(
+            SemanticMasks(
+                torch.tensor([result[:ori_h, :ori_w]], device=device).byte()
+            ).to_nhw_mask()
+        )
+    return masks
 
 
 def targets_to_mmseg(targets: InputSample) -> torch.Tensor:

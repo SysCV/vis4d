@@ -1,9 +1,10 @@
 [[train]]
-name = "bdd100k_ins_seg_train"
+name = "bdd100k_seg_track_train"
 type = "BDD100K"
-annotations = "data/bdd100k/labels/ins_seg_train_rle.json"
-data_root = "data/bdd100k/images/hdf5s/10k_train.hdf5"
-config_path = "ins_seg"
+annotations = "data/bdd100k/labels/seg_track_20_rle/train/"
+data_root = "data/bdd100k/images/hdf5s/track_train.hdf5"
+config_path = "seg_track"
+num_processes = 0
 cache_as_binary = true
     [train.dataloader]
     fields_to_load = ["boxes2d", "instance_masks"]
@@ -14,8 +15,9 @@ cache_as_binary = true
 
     [train.dataloader.ref_sampling]
     type = 'uniform'
-    scope = 1
-    num_ref_imgs = 0
+    scope = 3
+    num_ref_imgs = 1
+    skip_nomatch_samples = true
 
     [[train.dataloader.transformations]]
     type = "Resize"
@@ -27,12 +29,14 @@ cache_as_binary = true
     prob = 0.5
 
 [[test]]
-name = "bdd100k_ins_seg_val"
+name = "bdd100k_seg_track_val"
 type = "BDD100K"
-annotations = "data/bdd100k/labels/ins_seg_val_rle.json"
-data_root = "data/bdd100k/images/hdf5s/10k_val.hdf5"
-eval_metrics = ["detect", "ins_seg"]
-config_path = "ins_seg"
+annotations = "data/bdd100k/labels/seg_track_20_rle/val/"
+data_root = "data/bdd100k/images/hdf5s/track_val.hdf5"
+eval_metrics = ["detect", "track", "ins_seg", "seg_track"]
+config_path = "seg_track"
+num_processes = 0
+validate_frames = true
 cache_as_binary = true
     [test.dataloader]
     fields_to_load = ["boxes2d", "instance_masks"]

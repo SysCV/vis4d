@@ -22,13 +22,15 @@ from .optimize import (
 
 
 class BaseModelConfig(PydanticBaseModel, extra="allow"):
-    """Config for default Vis4D tracker."""
+    """Config for default Vis4D model."""
 
     type: str = Field(...)
     category_mapping: Optional[Dict[str, int]] = None
     image_channel_mode: str = "RGB"
     optimizer: BaseOptimizerConfig = BaseOptimizerConfig()
     lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig()
+    freeze: bool = False
+    freeze_parameters: Optional[List[str]] = None
 
 
 class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
@@ -173,15 +175,47 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         """
         return self.forward_test(batch)
 
+    def on_train_start(self) -> None:
+        """Called at the beginning of training after sanity check."""
+        self.freeze_parameters()
 
-def build_model(cfg: BaseModelConfig, ckpt: Optional[str] = None) -> BaseModel:
+    def freeze_parameters(self) -> None:
+        """Freeze model parameters according to config."""
+        if not self.cfg.freeze:
+            return
+        if self.cfg.freeze_parameters is not None:
+            pnames, params = [], []
+            for freeze_param in self.cfg.freeze_parameters:
+                for name, param in self.named_parameters():
+                    if name.startswith(freeze_param) and name not in pnames:
+                        params.append(param)
+                        pnames.append(name)
+        else:  # pragma: no cover
+            params = self.parameters()
+        for param in params:
+            param.requires_grad = False
+
+    def unfreeze(self) -> None:  # pragma: no cover
+        """Unfreeze all parameters for training."""
+        for param in self.parameters():
+            param.requires_grad = True
+        self.freeze_parameters()
+
+        self.train()
+
+
+def build_model(
+    cfg: BaseModelConfig, ckpt: Optional[str] = None, strict: bool = True
+) -> BaseModel:
     """Build Vis4D model and optionally load weights from ckpt."""
     registry = ABCRegistryHolder.get_registry(BaseModel)
     if cfg.type in registry:
         if ckpt is None:
             module = registry[cfg.type](cfg)
         else:
-            module = registry[cfg.type].load_from_checkpoint(ckpt, cfg=cfg)  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+            module = registry[cfg.type].load_from_checkpoint(  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+                ckpt, strict=strict, cfg=cfg
+            )
         assert isinstance(module, BaseModel)
         return module
     raise NotImplementedError(f"Model {cfg.type} not found.")

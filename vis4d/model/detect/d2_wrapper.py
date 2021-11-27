@@ -110,8 +110,6 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             inputs, features, proposals
         )
         assert detections is not None
-        if segmentations is None:
-            segmentations = [None] * len(detections)  # type: ignore
 
         postprocess(
             inputs, detections, segmentations, self.cfg.clip_bboxes_to_image
@@ -120,6 +118,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             detect=[d.to_scalabel(self.cat_mapping) for d in detections]
         )
         if self.with_mask:
+            assert segmentations is not None
             outputs.update(
                 ins_seg=[
                     s.to_scalabel(self.cat_mapping) for s in segmentations

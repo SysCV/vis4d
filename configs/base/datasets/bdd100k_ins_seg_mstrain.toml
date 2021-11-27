@@ -19,7 +19,9 @@ cache_as_binary = true
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    shape = [720, 1280]
+    shape = [[600, 1280], [624, 1280], [648, 1280], [672, 1280], [696, 1280], [720, 1280]]
+    multiscale_mode = "list"
+    keep_ratio = true
 
     [[train.dataloader.transformations]]
     type = "KorniaAugmentationWrapper"
