@@ -51,7 +51,7 @@ class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
         **kwargs: Union[List[torch.Tensor], torch.Tensor],
     ) -> Union[LabelInstances, LossesType]:
         """Forward method. Decides between train / test logic."""
-        if targets is not None:
+        if targets is not None:  # pragma: no cover
             inputs = cast(List[InputSample], inputs)
             predictions = cast(List[LabelInstances], predictions)
             return self.forward_train(inputs, predictions, targets, **kwargs)

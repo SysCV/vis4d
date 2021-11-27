@@ -95,10 +95,10 @@ class QD3DT(QDTrack):
         """Compute qd-3dt output during inference."""
         assert len(batch_inputs[0]) == 1, "Currently only BS = 1 supported!"
 
-        # if there is more than one InputSample per batch element, we switch
-        # to multi-sensor mode: 1st elem is group, rest are sensor frames
+        # if there is more than one InputSample, we switch to multi-sensor:
+        # 1st elem is group, rest are sensor frames
         group = batch_inputs[0].to(self.device)
-        if len(batch_inputs[0]) > 1:
+        if len(batch_inputs) > 1:
             frames = InputSample.cat(batch_inputs[1:])
         else:
             frames = batch_inputs[0]
@@ -139,14 +139,14 @@ class QD3DT(QDTrack):
                 group.extrinsics.inverse() @ inputs[idx].extrinsics
             )
         boxes3d = Boxes3D.merge(boxes3d_list)
-        embeddings = [torch.cat(embeddings_list)]
+        embeds = [torch.cat(embeddings_list)]
 
         boxes_2d = boxes2d.to(torch.device("cpu")).to_scalabel(
             self.cat_mapping
         )
         # associate detections, update graph
         predictions = LabelInstances([boxes2d], [boxes3d])
-        tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
+        tracks = self.track_graph(inputs[0], predictions, embeddings=embeds)
 
         tracks_2d = (
             tracks.boxes2d[0]

@@ -65,7 +65,7 @@ class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
 
     def disable(self) -> None:
         """Disable progressbar."""
-        self.enable = False
+        self.enable = False  # pragma: no cover
 
     def on_train_epoch_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule

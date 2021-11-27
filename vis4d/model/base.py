@@ -43,7 +43,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
 
     def forward(  # type: ignore[override]
         self, batch_inputs: List[InputSample]
-    ) -> Union[LossesType, ModelOutput]:
+    ) -> Union[LossesType, ModelOutput]:  # pragma: no cover
         """Forward."""
         if self.training:
             return self.forward_train(batch_inputs)
