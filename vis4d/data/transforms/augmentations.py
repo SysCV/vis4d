@@ -322,12 +322,12 @@ class RandomCrop(BaseAugmentation):
         assert len(sample) == 1, "Please provide a single sample!"
         assert len(crop_param.shape) == 1, "Please provide single crop_param"
         crop_box = Boxes2D(crop_param.float().unsqueeze(0))
-        if len(sample.boxes2d[0]) > 0:
+        if len(sample.targets.boxes2d[0]) > 0:
             # will be better to compute mask intersection (if exists) instead
-            overlap = bbox_intersection(sample.boxes2d[0], crop_box)
+            overlap = bbox_intersection(sample.targets.boxes2d[0], crop_box)
             return overlap.squeeze(-1) > 0
         if self.cfg.cat_max_ratio != 1.0:
-            crop_masks = sample.semantic_masks[0].crop(crop_box)
+            crop_masks = sample.targets.semantic_masks[0].crop(crop_box)
             cls_ids, cnts = torch.unique(
                 crop_masks.to_hwc_mask(), return_counts=True
             )
@@ -336,8 +336,10 @@ class RandomCrop(BaseAugmentation):
                 len(cnts) > 1
                 and cnts.max() / cnts.sum() < self.cfg.cat_max_ratio
             )
-            return torch.tensor([keep_mask] * len(sample.semantic_masks[0]))
-        return torch.tensor([True] * len(sample.semantic_masks[0]))
+            return torch.tensor(
+                [keep_mask] * len(sample.targets.semantic_masks[0])
+            )
+        return torch.tensor([True] * len(sample.targets.semantic_masks[0]))
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
@@ -347,8 +349,8 @@ class RandomCrop(BaseAugmentation):
         keep_masks = []
         cur_sample: InputSample
         for i, cur_sample in enumerate(sample):
-            assert (len(cur_sample.semantic_masks[0]) > 0) != (
-                len(cur_sample.boxes2d[0]) > 0
+            assert (len(cur_sample.targets.semantic_masks[0]) > 0) != (
+                len(cur_sample.targets.boxes2d[0]) > 0
             ), (
                 "Currently RandomCrop for both boxes2d and semantic_masks is "
                 "not supported"
@@ -358,15 +360,15 @@ class RandomCrop(BaseAugmentation):
             if not parameters["apply"][i]:
                 crop_params.append(torch.tensor([0, 0, *im_wh]))
                 num_objs = max(
-                    len(cur_sample.boxes2d),
-                    len(cur_sample.semantic_masks),
+                    len(cur_sample.targets.boxes2d[0]),
+                    len(cur_sample.targets.semantic_masks[0]),
                 )
                 keep_masks.append(torch.tensor([True] * num_objs))
                 continue
 
             crop_param = self._sample_crop(im_wh)
             keep_mask = self._get_keep_mask(cur_sample, crop_param)
-            if len(cur_sample.boxes2d[0]) > 0:
+            if len(cur_sample.targets.boxes2d[0]) > 0:
                 while (
                     not self.cfg.allow_empty_crop and keep_mask.sum() == 0
                 ):  # pragma: no cover
@@ -381,7 +383,7 @@ class RandomCrop(BaseAugmentation):
                     crop_param = self._sample_crop(im_wh)
                     keep_mask = self._get_keep_mask(cur_sample, crop_param)
                 keep_mask = torch.tensor(
-                    [True] * len(cur_sample.semantic_masks[0])
+                    [True] * len(cur_sample.targets.semantic_masks[0])
                 )
             crop_params.append(crop_param)
             keep_masks.append(keep_mask)
@@ -470,11 +472,13 @@ class RandomCrop(BaseAugmentation):
         sample, parameters = super().__call__(sample, parameters)
         if self.cfg.recompute_boxes2d:
             for i in range(len(sample)):
-                assert len(sample.instance_masks[i]) == len(
-                    sample.boxes2d[i]
+                assert len(sample.targets.instance_masks[i]) == len(
+                    sample.targets.boxes2d[i]
                 ), (
                     "recompute_boxes2d activated but annotations do not "
                     "contain instance masks!"
                 )
-                sample.boxes2d[i] = sample.instance_masks[i].get_boxes2d()
+                sample.targets.boxes2d[i] = sample.targets.instance_masks[
+                    i
+                ].get_boxes2d()
         return sample, parameters

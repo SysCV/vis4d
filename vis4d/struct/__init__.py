@@ -8,7 +8,7 @@ from .labels import (
     SemanticMasks,
     TMasks,
 )
-from .sample import InputSample
+from .sample import InputSample, LabelInstances
 from .structures import (
     DataInstance,
     DictStrAny,
@@ -17,6 +17,7 @@ from .structures import (
     ModelOutput,
     NDArrayF64,
     NDArrayUI8,
+    TLabelInstance,
     TorchCheckpoint,
 )
 
@@ -39,4 +40,6 @@ __all__ = [
     "ModelOutput",
     "DictStrAny",
     "InputSample",
+    "LabelInstances",
+    "TLabelInstance",
 ]

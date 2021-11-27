@@ -57,6 +57,7 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         transforms = []
         for im in sample.images:
             im_size = im.image_sizes[0]
+
             _params = self.augmentor.generate_parameters(
                 (1, 3, *reversed(im_size))
             )

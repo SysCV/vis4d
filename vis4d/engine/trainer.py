@@ -12,7 +12,12 @@ from ..model import build_model
 from ..struct import DictStrAny
 from ..vis import ScalabelWriterCallback
 from .evaluator import ScalabelEvaluatorCallback
-from .utils import Vis4DProgressBar, setup_logging, split_args
+from .utils import (
+    Vis4DProgressBar,
+    Vis4DTQDMProgressBar,
+    setup_logging,
+    split_args,
+)
 
 
 def default_setup(
@@ -59,7 +64,10 @@ def default_setup(
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval="step")
 
     # add progress bar (train progress separate from validation)
-    progress_bar = Vis4DProgressBar()
+    if cfg.launch.tqdm:
+        progress_bar = Vis4DTQDMProgressBar()
+    else:
+        progress_bar = Vis4DProgressBar()
 
     # add Model checkpointer
     output_dir = osp.join(

@@ -1,14 +1,14 @@
 """Base class for Vis4D models."""
 import abc
 from collections.abc import Iterable
-from typing import Callable, Dict, List, Optional, Tuple, no_type_check
+from typing import Callable, Dict, List, Optional, Tuple, Union, no_type_check
 
 import pytorch_lightning as pl
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
 from torch.optim import Optimizer
 
-from ..common.registry import ABCRegistryHolder
+from ..common.registry import RegistryHolder
 from ..struct import InputSample, LossesType, ModelOutput
 from .optimize import (
     BaseLRScheduler,
@@ -33,7 +33,7 @@ class BaseModelConfig(PydanticBaseModel, extra="allow"):
     freeze_parameters: Optional[List[str]] = None
 
 
-class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
+class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
     """Base Vis4D model class."""
 
     def __init__(self, cfg: BaseModelConfig):
@@ -41,16 +41,22 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         super().__init__()
         self.cfg = cfg
 
+    def forward(  # type: ignore[override]
+        self, batch_inputs: List[InputSample]
+    ) -> Union[LossesType, ModelOutput]:  # pragma: no cover
+        """Forward."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)
+
     @abc.abstractmethod
-    def forward_train(
-        self,
-        batch_inputs: List[List[InputSample]],
-    ) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage.
 
         Args:
-            batch_inputs: Model input. Batched, including possible reference
-            views.
+            batch_inputs: List of batched model inputs. One InputSample
+            contains all batch elements of a single view. One view is either
+            the key frame or a reference frame.
 
         Returns:
             LossesType: A dict of scalar loss tensors.
@@ -58,10 +64,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward_test(
-        self,
-        batch_inputs: List[List[InputSample]],
-    ) -> ModelOutput:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Forward pass during testing stage.
 
         Args:
@@ -119,7 +122,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
                 lr_schedulers.step()
 
     def training_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[List[InputSample]], *args, **kwargs
+        self, batch: List[InputSample], *args, **kwargs
     ) -> LossesType:
         """Wrap training step of LightningModule. Add overall loss."""
         losses = self.forward_train(batch)
@@ -145,20 +148,20 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         return losses
 
     def test_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[List[InputSample]], *args, **kwargs
+        self, batch: List[InputSample], *args, **kwargs
     ) -> ModelOutput:
         """Wrap test step of LightningModule."""
         return self.forward_test(batch)
 
     def validation_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[List[InputSample]], *args, **kwargs
+        self, batch: List[InputSample], *args, **kwargs
     ) -> ModelOutput:
         """Wrap validation step of LightningModule."""
         return self.forward_test(batch)
 
     def predict_step(
         self,
-        batch: List[List[InputSample]],
+        batch: List[InputSample],
         batch_idx: int,
         dataloader_idx: Optional[int] = None,
     ) -> ModelOutput:
@@ -208,7 +211,7 @@ def build_model(
     cfg: BaseModelConfig, ckpt: Optional[str] = None, strict: bool = True
 ) -> BaseModel:
     """Build Vis4D model and optionally load weights from ckpt."""
-    registry = ABCRegistryHolder.get_registry(BaseModel)
+    registry = RegistryHolder.get_registry(BaseModel)
     if cfg.type in registry:
         if ckpt is None:
             module = registry[cfg.type](cfg)

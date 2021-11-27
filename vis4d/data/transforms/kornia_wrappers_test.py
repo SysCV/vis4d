@@ -62,18 +62,20 @@ class TestKorniaAugmentation(unittest.TestCase):
         num_imgs, num_objs, height, width = 1, 10, 5, 5
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         pre_intrs = copy.deepcopy(sample.intrinsics.tensor)
-        pre_boxes = copy.deepcopy(sample.boxes2d[0].boxes)
-        pre_masks = copy.deepcopy(sample.instance_masks[0].masks)
+        pre_boxes = copy.deepcopy(sample.targets.boxes2d[0].boxes)
+        pre_masks = copy.deepcopy(sample.targets.instance_masks[0].masks)
         results, _ = kor_aug(sample, None)
         self.assertEqual(sample, results)
-        self.assertEqual(tuple(results.boxes2d[0].boxes.shape), (num_objs, 5))
         self.assertEqual(
-            tuple(results.instance_masks[0].masks.shape),
+            tuple(results.targets.boxes2d[0].boxes.shape), (num_objs, 5)
+        )
+        self.assertEqual(
+            tuple(results.targets.instance_masks[0].masks.shape),
             (num_objs, width, height),
         )
         new_intrs = sample.intrinsics.tensor
-        new_boxes = sample.boxes2d[0].boxes
-        new_masks = sample.instance_masks[0].masks
+        new_boxes = sample.targets.boxes2d[0].boxes
+        new_masks = sample.targets.instance_masks[0].masks
         self.assertEqual(pre_boxes.shape, new_boxes.shape)
         self.assertEqual(pre_masks.shape, new_masks.shape)
         self.assertFalse((pre_intrs == new_intrs).all())
@@ -86,5 +88,5 @@ class TestKorniaAugmentation(unittest.TestCase):
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         results, _ = kor_aug(sample, None)
         self.assertEqual(len(sample.images.tensor), num_imgs)
-        self.assertEqual(len(sample.boxes2d), num_imgs)
-        self.assertEqual(len(sample.instance_masks), num_imgs)
+        self.assertEqual(len(sample.targets.boxes2d), num_imgs)
+        self.assertEqual(len(sample.targets.instance_masks), num_imgs)

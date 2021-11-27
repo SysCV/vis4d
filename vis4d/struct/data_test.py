@@ -48,12 +48,9 @@ class TestDataStructures(unittest.TestCase):
         attributes = [
             "metadata",
             "images",
-            "boxes2d",
-            "boxes3d",
-            "instance_masks",
-            "semantic_masks",
             "intrinsics",
             "extrinsics",
+            "targets",
         ]
         sample = InputSample([Frame(name="f1")], self.im2)
         meta = sample.get("metadata")[0]

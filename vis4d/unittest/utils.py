@@ -14,6 +14,7 @@ from vis4d.struct import (
     InputSample,
     InstanceMasks,
     Intrinsics,
+    LabelInstances,
     SemanticMasks,
 )
 
@@ -147,15 +148,18 @@ def generate_input_sample(
         [Intrinsics(torch.eye(3)) for _ in range(num_imgs)]
     )
     if det_input:
-        sample.boxes2d = [
-            generate_dets(height, width, num_objs, track_ids)
-        ] * num_imgs
-        sample.instance_masks = [
-            generate_instance_masks(height, width, num_objs, track_ids)
-        ] * num_imgs
+        sample.targets = LabelInstances(
+            boxes2d=[generate_dets(height, width, num_objs, track_ids)]
+            * num_imgs,
+            instance_masks=[
+                generate_instance_masks(height, width, num_objs, track_ids)
+            ]
+            * num_imgs,
+        )
     else:
-        sample.semantic_masks = [
-            generate_semantic_masks(height, width, num_objs)
-        ] * num_imgs
+        sample.targets = LabelInstances(
+            semantic_masks=[generate_semantic_masks(height, width, num_objs)]
+            * num_imgs
+        )
     torch.random.set_rng_state(state)
     return sample

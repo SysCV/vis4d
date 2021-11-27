@@ -26,7 +26,7 @@ class BaseDetector(BaseModel, metaclass=RegistryHolder):
         self.cfg: BaseDetectorConfig = BaseDetectorConfig(**cfg.dict())
 
     @abc.abstractmethod
-    def preprocess_inputs(self, inputs: List[InputSample]) -> InputSample:
+    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
         """Normalize, pad and batch input images. Preprocess other inputs."""
         raise NotImplementedError
 

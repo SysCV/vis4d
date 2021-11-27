@@ -193,3 +193,4 @@ class TestSemSegMM(BaseEngineTests.TestTrain):
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)
+        cls.cfg.launch.tqdm = True

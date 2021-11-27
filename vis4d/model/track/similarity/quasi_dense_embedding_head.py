@@ -15,7 +15,7 @@ from vis4d.common.bbox.samplers import (
 )
 from vis4d.common.layers import add_conv_branch
 from vis4d.model.losses import BaseLoss, LossConfig, build_loss
-from vis4d.struct import Boxes2D, InputSample, LossesType
+from vis4d.struct import Boxes2D, InputSample, LabelInstances, LossesType
 
 from ..utils import cosine_similarity
 from .base import BaseSimilarityHead, SimilarityLearningConfig
@@ -107,7 +107,7 @@ class QDSimilarityHead(BaseSimilarityHead):
             last_layer_dim = self.cfg.fc_out_dim
         return convs, fcs, last_layer_dim
 
-    def forward(
+    def _head_forward(
         self, features: Dict[str, torch.Tensor], boxes: List[Boxes2D]
     ) -> List[torch.Tensor]:
         """Similarity head forward pass."""
@@ -133,30 +133,33 @@ class QDSimilarityHead(BaseSimilarityHead):
     def forward_train(
         self,
         inputs: List[InputSample],
-        features: List[Dict[str, torch.Tensor]],
         boxes: List[List[Boxes2D]],
+        features: Optional[List[Dict[str, torch.Tensor]]],
+        targets: List[LabelInstances],
     ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
 
         Args:
             inputs: InputSamples (images, metadata, etc). Batched, including
                 possible reference views. The keyframe is at index 0.
+            boxes: Detected boxes to apply similarity learning on.
             features: Input feature maps. Batched, including possible
                 reference views. The keyframe is at index 0.
-            boxes: Detected boxes to apply similarity learning on.
+            targets: Corresponding targets to each InputSample.
 
         Returns:
             LossesType: A dict of scalar loss tensors.
             Optional[List[SamplingResult]]: Sampling results. Key first, then
                 reference views.
         """
+        assert features is not None, "QDSimilarityHead requires features!"
         sampling_results, sampled_boxes, sampled_targets = [], [], []
-        for i, (box, inp) in enumerate(zip(boxes, inputs)):
+        for i, (box, tgt) in enumerate(zip(boxes, targets)):
             sampling_result = match_and_sample_proposals(
                 self.matcher,
                 self.sampler,
                 box,
-                inp.boxes2d,
+                tgt.boxes2d,
                 self.cfg.proposal_append_gt,
             )
             sampling_results.append(sampling_result)
@@ -176,7 +179,7 @@ class QDSimilarityHead(BaseSimilarityHead):
 
         embeddings = []
         for feat, box in zip(features, sampled_boxes):
-            embeddings.append(self.forward(feat, box))
+            embeddings.append(self._head_forward(feat, box))
 
         track_losses = self.loss(
             embeddings[0],
@@ -189,21 +192,22 @@ class QDSimilarityHead(BaseSimilarityHead):
     def forward_test(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
         boxes: List[Boxes2D],
+        features: Optional[Dict[str, torch.Tensor]],
     ) -> List[torch.Tensor]:
         """Forward pass during testing stage.
 
         Args:
             inputs: InputSamples (images, metadata, etc). Batched.
-            features: Input feature maps. Batched.
             boxes: Input boxes to compute similarity embedding for.
+            features: Input feature maps. Batched.
 
         Returns:
             List[torch.Tensor]: Similarity embeddings (one vector per box, one
             tensor per batch element).
         """
-        return self.forward(features, boxes)
+        assert features is not None, "QDSimilarityHead requires features!"
+        return self._head_forward(features, boxes)
 
     @staticmethod
     def get_targets(

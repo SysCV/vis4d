@@ -44,6 +44,7 @@ class Launch(BaseModel):
     training.
     wandb: Use weights and biases logging instead of tensorboard (default).
     strict: Whether to enforce keys in weights to be consistent with model's.
+    tqdm: Activate tqdm based terminal logging behavior.
     """
 
     action: str = ""
@@ -67,6 +68,7 @@ class Launch(BaseModel):
     pin_memory: bool = False
     wandb: bool = False
     not_strict: bool = False
+    tqdm: bool = False
 
     @validator("version", always=True)
     def validate_version(  # pylint: disable=no-self-argument,no-self-use

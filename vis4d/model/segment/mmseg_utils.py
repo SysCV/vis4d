@@ -15,7 +15,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMCV_INSTALLED = False
 
 
-from vis4d.struct import InputSample, NDArrayUI8, SemanticMasks
+from vis4d.struct import LabelInstances, NDArrayUI8, SemanticMasks
 
 from ..base import BaseModelConfig
 from ..detect.mmdet_utils import MMDetMetaData
@@ -59,7 +59,7 @@ def results_from_mmseg(
     return masks
 
 
-def targets_to_mmseg(targets: InputSample) -> torch.Tensor:
+def targets_to_mmseg(targets: LabelInstances) -> torch.Tensor:
     """Convert Vis4D targets to mmsegmentation compatible format."""
     return torch.stack(
         [t.to_hwc_mask() for t in targets.semantic_masks]

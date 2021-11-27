@@ -21,6 +21,6 @@ workers_per_gpu = 4
 
 [trainer]
 max_epochs = 12
-log_every_n_steps = 50
+flush_logs_every_n_steps = 50
 check_val_every_n_epoch = 2
 num_sanity_val_steps = 2

@@ -1,4 +1,5 @@
 """Vis4D engine utils."""
+import datetime
 import inspect
 import itertools
 import json
@@ -8,12 +9,13 @@ import sys
 import warnings
 from argparse import Namespace
 from os import path as osp
-from typing import Dict, List, Optional, Tuple, no_type_check
+from typing import Dict, List, Optional, Tuple
 
 import pytorch_lightning as pl
+import torch
 import yaml
 from devtools import debug
-from pytorch_lightning.callbacks.progress import reset
+from pytorch_lightning.callbacks.progress.tqdm_progress import reset
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
     rank_zero_only,
@@ -28,16 +30,17 @@ from ..common.utils.distributed import (
 )
 
 # ignore DeprecationWarning by default (e.g. numpy)
+from ..common.utils.time import Timer
 from ..config import Config
-from ..struct import DictStrAny
+from ..struct import DictStrAny, InputSample, LossesType, ModelOutput
 
+logger = logging.getLogger("pytorch_lightning")
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
-class Vis4DProgressBar(pl.callbacks.ProgressBar):
-    """ProgressBar keeping training and validation progress separate."""
+class Vis4DTQDMProgressBar(pl.callbacks.TQDMProgressBar):  # type: ignore
+    """TQDMProgressBar keeping training and validation progress separate."""
 
-    @no_type_check
     def on_train_epoch_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
@@ -47,6 +50,201 @@ class Vis4DProgressBar(pl.callbacks.ProgressBar):
         self.main_progress_bar.set_description(
             f"Epoch {trainer.current_epoch + 1}"
         )
+
+
+class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
+    """ProgressBar with separate printout per log step."""
+
+    def __init__(self, refresh_rate: int = 50) -> None:
+        """Init."""
+        super().__init__()
+        self._refresh_rate = refresh_rate
+        self.enable = True
+        self.timer = Timer()
+        self._metrics_history: List[DictStrAny] = []
+
+    def disable(self) -> None:
+        """Disable progressbar."""
+        self.enable = False  # pragma: no cover
+
+    def on_train_epoch_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Reset timer on start of epoch."""
+        super().on_train_epoch_start(trainer, pl_module)
+        self.timer.reset()
+        self._metrics_history = []
+
+    def on_predict_epoch_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Reset timer on start of epoch."""
+        super().on_train_epoch_start(trainer, pl_module)
+        self.timer.reset()
+        self._metrics_history = []
+
+    def on_validation_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Reset timer on start of validation."""
+        super().on_train_epoch_start(trainer, pl_module)
+        self.timer.reset()
+        self._metrics_history = []
+
+    def on_test_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Reset timer on start of test."""
+        super().on_train_epoch_start(trainer, pl_module)
+        self.timer.reset()
+        self._metrics_history = []
+
+    def _get_metrics(self) -> DictStrAny:
+        """Get current running avg of metrics and clean history."""
+        acc_metrics = {}
+        for k, v in self._metrics_history[-1].items():
+            if isinstance(v, (torch.Tensor, float, int)):
+                acc_value = 0.0
+                for hist_dict in self._metrics_history:
+                    acc_value += hist_dict[k]
+                acc_value /= len(self._metrics_history)
+                acc_metrics[k] = acc_value
+            elif isinstance(v, str) and not v == "nan":
+                acc_metrics[k] = v
+        self._metrics_history = []
+        return acc_metrics
+
+    def _compose_log_str(
+        self,
+        prefix: str,
+        batch_idx: int,
+        total_batches: int,
+    ) -> str:
+        """Compose log str from given information."""
+        time_sec_tot = self.timer.time()
+        time_sec_avg = time_sec_tot / (batch_idx + 1)
+        eta_sec = time_sec_avg * (self.total_train_batches - (batch_idx + 1))
+        if not eta_sec == float("inf"):
+            eta_str = str(datetime.timedelta(seconds=int(eta_sec)))
+        else:
+            eta_str = "---"
+
+        metrics_list = []
+        for k, v in self._get_metrics().items():
+            if isinstance(v, (torch.Tensor, float)):
+                kv_str = f"{k}: {v:.3f}"
+            else:
+                kv_str = f"{k}: {v}"
+            metrics_list.append(kv_str)
+        metr_str = ", ".join(metrics_list)
+        time_str = (
+            f"ETA: {eta_str}, " + f"{time_sec_avg:.2f}s/it"
+            if time_sec_avg > 1
+            else f"{1/time_sec_avg:.2f}it/s"
+        )
+        logging_str = (
+            f"{prefix}: {batch_idx}/{total_batches}, {time_str}, {metr_str}"
+        )
+        return logging_str
+
+    def on_train_batch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: LossesType,
+        batch: List[InputSample],
+        batch_idx: int,
+    ) -> None:
+        """Train phase logging."""
+        super().on_train_batch_end(
+            trainer, pl_module, outputs, batch, batch_idx
+        )
+        metrics = self.get_metrics(trainer, pl_module)
+        self._metrics_history.append(metrics)
+
+        if batch_idx % self._refresh_rate == 0 and self.enable:
+            logger.info(
+                self._compose_log_str(
+                    f"Epoch {trainer.current_epoch + 1}",
+                    batch_idx,
+                    self.total_train_batches,
+                )
+            )
+
+    def on_validation_batch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: ModelOutput,
+        batch: List[InputSample],
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        """Validation phase logging."""
+        super().on_validation_batch_end(
+            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+        )
+        metrics = self.get_metrics(trainer, pl_module)
+        self._metrics_history.append(metrics)
+
+        if batch_idx % self._refresh_rate == 0 and self.enable:
+            logger.info(
+                self._compose_log_str(
+                    "Validating",
+                    batch_idx,
+                    self.total_val_batches,
+                )
+            )
+
+    def on_test_batch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: ModelOutput,
+        batch: List[InputSample],
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        """Test phase logging."""
+        super().on_test_batch_end(
+            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+        )
+        metrics = self.get_metrics(trainer, pl_module)
+        self._metrics_history.append(metrics)
+
+        if batch_idx % self._refresh_rate == 0 and self.enable:
+            logger.info(
+                self._compose_log_str(
+                    "Testing",
+                    batch_idx,
+                    self.total_test_batches,
+                )
+            )
+
+    def on_predict_batch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: ModelOutput,
+        batch: List[InputSample],
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        """Predict phase logging."""
+        super().on_predict_batch_end(
+            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+        )
+        metrics = self.get_metrics(trainer, pl_module)
+        self._metrics_history.append(metrics)
+
+        if batch_idx % self._refresh_rate == 0 and self.enable:
+            logger.info(
+                self._compose_log_str(
+                    "Predicting",
+                    batch_idx,
+                    self.total_predict_batches,
+                )
+            )
 
 
 class _ColorFormatter(logging.Formatter):
@@ -72,7 +270,6 @@ def setup_logger(
     """Configure logging for Vis4D using the pytorch lightning logger."""
     # get PL logger, remove handlers to re-define behavior
     # https://pytorch-lightning.readthedocs.io/en/stable/extensions/logging.html#configure-console-logging
-    logger = logging.getLogger("pytorch_lightning")
     for h in logger.handlers:
         logger.removeHandler(h)
 
@@ -103,7 +300,7 @@ def setup_logger(
         logger.addHandler(fh)
 
 
-@rank_zero_only  # type: ignore
+@rank_zero_only
 def setup_logging(
     output_dir: str, trainer_args: DictStrAny, cfg: Config
 ) -> None:

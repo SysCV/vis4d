@@ -137,9 +137,14 @@ class Vis4DDataModule(pl.LightningDataModule):
         batch: List[List[InputSample]],
         device: torch.device,
         dataloader_idx: int,
-    ) -> List[List[InputSample]]:
-        """Dummy to_device function."""
-        return batch
+    ) -> List[InputSample]:
+        """Put input in correct format for model, move to device."""
+        # group by ref views by sequence: NxM --> MxN, where M=num_refs, N=BS
+        batch = [
+            [batch[j][i] for j in range(len(batch))]
+            for i in range(len(batch[0]))
+        ]
+        return [InputSample.cat(elem, device) for elem in batch]
 
     def _build_inference_dataloaders(
         self, datasets: List[ScalabelDataset]
