@@ -8,7 +8,7 @@ from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
 from torch.optim import Optimizer
 
-from ..common.registry import ABCRegistryHolder
+from ..common.registry import RegistryHolder
 from ..struct import InputSample, LossesType, ModelOutput
 from .optimize import (
     BaseLRScheduler,
@@ -31,7 +31,7 @@ class BaseModelConfig(PydanticBaseModel, extra="allow"):
     lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig()
 
 
-class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
+class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
     """Base VisT model class."""
 
     def __init__(self, cfg: BaseModelConfig):
@@ -179,7 +179,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
 
 def build_model(cfg: BaseModelConfig, ckpt: Optional[str] = None) -> BaseModel:
     """Build Vis4D model and optionally load weights from ckpt."""
-    registry = ABCRegistryHolder.get_registry(BaseModel)
+    registry = RegistryHolder.get_registry(BaseModel)
     if cfg.type in registry:
         if ckpt is None:
             module = registry[cfg.type](cfg)
