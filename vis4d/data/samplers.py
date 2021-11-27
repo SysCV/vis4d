@@ -2,9 +2,31 @@
 from typing import Generator, Optional
 
 import numpy as np
+from torch.utils.data import Sampler
 from torch.utils.data.distributed import DistributedSampler
 
 from .dataset import ScalabelDataset
+
+
+class RoundRobinSampler(Sampler[int]):
+    r"""Samples elements randomly from a given list of indices, without replacement.
+
+    Args:
+        indices (sequence): a sequence of indices
+        generator (Generator): Generator used in sampling.
+    """
+    indices: Sequence[int]
+
+    def __init__(self, indices: Sequence[int], generator=None) -> None:
+        self.indices = indices
+        self.generator = generator
+
+    def __iter__(self) -> Iterator[int]:
+        for i in torch.randperm(len(self.indices), generator=self.generator):
+            yield self.indices[i]
+
+    def __len__(self) -> int:
+        return len(self.indices)
 
 
 # no coverage for this class, since we don't unittest distributed setting
