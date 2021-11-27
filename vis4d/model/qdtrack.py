@@ -1,6 +1,5 @@
 """Quasi-dense instance similarity learning model."""
-
-from typing import List, Tuple
+from typing import List
 
 import torch
 
@@ -10,6 +9,7 @@ from .base import BaseModel, BaseModelConfig, build_model
 from .detect import BaseTwoStageDetector
 from .track.graph import TrackGraphConfig, build_track_graph
 from .track.similarity import SimilarityLearningConfig, build_similarity_head
+from .track.utils import split_key_ref_inputs
 
 
 class QDTrackConfig(BaseModelConfig):
@@ -37,29 +37,21 @@ class QDTrack(BaseModel):
         self.with_mask = self.detector.with_mask
 
     def preprocess_inputs(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> Tuple[InputSample, List[InputSample]]:
+        self, batch_inputs: List[InputSample]
+    ) -> List[InputSample]:
         """Prepare images from key / ref input samples."""
         inputs_batch = [
             self.detector.preprocess_inputs(inp) for inp in batch_inputs
         ]
-        key_ind = 0
-        for i, s in enumerate(inputs_batch):
-            if s.metadata[0].attributes is not None and s.metadata[
-                0
-            ].attributes.get("keyframe", False):
-                key_ind = i
-
-        key_input = inputs_batch.pop(key_ind)
-        return key_input, inputs_batch
+        return inputs_batch
 
     def forward_train(
         self,
         batch_inputs: List[InputSample],
     ) -> LossesType:
         """Forward function for training."""
-        key_inputs, ref_inputs = self.preprocess_inputs(batch_inputs)
+        batch_inputs = self.preprocess_inputs(batch_inputs)
+        key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
         key_targets, ref_targets = key_inputs.targets, [
             x.targets for x in ref_inputs
         ]

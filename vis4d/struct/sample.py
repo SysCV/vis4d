@@ -92,9 +92,7 @@ class LabelInstances(InputInstance):
                 + len(self.instance_masks[i])
                 + len(self.semantic_masks[i])
             )
-        if annotation_sum == 0:
-            return True
-        return False
+        return annotation_sum == 0
 
     def get_instance_labels(
         self,

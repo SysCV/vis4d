@@ -1,6 +1,25 @@
 """Tracking model utils."""
+from typing import List, Tuple
+
 import torch
 from torch.nn import functional as F
+
+from vis4d.struct import InputSample
+
+
+def split_key_ref_inputs(
+    inputs: List[InputSample],
+) -> Tuple[InputSample, List[InputSample]]:
+    """Split key / ref frame inputs from List of InputSample."""
+    key_ind = 0
+    for i, s in enumerate(inputs):
+        if s.metadata[0].attributes is not None and s.metadata[
+            0
+        ].attributes.get("keyframe", False):
+            key_ind = i
+
+    key_input = inputs.pop(key_ind)
+    return key_input, inputs
 
 
 def cosine_similarity(

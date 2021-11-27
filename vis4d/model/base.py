@@ -34,7 +34,7 @@ class BaseModelConfig(PydanticBaseModel, extra="allow"):
 
 
 class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
-    """Base VisT model class."""
+    """Base Vis4D model class."""
 
     def __init__(self, cfg: BaseModelConfig):
         """Init."""
