@@ -146,24 +146,21 @@ def segmentation_from_mmdet_results(
 
 def results_from_mmdet(
     results: MMResults, device: torch.device, with_mask: bool
-) -> Tuple[List[Boxes2D], List[InstanceMasks]]:
+) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
     """Convert mmdetection bbox_results and segm_results to Vis4D format."""
     results_boxes2d, results_masks = [], []
     for result in results:
+        detection = result
         if with_mask:
             detection, segmentation = result
-        else:
-            detection = result
-        box2d = detection_from_mmdet_results(detection, device)
+        box2d = detection_from_mmdet_results(detection, device)  # type: ignore
         results_boxes2d.append(box2d)
         if with_mask:
             bitmask = segmentation_from_mmdet_results(
                 segmentation, box2d, device
             )
             results_masks.append(bitmask)
-        else:
-            results_masks.append(None)  # type: ignore
-    return results_boxes2d, results_masks
+    return results_boxes2d, results_masks if len(results_masks) > 0 else None
 
 
 def masks_to_mmdet_masks(masks: Sequence[InstanceMasks]) -> BitmapMasks:

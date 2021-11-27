@@ -7,7 +7,7 @@ import torch
 from PIL import Image
 
 from vis4d.struct import Intrinsics
-from vis4d.unittest.utils import generate_dets, generate_masks
+from vis4d.unittest.utils import generate_dets, generate_instance_masks
 
 from .utils import (
     box3d_to_corners,
@@ -86,7 +86,7 @@ class TestUtils(unittest.TestCase):
 
     def test_preprocess_masks(self) -> None:
         """Test preprocess_masks method."""
-        masks = [generate_masks(128, 128, 10, track_ids=True)]
+        masks = [generate_instance_masks(128, 128, 10, track_ids=True)]
         masks[0].track_ids = masks[0].track_ids.unsqueeze(-1)
 
         # with score

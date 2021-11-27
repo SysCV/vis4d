@@ -463,8 +463,10 @@ class ScalabelDataset(Dataset):  # type: ignore
                         labels_used, category_dict, instance_id_dict
                     )
                     if (
-                        len(boxes2d) == 0
-                        and len(sample.targets.instance_masks[0]) > 0
+                        len(sample.targets.instance_masks[0]) > 0
+                        and len(boxes2d) == 0
+                        or len(boxes2d)
+                        != len(sample.targets.instance_masks[0])
                     ):  # pragma: no cover
                         boxes2d = sample.targets.instance_masks[
                             0

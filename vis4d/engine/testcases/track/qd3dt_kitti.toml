@@ -2,7 +2,7 @@
 path = "../configs/datasets/kitti/track.toml"
 
 [[config]]
-path = "../configs/models/mmdetection/qd3dt_R_50_FPN.toml"
+path = "../configs/models/mmdetection/qd3dt_R_18_FPN.toml"
 
 [model]
 category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
@@ -21,3 +21,4 @@ workers_per_gpu = 0
 
 [trainer]
 max_steps = 1
+check_val_every_n_epoch = 10

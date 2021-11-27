@@ -126,7 +126,9 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Training function."""
     trainer = default_setup(cfg, trainer_args)
     model = build_model(
-        cfg.model, cfg.launch.weights if not cfg.launch.resume else None
+        cfg.model,
+        cfg.launch.weights if not cfg.launch.resume else None,
+        not cfg.launch.not_strict,
     )
 
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(

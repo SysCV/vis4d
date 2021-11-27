@@ -74,6 +74,12 @@ class MMEncDecSegmentor(BaseSegmentor):
         inputs.images.tensor = (
             inputs.images.tensor - self.pixel_mean
         ) / self.pixel_std
+        if self.training and len(inputs.targets.semantic_masks) > 1:
+            # pad masks to same size for batching
+            inputs.targets.semantic_masks = SemanticMasks.pad(
+                inputs.targets.semantic_masks,
+                inputs.images.tensor.shape[-2:][::-1],
+            )
         return inputs
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
@@ -99,8 +105,10 @@ class MMEncDecSegmentor(BaseSegmentor):
         ), "No reference views allowed in MMEncDecSegmentor testing!"
         inputs = self.preprocess_inputs(batch_inputs[0])
         image_metas = get_img_metas(inputs.images)
-        outs = self.mm_segmentor.simple_test(inputs.images.tensor, image_metas)
-        segmentations = results_from_mmseg(outs, self.device)
+        outs = self.mm_segmentor.simple_test(
+            inputs.images.tensor, image_metas, rescale=False
+        )
+        segmentations = results_from_mmseg(outs, image_metas, self.device)
         assert segmentations is not None
 
         return dict(
