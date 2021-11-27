@@ -125,8 +125,8 @@ class LabelInstances(InputInstance):
         new_instance = instances[0].to(device)
         if len(instances) == 1:
             return new_instance
-        for inst in instances:
-            inst = inst.to(device)
+        for i in range(1, len(instances)):
+            inst = instances[i].to(device)
             new_instance.boxes2d.extend(inst.boxes2d)
             new_instance.boxes3d.extend(inst.boxes3d)
             new_instance.instance_masks.extend(inst.instance_masks)
