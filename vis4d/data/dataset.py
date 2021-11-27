@@ -462,9 +462,8 @@ class ScalabelDataset(Dataset):  # type: ignore
                     boxes2d = Boxes2D.from_scalabel(
                         labels_used, category_dict, instance_id_dict
                     )
-                    if (
-                        len(sample.targets.instance_masks[0]) > 0
-                        and len(boxes2d) == 0
+                    if len(sample.targets.instance_masks[0]) > 0 and (
+                        len(boxes2d) == 0
                         or len(boxes2d)
                         != len(sample.targets.instance_masks[0])
                     ):  # pragma: no cover
