@@ -1,10 +1,99 @@
-"""Vis4D data Samplers."""
-from typing import Generator, Optional
+"""Vis4D data samplers."""
+from typing import Generator, Iterator, List, Optional
 
 import numpy as np
+import torch
+from torch.utils.data import BatchSampler, RandomSampler, Sampler
 from torch.utils.data.distributed import DistributedSampler
 
+from vis4d.common.registry import RegistryHolder
+
 from .dataset import ScalabelDataset
+
+
+class BaseSampler(Sampler[List[int]], metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
+    """Base sampler class."""
+
+    def __init__(
+        self,
+        datasets: List[ScalabelDataset],
+        batch_size: int,
+        drop_last: bool,
+        generator: Optional[torch.Generator] = None,
+    ) -> None:
+        """Initialize sampler."""
+        super().__init__(None)
+        self.datasets = datasets
+        self.batch_size = batch_size
+        self.drop_last = drop_last
+        self.generator = generator
+        self.samplers = [
+            RandomSampler(dataset, generator=generator) for dataset in datasets
+        ]
+
+    def __iter__(self) -> Iterator[List[int]]:
+        """Iteration method."""
+        raise NotImplementedError
+
+    def __len__(self) -> int:
+        """Return length of sampler instance."""
+        raise NotImplementedError
+
+
+class RoundRobinSampler(BaseSampler):
+    """Round-robin batch-level sampling."""
+
+    def __init__(
+        self,
+        datasets: List[ScalabelDataset],
+        batch_size: int,
+        drop_last: bool,
+        generator: Optional[torch.Generator] = None,
+    ) -> None:
+        """Init."""
+        super().__init__(datasets, batch_size, drop_last, generator)
+        if batch_size > 1:
+            self.samplers = [
+                BatchSampler(sampler, batch_size, drop_last)
+                for sampler in self.samplers
+            ]
+        self.max_len = max([len(sampler) for sampler in self.samplers])
+        self.data_lens = [len(dataset) for dataset in self.datasets]
+
+    def __iter__(self) -> Iterator[List[int]]:
+        """Iteration method."""
+        samp_iters = [iter(sampler) for sampler in self.samplers]
+        for _ in range(self.max_len):
+            for i, samp_it in enumerate(samp_iters):
+                batch = next(samp_it, None)
+                if not batch:
+                    samp_iters[i] = iter(self.samplers[i])
+                    batch = next(samp_iters[i], None)
+                if self.batch_size == 1:
+                    batch = [batch]
+                yield [b + sum(self.data_lens[:i]) for b in batch]
+
+    def __len__(self) -> int:
+        """Return length of sampler instance."""
+        return self.max_len * len(self.samplers)
+
+
+def build_sampler(
+    sampler_name: str,
+    datasets: List[ScalabelDataset],
+    batch_size: int,
+    drop_last: bool = False,
+    generator: Optional[torch.Generator] = None,
+) -> BaseSampler:
+    """Build a sampler."""
+    registry = RegistryHolder.get_registry(BaseSampler)
+    if sampler_name in registry:
+        module = registry[sampler_name](
+            datasets, batch_size, drop_last, generator
+        )
+        assert isinstance(module, BaseSampler)
+        return module
+    raise NotImplementedError(f"Sampler {sampler_name} not known!")
 
 
 # no coverage for this class, since we don't unittest distributed setting
