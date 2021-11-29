@@ -1,5 +1,5 @@
 """Input sample definition in Vis4D."""
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from scalabel.label.typing import Frame
@@ -18,17 +18,21 @@ class LabelInstances(InputInstance):
         boxes3d: Optional[List[Boxes3D]] = None,
         instance_masks: Optional[List[InstanceMasks]] = None,
         semantic_masks: Optional[List[SemanticMasks]] = None,
+        other: Optional[List[Dict[str, torch.Tensor]]] = None,
         default_len: int = 1,
     ) -> None:
         """Init."""
-        inputs = (boxes2d, boxes3d, instance_masks, semantic_masks)
+        inputs = (boxes2d, boxes3d, instance_masks, semantic_masks, other)
         annotation_len = default_len
         device = torch.device("cpu")
         if not all(x is None for x in inputs):
             for x in inputs:
                 if x is not None:
                     annotation_len = len(x)
-                    device = x[0].device
+                    if isinstance(x, dict):
+                        device = x[list(x.keys())[0]].device
+                    else:
+                        device = x[0].device  # type: ignore
                     break
 
         if boxes2d is None:
@@ -67,6 +71,10 @@ class LabelInstances(InputInstance):
             ]
         self.semantic_masks = semantic_masks
 
+        if other is None:
+            other = [{} for _ in range(annotation_len)]
+        self.other = other
+
     def to(self, device: torch.device) -> "LabelInstances":
         """Move to device (CPU / GPU / ...)."""
         return LabelInstances(
@@ -74,6 +82,7 @@ class LabelInstances(InputInstance):
             [b.to(device) for b in self.boxes3d],
             [m.to(device) for m in self.instance_masks],
             [m.to(device) for m in self.semantic_masks],
+            [{k: v.to(device) for k, v in o.items()} for o in self.other],
         )
 
     @property
@@ -91,6 +100,7 @@ class LabelInstances(InputInstance):
                 + len(self.boxes3d[i])
                 + len(self.instance_masks[i])
                 + len(self.semantic_masks[i])
+                + len(self.other[i])
             )
         return annotation_sum == 0
 
@@ -131,6 +141,7 @@ class LabelInstances(InputInstance):
             new_instance.boxes3d.extend(inst.boxes3d)
             new_instance.instance_masks.extend(inst.instance_masks)
             new_instance.semantic_masks.extend(inst.semantic_masks)
+            new_instance.other.extend(inst.other)
 
         return new_instance
 
@@ -145,6 +156,7 @@ class InputSample(DataInstance):
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
         targets: Optional[LabelInstances] = None,
+        other: Optional[List[Dict[str, torch.Tensor]]] = None,
     ) -> None:
         """Init."""
         self.metadata = metadata
@@ -153,21 +165,27 @@ class InputSample(DataInstance):
 
         if intrinsics is None:
             intrinsics = Intrinsics.cat(
-                [Intrinsics(torch.eye(3)) for _ in range(len(images))]
+                [Intrinsics(torch.eye(3)) for _ in range(len(metadata))]
             )
         self.intrinsics = intrinsics
 
         if extrinsics is None:
             extrinsics = Extrinsics.cat(
-                [Extrinsics(torch.eye(4)) for _ in range(len(images))]
+                [Extrinsics(torch.eye(4)) for _ in range(len(metadata))]
             )
         self.extrinsics = extrinsics
 
         if targets is None:
-            targets = LabelInstances(default_len=len(self.metadata))
+            targets = LabelInstances(default_len=len(metadata))
         self.targets = targets
 
-    def get(self, key: str) -> Union[List[Frame], DataInstance]:
+        if other is None:
+            other = [{} for _ in range(len(metadata))]
+        self.other = other
+
+    def get(
+        self, key: str
+    ) -> Union[List[Frame], DataInstance, List[Dict[str, torch.Tensor]]]:
         """Get attribute by key."""
         if key in self.dict():
             value = self.dict()[key]
@@ -176,14 +194,20 @@ class InputSample(DataInstance):
 
     def dict(
         self,
-    ) -> Dict[str, Union[List[Frame], DataInstance]]:
+    ) -> Dict[
+        str, Union[List[Frame], DataInstance, List[Dict[str, torch.Tensor]]]
+    ]:
         """Return InputSample object as dict."""
-        obj_dict: Dict[str, Union[List[Frame], DataInstance]] = {
+        obj_dict: Dict[
+            str,
+            Union[List[Frame], DataInstance, List[Dict[str, torch.Tensor]]],
+        ] = {
             "metadata": self.metadata,
             "images": self.images,
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
             "targets": self.targets,
+            "other": self.other,
         }
         return obj_dict
 
@@ -197,6 +221,7 @@ class InputSample(DataInstance):
             self.intrinsics.to(device),
             self.extrinsics.to(device),
             self.targets.to(device),
+            [{k: v.to(device) for k, v in o.items()} for o in self.other],
         )
 
     @property
@@ -211,18 +236,38 @@ class InputSample(DataInstance):
         device: Optional[torch.device] = None,
     ) -> "InputSample":
         """Concatenate N InputSample objects."""
-        cat_dict: Dict[str, Union[Sequence[Frame], DataInstance]] = {}
+        cat_dict: Dict[
+            str,
+            Union[
+                List[Frame],
+                DataInstance,
+                List[Dict[str, torch.Tensor]],
+            ],
+        ] = {}
         for k, v in instances[0].dict().items():
             if isinstance(v, list):
-                cat_dict[k] = []
-                for inst in instances:
-                    attr = inst.get(k)
-                    cat_dict[k] += [  # type: ignore
-                        attr_v.to(device)
-                        if isinstance(attr_v, DataInstance)
-                        else attr_v
-                        for attr_v in attr
-                    ]
+                assert len(v) > 0, "Do not input empty inputSamples to .cat!"
+                attr_list = []
+                if isinstance(v[0], DataInstance):
+                    for inst in instances:
+                        attr_v = inst.get(k)
+                        for item in attr_v:
+                            assert isinstance(item, DataInstance)
+                            attr_list += [item.to(device)]
+                elif isinstance(v[0], dict):
+                    for inst in instances:
+                        attr_v = inst.get(k)
+                        for item in attr_v:
+                            assert isinstance(item, dict)
+                            attr_list += [
+                                {k: v.to(device) for k, v in item.items()}
+                            ]
+                else:
+                    for inst in instances:
+                        attr_v = inst.get(k)
+                        assert isinstance(attr_v, list)
+                        attr_list += attr_v  # type: ignore
+                cat_dict[k] = attr_list
             elif isinstance(v, InputInstance):
                 cat_dict[k] = type(v).cat(
                     [inst.get(k) for inst in instances], device  # type: ignore
@@ -243,6 +288,7 @@ class InputSample(DataInstance):
             self.intrinsics[item],
             self.extrinsics[item],
             self.targets[item],
+            [self.other[item]],
         )
 
     def __len__(self) -> int:

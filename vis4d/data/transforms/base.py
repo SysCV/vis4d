@@ -1,6 +1,7 @@
 """Interface Vis4D augmentations."""
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
+import torch
 from pydantic.main import BaseModel
 
 from vis4d.common.registry import RegistryHolder
@@ -89,6 +90,22 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Apply augmentation to input mask."""
         return masks
 
+    def apply_other_targets(
+        self,
+        other: List[Dict[str, torch.Tensor]],
+        parameters: AugParams,
+    ) -> List[Dict[str, torch.Tensor]]:
+        """Apply augmentation to other, user-defined targets."""
+        return other
+
+    def apply_other_inputs(
+        self,
+        other: List[Dict[str, torch.Tensor]],
+        parameters: AugParams,
+    ) -> List[Dict[str, torch.Tensor]]:
+        """Apply augmentation to other, user-defined inputs."""
+        return other
+
     def __call__(
         self, sample: InputSample, parameters: Optional[AugParams] = None
     ) -> Tuple[InputSample, AugParams]:
@@ -103,6 +120,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         sample.extrinsics = self.apply_extrinsics(
             sample.extrinsics, parameters
         )
+        sample.other = self.apply_other_inputs(sample.other, parameters)
         sample.targets.boxes2d = self.apply_box2d(
             sample.targets.boxes2d, parameters
         )
@@ -114,6 +132,9 @@ class BaseAugmentation(metaclass=RegistryHolder):
         )
         sample.targets.semantic_masks = self.apply_mask(
             sample.targets.semantic_masks, parameters
+        )
+        sample.targets.other = self.apply_other_targets(
+            sample.targets.other, parameters
         )
         return sample, parameters
 

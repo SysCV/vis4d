@@ -326,7 +326,7 @@ class RandomCrop(BaseAugmentation):
             # will be better to compute mask intersection (if exists) instead
             overlap = bbox_intersection(sample.targets.boxes2d[0], crop_box)
             return overlap.squeeze(-1) > 0
-        if self.cfg.cat_max_ratio != 1.0:
+        if self.cfg.cat_max_ratio != 1.0:  # TODO disentangle from keep_mask
             crop_masks = sample.targets.semantic_masks[0].crop(crop_box)
             cls_ids, cnts = torch.unique(
                 crop_masks.to_hwc_mask(), return_counts=True
@@ -349,20 +349,11 @@ class RandomCrop(BaseAugmentation):
         keep_masks = []
         cur_sample: InputSample
         for i, cur_sample in enumerate(sample):
-            assert (len(cur_sample.targets.semantic_masks[0]) > 0) != (
-                len(cur_sample.targets.boxes2d[0]) > 0
-            ), (
-                "Currently RandomCrop for both boxes2d and semantic_masks is "
-                "not supported"
-            )  # revisit in refactor-api
             im_wh = torch.tensor(cur_sample.images.image_sizes[0])
             image_whs.append(im_wh)
             if not parameters["apply"][i]:
                 crop_params.append(torch.tensor([0, 0, *im_wh]))
-                num_objs = max(
-                    len(cur_sample.targets.boxes2d[0]),
-                    len(cur_sample.targets.semantic_masks[0]),
-                )
+                num_objs = len(cur_sample.targets.boxes2d[0])
                 keep_masks.append(torch.tensor([True] * num_objs))
                 continue
 
