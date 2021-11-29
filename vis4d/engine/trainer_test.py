@@ -194,3 +194,17 @@ class TestSemSegMM(BaseEngineTests.TestTrain):
         )
         cls.cfg = config.parse_config(args)
         cls.cfg.launch.tqdm = True
+
+
+class TestMTL(BaseEngineTests.TestTrain):
+    """MTL test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_mtl/"
+        args = Namespace(
+            config=get_test_file("mtl/mask_qdtrack_mmdet.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(args)
