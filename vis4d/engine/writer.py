@@ -88,17 +88,17 @@ class ScalabelWriterCallback(Vis4DWriterCallback):
                 prediction = copy.deepcopy(metadata)
                 prediction.labels = out
                 self._predictions[key].append(prediction)
-                size = metadata.size
-                assert size is not None
-                w, h = size.width, size.height
-                if self.viewer is None or metadata.frameIndex in [None, 0]:
-                    self.viewer = LabelViewer(UIConfig(width=w, height=h))
-
                 if self._visualize and isinstance(prediction, FrameGroup):
                     rank_zero_warn(  # pragma: no cover
                         "Visualization not supported for multi-sensor datasets"
                     )
                 elif self._visualize:
+                    if self.viewer is None or metadata.frameIndex in [None, 0]:
+                        size = metadata.size
+                        assert size is not None
+                        w, h = size.width, size.height
+                        self.viewer = LabelViewer(UIConfig(width=w, height=h))
+
                     video_name = (
                         prediction.videoName
                         if prediction.videoName is not None

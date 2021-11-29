@@ -7,13 +7,12 @@ path = "../configs/models/mmsegmentation/deeplabv3_R_18_D8.toml"
 [model]
     [model.optimizer]
     type = "SGD"
-    lr = 0.02
+    lr = 0.01
 
     [model.lr_scheduler]
-    type = "MultiStepLR"
-    warmup = "constant"
-    warmup_steps = 1
-    kwargs = {"milestones" = [50, 100]}
+    type = "PolyLRScheduler"
+    mode = "step"
+    kwargs = {"max_steps" = 10, "power" = 0.9, "min_lr" = 0.0001}
 
 [launch]
 samples_per_gpu = 2
@@ -21,4 +20,3 @@ workers_per_gpu = 0
 
 [trainer]
 max_steps = 1
-log_every_n_steps = 50

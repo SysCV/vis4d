@@ -14,6 +14,8 @@ from vis4d.struct import (
     InputSample,
     InstanceMasks,
     Intrinsics,
+    LabelInstances,
+    SemanticMasks,
 )
 
 
@@ -77,7 +79,7 @@ def generate_dets3d(num_dets: int, track_ids: bool = False) -> Boxes3D:
     return dets
 
 
-def generate_masks(
+def generate_instance_masks(
     height: int, width: int, num_masks: int, track_ids: bool = False
 ) -> InstanceMasks:
     """Create random masks."""
@@ -90,6 +92,21 @@ def generate_masks(
     masks = InstanceMasks(
         mask_tensor, torch.zeros(num_masks), tracks, torch.rand(num_masks)
     )
+    torch.random.set_rng_state(state)
+    return masks
+
+
+def generate_semantic_masks(
+    height: int, width: int, num_masks: int
+) -> SemanticMasks:
+    """Create random masks."""
+    state = torch.random.get_rng_state()
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
+    rand_mask = torch.randint(0, num_masks, (width, height))
+    mask_tensor = torch.stack(
+        [(rand_mask == i).type(torch.uint8) for i in range(num_masks)]
+    )
+    masks = SemanticMasks(mask_tensor, torch.arange(num_masks))
     torch.random.set_rng_state(state)
     return masks
 
@@ -117,6 +134,7 @@ def generate_input_sample(
     num_imgs: int,
     num_objs: int,
     track_ids: bool = False,
+    det_input: bool = True,
 ) -> InputSample:
     """Create random InputSample."""
     state = torch.random.get_rng_state()
@@ -129,11 +147,19 @@ def generate_input_sample(
     sample.intrinsics = Intrinsics.cat(
         [Intrinsics(torch.eye(3)) for _ in range(num_imgs)]
     )
-    sample.boxes2d = [
-        generate_dets(height, width, num_objs, track_ids)
-    ] * num_imgs
-    sample.instance_masks = [
-        generate_masks(height, width, num_objs, track_ids)
-    ] * num_imgs
+    if det_input:
+        sample.targets = LabelInstances(
+            boxes2d=[generate_dets(height, width, num_objs, track_ids)]
+            * num_imgs,
+            instance_masks=[
+                generate_instance_masks(height, width, num_objs, track_ids)
+            ]
+            * num_imgs,
+        )
+    else:
+        sample.targets = LabelInstances(
+            semantic_masks=[generate_semantic_masks(height, width, num_objs)]
+            * num_imgs
+        )
     torch.random.set_rng_state(state)
     return sample

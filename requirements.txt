@@ -10,7 +10,7 @@ pylint
 pytest
 pytoml
 pyyaml
-pytorch-lightning<=1.4.9
+pytorch-lightning
 setuptools
 tqdm
 wheel

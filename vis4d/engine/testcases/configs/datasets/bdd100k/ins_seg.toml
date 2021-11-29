@@ -10,7 +10,12 @@ num_processes = 0
 
     [[train.dataloader.transformations]]
     type = "Resize"
-    shape = [720, 1280]
+    shape = [
+        [360, 640],
+        [480, 960]
+    ]
+    keep_ratio = true
+    multiscale_mode = "list"
 
     [[train.dataloader.transformations]]
     type = "RandomCrop"

@@ -1,4 +1,5 @@
 """Vis4D Label data structures."""
+import abc
 from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
@@ -13,14 +14,14 @@ from ..common.geometry.rotation import (
     matrix_to_euler_angles,
 )
 from .data import Extrinsics
-from .structures import DataInstance, LabelInstance, NDArrayUI8
+from .structures import LabelInstance, NDArrayUI8
 from .utils import do_paste_mask
 
 TBoxes = TypeVar("TBoxes", bound="Boxes")
 TMasks = TypeVar("TMasks", bound="Masks")
 
 
-class Boxes(DataInstance):
+class Boxes(LabelInstance):
     """Abstract container for 2D / BEV / 3D / ... Boxes.
 
     boxes: torch.FloatTensor: (N, M) N elements of boxes with M parameters
@@ -143,8 +144,27 @@ class Boxes(DataInstance):
         """Get current device of data."""
         return self.boxes.device
 
+    @classmethod
+    @abc.abstractmethod
+    def from_scalabel(
+        cls: Type["TBoxes"],
+        labels: List[Label],
+        class_to_idx: Dict[str, int],
+        label_id_to_idx: Optional[Dict[str, int]] = None,
+        image_size: Optional[ImageSize] = None,
+    ) -> "TBoxes":
+        """Convert from scalabel format to ours."""
+        raise NotImplementedError
 
-class Boxes2D(Boxes, LabelInstance):
+    @abc.abstractmethod
+    def to_scalabel(
+        self, idx_to_class: Optional[Dict[int, str]] = None
+    ) -> List[Label]:
+        """Convert from ours to scalabel format."""
+        raise NotImplementedError
+
+
+class Boxes2D(Boxes):
     """Container class for 2D boxes.
 
     boxes: torch.FloatTensor: (N, [4, 5]) where each entry is defined by
@@ -274,7 +294,7 @@ class Boxes2D(Boxes, LabelInstance):
             self.clip(original_wh)
 
 
-class Boxes3D(Boxes, LabelInstance):
+class Boxes3D(Boxes):
     """Container class for 3D boxes.
 
     boxes: torch.FloatTensor: (N, [9, 10]) where each entry is defined by
@@ -495,109 +515,6 @@ class Masks(LabelInstance):
             self.masks.unsqueeze(1), size=(height, width), mode="nearest"
         ).squeeze(1)
 
-    def crop_and_resize(
-        self: "TMasks",
-        boxes: Boxes2D,
-        out_shape: Tuple[int, int],
-        binarize: Optional[bool] = True,
-    ) -> "TMasks":
-        """Crop and resize masks with input bboxes."""
-        if len(self) == 0:
-            return self
-
-        assert len(boxes) == len(
-            self.masks
-        ), "Number of boxes should be the same as masks"
-        fake_inds = torch.arange(len(boxes), device=boxes.device)[:, None]
-        bboxes = (
-            boxes.boxes[:, :-1] if boxes.score is not None else boxes.boxes
-        )
-        rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
-        gt_masks_th = self.masks[:, None, :, :].type(rois.dtype)
-        targets = roi_align(
-            gt_masks_th, rois, out_shape, 1.0, 0, True
-        ).squeeze(1)
-        if binarize:
-            resized_masks = targets >= 0.5
-        else:
-            resized_masks = targets
-        return type(self)(resized_masks)
-
-    def paste_masks_in_image(
-        self,
-        boxes: Boxes2D,
-        image_shape: Tuple[int, int],
-        threshold: float = 0.5,
-        bytes_per_float: int = 4,
-        gpu_mem_limit: int = 1024 ** 3,
-    ) -> None:
-        """Paste masks that are of a fixed resolution into an image.
-
-        This implementation is modified from
-        https://github.com/facebookresearch/detectron2/
-        """
-        assert (
-            self.masks.shape[-1] == self.masks.shape[-2]
-        ), "Only square mask predictions are supported"
-        num_masks = len(self.masks)
-        if num_masks == 0:  # pragma: no cover
-            return
-        assert len(boxes) == num_masks, boxes.boxes.shape
-
-        img_w, img_h = image_shape
-
-        # The actual implementation split the input into chunks,
-        # and paste them chunk by chunk.
-        if self.device.type == "cpu":
-            # CPU is most efficient when they are pasted one by one with
-            # skip_empty=True so that it performs minimal number of operations.
-            num_chunks = num_masks
-        else:  # pragma: no cover
-            # GPU benefits from parallelism for larger chunks, but may have
-            # memory issue int(img_h) because shape may be tensors in tracing
-            num_chunks = int(
-                np.ceil(
-                    num_masks
-                    * int(img_h)
-                    * int(img_w)
-                    * bytes_per_float
-                    / gpu_mem_limit
-                )
-            )
-            assert (
-                num_chunks <= num_masks
-            ), "Default gpu_mem_limit is too small; try increasing it"
-        chunks = torch.chunk(
-            torch.arange(num_masks, device=self.device), num_chunks
-        )
-
-        img_masks = torch.zeros(
-            num_masks,
-            img_h,
-            img_w,
-            device=self.device,
-            dtype=torch.bool if threshold >= 0 else torch.uint8,
-        )
-        for inds in chunks:
-            (masks_chunk, spatial_inds,) = do_paste_mask(
-                self.masks[inds, None, :, :],
-                boxes.boxes[inds, :4],
-                img_h,
-                img_w,
-                skip_empty=self.device.type == "cpu",
-            )
-
-            if threshold >= 0:
-                masks_chunk = (masks_chunk >= threshold).to(dtype=torch.bool)
-            else:
-                # for visualization and debugging
-                masks_chunk = (masks_chunk * 255).to(  # pragma: no cover
-                    dtype=torch.uint8
-                )
-
-            img_masks[(inds,) + spatial_inds] = masks_chunk
-        self.masks = img_masks.type(torch.uint8)
-
     @classmethod
     def from_scalabel(
         cls: Type["TMasks"],
@@ -624,8 +541,6 @@ class Masks(LabelInstance):
                 bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
                     bitmask_raw.dtype
                 )
-            if np.count_nonzero(bitmask) == 0:  # pragma: no cover
-                continue
             bitmask_list.append(bitmask)
             mask_cls, l_id, score = label.category, label.id, label.score
             if has_class_ids:
@@ -758,8 +673,16 @@ class Masks(LabelInstance):
         boxes_list = []
         for i, mask in enumerate(self.masks):
             foreground = mask.nonzero()
-            y1, x1 = foreground.min(dim=0)[0].float()
-            y2, x2 = foreground.max(dim=0)[0].float()
+            if len(foreground) == 0:  # pragma: no cover
+                x1, y1, x2, y2 = (
+                    torch.tensor(0.0),
+                    torch.tensor(0.0),
+                    torch.tensor(0.0),
+                    torch.tensor(0.0),
+                )
+            else:
+                y1, x1 = foreground.min(dim=0)[0].float()
+                y2, x2 = foreground.max(dim=0)[0].float()
             entries = [x1, y1, x2, y2]
             if self.score is not None:
                 entries.append(self.score[i])
@@ -777,13 +700,116 @@ class InstanceMasks(Masks):
     of mask.
     """
 
+    def crop_and_resize(
+        self,
+        boxes: Boxes2D,
+        out_shape: Tuple[int, int],
+        binarize: Optional[bool] = True,
+    ) -> "InstanceMasks":
+        """Crop and resize masks with input bboxes."""
+        if len(self) == 0:
+            return self
+
+        assert len(boxes) == len(
+            self.masks
+        ), "Number of boxes should be the same as masks"
+        fake_inds = torch.arange(len(boxes), device=boxes.device)[:, None]
+        bboxes = (
+            boxes.boxes[:, :-1] if boxes.score is not None else boxes.boxes
+        )
+        rois = torch.cat([fake_inds, bboxes], dim=1)  # Nx5
+        gt_masks_th = self.masks[:, None, :, :].type(rois.dtype)
+        targets = roi_align(
+            gt_masks_th, rois, out_shape, 1.0, 0, True
+        ).squeeze(1)
+        if binarize:
+            resized_masks = targets >= 0.5
+        else:
+            resized_masks = targets
+        return type(self)(resized_masks)
+
+    def paste_masks_in_image(
+        self,
+        boxes: Boxes2D,
+        image_shape: Tuple[int, int],
+        threshold: float = 0.5,
+        bytes_per_float: int = 4,
+        gpu_mem_limit: int = 1024 ** 3,
+    ) -> None:
+        """Paste masks that are of a fixed resolution into an image.
+
+        This implementation is modified from
+        https://github.com/facebookresearch/detectron2/
+        """
+        assert (
+            self.masks.shape[-1] == self.masks.shape[-2]
+        ), "Only square mask predictions are supported"
+        num_masks = len(self.masks)
+        if num_masks == 0:  # pragma: no cover
+            return
+        assert len(boxes) == num_masks, boxes.boxes.shape
+
+        img_w, img_h = image_shape
+
+        # The actual implementation split the input into chunks,
+        # and paste them chunk by chunk.
+        if self.device.type == "cpu":
+            # CPU is most efficient when they are pasted one by one with
+            # skip_empty=True so that it performs minimal number of operations.
+            num_chunks = num_masks
+        else:  # pragma: no cover
+            # GPU benefits from parallelism for larger chunks, but may have
+            # memory issue int(img_h) because shape may be tensors in tracing
+            num_chunks = int(
+                np.ceil(
+                    num_masks
+                    * int(img_h)
+                    * int(img_w)
+                    * bytes_per_float
+                    / gpu_mem_limit
+                )
+            )
+            assert (
+                num_chunks <= num_masks
+            ), "Default gpu_mem_limit is too small; try increasing it"
+        chunks = torch.chunk(
+            torch.arange(num_masks, device=self.device), num_chunks
+        )
+
+        img_masks = torch.zeros(
+            num_masks,
+            img_h,
+            img_w,
+            device=self.device,
+            dtype=torch.bool if threshold >= 0 else torch.uint8,
+        )
+        for inds in chunks:
+            (masks_chunk, spatial_inds,) = do_paste_mask(
+                self.masks[inds, None, :, :],
+                boxes.boxes[inds, :4],
+                img_h,
+                img_w,
+                skip_empty=self.device.type == "cpu",
+            )
+
+            if threshold >= 0:
+                masks_chunk = (masks_chunk >= threshold).to(dtype=torch.bool)
+            else:
+                # for visualization and debugging
+                masks_chunk = (masks_chunk * 255).to(  # pragma: no cover
+                    dtype=torch.uint8
+                )
+
+            img_masks[(inds,) + spatial_inds] = masks_chunk
+        self.masks = img_masks.type(torch.uint8)
+
     def postprocess(
         self,
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         detections: Boxes2D,
     ) -> None:
-        """Postprocess masks."""
+        """Postprocess instance masks."""
         if self.size != output_wh:
             self.paste_masks_in_image(detections, original_wh)
 
@@ -793,10 +819,13 @@ class SemanticMasks(Masks):
 
     masks: torch.ByteTensor (N, H, W) where each entry is a binary mask
     class_ids: torch.LongTensor (N,) where each entry is the class id of mask.
-    track_ids: torch.LongTensor (N,) where each entry is the track id of mask.
-    score: torch.FloatTensor (N,) where each entry is the confidence score
-    of mask.
     """
+
+    def crop(self, crop_box: Boxes2D) -> "SemanticMasks":
+        """Crop semantic mask."""
+        assert len(crop_box) == 1
+        x1, y1, x2, y2 = crop_box.boxes[0].int().tolist()
+        return SemanticMasks(self.masks[:, y1:y2, x1:x2], self.class_ids)
 
     def to_nhw_mask(self) -> "SemanticMasks":
         """Convert HxW semantic mask to N binary HxW masks."""
@@ -816,3 +845,32 @@ class SemanticMasks(Masks):
         for mask, cat_id in zip(self.masks, self.class_ids):
             hwc_mask[mask > 0] = cat_id
         return hwc_mask
+
+    @classmethod
+    def pad(
+        cls,
+        masks: List["SemanticMasks"],
+        image_size: Tuple[int, int],
+    ) -> List["SemanticMasks"]:
+        """Pad each semantic mask to image_size."""
+        pad_masks = []
+        for mask in masks:
+            pad_w = max(image_size[0] - mask.width, 0)
+            pad_h = max(image_size[1] - mask.height, 0)
+            if pad_w == 0 and pad_h == 0:
+                pad_masks.append(mask)
+            else:
+                pad_masks.append(
+                    SemanticMasks(
+                        F.pad(
+                            mask.masks.unsqueeze(0),
+                            (0, pad_w, 0, pad_h),
+                            value=255,
+                        )[0],
+                        mask.class_ids,
+                        mask.track_ids,
+                        mask.score,
+                        mask.metadata,
+                    )
+                )
+        return pad_masks

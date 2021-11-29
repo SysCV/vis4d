@@ -1,0 +1,26 @@
+[[config]]
+path = "../../base/datasets/bdd100k_sem_seg.toml"
+
+[[config]]
+path = "../../base/models/mmsegmentation/deeplabv3plus_R_50_D8.toml"
+
+[model]
+category_mapping = {"road" = 0, "sidewalk" = 1, "building" = 2, "wall" = 3, "fence" = 4, "pole" = 5, "traffic light" = 6, "traffic sign" = 7, "vegetation" = 8, "terrain" = 9, "sky" = 10, "person" = 11, "rider" = 12, "car" = 13, "truck" = 14, "bus" = 15, "train" = 16, "motorcycle" = 17, "bicycle" = 18}
+    [model.optimizer]
+    type = "SGD"
+    lr = 0.01
+    kwargs = {"momentum" = 0.9, "weight_decay" = 0.0005}
+
+    [model.lr_scheduler]
+    type = "PolyLRScheduler"
+    mode = "step"
+    kwargs = {"max_steps" = 40000, "power" = 0.9, "min_lr" = 0.0001}
+
+[launch]
+samples_per_gpu = 2
+workers_per_gpu = 2
+
+[trainer]
+max_steps = 40000
+log_every_n_steps = 50
+check_val_every_n_epoch = 5

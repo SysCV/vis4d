@@ -5,10 +5,10 @@ from typing import List, Optional, Tuple, Union
 
 import torch
 
-from .structures import DataInstance
+from .structures import InputInstance
 
 
-class Intrinsics(DataInstance):
+class Intrinsics(InputInstance):
     """Data structure for intrinsic calibration."""
 
     def __init__(self, tensor: torch.Tensor):
@@ -64,7 +64,7 @@ class Intrinsics(DataInstance):
         return len(self.tensor)
 
 
-class Extrinsics(DataInstance):
+class Extrinsics(InputInstance):
     """Data structure for extrinsic calibration."""
 
     def __init__(self, tensor: torch.Tensor):
@@ -143,7 +143,7 @@ class Extrinsics(DataInstance):
         return len(self.tensor)
 
 
-class Images(DataInstance):
+class Images(InputInstance):
     """Data structure for saving images."""
 
     stride: int = 32

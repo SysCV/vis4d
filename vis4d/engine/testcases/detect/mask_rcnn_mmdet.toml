@@ -12,12 +12,14 @@ path = "../configs/models/mmdetection/mask_rcnn_R_50_FPN.toml"
 
     [model.lr_scheduler]
     type = "MultiStepLR"
-    kwargs = {"milestones" = [50, 100]}
+    warmup = "constant"
+    warmup_steps = 1
+    kwargs = {"milestones" = [8, 11]}
 
 [launch]
 samples_per_gpu = 1
 workers_per_gpu = 0
 
 [trainer]
-max_steps = 1
+max_steps = 2
 log_every_n_steps = 50
