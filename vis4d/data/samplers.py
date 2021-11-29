@@ -69,6 +69,7 @@ class RoundRobinSampler(BaseSampler):
                 if not batch:
                     samp_iters[i] = iter(self.samplers[i])
                     batch = next(samp_iters[i], None)
+                assert batch is not None
                 if self.batch_size == 1:
                     batch = [batch]
                 yield [b + sum(self.data_lens[:i]) for b in batch]

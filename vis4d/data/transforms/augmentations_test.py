@@ -134,15 +134,16 @@ class TestRandomCrop(unittest.TestCase):
         )
         results, params = crop(sample, None)
         new_masks = sample.targets.semantic_masks[0].masks
-        self.assertEqual(new_masks.shape[0], params["keep"][0].sum().item())
+        self.assertEqual(new_masks.shape[0], num_objs)
         aug_cfg = RandomCropConfig(
             type="test", shape=(2, 2), cat_max_ratio=0.2
         )
         crop = RandomCrop(aug_cfg)
+        num_objs = 2
         sample = generate_input_sample(
-            height, width, num_imgs, 2, det_input=False
+            height, width, num_imgs, num_objs, det_input=False
         )
         results, params = crop(sample, None)
         new_masks = sample.targets.semantic_masks[0].masks
-        self.assertEqual(new_masks.shape[0], params["keep"][0].sum().item())
+        self.assertEqual(new_masks.shape[0], num_objs)
         self.assertEqual(new_masks.shape[1:], (2, 2))
