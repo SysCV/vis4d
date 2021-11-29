@@ -1,11 +1,5 @@
 """Datasets module."""
-from .base import (
-    BaseDatasetConfig,
-    BaseDatasetLoader,
-    DataloaderConfig,
-    ReferenceSamplingConfig,
-    build_dataset_loader,
-)
+from .base import BaseDatasetConfig, BaseDatasetLoader, build_dataset_loader
 from .bdd100k import BDD100K
 from .coco import COCO
 from .custom import Custom
@@ -25,6 +19,4 @@ __all__ = [
     "Waymo",
     "NuScenes",
     "KITTI",
-    "DataloaderConfig",
-    "ReferenceSamplingConfig",
 ]

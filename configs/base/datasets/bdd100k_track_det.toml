@@ -6,20 +6,20 @@ data_root = "data/bdd100k/images/track/train/"
 config_path = "box_track"
 num_processes = 0
 cache_as_binary = true
-    [train.dataloader]
+    [train.sample_mapper]
     skip_empty_samples = true
 
-    [train.dataloader.ref_sampling]
+    [train.ref_sampler]
     type = 'uniform'
     scope = 3
     num_ref_imgs = 1
     skip_nomatch_samples = true
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "Resize"
     shape = [720, 1280]
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "KorniaAugmentationWrapper"
     kornia_type = "RandomHorizontalFlip"
     prob = 0.5
@@ -33,18 +33,18 @@ data_root = "data/bdd100k/images/100k/train/"
 config_path = "det"
 num_processes = 0
 cache_as_binary = true
-    [train.dataloader]
+    [train.sample_mapper]
     skip_empty_samples = true
 
-    [train.dataloader.ref_sampling]
+    [train.ref_sampler]
     scope = 0
     num_ref_imgs = 1
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "Resize"
     shape = [720, 1280]
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "KorniaAugmentationWrapper"
     kornia_type = "RandomHorizontalFlip"
     prob = 0.5
@@ -58,6 +58,6 @@ eval_metrics = ["detect", "track"]
 config_path = "box_track"
 num_processes = 0
 cache_as_binary = true
-    [[test.dataloader.transformations]]
+    [[test.sample_mapper.transformations]]
     type = "Resize"
     shape = [720, 1280]

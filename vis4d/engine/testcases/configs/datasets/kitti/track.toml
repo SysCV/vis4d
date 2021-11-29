@@ -4,25 +4,25 @@ type = "KITTI"
 data_root = "vis4d/engine/testcases/track/kitti-samples/"
 annotations = "vis4d/engine/testcases/track/kitti-samples/tracking_training.json"
 num_processes = 0
-    [train.dataloader]
+    [train.sample_mapper]
     image_channel_mode = "RGB"
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
-        [train.dataloader.ref_sampling]
+        [train.ref_sampler]
         type = 'uniform'
         scope = 2
         num_ref_imgs = 1
         skip_nomatch_samples = true
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "Resize"
     shape = [375, 1242]
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "RandomCrop"
     crop_type = "relative"
     shape = [0.8, 0.9]
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "KorniaAugmentationWrapper"
     kornia_type = "RandomHorizontalFlip"
     prob = 0.5
@@ -36,11 +36,11 @@ validate_frames = true
 num_processes = 0
 multi_sensor_inference = false
 eval_metrics = ["detect", "track"]
-    [test.dataloader]
+    [test.sample_mapper]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
     image_channel_mode = "RGB"
 
-    [[test.dataloader.transformations]]
+    [[test.sample_mapper.transformations]]
     type = "Resize"
     shape = [720, 1280]
 
@@ -53,10 +53,10 @@ annotations = "vis4d/engine/testcases/track/kitti-samples/tracking_training.json
 validate_frames = true
 num_processes = 0
 eval_metrics = []
-    [test.dataloader]
+    [test.sample_mapper]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
     image_channel_mode = "RGB"
 
-    [[test.dataloader.transformations]]
+    [[test.sample_mapper.transformations]]
     type = "Resize"
     shape = [720, 1280]

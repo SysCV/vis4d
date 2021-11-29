@@ -4,32 +4,32 @@ type = "Scalabel"
 data_root = "data/MOT16/train"
 annotations = "data/MOT16/train/train_scalabel.json"
 num_processes = 0
-    [train.dataloader]
+    [train.sample_mapper]
     clip_bboxes_to_image = false
     skip_empty_samples = true
 
-    [train.dataloader.ref_sampling]
+    [train.ref_sampler]
     type = 'uniform'
     scope = 10
     num_ref_imgs = 1
     skip_nomatch_samples = true
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "Resize"
     shape = [800, 1440]
     scale_range = [0.8, 1.2]
     keep_ratio = true
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "RandomCrop"
     shape = [800, 1440]
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "KorniaAugmentationWrapper"
     kornia_type = "RandomHorizontalFlip"
     prob = 0.5
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "KorniaColorJitter"
     prob = 0.5
     kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.8, 1.2], "saturation" = [0.8, 1.2]}
@@ -41,9 +41,9 @@ data_root = "data/MOT16/train"
 annotations = "data/MOT16/train/val_scalabel.json"
 eval_metrics = ["track"]
 num_processes = 0
-    [test.dataloader]
+    [test.sample_mapper]
     clip_bboxes_to_image = false
 
-    [[test.dataloader.transformations]]
+    [[test.sample_mapper.transformations]]
     type = "Resize"
     shape = [1080, 1920]

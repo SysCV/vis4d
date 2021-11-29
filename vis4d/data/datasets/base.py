@@ -4,56 +4,15 @@ import os
 import pickle
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 from pytorch_lightning.utilities.distributed import rank_zero_info
 from scalabel.label.typing import Dataset, Frame
 
-from vis4d.common.io import DataBackendConfig
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.time import Timer
-from vis4d.data.transforms import BaseAugmentationConfig
 
-
-class ReferenceSamplingConfig(BaseModel):
-    """Config for customizing the sampling of reference views."""
-
-    type: str = "uniform"
-    num_ref_imgs: int = 0
-    scope: int = 1
-    frame_order: str = "key_first"
-    skip_nomatch_samples: bool = False
-
-    @validator("scope")
-    def validate_scope(  # type: ignore # pylint: disable=no-self-argument,no-self-use, line-too-long
-        cls, value: int, values
-    ) -> int:
-        """Check scope attribute."""
-        if value != 0 and value < values["num_ref_imgs"] // 2:
-            raise ValueError("Scope must be higher than num_ref_imgs / 2.")
-        return value
-
-    @validator("frame_order")
-    def validate_frame_order(  # pylint: disable=no-self-argument,no-self-use
-        cls, value: str
-    ) -> str:
-        """Check frame_order attribute."""
-        if not value in ["key_first", "temporal"]:
-            raise ValueError("frame_order must be key_first or temporal.")
-        return value
-
-
-class DataloaderConfig(BaseModel):
-    """Config for dataloader."""
-
-    data_backend: DataBackendConfig = DataBackendConfig()
-    categories: Optional[List[str]] = None
-    fields_to_load: List[str] = ["boxes2d"]
-    skip_empty_samples: bool = False
-    clip_bboxes_to_image: bool = True
-    min_bboxes_area: float = 7.0 * 7.0
-    compute_global_instance_ids: bool = False
-    transformations: Optional[List[BaseAugmentationConfig]] = None
-    ref_sampling: ReferenceSamplingConfig = ReferenceSamplingConfig()
+from ..mapper import SampleMapperConfig
+from ..reference import ReferenceSamplerConfig
 
 
 class BaseDatasetConfig(BaseModel, extra="allow"):
@@ -62,7 +21,8 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     name: str
     type: str
     data_root: str
-    dataloader: DataloaderConfig = DataloaderConfig()
+    sample_mapper: SampleMapperConfig = SampleMapperConfig()
+    reference_sampler: ReferenceSamplerConfig = ReferenceSamplerConfig()
     annotations: Optional[str]
     attributes: Optional[
         Dict[str, Union[bool, float, str, List[float], List[str]]]
@@ -75,6 +35,7 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     num_processes: int = 4
     collect_device = "cpu"
     multi_sensor_inference: bool = True
+    compute_global_instance_ids: bool = False
 
 
 class BaseDatasetLoader(metaclass=RegistryHolder):
