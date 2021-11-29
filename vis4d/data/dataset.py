@@ -91,7 +91,7 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         self._fallback_candidates = set(range(len(self.dataset.frames)))
         self.ref_sampler = build_reference_sampler(
-            self.cfg.reference_sampler,
+            self.cfg.ref_sampler,
             self.dataset.frames,
             self.dataset.groups,
         )

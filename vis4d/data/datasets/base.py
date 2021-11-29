@@ -22,7 +22,7 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     type: str
     data_root: str
     sample_mapper: SampleMapperConfig = SampleMapperConfig()
-    reference_sampler: ReferenceSamplerConfig = ReferenceSamplerConfig()
+    ref_sampler: ReferenceSamplerConfig = ReferenceSamplerConfig()
     annotations: Optional[str]
     attributes: Optional[
         Dict[str, Union[bool, float, str, List[float], List[str]]]

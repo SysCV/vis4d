@@ -216,8 +216,13 @@ def build_reference_sampler(
 ) -> BaseReferenceSampler:
     """Build a reference view sampler."""
     registry = RegistryHolder.get_registry(BaseReferenceSampler)
-    if cfg.type in registry:
+    if cfg.type == "BaseReferenceSampler":
+        module = BaseReferenceSampler(cfg, frames, groups)
+    elif cfg.type in registry:
         module = registry[cfg.type](cfg, frames, groups)
         assert isinstance(module, BaseReferenceSampler)
-        return module
-    raise NotImplementedError(f"Reference sampler type {cfg.type} not found.")
+    else:
+        raise NotImplementedError(
+            f"Reference sampler type {cfg.type} not found."
+        )
+    return module

@@ -14,7 +14,7 @@ from .datasets import (
     BaseDatasetLoader,
     build_dataset_loader,
 )
-from .samplers import BaseSampler, TrackingInferenceSampler, build_sampler
+from .samplers import BaseSampler, TrackingInferenceSampler, build_data_sampler
 from .utils import identity_batch_collator
 
 
@@ -107,7 +107,7 @@ class Vis4DDataModule(pl.LightningDataModule):
         """Return dataloader for training."""
         assert self.train_datasets is not None
         if self.train_sampler:
-            train_sampler: Optional[BaseSampler] = build_sampler(
+            train_sampler: Optional[BaseSampler] = build_data_sampler(
                 self.train_sampler, self.train_datasets, self.samples_per_gpu
             )
             batch_size, shuffle = 1, False

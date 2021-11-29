@@ -9,7 +9,7 @@ cache_as_binary = true
 compute_global_instance_ids = true
     [train.sample_mapper]
         [train.ref_sampler]
-        type = 'uniform'
+        strategy = 'uniform'
         scope = 2
         num_ref_imgs = 1
         skip_nomatch_samples = true

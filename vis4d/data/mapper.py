@@ -40,7 +40,7 @@ from .utils import im_decode
 class SampleMapperConfig(BaseModel):
     """Config for Mapper."""
 
-    type: str = "BaseMapper"
+    type: str = "BaseSampleMapper"
     data_backend: DataBackendConfig = DataBackendConfig()
     categories: Optional[List[str]] = None
     fields_to_load: List[str] = ["boxes2d"]
@@ -296,8 +296,11 @@ def build_mapper(
 ) -> BaseSampleMapper:
     """Build a mapper."""
     registry = RegistryHolder.get_registry(BaseSampleMapper)
-    if cfg.type in registry:
+    if cfg.type == "BaseSampleMapper":
+        module = BaseSampleMapper(cfg, training, image_channel_mode)
+    elif cfg.type in registry:
         module = registry[cfg.type](cfg, training, image_channel_mode)
         assert isinstance(module, BaseSampleMapper)
-        return module
-    raise NotImplementedError(f"Mapper type {cfg.type} not found.")
+    else:
+        raise NotImplementedError(f"Mapper type {cfg.type} not found.")
+    return module

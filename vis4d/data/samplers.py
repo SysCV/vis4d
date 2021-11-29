@@ -79,7 +79,7 @@ class RoundRobinSampler(BaseSampler):
         return self.max_len * len(self.samplers)
 
 
-def build_sampler(
+def build_data_sampler(
     sampler_name: str,
     datasets: List[ScalabelDataset],
     batch_size: int,

@@ -17,9 +17,10 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
     kwargs = {"step_size" = 10}
 
 [launch]
-samples_per_gpu = 2
+samples_per_gpu = 1
 workers_per_gpu = 0
 train_sampler = "RoundRobinSampler"
 
 [trainer]
-max_steps = 2
+max_steps = 3
+check_val_every_n_epoch = 10

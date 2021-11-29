@@ -6,7 +6,7 @@ data_root = "vis4d/engine/testcases/detect/bdd100k-samples/images"
 config_path = "vis4d/engine/testcases/detect/bdd100k-samples/config.toml"
 num_processes = 0
     [train.ref_sampler]
-    type = 'uniform'
+    strategy = 'uniform'
     scope = 1
     num_ref_imgs = 0
 

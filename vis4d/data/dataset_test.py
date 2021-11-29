@@ -40,8 +40,8 @@ class TestScalabelDataset(unittest.TestCase):
         type="Scalabel",
         data_root="/path/to/root",
         dataloader=SampleMapperConfig(),
-        ref_sampling=ReferenceSamplerConfig(
-            type="sequential",
+        ref_sampler=ReferenceSamplerConfig(
+            strategy="sequential",
             num_ref_imgs=2,
             scope=3,
             frame_order="temporal",
@@ -76,8 +76,8 @@ class TestScalabelDataset(unittest.TestCase):
             type="Scalabel",
             data_root="vis4d/engine/testcases/track/bdd100k-samples/images/",
             dataloader=SampleMapperConfig(),
-            ref_sampling=ReferenceSamplerConfig(
-                type="sequential",
+            ref_sampler=ReferenceSamplerConfig(
+                strategy="sequential",
                 num_ref_imgs=1,
                 scope=3,
                 skip_nomatch_samples=True,
@@ -166,8 +166,8 @@ class TestScalabelDataset(unittest.TestCase):
             type="Scalabel",
             data_root="/path/to/root",
             dataloader=SampleMapperConfig(),
-            ref_sampling=ReferenceSamplerConfig(
-                type="sequential",
+            ref_sampler=ReferenceSamplerConfig(
+                strategy="sequential",
                 num_ref_imgs=2,
                 scope=3,
                 frame_order="temporal",

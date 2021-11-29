@@ -8,7 +8,7 @@ num_processes = 0
     image_channel_mode = "RGB"
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
         [train.ref_sampler]
-        type = 'uniform'
+        strategy = 'uniform'
         scope = 2
         num_ref_imgs = 1
         skip_nomatch_samples = true

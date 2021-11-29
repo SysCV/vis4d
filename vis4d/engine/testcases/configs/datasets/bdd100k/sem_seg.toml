@@ -8,10 +8,10 @@ num_processes = 0
     [train.sample_mapper]
     fields_to_load = ["semantic_masks"]
 
-        [train.ref_sampler]
-        type = 'uniform'
-        scope = 1
-        num_ref_imgs = 0
+    [train.ref_sampler]
+    strategy = 'uniform'
+    scope = 1
+    num_ref_imgs = 0
 
     [[train.sample_mapper.transformations]]
     type = "Resize"

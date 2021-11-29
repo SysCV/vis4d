@@ -11,7 +11,7 @@ compute_global_instance_ids = true
     fields_to_load = ["boxes2d", "instance_masks"]
 
         [train.ref_sampler]
-        type = 'uniform'
+        strategy = 'uniform'
         scope = 2
         num_ref_imgs = 1
         skip_nomatch_samples = true

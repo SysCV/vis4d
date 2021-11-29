@@ -3,7 +3,7 @@ from .build import Vis4DDataModule, build_dataset_loaders
 from .dataset import ScalabelDataset
 from .mapper import BaseSampleMapper, SampleMapperConfig
 from .reference import BaseReferenceSampler, ReferenceSamplerConfig
-from .samplers import TrackingInferenceSampler, build_sampler
+from .samplers import TrackingInferenceSampler, build_data_sampler
 
 __all__ = [
     "build_dataset_loaders",
@@ -14,5 +14,5 @@ __all__ = [
     "BaseSampleMapper",
     "ReferenceSamplerConfig",
     "BaseReferenceSampler",
-    "build_sampler",
+    "build_data_sampler",
 ]
