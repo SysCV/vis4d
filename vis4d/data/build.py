@@ -14,7 +14,7 @@ from .datasets import (
     BaseDatasetLoader,
     build_dataset_loader,
 )
-from .samplers import TrackingInferenceSampler
+from .samplers import BaseSampler, TrackingInferenceSampler, build_sampler
 from .utils import identity_batch_collator
 
 
@@ -48,7 +48,7 @@ def build_dataset_loaders(
 class Vis4DDataModule(pl.LightningDataModule):
     """Data module for Vis4D."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         samples_per_gpu: int,
         workers_per_gpu: int,
@@ -59,6 +59,7 @@ class Vis4DDataModule(pl.LightningDataModule):
         image_channel_mode: str = "RGB",
         seed: Optional[int] = None,
         pin_memory: bool = False,
+        train_sampler: Optional[str] = None,
     ) -> None:
         """Init."""
         super().__init__()  # type: ignore
@@ -74,6 +75,7 @@ class Vis4DDataModule(pl.LightningDataModule):
         self.image_channel_mode = image_channel_mode
         self.seed = seed
         self.pin_memory = pin_memory
+        self.train_sampler = train_sampler
         self.train_datasets: Optional[List[ScalabelDataset]] = None
         self.test_datasets: Optional[List[ScalabelDataset]] = None
         self.predict_datasets: Optional[List[ScalabelDataset]] = None
@@ -103,15 +105,25 @@ class Vis4DDataModule(pl.LightningDataModule):
 
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""
+        assert self.train_datasets is not None
+        if self.train_sampler:
+            train_sampler: Optional[BaseSampler] = build_sampler(
+                self.train_sampler, self.train_datasets, self.samples_per_gpu
+            )
+            batch_size, shuffle = 1, False
+        else:
+            train_sampler = None
+            batch_size, shuffle = self.samples_per_gpu, True
         train_dataset = data.ConcatDataset(self.train_datasets)
         train_dataloader = data.DataLoader(
             train_dataset,
-            batch_size=self.samples_per_gpu,
+            batch_sampler=train_sampler,
+            batch_size=batch_size,
             num_workers=self.workers_per_gpu,
             collate_fn=identity_batch_collator,
             persistent_workers=self.workers_per_gpu > 0,
             pin_memory=self.pin_memory,
-            shuffle=True,
+            shuffle=shuffle,
         )
         return train_dataloader
 

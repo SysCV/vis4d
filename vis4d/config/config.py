@@ -43,8 +43,10 @@ class Launch(BaseModel):
     pin_memory: Enable/Disable pin_memory option for dataloader workers in
     training.
     wandb: Use weights and biases logging instead of tensorboard (default).
-    strict: Whether to enforce keys in weights to be consistent with model's.
+    not_strict: Whether to enforce keys in weights to be consistent with
+    model's.
     tqdm: Activate tqdm based terminal logging behavior.
+    train_sampler: Sampler to use during training.
     """
 
     action: str = ""
@@ -69,6 +71,7 @@ class Launch(BaseModel):
     wandb: bool = False
     not_strict: bool = False
     tqdm: bool = False
+    train_sampler: Optional[str] = None
 
     @validator("version", always=True)
     def validate_version(  # pylint: disable=no-self-argument,no-self-use

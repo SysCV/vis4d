@@ -152,6 +152,7 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.model.image_channel_mode,
         seed=cfg.launch.seed,
         pin_memory=cfg.launch.pin_memory,
+        train_sampler=cfg.launch.train_sampler,
     )
 
     if len(test_loaders) > 0:
