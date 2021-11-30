@@ -41,6 +41,6 @@ workers_per_gpu = 2
 
 [trainer]
 max_epochs = 12
-check_val_every_n_epoch = 3
+check_val_every_n_epoch = 1
 num_sanity_val_steps = 2
 gradient_clip_val = 35

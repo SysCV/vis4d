@@ -95,6 +95,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.dataset.frames,
             self.dataset.groups,
         )
+        self.has_sequences = bool(self.ref_sampler.video_to_indices)
 
     def __len__(self) -> int:
         """Return length of dataset."""

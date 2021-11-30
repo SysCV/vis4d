@@ -1,5 +1,5 @@
 """data module init."""
-from .build import Vis4DDataModule, build_dataset_loaders
+from .build import Vis4DDataModule, build_data_module, build_dataset_loaders
 from .dataset import ScalabelDataset
 from .mapper import BaseSampleMapper, SampleMapperConfig
 from .reference import BaseReferenceSampler, ReferenceSamplerConfig
@@ -15,4 +15,5 @@ __all__ = [
     "ReferenceSamplerConfig",
     "BaseReferenceSampler",
     "build_data_sampler",
+    "build_data_module",
 ]

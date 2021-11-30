@@ -96,6 +96,9 @@ class TestScalabelDataset(unittest.TestCase):
             ],
         )
         dataset = ScalabelDataset(dataset_loader, True)
+        # assert makes sure that all samples will be discarded from fallback
+        # candidates (due to no match) and subsequently raises a ValueError
+        # since there is no fallback candidates to sample from anymore
         self.assertRaises(ValueError, dataset.__getitem__, 0)
 
     def test_transform_input(self) -> None:

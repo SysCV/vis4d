@@ -13,7 +13,7 @@ num_processes = 0
     skip_empty_samples = true
 
     [train.ref_sampler]
-    type = 'uniform'
+    strategy = 'uniform'
     scope = 5
     num_ref_imgs = 1
     skip_nomatch_samples = true
@@ -37,7 +37,7 @@ num_processes = 0
     skip_empty_samples = true
 
     [train.ref_sampler]
-    type = 'uniform'
+    strategy = 'uniform'
     scope = 5
     num_ref_imgs = 1
     skip_nomatch_samples = true

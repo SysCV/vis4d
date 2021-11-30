@@ -9,7 +9,7 @@ cache_as_binary = true
     skip_empty_samples = true
 
     [train.ref_sampler]
-    type = 'uniform'
+    strategy = 'uniform'
     scope = 1
     num_ref_imgs = 0
 
