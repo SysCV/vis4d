@@ -6,27 +6,41 @@ path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"
 
 [model]
 category_mapping = {"pedestrian" = 0}
+image_channel_mode = "BGR"
     [model.detection]
-    model_kwargs= {"backbone.style" = "caffe", "backbone.norm_cfg.requires_grad" = false, "backbone.init_cfg.checkpoint" = "open-mmlab://detectron2/resnet50_caffe"}
+    clip_bboxes_to_image = false
+    model_kwargs= {"backbone.style" = "caffe", "backbone.norm_cfg.requires_grad" = false, "rpn_head.bbox_coder.clip_border" = false, "roi_head.bbox_head.bbox_coder.clip_border" = false}
     pixel_mean = [103.530, 116.280, 123.675]
     pixel_std = [1.0, 1.0, 1.0]
     weights = "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco-person/faster_rcnn_r50_fpn_1x_coco-person_20201216_175929-d022e227.pth"
 
     [model.optimizer]
     type = "SGD"
-    lr = 0.01
+    lr = 0.02
     kwargs = {"momentum" = 0.9, "weight_decay" = 0.0001}
 
     [model.lr_scheduler]
     type = "MultiStepLR"
-    kwargs = {"milestones" = [50, 70]}
+    kwargs = {"milestones" = [8, 11]}
+
+    [model.similarity.proposal_matcher]
+    type = "MaxIoUMatcher"
+    thresholds = [0.5, 0.7]
+    labels = [0, -1, 1]
+    allow_low_quality_matches = false
+
+    [model.track_graph]
+    type = "QDTrackGraph"
+    keep_in_memory = 30
+    init_score_thr = 0.9
+    obj_score_thr = 0.5
 
 [launch]
-samples_per_gpu = 6
-workers_per_gpu = 3
+samples_per_gpu = 4
+workers_per_gpu = 2
 
 [trainer]
-max_epochs = 80
-log_every_n_steps = 50
-check_val_every_n_epoch = 10
+max_epochs = 12
+check_val_every_n_epoch = 3
 num_sanity_val_steps = 2
+gradient_clip_val = 35

@@ -1,12 +1,13 @@
 """Tracking base class."""
 
 import abc
+from typing import List, Optional, Union, cast, overload
 
 import torch
 from pydantic import BaseModel, Field
 
-from vis4d.common.registry import RegistryHolder
-from vis4d.struct import Boxes2D
+from vis4d.common import RegistryHolder, Vis4DModule
+from vis4d.struct import InputSample, LabelInstances, LossesType
 
 
 class TrackGraphConfig(BaseModel, extra="allow"):
@@ -15,35 +16,68 @@ class TrackGraphConfig(BaseModel, extra="allow"):
     type: str = Field(...)
 
 
-class BaseTrackGraph(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
+class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
     """Base class for tracking graph optimization."""
 
-    def __init__(self, cfg: TrackGraphConfig):
-        """Init."""
-        super().__init__()
-        self.cfg_base = cfg
-        self.reset()
-
+    @abc.abstractmethod
     def reset(self) -> None:
-        """Reset tracks."""
-        self.num_tracks = 0
-        self.tracks = {}  # type: ignore
+        """Reset track memory during inference."""
+        raise NotImplementedError
 
-    @property
-    def empty(self) -> bool:
-        """Whether track memory is empty."""
-        return not self.tracks
+    @overload  # type: ignore[override]
+    def forward(
+        self,
+        inputs: InputSample,
+        predictions: LabelInstances,
+        **kwargs: torch.Tensor,
+    ) -> LabelInstances:  # noqa: D102
+        ...
+
+    @overload
+    def forward(
+        self,
+        inputs: List[InputSample],
+        predictions: List[LabelInstances],
+        targets: Optional[List[LabelInstances]],
+        **kwargs: List[torch.Tensor],
+    ) -> LossesType:
+        ...
+
+    def forward(
+        self,
+        inputs: Union[List[InputSample], InputSample],
+        predictions: Union[List[LabelInstances], LabelInstances],
+        targets: Optional[List[LabelInstances]] = None,
+        **kwargs: Union[List[torch.Tensor], torch.Tensor],
+    ) -> Union[LabelInstances, LossesType]:
+        """Forward method. Decides between train / test logic."""
+        if targets is not None:  # pragma: no cover
+            inputs = cast(List[InputSample], inputs)
+            predictions = cast(List[LabelInstances], predictions)
+            return self.forward_train(inputs, predictions, targets, **kwargs)
+        inputs = cast(InputSample, inputs)
+        predictions = cast(LabelInstances, predictions)
+        return self.forward_test(inputs, predictions, **kwargs)
 
     @abc.abstractmethod
-    def forward(  # type: ignore
-        self, detections: Boxes2D, frame_id: int, *args, **kwargs
-    ) -> Boxes2D:
+    def forward_train(
+        self,
+        inputs: List[InputSample],
+        predictions: List[LabelInstances],
+        targets: List[LabelInstances],
+        **kwargs: List[torch.Tensor],
+    ) -> LossesType:
         """Process inputs, match detections with existing tracks."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def update(self, *args, **kwargs) -> None:  # type: ignore
-        """Update track memory using matched detections."""
+    def forward_test(
+        self,
+        inputs: InputSample,
+        predictions: LabelInstances,
+        **kwargs: torch.Tensor,
+    ) -> LabelInstances:
+        """Process inputs, match detections with existing tracks."""
         raise NotImplementedError
 
 

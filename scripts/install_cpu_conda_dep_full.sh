@@ -7,4 +7,4 @@ python3 -m pip install --ignore-installed  -r requirements.txt
 python3 -m pip install mmcv-full
 python3 -m pip install git+https://github.com/facebookresearch/detectron2.git
 python3 -m pip install git+https://github.com/SysCV/mmdetection.git
-python3 -m pip install git+https://github.com/open-mmlab/mmsegmentation.git
+python3 -m pip install mmsegmentation

@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 
 from vis4d.common.bbox.utils import bbox_iou
-from vis4d.struct import Boxes2D
+from vis4d.struct import Boxes2D,  InputSample, LabelInstances, LossesType
 
 from ..motion import KalmanFilter
 from .base import BaseTrackGraph, TrackGraphConfig
@@ -37,7 +37,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
 
     def __init__(self, cfg: TrackGraphConfig) -> None:
         """Init."""
-        super().__init__(cfg)
+        super().__init__()
         self.cfg = DeepSORTTrackGraphConfig(**cfg.dict())
         self.max_iou_distance = self.cfg.max_iou_distance
         self.max_age = self.cfg.max_age
@@ -50,19 +50,8 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             kf_motion_mat[i, 4 + i] = 1.0
         kf_update_mat = torch.eye(4, 8)
         self.kf = torch.nn.ModuleDict()
-
-        self.idx2cls_mapping = {
-            0: "pedestrian",
-            1: "rider",
-            2: "car",
-            3: "truck",
-            4: "bus",
-            5: "train",
-            6: "motorcycle",
-            7: "bicycle",
-        }
-
-        for class_id, _ in self.idx2cls_mapping.items():
+        self.num_tracks = 0
+        for class_id in range(len(self.cfg.kf_parameters["cov_motion_Q"])):
             self.kf[str(class_id)] = KalmanFilter(
                 kf_motion_mat,
                 kf_update_mat,
@@ -89,8 +78,6 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         class_ids = []
         track_ids = []
         for track_id, track in self.tracks.items():
-            # if not track.is_confirmed() or track.time_since_update > 1:
-            #     continue  # TODO why is this commented?
             if track["time_since_update"] >= 1:
                 continue
             x1, y1, x2, y2 = xyah_to_tlbr(track["mean"][:4])
@@ -114,22 +101,36 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         )
         return Boxes2D(track_boxes, class_ids, track_ids)
 
-    def forward(  # type: ignore # pylint: disable=arguments-differ
+    def forward_train(
         self,
-        detections: Boxes2D,
-        frame_id: int,
-        det_features: Optional[torch.tensor] = None,
+        inputs: List[InputSample],
+        predictions: List[LabelInstances],
+        targets: Optional[List[LabelInstances]],
+        **kwargs: List[torch.Tensor],
+    ) -> LossesType:
+        """Forward of QDTrackGraph in training stage."""
+        raise NotImplementedError
+
+    def forward_test(
+        self,
+        inputs: InputSample,
+        predictions: LabelInstances,
+        embeddings: Optional[torch.Tensor] = None,
+        **kwargs: torch.Tensor,
     ) -> Boxes2D:
         """Process inputs, match detections with existing tracks."""
+        detections = predictions.boxes2d[0].clone()
+
         det_boxes = detections.boxes
         confidences = det_boxes[:, -1]
         select_idx = confidences >= self.cfg.min_confidence
         detections_selected = detections[select_idx]
-        if det_features is not None:
-            det_features_selected = det_features[select_idx]
+        if embeddings is not None:
+            embeddings = embeddings[0].clone()
+            det_features_selected = embeddings[select_idx]
 
         self.predict()
-        if det_features is not None:
+        if embeddings is not None:
             self.update(detections_selected, det_features_selected)
         else:
             self.update(detections_selected)
@@ -152,7 +153,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             track["age"] += 1
             track["time_since_update"] += 1
 
-    def update(
+    def update(  # type: ignore # pylint: disable=arguments-differ
         self, detections: Boxes2D, det_features: torch.tensor = None
     ) -> None:
         """Perform association and track management."""
@@ -194,15 +195,15 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             track["hits"] += 1
             track["time_since_update"] = 0
             if track["state"] == "Tentative" and track["hits"] >= self._n_init:
-                track["state"] = "Confirmed"
+                track["state"] = "Confirmed"  # pragma: no cover
 
         # mark unmatched tracks to 'delete' in certain cases
         for track_id in unmatched_tracks:
             track = self.tracks[track_id]
             if track["state"] == "Tentative":
-                track["state"] = "Deleted"
+                track["state"] = "Deleted"  # pragma: no cover
             elif track["time_since_update"] > self.max_age:
-                track["state"] = "Deleted"
+                track["state"] = "Deleted"  # pragma: no cover
 
         for det_idx in unmatched_detections:
             det_box = tlbr_to_xyah(detections.boxes[det_idx][:4])
@@ -217,7 +218,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         # may cut this step and merge with the marking process above
         for t_id in list(self.tracks.keys()):
             if self.tracks[t_id]["state"] == "Deleted":
-                self.tracks.pop(t_id)
+                self.tracks.pop(t_id)  # pragma: no cover
 
         for unmatched_det in unmatched_detections:
             assert unmatched_det not in unmatched_det_set
@@ -235,7 +236,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             features, targets = [], []
             for t_id, track in self.tracks.items():
                 if not track["state"] == "Confirmed":
-                    continue
+                    continue  # pragma: no cover
                 features += track["features"]
                 targets += [t_id for _ in track["features"]]
                 track["features"] = []

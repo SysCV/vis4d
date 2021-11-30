@@ -5,15 +5,18 @@ import torch
 from torch import nn
 
 
-class KalmanFilter(nn.Module):  # type: ignore
+class KalmanFilter(nn.Module):  # type: ignore # pylint: disable=abstract-method
     """Kalman filter.
 
-    The 8-dimensional state space
+    A general Kalman filter for tracking bounding boxes in image space.
+    Suppose measurement is a N-dimensional state space.
 
-        x, y, a, h, vx, vy, va, vh
-
-    contains the bounding box center position (x, y), aspect ratio a, height h,
-    and their respective velocities.
+    Args:
+        motion_mat: motion matrix with shape 2Nx2N.
+        update_mat: update matrix with shape Nx2N.
+        cov_motion_Q: covariance matrix with shape 2Nx2N.
+        cov_project_R: covariance matrix with shape NxN.
+        cov_P0: covariance matrix with shape 2Nx2N.
     """
 
     def __init__(
@@ -39,12 +42,14 @@ class KalmanFilter(nn.Module):  # type: ignore
         """Initiate a Kalman filter state based on the first measurement.
 
         Args:
-            measurement: Bounding box coordinates (x, y, a, h) with center
+            measurement: N-dimensional state space.
+            In normal case, it represents bounding box coordinates (
+            x, y, a, h) with center
                 position (x, y), aspect ratio a, and height h.
 
         Returns:
-            mean, covariance: the mean vector (8 dimensional) and covariance
-                matrix (8x8 dimensional) of the new track. Unobserved
+            mean, covariance: the mean vector (2N dimensional) and covariance
+                matrix (2Nx2N dimensional) of the new track. Unobserved
                 velocities are initialized to 0 mean.
         """
         mean_pos = measurement.clone().detach()
@@ -62,9 +67,9 @@ class KalmanFilter(nn.Module):  # type: ignore
         """Run Kalman filter prediction step.
 
         Args:
-            mean: The 8 dimensional mean vector of the object state at the
+            mean: The 2N dimensional mean vector of the object state at the
                 previous time step.
-            covariance: The 8x8 dimensional covariance matrix of the object
+            covariance: The 2Nx2N dimensional covariance matrix of the object
                 state at the previous time step.
 
         Returns:
@@ -89,9 +94,9 @@ class KalmanFilter(nn.Module):  # type: ignore
 
         Args:
             mean :
-                The state's mean vector (8 dimensional vector).
+                The state's mean vector (2N dimensional vector).
             covariance :
-                The state's covariance matrix (8x8 dimensional).
+                The state's covariance matrix (2Nx2N dimensional).
 
         Returns:
             mean: the projected mean of the given state estimate.
@@ -115,16 +120,16 @@ class KalmanFilter(nn.Module):  # type: ignore
 
         Args:
             mean :
-                The predicted state's mean vector (BxN dimensional).
+                The predicted state's mean vector (2N dimensional).
             covariance :
-                The state's covariance matrix (BxNxN dimensional).
+                The state's covariance matrix (2Nx2N dimensional).
             measurement :
-                The 4 dimensional measurement vector (B, N), where B is
-                 batch size and N is measurement state size
+                The 4 dimensional measurement vector (N dimensional),
+                N is measurement state size.
 
         Returns:
-            new_mean: updated mean
-            new_covariance: updated covariance
+            new_mean: updated mean (2N dimensional)
+            new_covariance: updated covariance (2Nx2N dimensional).
         """
         projected_mean, projected_cov = self.project(mean, covariance)
 
@@ -158,11 +163,11 @@ class KalmanFilter(nn.Module):  # type: ignore
 
         Args:
             mean :
-                Mean vector over the state distribution (8 dimensional).
+                Mean vector over the state distribution (2N dimensional).
             covariance :
-                Covariance of the state distribution (8x8 dimensional).
+                Covariance of the state distribution (2Nx2N dimensional).
             measurements :
-                An Nx4 dimensional matrix of N measurements, each in
+                A N dimensional measurements, And in normal case. It represents
                 format (x, y, a, h) where (x, y) is the bounding box center
                 position, a the aspect ratio, and h the height.
             only_position: If True, distance computation is done with respect

@@ -1,15 +1,12 @@
 """DeepSORT utils."""
-import glob
-import os
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
-import numpy as np
 import torch
 from scalabel.label.io import load
 from scipy.optimize import linear_sum_assignment  # type: ignore
 
 from vis4d.model.track.motion import KalmanFilter
-from vis4d.struct import Boxes2D, NDArrayF64
+from vis4d.struct import Boxes2D
 
 
 def tlbr_to_xyah(bbox_tlbr: torch.tensor) -> torch.tensor:
@@ -425,7 +422,7 @@ def load_predictions(
     for prediction in given_predictions:
         name = prediction.name
         if prediction.labels is None:
-            preds_per_frame[name] = Boxes2D(torch.empty((0, 5)))
+            preds_per_frame[name] = Boxes2D(torch.empty((0, 5))) # pragma: no cover
         else:
             preds_per_frame[name] = Boxes2D.from_scalabel(
                 prediction.labels,

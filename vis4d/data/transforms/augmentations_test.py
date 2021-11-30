@@ -41,17 +41,19 @@ class TestResize(unittest.TestCase):
         num_imgs, num_objs, height, width = 1, 10, 10, 10
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         pre_intrs = copy.deepcopy(sample.intrinsics.tensor)
-        pre_boxes = copy.deepcopy(sample.boxes2d[0].boxes)
-        pre_masks = copy.deepcopy(sample.instance_masks[0].masks)
+        pre_tgts = copy.deepcopy(sample.targets)
+        pre_boxes = pre_tgts.boxes2d[0].boxes
+        pre_masks = pre_tgts.instance_masks[0].masks
         results, _ = resize(sample, None)
         self.assertEqual(sample, results)
-        self.assertEqual(tuple(results.boxes2d[0].boxes.shape), (num_objs, 5))
+        new_tgts = results.targets
+        self.assertEqual(tuple(new_tgts.boxes2d[0].boxes.shape), (num_objs, 5))
         self.assertEqual(
-            tuple(results.instance_masks[0].masks.shape), (num_objs, 5, 5)
+            tuple(new_tgts.instance_masks[0].masks.shape), (num_objs, 5, 5)
         )
         new_intrs = sample.intrinsics.tensor
-        new_boxes = sample.boxes2d[0].boxes
-        new_masks = sample.instance_masks[0].masks
+        new_boxes = new_tgts.boxes2d[0].boxes
+        new_masks = new_tgts.instance_masks[0].masks
         self.assertEqual(pre_boxes.shape, new_boxes.shape)
         self.assertNotEqual(pre_masks.shape, new_masks.shape)
         self.assertFalse((pre_intrs == new_intrs).all())
@@ -59,8 +61,8 @@ class TestResize(unittest.TestCase):
         _, _ = resize(sample, None)
         sample = generate_input_sample(height, width, 2, num_objs)
         _, _ = resize(sample, None)
-        self.assertEqual(len(sample.boxes2d), 2)
-        self.assertEqual(len(sample.instance_masks), 2)
+        self.assertEqual(len(sample.targets.boxes2d), 2)
+        self.assertEqual(len(sample.targets.instance_masks), 2)
 
 
 class TestRandomCrop(unittest.TestCase):
@@ -114,8 +116,8 @@ class TestRandomCrop(unittest.TestCase):
         results, params = crop(sample, None)
         self.assertEqual(len(sample), len(results))
         new_intrs = sample.intrinsics.tensor
-        new_boxes = sample.boxes2d[0].boxes
-        new_masks = sample.instance_masks[0].masks
+        new_boxes = sample.targets.boxes2d[0].boxes
+        new_masks = sample.targets.instance_masks[0].masks
         self.assertEqual(new_boxes.shape[0], params["keep"][0].sum().item())
         self.assertEqual(new_masks.shape[0], params["keep"][0].sum().item())
         self.assertFalse((pre_intrs == new_intrs).all())
@@ -123,5 +125,24 @@ class TestRandomCrop(unittest.TestCase):
         _, _ = crop(sample, None)
         sample = generate_input_sample(height, width, 2, num_objs)
         _, _ = crop(sample, None)
-        self.assertEqual(len(sample.boxes2d), 2)
-        self.assertEqual(len(sample.instance_masks), 2)
+        self.assertEqual(len(sample.targets.boxes2d), 2)
+        self.assertEqual(len(sample.targets.instance_masks), 2)
+        # segmentation masks
+        crop.cfg.prob = 1.0
+        sample = generate_input_sample(
+            height, width, num_imgs, num_objs, det_input=False
+        )
+        results, params = crop(sample, None)
+        new_masks = sample.targets.semantic_masks[0].masks
+        self.assertEqual(new_masks.shape[0], params["keep"][0].sum().item())
+        aug_cfg = RandomCropConfig(
+            type="test", shape=(2, 2), cat_max_ratio=0.2
+        )
+        crop = RandomCrop(aug_cfg)
+        sample = generate_input_sample(
+            height, width, num_imgs, 2, det_input=False
+        )
+        results, params = crop(sample, None)
+        new_masks = sample.targets.semantic_masks[0].masks
+        self.assertEqual(new_masks.shape[0], params["keep"][0].sum().item())
+        self.assertEqual(new_masks.shape[1:], (2, 2))

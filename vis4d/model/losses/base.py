@@ -6,7 +6,7 @@ from typing import Any, Optional
 import torch
 from pydantic import BaseModel, Field
 
-from vis4d.common.registry import RegistryHolder
+from vis4d.common import RegistryHolder, Vis4DModule
 
 
 class LossConfig(BaseModel, extra="allow"):
@@ -17,7 +17,7 @@ class LossConfig(BaseModel, extra="allow"):
     loss_weight: Optional[float] = 1.0
 
 
-class BaseLoss(torch.nn.Module, metaclass=RegistryHolder):  # type: ignore
+class BaseLoss(Vis4DModule[torch.Tensor, torch.Tensor]):
     """Base loss class."""
 
     @abc.abstractmethod

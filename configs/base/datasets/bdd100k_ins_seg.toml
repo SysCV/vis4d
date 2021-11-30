@@ -6,7 +6,7 @@ data_root = "data/bdd100k/images/hdf5s/10k_train.hdf5"
 config_path = "ins_seg"
 cache_as_binary = true
     [train.dataloader]
-    fields_to_load = ["instance_masks"]
+    fields_to_load = ["boxes2d", "instance_masks"]
     skip_empty_samples = true
 
     [train.dataloader.data_backend]
@@ -35,7 +35,7 @@ eval_metrics = ["detect", "ins_seg"]
 config_path = "ins_seg"
 cache_as_binary = true
     [test.dataloader]
-    fields_to_load = ["instance_masks"]
+    fields_to_load = ["boxes2d", "instance_masks"]
 
     [test.dataloader.data_backend]
     type = "HDF5Backend"

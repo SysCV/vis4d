@@ -2,7 +2,5 @@
 type = "MMEncDecSegmentor"
 category_mapping = {"road" = 0, "sidewalk" = 1, "building" = 2, "wall" = 3, "fence" = 4, "pole" = 5, "traffic light" = 6, "traffic sign" = 7, "vegetation" = 8, "terrain" = 9, "sky" = 10, "person" = 11, "rider" = 12, "car" = 13, "truck" = 14, "bus" = 15, "train" = 16, "motorcycle" = 17, "bicycle" = 18}
 model_base = "mmseg://_base_/models/deeplabv3plus_r50-d8.py"
-model_kwargs= {"backbone.norm_cfg.type" = "BN", "decode_head.norm_cfg.type" = "BN", "auxiliary_head.norm_cfg.type" = "BN"}
 pixel_mean = [123.675, 116.28, 103.53]
 pixel_std = [58.395, 57.12, 57.375]
-weights = "mmseg://deeplabv3plus/deeplabv3plus_r50-d8_512x1024_80k_cityscapes/deeplabv3plus_r50-d8_512x1024_80k_cityscapes_20200606_114049-f9fb496d.pth"

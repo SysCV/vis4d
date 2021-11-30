@@ -25,6 +25,7 @@ class BaseAugmentationConfig(BaseModel, extra="allow"):
 
     prob: float = 1.0
     same_on_batch: bool = False
+    same_on_ref: bool = True
     type: str
 
 
@@ -92,7 +93,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         self, sample: InputSample, parameters: Optional[AugParams] = None
     ) -> Tuple[InputSample, AugParams]:
         """Apply augmentations to input sample."""
-        if parameters is None:
+        if parameters is None or not self.cfg.same_on_ref:
             parameters = self.generate_parameters(sample)
 
         sample.images = self.apply_image(sample.images, parameters)
@@ -102,13 +103,17 @@ class BaseAugmentation(metaclass=RegistryHolder):
         sample.extrinsics = self.apply_extrinsics(
             sample.extrinsics, parameters
         )
-        sample.boxes2d = self.apply_box2d(sample.boxes2d, parameters)
-        sample.boxes3d = self.apply_box3d(sample.boxes3d, parameters)
-        sample.instance_masks = self.apply_mask(
-            sample.instance_masks, parameters
+        sample.targets.boxes2d = self.apply_box2d(
+            sample.targets.boxes2d, parameters
         )
-        sample.semantic_masks = self.apply_mask(
-            sample.semantic_masks, parameters
+        sample.targets.boxes3d = self.apply_box3d(
+            sample.targets.boxes3d, parameters
+        )
+        sample.targets.instance_masks = self.apply_mask(
+            sample.targets.instance_masks, parameters
+        )
+        sample.targets.semantic_masks = self.apply_mask(
+            sample.targets.semantic_masks, parameters
         )
         return sample, parameters
 
