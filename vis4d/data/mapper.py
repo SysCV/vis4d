@@ -296,9 +296,8 @@ def build_mapper(
 ) -> BaseSampleMapper:
     """Build a mapper."""
     registry = RegistryHolder.get_registry(BaseSampleMapper)
-    if cfg.type == "BaseSampleMapper":
-        module = BaseSampleMapper(cfg, training, image_channel_mode)
-    elif cfg.type in registry:
+    registry["BaseSampleMapper"] = BaseSampleMapper
+    if cfg.type in registry:
         module = registry[cfg.type](cfg, training, image_channel_mode)
         assert isinstance(module, BaseSampleMapper)
     else:

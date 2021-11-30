@@ -12,7 +12,7 @@ cache_as_binary = true
     type = "HDF5Backend"
 
     [train.ref_sampler]
-    type = 'uniform'
+    strategy = 'uniform'
     scope = 1
     num_ref_imgs = 0
 

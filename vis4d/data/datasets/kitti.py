@@ -23,7 +23,7 @@ class KITTI(BaseDatasetLoader):  # pragma: no cover
     def __init__(self, cfg: BaseDatasetConfig):
         """Init dataset loader."""
         super().__init__(cfg)
-        self.cfg = KITTIDatasetConfig(**cfg.dict())  # type: KITTIDatasetConfig
+        self.cfg: KITTIDatasetConfig = KITTIDatasetConfig(**cfg.dict())
 
     def load_dataset(self) -> Dataset:
         """Convert kitti annotations to Scalabel format."""

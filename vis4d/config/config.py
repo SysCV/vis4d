@@ -9,6 +9,7 @@ import yaml
 from pydantic import BaseModel, validator
 
 from vis4d.common.utils.distributed import get_rank
+from vis4d.data.build import DataModuleConfig
 from vis4d.data.datasets import BaseDatasetConfig
 from vis4d.model import BaseModelConfig
 from vis4d.struct import DictStrAny
@@ -67,11 +68,9 @@ class Launch(BaseModel):
     weights: Optional[str]
     checkpoint_period: int = 1
     resume: bool = False
-    pin_memory: bool = False
     wandb: bool = False
     not_strict: bool = False
     tqdm: bool = False
-    train_sampler: Optional[str] = None
 
     @validator("version", always=True)
     def validate_version(  # pylint: disable=no-self-argument,no-self-use
@@ -104,6 +103,7 @@ class Config(BaseModel, extra="allow"):
     model: BaseModelConfig
     train: List[BaseDatasetConfig] = []
     test: List[BaseDatasetConfig] = []
+    data: DataModuleConfig = DataModuleConfig()
 
     def __init__(self, **data: Any) -> None:  # type: ignore
         """Init config."""

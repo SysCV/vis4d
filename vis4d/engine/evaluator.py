@@ -9,88 +9,15 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from scalabel.common import mute
-from scalabel.eval.detect import evaluate_det
-from scalabel.eval.ins_seg import evaluate_ins_seg
-from scalabel.eval.mot import acc_single_video_mot, evaluate_track
-from scalabel.eval.mots import acc_single_video_mots, evaluate_seg_track
-from scalabel.eval.result import Result
-from scalabel.eval.sem_seg import evaluate_sem_seg
-from scalabel.label.io import group_and_sort, save
-from scalabel.label.typing import Config, Frame
+from scalabel.label.io import save
+from scalabel.label.typing import Frame
 
 from ..data.datasets import BaseDatasetLoader
-from ..struct import InputSample, ModelOutput
+from ..struct import InputSample, MetricLogs, ModelOutput
 from .utils import all_gather_gts, all_gather_predictions
 
 mute(True)  # turn off undesired logs during eval
 logger = logging.getLogger("pytorch_lightning")
-
-
-def _detect(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: Config,
-    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
-) -> Result:
-    """Wrapper for evaluate_det function."""
-    return evaluate_det(gt, pred, cfg, nproc=1)
-
-
-def _ins_seg(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: Config,
-    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
-) -> Result:
-    """Wrapper for evaluate_ins_seg function."""
-    return evaluate_ins_seg(gt, pred, cfg, nproc=1)
-
-
-def _track(
-    pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
-) -> Result:
-    """Wrapper for evaluate_track function."""
-    return evaluate_track(
-        acc_single_video_mot,
-        group_and_sort(gt),
-        group_and_sort(pred),
-        cfg,
-        nproc=1,
-        ignore_unknown_cats=ignore_unknown_cats,
-    )
-
-
-def _seg_track(
-    pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
-) -> Result:
-    """Wrapper for evaluate_seg_track function."""
-    return evaluate_seg_track(
-        acc_single_video_mots,
-        group_and_sort(gt),
-        group_and_sort(pred),
-        cfg,
-        nproc=1,
-        ignore_unknown_cats=ignore_unknown_cats,
-    )
-
-
-def _sem_seg(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: Config,
-    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
-) -> Result:
-    """Wrapper for evaluate_sem_seg function."""
-    return evaluate_sem_seg(gt, pred, cfg, nproc=1)
-
-
-_eval_mapping = dict(
-    detect=_detect,
-    track=_track,
-    ins_seg=_ins_seg,
-    seg_track=_seg_track,
-    sem_seg=_sem_seg,
-)
 
 
 class Vis4DEvaluatorCallback(Callback):
@@ -132,7 +59,7 @@ class Vis4DEvaluatorCallback(Callback):
         """Process the pair of inputs and outputs."""
         raise NotImplementedError
 
-    def evaluate(self, epoch: int) -> Dict[str, Result]:
+    def evaluate(self, epoch: int) -> Dict[str, MetricLogs]:
         """Evaluate the performance after processing all input/output pairs."""
         raise NotImplementedError
 
@@ -216,14 +143,9 @@ class ScalabelEvaluatorCallback(Vis4DEvaluatorCallback):
         """Init."""
         super().__init__(dataloader_idx, dataset_loader.cfg.collect_device)
         self.output_dir = output_dir
-        self.ignore_unknown_cats = dataset_loader.cfg.ignore_unkown_cats
         self.name = dataset_loader.cfg.name
-        self.dataset_config = dataset_loader.metadata_cfg
-
-        for metric in dataset_loader.cfg.eval_metrics:
-            if metric not in _eval_mapping.keys():  # pragma: no cover
-                raise KeyError(f"metric {metric} is not supported")
         self.metrics = dataset_loader.cfg.eval_metrics
+        self.eval_func = dataset_loader.evaluate
 
     def process(
         self, inputs: List[List[InputSample]], outputs: ModelOutput
@@ -238,7 +160,7 @@ class ScalabelEvaluatorCallback(Vis4DEvaluatorCallback):
                 prediction.labels = out
                 self._predictions[key].append(prediction)
 
-    def evaluate(self, epoch: int) -> Dict[str, Result]:
+    def evaluate(self, epoch: int) -> Dict[str, MetricLogs]:
         """Evaluate the performance after processing all input/output pairs."""
         results = {}
         if not self.logging_disabled and len(self.metrics) > 0:
@@ -252,19 +174,11 @@ class ScalabelEvaluatorCallback(Vis4DEvaluatorCallback):
                 save(file_path, predictions)
 
             if key in self.metrics:
-                results[key] = _eval_mapping[key](
-                    predictions,
-                    self._gts,
-                    self.dataset_config,
-                    self.ignore_unknown_cats,
-                )
+                log_dict, log_str = self.eval_func(key, predictions, self._gts)
+                results[key] = log_dict
                 if not self.logging_disabled:
                     if self.logger is not None:
-                        log_dict = {
-                            f"{key}/{metric}": value
-                            for metric, value in results[key].summary().items()
-                        }
                         self.logger.log_metrics(log_dict, epoch)
                     logger.info("Showing results for %s", key)
-                    logger.info(results[key])
+                    logger.info(log_str)
         return results

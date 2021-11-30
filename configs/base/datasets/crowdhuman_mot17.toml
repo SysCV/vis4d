@@ -9,7 +9,7 @@ num_processes = 0
     skip_empty_samples = true
 
     [train.ref_sampler]
-    type = 'uniform'
+    strategy = 'uniform'
     scope = 0
     num_ref_imgs = 1
 
@@ -44,7 +44,7 @@ num_processes = 0
     skip_empty_samples = true
 
     [train.ref_sampler]
-    type = 'uniform'
+    strategy = 'uniform'
     scope = 10
     num_ref_imgs = 1
     skip_nomatch_samples = true
@@ -70,7 +70,7 @@ num_processes = 0
 
 [[test]]
 name = "mot17_val"
-type = "Scalabel"
+type = "MOTChallenge"
 data_root = "data/MOT17/train"
 annotations = "data/MOT17/train/val_scalabel.json"
 eval_metrics = ["detect", "track"]

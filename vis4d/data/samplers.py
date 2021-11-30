@@ -3,12 +3,20 @@ from typing import Generator, Iterator, List, Optional
 
 import numpy as np
 import torch
+from pydantic import BaseModel
 from torch.utils.data import BatchSampler, RandomSampler, Sampler
 from torch.utils.data.distributed import DistributedSampler
 
 from vis4d.common.registry import RegistryHolder
 
 from .dataset import ScalabelDataset
+
+
+class BaseSamplerConfig(BaseModel):
+    """Base sampler config."""
+
+    type: str
+    drop_last: bool = False
 
 
 class BaseSampler(Sampler[List[int]], metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
@@ -80,21 +88,21 @@ class RoundRobinSampler(BaseSampler):
 
 
 def build_data_sampler(
-    sampler_name: str,
+    cfg: BaseSamplerConfig,
     datasets: List[ScalabelDataset],
     batch_size: int,
-    drop_last: bool = False,
     generator: Optional[torch.Generator] = None,
 ) -> BaseSampler:
     """Build a sampler."""
     registry = RegistryHolder.get_registry(BaseSampler)
-    if sampler_name in registry:
-        module = registry[sampler_name](
-            datasets, batch_size, drop_last, generator
+    registry["BaseSampler"] = BaseSampler
+    if cfg.type in registry:
+        module = registry[cfg.type](
+            datasets, batch_size, cfg.drop_last, generator
         )
         assert isinstance(module, BaseSampler)
         return module
-    raise NotImplementedError(f"Sampler {sampler_name} not known!")
+    raise NotImplementedError(f"Sampler {cfg.type} not known!")
 
 
 # no coverage for this class, since we don't unittest distributed setting
@@ -118,7 +126,7 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
     ) -> None:
         """Init."""
         super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
-        self.sequences = list(dataset.video_to_indices.keys())
+        self.sequences = list(dataset.ref_sampler.video_to_indices.keys())
         self.num_seqs = len(self.sequences)
         assert self.num_seqs >= self.num_replicas, (
             f"Number of sequences ({self.num_seqs}) must be greater or "
@@ -128,7 +136,7 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
         self._local_seqs = chunks[self.rank]
         self._local_idcs = []
         for seq in self._local_seqs:
-            self._local_idcs.extend(dataset.video_to_indices[seq])
+            self._local_idcs.extend(dataset.ref_sampler.video_to_indices[seq])
 
     def __iter__(self) -> Generator[int, None, None]:
         """Iteration method."""
