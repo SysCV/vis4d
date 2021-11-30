@@ -12,7 +12,7 @@ from ..struct import (
     ModelOutput,
 )
 from .base import BaseModelConfig
-from .detect.roi_head import BaseRoIHead, BaseRoIHeadConfig, build_roi_head
+from .heads.roi_head import BaseRoIHead, BaseRoIHeadConfig, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
 from .track.graph import build_track_graph
 

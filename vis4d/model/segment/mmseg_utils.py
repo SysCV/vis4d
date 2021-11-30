@@ -18,7 +18,7 @@ except (ImportError, NameError):  # pragma: no cover
 from vis4d.struct import LabelInstances, NDArrayUI8, SemanticMasks
 
 from ..base import BaseModelConfig
-from ..detect.mmdet_utils import MMDetMetaData
+from ..detect.mmdet_utils import MMDetMetaData, add_keyword_args
 
 MMResults = List[NDArrayUI8]
 
@@ -105,17 +105,6 @@ def get_mmseg_config(config: MMEncDecSegmentorConfig) -> MMConfig:
         else:
             cfg["auxiliary_head"]["num_classes"] = len(config.category_mapping)
 
-    # add keyword args in config
     if config.model_kwargs:
-        for k, v in config.model_kwargs.items():
-            attr = cfg
-            partial_keys = k.split(".")
-            partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
-            for part_k in partial_keys:
-                attr = attr.get(part_k)
-            if attr.get(last_key) is not None:
-                attr[last_key] = type(attr.get(last_key))(v)
-            else:
-                attr[last_key] = v  # pragma: no cover
-
+        add_keyword_args(config, cfg)
     return cfg

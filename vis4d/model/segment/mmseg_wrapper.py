@@ -49,9 +49,9 @@ class MMEncDecSegmentor(BaseSegmentor):
             MMSEG_INSTALLED and MMCV_INSTALLED
         ), "MMEncDecSegmentor requires both mmcv and mmseg to be installed!"
         super().__init__(cfg)
-        self.cfg = MMEncDecSegmentorConfig(
+        self.cfg: MMEncDecSegmentorConfig = MMEncDecSegmentorConfig(
             **cfg.dict()
-        )  # type: MMEncDecSegmentorConfig
+        )
         self.mm_cfg = get_mmseg_config(self.cfg)
         self.mm_segmentor = build_segmentor(self.mm_cfg)
         assert isinstance(self.mm_segmentor, EncoderDecoder)

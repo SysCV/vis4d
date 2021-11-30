@@ -1,49 +1,40 @@
 """Quasi-dense instance similarity learning model."""
-from typing import List
+from typing import List, Optional
 
 import torch
 
 from vis4d.struct import InputSample, LabelInstances, LossesType, ModelOutput
 
-from .base import BaseModel, BaseModelConfig, build_model
-from .detect import BaseTwoStageDetector
-from .track.graph import TrackGraphConfig, build_track_graph
-from .track.similarity import SimilarityLearningConfig, build_similarity_head
+from .base import BaseModelConfig
+from .heads.dense_head import (
+    BaseDenseHeadConfig,
+    MMDecodeHead,
+    build_dense_head,
+)
+from .qdtrack import QDTrack, QDTrackConfig
 from .track.utils import split_key_ref_inputs
 
 
-class QDTrackConfig(BaseModelConfig):
-    """Config for quasi-dense tracking model."""
+class QDTrackSegConfig(QDTrackConfig):
+    """Config for quasi-dense tracking model with segmentation head."""
 
-    detection: BaseModelConfig
-    similarity: SimilarityLearningConfig
-    track_graph: TrackGraphConfig
+    seg_head: Optional[BaseDenseHeadConfig] = None
 
 
-class QDTrack(BaseModel):
-    """QDTrack model - quasi-dense instance similarity learning."""
+class QDTrackSeg(QDTrack):
+    """QDTrack model with segmentation head."""
 
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init."""
         super().__init__(cfg)
-        self.cfg = QDTrackConfig(**cfg.dict())  # type: QDTrackConfig
-        assert self.cfg.category_mapping is not None
-        self.cfg.detection.category_mapping = self.cfg.category_mapping
-        self.detector: BaseTwoStageDetector = build_model(self.cfg.detection)
-        assert isinstance(self.detector, BaseTwoStageDetector)
-        self.similarity_head = build_similarity_head(self.cfg.similarity)
-        self.track_graph = build_track_graph(self.cfg.track_graph)
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
-        self.with_mask = self.detector.with_mask
-
-    def preprocess_inputs(
-        self, batch_inputs: List[InputSample]
-    ) -> List[InputSample]:
-        """Prepare images from key / ref input samples."""
-        inputs_batch = [
-            self.detector.preprocess_inputs(inp) for inp in batch_inputs
-        ]
-        return inputs_batch
+        self.cfg: QDTrackSegConfig = QDTrackSegConfig(**cfg.dict())
+        if self.cfg.seg_head is not None:
+            self.cfg.seg_head.num_classes = len(self.cfg.category_mapping)  # type: ignore # pylint: disable=line-too-long
+            self.seg_head: Optional[MMDecodeHead] = build_dense_head(
+                self.cfg.seg_head
+            )
+        else:
+            self.seg_head = None
 
     def forward_train(
         self,
@@ -55,53 +46,51 @@ class QDTrack(BaseModel):
         key_targets, ref_targets = key_inputs.targets, [
             x.targets for x in ref_inputs
         ]
-
-        # from vis4d.vis.image import imshow_bboxes
-        # for batch_i, key_inp in enumerate(key_inputs):
-        #     imshow_bboxes(key_inp.images.tensor[0], key_inp.boxes2d)
-        #     for ref_i, ref_inp in enumerate(ref_inputs):
-        #         imshow_bboxes(
-        #             ref_inp[batch_i].images.tensor[0],
-        #             ref_inp[batch_i].boxes2d,
-        #         )
-
         # feature extraction
         key_x = self.detector.extract_features(key_inputs)
         ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]
 
-        # proposal generation
-        key_proposals, rpn_losses = self.detector.generate_proposals(
-            key_inputs, key_x
-        )
-        with torch.no_grad():
-            ref_proposals = [
-                self.detector.generate_proposals(inp, x)[0]
-                for inp, x in zip(ref_inputs, ref_x)
-            ]
+        losses = {}
+        if len(key_targets.boxes2d[0]) > 0:
+            # proposal generation
+            key_proposals, rpn_losses = self.detector.generate_proposals(
+                key_inputs, key_x
+            )
+            with torch.no_grad():
+                ref_proposals = [
+                    self.detector.generate_proposals(inp, x)[0]
+                    for inp, x in zip(ref_inputs, ref_x)
+                ]
 
-        # roi head
-        _, roi_losses, _ = self.detector.generate_detections(
-            key_inputs,
-            key_x,
-            key_proposals,
-            compute_detections=False,
-        )
-        det_losses = {**rpn_losses, **roi_losses}
+            # roi head
+            _, roi_losses, _ = self.detector.generate_detections(
+                key_inputs,
+                key_x,
+                key_proposals,
+                compute_detections=False,
+            )
+            det_losses = {**rpn_losses, **roi_losses}
 
-        # from vis4d.vis.track import imshow_bboxes
-        # for ref_imgs, ref_props in zip(ref_images, ref_proposals):
-        #     for ref_img, ref_prop in zip(ref_imgs, ref_props):
-        #         _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
-        #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
+            # track head
+            track_losses, _ = self.similarity_head(
+                [key_inputs, *ref_inputs],
+                [key_proposals, *ref_proposals],
+                [key_x, *ref_x],
+                [key_targets, *ref_targets],
+            )
 
-        # track head
-        track_losses, _ = self.similarity_head(
-            [key_inputs, *ref_inputs],
-            [key_proposals, *ref_proposals],
-            [key_x, *ref_x],
-            [key_targets, *ref_targets],
-        )
-        return {**det_losses, **track_losses}
+            losses.update(det_losses)
+            losses.update(track_losses)
+
+        if (
+            len(key_targets.semantic_masks[0]) > 0
+            and self.seg_head is not None
+        ):
+            # segmentation head
+            seg_losses = self.seg_head(key_inputs, key_x, key_targets)
+            losses.update(seg_losses)
+
+        return losses
 
     def forward_test(
         self,
@@ -121,9 +110,6 @@ class QDTrack(BaseModel):
         assert detections is not None
         if instance_segms is None or len(instance_segms) == 0:
             instance_segms = [None]  # type: ignore
-
-        # from vis4d.vis.image import imshow_bboxes
-        # imshow_bboxes(inputs.images.tensor[0], detections)
 
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
@@ -145,12 +131,12 @@ class QDTrack(BaseModel):
             instance_segms[0].postprocess(
                 input_size, inputs.images.image_sizes[0], detections[0]
             )
-            segms = (
+            instance_segms_ = (
                 instance_segms[0]
                 .to(torch.device("cpu"))
                 .to_scalabel(self.cat_mapping)
             )
-            outputs["ins_seg"] = [segms]
+            outputs["ins_seg"] = [instance_segms_]
 
         # associate detections, update graph
         predictions = LabelInstances(
@@ -175,4 +161,15 @@ class QDTrack(BaseModel):
                 .to_scalabel(self.cat_mapping)
             )
             outputs["seg_track"] = [segm_tracks]
+
+        # segmentation head
+        if self.seg_head is not None:
+            semantic_segms = self.seg_head(inputs, feat)
+            semantic_segms_ = (
+                semantic_segms[0]
+                .to(torch.device("cpu"))
+                .to_scalabel(self.cat_mapping)
+            )
+            outputs["sem_seg"] = [semantic_segms_]
+
         return outputs

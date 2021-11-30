@@ -2,7 +2,7 @@
 path = "../configs/datasets/bdd100k/mtl.toml"
 
 [[config]]
-path = "../configs/models/mmdetection/mask_qdtrack_R_18_FPN.toml"
+path = "../configs/models/mmdetection/qdtrackseg_R_18_FPN.toml"
 
 [model]
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}

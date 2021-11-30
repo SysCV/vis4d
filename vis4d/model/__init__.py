@@ -2,6 +2,7 @@
 from .base import BaseModel, BaseModelConfig, build_model
 from .qd_3dt import QD3DT
 from .qdtrack import QDTrack
+from .qdtrackseg import QDTrackSeg
 from .segment import BaseSegmentor, MMEncDecSegmentor
 
 __all__ = [
@@ -9,6 +10,7 @@ __all__ = [
     "build_model",
     "BaseModel",
     "QDTrack",
+    "QDTrackSeg",
     "QD3DT",
     "BaseSegmentor",
     "MMEncDecSegmentor",

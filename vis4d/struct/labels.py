@@ -508,11 +508,11 @@ class Masks(LabelInstance):
         """Return size of masks (w, h)."""
         return self.width, self.height
 
-    def resize(self, out_size: Tuple[int, int]) -> None:
-        """Resize masks according to factor."""
+    def resize(self, out_size: Tuple[int, int], mode: str = "nearest") -> None:
+        """Resize masks according to out_size."""
         width, height = out_size
         self.masks = F.interpolate(
-            self.masks.unsqueeze(1), size=(height, width), mode="nearest"
+            self.masks.unsqueeze(1), size=(height, width), mode=mode
         ).squeeze(1)
 
     @classmethod

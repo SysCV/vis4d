@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import requests
 import torch
+from pydantic import BaseModel
 
 try:
     from mmcv import Config as MMConfig
@@ -197,6 +198,23 @@ def load_config_from_mmdet(url: str) -> str:
     return response.text
 
 
+def add_keyword_args(config: BaseModel, cfg: MMConfig) -> None:
+    """Add keyword args in config."""
+    for k, v in config.model_kwargs.items():  # type: ignore
+        attr = cfg
+        partial_keys = k.split(".")
+        partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
+        for part_k in partial_keys:
+            attr = attr.get(part_k)
+        if attr.get(last_key) is not None:
+            attr[last_key] = type(attr.get(last_key))(v)
+            if "channels" in last_key and isinstance(attr[last_key], list):
+                # TODO: remove in config refactor PR  # pylint: disable=fixme
+                attr[last_key] = [int(c) for c in attr[last_key]]
+        else:
+            attr[last_key] = v
+
+
 def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
     """Convert a Detector config to a mmdet readable config."""
     if os.path.exists(config.model_base):
@@ -226,19 +244,8 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
                 config.category_mapping
             )
 
-    # add keyword args in config
     if config.model_kwargs:
-        for k, v in config.model_kwargs.items():
-            attr = cfg
-            partial_keys = k.split(".")
-            partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
-            for part_k in partial_keys:
-                attr = attr.get(part_k)
-            if attr.get(last_key) is not None:
-                attr[last_key] = type(attr.get(last_key))(v)
-            else:
-                attr[last_key] = v
-
+        add_keyword_args(config, cfg)
     return cfg
 
 

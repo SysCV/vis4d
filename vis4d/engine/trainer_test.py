@@ -204,7 +204,7 @@ class TestMTL(BaseEngineTests.TestTrain):
         """Set up class."""
         cls.work_dir = "./unittests/unittest_mtl/"
         args = Namespace(
-            config=get_test_file("mtl/mask_qdtrack_mmdet.toml"),
+            config=get_test_file("mtl/qdtrackseg.toml"),
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)
