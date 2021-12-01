@@ -17,7 +17,6 @@ from .datasets import (
     build_dataset_loader,
 )
 from .samplers import (
-    BaseSampler,
     BaseSamplerConfig,
     TrackingInferenceSampler,
     build_data_sampler,
@@ -92,6 +91,7 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         self.train_datasets: Optional[List[ScalabelDataset]] = None
         self.test_datasets: Optional[List[ScalabelDataset]] = None
         self.predict_datasets: Optional[List[ScalabelDataset]] = None
+        self.train_sampler = cfg.train_sampler
         if len(train_loaders) > 0:
             self.train_datasets = [
                 ScalabelDataset(
@@ -115,23 +115,24 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
                 )
                 for dl in predict_loaders
             ]
-        self.train_sampler: Optional[BaseSampler] = None
-        if self.train_datasets is not None and cfg.train_sampler is not None:
-            self.train_sampler = build_data_sampler(
-                cfg.train_sampler, self.train_datasets, self.samples_per_gpu
-            )
 
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""
         assert self.train_datasets is not None
         if self.train_sampler is not None:
+            train_sampler: Optional[
+                data.Sampler[List[int]]
+            ] = build_data_sampler(
+                self.train_sampler, self.train_datasets, self.samples_per_gpu
+            )
             batch_size, shuffle = 1, False
         else:
+            train_sampler = None
             batch_size, shuffle = self.samples_per_gpu, True
         train_dataset = data.ConcatDataset(self.train_datasets)
         train_dataloader = data.DataLoader(
             train_dataset,
-            batch_sampler=self.train_sampler,
+            batch_sampler=train_sampler,
             batch_size=batch_size,
             num_workers=self.workers_per_gpu,
             collate_fn=identity_batch_collator,
