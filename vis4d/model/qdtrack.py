@@ -1,5 +1,5 @@
 """Quasi-dense instance similarity learning model."""
-from typing import List
+from typing import Dict, List
 
 import torch
 
@@ -45,29 +45,17 @@ class QDTrack(BaseModel):
         ]
         return inputs_batch
 
-    def forward_train(
+    def _detect_and_track_losses(
         self,
-        batch_inputs: List[InputSample],
+        key_inputs: InputSample,
+        ref_inputs: List[InputSample],
+        key_x: Dict[str, torch.Tensor],
+        ref_x: List[Dict[str, torch.Tensor]],
     ) -> LossesType:
-        """Forward function for training."""
-        batch_inputs = self.preprocess_inputs(batch_inputs)
-        key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
+        """Get detection and tracking losses."""
         key_targets, ref_targets = key_inputs.targets, [
             x.targets for x in ref_inputs
         ]
-
-        # from vis4d.vis.image import imshow_bboxes
-        # for batch_i, key_inp in enumerate(key_inputs):
-        #     imshow_bboxes(key_inp.images.tensor[0], key_inp.boxes2d)
-        #     for ref_i, ref_inp in enumerate(ref_inputs):
-        #         imshow_bboxes(
-        #             ref_inp[batch_i].images.tensor[0],
-        #             ref_inp[batch_i].boxes2d,
-        #         )
-
-        # feature extraction
-        key_x = self.detector.extract_features(key_inputs)
-        ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]
 
         # proposal generation
         key_proposals, rpn_losses = self.detector.generate_proposals(
@@ -103,17 +91,10 @@ class QDTrack(BaseModel):
         )
         return {**det_losses, **track_losses}
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
+    def _detect_and_track(
+        self, inputs: InputSample, feat: Dict[str, torch.Tensor]
     ) -> ModelOutput:
-        """Compute model output during inference."""
-        assert len(batch_inputs) == 1, "No reference views during test!"
-        assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
-        inputs = self.detector.preprocess_inputs(batch_inputs[0])
-
-        # detector
-        feat = self.detector.extract_features(inputs)
+        """Get detections and tracks."""
         proposals, _ = self.detector.generate_proposals(inputs, feat)
         detections, _, instance_segms = self.detector.generate_detections(
             inputs, feat, proposals, compute_segmentations=self.with_mask
@@ -176,3 +157,39 @@ class QDTrack(BaseModel):
             )
             outputs["seg_track"] = [segm_tracks]
         return outputs
+
+    def forward_train(
+        self,
+        batch_inputs: List[InputSample],
+    ) -> LossesType:
+        """Forward function for training."""
+        batch_inputs = self.preprocess_inputs(batch_inputs)
+        key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
+
+        # from vis4d.vis.image import imshow_bboxes
+        # for batch_i, key_inp in enumerate(key_inputs):
+        #     imshow_bboxes(key_inp.images.tensor[0], key_inp.boxes2d)
+        #     for ref_i, ref_inp in enumerate(ref_inputs):
+        #         imshow_bboxes(
+        #             ref_inp[batch_i].images.tensor[0],
+        #             ref_inp[batch_i].boxes2d,
+        #         )
+
+        # feature extraction
+        key_x = self.detector.extract_features(key_inputs)
+        ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]
+
+        return self._detect_and_track_losses(
+            key_inputs, ref_inputs, key_x, ref_x
+        )
+
+    def forward_test(
+        self,
+        batch_inputs: List[InputSample],
+    ) -> ModelOutput:
+        """Compute model output during inference."""
+        assert len(batch_inputs) == 1, "No reference views during test!"
+        assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
+        inputs = self.detector.preprocess_inputs(batch_inputs[0])
+        feat = self.detector.extract_features(inputs)
+        return self._detect_and_track(inputs, feat)

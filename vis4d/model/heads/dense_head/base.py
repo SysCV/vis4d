@@ -20,6 +20,7 @@ class BaseDenseHeadConfig(BaseModel, extra="allow"):
     """Base config for Dense head."""
 
     type: str = Field(...)
+    category_mapping: Optional[Dict[str, int]] = None
 
 
 class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):

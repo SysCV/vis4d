@@ -25,7 +25,6 @@ class MMDecodeHeadConfig(BaseDenseHeadConfig):
     """Config for mmsegmentation decode heads."""
 
     name: str = "decode_head"
-    num_classes: int
     model_base: str
     model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
 
@@ -72,7 +71,8 @@ def get_mmseg_config(config: MMDecodeHeadConfig) -> MMConfig:
     cfg = cfg[config.name]
 
     # convert decode head attributes
-    cfg["num_classes"] = config.num_classes
+    assert config.category_mapping is not None
+    cfg["num_classes"] = len(config.category_mapping)
 
     if config.model_kwargs:
         add_keyword_args(config, cfg)

@@ -38,6 +38,8 @@ class MMDecodeHead(BaseDenseHead[SemanticMasks]):
         assert isinstance(self.mm_decode_head, BaseDecodeHead)
         self.mm_decode_head.init_weights()
         self.mm_decode_head.train()
+        assert self.cfg.category_mapping is not None
+        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
 
     def forward_train(
         self,
