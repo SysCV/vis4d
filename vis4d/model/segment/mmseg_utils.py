@@ -20,7 +20,7 @@ from vis4d.struct import LabelInstances, NDArrayUI8, SemanticMasks
 from ..base import BaseModelConfig
 from ..detect.mmdet_utils import MMDetMetaData, add_keyword_args
 
-MMResults = List[NDArrayUI8]
+MMResults = Union[List[NDArrayUI8], torch.Tensor]
 
 
 class MMEncDecSegmentorConfig(BaseModelConfig):
@@ -51,11 +51,12 @@ def results_from_mmseg(
     masks = []
     for result, img_meta in zip(results, img_metas):
         ori_h, ori_w = img_meta["ori_shape"][:2]  # type: ignore
-        masks.append(
-            SemanticMasks(
-                torch.tensor([result[:ori_h, :ori_w]], device=device).byte()
-            ).to_nhw_mask()
-        )
+        result = result[:ori_h, :ori_w]
+        if isinstance(result, torch.Tensor):
+            mask = result.unsqueeze(0).byte()
+        else:
+            mask = torch.tensor([result], device=device).byte()
+        masks.append(SemanticMasks(mask).to_nhw_mask())
     return masks
 
 
