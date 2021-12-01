@@ -13,6 +13,7 @@ type = "QD3DT"
     in_channels = 256
     fc_out_dim = 1024
     roi_feat_size = 7
+    norm = "GroupNorm"
     proposal_append_gt = true
 
         [model.bbox_3d_head.loss]

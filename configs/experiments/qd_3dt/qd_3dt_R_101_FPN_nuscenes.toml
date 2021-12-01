@@ -9,6 +9,7 @@ category_mapping = {"car" = 0, "truck" = 1, "bus" = 2, "trailer" = 3, "construct
     [model.detection]
     pixel_mean = [106.07, 127.705, 128.08]
     pixel_std = [73.458, 70.129, 70.463]
+    model_kwargs = {"backbone.depth" = 101, "backbone.init_cfg.checkpoint" = "torchvision://resnet101", "rpn_head.anchor_generator.scales" = [4, 8], "rpn_head.anchor_generator.ratios" = [0.25, 0.5, 1.0, 2.0, 4.0], "rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.beta" = 0.111, "roi_head.bbox_head.loss_cls.loss_weight" = 5.0, "roi_head.bbox_head.loss_bbox.type" = "SmoothL1Loss", "roi_head.bbox_head.loss_bbox.loss_weight" = 5.0}
 
     [model.optimizer]
     type = "SGD"
@@ -24,9 +25,10 @@ category_mapping = {"car" = 0, "truck" = 1, "bus" = 2, "trailer" = 3, "construct
 [launch]
 samples_per_gpu = 4
 workers_per_gpu = 2
+seed = 2532270870
 
 [trainer]
 max_epochs = 24
-log_every_n_steps = 50
+log_every_n_steps = 1
 check_val_every_n_epoch = 1
 num_sanity_val_steps = 2

@@ -23,11 +23,6 @@ cache_as_binary = true
     type = "KorniaRandomHorizontalFlip"
     prob = 0.5
 
-    [[train.dataloader.transformations]]
-    type = "KorniaColorJitter"
-    prob = 0.5
-    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.8, 1.2], "saturation" = [0.8, 1.2]}
-
 [[test]]
 name = "nuscenes_val"
 type = "NuScenes"

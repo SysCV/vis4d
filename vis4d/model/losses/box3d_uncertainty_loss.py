@@ -85,7 +85,7 @@ class Box3DUncertaintyLoss(BaseLoss):
             target[:, 6 : 6 + self.cfg.num_rotation_bins],
             target[:, 6 + self.cfg.num_rotation_bins :],
             self.cfg.num_rotation_bins,
-        ).mean()
+        )
 
         result_dict = dict(
             loss_ctr3d=self.cfg.loss_weights[0] * loss_cen,

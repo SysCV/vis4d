@@ -80,10 +80,24 @@ class QD3DT(QDTrack):
             key_inputs, key_x
         )
 
+        for k, v in rpn_losses.items():
+            if torch.isnan(v):
+                print(k)
+                import pdb
+
+                pdb.set_trace()
+
         # 3d bbox head
         loss_bbox_3d, _ = self.bbox_3d_head.forward_train(
             key_inputs, key_proposals, key_x
         )
+
+        for k, v in loss_bbox_3d.items():
+            if torch.isnan(v):
+                print(k)
+                import pdb
+
+                pdb.set_trace()
 
         # bbox head
         _, roi_losses, _ = self.detector.generate_detections(
@@ -92,6 +106,13 @@ class QD3DT(QDTrack):
             key_proposals,
             compute_detections=False,
         )
+
+        for k, v in roi_losses.items():
+            if torch.isnan(v):
+                print(k)
+                import pdb
+
+                pdb.set_trace()
 
         det_losses = {**rpn_losses, **roi_losses, **loss_bbox_3d}
 
@@ -107,6 +128,13 @@ class QD3DT(QDTrack):
             [key_x, *ref_x],
             [key_proposals, *ref_proposals],
         )
+
+        for k, v in track_losses.items():
+            if torch.isnan(v):
+                print(k)
+                import pdb
+
+                pdb.set_trace()
 
         return {**det_losses, **track_losses}
 
