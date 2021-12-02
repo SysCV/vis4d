@@ -1,7 +1,24 @@
 """mmdetection detector wrapper."""
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
-import torch
+from vis4d.common.mmdet_utils import get_mmdet_config
+from vis4d.struct import (
+    Boxes2D,
+    FeatureMaps,
+    InputSample,
+    InstanceMasks,
+    LabelInstances,
+    LossesType,
+    ModelOutput,
+)
+
+from ..backbone import MMDetBackboneConfig, build_backbone
+from ..backbone.neck import MMDetNeckConfig
+from ..base import BaseModelConfig
+from ..heads.dense_head import MMDetDenseHeadConfig, build_dense_head
+from ..heads.roi_head import MMDetRoIHeadConfig, build_roi_head
+from .base import BaseDetectorConfig, BaseTwoStageDetector
+from .utils import postprocess
 
 try:
     from mmcv.runner.checkpoint import load_checkpoint
@@ -11,38 +28,22 @@ except (ImportError, NameError):  # pragma: no cover
     MMCV_INSTALLED = False
 
 try:
-    from mmdet.models import TwoStageDetector, build_detector
-
     MMDET_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
-
-from vis4d.struct import (
-    Boxes2D,
-    InputSample,
-    InstanceMasks,
-    LossesType,
-    ModelOutput,
-)
-
-from ..base import BaseModelConfig
-from .base import BaseTwoStageDetector
-from .mmdet_utils import (
-    MMTwoStageDetectorConfig,
-    _parse_losses,
-    detections_from_mmdet,
-    get_img_metas,
-    get_mmdet_config,
-    proposals_from_mmdet,
-    proposals_to_mmdet,
-    results_from_mmdet,
-    segmentations_from_mmdet,
-    targets_to_mmdet,
-)
-from .utils import postprocess
-
 MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
+
+
+class MMTwoStageDetectorConfig(BaseDetectorConfig):
+    """Config for mmdetection two stage models."""
+
+    model_base: str
+    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
+    pixel_mean: Tuple[float, float, float]
+    pixel_std: Tuple[float, float, float]
+    backbone_output_names: Optional[List[str]]
+    weights: Optional[str]
 
 
 class MMTwoStageDetector(BaseTwoStageDetector):
@@ -58,35 +59,61 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             **cfg.dict()
         )
         self.mm_cfg = get_mmdet_config(self.cfg)
-        self.mm_detector = build_detector(self.mm_cfg)
-        assert isinstance(self.mm_detector, TwoStageDetector)
-        self.with_mask = self.mm_detector.roi_head.with_mask
-        self.mm_detector.init_weights()
-        self.mm_detector.train()
+        self._backbone = build_backbone(
+            MMDetBackboneConfig(
+                type="MMDetBackbone",
+                mm_cfg=self.mm_cfg["backbone"],
+                pixel_mean=self.cfg.pixel_mean,
+                pixel_std=self.cfg.pixel_std,
+                neck=MMDetNeckConfig(
+                    type="MMDetNeck",
+                    mm_cfg=self.mm_cfg["neck"],
+                    output_names=self.cfg.backbone_output_names,
+                ),
+            )
+        )
+        self.backbone = self._backbone.mm_backbone
+        self.neck = self._backbone.neck.mm_neck
+
+        rpn_cfg = self.mm_cfg["rpn_head"]
+        if "train_cfg" in self.mm_cfg and "rpn" in self.mm_cfg["train_cfg"]:
+            rpn_train_cfg = self.mm_cfg["train_cfg"]["rpn"]
+        else:
+            rpn_train_cfg = None
+        rpn_cfg.update(
+            train_cfg=rpn_train_cfg, test_cfg=self.mm_cfg["test_cfg"]["rpn"]
+        )
+        self._rpn_head = build_dense_head(
+            MMDetDenseHeadConfig(type="MMDetDenseHead", mm_cfg=rpn_cfg)
+        )
+        self.rpn_head = self._rpn_head.mm_dense_head
+
+        roi_head_cfg = self.mm_cfg["roi_head"]
+        if "train_cfg" in self.mm_cfg and "rcnn" in self.mm_cfg["train_cfg"]:
+            rcnn_train_cfg = self.mm_cfg["train_cfg"]["rcnn"]
+        else:
+            rcnn_train_cfg = None
+
+        roi_head_cfg.update(train_cfg=rcnn_train_cfg)
+        roi_head_cfg.update(test_cfg=self.mm_cfg["test_cfg"]["rcnn"])
+        self._roi_head = build_roi_head(
+            MMDetRoIHeadConfig(
+                type="MMDetRoIHead",
+                mm_cfg=roi_head_cfg,
+            )
+        )
+        self.roi_head = self._roi_head.mm_roi_head
+
+        self.with_mask = self._roi_head.with_mask
         if self.cfg.weights is not None:
             if self.cfg.weights.startswith("mmdet://"):
                 self.cfg.weights = (
                     MMDET_MODEL_PREFIX + self.cfg.weights.split("mmdet://")[-1]
                 )
-            load_checkpoint(self.mm_detector, self.cfg.weights)
+            load_checkpoint(self, self.cfg.weights)
 
         assert self.cfg.category_mapping is not None
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
-        self.register_buffer(
-            "pixel_mean",
-            torch.tensor(self.cfg.pixel_mean).view(-1, 1, 1),
-            False,
-        )
-        self.register_buffer(
-            "pixel_std", torch.tensor(self.cfg.pixel_std).view(-1, 1, 1), False
-        )
-
-    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
-        """Batch, pad (standard stride=32) and normalize the input images."""
-        inputs.images.tensor = (
-            inputs.images.tensor - self.pixel_mean
-        ) / self.pixel_std
-        return inputs
 
     def forward_train(
         self,
@@ -96,18 +123,15 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         assert (
             len(batch_inputs) == 1
         ), "No reference views allowed in MMTwoStageDetector training!"
-        inputs = self.preprocess_inputs(batch_inputs[0])
-
-        image_metas = get_img_metas(inputs.images)
-        gt_bboxes, gt_labels, gt_masks = targets_to_mmdet(inputs.targets)
-        losses = self.mm_detector.forward_train(
-            inputs.images.tensor,
-            image_metas,
-            gt_bboxes,
-            gt_labels,
-            gt_masks=gt_masks,
+        inputs = batch_inputs[0]
+        features = self._backbone(inputs)
+        proposals, rpn_losses = self._rpn_head(
+            inputs, features, inputs.targets
         )
-        return _parse_losses(losses)
+        roi_losses, _ = self._roi_head(
+            inputs, proposals, features, inputs.targets
+        )
+        return {**rpn_losses, **roi_losses}
 
     def forward_test(
         self,
@@ -117,13 +141,12 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         assert (
             len(batch_inputs) == 1
         ), "No reference views allowed in MMTwoStageDetector testing!"
-        inputs = self.preprocess_inputs(batch_inputs[0])
-        image_metas = get_img_metas(inputs.images)
-        outs = self.mm_detector.simple_test(inputs.images.tensor, image_metas)
-        detections, segmentations = results_from_mmdet(
-            outs, self.device, self.with_mask
-        )
-        assert detections is not None
+        inputs = batch_inputs[0]
+
+        features = self._backbone(inputs)
+        proposals = self._rpn_head(inputs, features)
+        detections = self._roi_head(inputs, proposals, features)
+        segmentations = None  # TODO
 
         postprocess(
             inputs, detections, segmentations, self.cfg.clip_bboxes_to_image
@@ -141,54 +164,31 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             )
         return outputs
 
-    def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
+    def extract_features(self, inputs: InputSample) -> FeatureMaps:
         """Detector feature extraction stage.
 
         Return backbone output features.
         """
-        outs = self.mm_detector.extract_feat(inputs.images.tensor)
-        if self.cfg.backbone_output_names is None:  # pragma: no cover
-            return {f"out{i}": v for i, v in enumerate(outs)}
-
-        return dict(zip(self.cfg.backbone_output_names, outs))
+        return self._backbone(inputs)
 
     def generate_proposals(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
+        features: FeatureMaps,
+        targets: Optional[LabelInstances] = None,
     ) -> Tuple[List[Boxes2D], LossesType]:
         """Detector RPN stage.
 
         Return proposals per image and losses (empty if no targets).
         """
-        feat_list = list(features.values())
-        img_metas = get_img_metas(inputs.images)
-        if self.training:
-            gt_bboxes, _, _ = targets_to_mmdet(inputs.targets)
-
-            proposal_cfg = self.mm_detector.train_cfg.get(
-                "rpn_proposal", self.mm_detector.test_cfg.rpn
-            )
-            rpn_losses, proposals = self.mm_detector.rpn_head.forward_train(
-                feat_list,
-                img_metas,
-                gt_bboxes,
-                gt_labels=None,
-                proposal_cfg=proposal_cfg,
-            )
-        else:
-            proposals = self.mm_detector.rpn_head.simple_test(
-                feat_list, img_metas
-            )
-            rpn_losses = {}
-
-        return proposals_from_mmdet(proposals), _parse_losses(rpn_losses)
+        return self._rpn_head(inputs, features, targets)
 
     def generate_detections(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
+        features: FeatureMaps,
         proposals: Optional[List[Boxes2D]] = None,
+        targets: Optional[LabelInstances] = None,
         compute_detections: bool = True,
         compute_segmentations: bool = False,
     ) -> Tuple[
@@ -198,50 +198,4 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
         Return losses (empty if no targets) and optionally detections.
         """
-        assert (
-            proposals is not None
-        ), "Generating detections with MMTwoStageDetector requires proposals."
-        proposal_list = proposals_to_mmdet(proposals)
-        feat_list = list(features.values())
-        img_metas = get_img_metas(inputs.images)
-        if self.training:
-            gt_bboxes, gt_labels, gt_masks = targets_to_mmdet(inputs.targets)
-            detect_losses = self.mm_detector.roi_head.forward_train(
-                feat_list,
-                img_metas,
-                proposal_list,
-                gt_bboxes,
-                gt_labels,
-                gt_masks=gt_masks,
-            )
-            detect_losses = _parse_losses(detect_losses)
-            assert (
-                not compute_detections
-            ), "mmdetection does not compute detections during train!"
-            assert (
-                not compute_segmentations
-            ), "mmdetection does not compute segmentations during train!"
-            detections, segmentations = None, None
-        else:
-            bboxes, labels = self.mm_detector.roi_head.simple_test_bboxes(
-                feat_list,
-                img_metas,
-                proposal_list,
-                self.mm_detector.roi_head.test_cfg,
-            )
-            detections = detections_from_mmdet(bboxes, labels)
-            if compute_segmentations:  # pragma: no cover
-                masks = self.mm_detector.roi_head.simple_test_mask(
-                    feat_list,
-                    img_metas,
-                    bboxes,
-                    labels,
-                )
-                segmentations = segmentations_from_mmdet(
-                    masks, detections, self.device
-                )
-            else:
-                segmentations = None
-            detect_losses = {}
-
-        return detections, detect_losses, segmentations
+        return self._roi_head(inputs, proposals, features, targets)

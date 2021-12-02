@@ -1,9 +1,15 @@
 """Quasi-dense instance similarity learning model."""
-from typing import Dict, List
+from typing import List
 
 import torch
 
-from vis4d.struct import InputSample, LabelInstances, LossesType, ModelOutput
+from vis4d.struct import (
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+    ModelOutput,
+)
 
 from .base import BaseModel, BaseModelConfig, build_model
 from .detect import BaseTwoStageDetector
@@ -36,21 +42,12 @@ class QDTrack(BaseModel):
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
         self.with_mask = self.detector.with_mask
 
-    def preprocess_inputs(
-        self, batch_inputs: List[InputSample]
-    ) -> List[InputSample]:
-        """Prepare images from key / ref input samples."""
-        inputs_batch = [
-            self.detector.preprocess_inputs(inp) for inp in batch_inputs
-        ]
-        return inputs_batch
-
     def _detect_and_track_losses(
         self,
         key_inputs: InputSample,
         ref_inputs: List[InputSample],
-        key_x: Dict[str, torch.Tensor],
-        ref_x: List[Dict[str, torch.Tensor]],
+        key_x: FeatureMaps,
+        ref_x: List[FeatureMaps],
     ) -> LossesType:
         """Get detection and tracking losses."""
         key_targets, ref_targets = key_inputs.targets, [
@@ -59,19 +56,20 @@ class QDTrack(BaseModel):
 
         # proposal generation
         key_proposals, rpn_losses = self.detector.generate_proposals(
-            key_inputs, key_x
+            key_inputs, key_x, key_targets
         )
         with torch.no_grad():
             ref_proposals = [
-                self.detector.generate_proposals(inp, x)[0]
-                for inp, x in zip(ref_inputs, ref_x)
+                self.detector.generate_proposals(inp, x, tgt)[0]
+                for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets)
             ]
 
         # roi head
-        _, roi_losses, _ = self.detector.generate_detections(
+        roi_losses, _ = self.detector.generate_detections(
             key_inputs,
             key_x,
             key_proposals,
+            key_targets,
             compute_detections=False,
         )
         det_losses = {**rpn_losses, **roi_losses}
@@ -92,16 +90,16 @@ class QDTrack(BaseModel):
         return {**det_losses, **track_losses}
 
     def _detect_and_track(
-        self, inputs: InputSample, feat: Dict[str, torch.Tensor]
+        self, inputs: InputSample, feat: FeatureMaps
     ) -> ModelOutput:
         """Get detections and tracks."""
-        proposals, _ = self.detector.generate_proposals(inputs, feat)
-        detections, _, instance_segms = self.detector.generate_detections(
-            inputs, feat, proposals, compute_segmentations=self.with_mask
+        proposals = self.detector.generate_proposals(inputs, feat)
+        detections, instance_segms = self.detector.generate_detections(
+            inputs, feat, proposals
         )
         assert detections is not None
         if instance_segms is None or len(instance_segms) == 0:
-            instance_segms = [None]  # type: ignore
+            instance_segms = [None]
 
         # from vis4d.vis.image import imshow_bboxes
         # imshow_bboxes(inputs.images.tensor[0], detections)
@@ -163,7 +161,6 @@ class QDTrack(BaseModel):
         batch_inputs: List[InputSample],
     ) -> LossesType:
         """Forward function for training."""
-        batch_inputs = self.preprocess_inputs(batch_inputs)
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
 
         # from vis4d.vis.image import imshow_bboxes
@@ -190,6 +187,5 @@ class QDTrack(BaseModel):
         """Compute model output during inference."""
         assert len(batch_inputs) == 1, "No reference views during test!"
         assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
-        inputs = self.detector.preprocess_inputs(batch_inputs[0])
-        feat = self.detector.extract_features(inputs)
-        return self._detect_and_track(inputs, feat)
+        feat = self.detector.extract_features(batch_inputs[0])
+        return self._detect_and_track(batch_inputs[0], feat)

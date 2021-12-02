@@ -28,6 +28,7 @@ from torch.nn.modules.batchnorm import _BatchNorm
 
 from vis4d.struct import (
     Boxes2D,
+    FeatureMaps,
     InputSample,
     InstanceMasks,
     LossesType,
@@ -135,7 +136,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
     def generate_proposals(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
+        features: FeatureMaps,
     ) -> Tuple[List[Boxes2D], LossesType]:
         """Detector RPN stage.
 
@@ -161,7 +162,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
     def generate_detections(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
+        features: FeatureMaps,
         proposals: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,
         compute_segmentations: bool = False,

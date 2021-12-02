@@ -166,7 +166,9 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Test function."""
     trainer = default_setup(cfg, trainer_args)
-    model = build_model(cfg.model, cfg.launch.weights)
+    model = build_model(
+        cfg.model, cfg.launch.weights, not cfg.launch.not_strict
+    )
 
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         [], cfg.test
@@ -202,7 +204,9 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Prediction function."""
     trainer = default_setup(cfg, trainer_args)
-    model = build_model(cfg.model, cfg.launch.weights)
+    model = build_model(
+        cfg.model, cfg.launch.weights, not cfg.launch.not_strict
+    )
 
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         [],

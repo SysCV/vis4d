@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 
 from vis4d.common.registry import RegistryHolder
-from vis4d.struct import InputSample, LossesType, SemanticMasks
+from vis4d.struct import FeatureMaps, InputSample, LossesType, SemanticMasks
 
 from ..base import BaseModel
 
@@ -31,7 +31,7 @@ class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
     def generate_segmentations(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
+        features: FeatureMaps,
         compute_segmentations: bool = True,
     ) -> Tuple[Optional[List[SemanticMasks]], LossesType]:
         """Segmentor decode stage.

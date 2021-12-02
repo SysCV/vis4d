@@ -86,3 +86,4 @@ LossesType = Dict[str, torch.Tensor]
 ModelOutput = Dict[str, List[List[Label]]]
 DictStrAny = Dict[str, Any]  # type: ignore
 MetricLogs = Dict[str, Union[float, int]]
+FeatureMaps = Dict[str, torch.Tensor]

@@ -61,7 +61,7 @@ class MyDetector(BaseDetector):
         """
         raise NotImplementedError
 
-    def extract_features(self, inputs: Images) -> Dict[str, torch.Tensor]:
+    def extract_features(self, inputs: Images) -> FeatureMaps:
         """Detector feature extraction stage.
 
         Return backbone output features
@@ -71,7 +71,7 @@ class MyDetector(BaseDetector):
     def generate_detections(
         self,
         images: Images,
-        features: Dict[str, torch.Tensor],
+        features: FeatureMaps,
         proposals: List[Boxes2D],
         targets: Optional[List[Boxes2D]] = None,
         compute_detections: bool = True,

@@ -1,12 +1,17 @@
 """Base class for Vis4D detectors."""
 
 import abc
-from typing import Dict, List, Optional, Tuple
-
-import torch
+from typing import List, Optional, Tuple
 
 from vis4d.common.registry import RegistryHolder
-from vis4d.struct import Boxes2D, InputSample, InstanceMasks, LossesType
+from vis4d.struct import (
+    Boxes2D,
+    FeatureMaps,
+    InputSample,
+    InstanceMasks,
+    LabelInstances,
+    LossesType,
+)
 
 from ..base import BaseModel, BaseModelConfig
 
@@ -26,12 +31,7 @@ class BaseDetector(BaseModel, metaclass=RegistryHolder):
         self.cfg: BaseDetectorConfig = BaseDetectorConfig(**cfg.dict())
 
     @abc.abstractmethod
-    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
-        """Normalize, pad and batch input images. Preprocess other inputs."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
+    def extract_features(self, inputs: InputSample) -> FeatureMaps:
         """Detector feature extraction stage.
 
         Return backbone output features
@@ -42,8 +42,9 @@ class BaseDetector(BaseModel, metaclass=RegistryHolder):
     def generate_detections(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
+        features: FeatureMaps,
         proposals: Optional[List[Boxes2D]] = None,
+        targets: Optional[LabelInstances] = None,
         compute_detections: bool = True,
         compute_segmentations: bool = False,
     ) -> Tuple[
@@ -63,7 +64,8 @@ class BaseTwoStageDetector(BaseDetector):
     def generate_proposals(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
+        features: FeatureMaps,
+        targets: Optional[LabelInstances] = None,
     ) -> Tuple[List[Boxes2D], LossesType]:
         """Detector RPN stage.
 

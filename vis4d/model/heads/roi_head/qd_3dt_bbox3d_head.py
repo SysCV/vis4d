@@ -1,5 +1,5 @@
 """3D Box Head definition for QD-3DT."""
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -20,6 +20,7 @@ from vis4d.model.losses import LossConfig, build_loss
 from vis4d.struct import (
     Boxes2D,
     Boxes3D,
+    FeatureMaps,
     InputSample,
     Intrinsics,
     LabelInstances,
@@ -202,7 +203,7 @@ class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
         num_branch_fcs: int,
         in_channels: int,
         is_shared: bool = False,
-    ) -> Tuple[torch.nn.ModuleList, torch.nn.ModuleList, int]:
+    ) -> Tuple[nn.ModuleList, nn.ModuleList, int]:
         """Init modules of head."""
         last_layer_dim = in_channels
         # add branch specific conv layers
@@ -339,7 +340,7 @@ class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Forward pass during training stage.
@@ -388,7 +389,7 @@ class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
     ) -> List[Boxes3D]:
         """Forward pass during testing stage.
 

@@ -32,23 +32,10 @@ from vis4d.struct import (
     NDArrayUI8,
 )
 
-from .base import BaseDetectorConfig
-
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
 MMDetResult = List[torch.Tensor]
 MMSegmResult = List[List[NDArrayUI8]]
 MMResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
-
-
-class MMTwoStageDetectorConfig(BaseDetectorConfig):
-    """Config for mmdetection two stage models."""
-
-    model_base: str
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
-    pixel_mean: Tuple[float, float, float]
-    pixel_std: Tuple[float, float, float]
-    backbone_output_names: Optional[List[str]]
-    weights: Optional[str]
 
 
 def get_img_metas(images: Images) -> List[MMDetMetaData]:
@@ -215,7 +202,7 @@ def add_keyword_args(config: BaseModel, cfg: MMConfig) -> None:
             attr[last_key] = v
 
 
-def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
+def get_mmdet_config(config: BaseModel) -> MMConfig:
     """Convert a Detector config to a mmdet readable config."""
     if os.path.exists(config.model_base):
         cfg = MMConfig.fromfile(config.model_base)
@@ -232,17 +219,20 @@ def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
         )
 
     # convert detect attributes
-    assert config.category_mapping is not None
-    if "bbox_head" in cfg:  # pragma: no cover
-        cfg["bbox_head"]["num_classes"] = len(config.category_mapping)
-    if "roi_head" in cfg:
-        cfg["roi_head"]["bbox_head"]["num_classes"] = len(
-            config.category_mapping
-        )
-        if "mask_head" in cfg["roi_head"]:
-            cfg["roi_head"]["mask_head"]["num_classes"] = len(
+    if (
+        hasattr(config, "category_mapping")
+        and config.category_mapping is not None
+    ):
+        if "bbox_head" in cfg:  # pragma: no cover
+            cfg["bbox_head"]["num_classes"] = len(config.category_mapping)
+        if "roi_head" in cfg:
+            cfg["roi_head"]["bbox_head"]["num_classes"] = len(
                 config.category_mapping
             )
+            if "mask_head" in cfg["roi_head"]:
+                cfg["roi_head"]["mask_head"]["num_classes"] = len(
+                    config.category_mapping
+                )
 
     if config.model_kwargs:
         add_keyword_args(config, cfg)

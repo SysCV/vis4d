@@ -18,7 +18,9 @@ except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
 
+from vis4d.common.mmdet_utils import _parse_losses, get_img_metas
 from vis4d.struct import (
+    FeatureMaps,
     Images,
     InputSample,
     LossesType,
@@ -27,7 +29,6 @@ from vis4d.struct import (
 )
 
 from ..base import BaseModelConfig
-from ..detect.mmdet_utils import _parse_losses, get_img_metas
 from .base import BaseSegmentor
 from .mmseg_utils import (
     MMEncDecSegmentorConfig,
@@ -140,7 +141,7 @@ class MMEncDecSegmentor(BaseSegmentor):
     def generate_segmentations(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
+        features: FeatureMaps,
         compute_segmentations: bool = True,
     ) -> Tuple[Optional[List[SemanticMasks]], LossesType]:  # pragma: no cover
         """Segmentor decode stage.
@@ -174,7 +175,7 @@ class MMEncDecSegmentor(BaseSegmentor):
     def generate_auxiliaries(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
+        features: FeatureMaps,
     ) -> LossesType:  # pragma: no cover
         """Segmentor auxiliary head stage.
 

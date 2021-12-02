@@ -3,12 +3,12 @@
 import abc
 from typing import Dict, Optional, Sequence, Union, overload
 
-import torch
 from pydantic import BaseModel, Field
 
 from vis4d.common.module import Vis4DModule
 from vis4d.common.registry import RegistryHolder
 from vis4d.struct import (
+    FeatureMaps,
     InputSample,
     LabelInstances,
     LossesType,
@@ -30,7 +30,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
     def forward(
         self,
         inputs: InputSample,
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
     ) -> Sequence[TLabelInstance]:  # noqa: D102
         ...
 
@@ -38,7 +38,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
     def forward(
         self,
         inputs: InputSample,
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
         targets: LabelInstances,
     ) -> LossesType:
         ...
@@ -46,7 +46,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
     def forward(
         self,
         inputs: InputSample,
-        features: Optional[Dict[str, torch.Tensor]] = None,
+        features: Optional[FeatureMaps] = None,
         targets: Optional[LabelInstances] = None,
     ) -> Union[LossesType, Sequence[TLabelInstance]]:
         """Base Dense head forward.
@@ -68,7 +68,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
     def forward_train(
         self,
         inputs: InputSample,
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
         targets: LabelInstances,
     ) -> LossesType:
         """Forward pass during training stage.
@@ -87,7 +87,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
     def forward_test(
         self,
         inputs: InputSample,
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
     ) -> Sequence[TLabelInstance]:
         """Forward pass during testing stage.
 

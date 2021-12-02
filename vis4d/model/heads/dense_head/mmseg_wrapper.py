@@ -2,7 +2,6 @@
 import os
 from typing import Dict, List, Optional, Union
 
-import torch
 import torch.nn.functional as F
 
 try:
@@ -21,18 +20,24 @@ except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
 
-from vis4d.model.base import BaseModelConfig
-from vis4d.model.detect.mmdet_utils import (
+from vis4d.common.mmdet_utils import (
     _parse_losses,
     add_keyword_args,
     get_img_metas,
 )
+from vis4d.model.base import BaseModelConfig
 from vis4d.model.segment.mmseg_utils import (
     load_config_from_mmseg,
     results_from_mmseg,
     targets_to_mmseg,
 )
-from vis4d.struct import InputSample, LabelInstances, LossesType, SemanticMasks
+from vis4d.struct import (
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+    SemanticMasks,
+)
 
 from .base import BaseDenseHead, BaseDenseHeadConfig
 
@@ -93,7 +98,7 @@ class MMDecodeHead(BaseDenseHead[SemanticMasks]):
     def forward_train(
         self,
         inputs: InputSample,
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
         targets: LabelInstances,
     ) -> LossesType:
         """Forward pass during training stage."""
@@ -108,7 +113,7 @@ class MMDecodeHead(BaseDenseHead[SemanticMasks]):
     def forward_test(
         self,
         inputs: InputSample,
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
     ) -> List[SemanticMasks]:
         """Forward pass during testing stage."""
         image_metas = get_img_metas(inputs.images)

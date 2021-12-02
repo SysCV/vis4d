@@ -1,9 +1,8 @@
 """RoI Head interface for Vis4D."""
 
 import abc
-from typing import Dict, List, Optional, Sequence, Tuple, Union, overload
+from typing import List, Optional, Sequence, Tuple, Union, overload
 
-import torch
 from pydantic import BaseModel, Field
 
 from vis4d.common.bbox.samplers import SamplingResult
@@ -11,6 +10,7 @@ from vis4d.common.module import Vis4DModule
 from vis4d.common.registry import RegistryHolder
 from vis4d.struct import (
     Boxes2D,
+    FeatureMaps,
     InputSample,
     LabelInstances,
     LossesType,
@@ -37,7 +37,7 @@ class BaseRoIHead(
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
     ) -> Sequence[TLabelInstance]:  # noqa: D102
         ...
 
@@ -46,7 +46,7 @@ class BaseRoIHead(
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         ...
@@ -55,7 +55,7 @@ class BaseRoIHead(
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[Dict[str, torch.Tensor]] = None,
+        features: Optional[FeatureMaps] = None,
         targets: Optional[LabelInstances] = None,
     ) -> Union[
         Tuple[LossesType, Optional[SamplingResult]], Sequence[TLabelInstance]
@@ -83,7 +83,7 @@ class BaseRoIHead(
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Forward pass during training stage.
@@ -105,7 +105,7 @@ class BaseRoIHead(
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
     ) -> Sequence[TLabelInstance]:
         """Forward pass during testing stage.
 
