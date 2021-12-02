@@ -120,6 +120,9 @@ def default_setup(
                     find_unused_parameters=cfg.launch.find_unused_parameters
                 )
                 trainer_args["plugins"] = [ddp_plugin]
+            if cfg.data.train_sampler is not None:
+                # using custom sampler
+                trainer_args["replace_sampler_ddp"] = False
 
     # create trainer
     trainer_args["callbacks"] = [lr_monitor, progress_bar, checkpoint]

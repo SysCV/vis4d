@@ -4,6 +4,9 @@ path = "../configs/datasets/bdd100k/mtl.toml"
 [[config]]
 path = "../configs/models/mmdetection/qdtrackseg_R_18_FPN.toml"
 
+[data.train_sampler]
+type = "RoundRobinSampler"
+
 [model]
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
     [model.optimizer]
@@ -19,7 +22,6 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
 [launch]
 samples_per_gpu = 1
 workers_per_gpu = 0
-train_sampler = "RoundRobinSampler"
 
 [trainer]
 max_steps = 3
