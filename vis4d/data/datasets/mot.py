@@ -70,7 +70,7 @@ class MOTChallenge(BaseDatasetLoader):
                         assert f.frameIndex is not None and l.id is not None
                         res_lines += (
                             f"{f.frameIndex + 1},{l.id},{x1:.3f},{y1:.3f},"
-                            f"{(x2 - x1):.3f}, {(y2 - y1):.3f}, {conf:.3f}\n"
+                            f"{(x2 - x1):.3f},{(y2 - y1):.3f},{conf:.3f}\n"
                         )
 
             with open(res_file, "w", encoding="utf-8") as file:

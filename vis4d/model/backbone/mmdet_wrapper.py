@@ -78,7 +78,7 @@ class MMDetBackbone(BaseBackbone):
         ) / self.pixel_std
         return inputs
 
-    def forward(self, inputs: InputSample) -> FeatureMaps:  # type: ignore
+    def forward(self, inputs: InputSample) -> FeatureMaps:
         """Backbone forward.
 
         Args:
@@ -94,5 +94,5 @@ class MMDetBackbone(BaseBackbone):
         else:
             backbone_outs = dict(zip(self.cfg.output_names, outs))
         if self.neck is not None:
-            return self.neck(backbone_outs)
+            return self.neck(backbone_outs)  # type: ignore
         return backbone_outs

@@ -140,6 +140,7 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.model,
         cfg.launch.weights if not cfg.launch.resume else None,
         not cfg.launch.not_strict,
+        cfg.launch.legacy_ckpt,
     )
 
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
@@ -170,7 +171,10 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Test function."""
     trainer = default_setup(cfg, trainer_args)
     model = build_model(
-        cfg.model, cfg.launch.weights, not cfg.launch.not_strict
+        cfg.model,
+        cfg.launch.weights,
+        not cfg.launch.not_strict,
+        cfg.launch.legacy_ckpt,
     )
 
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
@@ -208,7 +212,10 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Prediction function."""
     trainer = default_setup(cfg, trainer_args)
     model = build_model(
-        cfg.model, cfg.launch.weights, not cfg.launch.not_strict
+        cfg.model,
+        cfg.launch.weights,
+        not cfg.launch.not_strict,
+        cfg.launch.legacy_ckpt,
     )
 
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(

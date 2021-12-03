@@ -1,7 +1,16 @@
 """Base class for Vis4D models."""
 import abc
 from collections.abc import Iterable
-from typing import Callable, Dict, List, Optional, Tuple, Union, no_type_check
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    no_type_check,
+)
 
 import pytorch_lightning as pl
 from pydantic import BaseModel as PydanticBaseModel
@@ -9,7 +18,7 @@ from pydantic import Field
 from torch.optim import Optimizer
 
 from ..common.registry import RegistryHolder
-from ..struct import InputSample, LossesType, ModelOutput
+from ..struct import DictStrAny, InputSample, LossesType, ModelOutput
 from .optimize import (
     BaseLRScheduler,
     BaseLRSchedulerConfig,
@@ -206,9 +215,36 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
 
         self.train()
 
+    @classmethod
+    def _load_model_state(  # type: ignore
+        cls, checkpoint: DictStrAny, strict: bool = True, **cls_kwargs_new: Any
+    ) -> "BaseModel":
+        """Legacy checkpoint support in _load_model_state."""
+        is_legacy = cls_kwargs_new.pop("legacy_ckpt", False)
+        if is_legacy:
+            rev_keys = [
+                ("mm_detector.", ""),
+                ("roi_head", "roi_head.mm_roi_head"),
+                ("rpn_head", "rpn_head.mm_dense_head"),
+                ("backbone", "backbone.mm_backbone"),
+                ("neck", "backbone.neck.mm_neck"),
+            ]
+            new_state_dict = {}
+            for k, v in checkpoint["state_dict"].items():
+                for pattern, replacement in rev_keys:
+                    k = k.replace(pattern, replacement)
+                new_state_dict[k] = v
+            checkpoint["state_dict"] = new_state_dict
+        return super()._load_model_state(  # type: ignore
+            checkpoint, strict=strict, **cls_kwargs_new
+        )
+
 
 def build_model(
-    cfg: BaseModelConfig, ckpt: Optional[str] = None, strict: bool = True
+    cfg: BaseModelConfig,
+    ckpt: Optional[str] = None,
+    strict: bool = True,
+    legacy_ckpt: bool = False,
 ) -> BaseModel:
     """Build Vis4D model and optionally load weights from ckpt."""
     registry = RegistryHolder.get_registry(BaseModel)
@@ -217,7 +253,7 @@ def build_model(
             module = registry[cfg.type](cfg)
         else:
             module = registry[cfg.type].load_from_checkpoint(  # type: ignore # pragma: no cover # pylint: disable=line-too-long
-                ckpt, strict=strict, cfg=cfg
+                ckpt, strict=strict, cfg=cfg, legacy_ckpt=legacy_ckpt
             )
         assert isinstance(module, BaseModel)
         return module

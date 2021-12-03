@@ -1,7 +1,7 @@
 """Dense Head interface for Vis4D."""
 
 import abc
-from typing import Dict, Optional, Sequence, Union, overload
+from typing import Dict, Optional, Sequence, Tuple, Union, overload
 
 from pydantic import BaseModel, Field
 
@@ -40,7 +40,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
         inputs: InputSample,
         features: Optional[FeatureMaps],
         targets: LabelInstances,
-    ) -> LossesType:
+    ) -> Tuple[LossesType, Sequence[TLabelInstance]]:
         ...
 
     def forward(
@@ -48,7 +48,9 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
         inputs: InputSample,
         features: Optional[FeatureMaps] = None,
         targets: Optional[LabelInstances] = None,
-    ) -> Union[LossesType, Sequence[TLabelInstance]]:
+    ) -> Union[
+        Tuple[LossesType, Sequence[TLabelInstance]], Sequence[TLabelInstance]
+    ]:
         """Base Dense head forward.
 
         Args:
@@ -57,8 +59,8 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
             targets: Container with targets, e.g. Boxes2D / 3D, Masks, ...
 
         Returns:
-            LossesType or Sequence[TLabelInstance]: In train mode, return
-            losses. In test mode, return predictions.
+            LossesType and/or Sequence[TLabelInstance]: In train mode, return
+            losses and predictions. In test mode, return predictions.
         """
         if targets is not None:
             return self.forward_train(inputs, features, targets)
@@ -70,7 +72,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
         inputs: InputSample,
         features: Optional[FeatureMaps],
         targets: LabelInstances,
-    ) -> LossesType:
+    ) -> Tuple[LossesType, Sequence[TLabelInstance]]:
         """Forward pass during training stage.
 
         Args:
@@ -79,7 +81,8 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
             targets: Targets corresponding to InputSamples.
 
         Returns:
-            LossesType: A dict of scalar loss tensors.
+            Tuple[LossesType, Sequence[TLabelInstance]]: Tuple of:
+             (dict of scalar loss tensors, sequence of predictions)
         """
         raise NotImplementedError
 

@@ -45,7 +45,7 @@ class MMDetNeck(BaseNeck):
         self.mm_neck.init_weights()
         self.mm_neck.train()
 
-    def forward(self, inputs: FeatureMaps) -> FeatureMaps:  # type: ignore
+    def forward(self, inputs: FeatureMaps) -> FeatureMaps:  # type: ignore[override]
         """Neck forward."""
         outs = self.mm_neck(list(inputs.values()))
         if self.cfg.output_names is None:  # pragma: no cover

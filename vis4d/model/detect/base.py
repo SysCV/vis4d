@@ -1,9 +1,9 @@
 """Base class for Vis4D detectors."""
 
 import abc
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union, overload
 
-from vis4d.common.registry import RegistryHolder
+from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
     Boxes2D,
     FeatureMaps,
@@ -22,7 +22,7 @@ class BaseDetectorConfig(BaseModelConfig):
     clip_bboxes_to_image: bool = True
 
 
-class BaseDetector(BaseModel, metaclass=RegistryHolder):
+class BaseDetector(BaseModel):
     """Base detector class."""
 
     def __init__(self, cfg: BaseModelConfig):
@@ -38,17 +38,32 @@ class BaseDetector(BaseModel, metaclass=RegistryHolder):
         """
         raise NotImplementedError
 
+    @overload
+    def generate_detections(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+    ) -> List[Tuple[Boxes2D, Optional[InstanceMasks]]]:  # noqa: D102
+        ...
+
+    @overload
+    def generate_detections(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+        ...
+
     @abc.abstractmethod
     def generate_detections(
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        proposals: Optional[List[Boxes2D]] = None,
         targets: Optional[LabelInstances] = None,
-        compute_detections: bool = True,
-        compute_segmentations: bool = False,
-    ) -> Tuple[
-        Optional[List[Boxes2D]], LossesType, Optional[List[InstanceMasks]]
+    ) -> Union[
+        Tuple[LossesType, Optional[SamplingResult]],
+        List[Tuple[Boxes2D, Optional[InstanceMasks]]],
     ]:
         """Detector second stage (RoI Head).
 
@@ -57,8 +72,38 @@ class BaseDetector(BaseModel, metaclass=RegistryHolder):
         raise NotImplementedError
 
 
-class BaseTwoStageDetector(BaseDetector):
+class BaseTwoStageDetector(BaseModel):
     """Base class for two-stage detectors."""
+
+    def __init__(self, cfg: BaseModelConfig):
+        """Init."""
+        super().__init__(cfg)
+        self.cfg: BaseDetectorConfig = BaseDetectorConfig(**cfg.dict())
+
+    @abc.abstractmethod
+    def extract_features(self, inputs: InputSample) -> FeatureMaps:
+        """Detector feature extraction stage.
+
+        Return backbone output features
+        """
+        raise NotImplementedError
+
+    @overload
+    def generate_proposals(
+        self,
+        inputs: InputSample,
+        features: Optional[FeatureMaps],
+    ) -> List[Boxes2D]:  # noqa: D102
+        ...
+
+    @overload
+    def generate_proposals(
+        self,
+        inputs: InputSample,
+        features: Optional[FeatureMaps],
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, List[Boxes2D]]:
+        ...
 
     @abc.abstractmethod
     def generate_proposals(
@@ -66,9 +111,45 @@ class BaseTwoStageDetector(BaseDetector):
         inputs: InputSample,
         features: FeatureMaps,
         targets: Optional[LabelInstances] = None,
-    ) -> Tuple[List[Boxes2D], LossesType]:
+    ) -> Union[Tuple[LossesType, List[Boxes2D]], List[Boxes2D]]:
         """Detector RPN stage.
 
-        Return proposals per image and losses (empty if no targets).
+        Return proposals per image and losses
+        """
+        raise NotImplementedError
+
+    @overload
+    def generate_detections(
+        self,
+        inputs: InputSample,
+        features: Optional[FeatureMaps],
+        proposals: List[Boxes2D],
+    ) -> List[Tuple[Boxes2D, Optional[InstanceMasks]]]:  # noqa: D102
+        ...
+
+    @overload
+    def generate_detections(
+        self,
+        inputs: InputSample,
+        features: Optional[FeatureMaps],
+        proposals: List[Boxes2D],
+        targets: Optional[LabelInstances] = None,
+    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+        ...
+
+    @abc.abstractmethod
+    def generate_detections(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        proposals: List[Boxes2D],
+        targets: Optional[LabelInstances] = None,
+    ) -> Union[
+        Tuple[LossesType, Optional[SamplingResult]],
+        List[Tuple[Boxes2D, Optional[InstanceMasks]]],
+    ]:
+        """Detector second stage (RoI Head).
+
+        Return losses (empty if not training) and optionally detections.
         """
         raise NotImplementedError

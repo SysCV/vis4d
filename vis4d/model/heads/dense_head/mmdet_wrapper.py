@@ -1,5 +1,5 @@
 """mmdetection dense head wrapper."""
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from vis4d.common.mmdet_utils import (
     _parse_losses,
@@ -62,7 +62,7 @@ class MMDetDenseHead(BaseDenseHead[Boxes2D]):
         inputs: InputSample,
         features: Optional[FeatureMaps],
         targets: LabelInstances,
-    ) -> LossesType:
+    ) -> Tuple[LossesType, List[Boxes2D]]:
         """Forward pass during training stage."""
         assert features is not None, "MMDetDenseHead requires features"
         feat_list = list(features.values())
@@ -79,7 +79,7 @@ class MMDetDenseHead(BaseDenseHead[Boxes2D]):
             gt_labels=None,
             proposal_cfg=proposal_cfg,
         )
-        return proposals_from_mmdet(proposals), _parse_losses(rpn_losses)
+        return _parse_losses(rpn_losses), proposals_from_mmdet(proposals)
 
     def forward_test(
         self,

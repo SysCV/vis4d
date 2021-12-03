@@ -48,6 +48,7 @@ class Launch(BaseModel):
     model's.
     tqdm: Activate tqdm based terminal logging behavior.
     train_sampler: Sampler to use during training.
+    legacy_ckpt: If model to load is a legacy checkpoint.
     """
 
     action: str = ""
@@ -71,6 +72,7 @@ class Launch(BaseModel):
     wandb: bool = False
     not_strict: bool = False
     tqdm: bool = False
+    legacy_ckpt: bool = False
 
     @validator("version", always=True)
     def validate_version(  # pylint: disable=no-self-argument,no-self-use

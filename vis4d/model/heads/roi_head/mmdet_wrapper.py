@@ -15,6 +15,7 @@ from vis4d.struct import (
     DictStrAny,
     FeatureMaps,
     InputSample,
+    InstanceMasks,
     LabelInstances,
     LossesType,
 )
@@ -43,7 +44,7 @@ class MMDetRoIHeadConfig(BaseRoIHeadConfig):
     mm_cfg: DictStrAny
 
 
-class MMDetRoIHead(BaseRoIHead[Boxes2D]):
+class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
     """mmdetection roi head wrapper."""
 
     def __init__(self, cfg: BaseRoIHeadConfig) -> None:
@@ -91,7 +92,7 @@ class MMDetRoIHead(BaseRoIHead[Boxes2D]):
         inputs: InputSample,
         boxes: List[Boxes2D],
         features: Optional[FeatureMaps],
-    ) -> Sequence[Boxes2D]:
+    ) -> Sequence[Tuple[Boxes2D, Optional[InstanceMasks]]]:
         """Forward pass during testing stage."""
         assert (
             boxes is not None
@@ -119,6 +120,6 @@ class MMDetRoIHead(BaseRoIHead[Boxes2D]):
                 masks, detections, self.device
             )
         else:
-            segmentations = None
-        # segmentations  TODO
-        return detections, segmentations
+            segmentations = [None for _ in range(len(detections))]
+
+        return list(zip(detections, segmentations))

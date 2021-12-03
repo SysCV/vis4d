@@ -1,9 +1,10 @@
 """Quasi-dense instance similarity learning model."""
-from typing import List
+from typing import List, Tuple
 
 import torch
 
 from vis4d.struct import (
+    Boxes2D,
     FeatureMaps,
     InputSample,
     LabelInstances,
@@ -32,7 +33,7 @@ class QDTrack(BaseModel):
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init."""
         super().__init__(cfg)
-        self.cfg = QDTrackConfig(**cfg.dict())  # type: QDTrackConfig
+        self.cfg: QDTrackConfig = QDTrackConfig(**cfg.dict())
         assert self.cfg.category_mapping is not None
         self.cfg.detection.category_mapping = self.cfg.category_mapping
         self.detector: BaseTwoStageDetector = build_model(self.cfg.detection)
@@ -48,19 +49,19 @@ class QDTrack(BaseModel):
         ref_inputs: List[InputSample],
         key_x: FeatureMaps,
         ref_x: List[FeatureMaps],
-    ) -> LossesType:
+    ) -> Tuple[LossesType, List[Boxes2D], List[Boxes2D]]:
         """Get detection and tracking losses."""
         key_targets, ref_targets = key_inputs.targets, [
             x.targets for x in ref_inputs
         ]
 
         # proposal generation
-        key_proposals, rpn_losses = self.detector.generate_proposals(
+        rpn_losses, key_proposals = self.detector.generate_proposals(
             key_inputs, key_x, key_targets
         )
         with torch.no_grad():
             ref_proposals = [
-                self.detector.generate_proposals(inp, x, tgt)[0]
+                self.detector.generate_proposals(inp, x, tgt)[1]
                 for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets)
             ]
 
@@ -70,7 +71,6 @@ class QDTrack(BaseModel):
             key_x,
             key_proposals,
             key_targets,
-            compute_detections=False,
         )
         det_losses = {**rpn_losses, **roi_losses}
 
@@ -87,22 +87,17 @@ class QDTrack(BaseModel):
             [key_x, *ref_x],
             [key_targets, *ref_targets],
         )
-        return {**det_losses, **track_losses}
+        return {**det_losses, **track_losses}, key_proposals, ref_proposals
 
     def _detect_and_track(
         self, inputs: InputSample, feat: FeatureMaps
     ) -> ModelOutput:
         """Get detections and tracks."""
         proposals = self.detector.generate_proposals(inputs, feat)
-        detections, instance_segms = self.detector.generate_detections(
-            inputs, feat, proposals
+        detections, instance_segms = zip(
+            *self.detector.generate_detections(inputs, feat, proposals)
         )
-        assert detections is not None
-        if instance_segms is None or len(instance_segms) == 0:
-            instance_segms = [None]
-
-        # from vis4d.vis.image import imshow_bboxes
-        # imshow_bboxes(inputs.images.tensor[0], detections)
+        detections, instance_segms = list(detections), list(instance_segms)
 
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
@@ -176,9 +171,10 @@ class QDTrack(BaseModel):
         key_x = self.detector.extract_features(key_inputs)
         ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]
 
-        return self._detect_and_track_losses(
+        losses, _, _ = self._detect_and_track_losses(
             key_inputs, ref_inputs, key_x, ref_x
         )
+        return losses
 
     def forward_test(
         self,
