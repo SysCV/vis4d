@@ -1,12 +1,16 @@
 """Base class for Vis4D segmentors."""
 
 import abc
-from typing import Dict, List, Optional, Tuple
-
-import torch
+from typing import List, Optional, Tuple
 
 from vis4d.common.registry import RegistryHolder
-from vis4d.struct import FeatureMaps, InputSample, LossesType, SemanticMasks
+from vis4d.struct import (
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+    SemanticMasks,
+)
 
 from ..base import BaseModel
 
@@ -15,15 +19,10 @@ class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
     """Base segmentor class."""
 
     @abc.abstractmethod
-    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
-        """Normalize, pad and batch input images. Preprocess other inputs."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
+    def extract_features(self, inputs: InputSample) -> FeatureMaps:
         """Segmentor feature extraction stage.
 
-        Return backbone output features
+        Return backbone output features.
         """
         raise NotImplementedError
 
@@ -32,8 +31,8 @@ class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        compute_segmentations: bool = True,
-    ) -> Tuple[Optional[List[SemanticMasks]], LossesType]:
+        targets: Optional[LabelInstances] = None,
+    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
         """Segmentor decode stage.
 
         Return losses (empty if not training) and optionally segmentations.

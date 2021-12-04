@@ -1,7 +1,21 @@
 """mmsegmentation segmentor wrapper."""
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
-import torch
+from vis4d.common.mmseg_utils import MMEncDecSegmentorConfig, get_mmseg_config
+from vis4d.struct import (
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+    ModelOutput,
+    SemanticMasks,
+)
+
+from ..backbone import MMSegBackboneConfig, build_backbone
+from ..backbone.neck import MMDetNeckConfig
+from ..base import BaseModelConfig
+from ..heads.dense_head import MMSegDecodeHeadConfig, build_dense_head
+from .base import BaseSegmentor
 
 try:
     from mmcv.runner.checkpoint import load_checkpoint
@@ -11,34 +25,17 @@ except (ImportError, NameError):  # pragma: no cover
     MMCV_INSTALLED = False
 
 try:
-    from mmseg.models import EncoderDecoder, build_segmentor
-
     MMSEG_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
-
-from vis4d.common.mmdet_utils import _parse_losses, get_img_metas
-from vis4d.struct import (
-    FeatureMaps,
-    Images,
-    InputSample,
-    LossesType,
-    ModelOutput,
-    SemanticMasks,
-)
-
-from ..base import BaseModelConfig
-from .base import BaseSegmentor
-from .mmseg_utils import (
-    MMEncDecSegmentorConfig,
-    get_mmseg_config,
-    results_from_mmseg,
-    segmentations_from_mmseg,
-    targets_to_mmseg,
-)
-
 MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
+REV_KEYS = [
+    ("decode_head", "decode_head.mm_decode_head"),
+    ("auxiliary_head", "auxiliary_head.mm_decode_head"),
+    ("backbone", "backbone.mm_backbone"),
+    ("neck", "backbone.neck.mm_neck"),
+]
 
 
 class MMEncDecSegmentor(BaseSegmentor):
@@ -54,56 +51,69 @@ class MMEncDecSegmentor(BaseSegmentor):
             **cfg.dict()
         )
         self.mm_cfg = get_mmseg_config(self.cfg)
-        self.mm_segmentor = build_segmentor(self.mm_cfg)
-        assert isinstance(self.mm_segmentor, EncoderDecoder)
-        self.mm_segmentor.init_weights()
-        self.mm_segmentor.train()
+        self.backbone = build_backbone(
+            MMSegBackboneConfig(
+                type="MMSegBackbone",
+                mm_cfg=self.mm_cfg["backbone"],
+                pixel_mean=self.cfg.pixel_mean,
+                pixel_std=self.cfg.pixel_std,
+                neck=MMDetNeckConfig(
+                    type="MMDetNeck",
+                    mm_cfg=self.mm_cfg["neck"],
+                    output_names=self.cfg.backbone_output_names,
+                )
+                if "neck" in self.mm_cfg
+                else None,
+            )
+        )
+
+        decode_cfg = self.mm_cfg["decode_head"]
+        self.decode_head = build_dense_head(
+            MMSegDecodeHeadConfig(type="MMSegDecodeHead", mm_cfg=decode_cfg)
+        )
+
+        if "auxiliary_head" in self.mm_cfg:
+            aux_cfg = self.mm_cfg["auxiliary_head"]
+            if isinstance(aux_cfg, list):
+                self.auxiliary_head = [
+                    build_dense_head(
+                        MMSegDecodeHeadConfig(
+                            type="MMSegDecodeHead", mm_cfg=aux_cfg_
+                        )
+                    )
+                    for aux_cfg_ in aux_cfg
+                ]
+            else:
+                self.auxiliary_head = build_dense_head(
+                    MMSegDecodeHeadConfig(
+                        type="MMSegDecodeHead", mm_cfg=aux_cfg
+                    )
+                )
+        else:
+            self.auxiliary_head = None
+
         if self.cfg.weights is not None:
             if self.cfg.weights.startswith("mmseg://"):
                 self.cfg.weights = (
                     MMSEG_MODEL_PREFIX + self.cfg.weights.split("mmseg://")[-1]
                 )
-            load_checkpoint(self.mm_segmentor, self.cfg.weights)
+            load_checkpoint(self, self.cfg.weights, revise_keys=REV_KEYS)
 
         assert self.cfg.category_mapping is not None
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
-        self.register_buffer(
-            "pixel_mean",
-            torch.tensor(self.cfg.pixel_mean).view(-1, 1, 1),
-            False,
-        )
-        self.register_buffer(
-            "pixel_std", torch.tensor(self.cfg.pixel_std).view(-1, 1, 1), False
-        )
-
-    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
-        """Batch, pad (standard stride=32) and normalize the input images."""
-        if not self.training:
-            # no padding during inference to match MMSegmentation
-            Images.stride = 1
-        inputs.images.tensor = (
-            inputs.images.tensor - self.pixel_mean
-        ) / self.pixel_std
-        if self.training and len(inputs.targets.semantic_masks) > 1:
-            # pad masks to same size for batching
-            inputs.targets.semantic_masks = SemanticMasks.pad(
-                inputs.targets.semantic_masks,
-                inputs.images.tensor.shape[-2:][::-1],
-            )
-        return inputs
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
         assert (
             len(batch_inputs) == 1
         ), "No reference views allowed in MMEncDecSegmentor training!"
-        inputs = self.preprocess_inputs(batch_inputs[0])
-        image_metas = get_img_metas(inputs.images)
-        gt_masks = targets_to_mmseg(inputs.targets)
-        losses = self.mm_segmentor.forward_train(
-            inputs.images.tensor, image_metas, gt_masks
-        )
-        return _parse_losses(losses)
+        inputs = batch_inputs[0]
+        features = self.backbone(inputs)
+        decode_losses = self.decode_head(inputs, features, inputs.targets)
+        aux_losses = {}
+        if self.auxiliary_head is not None:
+            aux_losses = self.auxiliary_head(inputs, features, inputs.targets)
+        return {**decode_losses, **aux_losses}
 
     def forward_test(
         self,
@@ -113,64 +123,43 @@ class MMEncDecSegmentor(BaseSegmentor):
         assert (
             len(batch_inputs) == 1
         ), "No reference views allowed in MMEncDecSegmentor testing!"
-        inputs = self.preprocess_inputs(batch_inputs[0])
-        image_metas = get_img_metas(inputs.images)
-        outs = self.mm_segmentor.simple_test(
-            inputs.images.tensor, image_metas, rescale=False
-        )
-        segmentations = results_from_mmseg(outs, image_metas, self.device)
+        inputs = batch_inputs[0]
+        features = self.backbone(inputs)
+        segmentations = self.decode_head(inputs, features)
         assert segmentations is not None
 
         return dict(
             sem_seg=[s.to_scalabel(self.cat_mapping) for s in segmentations]
         )
 
-    def extract_features(
-        self, inputs: InputSample
-    ) -> Dict[str, torch.Tensor]:  # pragma: no cover
+    def extract_features(self, inputs: InputSample) -> FeatureMaps:
         """Segmentor feature extraction stage.
 
-        Return backbone output features
+        Return backbone output features.
         """
-        outs = self.mm_segmentor.extract_feat(inputs.images.tensor)
-        if self.cfg.backbone_output_names is None:
-            return {f"out{i}": v for i, v in enumerate(outs)}
-
-        return dict(zip(self.cfg.backbone_output_names, outs))
+        return self.backbone(inputs)
 
     def generate_segmentations(
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        compute_segmentations: bool = True,
-    ) -> Tuple[Optional[List[SemanticMasks]], LossesType]:  # pragma: no cover
+        targets: Optional[LabelInstances] = None,
+    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:  # pragma: no cover
         """Segmentor decode stage.
 
         Return losses (empty if not training) and optionally segmentations.
         """
-        feat_list = list(features.values())
-        img_metas = get_img_metas(inputs.images)
+        decode_output = self.decode_head(inputs, features, inputs.targets)
         if self.training:
-            gt_masks = targets_to_mmseg(inputs.targets)
-            segment_losses = self.mm_segmentor.decode_head.forward_train(
-                feat_list, img_metas, gt_masks, self.mm_segmentor.train_cfg
-            )
-            segment_losses = _parse_losses(segment_losses, "decode")
-            if self.mm_segmentor.with_auxiliary_head:
+            segment_losses = decode_output
+            if self.auxiliary_head is not None:
                 aux_losses = self.generate_auxiliaries(inputs, features)
                 segment_losses.update(aux_losses)
-            assert (
-                not compute_segmentations
-            ), "mmsegmentation does not compute segmentations during train!"
             segmentations = None
         else:
-            masks = self.mm_segmentor.decode_head.forward_test(
-                feat_list, img_metas, self.mm_segmentor.test_cfg
-            )
-            segmentations = segmentations_from_mmseg(masks, self.device)
+            segmentations = decode_output
             segment_losses = {}
-
-        return segmentations, segment_losses
+        return segment_losses, segmentations
 
     def generate_auxiliaries(
         self,
@@ -181,28 +170,4 @@ class MMEncDecSegmentor(BaseSegmentor):
 
         Return auxiliary losses (empty if no targets).
         """
-        aux_losses = {}
-        if self.training:
-            feat_list = list(features.values())
-            img_metas = get_img_metas(inputs.images)
-            gt_masks = targets_to_mmseg(inputs.targets)
-            if isinstance(
-                self.mm_segmentor.auxiliary_head, torch.nn.ModuleList
-            ):
-                for idx, aux_head in enumerate(
-                    self.mm_segmentor.auxiliary_head
-                ):
-                    loss_aux = aux_head.forward_train(
-                        feat_list,
-                        img_metas,
-                        gt_masks,
-                        self.mm_segmentor.train_cfg,
-                    )
-                    aux_losses.update(_parse_losses(loss_aux, f"aux_{idx}"))
-            else:
-                loss_aux = self.mm_segmentor.auxiliary_head.forward_train(
-                    feat_list, img_metas, gt_masks, self.mm_segmentor.train_cfg
-                )
-                aux_losses.update(_parse_losses(loss_aux, "aux"))
-
-        return aux_losses
+        return self.auxiliary_head(inputs, features, inputs.targets)

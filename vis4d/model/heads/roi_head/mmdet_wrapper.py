@@ -117,7 +117,7 @@ class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
                 labels,
             )
             segmentations = segmentations_from_mmdet(
-                masks, detections, self.device
+                masks, detections, inputs.device
             )
         else:
             segmentations = [None for _ in range(len(detections))]
