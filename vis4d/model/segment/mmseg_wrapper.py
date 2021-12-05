@@ -31,10 +31,10 @@ except (ImportError, NameError):  # pragma: no cover
 
 MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
 REV_KEYS = [
-    ("decode_head", "decode_head.mm_decode_head"),
-    ("auxiliary_head", "auxiliary_head.mm_decode_head"),
-    ("backbone", "backbone.mm_backbone"),
-    ("neck", "backbone.neck.mm_neck"),
+    ("decode_head.", "decode_head.mm_decode_head."),
+    ("auxiliary_head.", "auxiliary_head.mm_decode_head."),
+    ("backbone.", "backbone.mm_backbone."),
+    # ("neck.", "backbone.neck.mm_neck."),
 ]
 
 
