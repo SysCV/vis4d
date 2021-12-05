@@ -154,7 +154,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
     def _check_metrics(self) -> None:
         """Check if evaluation metrics specified are valid."""
         for metric in self.cfg.eval_metrics:
-            if metric not in _eval_mapping.keys():
+            if metric not in _eval_mapping:
                 raise KeyError(
                     f"metric {metric} is not supported in {self.cfg.name}"
                 )
