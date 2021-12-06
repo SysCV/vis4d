@@ -1,11 +1,13 @@
 """Utilities for mmseg wrapper."""
-
 import os
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Union
 
 import requests
 import torch
 import torch.nn.functional as F
+
+from vis4d.model.mmdet_utils import MMDetMetaData
+from vis4d.struct import LabelInstances, NDArrayUI8, SemanticMasks
 
 try:
     from mmcv import Config as MMConfig
@@ -14,23 +16,7 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMCV_INSTALLED = False
 
-
-from vis4d.model.base import BaseModelConfig
-from vis4d.model.mmdet_utils import MMDetMetaData, add_keyword_args
-from vis4d.struct import LabelInstances, NDArrayUI8, SemanticMasks
-
 MMResults = Union[List[NDArrayUI8], torch.Tensor]
-
-
-class MMEncDecSegmentorConfig(BaseModelConfig):
-    """Config for mmsegmentation encoder-decoder models."""
-
-    model_base: str
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
-    pixel_mean: Tuple[float, float, float]
-    pixel_std: Tuple[float, float, float]
-    backbone_output_names: Optional[List[str]]
-    weights: Optional[str]
 
 
 def segmentations_from_mmseg(
@@ -79,32 +65,17 @@ def load_config_from_mmseg(url: str) -> str:
     return response.text
 
 
-def get_mmseg_config(config: MMEncDecSegmentorConfig) -> MMConfig:
-    """Convert a Segmentor config to a mmseg readable config."""
-    if os.path.exists(config.model_base):  # pragma: no cover
-        cfg = MMConfig.fromfile(config.model_base)
+def load_config(path: str) -> MMConfig:
+    """Load config either from file or from URL."""
+    if os.path.exists(path):
+        cfg = MMConfig.fromfile(path)
         if cfg.get("model"):
             cfg = cfg["model"]
-    elif config.model_base.startswith("mmseg://"):
-        ex = os.path.splitext(config.model_base)[1]
+    elif path.startswith("mmseg://"):
+        ex = os.path.splitext(path)[1]
         cfg = MMConfig.fromstring(
-            load_config_from_mmseg(config.model_base.split("mmseg://")[-1]), ex
+            load_config_from_mmseg(path.split("mmseg://")[-1]), ex
         ).model
     else:
-        raise FileNotFoundError(
-            f"MMSegmentation config not found: {config.model_base}"
-        )
-
-    # convert segmentor attributes
-    assert config.category_mapping is not None
-    cfg["decode_head"]["num_classes"] = len(config.category_mapping)
-    if "auxiliary_head" in cfg:
-        if isinstance(cfg["auxiliary_head"], list):  # pragma: no cover
-            for aux_head in cfg["auxiliary_head"]:
-                aux_head["num_classes"] = len(config.category_mapping)
-        else:
-            cfg["auxiliary_head"]["num_classes"] = len(config.category_mapping)
-
-    if config.model_kwargs:
-        add_keyword_args(config, cfg)
+        raise FileNotFoundError(f"MMSegmentation config not found: {path}")
     return cfg

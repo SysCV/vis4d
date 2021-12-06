@@ -47,7 +47,6 @@ class Launch(BaseModel):
     not_strict: Whether to enforce keys in weights to be consistent with
     model's.
     tqdm: Activate tqdm based terminal logging behavior.
-    train_sampler: Sampler to use during training.
     legacy_ckpt: If model to load is a legacy checkpoint.
     """
 

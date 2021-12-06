@@ -1,0 +1,6 @@
+[model]
+type = "MMEncDecSegmentor"
+category_mapping = {"road" = 0, "sidewalk" = 1, "building" = 2, "wall" = 3, "fence" = 4, "pole" = 5, "traffic light" = 6, "traffic sign" = 7, "vegetation" = 8, "terrain" = 9, "sky" = 10, "person" = 11, "rider" = 12, "car" = 13, "truck" = 14, "bus" = 15, "train" = 16, "motorcycle" = 17, "bicycle" = 18}
+model_base = "vis4d/engine/testcases/configs/models/mmsegmentation/mmseg_cfg_deeplabv3plus_r18d8.py"
+pixel_mean = [123.675, 116.28, 103.53]
+pixel_std = [58.395, 57.12, 57.375]
