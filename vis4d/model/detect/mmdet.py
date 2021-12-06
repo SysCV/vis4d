@@ -1,8 +1,8 @@
 """mmdetection detector wrapper."""
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+import os
+from typing import Dict, List, Optional, Sequence, Tuple, Union, overload
 
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.model.mmdet_utils import get_mmdet_config
 from vis4d.struct import (
     Boxes2D,
     FeatureMaps,
@@ -16,12 +16,18 @@ from vis4d.struct import (
 from ..backbone import MMDetBackboneConfig, build_backbone
 from ..backbone.neck import MMDetNeckConfig
 from ..base import BaseModelConfig
-from ..heads.dense_head import MMDetDenseHeadConfig, build_dense_head
-from ..heads.roi_head import MMDetRoIHeadConfig, build_roi_head
+from ..heads.dense_head import (
+    MMDetDenseHead,
+    MMDetDenseHeadConfig,
+    build_dense_head,
+)
+from ..heads.roi_head import MMDetRoIHead, MMDetRoIHeadConfig, build_roi_head
+from ..mmdet_utils import add_keyword_args, load_config_from_mmdet
 from .base import BaseDetectorConfig, BaseTwoStageDetector
 from .utils import postprocess
 
 try:
+    from mmcv import Config as MMConfig
     from mmcv.runner.checkpoint import load_checkpoint
 
     MMCV_INSTALLED = True
@@ -88,7 +94,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         rpn_cfg.update(
             train_cfg=rpn_train_cfg, test_cfg=self.mm_cfg["test_cfg"]["rpn"]
         )
-        self.rpn_head = build_dense_head(
+        self.rpn_head: MMDetDenseHead = build_dense_head(
             MMDetDenseHeadConfig(type="MMDetDenseHead", mm_cfg=rpn_cfg)
         )
 
@@ -100,7 +106,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
         roi_head_cfg.update(train_cfg=rcnn_train_cfg)
         roi_head_cfg.update(test_cfg=self.mm_cfg["test_cfg"]["rcnn"])
-        self.roi_head = build_roi_head(
+        self.roi_head: MMDetRoIHead = build_roi_head(
             MMDetRoIHeadConfig(
                 type="MMDetRoIHead",
                 mm_cfg=roi_head_cfg,
@@ -172,6 +178,23 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         """
         return self.backbone(inputs)
 
+    @overload
+    def generate_proposals(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+    ) -> List[Boxes2D]:  # noqa: D102
+        ...
+
+    @overload
+    def generate_proposals(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, List[Boxes2D]]:
+        ...
+
     def generate_proposals(
         self,
         inputs: InputSample,
@@ -180,9 +203,28 @@ class MMTwoStageDetector(BaseTwoStageDetector):
     ) -> Union[Tuple[LossesType, List[Boxes2D]], List[Boxes2D]]:
         """Detector RPN stage.
 
-        Return proposals per image and losses (empty if no targets).
+        Return proposals per image and losses.
         """
         return self.rpn_head(inputs, features, targets)
+
+    @overload
+    def generate_detections(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        proposals: List[Boxes2D],
+    ) -> List[Tuple[Boxes2D, Optional[InstanceMasks]]]:  # noqa: D102
+        ...
+
+    @overload
+    def generate_detections(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        proposals: List[Boxes2D],
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+        ...
 
     def generate_detections(
         self,
@@ -199,3 +241,40 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         Return losses (empty if no targets) and optionally detections.
         """
         return self.roi_head(inputs, proposals, features, targets)
+
+
+def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
+    """Convert a Detector config to a mmdet readable config."""
+    if os.path.exists(config.model_base):
+        cfg = MMConfig.fromfile(config.model_base)
+        if cfg.get("model"):
+            cfg = cfg["model"]
+    elif config.model_base.startswith("mmdet://"):
+        ex = os.path.splitext(config.model_base)[1]
+        cfg = MMConfig.fromstring(
+            load_config_from_mmdet(config.model_base.split("mmdet://")[-1]), ex
+        ).model
+    else:
+        raise FileNotFoundError(
+            f"MMDetection config not found: {config.model_base}"
+        )
+
+    # convert detect attributes
+    if (
+        hasattr(config, "category_mapping")
+        and config.category_mapping is not None
+    ):
+        if "bbox_head" in cfg:  # pragma: no cover
+            cfg["bbox_head"]["num_classes"] = len(config.category_mapping)
+        if "roi_head" in cfg:
+            cfg["roi_head"]["bbox_head"]["num_classes"] = len(
+                config.category_mapping
+            )
+            if "mask_head" in cfg["roi_head"]:
+                cfg["roi_head"]["mask_head"]["num_classes"] = len(
+                    config.category_mapping
+                )
+
+    if config.model_kwargs:
+        add_keyword_args(config, cfg)
+    return cfg

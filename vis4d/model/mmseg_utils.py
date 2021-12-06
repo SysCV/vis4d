@@ -15,8 +15,8 @@ except (ImportError, NameError):  # pragma: no cover
     MMCV_INSTALLED = False
 
 
-from vis4d.model.mmdet_utils import MMDetMetaData, add_keyword_args
 from vis4d.model.base import BaseModelConfig
+from vis4d.model.mmdet_utils import MMDetMetaData, add_keyword_args
 from vis4d.struct import LabelInstances, NDArrayUI8, SemanticMasks
 
 MMResults = Union[List[NDArrayUI8], torch.Tensor]

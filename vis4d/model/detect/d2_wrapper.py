@@ -1,5 +1,5 @@
 """Detectron2 detector wrapper."""
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 
@@ -91,9 +91,11 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         ), "No reference views allowed in D2TwoStageDetector training!"
         inputs = self.preprocess_inputs(batch_inputs[0])
         features = self.extract_features(inputs)
-        proposals, rpn_losses = self.generate_proposals(inputs, features)
-        _, detect_losses, _ = self.generate_detections(
-            inputs, features, proposals, compute_detections=False
+        proposals, rpn_losses = self.generate_proposals(
+            inputs, features, inputs.targets
+        )
+        detect_losses, _ = self.generate_detections(
+            inputs, features, proposals, inputs.targets
         )
         return {**rpn_losses, **detect_losses}
 
@@ -108,9 +110,8 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         inputs = self.preprocess_inputs(batch_inputs[0])
         features = self.extract_features(inputs)
         proposals, _ = self.generate_proposals(inputs, features)
-        detections, _, segmentations = self.generate_detections(
-            inputs, features, proposals
-        )
+        outs = self.generate_detections(inputs, features, proposals)
+        detections, segmentations = [o[0] for o in outs], [o[1] for o in outs]
         assert detections is not None
 
         postprocess(
@@ -209,5 +210,5 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         else:
             segmentations = [None for _ in range(len(detections))]
         detections = detections_to_box2d(detections)
-        predictions = [(d, s) for d, s in zip(detections, segmentations)]
+        predictions = list(zip(detections, segmentations))
         return predictions

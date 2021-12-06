@@ -1,12 +1,21 @@
 """Utilities for mmdet wrapper."""
 
-import os
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import requests
 import torch
 from pydantic import BaseModel
+
+from vis4d.struct import (
+    Boxes2D,
+    Images,
+    InstanceMasks,
+    LabelInstances,
+    LossesType,
+    NDArrayF64,
+    NDArrayUI8,
+)
 
 try:
     from mmcv import Config as MMConfig
@@ -22,15 +31,6 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
-from vis4d.struct import (
-    Boxes2D,
-    Images,
-    InstanceMasks,
-    LabelInstances,
-    LossesType,
-    NDArrayF64,
-    NDArrayUI8,
-)
 
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
 MMDetResult = List[torch.Tensor]
@@ -185,60 +185,6 @@ def load_config_from_mmdet(url: str) -> str:
     return response.text
 
 
-def add_keyword_args(config: BaseModel, cfg: MMConfig) -> None:
-    """Add keyword args in config."""
-    for k, v in config.model_kwargs.items():  # type: ignore
-        attr = cfg
-        partial_keys = k.split(".")
-        partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
-        for part_k in partial_keys:
-            attr = attr.get(part_k)
-        if attr.get(last_key) is not None:
-            attr[last_key] = type(attr.get(last_key))(v)
-            if "channels" in last_key and isinstance(attr[last_key], list):
-                # TODO: remove in config refactor PR  # pylint: disable=fixme
-                attr[last_key] = [int(c) for c in attr[last_key]]
-        else:
-            attr[last_key] = v
-
-
-def get_mmdet_config(config: BaseModel) -> MMConfig:
-    """Convert a Detector config to a mmdet readable config."""
-    if os.path.exists(config.model_base):
-        cfg = MMConfig.fromfile(config.model_base)
-        if cfg.get("model"):
-            cfg = cfg["model"]
-    elif config.model_base.startswith("mmdet://"):
-        ex = os.path.splitext(config.model_base)[1]
-        cfg = MMConfig.fromstring(
-            load_config_from_mmdet(config.model_base.split("mmdet://")[-1]), ex
-        ).model
-    else:
-        raise FileNotFoundError(
-            f"MMDetection config not found: {config.model_base}"
-        )
-
-    # convert detect attributes
-    if (
-        hasattr(config, "category_mapping")
-        and config.category_mapping is not None
-    ):
-        if "bbox_head" in cfg:  # pragma: no cover
-            cfg["bbox_head"]["num_classes"] = len(config.category_mapping)
-        if "roi_head" in cfg:
-            cfg["roi_head"]["bbox_head"]["num_classes"] = len(
-                config.category_mapping
-            )
-            if "mask_head" in cfg["roi_head"]:
-                cfg["roi_head"]["mask_head"]["num_classes"] = len(
-                    config.category_mapping
-                )
-
-    if config.model_kwargs:
-        add_keyword_args(config, cfg)
-    return cfg
-
-
 def _parse_losses(
     losses: Dict[str, torch.Tensor], prefix: Optional[str] = None
 ) -> LossesType:
@@ -256,3 +202,20 @@ def _parse_losses(
                 raise ValueError(f"{name} is not a tensor or list of tensors")
 
     return log_vars
+
+
+def add_keyword_args(config: BaseModel, cfg: MMConfig) -> None:
+    """Add keyword args in config."""
+    for k, v in config.model_kwargs.items():  # type: ignore
+        attr = cfg
+        partial_keys = k.split(".")
+        partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
+        for part_k in partial_keys:
+            attr = attr.get(part_k)
+        if attr.get(last_key) is not None:
+            attr[last_key] = type(attr.get(last_key))(v)
+            if "channels" in last_key and isinstance(attr[last_key], list):
+                # TODO: remove in config refactor PR  # pylint: disable=fixme
+                attr[last_key] = [int(c) for c in attr[last_key]]
+        else:
+            attr[last_key] = v

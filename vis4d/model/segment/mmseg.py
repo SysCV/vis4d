@@ -1,7 +1,6 @@
 """mmsegmentation segmentor wrapper."""
 from typing import List, Optional, Tuple
 
-from vis4d.common.mmseg_utils import MMEncDecSegmentorConfig, get_mmseg_config
 from vis4d.struct import (
     FeatureMaps,
     InputSample,
@@ -15,6 +14,7 @@ from ..backbone import MMSegBackboneConfig, build_backbone
 from ..backbone.neck import MMDetNeckConfig
 from ..base import BaseModelConfig
 from ..heads.dense_head import MMSegDecodeHeadConfig, build_dense_head
+from ..mmseg_utils import MMEncDecSegmentorConfig, get_mmseg_config
 from .base import BaseSegmentor
 
 try:
@@ -29,25 +29,6 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
-from vis4d.model.mmdet_utils import _parse_losses, get_img_metas
-from vis4d.struct import (
-    FeatureMaps,
-    Images,
-    InputSample,
-    LossesType,
-    ModelOutput,
-    SemanticMasks,
-)
-
-from ..base import BaseModelConfig
-from .base import BaseSegmentor
-from .mmseg_utils import (
-    MMEncDecSegmentorConfig,
-    get_mmseg_config,
-    results_from_mmseg,
-    segmentations_from_mmseg,
-    targets_to_mmseg,
-)
 
 MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
 REV_KEYS = [
