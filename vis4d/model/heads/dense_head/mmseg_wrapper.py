@@ -49,6 +49,8 @@ class MMSegDecodeHead(BaseDenseHead[SemanticMasks]):
         ), "MMSegDecodeHead requires both mmcv and mmseg to be installed!"
         super().__init__()
         self.cfg: MMSegDecodeHeadConfig = MMSegDecodeHeadConfig(**cfg.dict())
+        self.train_cfg = self.cfg.mm_cfg.pop("train_cfg", None)
+        self.test_cfg = self.cfg.mm_cfg.pop("test_cfg", None)
         self.mm_decode_head = build_head(ConfigDict(**self.cfg.mm_cfg))
         assert isinstance(self.mm_decode_head, BaseDecodeHead)
         self.mm_decode_head.init_weights()
@@ -65,7 +67,10 @@ class MMSegDecodeHead(BaseDenseHead[SemanticMasks]):
         gt_masks = targets_to_mmseg(inputs.targets)
         assert features is not None
         losses = self.mm_decode_head.forward_train(
-            [features[k] for k in features.keys()], image_metas, gt_masks, None
+            [features[k] for k in features.keys()],
+            image_metas,
+            gt_masks,
+            self.train_cfg,
         )
         return _parse_losses(losses)
 
@@ -78,7 +83,7 @@ class MMSegDecodeHead(BaseDenseHead[SemanticMasks]):
         image_metas = get_img_metas(inputs.images)
         assert features is not None
         outs = self.mm_decode_head.forward_test(
-            [features[k] for k in features.keys()], image_metas, None
+            [features[k] for k in features.keys()], image_metas, self.test_cfg
         )
         outs = F.interpolate(
             outs,

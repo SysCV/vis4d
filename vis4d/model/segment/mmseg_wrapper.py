@@ -1,6 +1,8 @@
 """mmsegmentation segmentor wrapper."""
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
+import torch
 
+from vis4d.common.mmdet_utils import _parse_losses
 from vis4d.common.mmseg_utils import MMEncDecSegmentorConfig, get_mmseg_config
 from vis4d.struct import (
     FeatureMaps,
@@ -14,10 +16,15 @@ from vis4d.struct import (
 from ..backbone import MMSegBackboneConfig, build_backbone
 from ..backbone.neck import MMDetNeckConfig
 from ..base import BaseModelConfig
-from ..heads.dense_head import MMSegDecodeHeadConfig, build_dense_head
+from ..heads.dense_head import (
+    MMSegDecodeHead,
+    MMSegDecodeHeadConfig,
+    build_dense_head,
+)
 from .base import BaseSegmentor
 
 try:
+    from mmcv import Config as MMConfig
     from mmcv.runner.checkpoint import load_checkpoint
 
     MMCV_INSTALLED = True
@@ -36,6 +43,7 @@ REV_KEYS = [
     ("backbone.", "backbone.mm_backbone."),
     # ("neck.", "backbone.neck.mm_neck."),
 ]
+MMSegDecodeHeads = Union[MMSegDecodeHead, torch.nn.ModuleList]
 
 
 class MMEncDecSegmentor(BaseSegmentor):
@@ -51,6 +59,13 @@ class MMEncDecSegmentor(BaseSegmentor):
             **cfg.dict()
         )
         self.mm_cfg = get_mmseg_config(self.cfg)
+        self.train_cfg = (
+            self.mm_cfg["train_cfg"] if "train_cfg" in self.mm_cfg else None
+        )
+        self.test_cfg = (
+            self.mm_cfg["test_cfg"] if "test_cfg" in self.mm_cfg else None
+        )
+
         self.backbone = build_backbone(
             MMSegBackboneConfig(
                 type="MMSegBackbone",
@@ -68,27 +83,18 @@ class MMEncDecSegmentor(BaseSegmentor):
         )
 
         decode_cfg = self.mm_cfg["decode_head"]
-        self.decode_head = build_dense_head(
-            MMSegDecodeHeadConfig(type="MMSegDecodeHead", mm_cfg=decode_cfg)
+        assert not isinstance(
+            decode_cfg, list
+        ), "List of decode heads currently not yet supported."
+        self.decode_head: MMSegDecodeHeads = self._build_decode_heads(
+            decode_cfg
         )
 
         if "auxiliary_head" in self.mm_cfg:
             aux_cfg = self.mm_cfg["auxiliary_head"]
-            if isinstance(aux_cfg, list):
-                self.auxiliary_head = [
-                    build_dense_head(
-                        MMSegDecodeHeadConfig(
-                            type="MMSegDecodeHead", mm_cfg=aux_cfg_
-                        )
-                    )
-                    for aux_cfg_ in aux_cfg
-                ]
-            else:
-                self.auxiliary_head = build_dense_head(
-                    MMSegDecodeHeadConfig(
-                        type="MMSegDecodeHead", mm_cfg=aux_cfg
-                    )
-                )
+            self.auxiliary_head: Optional[
+                MMSegDecodeHeads
+            ] = self._build_decode_heads(aux_cfg)
         else:
             self.auxiliary_head = None
 
@@ -102,18 +108,44 @@ class MMEncDecSegmentor(BaseSegmentor):
         assert self.cfg.category_mapping is not None
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
 
+    def _build_decode_heads(
+        self,
+        mm_cfg: MMConfig,
+    ) -> MMSegDecodeHeads:
+        """Build decode heads given config."""
+        decode_head: MMSegDecodeHeads
+        if isinstance(mm_cfg, list):
+            decode_head_: List[MMSegDecodeHead] = []
+            for mm_cfg_ in mm_cfg:
+                mm_cfg_.update(
+                    train_cfg=self.train_cfg, test_cfg=self.test_cfg
+                )
+                decode_head_.append(
+                    build_dense_head(
+                        MMSegDecodeHeadConfig(
+                            type="MMSegDecodeHead", mm_cfg=mm_cfg_
+                        )
+                    )
+                )
+            decode_head = torch.nn.ModuleList(decode_head_)
+        else:
+            mm_cfg.update(train_cfg=self.train_cfg, test_cfg=self.test_cfg)
+            decode_head = build_dense_head(
+                MMSegDecodeHeadConfig(type="MMSegDecodeHead", mm_cfg=mm_cfg)
+            )
+        return decode_head
+
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
         assert (
             len(batch_inputs) == 1
         ), "No reference views allowed in MMEncDecSegmentor training!"
         inputs = batch_inputs[0]
-        features = self.backbone(inputs)
-        decode_losses = self.decode_head(inputs, features, inputs.targets)
-        aux_losses = {}
-        if self.auxiliary_head is not None:
-            aux_losses = self.auxiliary_head(inputs, features, inputs.targets)
-        return {**decode_losses, **aux_losses}
+        features = self.extract_features(inputs)
+        losses, _ = self.generate_segmentations(
+            inputs, features, inputs.targets
+        )
+        return losses
 
     def forward_test(
         self,
@@ -124,8 +156,8 @@ class MMEncDecSegmentor(BaseSegmentor):
             len(batch_inputs) == 1
         ), "No reference views allowed in MMEncDecSegmentor testing!"
         inputs = batch_inputs[0]
-        features = self.backbone(inputs)
-        segmentations = self.decode_head(inputs, features)
+        features = self.extract_features(inputs)
+        _, segmentations = self.generate_segmentations(inputs, features)
         assert segmentations is not None
 
         return dict(
@@ -144,14 +176,15 @@ class MMEncDecSegmentor(BaseSegmentor):
         inputs: InputSample,
         features: FeatureMaps,
         targets: Optional[LabelInstances] = None,
-    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:  # pragma: no cover
+    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
         """Segmentor decode stage.
 
         Return losses (empty if not training) and optionally segmentations.
         """
-        decode_output = self.decode_head(inputs, features, inputs.targets)
+        assert not isinstance(self.decode_head, torch.nn.ModuleList)
+        decode_output = self.decode_head(inputs, features, targets)
         if self.training:
-            segment_losses = decode_output
+            segment_losses = _parse_losses(decode_output, "decode")
             if self.auxiliary_head is not None:
                 aux_losses = self.generate_auxiliaries(inputs, features)
                 segment_losses.update(aux_losses)
@@ -165,9 +198,20 @@ class MMEncDecSegmentor(BaseSegmentor):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-    ) -> LossesType:  # pragma: no cover
+    ) -> LossesType:
         """Segmentor auxiliary head stage.
 
         Return auxiliary losses (empty if no targets).
         """
-        return self.auxiliary_head(inputs, features, inputs.targets)
+        aux_losses = {}
+        if self.auxiliary_head is not None:
+            if isinstance(self.auxiliary_head, torch.nn.ModuleList):
+                for idx, aux_head in enumerate(self.auxiliary_head):
+                    loss_aux = aux_head(inputs, features, inputs.targets)
+                    aux_losses.update(_parse_losses(loss_aux, f"aux_{idx}"))
+            else:
+                loss_aux = self.auxiliary_head(
+                    inputs, features, inputs.targets
+                )
+                aux_losses.update(_parse_losses(loss_aux, "aux"))
+        return aux_losses

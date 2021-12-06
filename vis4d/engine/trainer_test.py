@@ -194,3 +194,18 @@ class TestSemSegMM(BaseEngineTests.TestTrain):
         )
         cls.cfg = config.parse_config(args)
         cls.cfg.launch.tqdm = True
+
+
+class TestSemSegMM2(BaseEngineTests.TestTrain):
+    """MMSegmenation semantic segmentation test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_sem_seg_mm_2/"
+        args = Namespace(
+            config=get_test_file("segment/deeplabv3plus_mmseg.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(args)
+        cls.cfg.launch.tqdm = True

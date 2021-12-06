@@ -81,7 +81,7 @@ def load_config_from_mmseg(url: str) -> str:
 
 def get_mmseg_config(config: MMEncDecSegmentorConfig) -> MMConfig:
     """Convert a Segmentor config to a mmseg readable config."""
-    if os.path.exists(config.model_base):  # pragma: no cover
+    if os.path.exists(config.model_base):
         cfg = MMConfig.fromfile(config.model_base)
         if cfg.get("model"):
             cfg = cfg["model"]
@@ -97,9 +97,14 @@ def get_mmseg_config(config: MMEncDecSegmentorConfig) -> MMConfig:
 
     # convert segmentor attributes
     assert config.category_mapping is not None
-    cfg["decode_head"]["num_classes"] = len(config.category_mapping)
+    if isinstance(cfg["decode_head"], list):
+        if isinstance(cfg["decode_head"], list):
+            for dec_head in cfg["decode_head"]:
+                dec_head["num_classes"] = len(config.category_mapping)
+        else:
+            cfg["decode_head"]["num_classes"] = len(config.category_mapping)
     if "auxiliary_head" in cfg:
-        if isinstance(cfg["auxiliary_head"], list):  # pragma: no cover
+        if isinstance(cfg["auxiliary_head"], list):
             for aux_head in cfg["auxiliary_head"]:
                 aux_head["num_classes"] = len(config.category_mapping)
         else:
