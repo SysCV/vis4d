@@ -160,9 +160,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         ), "No reference views allowed in MMEncDecSegmentor training!"
         inputs = batch_inputs[0]
         features = self.extract_features(inputs)
-        losses, _ = self.generate_segmentations(
-            inputs, features, inputs.targets
-        )
+        losses, _ = self._segmentations_train(inputs, features, inputs.targets)
         return losses
 
     def forward_test(
@@ -175,7 +173,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         ), "No reference views allowed in MMEncDecSegmentor testing!"
         inputs = batch_inputs[0]
         features = self.extract_features(inputs)
-        _, segmentations = self.generate_segmentations(inputs, features)
+        segmentations = self._segmentations_test(inputs, features)
         assert segmentations is not None
 
         return dict(
@@ -189,28 +187,29 @@ class MMEncDecSegmentor(BaseSegmentor):
         """
         return self.backbone(inputs)
 
-    def generate_segmentations(
+    def _segmentations_train(
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: Optional[LabelInstances] = None,
+        targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
-        """Segmentor decode stage.
-
-        Return losses (empty if not training) and optionally segmentations.
-        """
+        """Train stage segmentations generation."""
         assert not isinstance(self.decode_head, torch.nn.ModuleList)
-        decode_output = self.decode_head(inputs, features, targets)
-        if self.training:
-            segment_losses = _parse_losses(decode_output[0], "decode")
-            if self.auxiliary_head is not None:
-                aux_losses = self.generate_auxiliaries(inputs, features)
-                segment_losses.update(aux_losses)
-            segmentations = None
-        else:
-            segmentations = decode_output
-            segment_losses = {}
-        return segment_losses, segmentations
+        decode_losses, _ = self.decode_head(inputs, features, targets)
+        segment_losses = _parse_losses(decode_losses, "decode")
+        if self.auxiliary_head is not None:
+            aux_losses = self.generate_auxiliaries(inputs, features)
+            segment_losses.update(aux_losses)
+        return segment_losses, None
+
+    def _segmentations_test(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+    ) -> List[SemanticMasks]:
+        """Test stage segmentations generation."""
+        assert not isinstance(self.decode_head, torch.nn.ModuleList)
+        return self.decode_head(inputs, features)
 
     def generate_auxiliaries(
         self,

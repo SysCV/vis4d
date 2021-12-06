@@ -1,7 +1,7 @@
 """Base class for Vis4D segmentors."""
 
 import abc
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.struct import (
@@ -32,9 +32,37 @@ class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
         inputs: InputSample,
         features: FeatureMaps,
         targets: Optional[LabelInstances] = None,
-    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
+    ) -> Union[
+        Tuple[
+            LossesType,
+            Optional[List[SemanticMasks]],
+        ],
+        List[SemanticMasks],
+    ]:
         """Segmentor decode stage.
 
-        Return losses (empty if not training) and optionally segmentations.
+        Return losses and optionally segmentations during training, and
+        segmentations during testing.
         """
+        if targets is not None:
+            return self._segmentations_train(inputs, features, targets)
+        return self._segmentations_test(inputs, features)
+
+    @abc.abstractmethod
+    def _segmentations_train(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
+        """Train stage segmentations generation."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _segmentations_test(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+    ) -> List[SemanticMasks]:
+        """Test stage segmentations generation."""
         raise NotImplementedError

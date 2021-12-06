@@ -50,9 +50,7 @@ class MMSegDecodeHeadConfig(BaseDenseHeadConfig):
 
 
 class MMSegDecodeHead(
-    BaseDenseHead[
-        Tuple[LossesType, Sequence[SemanticMasks]], List[SemanticMasks]
-    ]
+    BaseDenseHead[Optional[Sequence[SemanticMasks]], List[SemanticMasks]]
 ):
     """mmsegmentation decode head wrapper."""
 
