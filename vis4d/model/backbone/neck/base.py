@@ -19,7 +19,7 @@ class BaseNeck(Vis4DModule[FeatureMaps, FeatureMaps]):
     """Base Neck class."""
 
     @abc.abstractmethod
-    def forward(  # type: ignore[override]
+    def __call__(  # type: ignore[override]
         self,
         inputs: FeatureMaps,
     ) -> FeatureMaps:

@@ -63,7 +63,7 @@ class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
     proposal_matcher: MatcherConfig
 
 
-class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
+class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
     """QD-3DT 3D Bounding Box Head."""
 
     def __init__(self, cfg: BaseRoIHeadConfig) -> None:
@@ -340,9 +340,9 @@ class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+    ) -> Tuple[LossesType, SamplingResult]:
         """Forward pass during training stage.
 
         Args:
@@ -353,7 +353,7 @@ class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
 
         Returns:
             LossesType: A dict of scalar loss tensors.
-            Optional[List[SamplingResult]]: Sampling result.
+            SamplingResult: Sampling result.
         """
         assert features is not None, "QD-3DT box3D head requires features!"
         features_list = [features[f] for f in self.cfg.in_features]
@@ -389,7 +389,7 @@ class QD3DTBBox3DHead(BaseRoIHead[Boxes3D]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
     ) -> List[Boxes3D]:
         """Forward pass during testing stage.
 

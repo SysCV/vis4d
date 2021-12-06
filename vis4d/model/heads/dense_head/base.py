@@ -1,19 +1,13 @@
 """Dense Head interface for Vis4D."""
 
 import abc
-from typing import Dict, Optional, Sequence, Tuple, Union, overload
+from typing import Dict, Optional, Tuple, Union, overload
 
 from pydantic import BaseModel, Field
 
-from vis4d.common.module import Vis4DModule
+from vis4d.common.module import TTestReturn, TTrainReturn, Vis4DModule
 from vis4d.common.registry import RegistryHolder
-from vis4d.struct import (
-    FeatureMaps,
-    InputSample,
-    LabelInstances,
-    LossesType,
-    TLabelInstance,
-)
+from vis4d.struct import FeatureMaps, InputSample, LabelInstances, LossesType
 
 
 class BaseDenseHeadConfig(BaseModel, extra="allow"):
@@ -23,34 +17,32 @@ class BaseDenseHeadConfig(BaseModel, extra="allow"):
     category_mapping: Optional[Dict[str, int]] = None
 
 
-class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
+class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
     """Base Dense head class."""
 
     @overload  # type: ignore[override]
-    def forward(
+    def __call__(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
-    ) -> Sequence[TLabelInstance]:  # noqa: D102
+        features: FeatureMaps,
+    ) -> TTestReturn:  # noqa: D102
         ...
 
     @overload
-    def forward(
+    def __call__(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Sequence[TLabelInstance]]:
+    ) -> Tuple[LossesType, TTrainReturn]:
         ...
 
-    def forward(
+    def __call__(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps] = None,
+        features: FeatureMaps,
         targets: Optional[LabelInstances] = None,
-    ) -> Union[
-        Tuple[LossesType, Sequence[TLabelInstance]], Sequence[TLabelInstance]
-    ]:
+    ) -> Union[Tuple[LossesType, TTrainReturn], TTestReturn]:
         """Base Dense head forward.
 
         Args:
@@ -59,8 +51,8 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
             targets: Container with targets, e.g. Boxes2D / 3D, Masks, ...
 
         Returns:
-            LossesType and/or Sequence[TLabelInstance]: In train mode, return
-            losses and predictions. In test mode, return predictions.
+            [LossesType, TTrainReturn] / TTestReturn: In train mode, return
+            losses and intermediate outputs. In test mode, return predictions.
         """
         if targets is not None:
             return self.forward_train(inputs, features, targets)
@@ -70,9 +62,9 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
     def forward_train(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Sequence[TLabelInstance]]:
+    ) -> Tuple[LossesType, TTrainReturn]:
         """Forward pass during training stage.
 
         Args:
@@ -81,8 +73,8 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
             targets: Targets corresponding to InputSamples.
 
         Returns:
-            Tuple[LossesType, Sequence[TLabelInstance]]: Tuple of:
-             (dict of scalar loss tensors, sequence of predictions)
+            Tuple[LossesType, TTrainReturn]: Tuple of:
+             (dict of scalar loss tensors, predictions / other outputs)
         """
         raise NotImplementedError
 
@@ -90,8 +82,8 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
     def forward_test(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
-    ) -> Sequence[TLabelInstance]:
+        features: FeatureMaps,
+    ) -> TTestReturn:
         """Forward pass during testing stage.
 
         Args:
@@ -99,14 +91,14 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
             features: Input feature maps. Batched.
 
         Returns:
-            Sequence[TLabelInstance]: Prediction output.
+            TTestReturn: Prediction output.
         """
         raise NotImplementedError
 
 
 def build_dense_head(
     cfg: BaseDenseHeadConfig,
-) -> BaseDenseHead[TLabelInstance]:
+) -> BaseDenseHead:  # type: ignore
     """Build a dense head from config."""
     registry = RegistryHolder.get_registry(BaseDenseHead)
     if cfg.type in registry:

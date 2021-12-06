@@ -1,5 +1,5 @@
 """mmdetection detector wrapper."""
-from typing import Dict, List, Optional, Sequence, Tuple, Union, overload
+from typing import Dict, List, Optional, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
@@ -12,7 +12,7 @@ from vis4d.struct import (
     ModelOutput,
 )
 
-from ..backbone import MMDetBackboneConfig, build_backbone
+from ..backbone import MMDetBackbone, MMDetBackboneConfig, build_backbone
 from ..backbone.neck import MMDetNeckConfig
 from ..base import BaseModelConfig
 from ..heads.dense_head import (
@@ -73,7 +73,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         assert self.cfg.category_mapping is not None
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
         self.mm_cfg = get_mmdet_config(self.cfg)
-        self.backbone = build_backbone(
+        self.backbone: MMDetBackbone = build_backbone(
             MMDetBackboneConfig(
                 type="MMDetBackbone",
                 mm_cfg=self.mm_cfg["backbone"],
@@ -135,12 +135,11 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         assert (
             len(batch_inputs) == 1
         ), "No reference views allowed in MMTwoStageDetector training!"
-        inputs = batch_inputs[0]
+        inputs, targets = batch_inputs[0], batch_inputs[0].targets
+        assert targets is not None, "Training requires targets."
         features = self.backbone(inputs)
-        rpn_losses, proposals = self.rpn_head(inputs, features, inputs.targets)
-        roi_losses, _ = self.roi_head(
-            inputs, proposals, features, inputs.targets
-        )
+        rpn_losses, proposals = self.rpn_head(inputs, features, targets)
+        roi_losses, _ = self.roi_head(inputs, proposals, features, targets)
         return {**rpn_losses, **roi_losses}
 
     def forward_test(
@@ -155,8 +154,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
         features = self.backbone(inputs)
         proposals = self.rpn_head(inputs, features)
-        outs = self.roi_head(inputs, proposals, features)
-        detections, segmentations = [o[0] for o in outs], [o[1] for o in outs]
+        detections, segmentations = self.roi_head(inputs, proposals, features)
 
         postprocess(
             inputs, detections, segmentations, self.cfg.clip_bboxes_to_image
@@ -179,71 +177,45 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
         Return backbone output features.
         """
-        return self.backbone(inputs)
+        feats = self.backbone(inputs)
+        assert isinstance(feats, dict)
+        return feats
 
-    @overload
-    def generate_proposals(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
-    ) -> List[Boxes2D]:  # noqa: D102
-        ...
-
-    @overload
-    def generate_proposals(
+    def _proposals_train(
         self,
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
     ) -> Tuple[LossesType, List[Boxes2D]]:
-        ...
-
-    def generate_proposals(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
-        targets: Optional[LabelInstances] = None,
-    ) -> Union[Tuple[LossesType, List[Boxes2D]], List[Boxes2D]]:
-        """Detector RPN stage.
-
-        Return proposals per image and losses.
-        """
+        """Train stage proposal generation."""
         return self.rpn_head(inputs, features, targets)
 
-    @overload
-    def generate_detections(
+    def _proposals_test(
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        proposals: List[Boxes2D],
-    ) -> List[Tuple[Boxes2D, Optional[InstanceMasks]]]:  # noqa: D102
-        ...
+    ) -> List[Boxes2D]:
+        """Test stage proposal generation."""
+        return self.rpn_head(inputs, features)
 
-    @overload
-    def generate_detections(
+    def _detections_train(
         self,
         inputs: InputSample,
         features: FeatureMaps,
         proposals: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
-        ...
+        """Train stage detections generation."""
+        return self.roi_head(inputs, proposals, features, targets)
 
-    def generate_detections(
+    def _detections_test(
         self,
         inputs: InputSample,
         features: FeatureMaps,
         proposals: List[Boxes2D],
-        targets: Optional[LabelInstances] = None,
-    ) -> Union[
-        Tuple[LossesType, Optional[SamplingResult]],
-        Sequence[Tuple[Boxes2D, Optional[InstanceMasks]]],
-    ]:
-        """Detector second stage (RoI Head).
-
-        Return losses (empty if no targets) and optionally detections.
-        """
-        return self.roi_head(inputs, proposals, features, targets)
+    ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
+        """Test stage detections generation."""
+        return self.roi_head(inputs, proposals, features)
 
 
 def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:

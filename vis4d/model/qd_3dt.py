@@ -12,7 +12,7 @@ from ..struct import (
     ModelOutput,
 )
 from .base import BaseModelConfig
-from .heads.roi_head import BaseRoIHead, BaseRoIHeadConfig, build_roi_head
+from .heads.roi_head import BaseRoIHeadConfig, QD3DTBBox3DHead, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
 from .track.graph import build_track_graph
 from .track.utils import split_key_ref_inputs
@@ -33,7 +33,7 @@ class QD3DT(QDTrack):
         self.cfg = QD3DTConfig(**cfg.dict())
         assert self.cfg.category_mapping is not None
         self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)  # type: ignore # pylint: disable=line-too-long
-        self.bbox_3d_head: BaseRoIHead[Boxes3D] = build_roi_head(
+        self.bbox_3d_head: QD3DTBBox3DHead = build_roi_head(
             self.cfg.bbox_3d_head
         )
         self.track_graph = build_track_graph(self.cfg.track_graph)
@@ -81,8 +81,8 @@ class QD3DT(QDTrack):
         feat = self.detector.extract_features(frames)
         proposals = self.detector.generate_proposals(frames, feat)
 
-        boxes2d_list, _ = zip(
-            *self.detector.generate_detections(frames, feat, proposals)
+        boxes2d_list, _ = self.detector.generate_detections(
+            frames, feat, proposals
         )
 
         # 3d head

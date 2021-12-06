@@ -32,7 +32,7 @@ class BaseSimilarityHead(
     """Base similarity learning head class."""
 
     @overload  # type: ignore[override] # noqa: D102
-    def forward(
+    def __call__(
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
@@ -41,7 +41,7 @@ class BaseSimilarityHead(
         ...
 
     @overload
-    def forward(
+    def __call__(
         self,
         inputs: List[InputSample],
         boxes: List[List[Boxes2D]],
@@ -50,7 +50,7 @@ class BaseSimilarityHead(
     ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         ...
 
-    def forward(
+    def __call__(
         self,
         inputs: Union[List[InputSample], InputSample],
         boxes: Union[List[List[Boxes2D]], List[Boxes2D]],

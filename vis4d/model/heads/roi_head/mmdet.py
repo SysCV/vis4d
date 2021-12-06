@@ -1,5 +1,6 @@
 """mmdetection roi head wrapper."""
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+
+from typing import Dict, List, Optional, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.model.mmdet_utils import (
@@ -49,7 +50,12 @@ class MMDetRoIHeadConfig(BaseRoIHeadConfig):
     model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
 
 
-class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
+class MMDetRoIHead(
+    BaseRoIHead[
+        Optional[SamplingResult],
+        Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
+    ]
+):
     """mmdetection roi head wrapper."""
 
     def __init__(self, cfg: BaseRoIHeadConfig) -> None:
@@ -76,7 +82,7 @@ class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Forward pass during training stage."""
@@ -103,8 +109,8 @@ class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[FeatureMaps],
-    ) -> Sequence[Tuple[Boxes2D, Optional[InstanceMasks]]]:
+        features: FeatureMaps,
+    ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Forward pass during testing stage."""
         assert (
             boxes is not None
@@ -121,6 +127,7 @@ class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
             self.mm_roi_head.test_cfg,
         )
         detections = detections_from_mmdet(bboxes, labels)
+        segmentations: Optional[List[InstanceMasks]] = None
         if self.with_mask:  # pragma: no cover
             masks = self.mm_roi_head.simple_test_mask(
                 feat_list,
@@ -131,10 +138,8 @@ class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
             segmentations = segmentations_from_mmdet(
                 masks, detections, inputs.device
             )
-        else:
-            segmentations = [None for _ in range(len(detections))]
 
-        return list(zip(detections, segmentations))
+        return detections, segmentations
 
 
 def get_mmdet_config(config: MMDetRoIHeadConfig) -> MMConfig:

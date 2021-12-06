@@ -49,7 +49,11 @@ class MMSegDecodeHeadConfig(BaseDenseHeadConfig):
     model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
 
 
-class MMSegDecodeHead(BaseDenseHead[SemanticMasks]):
+class MMSegDecodeHead(
+    BaseDenseHead[
+        Tuple[LossesType, Sequence[SemanticMasks]], List[SemanticMasks]
+    ]
+):
     """mmsegmentation decode head wrapper."""
 
     def __init__(self, cfg: BaseDenseHeadConfig):
@@ -76,9 +80,9 @@ class MMSegDecodeHead(BaseDenseHead[SemanticMasks]):
     def forward_train(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Sequence[SemanticMasks]]:
+    ) -> Tuple[LossesType, Optional[Sequence[SemanticMasks]]]:
         """Forward pass during training stage."""
         image_metas = get_img_metas(inputs.images)
         gt_masks = targets_to_mmseg(inputs.targets)
@@ -89,12 +93,10 @@ class MMSegDecodeHead(BaseDenseHead[SemanticMasks]):
             gt_masks,
             self.train_cfg,
         )
-        return _parse_losses(losses), [None]
+        return _parse_losses(losses), None
 
     def forward_test(
-        self,
-        inputs: InputSample,
-        features: Optional[FeatureMaps],
+        self, inputs: InputSample, features: FeatureMaps
     ) -> List[SemanticMasks]:
         """Forward pass during testing stage."""
         image_metas = get_img_metas(inputs.images)

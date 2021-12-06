@@ -47,7 +47,7 @@ class MMDetDenseHeadConfig(BaseDenseHeadConfig):
     model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
 
 
-class MMDetDenseHead(BaseDenseHead[Boxes2D]):
+class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
     """mmdetection dense head wrapper."""
 
     def __init__(self, cfg: BaseDenseHeadConfig) -> None:
