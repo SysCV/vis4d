@@ -26,11 +26,13 @@ except (ImportError, NameError):  # pragma: no cover
 
 from torch.nn.modules.batchnorm import _BatchNorm
 
+from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
     Boxes2D,
     FeatureMaps,
     InputSample,
     InstanceMasks,
+    LabelInstances,
     LossesType,
     ModelOutput,
 )
@@ -137,14 +139,15 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-    ) -> Tuple[List[Boxes2D], LossesType]:
+        targets: Optional[LabelInstances] = None,
+    ) -> Union[Tuple[LossesType, List[Boxes2D]], List[Boxes2D]]:
         """Detector RPN stage.
 
         Return proposals per image and losses (empty if no targets).
         """
         images_d2 = images_to_imagelist(inputs.images)
         is_training = self.d2_detector.proposal_generator.training
-        if self.training:
+        if targets is not None:
             targets: Optional[List[Instances]] = target_to_instance(
                 inputs.targets.boxes2d, inputs.images.image_sizes
             )
@@ -157,17 +160,19 @@ class D2TwoStageDetector(BaseTwoStageDetector):
                 images_d2, features, targets
             )
         self.d2_detector.proposal_generator.training = is_training
-        return proposal_to_box2d(proposals), rpn_losses
+        if targets is not None:
+            return rpn_losses, proposal_to_box2d(proposals)
+        return proposal_to_box2d(proposals)
 
     def generate_detections(
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        proposals: Optional[List[Boxes2D]] = None,
-        compute_detections: bool = True,
-        compute_segmentations: bool = False,
-    ) -> Tuple[
-        Optional[List[Boxes2D]], LossesType, Optional[List[InstanceMasks]]
+        proposals: List[Boxes2D],
+        targets: Optional[LabelInstances] = None,
+    ) -> Union[
+        Tuple[LossesType, Optional[SamplingResult]],
+        List[Tuple[Boxes2D, Optional[InstanceMasks]]],
     ]:
         """Detector second stage (RoI Head).
 
@@ -179,7 +184,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         images_d2 = images_to_imagelist(inputs.images)
         proposals = box2d_to_proposal(proposals, inputs.images.image_sizes)
         is_training = self.d2_detector.roi_heads.training
-        if self.training:
+        if targets is not None:
             targets: Optional[List[Instances]] = target_to_instance(
                 inputs.targets.boxes2d,
                 inputs.images.image_sizes,
@@ -197,15 +202,12 @@ class D2TwoStageDetector(BaseTwoStageDetector):
                 targets,
             )
         self.d2_detector.roi_heads.training = is_training
-        segmentations = None
-        if not self.d2_detector.training:
-            if self.with_mask:
-                segmentations = segmentations_to_bitmask(detections)
-            detections = detections_to_box2d(detections)
-        elif compute_detections:  # pragma: no cover
-            if compute_segmentations:
-                segmentations = segmentations_to_bitmask(detections)
-            detections = proposal_to_box2d(detections)
+        if targets is not None:
+            return detect_losses, None
+        if self.with_mask:
+            segmentations = segmentations_to_bitmask(detections)
         else:
-            detections = None
-        return detections, detect_losses, segmentations
+            segmentations = [None for _ in range(len(detections))]
+        detections = detections_to_box2d(detections)
+        predictions = [(d, s) for d, s in zip(detections, segmentations)]
+        return predictions

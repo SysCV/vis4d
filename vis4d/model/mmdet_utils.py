@@ -38,9 +38,6 @@ MMSegmResult = List[List[NDArrayUI8]]
 MMResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
 
 
-# TODO move this somewhere better fitting
-
-
 def get_img_metas(images: Images) -> List[MMDetMetaData]:
     """Create image metadata in mmdetection format."""
     img_metas = []

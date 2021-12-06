@@ -15,7 +15,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMCV_INSTALLED = False
 
 
-from vis4d.common.mmdet_utils import MMDetMetaData, add_keyword_args
+from vis4d.model.mmdet_utils import MMDetMetaData, add_keyword_args
 from vis4d.struct import LabelInstances, NDArrayUI8, SemanticMasks
 
 from ..base import BaseModelConfig

@@ -2,7 +2,7 @@
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.common.mmdet_utils import get_mmdet_config
+from vis4d.model.mmdet_utils import get_mmdet_config
 from vis4d.struct import (
     Boxes2D,
     FeatureMaps,

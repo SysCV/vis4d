@@ -18,7 +18,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
 
-from vis4d.common.mmdet_utils import _parse_losses, get_img_metas
+from vis4d.model.mmdet_utils import _parse_losses, get_img_metas
 from vis4d.struct import (
     FeatureMaps,
     Images,

@@ -20,12 +20,12 @@ except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
 
-from vis4d.common.mmdet_utils import (
+from vis4d.model.base import BaseModelConfig
+from vis4d.model.mmdet_utils import (
     _parse_losses,
     add_keyword_args,
     get_img_metas,
 )
-from vis4d.model.base import BaseModelConfig
 from vis4d.model.segment.mmseg_utils import (
     load_config_from_mmseg,
     results_from_mmseg,
