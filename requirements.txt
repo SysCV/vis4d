@@ -22,7 +22,7 @@ torchvision
 git+https://github.com/bdd100k/bdd100k.git
 devtools
 utm
-kornia
+kornia==0.6.1
 
 types-toml
 types-termcolor

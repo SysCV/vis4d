@@ -810,8 +810,18 @@ class InstanceMasks(Masks):
         detections: Boxes2D,
     ) -> None:
         """Postprocess instance masks."""
+        if len(self) == 0:
+            return
         if self.size != output_wh:
             self.paste_masks_in_image(detections, original_wh)
+        # resolve overlaps
+        foreground = torch.zeros(
+            self.masks.shape[1:], dtype=torch.bool, device=self.device
+        )
+        sort_idx = self.score.argsort(descending=True)
+        for i in sort_idx:
+            self.masks[i] = torch.logical_and(self.masks[i], ~foreground)
+            foreground = torch.logical_or(self.masks[i], foreground)
 
 
 class SemanticMasks(Masks):

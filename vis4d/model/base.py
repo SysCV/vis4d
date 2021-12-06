@@ -223,11 +223,14 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         is_legacy = cls_kwargs_new.pop("legacy_ckpt", False)
         if is_legacy:
             rev_keys = [
+                (".backbone.", ".backbone.mm_backbone."),
+                (".neck.", ".backbone.neck.mm_neck."),
+                (".roi_head.", ".roi_head.mm_roi_head."),
+                (".rpn_head.", ".rpn_head.mm_dense_head."),
+                (".decode_head.", ".decode_head.mm_decode_head."),
+                (".auxiliary_head.", ".auxiliary_head.mm_decode_head."),
                 ("mm_detector.", ""),
-                ("roi_head", "roi_head.mm_roi_head"),
-                ("rpn_head", "rpn_head.mm_dense_head"),
-                ("backbone", "backbone.mm_backbone"),
-                ("neck", "backbone.neck.mm_neck"),
+                ("mm_segmentor.", ""),
             ]
             new_state_dict = {}
             for k, v in checkpoint["state_dict"].items():

@@ -49,7 +49,7 @@ class HDF5Backend(BaseDataBackend):
                 f"Corresponding HDF5 file not found:" f" {orig_filepath}"
             )
 
-        if filepath not in self.db_cache.keys():
+        if filepath not in self.db_cache:
             client = self.h5_file_api(filepath, "r")
             self.db_cache[filepath] = client
         else:

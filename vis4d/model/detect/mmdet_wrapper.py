@@ -128,7 +128,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         ), "No reference views allowed in MMTwoStageDetector training!"
         inputs = batch_inputs[0]
         features = self.backbone(inputs)
-        proposals, rpn_losses = self.rpn_head(inputs, features, inputs.targets)
+        rpn_losses, proposals = self.rpn_head(inputs, features, inputs.targets)
         roi_losses, _ = self.roi_head(
             inputs, proposals, features, inputs.targets
         )
