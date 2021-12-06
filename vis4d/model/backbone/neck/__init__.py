@@ -1,6 +1,6 @@
 """Vis4D neck module."""
 from .base import BaseNeck, BaseNeckConfig, build_neck
-from .mmdet_wrapper import MMDetNeck, MMDetNeckConfig
+from .mmdet import MMDetNeck, MMDetNeckConfig
 
 __all__ = [
     "BaseNeck",

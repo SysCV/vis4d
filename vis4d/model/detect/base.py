@@ -92,7 +92,7 @@ class BaseTwoStageDetector(BaseModel):
     def generate_proposals(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
     ) -> List[Boxes2D]:  # noqa: D102
         ...
 
@@ -100,7 +100,7 @@ class BaseTwoStageDetector(BaseModel):
     def generate_proposals(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         targets: LabelInstances,
     ) -> Tuple[LossesType, List[Boxes2D]]:
         ...
@@ -122,7 +122,7 @@ class BaseTwoStageDetector(BaseModel):
     def generate_detections(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         proposals: List[Boxes2D],
     ) -> List[Tuple[Boxes2D, Optional[InstanceMasks]]]:  # noqa: D102
         ...
@@ -131,9 +131,9 @@ class BaseTwoStageDetector(BaseModel):
     def generate_detections(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         proposals: List[Boxes2D],
-        targets: Optional[LabelInstances] = None,
+        targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         ...
 

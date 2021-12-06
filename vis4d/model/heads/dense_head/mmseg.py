@@ -1,5 +1,5 @@
 """mmsegmentation decode head wrapper."""
-from typing import List, Optional
+from typing import List, Optional, Sequence, Tuple
 
 import torch.nn.functional as F
 
@@ -18,9 +18,8 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
-
-from vis4d.common.mmdet_utils import _parse_losses, get_img_metas
-from vis4d.common.mmseg_utils import results_from_mmseg, targets_to_mmseg
+from vis4d.model.mmdet_utils import _parse_losses, get_img_metas
+from vis4d.model.mmseg_utils import results_from_mmseg, targets_to_mmseg
 from vis4d.struct import (
     DictStrAny,
     FeatureMaps,
@@ -61,7 +60,7 @@ class MMSegDecodeHead(BaseDenseHead[SemanticMasks]):
         inputs: InputSample,
         features: Optional[FeatureMaps],
         targets: LabelInstances,
-    ) -> LossesType:
+    ) -> Tuple[LossesType, Sequence[SemanticMasks]]:
         """Forward pass during training stage."""
         image_metas = get_img_metas(inputs.images)
         gt_masks = targets_to_mmseg(inputs.targets)
@@ -72,7 +71,7 @@ class MMSegDecodeHead(BaseDenseHead[SemanticMasks]):
             gt_masks,
             self.train_cfg,
         )
-        return _parse_losses(losses)
+        return _parse_losses(losses), [None]
 
     def forward_test(
         self,

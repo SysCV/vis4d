@@ -2,7 +2,7 @@
 from typing import List, Optional, Sequence, Tuple
 
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.common.mmdet_utils import (
+from vis4d.model.mmdet_utils import (
     _parse_losses,
     detections_from_mmdet,
     get_img_metas,

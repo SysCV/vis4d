@@ -12,22 +12,28 @@ except (ImportError, NameError):  # pragma: no cover
     MMCV_INSTALLED = False
 
 try:
-    from mmdet.models import build_backbone
+    from mmseg.models import build_backbone
 
-    MMDET_INSTALLED = True
+    MMSEG_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
-    MMDET_INSTALLED = False
+    MMSEG_INSTALLED = False
 
-from vis4d.struct import DictStrAny, FeatureMaps, InputSample
+from vis4d.struct import (
+    DictStrAny,
+    FeatureMaps,
+    Images,
+    InputSample,
+    SemanticMasks,
+)
 
 from .base import BaseBackbone, BaseBackboneConfig
 from .neck import BaseNeck, build_neck
 
-MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
+MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
 
 
-class MMDetBackboneConfig(BaseBackboneConfig):
-    """Config for mmdet backbones."""
+class MMSegBackboneConfig(BaseBackboneConfig):
+    """Config for mmseg backbones."""
 
     mm_cfg: DictStrAny
     pixel_mean: Tuple[float, float, float]
@@ -36,16 +42,16 @@ class MMDetBackboneConfig(BaseBackboneConfig):
     weights: Optional[str]
 
 
-class MMDetBackbone(BaseBackbone):
-    """mmdetection backbone wrapper."""
+class MMSegBackbone(BaseBackbone):
+    """mmsegmentation backbone wrapper."""
 
     def __init__(self, cfg: BaseBackboneConfig):
         """Init."""
         assert (
-            MMDET_INSTALLED and MMCV_INSTALLED
-        ), "MMDetBackbone requires both mmcv and mmdet to be installed!"
+            MMSEG_INSTALLED and MMCV_INSTALLED
+        ), "MMSegBackbone requires both mmcv and mmseg to be installed!"
         super().__init__()
-        self.cfg: MMDetBackboneConfig = MMDetBackboneConfig(**cfg.dict())
+        self.cfg: MMSegBackboneConfig = MMSegBackboneConfig(**cfg.dict())
         self.mm_backbone = build_backbone(self.cfg.mm_cfg)
         assert isinstance(self.mm_backbone, BaseModule)
         self.mm_backbone.init_weights()
@@ -56,9 +62,9 @@ class MMDetBackbone(BaseBackbone):
             self.neck = build_neck(self.cfg.neck)
 
         if self.cfg.weights is not None:
-            if self.cfg.weights.startswith("mmdet://"):
+            if self.cfg.weights.startswith("mmseg://"):
                 self.cfg.weights = (
-                    MMDET_MODEL_PREFIX + self.cfg.weights.split("mmdet://")[-1]
+                    MMSEG_MODEL_PREFIX + self.cfg.weights.split("mmseg://")[-1]
                 )
             load_checkpoint(self.mm_backbone, self.cfg.weights)
 
@@ -72,13 +78,24 @@ class MMDetBackbone(BaseBackbone):
         )
 
     def preprocess_inputs(self, inputs: InputSample) -> InputSample:
-        """Normalize the input images."""
+        """Normalize the input images, pad masks."""
+        if not self.training:
+            # no padding during inference to match MMSegmentation
+            Images.stride = 1
         inputs.images.tensor = (
             inputs.images.tensor - self.pixel_mean
         ) / self.pixel_std
+        if self.training and len(inputs.targets.semantic_masks) > 1:
+            # pad masks to same size for batching
+            inputs.targets.semantic_masks = SemanticMasks.pad(
+                inputs.targets.semantic_masks,
+                inputs.images.tensor.shape[-2:][::-1],
+            )
         return inputs
 
-    def forward(self, inputs: InputSample) -> FeatureMaps:
+    def forward(  # type: ignore[override]
+        self, inputs: InputSample
+    ) -> FeatureMaps:
         """Backbone forward.
 
         Args:
