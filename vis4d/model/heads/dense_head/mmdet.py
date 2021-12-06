@@ -59,7 +59,7 @@ class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
         self.cfg: MMDetDenseHeadConfig = MMDetDenseHeadConfig(**cfg.dict())
         if isinstance(self.cfg.mm_cfg, dict):
             mm_cfg = self.cfg.mm_cfg
-        else:
+        else:  # pragma: no cover
             # load from config
             mm_cfg = get_mmdet_config(self.cfg)
         self.mm_dense_head = build_head(ConfigDict(**mm_cfg))
@@ -106,7 +106,9 @@ class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
         return proposals_from_mmdet(proposals)
 
 
-def get_mmdet_config(config: MMDetDenseHeadConfig) -> MMConfig:
+def get_mmdet_config(
+    config: MMDetDenseHeadConfig,
+) -> MMConfig:  # pragma: no cover
     """Convert a Dense Head config to a mmdet readable config."""
     assert isinstance(config.mm_cfg, str)
     cfg = load_config(config.mm_cfg)

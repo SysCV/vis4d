@@ -93,21 +93,6 @@ def segmentations_from_mmdet(
     return segmentations_masks
 
 
-def detection_from_mmdet_results(
-    detection: MMDetResult, device: torch.device
-) -> Boxes2D:
-    """Convert bbox_result to Vis4D format."""
-    if len(detection) == 0:  # pragma: no cover
-        return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
-    bboxes = torch.from_numpy(np.vstack(detection)).to(device)  # Nx5
-    labels = [
-        torch.full((bbox.shape[0],), i, dtype=torch.int32, device=device)
-        for i, bbox in enumerate(detection)
-    ]
-    labels = torch.cat(labels)
-    return Boxes2D(bboxes, labels)
-
-
 def segmentation_from_mmdet_results(
     segmentation: MMSegmResult, boxes: Boxes2D, device: torch.device
 ) -> InstanceMasks:
@@ -130,25 +115,6 @@ def segmentation_from_mmdet_results(
     labels = torch.stack(labels_list)
     scores = boxes.score
     return InstanceMasks(masks, labels, score=scores)
-
-
-def results_from_mmdet(
-    results: MMResults, device: torch.device, with_mask: bool
-) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
-    """Convert mmdetection bbox_results and segm_results to Vis4D format."""
-    results_boxes2d, results_masks = [], []
-    for result in results:
-        detection = result
-        if with_mask:
-            detection, segmentation = result
-        box2d = detection_from_mmdet_results(detection, device)  # type: ignore
-        results_boxes2d.append(box2d)
-        if with_mask:
-            bitmask = segmentation_from_mmdet_results(
-                segmentation, box2d, device
-            )
-            results_masks.append(bitmask)
-    return results_boxes2d, results_masks if len(results_masks) > 0 else None
 
 
 def masks_to_mmdet_masks(masks: Sequence[InstanceMasks]) -> BitmapMasks:

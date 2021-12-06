@@ -126,7 +126,7 @@ class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         eta_sec = time_sec_avg * (total_batches - (batch_idx + 1))
         if not eta_sec == float("inf"):
             eta_str = str(datetime.timedelta(seconds=int(eta_sec)))
-        else:
+        else:  # pragma: no cover
             eta_str = "---"
 
         metrics_list = []

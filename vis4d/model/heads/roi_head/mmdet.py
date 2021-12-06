@@ -67,7 +67,7 @@ class MMDetRoIHead(
         self.cfg: MMDetRoIHeadConfig = MMDetRoIHeadConfig(**cfg.dict())
         if isinstance(self.cfg.mm_cfg, dict):
             mm_cfg = self.cfg.mm_cfg
-        else:
+        else:  # pragma: no cover
             # load from config
             mm_cfg = get_mmdet_config(self.cfg)
         self.mm_roi_head = build_head(ConfigDict(**mm_cfg))
@@ -142,7 +142,9 @@ class MMDetRoIHead(
         return detections, segmentations
 
 
-def get_mmdet_config(config: MMDetRoIHeadConfig) -> MMConfig:
+def get_mmdet_config(
+    config: MMDetRoIHeadConfig,
+) -> MMConfig:  # pragma: no cover
     """Convert a RoI Head config to a mmdet readable config."""
     assert isinstance(config.mm_cfg, str)
     cfg = load_config(config.mm_cfg)

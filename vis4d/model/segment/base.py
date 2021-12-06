@@ -1,7 +1,7 @@
 """Base class for Vis4D segmentors."""
 
 import abc
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, overload
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.struct import (
@@ -25,6 +25,23 @@ class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
         Return backbone output features.
         """
         raise NotImplementedError
+
+    @overload
+    def generate_segmentations(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
+        ...
+
+    @overload
+    def generate_segmentations(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        targets: LabelInstances,
+    ) -> List[SemanticMasks]:
+        ...
 
     @abc.abstractmethod
     def generate_segmentations(

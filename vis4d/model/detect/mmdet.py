@@ -90,7 +90,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         rpn_cfg = self.mm_cfg["rpn_head"]
         if "train_cfg" in self.mm_cfg and "rpn" in self.mm_cfg["train_cfg"]:
             rpn_train_cfg = self.mm_cfg["train_cfg"]["rpn"]
-        else:
+        else:  # pragma: no cover
             rpn_train_cfg = None
         rpn_cfg.update(
             train_cfg=rpn_train_cfg, test_cfg=self.mm_cfg["test_cfg"]["rpn"]
@@ -106,7 +106,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         roi_head_cfg = self.mm_cfg["roi_head"]
         if "train_cfg" in self.mm_cfg and "rcnn" in self.mm_cfg["train_cfg"]:
             rcnn_train_cfg = self.mm_cfg["train_cfg"]["rcnn"]
-        else:
+        else:  # pragma: no cover
             rcnn_train_cfg = None
 
         roi_head_cfg.update(train_cfg=rcnn_train_cfg)
