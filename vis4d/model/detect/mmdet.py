@@ -41,10 +41,10 @@ except (ImportError, NameError):  # pragma: no cover
 
 MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
 REV_KEYS = [
-    ("roi_head", "roi_head.mm_roi_head"),
-    ("rpn_head", "rpn_head.mm_dense_head"),
-    ("backbone", "backbone.mm_backbone"),
-    ("neck", "backbone.neck.mm_neck"),
+    (r"^roi_head\.", "roi_head.mm_roi_head."),
+    (r"^rpn_head\.", "rpn_head.mm_dense_head."),
+    (r"^backbone\.", "backbone.mm_backbone."),
+    (r"^neck\.", "backbone.neck.mm_neck."),
 ]
 
 

@@ -28,7 +28,7 @@ class QDTrackSeg(QDTrack):
         """Init."""
         super().__init__(cfg)
         self.cfg: QDTrackSegConfig = QDTrackSegConfig(**cfg.dict())
-        if self.cfg.seg_head.category_mapping is None:
+        if self.cfg.seg_head.category_mapping is None:  # pragma: no cover
             self.cfg.seg_head.category_mapping = self.cfg.category_mapping
         self.seg_head: MMSegDecodeHead = build_dense_head(self.cfg.seg_head)
 

@@ -40,9 +40,10 @@ except (ImportError, NameError):  # pragma: no cover
 
 MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
 REV_KEYS = [
-    ("decode_head.", "decode_head.mm_decode_head."),
-    ("auxiliary_head.", "auxiliary_head.mm_decode_head."),
-    ("backbone.", "backbone.mm_backbone."),
+    (r"^decode_head\.", "decode_head.mm_decode_head."),
+    (r"^auxiliary_head\.", "auxiliary_head.mm_decode_head."),
+    (r"^backbone\.", "backbone.mm_backbone."),
+    (r"^neck\.", "backbone.neck.mm_neck."),
 ]
 MMSegDecodeHeads = Union[MMSegDecodeHead, torch.nn.ModuleList]
 
@@ -109,7 +110,7 @@ class MMEncDecSegmentor(BaseSegmentor):
             self.auxiliary_head: Optional[
                 MMSegDecodeHeads
             ] = self._build_decode_heads(aux_cfg)
-        else:
+        else:  # pragma: no cover
             self.auxiliary_head = None
 
         if self.cfg.weights is not None:
@@ -240,12 +241,11 @@ def get_mmseg_config(config: MMEncDecSegmentorConfig) -> MMConfig:
 
     # convert segmentor attributes
     assert config.category_mapping is not None
-    if isinstance(cfg["decode_head"], list):
-        if isinstance(cfg["decode_head"], list):
-            for dec_head in cfg["decode_head"]:
-                dec_head["num_classes"] = len(config.category_mapping)
-        else:
-            cfg["decode_head"]["num_classes"] = len(config.category_mapping)
+    if isinstance(cfg["decode_head"], list):  # pragma: no cover
+        for dec_head in cfg["decode_head"]:
+            dec_head["num_classes"] = len(config.category_mapping)
+    else:
+        cfg["decode_head"]["num_classes"] = len(config.category_mapping)
     if "auxiliary_head" in cfg:
         if isinstance(cfg["auxiliary_head"], list):
             for aux_head in cfg["auxiliary_head"]:
