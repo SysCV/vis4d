@@ -1,11 +1,13 @@
 """mmdetection roi head wrapper."""
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.model.mmdet_utils import (
     _parse_losses,
+    add_keyword_args,
     detections_from_mmdet,
     get_img_metas,
+    load_config,
     proposals_to_mmdet,
     segmentations_from_mmdet,
     targets_to_mmdet,
@@ -23,6 +25,7 @@ from vis4d.struct import (
 from .base import BaseRoIHead, BaseRoIHeadConfig
 
 try:
+    from mmcv import Config as MMConfig
     from mmcv.utils import ConfigDict
 
     MMCV_INSTALLED = True
@@ -42,6 +45,8 @@ class MMDetRoIHeadConfig(BaseRoIHeadConfig):
     """Config for mmdetection roi heads."""
 
     mm_cfg: DictStrAny
+    roi_head_name: str = "roi_head"
+    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
 
 
 class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
@@ -54,11 +59,18 @@ class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
         ), "MMDetRoIHead requires both mmcv and mmdet to be installed!"
         super().__init__()
         self.cfg: MMDetRoIHeadConfig = MMDetRoIHeadConfig(**cfg.dict())
-        self.mm_roi_head = build_head(ConfigDict(**self.cfg.mm_cfg))
+        if isinstance(self.cfg.mm_cfg, dict):
+            mm_cfg = self.cfg.mm_cfg
+        else:
+            # load from config
+            mm_cfg = get_mmdet_config(self.cfg)
+        self.mm_roi_head = build_head(ConfigDict(**mm_cfg))
         assert isinstance(self.mm_roi_head, MMBaseRoIHead)
         self.mm_roi_head.init_weights()
         self.mm_roi_head.train()
         self.with_mask = self.mm_roi_head.with_mask
+        assert self.cfg.category_mapping is not None
+        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
 
     def forward_train(
         self,
@@ -123,3 +135,25 @@ class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
             segmentations = [None for _ in range(len(detections))]
 
         return list(zip(detections, segmentations))
+
+
+def get_mmdet_config(config: MMDetRoIHeadConfig) -> MMConfig:
+    """Convert a RoI Head config to a mmdet readable config."""
+    assert isinstance(config.mm_cfg, str)
+    cfg = load_config(config.mm_cfg)
+
+    # convert decode head attributes
+    head_name = config.roi_head_name
+    assert head_name in cfg
+    if "num_classes" in cfg[head_name]:
+        assert config.category_mapping is not None
+        cfg[head_name]["num_classes"] = len(config.category_mapping)
+    if "train_cfg" in cfg and head_name in cfg["train_cfg"]:
+        cfg[head_name]["train_cfg"] = cfg["train_cfg"][head_name]
+    if "test_cfg" in cfg and head_name in cfg["test_cfg"]:
+        cfg[head_name]["test_cfg"] = cfg["test_cfg"][head_name]
+    cfg = cfg[head_name]
+
+    if config.model_kwargs:
+        add_keyword_args(config, cfg)
+    return cfg

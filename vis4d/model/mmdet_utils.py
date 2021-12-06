@@ -1,5 +1,5 @@
 """Utilities for mmdet wrapper."""
-
+import os
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -183,6 +183,22 @@ def load_config_from_mmdet(url: str) -> str:
         response.status_code == 200
     ), f"Request to {full_url} failed with code {response.status_code}!"
     return response.text
+
+
+def load_config(path: str) -> MMConfig:
+    """Load config either from file or from URL."""
+    if os.path.exists(path):
+        cfg = MMConfig.fromfile(path)
+        if cfg.get("model"):
+            cfg = cfg["model"]
+    elif path.startswith("mmdet://"):
+        ex = os.path.splitext(path)[1]
+        cfg = MMConfig.fromstring(
+            load_config_from_mmdet(path.split("mmdet://")[-1]), ex
+        ).model
+    else:
+        raise FileNotFoundError(f"MMDetection config not found: {path}")
+    return cfg
 
 
 def _parse_losses(
