@@ -1,5 +1,5 @@
 """Detectron2 detector wrapper."""
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, overload
 
 import torch
 
@@ -91,7 +91,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         ), "No reference views allowed in D2TwoStageDetector training!"
         inputs = self.preprocess_inputs(batch_inputs[0])
         features = self.extract_features(inputs)
-        proposals, rpn_losses = self.generate_proposals(
+        rpn_losses, proposals = self.generate_proposals(
             inputs, features, inputs.targets
         )
         detect_losses, _ = self.generate_detections(
@@ -109,7 +109,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         ), "No reference views allowed in D2TwoStageDetector testing!"
         inputs = self.preprocess_inputs(batch_inputs[0])
         features = self.extract_features(inputs)
-        proposals, _ = self.generate_proposals(inputs, features)
+        proposals = self.generate_proposals(inputs, features)
         outs = self.generate_detections(inputs, features, proposals)
         detections, segmentations = [o[0] for o in outs], [o[1] for o in outs]
         assert detections is not None
@@ -135,6 +135,23 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         Return backbone output features.
         """
         return self.d2_detector.backbone(inputs.images.tensor)  # type: ignore
+
+    @overload
+    def generate_proposals(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+    ) -> List[Boxes2D]:  # noqa: D102
+        ...
+
+    @overload
+    def generate_proposals(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, List[Boxes2D]]:
+        ...
 
     def generate_proposals(
         self,
@@ -164,6 +181,25 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         if targets is not None:
             return rpn_losses, proposal_to_box2d(proposals)
         return proposal_to_box2d(proposals)
+
+    @overload
+    def generate_detections(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        proposals: List[Boxes2D],
+    ) -> List[Tuple[Boxes2D, Optional[InstanceMasks]]]:  # noqa: D102
+        ...
+
+    @overload
+    def generate_detections(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        proposals: List[Boxes2D],
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+        ...
 
     def generate_detections(
         self,
