@@ -120,7 +120,7 @@ def get_mmseg_config(config: MMSegDecodeHeadConfig) -> MMConfig:
     head_name = config.decode_head_name
     assert head_name in cfg
     assert config.category_mapping is not None
-    if isinstance(cfg[head_name], list):
+    if isinstance(cfg[head_name], list):  # pragma: no cover
         if isinstance(cfg[head_name], list):
             for head in cfg[head_name]:
                 head["num_classes"] = len(config.category_mapping)
