@@ -1,5 +1,5 @@
 """Utilities for mmseg wrapper."""
-
+import os
 from typing import List, Union
 
 import requests
@@ -8,6 +8,13 @@ import torch.nn.functional as F
 
 from vis4d.model.mmdet_utils import MMDetMetaData
 from vis4d.struct import LabelInstances, NDArrayUI8, SemanticMasks
+
+try:
+    from mmcv import Config as MMConfig
+
+    MMCV_INSTALLED = True
+except (ImportError, NameError):  # pragma: no cover
+    MMCV_INSTALLED = False
 
 MMResults = Union[List[NDArrayUI8], torch.Tensor]
 
@@ -56,3 +63,19 @@ def load_config_from_mmseg(url: str) -> str:
         response.status_code == 200
     ), f"Request to {full_url} failed with code {response.status_code}!"
     return response.text
+
+
+def load_config(path: str) -> MMConfig:
+    """Load config either from file or from URL."""
+    if os.path.exists(path):
+        cfg = MMConfig.fromfile(path)
+        if cfg.get("model"):
+            cfg = cfg["model"]
+    elif path.startswith("mmseg://"):
+        ex = os.path.splitext(path)[1]
+        cfg = MMConfig.fromstring(
+            load_config_from_mmseg(path.split("mmseg://")[-1]), ex
+        ).model
+    else:
+        raise FileNotFoundError(f"MMSegmentation config not found: {path}")
+    return cfg

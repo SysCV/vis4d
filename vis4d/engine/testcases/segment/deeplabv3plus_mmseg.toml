@@ -15,8 +15,9 @@ path = "../configs/models/mmsegmentation/deeplabv3plus_R_18_D8.toml"
     kwargs = {"max_steps" = 10, "power" = 0.9, "min_lr" = 0.0001}
 
 [launch]
-samples_per_gpu = 1
+samples_per_gpu = 2
 workers_per_gpu = 0
 
 [trainer]
 max_steps = 1
+check_val_every_n_epoch = 10

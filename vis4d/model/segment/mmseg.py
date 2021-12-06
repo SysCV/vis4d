@@ -1,5 +1,4 @@
 """mmsegmentation segmentor wrapper."""
-import os
 from typing import Dict, List, Optional, Tuple, Union
 
 import torch
@@ -22,7 +21,7 @@ from ..heads.dense_head import (
     build_dense_head,
 )
 from ..mmdet_utils import _parse_losses, add_keyword_args
-from ..mmseg_utils import load_config_from_mmseg
+from ..mmseg_utils import load_config
 from .base import BaseSegmentor
 
 try:
@@ -71,6 +70,8 @@ class MMEncDecSegmentor(BaseSegmentor):
         self.cfg: MMEncDecSegmentorConfig = MMEncDecSegmentorConfig(
             **cfg.dict()
         )
+        assert self.cfg.category_mapping is not None
+        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
         self.mm_cfg = get_mmseg_config(self.cfg)
         self.train_cfg = (
             self.mm_cfg["train_cfg"] if "train_cfg" in self.mm_cfg else None
@@ -118,9 +119,6 @@ class MMEncDecSegmentor(BaseSegmentor):
                 )
             load_checkpoint(self, self.cfg.weights, revise_keys=REV_KEYS)
 
-        assert self.cfg.category_mapping is not None
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
-
     def _build_decode_heads(
         self,
         mm_cfg: MMConfig,
@@ -136,7 +134,9 @@ class MMEncDecSegmentor(BaseSegmentor):
                 decode_head_.append(
                     build_dense_head(
                         MMSegDecodeHeadConfig(
-                            type="MMSegDecodeHead", mm_cfg=mm_cfg_
+                            type="MMSegDecodeHead",
+                            mm_cfg=mm_cfg_,
+                            category_mapping=self.cfg.category_mapping,
                         )
                     )
                 )
@@ -144,7 +144,11 @@ class MMEncDecSegmentor(BaseSegmentor):
         else:
             mm_cfg.update(train_cfg=self.train_cfg, test_cfg=self.test_cfg)
             decode_head = build_dense_head(
-                MMSegDecodeHeadConfig(type="MMSegDecodeHead", mm_cfg=mm_cfg)
+                MMSegDecodeHeadConfig(
+                    type="MMSegDecodeHead",
+                    mm_cfg=mm_cfg,
+                    category_mapping=self.cfg.category_mapping,
+                )
             )
         return decode_head
 
@@ -197,7 +201,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         assert not isinstance(self.decode_head, torch.nn.ModuleList)
         decode_output = self.decode_head(inputs, features, targets)
         if self.training:
-            segment_losses = _parse_losses(decode_output, "decode")
+            segment_losses = _parse_losses(decode_output[0], "decode")
             if self.auxiliary_head is not None:
                 aux_losses = self.generate_auxiliaries(inputs, features)
                 segment_losses.update(aux_losses)
@@ -220,10 +224,10 @@ class MMEncDecSegmentor(BaseSegmentor):
         if self.auxiliary_head is not None:
             if isinstance(self.auxiliary_head, torch.nn.ModuleList):
                 for idx, aux_head in enumerate(self.auxiliary_head):
-                    loss_aux = aux_head(inputs, features, inputs.targets)
+                    loss_aux, _ = aux_head(inputs, features, inputs.targets)
                     aux_losses.update(_parse_losses(loss_aux, f"aux_{idx}"))
             else:
-                loss_aux = self.auxiliary_head(
+                loss_aux, _ = self.auxiliary_head(
                     inputs, features, inputs.targets
                 )
                 aux_losses.update(_parse_losses(loss_aux, "aux"))
@@ -232,19 +236,7 @@ class MMEncDecSegmentor(BaseSegmentor):
 
 def get_mmseg_config(config: MMEncDecSegmentorConfig) -> MMConfig:
     """Convert a Segmentor config to a mmseg readable config."""
-    if os.path.exists(config.model_base):
-        cfg = MMConfig.fromfile(config.model_base)
-        if cfg.get("model"):
-            cfg = cfg["model"]
-    elif config.model_base.startswith("mmseg://"):
-        ex = os.path.splitext(config.model_base)[1]
-        cfg = MMConfig.fromstring(
-            load_config_from_mmseg(config.model_base.split("mmseg://")[-1]), ex
-        ).model
-    else:
-        raise FileNotFoundError(
-            f"MMSegmentation config not found: {config.model_base}"
-        )
+    cfg = load_config(config.model_base)
 
     # convert segmentor attributes
     assert config.category_mapping is not None

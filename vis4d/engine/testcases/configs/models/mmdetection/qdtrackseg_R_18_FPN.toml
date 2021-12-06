@@ -3,8 +3,7 @@ type = "QDTrackSeg"
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
     [model.detection]
     type = "MMTwoStageDetector"
-    model_base = "vis4d/engine/testcases/configs/models/mmdetection/mmdet_cfg_frcnn_r18fpn.py"
-    model_kwargs= {"rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.beta" = 0.111, "roi_head.bbox_head.loss_bbox.type" = "SmoothL1Loss"}
+    model_base = "vis4d/engine/testcases/configs/models/mmdetection/mmdet_cfg_maskrcnn_r18fpn.py"
     pixel_mean = [123.675, 116.28, 103.53]
     pixel_std = [58.395, 57.12, 57.375]
     backbone_output_names = ["p2", "p3", "p4", "p5", "p6"]
@@ -58,8 +57,7 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
         allow_low_quality_matches = false
 
     [model.seg_head]
-    type = "MMDecodeHead"
-    name = "decode_head"
+    type = "MMSegDecodeHead"
     category_mapping = {"road" = 0, "sidewalk" = 1, "building" = 2, "wall" = 3, "fence" = 4, "pole" = 5, "traffic light" = 6, "traffic sign" = 7, "vegetation" = 8, "terrain" = 9, "sky" = 10, "person" = 11, "rider" = 12, "car" = 13, "truck" = 14, "bus" = 15, "train" = 16, "motorcycle" = 17, "bicycle" = 18}
-    model_base = "mmseg://_base_/models/fpn_r50.py"
+    mm_cfg = "mmseg://_base_/models/fpn_r50.py"
     model_kwargs= {"norm_cfg.type" = "BN", "in_channels" = [64, 64, 64, 64], "channels" = 128}
