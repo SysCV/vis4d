@@ -42,7 +42,7 @@ class MMDetDenseHeadConfig(BaseDenseHeadConfig):
     mm_cfg: DictStrAny
 
 
-class MMDetDenseHead(BaseDenseHead[Boxes2D]):
+class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
     """mmdetection dense head wrapper."""
 
     def __init__(self, cfg: BaseDenseHeadConfig) -> None:

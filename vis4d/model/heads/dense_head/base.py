@@ -5,7 +5,7 @@ from typing import Dict, Optional, Sequence, Tuple, Union, overload
 
 from pydantic import BaseModel, Field
 
-from vis4d.common.module import Vis4DModule
+from vis4d.common.module import TTestReturn, TTrainReturn, Vis4DModule
 from vis4d.common.registry import RegistryHolder
 from vis4d.struct import (
     FeatureMaps,
@@ -23,7 +23,7 @@ class BaseDenseHeadConfig(BaseModel, extra="allow"):
     category_mapping: Optional[Dict[str, int]] = None
 
 
-class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
+class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
     """Base Dense head class."""
 
     @overload  # type: ignore[override]
@@ -31,7 +31,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
         self,
         inputs: InputSample,
         features: Optional[FeatureMaps],
-    ) -> Sequence[TLabelInstance]:  # noqa: D102
+    ) -> TTestReturn:  # noqa: D102
         ...
 
     @overload
@@ -40,7 +40,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
         inputs: InputSample,
         features: Optional[FeatureMaps],
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Sequence[TLabelInstance]]:
+    ) -> Tuple[LossesType, TTrainReturn]:
         ...
 
     def forward(
@@ -48,9 +48,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
         inputs: InputSample,
         features: Optional[FeatureMaps] = None,
         targets: Optional[LabelInstances] = None,
-    ) -> Union[
-        Tuple[LossesType, Sequence[TLabelInstance]], Sequence[TLabelInstance]
-    ]:
+    ) -> Union[Tuple[LossesType, TTrainReturn], TTestReturn]:
         """Base Dense head forward.
 
         Args:
@@ -59,8 +57,8 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
             targets: Container with targets, e.g. Boxes2D / 3D, Masks, ...
 
         Returns:
-            LossesType and/or Sequence[TLabelInstance]: In train mode, return
-            losses and predictions. In test mode, return predictions.
+            [LossesType, TTrainReturn] / TTestReturn: In train mode, return
+            losses and intermediate outputs. In test mode, return predictions.
         """
         if targets is not None:
             return self.forward_train(inputs, features, targets)
@@ -72,7 +70,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
         inputs: InputSample,
         features: Optional[FeatureMaps],
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Sequence[TLabelInstance]]:
+    ) -> Tuple[LossesType, TTrainReturn]:
         """Forward pass during training stage.
 
         Args:
@@ -81,8 +79,8 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
             targets: Targets corresponding to InputSamples.
 
         Returns:
-            Tuple[LossesType, Sequence[TLabelInstance]]: Tuple of:
-             (dict of scalar loss tensors, sequence of predictions)
+            Tuple[LossesType, TTrainReturn]: Tuple of:
+             (dict of scalar loss tensors, predictions / other outputs)
         """
         raise NotImplementedError
 
@@ -91,7 +89,7 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
         self,
         inputs: InputSample,
         features: Optional[FeatureMaps],
-    ) -> Sequence[TLabelInstance]:
+    ) -> TTestReturn:
         """Forward pass during testing stage.
 
         Args:
@@ -99,14 +97,14 @@ class BaseDenseHead(Vis4DModule[LossesType, Sequence[TLabelInstance]]):
             features: Input feature maps. Batched.
 
         Returns:
-            Sequence[TLabelInstance]: Prediction output.
+            TTestReturn: Prediction output.
         """
         raise NotImplementedError
 
 
 def build_dense_head(
     cfg: BaseDenseHeadConfig,
-) -> BaseDenseHead[TLabelInstance]:
+) -> BaseDenseHead:
     """Build a dense head from config."""
     registry = RegistryHolder.get_registry(BaseDenseHead)
     if cfg.type in registry:

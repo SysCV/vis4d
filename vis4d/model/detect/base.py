@@ -4,6 +4,7 @@ import abc
 from typing import List, Optional, Tuple, Union, overload
 
 from vis4d.common.bbox.samplers import SamplingResult
+from vis4d.common.module import TTestReturn, TTrainReturn
 from vis4d.struct import (
     Boxes2D,
     FeatureMaps,
@@ -43,7 +44,7 @@ class BaseDetector(BaseModel):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-    ) -> List[Tuple[Boxes2D, Optional[InstanceMasks]]]:  # noqa: D102
+    ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:  # noqa: D102
         ...
 
     @overload
@@ -63,7 +64,7 @@ class BaseDetector(BaseModel):
         targets: Optional[LabelInstances] = None,
     ) -> Union[
         Tuple[LossesType, Optional[SamplingResult]],
-        List[Tuple[Boxes2D, Optional[InstanceMasks]]],
+        Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
     ]:
         """Detector second stage (RoI Head).
 
@@ -124,7 +125,7 @@ class BaseTwoStageDetector(BaseModel):
         inputs: InputSample,
         features: FeatureMaps,
         proposals: List[Boxes2D],
-    ) -> List[Tuple[Boxes2D, Optional[InstanceMasks]]]:  # noqa: D102
+    ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:  # noqa: D102
         ...
 
     @overload
@@ -146,7 +147,7 @@ class BaseTwoStageDetector(BaseModel):
         targets: Optional[LabelInstances] = None,
     ) -> Union[
         Tuple[LossesType, Optional[SamplingResult]],
-        List[Tuple[Boxes2D, Optional[InstanceMasks]]],
+        Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
     ]:
         """Detector second stage (RoI Head).
 

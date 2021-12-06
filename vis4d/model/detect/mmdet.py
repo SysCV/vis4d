@@ -132,12 +132,11 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         assert (
             len(batch_inputs) == 1
         ), "No reference views allowed in MMTwoStageDetector training!"
-        inputs = batch_inputs[0]
+        inputs, targets = batch_inputs[0], batch_inputs[0].targets
+        assert targets is not None, "Training requires targets."
         features = self.backbone(inputs)
-        rpn_losses, proposals = self.rpn_head(inputs, features, inputs.targets)
-        roi_losses, _ = self.roi_head(
-            inputs, proposals, features, inputs.targets
-        )
+        rpn_losses, proposals = self.rpn_head(inputs, features, targets)
+        roi_losses, _ = self.roi_head(inputs, proposals, features, targets)
         return {**rpn_losses, **roi_losses}
 
     def forward_test(
@@ -178,23 +177,6 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         """
         return self.backbone(inputs)
 
-    @overload
-    def generate_proposals(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
-    ) -> List[Boxes2D]:  # noqa: D102
-        ...
-
-    @overload
-    def generate_proposals(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
-        targets: LabelInstances,
-    ) -> Tuple[LossesType, List[Boxes2D]]:
-        ...
-
     def generate_proposals(
         self,
         inputs: InputSample,
@@ -207,25 +189,6 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         """
         return self.rpn_head(inputs, features, targets)
 
-    @overload
-    def generate_detections(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
-        proposals: List[Boxes2D],
-    ) -> List[Tuple[Boxes2D, Optional[InstanceMasks]]]:  # noqa: D102
-        ...
-
-    @overload
-    def generate_detections(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
-        proposals: List[Boxes2D],
-        targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[SamplingResult]]:
-        ...
-
     def generate_detections(
         self,
         inputs: InputSample,
@@ -234,7 +197,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         targets: Optional[LabelInstances] = None,
     ) -> Union[
         Tuple[LossesType, Optional[SamplingResult]],
-        Sequence[Tuple[Boxes2D, Optional[InstanceMasks]]],
+        Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
     ]:
         """Detector second stage (RoI Head).
 

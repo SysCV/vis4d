@@ -44,7 +44,7 @@ class MMDetRoIHeadConfig(BaseRoIHeadConfig):
     mm_cfg: DictStrAny
 
 
-class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
+class MMDetRoIHead(BaseRoIHead[Boxes2D, Optional[InstanceMasks]]):
     """mmdetection roi head wrapper."""
 
     def __init__(self, cfg: BaseRoIHeadConfig) -> None:
@@ -92,7 +92,7 @@ class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
         inputs: InputSample,
         boxes: List[Boxes2D],
         features: Optional[FeatureMaps],
-    ) -> Sequence[Tuple[Boxes2D, Optional[InstanceMasks]]]:
+    ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Forward pass during testing stage."""
         assert (
             boxes is not None
@@ -120,6 +120,6 @@ class MMDetRoIHead(BaseRoIHead[Tuple[Boxes2D, Optional[InstanceMasks]]]):
                 masks, detections, inputs.device
             )
         else:
-            segmentations = [None for _ in range(len(detections))]
+            segmentations = None
 
-        return list(zip(detections, segmentations))
+        return detections, segmentations

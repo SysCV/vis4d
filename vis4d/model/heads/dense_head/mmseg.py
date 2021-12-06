@@ -38,7 +38,11 @@ class MMSegDecodeHeadConfig(BaseDenseHeadConfig):
     mm_cfg: DictStrAny
 
 
-class MMSegDecodeHead(BaseDenseHead[SemanticMasks]):
+class MMSegDecodeHead(
+    BaseDenseHead[
+        Tuple[LossesType, Sequence[SemanticMasks]], List[SemanticMasks]
+    ]
+):
     """mmsegmentation decode head wrapper."""
 
     def __init__(self, cfg: BaseDenseHeadConfig):

@@ -6,7 +6,7 @@ from typing import List, Optional, Sequence, Tuple, Union, overload
 from pydantic import BaseModel, Field
 
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.common.module import Vis4DModule
+from vis4d.common.module import TTestReturn, TTrainReturn, Vis4DModule
 from vis4d.common.registry import RegistryHolder
 from vis4d.struct import (
     Boxes2D,
@@ -26,8 +26,8 @@ class BaseRoIHeadConfig(BaseModel, extra="allow"):
 
 class BaseRoIHead(
     Vis4DModule[
-        Tuple[LossesType, Optional[SamplingResult]],
-        Sequence[TLabelInstance],
+        Tuple[LossesType, TTrainReturn],
+        TTestReturn,
     ]
 ):
     """Base RoI head class."""
@@ -38,7 +38,7 @@ class BaseRoIHead(
         inputs: InputSample,
         boxes: List[Boxes2D],
         features: Optional[FeatureMaps],
-    ) -> Sequence[TLabelInstance]:  # noqa: D102
+    ) -> TTestReturn:  # noqa: D102
         ...
 
     @overload
@@ -48,7 +48,7 @@ class BaseRoIHead(
         boxes: List[Boxes2D],
         features: Optional[FeatureMaps],
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+    ) -> Tuple[LossesType, TTrainReturn]:
         ...
 
     def forward(
@@ -57,9 +57,7 @@ class BaseRoIHead(
         boxes: List[Boxes2D],
         features: Optional[FeatureMaps] = None,
         targets: Optional[LabelInstances] = None,
-    ) -> Union[
-        Tuple[LossesType, Optional[SamplingResult]], Sequence[TLabelInstance]
-    ]:
+    ) -> Union[Tuple[LossesType, TTrainReturn], TTestReturn]:
         """Base RoI head forward.
 
         Args:
@@ -69,10 +67,9 @@ class BaseRoIHead(
             targets: Container with targets, e.g. Boxes2D / 3D, Masks, ...
 
         Returns:
-            Tuple[LossesType, Optional[SamplingResult]]
-            or Sequence[TLabelInstance]: In train mode, return losses and the
-            result of the RoI sampling process. In test mode, return
-            predictions.
+            Tuple[LossesType, TTrainReturn]
+            or TTestReturn: In train mode, return losses and optionally
+            intermediate returns. In test mode, return predictions.
         """
         if targets is not None:
             return self.forward_train(inputs, boxes, features, targets)
@@ -85,7 +82,7 @@ class BaseRoIHead(
         boxes: List[Boxes2D],
         features: Optional[FeatureMaps],
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+    ) -> Tuple[LossesType, TTrainReturn]:
         """Forward pass during training stage.
 
         Args:
@@ -96,7 +93,7 @@ class BaseRoIHead(
 
         Returns:
             LossesType: A dict of scalar loss tensors.
-            Optional[List[SamplingResult]]: Sampling result.
+            TTrainReturn: Some intermediate results.
         """
         raise NotImplementedError
 
@@ -106,7 +103,7 @@ class BaseRoIHead(
         inputs: InputSample,
         boxes: List[Boxes2D],
         features: Optional[FeatureMaps],
-    ) -> Sequence[TLabelInstance]:
+    ) -> TTestReturn:
         """Forward pass during testing stage.
 
         Args:
@@ -115,12 +112,12 @@ class BaseRoIHead(
             features: Input feature maps. Batched.
 
         Returns:
-            Sequence[TLabelInstance]: Prediction output.
+            TTestReturn: Prediction output.
         """
         raise NotImplementedError
 
 
-def build_roi_head(cfg: BaseRoIHeadConfig) -> BaseRoIHead[TLabelInstance]:
+def build_roi_head(cfg: BaseRoIHeadConfig) -> BaseRoIHead:
     """Build a roi head from config."""
     registry = RegistryHolder.get_registry(BaseRoIHead)
     if cfg.type in registry:
