@@ -49,7 +49,7 @@ class QDTrack(BaseModel):
         ref_inputs: List[InputSample],
         key_x: FeatureMaps,
         ref_x: List[FeatureMaps],
-    ) -> Tuple[LossesType, List[Boxes2D], List[Boxes2D]]:
+    ) -> Tuple[LossesType, List[Boxes2D], List[List[Boxes2D]]]:
         """Get detection and tracking losses."""
         key_targets, ref_targets = key_inputs.targets, [
             x.targets for x in ref_inputs
@@ -94,10 +94,9 @@ class QDTrack(BaseModel):
     ) -> ModelOutput:
         """Get detections and tracks."""
         proposals = self.detector.generate_proposals(inputs, feat)
-        detections, instance_segms = zip(
-            *self.detector.generate_detections(inputs, feat, proposals)
+        detections, instance_segms = self.detector.generate_detections(
+            inputs, feat, proposals
         )
-        detections, instance_segms = list(detections), list(instance_segms)
 
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
@@ -115,7 +114,7 @@ class QDTrack(BaseModel):
             detections[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
         )
         outputs = dict(detect=[detects])
-        if instance_segms[0] is not None:
+        if instance_segms is not None:
             instance_segms[0].postprocess(
                 input_size, inputs.images.image_sizes[0], detections[0]
             )
@@ -130,7 +129,7 @@ class QDTrack(BaseModel):
         predictions = LabelInstances(
             detections,
             instance_masks=instance_segms
-            if instance_segms[0] is not None
+            if instance_segms is not None
             else None,
         )
         tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
@@ -142,7 +141,7 @@ class QDTrack(BaseModel):
         )
         outputs["track"] = [tracks_]
 
-        if instance_segms[0] is not None:
+        if tracks.instance_masks[0] is not None:
             segm_tracks = (
                 tracks.instance_masks[0]
                 .to(torch.device("cpu"))

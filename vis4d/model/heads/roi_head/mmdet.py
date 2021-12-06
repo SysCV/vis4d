@@ -1,5 +1,5 @@
 """mmdetection roi head wrapper."""
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Tuple
 
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.model.mmdet_utils import (
@@ -44,7 +44,12 @@ class MMDetRoIHeadConfig(BaseRoIHeadConfig):
     mm_cfg: DictStrAny
 
 
-class MMDetRoIHead(BaseRoIHead[Boxes2D, Optional[InstanceMasks]]):
+class MMDetRoIHead(
+    BaseRoIHead[
+        Optional[SamplingResult],
+        Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
+    ]
+):
     """mmdetection roi head wrapper."""
 
     def __init__(self, cfg: BaseRoIHeadConfig) -> None:
@@ -64,7 +69,7 @@ class MMDetRoIHead(BaseRoIHead[Boxes2D, Optional[InstanceMasks]]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Forward pass during training stage."""
@@ -91,7 +96,7 @@ class MMDetRoIHead(BaseRoIHead[Boxes2D, Optional[InstanceMasks]]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Forward pass during testing stage."""
         assert (
@@ -109,6 +114,7 @@ class MMDetRoIHead(BaseRoIHead[Boxes2D, Optional[InstanceMasks]]):
             self.mm_roi_head.test_cfg,
         )
         detections = detections_from_mmdet(bboxes, labels)
+        segmentations: Optional[List[InstanceMasks]] = None
         if self.with_mask:  # pragma: no cover
             masks = self.mm_roi_head.simple_test_mask(
                 feat_list,
@@ -119,7 +125,5 @@ class MMDetRoIHead(BaseRoIHead[Boxes2D, Optional[InstanceMasks]]):
             segmentations = segmentations_from_mmdet(
                 masks, detections, inputs.device
             )
-        else:
-            segmentations = None
 
         return detections, segmentations

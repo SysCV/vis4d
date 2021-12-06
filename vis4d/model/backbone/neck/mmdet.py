@@ -45,7 +45,7 @@ class MMDetNeck(BaseNeck):
         self.mm_neck.init_weights()
         self.mm_neck.train()
 
-    def forward(  # type: ignore[override]
+    def __call__(  # type: ignore[override]
         self,
         inputs: FeatureMaps,
     ) -> FeatureMaps:

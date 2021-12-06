@@ -50,7 +50,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         super().__init__()
         self.cfg = cfg
 
-    def forward(  # type: ignore[override]
+    def __call__(
         self, batch_inputs: List[InputSample]
     ) -> Union[LossesType, ModelOutput]:  # pragma: no cover
         """Forward."""

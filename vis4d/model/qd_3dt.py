@@ -81,8 +81,8 @@ class QD3DT(QDTrack):
         feat = self.detector.extract_features(frames)
         proposals = self.detector.generate_proposals(frames, feat)
 
-        boxes2d_list, _ = zip(
-            *self.detector.generate_detections(frames, feat, proposals)
+        boxes2d_list, _ = self.detector.generate_detections(
+            frames, feat, proposals
         )
 
         # 3d head

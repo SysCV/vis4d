@@ -1,19 +1,13 @@
 """Dense Head interface for Vis4D."""
 
 import abc
-from typing import Dict, Optional, Sequence, Tuple, Union, overload
+from typing import Dict, Optional, Tuple, Union, overload
 
 from pydantic import BaseModel, Field
 
 from vis4d.common.module import TTestReturn, TTrainReturn, Vis4DModule
 from vis4d.common.registry import RegistryHolder
-from vis4d.struct import (
-    FeatureMaps,
-    InputSample,
-    LabelInstances,
-    LossesType,
-    TLabelInstance,
-)
+from vis4d.struct import FeatureMaps, InputSample, LabelInstances, LossesType
 
 
 class BaseDenseHeadConfig(BaseModel, extra="allow"):
@@ -27,26 +21,26 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
     """Base Dense head class."""
 
     @overload  # type: ignore[override]
-    def forward(
+    def __call__(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
     ) -> TTestReturn:  # noqa: D102
         ...
 
     @overload
-    def forward(
+    def __call__(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         targets: LabelInstances,
     ) -> Tuple[LossesType, TTrainReturn]:
         ...
 
-    def forward(
+    def __call__(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps] = None,
+        features: FeatureMaps,
         targets: Optional[LabelInstances] = None,
     ) -> Union[Tuple[LossesType, TTrainReturn], TTestReturn]:
         """Base Dense head forward.
@@ -68,7 +62,7 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
     def forward_train(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         targets: LabelInstances,
     ) -> Tuple[LossesType, TTrainReturn]:
         """Forward pass during training stage.
@@ -88,7 +82,7 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
     def forward_test(
         self,
         inputs: InputSample,
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
     ) -> TTestReturn:
         """Forward pass during testing stage.
 
@@ -104,7 +98,7 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
 
 def build_dense_head(
     cfg: BaseDenseHeadConfig,
-) -> BaseDenseHead:
+) -> BaseDenseHead:  # type: ignore
     """Build a dense head from config."""
     registry = RegistryHolder.get_registry(BaseDenseHead)
     if cfg.type in registry:

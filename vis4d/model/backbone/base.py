@@ -28,7 +28,7 @@ class BaseBackbone(Vis4DModule[FeatureMaps, FeatureMaps]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward(
+    def __call__(  # type: ignore[override]
         self,
         inputs: InputSample,
     ) -> FeatureMaps:

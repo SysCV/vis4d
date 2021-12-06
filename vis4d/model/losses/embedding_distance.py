@@ -26,7 +26,7 @@ class EmbeddingDistanceLoss(BaseLoss):
         super().__init__()
         self.cfg = EmbeddingDistanceLossConfig(**cfg.dict())
 
-    def forward(  # type: ignore # pylint: disable=arguments-differ
+    def __call__(  # type: ignore # pylint: disable=arguments-differ
         self,
         pred: torch.Tensor,
         target: torch.Tensor,

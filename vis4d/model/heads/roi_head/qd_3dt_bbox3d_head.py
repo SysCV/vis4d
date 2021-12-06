@@ -340,7 +340,7 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
         targets: LabelInstances,
     ) -> Tuple[LossesType, SamplingResult]:
         """Forward pass during training stage.
@@ -389,7 +389,7 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[FeatureMaps],
+        features: FeatureMaps,
     ) -> List[Boxes3D]:
         """Forward pass during testing stage.
 

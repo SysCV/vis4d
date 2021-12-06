@@ -4,7 +4,6 @@ import abc
 from typing import List, Optional, Tuple, Union, overload
 
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.common.module import TTestReturn, TTrainReturn
 from vis4d.struct import (
     Boxes2D,
     FeatureMaps,
@@ -53,7 +52,10 @@ class BaseDetector(BaseModel):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+    ) -> Tuple[
+        LossesType,
+        Optional[Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]],
+    ]:
         ...
 
     @abc.abstractmethod
@@ -63,13 +65,40 @@ class BaseDetector(BaseModel):
         features: FeatureMaps,
         targets: Optional[LabelInstances] = None,
     ) -> Union[
-        Tuple[LossesType, Optional[SamplingResult]],
+        Tuple[
+            LossesType,
+            Optional[Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]],
+        ],
         Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
     ]:
         """Detector second stage (RoI Head).
 
         Return losses (empty if not training) and optionally detections.
         """
+        if targets is not None:
+            return self._detections_train(inputs, features, targets)
+        return self._detections_test(inputs, features)
+
+    @abc.abstractmethod
+    def _detections_train(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        targets: LabelInstances,
+    ) -> Tuple[
+        LossesType,
+        Optional[Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]],
+    ]:
+        """Train stage detections generation."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _detections_test(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+    ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
+        """Test stage detections generation."""
         raise NotImplementedError
 
 
@@ -106,7 +135,6 @@ class BaseTwoStageDetector(BaseModel):
     ) -> Tuple[LossesType, List[Boxes2D]]:
         ...
 
-    @abc.abstractmethod
     def generate_proposals(
         self,
         inputs: InputSample,
@@ -117,6 +145,27 @@ class BaseTwoStageDetector(BaseModel):
 
         Return proposals per image and losses
         """
+        if targets is not None:
+            return self._proposals_train(inputs, features, targets)
+        return self._proposals_test(inputs, features)
+
+    @abc.abstractmethod
+    def _proposals_train(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, List[Boxes2D]]:
+        """Train stage proposal generation."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _proposals_test(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+    ) -> List[Boxes2D]:
+        """Test stage proposal generation."""
         raise NotImplementedError
 
     @overload
@@ -138,7 +187,6 @@ class BaseTwoStageDetector(BaseModel):
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         ...
 
-    @abc.abstractmethod
     def generate_detections(
         self,
         inputs: InputSample,
@@ -153,4 +201,27 @@ class BaseTwoStageDetector(BaseModel):
 
         Return losses (empty if not training) and optionally detections.
         """
+        if targets is not None:
+            return self._detections_train(inputs, features, proposals, targets)
+        return self._detections_test(inputs, features, proposals)
+
+    @abc.abstractmethod
+    def _detections_train(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        proposals: List[Boxes2D],
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+        """Train stage detections generation."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _detections_test(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        proposals: List[Boxes2D],
+    ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
+        """Test stage detections generation."""
         raise NotImplementedError

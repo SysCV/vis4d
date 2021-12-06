@@ -78,7 +78,7 @@ class MMDetBackbone(BaseBackbone):
         ) / self.pixel_std
         return inputs
 
-    def forward(  # type: ignore[override]
+    def __call__(  # type: ignore[override]
         self, inputs: InputSample
     ) -> FeatureMaps:
         """Backbone forward.
@@ -96,5 +96,5 @@ class MMDetBackbone(BaseBackbone):
         else:
             backbone_outs = dict(zip(self.cfg.output_names, outs))
         if self.neck is not None:
-            return self.neck(backbone_outs)  # type: ignore
+            return self.neck(backbone_outs)
         return backbone_outs
