@@ -189,7 +189,7 @@ class TestSemSegMM(BaseEngineTests.TestTrain):
         """Set up class."""
         cls.work_dir = "./unittests/unittest_sem_seg_mm/"
         args = Namespace(
-            config=get_test_file("segment/deeplabv3_mmseg.toml"),
+            config=get_test_file("segment/fpn_mmseg.toml"),
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)
