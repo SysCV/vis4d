@@ -2,7 +2,7 @@
 path = "../configs/datasets/bdd100k/sem_seg.toml"
 
 [[config]]
-path = "../configs/models/mmsegmentation/deeplabv3plus_R_18_D8.toml"
+path = "../configs/models/mmsegmentation/deeplabv3_R_18_D8.toml"
 
 [model]
     [model.optimizer]

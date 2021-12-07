@@ -59,5 +59,4 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
     [model.seg_head]
     type = "MMSegDecodeHead"
     category_mapping = {"road" = 0, "sidewalk" = 1, "building" = 2, "wall" = 3, "fence" = 4, "pole" = 5, "traffic light" = 6, "traffic sign" = 7, "vegetation" = 8, "terrain" = 9, "sky" = 10, "person" = 11, "rider" = 12, "car" = 13, "truck" = 14, "bus" = 15, "train" = 16, "motorcycle" = 17, "bicycle" = 18}
-    mm_cfg = "mmseg://_base_/models/fpn_r50.py"
-    model_kwargs= {"norm_cfg.type" = "BN", "in_channels" = [64, 64, 64, 64], "channels" = 128}
+    mm_cfg = "vis4d/engine/testcases/configs/models/mtl/fpn_decode_head.py"
