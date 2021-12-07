@@ -28,6 +28,9 @@ class TestLabelInstances(unittest.TestCase):
         """Testcases for device."""
         empty_labels = LabelInstances()
         self.assertEqual(empty_labels.device, torch.device("cpu"))
+        tensor = torch.tensor([0])
+        other_labels = LabelInstances(other=[dict(my_data=tensor)])
+        self.assertEqual(other_labels.device, tensor.device)
 
     def test_cat(self) -> None:
         """Testcases for cat."""

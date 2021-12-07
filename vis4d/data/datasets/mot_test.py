@@ -45,3 +45,14 @@ class TestMOTEval(unittest.TestCase):
         metrics, _ = mot_dataset.evaluate("track", mot_results, [])
         for k, v in metrics.items():
             self.assertEqual(v, ref_metrics[k])
+
+    def test_check_metrics(self) -> None:
+        """Test the check metrics function."""
+        cfg = MOTDatasetConfig(
+            name="mot17_test",
+            type="",
+            data_root=get_test_file("motchallenge"),
+            annotations=get_test_file("motchallenge/result.json"),
+            eval_metrics=["a", "b"],
+        )
+        self.assertRaises(KeyError, MOTChallenge, cfg)

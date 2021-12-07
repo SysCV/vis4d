@@ -158,9 +158,10 @@ class MMEncDecSegmentor(BaseSegmentor):
         assert (
             len(batch_inputs) == 1
         ), "No reference views allowed in MMEncDecSegmentor training!"
-        inputs = batch_inputs[0]
+        inputs, targets = batch_inputs[0], batch_inputs[0].targets
+        assert targets is not None, "Training requires targets."
         features = self.extract_features(inputs)
-        losses, _ = self._segmentations_train(inputs, features, inputs.targets)
+        losses, _ = self.generate_segmentations(inputs, features, targets)
         return losses
 
     def forward_test(

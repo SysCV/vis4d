@@ -9,7 +9,7 @@ from vis4d.struct import Boxes2D, Images, InputSample, LabelInstances
 from vis4d.unittest.utils import generate_dets
 
 from .base import TrackGraphConfig
-from .quasi_dense import QDTrackGraph
+from .qdtrack import QDTrackGraph
 
 
 class TestQDTrackGraph(unittest.TestCase):

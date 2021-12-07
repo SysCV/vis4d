@@ -45,7 +45,7 @@ except (ImportError, NameError):  # pragma: no cover
 class MMDetRoIHeadConfig(BaseRoIHeadConfig):
     """Config for mmdetection roi heads."""
 
-    mm_cfg: DictStrAny
+    mm_cfg: Union[DictStrAny, str]
     roi_head_name: str = "roi_head"
     model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
 

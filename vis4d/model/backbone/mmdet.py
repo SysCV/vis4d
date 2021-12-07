@@ -55,7 +55,7 @@ class MMDetBackbone(BaseBackbone):
         if self.cfg.neck is not None:
             self.neck = build_neck(self.cfg.neck)
 
-        if self.cfg.weights is not None:
+        if self.cfg.weights is not None:  # pragma: no cover
             if self.cfg.weights.startswith("mmdet://"):
                 self.cfg.weights = (
                     MMDET_MODEL_PREFIX + self.cfg.weights.split("mmdet://")[-1]
@@ -91,10 +91,10 @@ class MMDetBackbone(BaseBackbone):
         """
         inputs = self.preprocess_inputs(inputs)
         outs = self.mm_backbone(inputs.images.tensor)
-        if self.cfg.output_names is None:  # pragma: no cover
+        if self.cfg.output_names is None:
             backbone_outs = {f"out{i}": v for i, v in enumerate(outs)}
-        else:
+        else:  # pragma: no cover
             backbone_outs = dict(zip(self.cfg.output_names, outs))
         if self.neck is not None:
             return self.neck(backbone_outs)
-        return backbone_outs
+        return backbone_outs  # pragma: no cover

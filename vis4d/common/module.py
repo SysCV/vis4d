@@ -19,7 +19,7 @@ class Vis4DModule(
         self, *args: Any, **kwargs: Any
     ) -> Union[TTrainReturn, TTestReturn]:
         """Call __call__ in forward to enable mypy compatibility."""
-        return self.__call__(*args, **kwargs)
+        return self.__call__(*args, **kwargs)  # pragma: no cover
 
     @abc.abstractmethod
     def __call__(  # type: ignore

@@ -88,4 +88,5 @@ class TestQDTBBox3DHead(unittest.TestCase):
             inputs, [detections], {"test": torch.rand(1)}
         )
 
+        # pylint: disable=unsubscriptable-object
         self.assertTrue(len(boxes_3d_pred[0]) == len(detections) == 0)

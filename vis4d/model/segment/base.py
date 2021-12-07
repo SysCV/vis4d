@@ -3,7 +3,6 @@
 import abc
 from typing import List, Optional, Tuple, Union, overload
 
-from vis4d.common.registry import RegistryHolder
 from vis4d.struct import (
     FeatureMaps,
     InputSample,
@@ -15,7 +14,7 @@ from vis4d.struct import (
 from ..base import BaseModel
 
 
-class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
+class BaseSegmentor(BaseModel):
     """Base segmentor class."""
 
     @abc.abstractmethod
@@ -31,7 +30,7 @@ class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
+    ) -> List[SemanticMasks]:
         ...
 
     @overload
@@ -40,10 +39,9 @@ class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> List[SemanticMasks]:
+    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
         ...
 
-    @abc.abstractmethod
     def generate_segmentations(
         self,
         inputs: InputSample,

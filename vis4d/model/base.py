@@ -218,7 +218,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
     @classmethod
     def _load_model_state(  # type: ignore
         cls, checkpoint: DictStrAny, strict: bool = True, **cls_kwargs_new: Any
-    ) -> "BaseModel":
+    ) -> "BaseModel":  # pragma: no cover
         """Legacy checkpoint support in _load_model_state."""
         is_legacy = cls_kwargs_new.pop("legacy_ckpt", False)
         if is_legacy:

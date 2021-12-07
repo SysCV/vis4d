@@ -29,10 +29,10 @@ class LabelInstances(InputInstance):
             for x in inputs:
                 if x is not None:
                     annotation_len = len(x)
-                    if isinstance(x, dict):
-                        device = x[list(x.keys())[0]].device
+                    if isinstance(x[0], dict):
+                        device = x[0][list(x[0].keys())[0]].device
                     else:
-                        device = x[0].device  # type: ignore
+                        device = x[0].device
                     break
 
         if boxes2d is None:
@@ -248,13 +248,7 @@ class InputSample(DataInstance):
             if isinstance(v, list):
                 assert len(v) > 0, "Do not input empty inputSamples to .cat!"
                 attr_list = []
-                if isinstance(v[0], DataInstance):
-                    for inst in instances:
-                        attr_v = inst.get(k)
-                        for item in attr_v:
-                            assert isinstance(item, DataInstance)
-                            attr_list += [item.to(device)]
-                elif isinstance(v[0], dict):
+                if isinstance(v[0], dict):
                     for inst in instances:
                         attr_v = inst.get(k)
                         for item in attr_v:

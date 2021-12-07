@@ -22,13 +22,8 @@ class BaseDetectorConfig(BaseModelConfig):
     clip_bboxes_to_image: bool = True
 
 
-class BaseDetector(BaseModel):
-    """Base detector class."""
-
-    def __init__(self, cfg: BaseModelConfig):
-        """Init."""
-        super().__init__(cfg)
-        self.cfg: BaseDetectorConfig = BaseDetectorConfig(**cfg.dict())
+class BaseOneStageDetector(BaseModel):
+    """Base single-stage detector class."""
 
     @abc.abstractmethod
     def extract_features(self, inputs: InputSample) -> FeatureMaps:
@@ -70,7 +65,7 @@ class BaseDetector(BaseModel):
             Optional[Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]],
         ],
         Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
-    ]:
+    ]:  # pragma: no cover
         """Detector second stage (RoI Head).
 
         Return losses and optionally detections and instance segmentations

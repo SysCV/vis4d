@@ -91,7 +91,7 @@ class MOTChallenge(BaseDatasetLoader):
         self, metric: str, predictions: List[Frame], gts: List[Frame]
     ) -> Tuple[MetricLogs, str]:
         """Evaluate according to MOT Challenge metrics."""
-        if not metric == "track":
+        if not metric == "track":  # pragma: no cover
             return super().evaluate(metric, predictions, gts)
 
         res_files, names = self._convert_predictions(predictions)
@@ -111,7 +111,7 @@ class MOTChallenge(BaseDatasetLoader):
                 acc, _ = mm.utils.CLEAR_MOT_M(
                     gt, res, ini_file, distth=1 - self.cfg.track_iou_thr
                 )
-            else:
+            else:  # pragma: no cover
                 acc = mm.utils.compare_to_groundtruth(
                     gt, res, distth=1 - self.cfg.track_iou_thr
                 )
