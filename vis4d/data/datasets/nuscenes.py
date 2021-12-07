@@ -12,13 +12,15 @@ from vis4d.struct import MetricLogs
 
 from .base import BaseDatasetConfig, BaseDatasetLoader
 
-try:
+try:  # pragma: no cover
     from nuscenes import NuScenes as nusc_data
     from nuscenes.eval.detection.config import config_factory
     from nuscenes.eval.detection.evaluate import NuScenesEval
+
+    # pylint: disable=ungrouped-imports
     from scalabel.label.from_nuscenes import from_nuscenes
 
-    NUSC_INSTALLED = True  # pragma: no cover
+    NUSC_INSTALLED = True
 except (ImportError, NameError):
     NUSC_INSTALLED = False
 
