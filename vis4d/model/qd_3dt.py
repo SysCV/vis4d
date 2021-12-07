@@ -194,6 +194,57 @@ class QD3DT(QDTrack):
 
         embeddings = torch.cat(embeddings_list)
 
+        # post-processing
+        boxes_2d = torch.empty(
+            (0, boxes2d.boxes.shape[1]), device=boxes2d.device
+        )
+        boxes_3d = torch.empty(
+            (0, boxes3d.boxes.shape[1]), device=boxes3d.device
+        )
+        embeddings_post = torch.empty(
+            (0, embeddings.shape[1]), device=embeddings.device
+        )
+        class_ids = torch.empty((0), device=boxes2d.device)
+
+        boxes3d_post = Boxes3D(boxes_3d, class_ids)
+        boxes2d_post = Boxes2D(boxes_2d, class_ids)
+
+        for idx, (box2d, box3d) in enumerate(zip(boxes2d, boxes3d)):
+            boxes3d[idx].boxes[:, -1] *= boxes2d[idx].score
+            nms_flag = 0
+            if box2d.class_ids[0] == 5:
+                nms_dist = 1
+            else:
+                nms_dist = 2
+            for i, (box2d_post, box3d_post) in enumerate(
+                zip(boxes2d_post, boxes3d_post)
+            ):
+                if box2d_post.class_ids == box2d.class_ids:
+                    if (
+                        torch.cdist(box3d.center, box3d_post.center, p=2)
+                        <= nms_dist
+                        and boxes3d[idx].boxes[:, -1] > box3d_post.boxes[:, -1]
+                    ):
+                        nms_flag = 1
+                        boxes_3d[i] = box3d.boxes
+                        boxes_2d[i] = box2d.boxes
+                        embeddings_post[i] = embeddings[idx]
+                        break
+            if nms_flag == 0:
+                boxes_3d = torch.cat([boxes_3d, box3d.boxes])
+                boxes_2d = torch.cat([boxes_2d, box2d.boxes])
+                class_ids = torch.cat([class_ids, box2d.class_ids[0]])
+                embeddings_post = torch.cat(
+                    [embeddings_post, embeddings[idx].unsqueeze(0)]
+                )
+
+            boxes3d_post = Boxes3D(boxes_3d, class_ids)
+            boxes2d_post = Boxes2D(boxes_2d, class_ids)
+
+        boxes2d = boxes2d_post
+        boxes3d = boxes3d_post
+        embeddings = embeddings_post
+
         # associate detections, update graph
         tracks2d = self.track_graph(boxes2d, frame_id, embeddings)
 
