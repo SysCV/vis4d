@@ -1,5 +1,5 @@
 """Similarity Head for quasi-dense instance similarity learning."""
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -15,7 +15,13 @@ from vis4d.common.bbox.samplers import (
 )
 from vis4d.common.layers import add_conv_branch
 from vis4d.model.losses import BaseLoss, LossConfig, build_loss
-from vis4d.struct import Boxes2D, InputSample, LabelInstances, LossesType
+from vis4d.struct import (
+    Boxes2D,
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+)
 
 from ..utils import cosine_similarity
 from .base import BaseSimilarityHead, SimilarityLearningConfig
@@ -108,7 +114,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         return convs, fcs, last_layer_dim
 
     def _head_forward(
-        self, features: Dict[str, torch.Tensor], boxes: List[Boxes2D]
+        self, features: FeatureMaps, boxes: List[Boxes2D]
     ) -> List[torch.Tensor]:
         """Similarity head forward pass."""
         features_list = [features[f] for f in self.cfg.in_features]
@@ -134,7 +140,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         self,
         inputs: List[InputSample],
         boxes: List[List[Boxes2D]],
-        features: Optional[List[Dict[str, torch.Tensor]]],
+        features: Optional[List[FeatureMaps]],
         targets: List[LabelInstances],
     ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
@@ -193,7 +199,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
     ) -> List[torch.Tensor]:
         """Forward pass during testing stage.
 

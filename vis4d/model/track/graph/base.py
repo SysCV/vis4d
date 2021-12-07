@@ -25,7 +25,7 @@ class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
         raise NotImplementedError
 
     @overload  # type: ignore[override]
-    def forward(
+    def __call__(
         self,
         inputs: InputSample,
         predictions: LabelInstances,
@@ -34,7 +34,7 @@ class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
         ...
 
     @overload
-    def forward(
+    def __call__(
         self,
         inputs: List[InputSample],
         predictions: List[LabelInstances],
@@ -43,7 +43,7 @@ class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
     ) -> LossesType:
         ...
 
-    def forward(
+    def __call__(
         self,
         inputs: Union[List[InputSample], InputSample],
         predictions: Union[List[LabelInstances], LabelInstances],

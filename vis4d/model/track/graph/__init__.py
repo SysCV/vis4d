@@ -1,6 +1,6 @@
 """Track graph optimization module."""
 from .base import BaseTrackGraph, TrackGraphConfig, build_track_graph
-from .quasi_dense import QDTrackGraph
+from .qdtrack import QDTrackGraph
 
 __all__ = [
     "BaseTrackGraph",

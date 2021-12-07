@@ -1,11 +1,21 @@
 """Utilities for mmdet wrapper."""
-
 import os
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import requests
 import torch
+from pydantic import BaseModel
+
+from vis4d.struct import (
+    Boxes2D,
+    Images,
+    InstanceMasks,
+    LabelInstances,
+    LossesType,
+    NDArrayF64,
+    NDArrayUI8,
+)
 
 try:
     from mmcv import Config as MMConfig
@@ -21,33 +31,11 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
-from vis4d.struct import (
-    Boxes2D,
-    Images,
-    InstanceMasks,
-    LabelInstances,
-    LossesType,
-    NDArrayF64,
-    NDArrayUI8,
-)
-
-from .base import BaseDetectorConfig
 
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
 MMDetResult = List[torch.Tensor]
 MMSegmResult = List[List[NDArrayUI8]]
 MMResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
-
-
-class MMTwoStageDetectorConfig(BaseDetectorConfig):
-    """Config for mmdetection two stage models."""
-
-    model_base: str
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
-    pixel_mean: Tuple[float, float, float]
-    pixel_std: Tuple[float, float, float]
-    backbone_output_names: Optional[List[str]]
-    weights: Optional[str]
 
 
 def get_img_metas(images: Images) -> List[MMDetMetaData]:
@@ -105,21 +93,6 @@ def segmentations_from_mmdet(
     return segmentations_masks
 
 
-def detection_from_mmdet_results(
-    detection: MMDetResult, device: torch.device
-) -> Boxes2D:
-    """Convert bbox_result to Vis4D format."""
-    if len(detection) == 0:  # pragma: no cover
-        return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
-    bboxes = torch.from_numpy(np.vstack(detection)).to(device)  # Nx5
-    labels = [
-        torch.full((bbox.shape[0],), i, dtype=torch.int32, device=device)
-        for i, bbox in enumerate(detection)
-    ]
-    labels = torch.cat(labels)
-    return Boxes2D(bboxes, labels)
-
-
 def segmentation_from_mmdet_results(
     segmentation: MMSegmResult, boxes: Boxes2D, device: torch.device
 ) -> InstanceMasks:
@@ -142,25 +115,6 @@ def segmentation_from_mmdet_results(
     labels = torch.stack(labels_list)
     scores = boxes.score
     return InstanceMasks(masks, labels, score=scores)
-
-
-def results_from_mmdet(
-    results: MMResults, device: torch.device, with_mask: bool
-) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
-    """Convert mmdetection bbox_results and segm_results to Vis4D format."""
-    results_boxes2d, results_masks = [], []
-    for result in results:
-        detection = result
-        if with_mask:
-            detection, segmentation = result
-        box2d = detection_from_mmdet_results(detection, device)  # type: ignore
-        results_boxes2d.append(box2d)
-        if with_mask:
-            bitmask = segmentation_from_mmdet_results(
-                segmentation, box2d, device
-            )
-            results_masks.append(bitmask)
-    return results_boxes2d, results_masks if len(results_masks) > 0 else None
 
 
 def masks_to_mmdet_masks(masks: Sequence[InstanceMasks]) -> BitmapMasks:
@@ -197,48 +151,19 @@ def load_config_from_mmdet(url: str) -> str:
     return response.text
 
 
-def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
-    """Convert a Detector config to a mmdet readable config."""
-    if os.path.exists(config.model_base):
-        cfg = MMConfig.fromfile(config.model_base)
+def load_config(path: str) -> MMConfig:
+    """Load config either from file or from URL."""
+    if os.path.exists(path):
+        cfg = MMConfig.fromfile(path)
         if cfg.get("model"):
             cfg = cfg["model"]
-    elif config.model_base.startswith("mmdet://"):
-        ex = os.path.splitext(config.model_base)[1]
+    elif path.startswith("mmdet://"):
+        ex = os.path.splitext(path)[1]
         cfg = MMConfig.fromstring(
-            load_config_from_mmdet(config.model_base.split("mmdet://")[-1]), ex
+            load_config_from_mmdet(path.split("mmdet://")[-1]), ex
         ).model
     else:
-        raise FileNotFoundError(
-            f"MMDetection config not found: {config.model_base}"
-        )
-
-    # convert detect attributes
-    assert config.category_mapping is not None
-    if "bbox_head" in cfg:  # pragma: no cover
-        cfg["bbox_head"]["num_classes"] = len(config.category_mapping)
-    if "roi_head" in cfg:
-        cfg["roi_head"]["bbox_head"]["num_classes"] = len(
-            config.category_mapping
-        )
-        if "mask_head" in cfg["roi_head"]:
-            cfg["roi_head"]["mask_head"]["num_classes"] = len(
-                config.category_mapping
-            )
-
-    # add keyword args in config
-    if config.model_kwargs:
-        for k, v in config.model_kwargs.items():
-            attr = cfg
-            partial_keys = k.split(".")
-            partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
-            for part_k in partial_keys:
-                attr = attr.get(part_k)
-            if attr.get(last_key) is not None:
-                attr[last_key] = type(attr.get(last_key))(v)
-            else:
-                attr[last_key] = v
-
+        raise FileNotFoundError(f"MMDetection config not found: {path}")
     return cfg
 
 
@@ -259,3 +184,20 @@ def _parse_losses(
                 raise ValueError(f"{name} is not a tensor or list of tensors")
 
     return log_vars
+
+
+def add_keyword_args(config: BaseModel, cfg: MMConfig) -> None:
+    """Add keyword args in config."""
+    for k, v in config.model_kwargs.items():  # type: ignore
+        attr = cfg
+        partial_keys = k.split(".")
+        partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
+        for part_k in partial_keys:
+            attr = attr.get(part_k)
+        if attr.get(last_key) is not None:
+            attr[last_key] = type(attr.get(last_key))(v)
+            if "channels" in last_key and isinstance(attr[last_key], list):
+                # TODO: remove in config refactor PR  # pylint: disable=fixme
+                attr[last_key] = [int(c) for c in attr[last_key]]
+        else:
+            attr[last_key] = v

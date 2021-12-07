@@ -1,9 +1,16 @@
 """Quasi-dense instance similarity learning model."""
-from typing import List
+from typing import List, Tuple
 
 import torch
 
-from vis4d.struct import InputSample, LabelInstances, LossesType, ModelOutput
+from vis4d.struct import (
+    Boxes2D,
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+    ModelOutput,
+)
 
 from .base import BaseModel, BaseModelConfig, build_model
 from .detect import BaseTwoStageDetector
@@ -26,7 +33,7 @@ class QDTrack(BaseModel):
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init."""
         super().__init__(cfg)
-        self.cfg = QDTrackConfig(**cfg.dict())  # type: QDTrackConfig
+        self.cfg: QDTrackConfig = QDTrackConfig(**cfg.dict())
         assert self.cfg.category_mapping is not None
         self.cfg.detection.category_mapping = self.cfg.category_mapping
         self.detector: BaseTwoStageDetector = build_model(self.cfg.detection)
@@ -36,55 +43,34 @@ class QDTrack(BaseModel):
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
         self.with_mask = self.detector.with_mask
 
-    def preprocess_inputs(
-        self, batch_inputs: List[InputSample]
-    ) -> List[InputSample]:
-        """Prepare images from key / ref input samples."""
-        inputs_batch = [
-            self.detector.preprocess_inputs(inp) for inp in batch_inputs
-        ]
-        return inputs_batch
-
-    def forward_train(
+    def _detect_and_track_losses(
         self,
-        batch_inputs: List[InputSample],
-    ) -> LossesType:
-        """Forward function for training."""
-        batch_inputs = self.preprocess_inputs(batch_inputs)
-        key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
+        key_inputs: InputSample,
+        ref_inputs: List[InputSample],
+        key_x: FeatureMaps,
+        ref_x: List[FeatureMaps],
+    ) -> Tuple[LossesType, List[Boxes2D], List[List[Boxes2D]]]:
+        """Get detection and tracking losses."""
         key_targets, ref_targets = key_inputs.targets, [
             x.targets for x in ref_inputs
         ]
 
-        # from vis4d.vis.image import imshow_bboxes
-        # for batch_i, key_inp in enumerate(key_inputs):
-        #     imshow_bboxes(key_inp.images.tensor[0], key_inp.boxes2d)
-        #     for ref_i, ref_inp in enumerate(ref_inputs):
-        #         imshow_bboxes(
-        #             ref_inp[batch_i].images.tensor[0],
-        #             ref_inp[batch_i].boxes2d,
-        #         )
-
-        # feature extraction
-        key_x = self.detector.extract_features(key_inputs)
-        ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]
-
         # proposal generation
-        key_proposals, rpn_losses = self.detector.generate_proposals(
-            key_inputs, key_x
+        rpn_losses, key_proposals = self.detector.generate_proposals(
+            key_inputs, key_x, key_targets
         )
         with torch.no_grad():
             ref_proposals = [
-                self.detector.generate_proposals(inp, x)[0]
-                for inp, x in zip(ref_inputs, ref_x)
+                self.detector.generate_proposals(inp, x, tgt)[1]
+                for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets)
             ]
 
         # roi head
-        _, roi_losses, _ = self.detector.generate_detections(
+        roi_losses, _ = self.detector.generate_detections(
             key_inputs,
             key_x,
             key_proposals,
-            compute_detections=False,
+            key_targets,
         )
         det_losses = {**rpn_losses, **roi_losses}
 
@@ -101,29 +87,16 @@ class QDTrack(BaseModel):
             [key_x, *ref_x],
             [key_targets, *ref_targets],
         )
-        return {**det_losses, **track_losses}
+        return {**det_losses, **track_losses}, key_proposals, ref_proposals
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
+    def _detect_and_track(
+        self, inputs: InputSample, feat: FeatureMaps
     ) -> ModelOutput:
-        """Compute model output during inference."""
-        assert len(batch_inputs) == 1, "No reference views during test!"
-        assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
-        inputs = self.detector.preprocess_inputs(batch_inputs[0])
-
-        # detector
-        feat = self.detector.extract_features(inputs)
-        proposals, _ = self.detector.generate_proposals(inputs, feat)
-        detections, _, segmentations = self.detector.generate_detections(
-            inputs, feat, proposals, compute_segmentations=self.with_mask
+        """Get detections and tracks."""
+        proposals = self.detector.generate_proposals(inputs, feat)
+        detections, instance_segms = self.detector.generate_detections(
+            inputs, feat, proposals
         )
-        assert detections is not None
-        if segmentations is None or len(segmentations) == 0:
-            segmentations = [None]  # type: ignore
-
-        # from vis4d.vis.image import imshow_bboxes
-        # imshow_bboxes(inputs.images.tensor[0], detections)
 
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
@@ -141,22 +114,22 @@ class QDTrack(BaseModel):
             detections[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
         )
         outputs = dict(detect=[detects])
-        if segmentations[0] is not None:
-            segmentations[0].postprocess(
+        if instance_segms is not None:
+            instance_segms[0].postprocess(
                 input_size, inputs.images.image_sizes[0], detections[0]
             )
             segms = (
-                segmentations[0]
+                instance_segms[0]
                 .to(torch.device("cpu"))
                 .to_scalabel(self.cat_mapping)
             )
-            outputs["segment"] = [segms]
+            outputs["ins_seg"] = [segms]
 
         # associate detections, update graph
         predictions = LabelInstances(
             detections,
-            instance_masks=segmentations
-            if segmentations[0] is not None
+            instance_masks=instance_segms
+            if instance_segms is not None
             else None,
         )
         tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
@@ -168,7 +141,7 @@ class QDTrack(BaseModel):
         )
         outputs["track"] = [tracks_]
 
-        if segmentations[0] is not None:
+        if tracks.instance_masks[0] is not None:
             segm_tracks = (
                 tracks.instance_masks[0]
                 .to(torch.device("cpu"))
@@ -176,3 +149,38 @@ class QDTrack(BaseModel):
             )
             outputs["seg_track"] = [segm_tracks]
         return outputs
+
+    def forward_train(
+        self,
+        batch_inputs: List[InputSample],
+    ) -> LossesType:
+        """Forward function for training."""
+        key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
+
+        # from vis4d.vis.image import imshow_bboxes
+        # for batch_i, key_inp in enumerate(key_inputs):
+        #     imshow_bboxes(key_inp.images.tensor[0], key_inp.boxes2d)
+        #     for ref_i, ref_inp in enumerate(ref_inputs):
+        #         imshow_bboxes(
+        #             ref_inp[batch_i].images.tensor[0],
+        #             ref_inp[batch_i].boxes2d,
+        #         )
+
+        # feature extraction
+        key_x = self.detector.extract_features(key_inputs)
+        ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]
+
+        losses, _, _ = self._detect_and_track_losses(
+            key_inputs, ref_inputs, key_x, ref_x
+        )
+        return losses
+
+    def forward_test(
+        self,
+        batch_inputs: List[InputSample],
+    ) -> ModelOutput:
+        """Compute model output during inference."""
+        assert len(batch_inputs) == 1, "No reference views during test!"
+        assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
+        feat = self.detector.extract_features(batch_inputs[0])
+        return self._detect_and_track(batch_inputs[0], feat)

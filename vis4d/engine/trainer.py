@@ -7,7 +7,7 @@ from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 
 from ..config import Config, default_argument_parser, parse_config
-from ..data import Vis4DDataModule, build_dataset_loaders
+from ..data import build_data_module, build_dataset_loaders
 from ..model import build_model
 from ..struct import DictStrAny
 from ..vis import ScalabelWriterCallback
@@ -120,6 +120,9 @@ def default_setup(
                     find_unused_parameters=cfg.launch.find_unused_parameters
                 )
                 trainer_args["plugins"] = [ddp_plugin]
+            if cfg.data.train_sampler is not None:
+                # using custom sampler
+                trainer_args["replace_sampler_ddp"] = False
 
     # create trainer
     trainer_args["callbacks"] = [lr_monitor, progress_bar, checkpoint]
@@ -137,12 +140,13 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.model,
         cfg.launch.weights if not cfg.launch.resume else None,
         not cfg.launch.not_strict,
+        cfg.launch.legacy_ckpt,
     )
 
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         cfg.train, cfg.test
     )
-    data_module = Vis4DDataModule(
+    data_module = build_data_module(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_loaders,
@@ -150,8 +154,8 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         predict_loaders,
         cfg.model.category_mapping,
         cfg.model.image_channel_mode,
-        seed=cfg.launch.seed,
-        pin_memory=cfg.launch.pin_memory,
+        cfg.launch.seed,
+        cfg.data,
     )
 
     if len(test_loaders) > 0:
@@ -166,12 +170,17 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Test function."""
     trainer = default_setup(cfg, trainer_args)
-    model = build_model(cfg.model, cfg.launch.weights)
+    model = build_model(
+        cfg.model,
+        cfg.launch.weights,
+        not cfg.launch.not_strict,
+        cfg.launch.legacy_ckpt,
+    )
 
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         [], cfg.test
     )
-    data_module = Vis4DDataModule(
+    data_module = build_data_module(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_loaders,
@@ -179,8 +188,8 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         predict_loaders,
         cfg.model.category_mapping,
         cfg.model.image_channel_mode,
-        seed=cfg.launch.seed,
-        pin_memory=cfg.launch.pin_memory,
+        cfg.launch.seed,
+        cfg.data,
     )
 
     assert len(test_loaders), "No test datasets specified!"
@@ -202,14 +211,19 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Prediction function."""
     trainer = default_setup(cfg, trainer_args)
-    model = build_model(cfg.model, cfg.launch.weights)
+    model = build_model(
+        cfg.model,
+        cfg.launch.weights,
+        not cfg.launch.not_strict,
+        cfg.launch.legacy_ckpt,
+    )
 
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         [],
         cfg.test if cfg.launch.input_dir is None else [],
         cfg.launch.input_dir,
     )
-    data_module = Vis4DDataModule(
+    data_module = build_data_module(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_loaders,
@@ -217,8 +231,8 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         predict_loaders,
         cfg.model.category_mapping,
         cfg.model.image_channel_mode,
-        seed=cfg.launch.seed,
-        pin_memory=cfg.launch.pin_memory,
+        cfg.launch.seed,
+        cfg.data,
     )
 
     out_dir = osp.join(

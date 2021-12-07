@@ -2,8 +2,9 @@
 import unittest
 
 import torch
+from scalabel.label.typing import Frame
 
-from . import Boxes2D, LabelInstances
+from . import Boxes2D, Images, InputSample, LabelInstances
 
 
 class TestLabelInstances(unittest.TestCase):
@@ -27,6 +28,9 @@ class TestLabelInstances(unittest.TestCase):
         """Testcases for device."""
         empty_labels = LabelInstances()
         self.assertEqual(empty_labels.device, torch.device("cpu"))
+        tensor = torch.tensor([0])
+        other_labels = LabelInstances(other=[dict(my_data=tensor)])
+        self.assertEqual(other_labels.device, tensor.device)
 
     def test_cat(self) -> None:
         """Testcases for cat."""
@@ -34,3 +38,27 @@ class TestLabelInstances(unittest.TestCase):
         empty_labels2 = LabelInstances()
         cat_label = LabelInstances.cat([empty_labels1, empty_labels2])
         self.assertTrue(cat_label.empty)
+
+
+class TestInputSample(unittest.TestCase):
+    """Test cases Vis4D InputSample."""
+
+    def test_get(self) -> None:
+        """Testcases for get function."""
+        imgs = Images(torch.zeros(1, 1, 138, 138), [(130, 130)])
+        attributes = [
+            "metadata",
+            "images",
+            "intrinsics",
+            "extrinsics",
+            "targets",
+            "other",
+        ]
+        sample = InputSample([Frame(name="f1")], imgs)
+        meta = sample.get("metadata")[0]
+        assert isinstance(meta, Frame)
+        self.assertEqual(meta.name, "f1")  # pylint: disable=no-member
+        self.assertEqual(sample.images.tensor.shape, imgs.tensor.shape)
+        self.assertEqual(list(sample.dict().keys()), attributes)
+        for attr in attributes:
+            sample.get(attr)

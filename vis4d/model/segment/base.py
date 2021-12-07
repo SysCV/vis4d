@@ -1,41 +1,83 @@
 """Base class for Vis4D segmentors."""
 
 import abc
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple, Union, overload
 
-import torch
-
-from vis4d.common.registry import RegistryHolder
-from vis4d.struct import InputSample, LossesType, SemanticMasks
+from vis4d.struct import (
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+    SemanticMasks,
+)
 
 from ..base import BaseModel
 
 
-class BaseSegmentor(BaseModel, metaclass=RegistryHolder):
+class BaseSegmentor(BaseModel):
     """Base segmentor class."""
 
     @abc.abstractmethod
-    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
-        """Normalize, pad and batch input images. Preprocess other inputs."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
+    def extract_features(self, inputs: InputSample) -> FeatureMaps:
         """Segmentor feature extraction stage.
 
-        Return backbone output features
+        Return backbone output features.
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
+    @overload
     def generate_segmentations(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
-        compute_segmentations: bool = True,
-    ) -> Tuple[Optional[List[SemanticMasks]], LossesType]:
+        features: FeatureMaps,
+    ) -> List[SemanticMasks]:
+        ...
+
+    @overload
+    def generate_segmentations(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
+        ...
+
+    def generate_segmentations(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        targets: Optional[LabelInstances] = None,
+    ) -> Union[
+        Tuple[
+            LossesType,
+            Optional[List[SemanticMasks]],
+        ],
+        List[SemanticMasks],
+    ]:
         """Segmentor decode stage.
 
-        Return losses (empty if not training) and optionally segmentations.
+        Return losses and optionally segmentations during training, and
+        segmentations during testing.
         """
+        if targets is not None:
+            return self._segmentations_train(inputs, features, targets)
+        return self._segmentations_test(inputs, features)
+
+    @abc.abstractmethod
+    def _segmentations_train(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
+        """Train stage segmentations generation."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _segmentations_test(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+    ) -> List[SemanticMasks]:
+        """Test stage segmentations generation."""
         raise NotImplementedError

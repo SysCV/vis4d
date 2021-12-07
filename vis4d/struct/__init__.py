@@ -12,8 +12,10 @@ from .sample import InputSample, LabelInstances
 from .structures import (
     DataInstance,
     DictStrAny,
+    FeatureMaps,
     LabelInstance,
     LossesType,
+    MetricLogs,
     ModelOutput,
     NDArrayF64,
     NDArrayUI8,
@@ -42,4 +44,6 @@ __all__ = [
     "InputSample",
     "LabelInstances",
     "TLabelInstance",
+    "MetricLogs",
+    "FeatureMaps",
 ]

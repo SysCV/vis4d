@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
+from pytorch_lightning.utilities.distributed import rank_zero_warn
 
 from vis4d.common.bbox.utils import bbox_intersection
 from vis4d.data.utils import transform_bbox
@@ -13,7 +14,9 @@ from vis4d.struct import (
     Boxes3D,
     Images,
     InputSample,
+    InstanceMasks,
     Intrinsics,
+    SemanticMasks,
     TMasks,
 )
 
@@ -315,8 +318,9 @@ class RandomCrop(BaseAugmentation):
         crop_x1, crop_x2 = offset_w, offset_w + crop_size[1]
         return torch.LongTensor([crop_x1, crop_y1, crop_x2, crop_y2])
 
+    @staticmethod
     def _get_keep_mask(
-        self, sample: InputSample, crop_param: torch.Tensor
+        sample: InputSample, crop_param: torch.Tensor
     ) -> torch.Tensor:
         """Get mask for 2D annotations to keep."""
         assert len(sample) == 1, "Please provide a single sample!"
@@ -326,20 +330,22 @@ class RandomCrop(BaseAugmentation):
             # will be better to compute mask intersection (if exists) instead
             overlap = bbox_intersection(sample.targets.boxes2d[0], crop_box)
             return overlap.squeeze(-1) > 0
-        if self.cfg.cat_max_ratio != 1.0:
-            crop_masks = sample.targets.semantic_masks[0].crop(crop_box)
-            cls_ids, cnts = torch.unique(
-                crop_masks.to_hwc_mask(), return_counts=True
-            )
-            cnts = cnts[cls_ids != 255]
-            keep_mask = (
-                len(cnts) > 1
-                and cnts.max() / cnts.sum() < self.cfg.cat_max_ratio
-            )
-            return torch.tensor(
-                [keep_mask] * len(sample.targets.semantic_masks[0])
-            )
-        return torch.tensor([True] * len(sample.targets.semantic_masks[0]))
+        return torch.tensor([])
+
+    def _check_seg_max_cat(
+        self, sample: InputSample, crop_param: torch.Tensor
+    ) -> bool:
+        """Check if any category occupies more than cat_max_ratio."""
+        crop_box = Boxes2D(crop_param.float().unsqueeze(0))
+        crop_masks = sample.targets.semantic_masks[0].crop(crop_box)
+        cls_ids, cnts = torch.unique(
+            crop_masks.to_hwc_mask(), return_counts=True
+        )
+        cnts = cnts[cls_ids != 255]
+        keep_mask = (
+            len(cnts) > 1 and cnts.max() / cnts.sum() < self.cfg.cat_max_ratio
+        )
+        return keep_mask
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
@@ -349,42 +355,35 @@ class RandomCrop(BaseAugmentation):
         keep_masks = []
         cur_sample: InputSample
         for i, cur_sample in enumerate(sample):
-            assert (len(cur_sample.targets.semantic_masks[0]) > 0) != (
-                len(cur_sample.targets.boxes2d[0]) > 0
-            ), (
-                "Currently RandomCrop for both boxes2d and semantic_masks is "
-                "not supported"
-            )  # revisit in refactor-api
             im_wh = torch.tensor(cur_sample.images.image_sizes[0])
             image_whs.append(im_wh)
             if not parameters["apply"][i]:
                 crop_params.append(torch.tensor([0, 0, *im_wh]))
-                num_objs = max(
-                    len(cur_sample.targets.boxes2d[0]),
-                    len(cur_sample.targets.semantic_masks[0]),
-                )
+                num_objs = len(cur_sample.targets.boxes2d[0])
                 keep_masks.append(torch.tensor([True] * num_objs))
                 continue
 
             crop_param = self._sample_crop(im_wh)
             keep_mask = self._get_keep_mask(cur_sample, crop_param)
-            if len(cur_sample.targets.boxes2d[0]) > 0:
-                while (
-                    not self.cfg.allow_empty_crop and keep_mask.sum() == 0
-                ):  # pragma: no cover
-                    crop_param = self._sample_crop(im_wh)
-                    keep_mask = self._get_keep_mask(cur_sample, crop_param)
-            elif self.cfg.cat_max_ratio != 1.0:
-                # resample if any category occupies more than cat_max_ratio
+            if (
+                len(cur_sample.targets.boxes2d[0]) > 0
+                or self.cfg.cat_max_ratio != 1.0
+            ):
+                # resample crop if conditions not satisfied
+                found_crop = False
                 for _ in range(10):
                     # try resampling 10 times, otherwise use last crop
-                    if keep_mask.all():  # pragma: no cover
+                    if (
+                        self.cfg.allow_empty_crop or keep_mask.sum() != 0
+                    ) and not self._check_seg_max_cat(cur_sample, crop_param):
+                        found_crop = True
                         break
                     crop_param = self._sample_crop(im_wh)
                     keep_mask = self._get_keep_mask(cur_sample, crop_param)
-                keep_mask = torch.tensor(
-                    [True] * len(cur_sample.targets.semantic_masks[0])
-                )
+                if not found_crop:
+                    rank_zero_warn(
+                        "Random crop not found within 10 resamples."
+                    )
             crop_params.append(crop_param)
             keep_masks.append(keep_mask)
 
@@ -443,17 +442,29 @@ class RandomCrop(BaseAugmentation):
         intrinsics.tensor[:, 1, 2] -= y1
         return intrinsics
 
-    def apply_mask(
+    def apply_instance_mask(
         self,
-        masks: List[TMasks],
+        masks: List[InstanceMasks],
         parameters: AugParams,
-    ) -> List[TMasks]:
-        """Apply augmentation to input mask."""
+    ) -> List[InstanceMasks]:
+        """Apply augmentation to input instance mask."""
         for i, mask in enumerate(masks):
             if len(mask) > 0 and parameters["apply"][i]:
                 x1, y1, x2, y2 = parameters["crop_params"][i]
                 mask.masks = mask.masks[:, y1:y2, x1:x2]
                 masks[i] = mask[parameters["keep"][i]]
+        return masks
+
+    def apply_semantic_mask(
+        self,
+        masks: List[SemanticMasks],
+        parameters: AugParams,
+    ) -> List[SemanticMasks]:
+        """Apply augmentation to input semantic mask."""
+        for i, mask in enumerate(masks):
+            if len(mask) > 0 and parameters["apply"][i]:
+                x1, y1, x2, y2 = parameters["crop_params"][i]
+                mask.masks = mask.masks[:, y1:y2, x1:x2]
         return masks
 
     def __call__(
