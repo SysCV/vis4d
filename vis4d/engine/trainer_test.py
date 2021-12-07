@@ -181,13 +181,13 @@ class TestSegTrackMM(BaseEngineTests.TestTrain):
         cls.cfg = config.parse_config(args)
 
 
-class TestSemSegMM(BaseEngineTests.TestTrain):
+class TestSemSegMMFPN(BaseEngineTests.TestTrain):
     """MMSegmenation semantic segmentation test cases."""
 
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
-        cls.work_dir = "./unittests/unittest_sem_seg_mm/"
+        cls.work_dir = "./unittests/unittest_sem_seg_mm_fpn/"
         args = Namespace(
             config=get_test_file("segment/fpn_mmseg.toml"),
             work_dir=cls.work_dir,
@@ -196,13 +196,13 @@ class TestSemSegMM(BaseEngineTests.TestTrain):
         cls.cfg.launch.tqdm = True
 
 
-class TestSemSegMM2(BaseEngineTests.TestTrain):
+class TestSemSegMMDeepLab(BaseEngineTests.TestTrain):
     """MMSegmenation semantic segmentation test cases."""
 
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
-        cls.work_dir = "./unittests/unittest_sem_seg_mm_2/"
+        cls.work_dir = "./unittests/unittest_sem_seg_mm_deeplab/"
         args = Namespace(
             config=get_test_file("segment/deeplabv3_mmseg.toml"),
             work_dir=cls.work_dir,

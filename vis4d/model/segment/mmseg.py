@@ -174,9 +174,10 @@ class MMEncDecSegmentor(BaseSegmentor):
         ), "No reference views allowed in MMEncDecSegmentor testing!"
         inputs = batch_inputs[0]
         features = self.extract_features(inputs)
-        segmentations = self._segmentations_test(inputs, features)
+        segmentations = self.generate_segmentations(inputs, features)
         assert segmentations is not None
 
+        # pylint: disable=not-an-iterable
         return dict(
             sem_seg=[s.to_scalabel(self.cat_mapping) for s in segmentations]
         )
