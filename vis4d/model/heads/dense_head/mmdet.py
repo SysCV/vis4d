@@ -1,11 +1,10 @@
 """mmdetection dense head wrapper."""
-from typing import Dict, List, Optional, Tuple, Union
+import os
+from typing import List, Optional, Tuple, Union
 
 from vis4d.model.mmdet_utils import (
     _parse_losses,
-    add_keyword_args,
     get_img_metas,
-    load_config,
     proposals_from_mmdet,
     targets_to_mmdet,
 )
@@ -42,9 +41,7 @@ except (ImportError, NameError):  # pragma: no cover
 class MMDetDenseHeadConfig(BaseDenseHeadConfig):
     """Config for mmdetection dense heads."""
 
-    mm_cfg: DictStrAny
-    dense_head_name: str = "rpn_head"
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
+    mm_cfg: Union[DictStrAny, str]
 
 
 class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
@@ -61,7 +58,10 @@ class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
             mm_cfg = self.cfg.mm_cfg
         else:  # pragma: no cover
             # load from config
-            mm_cfg = get_mmdet_config(self.cfg)
+            assert os.path.exists(self.cfg.mm_cfg)
+            mm_cfg = MMConfig.fromfile(self.cfg.mm_cfg)
+            assert "dense_head" in mm_cfg
+            mm_cfg = mm_cfg["dense_head"]
         self.mm_dense_head = build_head(ConfigDict(**mm_cfg))
         assert isinstance(self.mm_dense_head, MMBaseDenseHead)
         self.mm_dense_head.init_weights()
@@ -104,27 +104,3 @@ class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
         img_metas = get_img_metas(inputs.images)
         proposals = self.mm_dense_head.simple_test(feat_list, img_metas)
         return proposals_from_mmdet(proposals)
-
-
-def get_mmdet_config(
-    config: MMDetDenseHeadConfig,
-) -> MMConfig:  # pragma: no cover
-    """Convert a Dense Head config to a mmdet readable config."""
-    assert isinstance(config.mm_cfg, str)
-    cfg = load_config(config.mm_cfg)
-
-    # convert decode head attributes
-    head_name = config.dense_head_name
-    assert head_name in cfg
-    if "num_classes" in cfg[head_name]:
-        assert config.category_mapping is not None
-        cfg[head_name]["num_classes"] = len(config.category_mapping)
-    if "train_cfg" in cfg and head_name in cfg["train_cfg"]:
-        cfg[head_name]["train_cfg"] = cfg["train_cfg"][head_name]
-    if "test_cfg" in cfg and head_name in cfg["test_cfg"]:
-        cfg[head_name]["test_cfg"] = cfg["test_cfg"][head_name]
-    cfg = cfg[head_name]
-
-    if config.model_kwargs:
-        add_keyword_args(config, cfg)
-    return cfg

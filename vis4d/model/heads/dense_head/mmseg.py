@@ -1,5 +1,6 @@
 """mmsegmentation decode head wrapper."""
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+import os
+from typing import List, Optional, Sequence, Tuple, Union
 
 import torch.nn.functional as F
 
@@ -19,16 +20,8 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
-from vis4d.model.mmdet_utils import (
-    _parse_losses,
-    add_keyword_args,
-    get_img_metas,
-)
-from vis4d.model.mmseg_utils import (
-    load_config,
-    results_from_mmseg,
-    targets_to_mmseg,
-)
+from vis4d.model.mmdet_utils import _parse_losses, get_img_metas
+from vis4d.model.mmseg_utils import results_from_mmseg, targets_to_mmseg
 from vis4d.struct import (
     DictStrAny,
     FeatureMaps,
@@ -45,8 +38,6 @@ class MMSegDecodeHeadConfig(BaseDenseHeadConfig):
     """Config for mmsegmentation decode heads."""
 
     mm_cfg: Union[DictStrAny, str]
-    decode_head_name: str = "decode_head"
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
 
 
 class MMSegDecodeHead(
@@ -65,7 +56,10 @@ class MMSegDecodeHead(
             mm_cfg = self.cfg.mm_cfg
         else:
             # load from config
-            mm_cfg = get_mmseg_config(self.cfg)
+            assert os.path.exists(self.cfg.mm_cfg)
+            mm_cfg = MMConfig.fromfile(self.cfg.mm_cfg)
+            assert "decode_head" in mm_cfg
+            mm_cfg = mm_cfg["decode_head"]
         self.train_cfg = mm_cfg.pop("train_cfg", None)
         self.test_cfg = mm_cfg.pop("test_cfg", None)
         self.mm_decode_head = build_head(ConfigDict(**mm_cfg))
@@ -109,29 +103,3 @@ class MMSegDecodeHead(
         )
         outs = outs.argmax(dim=1)
         return results_from_mmseg(outs, image_metas, inputs.device)
-
-
-def get_mmseg_config(config: MMSegDecodeHeadConfig) -> MMConfig:
-    """Convert a Decode Head config to a mmseg readable config."""
-    assert isinstance(config.mm_cfg, str)
-    cfg = load_config(config.mm_cfg)
-
-    # convert decode head attributes
-    head_name = config.decode_head_name
-    assert head_name in cfg
-    assert config.category_mapping is not None
-    if isinstance(cfg[head_name], list):  # pragma: no cover
-        if isinstance(cfg[head_name], list):
-            for head in cfg[head_name]:
-                head["num_classes"] = len(config.category_mapping)
-        else:
-            cfg[head_name]["num_classes"] = len(config.category_mapping)
-    if "train_cfg" in cfg:
-        cfg[head_name]["train_cfg"] = cfg.pop("train_cfg")
-    if "test_cfg" in cfg:
-        cfg[head_name]["test_cfg"] = cfg.pop("test_cfg")
-    cfg = cfg[head_name]
-
-    if config.model_kwargs:
-        add_keyword_args(config, cfg)
-    return cfg

@@ -106,9 +106,9 @@ class MMSegBackbone(BaseBackbone):
         """
         inputs = self.preprocess_inputs(inputs)
         outs = self.mm_backbone(inputs.images.tensor)
-        if self.cfg.output_names is None:  # pragma: no cover
+        if self.cfg.output_names is None:
             backbone_outs = {f"out{i}": v for i, v in enumerate(outs)}
-        else:
+        else:  # pragma: no cover
             backbone_outs = dict(zip(self.cfg.output_names, outs))
         if self.neck is not None:
             return self.neck(backbone_outs)

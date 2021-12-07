@@ -146,7 +146,7 @@ class RoundRobin:
                     samp_iters[i] = iter(samplers[i])
                     batch = next(samp_iters[i], None)
                 assert batch is not None
-                if batch_size == 1:
+                if batch_size == 1:  # pragma: no cover
                     batch = [batch]
                 yield [b + sum(data_lens[:i]) for b in batch]
 
@@ -223,7 +223,7 @@ def build_data_sampler(
         dist_type = cfg.type.replace("Sampler", "DistributedSampler")
         if dist_type in registry:
             module = registry[dist_type](
-                datasets, batch_size, cfg.shuffle, cfg.drop_last
+                datasets, batch_size, cfg.drop_last, cfg.shuffle
             )
             assert isinstance(module, BaseDistributedSampler)
             return module
@@ -235,7 +235,7 @@ def build_data_sampler(
     registry["BaseSampler"] = BaseSampler
     if cfg.type in registry:
         module = registry[cfg.type](
-            datasets, batch_size, cfg.shuffle, cfg.drop_last, generator
+            datasets, batch_size, cfg.drop_last, cfg.shuffle, generator
         )
         assert isinstance(module, BaseSampler)
         return module
