@@ -32,6 +32,7 @@ version = "v1.0-mini"
 split = "mini_val"
 add_non_key = true
 annotations = "data/nuscenes/scalabel_mini_val_full.json"
+eval_metrics = ["detect_3d"]
 cache_as_binary = true
     [test.sample_mapper]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]

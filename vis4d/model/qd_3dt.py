@@ -130,4 +130,9 @@ class QD3DT(QDTrack):
             .to(torch.device("cpu"))
             .to_scalabel(self.cat_mapping)
         )
-        return dict(detect=[boxes_2d], track=[tracks_2d], track_3d=[tracks_3d])
+        return dict(
+            detect=[boxes_2d],
+            track=[tracks_2d],
+            detect_3d=[tracks_3d],
+            track_3d=[tracks_3d],
+        )
