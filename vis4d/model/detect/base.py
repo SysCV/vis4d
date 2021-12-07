@@ -73,7 +73,9 @@ class BaseDetector(BaseModel):
     ]:
         """Detector second stage (RoI Head).
 
-        Return losses (empty if not training) and optionally detections.
+        Return losses and optionally detections and instance segmentations
+        during training, and detections and instance segmentations during
+        testing.
         """
         if targets is not None:
             return self._detections_train(inputs, features, targets)
@@ -143,7 +145,7 @@ class BaseTwoStageDetector(BaseModel):
     ) -> Union[Tuple[LossesType, List[Boxes2D]], List[Boxes2D]]:
         """Detector RPN stage.
 
-        Return proposals per image and losses
+        Return proposals per image and losses.
         """
         if targets is not None:
             return self._proposals_train(inputs, features, targets)

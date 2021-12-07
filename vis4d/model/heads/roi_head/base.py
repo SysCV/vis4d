@@ -1,7 +1,6 @@
 """RoI Head interface for Vis4D."""
-
 import abc
-from typing import List, Optional, Tuple, Union, overload
+from typing import Dict, List, Optional, Tuple, Union, overload
 
 from pydantic import BaseModel, Field
 
@@ -20,6 +19,7 @@ class BaseRoIHeadConfig(BaseModel, extra="allow"):
     """Base config for RoI head."""
 
     type: str = Field(...)
+    category_mapping: Optional[Dict[str, int]] = None
 
 
 class BaseRoIHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):

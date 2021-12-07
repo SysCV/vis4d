@@ -39,7 +39,7 @@ def results_from_mmseg(
         result = result[:ori_h, :ori_w]
         if isinstance(result, torch.Tensor):
             mask = result.unsqueeze(0).byte()
-        else:
+        else:  # pragma: no cover
             mask = torch.tensor([result], device=device).byte()
         masks.append(SemanticMasks(mask).to_nhw_mask())
     return masks

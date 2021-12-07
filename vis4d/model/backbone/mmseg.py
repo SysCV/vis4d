@@ -61,7 +61,7 @@ class MMSegBackbone(BaseBackbone):
         if self.cfg.neck is not None:
             self.neck = build_neck(self.cfg.neck)
 
-        if self.cfg.weights is not None:
+        if self.cfg.weights is not None:  # pragma: no cover
             if self.cfg.weights.startswith("mmseg://"):
                 self.cfg.weights = (
                     MMSEG_MODEL_PREFIX + self.cfg.weights.split("mmseg://")[-1]

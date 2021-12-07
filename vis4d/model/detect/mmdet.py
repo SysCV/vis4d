@@ -1,5 +1,4 @@
 """mmdetection detector wrapper."""
-import os
 from typing import Dict, List, Optional, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
@@ -22,7 +21,7 @@ from ..heads.dense_head import (
     build_dense_head,
 )
 from ..heads.roi_head import MMDetRoIHead, MMDetRoIHeadConfig, build_roi_head
-from ..mmdet_utils import add_keyword_args, load_config_from_mmdet
+from ..mmdet_utils import add_keyword_args, load_config
 from .base import BaseDetectorConfig, BaseTwoStageDetector
 from .utils import postprocess
 
@@ -71,6 +70,8 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         self.cfg: MMTwoStageDetectorConfig = MMTwoStageDetectorConfig(
             **cfg.dict()
         )
+        assert self.cfg.category_mapping is not None
+        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
         self.mm_cfg = get_mmdet_config(self.cfg)
         self.backbone: MMDetBackbone = build_backbone(
             MMDetBackboneConfig(
@@ -89,19 +90,23 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         rpn_cfg = self.mm_cfg["rpn_head"]
         if "train_cfg" in self.mm_cfg and "rpn" in self.mm_cfg["train_cfg"]:
             rpn_train_cfg = self.mm_cfg["train_cfg"]["rpn"]
-        else:
+        else:  # pragma: no cover
             rpn_train_cfg = None
         rpn_cfg.update(
             train_cfg=rpn_train_cfg, test_cfg=self.mm_cfg["test_cfg"]["rpn"]
         )
         self.rpn_head: MMDetDenseHead = build_dense_head(
-            MMDetDenseHeadConfig(type="MMDetDenseHead", mm_cfg=rpn_cfg)
+            MMDetDenseHeadConfig(
+                type="MMDetDenseHead",
+                mm_cfg=rpn_cfg,
+                category_mapping=self.cfg.category_mapping,
+            )
         )
 
         roi_head_cfg = self.mm_cfg["roi_head"]
         if "train_cfg" in self.mm_cfg and "rcnn" in self.mm_cfg["train_cfg"]:
             rcnn_train_cfg = self.mm_cfg["train_cfg"]["rcnn"]
-        else:
+        else:  # pragma: no cover
             rcnn_train_cfg = None
 
         roi_head_cfg.update(train_cfg=rcnn_train_cfg)
@@ -110,6 +115,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             MMDetRoIHeadConfig(
                 type="MMDetRoIHead",
                 mm_cfg=roi_head_cfg,
+                category_mapping=self.cfg.category_mapping,
             )
         )
 
@@ -120,9 +126,6 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                     MMDET_MODEL_PREFIX + self.cfg.weights.split("mmdet://")[-1]
                 )
             load_checkpoint(self, self.cfg.weights, revise_keys=REV_KEYS)
-
-        assert self.cfg.category_mapping is not None
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
 
     def forward_train(
         self,
@@ -217,19 +220,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
 def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
     """Convert a Detector config to a mmdet readable config."""
-    if os.path.exists(config.model_base):
-        cfg = MMConfig.fromfile(config.model_base)
-        if cfg.get("model"):
-            cfg = cfg["model"]
-    elif config.model_base.startswith("mmdet://"):
-        ex = os.path.splitext(config.model_base)[1]
-        cfg = MMConfig.fromstring(
-            load_config_from_mmdet(config.model_base.split("mmdet://")[-1]), ex
-        ).model
-    else:
-        raise FileNotFoundError(
-            f"MMDetection config not found: {config.model_base}"
-        )
+    cfg = load_config(config.model_base)
 
     # convert detect attributes
     if (
