@@ -4,8 +4,13 @@ import unittest
 import torch
 from scalabel.label.typing import ImageSize
 
-from vis4d.struct import Boxes2D, Boxes3D, Extrinsics, Masks
-from vis4d.unittest.utils import generate_dets, generate_dets3d, generate_masks
+from vis4d.struct import Boxes2D, Boxes3D, Extrinsics, Masks, SemanticMasks
+from vis4d.unittest.utils import (
+    generate_dets,
+    generate_dets3d,
+    generate_instance_masks,
+    generate_semantic_masks,
+)
 
 
 class TestBoxes2D(unittest.TestCase):
@@ -264,7 +269,9 @@ class TestMasks(unittest.TestCase):
     def test_scalabel(self) -> None:
         """Testcase for conversion to / from scalabel."""
         h, w, num_masks = 128, 128, 10
-        segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        segmentations = generate_instance_masks(
+            h, w, num_masks, track_ids=True
+        )
         self.assertEqual(segmentations.height, 128)
         self.assertEqual(segmentations.width, 128)
         idx_to_class = {0: "car"}
@@ -317,7 +324,9 @@ class TestMasks(unittest.TestCase):
     def test_clone(self) -> None:
         """Testcase for cloning a Masks object."""
         h, w, num_masks = 128, 128, 10
-        segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        segmentations = generate_instance_masks(
+            h, w, num_masks, track_ids=True
+        )
         segms_new = segmentations.clone()
 
         for segm, segm_new in zip(segmentations, segms_new):
@@ -332,7 +341,9 @@ class TestMasks(unittest.TestCase):
     def test_resize(self) -> None:
         """Testcase for resizing a Masks object."""
         h, w, num_masks = 128, 128, 10
-        segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        segmentations = generate_instance_masks(
+            h, w, num_masks, track_ids=True
+        )
         segmentations.resize((64, 256))
         self.assertEqual(segmentations.height, 256)
         self.assertEqual(segmentations.width, 64)
@@ -342,7 +353,9 @@ class TestMasks(unittest.TestCase):
         h, w, num_masks, num_dets = 128, 128, 4, 10
         out_h, out_w = 64, 32
         inds = torch.LongTensor([0, 1, 2, 3, 0, 1, 2, 3, 0, 1])
-        segmentations = generate_masks(h, w, num_masks, track_ids=True)[inds]
+        segmentations = generate_instance_masks(
+            h, w, num_masks, track_ids=True
+        )[inds]
         detections = generate_dets(h, w, num_dets, track_ids=True)
         segm_crops = segmentations.crop_and_resize(detections, (out_h, out_w))
         self.assertEqual(len(segm_crops.masks), num_dets)
@@ -354,7 +367,7 @@ class TestMasks(unittest.TestCase):
         self.assertEqual(len(segm_crops.masks), num_dets)
         self.assertEqual(segm_crops.masks.size(1), out_h)
         self.assertEqual(segm_crops.masks.size(2), out_w)
-        segmentations = generate_masks(h, w, 0, track_ids=True)
+        segmentations = generate_instance_masks(h, w, 0, track_ids=True)
         detections = generate_dets(h, w, 0, track_ids=True)
         segm_crops = segmentations.crop_and_resize(detections, (out_h, out_w))
         self.assertEqual(len(segm_crops), 0)
@@ -363,7 +376,9 @@ class TestMasks(unittest.TestCase):
         """Testcase for pasting masks in image."""
         h, w, num_masks, num_dets = 28, 28, 5, 5
         out_h, out_w = 64, 32
-        segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        segmentations = generate_instance_masks(
+            h, w, num_masks, track_ids=True
+        )
         detections = generate_dets(h, w, num_dets, track_ids=True)
         segmentations.paste_masks_in_image(detections, (out_w, out_h))
         self.assertEqual(segmentations.size, (out_w, out_h))
@@ -371,10 +386,24 @@ class TestMasks(unittest.TestCase):
     def test_get_boxes2d(self) -> None:
         """Testcase for get_boxes2d function."""
         h, w, num_masks = 28, 28, 5
-        segmentations = generate_masks(h, w, num_masks, track_ids=True)
+        segmentations = generate_instance_masks(
+            h, w, num_masks, track_ids=True
+        )
         boxes = segmentations.get_boxes2d()
         self.assertEqual(len(boxes), len(segmentations))
         self.assertTrue(torch.isclose(boxes.score, segmentations.score).all())
-        segmentations = generate_masks(h, w, 0, track_ids=True)
+        segmentations = generate_instance_masks(h, w, 0, track_ids=True)
         boxes = segmentations.get_boxes2d()
         self.assertEqual(len(boxes), 0)
+
+    def test_pad(self) -> None:
+        """Testcase for pad function."""
+        h, w, num_masks = 28, 28, 5
+        pad_shape = (56, 128)
+        segmentations = generate_semantic_masks(h, w, num_masks)
+        segmentations = SemanticMasks.pad([segmentations], pad_shape)[0]
+        self.assertEqual(segmentations.height, 128)
+        self.assertEqual(segmentations.width, 56)
+        segmentations = SemanticMasks.pad([segmentations], pad_shape)[0]
+        self.assertEqual(segmentations.height, 128)
+        self.assertEqual(segmentations.width, 56)

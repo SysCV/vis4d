@@ -1,6 +1,5 @@
 """Vis4D module registry."""
 
-from abc import ABCMeta
 from typing import Any, Dict, Optional, Tuple
 
 
@@ -50,7 +49,3 @@ class RegistryHolder(type):
             }
 
         return dict(cls.REGISTRY)  # pragma: no cover
-
-
-class ABCRegistryHolder(RegistryHolder, ABCMeta):
-    """Metaclass unifying ABCMeta and RegistryHolder."""

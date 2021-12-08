@@ -5,18 +5,18 @@ annotations = "vis4d/engine/testcases/detect/bdd100k-samples/annotation_coco.jso
 data_root = "vis4d/engine/testcases/detect/bdd100k-samples/images"
 config_path = "vis4d/engine/testcases/detect/bdd100k-samples/config.toml"
 num_processes = 0
-    [train.dataloader.ref_sampling]
-    type = 'uniform'
+    [train.ref_sampler]
+    strategy = 'uniform'
     scope = 1
     num_ref_imgs = 0
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "Resize"
     shape = [360, 640]
     scale_range = [1.2, 1.5]
     interpolation = "bicubic"
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "Resize"
     shape = [
         [360, 640],
@@ -25,7 +25,7 @@ num_processes = 0
     keep_ratio = true
     multiscale_mode = "list"
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "KorniaAugmentationWrapper"
     kornia_type = "RandomHorizontalFlip"
     prob = 0.5
@@ -38,6 +38,6 @@ data_root = "vis4d/engine/testcases/detect/bdd100k-samples/images"
 config_path = "vis4d/engine/testcases/detect/bdd100k-samples/config.toml"
 num_processes = 0
 eval_metrics = ["detect"]
-    [[test.dataloader.transformations]]
+    [[test.sample_mapper.transformations]]
     type = "Resize"
     shape = [720, 1280]

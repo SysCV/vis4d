@@ -1,15 +1,24 @@
 """Base class for Vis4D models."""
 import abc
 from collections.abc import Iterable
-from typing import Callable, Dict, List, Optional, Tuple, no_type_check
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    no_type_check,
+)
 
 import pytorch_lightning as pl
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
 from torch.optim import Optimizer
 
-from ..common.registry import ABCRegistryHolder
-from ..struct import InputSample, LossesType, ModelOutput
+from ..common.registry import RegistryHolder
+from ..struct import DictStrAny, InputSample, LossesType, ModelOutput
 from .optimize import (
     BaseLRScheduler,
     BaseLRSchedulerConfig,
@@ -22,16 +31,18 @@ from .optimize import (
 
 
 class BaseModelConfig(PydanticBaseModel, extra="allow"):
-    """Config for default Vis4D tracker."""
+    """Config for default Vis4D model."""
 
     type: str = Field(...)
     category_mapping: Optional[Dict[str, int]] = None
     image_channel_mode: str = "RGB"
     optimizer: BaseOptimizerConfig = BaseOptimizerConfig()
     lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig()
+    freeze: bool = False
+    freeze_parameters: Optional[List[str]] = None
 
 
-class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
+class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
     """Base Vis4D model class."""
 
     def __init__(self, cfg: BaseModelConfig):
@@ -39,16 +50,22 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         super().__init__()
         self.cfg = cfg
 
+    def __call__(
+        self, batch_inputs: List[InputSample]
+    ) -> Union[LossesType, ModelOutput]:  # pragma: no cover
+        """Forward."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)
+
     @abc.abstractmethod
-    def forward_train(
-        self,
-        batch_inputs: List[List[InputSample]],
-    ) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage.
 
         Args:
-            batch_inputs: Model input. Batched, including possible reference
-            views.
+            batch_inputs: List of batched model inputs. One InputSample
+            contains all batch elements of a single view. One view is either
+            the key frame or a reference frame.
 
         Returns:
             LossesType: A dict of scalar loss tensors.
@@ -56,10 +73,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward_test(
-        self,
-        batch_inputs: List[List[InputSample]],
-    ) -> ModelOutput:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Forward pass during testing stage.
 
         Args:
@@ -117,7 +131,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
                 lr_schedulers.step()
 
     def training_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[List[InputSample]], *args, **kwargs
+        self, batch: List[InputSample], *args, **kwargs
     ) -> LossesType:
         """Wrap training step of LightningModule. Add overall loss."""
         losses = self.forward_train(batch)
@@ -143,20 +157,20 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         return losses
 
     def test_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[List[InputSample]], *args, **kwargs
+        self, batch: List[InputSample], *args, **kwargs
     ) -> ModelOutput:
         """Wrap test step of LightningModule."""
         return self.forward_test(batch)
 
     def validation_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[List[InputSample]], *args, **kwargs
+        self, batch: List[InputSample], *args, **kwargs
     ) -> ModelOutput:
         """Wrap validation step of LightningModule."""
         return self.forward_test(batch)
 
     def predict_step(
         self,
-        batch: List[List[InputSample]],
+        batch: List[InputSample],
         batch_idx: int,
         dataloader_idx: Optional[int] = None,
     ) -> ModelOutput:
@@ -173,15 +187,77 @@ class BaseModel(pl.LightningModule, metaclass=ABCRegistryHolder):
         """
         return self.forward_test(batch)
 
+    def on_train_start(self) -> None:
+        """Called at the beginning of training after sanity check."""
+        self.freeze_parameters()
 
-def build_model(cfg: BaseModelConfig, ckpt: Optional[str] = None) -> BaseModel:
+    def freeze_parameters(self) -> None:
+        """Freeze model parameters according to config."""
+        if not self.cfg.freeze:
+            return
+        if self.cfg.freeze_parameters is not None:
+            pnames, params = [], []
+            for freeze_param in self.cfg.freeze_parameters:
+                for name, param in self.named_parameters():
+                    if name.startswith(freeze_param) and name not in pnames:
+                        params.append(param)
+                        pnames.append(name)
+        else:  # pragma: no cover
+            params = self.parameters()
+        for param in params:
+            param.requires_grad = False
+
+    def unfreeze(self) -> None:  # pragma: no cover
+        """Unfreeze all parameters for training."""
+        for param in self.parameters():
+            param.requires_grad = True
+        self.freeze_parameters()
+
+        self.train()
+
+    @classmethod
+    def _load_model_state(  # type: ignore
+        cls, checkpoint: DictStrAny, strict: bool = True, **cls_kwargs_new: Any
+    ) -> "BaseModel":  # pragma: no cover
+        """Legacy checkpoint support in _load_model_state."""
+        is_legacy = cls_kwargs_new.pop("legacy_ckpt", False)
+        if is_legacy:
+            rev_keys = [
+                (".backbone.", ".backbone.mm_backbone."),
+                (".neck.", ".backbone.neck.mm_neck."),
+                (".roi_head.", ".roi_head.mm_roi_head."),
+                (".rpn_head.", ".rpn_head.mm_dense_head."),
+                (".decode_head.", ".decode_head.mm_decode_head."),
+                (".auxiliary_head.", ".auxiliary_head.mm_decode_head."),
+                ("mm_detector.", ""),
+                ("mm_segmentor.", ""),
+            ]
+            new_state_dict = {}
+            for k, v in checkpoint["state_dict"].items():
+                for pattern, replacement in rev_keys:
+                    k = k.replace(pattern, replacement)
+                new_state_dict[k] = v
+            checkpoint["state_dict"] = new_state_dict
+        return super()._load_model_state(  # type: ignore
+            checkpoint, strict=strict, **cls_kwargs_new
+        )
+
+
+def build_model(
+    cfg: BaseModelConfig,
+    ckpt: Optional[str] = None,
+    strict: bool = True,
+    legacy_ckpt: bool = False,
+) -> BaseModel:
     """Build Vis4D model and optionally load weights from ckpt."""
-    registry = ABCRegistryHolder.get_registry(BaseModel)
+    registry = RegistryHolder.get_registry(BaseModel)
     if cfg.type in registry:
         if ckpt is None:
             module = registry[cfg.type](cfg)
         else:
-            module = registry[cfg.type].load_from_checkpoint(ckpt, cfg=cfg)  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+            module = registry[cfg.type].load_from_checkpoint(  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+                ckpt, strict=strict, cfg=cfg, legacy_ckpt=legacy_ckpt
+            )
         assert isinstance(module, BaseModel)
         return module
     raise NotImplementedError(f"Model {cfg.type} not found.")

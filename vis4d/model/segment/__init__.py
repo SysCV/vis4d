@@ -1,5 +1,5 @@
 """Segmentor module."""
 from .base import BaseSegmentor
-from .mmseg_wrapper import MMEncDecSegmentor
+from .mmseg import MMEncDecSegmentor
 
 __all__ = ["BaseSegmentor", "MMEncDecSegmentor"]

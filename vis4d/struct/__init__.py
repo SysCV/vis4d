@@ -8,16 +8,19 @@ from .labels import (
     SemanticMasks,
     TMasks,
 )
-from .sample import InputSample
+from .sample import InputSample, LabelInstances
 from .structures import (
     DataInstance,
     DictStrAny,
+    FeatureMaps,
     LabelInstance,
     LossesType,
+    MetricLogs,
     ModelOutput,
     NDArrayF32,
     NDArrayF64,
     NDArrayUI8,
+    TLabelInstance,
     TorchCheckpoint,
 )
 
@@ -42,4 +45,8 @@ __all__ = [
     "DictStrAny",
     "InputSample",
     "PointCloud",
+    "LabelInstances",
+    "TLabelInstance",
+    "MetricLogs",
+    "FeatureMaps",
 ]

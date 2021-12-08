@@ -6,21 +6,21 @@ data_root = "vis4d/engine/testcases/track/bdd100k-samples/images/"
 config_path = "seg_track"
 num_processes = 0
 cache_as_binary = true
-    [train.dataloader]
-    compute_global_instance_ids = true
+compute_global_instance_ids = true
+    [train.sample_mapper]
     fields_to_load = ["boxes2d", "instance_masks"]
 
-        [train.dataloader.ref_sampling]
-        type = 'uniform'
+        [train.ref_sampler]
+        strategy = 'uniform'
         scope = 2
         num_ref_imgs = 1
         skip_nomatch_samples = true
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "Resize"
-    shape = [720, 1280]
+    shape = [360, 640]
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "KorniaAugmentationWrapper"
     kornia_type = "RandomHorizontalFlip"
     prob = 0.5
@@ -32,18 +32,18 @@ annotations = "vis4d/engine/testcases/detect/bdd100k-samples/annotation_coco.jso
 data_root = "vis4d/engine/testcases/detect/bdd100k-samples/images/"
 config_path = "vis4d/engine/testcases/detect/bdd100k-samples/ins_seg_config.toml"
 num_processes = 0
-    [train.dataloader]
+    [train.sample_mapper]
     fields_to_load = ["boxes2d", "instance_masks"]
 
-        [train.dataloader.ref_sampling]
+        [train.ref_sampler]
         scope = 0
         num_ref_imgs = 1
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "Resize"
-    shape = [720, 1280]
+    shape = [360, 640]
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "KorniaAugmentationWrapper"
     kornia_type = "RandomHorizontalFlip"
     prob = 0.5
@@ -56,9 +56,9 @@ data_root = "vis4d/engine/testcases/track/bdd100k-samples/images/"
 eval_metrics = ["detect", "track", "ins_seg", "seg_track"]
 config_path = "seg_track"
 num_processes = 0
-    [test.dataloader]
+    [test.sample_mapper]
     fields_to_load = ["boxes2d", "instance_masks"]
 
-        [[test.dataloader.transformations]]
+        [[test.sample_mapper.transformations]]
         type = "Resize"
         shape = [720, 1280]

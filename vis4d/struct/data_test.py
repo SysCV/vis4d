@@ -2,10 +2,8 @@
 import unittest
 
 import torch
-from scalabel.label.typing import Frame
 
 from .data import Extrinsics, Images, Intrinsics
-from .sample import InputSample
 
 
 class TestDataStructures(unittest.TestCase):
@@ -42,24 +40,3 @@ class TestDataStructures(unittest.TestCase):
         self.assertEqual(ims[0].tensor.shape, (1, 1, 110, 110))
         ims = ims.to(torch.device("cpu"))
         self.assertEqual(ims.device, torch.device("cpu"))
-
-    def test_inputsample(self) -> None:
-        """Testcases for InputSample class."""
-        attributes = [
-            "metadata",
-            "images",
-            "boxes2d",
-            "boxes3d",
-            "instance_masks",
-            "semantic_masks",
-            "intrinsics",
-            "extrinsics",
-        ]
-        sample = InputSample([Frame(name="f1")], self.im2)
-        meta = sample.get("metadata")[0]
-        assert isinstance(meta, Frame)
-        self.assertEqual(meta.name, "f1")  # pylint: disable=no-member
-        self.assertEqual(sample.images.tensor.shape, self.im2.tensor.shape)
-        self.assertEqual(list(sample.dict().keys()), attributes)
-        for attr in attributes:
-            sample.get(attr)
