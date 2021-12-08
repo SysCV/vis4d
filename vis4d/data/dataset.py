@@ -11,7 +11,6 @@ from torch.utils.data import Dataset
 
 from ..common.utils.time import Timer
 from ..struct import InputSample
-
 from .datasets import BaseDatasetLoader
 from .mapper import build_mapper
 from .reference import build_reference_sampler

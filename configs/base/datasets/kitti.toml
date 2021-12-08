@@ -33,8 +33,9 @@ split = "training"
 data_type = "detection"
 output_dir = "data/KITTI"
 num_processes = 0
-    [train.dataloader]
+    [train.sample_mapper]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "lidar"]
+
     skip_empty_samples = true
 
     [train.ref_sampler]

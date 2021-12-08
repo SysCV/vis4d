@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from vis4d.struct import LossesType
 
 from .base import BaseLoss, LossConfig
-from .utils import smooth_l1_loss, l1_loss
+from .utils import l1_loss, smooth_l1_loss
 
 
 class Box3DUncertaintyLossConfig(LossConfig):

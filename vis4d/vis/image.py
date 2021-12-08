@@ -1,19 +1,18 @@
 """Vis4D Visualization tools for analysis and debugging."""
+from multiprocessing import Process
 from typing import List, Optional, Tuple, Union
 
-import matplotlib.pyplot as plt
-import torch
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
-
-import plotly.graph_objects as go
+import dash
 import dash_core_components as dcc
 import dash_html_components as html
-import dash
-from multiprocessing import Process
+import matplotlib.pyplot as plt
+import numpy as np
+import plotly.graph_objects as go
+import torch
+from PIL import Image, ImageDraw, ImageFont
 
-from vis4d.struct import Intrinsics, Extrinsics, NDArrayF64, NDArrayUI8
 from vis4d.common.geometry.projection import project_points
+from vis4d.struct import Extrinsics, Intrinsics, NDArrayF64, NDArrayUI8
 
 from .utils import (
     Box3DType,

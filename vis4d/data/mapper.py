@@ -26,12 +26,12 @@ from ..struct import (
     Boxes2D,
     Boxes3D,
     Extrinsics,
-    PointCloud,
     Images,
     InputSample,
     InstanceMasks,
     Intrinsics,
     LabelInstances,
+    PointCloud,
     SemanticMasks,
 )
 from .transforms import AugParams, BaseAugmentationConfig, build_augmentations
