@@ -103,6 +103,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         use_empty: Optional[bool] = False,
         group_url: Optional[str] = None,
         group_extrinsics: Optional[ScalabelExtrinsics] = None,
+        self, sample: Frame, use_empty: Optional[bool] = False
     ) -> InputSample:
         """Load image according to data_backend."""
         if not use_empty:
@@ -140,6 +141,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             input_data.points, input_data.points_extrinsics = self.load_point(
                 group_url, group_extrinsics
             )
+
         return input_data
 
     def load_annotation(
@@ -255,6 +257,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         ).to(torch.float32)
         return Extrinsics(extrinsics_matrix)
 
+
     def load_point(
         self,
         group_url: str,
@@ -276,6 +279,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
         points_extrinsics = self.load_extrinsics(group_extrinsics)
         return PointCloud(torch.as_tensor(points)), points_extrinsics
+
 
     def __call__(
         self,

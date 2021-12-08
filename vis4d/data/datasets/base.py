@@ -165,11 +165,8 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         self, metric: str, predictions: List[Frame], gts: List[Frame]
     ) -> Tuple[MetricLogs, str]:
         """Convert predictions from scalabel format and evaluate.
-        <<<<<<< HEAD
-        =======
 
-        >>>>>>> main
-                Returns a dictionary of scores to log and a pretty printed string.
+        Returns a dictionary of scores to log and a pretty printed string.
         """
         result = _eval_mapping[metric](
             predictions, gts, self.metadata_cfg, self.cfg.ignore_unkown_cats
