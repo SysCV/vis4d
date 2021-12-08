@@ -103,7 +103,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         use_empty: Optional[bool] = False,
         group_url: Optional[str] = None,
         group_extrinsics: Optional[ScalabelExtrinsics] = None,
-        self, sample: Frame, use_empty: Optional[bool] = False
     ) -> InputSample:
         """Load image according to data_backend."""
         if not use_empty:
@@ -257,7 +256,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         ).to(torch.float32)
         return Extrinsics(extrinsics_matrix)
 
-
     def load_point(
         self,
         group_url: str,
@@ -266,7 +264,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         radius: float = 1.0,
     ) -> PointCloud:
         """Load lidar points and filter the near ones."""
-        points: NDArrayF32 = np.fromfile(group_url, dtype=np.float32)  # type: ignore # pylint: disable=line-too-long
+        points = np.fromfile(group_url, dtype=np.float32)  # type: ignore # pylint: disable=line-too-long
         s = points.shape[0]
         if s % 5 != 0:
             points = points[: s - (s % 5)]
@@ -279,7 +277,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
         points_extrinsics = self.load_extrinsics(group_extrinsics)
         return PointCloud(torch.as_tensor(points)), points_extrinsics
-
 
     def __call__(
         self,
