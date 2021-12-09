@@ -179,13 +179,13 @@ class InputSample(DataInstance):
 
         if points is None:
             points = PointCloud(
-                torch.cat([torch.empty(1, 4) for _ in range(len(images))])
+                torch.cat([torch.empty(1, 1, 4) for _ in range(len(images))])
             )
         self.points = points
 
         if points_extrinsics is None:
-            points_extrinsics = Extrinsics(
-                torch.cat([torch.eye(4) for _ in range(len(images))])
+            points_extrinsics = Extrinsics.cat(
+                [Extrinsics(torch.eye(4)) for _ in range(len(metadata))]
             )
         self.points_extrinsics = points_extrinsics
 

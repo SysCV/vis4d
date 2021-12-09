@@ -222,7 +222,7 @@ def draw_lines_match(
     pts1: torch.Tensor,
     pts2: torch.Tensor,
     radius: int = 5,
-) -> Image:
+) -> Image:  # pragma: no cover
     """Draw matched lines."""
     img1 = np.array(img1)
     img2 = np.array(img2)
@@ -270,7 +270,7 @@ def imshow_correspondence(
     ref_intrinsics: Intrinsics,
     key_points: torch.tensor,
     key_points_extrinsics: Extrinsics,
-) -> None:
+) -> None:  # pragma: no cover
     """Draw corresponded lidar points."""
     key_im, ref_im = preprocess_image(key_image), preprocess_image(ref_image)
 
@@ -319,7 +319,7 @@ def imshow_lidar(
     boxes3d: Box3DType,
     dot_size: int = 3,
     mode: str = "RGB",
-) -> None:
+) -> None:  # pragma: no cover
     """Show image with lidar points."""
     center = torch.cat([points[:, :3], torch.ones_like(points[:, 0:1])], -1)
 
@@ -356,7 +356,9 @@ def imshow_lidar(
 
 def plotly_draw_bbox3d(
     box: List[float],
-) -> Tuple[List[NDArrayF64], List[NDArrayF64], List[NDArrayF64]]:
+) -> Tuple[
+    List[NDArrayF64], List[NDArrayF64], List[NDArrayF64]
+]:  # pragma: no cover
     """Plot 3D boxes in 3D space."""
     ixs_box_0 = [0, 1, 2, 3, 0]
     ixs_box_1 = [4, 5, 6, 7, 4]
@@ -404,7 +406,7 @@ def show_pointcloud(
     camera_extrinsics: Extrinsics,
     boxes3d: Optional[Box3DType] = None,
     thickness: int = 2,
-) -> None:
+) -> None:  # pragma: no cover
     """Show lidar points."""
     points = torch.cat([points[:, :3], torch.ones_like(points[:, 0:1])], -1)
     points_world = points @ points_extrinsics.transpose().tensor[0]
