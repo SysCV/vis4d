@@ -2,17 +2,23 @@
 from multiprocessing import Process
 from typing import List, Optional, Tuple, Union
 
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
 import matplotlib.pyplot as plt
 import numpy as np
-import plotly.graph_objects as go
 import torch
 from PIL import Image, ImageDraw, ImageFont
 
 from vis4d.common.geometry.projection import project_points
 from vis4d.struct import Extrinsics, Intrinsics, NDArrayF64, NDArrayUI8
+
+try:  # pragma: no cover
+    import dash
+    import dash_core_components as dcc
+    import dash_html_components as html
+    import plotly.graph_objects as go
+
+    DASH_INSTALLED = True
+except (ImportError, NameError):
+    DASH_INSTALLED = False
 
 from .utils import (
     Box3DType,
@@ -210,7 +216,14 @@ def get_intersection_point(
     return (1 - k) * point1 + k * point2  # type: ignore
 
 
-def drawlinesMatch(img1, img2, pts1, pts2, concat_row=True, radius=5):
+def draw_lines_match(
+    img1: Image.Image,
+    img2: Image.Image,
+    pts1: torch.Tensor,
+    pts2: torch.Tensor,
+    radius: int = 5,
+) -> Image:
+    """Draw matched lines."""
     img1 = np.array(img1)
     img2 = np.array(img2)
     rows1 = img1.shape[0]
@@ -218,18 +231,12 @@ def drawlinesMatch(img1, img2, pts1, pts2, concat_row=True, radius=5):
     rows2 = img2.shape[0]
     cols2 = img2.shape[1]
     interval = 5
-    if concat_row:
-        out = 255 * np.ones(
-            (max([rows1, rows2]), cols1 + cols2 + interval, 3), dtype="uint8"
-        )
-        out[:rows2, cols1 + interval : cols1 + cols2 + interval, :] = img2
-        pts2[:, 0] += cols1 + interval
-    else:
-        out = 255 * np.ones(
-            (rows1 + rows2 + interval, max(cols1, cols2), 3), dtype="uint8"
-        )
-        out[rows1 + interval : rows1 + rows2 + interval, :cols2] = img2
-        pts2[:, 1] += rows1 + interval
+
+    out: NDArrayUI8 = 255 * np.ones(
+        (max([rows1, rows2]), cols1 + cols2 + interval, 3), dtype="uint8"
+    )
+    out[:rows2, cols1 + interval : cols1 + cols2 + interval, :] = img2
+    pts2[:, 0] += cols1 + interval
 
     # Place the first image to the left
     out[:rows1, :cols1, :] = img1
@@ -263,7 +270,8 @@ def imshow_correspondence(
     ref_intrinsics: Intrinsics,
     key_points: torch.tensor,
     key_points_extrinsics: Extrinsics,
-):
+) -> None:
+    """Draw corresponded lidar points."""
     key_im, ref_im = preprocess_image(key_image), preprocess_image(ref_image)
 
     hom_points = torch.cat(
@@ -298,7 +306,7 @@ def imshow_correspondence(
     key_pix = key_pix[perm]
     ref_pix = ref_pix[perm]
 
-    corresp_im = drawlinesMatch(key_im, ref_im, key_pix, ref_pix)
+    corresp_im = draw_lines_match(key_im, ref_im, key_pix, ref_pix)
     imshow(corresp_im)
 
 
@@ -307,12 +315,11 @@ def imshow_lidar(
     points_extrinsics: Extrinsics,
     image: ImageType,
     camera_extrinsics: Extrinsics,
-    camera_intrinsics: Union[NDArrayF64, Intrinsics],
-    boxes: Union[BoxType, Box3DType],
-    box_mode: str = "3D",
+    camera_intrinsics: Intrinsics,
+    boxes3d: Box3DType,
     dot_size: int = 3,
     mode: str = "RGB",
-):
+) -> None:
     """Show image with lidar points."""
     center = torch.cat([points[:, :3], torch.ones_like(points[:, 0:1])], -1)
 
@@ -344,34 +351,34 @@ def imshow_lidar(
     plt.figure(figsize=(16, 9))
     plt.scatter(pts2d[:, 0], pts2d[:, 1], c=coloring, s=dot_size)
 
-    if box_mode == "3D":
-        imshow_bboxes3d(image, boxes, camera_intrinsics)
-    elif box_mode == "2D":
-        imshow_bboxes(image, boxes)
+    imshow_bboxes3d(image, boxes3d, camera_intrinsics)
 
 
-def plotly_draw_bbox3d(box: List[float]):
-    x_lines = []
-    y_lines = []
-    z_lines = []
-
-    def f_lines_add_nones():
-        x_lines.append(None)
-        y_lines.append(None)
-        z_lines.append(None)
-
+def plotly_draw_bbox3d(
+    box: List[float],
+) -> Tuple[List[NDArrayF64], List[NDArrayF64], List[NDArrayF64]]:
+    """Plot 3D boxes in 3D space."""
     ixs_box_0 = [0, 1, 2, 3, 0]
     ixs_box_1 = [4, 5, 6, 7, 4]
     corners = box3d_to_corners(box)
 
-    x_lines.extend(corners[ixs_box_0, 0])
-    y_lines.extend(corners[ixs_box_0, 1])
-    z_lines.extend(corners[ixs_box_0, 2])
+    x_lines = [corners[ixs_box_0, 0]]
+    y_lines = [corners[ixs_box_0, 1]]
+    z_lines = [corners[ixs_box_0, 2]]
+
+    def f_lines_add_nones() -> None:
+        """Add nones for lines."""
+        x_lines.append(None)
+        y_lines.append(None)
+        z_lines.append(None)
+
     f_lines_add_nones()
+
     x_lines.extend(corners[ixs_box_1, 0])
     y_lines.extend(corners[ixs_box_1, 1])
     z_lines.extend(corners[ixs_box_1, 2])
     f_lines_add_nones()
+
     for i in range(4):
         x_lines.extend(corners[[ixs_box_0[i], ixs_box_1[i]], 0])
         y_lines.extend(corners[[ixs_box_0[i], ixs_box_1[i]], 1])
@@ -395,9 +402,9 @@ def show_pointcloud(
     points: torch.tensor,
     points_extrinsics: Extrinsics,
     camera_extrinsics: Extrinsics,
-    boxes3d: Box3DType = None,
-    thickness=2,
-):
+    boxes3d: Optional[Box3DType] = None,
+    thickness: int = 2,
+) -> None:
     """Show lidar points."""
     points = torch.cat([points[:, :3], torch.ones_like(points[:, 0:1])], -1)
     points_world = points @ points_extrinsics.transpose().tensor[0]
@@ -417,7 +424,7 @@ def show_pointcloud(
     data = [scatter]
     if boxes3d is not None:
         box_list, col_list, label_list = preprocess_boxes(boxes3d)
-        for box, color, label in zip(box_list, col_list, label_list):
+        for box, color, _ in zip(box_list, col_list, label_list):
             x_lines, y_lines, z_lines = plotly_draw_bbox3d(box)
             lines = go.Scatter3d(
                 x=x_lines,
@@ -439,7 +446,8 @@ def show_pointcloud(
     )
     fig.update_layout(scene_camera=camera, scene_aspectmode="data")
 
-    def dash_app():
+    def dash_app() -> None:
+        """Establish dash app server."""
         app = dash.Dash(__name__)
         app.layout = html.Div(
             [

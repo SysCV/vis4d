@@ -118,7 +118,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
 
         cfg = config_factory("detection_cvpr_2019")
 
-        try:
+        try:  # pragma: no cover
             nusc_eval = NuScenesEval(
                 nusc,
                 config=cfg,
@@ -190,7 +190,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             }
             str_summary = "\n".join(str_summary_list)
 
-        except:
+        except AssertionError:
             log_dict = {
                 "mAP": 0,
                 "NDS": 0,

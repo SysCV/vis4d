@@ -262,7 +262,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         group_extrinsics: ScalabelExtrinsics,
         num_point_feature: int = 4,
         radius: float = 1.0,
-    ) -> PointCloud:
+    ) -> Tuple[PointCloud, Extrinsics]:
         """Load lidar points and filter the near ones."""
         points = np.fromfile(group_url, dtype=np.float32)  # type: ignore # pylint: disable=line-too-long
         s = points.shape[0]

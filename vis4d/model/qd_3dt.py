@@ -145,7 +145,7 @@ class QD3DT(QDTrack):
         for idx, boxes3d in enumerate(boxes3d_list):
             assert isinstance(boxes3d, Boxes3D)
             boxes3d.transform(frames[idx].extrinsics)
-        boxes3d = Boxes3D.merge(boxes3d_list)  # type: ignore
+        boxes3d = Boxes3D.merge(boxes3d_list)
 
         embeds = torch.cat(embeddings_list)
 
@@ -176,7 +176,7 @@ class QD3DT(QDTrack):
         #             if (
         #                 torch.cdist(box3d.center, box3d_post.center, p=2)
         #                 <= nms_dist
-        #                 and boxes3d[idx].boxes[:, -1] > box3d_post.boxes[:, -1]
+        #                 and boxes3d[idx].boxes[:, -1] > box3d_post.boxes[:, -1] # pylint: disable=line-too-long
         #             ):
         #                 nms_flag = 1
         #                 boxes_3d[i] = box3d.boxes
