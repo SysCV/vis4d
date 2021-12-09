@@ -283,14 +283,20 @@ class PointCloud(InputInstance):
 
         max_points = max([p.tensor.shape[1] for p in instances])
         max_feature = max([p.tensor.shape[2] for p in instances])
+
+        tot_batch = sum([len(inst) for inst in instances])
+
         pad_points = torch.zeros(
-            (len(instances), max_points, max_feature), device=device
+            (tot_batch, max_points, max_feature), device=device
         )
 
-        for i, inst in enumerate(instances):
-            cur_len = inst.tensor.shape[1]
-            pad_points[i, :cur_len, :] = inst.tensor
-
+        cum_len = 0
+        for inst in instances:
+            cur_len = inst.tensor.shape[0]
+            pad_points[
+                cum_len : cum_len + cur_len, : inst.tensor.shape[1], :
+            ] = inst.tensor
+            cum_len += cur_len
         return PointCloud(pad_points)
 
     @property

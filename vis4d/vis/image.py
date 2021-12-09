@@ -408,6 +408,8 @@ def show_pointcloud(
     thickness: int = 2,
 ) -> None:  # pragma: no cover
     """Show lidar points."""
+    assert DASH_INSTALLED, "Visualize pointcloud in 3D needs Dash installed!."
+
     points = torch.cat([points[:, :3], torch.ones_like(points[:, 0:1])], -1)
     points_world = points @ points_extrinsics.transpose().tensor[0]
     points = (

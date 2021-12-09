@@ -23,8 +23,7 @@ num_processes = 0
     shape = [0.8, 0.9]
 
     [[train.sample_mapper.transformations]]
-    type = "KorniaAugmentationWrapper"
-    kornia_type = "RandomHorizontalFlip"
+    type = "KorniaRandomHorizontalFlip"
     prob = 0.5
 
 [[test]]

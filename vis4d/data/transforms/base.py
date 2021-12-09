@@ -153,7 +153,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         )
 
         sample.points = self.apply_points(sample.points, parameters)
-        sample.points_extrinsics = self.apply_points(
+        sample.points_extrinsics = self.apply_points_extrinsics(
             sample.points_extrinsics, parameters
         )
 

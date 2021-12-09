@@ -2,7 +2,7 @@
 import json
 import os
 import shutil
-from typing import List, Tuple
+from typing import Dict, List, Tuple, Union
 
 from scalabel.label.io import load, load_label_config, save
 from scalabel.label.to_nuscenes import to_nuscenes
@@ -104,6 +104,60 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
 
         return result_path
 
+    @staticmethod
+    def _parse_detect_high_level_metrics(
+        tp_errors: Dict[str, float],
+        mean_ap: float,
+        nd_score: float,
+        eval_time: float,
+    ) -> Tuple[List[str], Union[int, float], Union[int, float]]:
+        """Collect high-level metrics."""
+        str_summary_list = ["High-level metrics:"]
+        str_summary_list.append(f"mAP: {mean_ap:.4f}")
+        err_name_mapping = {
+            "trans_err": "mATE",
+            "scale_err": "mASE",
+            "orient_err": "mAOE",
+            "vel_err": "mAVE",
+            "attr_err": "mAAE",
+        }
+        for tp_name, tp_val in tp_errors.items():
+            str_summary_list.append(
+                f"{err_name_mapping[tp_name]}: {tp_val:.4f}"
+            )
+        str_summary_list.append(f"NDS: {nd_score:.4f}")
+        str_summary_list.append(f"Eval time: {eval_time:.1f}s")
+
+        if mean_ap == 0:
+            mean_ap = int(mean_ap)
+        if nd_score == 0:
+            nd_score = int(nd_score)
+
+        return str_summary_list, mean_ap, nd_score
+
+    @staticmethod
+    def _parse_detect_per_class_metrics(
+        str_summary_list: List[str],
+        class_aps: Dict[str, float],
+        class_tps: Dict[str, Dict[str, float]],
+    ) -> List[str]:
+        """Collect per-class metrics."""
+        str_summary_list.append("")
+        str_summary_list.append("Per-class results:")
+        str_summary_list.append("Object Class\tAP\tATE\tASE\tAOE\tAVE\tAAE")
+
+        for class_name in class_aps.keys():
+            tmp_str_list = [class_name]
+            tmp_str_list.append(f"{class_aps[class_name]:.3f}")
+            tmp_str_list.append(f"{class_tps[class_name]['trans_err']:.3f}")
+            tmp_str_list.append(f"{class_tps[class_name]['scale_err']:.3f}")
+            tmp_str_list.append(f"{class_tps[class_name]['orient_err']:.3f}")
+            tmp_str_list.append(f"{class_tps[class_name]['vel_err']:.3f}")
+            tmp_str_list.append(f"{class_tps[class_name]['attr_err']:.3f}")
+
+            str_summary_list.append("\t".join(tmp_str_list))
+        return str_summary_list
+
     def _eval_detection(
         self,
         result_path: str,
@@ -115,78 +169,39 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             dataroot=self.cfg.data_root,
             verbose=False,
         )
-
-        cfg = config_factory("detection_cvpr_2019")
+        nusc_eval = NuScenesEval(
+            nusc,
+            config=config_factory("detection_cvpr_2019"),
+            result_path=result_path,
+            eval_set=eval_set,
+            output_dir=self.cfg.tmp_dir,
+            verbose=False,
+        )
 
         try:  # pragma: no cover
-            nusc_eval = NuScenesEval(
-                nusc,
-                config=cfg,
-                result_path=result_path,
-                eval_set=eval_set,
-                output_dir=self.cfg.tmp_dir,
-                verbose=False,
-            )
-            # metrics_summary = nusc_eval.main(render_curves=False)
             metrics, _ = nusc_eval.evaluate()
             metrics_summary = metrics.serialize()
 
-            # Print high-level metrics.
-            str_summary_list = ["High-level metrics:"]
-            str_summary_list.append(f"mAP: {metrics_summary['mean_ap']:.4f}")
-            err_name_mapping = {
-                "trans_err": "mATE",
-                "scale_err": "mASE",
-                "orient_err": "mAOE",
-                "vel_err": "mAVE",
-                "attr_err": "mAAE",
-            }
-            for tp_name, tp_val in metrics_summary["tp_errors"].items():
-                str_summary_list.append(
-                    f"{err_name_mapping[tp_name]}: {tp_val:.4f}"
-                )
-            str_summary_list.append(f"NDS: {metrics_summary['nd_score']:.4f}")
-            str_summary_list.append(
-                f"Eval time: {metrics_summary['eval_time']:.1f}s"
+            (
+                str_summary_list,
+                mean_ap,
+                nd_score,
+            ) = self._parse_detect_high_level_metrics(
+                metrics_summary["tp_errors"],
+                metrics_summary["mean_ap"],
+                metrics_summary["nd_score"],
+                metrics_summary["eval_time"],
             )
 
             class_aps = metrics_summary["mean_dist_aps"]
             class_tps = metrics_summary["label_tp_errors"]
-
-            # Print per-class metrics.
-            str_summary_list.append("")
-            str_summary_list.append("Per-class results:")
-            str_summary_list.append(
-                "Object Class\tAP\tATE\tASE\tAOE\tAVE\tAAE"
+            str_summary_list = self._parse_detect_per_class_metrics(
+                str_summary_list, class_aps, class_tps
             )
-            class_aps = metrics_summary["mean_dist_aps"]
-            class_tps = metrics_summary["label_tp_errors"]
-
-            for class_name in class_aps.keys():
-                tmp_str_list = [class_name]
-                tmp_str_list.append(f"{class_aps[class_name]:.3f}")
-                tmp_str_list.append(
-                    f"{class_tps[class_name]['trans_err']:.3f}"
-                )
-                tmp_str_list.append(
-                    f"{class_tps[class_name]['scale_err']:.3f}"
-                )
-                tmp_str_list.append(
-                    f"{class_tps[class_name]['orient_err']:.3f}"
-                )
-                tmp_str_list.append(f"{class_tps[class_name]['vel_err']:.3f}")
-                tmp_str_list.append(f"{class_tps[class_name]['attr_err']:.3f}")
-
-                str_summary_list.append("\t".join(tmp_str_list))
-
-            if metrics_summary["mean_ap"] == 0:
-                metrics_summary["mean_ap"] = int(metrics_summary["mean_ap"])
-            if metrics_summary["nd_score"] == 0:
-                metrics_summary["nd_score"] = int(metrics_summary["nd_score"])
 
             log_dict = {
-                "mAP": metrics_summary["mean_ap"],
-                "NDS": metrics_summary["nd_score"],
+                "mAP": mean_ap,
+                "NDS": nd_score,
             }
             str_summary = "\n".join(str_summary_list)
 

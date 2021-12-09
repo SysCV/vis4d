@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from vis4d.struct import LossesType
 
 from .base import BaseLoss, LossConfig
-from .utils import l1_loss, smooth_l1_loss
+from .utils import smooth_l1_loss
 
 
 class Box3DUncertaintyLossConfig(LossConfig):
@@ -142,12 +142,12 @@ def rotation_loss(
         bin_mask = target_bin[:, i] == 1
         res_idx = num_bins + 2 * i
         if bin_mask.any():
-            loss_sin = l1_loss(
+            loss_sin = smooth_l1_loss(
                 output[bin_mask, res_idx],
                 torch.sin(target_res[bin_mask, i]),
                 reduction="mean",
             )
-            loss_cos = l1_loss(
+            loss_cos = smooth_l1_loss(
                 output[bin_mask, res_idx + 1],
                 torch.cos(target_res[bin_mask, i]),
                 reduction="mean",

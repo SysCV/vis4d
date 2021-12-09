@@ -61,21 +61,6 @@ def smooth_l1_loss(
     return weight_reduce_loss(loss, weight, reduction, avg_factor)
 
 
-def l1_loss(
-    pred: torch.Tensor,
-    target: torch.Tensor,
-    weight: Optional[torch.Tensor] = None,
-    reduction: str = "mean",
-    avg_factor: Optional[float] = None,
-) -> torch.Tensor:
-    """Smooth L1 loss."""
-    assert pred.size() == target.size() and target.numel() > 0
-    loss = torch.abs(pred - target)
-    if weight is not None:
-        weight = weight.float()
-    return weight_reduce_loss(loss, weight, reduction, avg_factor)
-
-
 def l2_loss(
     pred: torch.Tensor,
     target: torch.Tensor,

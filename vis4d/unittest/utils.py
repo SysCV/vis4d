@@ -11,7 +11,6 @@ from vis4d.struct import (
     Boxes2D,
     Boxes3D,
     Images,
-    PointCloud,
     InputSample,
     InstanceMasks,
     Intrinsics,
