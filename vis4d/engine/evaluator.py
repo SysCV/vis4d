@@ -32,7 +32,6 @@ class Vis4DEvaluatorCallback(Callback):
         assert collect in ["cpu", "gpu"], f"Collect arg {collect} unknown."
         self._predictions: Dict[str, List[Frame]] = defaultdict(list)
         self._gts: List[Frame] = []
-        self.logger: Optional[pl.loggers.LightningLoggerBase] = None
         self.logging_disabled = False
         self.collect = collect
         self.dataloader_idx = dataloader_idx
@@ -62,15 +61,6 @@ class Vis4DEvaluatorCallback(Callback):
     def evaluate(self, epoch: int) -> Dict[str, MetricLogs]:
         """Evaluate the performance after processing all input/output pairs."""
         raise NotImplementedError
-
-    def setup(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        stage: Optional[str] = None,
-    ) -> None:
-        """Setup logging of results."""
-        self.logger = trainer.logger
 
     def on_test_epoch_end(
         self,
@@ -177,8 +167,8 @@ class ScalabelEvaluatorCallback(Vis4DEvaluatorCallback):
                 log_dict, log_str = self.eval_func(key, predictions, self._gts)
                 results[key] = log_dict
                 if not self.logging_disabled:
-                    if self.logger is not None:
-                        self.logger.log_metrics(log_dict, epoch)
+                    for k, v in log_dict.items():
+                        self.log(k, v)  # type: ignore # pylint: disable=no-member,line-too-long
                     logger.info("Showing results for %s", key)
                     logger.info(log_str)
         return results

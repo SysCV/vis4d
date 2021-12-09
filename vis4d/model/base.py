@@ -1,5 +1,6 @@
 """Base class for Vis4D models."""
 import abc
+import os.path as osp
 from collections.abc import Iterable
 from typing import (
     Any,
@@ -17,6 +18,7 @@ from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
 from torch.optim import Optimizer
 
+from ..common.io import DataBackendConfig, build_data_backend
 from ..common.registry import RegistryHolder
 from ..struct import DictStrAny, InputSample, LossesType, ModelOutput
 from .optimize import (
@@ -34,12 +36,13 @@ class BaseModelConfig(PydanticBaseModel, extra="allow"):
     """Config for default Vis4D model."""
 
     type: str = Field(...)
-    category_mapping: Optional[Dict[str, int]] = None
+    category_mapping: Optional[Dict[str, int]]
     image_channel_mode: str = "RGB"
     optimizer: BaseOptimizerConfig = BaseOptimizerConfig()
     lr_scheduler: BaseLRSchedulerConfig = BaseLRSchedulerConfig()
     freeze: bool = False
-    freeze_parameters: Optional[List[str]] = None
+    freeze_parameters: Optional[List[str]]
+    inference_result_path: Optional[str]
 
 
 class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
@@ -49,6 +52,12 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         """Init."""
         super().__init__()
         self.cfg = cfg
+        if self.cfg.inference_result_path is not None:
+            self.data_backend = build_data_backend(
+                DataBackendConfig(type="HDF5Backend")
+            )
+            if not osp.exists(self.cfg.inference_result_path):
+                self.data_backend.set(self.cfg.inference_result_path, bytes())
 
     def __call__(
         self, batch_inputs: List[InputSample]

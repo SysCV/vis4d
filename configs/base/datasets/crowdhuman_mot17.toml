@@ -28,10 +28,9 @@ num_processes = 0
     kornia_type = "RandomHorizontalFlip"
     prob = 0.5
 
-    [[train.sample_mapper.transformations]]
+    [[train.dataloader.transformations]]
     type = "KorniaColorJitter"
-    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
-
+    kwargs = {"brightness" = [0.875, 1.125], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5], "hue" = [-0.1, 0.1]}
 
 [[train]]
 name = "mot17_train"
@@ -64,9 +63,9 @@ num_processes = 0
     kornia_type = "RandomHorizontalFlip"
     prob = 0.5
 
-    [[train.sample_mapper.transformations]]
+    [[train.dataloader.transformations]]
     type = "KorniaColorJitter"
-    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5]}
+    kwargs = {"brightness" = [0.875, 1.125], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5], "hue" = [-0.1, 0.1]}
 
 [[test]]
 name = "mot17_val"

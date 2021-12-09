@@ -72,6 +72,8 @@ class Launch(BaseModel):
     not_strict: bool = False
     tqdm: bool = False
     legacy_ckpt: bool = False
+    tuner_params: Optional[DictStrAny]
+    tuner_metrics: Optional[List[str]]
 
     @validator("version", always=True)
     def validate_version(  # pylint: disable=no-self-argument,no-self-use

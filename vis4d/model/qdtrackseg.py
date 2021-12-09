@@ -46,7 +46,7 @@ class QDTrackSeg(QDTrack):
 
         losses = {}
         if len(key_targets.boxes2d[0]) > 0:
-            track_losses, _, _ = self._detect_and_track_losses(
+            track_losses, _, _ = self._run_heads_train(
                 key_inputs, ref_inputs, key_x, ref_x
             )
             losses.update(track_losses)
@@ -71,7 +71,8 @@ class QDTrackSeg(QDTrack):
         assert len(batch_inputs) == 1, "No reference views during test!"
         assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
         feat = self.detector.extract_features(batch_inputs[0])
-        outputs = self._detect_and_track(batch_inputs[0], feat)
+        outputs, preds, embeds = self._run_heads_test(batch_inputs[0], feat)
+        outputs.update(self._track(batch_inputs[0], preds, embeds))
 
         # segmentation head
         semantic_segms = self.seg_head(batch_inputs[0], feat)

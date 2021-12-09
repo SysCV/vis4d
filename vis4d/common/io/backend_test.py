@@ -1,4 +1,5 @@
 """Testcases for data backends."""
+import os
 import sys
 import unittest
 
@@ -30,6 +31,13 @@ class TestBackends(unittest.TestCase):
         out_file = backend_file.get(sample_path)
         out_hdf5 = backend_hdf5.get(hdf5_path)
         self.assertTrue(out_file == out_hdf5)
+
+        # check exists
+        self.assertFalse(backend_hdf5.exists("invalid_path"))
+
+        # check set
+        backend_file.set("./unittests/test_file.bin", bytes())
+        self.assertTrue(os.path.exists("./unittests/test_file.bin"))
 
         # check db_cache
         backend_hdf5.get(hdf5_path)
