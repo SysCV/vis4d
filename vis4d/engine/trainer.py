@@ -7,7 +7,11 @@ from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 
 from ..config import Config, default_argument_parser, parse_config
-from ..data import build_data_module, build_dataset_loaders
+from ..data import (
+    build_data_module,
+    build_dataset_loaders,
+    build_category_mappings,
+)
 from ..model import build_model
 from ..struct import DictStrAny
 from ..vis import ScalabelWriterCallback
@@ -143,9 +147,16 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.legacy_ckpt,
     )
 
+    # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         cfg.train, cfg.test
     )
+
+    # determine category mapping
+    category_mapping = build_category_mappings(
+        cfg.data, cfg.model.category_mapping
+    )
+
     data_module = build_data_module(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,

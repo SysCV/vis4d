@@ -56,7 +56,18 @@ class DataModuleConfig(BaseModel):
 
     type: str = "Vis4DDataModule"
     pin_memory: bool = False
-    train_sampler: Optional[BaseSamplerConfig] = None
+    train_sampler: Optional[BaseSamplerConfig]
+    category_mapping: Optional[Dict[str, Dict[str, int]]]
+
+
+def build_category_mappings(
+    cfg: DataModuleConfig, model_category_mapping: Optional[Dict[str, int]]
+) -> Dict[str, Dict[str, int]]:
+    """Build category mappings."""
+    if cfg.category_mapping is not None:
+        pass
+    assert model_category_mapping is not None
+    return {"all": model_category_mapping}
 
 
 class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
