@@ -1,8 +1,8 @@
 """Load MOTChallenge format dataset into Scalabel format."""
 import os
 import os.path as osp
-import shutil
 import random
+import shutil
 from collections import defaultdict
 from typing import List, Tuple
 
