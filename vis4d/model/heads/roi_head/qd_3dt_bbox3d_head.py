@@ -48,7 +48,7 @@ class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
     fc_out_dim: int = 1024
     roi_feat_size: int = 7
     num_classes: int
-    conv_has_bias: bool = False
+    conv_has_bias: bool = True
     norm: Optional[str] = None
     num_groups: int = 32
     num_rotation_bins: int = 2

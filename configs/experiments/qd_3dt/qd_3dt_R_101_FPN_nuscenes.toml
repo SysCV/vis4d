@@ -5,11 +5,10 @@ path = "../../base/datasets/nuscenes.toml"
 path = "../../base/models/mmdetection/qd_3dt_R_101_FPN.toml"
 
 [model]
-category_mapping = {"car" = 0, "truck" = 1, "bus" = 2, "trailer" = 3, "construction_vehicle" = 4, "pedestrian" = 5, "motorcycle" = 6, "bicycle" = 7, "traffic_cone" = 8, "barrier" = 9}
+category_mapping = {"bicycle" = 0, "motorcycle" = 1, "pedestrian" = 2, "bus" = 3, "car" = 4, "trailer" = 5, "truck" = 6, "construction_vehicle" = 7, "traffic_cone" = 8, "barrier" = 9}
     [model.detection]
     pixel_mean = [106.07, 127.705, 128.08]
     pixel_std = [73.458, 70.129, 70.463]
-    model_kwargs = {"backbone.depth" = 101, "backbone.init_cfg.checkpoint" = "torchvision://resnet101", "rpn_head.anchor_generator.scales" = [4, 8], "rpn_head.anchor_generator.ratios" = [0.25, 0.5, 1.0, 2.0, 4.0], "rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.beta" = 0.111, "roi_head.bbox_head.loss_cls.loss_weight" = 5.0, "roi_head.bbox_head.loss_bbox.type" = "SmoothL1Loss", "roi_head.bbox_head.loss_bbox.loss_weight" = 5.0}
 
     [model.optimizer]
     type = "SGD"
