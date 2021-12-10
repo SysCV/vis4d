@@ -19,8 +19,8 @@ class HDF5Backend(BaseDataBackend):
     that the given HDF5 file contains the whole dataset associated to this
     backend.
 
-    You can use the provided script at tools/to_hdf5.py to convert
-    your dataset to the expected hdf5 format before using this backend.
+    You can use the provided script at vis4d/data/datasets/to_hdf5.py to
+    convert your dataset to the expected hdf5 format before using this backend.
     """
 
     def __init__(self, cfg: DataBackendConfig):
