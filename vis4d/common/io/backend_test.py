@@ -36,6 +36,7 @@ class TestBackends(unittest.TestCase):
         self.assertFalse(backend_hdf5.exists("invalid_path"))
 
         # check set
+        os.makedirs("./unittests/", exist_ok=True)
         backend_file.set("./unittests/test_file.bin", bytes())
         self.assertTrue(os.path.exists("./unittests/test_file.bin"))
 
