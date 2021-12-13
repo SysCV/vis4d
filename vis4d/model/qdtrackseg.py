@@ -1,8 +1,6 @@
 """Quasi-dense instance similarity learning model with segmentation head."""
 from typing import List
 
-import torch
-
 from vis4d.struct import InputSample, LossesType, ModelOutput
 
 from .base import BaseModelConfig
@@ -13,6 +11,7 @@ from .heads.dense_head import (
 )
 from .qdtrack import QDTrack, QDTrackConfig
 from .track.utils import split_key_ref_inputs
+from .utils import predictions_to_scalabel
 
 
 class QDTrackSegConfig(QDTrackConfig):
@@ -76,11 +75,11 @@ class QDTrackSeg(QDTrack):
 
         # segmentation head
         semantic_segms = self.seg_head(batch_inputs[0], feat)
-        semantic_segms_ = (
-            semantic_segms[0]
-            .to(torch.device("cpu"))
-            .to_scalabel(self.seg_head.cat_mapping)
+        outputs.update(
+            predictions_to_scalabel(
+                batch_inputs[0],
+                {"sem_seg": semantic_segms},
+                self.seg_head.cat_mapping,
+            )
         )
-        outputs["sem_seg"] = [semantic_segms_]
-
         return outputs
