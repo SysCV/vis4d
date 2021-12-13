@@ -13,7 +13,10 @@ from vis4d.model.track.similarity import (
     SimilarityLearningConfig,
     build_similarity_head,
 )
-from vis4d.model.track.utils import split_key_ref_inputs
+from vis4d.model.track.utils import (
+    predictions_to_scalabel,
+    split_key_ref_inputs,
+)
 from vis4d.struct import InputSample, LabelInstances, LossesType, ModelOutput
 
 
@@ -29,7 +32,7 @@ class MyModelConfig(BaseModelConfig, extra="allow"):
 
 
 class MyModel(BaseModel):
-    """Example qdtrack model."""
+    """Example qdtrack model with semantic segmentation head on top."""
 
     def __init__(self, cfg: BaseModelConfig) -> None:
         """Init."""
@@ -45,6 +48,11 @@ class MyModel(BaseModel):
         self.segmentation_head = build_dense_head(self.cfg.segmentation_head)
         assert self.cfg.category_mapping is not None
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
+        assert self.cfg.segmentation_head.category_mapping is not None
+        self.seg_cat_mapping = {
+            v: k
+            for k, v in self.cfg.segmentation_head.category_mapping.items()
+        }
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
@@ -86,21 +94,16 @@ class MyModel(BaseModel):
 
         predictions = LabelInstances(detections)
         tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
-
-        tracks_ = (
-            tracks.boxes2d[0]
-            .to(torch.device("cpu"))
-            .to_scalabel(self.cat_mapping)
-        )
-        outputs = {"track": [tracks_]}
-
         segmentations = self.segmentation_head(inputs, features)
-        semantic_segms_ = (
-            segmentations[0]
-            .to(torch.device("cpu"))
-            .to_scalabel(self.segmentation_head.cat_mapping)
+
+        outputs = predictions_to_scalabel(
+            {"track": tracks.boxes2d, "detect": detections}, self.cat_mapping
         )
-        outputs["sem_seg"] = [semantic_segms_]
+        outputs.update(
+            predictions_to_scalabel(
+                {"sem_seg": segmentations}, self.seg_cat_mapping
+            )
+        )
         return outputs
 
 

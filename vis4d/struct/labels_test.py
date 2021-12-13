@@ -348,6 +348,17 @@ class TestMasks(unittest.TestCase):
         self.assertEqual(segmentations.height, 256)
         self.assertEqual(segmentations.width, 64)
 
+    def test_semantic_postprocess(self) -> None:
+        """Testcase for postprocessing a Semantic Masks object."""
+        h, w, num_masks = 128, 128, 10
+        segmentations = generate_semantic_masks(h, w, num_masks)
+        segmentations.postprocess((w - 1, h - 1), (w - 1, h - 1))
+        self.assertEqual(segmentations.height, 127)
+        self.assertEqual(segmentations.width, 127)
+        segmentations.postprocess((64, 256), (w - 2, h - 2))
+        self.assertEqual(segmentations.height, 256)
+        self.assertEqual(segmentations.width, 64)
+
     def test_crop_and_resize(self) -> None:
         """Testcase for cropping and resizing a Masks object."""
         h, w, num_masks, num_dets = 128, 128, 4, 10
@@ -380,7 +391,8 @@ class TestMasks(unittest.TestCase):
             h, w, num_masks, track_ids=True
         )
         detections = generate_dets(h, w, num_dets, track_ids=True)
-        segmentations.paste_masks_in_image(detections, (out_w, out_h))
+        segmentations.detections = detections
+        segmentations.paste_masks_in_image((out_w, out_h))
         self.assertEqual(segmentations.size, (out_w, out_h))
 
     def test_get_boxes2d(self) -> None:

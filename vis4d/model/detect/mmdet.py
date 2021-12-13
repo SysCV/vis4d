@@ -10,6 +10,7 @@ from vis4d.struct import (
     LabelInstances,
     LossesType,
     ModelOutput,
+    TLabelInstance,
 )
 
 from ..backbone import MMDetBackbone, MMDetBackboneConfig, build_backbone
@@ -22,8 +23,8 @@ from ..heads.dense_head import (
 )
 from ..heads.roi_head import MMDetRoIHead, MMDetRoIHeadConfig, build_roi_head
 from ..mmdet_utils import add_keyword_args, load_config
+from ..track.utils import predictions_to_scalabel
 from .base import BaseDetectorConfig, BaseTwoStageDetector
-from .utils import postprocess
 
 try:
     from mmcv import Config as MMConfig
@@ -156,21 +157,14 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         proposals = self.rpn_head(inputs, features)
         detections, segmentations = self.roi_head(inputs, proposals, features)
 
-        postprocess(
-            inputs, detections, segmentations, self.cfg.clip_bboxes_to_image
-        )
-        outputs = dict(
-            detect=[d.to_scalabel(self.cat_mapping) for d in detections]
-        )
+        outputs: Dict[str, List[TLabelInstance]] = dict(detect=detections)  # type: ignore # pylint: disable=line-too-long
         if self.with_mask:
             assert segmentations is not None
-            segmentations: List[InstanceMasks]  # type: ignore
-            outputs.update(
-                ins_seg=[
-                    s.to_scalabel(self.cat_mapping) for s in segmentations
-                ]
-            )
-        return outputs
+            outputs["ins_seg"] = segmentations
+
+        return predictions_to_scalabel(
+            inputs, outputs, self.cat_mapping, self.cfg.clip_bboxes_to_image
+        )
 
     def extract_features(self, inputs: InputSample) -> FeatureMaps:
         """Detector feature extraction stage.

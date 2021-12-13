@@ -1,6 +1,6 @@
 """Quasi-dense instance similarity learning model."""
 import pickle
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import torch
 
@@ -11,19 +11,20 @@ from vis4d.struct import (
     LabelInstances,
     LossesType,
     ModelOutput,
+    TLabelInstance,
 )
 
 from .base import BaseModel, BaseModelConfig, build_model
-from .detect import BaseTwoStageDetector
+from .detect import BaseDetectorConfig, BaseTwoStageDetector
 from .track.graph import TrackGraphConfig, build_track_graph
 from .track.similarity import SimilarityLearningConfig, build_similarity_head
-from .track.utils import split_key_ref_inputs
+from .track.utils import predictions_to_scalabel, split_key_ref_inputs
 
 
 class QDTrackConfig(BaseModelConfig):
     """Config for quasi-dense tracking model."""
 
-    detection: BaseModelConfig
+    detection: BaseDetectorConfig
     similarity: SimilarityLearningConfig
     track_graph: TrackGraphConfig
 
@@ -101,30 +102,17 @@ class QDTrack(BaseModel):
 
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
-        assert inputs.metadata[0].size is not None
-        input_size = (
-            inputs.metadata[0].size.width,
-            inputs.metadata[0].size.height,
-        )
-        detections[0].postprocess(
-            input_size,
-            inputs.images.image_sizes[0],
-            self.detector.cfg.clip_bboxes_to_image,
-        )
-        detects = (
-            detections[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
-        )
-        outputs = dict(detect=[detects])
+
+        outs: Dict[str, List[TLabelInstance]] = {"detect": detections}  # type: ignore # pylint: disable=line-too-long
         if instance_segms is not None:
-            instance_segms[0].postprocess(
-                input_size, inputs.images.image_sizes[0], detections[0]
-            )
-            segms = (
-                instance_segms[0]
-                .to(torch.device("cpu"))
-                .to_scalabel(self.cat_mapping)
-            )
-            outputs["ins_seg"] = [segms]
+            outs["ins_seg"] = instance_segms
+
+        outputs = predictions_to_scalabel(
+            inputs,
+            outs,
+            self.cat_mapping,
+            self.cfg.detection.clip_bboxes_to_image,
+        )
 
         predictions = LabelInstances(
             detections,
@@ -142,22 +130,15 @@ class QDTrack(BaseModel):
     ) -> ModelOutput:
         """Associate detections, update track graph."""
         tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
-
-        tracks_ = (
-            tracks.boxes2d[0]
-            .to(torch.device("cpu"))
-            .to_scalabel(self.cat_mapping)
-        )
-        outputs = {"track": [tracks_]}
-
+        outs: Dict[str, List[TLabelInstance]] = {"track": tracks.boxes2d}  # type: ignore # pylint: disable=line-too-long
         if tracks.instance_masks[0] is not None:
-            segm_tracks = (
-                tracks.instance_masks[0]
-                .to(torch.device("cpu"))
-                .to_scalabel(self.cat_mapping)
-            )
-            outputs["seg_track"] = [segm_tracks]
-        return outputs
+            outs["seg_track"] = tracks.instance_masks
+        return predictions_to_scalabel(
+            inputs,
+            outs,
+            self.cat_mapping,
+            self.cfg.detection.clip_bboxes_to_image,
+        )
 
     def forward_train(
         self,
