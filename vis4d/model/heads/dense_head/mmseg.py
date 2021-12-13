@@ -102,4 +102,4 @@ class MMSegDecodeHead(
             mode="bilinear",
         )
         outs = outs.argmax(dim=1)
-        return results_from_mmseg(outs, image_metas, inputs.device)
+        return results_from_mmseg(outs, inputs.device)

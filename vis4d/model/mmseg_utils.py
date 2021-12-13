@@ -6,7 +6,6 @@ import requests
 import torch
 import torch.nn.functional as F
 
-from vis4d.model.mmdet_utils import MMDetMetaData
 from vis4d.struct import LabelInstances, NDArrayUI8, SemanticMasks
 
 try:
@@ -30,13 +29,11 @@ def segmentations_from_mmseg(
 
 
 def results_from_mmseg(
-    results: MMResults, img_metas: List[MMDetMetaData], device: torch.device
+    results: MMResults, device: torch.device
 ) -> List[SemanticMasks]:
     """Convert mmsegmentation seg_pred to Vis4D format."""
     masks = []
-    for result, img_meta in zip(results, img_metas):
-        ori_h, ori_w = img_meta["ori_shape"][:2]  # type: ignore
-        result = result[:ori_h, :ori_w]
+    for result in results:
         if isinstance(result, torch.Tensor):
             mask = result.unsqueeze(0).byte()
         else:  # pragma: no cover
