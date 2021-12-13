@@ -65,7 +65,7 @@ def build_category_mappings(
 ) -> Dict[str, Dict[str, int]]:
     """Build category mappings."""
     if cfg.category_mapping is not None:
-        pass
+        return cfg.category_mapping
     assert model_category_mapping is not None
     return {"all": model_category_mapping}
 
@@ -80,7 +80,7 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         train_loaders: List[BaseDatasetLoader],
         test_loaders: List[BaseDatasetLoader],
         predict_loaders: List[BaseDatasetLoader],
-        category_mapping: Optional[Dict[str, int]] = None,
+        category_mapping: Optional[Dict[str, Dict[str, int]]] = None,
         image_channel_mode: str = "RGB",
         seed: Optional[int] = None,
         cfg: DataModuleConfig = DataModuleConfig(),

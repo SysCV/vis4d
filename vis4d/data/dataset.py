@@ -30,7 +30,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         self,
         dataset: BaseDatasetLoader,
         training: bool,
-        cats_name2id: Optional[Dict[str, int]] = None,
+        cats_name2id: Optional[Dict[str, Dict[str, int]]] = None,
         image_channel_mode: str = "RGB",
     ):
         """Init."""

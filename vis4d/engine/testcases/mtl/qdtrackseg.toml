@@ -9,6 +9,7 @@ path = "../configs/models/mtl/qdtrackseg_R_18_FPN.toml"
     type = "RoundRobinSampler"
 
     [data.category_mapping]
+    boxes2d = {"pedestrian" = 0, "rider" = 1, "bicycle" = 2, "bus" = 3, "car" = 4, "caravan" = 5, "motorcycle" = 6, "trailer" = 7, "train" = 8, "truck" = 9}
     instance_masks = {"pedestrian" = 0, "rider" = 1, "bicycle" = 2, "bus" = 3, "car" = 4, "caravan" = 5, "motorcycle" = 6, "trailer" = 7, "train" = 8, "truck" = 9}
     semantic_masks = {"dynamic" = 0, "ego vehicle" = 1, "ground" = 2, "static" = 3, "parking" = 4, "rail track" = 5, "road" = 6, "sidewalk" = 7, "bridge" = 8, "building" = 9, "fence" = 10, "garage" = 11, "guard rail" = 12, "tunnel" = 13, "wall" = 14, "banner" = 15, "billboard" = 16, "lane divider" = 17, "parking sign" = 18, "pole" = 19, "polegroup" = 20, "street light" = 21, "traffic cone" = 22, "traffic device" = 23, "traffic light" = 24, "traffic sign" = 25, "traffic sign frame" = 26, "terrain" = 27, "vegetation" = 28, "sky" = 29}
 
