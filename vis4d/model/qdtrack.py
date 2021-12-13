@@ -150,7 +150,7 @@ class QDTrack(BaseModel):
         )
         outputs = {"track": [tracks_]}
 
-        if tracks.instance_masks[0] is not None:
+        if len(tracks.instance_masks[0]) > 0:
             segm_tracks = (
                 tracks.instance_masks[0]
                 .to(torch.device("cpu"))

@@ -63,9 +63,7 @@ class Vis4DEvaluatorCallback(Callback):
         raise NotImplementedError
 
     def on_test_epoch_end(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_test_epoch_end PL hook to call 'evaluate'."""
         self.gather(pl_module)
@@ -122,7 +120,7 @@ class Vis4DEvaluatorCallback(Callback):
 
 
 class ScalabelEvaluatorCallback(Vis4DEvaluatorCallback):
-    """Evaluate model using metrics supported by Scalabel."""
+    """Evaluate model using metrics supported by the dataset."""
 
     def __init__(
         self,
@@ -168,7 +166,7 @@ class ScalabelEvaluatorCallback(Vis4DEvaluatorCallback):
                 results[key] = log_dict
                 if not self.logging_disabled:
                     for k, v in log_dict.items():
-                        self.log(k, v)  # type: ignore # pylint: disable=no-member,line-too-long
+                        self.log(k, v, rank_zero_only=True)  # type: ignore # pylint: disable=no-member,line-too-long
                     logger.info("Showing results for %s", key)
                     logger.info(log_str)
         return results
