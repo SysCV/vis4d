@@ -132,7 +132,7 @@ class QDTrack(BaseModel):
         """Associate detections, update track graph."""
         tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
         outs: Dict[str, List[TLabelInstance]] = {"track": tracks.boxes2d}  # type: ignore # pylint: disable=line-too-long
-        if len(tracks.instance_masks[0]) > 0:
+        if self.with_mask:
             outs["seg_track"] = tracks.instance_masks
         return predictions_to_scalabel(
             inputs,
