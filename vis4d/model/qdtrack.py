@@ -18,7 +18,8 @@ from .base import BaseModel, BaseModelConfig, build_model
 from .detect import BaseDetectorConfig, BaseTwoStageDetector
 from .track.graph import TrackGraphConfig, build_track_graph
 from .track.similarity import SimilarityLearningConfig, build_similarity_head
-from .track.utils import predictions_to_scalabel, split_key_ref_inputs
+from .track.utils import split_key_ref_inputs
+from .utils import predictions_to_scalabel
 
 
 class QDTrackConfig(BaseModelConfig):

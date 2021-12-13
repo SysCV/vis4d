@@ -10,7 +10,8 @@ from .heads.dense_head import (
     build_dense_head,
 )
 from .qdtrack import QDTrack, QDTrackConfig
-from .track.utils import predictions_to_scalabel, split_key_ref_inputs
+from .track.utils import split_key_ref_inputs
+from .utils import predictions_to_scalabel
 
 
 class QDTrackSegConfig(QDTrackConfig):

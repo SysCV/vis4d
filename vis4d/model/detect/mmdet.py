@@ -23,7 +23,7 @@ from ..heads.dense_head import (
 )
 from ..heads.roi_head import MMDetRoIHead, MMDetRoIHeadConfig, build_roi_head
 from ..mmdet_utils import add_keyword_args, load_config
-from ..track.utils import predictions_to_scalabel
+from ..utils import predictions_to_scalabel
 from .base import BaseDetectorConfig, BaseTwoStageDetector
 
 try:

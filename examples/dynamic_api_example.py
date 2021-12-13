@@ -14,9 +14,9 @@ from vis4d.model.track.similarity import (
     build_similarity_head,
 )
 from vis4d.model.track.utils import (
-    predictions_to_scalabel,
     split_key_ref_inputs,
 )
+from vis4d.model.utils import predictions_to_scalabel
 from vis4d.struct import InputSample, LabelInstances, LossesType, ModelOutput
 
 

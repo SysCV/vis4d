@@ -39,7 +39,7 @@ from vis4d.struct import (
 )
 
 from ..base import BaseModelConfig
-from ..track.utils import predictions_to_scalabel
+from ..utils import predictions_to_scalabel
 from .base import BaseTwoStageDetector
 
 
