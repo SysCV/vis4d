@@ -53,8 +53,7 @@ class MOTChallenge(BaseDatasetLoader):
         self, frames: List[Frame]
     ) -> Tuple[List[str], List[str], str]:
         """Convert predictions back to MOT format, save out to tmp_dir."""
-        if not os.path.exists(self.cfg.tmp_dir_root):
-            os.makedirs(self.cfg.tmp_dir_root)
+        os.makedirs(self.cfg.tmp_dir_root, exist_ok=True)
         tmp_dir = tempfile.mkdtemp(dir=self.cfg.tmp_dir_root)
         res_files = []
         frames_per_video = defaultdict(list)
