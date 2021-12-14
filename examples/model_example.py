@@ -13,14 +13,12 @@ from vis4d.model.track.similarity import (
     SimilarityLearningConfig,
     build_similarity_head,
 )
-from vis4d.model.track.utils import (
-    split_key_ref_inputs,
-)
+from vis4d.model.track.utils import split_key_ref_inputs
 from vis4d.model.utils import predictions_to_scalabel
 from vis4d.struct import InputSample, LabelInstances, LossesType, ModelOutput
 
 
-class MyModelConfig(BaseModelConfig, extra="allow"):
+class MyModelConfig(BaseModelConfig):
     """My model config."""
 
     backbone: BaseBackboneConfig
@@ -97,11 +95,13 @@ class MyModel(BaseModel):
         segmentations = self.segmentation_head(inputs, features)
 
         outputs = predictions_to_scalabel(
-            {"track": tracks.boxes2d, "detect": detections}, self.cat_mapping
+            inputs,
+            {"track": tracks.boxes2d, "detect": detections},
+            self.cat_mapping,
         )
         outputs.update(
             predictions_to_scalabel(
-                {"sem_seg": segmentations}, self.seg_cat_mapping
+                inputs, {"sem_seg": segmentations}, self.seg_cat_mapping
             )
         )
         return outputs

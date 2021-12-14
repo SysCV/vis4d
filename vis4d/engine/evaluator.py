@@ -20,7 +20,7 @@ mute(True)  # turn off undesired logs during eval
 logger = logging.getLogger("pytorch_lightning")
 
 
-class Vis4DEvaluatorCallback(Callback):
+class BaseEvaluatorCallback(Callback):
     """Base class for Vis4D Evaluators.
 
     This class will accumulate the inputs/outputs in 'process', and produce
@@ -119,7 +119,7 @@ class Vis4DEvaluatorCallback(Callback):
         self.logging_disabled = False
 
 
-class ScalabelEvaluatorCallback(Vis4DEvaluatorCallback):
+class StandardEvaluatorCallback(BaseEvaluatorCallback):
     """Evaluate model using metrics supported by the dataset."""
 
     def __init__(

@@ -104,9 +104,9 @@ class QDTrack(BaseModel):
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
 
-        outs: Dict[str, List[TLabelInstance]] = {"detect": detections}  # type: ignore # pylint: disable=line-too-long
+        outs: Dict[str, List[TLabelInstance]] = {"detect": [d.clone() for d in detections]}  # type: ignore # pylint: disable=line-too-long
         if instance_segms is not None:
-            outs["ins_seg"] = instance_segms
+            outs["ins_seg"] = [s.clone() for s in instance_segms]
 
         outputs = predictions_to_scalabel(
             inputs,

@@ -17,7 +17,7 @@ from ..data import build_data_module, build_dataset_loaders
 from ..model import build_model
 from ..struct import DictStrAny
 from ..vis import ScalabelWriterCallback
-from .evaluator import ScalabelEvaluatorCallback
+from .evaluator import StandardEvaluatorCallback
 from .utils import (
     Vis4DProgressBar,
     Vis4DTQDMProgressBar,
@@ -166,7 +166,7 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 
     if len(test_loaders) > 0:
         evaluators = [
-            ScalabelEvaluatorCallback(i, dl)
+            StandardEvaluatorCallback(i, dl)
             for i, dl in enumerate(test_loaders)
         ]
         trainer.callbacks += evaluators  # pylint: disable=no-member
@@ -203,7 +203,7 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
     )
     evaluators = [
-        ScalabelEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
+        StandardEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
         for i, dl in enumerate(test_loaders)
     ]
     trainer.callbacks += evaluators  # pylint: disable=no-member
@@ -291,7 +291,7 @@ def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
     )
     evaluators = [
-        ScalabelEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
+        StandardEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
         for i, dl in enumerate(test_loaders)
     ]
     trainer.callbacks += evaluators  # pylint: disable=no-member

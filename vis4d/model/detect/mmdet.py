@@ -13,15 +13,21 @@ from vis4d.struct import (
     TLabelInstance,
 )
 
-from ..backbone import MMDetBackbone, MMDetBackboneConfig, build_backbone
+from ..backbone import BaseBackboneConfig, MMDetBackboneConfig, build_backbone
 from ..backbone.neck import MMDetNeckConfig
 from ..base import BaseModelConfig
 from ..heads.dense_head import (
-    MMDetDenseHead,
+    BaseDenseHead,
+    BaseDenseHeadConfig,
     MMDetDenseHeadConfig,
     build_dense_head,
 )
-from ..heads.roi_head import MMDetRoIHead, MMDetRoIHeadConfig, build_roi_head
+from ..heads.roi_head import (
+    BaseRoIHead,
+    BaseRoIHeadConfig,
+    MMDetRoIHeadConfig,
+    build_roi_head,
+)
 from ..mmdet_utils import add_keyword_args, load_config
 from ..utils import predictions_to_scalabel
 from .base import BaseDetectorConfig, BaseTwoStageDetector
@@ -57,6 +63,9 @@ class MMTwoStageDetectorConfig(BaseDetectorConfig):
     pixel_std: Tuple[float, float, float]
     backbone_output_names: Optional[List[str]]
     weights: Optional[str]
+    backbone: Optional[BaseBackboneConfig]
+    roi_head: Optional[BaseRoIHeadConfig]
+    rpn_head: Optional[BaseDenseHeadConfig]
 
 
 class MMTwoStageDetector(BaseTwoStageDetector):
@@ -74,8 +83,8 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         assert self.cfg.category_mapping is not None
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
         self.mm_cfg = get_mmdet_config(self.cfg)
-        self.backbone: MMDetBackbone = build_backbone(
-            MMDetBackboneConfig(
+        if self.cfg.backbone is None:
+            self.cfg.backbone = MMDetBackboneConfig(
                 type="MMDetBackbone",
                 mm_cfg=self.mm_cfg["backbone"],
                 pixel_mean=self.cfg.pixel_mean,
@@ -86,39 +95,51 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                     output_names=self.cfg.backbone_output_names,
                 ),
             )
-        )
+        self.backbone = build_backbone(self.cfg.backbone)
 
-        rpn_cfg = self.mm_cfg["rpn_head"]
-        if "train_cfg" in self.mm_cfg and "rpn" in self.mm_cfg["train_cfg"]:
-            rpn_train_cfg = self.mm_cfg["train_cfg"]["rpn"]
-        else:  # pragma: no cover
-            rpn_train_cfg = None
-        rpn_cfg.update(
-            train_cfg=rpn_train_cfg, test_cfg=self.mm_cfg["test_cfg"]["rpn"]
-        )
-        self.rpn_head: MMDetDenseHead = build_dense_head(
-            MMDetDenseHeadConfig(
+        if self.cfg.rpn_head is None:
+            rpn_cfg = self.mm_cfg["rpn_head"]
+            if (
+                "train_cfg" in self.mm_cfg
+                and "rpn" in self.mm_cfg["train_cfg"]
+            ):
+                rpn_train_cfg = self.mm_cfg["train_cfg"]["rpn"]
+            else:  # pragma: no cover
+                rpn_train_cfg = None
+            rpn_cfg.update(
+                train_cfg=rpn_train_cfg,
+                test_cfg=self.mm_cfg["test_cfg"]["rpn"],
+            )
+            self.cfg.rpn_head = MMDetDenseHeadConfig(
                 type="MMDetDenseHead",
                 mm_cfg=rpn_cfg,
                 category_mapping=self.cfg.category_mapping,
             )
-        )
+        self.rpn_head: BaseDenseHead[
+            List[Boxes2D], List[Boxes2D]
+        ] = build_dense_head(self.cfg.rpn_head)
 
-        roi_head_cfg = self.mm_cfg["roi_head"]
-        if "train_cfg" in self.mm_cfg and "rcnn" in self.mm_cfg["train_cfg"]:
-            rcnn_train_cfg = self.mm_cfg["train_cfg"]["rcnn"]
-        else:  # pragma: no cover
-            rcnn_train_cfg = None
+        if self.cfg.roi_head is None:
+            roi_head_cfg = self.mm_cfg["roi_head"]
+            if (
+                "train_cfg" in self.mm_cfg
+                and "rcnn" in self.mm_cfg["train_cfg"]
+            ):
+                rcnn_train_cfg = self.mm_cfg["train_cfg"]["rcnn"]
+            else:  # pragma: no cover
+                rcnn_train_cfg = None
 
-        roi_head_cfg.update(train_cfg=rcnn_train_cfg)
-        roi_head_cfg.update(test_cfg=self.mm_cfg["test_cfg"]["rcnn"])
-        self.roi_head: MMDetRoIHead = build_roi_head(
-            MMDetRoIHeadConfig(
+            roi_head_cfg.update(train_cfg=rcnn_train_cfg)
+            roi_head_cfg.update(test_cfg=self.mm_cfg["test_cfg"]["rcnn"])
+            self.cfg.roi_head = MMDetRoIHeadConfig(
                 type="MMDetRoIHead",
                 mm_cfg=roi_head_cfg,
                 category_mapping=self.cfg.category_mapping,
             )
-        )
+        self.roi_head: BaseRoIHead[
+            Optional[SamplingResult],
+            Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
+        ] = build_roi_head(self.cfg.roi_head)
 
         self.with_mask = self.roi_head.with_mask
         if self.cfg.weights is not None:

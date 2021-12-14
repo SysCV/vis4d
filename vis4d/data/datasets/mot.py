@@ -1,10 +1,10 @@
 """Load MOTChallenge format dataset into Scalabel format."""
 import os
 import os.path as osp
-import random
 import shutil
+import tempfile
 from collections import defaultdict
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import motmetrics as mm
 from scalabel.label.from_mot import from_mot
@@ -19,8 +19,9 @@ from .base import BaseDatasetConfig, BaseDatasetLoader
 class MOTDatasetConfig(BaseDatasetConfig):
     """Config for training/evaluation datasets."""
 
-    tmp_dir: str = "./mot17_tmp"
+    tmp_dir_root: str = "./"
     track_iou_thr: float = 0.5
+    validation_gt_root: Optional[str]
 
 
 class MOTChallenge(BaseDatasetLoader):
@@ -31,9 +32,10 @@ class MOTChallenge(BaseDatasetLoader):
         super().__init__(cfg)
         self.cfg: MOTDatasetConfig = MOTDatasetConfig(**cfg.dict())
         self.data_root = self.cfg.data_root
-        if self.data_root.endswith(".hdf5"):  # pragma: no cover
-            self.data_root = self.data_root.replace(".hdf5", "")
-        self.tmp_dir = f"{self.cfg.tmp_dir}_{random.randint(0, 99999)}"
+        if self.cfg.validation_gt_root is None:
+            self.gt_root = self.data_root
+        else:
+            self.gt_root = self.cfg.validation_gt_root  # pragma: no cover
 
     def load_dataset(self) -> Dataset:  # pragma: no cover
         """Convert MOTChallenge annotations to scalabel format."""
@@ -49,9 +51,11 @@ class MOTChallenge(BaseDatasetLoader):
 
     def _convert_predictions(
         self, frames: List[Frame]
-    ) -> Tuple[List[str], List[str]]:
+    ) -> Tuple[List[str], List[str], str]:
         """Convert predictions back to MOT format, save out to tmp_dir."""
-        os.makedirs(self.tmp_dir, exist_ok=True)
+        if not os.path.exists(self.cfg.tmp_dir_root):
+            os.makedirs(self.cfg.tmp_dir_root)
+        tmp_dir = tempfile.mkdtemp(dir=self.cfg.tmp_dir_root)
         res_files = []
         frames_per_video = defaultdict(list)
         for f in frames:
@@ -59,7 +63,7 @@ class MOTChallenge(BaseDatasetLoader):
             frames_per_video[f.videoName].append(f)
 
         for video, video_frames in frames_per_video.items():
-            res_file = f"{self.tmp_dir}/res_{video}.txt"
+            res_file = f"{tmp_dir}/res_{video}.txt"
             res_lines = ""
             for f in video_frames:
                 if f.labels is not None:
@@ -82,7 +86,7 @@ class MOTChallenge(BaseDatasetLoader):
                 file.write(res_lines)
             res_files.append(res_file)
 
-        return res_files, list(frames_per_video.keys())
+        return res_files, list(frames_per_video.keys()), tmp_dir
 
     def _check_metrics(self) -> None:
         """Check if evaluation metrics specified are valid."""
@@ -99,17 +103,17 @@ class MOTChallenge(BaseDatasetLoader):
         if not metric == "track":  # pragma: no cover
             return super().evaluate(metric, predictions, gts)
 
-        res_files, names = self._convert_predictions(predictions)
+        res_files, names, tmp_dir = self._convert_predictions(predictions)
         accs = []
         for name, res_file in zip(names, res_files):
-            gt_file = osp.join(self.data_root, f"{name}/gt/gt_half_val.txt")
+            gt_file = osp.join(self.gt_root, f"{name}/gt/gt_half_val.txt")
             if not osp.exists(gt_file):
                 raise FileNotFoundError(
                     "Couldn't find the GT file of the validation split!"
                 )
             gt = mm.io.loadtxt(gt_file)
             res = mm.io.loadtxt(res_file)
-            ini_file = osp.join(self.data_root, f"{name}/seqinfo.ini")
+            ini_file = osp.join(self.gt_root, f"{name}/seqinfo.ini")
             if osp.exists(ini_file):
                 acc, _ = mm.utils.CLEAR_MOT_M(
                     gt, res, ini_file, distth=1 - self.cfg.track_iou_thr
@@ -133,6 +137,6 @@ class MOTChallenge(BaseDatasetLoader):
             namemap=mm.io.motchallenge_metric_names,
         )
         # clean up tmp dir
-        shutil.rmtree(self.tmp_dir)
+        shutil.rmtree(tmp_dir)
         log_dict = {k: v["OVERALL"] for k, v in summary.to_dict().items()}
         return log_dict, str_summary
