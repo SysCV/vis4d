@@ -4,8 +4,10 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
+from pydantic import BaseModel
 from torch.utils import data
 
+from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
 from ..struct import InputSample
 from .dataset import ScalabelDataset
@@ -14,7 +16,11 @@ from .datasets import (
     BaseDatasetLoader,
     build_dataset_loader,
 )
-from .samplers import TrackingInferenceSampler
+from .samplers import (
+    BaseSamplerConfig,
+    TrackingInferenceSampler,
+    build_data_sampler,
+)
 from .utils import identity_batch_collator
 
 
@@ -45,10 +51,18 @@ def build_dataset_loaders(
     return train_loaders, test_loaders, predict_loaders
 
 
-class Vis4DDataModule(pl.LightningDataModule):
-    """Data module for Vis4D."""
+class DataModuleConfig(BaseModel):
+    """Config for Default data module in Vis4D."""
 
-    def __init__(
+    type: str = "Vis4DDataModule"
+    pin_memory: bool = False
+    train_sampler: Optional[BaseSamplerConfig] = None
+
+
+class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
+    """Default Data module for Vis4D."""
+
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         samples_per_gpu: int,
         workers_per_gpu: int,
@@ -58,7 +72,7 @@ class Vis4DDataModule(pl.LightningDataModule):
         category_mapping: Optional[Dict[str, int]] = None,
         image_channel_mode: str = "RGB",
         seed: Optional[int] = None,
-        pin_memory: bool = False,
+        cfg: DataModuleConfig = DataModuleConfig(),
     ) -> None:
         """Init."""
         super().__init__()  # type: ignore
@@ -73,10 +87,11 @@ class Vis4DDataModule(pl.LightningDataModule):
         self.category_mapping = category_mapping
         self.image_channel_mode = image_channel_mode
         self.seed = seed
-        self.pin_memory = pin_memory
+        self.pin_memory = cfg.pin_memory
         self.train_datasets: Optional[List[ScalabelDataset]] = None
         self.test_datasets: Optional[List[ScalabelDataset]] = None
         self.predict_datasets: Optional[List[ScalabelDataset]] = None
+        self.train_sampler = cfg.train_sampler
         if len(train_loaders) > 0:
             self.train_datasets = [
                 ScalabelDataset(
@@ -103,15 +118,27 @@ class Vis4DDataModule(pl.LightningDataModule):
 
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""
+        assert self.train_datasets is not None
+        if self.train_sampler is not None:
+            train_sampler: Optional[
+                data.Sampler[List[int]]
+            ] = build_data_sampler(
+                self.train_sampler, self.train_datasets, self.samples_per_gpu
+            )
+            batch_size, shuffle = 1, False
+        else:
+            train_sampler = None
+            batch_size, shuffle = self.samples_per_gpu, True
         train_dataset = data.ConcatDataset(self.train_datasets)
         train_dataloader = data.DataLoader(
             train_dataset,
-            batch_size=self.samples_per_gpu,
+            batch_sampler=train_sampler,
+            batch_size=batch_size,
             num_workers=self.workers_per_gpu,
             collate_fn=identity_batch_collator,
             persistent_workers=self.workers_per_gpu > 0,
             pin_memory=self.pin_memory,
-            shuffle=True,
+            shuffle=shuffle,
         )
         return train_dataloader
 
@@ -166,3 +193,34 @@ class Vis4DDataModule(pl.LightningDataModule):
             )
             dataloaders.append(test_dataloader)
         return dataloaders
+
+
+def build_data_module(
+    samples_per_gpu: int,
+    workers_per_gpu: int,
+    train_loaders: List[BaseDatasetLoader],
+    test_loaders: List[BaseDatasetLoader],
+    predict_loaders: List[BaseDatasetLoader],
+    category_mapping: Optional[Dict[str, int]] = None,
+    image_channel_mode: str = "RGB",
+    seed: Optional[int] = None,
+    cfg: DataModuleConfig = DataModuleConfig(),
+) -> Vis4DDataModule:
+    """Build a sampler."""
+    registry = RegistryHolder.get_registry(Vis4DDataModule)
+    registry["Vis4DDataModule"] = Vis4DDataModule
+    if cfg.type in registry:
+        module = registry[cfg.type](
+            samples_per_gpu,
+            workers_per_gpu,
+            train_loaders,
+            test_loaders,
+            predict_loaders,
+            category_mapping,
+            image_channel_mode,
+            seed,
+            cfg,
+        )
+        assert isinstance(module, Vis4DDataModule)
+        return module
+    raise NotImplementedError(f"Sampler {cfg.type} not known!")

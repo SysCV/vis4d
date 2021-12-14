@@ -123,10 +123,10 @@ class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         """Compose log str from given information."""
         time_sec_tot = self.timer.time()
         time_sec_avg = time_sec_tot / (batch_idx + 1)
-        eta_sec = time_sec_avg * (self.total_train_batches - (batch_idx + 1))
+        eta_sec = time_sec_avg * (total_batches - (batch_idx + 1))
         if not eta_sec == float("inf"):
             eta_str = str(datetime.timedelta(seconds=int(eta_sec)))
-        else:
+        else:  # pragma: no cover
             eta_str = "---"
 
         metrics_list = []
@@ -137,8 +137,8 @@ class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
                 kv_str = f"{k}: {v}"
             metrics_list.append(kv_str)
         metr_str = ", ".join(metrics_list)
-        time_str = (
-            f"ETA: {eta_str}, " + f"{time_sec_avg:.2f}s/it"
+        time_str = f"ETA: {eta_str}, " + (
+            f"{time_sec_avg:.2f}s/it"
             if time_sec_avg > 1
             else f"{1/time_sec_avg:.2f}it/s"
         )

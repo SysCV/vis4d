@@ -13,13 +13,9 @@ from scalabel.label.typing import (
 )
 
 from ..struct import Boxes2D, Images, InputSample
+from . import ReferenceSamplerConfig, SampleMapperConfig
 from .dataset import ScalabelDataset
-from .datasets.base import (
-    BaseDatasetConfig,
-    BaseDatasetLoader,
-    DataloaderConfig,
-    ReferenceSamplingConfig,
-)
+from .datasets.base import BaseDatasetConfig, BaseDatasetLoader
 
 
 class MockDatasetLoader(BaseDatasetLoader):
@@ -43,13 +39,12 @@ class TestScalabelDataset(unittest.TestCase):
         name="test",
         type="Scalabel",
         data_root="/path/to/root",
-        dataloader=DataloaderConfig(
-            ref_sampling=ReferenceSamplingConfig(
-                type="sequential",
-                num_ref_imgs=2,
-                scope=3,
-                frame_order="temporal",
-            )
+        dataloader=SampleMapperConfig(),
+        ref_sampler=ReferenceSamplerConfig(
+            strategy="sequential",
+            num_ref_imgs=2,
+            scope=3,
+            frame_order="temporal",
         ),
     )
 
@@ -69,9 +64,9 @@ class TestScalabelDataset(unittest.TestCase):
 
     def test_reference_sampling(self) -> None:
         """Testcase for reference view sampling."""
-        idcs = self.dataset.sample_ref_indices(str(0), 50)
+        idcs = self.dataset.ref_sampler.sample_ref_indices(str(0), 50)
         self.assertTrue(idcs == [52, 54])
-        idcs = self.dataset.sample_ref_indices(str(0), 196)
+        idcs = self.dataset.ref_sampler.sample_ref_indices(str(0), 196)
         self.assertTrue(idcs == [194, 198])
 
     def test_getitem_fallback(self) -> None:
@@ -80,13 +75,12 @@ class TestScalabelDataset(unittest.TestCase):
             name="test",
             type="Scalabel",
             data_root="vis4d/engine/testcases/track/bdd100k-samples/images/",
-            dataloader=DataloaderConfig(
-                ref_sampling=ReferenceSamplingConfig(
-                    type="sequential",
-                    num_ref_imgs=1,
-                    scope=3,
-                    skip_nomatch_samples=True,
-                ),
+            dataloader=SampleMapperConfig(),
+            ref_sampler=ReferenceSamplerConfig(
+                strategy="sequential",
+                num_ref_imgs=1,
+                scope=3,
+                skip_nomatch_samples=True,
             ),
         )
 
@@ -102,6 +96,9 @@ class TestScalabelDataset(unittest.TestCase):
             ],
         )
         dataset = ScalabelDataset(dataset_loader, True)
+        # assert makes sure that all samples will be discarded from fallback
+        # candidates (due to no match) and subsequently raises a ValueError
+        # since there is no fallback candidates to sample from anymore
         self.assertRaises(ValueError, dataset.__getitem__, 0)
 
     def test_transform_input(self) -> None:
@@ -110,9 +107,9 @@ class TestScalabelDataset(unittest.TestCase):
             [Frame(name="0")],
             Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
         )
-        self.dataset.transform_input(sample, None)
+        self.dataset.mapper.transform_input(sample, None)
         self.assertEqual(len(sample.targets.boxes2d[0]), 0)
-        self.dataset.transform_input(sample, [])
+        self.dataset.mapper.transform_input(sample, [])
         self.assertEqual(len(sample.targets.boxes2d[0]), 0)
 
         labels = [
@@ -138,7 +135,7 @@ class TestScalabelDataset(unittest.TestCase):
         sample.targets.boxes2d = [
             Boxes2D.from_scalabel(labels, {"car": 0}, {"a": 2, "b": 1, "c": 0})
         ]
-        self.dataset.transform_input(sample, [])
+        self.dataset.mapper.transform_input(sample, [])
 
         self.assertTrue(all(sample.targets.boxes2d[0].class_ids == 0))
         self.assertEqual(sample.targets.boxes2d[0].boxes[0, 0], 10)
@@ -161,7 +158,7 @@ class TestScalabelDataset(unittest.TestCase):
                 Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
             ),
         ]
-        sorted_samples = self.dataset.sort_samples(input_samples)
+        sorted_samples = self.dataset.ref_sampler.sort_samples(input_samples)
         self.assertEqual(sorted_samples[0].metadata[0].frameIndex, 0)
         self.assertEqual(sorted_samples[1].metadata[0].frameIndex, 1)
 
@@ -171,13 +168,12 @@ class TestScalabelDataset(unittest.TestCase):
             name="test",
             type="Scalabel",
             data_root="/path/to/root",
-            dataloader=DataloaderConfig(
-                ref_sampling=ReferenceSamplingConfig(
-                    type="sequential",
-                    num_ref_imgs=2,
-                    scope=3,
-                    frame_order="temporal",
-                )
+            dataloader=SampleMapperConfig(),
+            ref_sampler=ReferenceSamplerConfig(
+                strategy="sequential",
+                num_ref_imgs=2,
+                scope=3,
+                frame_order="temporal",
             ),
             attributes={"timeofday": ["daytime", "night"], "weather": "clear"},
         )

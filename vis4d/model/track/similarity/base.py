@@ -8,7 +8,13 @@ from pydantic import BaseModel, Field
 
 from vis4d.common import RegistryHolder, Vis4DModule
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.struct import Boxes2D, InputSample, LabelInstances, LossesType
+from vis4d.struct import (
+    Boxes2D,
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+)
 
 
 class SimilarityLearningConfig(BaseModel, extra="allow"):
@@ -26,25 +32,25 @@ class BaseSimilarityHead(
     """Base similarity learning head class."""
 
     @overload  # type: ignore[override] # noqa: D102
-    def forward(
+    def __call__(
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
     ) -> List[torch.Tensor]:  # noqa: D102
         ...
 
     @overload
-    def forward(
+    def __call__(
         self,
         inputs: List[InputSample],
         boxes: List[List[Boxes2D]],
-        features: Optional[List[Dict[str, torch.Tensor]]],
+        features: Optional[List[FeatureMaps]],
         targets: List[LabelInstances],
     ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         ...
 
-    def forward(
+    def __call__(
         self,
         inputs: Union[List[InputSample], InputSample],
         boxes: Union[List[List[Boxes2D]], List[Boxes2D]],
@@ -86,7 +92,7 @@ class BaseSimilarityHead(
         self,
         inputs: List[InputSample],
         boxes: List[List[Boxes2D]],
-        features: Optional[List[Dict[str, torch.Tensor]]],
+        features: Optional[List[FeatureMaps]],
         targets: List[LabelInstances],
     ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
@@ -111,7 +117,7 @@ class BaseSimilarityHead(
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[Dict[str, torch.Tensor]],
+        features: Optional[FeatureMaps],
     ) -> List[torch.Tensor]:
         """Forward pass during testing stage.
 

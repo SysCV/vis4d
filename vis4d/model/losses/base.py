@@ -21,7 +21,7 @@ class BaseLoss(Vis4DModule[torch.Tensor, torch.Tensor]):
     """Base loss class."""
 
     @abc.abstractmethod
-    def forward(  # type: ignore
+    def __call__(  # type: ignore
         self, *args: Any, **kwargs: Any
     ) -> torch.Tensor:
         """Loss function implementation.

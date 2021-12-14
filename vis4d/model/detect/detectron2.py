@@ -26,10 +26,13 @@ except (ImportError, NameError):  # pragma: no cover
 
 from torch.nn.modules.batchnorm import _BatchNorm
 
+from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
     Boxes2D,
+    FeatureMaps,
     InputSample,
     InstanceMasks,
+    LabelInstances,
     LossesType,
     ModelOutput,
 )
@@ -86,11 +89,15 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         assert (
             len(batch_inputs) == 1
         ), "No reference views allowed in D2TwoStageDetector training!"
-        inputs = self.preprocess_inputs(batch_inputs[0])
+        inputs, targets = batch_inputs[0], batch_inputs[0].targets
+        assert targets is not None, "Training requires targets."
+        inputs = self.preprocess_inputs(inputs)
         features = self.extract_features(inputs)
-        proposals, rpn_losses = self.generate_proposals(inputs, features)
-        _, detect_losses, _ = self.generate_detections(
-            inputs, features, proposals, compute_detections=False
+        rpn_losses, proposals = self.generate_proposals(
+            inputs, features, targets
+        )
+        detect_losses, _ = self.generate_detections(
+            inputs, features, proposals, targets
         )
         return {**rpn_losses, **detect_losses}
 
@@ -104,11 +111,10 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         ), "No reference views allowed in D2TwoStageDetector testing!"
         inputs = self.preprocess_inputs(batch_inputs[0])
         features = self.extract_features(inputs)
-        proposals, _ = self.generate_proposals(inputs, features)
-        detections, _, segmentations = self.generate_detections(
+        proposals = self.generate_proposals(inputs, features)
+        detections, segmentations = self.generate_detections(
             inputs, features, proposals
         )
-        assert detections is not None
 
         postprocess(
             inputs, detections, segmentations, self.cfg.clip_bboxes_to_image
@@ -132,79 +138,89 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         """
         return self.d2_detector.backbone(inputs.images.tensor)  # type: ignore
 
-    def generate_proposals(
+    def _proposals_train(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
-    ) -> Tuple[List[Boxes2D], LossesType]:
-        """Detector RPN stage.
-
-        Return proposals per image and losses (empty if no targets).
-        """
+        features: FeatureMaps,
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, List[Boxes2D]]:
+        """Train stage proposal generation."""
         images_d2 = images_to_imagelist(inputs.images)
-        is_training = self.d2_detector.proposal_generator.training
-        if self.training:
-            targets: Optional[List[Instances]] = target_to_instance(
-                inputs.targets.boxes2d, inputs.images.image_sizes
-            )
-        else:
-            targets = None
-            self.d2_detector.proposal_generator.training = False
+        targets_d2: Optional[List[Instances]] = target_to_instance(
+            inputs.targets.boxes2d, inputs.images.image_sizes
+        )
+        self.d2_detector.proposal_generator.training = True
 
         with self.d2_event_storage:
             proposals, rpn_losses = self.d2_detector.proposal_generator(
-                images_d2, features, targets
+                images_d2, features, targets_d2
             )
-        self.d2_detector.proposal_generator.training = is_training
-        return proposal_to_box2d(proposals), rpn_losses
+        return rpn_losses, proposal_to_box2d(proposals)
 
-    def generate_detections(
+    def _proposals_test(
         self,
         inputs: InputSample,
-        features: Dict[str, torch.Tensor],
-        proposals: Optional[List[Boxes2D]] = None,
-        compute_detections: bool = True,
-        compute_segmentations: bool = False,
-    ) -> Tuple[
-        Optional[List[Boxes2D]], LossesType, Optional[List[InstanceMasks]]
-    ]:
-        """Detector second stage (RoI Head).
-
-        Return losses (empty if no targets) and optionally detections.
-        """
-        assert (
-            proposals is not None
-        ), "Generating detections with D2TwoStageDetector requires proposals."
+        features: FeatureMaps,
+    ) -> List[Boxes2D]:
+        """Test stage proposal generation."""
         images_d2 = images_to_imagelist(inputs.images)
-        proposals = box2d_to_proposal(proposals, inputs.images.image_sizes)
-        is_training = self.d2_detector.roi_heads.training
-        if self.training:
-            targets: Optional[List[Instances]] = target_to_instance(
-                inputs.targets.boxes2d,
-                inputs.images.image_sizes,
-                inputs.targets.instance_masks,
-            )
-        else:
-            targets = None
-            self.d2_detector.roi_heads.training = False
+        targets_d2 = None
+        self.d2_detector.proposal_generator.training = False
 
         with self.d2_event_storage:
-            detections, detect_losses = self.d2_detector.roi_heads(
+            proposals, _ = self.d2_detector.proposal_generator(
+                images_d2, features, targets_d2
+            )
+        return proposal_to_box2d(proposals)
+
+    def _detections_train(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        proposals: List[Boxes2D],
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+        """Train stage detections generation."""
+        images_d2 = images_to_imagelist(inputs.images)
+        proposals = box2d_to_proposal(proposals, inputs.images.image_sizes)
+        targets_d2: Optional[List[Instances]] = target_to_instance(
+            inputs.targets.boxes2d,
+            inputs.images.image_sizes,
+            inputs.targets.instance_masks,
+        )
+        self.d2_detector.roi_heads.training = True
+
+        with self.d2_event_storage:
+            _, detect_losses = self.d2_detector.roi_heads(
                 images_d2,
                 features,
                 proposals,
-                targets,
+                targets_d2,
             )
-        self.d2_detector.roi_heads.training = is_training
-        segmentations = None
-        if not self.d2_detector.training:
-            if self.with_mask:
-                segmentations = segmentations_to_bitmask(detections)
-            detections = detections_to_box2d(detections)
-        elif compute_detections:  # pragma: no cover
-            if compute_segmentations:
-                segmentations = segmentations_to_bitmask(detections)
-            detections = proposal_to_box2d(detections)
-        else:
-            detections = None
-        return detections, detect_losses, segmentations
+        return detect_losses, None
+
+    def _detections_test(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        proposals: List[Boxes2D],
+    ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
+        """Test stage detections generation."""
+        images_d2 = images_to_imagelist(inputs.images)
+        proposals = box2d_to_proposal(proposals, inputs.images.image_sizes)
+        targets_d2 = None
+        self.d2_detector.roi_heads.training = False
+
+        with self.d2_event_storage:
+            detections, _ = self.d2_detector.roi_heads(
+                images_d2,
+                features,
+                proposals,
+                targets_d2,
+            )
+
+        segmentations: Optional[List[InstanceMasks]] = None
+        if self.with_mask:
+            segmentations = segmentations_to_bitmask(detections)
+        detections = detections_to_box2d(detections)
+        return detections, segmentations

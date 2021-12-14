@@ -9,6 +9,7 @@ import yaml
 from pydantic import BaseModel, validator
 
 from vis4d.common.utils.distributed import get_rank
+from vis4d.data.build import DataModuleConfig
 from vis4d.data.datasets import BaseDatasetConfig
 from vis4d.model import BaseModelConfig
 from vis4d.struct import DictStrAny
@@ -43,8 +44,10 @@ class Launch(BaseModel):
     pin_memory: Enable/Disable pin_memory option for dataloader workers in
     training.
     wandb: Use weights and biases logging instead of tensorboard (default).
-    strict: Whether to enforce keys in weights to be consistent with model's.
+    not_strict: Whether to enforce keys in weights to be consistent with
+    model's.
     tqdm: Activate tqdm based terminal logging behavior.
+    legacy_ckpt: If model to load is a legacy checkpoint.
     """
 
     action: str = ""
@@ -65,10 +68,10 @@ class Launch(BaseModel):
     weights: Optional[str]
     checkpoint_period: int = 1
     resume: bool = False
-    pin_memory: bool = False
     wandb: bool = False
     not_strict: bool = False
     tqdm: bool = False
+    legacy_ckpt: bool = False
 
     @validator("version", always=True)
     def validate_version(  # pylint: disable=no-self-argument,no-self-use
@@ -101,6 +104,7 @@ class Config(BaseModel, extra="allow"):
     model: BaseModelConfig
     train: List[BaseDatasetConfig] = []
     test: List[BaseDatasetConfig] = []
+    data: DataModuleConfig = DataModuleConfig()
 
     def __init__(self, **data: Any) -> None:  # type: ignore
         """Init config."""

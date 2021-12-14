@@ -1,6 +1,7 @@
 """Interface Vis4D augmentations."""
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
+import torch
 from pydantic.main import BaseModel
 
 from vis4d.common.registry import RegistryHolder
@@ -11,7 +12,9 @@ from vis4d.struct import (
     Extrinsics,
     Images,
     InputSample,
+    InstanceMasks,
     Intrinsics,
+    SemanticMasks,
     TMasks,
 )
 
@@ -89,6 +92,38 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Apply augmentation to input mask."""
         return masks
 
+    def apply_instance_mask(
+        self,
+        masks: List[InstanceMasks],
+        parameters: AugParams,
+    ) -> List[InstanceMasks]:
+        """Apply augmentation to input instance mask."""
+        return self.apply_mask(masks, parameters)
+
+    def apply_semantic_mask(
+        self,
+        masks: List[SemanticMasks],
+        parameters: AugParams,
+    ) -> List[SemanticMasks]:
+        """Apply augmentation to input semantic mask."""
+        return self.apply_mask(masks, parameters)
+
+    def apply_other_targets(
+        self,
+        other: List[Dict[str, torch.Tensor]],
+        parameters: AugParams,
+    ) -> List[Dict[str, torch.Tensor]]:
+        """Apply augmentation to other, user-defined targets."""
+        return other
+
+    def apply_other_inputs(
+        self,
+        other: List[Dict[str, torch.Tensor]],
+        parameters: AugParams,
+    ) -> List[Dict[str, torch.Tensor]]:
+        """Apply augmentation to other, user-defined inputs."""
+        return other
+
     def __call__(
         self, sample: InputSample, parameters: Optional[AugParams] = None
     ) -> Tuple[InputSample, AugParams]:
@@ -103,17 +138,21 @@ class BaseAugmentation(metaclass=RegistryHolder):
         sample.extrinsics = self.apply_extrinsics(
             sample.extrinsics, parameters
         )
+        sample.other = self.apply_other_inputs(sample.other, parameters)
         sample.targets.boxes2d = self.apply_box2d(
             sample.targets.boxes2d, parameters
         )
         sample.targets.boxes3d = self.apply_box3d(
             sample.targets.boxes3d, parameters
         )
-        sample.targets.instance_masks = self.apply_mask(
+        sample.targets.instance_masks = self.apply_instance_mask(
             sample.targets.instance_masks, parameters
         )
-        sample.targets.semantic_masks = self.apply_mask(
+        sample.targets.semantic_masks = self.apply_semantic_mask(
             sample.targets.semantic_masks, parameters
+        )
+        sample.targets.other = self.apply_other_targets(
+            sample.targets.other, parameters
         )
         return sample, parameters
 

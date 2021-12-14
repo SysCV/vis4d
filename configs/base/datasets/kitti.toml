@@ -8,17 +8,17 @@ split = "training"
 data_type = "tracking"
 output_dir = "data/KITTI"
 num_processes = 0
-    [train.dataloader]
+    [train.sample_mapper]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
     skip_empty_samples = true
 
-    [train.dataloader.ref_sampling]
-    type = 'uniform'
+    [train.ref_sampler]
+    strategy = 'uniform'
     scope = 5
     num_ref_imgs = 1
     skip_nomatch_samples = true
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "Resize"
     shape = [375, 1242]
 
@@ -32,17 +32,17 @@ split = "training"
 data_type = "detection"
 output_dir = "data/KITTI"
 num_processes = 0
-    [train.dataloader]
+    [train.sample_mapper]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
     skip_empty_samples = true
 
-    [train.dataloader.ref_sampling]
-    type = 'uniform'
+    [train.ref_sampler]
+    strategy = 'uniform'
     scope = 5
     num_ref_imgs = 1
     skip_nomatch_samples = true
 
-    [[train.dataloader.transformations]]
+    [[train.sample_mapper.transformations]]
     type = "Resize"
     shape = [375, 1242]
 
@@ -57,9 +57,9 @@ data_type = "tracking"
 output_dir = "data/KITTI"
 multi_sensor_inference = false
 num_processes = 0
-    [test.dataloader]
+    [test.sample_mapper]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
 
-    [[test.dataloader.transformations]]
+    [[test.sample_mapper.transformations]]
     type = "Resize"
     shape = [375, 1242]
