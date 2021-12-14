@@ -107,12 +107,12 @@ def instance_ids_to_global(
 
 def prepare_labels(
     frames: Union[List[Frame], List[FrameGroup]],
-    cat_name2id: Dict[str, int],
+    cat_names: List[str],
     global_instance_ids: bool = False,
 ) -> Dict[str, int]:
     """Add category id and instance id to labels, return class frequencies."""
     instance_ids: Dict[str, List[str]] = defaultdict(list)
-    frequencies = {cat: 0 for cat in cat_name2id}
+    frequencies = {cat: 0 for cat in cat_names}
     for frame_id, ann in enumerate(frames):
         if ann.labels is not None:
             for label in ann.labels:
@@ -123,7 +123,7 @@ def prepare_labels(
                 if not check_crowd(label) and not check_ignored(label):
                     assert label.category is not None
                     frequencies[label.category] += 1
-                    attr["category_id"] = cat_name2id[label.category]
+                    # attr["category_id"] = cat_name2id[label.category]
 
                     video_name = (
                         ann.videoName

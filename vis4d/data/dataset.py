@@ -37,27 +37,26 @@ class ScalabelDataset(Dataset):  # type: ignore
         rank_zero_info("Initializing dataset: %s", dataset.cfg.name)
         self.cfg = dataset.cfg
         self.training = training
-        self.mapper = build_mapper(
-            self.cfg.sample_mapper, training, image_channel_mode
-        )
-
         if cats_name2id is not None:
-            discard_labels_outside_set(
-                dataset.frames, list(cats_name2id.keys())
-            )
-        else:
-            cats_name2id = {
-                v: i
-                for i, v in enumerate(
-                    [
-                        c.name
-                        for c in get_leaf_categories(
-                            dataset.metadata_cfg.categories
-                        )
-                    ]
+            class_list = list(
+                set(
+                    cls
+                    for field in cats_name2id
+                    for cls in list(cats_name2id[field].keys())
                 )
-            }
+            )
+            discard_labels_outside_set(dataset.frames, class_list)
+        else:
+            class_list = [
+                c.name
+                for c in get_leaf_categories(dataset.metadata_cfg.categories)
+            ]
+            cats_name2id = {"all": {v: i for i, v in enumerate(class_list)}}
         self.cats_name2id = cats_name2id
+
+        self.mapper = build_mapper(
+            self.cfg.sample_mapper, cats_name2id, training, image_channel_mode
+        )
         dataset.frames = filter_attributes(
             dataset.frames, dataset.cfg.attributes
         )
@@ -65,7 +64,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         t = Timer()
         frequencies = prepare_labels(
             dataset.frames,
-            cats_name2id,
+            class_list,
             self.cfg.compute_global_instance_ids,
         )
         rank_zero_info(
@@ -80,7 +79,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             t.reset()
             prepare_labels(
                 self.dataset.groups,
-                cats_name2id,
+                class_list,
                 self.cfg.compute_global_instance_ids,
             )
             rank_zero_info(

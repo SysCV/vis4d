@@ -531,6 +531,12 @@ class Masks(LabelInstance):
         for i, label in enumerate(labels):
             if label.poly2d is None and label.rle is None:
                 continue
+            mask_cls, l_id, score = label.category, label.id, label.score
+            if has_class_ids:
+                if mask_cls in class_to_idx:
+                    cls_list.append(class_to_idx[mask_cls])  # type: ignore
+                else:
+                    continue
             if label.rle is not None:
                 bitmask = rle_to_mask(label.rle)
             elif label.poly2d is not None:
@@ -542,9 +548,6 @@ class Masks(LabelInstance):
                     bitmask_raw.dtype
                 )
             bitmask_list.append(bitmask)
-            mask_cls, l_id, score = label.category, label.id, label.score
-            if has_class_ids:
-                cls_list.append(class_to_idx[mask_cls])  # type: ignore
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
             if has_score:

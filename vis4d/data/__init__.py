@@ -1,9 +1,9 @@
 """data module init."""
 from .build import (
     Vis4DDataModule,
+    build_category_mappings,
     build_data_module,
     build_dataset_loaders,
-    build_category_mappings,
 )
 from .dataset import ScalabelDataset
 from .mapper import BaseSampleMapper, SampleMapperConfig

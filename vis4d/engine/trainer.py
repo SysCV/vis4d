@@ -8,9 +8,9 @@ from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 
 from ..config import Config, default_argument_parser, parse_config
 from ..data import (
+    build_category_mappings,
     build_data_module,
     build_dataset_loaders,
-    build_category_mappings,
 )
 from ..model import build_model
 from ..struct import DictStrAny

@@ -1,0 +1,28 @@
+[[train]]
+name = "bdd100k_pan_seg_sample_train"
+type = "Scalabel"
+annotations = "vis4d/engine/testcases/panoptic/bdd100k-samples/annotation.json"
+data_root = "vis4d/engine/testcases/detect/bdd100k-samples/images"
+config_path = "vis4d/engine/testcases/panoptic/bdd100k-samples/config.toml"
+num_processes = 0
+    [train.sample_mapper]
+    fields_to_load = ["boxes2d", "instance_masks", "semantic_masks"]
+
+    [[train.sample_mapper.transformations]]
+    type = "Resize"
+    shape = [360, 640]
+
+[[test]]
+name = "bdd100k_pan_seg_sample_val"
+type = "Scalabel"
+annotations = "vis4d/engine/testcases/panoptic/bdd100k-samples/annotation.json"
+data_root = "vis4d/engine/testcases/detect/bdd100k-samples/images/"
+config_path = "vis4d/engine/testcases/panoptic/bdd100k-samples/config.toml"
+eval_metrics = ["detect", "pan_seg"]
+num_processes = 0
+    [test.sample_mapper]
+    fields_to_load = ["boxes2d", "instance_masks", "semantic_masks"]
+
+    [[test.sample_mapper.transformations]]
+    type = "Resize"
+    shape = [360, 640]

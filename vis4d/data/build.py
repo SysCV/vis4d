@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import pytorch_lightning as pl
 import torch
 from pydantic import BaseModel
+from pytorch_lightning.utilities.distributed import rank_zero_warn
 from torch.utils import data
 
 from ..common.registry import RegistryHolder
@@ -65,6 +66,13 @@ def build_category_mappings(
 ) -> Dict[str, Dict[str, int]]:
     """Build category mappings."""
     if cfg.category_mapping is not None:
+        if "all" in cfg.category_mapping:
+            if len(cfg.category_mapping) > 1:
+                rank_zero_warn(
+                    '"all" category mapping is specified, but other category "'
+                    "mappings exist. These will be ignored."
+                )
+            return {"all": cfg.category_mapping["all"]}
         return cfg.category_mapping
     assert model_category_mapping is not None
     return {"all": model_category_mapping}

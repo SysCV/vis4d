@@ -10,6 +10,7 @@ from scalabel.eval.detect import evaluate_det
 from scalabel.eval.ins_seg import evaluate_ins_seg
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
 from scalabel.eval.mots import acc_single_video_mots, evaluate_seg_track
+from scalabel.eval.pan_seg import evaluate_pan_seg
 from scalabel.eval.result import Result
 from scalabel.eval.sem_seg import evaluate_sem_seg
 from scalabel.label.io import group_and_sort
@@ -104,12 +105,23 @@ def _sem_seg(
     return evaluate_sem_seg(gt, pred, cfg, nproc=1)
 
 
+def _pan_seg(
+    pred: List[Frame],
+    gt: List[Frame],
+    cfg: Config,
+    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
+) -> Result:
+    """Wrapper for evaluate_pan_seg function."""
+    return evaluate_pan_seg(gt, pred, cfg, nproc=1)
+
+
 _eval_mapping = dict(
     detect=_detect,
     track=_track,
     ins_seg=_ins_seg,
     seg_track=_seg_track,
     sem_seg=_sem_seg,
+    pan_seg=_pan_seg,
 )
 
 
