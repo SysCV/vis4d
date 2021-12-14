@@ -200,4 +200,10 @@ def add_keyword_args(config: BaseModel, cfg: MMConfig) -> None:
                 # TODO: remove in config refactor PR  # pylint: disable=fixme
                 attr[last_key] = [int(c) for c in attr[last_key]]
         else:
-            attr[last_key] = v
+            # TODO: remove in config refactor PR  # pylint: disable=fixme
+            if "num_shared_convs" in last_key:
+                attr[last_key] = int(v)
+            elif "num_shared_fcs" in last_key:
+                attr[last_key] = int(v)
+            else:
+                attr[last_key] = v

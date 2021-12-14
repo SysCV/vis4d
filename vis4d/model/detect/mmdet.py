@@ -51,9 +51,7 @@ class MMTwoStageDetectorConfig(BaseDetectorConfig):
     """Config for mmdetection two stage models."""
 
     model_base: str
-    model_kwargs: Optional[
-        Dict[str, Union[bool, int, float, str, List[float]]]
-    ]
+    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
     pixel_mean: Tuple[float, float, float]
     pixel_std: Tuple[float, float, float]
     backbone_output_names: Optional[List[str]]

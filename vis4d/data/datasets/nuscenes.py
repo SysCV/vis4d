@@ -172,16 +172,16 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             dataroot=self.cfg.data_root,
             verbose=False,
         )
-        nusc_eval = NuScenesEval(
-            nusc,
-            config=config_factory("detection_cvpr_2019"),
-            result_path=result_path,
-            eval_set=eval_set,
-            output_dir=self.cfg.tmp_dir,
-            verbose=False,
-        )
 
         try:  # pragma: no cover
+            nusc_eval = NuScenesEval(
+                nusc,
+                config=config_factory("detection_cvpr_2019"),
+                result_path=result_path,
+                eval_set=eval_set,
+                output_dir=self.cfg.tmp_dir,
+                verbose=False,
+            )
             metrics, _ = nusc_eval.evaluate()
             metrics_summary = metrics.serialize()
 
@@ -226,17 +226,16 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         eval_set: str,
     ):
         """Evaluate tracking."""
-        nusc_eval = track_eval(
-            config=track_configs("tracking_nips_2019"),
-            result_path=result_path,
-            eval_set=eval_set,
-            output_dir=self.cfg.tmp_dir,
-            verbose=False,
-            nusc_version=self.cfg.version,
-            nusc_dataroot=self.cfg.data_root,
-        )
-
         try:
+            nusc_eval = track_eval(
+                config=track_configs("tracking_nips_2019"),
+                result_path=result_path,
+                eval_set=eval_set,
+                output_dir=self.cfg.tmp_dir,
+                verbose=False,
+                nusc_version=self.cfg.version,
+                nusc_dataroot=self.cfg.data_root,
+            )
             metrics_summary = nusc_eval.main()
             pdb.set_trace()
 
