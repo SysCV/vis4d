@@ -1,17 +1,23 @@
 """DefaultTrainer for Vis4D."""
 import os.path as osp
+from itertools import product
 from typing import Optional
 
+import pandas
 import pytorch_lightning as pl
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
+from pytorch_lightning.utilities.distributed import (
+    rank_zero_info,
+    rank_zero_warn,
+)
 
 from ..config import Config, default_argument_parser, parse_config
 from ..data import build_data_module, build_dataset_loaders
 from ..model import build_model
 from ..struct import DictStrAny
 from ..vis import ScalabelWriterCallback
-from .evaluator import ScalabelEvaluatorCallback
+from .evaluator import StandardEvaluatorCallback
 from .utils import (
     Vis4DProgressBar,
     Vis4DTQDMProgressBar,
@@ -160,7 +166,7 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 
     if len(test_loaders) > 0:
         evaluators = [
-            ScalabelEvaluatorCallback(i, dl)
+            StandardEvaluatorCallback(i, dl)
             for i, dl in enumerate(test_loaders)
         ]
         trainer.callbacks += evaluators  # pylint: disable=no-member
@@ -197,7 +203,7 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
     )
     evaluators = [
-        ScalabelEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
+        StandardEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
         for i, dl in enumerate(test_loaders)
     ]
     trainer.callbacks += evaluators  # pylint: disable=no-member
@@ -255,6 +261,87 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     trainer.predict(model, data_module)
 
 
+def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
+    """Tune function."""
+    trainer = default_setup(cfg, trainer_args)
+    model = build_model(
+        cfg.model,
+        cfg.launch.weights,
+        not cfg.launch.not_strict,
+        cfg.launch.legacy_ckpt,
+    )
+
+    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
+        [], cfg.test
+    )
+    data_module = build_data_module(
+        cfg.launch.samples_per_gpu,
+        cfg.launch.workers_per_gpu,
+        train_loaders,
+        test_loaders,
+        predict_loaders,
+        cfg.model.category_mapping,
+        cfg.model.image_channel_mode,
+        cfg.launch.seed,
+        cfg.data,
+    )
+
+    assert len(test_loaders), "No test datasets specified!"
+    out_dir = osp.join(
+        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
+    )
+    evaluators = [
+        StandardEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
+        for i, dl in enumerate(test_loaders)
+    ]
+    trainer.callbacks += evaluators  # pylint: disable=no-member
+
+    if cfg.launch.tuner_params is None:
+        raise ValueError(
+            "Tuner parameters not defined! Please specify "
+            "tuner_params in Launch config."
+        )
+    if cfg.launch.tuner_metrics is None:
+        raise ValueError(
+            "Tuner metrics not defined! Please specify "
+            "tuner_metrics in Launch config."
+        )
+
+    rank_zero_info("Starting hyperparameter search...")
+    search_params = cfg.launch.tuner_params
+    search_metrics = cfg.launch.tuner_metrics
+    param_names = list(search_params.keys())
+    param_groups = list(product(*search_params.values()))
+    metrics_all = {}
+    for param_group in param_groups:
+        for key, value in zip(param_names, param_group):
+            obj = model
+            for name in key.split(".")[:-1]:
+                obj = getattr(obj, name, None)
+                if obj is None:
+                    raise ValueError(f"Attribute {name} not found in {key}!")
+            setattr(obj, key.split(".")[-1], value)
+
+        metrics = trainer.test(
+            model,
+            data_module,
+            verbose=False,
+        )
+        if len(metrics) > 0:
+            rank_zero_warn(
+                "More than one dataloader found, but tuning "
+                "requires a single dataset to tune parameters on!"
+            )
+        metrics_all[str(param_group)] = {
+            k: v for k, v in metrics[0].items() if k in search_metrics
+        }
+    rank_zero_info("Done!")
+    rank_zero_info("The following parameters have been considered:")
+    rank_zero_info("\n" + str(list(search_params.keys())))
+    rank_zero_info("Hyperparameter search result:")
+    rank_zero_info("\n" + str(pandas.DataFrame.from_dict(metrics_all)))
+
+
 def cli_main() -> None:  # pragma: no cover
     """Main function when called from command line."""
     parser = default_argument_parser()
@@ -268,6 +355,8 @@ def cli_main() -> None:  # pragma: no cover
         test(cfg, trainer_args)
     elif args.action == "predict":
         predict(cfg, trainer_args)
+    elif args.action == "tune":
+        tune(cfg, trainer_args)
     else:
         raise NotImplementedError(f"Action {args.action} not known!")
 

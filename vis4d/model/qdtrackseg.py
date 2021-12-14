@@ -1,8 +1,6 @@
 """Quasi-dense instance similarity learning model with segmentation head."""
 from typing import List
 
-import torch
-
 from vis4d.struct import InputSample, LossesType, ModelOutput
 
 from .base import BaseModelConfig
@@ -13,6 +11,7 @@ from .heads.dense_head import (
 )
 from .qdtrack import QDTrack, QDTrackConfig
 from .track.utils import split_key_ref_inputs
+from .utils import predictions_to_scalabel
 
 
 class QDTrackSegConfig(QDTrackConfig):
@@ -46,7 +45,7 @@ class QDTrackSeg(QDTrack):
 
         losses = {}
         if len(key_targets.boxes2d[0]) > 0:
-            track_losses, _, _ = self._detect_and_track_losses(
+            track_losses, _, _ = self._run_heads_train(
                 key_inputs, ref_inputs, key_x, ref_x
             )
             losses.update(track_losses)
@@ -71,15 +70,16 @@ class QDTrackSeg(QDTrack):
         assert len(batch_inputs) == 1, "No reference views during test!"
         assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
         feat = self.detector.extract_features(batch_inputs[0])
-        outputs = self._detect_and_track(batch_inputs[0], feat)
+        outputs, preds, embeds = self._run_heads_test(batch_inputs[0], feat)
+        outputs.update(self._track(batch_inputs[0], preds, embeds))
 
         # segmentation head
         semantic_segms = self.seg_head(batch_inputs[0], feat)
-        semantic_segms_ = (
-            semantic_segms[0]
-            .to(torch.device("cpu"))
-            .to_scalabel(self.seg_head.cat_mapping)
+        outputs.update(
+            predictions_to_scalabel(
+                batch_inputs[0],
+                {"sem_seg": semantic_segms},
+                self.seg_head.cat_mapping,
+            )
         )
-        outputs["sem_seg"] = [semantic_segms_]
-
         return outputs

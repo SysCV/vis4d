@@ -22,6 +22,7 @@ from ..heads.dense_head import (
 )
 from ..mmdet_utils import _parse_losses, add_keyword_args
 from ..mmseg_utils import load_config
+from ..utils import predictions_to_scalabel
 from .base import BaseSegmentor
 
 try:
@@ -177,9 +178,8 @@ class MMEncDecSegmentor(BaseSegmentor):
         segmentations = self.generate_segmentations(inputs, features)
         assert segmentations is not None
 
-        # pylint: disable=not-an-iterable
-        return dict(
-            sem_seg=[s.to_scalabel(self.cat_mapping) for s in segmentations]
+        return predictions_to_scalabel(
+            inputs, dict(sem_seg=segmentations), self.cat_mapping
         )
 
     def extract_features(self, inputs: InputSample) -> FeatureMaps:

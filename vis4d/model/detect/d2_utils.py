@@ -77,16 +77,17 @@ def proposal_to_box2d(proposals: List[Instances]) -> List[Boxes2D]:
 
 
 def segmentations_to_bitmask(
-    segmentations: List[Instances],
+    segmentations: List[Instances], detections: List[Boxes2D]
 ) -> List[InstanceMasks]:
     """Convert d2 Instances representing segmentations to Masks."""
     result = []
-    for segmentation in segmentations:
+    for segmentation, det in zip(segmentations, detections):
         result.append(
             InstanceMasks(
                 (segmentation.pred_masks.squeeze(1) >= 0.5).type(torch.uint8),
                 class_ids=segmentation.pred_classes,
                 score=segmentation.scores,
+                detections=det,
             )
         )
     return result

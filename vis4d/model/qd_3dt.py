@@ -88,7 +88,7 @@ class QD3DT(QDTrack):
         key_x = self.detector.extract_features(key_inputs)
         ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]
 
-        losses, key_proposals, _ = self._detect_and_track_losses(
+        losses, key_proposals, _ = self._run_heads_train(
             key_inputs, ref_inputs, key_x, ref_x
         )
 

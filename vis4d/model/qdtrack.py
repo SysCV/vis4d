@@ -1,5 +1,6 @@
 """Quasi-dense instance similarity learning model."""
-from typing import List, Tuple
+import pickle
+from typing import Dict, List, Tuple
 
 import torch
 
@@ -10,19 +11,21 @@ from vis4d.struct import (
     LabelInstances,
     LossesType,
     ModelOutput,
+    TLabelInstance,
 )
 
 from .base import BaseModel, BaseModelConfig, build_model
-from .detect import BaseTwoStageDetector
+from .detect import BaseDetectorConfig, BaseTwoStageDetector
 from .track.graph import TrackGraphConfig, build_track_graph
 from .track.similarity import SimilarityLearningConfig, build_similarity_head
 from .track.utils import split_key_ref_inputs
+from .utils import predictions_to_scalabel
 
 
 class QDTrackConfig(BaseModelConfig):
     """Config for quasi-dense tracking model."""
 
-    detection: BaseModelConfig
+    detection: BaseDetectorConfig
     similarity: SimilarityLearningConfig
     track_graph: TrackGraphConfig
 
@@ -43,7 +46,7 @@ class QDTrack(BaseModel):
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
         self.with_mask = self.detector.with_mask
 
-    def _detect_and_track_losses(
+    def _run_heads_train(
         self,
         key_inputs: InputSample,
         ref_inputs: List[InputSample],
@@ -89,9 +92,9 @@ class QDTrack(BaseModel):
         )
         return {**det_losses, **track_losses}, key_proposals, ref_proposals
 
-    def _detect_and_track(
+    def _run_heads_test(
         self, inputs: InputSample, feat: FeatureMaps
-    ) -> ModelOutput:
+    ) -> Tuple[ModelOutput, LabelInstances, List[torch.Tensor]]:
         """Get detections and tracks."""
         proposals = self.detector.generate_proposals(inputs, feat)
         detections, instance_segms = self.detector.generate_detections(
@@ -100,55 +103,43 @@ class QDTrack(BaseModel):
 
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
-        assert inputs.metadata[0].size is not None
-        input_size = (
-            inputs.metadata[0].size.width,
-            inputs.metadata[0].size.height,
-        )
-        detections[0].postprocess(
-            input_size,
-            inputs.images.image_sizes[0],
-            self.detector.cfg.clip_bboxes_to_image,
-        )
-        detects = (
-            detections[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
-        )
-        outputs = dict(detect=[detects])
-        if instance_segms is not None:
-            instance_segms[0].postprocess(
-                input_size, inputs.images.image_sizes[0], detections[0]
-            )
-            segms = (
-                instance_segms[0]
-                .to(torch.device("cpu"))
-                .to_scalabel(self.cat_mapping)
-            )
-            outputs["ins_seg"] = [segms]
 
-        # associate detections, update graph
+        outs: Dict[str, List[TLabelInstance]] = {"detect": [d.clone() for d in detections]}  # type: ignore # pylint: disable=line-too-long
+        if instance_segms is not None:
+            outs["ins_seg"] = [s.clone() for s in instance_segms]
+
+        outputs = predictions_to_scalabel(
+            inputs,
+            outs,
+            self.cat_mapping,
+            self.cfg.detection.clip_bboxes_to_image,
+        )
+
         predictions = LabelInstances(
             detections,
             instance_masks=instance_segms
             if instance_segms is not None
             else None,
         )
+        return outputs, predictions, embeddings
+
+    def _track(
+        self,
+        inputs: InputSample,
+        predictions: LabelInstances,
+        embeddings: List[torch.Tensor],
+    ) -> ModelOutput:
+        """Associate detections, update track graph."""
         tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
-
-        tracks_ = (
-            tracks.boxes2d[0]
-            .to(torch.device("cpu"))
-            .to_scalabel(self.cat_mapping)
+        outs: Dict[str, List[TLabelInstance]] = {"track": tracks.boxes2d}  # type: ignore # pylint: disable=line-too-long
+        if self.with_mask:
+            outs["seg_track"] = tracks.instance_masks
+        return predictions_to_scalabel(
+            inputs,
+            outs,
+            self.cat_mapping,
+            self.cfg.detection.clip_bboxes_to_image,
         )
-        outputs["track"] = [tracks_]
-
-        if tracks.instance_masks[0] is not None:
-            segm_tracks = (
-                tracks.instance_masks[0]
-                .to(torch.device("cpu"))
-                .to_scalabel(self.cat_mapping)
-            )
-            outputs["seg_track"] = [segm_tracks]
-        return outputs
 
     def forward_train(
         self,
@@ -170,7 +161,7 @@ class QDTrack(BaseModel):
         key_x = self.detector.extract_features(key_inputs)
         ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]
 
-        losses, _, _ = self._detect_and_track_losses(
+        losses, _, _ = self._run_heads_train(
             key_inputs, ref_inputs, key_x, ref_x
         )
         return losses
@@ -182,5 +173,33 @@ class QDTrack(BaseModel):
         """Compute model output during inference."""
         assert len(batch_inputs) == 1, "No reference views during test!"
         assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
-        feat = self.detector.extract_features(batch_inputs[0])
-        return self._detect_and_track(batch_inputs[0], feat)
+
+        result_path = ""
+        if self.cfg.inference_result_path is not None:
+            frame_name = batch_inputs[0].metadata[0].name
+            result_path = self.cfg.inference_result_path + "/" + frame_name
+
+        if (
+            self.cfg.inference_result_path is None
+            or not self.data_backend.exists(result_path)
+        ):
+            feat = self.detector.extract_features(batch_inputs[0])
+            outs, predictions, embeddings = self._run_heads_test(
+                batch_inputs[0], feat
+            )
+            if self.cfg.inference_result_path is not None:
+                predictions = predictions.to(torch.device("cpu"))
+                embeddings = [e.to(torch.device("cpu")) for e in embeddings]
+                self.data_backend.set(
+                    result_path, pickle.dumps([predictions, embeddings])
+                )
+        else:
+            outs = {}
+            predictions, embeddings = pickle.loads(
+                self.data_backend.get(result_path)
+            )
+            predictions = predictions.to(self.device)
+            embeddings = [e.to(self.device) for e in embeddings]
+
+        outs.update(self._track(batch_inputs[0], predictions, embeddings))
+        return outs
