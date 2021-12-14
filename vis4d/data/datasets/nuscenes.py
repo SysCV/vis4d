@@ -16,6 +16,8 @@ try:  # pragma: no cover
     from nuscenes import NuScenes as nusc_data
     from nuscenes.eval.detection.config import config_factory
     from nuscenes.eval.detection.evaluate import NuScenesEval
+    from nuscenes.eval.tracking.evaluate import TrackingEval as track_eval
+    from nuscenes.eval.common.config import config_factory as track_configs
 
     # pylint: disable=ungrouped-imports
     from scalabel.label.from_nuscenes import from_nuscenes
@@ -23,6 +25,7 @@ try:  # pragma: no cover
     NUSC_INSTALLED = True
 except (ImportError, NameError):
     NUSC_INSTALLED = False
+import pdb
 
 
 class NuScenesDatasetConfig(BaseDatasetConfig):
@@ -217,6 +220,35 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
 
         return log_dict, str_summary
 
+    def _eval_tracking(
+        self,
+        result_path: str,
+        eval_set: str,
+    ):
+        """Evaluate tracking."""
+        nusc_eval = track_eval(
+            config=track_configs("tracking_nips_2019"),
+            result_path=result_path,
+            eval_set=eval_set,
+            output_dir=self.cfg.tmp_dir,
+            verbose=False,
+            nusc_version=self.cfg.version,
+            nusc_dataroot=self.cfg.data_root,
+        )
+
+        try:
+            metrics_summary = nusc_eval.main()
+            pdb.set_trace()
+
+        except AssertionError:
+            log_dict = {
+                "aMOTA": 0,
+                "MOTP": 0,
+            }
+            str_summary = "Fail to evaluate due to sanity check or errors!"
+
+        return log_dict, str_summary
+
     def evaluate(
         self, metric: str, predictions: List[Frame], gts: List[Frame]
     ) -> Tuple[MetricLogs, str]:
@@ -238,13 +270,15 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
 
         if mode == "detection":
             log_dict, str_summary = self._eval_detection(result_path, eval_set)
+        else:
+            log_dict, str_summary = self._eval_tracking(result_path, eval_set)
 
         return log_dict, str_summary
 
     def _check_metrics(self) -> None:
         """Check if evaluation metrics specified are valid."""
         for metric in self.cfg.eval_metrics:
-            if metric not in ["detect_3d"]:  # pragma: no cover
+            if metric not in ["detect_3d", "track_3d"]:  # pragma: no cover
                 raise KeyError(
                     f"metric {metric} is not supported in {self.cfg.name}"
                 )
