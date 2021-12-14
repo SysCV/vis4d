@@ -12,9 +12,18 @@ class FileBackend(BaseDataBackend):
         super().__init__()
         self.cfg = DataBackendConfig(**cfg.dict())
 
+    def exists(self, filepath: str) -> bool:
+        """Check if filepath exists."""
+        return os.path.exists(filepath)
+
+    def set(self, filepath: str, content: bytes) -> None:
+        """Set the file content."""
+        with open(filepath, "wb") as f:
+            f.write(content)
+
     def get(self, filepath: str) -> bytes:
         """Get file content as bytes."""
-        if not os.path.exists(filepath):
+        if not self.exists(filepath):
             raise FileNotFoundError(f"File not found:" f" {filepath}")
         with open(filepath, "rb") as f:
             value_buf = f.read()

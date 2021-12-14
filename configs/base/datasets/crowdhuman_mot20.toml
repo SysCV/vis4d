@@ -2,11 +2,13 @@
 name = "crowdhuman_trainval"
 type = "Scalabel"
 annotations = "data/CrowdHuman/trainval/trainval_scalabel.json"
-data_root = "data/CrowdHuman/trainval"
+data_root = "data/CrowdHuman/trainval.hdf5"
 num_processes = 0
     [train.sample_mapper]
-    clip_bboxes_to_image = false
     skip_empty_samples = true
+
+    [train.sample_mapper.data_backend]
+    type = "HDF5Backend"
 
     [train.ref_sampler]
     strategy = 'uniform'
@@ -32,15 +34,18 @@ num_processes = 0
     type = "KorniaColorJitter"
     kwargs = {"brightness" = [0.875, 1.125], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5], "hue" = [-0.1, 0.1]}
 
+
 [[train]]
-name = "mot17_train"
+name = "mot20_train"
 type = "Scalabel"
-data_root = "data/MOT17/train"
-annotations = "data/MOT17/train/train_scalabel.json"
+data_root = "data/MOT20/train.hdf5"
+annotations = "data/MOT20/train/train_scalabel.json"
 num_processes = 0
     [train.sample_mapper]
-    clip_bboxes_to_image = false
     skip_empty_samples = true
+
+    [train.sample_mapper.data_backend]
+    type = "HDF5Backend"
 
     [train.ref_sampler]
     strategy = 'uniform'
@@ -68,17 +73,16 @@ num_processes = 0
     kwargs = {"brightness" = [0.875, 1.125], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5], "hue" = [-0.1, 0.1]}
 
 [[test]]
-name = "mot17_val"
+name = "mot20_val"
 type = "MOTChallenge"
-data_root = "data/MOT17/train"
-annotations = "data/MOT17/train/val_scalabel.json"
+data_root = "data/MOT20/train.hdf5"
+annotations = "data/MOT20/train/val_scalabel.json"
 eval_metrics = ["detect", "track"]
 num_processes = 0
-    [test.sample_mapper]
-    clip_bboxes_to_image = false
+    [test.sample_mapper.data_backend]
+    type = "HDF5Backend"
 
     [[test.sample_mapper.transformations]]
     type = "Resize"
     shape = [800, 1440]
     keep_ratio = true
-

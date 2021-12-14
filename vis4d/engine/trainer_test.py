@@ -11,7 +11,7 @@ import torch
 from vis4d import config
 from vis4d.engine.trainer import predict
 from vis4d.engine.trainer import test as evaluate
-from vis4d.engine.trainer import train
+from vis4d.engine.trainer import train, tune
 from vis4d.unittest.utils import get_test_file
 
 
@@ -69,7 +69,7 @@ class BaseEngineTests:
             self.cfg.launch.visualize = True
             predict(self.cfg, trainer_args)
 
-    class TestTrack(TestDetect):
+    class TestTrack(TestTrain, TestTest):
         """Test cases for vis4d tracking."""
 
         predict_dir = (
@@ -179,6 +179,20 @@ class TestSegTrackMM(BaseEngineTests.TestTrain):
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)
+
+    def test_tune(self) -> None:
+        """Testcase for tune function."""
+        self.assertIsNotNone(self.cfg)
+        self.cfg.launch.action = "tune"
+        self.cfg.launch.tuner_params = {
+            "track_graph.cfg.obj_score_thr": [0.55, 0.6]
+        }
+        self.cfg.launch.tuner_metrics = ["track/MOTA", "track/IDF1"]
+        self.cfg.model.inference_result_path = "unittests/results.hdf5"
+        trainer_args = {}
+        if torch.cuda.is_available():
+            trainer_args["gpus"] = "0,"  # pragma: no cover
+        tune(self.cfg, trainer_args)
 
 
 class TestSemSegMMFPN(BaseEngineTests.TestTrain):

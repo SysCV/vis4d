@@ -114,7 +114,7 @@ def segmentation_from_mmdet_results(
     masks = torch.stack(masks_list)
     labels = torch.stack(labels_list)
     scores = boxes.score
-    return InstanceMasks(masks, labels, score=scores)
+    return InstanceMasks(masks, labels, score=scores, detections=boxes)
 
 
 def masks_to_mmdet_masks(masks: Sequence[InstanceMasks]) -> BitmapMasks:
