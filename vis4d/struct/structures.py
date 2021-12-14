@@ -1,6 +1,16 @@
 """Base classes for data structures in Vis4D."""
 import abc
-from typing import Any, Dict, Iterator, List, Optional, Type, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import numpy as np
 import numpy.typing as npt
@@ -77,6 +87,17 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
     ) -> List[Label]:
         """Convert from ours to scalabel format."""
         raise NotImplementedError
+
+    def postprocess(
+        self,
+        original_wh: Tuple[int, int],
+        output_wh: Tuple[int, int],
+        clip: bool = True,
+    ) -> None:
+        """Postprocess label according to original image resolution.
+
+        Default behavior: Do nothing.
+        """
 
 
 NDArrayF64 = npt.NDArray[np.float64]

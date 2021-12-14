@@ -35,11 +35,12 @@ from vis4d.struct import (
     LabelInstances,
     LossesType,
     ModelOutput,
+    TLabelInstance,
 )
 
 from ..base import BaseModelConfig
+from ..utils import predictions_to_scalabel
 from .base import BaseTwoStageDetector
-from .utils import postprocess
 
 
 class D2TwoStageDetector(BaseTwoStageDetector):
@@ -116,20 +117,14 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             inputs, features, proposals
         )
 
-        postprocess(
-            inputs, detections, segmentations, self.cfg.clip_bboxes_to_image
-        )
-        outputs = dict(
-            detect=[d.to_scalabel(self.cat_mapping) for d in detections]
-        )
+        outputs: Dict[str, List[TLabelInstance]] = dict(detect=detections)  # type: ignore # pylint: disable=line-too-long
         if self.with_mask:
             assert segmentations is not None
-            outputs.update(
-                ins_seg=[
-                    s.to_scalabel(self.cat_mapping) for s in segmentations
-                ]
-            )
-        return outputs
+            outputs["ins_seg"] = segmentations
+
+        return predictions_to_scalabel(
+            inputs, outputs, self.cat_mapping, self.cfg.clip_bboxes_to_image
+        )
 
     def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.
@@ -220,7 +215,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             )
 
         segmentations: Optional[List[InstanceMasks]] = None
+        dets_boxes2d = detections_to_box2d(detections)
         if self.with_mask:
-            segmentations = segmentations_to_bitmask(detections)
-        detections = detections_to_box2d(detections)
-        return detections, segmentations
+            segmentations = segmentations_to_bitmask(detections, dets_boxes2d)
+        return dets_boxes2d, segmentations

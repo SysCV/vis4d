@@ -21,8 +21,18 @@ class BaseDataBackend(metaclass=RegistryHolder):
     """
 
     @abstractmethod
+    def set(self, filepath: str, content: bytes) -> None:
+        """Set the file content."""
+        raise NotImplementedError
+
+    @abstractmethod
     def get(self, filepath: str) -> bytes:
         """Get the file content as bytes."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def exists(self, filepath: str) -> bool:
+        """Check if filepath exists."""
         raise NotImplementedError
 
 

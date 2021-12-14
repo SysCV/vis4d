@@ -248,7 +248,7 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
 
     Inference needs to run on the __exact__ set of sequences and their
     respective samples, therefore if the sequences are not divisible by the
-    number of workers of if they have different length, the sampler
+    number of workers or if they have different length, the sampler
     produces different number of samples on different workers.
     """
 

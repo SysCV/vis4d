@@ -1,6 +1,6 @@
 """Vis4D Label data structures."""
 import abc
-from typing import Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Dict, List, Optional, Tuple, Type, TypeVar
 
 import numpy as np
 import torch
@@ -36,7 +36,6 @@ class Boxes(LabelInstance):
         boxes: torch.Tensor,
         class_ids: torch.Tensor = None,
         track_ids: torch.Tensor = None,
-        metadata: Optional[Dict[str, Union[bool, int, float, str]]] = None,
     ) -> None:
         """Init."""
         assert isinstance(boxes, torch.Tensor) and len(boxes.shape) == 2
@@ -52,7 +51,6 @@ class Boxes(LabelInstance):
         self.boxes = boxes
         self.class_ids = class_ids
         self.track_ids = track_ids
-        self.metadata = metadata
 
     def __getitem__(self: "TBoxes", item) -> "TBoxes":  # type: ignore
         """Shadows tensor based indexing while returning new Boxes."""
@@ -70,11 +68,9 @@ class Boxes(LabelInstance):
                 class_ids = class_ids.view(1, -1)
             if track_ids is not None:
                 track_ids = track_ids.view(1, -1)
-            return type(self)(
-                boxes.view(1, -1), class_ids, track_ids, self.metadata
-            )
+            return type(self)(boxes.view(1, -1), class_ids, track_ids)
 
-        return type(self)(boxes, class_ids, track_ids, self.metadata)
+        return type(self)(boxes, class_ids, track_ids)
 
     def __len__(self) -> int:
         """Get length of the object."""
@@ -88,9 +84,7 @@ class Boxes(LabelInstance):
         track_ids = (
             self.track_ids.clone() if self.track_ids is not None else None
         )
-        return type(self)(
-            self.boxes.clone(), class_ids, track_ids, self.metadata
-        )
+        return type(self)(self.boxes.clone(), class_ids, track_ids)
 
     def to(self: "TBoxes", device: torch.device) -> "TBoxes":
         """Move data to given device."""
@@ -104,9 +98,7 @@ class Boxes(LabelInstance):
             if self.track_ids is not None
             else None
         )
-        return type(self)(
-            self.boxes.to(device=device), class_ids, track_ids, self.metadata
-        )
+        return type(self)(self.boxes.to(device=device), class_ids, track_ids)
 
     @classmethod
     def merge(cls: Type["TBoxes"], instances: List["TBoxes"]) -> "TBoxes":
@@ -470,7 +462,6 @@ class Masks(LabelInstance):
         class_ids: torch.Tensor = None,
         track_ids: torch.Tensor = None,
         score: torch.Tensor = None,
-        metadata: Optional[Dict[str, Union[bool, int, float, str]]] = None,
     ) -> None:
         """Init."""
         assert isinstance(masks, torch.Tensor) and len(masks.shape) == 3
@@ -491,7 +482,6 @@ class Masks(LabelInstance):
         self.class_ids = class_ids
         self.track_ids = track_ids
         self.score = score
-        self.metadata = metadata
 
     @property
     def height(self) -> int:
@@ -614,10 +604,9 @@ class Masks(LabelInstance):
                 class_ids,
                 track_ids,
                 score,
-                self.metadata,
             )
 
-        return type(self)(masks, class_ids, track_ids, score, self.metadata)
+        return type(self)(masks, class_ids, track_ids, score)
 
     def to_ndarray(self) -> NDArrayUI8:
         """Convert masks to ndarray."""
@@ -636,9 +625,7 @@ class Masks(LabelInstance):
             self.track_ids.clone() if self.track_ids is not None else None
         )
         score = self.score.clone() if self.score is not None else None
-        return type(self)(
-            self.masks.clone(), class_ids, track_ids, score, self.metadata
-        )
+        return type(self)(self.masks.clone(), class_ids, track_ids, score)
 
     def to(self: "TMasks", device: torch.device) -> "TMasks":
         """Move data to given device."""
@@ -660,7 +647,6 @@ class Masks(LabelInstance):
             class_ids,
             track_ids,
             score,
-            self.metadata,
         )
 
     @property
@@ -696,12 +682,30 @@ class Masks(LabelInstance):
 class InstanceMasks(Masks):
     """Container class for instance segmentation masks.
 
-    masks: torch.ByteTensor (N, H, W) where each entry is a binary mask
+    masks: torch.ByteTensor Either (N, H, W) or (N, H_mask, W_mask) where each
+    entry is a binary mask and H/W_mask is a unified mask size, e.g. 28x28.
     class_ids: torch.LongTensor (N,) where each entry is the class id of mask.
     track_ids: torch.LongTensor (N,) where each entry is the track id of mask.
     score: torch.FloatTensor (N,) where each entry is the confidence score
     of mask.
+    detections: Optional[Boxes2D] if masks is
     """
+
+    def __init__(
+        self,
+        masks: torch.Tensor,
+        class_ids: torch.Tensor = None,
+        track_ids: torch.Tensor = None,
+        score: torch.Tensor = None,
+        detections: Optional[Boxes2D] = None,
+    ) -> None:
+        """Init."""
+        super().__init__(masks, class_ids, track_ids, score)
+        if detections is not None:
+            assert isinstance(detections, Boxes2D)
+            assert len(masks) == len(detections)
+            assert masks.device == detections.device
+        self.detections = detections
 
     def crop_and_resize(
         self,
@@ -729,11 +733,10 @@ class InstanceMasks(Masks):
             resized_masks = targets >= 0.5
         else:
             resized_masks = targets
-        return type(self)(resized_masks)
+        return type(self)(resized_masks, detections=boxes)
 
     def paste_masks_in_image(
         self,
-        boxes: Boxes2D,
         image_shape: Tuple[int, int],
         threshold: float = 0.5,
         bytes_per_float: int = 4,
@@ -750,7 +753,9 @@ class InstanceMasks(Masks):
         num_masks = len(self.masks)
         if num_masks == 0:  # pragma: no cover
             return
-        assert len(boxes) == num_masks, boxes.boxes.shape
+        assert (
+            self.detections is not None
+        ), "Converting fixed resolution masks to image needs detections!"
 
         img_w, img_h = image_shape
 
@@ -789,7 +794,7 @@ class InstanceMasks(Masks):
         for inds in chunks:
             (masks_chunk, spatial_inds,) = do_paste_mask(
                 self.masks[inds, None, :, :],
-                boxes.boxes[inds, :4],
+                self.detections.boxes[inds, :4],
                 img_h,
                 img_w,
                 skip_empty=self.device.type == "cpu",
@@ -810,13 +815,13 @@ class InstanceMasks(Masks):
         self,
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
-        detections: Boxes2D,
+        clip: bool = True,
     ) -> None:
         """Postprocess instance masks."""
         if len(self) == 0:
             return
         if self.size != output_wh:
-            self.paste_masks_in_image(detections, original_wh)
+            self.paste_masks_in_image(original_wh)
         # resolve overlaps
         foreground = torch.zeros(
             self.masks.shape[1:], dtype=torch.bool, device=self.device
@@ -883,7 +888,17 @@ class SemanticMasks(Masks):
                         mask.class_ids,
                         mask.track_ids,
                         mask.score,
-                        mask.metadata,
                     )
                 )
         return pad_masks
+
+    def postprocess(
+        self,
+        original_wh: Tuple[int, int],
+        output_wh: Tuple[int, int],
+        clip: bool = True,
+    ) -> None:
+        """Postprocess semantic masks."""
+        self.masks = self.masks[:, : output_wh[1], : output_wh[0]]
+        if original_wh != output_wh:
+            self.resize(original_wh)
