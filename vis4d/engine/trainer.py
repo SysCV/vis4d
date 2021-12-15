@@ -194,16 +194,23 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.legacy_ckpt,
     )
 
+    # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         [], cfg.test
     )
+
+    # determine category mapping
+    category_mapping = build_category_mappings(
+        cfg.data, cfg.model.category_mapping
+    )
+
     data_module = build_data_module(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.category_mapping,
+        category_mapping,
         cfg.model.image_channel_mode,
         cfg.launch.seed,
         cfg.data,
@@ -235,18 +242,25 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.legacy_ckpt,
     )
 
+    # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         [],
         cfg.test if cfg.launch.input_dir is None else [],
         cfg.launch.input_dir,
     )
+
+    # determine category mapping
+    category_mapping = build_category_mappings(
+        cfg.data, cfg.model.category_mapping
+    )
+
     data_module = build_data_module(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.category_mapping,
+        category_mapping,
         cfg.model.image_channel_mode,
         cfg.launch.seed,
         cfg.data,
@@ -282,16 +296,23 @@ def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.legacy_ckpt,
     )
 
+    # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         [], cfg.test
     )
+
+    # determine category mapping
+    category_mapping = build_category_mappings(
+        cfg.data, cfg.model.category_mapping
+    )
+
     data_module = build_data_module(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.category_mapping,
+        category_mapping,
         cfg.model.image_channel_mode,
         cfg.launch.seed,
         cfg.data,

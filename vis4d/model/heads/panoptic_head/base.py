@@ -100,7 +100,7 @@ class BasePanopticHead(Vis4DModule[LossesType, PanopticMasks]):
 
 def build_panoptic_head(
     cfg: BasePanopticHeadConfig,
-) -> BasePanopticHead:  # type: ignore
+) -> BasePanopticHead:
     """Build a panoptic head from config."""
     registry = RegistryHolder.get_registry(BasePanopticHead)
     if cfg.type in registry:

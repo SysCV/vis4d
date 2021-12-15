@@ -524,7 +524,7 @@ class Masks(LabelInstance):
             mask_cls, l_id, score = label.category, label.id, label.score
             if has_class_ids:
                 if mask_cls in class_to_idx:
-                    cls_list.append(class_to_idx[mask_cls])  # type: ignore
+                    cls_list.append(class_to_idx[mask_cls])
                 else:
                     continue
             if label.rle is not None:
@@ -831,6 +831,8 @@ class InstanceMasks(Masks):
         for i in sort_idx:
             self.masks[i] = torch.logical_and(self.masks[i], ~foreground)
             foreground = torch.logical_or(self.masks[i], foreground)
+        if self.size != original_wh:
+            self.resize(original_wh)
 
 
 class SemanticMasks(Masks):

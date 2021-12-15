@@ -28,7 +28,9 @@ class SimplePanopticHead(BasePanopticHead):
     def __init__(self, cfg: BasePanopticHeadConfig):
         """Init."""
         super().__init__()
-        self.cfg: SimplePanopticHead = SimplePanopticHead(**cfg.dict())
+        self.cfg: SimplePanopticHeadConfig = SimplePanopticHeadConfig(
+            **cfg.dict()
+        )
 
     def forward_train(
         self,
@@ -53,7 +55,7 @@ class SimplePanopticHead(BasePanopticHead):
         """
         # foreground mask
         foreground = torch.zeros(
-            ins_segm.masks.shape[1:], dtype=torch.bool, device=self.device
+            ins_segm.masks.shape[1:], dtype=torch.bool, device=ins_segm.device
         )
 
         # sort instance outputs by scores

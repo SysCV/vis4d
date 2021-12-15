@@ -220,7 +220,7 @@ def build_data_module(
     train_loaders: List[BaseDatasetLoader],
     test_loaders: List[BaseDatasetLoader],
     predict_loaders: List[BaseDatasetLoader],
-    category_mapping: Optional[Dict[str, int]] = None,
+    category_mapping: Optional[Dict[str, Dict[str, int]]] = None,
     image_channel_mode: str = "RGB",
     seed: Optional[int] = None,
     cfg: DataModuleConfig = DataModuleConfig(),

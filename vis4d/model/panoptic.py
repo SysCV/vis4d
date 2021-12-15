@@ -41,11 +41,16 @@ class PanopticSegmentor(BaseModel):
         self.cfg: PanopticSegmentorConfig = PanopticSegmentorConfig(
             **cfg.dict()
         )
+        assert self.cfg.category_mapping is not None
+        self.cfg.detection.category_mapping = self.cfg.category_mapping
         self.detector: BaseTwoStageDetector = build_model(self.cfg.detection)
         self.seg_head: MMSegDecodeHead = build_dense_head(self.cfg.seg_head)
         self.pan_head: BasePanopticHead = build_panoptic_head(
             self.cfg.pan_head
         )
+        self.det_mapping = {
+            v: k for k, v in self.cfg.detection.category_mapping.items()
+        }
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
@@ -54,7 +59,7 @@ class PanopticSegmentor(BaseModel):
         ), "No reference views allowed in PanopticSegmentor training!"
         inputs, targets = batch_inputs[0], batch_inputs[0].targets
         assert targets is not None, "Training requires targets."
-        features = self.backbone(inputs)
+        features = self.detector.extract_features(inputs)
         rpn_losses, proposals = self.detector.generate_proposals(
             inputs, features, targets
         )
@@ -90,6 +95,14 @@ class PanopticSegmentor(BaseModel):
             instance_masks=instance_segms,
             semantic_masks=semantic_segms,
         )
-        panoptic_segms = self.pan_head(inputs, predictions)
+        instance_segms, semantic_segms = self.pan_head(inputs, predictions)
 
-        return outputs
+        outputs.pop("sem_seg")
+        model_outs = predictions_to_scalabel(outputs, self.det_mapping)
+        # sem_seg has different category_mapping
+        model_outs.update(
+            predictions_to_scalabel(
+                {"sem_seg": semantic_segms}, self.seg_head.cat_mapping
+            )
+        )
+        return model_outs
