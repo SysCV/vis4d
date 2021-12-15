@@ -1,5 +1,5 @@
 """deep SORT model definition."""
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import torch
 
@@ -63,34 +63,25 @@ class DeepSORT(BaseModel):
 
     def preprocess_inputs(
         self, batch_inputs: List[InputSample]
-    ) -> List[InputSample]:
-        """Normalize the input images."""
-        inputs_batch = []
-        for inp in batch_inputs:
-            inp.images.tensor = (inp.images.tensor - self.pixel_mean
-                                   ) / self.pixel_std
-            inputs_batch.append(inp)
-        return inputs_batch
+    ) -> Tuple[List[InputSample], List[Boxes2D]]:
+        """Normalize the input images and get instance label."""
 
-    def forward_train(
-        self, batch_inputs: List[List[InputSample]]
-    ) -> LossesType:
-        """Forward pass during training stage.
-
-        train the feature extractor net
-        Returns a dict of loss tensors.
-        """
-        raw_inputs = [inp[0] for inp in batch_inputs]
-
-        inputs = self.preprocess_inputs(raw_inputs, self.with_reid)
         labels = []
         for inp in batch_inputs:
-            assert inp[0].boxes2d is not None
-            labels.append(inp[0].boxes2d[0].to(self.device))
+            inp.images.tensor = (inp.images.tensor -
+                                          self.pixel_mean) / self.pixel_std
+            assert inp[0].targets[0].boxes2d[0] is not None
+            labels.append(inp[0].targets[0].boxes2d[0].to(self.device))
+        return batch_inputs, labels
 
-        track_losses, _ = self.similarity_head.forward_train(
-            [inputs.images.tensor], [labels]
-        )
+    def _detect_and_track_losses(
+        self,
+        inputs: List[InputSample],
+    ) -> LossesType:
+        """Get detection and tracking losses."""
+        input_process, labels = self.preprocess_inputs(inputs)
+        track_losses, _ = self.similarity_head(input_process, [labels], None,
+                                               None)
         if self.cfg.detection is None:
             return track_losses
 
@@ -112,26 +103,13 @@ class DeepSORT(BaseModel):
         det_losses = {**rpn_losses, **roi_losses}
         return {**det_losses, **track_losses}
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
+    def _detect_and_track(
+        self, inputs: InputSample
     ) -> ModelOutput:
-        """Compute model output during inference."""
-        assert len(batch_inputs) == 1, "No reference views during test!"
-        assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
-        if self.with_reid:
-            inputs = self.detector.preprocess_inputs(batch_inputs[0])
-        else:
-            inputs = batch_inputs[0]
-        frame_id = inputs.metadata[0].frameIndex
-        # init graph at begin of sequence
-        if frame_id == 0:
-            self.track_graph.reset()
 
         # using given detections
         image = inputs.images
         frame_name = inputs.metadata[0].name
-
         if self.cfg.detection is None:
             assert (
                 self.cfg.prediction_path is not None
@@ -141,11 +119,8 @@ class DeepSORT(BaseModel):
             )
             detections = [self.search_dict[frame_name].to(self.device)]
         else:
-            feat = self.detector.extract_features(inputs)
-            proposals, _ = self.detector.generate_proposals(inputs, feat)
-            detections, _, _ = self.detector.generate_detections(
-                inputs, feat, proposals
-            )
+            output = self.detector.forward_test(inputs)
+            detections = output["detect"]
 
         input_size = (
             inputs.metadata[0].size.width,  # type: ignore
@@ -164,10 +139,6 @@ class DeepSORT(BaseModel):
             ).to(self.device)
         else:
             if self.with_reid:
-                image_tensor = image.tensor.to(self.device)
-                det_features = self.similarity_head.forward_test(
-                    image_tensor, [detections[0]]
-                )
                 embeddings = self.similarity_head(inputs, detections, feat)
                 tracks = self.track_graph(inputs, predictions,
                                           embeddings=embeddings)
@@ -184,3 +155,32 @@ class DeepSORT(BaseModel):
         outputs = dict(detect=[detects])
         outputs["track"] = [tracks_]
         return outputs
+
+    def forward_train(
+        self, batch_inputs: List[InputSample],
+    ) -> LossesType:
+        """Forward pass during training stage.
+
+        train the feature extractor net
+        Returns a dict of loss tensors.
+        """
+
+        # inputs = [inp[0] for inp in batch_inputs]
+        if self.with_reid:
+            losses = self._detect_and_track_losses(batch_inputs)
+        else:
+            raise NotImplementedError
+        return losses
+
+    def forward_test(
+        self,
+        batch_inputs: List[InputSample],
+    ) -> ModelOutput:
+        """Compute model output during inference."""
+        assert len(batch_inputs) == 1, "No reference views during test!"
+        assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
+        if self.with_reid:
+            inputs = self.detector.preprocess_inputs(batch_inputs[0])
+        else:
+            inputs = batch_inputs[0]
+        return self._detect_and_track(inputs)

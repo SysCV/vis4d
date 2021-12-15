@@ -43,9 +43,6 @@ class KalmanFilter(nn.Module):  # type: ignore # pylint: disable=abstract-method
 
         Args:
             measurement: N-dimensional state space.
-            In normal case, it represents bounding box coordinates (
-            x, y, a, h) with center
-                position (x, y), aspect ratio a, and height h.
 
         Returns:
             mean, covariance: the mean vector (2N dimensional) and covariance
@@ -124,7 +121,7 @@ class KalmanFilter(nn.Module):  # type: ignore # pylint: disable=abstract-method
             covariance :
                 The state's covariance matrix (2Nx2N dimensional).
             measurement :
-                The 4 dimensional measurement vector (N dimensional),
+                The  measurement vector (N dimensional),
                 N is measurement state size.
 
         Returns:
@@ -167,9 +164,7 @@ class KalmanFilter(nn.Module):  # type: ignore # pylint: disable=abstract-method
             covariance :
                 Covariance of the state distribution (2Nx2N dimensional).
             measurements :
-                A N dimensional measurements, And in normal case. It represents
-                format (x, y, a, h) where (x, y) is the bounding box center
-                position, a the aspect ratio, and h the height.
+                A N dimensional measurements.
             only_position: If True, distance computation is done with respect
                 to the bounding box center position only.
 

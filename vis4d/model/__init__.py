@@ -11,11 +11,8 @@ __all__ = [
     "build_model",
     "BaseModel",
     "QDTrack",
-<<<<<<< HEAD
     "DeepSORT",
-=======
     "QDTrackSeg",
->>>>>>> main
     "QD3DT",
     "BaseSegmentor",
     "MMEncDecSegmentor",

@@ -67,7 +67,7 @@ class BasicBlock(nn.Module):  # type: ignore
                 norm=norm(conv_out_dim) if norm is not None else norm,
             )
         elif conv_in_dim != conv_out_dim:
-            self.downsample = Conv2d(  # pragma: no cover
+            self.downsample = Conv2d(
                 conv_in_dim,
                 conv_out_dim,
                 kernel_size=1,
