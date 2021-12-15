@@ -1,5 +1,5 @@
 """Simple panoptic head."""
-from typing import List
+from typing import Tuple
 
 import torch
 
@@ -11,7 +11,7 @@ from vis4d.struct import (
     SemanticMasks,
 )
 
-from .base import BasePanopticHead, BasePanopticHeadConfig
+from .base import BasePanopticHead, BasePanopticHeadConfig, PanopticMasks
 
 
 class SimplePanopticHeadConfig(BasePanopticHeadConfig):
@@ -45,7 +45,7 @@ class SimplePanopticHead(BasePanopticHead):
 
     def _combine_segms(
         self, ins_segm: InstanceMasks, sem_segm: SemanticMasks
-    ) -> InstanceMasks:
+    ) -> Tuple[InstanceMasks, SemanticMasks]:
         """Combine instance and semantic masks.
 
         Uses a simple combining logic following
@@ -89,32 +89,22 @@ class SimplePanopticHead(BasePanopticHead):
             if mask.sum().item() < self.cfg.stuff_area_thr:
                 mask[mask > 0] = 0
 
-        return ins_segm
+        return ins_segm, sem_segm
 
     def forward_test(
         self, inputs: InputSample, predictions: LabelInstances
-    ) -> List[InstanceMasks]:
+    ) -> PanopticMasks:
         """Forward pass during testing stage."""
-        detections, instance_segms, semantic_segms = (
-            predictions.boxes2d,
+        instance_segms, semantic_segms = (
             predictions.instance_masks,
             predictions.semantic_masks,
         )
-        assert (
-            len(detections) == len(instance_segms) == len(semantic_segms)
+        assert len(instance_segms) == len(
+            semantic_segms
         ), "Length of predictions is not the same, but should be"
 
         pan_segms = []
-        for inp, det, ins_segm, sem_segm in zip(
-            inputs, detections, instance_segms, semantic_segms
-        ):
-            assert inp.metadata[0].size is not None
-            input_size = (
-                inp.metadata[0].size.width,
-                inp.metadata[0].size.height,
-            )
-            ins_segm.postprocess(input_size, inp.images.image_sizes[0], det)
-
+        for ins_segm, sem_segm in zip(instance_segms, semantic_segms):
             pan_segms.append(self._combine_segms(ins_segm, sem_segm))
 
-        return pan_segms
+        return [p[0] for p in pan_segms], [p[1] for p in pan_segms]

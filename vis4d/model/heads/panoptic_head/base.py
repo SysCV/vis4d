@@ -1,13 +1,21 @@
 """Panoptic Head interface for Vis4D."""
 
 import abc
-from typing import List, Optional, Union, overload
+from typing import List, Optional, Tuple, Union, overload
 
 from pydantic import BaseModel, Field
 
 from vis4d.common.module import Vis4DModule
 from vis4d.common.registry import RegistryHolder
-from vis4d.struct import InputSample, InstanceMasks, LabelInstances, LossesType
+from vis4d.struct import (
+    InputSample,
+    InstanceMasks,
+    LabelInstances,
+    LossesType,
+    SemanticMasks,
+)
+
+PanopticMasks = Tuple[List[InstanceMasks], List[SemanticMasks]]
 
 
 class BasePanopticHeadConfig(BaseModel, extra="allow"):
@@ -16,15 +24,13 @@ class BasePanopticHeadConfig(BaseModel, extra="allow"):
     type: str = Field(...)
 
 
-class BasePanopticHead(Vis4DModule[LossesType, List[InstanceMasks]]):
+class BasePanopticHead(Vis4DModule[LossesType, PanopticMasks]):
     """Base Panoptic head class."""
 
     @overload  # type: ignore[override]
     def __call__(
-        self,
-        inputs: InputSample,
-        predictions: LabelInstances,
-    ) -> List[InstanceMasks]:  # noqa: D102
+        self, inputs: InputSample, predictions: LabelInstances
+    ) -> PanopticMasks:  # noqa: D102
         ...
 
     @overload
@@ -41,7 +47,7 @@ class BasePanopticHead(Vis4DModule[LossesType, List[InstanceMasks]]):
         inputs: InputSample,
         predictions: LabelInstances,
         targets: Optional[LabelInstances] = None,
-    ) -> Union[LossesType, List[InstanceMasks]]:
+    ) -> Union[LossesType, PanopticMasks]:
         """Base Panoptic head forward.
 
         Args:
@@ -50,8 +56,8 @@ class BasePanopticHead(Vis4DModule[LossesType, List[InstanceMasks]]):
             targets: Container with targets, e.g. Boxes2D / 3D, Masks, ...
 
         Returns:
-            LossesType / List[InstanceMasks]: In train mode, return losses.
-            In test mode, return predictions.
+            LossesType / PanopticMasks: In train mode, return losses. In test
+            mode, return predictions.
         """
         if targets is not None:
             return self.forward_train(inputs, predictions, targets)
@@ -78,10 +84,8 @@ class BasePanopticHead(Vis4DModule[LossesType, List[InstanceMasks]]):
 
     @abc.abstractmethod
     def forward_test(
-        self,
-        inputs: InputSample,
-        predictions: LabelInstances,
-    ) -> List[InstanceMasks]:
+        self, inputs: InputSample, predictions: LabelInstances
+    ) -> PanopticMasks:
         """Forward pass during testing stage.
 
         Args:
@@ -89,7 +93,7 @@ class BasePanopticHead(Vis4DModule[LossesType, List[InstanceMasks]]):
             predictions: Predictions. Batched.
 
         Returns:
-            List[InstanceMasks]: Prediction outputs.
+            PanopticMasks: Prediction outputs.
         """
         raise NotImplementedError
 

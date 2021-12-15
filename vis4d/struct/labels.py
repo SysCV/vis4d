@@ -682,13 +682,14 @@ class Masks(LabelInstance):
 class InstanceMasks(Masks):
     """Container class for instance segmentation masks.
 
-    masks: torch.ByteTensor Either (N, H, W) or (N, H_mask, W_mask) where each
-    entry is a binary mask and H/W_mask is a unified mask size, e.g. 28x28.
+    masks: torch.ByteTensor (N, H, W) or (N, H_mask, W_mask) where each
+    entry is a binary mask and H/W_mask is a unified mask size, e.g., 28x28.
     class_ids: torch.LongTensor (N,) where each entry is the class id of mask.
     track_ids: torch.LongTensor (N,) where each entry is the track id of mask.
     score: torch.FloatTensor (N,) where each entry is the confidence score
     of mask.
-    detections: Optional[Boxes2D] if masks is
+    detections: Optional[Boxes2D] if masks is (N, H_mask, W_mask), detections
+    are used to paste them back in the original resolution.
     """
 
     def __init__(

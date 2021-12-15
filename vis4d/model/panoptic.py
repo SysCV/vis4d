@@ -1,7 +1,13 @@
 """Panoptic segmentation model."""
-from typing import List
+from typing import Dict, List
 
-from vis4d.struct import InputSample, LabelInstances, LossesType, ModelOutput
+from vis4d.struct import (
+    InputSample,
+    LabelInstances,
+    LossesType,
+    ModelOutput,
+    TLabelInstance,
+)
 
 from .base import BaseModel, BaseModelConfig, build_model
 from .detect import BaseDetectorConfig, BaseTwoStageDetector
@@ -15,6 +21,7 @@ from .heads.panoptic_head import (
     BasePanopticHeadConfig,
     build_panoptic_head,
 )
+from .utils import postprocess_predictions, predictions_to_scalabel
 
 
 class PanopticSegmentorConfig(BaseModelConfig):
@@ -70,17 +77,13 @@ class PanopticSegmentor(BaseModel):
         )
         semantic_segms = self.seg_head(inputs, feat)
 
-        for inp, det in zip(inputs, detections):
-            assert inp.metadata[0].size is not None
-            input_size = (
-                inp.metadata[0].size.width,
-                inp.metadata[0].size.height,
-            )
-            det.postprocess(
-                input_size,
-                inp.images.image_sizes[0],
-                self.cfg.detection.clip_bboxes_to_image,
-            )
+        assert instance_segms is not None
+        outputs: Dict[str, List[TLabelInstance]] = dict(  # type: ignore
+            detect=detections, ins_seg=instance_segms, sem_seg=semantic_segms
+        )
+        postprocess_predictions(
+            inputs, outputs, self.cfg.detection.clip_bboxes_to_image
+        )
 
         predictions = LabelInstances(
             detections,

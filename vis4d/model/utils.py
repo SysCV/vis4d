@@ -6,16 +6,13 @@ import torch
 from ..struct import InputSample, ModelOutput, TLabelInstance
 
 
-def predictions_to_scalabel(
+def postprocess_predictions(
     inputs: InputSample,
     predictions: Dict[str, List[TLabelInstance]],
-    idx_to_class: Optional[Dict[int, str]] = None,
     clip_to_image: bool = True,
-) -> ModelOutput:
-    """Postprocess and convert predictions into ModelOutput (Scalabel)."""
-    outputs = {}
-    for key, values in predictions.items():
-        processed_values = []
+) -> None:
+    """Postprocess predictions."""
+    for values in predictions.values():
         for inp, v in zip(inputs, values):
             assert inp.metadata[0].size is not None
             input_size = (
@@ -23,8 +20,16 @@ def predictions_to_scalabel(
                 inp.metadata[0].size.height,
             )
             v.postprocess(input_size, inp.images.image_sizes[0], clip_to_image)
-            processed_values.append(
-                v.to(torch.device("cpu")).to_scalabel(idx_to_class)
-            )
-        outputs[key] = processed_values
+
+
+def predictions_to_scalabel(
+    predictions: Dict[str, List[TLabelInstance]],
+    idx_to_class: Optional[Dict[int, str]] = None,
+) -> ModelOutput:
+    """Convert predictions into ModelOutput (Scalabel)."""
+    outputs = {}
+    for key, values in predictions.items():
+        outputs[key] = [
+            v.to(torch.device("cpu")).to_scalabel(idx_to_class) for v in values
+        ]
     return outputs
