@@ -38,7 +38,6 @@ from vis4d.struct import (
     TLabelInstance,
 )
 
-from ..base import BaseModelConfig
 from ..utils import predictions_to_scalabel
 from .base import BaseTwoStageDetector
 

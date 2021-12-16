@@ -21,7 +21,7 @@ class MOTDatasetConfig(BaseDatasetConfig):
 
     tmp_dir_root: str = "./"
     track_iou_thr: float = 0.5
-    validation_gt_root: Optional[str]
+    gt_root: Optional[str]
 
 
 class MOTChallenge(BaseDatasetLoader):
@@ -32,10 +32,10 @@ class MOTChallenge(BaseDatasetLoader):
         super().__init__(cfg)
         self.cfg: MOTDatasetConfig = MOTDatasetConfig(**cfg.dict())
         self.data_root = self.cfg.data_root
-        if self.cfg.validation_gt_root is None:
+        if self.cfg.gt_root is None:
             self.gt_root = self.data_root
         else:
-            self.gt_root = self.cfg.validation_gt_root  # pragma: no cover
+            self.gt_root = self.cfg.gt_root  # pragma: no cover
 
     def load_dataset(self) -> Dataset:  # pragma: no cover
         """Convert MOTChallenge annotations to scalabel format."""

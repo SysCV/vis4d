@@ -1,11 +1,8 @@
 """Vis4D neck module."""
-from .base import BaseNeck, BaseNeckConfig, build_neck
-from .mmdet import MMDetNeck, MMDetNeckConfig
+from .base import BaseNeck
+from .mmdet import MMDetNeck
 
 __all__ = [
     "BaseNeck",
-    "BaseNeckConfig",
-    "build_neck",
     "MMDetNeck",
-    "MMDetNeckConfig",
 ]

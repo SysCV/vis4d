@@ -5,13 +5,13 @@ import torch
 
 from vis4d.struct import Boxes2D, Intrinsics
 
-from .box3d_coder import QD3DTBox3DCoder, QD3DTBox3DCoderConfig
+from .box3d_coder import QD3DTBox3DCoder
 
 
 class TestBox3DCoder(unittest.TestCase):
     """Test cases for Box3D coder."""
 
-    coder = QD3DTBox3DCoder(QD3DTBox3DCoderConfig(type="abc"))
+    coder = QD3DTBox3DCoder()
 
     def test_decode_empty(self) -> None:
         """Test decode function when input is empty."""

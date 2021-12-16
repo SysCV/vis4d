@@ -13,13 +13,7 @@ from vis4d.struct import (
     LossesType,
 )
 
-from ..base import BaseModel, BaseModelConfig
-
-
-class BaseDetectorConfig(BaseModelConfig):
-    """Base configuration for detectors."""
-
-    clip_bboxes_to_image: bool = True
+from ..base import BaseModel
 
 
 class BaseOneStageDetector(BaseModel):
@@ -102,10 +96,15 @@ class BaseOneStageDetector(BaseModel):
 class BaseTwoStageDetector(BaseModel):
     """Base class for two-stage detectors."""
 
-    def __init__(self, cfg: BaseModelConfig):
+    def __init__(
+        self,
+        clip_bboxes_to_image: bool = True,
+        *args,
+        **kwargs,
+    ):
         """Init."""
-        super().__init__(cfg)
-        self.cfg: BaseDetectorConfig = BaseDetectorConfig(**cfg.dict())
+        super().__init__(*args, **kwargs)
+        self.clip_bboxes_to_image = clip_bboxes_to_image
 
     @abc.abstractmethod
     def extract_features(self, inputs: InputSample) -> FeatureMaps:

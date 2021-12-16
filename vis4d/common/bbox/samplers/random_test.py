@@ -6,7 +6,6 @@ import torch
 from vis4d.struct import Boxes2D
 
 from ..matchers.base import MatchResult
-from .base import SamplerConfig
 from .random import RandomSampler
 
 
@@ -21,11 +20,8 @@ class TestRandom(unittest.TestCase):
         num_gts = 3
 
         sampler = RandomSampler(
-            SamplerConfig(
-                type="random",
-                batch_size_per_image=samples_per_img,
-                positive_fraction=pos_fract,
-            )
+            batch_size_per_image=samples_per_img,
+            positive_fraction=pos_fract,
         )
         matching = [
             MatchResult(

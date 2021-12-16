@@ -17,30 +17,26 @@ except (ImportError, NameError):  # pragma: no cover
 
 from vis4d.struct import DictStrAny, FeatureMaps
 
-from .base import BaseNeck, BaseNeckConfig
+from .base import BaseNeck
 
 MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
-
-
-class MMDetNeckConfig(BaseNeckConfig):
-    """Config for mmdetection neck."""
-
-    mm_cfg: DictStrAny
-    output_names: Optional[List[str]]
-    weights: Optional[str]
 
 
 class MMDetNeck(BaseNeck):
     """mmdetection neck wrapper."""
 
-    def __init__(self, cfg: BaseNeckConfig):
+    def __init__(
+        self,
+        mm_cfg: DictStrAny,
+        output_names: Optional[List[str]] = None,
+    ):
         """Init."""
         assert (
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMDetNeck requires both mmcv and mmdet to be installed!"
         super().__init__()
-        self.cfg: MMDetNeckConfig = MMDetNeckConfig(**cfg.dict())
-        self.mm_neck = build_neck(self.cfg.mm_cfg)
+        self.output_names = output_names
+        self.mm_neck = build_neck(mm_cfg)
         assert isinstance(self.mm_neck, BaseModule)
         self.mm_neck.init_weights()
         self.mm_neck.train()
@@ -51,6 +47,6 @@ class MMDetNeck(BaseNeck):
     ) -> FeatureMaps:
         """Neck forward."""
         outs = self.mm_neck(list(inputs.values()))
-        if self.cfg.output_names is None:  # pragma: no cover
+        if self.output_names is None:  # pragma: no cover
             return {f"out{i}": v for i, v in enumerate(outs)}
         return dict(zip(self.cfg.output_names, outs))

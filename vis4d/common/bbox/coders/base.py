@@ -3,16 +3,9 @@ import abc
 from typing import List
 
 import torch
-from pydantic import BaseModel, Field
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.struct import Boxes2D, Boxes3D, Intrinsics
-
-
-class BaseBoxCoderConfig(BaseModel, extra="allow"):
-    """Coder base config."""
-
-    type: str = Field(...)
 
 
 class BaseBoxCoder2D(metaclass=RegistryHolder):
@@ -55,25 +48,3 @@ class BaseBoxCoder3D(metaclass=RegistryHolder):
     ) -> List[Boxes3D]:
         """Decode the predicted box_deltas according to given base boxes."""
         raise NotImplementedError
-
-
-def build_box2d_coder(
-    cfg: BaseBoxCoderConfig,
-) -> BaseBoxCoder2D:  # pragma: no cover
-    """Build a 2D bounding box coder from config."""
-    registry = RegistryHolder.get_registry(BaseBoxCoder2D)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseBoxCoder2D)
-        return module
-    raise NotImplementedError(f"BoxCoder2D {cfg.type} not found.")
-
-
-def build_box3d_coder(cfg: BaseBoxCoderConfig) -> BaseBoxCoder3D:
-    """Build a 3D bounding box coder from config."""
-    registry = RegistryHolder.get_registry(BaseBoxCoder3D)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseBoxCoder3D)
-        return module
-    raise NotImplementedError(f"BoxCoder3D {cfg.type} not found.")

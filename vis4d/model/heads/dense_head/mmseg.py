@@ -31,7 +31,7 @@ from vis4d.struct import (
     SemanticMasks,
 )
 
-from .base import BaseDenseHead, BaseDenseHeadConfig
+from .base import BaseDenseHead
 
 
 class MMSegDecodeHeadConfig(BaseDenseHeadConfig):

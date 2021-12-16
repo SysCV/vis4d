@@ -6,7 +6,6 @@ import torch
 from vis4d.struct import Boxes2D
 from vis4d.unittest.utils import generate_dets
 
-from .base import MatcherConfig
 from .max_iou import MaxIoUMatcher
 
 
@@ -19,12 +18,9 @@ class TestRandom(unittest.TestCase):
 
         boxes = [generate_dets(128, 128, num_boxes)]
         matcher = MaxIoUMatcher(
-            MatcherConfig(
-                type="MaxIoUMatcher",
-                thresholds=[0.3, 0.5],
-                labels=[0, -1, 1],
-                allow_low_quality_matches=True,
-            )
+            thresholds=[0.3, 0.5],
+            labels=[0, -1, 1],
+            allow_low_quality_matches=True,
         )
         match_result = matcher.match(boxes, boxes)[0]
         self.assertTrue(

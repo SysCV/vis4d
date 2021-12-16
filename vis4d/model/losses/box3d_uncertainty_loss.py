@@ -10,26 +10,21 @@ from .base import BaseLoss, LossConfig
 from .utils import smooth_l1_loss
 
 
-class Box3DUncertaintyLossConfig(LossConfig):
-    """Config for Box3d loss with uncertainty."""
-
-    loss_weights: Tuple[float, float, float, float, float] = (
-        1.0,
-        1.0,
-        1.0,
-        1.0,
-        1.0,
-    )
-    num_rotation_bins: int = 2
-
-
 class Box3DUncertaintyLoss(BaseLoss):
     """Box3d loss for QD-3DT."""
 
-    def __init__(self, cfg: LossConfig):
+    def __init__(
+        self,
+        reduction: str = "mean",
+        loss_weight: float = 1.0,
+        num_rotation_bins: int = 2,
+    ):
         """Init."""
-        super().__init__()
-        self.cfg = Box3DUncertaintyLossConfig(**cfg.dict())
+        super().__init__(reduction, loss_weight)
+        assert (
+            self.reduction == "mean"
+        ), "Box3DUncertaintyLoss only supports mean reduction"
+        self.num_rotation_bins = num_rotation_bins
 
     def __call__(  # type: ignore # pylint: disable=arguments-differ
         self,
@@ -72,17 +67,17 @@ class Box3DUncertaintyLoss(BaseLoss):
 
         # rotation loss
         loss_rot = rotation_loss(
-            pred[:, 6 : 6 + self.cfg.num_rotation_bins * 3],
-            target[:, 6 : 6 + self.cfg.num_rotation_bins],
-            target[:, 6 + self.cfg.num_rotation_bins :],
-            self.cfg.num_rotation_bins,
+            pred[:, 6 : 6 + self.num_rotation_bins * 3],
+            target[:, 6 : 6 + self.num_rotation_bins],
+            target[:, 6 + self.num_rotation_bins :],
+            self.num_rotation_bins,
         ).mean()
 
         result_dict = dict(
-            loss_ctr3d=self.cfg.loss_weights[0] * loss_cen,
-            loss_dep3d=self.cfg.loss_weights[1] * loss_dep,
-            loss_dim3d=self.cfg.loss_weights[2] * loss_dim,
-            loss_rot3d=self.cfg.loss_weights[3] * loss_rot,
+            loss_ctr3d=self.loss_weight * loss_cen,
+            loss_dep3d=self.loss_weight * loss_dep,
+            loss_dim3d=self.loss_weight * loss_dim,
+            loss_rot3d=self.loss_weight * loss_rot,
         )
 
         # uncertainty loss
@@ -103,9 +98,7 @@ class Box3DUncertaintyLoss(BaseLoss):
             beta=1 / 9,
         )
 
-        result_dict.update(
-            dict(loss_unc3d=self.cfg.loss_weights[4] * loss_unc3d)
-        )
+        result_dict.update(dict(loss_unc3d=self.loss_weight * loss_unc3d))
 
         # reduce batch dimension after confidence loss computation
         for k, v in result_dict.items():

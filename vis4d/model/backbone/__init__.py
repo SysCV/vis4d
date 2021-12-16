@@ -1,14 +1,10 @@
 """Vis4D Backbone module."""
-from .base import BaseBackbone, BaseBackboneConfig, build_backbone
-from .mmdet import MMDetBackbone, MMDetBackboneConfig
-from .mmseg import MMSegBackbone, MMSegBackboneConfig
+from .base import BaseBackbone
+from .mmdet import MMDetBackbone
+from .mmseg import MMSegBackbone
 
 __all__ = [
-    "build_backbone",
     "BaseBackbone",
-    "BaseBackboneConfig",
     "MMDetBackbone",
-    "MMDetBackboneConfig",
     "MMSegBackbone",
-    "MMSegBackboneConfig",
 ]

@@ -43,8 +43,6 @@ except (ImportError, NameError):  # pragma: no cover
 class MMDetRoIHeadConfig(BaseRoIHeadConfig):
     """Config for mmdetection roi heads."""
 
-    mm_cfg: Union[DictStrAny, str]
-
 
 class MMDetRoIHead(
     BaseRoIHead[
@@ -54,19 +52,22 @@ class MMDetRoIHead(
 ):
     """mmdetection roi head wrapper."""
 
-    def __init__(self, cfg: BaseRoIHeadConfig) -> None:
+    def __init__(
+        self,
+        mm_cfg: Union[DictStrAny, str],
+        category_mapping: Dict[str, int],
+    ) -> None:
         """Init."""
         assert (
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMDetRoIHead requires both mmcv and mmdet to be installed!"
-        super().__init__()
-        self.cfg: MMDetRoIHeadConfig = MMDetRoIHeadConfig(**cfg.dict())
-        if isinstance(self.cfg.mm_cfg, dict):
-            mm_cfg = self.cfg.mm_cfg
+        super().__init__(category_mapping)
+        if isinstance(mm_cfg, dict):
+            mm_cfg = mm_cfg
         else:  # pragma: no cover
             # load from config
-            assert os.path.exists(self.cfg.mm_cfg)
-            mm_cfg = MMConfig.fromfile(self.cfg.mm_cfg)
+            assert os.path.exists(mm_cfg)
+            mm_cfg = MMConfig.fromfile(mm_cfg)
             assert "roi_head" in mm_cfg
             mm_cfg = mm_cfg["roi_head"]
         self.mm_roi_head = build_head(ConfigDict(**mm_cfg))
@@ -74,8 +75,7 @@ class MMDetRoIHead(
         self.mm_roi_head.init_weights()
         self.mm_roi_head.train()
         self.with_mask = self.mm_roi_head.with_mask
-        assert self.cfg.category_mapping is not None
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
+        self.cat_mapping = {v: k for k, v in category_mapping.items()}
 
     def forward_train(
         self,

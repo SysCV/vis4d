@@ -3,7 +3,6 @@ from typing import List
 
 from vis4d.struct import InputSample, LossesType, ModelOutput
 
-from .base import BaseModelConfig
 from .heads.dense_head import (
     BaseDenseHeadConfig,
     MMSegDecodeHead,

@@ -3,22 +3,19 @@
 import abc
 from typing import Dict, Optional, Tuple, Union, overload
 
-from pydantic import BaseModel, Field
-
 from vis4d.common.module import TTestReturn, TTrainReturn, Vis4DModule
-from vis4d.common.registry import RegistryHolder
 from vis4d.struct import FeatureMaps, InputSample, LabelInstances, LossesType
-
-
-class BaseDenseHeadConfig(BaseModel, extra="allow"):
-    """Base config for Dense head."""
-
-    type: str = Field(...)
-    category_mapping: Optional[Dict[str, int]] = None
 
 
 class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
     """Base Dense head class."""
+
+    def __init__(
+        self, category_mapping: Optional[Dict[str, int]] = None
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.category_mapping = category_mapping
 
     @overload  # type: ignore[override]
     def __call__(
@@ -94,15 +91,3 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
             TTestReturn: Prediction output.
         """
         raise NotImplementedError
-
-
-def build_dense_head(
-    cfg: BaseDenseHeadConfig,
-) -> BaseDenseHead:  # type: ignore
-    """Build a dense head from config."""
-    registry = RegistryHolder.get_registry(BaseDenseHead)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseDenseHead)
-        return module
-    raise NotImplementedError(f"DenseHead {cfg.type} not found.")

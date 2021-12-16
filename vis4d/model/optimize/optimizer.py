@@ -1,19 +1,20 @@
 """Vis4D optimizers."""
-from typing import Dict, Iterator, Union
+from typing import Iterator
 
 from pydantic import BaseModel
 from torch import optim
 from torch.nn.parameter import Parameter
 
 from vis4d.common.registry import RegistryHolder
+from vis4d.struct import DictStrAny, ModuleCfg
 
 
-class BaseOptimizerConfig(BaseModel):
+class OptimizerConfig(BaseModel):
     """Config for Vis4D model optimizer."""
 
     type: str = "SGD"
     lr: float = 1.0e-3
-    kwargs: Dict[str, Union[float, bool]] = {
+    kwargs: DicStrAny = {
         "momentum": 0.9,
         "weight_decay": 0.0001,
     }
@@ -37,15 +38,16 @@ class BaseOptimizer(optim.Optimizer, metaclass=RegistryHolder):  # type: ignore
 
 
 def build_optimizer(
-    params: Iterator[Parameter], cfg: BaseOptimizerConfig
+    params: Iterator[Parameter], config: ModuleCfg
 ) -> BaseOptimizer:
     """Build Optimizer from config."""
     registry = RegistryHolder.get_registry(BaseOptimizer)
+    cfg = OptimizerConfig(**config)
     if cfg.type in registry:
         optimizer = registry[cfg.type]  # pragma: no cover
     elif hasattr(optim, cfg.type):
         optimizer = getattr(optim, cfg.type)
     else:
-        raise ValueError(f"LR Scheduler {cfg.type} not known!")
+        raise ValueError(f"Optimizer {cfg.type} not known!")
     module = optimizer(params, lr=cfg.lr, **cfg.kwargs)
     return module  # type: ignore

@@ -1,6 +1,6 @@
 """Detection utils."""
 import os
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple
 
 import torch
 
@@ -13,7 +13,7 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     D2_INSTALLED = False
 
-from vis4d.struct import Boxes2D, Images, InstanceMasks
+from vis4d.struct import Boxes2D, DictStrAny, Images, InstanceMasks
 
 from .base import BaseDetectorConfig
 
@@ -36,7 +36,7 @@ class D2TwoStageDetectorConfig(BaseDetectorConfig):
     """Config for detectron2 two stage models."""
 
     model_base: str
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
+    model_kwargs: Optional[DictStrAny]
     override_mapping: Optional[bool] = False
     set_batchnorm_eval: bool = False
     weights: Optional[str]

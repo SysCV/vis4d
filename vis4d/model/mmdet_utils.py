@@ -5,10 +5,10 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import requests
 import torch
-from pydantic import BaseModel
 
 from vis4d.struct import (
     Boxes2D,
+    DictStrAny,
     Images,
     InstanceMasks,
     LabelInstances,
@@ -186,9 +186,9 @@ def _parse_losses(
     return log_vars
 
 
-def add_keyword_args(config: BaseModel, cfg: MMConfig) -> None:
+def add_keyword_args(model_kwargs: DictStrAny, cfg: MMConfig) -> None:
     """Add keyword args in config."""
-    for k, v in config.model_kwargs.items():  # type: ignore
+    for k, v in model_kwargs.items():
         attr = cfg
         partial_keys = k.split(".")
         partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
@@ -196,8 +196,5 @@ def add_keyword_args(config: BaseModel, cfg: MMConfig) -> None:
             attr = attr.get(part_k)
         if attr.get(last_key) is not None:
             attr[last_key] = type(attr.get(last_key))(v)
-            if "channels" in last_key and isinstance(attr[last_key], list):
-                # TODO: remove in config refactor PR  # pylint: disable=fixme
-                attr[last_key] = [int(c) for c in attr[last_key]]
         else:
             attr[last_key] = v

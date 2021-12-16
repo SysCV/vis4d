@@ -1,4 +1,4 @@
-"""Example for dynamic api usage."""
+"""Example for model usage."""
 from typing import List
 
 import torch

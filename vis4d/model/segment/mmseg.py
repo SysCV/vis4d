@@ -1,9 +1,10 @@
 """mmsegmentation segmentor wrapper."""
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 
 from vis4d.struct import (
+    DictStrAny,
     FeatureMaps,
     InputSample,
     LabelInstances,
@@ -12,9 +13,8 @@ from vis4d.struct import (
     SemanticMasks,
 )
 
-from ..backbone import MMSegBackboneConfig, build_backbone
-from ..backbone.neck import MMDetNeckConfig
-from ..base import BaseModelConfig
+from ..backbone import MMSegBackbone
+from ..backbone.neck import MMDetNeck
 from ..heads.dense_head import (
     MMSegDecodeHead,
     MMSegDecodeHeadConfig,
@@ -49,21 +49,18 @@ REV_KEYS = [
 MMSegDecodeHeads = Union[MMSegDecodeHead, torch.nn.ModuleList]
 
 
-class MMEncDecSegmentorConfig(BaseModelConfig):
-    """Config for mmsegmentation encoder-decoder models."""
-
-    model_base: str
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
-    pixel_mean: Tuple[float, float, float]
-    pixel_std: Tuple[float, float, float]
-    backbone_output_names: Optional[List[str]]
-    weights: Optional[str]
-
-
 class MMEncDecSegmentor(BaseSegmentor):
     """mmsegmentation encoder-decoder segmentor wrapper."""
 
-    def __init__(self, cfg: BaseModelConfig):
+    def __init__(
+        self,
+        model_base: str,
+        pixel_mean: Tuple[float, float, float],
+        pixel_std: Tuple[float, float, float],
+        backbone_output_names: Optional[List[str]],
+        model_kwargs: Optional[DictStrAny] = None,
+        weights: Optional[str] = None,
+    ):
         """Init."""
         assert (
             MMSEG_INSTALLED and MMCV_INSTALLED
@@ -82,20 +79,16 @@ class MMEncDecSegmentor(BaseSegmentor):
             self.mm_cfg["test_cfg"] if "test_cfg" in self.mm_cfg else None
         )
 
-        self.backbone = build_backbone(
-            MMSegBackboneConfig(
-                type="MMSegBackbone",
-                mm_cfg=self.mm_cfg["backbone"],
-                pixel_mean=self.cfg.pixel_mean,
-                pixel_std=self.cfg.pixel_std,
-                neck=MMDetNeckConfig(
-                    type="MMDetNeck",
-                    mm_cfg=self.mm_cfg["neck"],
-                    output_names=self.cfg.backbone_output_names,
-                )
-                if "neck" in self.mm_cfg
-                else None,
+        self.backbone = MMSegBackbone(
+            mm_cfg=self.mm_cfg["backbone"],
+            pixel_mean=self.cfg.pixel_mean,
+            pixel_std=self.cfg.pixel_std,
+            neck=MMDetNeck(
+                mm_cfg=self.mm_cfg["neck"],
+                output_names=self.cfg.backbone_output_names,
             )
+            if "neck" in self.mm_cfg
+            else None,
         )
 
         decode_cfg = self.mm_cfg["decode_head"]

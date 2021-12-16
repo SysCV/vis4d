@@ -2,35 +2,28 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
+from vis4d.common.module import build_module
 from vis4d.struct import (
     Boxes2D,
+    DictStrAny,
     FeatureMaps,
     InputSample,
     InstanceMasks,
     LabelInstances,
     LossesType,
     ModelOutput,
+    ModuleCfg,
     TLabelInstance,
 )
 
-from ..backbone import BaseBackboneConfig, MMDetBackboneConfig, build_backbone
-from ..backbone.neck import MMDetNeckConfig
+from ..backbone import BaseBackbone, MMDetBackbone
+from ..backbone.neck import MMDetNeck
 from ..base import BaseModelConfig
-from ..heads.dense_head import (
-    BaseDenseHead,
-    BaseDenseHeadConfig,
-    MMDetDenseHeadConfig,
-    build_dense_head,
-)
-from ..heads.roi_head import (
-    BaseRoIHead,
-    BaseRoIHeadConfig,
-    MMDetRoIHeadConfig,
-    build_roi_head,
-)
+from ..heads.dense_head import BaseDenseHead, MMDetDenseHead
+from ..heads.roi_head import BaseRoIHead, MMDetRoIHead
 from ..mmdet_utils import add_keyword_args, load_config
 from ..utils import predictions_to_scalabel
-from .base import BaseDetectorConfig, BaseTwoStageDetector
+from .base import BaseTwoStageDetector
 
 try:
     from mmcv import Config as MMConfig
@@ -54,50 +47,48 @@ REV_KEYS = [
 ]
 
 
-class MMTwoStageDetectorConfig(BaseDetectorConfig):
-    """Config for mmdetection two stage models."""
-
-    model_base: str
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
-    pixel_mean: Tuple[float, float, float]
-    pixel_std: Tuple[float, float, float]
-    backbone_output_names: Optional[List[str]]
-    weights: Optional[str]
-    backbone: Optional[BaseBackboneConfig]
-    roi_head: Optional[BaseRoIHeadConfig]
-    rpn_head: Optional[BaseDenseHeadConfig]
-
-
 class MMTwoStageDetector(BaseTwoStageDetector):
     """mmdetection two-stage detector wrapper."""
 
-    def __init__(self, cfg: BaseModelConfig):
+    def __init__(
+        self,
+        model_base: str,
+        pixel_mean: Tuple[float, float, float],
+        pixel_std: Tuple[float, float, float],
+        clip_bboxes_to_image: bool = True,
+        model_kwargs: Optional[DictStrAny] = None,
+        backbone_output_names: Optional[List[str]] = None,
+        weights: Optional[str] = None,
+        backbone: Optional[Union[BaseBackbone, ModuleCfg]] = None,
+        roi_head: Optional[Union[BaseDenseHead, ModuleCfg]] = None,
+        rpn_head: Optional[Union[BaseRoIHead, ModuleCfg]] = None,
+    ):
         """Init."""
         assert (
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMTwoStageDetector requires both mmcv and mmdet to be installed!"
-        super().__init__(cfg)
-        self.cfg: MMTwoStageDetectorConfig = MMTwoStageDetectorConfig(
-            **cfg.dict()
+        super().__init__(clip_bboxes_to_image)
+        assert category_mapping is not None
+        self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
+        self.mm_cfg = get_mmdet_config(
+            model_base, model_kwargs, self.category_mapping
         )
-        assert self.cfg.category_mapping is not None
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
-        self.mm_cfg = get_mmdet_config(self.cfg)
-        if self.cfg.backbone is None:
-            self.cfg.backbone = MMDetBackboneConfig(
-                type="MMDetBackbone",
+        if backbone is None:
+            self.backbone = MMDetBackbone(
                 mm_cfg=self.mm_cfg["backbone"],
-                pixel_mean=self.cfg.pixel_mean,
-                pixel_std=self.cfg.pixel_std,
-                neck=MMDetNeckConfig(
-                    type="MMDetNeck",
+                pixel_mean=pixel_mean,
+                pixel_std=pixel_std,
+                neck=MMDetNeck(
                     mm_cfg=self.mm_cfg["neck"],
-                    output_names=self.cfg.backbone_output_names,
+                    output_names=backbone_output_names,
                 ),
             )
-        self.backbone = build_backbone(self.cfg.backbone)
+        elif isinstance(backbone, dict):
+            self.backbone = build_module(backbone)
+        else:
+            self.backbone = backbone
 
-        if self.cfg.rpn_head is None:
+        if rpn_head is None:
             rpn_cfg = self.mm_cfg["rpn_head"]
             if (
                 "train_cfg" in self.mm_cfg
@@ -110,16 +101,15 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 train_cfg=rpn_train_cfg,
                 test_cfg=self.mm_cfg["test_cfg"]["rpn"],
             )
-            self.cfg.rpn_head = MMDetDenseHeadConfig(
-                type="MMDetDenseHead",
-                mm_cfg=rpn_cfg,
-                category_mapping=self.cfg.category_mapping,
+            self.rpn_head = MMDetDenseHead(
+                mm_cfg=rpn_cfg, category_mapping=self.category_mapping
             )
-        self.rpn_head: BaseDenseHead[
-            List[Boxes2D], List[Boxes2D]
-        ] = build_dense_head(self.cfg.rpn_head)
+        elif isinstance(rpn_head, dict):
+            self.rpn_head = build_module(rpn_head, bound=BaseDenseHead)
+        else:
+            self.rpn_head = rpn_head
 
-        if self.cfg.roi_head is None:
+        if roi_head is None:
             roi_head_cfg = self.mm_cfg["roi_head"]
             if (
                 "train_cfg" in self.mm_cfg
@@ -131,23 +121,20 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
             roi_head_cfg.update(train_cfg=rcnn_train_cfg)
             roi_head_cfg.update(test_cfg=self.mm_cfg["test_cfg"]["rcnn"])
-            self.cfg.roi_head = MMDetRoIHeadConfig(
-                type="MMDetRoIHead",
+            self.roi_head = MMDetRoIHead(
                 mm_cfg=roi_head_cfg,
-                category_mapping=self.cfg.category_mapping,
+                category_mapping=self.category_mapping,
             )
-        self.roi_head: BaseRoIHead[
-            Optional[SamplingResult],
-            Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
-        ] = build_roi_head(self.cfg.roi_head)
+        elif isinstance(roi_head, dict):
+            self.roi_head = build_module(roi_head, bound=BaseRoIHead)
+        else:
+            self.roi_head = roi_head
 
         self.with_mask = self.roi_head.with_mask
-        if self.cfg.weights is not None:
-            if self.cfg.weights.startswith("mmdet://"):
-                self.cfg.weights = (
-                    MMDET_MODEL_PREFIX + self.cfg.weights.split("mmdet://")[-1]
-                )
-            load_checkpoint(self, self.cfg.weights, revise_keys=REV_KEYS)
+        if weights is not None:
+            if weights.startswith("mmdet://"):
+                weights = MMDET_MODEL_PREFIX + weights.split("mmdet://")[-1]
+            load_checkpoint(self, weights, revise_keys=REV_KEYS)
 
     def forward_train(
         self,
@@ -184,7 +171,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             outputs["ins_seg"] = segmentations
 
         return predictions_to_scalabel(
-            inputs, outputs, self.cat_mapping, self.cfg.clip_bboxes_to_image
+            inputs, outputs, self.cat_mapping, self.clip_bboxes_to_image
         )
 
     def extract_features(self, inputs: InputSample) -> FeatureMaps:
@@ -233,26 +220,25 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         return self.roi_head(inputs, proposals, features)
 
 
-def get_mmdet_config(config: MMTwoStageDetectorConfig) -> MMConfig:
+def get_mmdet_config(
+    model_base: str,
+    model_kwargs: Optional[DictStrAny] = None,
+    category_mapping: Optional[Dict[str, int]] = None,
+) -> MMConfig:
     """Convert a Detector config to a mmdet readable config."""
-    cfg = load_config(config.model_base)
+    cfg = load_config(model_base)
 
     # convert detect attributes
-    if (
-        hasattr(config, "category_mapping")
-        and config.category_mapping is not None
-    ):
+    if category_mapping is not None:
         if "bbox_head" in cfg:  # pragma: no cover
-            cfg["bbox_head"]["num_classes"] = len(config.category_mapping)
+            cfg["bbox_head"]["num_classes"] = len(category_mapping)
         if "roi_head" in cfg:
-            cfg["roi_head"]["bbox_head"]["num_classes"] = len(
-                config.category_mapping
-            )
+            cfg["roi_head"]["bbox_head"]["num_classes"] = len(category_mapping)
             if "mask_head" in cfg["roi_head"]:
                 cfg["roi_head"]["mask_head"]["num_classes"] = len(
-                    config.category_mapping
+                    category_mapping
                 )
 
-    if config.model_kwargs:
-        add_keyword_args(config, cfg)
+    if model_kwargs is not None:
+        add_keyword_args(model_kwargs, cfg)
     return cfg

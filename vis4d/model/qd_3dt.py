@@ -11,7 +11,6 @@ from ..struct import (
     LossesType,
     ModelOutput,
 )
-from .base import BaseModelConfig
 from .heads.roi_head import BaseRoIHeadConfig, QD3DTBBox3DHead, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
 from .track.graph import build_track_graph
@@ -32,7 +31,7 @@ class QD3DT(QDTrack):
         super().__init__(cfg)
         self.cfg = QD3DTConfig(**cfg.dict())
         assert self.cfg.category_mapping is not None
-        self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)  # type: ignore # pylint: disable=line-too-long
+        self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)
         self.bbox_3d_head: QD3DTBBox3DHead = build_roi_head(
             self.cfg.bbox_3d_head
         )
@@ -100,7 +99,7 @@ class QD3DT(QDTrack):
             boxes2d.postprocess(
                 input_size,
                 inp.images.image_sizes[0],
-                self.detector.cfg.clip_bboxes_to_image,
+                self.detector.clip_bboxes_to_image,
             )
 
         boxes2d = Boxes2D.merge(boxes2d_list)

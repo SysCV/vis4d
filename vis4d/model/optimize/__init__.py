@@ -1,9 +1,9 @@
 """Vis4D optimize tools."""
 
-from .optimizer import BaseOptimizer, BaseOptimizerConfig, build_optimizer
+from .optimizer import BaseOptimizer, OptimizerConfig, build_optimizer
 from .scheduler import (
     BaseLRScheduler,
-    BaseLRSchedulerConfig,
+    LRSchedulerConfig,
     build_lr_scheduler,
     get_warmup_lr,
 )
@@ -13,7 +13,7 @@ __all__ = [
     "build_lr_scheduler",
     "BaseOptimizer",
     "BaseLRScheduler",
-    "BaseOptimizerConfig",
-    "BaseLRSchedulerConfig",
+    "OptimizerConfig",
+    "LRSchedulerConfig",
     "get_warmup_lr",
 ]

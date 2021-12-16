@@ -3,7 +3,6 @@ import abc
 from typing import List, NamedTuple
 
 import torch
-from pydantic import BaseModel, Field
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.struct import Boxes2D
@@ -29,18 +28,14 @@ class SamplingResult(NamedTuple):
     sampled_target_indices: List[torch.Tensor]
 
 
-class SamplerConfig(BaseModel, extra="allow"):
-    """Sampler base config."""
-
-    # Field(...) necessary for linter
-    # See https://github.com/samuelcolvin/pydantic/issues/1899
-    type: str = Field(...)
-    batch_size_per_image: int = Field(...)
-    positive_fraction: float = Field(...)
-
-
 class BaseSampler(metaclass=RegistryHolder):
     """Sampler base class."""
+
+    def __init__(self, batch_size_per_image: int, positive_fraction: float):
+        """Init."""
+        super().__init__()
+        self.batch_size_per_image = batch_size_per_image
+        self.positive_fraction = positive_fraction
 
     @abc.abstractmethod
     def sample(
@@ -51,16 +46,6 @@ class BaseSampler(metaclass=RegistryHolder):
     ) -> SamplingResult:
         """Sample bounding boxes according to their struct."""
         raise NotImplementedError
-
-
-def build_sampler(cfg: SamplerConfig) -> BaseSampler:
-    """Build a bounding box sampler from config."""
-    registry = RegistryHolder.get_registry(BaseSampler)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseSampler)
-        return module
-    raise NotImplementedError(f"Sampler {cfg.type} not found.")
 
 
 @torch.no_grad()  # type: ignore

@@ -2,10 +2,7 @@
 import abc
 from typing import Dict, List, Optional, Tuple, Union, overload
 
-from pydantic import BaseModel, Field
-
 from vis4d.common.module import TTestReturn, TTrainReturn, Vis4DModule
-from vis4d.common.registry import RegistryHolder
 from vis4d.struct import (
     Boxes2D,
     FeatureMaps,
@@ -15,15 +12,15 @@ from vis4d.struct import (
 )
 
 
-class BaseRoIHeadConfig(BaseModel, extra="allow"):
-    """Base config for RoI head."""
-
-    type: str = Field(...)
-    category_mapping: Optional[Dict[str, int]] = None
-
-
 class BaseRoIHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
     """Base RoI head class."""
+
+    def __init__(
+        self, category_mapping: Optional[Dict[str, int]] = None
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.category_mapping = category_mapping
 
     @overload  # type: ignore[override]
     def __call__(
@@ -108,13 +105,3 @@ class BaseRoIHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
             TTestReturn: Prediction output.
         """
         raise NotImplementedError
-
-
-def build_roi_head(cfg: BaseRoIHeadConfig) -> BaseRoIHead:  # type: ignore
-    """Build a roi head from config."""
-    registry = RegistryHolder.get_registry(BaseRoIHead)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseRoIHead)
-        return module
-    raise NotImplementedError(f"RoIHead {cfg.type} not found.")
