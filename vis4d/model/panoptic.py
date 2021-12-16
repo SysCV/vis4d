@@ -105,4 +105,13 @@ class PanopticSegmentor(BaseModel):
                 {"sem_seg": semantic_segms}, self.seg_head.cat_mapping
             )
         )
+
+        # combine ins_seg and sem_seg to get pan_seg predictions
+        model_outs.update(
+            pan_seg=[
+                model_outs["ins_seg"][i] + model_outs["sem_seg"][i]
+                for i in range(len(model_outs["ins_seg"]))
+            ]
+        )
+
         return model_outs

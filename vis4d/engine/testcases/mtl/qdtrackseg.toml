@@ -1,4 +1,4 @@
-[config]]
+[[config]]
 path = "../configs/datasets/bdd100k/mtl.toml"
 
 [[config]]
