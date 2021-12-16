@@ -4,6 +4,7 @@ import os
 import shutil
 from typing import Dict, List, Tuple, Union
 
+import numpy as np
 from scalabel.label.io import load, load_label_config, save
 from scalabel.label.to_nuscenes import to_nuscenes
 from scalabel.label.typing import Dataset, Frame
@@ -14,10 +15,12 @@ from .base import BaseDatasetConfig, BaseDatasetLoader
 
 try:  # pragma: no cover
     from nuscenes import NuScenes as nusc_data
+    from nuscenes.eval.common.config import config_factory as track_configs
     from nuscenes.eval.detection.config import config_factory
     from nuscenes.eval.detection.evaluate import NuScenesEval
+    from nuscenes.eval.tracking.data_classes import TrackingMetrics
     from nuscenes.eval.tracking.evaluate import TrackingEval as track_eval
-    from nuscenes.eval.common.config import config_factory as track_configs
+    from nuscenes.eval.tracking.utils import metric_name_to_print_format
 
     # pylint: disable=ungrouped-imports
     from scalabel.label.from_nuscenes import from_nuscenes
@@ -25,7 +28,6 @@ try:  # pragma: no cover
     NUSC_INSTALLED = True
 except (ImportError, NameError):
     NUSC_INSTALLED = False
-import pdb
 
 
 class NuScenesDatasetConfig(BaseDatasetConfig):
@@ -115,7 +117,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         eval_time: float,
     ) -> Tuple[List[str], Union[int, float], Union[int, float]]:
         """Collect high-level metrics."""
-        str_summary_list = ["High-level metrics:"]
+        str_summary_list = ["\nHigh-level metrics:"]
         str_summary_list.append(f"mAP: {mean_ap:.4f}")
         err_name_mapping = {
             "trans_err": "mATE",
@@ -145,8 +147,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         class_tps: Dict[str, Dict[str, float]],
     ) -> List[str]:
         """Collect per-class metrics."""
-        str_summary_list.append("")
-        str_summary_list.append("Per-class results:")
+        str_summary_list.append("\nPer-class results:")
         str_summary_list.append("Object Class\tAP\tATE\tASE\tAOE\tAVE\tAAE")
 
         for class_name in class_aps.keys():
@@ -220,31 +221,84 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
 
         return log_dict, str_summary
 
+    @staticmethod
+    def _parse_tracking_metrics(
+        metrics: TrackingMetrics,
+    ) -> Tuple[MetricLogs, str]:
+        """Parse metrics."""
+        str_summary_list = ["\nPer-class results:"]
+
+        metric_names = metrics.label_metrics.keys()
+        str_summary_list.append(
+            "\t\t" + "\t".join([m.upper() for m in metric_names])
+        )
+
+        class_names = metrics.class_names
+        max_name_length = 7
+        for class_name in class_names:
+            print_class = class_name[:max_name_length].ljust(
+                max_name_length + 1
+            )
+
+            for metric_name in metric_names:
+                val = metrics.label_metrics[metric_name][class_name]
+
+                print_format = (
+                    "%f"
+                    if np.isnan(val)
+                    else metric_name_to_print_format(metric_name)
+                )
+                print_class += f"\t{(print_format % val)}"
+
+            str_summary_list.append(print_class)
+
+        str_summary_list.append("\nAggregated results:")
+        for metric_name in metric_names:
+            val = metrics.compute_metric(metric_name, "all")
+            print_format = metric_name_to_print_format(metric_name)
+            str_summary_list.append(
+                f"{metric_name.upper()}\t{print_format % val}"
+            )
+
+        str_summary_list.append(f"Eval time: {metrics.eval_time:.1f}s")
+
+        log_dict = {
+            "AMOTA": metrics.compute_metric("amota", "all"),
+            "AMOTP": metrics.compute_metric("amotp", "all"),
+        }
+        str_summary = "\n".join(str_summary_list)
+
+        return log_dict, str_summary
+
     def _eval_tracking(
         self,
         result_path: str,
         eval_set: str,
-    ):
+    ) -> Tuple[MetricLogs, str]:
         """Evaluate tracking."""
-        try:
+        try:  # pragma: no cover
             nusc_eval = track_eval(
                 config=track_configs("tracking_nips_2019"),
                 result_path=result_path,
                 eval_set=eval_set,
                 output_dir=self.cfg.tmp_dir,
-                verbose=False,
+                verbose=True,
                 nusc_version=self.cfg.version,
                 nusc_dataroot=self.cfg.data_root,
             )
-            metrics_summary = nusc_eval.main()
-            pdb.set_trace()
+            metrics, _ = nusc_eval.evaluate()
+
+            log_dict, str_summary = self._parse_tracking_metrics(metrics)
 
         except AssertionError:
             log_dict = {
                 "aMOTA": 0,
                 "MOTP": 0,
             }
-            str_summary = "Fail to evaluate due to sanity check or errors!"
+            str_summary = "Fail to evaluate due to sanity check or motmetrics version or errors!"  # pylint: disable=line-too-long
+
+        # clean up tmp dir
+        shutil.rmtree(self.cfg.tmp_dir)
 
         return log_dict, str_summary
 
