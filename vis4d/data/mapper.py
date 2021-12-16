@@ -137,17 +137,12 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         """Transform annotations."""
         labels_used = []
         if labels is not None:
-            # category_dict = {}
             instance_id_dict = {}
             for label in labels:
                 assert label.attributes is not None
                 assert label.category is not None
                 if not check_crowd(label) and not check_ignored(label):
                     labels_used.append(label)
-                    # if label.category not in category_dict:
-                    #     category_dict[label.category] = int(
-                    #         label.attributes["category_id"]
-                    #     )
                     if label.id not in instance_id_dict:
                         instance_id_dict[label.id] = int(
                             label.attributes["instance_id"]

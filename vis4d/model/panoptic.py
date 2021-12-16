@@ -87,7 +87,10 @@ class PanopticSegmentor(BaseModel):
             detect=detections, ins_seg=instance_segms, sem_seg=semantic_segms
         )
         postprocess_predictions(
-            inputs, outputs, self.cfg.detection.clip_bboxes_to_image
+            inputs,
+            outputs,
+            clip_to_image=self.cfg.detection.clip_bboxes_to_image,
+            resolve_overlap=False,
         )
 
         predictions = LabelInstances(

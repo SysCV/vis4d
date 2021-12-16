@@ -10,6 +10,7 @@ def postprocess_predictions(
     inputs: InputSample,
     predictions: Dict[str, List[TLabelInstance]],
     clip_to_image: bool = True,
+    resolve_overlap: bool = True,
 ) -> None:
     """Postprocess predictions."""
     for values in predictions.values():
@@ -19,7 +20,12 @@ def postprocess_predictions(
                 inp.metadata[0].size.width,
                 inp.metadata[0].size.height,
             )
-            v.postprocess(input_size, inp.images.image_sizes[0], clip_to_image)
+            v.postprocess(
+                input_size,
+                inp.images.image_sizes[0],
+                clip_to_image,
+                resolve_overlap,
+            )
 
 
 def predictions_to_scalabel(

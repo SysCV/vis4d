@@ -1,5 +1,5 @@
 [[train]]
-name = "bdd100k_sem_seg_sample_train"
+name = "bdd100k_sem_seg_train"
 type = "Scalabel"
 annotations = "data/bdd100k/labels/sem_seg_train_rle.json"
 data_root = "data/bdd100k/images/hdf5s/10k_train.hdf5"
@@ -39,7 +39,7 @@ cache_as_binary = true
     kwargs = {"brightness" = [0.875, 1.125], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5], "hue" = [-0.1, 0.1]}
 
 [[test]]
-name = "bdd100k_sem_seg_sample_val"
+name = "bdd100k_sem_seg_val"
 type = "Scalabel"
 annotations = "data/bdd100k/labels/sem_seg_val_rle.json"
 data_root = "data/bdd100k/images/hdf5s/10k_val.hdf5"

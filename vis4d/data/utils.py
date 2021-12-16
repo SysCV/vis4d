@@ -123,8 +123,6 @@ def prepare_labels(
                 if not check_crowd(label) and not check_ignored(label):
                     assert label.category is not None
                     frequencies[label.category] += 1
-                    # attr["category_id"] = cat_name2id[label.category]
-
                     video_name = (
                         ann.videoName
                         if ann.videoName is not None

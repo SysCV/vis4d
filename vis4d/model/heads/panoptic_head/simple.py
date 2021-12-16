@@ -37,7 +37,7 @@ class SimplePanopticHead(BasePanopticHead):
         inputs: InputSample,
         predictions: LabelInstances,
         targets: LabelInstances,
-    ) -> LossesType:
+    ) -> LossesType:  # pragma: no cover
         """Forward pass during training stage.
 
         Returns no losses since simple panoptic head has no learnable
@@ -69,7 +69,7 @@ class SimplePanopticHead(BasePanopticHead):
 
             mask = ins_segm.masks[inst_id]  # H,W
             mask_area = mask.sum().item()
-            if mask.sum().item() == 0:
+            if mask_area == 0:  # pragma: no cover
                 continue
 
             intersect = torch.logical_and(mask, foreground)
@@ -81,12 +81,10 @@ class SimplePanopticHead(BasePanopticHead):
 
             if intersect_area > 0:
                 ins_segm.masks[inst_id] = torch.logical_and(mask, ~foreground)
-            foreground = torch.logical_and(mask, foreground)
+            foreground = torch.logical_or(mask, foreground)
 
         # add semantic results to remaining empty areas
         for mask in sem_segm.masks:
-            # if semantic_label == 0:  # 0 is a special "thing" class
-            #     continue
             mask = torch.logical_and(mask, ~foreground)
             if mask.sum().item() < self.cfg.stuff_area_thr:
                 mask[mask > 0] = 0

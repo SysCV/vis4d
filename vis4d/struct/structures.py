@@ -93,6 +93,7 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         clip: bool = True,
+        resolve_overlap: bool = True,
     ) -> None:
         """Postprocess label according to original image resolution.
 

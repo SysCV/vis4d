@@ -275,6 +275,7 @@ class Boxes2D(Boxes):
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         clip: bool = True,
+        resolve_overlap: bool = True,
     ) -> None:
         """Postprocess boxes."""
         scale_factor = (
@@ -525,7 +526,7 @@ class Masks(LabelInstance):
             if has_class_ids:
                 if mask_cls in class_to_idx:
                     cls_list.append(class_to_idx[mask_cls])
-                else:
+                else:  # pragma: no cover
                     continue
             if label.rle is not None:
                 bitmask = rle_to_mask(label.rle)
@@ -817,20 +818,22 @@ class InstanceMasks(Masks):
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         clip: bool = True,
+        resolve_overlap: bool = True,
     ) -> None:
         """Postprocess instance masks."""
         if len(self) == 0:
             return
         if self.size != output_wh:
             self.paste_masks_in_image(original_wh)
-        # resolve overlaps
-        foreground = torch.zeros(
-            self.masks.shape[1:], dtype=torch.bool, device=self.device
-        )
-        sort_idx = self.score.argsort(descending=True)
-        for i in sort_idx:
-            self.masks[i] = torch.logical_and(self.masks[i], ~foreground)
-            foreground = torch.logical_or(self.masks[i], foreground)
+        if resolve_overlap:
+            # remove overlaps in instance masks
+            foreground = torch.zeros(
+                self.masks.shape[1:], dtype=torch.bool, device=self.device
+            )
+            sort_idx = self.score.argsort(descending=True)
+            for i in sort_idx:
+                self.masks[i] = torch.logical_and(self.masks[i], ~foreground)
+                foreground = torch.logical_or(self.masks[i], foreground)
         if self.size != original_wh:
             self.resize(original_wh)
 
@@ -900,6 +903,7 @@ class SemanticMasks(Masks):
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         clip: bool = True,
+        resolve_overlap: bool = True,
     ) -> None:
         """Postprocess semantic masks."""
         self.masks = self.masks[:, : output_wh[1], : output_wh[0]]

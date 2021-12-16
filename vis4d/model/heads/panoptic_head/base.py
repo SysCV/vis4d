@@ -59,7 +59,7 @@ class BasePanopticHead(Vis4DModule[LossesType, PanopticMasks]):
             LossesType / PanopticMasks: In train mode, return losses. In test
             mode, return predictions.
         """
-        if targets is not None:
+        if targets is not None:  # pragma: no cover
             return self.forward_train(inputs, predictions, targets)
         return self.forward_test(inputs, predictions)
 

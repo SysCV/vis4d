@@ -69,7 +69,7 @@ def build_category_mappings(
         if "all" in cfg.category_mapping:
             if len(cfg.category_mapping) > 1:
                 rank_zero_warn(
-                    '"all" category mapping is specified, but other category "'
+                    '"all" category mapping is specified, but other category '
                     "mappings exist. These will be ignored."
                 )
             return {"all": cfg.category_mapping["all"]}
