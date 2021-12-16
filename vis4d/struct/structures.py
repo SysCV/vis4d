@@ -71,6 +71,12 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
+    def empty(cls, device: Optional[torch.device] = None) -> "LabelInstance":
+        """Return empty labels on device."""
+        raise NotImplementedError
+
+    @classmethod
+    @abc.abstractmethod
     def from_scalabel(
         cls,
         labels: List[Label],

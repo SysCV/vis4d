@@ -1,6 +1,6 @@
 [model]
 type = "PanopticSegmentor"
-category_mapping = {"pedestrian" = 0, "rider" = 1, "bicycle" = 2, "bus" = 3, "car" = 4, "caravan" = 5, "motorcycle" = 6, "trailer" = 7, "train" = 8, "truck" = 9}
+category_mapping = {"person" = 0, "rider" = 1, "bicycle" = 2, "bus" = 3, "car" = 4, "caravan" = 5, "motorcycle" = 6, "trailer" = 7, "train" = 8, "truck" = 9}
     [model.detection]
     type = "MMTwoStageDetector"
     model_base = "vis4d/engine/testcases/configs/models/mmdetection/mmdet_cfg_maskrcnn_r18fpn.py"

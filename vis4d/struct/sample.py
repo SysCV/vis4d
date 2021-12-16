@@ -36,38 +36,22 @@ class LabelInstances(InputInstance):
                     break
 
         if boxes2d is None:
-            boxes2d = [
-                Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0)).to(
-                    device
-                )
-                for _ in range(annotation_len)
-            ]
+            boxes2d = [Boxes2D.empty(device) for _ in range(annotation_len)]
         self.boxes2d = boxes2d
 
         if boxes3d is None:
-            boxes3d = [
-                Boxes3D(torch.empty(0, 10), torch.empty(0), torch.empty(0)).to(
-                    device
-                )
-                for _ in range(annotation_len)
-            ]
+            boxes3d = [Boxes3D.empty(device) for _ in range(annotation_len)]
         self.boxes3d = boxes3d
 
         if instance_masks is None:
             instance_masks = [
-                InstanceMasks(
-                    torch.empty(0, 1, 1), torch.empty(0), torch.empty(0)
-                ).to(device)
-                for _ in range(annotation_len)
+                InstanceMasks.empty(device) for _ in range(annotation_len)
             ]
         self.instance_masks = instance_masks
 
         if semantic_masks is None:
             semantic_masks = [
-                SemanticMasks(
-                    torch.empty(0, 1, 1), torch.empty(0), torch.empty(0)
-                ).to(device)
-                for _ in range(annotation_len)
+                SemanticMasks.empty(device) for _ in range(annotation_len)
             ]
         self.semantic_masks = semantic_masks
 

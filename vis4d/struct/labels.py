@@ -137,6 +137,15 @@ class Boxes(LabelInstance):
         return self.boxes.device
 
     @classmethod
+    def empty(
+        cls: Type["TBoxes"], device: Optional[torch.device] = None
+    ) -> "TBoxes":
+        """Return empty boxes on device."""
+        return cls(torch.empty(0, 5), torch.empty(0), torch.empty(0)).to(
+            device
+        )
+
+    @classmethod
     @abc.abstractmethod
     def from_scalabel(
         cls: Type["TBoxes"],
@@ -231,7 +240,7 @@ class Boxes2D(Boxes):
             idx_list.append(idx)
 
         if len(box_list) == 0:  # pragma: no cover
-            return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+            return cls.empty()
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
@@ -375,7 +384,7 @@ class Boxes3D(Boxes):
             idx_list.append(idx)
 
         if len(box_list) == 0:  # pragma: no cover
-            return Boxes3D(torch.empty(0, 10), torch.empty(0), torch.empty(0))
+            return cls.empty()
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
@@ -507,6 +516,18 @@ class Masks(LabelInstance):
         ).squeeze(1)
 
     @classmethod
+    def empty(
+        cls: Type["TMasks"], device: Optional[torch.device] = None
+    ) -> "TMasks":
+        """Return empty masks on device."""
+        return cls(
+            torch.empty(0, 1, 1),
+            torch.empty(0),
+            torch.empty(0),
+            torch.empty(0),
+        ).to(device)
+
+    @classmethod
     def from_scalabel(
         cls: Type["TMasks"],
         labels: List[Label],
@@ -545,7 +566,7 @@ class Masks(LabelInstance):
                 score_list.append(score)
 
         if len(bitmask_list) == 0:  # pragma: no cover
-            return cls(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
+            return cls.empty()
         mask_tensor = torch.tensor(bitmask_list, dtype=torch.uint8)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
@@ -658,7 +679,7 @@ class Masks(LabelInstance):
     def get_boxes2d(self) -> Boxes2D:
         """Return corresponding Boxes2D for the masks inside self."""
         if len(self) == 0:
-            return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+            return Boxes2D.empty()
 
         boxes_list = []
         for i, mask in enumerate(self.masks):
@@ -735,7 +756,7 @@ class InstanceMasks(Masks):
             resized_masks = targets >= 0.5
         else:
             resized_masks = targets
-        return type(self)(resized_masks, detections=boxes)
+        return InstanceMasks(resized_masks, detections=boxes)
 
     def paste_masks_in_image(
         self,

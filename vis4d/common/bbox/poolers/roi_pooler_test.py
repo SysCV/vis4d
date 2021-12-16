@@ -49,9 +49,7 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
 
         boxes_list = []
         for _ in range(N):
-            boxes_list += [
-                Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
-            ]
+            boxes_list += [Boxes2D.empty()]
 
         out = pooler.pool([inputs[0]], boxes_list)
         self.assertEqual(out.shape, (0, C, 7, 7))
