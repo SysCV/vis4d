@@ -317,7 +317,7 @@ def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         for key, value in zip(param_names, param_group):
             obj = model
             for name in key.split(".")[:-1]:
-                obj = getattr(obj, name, None)
+                obj = getattr(obj, name, None)  # type: ignore
                 if obj is None:
                     raise ValueError(f"Attribute {name} not found in {key}!")
             setattr(obj, key.split(".")[-1], value)

@@ -18,7 +18,6 @@ try:  # pragma: no cover
     from nuscenes.eval.common.config import config_factory as track_configs
     from nuscenes.eval.detection.config import config_factory
     from nuscenes.eval.detection.evaluate import NuScenesEval
-    from nuscenes.eval.tracking.data_classes import TrackingMetrics
     from nuscenes.eval.tracking.evaluate import TrackingEval as track_eval
     from nuscenes.eval.tracking.utils import metric_name_to_print_format
 
@@ -221,55 +220,6 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
 
         return log_dict, str_summary
 
-    @staticmethod
-    def _parse_tracking_metrics(
-        metrics: TrackingMetrics,
-    ) -> Tuple[MetricLogs, str]:
-        """Parse metrics."""
-        str_summary_list = ["\nPer-class results:"]
-
-        metric_names = metrics.label_metrics.keys()
-        str_summary_list.append(
-            "\t\t" + "\t".join([m.upper() for m in metric_names])
-        )
-
-        class_names = metrics.class_names
-        max_name_length = 7
-        for class_name in class_names:
-            print_class = class_name[:max_name_length].ljust(
-                max_name_length + 1
-            )
-
-            for metric_name in metric_names:
-                val = metrics.label_metrics[metric_name][class_name]
-
-                print_format = (
-                    "%f"
-                    if np.isnan(val)
-                    else metric_name_to_print_format(metric_name)
-                )
-                print_class += f"\t{(print_format % val)}"
-
-            str_summary_list.append(print_class)
-
-        str_summary_list.append("\nAggregated results:")
-        for metric_name in metric_names:
-            val = metrics.compute_metric(metric_name, "all")
-            print_format = metric_name_to_print_format(metric_name)
-            str_summary_list.append(
-                f"{metric_name.upper()}\t{print_format % val}"
-            )
-
-        str_summary_list.append(f"Eval time: {metrics.eval_time:.1f}s")
-
-        log_dict = {
-            "AMOTA": metrics.compute_metric("amota", "all"),
-            "AMOTP": metrics.compute_metric("amotp", "all"),
-        }
-        str_summary = "\n".join(str_summary_list)
-
-        return log_dict, str_summary
-
     def _eval_tracking(
         self,
         result_path: str,
@@ -282,14 +232,50 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
                 result_path=result_path,
                 eval_set=eval_set,
                 output_dir=self.cfg.tmp_dir,
-                verbose=True,
+                verbose=False,
                 nusc_version=self.cfg.version,
                 nusc_dataroot=self.cfg.data_root,
             )
             metrics, _ = nusc_eval.evaluate()
 
-            log_dict, str_summary = self._parse_tracking_metrics(metrics)
+            str_summary_list = ["\nPer-class results:"]
+            metric_names = metrics.label_metrics.keys()
+            str_summary_list.append(
+                "\t\t" + "\t".join([m.upper() for m in metric_names])
+            )
 
+            class_names = metrics.class_names
+            max_name_length = 7
+            for class_name in class_names:
+                print_class = class_name[:max_name_length].ljust(
+                    max_name_length + 1
+                )
+
+                for metric_name in metric_names:
+                    val = metrics.label_metrics[metric_name][class_name]
+                    print_format = (
+                        "%f"
+                        if np.isnan(val)
+                        else metric_name_to_print_format(metric_name)
+                    )
+                    print_class += f"\t{(print_format % val)}"
+
+                str_summary_list.append(print_class)
+
+            str_summary_list.append("\nAggregated results:")
+            for metric_name in metric_names:
+                val = metrics.compute_metric(metric_name, "all")
+                print_format = metric_name_to_print_format(metric_name)
+                str_summary_list.append(
+                    f"{metric_name.upper()}\t{print_format % val}"
+                )
+            str_summary_list.append(f"Eval time: {metrics.eval_time:.1f}s")
+
+            log_dict = {
+                "AMOTA": metrics.compute_metric("amota", "all"),
+                "AMOTP": metrics.compute_metric("amotp", "all"),
+            }
+            str_summary = "\n".join(str_summary_list)
         except AssertionError:
             log_dict = {
                 "aMOTA": 0,

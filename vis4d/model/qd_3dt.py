@@ -165,7 +165,7 @@ class QD3DT(QDTrack):
         # for idx, (box2d, box3d) in enumerate(zip(boxes2d, boxes3d)):
         #     boxes3d[idx].boxes[:, -1] *= boxes2d[idx].score
         #     nms_flag = 0
-        #     if box2d.class_ids[0] == 5:
+        #     if box2d.class_ids[0] == 2:
         #         nms_dist = 1
         #     else:
         #         nms_dist = 2
