@@ -1,5 +1,5 @@
 """Simple panoptic head."""
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 
@@ -17,6 +17,7 @@ from .base import BasePanopticHead, BasePanopticHeadConfig, PanopticMasks
 class SimplePanopticHeadConfig(BasePanopticHeadConfig):
     """Config for simple panoptic head."""
 
+    ignore_class: Optional[int] = -1
     overlap_thr: float = 0.5
     stuff_area_thr: int = 4096
     thing_conf_thr: float = 0.5
@@ -84,7 +85,10 @@ class SimplePanopticHead(BasePanopticHead):
             foreground = torch.logical_or(mask, foreground)
 
         # add semantic results to remaining empty areas
-        for mask in sem_segm.masks:
+        for mask, cls_id in zip(sem_segm.masks, sem_segm.class_ids):
+            if cls_id == self.cfg.ignore_class:
+                mask[mask > 0] = 0
+                continue
             mask = torch.logical_and(mask, ~foreground)
             if mask.sum().item() < self.cfg.stuff_area_thr:
                 mask[mask > 0] = 0

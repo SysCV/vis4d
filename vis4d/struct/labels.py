@@ -585,6 +585,8 @@ class Masks(LabelInstance):
         """Convert from internal to scalabel format."""
         labels = []
         for i, mask in enumerate(self.masks):
+            if mask.sum().item() == 0:
+                continue
             if idx_to_class is not None:
                 cls = idx_to_class[int(self.class_ids[i])]
             else:

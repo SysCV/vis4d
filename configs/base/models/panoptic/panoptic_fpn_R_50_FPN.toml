@@ -14,3 +14,4 @@ category_mapping = {"person" = 0, "rider" = 1, "bicycle" = 2, "bus" = 3, "car" =
 
     [model.pan_head]
     type = "SimplePanopticHead"
+    ignore_class = 30
