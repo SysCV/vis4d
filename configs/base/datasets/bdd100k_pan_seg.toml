@@ -1,10 +1,15 @@
 [[train]]
 name = "bdd100k_pan_seg_train"
-type = "Scalabel"
+type = "BDD100K"
 annotations = "data/bdd100k/labels/pan_seg_train_rle.json"
 data_root = "data/bdd100k/images/hdf5s/10k_train.hdf5"
-config_path = "configs/base/configs/pan_seg.toml"
+config_path = "pan_seg"
 num_processes = 0
+    [train.category_mapping]
+    boxes2d = {"person" = 0, "rider" = 1, "bicycle" = 2, "bus" = 3, "car" = 4, "caravan" = 5, "motorcycle" = 6, "trailer" = 7, "train" = 8, "truck" = 9}
+    instance_masks = {"person" = 0, "rider" = 1, "bicycle" = 2, "bus" = 3, "car" = 4, "caravan" = 5, "motorcycle" = 6, "trailer" = 7, "train" = 8, "truck" = 9}
+    semantic_masks = {"dynamic" = 0, "ego vehicle" = 1, "ground" = 2, "static" = 3, "parking" = 4, "rail track" = 5, "road" = 6, "sidewalk" = 7, "bridge" = 8, "building" = 9, "fence" = 10, "garage" = 11, "guard rail" = 12, "tunnel" = 13, "wall" = 14, "banner" = 15, "billboard" = 16, "lane divider" = 17, "parking sign" = 18, "pole" = 19, "polegroup" = 20, "street light" = 21, "traffic cone" = 22, "traffic device" = 23, "traffic light" = 24, "traffic sign" = 25, "traffic sign frame" = 26, "terrain" = 27, "vegetation" = 28, "sky" = 29, "person" = 30, "rider" = 30, "bicycle" = 30, "bus" = 30, "car" = 30, "caravan" = 30, "motorcycle" = 30, "trailer" = 30, "train" = 30, "truck" = 30}
+
     [train.sample_mapper]
     fields_to_load = ["boxes2d", "instance_masks", "semantic_masks"]
 
@@ -22,12 +27,17 @@ num_processes = 0
 
 [[test]]
 name = "bdd100k_pan_seg_val"
-type = "Scalabel"
+type = "BDD100K"
 annotations = "data/bdd100k/labels/pan_seg_val_rle.json"
 data_root = "data/bdd100k/images/hdf5s/10k_val.hdf5"
-config_path = "configs/base/configs/pan_seg.toml"
+config_path = "pan_seg"
 eval_metrics = ["pan_seg"]
 num_processes = 0
+    [test.category_mapping]
+    boxes2d = {"person" = 0, "rider" = 1, "bicycle" = 2, "bus" = 3, "car" = 4, "caravan" = 5, "motorcycle" = 6, "trailer" = 7, "train" = 8, "truck" = 9}
+    instance_masks = {"person" = 0, "rider" = 1, "bicycle" = 2, "bus" = 3, "car" = 4, "caravan" = 5, "motorcycle" = 6, "trailer" = 7, "train" = 8, "truck" = 9}
+    semantic_masks = {"dynamic" = 0, "ego vehicle" = 1, "ground" = 2, "static" = 3, "parking" = 4, "rail track" = 5, "road" = 6, "sidewalk" = 7, "bridge" = 8, "building" = 9, "fence" = 10, "garage" = 11, "guard rail" = 12, "tunnel" = 13, "wall" = 14, "banner" = 15, "billboard" = 16, "lane divider" = 17, "parking sign" = 18, "pole" = 19, "polegroup" = 20, "street light" = 21, "traffic cone" = 22, "traffic device" = 23, "traffic light" = 24, "traffic sign" = 25, "traffic sign frame" = 26, "terrain" = 27, "vegetation" = 28, "sky" = 29, "person" = 30, "rider" = 30, "bicycle" = 30, "bus" = 30, "car" = 30, "caravan" = 30, "motorcycle" = 30, "trailer" = 30, "train" = 30, "truck" = 30}
+
     [test.sample_mapper]
     fields_to_load = ["boxes2d", "instance_masks", "semantic_masks"]
 

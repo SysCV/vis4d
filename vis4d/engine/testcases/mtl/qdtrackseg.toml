@@ -4,13 +4,8 @@ path = "../configs/datasets/bdd100k/mtl.toml"
 [[config]]
 path = "../configs/models/mtl/qdtrackseg_R_18_FPN.toml"
 
-[data]
-    [data.train_sampler]
-    type = "RoundRobinSampler"
-
-    [data.category_mapping]
-    all = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
-    extra = {}
+[data.train_sampler]
+type = "RoundRobinSampler"
 
 [model]
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}

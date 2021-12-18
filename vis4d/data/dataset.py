@@ -1,6 +1,6 @@
 """Class for processing Scalabel type datasets."""
 import random
-from typing import Dict, List, Optional
+from typing import List
 
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
@@ -30,13 +30,13 @@ class ScalabelDataset(Dataset):  # type: ignore
         self,
         dataset: BaseDatasetLoader,
         training: bool,
-        cats_name2id: Optional[Dict[str, Dict[str, int]]] = None,
         image_channel_mode: str = "RGB",
     ):
         """Init."""
         rank_zero_info("Initializing dataset: %s", dataset.cfg.name)
         self.cfg = dataset.cfg
         self.training = training
+        cats_name2id = self.cfg.category_mapping
         if cats_name2id is not None:
             class_list = list(
                 set(

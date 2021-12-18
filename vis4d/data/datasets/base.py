@@ -33,6 +33,7 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     sample_mapper: SampleMapperConfig = SampleMapperConfig()
     ref_sampler: ReferenceSamplerConfig = ReferenceSamplerConfig()
     annotations: Optional[str]
+    category_mapping: Optional[Dict[str, Dict[str, int]]]
     attributes: Optional[
         Dict[str, Union[bool, float, str, List[float], List[str]]]
     ]
@@ -136,18 +137,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
         timer = Timer()
         if self.cfg.cache_as_binary:
-            assert self.cfg.annotations is not None
-            if not os.path.exists(self.cfg.annotations.rstrip("/") + ".pkl"):
-                dataset = self.load_dataset()
-                with open(
-                    self.cfg.annotations.rstrip("/") + ".pkl", "wb"
-                ) as file:
-                    file.write(pickle.dumps(dataset))
-            else:
-                with open(
-                    self.cfg.annotations.rstrip("/") + ".pkl", "rb"
-                ) as file:
-                    dataset = pickle.loads(file.read())
+            dataset = self.load_cached_dataset()
         else:
             dataset = self.load_dataset()
 
@@ -157,6 +147,19 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         self.metadata_cfg = dataset.config
         self.frames = dataset.frames
         self.groups = dataset.groups
+
+    def load_cached_dataset(self) -> Dataset:
+        """Load cached dataset from file."""
+        assert self.cfg.annotations is not None
+        cache_path = self.cfg.annotations.rstrip("/") + ".pkl"
+        if not os.path.exists(cache_path):
+            dataset = self.load_dataset()
+            with open(cache_path, "wb") as file:
+                file.write(pickle.dumps(dataset))
+        else:
+            with open(cache_path, "rb") as file:
+                dataset = pickle.loads(file.read())
+        return dataset
 
     @abc.abstractmethod
     def load_dataset(self) -> Dataset:

@@ -64,11 +64,12 @@ class SimplePanopticHead(BasePanopticHead):
 
         # add instances one-by-one, check for overlaps with existing ones
         for inst_id in sorted_inds:
+            mask = ins_segm.masks[inst_id]  # H,W
             score = ins_segm.score[inst_id].item()
             if score < self.cfg.thing_conf_thr:
-                break
+                mask[mask > 0] = 0
+                continue
 
-            mask = ins_segm.masks[inst_id]  # H,W
             mask_area = mask.sum().item()
             if mask_area == 0:  # pragma: no cover
                 continue
@@ -85,13 +86,16 @@ class SimplePanopticHead(BasePanopticHead):
             foreground = torch.logical_or(mask, foreground)
 
         # add semantic results to remaining empty areas
-        for mask, cls_id in zip(sem_segm.masks, sem_segm.class_ids):
-            if cls_id == self.cfg.ignore_class:
+        for i, (mask, cls_id) in enumerate(
+            zip(sem_segm.masks, sem_segm.class_ids)
+        ):
+            if (
+                cls_id == self.cfg.ignore_class
+                or mask.sum().item() < self.cfg.stuff_area_thr
+            ):
                 mask[mask > 0] = 0
                 continue
-            mask = torch.logical_and(mask, ~foreground)
-            if mask.sum().item() < self.cfg.stuff_area_thr:
-                mask[mask > 0] = 0
+            sem_segm.masks[i] = torch.logical_and(mask, ~foreground)
 
         return ins_segm, sem_segm
 
