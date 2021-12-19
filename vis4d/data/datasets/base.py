@@ -40,7 +40,7 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     config_path: Optional[str]
     eval_metrics: List[str] = []
     validate_frames: bool = False
-    ignore_unkown_cats: bool = False
+    ignore_unknown_cats: bool = False
     cache_as_binary: bool = False
     num_processes: int = 4
     collect_device = "cpu"
@@ -182,7 +182,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         Returns a dictionary of scores to log and a pretty printed string.
         """
         result = _eval_mapping[metric](
-            predictions, gts, self.metadata_cfg, self.cfg.ignore_unkown_cats
+            predictions, gts, self.metadata_cfg, self.cfg.ignore_unknown_cats
         )
         log_dict = {f"{metric}/{k}": v for k, v in result.summary().items()}
         return log_dict, str(result)
