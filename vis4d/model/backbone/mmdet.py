@@ -35,8 +35,8 @@ class MMDetBackbone(BaseBackbone):
         mm_cfg: DictStrAny,
         pixel_mean: Tuple[float, float, float],
         pixel_std: Tuple[float, float, float],
-        output_names: Optional[List[str]],
-        weights: Optional[str],
+        output_names: Optional[List[str]] = None,
+        weights: Optional[str] = None,
     ):
         """Init."""
         assert (

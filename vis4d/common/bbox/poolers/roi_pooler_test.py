@@ -16,7 +16,7 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
         """Testcase for pool function."""
         pooler = MultiScaleRoIPooler(
             pooling_op="RoIAlign",
-            resolution=[7, 7],
+            resolution=(7, 7),
             strides=[8, 16],
             sampling_ratio=0,
         )
@@ -35,16 +35,16 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
         for _ in range(N):
             boxes_list += [generate_dets(H, W, 10)]
 
-        out = pooler.pool(inputs, boxes_list)
+        out = pooler(inputs, boxes_list)
         self.assertEqual(out.shape, (N * 10, C, 7, 7))
 
         pooler = MultiScaleRoIPooler(
             pooling_op="RoIPool",
-            resolution=[7, 7],
+            resolution=(7, 7),
             strides=[8],
             sampling_ratio=0,
         )
-        out = pooler.pool([inputs[0]], boxes_list)
+        out = pooler([inputs[0]], boxes_list)
         self.assertEqual(out.shape, (N * 10, C, 7, 7))
 
         boxes_list = []
@@ -53,11 +53,11 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
                 Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
             ]
 
-        out = pooler.pool([inputs[0]], boxes_list)
+        out = pooler([inputs[0]], boxes_list)
         self.assertEqual(out.shape, (0, C, 7, 7))
 
         inputs = [
             torch.zeros((0, C, H // pooler.strides[0], W // pooler.strides[0]))
         ]
-        out = pooler.pool(inputs, [])
+        out = pooler(inputs, [])
         self.assertEqual(out.shape, (0, C, 7, 7))

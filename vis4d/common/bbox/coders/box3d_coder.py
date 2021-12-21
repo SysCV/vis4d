@@ -28,6 +28,7 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
         bin_overlap: float = 1 / 6,
     ) -> None:
         """Init."""
+        super().__init__()
         self.center_scale = center_scale
         self.depth_log_scale = depth_log_scale
         self.dim_log_scale = dim_log_scale

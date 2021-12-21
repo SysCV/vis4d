@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from vis4d.struct import LossesType
 
-from .base import BaseLoss, LossConfig
+from .base import BaseLoss
 from .utils import smooth_l1_loss
 
 
@@ -16,14 +16,21 @@ class Box3DUncertaintyLoss(BaseLoss):
     def __init__(
         self,
         reduction: str = "mean",
-        loss_weight: float = 1.0,
+        loss_weights: Tuple[float, float, float, float, float] = (
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+        ),
         num_rotation_bins: int = 2,
     ):
         """Init."""
-        super().__init__(reduction, loss_weight)
+        super().__init__(reduction)
         assert (
             self.reduction == "mean"
         ), "Box3DUncertaintyLoss only supports mean reduction"
+        self.loss_weights = loss_weights
         self.num_rotation_bins = num_rotation_bins
 
     def __call__(  # type: ignore # pylint: disable=arguments-differ
@@ -74,10 +81,10 @@ class Box3DUncertaintyLoss(BaseLoss):
         ).mean()
 
         result_dict = dict(
-            loss_ctr3d=self.loss_weight * loss_cen,
-            loss_dep3d=self.loss_weight * loss_dep,
-            loss_dim3d=self.loss_weight * loss_dim,
-            loss_rot3d=self.loss_weight * loss_rot,
+            loss_ctr3d=self.loss_weights[0] * loss_cen,
+            loss_dep3d=self.loss_weights[1] * loss_dep,
+            loss_dim3d=self.loss_weights[2] * loss_dim,
+            loss_rot3d=self.loss_weights[3] * loss_rot,
         )
 
         # uncertainty loss
@@ -98,7 +105,7 @@ class Box3DUncertaintyLoss(BaseLoss):
             beta=1 / 9,
         )
 
-        result_dict.update(dict(loss_unc3d=self.loss_weight * loss_unc3d))
+        result_dict.update(dict(loss_unc3d=self.loss_weights[4] * loss_unc3d))
 
         # reduce batch dimension after confidence loss computation
         for k, v in result_dict.items():

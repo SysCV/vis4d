@@ -1,5 +1,6 @@
 """Base class for Vis4D models."""
 import abc
+import copy
 import os.path as osp
 from collections.abc import Iterable
 from typing import (
@@ -28,6 +29,8 @@ from ..struct import (
 from .optimize import (
     BaseLRScheduler,
     BaseOptimizer,
+    LRSchedulerConfig,
+    OptimizerConfig,
     build_lr_scheduler,
     build_optimizer,
     get_warmup_lr,
@@ -37,12 +40,12 @@ from .optimize import (
 class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
     """Base Vis4D model class."""
 
-    def __init__(
+    def __init__(  # pylint: disable=dangerous-default-value
         self,
-        category_mapping: Optional[Dict[str, int]],
+        category_mapping: Optional[Dict[str, int]] = None,
         image_channel_mode: str = "RGB",
-        optimizer_cfg: ModuleCfg = {},
-        lr_scheduler_cfg: ModuleCfg = {},
+        optimizer: ModuleCfg = {},
+        lr_scheduler: ModuleCfg = {},
         freeze: bool = False,
         freeze_parameters: Optional[List[str]] = None,
         inference_result_path: Optional[str] = None,
@@ -51,10 +54,10 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         super().__init__()
         self.category_mapping = category_mapping
         self.image_channel_mode = image_channel_mode
-        self.optimizer_cfg = optimizer_cfg
-        self.lr_scheduler_cfg = lr_scheduler_cfg
+        self.optimizer_cfg = OptimizerConfig(**optimizer)
+        self.lr_scheduler_cfg = LRSchedulerConfig(**lr_scheduler)
 
-        self.freeze = freeze
+        self._freeze = freeze
         self._freeze_parameters = freeze_parameters
 
         self.inference_result_path = inference_result_path
@@ -104,8 +107,10 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         self,
     ) -> Tuple[List[BaseOptimizer], List[BaseLRScheduler]]:
         """Configure optimizers and schedulers of model."""
-        optimizer = build_optimizer(self.parameters(), self.optimizer_cfg)
-        scheduler = build_lr_scheduler(optimizer, self.lr_scheduler_cfg)
+        optimizer = build_optimizer(
+            self.parameters(), self.optimizer_cfg.dict()
+        )
+        scheduler = build_lr_scheduler(optimizer, self.lr_scheduler_cfg.dict())
         return [optimizer], [scheduler]
 
     @no_type_check
@@ -121,23 +126,23 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         using_lbfgs: bool = None,
     ) -> None:
         """Optimizer step plus learning rate warmup."""
-        if self.trainer.global_step < self.cfg.lr_scheduler.warmup_steps:
+        if self.trainer.global_step < self.lr_scheduler_cfg.warmup_steps:
             for pg in optimizer.param_groups:
                 pg["lr"] = get_warmup_lr(
-                    self.cfg.lr_scheduler,
+                    self.lr_scheduler_cfg,
                     self.trainer.global_step,
-                    self.cfg.optimizer.lr,
+                    self.optimizer_cfg.lr,
                 )
-        elif self.trainer.global_step == self.cfg.lr_scheduler.warmup_steps:
+        elif self.trainer.global_step == self.lr_scheduler_cfg.warmup_steps:
             for pg in optimizer.param_groups:
-                pg["lr"] = self.cfg.optimizer.lr
+                pg["lr"] = self.optimizer_cfg.lr
 
         # update params
         optimizer.step(closure=optimizer_closure)
 
         # if lr_scheduler is step-based, we need to call .step(), PL calls
         # .step() only after each epoch.
-        if self.cfg.lr_scheduler.mode == "step":
+        if self.lr_scheduler_cfg.mode == "step":
             lr_schedulers = self.lr_schedulers()
             if isinstance(lr_schedulers, Iterable):  # pragma: no cover
                 for scheduler in lr_schedulers:
@@ -204,7 +209,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
 
     def on_train_start(self) -> None:
         """Called at the beginning of training after sanity check."""
-        if self.freeze:
+        if self._freeze:
             self.freeze_parameters(self._freeze_parameters)
 
     def freeze_parameters(
@@ -228,7 +233,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         """Unfreeze all parameters for training."""
         for param in self.parameters():
             param.requires_grad = True
-        if self.freeze:
+        if self._freeze:
             self.freeze_parameters(self._freeze_parameters)
         self.train()
 
@@ -268,13 +273,17 @@ def build_model(
 ) -> BaseModel:
     """Build Vis4D model and optionally load weights from ckpt."""
     registry = RegistryHolder.get_registry(BaseModel)
-    if cfg.type in registry:
+    cfg = copy.deepcopy(cfg)
+    model_type = cfg.pop("type", None)
+    if model_type is None:
+        raise ValueError(f"Need type argument in module config: {cfg}")
+    if model_type in registry:
         if ckpt is None:
-            module = registry[cfg.type](cfg)
+            module = registry[model_type](**cfg)
         else:
-            module = registry[cfg.type].load_from_checkpoint(  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+            module = registry[model_type].load_from_checkpoint(  # type: ignore # pragma: no cover # pylint: disable=line-too-long
                 ckpt, strict=strict, **cfg, legacy_ckpt=legacy_ckpt
             )
         assert isinstance(module, BaseModel)
         return module
-    raise NotImplementedError(f"Model {cfg.type} not found.")
+    raise NotImplementedError(f"Model {model_type} not found.")

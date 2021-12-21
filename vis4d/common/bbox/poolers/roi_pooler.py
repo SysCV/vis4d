@@ -84,7 +84,7 @@ class MultiScaleRoIPooler(BaseRoIPooler):
         assert self.min_level >= 0 and self.min_level <= self.max_level
         assert self.canonical_box_size > 0
 
-    def pool(
+    def __call__(  # type: ignore
         self, features: List[torch.Tensor], boxes: List[Boxes2D]
     ) -> torch.Tensor:
         """Torchvision based roi pooling operation.

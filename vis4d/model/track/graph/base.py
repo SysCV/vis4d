@@ -4,16 +4,9 @@ import abc
 from typing import List, Optional, Union, cast, overload
 
 import torch
-from pydantic import BaseModel, Field
 
-from vis4d.common import RegistryHolder, Vis4DModule
+from vis4d.common import Vis4DModule
 from vis4d.struct import InputSample, LabelInstances, LossesType
-
-
-class TrackGraphConfig(BaseModel, extra="allow"):
-    """Base config for tracking graph optimization."""
-
-    type: str = Field(...)
 
 
 class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
@@ -79,13 +72,3 @@ class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
     ) -> LabelInstances:
         """Process inputs, match detections with existing tracks."""
         raise NotImplementedError
-
-
-def build_track_graph(cfg: TrackGraphConfig) -> BaseTrackGraph:
-    """Build a tracking graph optimize from config."""
-    registry = RegistryHolder.get_registry(BaseTrackGraph)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseTrackGraph)
-        return module
-    raise NotImplementedError(f"TrackGraph {cfg.type} not found.")

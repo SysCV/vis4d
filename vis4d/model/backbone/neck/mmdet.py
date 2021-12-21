@@ -49,4 +49,4 @@ class MMDetNeck(BaseNeck):
         outs = self.mm_neck(list(inputs.values()))
         if self.output_names is None:  # pragma: no cover
             return {f"out{i}": v for i, v in enumerate(outs)}
-        return dict(zip(self.cfg.output_names, outs))
+        return dict(zip(self.output_names, outs))

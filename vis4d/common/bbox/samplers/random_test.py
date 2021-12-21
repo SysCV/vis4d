@@ -32,7 +32,7 @@ class TestRandom(unittest.TestCase):
         ]
         boxes = [Boxes2D(torch.rand(num_samples, 5))]
         targets = [Boxes2D(torch.rand(num_gts, 5), torch.zeros(num_gts))]
-        sampling_result = sampler.sample(matching, boxes, targets)
+        sampling_result = sampler(matching, boxes, targets)
         sampled_boxes, sampled_targets = (
             sampling_result.sampled_boxes,
             sampling_result.sampled_targets,
@@ -49,7 +49,7 @@ class TestRandom(unittest.TestCase):
 
         boxes = [Boxes2D(torch.rand(num_samples, 5))]
         targets = [Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))]
-        sampling_result = sampler.sample(matching, boxes, targets)
+        sampling_result = sampler(matching, boxes, targets)
         sampled_boxes, sampled_targets = (
             sampling_result.sampled_boxes,
             sampling_result.sampled_targets,

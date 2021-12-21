@@ -4,7 +4,7 @@ from typing import List, NamedTuple
 
 import torch
 
-from vis4d.common.registry import RegistryHolder
+from vis4d.common import Vis4DModule
 from vis4d.struct import Boxes2D
 
 
@@ -21,11 +21,11 @@ class MatchResult(NamedTuple):
     assigned_labels: torch.Tensor
 
 
-class BaseMatcher(metaclass=RegistryHolder):
+class BaseMatcher(Vis4DModule[List[MatchResult], List[MatchResult]]):
     """Base class for box / target matchers."""
 
     @abc.abstractmethod
-    def match(
+    def __call__(  # type: ignore
         self, boxes: List[Boxes2D], targets: List[Boxes2D]
     ) -> List[MatchResult]:
         """Match bounding boxes according to their struct."""

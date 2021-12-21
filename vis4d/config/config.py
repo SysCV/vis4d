@@ -111,7 +111,7 @@ class Config(BaseModel, extra="allow"):
         """Init config."""
         super().__init__(**data)
         if self.launch.exp_name == "":
-            self.launch.exp_name = self.model.type
+            self.launch.exp_name = self.model["type"]
 
 
 def parse_config(args: Namespace) -> Config:

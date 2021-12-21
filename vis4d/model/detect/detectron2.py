@@ -10,7 +10,6 @@ try:
     from detectron2.utils.events import EventStorage
 
     from .d2_utils import (
-        D2TwoStageDetectorConfig,
         box2d_to_proposal,
         detections_to_box2d,
         images_to_imagelist,
@@ -29,6 +28,7 @@ from torch.nn.modules.batchnorm import _BatchNorm
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
     Boxes2D,
+    DictStrAny,
     FeatureMaps,
     InputSample,
     InstanceMasks,
@@ -45,18 +45,33 @@ from .base import BaseTwoStageDetector
 class D2TwoStageDetector(BaseTwoStageDetector):
     """Detectron2 two-stage detector wrapper."""
 
-    def __init__(self, cfg: BaseModelConfig):
+    def __init__(
+        self,
+        model_base: str,
+        *args,
+        clip_bboxes_to_image: bool = True,
+        model_kwargs: Optional[DictStrAny] = None,
+        override_mapping: Optional[bool] = False,
+        set_batchnorm_eval: bool = False,
+        weights: Optional[str] = None,
+        **kwargs,
+    ):
         """Init."""
         assert (
             D2_INSTALLED
         ), "D2TwoStageDetector requires detectron2 to be installed!"
-        super().__init__(cfg)
-        self.cfg = D2TwoStageDetectorConfig(
-            **cfg.dict()
-        )  # type: D2TwoStageDetectorConfig
-        assert self.cfg.category_mapping is not None
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
-        self.d2_cfg = model_to_detectron2(self.cfg)
+        super().__init__(
+            *args, clip_bboxes_to_image=clip_bboxes_to_image, **kwargs
+        )
+        assert self.category_mapping is not None
+        self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
+        self.d2_cfg = model_to_detectron2(
+            model_base,
+            model_kwargs,
+            override_mapping,
+            weights,
+            self.category_mapping,
+        )
         # pylint: disable=too-many-function-args,missing-kwoa
         self.d2_detector = GeneralizedRCNN(self.d2_cfg)
         # detectron2 requires an EventStorage for logging
@@ -65,7 +80,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         self.with_mask = self.d2_detector.roi_heads.mask_on
         if self.d2_cfg.MODEL.WEIGHTS != "":
             self.checkpointer.load(self.d2_cfg.MODEL.WEIGHTS)
-        if self.cfg.set_batchnorm_eval:
+        if set_batchnorm_eval:
             self.set_batchnorm_eval()
 
     def set_batchnorm_eval(self) -> None:
@@ -122,7 +137,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             outputs["ins_seg"] = segmentations
 
         return predictions_to_scalabel(
-            inputs, outputs, self.cat_mapping, self.cfg.clip_bboxes_to_image
+            inputs, outputs, self.cat_mapping, self.clip_bboxes_to_image
         )
 
     def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:

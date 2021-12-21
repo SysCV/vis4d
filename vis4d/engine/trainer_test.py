@@ -185,10 +185,10 @@ class TestSegTrackMM(BaseEngineTests.TestTrain):
         self.assertIsNotNone(self.cfg)
         self.cfg.launch.action = "tune"
         self.cfg.launch.tuner_params = {
-            "track_graph.cfg.obj_score_thr": [0.55, 0.6]
+            "track_graph.obj_score_thr": [0.55, 0.6]
         }
         self.cfg.launch.tuner_metrics = ["track/MOTA", "track/IDF1"]
-        self.cfg.model.inference_result_path = "unittests/results.hdf5"
+        self.cfg.model["inference_result_path"] = "unittests/results.hdf5"
         trainer_args = {}
         if torch.cuda.is_available():
             trainer_args["gpus"] = "0,"  # pragma: no cover

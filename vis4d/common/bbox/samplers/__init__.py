@@ -5,8 +5,8 @@ from .random import RandomSampler
 
 __all__ = [
     "BaseSampler",
+    "CombinedSampler",
     "RandomSampler",
-    "SamplerConfig",
     "SamplingResult",
     "match_and_sample_proposals",
 ]

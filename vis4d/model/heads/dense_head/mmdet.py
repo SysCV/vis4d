@@ -42,9 +42,7 @@ class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
     """mmdetection dense head wrapper."""
 
     def __init__(
-        self,
-        mm_cfg: Union[DictStrAny, str],
-        category_mapping: Dict[str, int],
+        self, mm_cfg: Union[DictStrAny, str], category_mapping: Dict[str, int]
     ) -> None:
         """Init."""
         assert (
@@ -52,14 +50,14 @@ class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
         ), "MMDetDenseHead requires both mmcv and mmdet to be installed!"
         super().__init__(category_mapping)
         if isinstance(mm_cfg, dict):
-            mm_cfg = mm_cfg
+            mm_cfg_dict = mm_cfg
         else:  # pragma: no cover
             # load from config
             assert os.path.exists(mm_cfg)
-            mm_cfg = MMConfig.fromfile(mm_cfg)
-            assert "dense_head" in mm_cfg
-            mm_cfg = mm_cfg["dense_head"]
-        self.mm_dense_head = build_head(ConfigDict(**mm_cfg))
+            mm_cfg_ = MMConfig.fromfile(mm_cfg)
+            assert "dense_head" in mm_cfg_
+            mm_cfg_dict = mm_cfg_["dense_head"]
+        self.mm_dense_head = build_head(ConfigDict(**mm_cfg_dict))
         assert isinstance(self.mm_dense_head, MMBaseDenseHead)
         self.mm_dense_head.init_weights()
         self.mm_dense_head.train()

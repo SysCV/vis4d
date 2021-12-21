@@ -4,7 +4,7 @@ from typing import List, NamedTuple
 
 import torch
 
-from vis4d.common.registry import RegistryHolder
+from vis4d.common import Vis4DModule
 from vis4d.struct import Boxes2D
 
 from ..matchers.base import BaseMatcher, MatchResult
@@ -28,17 +28,19 @@ class SamplingResult(NamedTuple):
     sampled_target_indices: List[torch.Tensor]
 
 
-class BaseSampler(metaclass=RegistryHolder):
+class BaseSampler(Vis4DModule[SamplingResult, SamplingResult]):
     """Sampler base class."""
 
-    def __init__(self, batch_size_per_image: int, positive_fraction: float):
+    def __init__(
+        self, batch_size_per_image: int, positive_fraction: float
+    ) -> None:
         """Init."""
         super().__init__()
         self.batch_size_per_image = batch_size_per_image
         self.positive_fraction = positive_fraction
 
     @abc.abstractmethod
-    def sample(
+    def __call__(  # type: ignore
         self,
         matching: List[MatchResult],
         boxes: List[Boxes2D],
@@ -59,5 +61,5 @@ def match_and_sample_proposals(
     """Match proposals to targets and subsample."""
     if proposal_append_gt:
         proposals = [Boxes2D.merge([p, t]) for p, t in zip(proposals, targets)]
-    matching = matcher.match(proposals, targets)
-    return sampler.sample(matching, proposals, targets)
+    matching = matcher(proposals, targets)
+    return sampler(matching, proposals, targets)

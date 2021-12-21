@@ -96,12 +96,7 @@ class BaseOneStageDetector(BaseModel):
 class BaseTwoStageDetector(BaseModel):
     """Base class for two-stage detectors."""
 
-    def __init__(
-        self,
-        clip_bboxes_to_image: bool = True,
-        *args,
-        **kwargs,
-    ):
+    def __init__(self, *args, clip_bboxes_to_image: bool = True, **kwargs):
         """Init."""
         super().__init__(*args, **kwargs)
         self.clip_bboxes_to_image = clip_bboxes_to_image

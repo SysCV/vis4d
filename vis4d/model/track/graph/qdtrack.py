@@ -3,54 +3,11 @@ import copy
 from typing import Dict, List, Optional, Tuple, TypedDict, Union
 
 import torch
-from pydantic import validator
 
 from vis4d.common.bbox.utils import bbox_iou
 from vis4d.struct import Boxes2D, InputSample, LabelInstances, LossesType
 
-from .base import BaseTrackGraph, TrackGraphConfig
-
-
-class QDTrackGraphConfig(TrackGraphConfig):
-    """Quasi-dense similarity based graph config."""
-
-    keep_in_memory: int  # threshold for keeping occluded objects in memory
-    init_score_thr: float = 0.7
-    obj_score_thr: float = 0.3
-    match_score_thr: float = 0.5
-    memo_backdrop_frames: int = 1
-    memo_momentum: float = 0.8
-    nms_conf_thr: float = 0.5
-    nms_backdrop_iou_thr: float = 0.3
-    nms_class_iou_thr: float = 0.7
-    with_cats: bool = True
-
-    @validator("memo_momentum", check_fields=False)
-    def validate_memo_momentum(  # pylint: disable=no-self-argument,no-self-use,line-too-long
-        cls, value: float
-    ) -> float:
-        """Check memo_momentum attribute."""
-        if not 0 <= value <= 1.0:
-            raise ValueError("memo_momentum must be >= 0 and <= 1.0")
-        return value
-
-    @validator("keep_in_memory", check_fields=False)
-    def validate_keep_in_memory(  # pylint: disable=no-self-argument,no-self-use,line-too-long
-        cls, value: int
-    ) -> int:
-        """Check keep_in_memory attribute."""
-        if not value >= 0:
-            raise ValueError("keep_in_memory must be >= 0")
-        return value
-
-    @validator("memo_backdrop_frames", check_fields=False)
-    def validate_memo_backdrop_frames(  # pylint: disable=no-self-argument,no-self-use,line-too-long
-        cls, value: int
-    ) -> int:
-        """Check memo_backdrop_frames attribute."""
-        if not value >= 0:
-            raise ValueError("memo_backdrop_frames must be >= 0")
-        return value
+from .base import BaseTrackGraph
 
 
 class Track(TypedDict):
@@ -67,10 +24,37 @@ class Track(TypedDict):
 class QDTrackGraph(BaseTrackGraph):
     """Tracking graph construction for quasi-dense instance similarity."""
 
-    def __init__(self, cfg: TrackGraphConfig) -> None:
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        keep_in_memory: int,  # threshold for keeping occluded objects in mem
+        init_score_thr: float = 0.7,
+        obj_score_thr: float = 0.3,
+        match_score_thr: float = 0.5,
+        memo_backdrop_frames: int = 1,
+        memo_momentum: float = 0.8,
+        nms_conf_thr: float = 0.5,
+        nms_backdrop_iou_thr: float = 0.3,
+        nms_class_iou_thr: float = 0.7,
+        with_cats: bool = True,
+    ) -> None:
         """Init."""
         super().__init__()
-        self.cfg = QDTrackGraphConfig(**cfg.dict())
+        self.keep_in_memory = keep_in_memory
+        self.init_score_thr = init_score_thr
+        self.obj_score_thr = obj_score_thr
+        self.match_score_thr = match_score_thr
+        self.memo_backdrop_frames = memo_backdrop_frames
+        self.memo_momentum = memo_momentum
+        self.nms_conf_thr = nms_conf_thr
+        self.nms_backdrop_iou_thr = nms_backdrop_iou_thr
+        self.nms_class_iou_thr = nms_class_iou_thr
+        self.with_cats = with_cats
+
+        # validate arguments
+        assert 0 <= memo_momentum <= 1.0
+        assert keep_in_memory >= 0
+        assert memo_backdrop_frames >= 0
+
         self.reset()
 
     def reset(self) -> None:
@@ -141,10 +125,10 @@ class QDTrackGraph(BaseTrackGraph):
         valids = embeddings.new_ones((len(detections),))
         ious = bbox_iou(detections, detections)
         for i in range(1, len(detections)):
-            if scores[i] < self.cfg.obj_score_thr:
-                thr = self.cfg.nms_backdrop_iou_thr
+            if scores[i] < self.obj_score_thr:
+                thr = self.nms_backdrop_iou_thr
             else:
-                thr = self.cfg.nms_class_iou_thr
+                thr = self.nms_class_iou_thr
 
             if (ious[i, :i] > thr).any():
                 valids[i] = 0
@@ -214,7 +198,7 @@ class QDTrackGraph(BaseTrackGraph):
             t2d_scores = feats.softmax(dim=0)
             similarity_scores = (d2t_scores + t2d_scores) / 2
 
-            if self.cfg.with_cats:
+            if self.with_cats:
                 cat_same = detections.class_ids.view(
                     -1, 1
                 ) == memo_dets.class_ids.view(1, -1)
@@ -223,15 +207,15 @@ class QDTrackGraph(BaseTrackGraph):
             for i in range(len(detections)):
                 conf, memo_ind = torch.max(similarity_scores[i, :], dim=0)
                 cur_id = memo_dets.track_ids[memo_ind]
-                if conf > self.cfg.match_score_thr:
+                if conf > self.match_score_thr:
                     if cur_id > -1:
-                        if detections_scores[i] > self.cfg.obj_score_thr:
+                        if detections_scores[i] > self.obj_score_thr:
                             ids[i] = cur_id
                             similarity_scores[:i, memo_ind] = 0
                             similarity_scores[(i + 1) :, memo_ind] = 0
-                        elif conf > self.cfg.nms_conf_thr:  # pragma: no cover
+                        elif conf > self.nms_conf_thr:  # pragma: no cover
                             ids[i] = -2
-        new_inds = (ids == -1) & (detections_scores > self.cfg.init_score_thr)
+        new_inds = (ids == -1) & (detections_scores > self.init_score_thr)
         num_news = new_inds.sum()
         ids[new_inds] = torch.arange(
             self.num_tracks,
@@ -277,7 +261,7 @@ class QDTrackGraph(BaseTrackGraph):
         backdrop_inds = torch.nonzero(ids == -1, as_tuple=False).squeeze(1)
         ious = bbox_iou(detections[backdrop_inds], detections)
         for i, ind in enumerate(backdrop_inds):
-            if (ious[i, :ind] > self.cfg.nms_backdrop_iou_thr).any():
+            if (ious[i, :ind] > self.nms_backdrop_iou_thr).any():
                 backdrop_inds[i] = -1
         backdrop_inds = backdrop_inds[backdrop_inds > -1]
 
@@ -292,12 +276,12 @@ class QDTrackGraph(BaseTrackGraph):
         # delete invalid tracks from memory
         invalid_ids = []
         for k, v in self.tracks.items():
-            if frame_id - v["last_frame"] >= self.cfg.keep_in_memory:
+            if frame_id - v["last_frame"] >= self.keep_in_memory:
                 invalid_ids.append(k)
         for invalid_id in invalid_ids:
             self.tracks.pop(invalid_id)
 
-        if len(self.backdrops) > self.cfg.memo_backdrop_frames:
+        if len(self.backdrops) > self.memo_backdrop_frames:
             self.backdrops.pop()
 
     def update_track(
@@ -314,8 +298,8 @@ class QDTrackGraph(BaseTrackGraph):
         )
         self.tracks[track_id]["bbox"] = bbox
         self.tracks[track_id]["embed"] = (
-            1 - self.cfg.memo_momentum
-        ) * self.tracks[track_id]["embed"] + self.cfg.memo_momentum * embedding
+            1 - self.memo_momentum
+        ) * self.tracks[track_id]["embed"] + self.memo_momentum * embedding
         self.tracks[track_id]["last_frame"] = frame_id
         self.tracks[track_id]["class_id"] = cls
         self.tracks[track_id]["velocity"] = (
