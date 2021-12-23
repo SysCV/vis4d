@@ -73,24 +73,30 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         self.proposal_append_gt = proposal_append_gt
         self.cls_out_channels = num_classes
         if isinstance(proposal_sampler, dict):
-            self.sampler = build_module(proposal_sampler, bound=BaseSampler)
+            self.sampler: BaseSampler = build_module(
+                proposal_sampler, bound=BaseSampler
+            )
         else:
             self.sampler = proposal_sampler
 
         if isinstance(proposal_matcher, dict):
-            self.matcher = build_module(proposal_matcher, bound=BaseMatcher)
+            self.matcher: BaseMatcher = build_module(
+                proposal_matcher, bound=BaseMatcher
+            )
         else:
             self.matcher = proposal_matcher
 
         if isinstance(proposal_pooler, dict):
-            self.roi_pooler = build_module(
+            self.roi_pooler: BaseRoIPooler = build_module(
                 proposal_pooler, bound=BaseRoIPooler
             )
         else:
             self.roi_pooler = proposal_pooler
 
         if isinstance(box3d_coder, dict):
-            self.bbox_coder = build_module(box3d_coder, bound=BaseBoxCoder3D)
+            self.bbox_coder: BaseBoxCoder3D = build_module(
+                box3d_coder, bound=BaseBoxCoder3D
+            )
         else:
             self.bbox_coder = box3d_coder
 
@@ -205,7 +211,7 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
 
         # losses
         if isinstance(loss, dict):
-            self.loss = build_module(loss, bound=BaseLoss)
+            self.loss: BaseLoss = build_module(loss, bound=BaseLoss)
         else:
             self.loss = loss
 

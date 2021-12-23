@@ -1,5 +1,5 @@
 """Quasi-dense instance similarity learning model with segmentation head."""
-from typing import List
+from typing import List, Union
 
 from vis4d.common.module import build_module
 from vis4d.struct import InputSample, LossesType, ModelOutput, ModuleCfg
@@ -13,14 +13,19 @@ from .utils import predictions_to_scalabel
 class QDTrackSeg(QDTrack):
     """QDTrack model with segmentation head."""
 
-    def __init__(self, seg_head: ModuleCfg, *args, **kwargs) -> None:
+    def __init__(
+        self, seg_head: Union[MMSegDecodeHead, ModuleCfg], *args, **kwargs
+    ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
-        if seg_head["category_mapping"] is None:  # pragma: no cover
-            seg_head["category_mapping"] = self.category_mapping
-        self.seg_head: MMSegDecodeHead = build_module(
-            seg_head, bound=MMSegDecodeHead
-        )
+        if isinstance(seg_head, dict):
+            if seg_head["category_mapping"] is None:  # pragma: no cover
+                seg_head["category_mapping"] = self.category_mapping
+            self.seg_head: MMSegDecodeHead = build_module(
+                seg_head, bound=MMSegDecodeHead
+            )
+        else:
+            self.seg_head = seg_head
 
     def forward_train(
         self,

@@ -60,8 +60,18 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
         backbone: Optional[Union[BaseBackbone, ModuleCfg]] = None,
-        roi_head: Optional[Union[BaseDenseHead, ModuleCfg]] = None,
-        rpn_head: Optional[Union[BaseRoIHead, ModuleCfg]] = None,
+        roi_head: Optional[
+            Union[BaseDenseHead[List[Boxes2D], List[Boxes2D]], ModuleCfg]
+        ] = None,
+        rpn_head: Optional[
+            Union[
+                BaseRoIHead[
+                    Optional[SamplingResult],
+                    Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
+                ],
+                ModuleCfg,
+            ]
+        ] = None,
         **kwargs,
     ):
         """Init."""

@@ -1,5 +1,5 @@
 """Quasi-dense 3D Tracking model."""
-from typing import List
+from typing import List, Union
 
 import torch
 
@@ -14,8 +14,11 @@ from vis4d.struct import (
     ModuleCfg,
 )
 
+from .detect import BaseTwoStageDetector
 from .heads.roi_head import QD3DTBBox3DHead
 from .qdtrack import QDTrack
+from .track.graph import BaseTrackGraph
+from .track.similarity import BaseSimilarityHead
 from .track.utils import split_key_ref_inputs
 
 
@@ -24,22 +27,23 @@ class QD3DT(QDTrack):
 
     def __init__(
         self,
-        detection: ModuleCfg,
-        similarity: ModuleCfg,
-        track_graph: ModuleCfg,
-        bbox_3d_head: ModuleCfg,
+        detection: Union[BaseTwoStageDetector, ModuleCfg],
+        similarity: Union[BaseSimilarityHead, ModuleCfg],
+        track_graph: Union[BaseTrackGraph, ModuleCfg],
+        bbox_3d_head: Union[QD3DTBBox3DHead, ModuleCfg],
         *args,
         **kwargs
     ) -> None:
         """Init."""
         super().__init__(detection, similarity, track_graph, *args, **kwargs)
-        # self.cfg = QD3DTConfig(**cfg.dict())
         assert self.category_mapping is not None
-        bbox_3d_head["num_classes"] = len(self.category_mapping)
-        self.bbox_3d_head: QD3DTBBox3DHead = build_module(
-            bbox_3d_head, bound=QD3DTBBox3DHead
-        )
-        # self.track_graph = build_track_graph(self.cfg.track_graph)
+        if isinstance(bbox_3d_head, dict):
+            bbox_3d_head["num_classes"] = len(self.category_mapping)
+            self.bbox_3d_head: QD3DTBBox3DHead = build_module(
+                bbox_3d_head, bound=QD3DTBBox3DHead
+            )
+        else:
+            self.bbox_3d_head = bbox_3d_head
         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
 
     def forward_train(

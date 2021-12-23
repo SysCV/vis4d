@@ -1,6 +1,6 @@
 """Quasi-dense instance similarity learning model."""
 import pickle
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import torch
 
@@ -29,22 +29,33 @@ class QDTrack(BaseModel):
 
     def __init__(
         self,
-        detection: ModuleCfg,
-        similarity: ModuleCfg,
-        track_graph: ModuleCfg,
+        detection: Union[BaseTwoStageDetector, ModuleCfg],
+        similarity: Union[BaseSimilarityHead, ModuleCfg],
+        track_graph: Union[BaseTrackGraph, ModuleCfg],
         *args,
         **kwargs,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
         assert self.category_mapping is not None
-        detection["category_mapping"] = self.category_mapping
-        self.detector: BaseTwoStageDetector = build_model(detection)
+        if isinstance(detection, dict):
+            detection["category_mapping"] = self.category_mapping
+            self.detector: BaseTwoStageDetector = build_model(detection)
+        else:
+            self.detector = detection
         assert isinstance(self.detector, BaseTwoStageDetector)
-        self.similarity_head = build_module(
-            similarity, bound=BaseSimilarityHead
-        )
-        self.track_graph = build_module(track_graph, bound=BaseTrackGraph)
+        if isinstance(similarity, dict):
+            self.similarity_head: BaseSimilarityHead = build_module(
+                similarity, bound=BaseSimilarityHead
+            )
+        else:
+            self.similarity_head = similarity
+        if isinstance(track_graph, dict):
+            self.track_graph: BaseTrackGraph = build_module(
+                track_graph, bound=BaseTrackGraph
+            )
+        else:
+            self.track_graph = track_graph
         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
         self.with_mask = self.detector.with_mask
 

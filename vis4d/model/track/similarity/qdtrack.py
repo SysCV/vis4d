@@ -68,17 +68,21 @@ class QDSimilarityHead(BaseSimilarityHead):
             self.in_features = ["p2", "p3", "p4", "p5"]
 
         if isinstance(proposal_sampler, dict):
-            self.sampler = build_module(proposal_sampler, bound=BaseSampler)
+            self.sampler: BaseSampler = build_module(
+                proposal_sampler, bound=BaseSampler
+            )
         else:
             self.sampler = proposal_sampler
 
         if isinstance(proposal_matcher, dict):
-            self.matcher = build_module(proposal_matcher, bound=BaseMatcher)
+            self.matcher: BaseMatcher = build_module(
+                proposal_matcher, bound=BaseMatcher
+            )
         else:
             self.matcher = proposal_matcher
 
         if isinstance(proposal_pooler, dict):
-            self.roi_pooler = build_module(
+            self.roi_pooler: BaseRoIPooler = build_module(
                 proposal_pooler, bound=BaseRoIPooler
             )
         else:
@@ -88,12 +92,14 @@ class QDSimilarityHead(BaseSimilarityHead):
         self.fc_embed = nn.Linear(last_layer_dim, embedding_dim)
 
         if isinstance(track_loss, dict):
-            self.track_loss = build_module(track_loss, bound=BaseLoss)
+            self.track_loss: BaseLoss = build_module(
+                track_loss, bound=BaseLoss
+            )
         else:
             self.track_loss = track_loss
         self.track_loss_aux: Optional[BaseLoss] = None
         if track_loss_aux is not None:
-            if isinstance(track_loss, dict):
+            if isinstance(track_loss_aux, dict):
                 self.track_loss_aux = build_module(
                     track_loss_aux, bound=BaseLoss
                 )
@@ -148,6 +154,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         self, features: FeatureMaps, boxes: List[Boxes2D]
     ) -> List[torch.Tensor]:
         """Similarity head forward pass."""
+        assert self.in_features is not None
         features_list = [features[f] for f in self.in_features]
         x = self.roi_pooler(features_list, boxes)
 
