@@ -91,15 +91,12 @@ DLA_ARCH_SETTINGS = {
 class DLABackboneConfig(BaseBackboneConfig):
     """Config for DLA backbone."""
 
-    pixel_mean: Tuple[float, float, float]
-    pixel_std: Tuple[float, float, float]
-    output_names: Optional[List[str]]
-    weights: Optional[str]
     name: Optional[str]
     levels: Tuple[int, int, int, int, int, int] = (1, 1, 1, 2, 2, 1)
     channels: Tuple[int, int, int, int, int, int] = (16, 32, 64, 128, 256, 512)
     block: str = "BasicBlock"
     residual_root: bool = False
+    weights: Optional[str]
     style: str = "imagenet"
 
 
@@ -298,7 +295,7 @@ class DLA(BaseBackbone):
 
     def __init__(self, cfg: BaseBackboneConfig) -> None:
         """Init."""
-        super().__init__()
+        super().__init__(cfg)
         self.cfg: DLABackboneConfig = DLABackboneConfig(**cfg.dict())
         if self.cfg.name is not None:
             assert self.cfg.name in DLA_ARCH_SETTINGS
@@ -375,15 +372,6 @@ class DLA(BaseBackbone):
                 )
             self.load_pretrained_model(self.cfg.weights)
 
-        self.register_buffer(
-            "pixel_mean",
-            torch.tensor(self.cfg.pixel_mean).view(-1, 1, 1),
-            False,
-        )
-        self.register_buffer(
-            "pixel_std", torch.tensor(self.cfg.pixel_std).view(-1, 1, 1), False
-        )
-
     @staticmethod
     def _make_conv_level(
         inplanes: int,
@@ -421,34 +409,17 @@ class DLA(BaseBackbone):
             model_weights = torch.load(weights)
         self.load_state_dict(model_weights, strict=False)
 
-    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
-        """Normalize the input images."""
-        inputs.images.tensor = (
-            inputs.images.tensor - self.pixel_mean
-        ) / self.pixel_std
-        return inputs
-
     def __call__(  # type: ignore[override]
         self, inputs: InputSample
     ) -> FeatureMaps:
-        """Backbone forward.
-
-        Args:
-            inputs: Model Inputs, batched.
-
-        Returns:
-            FeatureMaps: Dictionary of output feature maps.
-        """
+        """Backbone forward."""
         inputs = self.preprocess_inputs(inputs)
         outs = []
         input_x = self.base_layer(inputs.images.tensor)
         for i in range(6):
             input_x = getattr(self, f"level{i}")(input_x)
             outs.append(input_x)
-        if self.cfg.output_names is None:
-            backbone_outs = {f"out{i}": v for i, v in enumerate(outs)}
-        else:  # pragma: no cover
-            backbone_outs = dict(zip(self.cfg.output_names, outs))
+        backbone_outs = self.get_outputs(outs)
         if self.neck is not None:
             return self.neck(backbone_outs)
         return backbone_outs
