@@ -237,3 +237,17 @@ class TestMTL(BaseEngineTests.TestTrain, BaseEngineTests.TestTest):
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)
+
+
+class TestDLA(BaseEngineTests.TestTest):
+    """DLA test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_dla/"
+        args = Namespace(
+            config=get_test_file("detect/faster_rcnn_dla.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(args)

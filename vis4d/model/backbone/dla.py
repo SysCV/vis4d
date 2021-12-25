@@ -220,6 +220,9 @@ class Tree(nn.Module):  # type: ignore
             self.tree2 = block_c(
                 out_channels, out_channels, 1, dilation=dilation
             )
+            self.root = Root(
+                root_dim, out_channels, root_kernel_size, root_residual
+            )
         else:
             self.tree1 = Tree(
                 levels - 1,
@@ -241,10 +244,6 @@ class Tree(nn.Module):  # type: ignore
                 root_kernel_size=root_kernel_size,
                 dilation=dilation,
                 root_residual=root_residual,
-            )
-        if levels == 1:
-            self.root = Root(
-                root_dim, out_channels, root_kernel_size, root_residual
             )
         self.level_root = level_root
         self.root_dim = root_dim
@@ -300,11 +299,11 @@ class DLA(BaseBackbone):
         if self.cfg.name is not None:
             assert self.cfg.name in DLA_ARCH_SETTINGS
             arch_setting = DLA_ARCH_SETTINGS[self.cfg.name]
-            channels, levels, residual_root, block = arch_setting
+            levels, channels, residual_root, block = arch_setting
         else:
-            channels, levels, residual_root, block = (
-                self.cfg.channels,
+            levels, channels, residual_root, block = (
                 self.cfg.levels,
+                self.cfg.channels,
                 self.cfg.residual_root,
                 self.cfg.block,
             )

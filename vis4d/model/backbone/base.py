@@ -20,6 +20,7 @@ class BaseBackboneConfig(BaseModel, extra="allow"):
     pixel_mean: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     pixel_std: Tuple[float, float, float] = (1.0, 1.0, 1.0)
     output_names: Optional[List[str]]
+    out_indices: Optional[List[int]]
     neck: Optional[BaseNeckConfig]
 
 
@@ -49,6 +50,8 @@ class BaseBackbone(Vis4DModule[FeatureMaps, FeatureMaps]):
 
     def get_outputs(self, outs: List[torch.Tensor]) -> FeatureMaps:
         """Get feature map dict."""
+        if self.cfg.out_indices is not None:
+            outs = [outs[ind] for ind in self.cfg.out_indices]
         if self.cfg.output_names is None:
             backbone_outs = {f"out{i}": v for i, v in enumerate(outs)}
         else:  # pragma: no cover

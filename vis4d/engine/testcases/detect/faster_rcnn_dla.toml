@@ -1,0 +1,13 @@
+[[config]]
+path = "../configs/datasets/bdd100k/detect.toml"
+
+[[config]]
+path = "../configs/models/mmdetection/faster_rcnn_DLA34_FPN.toml"
+
+[launch]
+samples_per_gpu = 1
+workers_per_gpu = 0
+
+[trainer]
+max_steps = 1
+check_val_every_n_epoch = 10
