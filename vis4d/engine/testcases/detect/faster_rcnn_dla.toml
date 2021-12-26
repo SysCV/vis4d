@@ -2,7 +2,7 @@
 path = "../configs/datasets/bdd100k/detect.toml"
 
 [[config]]
-path = "../configs/models/mmdetection/faster_rcnn_DLA34_FPN.toml"
+path = "../configs/models/mmdetection/faster_rcnn_DLA34_DCN.toml"
 
 [launch]
 samples_per_gpu = 1

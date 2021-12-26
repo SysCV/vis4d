@@ -139,6 +139,122 @@ class BasicBlock(nn.Module):  # type: ignore
         return out
 
 
+class Bottleneck(nn.Module):  # type: ignore
+    """Bottleneck."""
+
+    expansion = 2
+
+    def __init__(
+        self, inplanes: int, planes: int, stride: int = 1, dilation: int = 1
+    ) -> None:
+        """Init."""
+        super().__init__()
+        expansion = Bottleneck.expansion
+        bottle_planes = planes // expansion
+        self.conv1 = nn.Conv2d(
+            inplanes, bottle_planes, kernel_size=1, bias=False
+        )
+        self.bn1 = nn.BatchNorm2d(bottle_planes, momentum=BN_MOMENTUM)
+        self.conv2 = nn.Conv2d(
+            bottle_planes,
+            bottle_planes,
+            kernel_size=3,
+            stride=stride,
+            padding=dilation,
+            bias=False,
+            dilation=dilation,
+        )
+        self.bn2 = nn.BatchNorm2d(bottle_planes, momentum=BN_MOMENTUM)
+        self.conv3 = nn.Conv2d(
+            bottle_planes, planes, kernel_size=1, bias=False
+        )
+        self.bn3 = nn.BatchNorm2d(planes, momentum=BN_MOMENTUM)
+        self.relu = nn.ReLU(inplace=True)
+        self.stride = stride
+
+    def forward(
+        self, input_x: torch.Tensor, residual: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """Forward."""
+        if residual is None:
+            residual = input_x
+
+        out = self.conv1(input_x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+
+class BottleneckX(nn.Module):  # type: ignore
+    """BottleneckX."""
+
+    expansion = 2
+    cardinality = 32
+
+    def __init__(
+        self, inplanes: int, planes: int, stride: int = 1, dilation: int = 1
+    ) -> None:
+        """Init."""
+        super().__init__()
+        cardinality = BottleneckX.cardinality
+        bottle_planes = planes * cardinality // 32
+        self.conv1 = nn.Conv2d(
+            inplanes, bottle_planes, kernel_size=1, bias=False
+        )
+        self.bn1 = nn.BatchNorm2d(bottle_planes, momentum=BN_MOMENTUM)
+        self.conv2 = nn.Conv2d(
+            bottle_planes,
+            bottle_planes,
+            kernel_size=3,
+            stride=stride,
+            padding=dilation,
+            bias=False,
+            dilation=dilation,
+            groups=cardinality,
+        )
+        self.bn2 = nn.BatchNorm2d(bottle_planes, momentum=BN_MOMENTUM)
+        self.conv3 = nn.Conv2d(
+            bottle_planes, planes, kernel_size=1, bias=False
+        )
+        self.bn3 = nn.BatchNorm2d(planes, momentum=BN_MOMENTUM)
+        self.relu = nn.ReLU(inplace=True)
+        self.stride = stride
+
+    def forward(
+        self, input_x: torch.Tensor, residual: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """Forward."""
+        if residual is None:
+            residual = input_x
+
+        out = self.conv1(input_x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+
 class Root(nn.Module):  # type: ignore
     """Root."""
 
@@ -195,6 +311,10 @@ class Tree(nn.Module):  # type: ignore
         super().__init__()
         if block == "BasicBlock":
             block_c = BasicBlock
+        elif block == "Bottleneck":
+            block_c = Bottleneck
+        elif block == "BottleneckX":
+            block_c = BottleneckX
         else:
             raise ValueError(f"Block={block} not yet supported in DLA!")
         if root_dim == 0:
@@ -285,6 +405,7 @@ class DLAConfig(BaseBackboneConfig):
     channels: Tuple[int, int, int, int, int, int] = (16, 32, 64, 128, 256, 512)
     block: str = "BasicBlock"
     residual_root: bool = False
+    cardinality: int = 32
     weights: Optional[str]
     style: str = "imagenet"
 
@@ -300,6 +421,8 @@ class DLA(BaseBackbone):
             assert self.cfg.name in DLA_ARCH_SETTINGS
             arch_setting = DLA_ARCH_SETTINGS[self.cfg.name]
             levels, channels, residual_root, block = arch_setting
+            if self.cfg.name == "dla102x2":  # pragma: no cover
+                BottleneckX.cardinality = 64
         else:
             levels, channels, residual_root, block = (
                 self.cfg.levels,
@@ -307,6 +430,7 @@ class DLA(BaseBackbone):
                 self.cfg.residual_root,
                 self.cfg.block,
             )
+            BottleneckX.cardinality = self.cfg.cardinality
         self.base_layer = nn.Sequential(
             nn.Conv2d(
                 3, channels[0], kernel_size=7, stride=1, padding=3, bias=False
@@ -404,7 +528,7 @@ class DLA(BaseBackbone):
         """Load pretrained weights."""
         if weights.startswith("http://") or weights.startswith("https://"):
             model_weights = model_zoo.load_url(weights)
-        else:
+        else:  # pragma: no cover
             model_weights = torch.load(weights)
         self.load_state_dict(model_weights, strict=False)
 
