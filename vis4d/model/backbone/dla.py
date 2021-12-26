@@ -88,18 +88,6 @@ DLA_ARCH_SETTINGS = {
 }
 
 
-class DLABackboneConfig(BaseBackboneConfig):
-    """Config for DLA backbone."""
-
-    name: Optional[str]
-    levels: Tuple[int, int, int, int, int, int] = (1, 1, 1, 2, 2, 1)
-    channels: Tuple[int, int, int, int, int, int] = (16, 32, 64, 128, 256, 512)
-    block: str = "BasicBlock"
-    residual_root: bool = False
-    weights: Optional[str]
-    style: str = "imagenet"
-
-
 class BasicBlock(nn.Module):  # type: ignore
     """BasicBlock."""
 
@@ -289,13 +277,25 @@ class Tree(nn.Module):  # type: ignore
         return input_x
 
 
+class DLAConfig(BaseBackboneConfig):
+    """Config for DLA backbone."""
+
+    name: Optional[str]
+    levels: Tuple[int, int, int, int, int, int] = (1, 1, 1, 2, 2, 1)
+    channels: Tuple[int, int, int, int, int, int] = (16, 32, 64, 128, 256, 512)
+    block: str = "BasicBlock"
+    residual_root: bool = False
+    weights: Optional[str]
+    style: str = "imagenet"
+
+
 class DLA(BaseBackbone):
     """DLA backbone."""
 
     def __init__(self, cfg: BaseBackboneConfig) -> None:
         """Init."""
         super().__init__(cfg)
-        self.cfg: DLABackboneConfig = DLABackboneConfig(**cfg.dict())
+        self.cfg: DLAConfig = DLAConfig(**cfg.dict())
         if self.cfg.name is not None:
             assert self.cfg.name in DLA_ARCH_SETTINGS
             arch_setting = DLA_ARCH_SETTINGS[self.cfg.name]
