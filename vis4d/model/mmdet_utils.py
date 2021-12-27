@@ -54,11 +54,16 @@ def get_img_metas(images: Images) -> List[MMDetMetaData]:
     return img_metas
 
 
-def proposals_from_mmdet(proposals: List[torch.Tensor]) -> List[Boxes2D]:
+def proposals_from_mmdet(
+    proposals: List[Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]]
+) -> List[Boxes2D]:
     """Convert mmdetection proposals to Vis4D format."""
     proposals_boxes2d = []
     for proposal in proposals:
-        proposals_boxes2d.append(Boxes2D(proposal))
+        if isinstance(proposal, tuple):
+            proposals_boxes2d.append(Boxes2D(*proposal))
+        else:
+            proposals_boxes2d.append(Boxes2D(proposal))
     return proposals_boxes2d
 
 

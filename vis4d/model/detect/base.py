@@ -35,10 +35,8 @@ class BaseOneStageDetector(BaseModel):
 
     @overload
     def generate_detections(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
-    ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:  # noqa: D102
+        self, inputs: InputSample, features: FeatureMaps
+    ) -> List[Boxes2D]:  # noqa: D102
         ...
 
     @overload
@@ -47,10 +45,7 @@ class BaseOneStageDetector(BaseModel):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[
-        LossesType,
-        Optional[Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]],
-    ]:
+    ) -> Tuple[LossesType, Optional[List[Boxes2D]]]:
         ...
 
     @abc.abstractmethod
@@ -60,11 +55,7 @@ class BaseOneStageDetector(BaseModel):
         features: FeatureMaps,
         targets: Optional[LabelInstances] = None,
     ) -> Union[
-        Tuple[
-            LossesType,
-            Optional[Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]],
-        ],
-        Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
+        Tuple[LossesType, Optional[List[Boxes2D]]], List[Boxes2D]
     ]:  # pragma: no cover
         """Detector second stage (RoI Head).
 
@@ -82,19 +73,14 @@ class BaseOneStageDetector(BaseModel):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[
-        LossesType,
-        Optional[Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]],
-    ]:
+    ) -> Tuple[LossesType, Optional[List[Boxes2D]]]:
         """Train stage detections generation."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def _detections_test(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
-    ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
+        self, inputs: InputSample, features: FeatureMaps
+    ) -> List[Boxes2D]:
         """Test stage detections generation."""
         raise NotImplementedError
 
@@ -117,9 +103,7 @@ class BaseTwoStageDetector(BaseModel):
 
     @overload
     def generate_proposals(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> List[Boxes2D]:  # noqa: D102
         ...
 
@@ -158,9 +142,7 @@ class BaseTwoStageDetector(BaseModel):
 
     @abc.abstractmethod
     def _proposals_test(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> List[Boxes2D]:
         """Test stage proposal generation."""
         raise NotImplementedError

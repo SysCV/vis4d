@@ -64,7 +64,7 @@ def im_decode(im_bytes: bytes, mode: str = "RGB") -> NDArrayUI8:
     """Decode to image (numpy array, RGB) from bytes."""
     assert mode in ["BGR", "RGB"], f"{mode} not supported for image decoding!"
     pil_img = Image.open(BytesIO(bytearray(im_bytes)))
-    if pil_img.mode == "L":
+    if pil_img.mode == "L":  # pragma: no cover
         # convert grayscale image to BGR/RGB
         pil_img = pil_img.convert(mode)
     if mode == "BGR":

@@ -139,6 +139,20 @@ class TestDetectMM(BaseEngineTests.TestTest):
         cls.cfg = config.parse_config(args)
 
 
+class TestOneStageDetectMM(BaseEngineTests.TestTrain):
+    """MMDetection one-stage detection test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_onestage_detect_mm/"
+        args = Namespace(
+            config=get_test_file("detect/retinanet_mmdet.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(args)
+
+
 class TestInsSegD2(BaseEngineTests.TestDetect):
     """Detectron2 instance segmentation test cases."""
 
