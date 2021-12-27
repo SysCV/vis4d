@@ -40,6 +40,7 @@ except (ImportError, NameError):  # pragma: no cover
 
 
 MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
+BDD_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/sem_seg/models/"
 REV_KEYS = [
     (r"^decode_head\.", "decode_head.mm_decode_head."),
     (r"^auxiliary_head\.", "auxiliary_head.mm_decode_head."),
@@ -115,11 +116,7 @@ class MMEncDecSegmentor(BaseSegmentor):
             self.auxiliary_head = None
 
         if self.cfg.weights is not None:
-            if self.cfg.weights.startswith("mmseg://"):
-                self.cfg.weights = (
-                    MMSEG_MODEL_PREFIX + self.cfg.weights.split("mmseg://")[-1]
-                )
-            load_checkpoint(self, self.cfg.weights, revise_keys=REV_KEYS)
+            load_model_checkpoint(self, self.cfg.weights)
 
     def _build_decode_heads(
         self,
@@ -234,6 +231,15 @@ class MMEncDecSegmentor(BaseSegmentor):
                 )
                 aux_losses.update(_parse_losses(loss_aux, "aux"))
         return aux_losses
+
+
+def load_model_checkpoint(model: BaseSegmentor, weights: str) -> None:
+    """Load MMSeg model checkpoint."""
+    if weights.startswith("mmseg://"):
+        weights = MMSEG_MODEL_PREFIX + weights.split("mmseg://")[-1]
+    elif weights.startswith("bdd100k://"):  # pragma: no cover
+        weights = BDD_MODEL_PREFIX + weights.split("bdd100k://")[-1]
+    load_checkpoint(model, weights, revise_keys=REV_KEYS)
 
 
 def get_mmseg_config(config: MMEncDecSegmentorConfig) -> MMConfig:
