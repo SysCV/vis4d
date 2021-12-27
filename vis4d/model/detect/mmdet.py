@@ -116,7 +116,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 test_cfg=self.mm_cfg["test_cfg"]["rpn"],
             )
             self.cfg.rpn_head = MMDetDenseHeadConfig(
-                type="MMDetDenseHead",
+                type="MMDetRPNHead",
                 mm_cfg=rpn_cfg,
                 category_mapping=self.cfg.category_mapping,
             )
@@ -285,7 +285,6 @@ class MMOneStageDetector(BaseOneStageDetector):
             self.cfg.bbox_head = MMDetDenseHeadConfig(
                 type="MMDetDenseHead",
                 mm_cfg=bbox_cfg,
-                is_rpn=False,
                 category_mapping=self.cfg.category_mapping,
             )
         self.bbox_head: BaseDenseHead[

@@ -1,6 +1,6 @@
 """Dense heads."""
 from .base import BaseDenseHead, BaseDenseHeadConfig, build_dense_head
-from .mmdet import MMDetDenseHead, MMDetDenseHeadConfig
+from .mmdet import MMDetDenseHead, MMDetDenseHeadConfig, MMDetRPNHead
 from .mmseg import MMSegDecodeHead, MMSegDecodeHeadConfig
 
 __all__ = [
@@ -10,5 +10,6 @@ __all__ = [
     "MMSegDecodeHead",
     "MMSegDecodeHeadConfig",
     "MMDetDenseHead",
+    "MMDetRPNHead",
     "MMDetDenseHeadConfig",
 ]

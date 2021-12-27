@@ -42,7 +42,6 @@ class MMDetDenseHeadConfig(BaseDenseHeadConfig):
     """Config for mmdetection dense heads."""
 
     mm_cfg: Union[DictStrAny, str]
-    is_rpn: bool = True
 
 
 class MMDetDenseHead(BaseDenseHead[Optional[List[Boxes2D]], List[Boxes2D]]):
@@ -81,21 +80,6 @@ class MMDetDenseHead(BaseDenseHead[Optional[List[Boxes2D]], List[Boxes2D]]):
         feat_list = list(features.values())
         img_metas = get_img_metas(inputs.images)
         gt_bboxes, gt_labels, _ = targets_to_mmdet(targets)
-
-        if self.cfg.is_rpn:
-            # RPN head
-            proposal_cfg = self.mm_dense_head.train_cfg.get(
-                "rpn_proposal", self.mm_dense_head.test_cfg
-            )
-            rpn_losses, proposals = self.mm_dense_head.forward_train(
-                feat_list,
-                img_metas,
-                gt_bboxes,
-                gt_labels=None,
-                proposal_cfg=proposal_cfg,
-            )
-            return _parse_losses(rpn_losses), proposals_from_mmdet(proposals)
-
         rpn_losses = self.mm_dense_head.forward_train(
             feat_list, img_metas, gt_bboxes, gt_labels=gt_labels
         )
@@ -110,3 +94,31 @@ class MMDetDenseHead(BaseDenseHead[Optional[List[Boxes2D]], List[Boxes2D]]):
         img_metas = get_img_metas(inputs.images)
         proposals = self.mm_dense_head.simple_test(feat_list, img_metas)
         return proposals_from_mmdet(proposals)
+
+
+class MMDetRPNHead(MMDetDenseHead):
+    """mmdetection RPN head wrapper."""
+
+    def forward_train(
+        self,
+        inputs: InputSample,
+        features: Optional[FeatureMaps],
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, Optional[List[Boxes2D]]]:
+        """Forward pass during training stage."""
+        assert features is not None, "MMDetDenseHead requires features"
+        feat_list = list(features.values())
+        img_metas = get_img_metas(inputs.images)
+        gt_bboxes, _, _ = targets_to_mmdet(targets)
+
+        proposal_cfg = self.mm_dense_head.train_cfg.get(
+            "rpn_proposal", self.mm_dense_head.test_cfg
+        )
+        rpn_losses, proposals = self.mm_dense_head.forward_train(
+            feat_list,
+            img_metas,
+            gt_bboxes,
+            gt_labels=None,
+            proposal_cfg=proposal_cfg,
+        )
+        return _parse_losses(rpn_losses), proposals_from_mmdet(proposals)
