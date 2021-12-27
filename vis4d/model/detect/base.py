@@ -204,3 +204,6 @@ class BaseTwoStageDetector(BaseModel):
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Test stage detections generation."""
         raise NotImplementedError
+
+
+BaseDetector = Union[BaseOneStageDetector, BaseTwoStageDetector]

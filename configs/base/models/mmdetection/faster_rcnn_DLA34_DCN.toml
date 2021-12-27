@@ -1,0 +1,16 @@
+[model]
+type = "MMTwoStageDetector"
+model_base = "mmdet://_base_/models/faster_rcnn_r50_fpn.py"
+model_kwargs = {"rpn_head.anchor_generator.strides" = [4], "rpn_head.in_channels" = 64, "roi_head.bbox_head.in_channels" = 64}
+pixel_mean = [123.675, 116.28, 103.53]
+pixel_std = [58.395, 57.12, 57.375]
+    [model.backbone]
+    type = "DLA"
+    name = "dla34"
+    weights = "dla://dla34"
+
+    [model.backbone.neck]
+    type = "DLAUp"
+    in_channels = [16, 32, 64, 128, 256, 512]
+    start_level = 2
+    end_level = -1

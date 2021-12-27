@@ -1,6 +1,6 @@
 """Quasi-dense instance similarity learning model."""
 import pickle
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 
@@ -15,7 +15,12 @@ from vis4d.struct import (
 )
 
 from .base import BaseModel, BaseModelConfig, build_model
-from .detect import BaseDetectorConfig, BaseTwoStageDetector
+from .detect import (
+    BaseDetector,
+    BaseDetectorConfig,
+    BaseOneStageDetector,
+    BaseTwoStageDetector,
+)
 from .track.graph import TrackGraphConfig, build_track_graph
 from .track.similarity import SimilarityLearningConfig, build_similarity_head
 from .track.utils import split_key_ref_inputs
@@ -39,12 +44,14 @@ class QDTrack(BaseModel):
         self.cfg: QDTrackConfig = QDTrackConfig(**cfg.dict())
         assert self.cfg.category_mapping is not None
         self.cfg.detection.category_mapping = self.cfg.category_mapping
-        self.detector: BaseTwoStageDetector = build_model(self.cfg.detection)
-        assert isinstance(self.detector, BaseTwoStageDetector)
+        self.detector: BaseDetector = build_model(self.cfg.detection)
+        assert isinstance(
+            self.detector, (BaseTwoStageDetector, BaseOneStageDetector)
+        )
         self.similarity_head = build_similarity_head(self.cfg.similarity)
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
-        self.with_mask = self.detector.with_mask
+        self.with_mask = getattr(self.detector, "with_mask", False)
 
     def _run_heads_train(
         self,
@@ -58,24 +65,40 @@ class QDTrack(BaseModel):
             x.targets for x in ref_inputs
         ]
 
-        # proposal generation
-        rpn_losses, key_proposals = self.detector.generate_proposals(
-            key_inputs, key_x, key_targets
-        )
-        with torch.no_grad():
-            ref_proposals = [
-                self.detector.generate_proposals(inp, x, tgt)[1]
-                for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets)
-            ]
+        key_proposals: Optional[List[Boxes2D]]
+        ref_proposals: List[List[Boxes2D]]
+        if isinstance(self.detector, BaseTwoStageDetector):
+            # two-stage detector
+            # proposal generation
+            rpn_losses, key_proposals = self.detector.generate_proposals(
+                key_inputs, key_x, key_targets
+            )
+            with torch.no_grad():
+                ref_proposals = [
+                    self.detector.generate_proposals(inp, x, tgt)[1]
+                    for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets)
+                ]
 
-        # roi head
-        roi_losses, _ = self.detector.generate_detections(
-            key_inputs,
-            key_x,
-            key_proposals,
-            key_targets,
-        )
-        det_losses = {**rpn_losses, **roi_losses}
+            # roi head
+            roi_losses, _ = self.detector.generate_detections(
+                key_inputs,
+                key_x,
+                key_proposals,
+                key_targets,
+            )
+            det_losses = {**rpn_losses, **roi_losses}
+        else:
+            # one-stage detector
+            det_losses, key_proposals = self.detector.generate_detections(
+                key_inputs, key_x, key_targets
+            )
+            assert key_proposals is not None
+            ref_proposals = []
+            with torch.no_grad():
+                for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets):
+                    ref_p = self.detector.generate_detections(inp, x, tgt)[1]
+                    assert ref_p is not None
+                    ref_proposals.append(ref_p)
 
         # from vis4d.vis.track import imshow_bboxes
         # for ref_imgs, ref_props in zip(ref_images, ref_proposals):
@@ -96,10 +119,16 @@ class QDTrack(BaseModel):
         self, inputs: InputSample, feat: FeatureMaps
     ) -> Tuple[ModelOutput, LabelInstances, List[torch.Tensor]]:
         """Get detections and tracks."""
-        proposals = self.detector.generate_proposals(inputs, feat)
-        detections, instance_segms = self.detector.generate_detections(
-            inputs, feat, proposals
-        )
+        if isinstance(self.detector, BaseTwoStageDetector):
+            # two-stage detector
+            proposals = self.detector.generate_proposals(inputs, feat)
+            detections, instance_segms = self.detector.generate_detections(
+                inputs, feat, proposals
+            )
+        else:
+            # one-stage detector
+            detections = self.detector.generate_detections(inputs, feat)
+            instance_segms = None
 
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
