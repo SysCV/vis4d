@@ -51,7 +51,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
-BDD_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/det/models/"
+BDD_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
 REV_KEYS = [
     (r"^roi_head\.", "roi_head.mm_roi_head."),
     (r"^rpn_head\.", "rpn_head.mm_dense_head."),

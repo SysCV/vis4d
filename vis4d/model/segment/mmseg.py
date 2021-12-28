@@ -40,7 +40,7 @@ except (ImportError, NameError):  # pragma: no cover
 
 
 MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
-BDD_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/sem_seg/models/"
+BDD_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
 REV_KEYS = [
     (r"^decode_head\.", "decode_head.mm_decode_head."),
     (r"^auxiliary_head\.", "auxiliary_head.mm_decode_head."),
