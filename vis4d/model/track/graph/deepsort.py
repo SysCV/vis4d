@@ -1,11 +1,11 @@
 """Track graph of deep SORT."""
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple, Union
-import copy
+
 import torch
 
 from vis4d.common.bbox.utils import bbox_iou
-from vis4d.struct import Boxes2D,  InputSample, LabelInstances, LossesType
+from vis4d.struct import Boxes2D, InputSample, LabelInstances, LossesType
 
 from ..motion import KalmanFilter
 from .base import BaseTrackGraph, TrackGraphConfig
@@ -146,15 +146,16 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             self.update(detections_selected, det_features_selected)
         else:
             self.update(detections_selected)
-
+        output = self.get_tracks()
+        return output  # type: ignore
         # output = self.get_tracks()
         # return output
-        result = copy.deepcopy(predictions)
-        for pred in result.get_instance_labels():
-            if len(pred[0]) > 0:  # type: ignore
-                pred[0].track_ids = ids[ids > -1]  # type: ignore
-
-        return result
+        # result = copy.deepcopy(predictions)
+        # for pred in result.get_instance_labels():
+        #     if len(pred[0]) > 0:  # type: ignore
+        #         pred[0].track_ids = ids[ids > -1]  # type: ignore
+        #
+        # return result
 
     def predict(self) -> None:
         """Propagate all tracklet one time step forward.
@@ -171,7 +172,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             track["age"] += 1
             track["time_since_update"] += 1
 
-    def update(  # type: ignore # pylint: disable=arguments-differ
+    def update(  # pylint: disable=arguments-differ
         self, detections: Boxes2D, det_features: torch.tensor = None
     ) -> None:
         """Perform association and track management."""

@@ -118,7 +118,6 @@ class QDSimilarityHead(BaseSimilarityHead):
     ) -> List[torch.Tensor]:
         """Similarity head forward pass."""
         features_list = [features[f] for f in self.cfg.in_features]
-        import pdb; pdb.set_trace()
         x = self.roi_pooler.pool(features_list, boxes)
 
         # convs

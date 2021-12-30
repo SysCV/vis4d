@@ -3,12 +3,6 @@ type = "DeepSORT"
 dataset = "BDD100K"
 prediction_path = "vis4d/engine/testcases/detect/bdd100k-samples/testcase_track_predictions.json"
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
-    [model.detection]
-    type = "D2TwoStageDetector"
-    model_base = "faster-rcnn/r50-fpn"
-    num_classes = 8
-    category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
-
     [model.track_graph]
     type = "DeepSORTTrackGraph"
     [model.track_graph.kf_parameters]

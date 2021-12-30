@@ -4,10 +4,8 @@ from .base import (
     SimilarityLearningConfig,
     build_similarity_head,
 )
-
 from .deepsort import DeepSortSimilarityHead
 from .qdtrack import QDSimilarityHead
-
 
 __all__ = [
     "BaseSimilarityHead",

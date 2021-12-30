@@ -1,4 +1,4 @@
-﻿"""Multi-positive cross entropy loss."""
+﻿"""Cross entropy loss."""
 from typing import Optional
 
 import torch
@@ -16,7 +16,7 @@ class CrossEntropyLoss(BaseLoss):
         super().__init__()
         self.cfg = cfg
 
-    def forward(  # type: ignore # pylint: disable=arguments-differ
+    def __call__(  # type: ignore # pylint: disable=arguments-differ
         self,
         pred: torch.Tensor,
         target: torch.Tensor,

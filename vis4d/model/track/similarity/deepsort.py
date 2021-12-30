@@ -1,5 +1,5 @@
 """Similarity Head for quasi-dense instance similarity learning."""
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -16,6 +16,7 @@ from vis4d.struct import (
     LabelInstances,
     LossesType,
 )
+
 from .base import BaseSimilarityHead, SimilarityLearningConfig
 
 
@@ -31,8 +32,6 @@ class DeepSortSimilarityHeadConfig(SimilarityLearningConfig):
     loss_cls: LossConfig
     roi_align_config: RoIPoolerConfig
     backbone: Optional[str]
-    pixel_mean: List[float] = [0.485, 0.456, 0.406]
-    pixel_std: List[float] = [0.229, 0.224, 0.225]
 
 
 def make_layers(
@@ -154,7 +153,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         inputs: List[InputSample],
         boxes: List[List[Boxes2D]],
         features: Optional[List[FeatureMaps]],
-        targets: Optional[List[LabelInstances]],
+        targets: List[LabelInstances],
     ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
 
@@ -172,7 +171,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         """
         instance_ids = torch.cat(
             [label.track_ids for label in boxes[0]], dim=0
-        )
+        ).to(dtype=torch.long)
         batch_size = min(self.cfg.max_boxes_num, len(instance_ids))
         indices = torch.randperm(len(instance_ids))[:batch_size]
         instance_ids = instance_ids[indices]
@@ -184,7 +183,6 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
                 x = fc(x)
 
         cls_score = self.classifier(x)
-
         return {"ce_loss": self.loss_cls(cls_score, instance_ids)}, None
 
     def forward_test(
@@ -208,4 +206,4 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         if self.cfg.num_fcs > 0:
             for fc in self.fcs:
                 x = fc[1](x)
-        return [x.div(x.norm(p=2, dim=1, keepdim=True))]  # type: ignore
+        return [x.div(x.norm(p=2, dim=1, keepdim=True))]

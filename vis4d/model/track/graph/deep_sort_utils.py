@@ -422,7 +422,9 @@ def load_predictions(
     for prediction in given_predictions:
         name = prediction.name
         if prediction.labels is None:
-            preds_per_frame[name] = Boxes2D(torch.empty((0, 5))) # pragma: no cover
+            preds_per_frame[name] = Boxes2D(
+                torch.empty((0, 5))
+            )  # pragma: no cover
         else:
             preds_per_frame[name] = Boxes2D.from_scalabel(
                 prediction.labels,

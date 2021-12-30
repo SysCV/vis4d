@@ -14,6 +14,6 @@ class TestResLayer(unittest.TestCase):
         c_in, c_out = 256, 128
         block = BasicBlock(c_in, c_out, is_downsample=False)
         bs, c_in, height, width = 2, 256, 16, 8
-        input = torch.rand([bs, c_in, height, width])
-        out = block(input)
+        input_tensor = torch.rand([bs, c_in, height, width])
+        out = block(input_tensor)
         self.assertEqual(out.shape, (bs, c_out, height, width))
