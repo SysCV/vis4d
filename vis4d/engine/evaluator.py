@@ -20,7 +20,7 @@ mute(True)  # turn off undesired logs during eval
 logger = logging.getLogger("pytorch_lightning")
 
 
-class Vis4DEvaluatorCallback(Callback):
+class BaseEvaluatorCallback(Callback):
     """Base class for Vis4D Evaluators.
 
     This class will accumulate the inputs/outputs in 'process', and produce
@@ -32,7 +32,6 @@ class Vis4DEvaluatorCallback(Callback):
         assert collect in ["cpu", "gpu"], f"Collect arg {collect} unknown."
         self._predictions: Dict[str, List[Frame]] = defaultdict(list)
         self._gts: List[Frame] = []
-        self.logger: Optional[pl.loggers.LightningLoggerBase] = None
         self.logging_disabled = False
         self.collect = collect
         self.dataloader_idx = dataloader_idx
@@ -63,19 +62,8 @@ class Vis4DEvaluatorCallback(Callback):
         """Evaluate the performance after processing all input/output pairs."""
         raise NotImplementedError
 
-    def setup(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        stage: Optional[str] = None,
-    ) -> None:
-        """Setup logging of results."""
-        self.logger = trainer.logger
-
     def on_test_epoch_end(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_test_epoch_end PL hook to call 'evaluate'."""
         self.gather(pl_module)
@@ -131,8 +119,8 @@ class Vis4DEvaluatorCallback(Callback):
         self.logging_disabled = False
 
 
-class ScalabelEvaluatorCallback(Vis4DEvaluatorCallback):
-    """Evaluate model using metrics supported by Scalabel."""
+class StandardEvaluatorCallback(BaseEvaluatorCallback):
+    """Evaluate model using metrics supported by the dataset."""
 
     def __init__(
         self,
@@ -177,8 +165,8 @@ class ScalabelEvaluatorCallback(Vis4DEvaluatorCallback):
                 log_dict, log_str = self.eval_func(key, predictions, self._gts)
                 results[key] = log_dict
                 if not self.logging_disabled:
-                    if self.logger is not None:
-                        self.logger.log_metrics(log_dict, epoch)
+                    for k, v in log_dict.items():
+                        self.log(k, v, rank_zero_only=True)  # type: ignore # pylint: disable=no-member,line-too-long
                     logger.info("Showing results for %s", key)
                     logger.info(log_str)
         return results

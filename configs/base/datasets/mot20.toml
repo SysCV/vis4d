@@ -1,12 +1,14 @@
 [[train]]
-name = "mot16_train"
+name = "mot20_train"
 type = "Scalabel"
-data_root = "data/MOT16/train"
-annotations = "data/MOT16/train/train_scalabel.json"
+data_root = "data/MOT20/train.hdf5"
+annotations = "data/MOT20/train/train_scalabel.json"
 num_processes = 0
     [train.sample_mapper]
-    clip_bboxes_to_image = false
     skip_empty_samples = true
+
+    [train.sample_mapper.data_backend]
+    type = "HDF5Backend"
 
     [train.ref_sampler]
     strategy = 'uniform'
@@ -31,19 +33,19 @@ num_processes = 0
 
     [[train.sample_mapper.transformations]]
     type = "KorniaColorJitter"
-    prob = 0.5
-    kwargs = {"brightness" = [0.8, 1.2], "contrast" = [0.8, 1.2], "saturation" = [0.8, 1.2]}
+    kwargs = {"brightness" = [0.875, 1.125], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5], "hue" = [-0.1, 0.1]}
 
 [[test]]
-name = "mot16_val"
-type = "Scalabel"
-data_root = "data/MOT16/train"
-annotations = "data/MOT16/train/val_scalabel.json"
-eval_metrics = ["track"]
+name = "mot20_val"
+type = "MOTChallenge"
+data_root = "data/MOT20/train.hdf5"
+annotations = "data/MOT20/train/val_scalabel.json"
+eval_metrics = ["detect", "track"]
 num_processes = 0
-    [test.sample_mapper]
-    clip_bboxes_to_image = false
+    [test.sample_mapper.data_backend]
+    type = "HDF5Backend"
 
     [[test.sample_mapper.transformations]]
     type = "Resize"
-    shape = [1080, 1920]
+    shape = [800, 1440]
+    keep_ratio = true

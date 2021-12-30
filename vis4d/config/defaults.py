@@ -19,7 +19,7 @@ def default_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "action",
         type=str,
-        choices=["train", "test", "predict"],
+        choices=["train", "test", "predict", "tune"],
         help="Action to execute",
     )
     parser.add_argument(

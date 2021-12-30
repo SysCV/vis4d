@@ -1,0 +1,200 @@
+[model]
+type = "MyModel"
+category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
+    [model.backbone]
+    type = "MMDetBackbone"
+    pixel_mean = [123.675, 116.28, 103.53]
+    pixel_std = [58.395, 57.12, 57.375]
+    [model.backbone.mm_cfg]
+        type = "ResNet"
+        depth = 50
+        num_stages = 4
+        out_indices = [0, 1, 2, 3]
+        frozen_stages = 1
+        norm_cfg = {type = "BN", requires_grad = true}
+        norm_eval = true
+        style = "pytorch"
+        init_cfg = {type = "Pretrained", checkpoint = "torchvision://resnet50"}
+
+    [model.backbone.neck]
+        type="MMDetNeck"
+        output_names = ["p2", "p3", "p4", "p5", "p6"]
+        [model.backbone.neck.mm_cfg]
+            type = "FPN"
+            in_channels = [256, 512, 1024, 2048]
+            out_channels = 256
+            num_outs = 5
+
+    [model.rpn_head]
+    type="MMDetDenseHead"
+    category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
+    [model.rpn_head.mm_cfg]
+        type='RPNHead'
+        in_channels=256
+        feat_channels=256
+        anchor_generator={type='AnchorGenerator', scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]}
+        bbox_coder= {type='DeltaXYWHBBoxCoder', target_means=[0.0, 0.0, 0.0, 0.0], target_stds=[1.0, 1.0, 1.0, 1.0]}
+        loss_cls={type='CrossEntropyLoss', use_sigmoid=true, loss_weight=1.0}
+        loss_bbox={type='L1Loss', loss_weight=1.0}
+        [model.rpn_head.mm_cfg.train_cfg]
+            assigner = {type='MaxIoUAssigner', pos_iou_thr=0.7, neg_iou_thr=0.3, min_pos_iou=0.3, match_low_quality=true, ignore_iof_thr=-1}
+            sampler = {type='RandomSampler', num=256, pos_fraction=0.5, neg_pos_ub=-1, add_gt_as_proposals=false}
+            allowed_border = -1
+            pos_weight = -1
+            debug = false
+        [model.rpn_head.mm_cfg.test_cfg]
+            nms_pre=1000
+            max_per_img=1000
+            nms={type='nms', iou_threshold=0.7}
+            min_bbox_size=0
+
+    [model.roi_head]
+    type="MMDetRoIHead"
+    category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
+    [model.roi_head.mm_cfg]
+        type='StandardRoIHead'
+        bbox_roi_extractor= {type='SingleRoIExtractor', roi_layer={type='RoIAlign', output_size=7, sampling_ratio=0}, out_channels=256, featmap_strides=[4, 8, 16, 32]}
+        [model.roi_head.mm_cfg.bbox_head]
+            type='Shared2FCBBoxHead'
+            in_channels=256
+            fc_out_channels=1024
+            roi_feat_size=7
+            num_classes=80
+            bbox_coder={type='DeltaXYWHBBoxCoder', target_means=[0.0, 0.0, 0.0, 0.0], target_stds=[0.1, 0.1, 0.2, 0.2]}
+            reg_class_agnostic = false
+            loss_cls={type='CrossEntropyLoss', use_sigmoid=false, loss_weight=1.0}
+            loss_bbox={type='L1Loss', loss_weight=1.0}
+        [model.roi_head.mm_cfg.train_cfg]
+            assigner = {type='MaxIoUAssigner', pos_iou_thr=0.5, neg_iou_thr=0.5, min_pos_iou=0.5, match_low_quality=false, ignore_iof_thr=-1}
+            sampler = {type='RandomSampler', num=512, pos_fraction=0.25, neg_pos_ub=-1, add_gt_as_proposals=true}
+            pos_weight = -1
+            debug = false
+        [model.roi_head.mm_cfg.test_cfg]
+            score_thr = 0.05
+            nms = {type='nms', iou_threshold=0.5}
+            max_per_img = 100
+
+    [model.segmentation_head]
+    type = "MMSegDecodeHead"
+    category_mapping = {"road" = 0, "sidewalk" = 1, "building" = 2, "wall" = 3, "fence" = 4, "pole" = 5, "traffic light" = 6, "traffic sign" = 7, "vegetation" = 8, "terrain" = 9, "sky" = 10, "person" = 11, "rider" = 12, "car" = 13, "truck" = 14, "bus" = 15, "train" = 16, "motorcycle" = 17, "bicycle" = 18}
+    [model.segmentation_head.mm_cfg]
+        type="FPNHead"
+        in_channels=[256, 256, 256, 256]
+        in_index=[0, 1, 2, 3]
+        feature_strides=[4, 8, 16, 32]
+        channels=32
+        dropout_ratio=0.1
+        num_classes=19
+        norm_cfg={type="BN", requires_grad=true}
+        align_corners=false
+        loss_decode={type="CrossEntropyLoss", use_sigmoid=false, loss_weight=1.0}
+        train_cfg={}
+        test_cfg={mode="whole"}
+
+    [model.track_graph]
+    type = "QDTrackGraph"
+    keep_in_memory = 10  # timesteps
+
+    [model.similarity_head]
+    type = "QDSimilarityHead"
+
+        [model.similarity_head.track_loss]
+        type = "MultiPosCrossEntropyLoss"
+        loss_weight = 0.25
+
+        [model.similarity_head.track_loss_aux]
+        type = "EmbeddingDistanceLoss"
+        loss_weight = 1.0
+        neg_pos_ub = 3
+        pos_margin = 0
+        neg_margin = 0.3
+        hard_mining = true
+
+        [model.similarity_head.proposal_pooler]
+        type = "MultiScaleRoIPooler"
+        pooling_op = "RoIAlign"
+        resolution = [7, 7]
+        strides = [4, 8, 16, 32]
+        sampling_ratio = 0
+
+        [model.similarity_head.proposal_sampler]
+        type = "CombinedSampler"
+        batch_size_per_image = 64
+        positive_fraction = 0.5
+        pos_strategy = "instance_balanced"
+        neg_strategy = "iou_balanced"
+
+        [model.similarity_head.proposal_matcher]
+        type = "MaxIoUMatcher"
+        thresholds = [0.3, 0.7]
+        labels = [0, -1, 1]
+        allow_low_quality_matches = false
+
+
+[[train]]
+name = "bdd100k_seg_track_sample_train"
+type = "BDD100K"
+annotations = "../vis4d/engine/testcases/track/bdd100k-samples/labels/"
+data_root = "../vis4d/engine/testcases/track/bdd100k-samples/images/"
+config_path = "box_track"
+num_processes = 0
+    [train.sample_mapper]
+        [train.ref_sampler]
+        strategy = 'uniform'
+        scope = 2
+        num_ref_imgs = 1
+        skip_nomatch_samples = true
+
+    [[train.sample_mapper.transformations]]
+    type = "Resize"
+    shape = [720, 1280]
+
+    [[train.sample_mapper.transformations]]
+    type = "KorniaAugmentationWrapper"
+    kornia_type = "RandomHorizontalFlip"
+    prob = 0.5
+
+[[train]]
+name = "bdd100k_sem_seg_sample_train"
+type = "Scalabel"
+annotations = "../vis4d/engine/testcases/segment/bdd100k-samples/annotation.json"
+data_root = "../vis4d/engine/testcases/segment/bdd100k-samples/images"
+config_path = "../vis4d/engine/testcases/segment/bdd100k-samples/config.toml"
+num_processes = 0
+    [train.sample_mapper]
+    fields_to_load = ["semantic_masks"]
+
+    [train.ref_sampler]
+    strategy = 'uniform'
+    scope = 1
+    num_ref_imgs = 0
+
+    [[train.sample_mapper.transformations]]
+    type = "Resize"
+    shape = [720, 1280]
+
+    [[train.sample_mapper.transformations]]
+    type = "KorniaAugmentationWrapper"
+    kornia_type = "RandomHorizontalFlip"
+    prob = 0.5
+
+[[test]]
+name = "bdd100k_sample_val"
+type = "BDD100K"
+annotations = "../vis4d/engine/testcases/track/bdd100k-samples/labels/"
+data_root = "../vis4d/engine/testcases/track/bdd100k-samples/images/"
+eval_metrics = ["track"]
+config_path = "box_track"
+num_processes = 0
+    [test.sample_mapper]
+        [[test.sample_mapper.transformations]]
+        type = "Resize"
+        shape = [720, 1280]
+
+
+[launch]
+samples_per_gpu = 2
+workers_per_gpu = 2
+
+[trainer]
+max_epochs = 12
