@@ -102,7 +102,7 @@ def segmentation_from_mmdet_results(
     segmentation: MMSegmResult, boxes: Boxes2D, device: torch.device
 ) -> InstanceMasks:
     """Convert segm_result to Vis4D format."""
-    segms = [
+    segms: List[NDArrayUI8] = [
         np.stack(segm) if len(segm) != 0 else np.empty_like(segm)
         for segm in segmentation
     ]

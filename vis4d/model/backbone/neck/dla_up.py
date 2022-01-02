@@ -7,7 +7,7 @@ import torch
 from mmcv.ops.modulated_deform_conv import ModulatedDeformConv2dPack
 from torch import nn
 
-from vis4d.struct import FeatureMaps
+from vis4d.struct import FeatureMaps, NDArrayI64
 
 from .base import BaseNeck, BaseNeckConfig
 
@@ -125,8 +125,8 @@ class DLAUp(BaseNeck):
             self.end_level = len(self.cfg.in_channels)
         in_channels = self.cfg.in_channels[self.start_level : self.end_level]
         channels = list(in_channels)
-        scales = np.array(
-            [2 ** i for i, _ in enumerate(in_channels)], dtype=int
+        scales: NDArrayI64 = np.array(
+            [2 ** i for i, _ in enumerate(in_channels)], dtype=np.int64
         )
         for i in range(len(channels) - 1):
             j = -i - 2
