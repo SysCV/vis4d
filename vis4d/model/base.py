@@ -14,6 +14,7 @@ from typing import (
 )
 
 import pytorch_lightning as pl
+from pytorch_lightning.utilities.distributed import rank_zero_info
 from torch.optim import Optimizer
 
 from ..common.io import DataBackendConfig, build_data_backend
@@ -232,6 +233,16 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
             self.freeze_parameters(self._freeze_parameters)
         self.train()
 
+    def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        """Allow for mismatched shapes when loading checkpoints."""
+        state_dict = checkpoint["state_dict"]
+        model_state_dict = self.state_dict()
+        for k in checkpoint["state_dict"]:
+            if k in model_state_dict:
+                if checkpoint["state_dict"][k].shape != model_state_dict[k].shape:
+                    rank_zero_info(f"Skip loading parameter: {k}, required shape: {model_state_dict[k].shape}, loaded shape: {state_dict[k].shape}")
+                    state_dict[k] = model_state_dict[k]
+
     @classmethod
     def _load_model_state(  # type: ignore
         cls, checkpoint: DictStrAny, strict: bool = True, **cls_kwargs_new: Any
@@ -255,6 +266,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
                     k = k.replace(pattern, replacement)
                 new_state_dict[k] = v
             checkpoint["state_dict"] = new_state_dict
+
         return super()._load_model_state(  # type: ignore
             checkpoint, strict=strict, **cls_kwargs_new
         )
