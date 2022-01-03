@@ -192,8 +192,8 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.category_mapping,
-        cfg.model.image_channel_mode,
+        model.category_mapping,
+        model.image_channel_mode,
         cfg.launch.seed,
         cfg.data,
     )
@@ -235,8 +235,8 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.category_mapping,
-        cfg.model.image_channel_mode,
+        model.category_mapping,
+        model.image_channel_mode,
         cfg.launch.seed,
         cfg.data,
     )
@@ -280,8 +280,8 @@ def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.category_mapping,
-        cfg.model.image_channel_mode,
+        model.category_mapping,
+        model.image_channel_mode,
         cfg.launch.seed,
         cfg.data,
     )

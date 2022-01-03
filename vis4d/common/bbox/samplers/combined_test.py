@@ -48,7 +48,7 @@ class TestCombined(unittest.TestCase):
         matching, boxes, targets = self._get_boxes_targets(
             num_gts, num_samples
         )
-        sampling_result = sampler.sample(matching, boxes, targets)
+        sampling_result = sampler(matching, boxes, targets)
         sampled_boxes, sampled_targets = (
             sampling_result.sampled_boxes,
             sampling_result.sampled_targets,
@@ -78,7 +78,7 @@ class TestCombined(unittest.TestCase):
         matching, boxes, targets = self._get_boxes_targets(
             num_gts, num_samples
         )
-        sampler.sample(matching, boxes, targets)
+        sampler(matching, boxes, targets)
 
         matching, boxes, targets = self._get_boxes_targets(num_gts, 128)
-        sampler.sample(matching, boxes, targets)
+        sampler(matching, boxes, targets)

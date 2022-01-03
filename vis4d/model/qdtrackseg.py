@@ -1,34 +1,31 @@
 """Quasi-dense instance similarity learning model with segmentation head."""
-from typing import List
+from typing import List, Union
 
-from vis4d.struct import InputSample, LossesType, ModelOutput
+from vis4d.common.module import build_module
+from vis4d.struct import InputSample, LossesType, ModelOutput, ModuleCfg
 
-from .heads.dense_head import (
-    BaseDenseHeadConfig,
-    MMSegDecodeHead,
-    build_dense_head,
-)
-from .qdtrack import QDTrack, QDTrackConfig
+from .heads.dense_head import MMSegDecodeHead
+from .qdtrack import QDTrack
 from .track.utils import split_key_ref_inputs
 from .utils import predictions_to_scalabel
-
-
-class QDTrackSegConfig(QDTrackConfig):
-    """Config for quasi-dense tracking model with segmentation head."""
-
-    seg_head: BaseDenseHeadConfig
 
 
 class QDTrackSeg(QDTrack):
     """QDTrack model with segmentation head."""
 
-    def __init__(self, cfg: BaseModelConfig) -> None:
+    def __init__(
+        self, seg_head: Union[MMSegDecodeHead, ModuleCfg], *args, **kwargs
+    ) -> None:
         """Init."""
-        super().__init__(cfg)
-        self.cfg: QDTrackSegConfig = QDTrackSegConfig(**cfg.dict())
-        if self.cfg.seg_head.category_mapping is None:  # pragma: no cover
-            self.cfg.seg_head.category_mapping = self.cfg.category_mapping
-        self.seg_head: MMSegDecodeHead = build_dense_head(self.cfg.seg_head)
+        super().__init__(*args, **kwargs)
+        if isinstance(seg_head, dict):
+            if seg_head["category_mapping"] is None:  # pragma: no cover
+                seg_head["category_mapping"] = self.category_mapping
+            self.seg_head: MMSegDecodeHead = build_module(
+                seg_head, bound=MMSegDecodeHead
+            )
+        else:
+            self.seg_head = seg_head
 
     def forward_train(
         self,

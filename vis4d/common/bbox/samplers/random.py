@@ -24,7 +24,7 @@ class RandomSampler(BaseSampler):
         super().__init__(batch_size_per_image, positive_fraction)
         self.bg_label = bg_label
 
-    def sample(
+    def __call__(  # type: ignore
         self,
         matching: List[MatchResult],
         boxes: List[Boxes2D],

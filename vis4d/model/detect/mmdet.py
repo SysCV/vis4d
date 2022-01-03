@@ -18,7 +18,6 @@ from vis4d.struct import (
 
 from ..backbone import BaseBackbone, MMDetBackbone
 from ..backbone.neck import MMDetNeck
-from ..base import BaseModelConfig
 from ..heads.dense_head import BaseDenseHead, MMDetDenseHead
 from ..heads.roi_head import BaseRoIHead, MMDetRoIHead
 from ..mmdet_utils import add_keyword_args, load_config
@@ -55,20 +54,34 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         model_base: str,
         pixel_mean: Tuple[float, float, float],
         pixel_std: Tuple[float, float, float],
+        *args,
         clip_bboxes_to_image: bool = True,
         model_kwargs: Optional[DictStrAny] = None,
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
         backbone: Optional[Union[BaseBackbone, ModuleCfg]] = None,
-        roi_head: Optional[Union[BaseDenseHead, ModuleCfg]] = None,
-        rpn_head: Optional[Union[BaseRoIHead, ModuleCfg]] = None,
+        roi_head: Optional[
+            Union[BaseDenseHead[List[Boxes2D], List[Boxes2D]], ModuleCfg]
+        ] = None,
+        rpn_head: Optional[
+            Union[
+                BaseRoIHead[
+                    Optional[SamplingResult],
+                    Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
+                ],
+                ModuleCfg,
+            ]
+        ] = None,
+        **kwargs,
     ):
         """Init."""
         assert (
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMTwoStageDetector requires both mmcv and mmdet to be installed!"
-        super().__init__(clip_bboxes_to_image)
-        assert category_mapping is not None
+        super().__init__(
+            *args, clip_bboxes_to_image=clip_bboxes_to_image, **kwargs
+        )
+        assert self.category_mapping is not None
         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
         self.mm_cfg = get_mmdet_config(
             model_base, model_kwargs, self.category_mapping

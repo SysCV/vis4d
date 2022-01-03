@@ -30,7 +30,7 @@ class TestQDTBBox3DHead(unittest.TestCase):
         )
         pooler_cfg = MultiScaleRoIPooler(
             pooling_op="RoIAlign",
-            resolution=[7, 7],
+            resolution=(7, 7),
             strides=[4, 8, 16, 32],
             sampling_ratio=0,
         )

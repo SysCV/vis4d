@@ -1,5 +1,6 @@
 """Vis4D base module definition."""
 import abc
+import copy
 from typing import Any, Generic, Type, TypeVar, Union
 
 from torch.nn import Module
@@ -38,6 +39,7 @@ def build_module(
 ) -> Vis4DModule[TTrainReturn, TTestReturn]:
     """Build a module from config."""
     registry = RegistryHolder.get_registry(bound)
+    cfg = copy.deepcopy(cfg)
     module_type = cfg.pop("type", None)
     if module_type is None:
         raise ValueError(f"Need type argument in module config: {cfg}")

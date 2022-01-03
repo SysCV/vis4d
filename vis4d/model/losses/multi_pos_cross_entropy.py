@@ -24,9 +24,9 @@ class MultiPosCrossEntropyLoss(BaseLoss):
         reduction = (
             reduction_override
             if reduction_override is not None
-            else self.cfg.reduction
+            else self.reduction
         )
-        loss_cls = self.cfg.loss_weight * multi_pos_cross_entropy(
+        loss_cls = self.loss_weight * multi_pos_cross_entropy(
             pred,
             target,
             weight,

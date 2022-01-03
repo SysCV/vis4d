@@ -1,42 +1,50 @@
 """Quasi-dense 3D Tracking model."""
-from typing import List
+from typing import List, Union
 
 import torch
 
-from ..struct import (
+from vis4d.common.module import build_module
+from vis4d.struct import (
     Boxes2D,
     Boxes3D,
     InputSample,
     LabelInstances,
     LossesType,
     ModelOutput,
+    ModuleCfg,
 )
-from .heads.roi_head import BaseRoIHeadConfig, QD3DTBBox3DHead, build_roi_head
-from .qdtrack import QDTrack, QDTrackConfig
-from .track.graph import build_track_graph
+
+from .detect import BaseTwoStageDetector
+from .heads.roi_head import QD3DTBBox3DHead
+from .qdtrack import QDTrack
+from .track.graph import BaseTrackGraph
+from .track.similarity import BaseSimilarityHead
 from .track.utils import split_key_ref_inputs
-
-
-class QD3DTConfig(QDTrackConfig):
-    """Config for quasi-dense 3D tracking model."""
-
-    bbox_3d_head: BaseRoIHeadConfig
 
 
 class QD3DT(QDTrack):
     """QD-3DT model class."""
 
-    def __init__(self, cfg: BaseModelConfig) -> None:
+    def __init__(
+        self,
+        detection: Union[BaseTwoStageDetector, ModuleCfg],
+        similarity: Union[BaseSimilarityHead, ModuleCfg],
+        track_graph: Union[BaseTrackGraph, ModuleCfg],
+        bbox_3d_head: Union[QD3DTBBox3DHead, ModuleCfg],
+        *args,
+        **kwargs
+    ) -> None:
         """Init."""
-        super().__init__(cfg)
-        self.cfg = QD3DTConfig(**cfg.dict())
-        assert self.cfg.category_mapping is not None
-        self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)
-        self.bbox_3d_head: QD3DTBBox3DHead = build_roi_head(
-            self.cfg.bbox_3d_head
-        )
-        self.track_graph = build_track_graph(self.cfg.track_graph)
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
+        super().__init__(detection, similarity, track_graph, *args, **kwargs)
+        assert self.category_mapping is not None
+        if isinstance(bbox_3d_head, dict):
+            bbox_3d_head["num_classes"] = len(self.category_mapping)
+            self.bbox_3d_head: QD3DTBBox3DHead = build_module(
+                bbox_3d_head, bound=QD3DTBBox3DHead
+            )
+        else:
+            self.bbox_3d_head = bbox_3d_head
+        self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
 
     def forward_train(
         self,

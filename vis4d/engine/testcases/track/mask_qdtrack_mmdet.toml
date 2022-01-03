@@ -21,6 +21,8 @@ freeze_parameters = ["detector.backbone", "detector.backbone.neck", "detector.rp
 [launch]
 samples_per_gpu = 1
 workers_per_gpu = 0
+tuner_metrics = ["track/MOTA", "track/IDF1"]
+tuner_params = {"track_graph.obj_score_thr" = [0.55, 0.6]}
 
 [trainer]
 max_steps = 1

@@ -1,5 +1,5 @@
 """mmsegmentation segmentor wrapper."""
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 
@@ -15,11 +15,7 @@ from vis4d.struct import (
 
 from ..backbone import MMSegBackbone
 from ..backbone.neck import MMDetNeck
-from ..heads.dense_head import (
-    MMSegDecodeHead,
-    MMSegDecodeHeadConfig,
-    build_dense_head,
-)
+from ..heads.dense_head import MMSegDecodeHead
 from ..mmdet_utils import _parse_losses, add_keyword_args
 from ..mmseg_utils import load_config
 from ..utils import predictions_to_scalabel
@@ -57,21 +53,22 @@ class MMEncDecSegmentor(BaseSegmentor):
         model_base: str,
         pixel_mean: Tuple[float, float, float],
         pixel_std: Tuple[float, float, float],
-        backbone_output_names: Optional[List[str]],
+        *args,
         model_kwargs: Optional[DictStrAny] = None,
+        backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
+        **kwargs,
     ):
         """Init."""
         assert (
             MMSEG_INSTALLED and MMCV_INSTALLED
         ), "MMEncDecSegmentor requires both mmcv and mmseg to be installed!"
-        super().__init__(cfg)
-        self.cfg: MMEncDecSegmentorConfig = MMEncDecSegmentorConfig(
-            **cfg.dict()
+        super().__init__(*args, **kwargs)
+        assert self.category_mapping is not None
+        self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
+        self.mm_cfg = get_mmseg_config(
+            model_base, model_kwargs, self.category_mapping
         )
-        assert self.cfg.category_mapping is not None
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
-        self.mm_cfg = get_mmseg_config(self.cfg)
         self.train_cfg = (
             self.mm_cfg["train_cfg"] if "train_cfg" in self.mm_cfg else None
         )
@@ -81,14 +78,15 @@ class MMEncDecSegmentor(BaseSegmentor):
 
         self.backbone = MMSegBackbone(
             mm_cfg=self.mm_cfg["backbone"],
-            pixel_mean=self.cfg.pixel_mean,
-            pixel_std=self.cfg.pixel_std,
+            pixel_mean=pixel_mean,
+            pixel_std=pixel_std,
             neck=MMDetNeck(
                 mm_cfg=self.mm_cfg["neck"],
-                output_names=self.cfg.backbone_output_names,
+                output_names=backbone_output_names,
             )
             if "neck" in self.mm_cfg
             else None,
+            output_names=backbone_output_names,
         )
 
         decode_cfg = self.mm_cfg["decode_head"]
@@ -107,18 +105,17 @@ class MMEncDecSegmentor(BaseSegmentor):
         else:  # pragma: no cover
             self.auxiliary_head = None
 
-        if self.cfg.weights is not None:
-            if self.cfg.weights.startswith("mmseg://"):
-                self.cfg.weights = (
-                    MMSEG_MODEL_PREFIX + self.cfg.weights.split("mmseg://")[-1]
-                )
-            load_checkpoint(self, self.cfg.weights, revise_keys=REV_KEYS)
+        if weights is not None:
+            if weights.startswith("mmseg://"):
+                weights = MMSEG_MODEL_PREFIX + weights.split("mmseg://")[-1]
+            load_checkpoint(self, weights, revise_keys=REV_KEYS)
 
     def _build_decode_heads(
         self,
         mm_cfg: MMConfig,
     ) -> MMSegDecodeHeads:
         """Build decode heads given config."""
+        assert self.category_mapping is not None
         decode_head: MMSegDecodeHeads
         if isinstance(mm_cfg, list):
             decode_head_: List[MMSegDecodeHead] = []
@@ -127,23 +124,15 @@ class MMEncDecSegmentor(BaseSegmentor):
                     train_cfg=self.train_cfg, test_cfg=self.test_cfg
                 )
                 decode_head_.append(
-                    build_dense_head(
-                        MMSegDecodeHeadConfig(
-                            type="MMSegDecodeHead",
-                            mm_cfg=mm_cfg_,
-                            category_mapping=self.cfg.category_mapping,
-                        )
+                    MMSegDecodeHead(
+                        mm_cfg=mm_cfg_, category_mapping=self.category_mapping
                     )
                 )
             decode_head = torch.nn.ModuleList(decode_head_)
         else:
             mm_cfg.update(train_cfg=self.train_cfg, test_cfg=self.test_cfg)
-            decode_head = build_dense_head(
-                MMSegDecodeHeadConfig(
-                    type="MMSegDecodeHead",
-                    mm_cfg=mm_cfg,
-                    category_mapping=self.cfg.category_mapping,
-                )
+            decode_head = MMSegDecodeHead(
+                mm_cfg=mm_cfg, category_mapping=self.category_mapping
             )
         return decode_head
 
@@ -229,24 +218,28 @@ class MMEncDecSegmentor(BaseSegmentor):
         return aux_losses
 
 
-def get_mmseg_config(config: MMEncDecSegmentorConfig) -> MMConfig:
+def get_mmseg_config(
+    model_base: str,
+    model_kwargs: Optional[DictStrAny] = None,
+    category_mapping: Optional[Dict[str, int]] = None,
+) -> MMConfig:
     """Convert a Segmentor config to a mmseg readable config."""
-    cfg = load_config(config.model_base)
+    cfg = load_config(model_base)
 
     # convert segmentor attributes
-    assert config.category_mapping is not None
+    assert category_mapping is not None
     if isinstance(cfg["decode_head"], list):  # pragma: no cover
         for dec_head in cfg["decode_head"]:
-            dec_head["num_classes"] = len(config.category_mapping)
+            dec_head["num_classes"] = len(category_mapping)
     else:
-        cfg["decode_head"]["num_classes"] = len(config.category_mapping)
+        cfg["decode_head"]["num_classes"] = len(category_mapping)
     if "auxiliary_head" in cfg:
         if isinstance(cfg["auxiliary_head"], list):
             for aux_head in cfg["auxiliary_head"]:
-                aux_head["num_classes"] = len(config.category_mapping)
+                aux_head["num_classes"] = len(category_mapping)
         else:
-            cfg["auxiliary_head"]["num_classes"] = len(config.category_mapping)
+            cfg["auxiliary_head"]["num_classes"] = len(category_mapping)
 
-    if config.model_kwargs:
-        add_keyword_args(config, cfg)
+    if model_kwargs:
+        add_keyword_args(model_kwargs, cfg)
     return cfg
