@@ -1,6 +1,5 @@
 """Vis4D model module."""
 from .base import BaseModel, BaseModelConfig, build_model
-from .mtl import MTL
 from .panoptic import PanopticSegmentor
 from .qd_3dt import QD3DT
 from .qdtrack import QDTrack
@@ -17,5 +16,4 @@ __all__ = [
     "BaseSegmentor",
     "MMEncDecSegmentor",
     "PanopticSegmentor",
-    "MTL",
 ]
