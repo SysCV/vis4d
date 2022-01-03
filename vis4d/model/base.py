@@ -57,7 +57,9 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
                 DataBackendConfig(type="HDF5Backend")
             )
             if not osp.exists(self.cfg.inference_result_path):
-                self.data_backend.set(self.cfg.inference_result_path, bytes())
+                self.data_backend.set(
+                    self.cfg.inference_result_path, bytes()
+                )  # pragma: no cover
 
     def __call__(
         self, batch_inputs: List[InputSample]
@@ -75,6 +77,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
             batch_inputs: List of batched model inputs. One InputSample
             contains all batch elements of a single view. One view is either
             the key frame or a reference frame.
+
         Returns:
             LossesType: A dict of scalar loss tensors.
         """
@@ -86,6 +89,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
 
         Args:
             batch_inputs: Model input (batched).
+
         Returns:
             ModelOutput: Dict of Scalabel results (List[Label]), e.g. tracking
             and separate detection result.
@@ -187,6 +191,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
             batch: Model input (batched).
             batch_idx: batch index within dataset.
             dataloader_idx: index of dataloader if there are multiple.
+
         Returns:
             ModelOutput: Dict of Scalabel results (List[Label]), e.g. tracking
             and separate detection result.
@@ -266,3 +271,4 @@ def build_model(
             )
         assert isinstance(module, BaseModel)
         return module
+    raise NotImplementedError(f"Model {cfg.type} not found.")

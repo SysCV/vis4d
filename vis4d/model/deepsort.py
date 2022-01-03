@@ -10,17 +10,21 @@ from vis4d.struct import (
     LabelInstances,
     LossesType,
     ModelOutput,
+    TLabelInstance,
 )
 
 from .base import BaseModel, BaseModelConfig, build_model
+from .detect import BaseDetectorConfig, BaseTwoStageDetector
 from .track.graph import TrackGraphConfig, build_track_graph
 from .track.similarity import SimilarityLearningConfig, build_similarity_head
+from .utils import predictions_to_scalabel
 
 
 class DeepSORTConfig(BaseModelConfig):
     """deep SORT config."""
 
-    detection: Optional[BaseModelConfig]
+    detection: Optional[BaseDetectorConfig]
+    category_mapping: Dict[str, int]
     track_graph: TrackGraphConfig
     prediction_path: Optional[str]
     similarity: Optional[SimilarityLearningConfig]
@@ -38,7 +42,9 @@ class DeepSORT(BaseModel):
         assert self.cfg.category_mapping is not None
 
         if self.cfg.detection is not None:
-            self.detector = build_model(self.cfg.detection)
+            self.detector: BaseTwoStageDetector = build_model(
+                self.cfg.detection
+            )
             self.cfg.detection.category_mapping = self.cfg.category_mapping
         if self.cfg.similarity is not None:
             self.similarity_head = build_similarity_head(self.cfg.similarity)
@@ -88,7 +94,7 @@ class DeepSORT(BaseModel):
         ) / self.pixel_std
         return inputs.images.tensor
 
-    def _detect_and_track_losses(
+    def _run_heads_train(
         self,
         inputs: List[InputSample],
     ) -> LossesType:
@@ -98,7 +104,7 @@ class DeepSORT(BaseModel):
             input_images, labels, None, labels  # type: ignore
         )
         if self.cfg.detection is None:
-            return track_losses
+            return track_losses  # pragma: no cover
         inputs_detect = inputs[0]
         key_x = self.detector.extract_features(inputs_detect)
 
@@ -118,7 +124,9 @@ class DeepSORT(BaseModel):
 
         return {**det_losses, **track_losses}
 
-    def _detect_and_track(self, inputs: InputSample) -> ModelOutput:
+    def _run_heads_test(
+        self, inputs: InputSample
+    ) -> Tuple[ModelOutput, LabelInstances, List[torch.Tensor]]:
         """Get detections and tracks."""
         frame_name = inputs.metadata[0].name
         if self.cfg.detection is None:
@@ -138,40 +146,43 @@ class DeepSORT(BaseModel):
                 inputs, feat, proposals
             )
 
-        input_size = (
-            inputs.metadata[0].size.width,
-            inputs.metadata[0].size.height,
+        outs: Dict[str, List[TLabelInstance]] = {"detect": [d.clone() for d in detections]}  # type: ignore # pylint: disable=line-too-long
+        outputs = predictions_to_scalabel(
+            inputs,
+            outs,
+            self.cat_mapping,
+            self.cfg.detection.clip_bboxes_to_image
+            if self.cfg.detection is not None
+            else True,
         )
-        detections[0].postprocess(
-            input_size,
-            inputs.images.image_sizes[0]
-        )
+
         predictions = LabelInstances(
             detections,
         )
+        if self.with_reid:
+            input_images = self.preprocess_inp(inputs)
+            embeddings = self.similarity_head(input_images, detections, None)
+            return outputs, predictions, embeddings
 
-        if len(detections[0]) == 0:
-            tracks = Boxes2D(  # pragma: no cover
-                torch.empty(0, 5), torch.empty(0), torch.empty(0)
-            ).to(self.device)
-        else:
-            if self.with_reid:
-                input_images = self.preprocess_inp(inputs)
-                embeddings = self.similarity_head(
-                    input_images, detections, None
-                )
-                tracks = self.track_graph(
-                    inputs, predictions, embeddings=embeddings
-                )
-            else:
-                tracks = self.track_graph(inputs, predictions)
-        detects = (
-            detections[0].to(torch.device("cpu")).to_scalabel(self.cat_mapping)
+        return outputs, predictions, None  # type: ignore
+
+    def _track(
+        self,
+        inputs: InputSample,
+        predictions: LabelInstances,
+        embeddings: List[torch.Tensor],
+    ) -> ModelOutput:
+        """Associate detections, update track graph."""
+        tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
+        outs: Dict[str, List[TLabelInstance]] = {"track": tracks.boxes2d}  # type: ignore # pylint: disable=line-too-long
+        return predictions_to_scalabel(
+            inputs,
+            outs,
+            self.cat_mapping,
+            self.cfg.detection.clip_bboxes_to_image
+            if self.cfg.detection is not None
+            else True,
         )
-        tracks_ = tracks.to(torch.device("cpu")).to_scalabel(self.cat_mapping)
-        outputs = dict(detect=[detects])
-        outputs["track"] = [tracks_]
-        return outputs
 
     def forward_train(
         self,
@@ -179,7 +190,7 @@ class DeepSORT(BaseModel):
     ) -> LossesType:
         """Forward function for training."""
         if self.with_reid:
-            losses = self._detect_and_track_losses(batch_inputs)
+            losses = self._run_heads_train(batch_inputs)
         else:
             raise NotImplementedError
         return losses
@@ -191,4 +202,6 @@ class DeepSORT(BaseModel):
         """Compute model output during inference."""
         assert len(batch_inputs) == 1, "No reference views during test!"
         assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
-        return self._detect_and_track(batch_inputs[0])
+        outs, predictions, embeddings = self._run_heads_test(batch_inputs[0])
+        outs.update(self._track(batch_inputs[0], predictions, embeddings))
+        return outs

@@ -1,4 +1,5 @@
 """Track graph of deep SORT."""
+import copy
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -147,15 +148,9 @@ class DeepSORTTrackGraph(BaseTrackGraph):
         else:
             self.update(detections_selected)
         output = self.get_tracks()
-        return output  # type: ignore
-        # output = self.get_tracks()
-        # return output
-        # result = copy.deepcopy(predictions)
-        # for pred in result.get_instance_labels():
-        #     if len(pred[0]) > 0:  # type: ignore
-        #         pred[0].track_ids = ids[ids > -1]  # type: ignore
-        #
-        # return result
+        result = copy.deepcopy(predictions)
+        result.boxes2d[0] = output
+        return result
 
     def predict(self) -> None:
         """Propagate all tracklet one time step forward.

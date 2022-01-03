@@ -53,11 +53,11 @@ class HDF5Backend(BaseDataBackend):
 
         while keys:
             value_buf = value_buf.get(keys.pop())
-            if value_buf is None:
+            if value_buf is None:  # pragma: no cover
                 return False
         return True
 
-    def set(self, filepath: str, content: bytes) -> None:
+    def set(self, filepath: str, content: bytes) -> None:  # pragma: no cover
         """Set the file content.
 
         Args:
@@ -92,7 +92,7 @@ class HDF5Backend(BaseDataBackend):
             self.db_cache[hdf5_path] = [client, mode]
         else:
             client, current_mode = self.db_cache[hdf5_path]
-            if current_mode != mode:
+            if current_mode != mode:  # pragma: no cover
                 client.close()
                 client = h5py.File(hdf5_path, mode)
                 self.db_cache[hdf5_path] = [client, mode]

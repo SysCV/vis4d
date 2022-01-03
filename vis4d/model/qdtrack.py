@@ -187,7 +187,7 @@ class QDTrack(BaseModel):
             outs, predictions, embeddings = self._run_heads_test(
                 batch_inputs[0], feat
             )
-            if self.cfg.inference_result_path is not None:
+            if self.cfg.inference_result_path is not None:  # pragma: no cover
                 predictions = predictions.to(torch.device("cpu"))
                 embeddings = [e.to(torch.device("cpu")) for e in embeddings]
                 self.data_backend.set(

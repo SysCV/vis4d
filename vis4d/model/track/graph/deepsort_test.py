@@ -65,9 +65,9 @@ class TestDeepSortGraph(unittest.TestCase):
         embeddings = [torch.rand(num_dets, 128)]
 
         # feed same detections & embeddings --> should be matched to self
-        result_t0 = tracker(sample, dets, embeddings=embeddings)
-        result_t1 = tracker(sample, dets, embeddings=embeddings)
-        result_t2 = tracker(sample, dets, embeddings=embeddings)
+        result_t0 = tracker(sample, dets, embeddings=embeddings).boxes2d[0]
+        result_t1 = tracker(sample, dets, embeddings=embeddings).boxes2d[0]
+        result_t2 = tracker(sample, dets, embeddings=embeddings).boxes2d[0]
         # check if matching is correct
         t0, t1, t2 = (
             result_t0.track_ids.sort()[0],
