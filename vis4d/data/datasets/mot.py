@@ -22,7 +22,7 @@ class MOTDatasetConfig(BaseDatasetConfig):
     tmp_dir_root: str = "./"
     track_iou_thr: float = 0.5
     validation_gt_root: Optional[str]
-    per_video_det: bool = False
+    det_metrics_per_video: bool = False
 
 
 class MOTChallenge(BaseDatasetLoader):
@@ -102,7 +102,7 @@ class MOTChallenge(BaseDatasetLoader):
         """Evaluate according to MOT Challenge metrics."""
         if not metric == "track":  # pragma: no cover
             log_dict, log_str = super().evaluate(metric, predictions, gts)
-            if self.cfg.per_video_det:
+            if self.cfg.det_metrics_per_video:
                 # per video detection results
                 video_names = sorted(
                     set(f.videoName for f in gts if f.videoName is not None)

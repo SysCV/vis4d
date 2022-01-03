@@ -108,6 +108,7 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
 
 
 NDArrayF64 = npt.NDArray[np.float64]
+NDArrayI64 = npt.NDArray[np.int64]
 NDArrayUI8 = npt.NDArray[np.uint8]
 TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
 LossesType = Dict[str, torch.Tensor]

@@ -41,7 +41,7 @@ type = "MOTChallenge"
 data_root = "data/MOT20/train.hdf5"
 annotations = "data/MOT20/train/val_scalabel.json"
 eval_metrics = ["detect", "track"]
-per_video_det = true
+det_metrics_per_video = true
 num_processes = 0
     [test.sample_mapper.data_backend]
     type = "HDF5Backend"
