@@ -40,7 +40,7 @@ except (ImportError, NameError):  # pragma: no cover
 
 
 MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
-BDD_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
+BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
 REV_KEYS = [
     (r"^decode_head\.", "decode_head.mm_decode_head."),
     (r"^auxiliary_head\.", "auxiliary_head.mm_decode_head."),
@@ -238,7 +238,7 @@ def load_model_checkpoint(model: BaseSegmentor, weights: str) -> None:
     if weights.startswith("mmseg://"):
         weights = MMSEG_MODEL_PREFIX + weights.split("mmseg://")[-1]
     elif weights.startswith("bdd100k://"):  # pragma: no cover
-        weights = BDD_MODEL_PREFIX + weights.split("bdd100k://")[-1]
+        weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
     load_checkpoint(model, weights, revise_keys=REV_KEYS)
 
 

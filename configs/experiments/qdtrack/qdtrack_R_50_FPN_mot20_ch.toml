@@ -8,7 +8,7 @@ path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"
 category_mapping = {"pedestrian" = 0}
 image_channel_mode = "BGR"
     [model.detection]
-    model_kwargs= {"backbone.style" = "caffe", "backbone.norm_cfg.requires_grad" = false, "rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.beta" = 0.111}
+    model_kwargs= {"backbone.style" = "caffe", "backbone.norm_cfg.requires_grad" = false, "rpn_head.loss_bbox.type" = "SmoothL1Loss", "rpn_head.loss_bbox.beta" = 0.111, "test_cfg.rcnn.score_thr" = 0.001, "test_cfg.rcnn.nms.iou_threshold" = 0.7, "test_cfg.rcnn.max_per_img" = 200}
     pixel_mean = [103.530, 116.280, 123.675]
     pixel_std = [1.0, 1.0, 1.0]
     weights = "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco-person/faster_rcnn_r50_fpn_1x_coco-person_20201216_175929-d022e227.pth"
