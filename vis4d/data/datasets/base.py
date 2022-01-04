@@ -110,10 +110,12 @@ def _pan_seg(
     pred: List[Frame],
     gt: List[Frame],
     cfg: Config,
-    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
+    ignore_unknown_cats: bool,
 ) -> Result:
     """Wrapper for evaluate_pan_seg function."""
-    return evaluate_pan_seg(gt, pred, cfg, nproc=1)
+    return evaluate_pan_seg(
+        gt, pred, cfg, nproc=1, ignore_unknown_cats=ignore_unknown_cats
+    )
 
 
 _eval_mapping = dict(
