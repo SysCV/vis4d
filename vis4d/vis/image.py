@@ -84,7 +84,7 @@ def draw_image(
     boxes3d: Optional[Box3DType] = None,
     intrinsics: Optional[Union[NDArrayF64, Intrinsics]] = None,
     mode: str = "RGB",
-) -> Image.Image:  # pragma: no cover
+) -> Image.Image:
     """Draw boxes2d on an image."""
     image = (
         preprocess_image(frame, mode)
@@ -130,7 +130,7 @@ def draw_bbox3d(
     draw = ImageDraw.Draw(image)
     corners = box3d_to_corners(box3d)
     corners_proj = corners / corners[:, 2:3]
-    corners_proj = np.dot(corners_proj, intrinsics.T)  # type: ignore
+    corners_proj = np.dot(corners_proj, intrinsics.T)
 
     def draw_line(
         point1: NDArrayF64, point2: NDArrayF64, color: Tuple[int]
@@ -184,9 +184,9 @@ def get_intersection_point(
 ) -> NDArrayF64:  # pragma: no cover
     """Get point intersecting with camera near plane on line point1 -> point2.
 
-    The line is defined by two points (3 dimensional).
+    The line is defined by two points (3 dimensional) in camera coordinates.
     """
-    cam_dir = np.array([0, 0, 1])
+    cam_dir: NDArrayF64 = np.array([0, 0, 1], dtype=np.float64)
     center_pt: NDArrayF64 = cam_dir * camera_near_clip
 
     c1, c2, c3 = center_pt
@@ -200,4 +200,4 @@ def get_intersection_point(
         k = 1
     else:
         k = k_up / k_down
-    return (1 - k) * point1 + k * point2  # type: ignore
+    return (1 - k) * point1 + k * point2

@@ -16,7 +16,7 @@ from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
 from termcolor import colored
 
-from vis4d.struct import InputSample, NDArrayUI8
+from vis4d.struct import InputSample, NDArrayI64, NDArrayUI8
 
 from ..common.geometry.transform import transform_points
 
@@ -62,13 +62,15 @@ def identity_batch_collator(
 
 def im_decode(im_bytes: bytes, mode: str = "RGB") -> NDArrayUI8:
     """Decode to image (numpy array, RGB) from bytes."""
+    assert mode in ["BGR", "RGB"], f"{mode} not supported for image decoding!"
     pil_img = Image.open(BytesIO(bytearray(im_bytes)))
+    if pil_img.mode == "L":  # pragma: no cover
+        # convert grayscale image to BGR/RGB
+        pil_img = pil_img.convert(mode)
     if mode == "BGR":
         np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: NDArrayUI8
     elif mode == "RGB":
         np_img = np.array(pil_img)
-    else:
-        raise NotImplementedError(f"{mode} not supported for image decoding!")
     return np_img
 
 
@@ -286,11 +288,11 @@ class DatasetFromList(torch.utils.data.Dataset):  # type: ignore
         def _serialize(data: Any) -> NDArrayUI8:  # type: ignore
             """Serialize python object to numpy array."""
             buffer = pickle.dumps(data, protocol=-1)
-            return np.frombuffer(buffer, dtype=np.uint8)  # type: ignore
+            return np.frombuffer(buffer, dtype=np.uint8)
 
         if self._serialize:
             self._lst = [_serialize(x) for x in lst]
-            self._addr = np.asarray(
+            self._addr: NDArrayI64 = np.asarray(
                 [len(x) for x in self._lst], dtype=np.int64
             )
             self._addr = np.cumsum(self._addr)
