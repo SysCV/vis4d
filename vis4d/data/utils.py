@@ -9,6 +9,12 @@ from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
+from cv2 import (  # pylint: disable=no-member,no-name-in-module
+    COLOR_BGR2RGB,
+    IMREAD_COLOR,
+    cvtColor,
+    imdecode,
+)
 from PIL import Image
 from pytorch_lightning.utilities.distributed import rank_zero_info
 from scalabel.label.typing import Frame, FrameGroup
@@ -60,18 +66,28 @@ def identity_batch_collator(
     return batch
 
 
-def im_decode(im_bytes: bytes, mode: str = "RGB") -> NDArrayUI8:
+def im_decode(
+    im_bytes: bytes, mode: str = "RGB", backend: str = "PIL"
+) -> NDArrayUI8:
     """Decode to image (numpy array, RGB) from bytes."""
     assert mode in ["BGR", "RGB"], f"{mode} not supported for image decoding!"
-    pil_img = Image.open(BytesIO(bytearray(im_bytes)))
-    if pil_img.mode == "L":  # pragma: no cover
-        # convert grayscale image to BGR/RGB
-        pil_img = pil_img.convert(mode)
-    if mode == "BGR":
-        np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: NDArrayUI8
-    elif mode == "RGB":
-        np_img = np.array(pil_img)
-    return np_img
+    if backend == "cv2":  # pragma: no cover
+        img_np: NDArrayUI8 = np.frombuffer(im_bytes, np.uint8)
+        img: NDArrayUI8 = imdecode(img_np, IMREAD_COLOR)
+        if mode == "RGB":
+            cvtColor(img, COLOR_BGR2RGB, img)
+    elif backend == "PIL":
+        pil_img = Image.open(BytesIO(bytearray(im_bytes)))
+        if pil_img.mode == "L":  # pragma: no cover
+            # convert grayscale image to BGR/RGB
+            pil_img = pil_img.convert(mode)
+        if mode == "BGR":
+            img = np.array(pil_img)[..., [2, 1, 0]]
+        elif mode == "RGB":
+            img = np.array(pil_img)
+    else:
+        raise NotImplementedError(f"Image backend {backend} not known!")
+    return img
 
 
 def instance_ids_to_global(

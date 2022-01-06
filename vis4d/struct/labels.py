@@ -5,8 +5,14 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar
 import numpy as np
 import torch
 import torch.nn.functional as F
-from scalabel.label.transforms import mask_to_rle, poly2ds_to_mask, rle_to_mask
-from scalabel.label.typing import Box2D, Box3D, ImageSize, Label
+from scalabel.label.transforms import (
+    box2d_to_xyxy,
+    mask_to_rle,
+    poly2ds_to_mask,
+    rle_to_mask,
+    xyxy_to_box2d,
+)
+from scalabel.label.typing import Box3D, ImageSize, Label
 from torchvision.ops import roi_align
 
 from ..common.geometry.rotation import (
@@ -207,7 +213,12 @@ class Boxes2D(Boxes):
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
     ) -> "Boxes2D":
-        """Convert from scalabel format to internal."""
+        """Convert from scalabel format to internal.
+
+        NOTE: The box definition in Scalabel includes x2y2, whereas Vis4D and
+        other software libraries like detectron2, mmdet do not include this,
+        which is why we convert via box2d_to_xyxy.
+        """
         box_list, cls_list, idx_list = [], [], []
         has_class_ids = all((b.category is not None for b in labels))
         for i, label in enumerate(labels):
@@ -221,9 +232,9 @@ class Boxes2D(Boxes):
                 continue
 
             if score is None:
-                box_list.append([box.x1, box.y1, box.x2, box.y2])
+                box_list.append([*box2d_to_xyxy(box)])
             else:
-                box_list.append([box.x1, box.y1, box.x2, box.y2, score])
+                box_list.append([*box2d_to_xyxy(box), score])
 
             if has_class_ids:
                 cls_list.append(class_to_idx[box_cls])  # type: ignore
@@ -249,11 +260,11 @@ class Boxes2D(Boxes):
                 label_id = str(self.track_ids[i].item())
             else:
                 label_id = str(i)
-            box = Box2D(
-                x1=float(self.boxes[i, 0]),
-                y1=float(self.boxes[i, 1]),
-                x2=float(self.boxes[i, 2]),
-                y2=float(self.boxes[i, 3]),
+            box = xyxy_to_box2d(
+                float(self.boxes[i, 0]),
+                float(self.boxes[i, 1]),
+                float(self.boxes[i, 2]),
+                float(self.boxes[i, 3]),
             )
             if self.boxes.shape[-1] == 5:
                 score: Optional[float] = float(self.boxes[i, 4])

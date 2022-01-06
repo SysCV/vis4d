@@ -119,6 +119,14 @@ class Resize(BaseAugmentation):
             assert isinstance(self.shape, list)
             shape = torch.tensor(random.sample(self.shape, k=len(sample)))
 
+        # if h is long edge in original image, but is not in the current resize
+        # shape, we flip (h, w) in order to avoid large image distortions or
+        # large padding when keep_ratio is activated.
+        for i, sh in enumerate(shape):
+            w, h = sample.images.image_sizes[i]
+            if w < h and not sh[1] < sh[0]:
+                shape[i] = torch.flip(sh.unsqueeze(0), (0, 1)).squeeze(0)
+
         if self.keep_ratio:
             for i, sh in enumerate(shape):
                 w, h = sample.images.image_sizes[i]

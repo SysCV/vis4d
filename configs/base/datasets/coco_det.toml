@@ -31,3 +31,4 @@ eval_metrics = ["detect"]
     [[test.sample_mapper.transformations]]
     type = "Resize"
     shape = [800, 1333]
+    keep_ratio = true
