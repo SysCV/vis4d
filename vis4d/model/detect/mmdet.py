@@ -51,7 +51,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
-BDD_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
+BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
 REV_KEYS = [
     (r"^roi_head\.", "roi_head.mm_roi_head."),
     (r"^rpn_head\.", "rpn_head.mm_dense_head."),
@@ -346,7 +346,7 @@ def load_model_checkpoint(model: BaseDetector, weights: str) -> None:
     if weights.startswith("mmdet://"):
         weights = MMDET_MODEL_PREFIX + weights.split("mmdet://")[-1]
     elif weights.startswith("bdd100k://"):
-        weights = BDD_MODEL_PREFIX + weights.split("bdd100k://")[-1]
+        weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
     load_checkpoint(model, weights, revise_keys=REV_KEYS)
 
 
