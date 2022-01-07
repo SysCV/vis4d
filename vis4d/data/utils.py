@@ -77,12 +77,12 @@ def im_decode(
             # convert grayscale image to BGR/RGB
             pil_img = pil_img.convert(mode)
         if mode == "BGR":
-            img = np.array(pil_img)[..., [2, 1, 0]]
+            img: NDArrayUI8 = np.array(pil_img)[..., [2, 1, 0]]
         elif mode == "RGB":
             img = np.array(pil_img)
     elif backend == "cv2":  # pragma: no cover
         img_np: NDArrayUI8 = np.frombuffer(im_bytes, np.uint8)
-        img: NDArrayUI8 = imdecode(img_np, IMREAD_COLOR)
+        img = imdecode(img_np, IMREAD_COLOR)
         if mode == "RGB":
             cvtColor(img, COLOR_BGR2RGB, img)
     else:
