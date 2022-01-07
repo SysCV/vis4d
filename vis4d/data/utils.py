@@ -71,12 +71,7 @@ def im_decode(
 ) -> NDArrayUI8:
     """Decode to image (numpy array, RGB) from bytes."""
     assert mode in ["BGR", "RGB"], f"{mode} not supported for image decoding!"
-    if backend == "cv2":  # pragma: no cover
-        img_np: NDArrayUI8 = np.frombuffer(im_bytes, np.uint8)
-        img: NDArrayUI8 = imdecode(img_np, IMREAD_COLOR)
-        if mode == "RGB":
-            cvtColor(img, COLOR_BGR2RGB, img)
-    elif backend == "PIL":
+    if backend == "PIL":
         pil_img = Image.open(BytesIO(bytearray(im_bytes)))
         if pil_img.mode == "L":  # pragma: no cover
             # convert grayscale image to BGR/RGB
@@ -85,6 +80,11 @@ def im_decode(
             img = np.array(pil_img)[..., [2, 1, 0]]
         elif mode == "RGB":
             img = np.array(pil_img)
+    elif backend == "cv2":  # pragma: no cover
+        img_np: NDArrayUI8 = np.frombuffer(im_bytes, np.uint8)
+        img: NDArrayUI8 = imdecode(img_np, IMREAD_COLOR)
+        if mode == "RGB":
+            cvtColor(img, COLOR_BGR2RGB, img)
     else:
         raise NotImplementedError(f"Image backend {backend} not known!")
     return img
