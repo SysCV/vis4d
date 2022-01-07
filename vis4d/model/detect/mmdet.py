@@ -29,7 +29,7 @@ from ..heads.roi_head import (
     build_roi_head,
 )
 from ..mmdet_utils import add_keyword_args, load_config
-from ..utils import predictions_to_scalabel
+from ..utils import postprocess_predictions, predictions_to_scalabel
 from .base import (
     BaseDetector,
     BaseDetectorConfig,
@@ -180,9 +180,8 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             assert segmentations is not None
             outputs["ins_seg"] = segmentations
 
-        return predictions_to_scalabel(
-            inputs, outputs, self.cat_mapping, self.cfg.clip_bboxes_to_image
-        )
+        postprocess_predictions(inputs, outputs, self.cfg.clip_bboxes_to_image)
+        return predictions_to_scalabel(outputs, self.cat_mapping)
 
     def extract_features(self, inputs: InputSample) -> FeatureMaps:
         """Detector feature extraction stage.
@@ -312,9 +311,8 @@ class MMOneStageDetector(BaseOneStageDetector):
         features = self.backbone(inputs)
         detections = self.bbox_head(inputs, features)
         outputs = dict(detect=detections)
-        return predictions_to_scalabel(
-            inputs, outputs, self.cat_mapping, self.cfg.clip_bboxes_to_image
-        )
+        postprocess_predictions(inputs, outputs, self.cfg.clip_bboxes_to_image)
+        return predictions_to_scalabel(outputs, self.cat_mapping)
 
     def extract_features(self, inputs: InputSample) -> FeatureMaps:
         """Detector feature extraction stage.

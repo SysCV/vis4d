@@ -1,9 +1,9 @@
 [[train]]
-name = "bdd100k_sem_seg_sample_train"
-type = "Scalabel"
+name = "bdd100k_sem_seg_train"
+type = "BDD100K"
 annotations = "data/bdd100k/labels/sem_seg_train_rle.json"
 data_root = "data/bdd100k/images/hdf5s/10k_train.hdf5"
-config_path = "configs/base/configs/sem_seg.toml"
+config_path = "sem_seg"
 cache_as_binary = true
     [train.sample_mapper]
     fields_to_load = ["semantic_masks"]
@@ -39,11 +39,11 @@ cache_as_binary = true
     kwargs = {"brightness" = [0.875, 1.125], "contrast" = [0.5, 1.5], "saturation" = [0.5, 1.5], "hue" = [-0.1, 0.1]}
 
 [[test]]
-name = "bdd100k_sem_seg_sample_val"
-type = "Scalabel"
+name = "bdd100k_sem_seg_val"
+type = "BDD100K"
 annotations = "data/bdd100k/labels/sem_seg_val_rle.json"
 data_root = "data/bdd100k/images/hdf5s/10k_val.hdf5"
-config_path = "configs/base/configs/sem_seg.toml"
+config_path = "sem_seg"
 cache_as_binary = true
 eval_metrics = ["sem_seg"]
     [test.sample_mapper]

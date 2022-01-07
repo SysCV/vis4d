@@ -143,6 +143,15 @@ class Boxes(LabelInstance):
         return self.boxes.device
 
     @classmethod
+    def empty(
+        cls: Type["TBoxes"], device: Optional[torch.device] = None
+    ) -> "TBoxes":
+        """Return empty boxes on device."""
+        return cls(torch.empty(0, 5), torch.empty(0), torch.empty(0)).to(
+            device
+        )
+
+    @classmethod
     @abc.abstractmethod
     def from_scalabel(
         cls: Type["TBoxes"],
@@ -242,7 +251,7 @@ class Boxes2D(Boxes):
             idx_list.append(idx)
 
         if len(box_list) == 0:  # pragma: no cover
-            return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+            return cls.empty()
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
@@ -286,6 +295,7 @@ class Boxes2D(Boxes):
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         clip: bool = True,
+        resolve_overlap: bool = True,
     ) -> None:
         """Postprocess boxes."""
         scale_factor = (
@@ -385,7 +395,7 @@ class Boxes3D(Boxes):
             idx_list.append(idx)
 
         if len(box_list) == 0:  # pragma: no cover
-            return Boxes3D(torch.empty(0, 10), torch.empty(0), torch.empty(0))
+            return cls.empty()
         box_tensor = torch.tensor(box_list, dtype=torch.float32)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
@@ -517,6 +527,18 @@ class Masks(LabelInstance):
         ).squeeze(1)
 
     @classmethod
+    def empty(
+        cls: Type["TMasks"], device: Optional[torch.device] = None
+    ) -> "TMasks":
+        """Return empty masks on device."""
+        return cls(
+            torch.empty(0, 1, 1),
+            torch.empty(0),
+            torch.empty(0),
+            torch.empty(0),
+        ).to(device)
+
+    @classmethod
     def from_scalabel(
         cls: Type["TMasks"],
         labels: List[Label],
@@ -532,6 +554,12 @@ class Masks(LabelInstance):
         for i, label in enumerate(labels):
             if label.poly2d is None and label.rle is None:
                 continue
+            mask_cls, l_id, score = label.category, label.id, label.score
+            if has_class_ids:
+                if mask_cls in class_to_idx:
+                    cls_list.append(class_to_idx[mask_cls])
+                else:  # pragma: no cover
+                    continue
             if label.rle is not None:
                 bitmask = rle_to_mask(label.rle)
             elif label.poly2d is not None:
@@ -543,16 +571,13 @@ class Masks(LabelInstance):
                     bitmask_raw.dtype
                 )
             bitmask_list.append(bitmask)
-            mask_cls, l_id, score = label.category, label.id, label.score
-            if has_class_ids:
-                cls_list.append(class_to_idx[mask_cls])  # type: ignore
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
             if has_score:
                 score_list.append(score)
 
         if len(bitmask_list) == 0:  # pragma: no cover
-            return cls(torch.empty(0, 1, 1), torch.empty(0), torch.empty(0))
+            return cls.empty()
         mask_tensor = torch.tensor(bitmask_list, dtype=torch.uint8)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
@@ -571,6 +596,8 @@ class Masks(LabelInstance):
         """Convert from internal to scalabel format."""
         labels = []
         for i, mask in enumerate(self.masks):
+            if mask.sum().item() == 0:
+                continue
             if idx_to_class is not None:
                 cls = idx_to_class[int(self.class_ids[i])]
             else:
@@ -665,7 +692,7 @@ class Masks(LabelInstance):
     def get_boxes2d(self) -> Boxes2D:
         """Return corresponding Boxes2D for the masks inside self."""
         if len(self) == 0:
-            return Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))
+            return Boxes2D.empty()
 
         boxes_list = []
         for i, mask in enumerate(self.masks):
@@ -690,13 +717,14 @@ class Masks(LabelInstance):
 class InstanceMasks(Masks):
     """Container class for instance segmentation masks.
 
-    masks: torch.ByteTensor Either (N, H, W) or (N, H_mask, W_mask) where each
-    entry is a binary mask and H/W_mask is a unified mask size, e.g. 28x28.
+    masks: torch.ByteTensor (N, H, W) or (N, H_mask, W_mask) where each
+    entry is a binary mask and H/W_mask is a unified mask size, e.g., 28x28.
     class_ids: torch.LongTensor (N,) where each entry is the class id of mask.
     track_ids: torch.LongTensor (N,) where each entry is the track id of mask.
     score: torch.FloatTensor (N,) where each entry is the confidence score
     of mask.
-    detections: Optional[Boxes2D] if masks is
+    detections: Optional[Boxes2D] if masks is (N, H_mask, W_mask), detections
+    are used to paste them back in the original resolution.
     """
 
     def __init__(
@@ -741,7 +769,7 @@ class InstanceMasks(Masks):
             resized_masks = targets >= 0.5
         else:
             resized_masks = targets
-        return type(self)(resized_masks, detections=boxes)
+        return InstanceMasks(resized_masks, detections=boxes)
 
     def paste_masks_in_image(
         self,
@@ -824,20 +852,24 @@ class InstanceMasks(Masks):
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         clip: bool = True,
+        resolve_overlap: bool = True,
     ) -> None:
         """Postprocess instance masks."""
         if len(self) == 0:
             return
         if self.size != output_wh:
             self.paste_masks_in_image(original_wh)
-        # resolve overlaps
-        foreground = torch.zeros(
-            self.masks.shape[1:], dtype=torch.bool, device=self.device
-        )
-        sort_idx = self.score.argsort(descending=True)
-        for i in sort_idx:
-            self.masks[i] = torch.logical_and(self.masks[i], ~foreground)
-            foreground = torch.logical_or(self.masks[i], foreground)
+        if resolve_overlap:
+            # remove overlaps in instance masks
+            foreground = torch.zeros(
+                self.masks.shape[1:], dtype=torch.bool, device=self.device
+            )
+            sort_idx = self.score.argsort(descending=True)
+            for i in sort_idx:
+                self.masks[i] = torch.logical_and(self.masks[i], ~foreground)
+                foreground = torch.logical_or(self.masks[i], foreground)
+        if self.size != original_wh:
+            self.resize(original_wh)
 
 
 class SemanticMasks(Masks):
@@ -905,6 +937,7 @@ class SemanticMasks(Masks):
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         clip: bool = True,
+        resolve_overlap: bool = True,
     ) -> None:
         """Postprocess semantic masks."""
         self.masks = self.masks[:, : output_wh[1], : output_wh[0]]
