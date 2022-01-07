@@ -225,6 +225,20 @@ class TestSemSegMMDeepLab(BaseEngineTests.TestTrain):
         cls.cfg.launch.tqdm = True
 
 
+class TestPanSeg(BaseEngineTests.TestTrain):
+    """Panoptic segmentation test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_pan_seg/"
+        args = Namespace(
+            config=get_test_file("panoptic/panoptic_fpn.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(args)
+
+
 class TestMTL(BaseEngineTests.TestTrain, BaseEngineTests.TestTest):
     """MTL test cases."""
 

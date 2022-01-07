@@ -97,12 +97,12 @@ def segmentation_from_mmdet_results(
     segmentation: MMSegmResult, boxes: Boxes2D, device: torch.device
 ) -> InstanceMasks:
     """Convert segm_result to Vis4D format."""
-    segms = [
+    segms: List[NDArrayUI8] = [
         np.stack(segm) if len(segm) != 0 else np.empty_like(segm)
         for segm in segmentation
     ]
     if len(segms) == 0 or sum([len(segm) for segm in segmentation]) == 0:
-        return InstanceMasks(torch.empty(0, 1, 1))  # pragma: no cover
+        return InstanceMasks.empty(device)  # pragma: no cover
     masks_list, labels_list = [], []  # type: ignore
     for class_id in boxes.class_ids:
         masks_list.append(

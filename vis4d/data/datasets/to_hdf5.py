@@ -56,10 +56,7 @@ def convert_single_dataset(source_dir: str) -> None:
                         with open(filepath, "rb") as fp:
                             file_content = fp.read()
                         g.create_dataset(
-                            f,
-                            data=np.frombuffer(  # type: ignore
-                                file_content, dtype="uint8"
-                            ),
+                            f, data=np.frombuffer(file_content, dtype="uint8")
                         )
                     pbar.update()
 

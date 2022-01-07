@@ -39,7 +39,7 @@ from vis4d.struct import (
 )
 
 from ..base import BaseModelConfig
-from ..utils import predictions_to_scalabel
+from ..utils import postprocess_predictions, predictions_to_scalabel
 from .base import BaseTwoStageDetector
 
 
@@ -122,9 +122,8 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             assert segmentations is not None
             outputs["ins_seg"] = segmentations
 
-        return predictions_to_scalabel(
-            inputs, outputs, self.cat_mapping, self.cfg.clip_bboxes_to_image
-        )
+        postprocess_predictions(inputs, outputs, self.cfg.clip_bboxes_to_image)
+        return predictions_to_scalabel(outputs, self.cat_mapping)
 
     def extract_features(self, inputs: InputSample) -> Dict[str, torch.Tensor]:
         """Detector feature extraction stage.
