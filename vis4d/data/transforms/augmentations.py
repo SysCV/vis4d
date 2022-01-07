@@ -124,7 +124,7 @@ class Resize(BaseAugmentation):
         # large padding when keep_ratio is activated.
         for i, sh in enumerate(shape):
             w, h = sample.images.image_sizes[i]
-            if w < h and not sh[1] < sh[0]:
+            if w < h and not sh[1] < sh[0]:  # pragma: no cover
                 shape[i] = torch.flip(sh.unsqueeze(0), (0, 1)).squeeze(0)
 
         if self.keep_ratio:
