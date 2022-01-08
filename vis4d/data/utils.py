@@ -15,7 +15,7 @@ from cv2 import (  # pylint: disable=no-member,no-name-in-module
     cvtColor,
     imdecode,
 )
-from PIL import Image
+from PIL import Image, ImageOps
 from pytorch_lightning.utilities.distributed import rank_zero_info
 from scalabel.label.typing import Frame, FrameGroup
 from scalabel.label.utils import check_crowd, check_ignored
@@ -73,9 +73,10 @@ def im_decode(
     assert mode in ["BGR", "RGB"], f"{mode} not supported for image decoding!"
     if backend == "PIL":
         pil_img = Image.open(BytesIO(bytearray(im_bytes)))
+        pil_img = ImageOps.exif_transpose(pil_img)
         if pil_img.mode == "L":  # pragma: no cover
-            # convert grayscale image to BGR/RGB
-            pil_img = pil_img.convert(mode)
+            # convert grayscale image to RGB
+            pil_img = pil_img.convert("RGB")
         if mode == "BGR":
             img: NDArrayUI8 = np.array(pil_img)[..., [2, 1, 0]]
         elif mode == "RGB":

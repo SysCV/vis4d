@@ -48,6 +48,7 @@ class SampleMapperConfig(BaseModel):
     clip_bboxes_to_image: bool = True
     min_bboxes_area: float = 7.0 * 7.0
     transformations: Optional[List[BaseAugmentationConfig]] = None
+    image_backend: str = "PIL"
 
 
 class BaseSampleMapper(metaclass=RegistryHolder):
@@ -104,7 +105,11 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         if not use_empty:
             assert sample.url is not None
             im_bytes = self.data_backend.get(sample.url)
-            image = im_decode(im_bytes, mode=self.image_channel_mode)
+            image = im_decode(
+                im_bytes,
+                mode=self.image_channel_mode,
+                backend=self.cfg.image_backend,
+            )
         else:
             image = np.empty((128, 128, 3), dtype=np.uint8)
 
