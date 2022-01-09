@@ -130,16 +130,15 @@ def masks_to_mmdet_masks(masks: Sequence[InstanceMasks]) -> BitmapMasks:
 def targets_to_mmdet(
     targets: LabelInstances,
 ) -> Tuple[
-    List[torch.Tensor], List[torch.Tensor], Optional[Sequence[InstanceMasks]]
+    List[torch.Tensor], List[torch.Tensor], Optional[Sequence[BitmapMasks]]
 ]:
     """Convert Vis4D targets to mmdetection compatible format."""
     gt_bboxes = [t.boxes for t in targets.boxes2d]
     gt_labels = [t.class_ids for t in targets.boxes2d]
-    gt_masks = (
-        masks_to_mmdet_masks(targets.instance_masks)
-        if len(targets.instance_masks) > 0
-        else None
-    )
+    if all(len(t) == 0 for t in targets.instance_masks):
+        gt_masks = None
+    else:
+        gt_masks = masks_to_mmdet_masks(targets.instance_masks)
     return gt_bboxes, gt_labels, gt_masks
 
 

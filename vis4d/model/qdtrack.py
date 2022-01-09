@@ -138,7 +138,10 @@ class QDTrack(BaseModel):
             outs["ins_seg"] = [s.clone() for s in instance_segms]
 
         postprocess_predictions(
-            inputs, outs, self.cfg.detection.clip_bboxes_to_image
+            inputs,
+            outs,
+            self.cfg.detection.clip_bboxes_to_image,
+            self.cfg.detection.resolve_overlap,
         )
         outputs = predictions_to_scalabel(outs, self.cat_mapping)
 

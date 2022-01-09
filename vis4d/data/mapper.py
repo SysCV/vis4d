@@ -47,6 +47,7 @@ class SampleMapperConfig(BaseModel):
     skip_empty_samples: bool = False
     clip_bboxes_to_image: bool = True
     min_bboxes_area: float = 7.0 * 7.0
+    background_as_class: bool = False
     transformations: Optional[List[BaseAugmentationConfig]] = None
     image_backend: str = "PIL"
 
@@ -169,6 +170,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                         self.cats_name2id["semantic_masks"],
                         instance_id_dict,
                         sample.metadata[0].size,
+                        self.cfg.background_as_class,
                     )
                     sample.targets.semantic_masks = [semantic_masks]
 
