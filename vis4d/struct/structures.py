@@ -71,6 +71,12 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
+    def empty(cls, device: Optional[torch.device] = None) -> "LabelInstance":
+        """Return empty labels on device."""
+        raise NotImplementedError
+
+    @classmethod
+    @abc.abstractmethod
     def from_scalabel(
         cls,
         labels: List[Label],
@@ -93,6 +99,7 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         clip: bool = True,
+        resolve_overlap: bool = True,
     ) -> None:
         """Postprocess label according to original image resolution.
 
@@ -102,6 +109,7 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
 
 NDArrayF64 = npt.NDArray[np.float64]
 NDArrayF32 = npt.NDArray[np.float32]
+NDArrayI64 = npt.NDArray[np.int64]
 NDArrayUI8 = npt.NDArray[np.uint8]
 TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
 LossesType = Dict[str, torch.Tensor]

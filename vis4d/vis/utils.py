@@ -36,7 +36,7 @@ def generate_colors(length: int) -> List[Tuple[int]]:
     brightness = 0.7
     hsv = [(i / length, 1, brightness) for i in range(length)]
     colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
-    colors = (np.array(colors) * 255).astype(np.uint8).tolist()  # type: ignore
+    colors = (np.array(colors) * 255).astype(np.uint8).tolist()
     s = np.random.get_state()
     np.random.seed(0)
     result = [tuple(colors[i]) for i in np.random.permutation(len(colors))]
@@ -165,10 +165,7 @@ def preprocess_image(image: ImageType, mode: str = "RGB") -> Image.Image:
 
     if not image.shape[-1] == 3:
         image = image.transpose(1, 2, 0)
-    min_val, max_val = (
-        np.min(image, axis=(0, 1)),  # type: ignore
-        np.max(image, axis=(0, 1)),  # type: ignore
-    )
+    min_val, max_val = (np.min(image, axis=(0, 1)), np.max(image, axis=(0, 1)))
 
     image = image.astype(np.float32)
 
@@ -210,7 +207,7 @@ def box3d_to_corners(box3d: List[float]) -> NDArrayF64:
     h, w, l = box3d[3:6]
     rx, ry, rz = box3d[6], box3d[7], box3d[8]
 
-    x_corners = np.array(
+    x_corners: NDArrayF64 = np.array(
         [
             l / 2.0,
             l / 2.0,
@@ -223,7 +220,7 @@ def box3d_to_corners(box3d: List[float]) -> NDArrayF64:
         ],
         dtype=np.float64,
     )
-    z_corners = np.array(
+    z_corners: NDArrayF64 = np.array(
         [
             w / 2.0,
             -w / 2.0,
@@ -236,7 +233,7 @@ def box3d_to_corners(box3d: List[float]) -> NDArrayF64:
         ],
         dtype=np.float64,
     )
-    y_corners = np.zeros((8,), dtype=np.float64)
+    y_corners: NDArrayF64 = np.zeros((8,), dtype=np.float64)
     y_corners[0:4] = h / 2
     y_corners[4:8] = -h / 2
 

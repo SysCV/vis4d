@@ -81,8 +81,7 @@ class HDF5Backend(BaseDataBackend):
             group = file[group_str]
             key = key_list[-1]
             group.create_dataset(
-                key,
-                data=np.frombuffer(content, dtype="uint8"),  # type: ignore
+                key, data=np.frombuffer(content, dtype="uint8")
             )
 
     def _get_client(self, hdf5_path: str, mode: str) -> h5py.File:

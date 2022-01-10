@@ -402,14 +402,7 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         assert features is not None, "QD-3DT box3D head requires features!"
         if sum(len(b) for b in boxes) == 0:
             dev = boxes[0].device
-            return [
-                Boxes3D(
-                    torch.empty(0, 10, device=dev),
-                    torch.empty(0, device=dev),
-                    torch.empty(0, device=dev),
-                )
-                for _ in range(len(boxes))
-            ]
+            return [Boxes3D.empty(dev) for _ in range(len(boxes))]
 
         features_list = [features[f] for f in self.cfg.in_features]
         predictions = self.get_predictions(features_list, boxes)

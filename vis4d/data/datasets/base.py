@@ -10,6 +10,7 @@ from scalabel.eval.detect import evaluate_det
 from scalabel.eval.ins_seg import evaluate_ins_seg
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
 from scalabel.eval.mots import acc_single_video_mots, evaluate_seg_track
+from scalabel.eval.pan_seg import evaluate_pan_seg
 from scalabel.eval.result import Result
 from scalabel.eval.sem_seg import evaluate_sem_seg
 from scalabel.label.io import group_and_sort
@@ -32,13 +33,14 @@ class BaseDatasetConfig(BaseModel, extra="allow"):
     sample_mapper: SampleMapperConfig = SampleMapperConfig()
     ref_sampler: ReferenceSamplerConfig = ReferenceSamplerConfig()
     annotations: Optional[str]
+    category_mapping: Optional[Dict[str, Dict[str, int]]]
     attributes: Optional[
         Dict[str, Union[bool, float, str, List[float], List[str]]]
     ]
     config_path: Optional[str]
     eval_metrics: List[str] = []
     validate_frames: bool = False
-    ignore_unkown_cats: bool = False
+    ignore_unknown_cats: bool = False
     cache_as_binary: bool = False
     num_processes: int = 4
     collect_device = "cpu"
@@ -104,12 +106,25 @@ def _sem_seg(
     return evaluate_sem_seg(gt, pred, cfg, nproc=1)
 
 
+def _pan_seg(
+    pred: List[Frame],
+    gt: List[Frame],
+    cfg: Config,
+    ignore_unknown_cats: bool,
+) -> Result:
+    """Wrapper for evaluate_pan_seg function."""
+    return evaluate_pan_seg(
+        gt, pred, cfg, nproc=1, ignore_unknown_cats=ignore_unknown_cats
+    )
+
+
 _eval_mapping = dict(
     detect=_detect,
     track=_track,
     ins_seg=_ins_seg,
     seg_track=_seg_track,
     sem_seg=_sem_seg,
+    pan_seg=_pan_seg,
 )
 
 
@@ -124,18 +139,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
         timer = Timer()
         if self.cfg.cache_as_binary:
-            assert self.cfg.annotations is not None
-            if not os.path.exists(self.cfg.annotations.rstrip("/") + ".pkl"):
-                dataset = self.load_dataset()
-                with open(
-                    self.cfg.annotations.rstrip("/") + ".pkl", "wb"
-                ) as file:
-                    file.write(pickle.dumps(dataset))
-            else:
-                with open(
-                    self.cfg.annotations.rstrip("/") + ".pkl", "rb"
-                ) as file:
-                    dataset = pickle.loads(file.read())
+            dataset = self.load_cached_dataset()
         else:
             dataset = self.load_dataset()
 
@@ -147,6 +151,19 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         self.metadata_cfg = dataset.config
         self.frames = dataset.frames
         self.groups = dataset.groups
+
+    def load_cached_dataset(self) -> Dataset:
+        """Load cached dataset from file."""
+        assert self.cfg.annotations is not None
+        cache_path = self.cfg.annotations.rstrip("/") + ".pkl"
+        if not os.path.exists(cache_path):
+            dataset = self.load_dataset()
+            with open(cache_path, "wb") as file:
+                file.write(pickle.dumps(dataset))
+        else:
+            with open(cache_path, "rb") as file:
+                dataset = pickle.loads(file.read())
+        return dataset
 
     @abc.abstractmethod
     def load_dataset(self) -> Dataset:
@@ -169,7 +186,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         Returns a dictionary of scores to log and a pretty printed string.
         """
         result = _eval_mapping[metric](
-            predictions, gts, self.metadata_cfg, self.cfg.ignore_unkown_cats
+            predictions, gts, self.metadata_cfg, self.cfg.ignore_unknown_cats
         )
         log_dict = {f"{metric}/{k}": v for k, v in result.summary().items()}
         return log_dict, str(result)

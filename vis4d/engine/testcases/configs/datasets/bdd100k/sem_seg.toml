@@ -1,9 +1,9 @@
 [[train]]
 name = "bdd100k_sem_seg_sample_train"
-type = "Scalabel"
+type = "BDD100K"
 annotations = "vis4d/engine/testcases/segment/bdd100k-samples/annotation.json"
 data_root = "vis4d/engine/testcases/segment/bdd100k-samples/images"
-config_path = "vis4d/engine/testcases/segment/bdd100k-samples/config.toml"
+config_path = "sem_seg"
 num_processes = 0
     [train.sample_mapper]
     fields_to_load = ["semantic_masks"]
@@ -32,10 +32,10 @@ num_processes = 0
 
 [[test]]
 name = "bdd100k_sem_seg_sample_val"
-type = "Scalabel"
+type = "BDD100K"
 annotations = "vis4d/engine/testcases/segment/bdd100k-samples/annotation.json"
 data_root = "vis4d/engine/testcases/segment/bdd100k-samples/images"
-config_path = "vis4d/engine/testcases/segment/bdd100k-samples/config.toml"
+config_path = "sem_seg"
 num_processes = 0
 eval_metrics = ["sem_seg"]
     [test.sample_mapper]

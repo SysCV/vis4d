@@ -111,13 +111,7 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
             boxes, box_deltas, intrinsics
         ):
             if len(boxes_) == 0:
-                results.append(
-                    Boxes3D(
-                        torch.empty(0, 10, device=boxes_.device),
-                        torch.empty(0, device=boxes_.device),
-                        torch.empty(0, device=boxes_.device),
-                    )
-                )
+                results.append(Boxes3D.empty(boxes_.device))
                 continue
 
             box_deltas_ = box_deltas_[
