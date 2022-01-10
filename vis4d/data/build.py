@@ -163,7 +163,7 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
             sampler: Optional[data.Sampler] = None
             if get_world_size() > 1 and dataset.has_sequences:
                 sampler = TrackingInferenceSampler(dataset)  # pragma: no cover
-            if get_world_size() > 1 and self.train_sampler is not None:
+            elif get_world_size() > 1 and self.train_sampler is not None:
                 # manually create distributed sampler for inference if using
                 # custom training sampler
                 sampler = DistributedSampler(  # pragma: no cover
