@@ -42,11 +42,11 @@ def make_layers(
     for i in range(repeat_times):
         if i == 0:
             blocks += [
-                BasicBlock(c_in, c_out, is_downsample=is_downsample),
+                BasicBlock(c_in, c_out, is_downsample=is_downsample,  activation_cfg='ELU'),
             ]
         else:
             blocks += [
-                BasicBlock(c_out, c_out),
+                BasicBlock(c_out, c_out, activation_cfg='ELU'),
             ]
     return nn.Sequential(*blocks)
 
@@ -118,7 +118,7 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
                         nn.Dropout(p=self.cfg.drop_prob),
                         nn.Linear(input_dim, self.cfg.fc_out_dim),
                         nn.BatchNorm1d(self.cfg.fc_out_dim),
-                        nn.ReLU(inplace=True),
+                        nn.ELU(inplace=True),
                     )
                 )
         return fcs
@@ -142,7 +142,6 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         x = self.roi_pooler.pool([inputs], boxes)
         if indices is not None:
             x = x[indices]
-
         x = self.backbone(x)
         x = torch.flatten(x, start_dim=1)
 
@@ -204,6 +203,8 @@ class DeepSortSimilarityHead(BaseSimilarityHead):
         """
         x = self._head_forward(inputs, boxes)
         if self.cfg.num_fcs > 0:
-            for fc in self.fcs:
-                x = fc[1](x)
+            if len(self.fcs) > 1:
+                for fc in self.fcs[:-1]:
+                    x = fc(x)
+            x = self.fcs[-1][1](x)
         return [x.div(x.norm(p=2, dim=1, keepdim=True))]

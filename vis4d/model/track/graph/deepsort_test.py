@@ -14,7 +14,7 @@ from .deepsort import DeepSORTTrackGraph
 class TestDeepSortGraph(unittest.TestCase):
     """Test cases for deepsort tracking graph construction."""
 
-    kalman_filter_paras = {
+    kalman_filter_params = {
         "cov_P0": [
             [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -51,7 +51,7 @@ class TestDeepSortGraph(unittest.TestCase):
         """Testcase for tracking function."""
         tracker = DeepSORTTrackGraph(
             TrackGraphConfig(
-                type="deepsort", kf_parameters=self.kalman_filter_paras
+                type="deepsort", kf_parameters=self.kalman_filter_params
             )
         )
 

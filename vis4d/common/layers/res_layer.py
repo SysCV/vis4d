@@ -16,6 +16,7 @@ class BasicBlock(nn.Module):  # type: ignore
         conv_out_dim: int,
         conv_has_bias: bool = False,
         is_downsample: bool = False,
+        activation_cfg: str = "ReLU",
         norm_cfg: Optional[str] = "BatchNorm2d",
     ):
         """Init."""
@@ -25,6 +26,7 @@ class BasicBlock(nn.Module):  # type: ignore
             norm = getattr(nn, norm_cfg)
         else:
             norm = None  # pragma: no cover
+        activation_func = getattr(nn, activation_cfg)
         if is_downsample:
             self.conv1 = Conv2d(
                 conv_in_dim,
@@ -34,7 +36,7 @@ class BasicBlock(nn.Module):  # type: ignore
                 stride=2,
                 bias=conv_has_bias,
                 norm=norm(conv_out_dim) if norm is not None else norm,
-                activation=nn.ReLU(inplace=True),
+                activation=activation_func(inplace=True),
             )
         else:
             self.conv1 = Conv2d(
@@ -45,7 +47,7 @@ class BasicBlock(nn.Module):  # type: ignore
                 stride=1,
                 bias=conv_has_bias,
                 norm=norm(conv_out_dim) if norm is not None else norm,
-                activation=nn.ReLU(inplace=True),
+                activation=activation_func(inplace=True),
             )
         self.conv2 = Conv2d(
             conv_out_dim,
@@ -77,7 +79,7 @@ class BasicBlock(nn.Module):  # type: ignore
             )
             self.is_downsample = True
 
-        self.relu = nn.ReLU(True)
+        self.activation = activation_func(inplace=True)
 
     def forward(self, input_x: torch.Tensor) -> torch.Tensor:
         """Forward."""
@@ -92,6 +94,5 @@ class BasicBlock(nn.Module):  # type: ignore
 
         out += identity
 
-        out = self.relu(out)
-
+        out = self.activation(out)
         return out

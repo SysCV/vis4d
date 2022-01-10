@@ -167,7 +167,7 @@ class DeepSORTTrackGraph(BaseTrackGraph):
             track["age"] += 1
             track["time_since_update"] += 1
 
-    def update(  # pylint: disable=arguments-differ
+    def update(
         self, detections: Boxes2D, det_features: torch.tensor = None
     ) -> None:
         """Perform association and track management."""

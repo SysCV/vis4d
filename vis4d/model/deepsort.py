@@ -2,7 +2,7 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
-
+import copy
 from vis4d.model.track.graph.deep_sort_utils import load_predictions
 from vis4d.struct import (
     Boxes2D,
@@ -41,19 +41,25 @@ class DeepSORT(BaseModel):
         self.cfg: DeepSORTConfig = DeepSORTConfig(**cfg.dict())
         assert self.cfg.category_mapping is not None
 
-        if self.cfg.detection is not None:
-            self.detector: BaseTwoStageDetector = build_model(
-                self.cfg.detection
+        if self.cfg.detection is None:
+            assert (
+                self.cfg.prediction_path is not None
+            ), "No detector or pre-computed detections defined!"
+            self.search_dict = load_predictions(
+                self.cfg.prediction_path,
+                self.cfg.category_mapping,
             )
-            self.cfg.detection.category_mapping = self.cfg.category_mapping
+        else:
+            self.detector: BaseTwoStageDetector = build_model(self.cfg.detection)
+
         if self.cfg.similarity is not None:
             self.similarity_head = build_similarity_head(self.cfg.similarity)
             self.with_reid = True
         else:
             self.with_reid = False
+
         self.track_graph = build_track_graph(self.cfg.track_graph)
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
-        self.search_dict: Dict[str, Boxes2D] = {}
         self.register_buffer(
             "pixel_mean",
             torch.tensor(self.cfg.pixel_mean).view(-1, 1, 1),
@@ -72,7 +78,7 @@ class DeepSORT(BaseModel):
             else torch.device("cpu")
         )
 
-    def preprocess_inputs(
+    def preprocess_inputs_train(
         self, batch_inputs: List[InputSample]
     ) -> Tuple[List[InputSample], List[List[Boxes2D]]]:
         """Normalize the input images and get instance label."""
@@ -87,7 +93,7 @@ class DeepSORT(BaseModel):
             labels.append(inp.targets.boxes2d)
         return input_image, labels
 
-    def preprocess_inp(self, inputs: InputSample) -> torch.Tensor:
+    def preprocess_inputs_test(self, inputs: InputSample) -> torch.Tensor:
         """Normalize the input images."""
         inputs.images.tensor = (
             inputs.images.tensor - self.pixel_mean
@@ -99,30 +105,12 @@ class DeepSORT(BaseModel):
         inputs: List[InputSample],
     ) -> LossesType:
         """Get detection and tracking losses."""
-        input_images, labels = self.preprocess_inputs(inputs)
+        input_images, labels = self.preprocess_inputs_train(inputs)
+
         track_losses, _ = self.similarity_head(
             input_images, labels, None, labels  # type: ignore
         )
-        if self.cfg.detection is None:
-            return track_losses  # pragma: no cover
-        inputs_detect = inputs[0]
-        key_x = self.detector.extract_features(inputs_detect)
-
-        # proposal generation
-        rpn_losses, key_proposals = self.detector.generate_proposals(
-            inputs_detect, key_x, inputs_detect.targets
-        )
-
-        # roi head
-        roi_losses, _ = self.detector.generate_detections(
-            inputs_detect,
-            key_x,
-            key_proposals,
-            inputs_detect.targets,
-        )
-        det_losses = {**rpn_losses, **roi_losses}
-
-        return {**det_losses, **track_losses}
+        return track_losses
 
     def _run_heads_test(
         self, inputs: InputSample
@@ -130,15 +118,7 @@ class DeepSORT(BaseModel):
         """Get detections and tracks."""
         frame_name = inputs.metadata[0].name
         if self.cfg.detection is None:
-            assert (
-                self.cfg.prediction_path is not None
-            ), "No detector or pre-computed detections defined!"
-            self.search_dict = load_predictions(
-                self.cfg.prediction_path,
-                self.cfg.category_mapping,
-            )
             detections = [self.search_dict[frame_name].to(self.device)]
-
         else:
             feat = self.detector.extract_features(inputs)
             proposals = self.detector.generate_proposals(inputs, feat)
@@ -159,8 +139,12 @@ class DeepSORT(BaseModel):
         predictions = LabelInstances(
             detections,
         )
+        if len(detections[0].boxes) == 0:
+            import pdb; pdb.set_trace()
+            return outputs, predictions, None  # type: ignore
+
         if self.with_reid:
-            input_images = self.preprocess_inp(inputs)
+            input_images = self.preprocess_inputs_test(inputs)
             embeddings = self.similarity_head(input_images, detections, None)
             return outputs, predictions, embeddings
 
@@ -173,7 +157,13 @@ class DeepSORT(BaseModel):
         embeddings: List[torch.Tensor],
     ) -> ModelOutput:
         """Associate detections, update track graph."""
-        tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
+        if len(predictions.boxes2d[0].boxes) == 0:
+            tracks = copy.deepcopy(predictions)
+            tracks.boxes2d = Boxes2D(
+                torch.empty(0, 5), torch.empty(0), torch.empty(0)
+            ).to(self.device)
+        else:
+            tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
         outs: Dict[str, List[TLabelInstance]] = {"track": tracks.boxes2d}  # type: ignore # pylint: disable=line-too-long
         return predictions_to_scalabel(
             inputs,

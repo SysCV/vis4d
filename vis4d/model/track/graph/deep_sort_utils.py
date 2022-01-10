@@ -9,7 +9,7 @@ from vis4d.model.track.motion import KalmanFilter
 from vis4d.struct import Boxes2D
 
 
-def tlbr_to_xyah(bbox_tlbr: torch.tensor) -> torch.tensor:
+def tlbr_to_xyah(bbox_tlbr: torch.Tensor) -> torch.Tensor:
     """Convert a single one dimension tlbr box to xyah.
 
     Args:
@@ -28,7 +28,7 @@ def tlbr_to_xyah(bbox_tlbr: torch.tensor) -> torch.tensor:
     return bbox_xyah
 
 
-def batch_tlbr_to_xyah(bbox_tlbr: torch.tensor) -> torch.tensor:
+def batch_tlbr_to_xyah(bbox_tlbr: torch.Tensor) -> torch.Tensor:
     """Convert a batched tlbr box to xyah.
 
     Args:
@@ -47,7 +47,7 @@ def batch_tlbr_to_xyah(bbox_tlbr: torch.tensor) -> torch.tensor:
     return bbox_xyah
 
 
-def xyah_to_tlbr(bbox_xyah: torch.tensor) -> torch.tensor:
+def xyah_to_tlbr(bbox_xyah: torch.Tensor) -> torch.Tensor:
     """Convert a single one dimension tlbr box to xyah.
 
     Args:
@@ -157,17 +157,17 @@ def matching_cascade(
         [
             Dict[int, Dict[str, Union[int, float, torch.Tensor]]],
             Boxes2D,
-            torch.tensor,
+            torch.Tensor,
             List[int],
             List[int],
         ],
-        torch.tensor,
+        torch.Tensor,
     ],
     max_distance: float,
     cascade_depth: int,
     tracks: Dict[int, Dict[str, Union[int, float, torch.Tensor]]],
     detections: Boxes2D,
-    det_features: torch.tensor,
+    det_features: torch.Tensor,
     track_ids: Optional[List[int]] = None,
     detection_indices: Optional[List[int]] = None,
 ) -> Tuple[List[Tuple[int, int]], List[int], List[int]]:
@@ -236,14 +236,14 @@ def matching_cascade(
 
 def gate_cost_matrix(
     kf: KalmanFilter,
-    cost_matrix: torch.tensor,
+    cost_matrix: torch.Tensor,
     tracks: Dict[int, Dict[str, Union[int, float, torch.Tensor]]],
     detections: Boxes2D,
     track_ids: List[int],
     detection_indices: List[int],
     gated_cost: Optional[float] = INFTY_COST,
     only_position: Optional[bool] = False,
-) -> torch.tensor:
+) -> torch.Tensor:
     """Apply gate for matching.
 
     Invalidate infeasible entries in cost matrix based on the state
@@ -294,10 +294,10 @@ def gate_cost_matrix(
 
 
 def _cosine_distance(
-    matrix_a: List[torch.tensor],
-    matrix_b: List[torch.tensor],
+    matrix_a: List[torch.Tensor],
+    matrix_b: List[torch.Tensor],
     data_is_normalized: bool = False,
-) -> torch.tensor:
+) -> torch.Tensor:
     """Compute pair-wise cosine distance between points in `a` and `b`.
 
     Args:
@@ -324,8 +324,8 @@ def _cosine_distance(
 
 
 def _nn_cosine_distance(
-    matrix_x: List[torch.tensor], matrix_y: List[torch.tensor]
-) -> torch.tensor:
+    matrix_x: List[torch.Tensor], matrix_y: List[torch.Tensor]
+) -> torch.Tensor:
     """Helper function for nearest neighbor distance metric (cosine).
 
     Args:
@@ -368,11 +368,11 @@ class NearestNeighborDistanceMetric:
         self._metric = _nn_cosine_distance
         self.matching_threshold = matching_threshold
         self.budget = budget
-        self.samples: Dict[int, List[torch.tensor]] = {}
+        self.samples: Dict[int, List[torch.Tensor]] = {}
 
     def partial_fit(
         self,
-        features: List[torch.tensor],
+        features: List[torch.Tensor],
         targets: List[int],
         active_targets: List[int],
     ) -> None:
@@ -391,8 +391,8 @@ class NearestNeighborDistanceMetric:
         self.samples = {k: self.samples[k] for k in active_targets}
 
     def distance(
-        self, features: List[torch.tensor], targets: List[int]
-    ) -> torch.tensor:
+        self, features: List[torch.Tensor], targets: List[int]
+    ) -> torch.Tensor:
         """Compute distance between features and targets.
 
         Args:
