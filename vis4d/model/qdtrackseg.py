@@ -7,7 +7,7 @@ from vis4d.struct import InputSample, LossesType, ModelOutput, ModuleCfg
 from .heads.dense_head import MMSegDecodeHead
 from .qdtrack import QDTrack
 from .track.utils import split_key_ref_inputs
-from .utils import predictions_to_scalabel
+from .utils import postprocess_predictions, predictions_to_scalabel
 
 
 class QDTrackSeg(QDTrack):
@@ -71,11 +71,9 @@ class QDTrackSeg(QDTrack):
 
         # segmentation head
         semantic_segms = self.seg_head(batch_inputs[0], feat)
+        sem_outs = {"sem_seg": semantic_segms}
+        postprocess_predictions(batch_inputs[0], sem_outs)
         outputs.update(
-            predictions_to_scalabel(
-                batch_inputs[0],
-                {"sem_seg": semantic_segms},
-                self.seg_head.cat_mapping,
-            )
+            predictions_to_scalabel(sem_outs, self.seg_head.cat_mapping)
         )
         return outputs

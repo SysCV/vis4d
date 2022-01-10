@@ -22,6 +22,7 @@ class MOTDatasetConfig(BaseDatasetConfig):
     tmp_dir_root: str = "./"
     track_iou_thr: float = 0.5
     gt_root: Optional[str]
+    det_metrics_per_video: bool = False
 
 
 class MOTChallenge(BaseDatasetLoader):
@@ -100,7 +101,22 @@ class MOTChallenge(BaseDatasetLoader):
     ) -> Tuple[MetricLogs, str]:
         """Evaluate according to MOT Challenge metrics."""
         if not metric == "track":  # pragma: no cover
-            return super().evaluate(metric, predictions, gts)
+            log_dict, log_str = super().evaluate(metric, predictions, gts)
+            if self.cfg.det_metrics_per_video:
+                # per video detection results
+                video_names = sorted(
+                    set(f.videoName for f in gts if f.videoName is not None)
+                )
+                for video_name in video_names:
+                    vid_dict, vid_str = super().evaluate(
+                        metric,
+                        [f for f in predictions if f.videoName == video_name],
+                        [f for f in gts if f.videoName == video_name],
+                    )
+                    for k in vid_dict:
+                        log_dict[f"{k}/{video_name}"] = vid_dict[k]
+                    log_str += f"\n{video_name}:{vid_str}"
+            return log_dict, log_str
 
         res_files, names, tmp_dir = self._convert_predictions(predictions)
         accs = []

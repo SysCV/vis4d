@@ -16,9 +16,7 @@ class TestBox3DCoder(unittest.TestCase):
     def test_decode_empty(self) -> None:
         """Test decode function when input is empty."""
         result = self.coder.decode(
-            [Boxes2D(torch.empty(0, 5), torch.empty(0), torch.empty(0))],
-            [torch.empty(0)],
-            Intrinsics(torch.eye(3)),
+            [Boxes2D.empty()], [torch.empty(0)], Intrinsics(torch.eye(3))
         )
         self.assertEqual(len(result), 1)
         self.assertEqual(len(result[0]), 0)

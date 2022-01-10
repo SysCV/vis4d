@@ -21,8 +21,8 @@ from ..backbone.neck import MMDetNeck
 from ..heads.dense_head import BaseDenseHead, MMDetDenseHead
 from ..heads.roi_head import BaseRoIHead, MMDetRoIHead
 from ..mmdet_utils import add_keyword_args, load_config
-from ..utils import predictions_to_scalabel
-from .base import BaseTwoStageDetector
+from ..utils import postprocess_predictions, predictions_to_scalabel
+from .base import BaseDetectorConfig, BaseTwoStageDetector
 
 try:
     from mmcv import Config as MMConfig
@@ -183,9 +183,8 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             assert segmentations is not None
             outputs["ins_seg"] = segmentations
 
-        return predictions_to_scalabel(
-            inputs, outputs, self.cat_mapping, self.clip_bboxes_to_image
-        )
+        postprocess_predictions(inputs, outputs, self.cfg.clip_bboxes_to_image)
+        return predictions_to_scalabel(outputs, self.cat_mapping)
 
     def extract_features(self, inputs: InputSample) -> FeatureMaps:
         """Detector feature extraction stage.

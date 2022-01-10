@@ -21,7 +21,7 @@ from .detect import BaseTwoStageDetector
 from .track.graph import BaseTrackGraph
 from .track.similarity import BaseSimilarityHead
 from .track.utils import split_key_ref_inputs
-from .utils import predictions_to_scalabel
+from .utils import postprocess_predictions, predictions_to_scalabel
 
 
 class QDTrack(BaseModel):
@@ -121,12 +121,10 @@ class QDTrack(BaseModel):
         if instance_segms is not None:
             outs["ins_seg"] = [s.clone() for s in instance_segms]
 
-        outputs = predictions_to_scalabel(
-            inputs,
-            outs,
-            self.cat_mapping,
-            self.detector.clip_bboxes_to_image,
+        postprocess_predictions(
+            inputs, outs, self.cfg.detection.clip_bboxes_to_image
         )
+        outputs = predictions_to_scalabel(outs, self.cat_mapping)
 
         predictions = LabelInstances(
             detections,
@@ -147,12 +145,11 @@ class QDTrack(BaseModel):
         outs: Dict[str, List[TLabelInstance]] = {"track": tracks.boxes2d}  # type: ignore # pylint: disable=line-too-long
         if self.with_mask:
             outs["seg_track"] = tracks.instance_masks
-        return predictions_to_scalabel(
-            inputs,
-            outs,
-            self.cat_mapping,
-            self.detector.clip_bboxes_to_image,
+
+        postprocess_predictions(
+            inputs, outs, self.cfg.detection.clip_bboxes_to_image
         )
+        return predictions_to_scalabel(outs, self.cat_mapping)
 
     def forward_train(
         self,
