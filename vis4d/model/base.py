@@ -238,14 +238,21 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
             self.freeze_parameters(self._freeze_parameters)
         self.train()
 
-    def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+    def on_load_checkpoint(self, checkpoint: DictStrAny) -> None:
         """Allow for mismatched shapes when loading checkpoints."""
         state_dict = checkpoint["state_dict"]
         model_state_dict = self.state_dict()
         for k in checkpoint["state_dict"]:
             if k in model_state_dict:
-                if checkpoint["state_dict"][k].shape != model_state_dict[k].shape:
-                    rank_zero_info(f"Skip loading parameter: {k}, required shape: {model_state_dict[k].shape}, loaded shape: {state_dict[k].shape}")
+                if (
+                    checkpoint["state_dict"][k].shape
+                    != model_state_dict[k].shape
+                ):
+                    rank_zero_info(
+                        f"Skip loading parameter: {k}, "
+                        f"required shape: {model_state_dict[k].shape}, "
+                        f"loaded shape: {state_dict[k].shape}"
+                    )
                     state_dict[k] = model_state_dict[k]
 
     @classmethod
