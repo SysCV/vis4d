@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-
 from PIL import Image, ImageOps
 from pytorch_lightning.utilities.distributed import rank_zero_info
 from scalabel.label.typing import Frame, FrameGroup

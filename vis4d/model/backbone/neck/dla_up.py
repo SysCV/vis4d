@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common.layers.conv2d import Conv2d, DeformConv
+from vis4d.common.layers import Conv2d, DeformConv
 from vis4d.struct import FeatureMaps, NDArrayI64
 
 from .base import BaseNeck, BaseNeckConfig

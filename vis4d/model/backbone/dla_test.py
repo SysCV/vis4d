@@ -4,6 +4,7 @@ import unittest
 from vis4d.unittest.utils import generate_input_sample
 
 from .dla import DLA, DLAConfig
+from .neck import DLAUpConfig
 
 
 class TestDLA(unittest.TestCase):
@@ -13,7 +14,12 @@ class TestDLA(unittest.TestCase):
 
     def test_dla46_c(self) -> None:
         """Testcase for DLA46-C."""
-        cfg = DLAConfig(type="DLA", name="dla46_c")
+        cfg = DLAConfig(
+            type="DLA",
+            name="dla46_c",
+            pixel_mean=(0.0, 0.0, 0.0),
+            pixel_std=(1.0, 1.0, 1.0),
+        )
         dla46_c = DLA(cfg)
         out = dla46_c(self.inputs)
         self.assertEqual(len(out), 6)
@@ -27,7 +33,12 @@ class TestDLA(unittest.TestCase):
 
     def test_dla46x_c(self) -> None:
         """Testcase for DLA46-X-C."""
-        cfg = DLAConfig(type="DLA", name="dla46x_c")
+        cfg = DLAConfig(
+            type="DLA",
+            name="dla46x_c",
+            pixel_mean=(0.0, 0.0, 0.0),
+            pixel_std=(1.0, 1.0, 1.0),
+        )
         dla46x_c = DLA(cfg)
         out = dla46x_c(self.inputs)
         self.assertEqual(len(out), 6)
@@ -40,15 +51,26 @@ class TestDLA(unittest.TestCase):
             self.assertEqual(feat.shape[3], 32 / (2 ** i))
 
     def test_dla_custom(self) -> None:
-        """Testcase for custom DLA."""
+        """Testcase for custom DLA + DLAUp Neck."""
         cfg = DLAConfig(
             type="DLA",
+            pixel_mean=(0.0, 0.0, 0.0),
+            pixel_std=(1.0, 1.0, 1.0),
             levels=(1, 1, 1, 2, 2, 1),
             channels=(16, 32, 64, 128, 256, 512),
             block="BasicBlock",
             residual_root=True,
+            neck=DLAUpConfig(
+                type="DLAUp",
+                use_deformable_convs=False,
+                start_level=2,
+                in_channels=(16, 32, 64, 128, 256, 512),
+            ),
         )
         dla_custom = DLA(cfg)
+        out = dla_custom(self.inputs)
+        self.assertEqual(tuple(out["out0"].shape[2:]), (8, 8))
+        dla_custom.neck = None
         out = dla_custom(self.inputs)
         for i in range(6):
             feat = out[f"out{i}"]

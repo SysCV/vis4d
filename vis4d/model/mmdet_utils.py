@@ -195,7 +195,7 @@ def set_attr(  # type: ignore
 ) -> None:
     """Set specific attribute in config."""
     for i, part_k in enumerate(partial_keys):
-        if isinstance(attr, list):
+        if isinstance(attr, list):  # pragma: no cover
             for attr_item in attr:
                 set_attr(attr_item, partial_keys[i:], last_key, value)
             return

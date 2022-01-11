@@ -17,6 +17,7 @@ model_base = "vis4d/engine/testcases/configs/models/mmdetection/mmdet_cfg_frcnn_
     type = "DLA"
     name = "dla34"
     weights = "dla://dla34"
+    out_indices = [0, 1, 2, 3, 4, 5]
 
     [model.backbone.neck]
     type = "DLAUp"
