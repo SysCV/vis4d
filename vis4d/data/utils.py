@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from PIL import Image
+from PIL import Image, ImageOps
 from pytorch_lightning.utilities.distributed import rank_zero_info
 from scalabel.label.typing import Frame, FrameGroup
 from scalabel.label.utils import check_crowd, check_ignored
@@ -19,6 +19,17 @@ from termcolor import colored
 from vis4d.struct import InputSample, NDArrayI64, NDArrayUI8
 
 from ..common.geometry.transform import transform_points
+
+try:
+    from cv2 import (  # pylint: disable=no-member,no-name-in-module
+        COLOR_BGR2RGB,
+        IMREAD_COLOR,
+        cvtColor,
+        imdecode,
+    )
+except (ImportError, NameError):  # pragma: no cover
+    CV2_INSTALLED = False
+
 
 D2BoxType = Dict[str, Union[bool, float, str]]
 
@@ -60,16 +71,33 @@ def identity_batch_collator(
     return batch
 
 
-def im_decode(im_bytes: bytes, mode: str = "RGB") -> NDArrayUI8:
+def im_decode(
+    im_bytes: bytes, mode: str = "RGB", backend: str = "PIL"
+) -> NDArrayUI8:
     """Decode to image (numpy array, RGB) from bytes."""
-    pil_img = Image.open(BytesIO(bytearray(im_bytes)))
-    if mode == "BGR":
-        np_img = np.array(pil_img)[..., [2, 1, 0]]  # type: NDArrayUI8
-    elif mode == "RGB":
-        np_img = np.array(pil_img)
+    assert mode in ["BGR", "RGB"], f"{mode} not supported for image decoding!"
+    if backend == "PIL":
+        pil_img = Image.open(BytesIO(bytearray(im_bytes)))
+        pil_img = ImageOps.exif_transpose(pil_img)
+        if pil_img.mode == "L":  # pragma: no cover
+            # convert grayscale image to RGB
+            pil_img = pil_img.convert("RGB")
+        if mode == "BGR":
+            img: NDArrayUI8 = np.array(pil_img)[..., [2, 1, 0]]
+        elif mode == "RGB":
+            img = np.array(pil_img)
+    elif backend == "cv2":  # pragma: no cover
+        if not CV2_INSTALLED:
+            raise ImportError(
+                "Please install opencv-python to use cv2 backend!"
+            )
+        img_np: NDArrayUI8 = np.frombuffer(im_bytes, np.uint8)
+        img = imdecode(img_np, IMREAD_COLOR)
+        if mode == "RGB":
+            cvtColor(img, COLOR_BGR2RGB, img)
     else:
-        raise NotImplementedError(f"{mode} not supported for image decoding!")
-    return np_img
+        raise NotImplementedError(f"Image backend {backend} not known!")
+    return img
 
 
 def instance_ids_to_global(

@@ -116,5 +116,6 @@ class PanopticSegmentor(BaseModel):
                 for i in range(len(model_outs["ins_seg"]))
             ]
         )
+        model_outs["sem_seg"] = model_outs["pan_seg"]
 
         return model_outs

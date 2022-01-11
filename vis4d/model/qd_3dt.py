@@ -12,6 +12,7 @@ from ..struct import (
     ModelOutput,
 )
 from .base import BaseModelConfig
+from .detect import BaseTwoStageDetector
 from .heads.roi_head import BaseRoIHeadConfig, QD3DTBBox3DHead, build_roi_head
 from .qdtrack import QDTrack, QDTrackConfig
 from .track.graph import build_track_graph
@@ -121,6 +122,7 @@ class QD3DT(QDTrack):
             frames = batch_inputs[0]
 
         # detector
+        assert isinstance(self.detector, BaseTwoStageDetector)
         feat = self.detector.extract_features(frames)
         proposals = self.detector.generate_proposals(frames, feat)
 

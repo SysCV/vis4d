@@ -48,7 +48,9 @@ class SampleMapperConfig(BaseModel):
     skip_empty_samples: bool = False
     clip_bboxes_to_image: bool = True
     min_bboxes_area: float = 7.0 * 7.0
+    background_as_class: bool = False
     transformations: Optional[List[BaseAugmentationConfig]] = None
+    image_backend: str = "PIL"
 
 
 class BaseSampleMapper(metaclass=RegistryHolder):
@@ -110,7 +112,11 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         if not use_empty:
             assert sample.url is not None
             im_bytes = self.data_backend.get(sample.url)
-            image = im_decode(im_bytes, mode=self.image_channel_mode)
+            image = im_decode(
+                im_bytes,
+                mode=self.image_channel_mode,
+                backend=self.cfg.image_backend,
+            )
         else:
             image = np.empty((128, 128, 3), dtype=np.uint8)
 
@@ -180,6 +186,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                         self.cats_name2id["semantic_masks"],
                         instance_id_dict,
                         sample.metadata[0].size,
+                        self.cfg.background_as_class,
                     )
                     sample.targets.semantic_masks = [semantic_masks]
 

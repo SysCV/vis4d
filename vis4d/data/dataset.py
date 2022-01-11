@@ -95,6 +95,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.dataset.groups,
         )
         self.has_sequences = bool(self.ref_sampler.video_to_indices)
+        self._show_retry_warn = True
 
     def __len__(self) -> int:
         """Return length of dataset."""
@@ -176,8 +177,13 @@ class ScalabelDataset(Dataset):  # type: ignore
             self._fallback_candidates.discard(cur_idx)
             cur_idx = random.sample(self._fallback_candidates, k=1)[0]
 
-            if retry_count >= 5:
+            if self._show_retry_warn and retry_count >= 5:
                 rank_zero_warn(
-                    f"Failed to get samples for idx: {cur_idx}, "
-                    f"retry count: {retry_count}"
+                    f"Failed to get an input sample for idx {cur_idx} after "
+                    f"{retry_count} retries, this happens e.g. when "
+                    "skip_empty_samples is activated and there are many "
+                    "samples without (valid) labels. Please check your class "
+                    "configuration and/or dataset labels if this is "
+                    "undesired behavior."
                 )
+                self._show_retry_warn = False

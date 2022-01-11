@@ -1,0 +1,24 @@
+[[config]]
+path = "../configs/datasets/bdd100k/track.toml"
+
+[[config]]
+path = "../configs/models/mmdetection/qdtrack_retinanet_R_18_FPN.toml"
+
+[model]
+category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
+    [model.optimizer]
+    type = "SGD"
+    lr = 0.001
+
+    [model.lr_scheduler]
+    type = "StepLR"
+    mode = "step"
+    warmup = "exponential"
+    kwargs = {"step_size" = 10}
+
+[launch]
+samples_per_gpu = 1
+workers_per_gpu = 0
+
+[trainer]
+max_steps = 1

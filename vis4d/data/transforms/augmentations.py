@@ -122,7 +122,19 @@ class Resize(BaseAugmentation):
         if self.keep_ratio:
             for i, sh in enumerate(shape):
                 w, h = sample.images.image_sizes[i]
-                sh[0] = sh[1] / (w / h)
+                long_edge, short_edge = max(sh), min(sh)
+                scale_factor = min(
+                    long_edge / max(h, w), short_edge / min(h, w)
+                )
+                sh[0] = int(h * scale_factor + 0.5)
+                sh[1] = int(w * scale_factor + 0.5)
+        else:
+            # if h is long edge in original image, but is not in the current
+            # resize shape, we flip (h, w) to avoid large image distortions
+            for i, sh in enumerate(shape):
+                w, h = sample.images.image_sizes[i]
+                if w < h and not sh[1] < sh[0]:
+                    shape[i] = torch.flip(sh.unsqueeze(0), (0, 1)).squeeze(0)
 
         transform = (
             torch.eye(3, device=sample.device)

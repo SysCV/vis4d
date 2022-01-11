@@ -1,5 +1,5 @@
 """Vis4D optimizers."""
-from typing import Dict, Iterator, Union
+from typing import Dict, Iterator, Tuple, Union
 
 from pydantic import BaseModel
 from torch import optim
@@ -13,7 +13,7 @@ class BaseOptimizerConfig(BaseModel):
 
     type: str = "SGD"
     lr: float = 1.0e-3
-    kwargs: Dict[str, Union[float, bool]] = {
+    kwargs: Dict[str, Union[float, bool, Tuple[float, float]]] = {
         "momentum": 0.9,
         "weight_decay": 0.0001,
     }

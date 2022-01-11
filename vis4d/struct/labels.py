@@ -5,8 +5,14 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar
 import numpy as np
 import torch
 import torch.nn.functional as F
-from scalabel.label.transforms import mask_to_rle, poly2ds_to_mask, rle_to_mask
-from scalabel.label.typing import Box2D, Box3D, ImageSize, Label
+from scalabel.label.transforms import (
+    box2d_to_xyxy,
+    mask_to_rle,
+    poly2ds_to_mask,
+    rle_to_mask,
+    xyxy_to_box2d,
+)
+from scalabel.label.typing import Box3D, ImageSize, Label
 from torchvision.ops import roi_align
 
 from ..common.geometry.rotation import (
@@ -216,7 +222,12 @@ class Boxes2D(Boxes):
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
     ) -> "Boxes2D":
-        """Convert from scalabel format to internal."""
+        """Convert from scalabel format to internal.
+
+        NOTE: The box definition in Scalabel includes x2y2, whereas Vis4D and
+        other software libraries like detectron2, mmdet do not include this,
+        which is why we convert via box2d_to_xyxy.
+        """
         box_list, cls_list, idx_list = [], [], []
         has_class_ids = all((b.category is not None for b in labels))
         for i, label in enumerate(labels):
@@ -228,14 +239,17 @@ class Boxes2D(Boxes):
             )
             if box is None:
                 continue
+            if has_class_ids:
+                if box_cls in class_to_idx:
+                    cls_list.append(class_to_idx[box_cls])
+                else:  # pragma: no cover
+                    continue
 
             if score is None:
-                box_list.append([box.x1, box.y1, box.x2, box.y2])
+                box_list.append([*box2d_to_xyxy(box)])
             else:
-                box_list.append([box.x1, box.y1, box.x2, box.y2, score])
+                box_list.append([*box2d_to_xyxy(box), score])
 
-            if has_class_ids:
-                cls_list.append(class_to_idx[box_cls])  # type: ignore
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
 
@@ -258,11 +272,11 @@ class Boxes2D(Boxes):
                 label_id = str(self.track_ids[i].item())
             else:
                 label_id = str(i)
-            box = Box2D(
-                x1=float(self.boxes[i, 0]),
-                y1=float(self.boxes[i, 1]),
-                x2=float(self.boxes[i, 2]),
-                y2=float(self.boxes[i, 3]),
+            box = xyxy_to_box2d(
+                float(self.boxes[i, 0]),
+                float(self.boxes[i, 1]),
+                float(self.boxes[i, 2]),
+                float(self.boxes[i, 3]),
             )
             if self.boxes.shape[-1] == 5:
                 score: Optional[float] = float(self.boxes[i, 4])
@@ -369,6 +383,11 @@ class Boxes3D(Boxes):
             )
             if box is None:
                 continue
+            if has_class_ids:
+                if box_cls in class_to_idx:
+                    cls_list.append(class_to_idx[box_cls])
+                else:  # pragma: no cover
+                    continue
 
             if score is None:
                 box_list.append(
@@ -378,8 +397,6 @@ class Boxes3D(Boxes):
                 box_list.append(
                     [*box.location, *box.dimension, *box.orientation, score]
                 )
-            if has_class_ids:
-                cls_list.append(class_to_idx[box_cls])  # type: ignore
             idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
             idx_list.append(idx)
 
@@ -521,7 +538,7 @@ class Masks(LabelInstance):
     ) -> "TMasks":
         """Return empty masks on device."""
         return cls(
-            torch.empty(0, 1, 1),
+            torch.empty(0, 720, 1280),
             torch.empty(0),
             torch.empty(0),
             torch.empty(0),
@@ -534,12 +551,15 @@ class Masks(LabelInstance):
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
+        background_as_class: bool = False,
     ) -> "TMasks":
         """Convert from scalabel format to internal."""
         bitmask_list, cls_list, idx_list = [], [], []
         score_list = []
         has_class_ids = all((b.category is not None for b in labels))
         has_score = all((b.score is not None for b in labels))
+        if background_as_class:
+            foreground: Optional[NDArrayUI8] = None
         for i, label in enumerate(labels):
             if label.poly2d is None and label.rle is None:
                 continue
@@ -564,10 +584,27 @@ class Masks(LabelInstance):
             idx_list.append(idx)
             if has_score:
                 score_list.append(score)
-
+            if background_as_class:
+                foreground = (
+                    bitmask
+                    if foreground is None
+                    else np.logical_or(foreground, bitmask)
+                )
+        if background_as_class:
+            assert foreground is not None
+            bitmask_list.append(np.logical_not(foreground))
+            idx_list.append(len(labels))
+            if has_class_ids:
+                assert "background" in class_to_idx, (
+                    '"background_as_class" requires "background" class to be '
+                    "in category_mapping"
+                )
+                cls_list.append(class_to_idx["background"])
+            if has_score:  # pragma: no cover
+                score_list.append(1.0)
         if len(bitmask_list) == 0:  # pragma: no cover
             return cls.empty()
-        mask_tensor = torch.tensor(bitmask_list, dtype=torch.uint8)
+        mask_tensor = torch.tensor(np.array(bitmask_list), dtype=torch.uint8)
         class_ids = (
             torch.tensor(cls_list, dtype=torch.long) if has_class_ids else None
         )
