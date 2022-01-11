@@ -1,6 +1,6 @@
 """Utilities for mmdet wrapper."""
 import os
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import requests
@@ -191,18 +191,26 @@ def _parse_losses(
     return log_vars
 
 
+def set_attr(  # type: ignore
+    attr: Any, partial_keys: List[str], last_key: str, value: Any
+) -> None:
+    """Set specific attribute in config."""
+    for i, part_k in enumerate(partial_keys):
+        if isinstance(attr, list):
+            for attr_item in attr:
+                set_attr(attr_item, partial_keys[i:], last_key, value)
+            return
+        attr = attr.get(part_k)
+
+    if attr.get(last_key) is not None:
+        attr[last_key] = type(attr.get(last_key))(value)
+    else:
+        attr[last_key] = value
+
+
 def add_keyword_args(config: BaseModel, cfg: MMConfig) -> None:
     """Add keyword args in config."""
     for k, v in config.model_kwargs.items():  # type: ignore
-        attr = cfg
         partial_keys = k.split(".")
         partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
-        for part_k in partial_keys:
-            attr = attr.get(part_k)
-        if attr.get(last_key) is not None:
-            attr[last_key] = type(attr.get(last_key))(v)
-            if "channels" in last_key and isinstance(attr[last_key], list):
-                # TODO: remove in config refactor PR  # pylint: disable=fixme
-                attr[last_key] = [int(c) for c in attr[last_key]]
-        else:
-            attr[last_key] = v
+        set_attr(cfg, partial_keys, last_key, v)

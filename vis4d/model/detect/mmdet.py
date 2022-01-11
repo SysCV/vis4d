@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
     Boxes2D,
+    DictStrAny,
     FeatureMaps,
     InputSample,
     InstanceMasks,
@@ -65,9 +66,9 @@ class MMTwoStageDetectorConfig(BaseDetectorConfig):
     """Config for mmdetection two stage models."""
 
     model_base: str
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
-    pixel_mean: Tuple[float, float, float]
-    pixel_std: Tuple[float, float, float]
+    model_kwargs: Optional[DictStrAny]
+    pixel_mean: Optional[Tuple[float, float, float]]
+    pixel_std: Optional[Tuple[float, float, float]]
     backbone_output_names: Optional[List[str]]
     weights: Optional[str]
     backbone: Optional[BaseBackboneConfig]
@@ -88,6 +89,19 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             **cfg.dict()
         )
         assert self.cfg.category_mapping is not None
+        if self.cfg.pixel_mean is None or self.cfg.pixel_std is None:
+            assert self.cfg.backbone is not None, (
+                "If no custom backbone is defined,"
+                " normalization parameters must be specified!"
+            )
+            assert (
+                self.cfg.backbone.pixel_mean is not None
+                and self.cfg.backbone.pixel_std is not None
+            ), "Please specify image normalization parameters!"
+            assert (
+                self.cfg.pixel_mean is None and self.cfg.pixel_std is None
+            ), "The mean and std of pixels should both be set!"
+
         self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
         self.mm_cfg = get_mmdet_config(self.cfg)
         if self.cfg.backbone is None:
@@ -170,11 +184,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             len(batch_inputs) == 1
         ), "No reference views allowed in MMTwoStageDetector testing!"
         inputs = batch_inputs[0]
-
         features = self.backbone(inputs)
         proposals = self.rpn_head(inputs, features)
         detections, segmentations = self.roi_head(inputs, proposals, features)
-
         outputs: Dict[str, List[TLabelInstance]] = dict(detect=detections)  # type: ignore # pylint: disable=line-too-long
         if self.with_mask:
             assert segmentations is not None
@@ -232,7 +244,7 @@ class MMOneStageDetectorConfig(BaseDetectorConfig):
     """Config for mmdetection one-stage models."""
 
     model_base: str
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
+    model_kwargs: Optional[DictStrAny]
     pixel_mean: Tuple[float, float, float]
     pixel_std: Tuple[float, float, float]
     backbone_output_names: Optional[List[str]]

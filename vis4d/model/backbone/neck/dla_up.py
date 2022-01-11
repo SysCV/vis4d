@@ -7,6 +7,7 @@ import torch
 from mmcv.ops.modulated_deform_conv import ModulatedDeformConv2dPack
 from torch import nn
 
+from vis4d.common.layers.conv2d import Conv2d
 from vis4d.struct import FeatureMaps, NDArrayI64
 
 from .base import BaseNeck, BaseNeckConfig
@@ -57,14 +58,37 @@ class DeformConv(nn.Module):  # type: ignore
 class IDAUp(nn.Module):  # type: ignore
     """IDAUp."""
 
-    def __init__(self, o: int, channels: List[int], up_f: List[int]) -> None:
+    def __init__(
+        self, use_dc: bool, o: int, channels: List[int], up_f: List[int]
+    ) -> None:
         """Init."""
         super().__init__()
         for i in range(1, len(channels)):
             c = channels[i]
             f = int(up_f[i])
-            proj = DeformConv(c, o)
-            node = DeformConv(o, o)
+            if use_dc:
+                proj = DeformConv(c, o)
+                node = DeformConv(o, o)
+            else:
+                proj = Conv2d(
+                    c,
+                    o,
+                    kernel_size=1,
+                    stride=1,
+                    bias=False,
+                    norm=nn.BatchNorm2d(o),
+                    activation=nn.ReLU(inplace=True),
+                )
+                node = Conv2d(
+                    o,
+                    o,
+                    kernel_size=3,
+                    stride=1,
+                    padding=1,
+                    bias=False,
+                    norm=nn.BatchNorm2d(o),
+                    activation=nn.ReLU(inplace=True),
+                )
 
             up = nn.ConvTranspose2d(
                 o,
@@ -82,13 +106,13 @@ class IDAUp(nn.Module):  # type: ignore
             setattr(self, "up_" + str(i), up)
             setattr(self, "node_" + str(i), node)
 
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2.0 / n))
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
+            for m in self.modules():
+                if isinstance(m, nn.Conv2d):
+                    n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                    m.weight.data.normal_(0, math.sqrt(2.0 / n))
+                elif isinstance(m, nn.BatchNorm2d):
+                    m.weight.data.fill_(1)
+                    m.bias.data.zero_()
 
     def forward(
         self, layers: List[torch.Tensor], startp: int, endp: int
@@ -110,6 +134,7 @@ class DLAUpConfig(BaseNeckConfig):
     start_level: int = 0
     end_level: int = -1
     output_names: Optional[List[str]]
+    use_deformable_convs: bool = True
 
 
 class DLAUp(BaseNeck):
@@ -133,7 +158,12 @@ class DLAUp(BaseNeck):
             setattr(
                 self,
                 f"ida_{i}",
-                IDAUp(channels[j], in_channels[j:], scales[j:] // scales[j]),
+                IDAUp(
+                    self.cfg.use_deformable_convs,
+                    channels[j],
+                    in_channels[j:],
+                    scales[j:] // scales[j],
+                ),
             )
             scales[j + 1 :] = scales[j]
             in_channels[j + 1 :] = [channels[j] for _ in channels[j + 1 :]]
@@ -141,6 +171,7 @@ class DLAUp(BaseNeck):
         if out_channels is None:
             out_channels = channels[0]
         self.ida_final = IDAUp(
+            self.cfg.use_deformable_convs,
             out_channels,
             channels,
             [2 ** i for i in range(self.end_level - self.start_level)],

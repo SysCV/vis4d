@@ -1,9 +1,10 @@
 """mmsegmentation segmentor wrapper."""
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 
 from vis4d.struct import (
+    DictStrAny,
     FeatureMaps,
     InputSample,
     LabelInstances,
@@ -54,7 +55,7 @@ class MMEncDecSegmentorConfig(BaseModelConfig):
     """Config for mmsegmentation encoder-decoder models."""
 
     model_base: str
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
+    model_kwargs: Optional[DictStrAny]
     pixel_mean: Tuple[float, float, float]
     pixel_std: Tuple[float, float, float]
     backbone_output_names: Optional[List[str]]

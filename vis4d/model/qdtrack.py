@@ -101,8 +101,8 @@ class QDTrack(BaseModel):
                     ref_proposals.append(ref_p)
 
         # from vis4d.vis.track import imshow_bboxes
-        # for ref_imgs, ref_props in zip(ref_images, ref_proposals):
-        #     for ref_img, ref_prop in zip(ref_imgs, ref_props):
+        # for ref_inp, ref_props in zip(ref_inputs, ref_proposals):
+        #     for ref_img, ref_prop in zip(ref_inp.images, ref_props):
         #         _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
         #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
 

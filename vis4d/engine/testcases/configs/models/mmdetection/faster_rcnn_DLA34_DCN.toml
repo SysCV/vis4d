@@ -2,14 +2,21 @@
 type = "MMTwoStageDetector"
 category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7, "traffic light" = 8, "traffic sign" = 9}
 model_base = "vis4d/engine/testcases/configs/models/mmdetection/mmdet_cfg_frcnn_r18fpn.py"
-model_kwargs = {"rpn_head.anchor_generator.strides" = [4]}
-pixel_mean = [123.675, 116.28, 103.53]
-pixel_std = [58.395, 57.12, 57.375]
+    [model.model_kwargs]
+    "rpn_head.anchor_generator.strides" = [4]
+    "rpn_head.anchor_generator.scales" = [8, 16, 32, 64, 128]
+    "rpn_head.in_channels" = 64
+    "rpn_head.feat_channels" = 64
+    "roi_head.bbox_head.in_channels" = 64
+    "roi_head.bbox_roi_extractor.out_channels" = 64
+    "roi_head.bbox_roi_extractor.featmap_strides" = [4]
+
     [model.backbone]
+    pixel_mean = [123.675, 116.28, 103.53]
+    pixel_std = [58.395, 57.12, 57.375]
     type = "DLA"
     name = "dla34"
     weights = "dla://dla34"
-    out_indices = [0, 1, 2, 3, 4, 5]
 
     [model.backbone.neck]
     type = "DLAUp"

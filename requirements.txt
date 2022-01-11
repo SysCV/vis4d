@@ -1,7 +1,6 @@
 black
 coverage[toml]
 isort
-opencv-python
 mypy
 numpy>=1.21.0
 pandas

@@ -17,8 +17,8 @@ class BaseBackboneConfig(BaseModel, extra="allow"):
     """Base config for Backbone."""
 
     type: str = Field(...)
-    pixel_mean: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-    pixel_std: Tuple[float, float, float] = (1.0, 1.0, 1.0)
+    pixel_mean: Tuple[float, float, float]
+    pixel_std: Tuple[float, float, float]
     output_names: Optional[List[str]]
     out_indices: Optional[List[int]]
     neck: Optional[BaseNeckConfig]

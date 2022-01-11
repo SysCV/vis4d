@@ -38,7 +38,7 @@ class TestResize(unittest.TestCase):
         """Test __call__ function."""
         aug_cfg = ResizeConfig(type="test", shape=(5, 5))
         resize = Resize(aug_cfg)
-        num_imgs, num_objs, height, width = 1, 10, 10, 10
+        num_imgs, num_objs, height, width = 1, 10, 10, 9
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         pre_intrs = copy.deepcopy(sample.intrinsics.tensor)
         pre_tgts = copy.deepcopy(sample.targets)
