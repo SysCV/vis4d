@@ -71,7 +71,7 @@ class SimplePanopticHead(BasePanopticHead):
                 continue
 
             mask_area = mask.sum().item()
-            if mask_area == 0:  # pragma: no cover
+            if mask_area == 0:
                 continue
 
             intersect = torch.logical_and(mask, foreground)

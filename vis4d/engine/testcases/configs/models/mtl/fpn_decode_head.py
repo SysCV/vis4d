@@ -6,7 +6,7 @@ decode_head = dict(
     feature_strides=[4, 8, 16, 32],
     channels=32,
     dropout_ratio=0.1,
-    num_classes=19,
+    num_classes=20,
     norm_cfg=dict(type="BN", requires_grad=True),
     align_corners=False,
     loss_decode=dict(

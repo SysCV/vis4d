@@ -9,6 +9,7 @@ from typing import List, Optional, Tuple
 import motmetrics as mm
 from scalabel.label.from_mot import from_mot
 from scalabel.label.io import load, load_label_config
+from scalabel.label.transforms import box2d_to_xyxy
 from scalabel.label.typing import Dataset, Frame
 
 from vis4d.struct import MetricLogs
@@ -69,12 +70,7 @@ class MOTChallenge(BaseDatasetLoader):
                 if f.labels is not None:
                     for l in f.labels:
                         assert l.box2d is not None
-                        x1, y1, x2, y2 = (
-                            l.box2d.x1,
-                            l.box2d.y1,
-                            l.box2d.x2,
-                            l.box2d.y2,
-                        )
+                        x1, y1, x2, y2 = box2d_to_xyxy(l.box2d)
                         conf = l.score if l.score is not None else 1.0
                         assert f.frameIndex is not None and l.id is not None
                         res_lines += (

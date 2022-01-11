@@ -5,6 +5,7 @@ import pytorch_lightning as pl
 import torch
 from pydantic import BaseModel
 from torch.utils import data
+from torch.utils.data.distributed import DistributedSampler
 
 from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
@@ -99,17 +100,17 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""
         assert self.train_datasets is not None
+        train_dataset = data.ConcatDataset(self.train_datasets)
         if self.train_sampler is not None:
             train_sampler: Optional[
                 data.Sampler[List[int]]
             ] = build_data_sampler(
-                self.train_sampler, self.train_datasets, self.samples_per_gpu
+                self.train_sampler, train_dataset, self.samples_per_gpu
             )
             batch_size, shuffle = 1, False
         else:
             train_sampler = None
             batch_size, shuffle = self.samples_per_gpu, True
-        train_dataset = data.ConcatDataset(self.train_datasets)
         train_dataloader = data.DataLoader(
             train_dataset,
             batch_sampler=train_sampler,
@@ -162,6 +163,12 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
             sampler: Optional[data.Sampler] = None
             if get_world_size() > 1 and dataset.has_sequences:
                 sampler = TrackingInferenceSampler(dataset)  # pragma: no cover
+            elif get_world_size() > 1 and self.train_sampler is not None:
+                # manually create distributed sampler for inference if using
+                # custom training sampler
+                sampler = DistributedSampler(  # pragma: no cover
+                    dataset, shuffle=False
+                )
 
             test_dataloader = data.DataLoader(
                 dataset,

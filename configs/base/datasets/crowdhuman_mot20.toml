@@ -2,7 +2,7 @@
 name = "crowdhuman_trainval"
 type = "Scalabel"
 annotations = "data/CrowdHuman/trainval/trainval_scalabel.json"
-data_root = "data/CrowdHuman/trainval.hdf5"
+data_root = "data/CrowdHuman/trainval"
 num_processes = 0
     [train.sample_mapper]
     skip_empty_samples = true
@@ -17,13 +17,13 @@ num_processes = 0
 
     [[train.sample_mapper.transformations]]
     type = "Resize"
-    shape = [800, 1440]
+    shape = [896, 1600]
     scale_range = [0.8, 1.2]
     keep_ratio = true
 
     [[train.sample_mapper.transformations]]
     type = "RandomCrop"
-    shape = [800, 1440]
+    shape = [896, 1600]
 
     [[train.sample_mapper.transformations]]
     type = "KorniaAugmentationWrapper"
@@ -38,7 +38,7 @@ num_processes = 0
 [[train]]
 name = "mot20_train"
 type = "Scalabel"
-data_root = "data/MOT20/train.hdf5"
+data_root = "data/MOT20/train"
 annotations = "data/MOT20/train/train_scalabel.json"
 num_processes = 0
     [train.sample_mapper]
@@ -55,13 +55,13 @@ num_processes = 0
 
     [[train.sample_mapper.transformations]]
     type = "Resize"
-    shape = [800, 1440]
+    shape = [896, 1600]
     scale_range = [0.8, 1.2]
     keep_ratio = true
 
     [[train.sample_mapper.transformations]]
     type = "RandomCrop"
-    shape = [800, 1440]
+    shape = [896, 1600]
 
     [[train.sample_mapper.transformations]]
     type = "KorniaAugmentationWrapper"
@@ -75,7 +75,7 @@ num_processes = 0
 [[test]]
 name = "mot20_val"
 type = "MOTChallenge"
-data_root = "data/MOT20/train.hdf5"
+data_root = "data/MOT20/train"
 annotations = "data/MOT20/train/val_scalabel.json"
 eval_metrics = ["detect", "track"]
 det_metrics_per_video = true
@@ -85,5 +85,5 @@ num_processes = 0
 
     [[test.sample_mapper.transformations]]
     type = "Resize"
-    shape = [800, 1440]
+    shape = [896, 1600]
     keep_ratio = true

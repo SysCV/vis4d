@@ -1,5 +1,5 @@
 """Vis4D data samplers."""
-from typing import Generator, Iterator, List, Optional, Tuple
+from typing import Generator, Iterator, List, Optional
 
 import numpy as np
 import torch
@@ -20,7 +20,7 @@ from vis4d.common.utils import get_world_size
 from .dataset import ScalabelDataset
 
 
-class BaseSamplerConfig(BaseModel):
+class BaseSamplerConfig(BaseModel, extra="allow"):
     """Base sampler config."""
 
     type: str
@@ -33,24 +33,24 @@ class BaseSampler(Sampler[List[int]], metaclass=RegistryHolder):  # type: ignore
 
     def __init__(
         self,
-        datasets: List[ScalabelDataset],
+        dataset: ConcatDataset,
+        cfg: BaseSamplerConfig,
         batch_size: int,
-        drop_last: bool,
-        shuffle: bool = True,
         generator: Optional[torch.Generator] = None,
     ) -> None:
         """Initialize sampler."""
-        super().__init__(ConcatDataset(datasets))
-        self.datasets = datasets
+        super().__init__(dataset)
+        self.dataset = dataset
+        self.cfg = cfg
         self.batch_size = batch_size
-        self.drop_last = drop_last
-        self.shuffle = shuffle
+        self.drop_last = self.cfg.drop_last
+        self.shuffle = self.cfg.shuffle
         self.generator = generator
         self.samplers = [
-            RandomSampler(dataset, generator=generator)
-            if shuffle
-            else SequentialSampler(dataset)
-            for dataset in datasets
+            RandomSampler(dset, generator=generator)
+            if self.shuffle
+            else SequentialSampler(dset)
+            for dset in dataset.datasets
         ]
 
     def __iter__(self) -> Iterator[List[int]]:
@@ -69,30 +69,24 @@ class BaseDistributedSampler(
 
     def __init__(
         self,
-        datasets: List[ScalabelDataset],
+        dataset: ConcatDataset,
+        cfg: BaseSamplerConfig,
         batch_size: int,
-        drop_last: bool,
-        shuffle: bool = True,
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
         seed: int = 0,
     ) -> None:
         """Initialize sampler."""
         super().__init__(
-            ConcatDataset(datasets),
-            num_replicas,
-            rank,
-            shuffle,
-            seed,
-            drop_last,
+            dataset, num_replicas, rank, cfg.shuffle, seed, cfg.drop_last
         )
-        self.datasets = datasets
+        self.cfg = cfg
         self.batch_size = batch_size
         self.samplers = [
             DistributedSampler(
-                dataset, num_replicas, rank, shuffle, seed, drop_last
+                dset, num_replicas, rank, self.shuffle, seed, self.drop_last
             )
-            for dataset in datasets
+            for dset in dataset.datasets
         ]
 
     def __iter__(self) -> Iterator[List[int]]:
@@ -110,45 +104,75 @@ class BaseDistributedSampler(
             sampler.epoch = epoch
 
 
+class RoundRobinSamplerConfig(BaseSamplerConfig):
+    """Round-robin sampler config."""
+
+    repeat_sampling: bool = False  # repeat sample from exhausted data loaders
+    spread_samples: bool = True  # spread samples from shorter data loaders
+
+
 class RoundRobin:
     """Round-robin batch-level sampling functionality."""
 
     @staticmethod
     def setup(
-        datasets: List[ScalabelDataset],
-        samplers: List[Sampler[List[int]]],
-        batch_size: int,
-        drop_last: bool,
-    ) -> Tuple[List[Sampler[List[int]]], int, List[int]]:
+        samplers: List[Sampler[List[int]]], batch_size: int, drop_last: bool
+    ) -> List[Sampler[List[int]]]:
         """Setup."""
         if batch_size > 1:
             samplers = [
                 BatchSampler(sampler, batch_size, drop_last)
                 for sampler in samplers
             ]
-        max_len = max([len(sampler) for sampler in samplers])
-        data_lens = [len(dataset) for dataset in datasets]
-        return samplers, max_len, data_lens
+        return samplers
 
     @staticmethod
     def generate_indices(
         samplers: List[Sampler[List[int]]],
-        batch_size: int,
-        max_len: int,
-        data_lens: List[int],
+        cum_sizes: List[int],
+        cfg: RoundRobinSamplerConfig,
     ) -> Iterator[List[int]]:
         """Generate dataset indices for each step."""
+        repeat_sampling, spread_samples = (
+            cfg.repeat_sampling,
+            cfg.spread_samples,
+        )
         samp_iters = [iter(sampler) for sampler in samplers]
-        for _ in range(max_len):
+        max_len = max(len(sampler) for sampler in samplers)
+        if not repeat_sampling and spread_samples:
+            samp_interval = [max_len // len(sampler) for sampler in samplers]
+        else:  # pragma: no cover
+            if spread_samples:
+                rank_zero_warn(
+                    "both spread_samples and repeat_sampling are set to True"
+                    ", but repeat_sampling overrides spread_samples behavior"
+                )
+            samp_interval = [1 for sampler in samplers]
+        for e in range(max_len):
             for i, samp_it in enumerate(samp_iters):
+                if e % samp_interval[i] != 0:
+                    continue
                 batch = next(samp_it, None)
-                if not batch:
+                if batch is None:  # pragma: no cover
+                    if not repeat_sampling:
+                        continue
                     samp_iters[i] = iter(samplers[i])
                     batch = next(samp_iters[i], None)
                 assert batch is not None
-                if batch_size == 1:  # pragma: no cover
+                if not isinstance(batch, list):  # pragma: no cover
                     batch = [batch]
-                yield [b + sum(data_lens[:i]) for b in batch]
+                start_index = cum_sizes[i - 1] if i > 0 else 0
+                yield [b + start_index for b in batch]
+
+    @staticmethod
+    def get_length(
+        samplers: List[Sampler[List[int]]], repeat_sampling: bool = True
+    ) -> int:
+        """Get length of sampler."""
+        sampler_lens = [len(sampler) for sampler in samplers]
+        if repeat_sampling:  # pragma: no cover
+            return max(sampler_lens) * len(samplers)
+        return sum(sampler_lens)
 
 
 class RoundRobinSampler(BaseSampler):
@@ -156,27 +180,29 @@ class RoundRobinSampler(BaseSampler):
 
     def __init__(
         self,
-        datasets: List[ScalabelDataset],
+        dataset: ConcatDataset,
+        cfg: BaseSamplerConfig,
         batch_size: int,
-        drop_last: bool,
-        shuffle: bool = True,
         generator: Optional[torch.Generator] = None,
     ) -> None:
         """Init."""
-        super().__init__(datasets, batch_size, drop_last, shuffle, generator)
-        self.samplers, self.max_len, self.data_lens = RoundRobin.setup(
-            datasets, self.samplers, batch_size, drop_last
+        super().__init__(dataset, cfg, batch_size, generator)
+        self.cfg: RoundRobinSamplerConfig = RoundRobinSamplerConfig(
+            **cfg.dict()
+        )
+        self.samplers = RoundRobin.setup(
+            self.samplers, batch_size, self.drop_last
         )
 
     def __iter__(self) -> Iterator[List[int]]:
         """Iteration method."""
         yield from RoundRobin.generate_indices(
-            self.samplers, self.batch_size, self.max_len, self.data_lens
+            self.samplers, self.dataset.cumulative_sizes, self.cfg
         )
 
     def __len__(self) -> int:
         """Return length of sampler instance."""
-        return self.max_len * len(self.samplers)
+        return RoundRobin.get_length(self.samplers, self.cfg.repeat_sampling)
 
 
 class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
@@ -184,34 +210,36 @@ class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
 
     def __init__(
         self,
-        datasets: List[ScalabelDataset],
+        dataset: ConcatDataset,
+        cfg: BaseSamplerConfig,
         batch_size: int,
-        drop_last: bool,
-        shuffle: bool = True,
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
         seed: int = 0,
     ) -> None:
         """Init."""
-        super().__init__(datasets, batch_size, drop_last, shuffle)
-        self.samplers, self.max_len, self.data_lens = RoundRobin.setup(
-            datasets, self.samplers, batch_size, drop_last
+        super().__init__(dataset, cfg, batch_size)
+        self.cfg: RoundRobinSamplerConfig = RoundRobinSamplerConfig(
+            **cfg.dict()
+        )
+        self.samplers = RoundRobin.setup(
+            self.samplers, batch_size, self.drop_last
         )
 
     def __iter__(self) -> Iterator[List[int]]:
         """Iteration method."""
         yield from RoundRobin.generate_indices(
-            self.samplers, self.batch_size, self.max_len, self.data_lens
+            self.samplers, self.dataset.cumulative_sizes, self.cfg
         )
 
     def __len__(self) -> int:
         """Return length of sampler instance."""
-        return self.max_len * len(self.samplers)
+        return RoundRobin.get_length(self.samplers, self.cfg.repeat_sampling)
 
 
 def build_data_sampler(
     cfg: BaseSamplerConfig,
-    datasets: List[ScalabelDataset],
+    dataset: ConcatDataset,
     batch_size: int,
     generator: Optional[torch.Generator] = None,
 ) -> Sampler[List[int]]:
@@ -222,9 +250,7 @@ def build_data_sampler(
         registry["BaseDistributedSampler"] = BaseDistributedSampler
         dist_type = cfg.type.replace("Sampler", "DistributedSampler")
         if dist_type in registry:
-            module = registry[dist_type](
-                datasets, batch_size, cfg.drop_last, cfg.shuffle
-            )
+            module = registry[dist_type](dataset, cfg, batch_size)
             assert isinstance(module, BaseDistributedSampler)
             return module
         rank_zero_warn(
@@ -234,9 +260,7 @@ def build_data_sampler(
     registry = RegistryHolder.get_registry(BaseSampler)
     registry["BaseSampler"] = BaseSampler
     if cfg.type in registry:
-        module = registry[cfg.type](
-            datasets, batch_size, cfg.drop_last, cfg.shuffle, generator
-        )
+        module = registry[cfg.type](dataset, cfg, batch_size, generator)
         assert isinstance(module, BaseSampler)
         return module
     raise NotImplementedError(f"Sampler {cfg.type} not known!")

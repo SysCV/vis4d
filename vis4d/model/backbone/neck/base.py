@@ -23,7 +23,7 @@ class BaseNeck(Vis4DModule[FeatureMaps, FeatureMaps]):
         self,
         inputs: FeatureMaps,
     ) -> FeatureMaps:
-        """Base Backbone forward.
+        """Base Neck forward.
 
         Args:
             inputs: Input feature maps (output of backbone).
