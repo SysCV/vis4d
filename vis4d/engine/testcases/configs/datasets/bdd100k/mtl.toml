@@ -1,12 +1,17 @@
 [[train]]
 name = "bdd100k_sem_seg_sample_train"
-type = "Scalabel"
+type = "BDD100K"
 annotations = "vis4d/engine/testcases/segment/bdd100k-samples/annotation.json"
 data_root = "vis4d/engine/testcases/segment/bdd100k-samples/images"
-config_path = "vis4d/engine/testcases/segment/bdd100k-samples/config.toml"
+config_path = "sem_seg"
 num_processes = 0
+    [train.category_mapping]
+    all = {"road" = 0, "sidewalk" = 1, "building" = 2, "wall" = 3, "fence" = 4, "pole" = 5, "traffic light" = 6, "traffic sign" = 7, "vegetation" = 8, "terrain" = 9, "sky" = 10, "person" = 11, "rider" = 12, "car" = 13, "truck" = 14, "bus" = 15, "train" = 16, "motorcycle" = 17, "bicycle" = 18, "background" = 19}
+    extra = {}
+
     [train.sample_mapper]
     fields_to_load = ["semantic_masks"]
+    background_as_class = true
 
     [train.ref_sampler]
     scope = 1
@@ -25,6 +30,10 @@ config_path = "seg_track"
 num_processes = 0
 cache_as_binary = true
 compute_global_instance_ids = true
+    [train.category_mapping]
+    all = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7}
+    extra = {}
+
     [train.sample_mapper]
     fields_to_load = ["boxes2d", "instance_masks"]
 

@@ -1,7 +1,7 @@
 """DefaultTrainer for Vis4D."""
 import os.path as osp
 from itertools import product
-from typing import Optional
+from typing import Dict, List, Optional
 
 import pandas
 import pytorch_lightning as pl
@@ -14,6 +14,7 @@ from pytorch_lightning.utilities.distributed import (
 
 from ..config import Config, default_argument_parser, parse_config
 from ..data import build_data_module, build_dataset_loaders
+from ..data.datasets import BaseDatasetConfig
 from ..model import build_model
 from ..struct import DictStrAny
 from ..vis import ScalabelWriterCallback
@@ -27,7 +28,9 @@ from .utils import (
 
 
 def default_setup(
-    cfg: Config, trainer_args: Optional[DictStrAny] = None
+    cfg: Config,
+    trainer_args: Optional[DictStrAny] = None,
+    training: bool = True,
 ) -> pl.Trainer:
     """Perform some basic common setups at the beginning of a job.
 
@@ -126,7 +129,7 @@ def default_setup(
                     find_unused_parameters=cfg.launch.find_unused_parameters
                 )
                 trainer_args["plugins"] = [ddp_plugin]
-            if cfg.data.train_sampler is not None:
+            if cfg.data.train_sampler is not None and training:
                 # using custom sampler
                 trainer_args["replace_sampler_ddp"] = False
 
@@ -139,6 +142,35 @@ def default_setup(
     return trainer
 
 
+def setup_category_mapping(
+    data_cfgs: List[BaseDatasetConfig],
+    model_category_mapping: Optional[Dict[str, int]],
+) -> None:
+    """Setup category_mapping for each dataset."""
+    for data_cfg in data_cfgs:
+        if data_cfg.category_mapping is None:
+            if model_category_mapping is not None:
+                # default to using model category_mapping, if exists
+                data_cfg.category_mapping = {"all": model_category_mapping}
+            continue
+        if "all" in data_cfg.category_mapping:
+            if len(data_cfg.category_mapping) > 1:
+                rank_zero_warn(
+                    f'"all" category mapping is specified for {data_cfg.name}'
+                    " but other mappings exist. These will be ignored."
+                )
+            data_cfg.category_mapping = {
+                "all": data_cfg.category_mapping["all"]
+            }
+        else:
+            # validate category_mappings according to fields_to_load
+            fields = data_cfg.sample_mapper.fields_to_load
+            for field in fields:
+                assert (
+                    field in data_cfg.category_mapping
+                ), f"category_mapping not found for field={field}"
+
+
 def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Training function."""
     trainer = default_setup(cfg, trainer_args)
@@ -149,16 +181,20 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.legacy_ckpt,
     )
 
+    # setup category_mappings
+    setup_category_mapping(cfg.train + cfg.test, cfg.model.category_mapping)
+
+    # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         cfg.train, cfg.test
     )
+
     data_module = build_data_module(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.category_mapping,
         cfg.model.image_channel_mode,
         cfg.launch.seed,
         cfg.data,
@@ -175,7 +211,7 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 
 def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Test function."""
-    trainer = default_setup(cfg, trainer_args)
+    trainer = default_setup(cfg, trainer_args, training=False)
     model = build_model(
         cfg.model,
         cfg.launch.weights,
@@ -183,16 +219,20 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.legacy_ckpt,
     )
 
+    # setup category_mappings
+    setup_category_mapping(cfg.test, cfg.model.category_mapping)
+
+    # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         [], cfg.test
     )
+
     data_module = build_data_module(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.category_mapping,
         cfg.model.image_channel_mode,
         cfg.launch.seed,
         cfg.data,
@@ -216,7 +256,7 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 
 def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Prediction function."""
-    trainer = default_setup(cfg, trainer_args)
+    trainer = default_setup(cfg, trainer_args, training=False)
     model = build_model(
         cfg.model,
         cfg.launch.weights,
@@ -224,18 +264,33 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.legacy_ckpt,
     )
 
+    if cfg.launch.input_dir is None:
+        test_cfg, pred_cfg = cfg.test, []
+    else:
+        test_cfg = []
+        input_dir = cfg.launch.input_dir
+        if input_dir[-1] == "/":
+            input_dir = input_dir[:-1]
+        dataset_name = osp.basename(input_dir)
+        pred_cfg = [
+            BaseDatasetConfig(
+                type="Custom", name=dataset_name, data_root=input_dir
+            )
+        ]
+    # setup category_mappings
+    setup_category_mapping(test_cfg + pred_cfg, cfg.model.category_mapping)
+
+    # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
-        [],
-        cfg.test if cfg.launch.input_dir is None else [],
-        cfg.launch.input_dir,
+        [], test_cfg, pred_cfg
     )
+
     data_module = build_data_module(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.category_mapping,
         cfg.model.image_channel_mode,
         cfg.launch.seed,
         cfg.data,
@@ -263,7 +318,7 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 
 def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Tune function."""
-    trainer = default_setup(cfg, trainer_args)
+    trainer = default_setup(cfg, trainer_args, training=False)
     model = build_model(
         cfg.model,
         cfg.launch.weights,
@@ -271,16 +326,20 @@ def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.legacy_ckpt,
     )
 
+    # setup category_mappings
+    setup_category_mapping(cfg.test, cfg.model.category_mapping)
+
+    # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
         [], cfg.test
     )
+
     data_module = build_data_module(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.category_mapping,
         cfg.model.image_channel_mode,
         cfg.launch.seed,
         cfg.data,

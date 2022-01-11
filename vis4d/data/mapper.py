@@ -1,6 +1,6 @@
 """Class for processing Scalabel type datasets."""
 import copy
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -47,7 +47,9 @@ class SampleMapperConfig(BaseModel):
     skip_empty_samples: bool = False
     clip_bboxes_to_image: bool = True
     min_bboxes_area: float = 7.0 * 7.0
+    background_as_class: bool = False
     transformations: Optional[List[BaseAugmentationConfig]] = None
+    image_backend: str = "PIL"
 
 
 class BaseSampleMapper(metaclass=RegistryHolder):
@@ -56,6 +58,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
     def __init__(
         self,
         cfg: SampleMapperConfig,
+        cats_name2id: Dict[str, Dict[str, int]],
         training: bool,
         image_channel_mode: str = "RGB",
     ) -> None:
@@ -83,17 +86,18 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             "intrinsics",
             "extrinsics",
         ]
+        self.cats_name2id = {}
         for field in fields_to_load:
             assert (
                 field in allowed_files
             ), f"Unrecognized field={field}, allowed fields={allowed_files}"
-        assert (
-            not "instance_masks" in fields_to_load
-            or not "semantic_masks" in fields_to_load
-        ), (
-            "Both instance_masks and semantic_masks are specified, "
-            "but only one should be."
-        )
+            assert (
+                "all" in cats_name2id or field in cats_name2id
+            ), f"Field={field} not specified in category_mapping"
+            if "all" in cats_name2id:
+                self.cats_name2id[field] = cats_name2id["all"]
+            else:
+                self.cats_name2id[field] = cats_name2id[field]
 
     def load_input(
         self, sample: Frame, use_empty: Optional[bool] = False
@@ -102,7 +106,11 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         if not use_empty:
             assert sample.url is not None
             im_bytes = self.data_backend.get(sample.url)
-            image = im_decode(im_bytes, mode=self.image_channel_mode)
+            image = im_decode(
+                im_bytes,
+                mode=self.image_channel_mode,
+                backend=self.cfg.image_backend,
+            )
         else:
             image = np.empty((128, 128, 3), dtype=np.uint8)
 
@@ -135,17 +143,12 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         """Transform annotations."""
         labels_used = []
         if labels is not None:
-            category_dict = {}
             instance_id_dict = {}
             for label in labels:
                 assert label.attributes is not None
                 assert label.category is not None
                 if not check_crowd(label) and not check_ignored(label):
                     labels_used.append(label)
-                    if label.category not in category_dict:
-                        category_dict[label.category] = int(
-                            label.attributes["category_id"]
-                        )
                     if label.id not in instance_id_dict:
                         instance_id_dict[label.id] = int(
                             label.attributes["instance_id"]
@@ -155,7 +158,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 if "instance_masks" in self.cfg.fields_to_load:
                     instance_masks = InstanceMasks.from_scalabel(
                         labels_used,
-                        category_dict,
+                        self.cats_name2id["instance_masks"],
                         instance_id_dict,
                         sample.metadata[0].size,
                     )
@@ -164,15 +167,18 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 if "semantic_masks" in self.cfg.fields_to_load:
                     semantic_masks = SemanticMasks.from_scalabel(
                         labels_used,
-                        category_dict,
+                        self.cats_name2id["semantic_masks"],
                         instance_id_dict,
                         sample.metadata[0].size,
+                        self.cfg.background_as_class,
                     )
                     sample.targets.semantic_masks = [semantic_masks]
 
                 if "boxes2d" in self.cfg.fields_to_load:
                     boxes2d = Boxes2D.from_scalabel(
-                        labels_used, category_dict, instance_id_dict
+                        labels_used,
+                        self.cats_name2id["boxes2d"],
+                        instance_id_dict,
                     )
                     if len(sample.targets.instance_masks[0]) > 0 and (
                         len(boxes2d) == 0
@@ -186,7 +192,9 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
                 if "boxes3d" in self.cfg.fields_to_load:
                     boxes3d = Boxes3D.from_scalabel(
-                        labels_used, category_dict, instance_id_dict
+                        labels_used,
+                        self.cats_name2id["boxes3d"],
+                        instance_id_dict,
                     )
                     sample.targets.boxes3d = [boxes3d]
 
@@ -291,6 +299,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
 def build_mapper(
     cfg: SampleMapperConfig,
+    cats_name2id: Dict[str, Dict[str, int]],
     training: bool,
     image_channel_mode: str = "RGB",
 ) -> BaseSampleMapper:
@@ -298,7 +307,9 @@ def build_mapper(
     registry = RegistryHolder.get_registry(BaseSampleMapper)
     registry["BaseSampleMapper"] = BaseSampleMapper
     if cfg.type in registry:
-        module = registry[cfg.type](cfg, training, image_channel_mode)
+        module = registry[cfg.type](
+            cfg, cats_name2id, training, image_channel_mode
+        )
         assert isinstance(module, BaseSampleMapper)
     else:
         raise NotImplementedError(f"Mapper type {cfg.type} not found.")

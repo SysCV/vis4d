@@ -4,15 +4,12 @@ from typing import List, Optional
 
 import numpy as np
 import torch
-from mmcv.ops.modulated_deform_conv import ModulatedDeformConv2dPack
 from torch import nn
 
-from vis4d.common.layers.conv2d import Conv2d
+from vis4d.common.layers.conv2d import Conv2d, DeformConv
 from vis4d.struct import FeatureMaps, NDArrayI64
 
 from .base import BaseNeck, BaseNeckConfig
-
-BN_MOMENTUM = 0.1
 
 
 def fill_up_weights(up: nn.ConvTranspose2d) -> None:
@@ -27,32 +24,6 @@ def fill_up_weights(up: nn.ConvTranspose2d) -> None:
             )
     for c in range(1, w.size(0)):
         w[c, 0, :, :] = w[0, 0, :, :]
-
-
-class DeformConv(nn.Module):  # type: ignore
-    """Deformable Convolution."""
-
-    def __init__(self, chi: int, cho: int) -> None:
-        """Init."""
-        super().__init__()
-        self.actf = nn.Sequential(
-            nn.BatchNorm2d(cho, momentum=BN_MOMENTUM), nn.ReLU(inplace=True)
-        )
-        self.conv = ModulatedDeformConv2dPack(
-            chi,
-            cho,
-            kernel_size=(3, 3),
-            stride=1,
-            padding=1,
-            dilation=1,
-            deform_groups=1,
-        )
-
-    def forward(self, input_x: torch.Tensor) -> torch.Tensor:
-        """Forward."""
-        input_x = self.conv(input_x)
-        input_x = self.actf(input_x)
-        return input_x
 
 
 class IDAUp(nn.Module):  # type: ignore

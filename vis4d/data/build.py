@@ -1,11 +1,11 @@
 """Build Vis4D data loading pipeline."""
-import os
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
 from pydantic import BaseModel
 from torch.utils import data
+from torch.utils.data.distributed import DistributedSampler
 
 from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
@@ -27,7 +27,7 @@ from .utils import identity_batch_collator
 def build_dataset_loaders(
     train_cfg: List[BaseDatasetConfig],
     test_cfg: List[BaseDatasetConfig],
-    input_dir: Optional[str] = None,
+    pred_cfg: Optional[List[BaseDatasetConfig]] = None,
 ) -> Tuple[
     List[BaseDatasetLoader], List[BaseDatasetLoader], List[BaseDatasetLoader]
 ]:
@@ -35,19 +35,8 @@ def build_dataset_loaders(
     train_loaders = [build_dataset_loader(cfg) for cfg in train_cfg]
     test_loaders = [build_dataset_loader(cfg) for cfg in test_cfg]
     predict_loaders = []
-    if input_dir is not None:
-        if input_dir[-1] == "/":
-            input_dir = input_dir[:-1]
-        dataset_name = os.path.basename(input_dir)
-        predict_loaders += [
-            build_dataset_loader(
-                BaseDatasetConfig(
-                    type="Custom",
-                    name=dataset_name,
-                    data_root=input_dir,
-                )
-            )
-        ]
+    if pred_cfg is not None:
+        predict_loaders = [build_dataset_loader(cfg) for cfg in pred_cfg]
     return train_loaders, test_loaders, predict_loaders
 
 
@@ -56,7 +45,7 @@ class DataModuleConfig(BaseModel):
 
     type: str = "Vis4DDataModule"
     pin_memory: bool = False
-    train_sampler: Optional[BaseSamplerConfig] = None
+    train_sampler: Optional[BaseSamplerConfig]
 
 
 class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
@@ -69,7 +58,6 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         train_loaders: List[BaseDatasetLoader],
         test_loaders: List[BaseDatasetLoader],
         predict_loaders: List[BaseDatasetLoader],
-        category_mapping: Optional[Dict[str, int]] = None,
         image_channel_mode: str = "RGB",
         seed: Optional[int] = None,
         cfg: DataModuleConfig = DataModuleConfig(),
@@ -84,7 +72,6 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         ), "Please specify either train, test or predict datasets."
         self.samples_per_gpu = samples_per_gpu
         self.workers_per_gpu = workers_per_gpu
-        self.category_mapping = category_mapping
         self.image_channel_mode = image_channel_mode
         self.seed = seed
         self.pin_memory = cfg.pin_memory
@@ -94,42 +81,36 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         self.train_sampler = cfg.train_sampler
         if len(train_loaders) > 0:
             self.train_datasets = [
-                ScalabelDataset(
-                    dl, True, self.category_mapping, self.image_channel_mode
-                )
+                ScalabelDataset(dl, True, self.image_channel_mode)
                 for dl in train_loaders
             ]
 
         if len(test_loaders) > 0:
             self.test_datasets = [
-                ScalabelDataset(
-                    dl, False, self.category_mapping, self.image_channel_mode
-                )
+                ScalabelDataset(dl, False, self.image_channel_mode)
                 for dl in test_loaders
             ]
 
         if len(predict_loaders) > 0:
             self.predict_datasets = [
-                ScalabelDataset(
-                    dl, False, self.category_mapping, self.image_channel_mode
-                )
+                ScalabelDataset(dl, False, self.image_channel_mode)
                 for dl in predict_loaders
             ]
 
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""
         assert self.train_datasets is not None
+        train_dataset = data.ConcatDataset(self.train_datasets)
         if self.train_sampler is not None:
             train_sampler: Optional[
                 data.Sampler[List[int]]
             ] = build_data_sampler(
-                self.train_sampler, self.train_datasets, self.samples_per_gpu
+                self.train_sampler, train_dataset, self.samples_per_gpu
             )
             batch_size, shuffle = 1, False
         else:
             train_sampler = None
             batch_size, shuffle = self.samples_per_gpu, True
-        train_dataset = data.ConcatDataset(self.train_datasets)
         train_dataloader = data.DataLoader(
             train_dataset,
             batch_sampler=train_sampler,
@@ -182,6 +163,12 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
             sampler: Optional[data.Sampler] = None
             if get_world_size() > 1 and dataset.has_sequences:
                 sampler = TrackingInferenceSampler(dataset)  # pragma: no cover
+            elif get_world_size() > 1 and self.train_sampler is not None:
+                # manually create distributed sampler for inference if using
+                # custom training sampler
+                sampler = DistributedSampler(  # pragma: no cover
+                    dataset, shuffle=False
+                )
 
             test_dataloader = data.DataLoader(
                 dataset,
@@ -201,7 +188,6 @@ def build_data_module(
     train_loaders: List[BaseDatasetLoader],
     test_loaders: List[BaseDatasetLoader],
     predict_loaders: List[BaseDatasetLoader],
-    category_mapping: Optional[Dict[str, int]] = None,
     image_channel_mode: str = "RGB",
     seed: Optional[int] = None,
     cfg: DataModuleConfig = DataModuleConfig(),
@@ -216,7 +202,6 @@ def build_data_module(
             train_loaders,
             test_loaders,
             predict_loaders,
-            category_mapping,
             image_channel_mode,
             seed,
             cfg,

@@ -20,6 +20,7 @@ class BaseDetectorConfig(BaseModelConfig):
     """Base configuration for detectors."""
 
     clip_bboxes_to_image: bool = True
+    resolve_overlap: bool = True
 
 
 class BaseOneStageDetector(BaseModel):
