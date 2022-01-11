@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from vis4d.struct import Images, Intrinsics
+from vis4d.struct import Intrinsics
 from vis4d.vis.utils import preprocess_image
 
 from .projection import generate_depth_map, project_points, unproject_points
