@@ -9,7 +9,7 @@ data_type = "tracking"
 output_dir = "data/KITTI"
 num_processes = 0
     [train.sample_mapper]
-    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "lidar"]
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "pointcloud"]
     skip_empty_samples = true
 
     [train.ref_sampler]
@@ -37,7 +37,7 @@ data_type = "detection"
 output_dir = "data/KITTI"
 num_processes = 0
     [train.sample_mapper]
-    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "lidar"]
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "pointcloud"]
     skip_empty_samples = true
 
     [train.ref_sampler]

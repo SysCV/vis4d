@@ -84,7 +84,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             "semantic_masks",
             "intrinsics",
             "extrinsics",
-            "lidar",
+            "pointcloud",
         ]
         self.cats_name2id = {}
         for field in fields_to_load:
@@ -137,10 +137,10 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         if (
             group_url is not None
             and group_extrinsics is not None
-            and "lidar" in self.cfg.fields_to_load
+            and "pointcloud" in self.cfg.fields_to_load
         ):
-            input_data.points, input_data.points_extrinsics = self.load_point(
-                group_url, group_extrinsics
+            input_data.points = self.load_point(
+                group_url, group_extrinsics, input_data.extrinsics
             )
 
         return input_data
@@ -261,10 +261,11 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         self,
         group_url: str,
         group_extrinsics: ScalabelExtrinsics,
+        input_data_extrinsics: Extrinsics,
         num_point_feature: int = 4,
         radius: float = 1.0,
-    ) -> Tuple[PointCloud, Extrinsics]:
-        """Load lidar points and filter the near ones."""
+    ) -> PointCloud:
+        """Load pointcloud points and filter the near ones."""
         points = np.fromfile(group_url, dtype=np.float32)  # type: ignore # pylint: disable=line-too-long
         s = points.shape[0]
         if s % 5 != 0:
@@ -275,9 +276,22 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         y_filt = np.abs(points[1, :]) < radius
         not_close = np.logical_not(np.logical_and(x_filt, y_filt))
         points = points[:, not_close].T
+        point_cloud = PointCloud(torch.as_tensor(points))
 
         points_extrinsics = self.load_extrinsics(group_extrinsics)
-        return PointCloud(torch.as_tensor(points)), points_extrinsics
+
+        hom_points = torch.cat(
+            [
+                point_cloud.tensor[:, :, :3],
+                torch.ones_like(point_cloud.tensor[:, :, 0:1]),
+            ],
+            -1,
+        )
+        points_world = hom_points @ points_extrinsics.transpose().tensor
+        point_cloud.tensor[:, :, :3] = (
+            points_world @ input_data_extrinsics.inverse().transpose().tensor
+        )[:, :, :3]
+        return point_cloud
 
     def __call__(
         self,

@@ -8,7 +8,7 @@ add_non_key = false
 annotations = "data/nuscenes/scalabel_train.json"
 cache_as_binary = true
     [train.sample_mapper]
-    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "lidar"]
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "pointcloud"]
     skip_empty_samples = true
 
     [train.ref_sampler]

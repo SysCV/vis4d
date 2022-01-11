@@ -7,14 +7,13 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont
 
-from vis4d.common.geometry.projection import project_points
+from vis4d.common.geometry.projection import generate_depth_map, project_points
 from vis4d.struct import Extrinsics, Intrinsics, NDArrayF64, NDArrayUI8
 
 try:  # pragma: no cover
     import dash
-    import dash_core_components as dcc
-    import dash_html_components as html
     import plotly.graph_objects as go
+    from dash import dcc, html
 
     DASH_INSTALLED = True
 except (ImportError, NameError):
@@ -213,7 +212,7 @@ def get_intersection_point(
         k = 1
     else:
         k = k_up / k_down
-    return (1 - k) * point1 + k * point2  # type: ignore
+    return (1 - k) * point1 + k * point2
 
 
 def draw_lines_match(
@@ -232,7 +231,7 @@ def draw_lines_match(
     cols2 = img2.shape[1]
     interval = 5
 
-    out: NDArrayUI8 = 255 * np.ones(
+    out = 255 * np.ones(
         (max([rows1, rows2]), cols1 + cols2 + interval, 3), dtype="uint8"
     )
     out[:rows2, cols1 + interval : cols1 + cols2 + interval, :] = img2
@@ -269,26 +268,24 @@ def imshow_correspondence(
     ref_extrinsics: Extrinsics,
     ref_intrinsics: Intrinsics,
     key_points: torch.tensor,
-    key_points_extrinsics: Extrinsics,
 ) -> None:  # pragma: no cover
-    """Draw corresponded lidar points."""
+    """Draw corresponded pointcloud points."""
     key_im, ref_im = preprocess_image(key_image), preprocess_image(ref_image)
 
     hom_points = torch.cat(
         [key_points[:, :3], torch.ones_like(key_points[:, 0:1])], -1
     )
-    points_world = hom_points @ key_points_extrinsics.transpose().tensor[0]
 
-    points_key = (
-        points_world @ key_extrinsics.inverse().transpose().tensor[0]
-    )[:, :3]
+    points_key = key_points[:, :3]
     points_ref = (
-        points_world @ ref_extrinsics.inverse().transpose().tensor[0]
+        hom_points
+        @ key_extrinsics.transpose().tensor[0]
+        @ ref_extrinsics.inverse().transpose().tensor[0]
     )[:, :3]
     key_pix = project_points(points_key, key_intrinsics).cpu().numpy()
     ref_pix = project_points(points_ref, ref_intrinsics).cpu().numpy()
 
-    mask = np.ones(key_pix.shape[0], dtype=bool)
+    mask = np.ones(key_pix.shape[0], dtype=bool)  # type: ignore
     mask = np.logical_and(mask, points_key.cpu().numpy()[:, -1] > 0)
     mask = np.logical_and(mask, points_ref.cpu().numpy()[:, -1] > 0)
     mask = np.logical_and(mask, key_pix[:, 0] > 0)
@@ -310,43 +307,20 @@ def imshow_correspondence(
     imshow(corresp_im)
 
 
-def imshow_lidar(
+def imshow_pointcloud(
     points: torch.tensor,
-    points_extrinsics: Extrinsics,
     image: ImageType,
-    camera_extrinsics: Extrinsics,
     camera_intrinsics: Intrinsics,
     boxes3d: Box3DType,
     dot_size: int = 3,
     mode: str = "RGB",
 ) -> None:  # pragma: no cover
-    """Show image with lidar points."""
-    center = torch.cat([points[:, :3], torch.ones_like(points[:, 0:1])], -1)
-
-    points_world = center @ points_extrinsics.transpose().tensor[0][:, :3]
-
-    center = torch.cat([points_world, torch.ones_like(points[:, 0:1])], -1)
-
-    points_cam = (
-        center @ camera_extrinsics.inverse().transpose().tensor[0][:, :3]
-    )
-
-    pts2d = project_points(points_cam, camera_intrinsics).cpu().numpy()
-
+    """Show image with pointcloud points."""
     image_p = preprocess_image(image, mode)
-
-    depths = points_cam[:, 2].cpu().numpy()
-    coloring = depths
-
-    mask = np.ones(depths.shape[0], dtype=bool)
-    mask = np.logical_and(mask, depths > 1.0)
-    mask = np.logical_and(mask, pts2d[:, 0] > 1)
-    mask = np.logical_and(mask, pts2d[:, 0] < image_p.size[0] - 1)
-    mask = np.logical_and(mask, pts2d[:, 1] > 1)
-    mask = np.logical_and(mask, pts2d[:, 1] < image_p.size[1] - 1)
-
-    pts2d = pts2d[mask, :]
-    coloring = coloring[mask]
+    pts2d, coloring = generate_depth_map(
+        points[:, :3], camera_intrinsics, image_p
+    )
+    pts2d, coloring = pts2d.cpu().numpy(), coloring.cpu().numpy()
 
     plt.figure(figsize=(16, 9))
     plt.scatter(pts2d[:, 0], pts2d[:, 1], c=coloring, s=dot_size)
@@ -402,20 +376,12 @@ def plotly_draw_bbox3d(
 
 def show_pointcloud(
     points: torch.tensor,
-    points_extrinsics: Extrinsics,
-    camera_extrinsics: Extrinsics,
     boxes3d: Optional[Box3DType] = None,
     thickness: int = 2,
 ) -> None:  # pragma: no cover
-    """Show lidar points."""
+    """Show pointcloud points."""
     assert DASH_INSTALLED, "Visualize pointcloud in 3D needs Dash installed!."
-
-    points = torch.cat([points[:, :3], torch.ones_like(points[:, 0:1])], -1)
-    points_world = points @ points_extrinsics.transpose().tensor[0]
-    points = (
-        points_world @ camera_extrinsics.inverse().transpose().tensor[0]
-    )[:, :3]
-    points = points.cpu()
+    points = points[:, :3].cpu()
 
     scatter = go.Scatter3d(
         x=points[:, 0],

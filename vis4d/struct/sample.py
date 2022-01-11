@@ -140,7 +140,6 @@ class InputSample(DataInstance):
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
         points: Optional[PointCloud] = None,
-        points_extrinsics: Optional[Extrinsics] = None,
         targets: Optional[LabelInstances] = None,
         other: Optional[List[Dict[str, torch.Tensor]]] = None,
     ) -> None:
@@ -162,16 +161,8 @@ class InputSample(DataInstance):
         self.extrinsics = extrinsics
 
         if points is None:
-            points = PointCloud(
-                torch.cat([torch.empty(1, 1, 4) for _ in range(len(images))])
-            )
+            points = PointCloud(torch.cat([torch.empty(len(images), 1, 4)]))
         self.points = points
-
-        if points_extrinsics is None:
-            points_extrinsics = Extrinsics.cat(
-                [Extrinsics(torch.eye(4)) for _ in range(len(metadata))]
-            )
-        self.points_extrinsics = points_extrinsics
 
         if targets is None:
             targets = LabelInstances(default_len=len(metadata))
@@ -205,7 +196,6 @@ class InputSample(DataInstance):
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
             "points": self.points,
-            "points_extrinsics": self.points_extrinsics,
             "targets": self.targets,
             "other": self.other,
         }
@@ -221,7 +211,6 @@ class InputSample(DataInstance):
             self.intrinsics.to(device),
             self.extrinsics.to(device),
             self.points.to(device),
-            self.points_extrinsics.to(device),
             self.targets.to(device),
             [{k: v.to(device) for k, v in o.items()} for o in self.other],
         )
@@ -284,7 +273,6 @@ class InputSample(DataInstance):
             self.intrinsics[item],
             self.extrinsics[item],
             self.points[item],
-            self.points_extrinsics[item],
             self.targets[item],
             [self.other[item]],
         )

@@ -23,6 +23,7 @@ from vis4d.struct import (
     Images,
     InputSample,
     Intrinsics,
+    PointCloud,
     TMasks,
 )
 
@@ -178,6 +179,14 @@ class KorniaRandomHorizontalFlip(KorniaAugmentationWrapper):
                 box.boxes[:, 0] *= -1.0
                 box.boxes[:, 7] = normalize_angle(np.pi - box.boxes[:, 7])
         return boxes
+
+    def apply_points(
+        self, points: PointCloud, parameters: AugParams
+    ) -> PointCloud:
+        """Apply augmentation to input points."""
+        if parameters["apply"]:
+            points.tensor[:, :, 0] *= -1.0
+        return points
 
     def apply_intrinsics(
         self,

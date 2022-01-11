@@ -3,9 +3,10 @@ import unittest
 
 import torch
 
-from vis4d.struct import Intrinsics
+from vis4d.struct import Images, Intrinsics
+from vis4d.vis.utils import preprocess_image
 
-from .projection import project_points, unproject_points
+from .projection import generate_depth_map, project_points, unproject_points
 
 
 class TestProjection(unittest.TestCase):
@@ -25,6 +26,9 @@ class TestProjection(unittest.TestCase):
     points_2d = torch.tensor(
         [[1920 / 2, 1280 / 2], [1100, 780], [890, 570]], dtype=torch.float32
     )
+
+    image_tensor = (torch.rand(3, 1280, 1920) * 255).type(torch.float32)
+    image = preprocess_image(image_tensor)
 
     def test_project_points(self) -> None:
         """Test project_points function."""
@@ -49,3 +53,14 @@ class TestProjection(unittest.TestCase):
         )
         self.assertEqual(tuple(unproj_points.shape), (1, 3, 3))
         self.assertTrue(torch.isclose(unproj_points, self.points_3d).all())
+
+    def test_generate_depth_map(self) -> None:
+        """Test generate depth map function."""
+        pts2d, depths = generate_depth_map(
+            self.points_3d, self.intrinsics, self.image
+        )
+
+        self.assertTrue(
+            torch.isclose(depths, self.points_3d[:, -1].unsqueeze(0)).all()
+        )
+        self.assertTrue(torch.isclose(pts2d, self.points_2d).all())

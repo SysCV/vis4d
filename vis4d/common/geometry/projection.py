@@ -1,5 +1,8 @@
 """Projection utilities."""
+from typing import Tuple
+
 import torch
+from PIL import Image
 
 from vis4d.struct import Intrinsics
 
@@ -69,3 +72,21 @@ def unproject_points(
     pts_3d = hom_coords @ inv_intrinsics
     pts_3d *= depths
     return pts_3d
+
+
+def generate_depth_map(
+    points_cam: torch.Tensor,
+    camera_intrinsics: Intrinsics,
+    image_p: Image.Image,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Generate depth map."""
+    pts2d = project_points(points_cam, camera_intrinsics)
+    depths = points_cam[:, 2]
+
+    mask = torch.ones_like(depths, dtype=bool)
+    mask = torch.logical_and(mask, depths > 1.0)
+    mask = torch.logical_and(mask, pts2d[:, 0] > 1)
+    mask = torch.logical_and(mask, pts2d[:, 0] < image_p.size[0] - 1)
+    mask = torch.logical_and(mask, pts2d[:, 1] > 1)
+    mask = torch.logical_and(mask, pts2d[:, 1] < image_p.size[1] - 1)
+    return pts2d[mask, :], depths[mask]

@@ -6,7 +6,7 @@ annotations = "vis4d/engine/testcases/track/kitti-samples/tracking_training.json
 num_processes = 0
     [train.sample_mapper]
     image_channel_mode = "RGB"
-    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "lidar"]
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "pointcloud"]
         [train.ref_sampler]
         strategy = 'uniform'
         scope = 2
