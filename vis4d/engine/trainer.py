@@ -14,7 +14,7 @@ from pytorch_lightning.utilities.distributed import (
 
 from ..config import Config, default_argument_parser, parse_config
 from ..model import build_model
-from ..struct import DictStrAny
+from ..struct import DictStrAny, ModuleCfg
 from ..vis import ScalabelWriterCallback
 from .evaluator import StandardEvaluatorCallback
 from .utils import (
@@ -141,31 +141,32 @@ def default_setup(
 
 
 def setup_category_mapping(
-    data_cfgs: List[BaseDatasetConfig],
+    data_cfgs: List[ModuleCfg],
     model_category_mapping: Optional[Dict[str, int]],
 ) -> None:
     """Setup category_mapping for each dataset."""
     for data_cfg in data_cfgs:
-        if data_cfg.category_mapping is None:
+        if data_cfg["category_mapping"] is None:
             if model_category_mapping is not None:
                 # default to using model category_mapping, if exists
-                data_cfg.category_mapping = {"all": model_category_mapping}
+                data_cfg["category_mapping"] = {"all": model_category_mapping}
             continue
-        if "all" in data_cfg.category_mapping:
-            if len(data_cfg.category_mapping) > 1:
+        if "all" in data_cfg["category_mapping"]:
+            if len(data_cfg["category_mapping"]) > 1:
                 rank_zero_warn(
-                    f'"all" category mapping is specified for {data_cfg.name}'
-                    " but other mappings exist. These will be ignored."
+                    f'"all" category mapping is specified for'
+                    " {data_cfg['name']} but other mappings exist. These"
+                    " will be ignored."
                 )
-            data_cfg.category_mapping = {
-                "all": data_cfg.category_mapping["all"]
+            data_cfg["category_mapping"] = {
+                "all": data_cfg["category_mapping"]["all"]
             }
         else:
             # validate category_mappings according to fields_to_load
-            fields = data_cfg.sample_mapper.fields_to_load
+            fields = data_cfg["sample_mapper"]["fields_to_load"]
             for field in fields:
                 assert (
-                    field in data_cfg.category_mapping
+                    field in data_cfg["category_mapping"]
                 ), f"category_mapping not found for field={field}"
 
 
@@ -180,7 +181,7 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     )
 
     # setup category_mappings
-    setup_category_mapping(cfg.train + cfg.test, cfg.model.category_mapping)
+    setup_category_mapping(cfg.train + cfg.test, cfg.model["category_mapping"])
 
     # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
@@ -193,7 +194,7 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.image_channel_mode,
+        cfg.model["image_channel_mode"],
         cfg.launch.seed,
         cfg.data,
     )
@@ -218,7 +219,7 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     )
 
     # setup category_mappings
-    setup_category_mapping(cfg.test, cfg.model.category_mapping)
+    setup_category_mapping(cfg.test, cfg.model["category_mapping"])
 
     # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
@@ -231,7 +232,7 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.image_channel_mode,
+        cfg.model["image_channel_mode"],
         cfg.launch.seed,
         cfg.data,
     )
@@ -276,7 +277,7 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
             )
         ]
     # setup category_mappings
-    setup_category_mapping(test_cfg + pred_cfg, cfg.model.category_mapping)
+    setup_category_mapping(test_cfg + pred_cfg, cfg.model["category_mapping"])
 
     # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
@@ -289,7 +290,7 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.image_channel_mode,
+        cfg.model["image_channel_mode"],
         cfg.launch.seed,
         cfg.data,
     )
@@ -325,7 +326,7 @@ def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     )
 
     # setup category_mappings
-    setup_category_mapping(cfg.test, cfg.model.category_mapping)
+    setup_category_mapping(cfg.test, cfg.model["category_mapping"])
 
     # build dataloaders
     train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
@@ -338,7 +339,7 @@ def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         train_loaders,
         test_loaders,
         predict_loaders,
-        cfg.model.image_channel_mode,
+        cfg.model["image_channel_mode"],
         cfg.launch.seed,
         cfg.data,
     )

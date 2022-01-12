@@ -1,52 +1,64 @@
 """Panoptic segmentation model."""
-from typing import Dict, List
+from typing import Dict, List, Optional, Sequence, Union
 
+from vis4d.common.module import build_module
 from vis4d.struct import (
+    ArgsType,
     InputSample,
     LabelInstances,
     LossesType,
     ModelOutput,
+    ModuleCfg,
+    SemanticMasks,
     TLabelInstance,
 )
 
 from .base import BaseModel, build_model
 from .detect import BaseTwoStageDetector
-from .heads.dense_head import MMSegDecodeHead
-from .heads.panoptic_head import (
-    BasePanopticHead,
-    BasePanopticHeadConfig,
-    build_panoptic_head,
-)
+from .heads.dense_head import BaseDenseHead
+from .heads.panoptic_head import BasePanopticHead
 from .utils import postprocess_predictions, predictions_to_scalabel
-
-
-class PanopticSegmentorConfig(BaseModelConfig):
-    """Config for panoptic segmentation model."""
-
-    detection: BaseDetectorConfig
-    seg_head: BaseDenseHeadConfig
-    pan_head: BasePanopticHeadConfig
 
 
 class PanopticSegmentor(BaseModel):
     """Panoptic segmentation model."""
 
-    def __init__(self, cfg: BaseModelConfig):
+    def __init__(
+        self,
+        detection: Union[BaseTwoStageDetector, ModuleCfg],
+        seg_head: Union[
+            BaseDenseHead[
+                Optional[Sequence[SemanticMasks]], List[SemanticMasks]
+            ],
+            ModuleCfg,
+        ],
+        pan_head: Union[BasePanopticHead, ModuleCfg],
+        *args: ArgsType,
+        **kwargs: ArgsType
+    ):
         """Init."""
-        super().__init__(cfg)
-        self.cfg: PanopticSegmentorConfig = PanopticSegmentorConfig(
-            **cfg.dict()
-        )
-        assert self.cfg.category_mapping is not None
+        super().__init__(*args, **kwargs)
+        assert self.category_mapping is not None
         self.cfg.detection.category_mapping = self.cfg.category_mapping
-        self.detector: BaseTwoStageDetector = build_model(self.cfg.detection)
-        self.seg_head: MMSegDecodeHead = build_dense_head(self.cfg.seg_head)
-        self.pan_head: BasePanopticHead = build_panoptic_head(
-            self.cfg.pan_head
-        )
-        self.det_mapping = {
-            v: k for k, v in self.cfg.detection.category_mapping.items()
-        }
+        if isinstance(detection, dict):
+            detection["category_mapping"] = self.category_mapping
+            self.detector: BaseTwoStageDetector = build_model(detection)
+        else:
+            self.detector = detection
+        assert isinstance(self.detector, BaseTwoStageDetector)
+        if isinstance(seg_head, dict):
+            self.seg_head: BaseDenseHead[
+                Optional[Sequence[SemanticMasks]], List[SemanticMasks]
+            ] = build_module(seg_head, bound=BaseDenseHead)
+        else:
+            self.seg_head = seg_head
+        if isinstance(pan_head, dict):
+            self.pan_head: BasePanopticHead = build_module(
+                pan_head, bound=BasePanopticHead
+            )
+        else:
+            self.pan_head = pan_head
+        self.det_mapping = {v: k for k, v in self.category_mapping.items()}
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""

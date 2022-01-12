@@ -15,7 +15,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils import get_world_size
-from vis4d.struct import ArgsType
+from vis4d.struct import ArgsType, ModuleCfg
 
 from .dataset import ScalabelDataset
 
@@ -62,16 +62,15 @@ class BaseDistributedSampler(
     def __init__(
         self,
         dataset: ConcatDataset,
-        cfg: BaseSamplerConfig,
         batch_size: int,
+        shuffle: bool = True,
+        drop_last: bool = False,
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
         seed: int = 0,
     ) -> None:
         """Initialize sampler."""
-        super().__init__(
-            dataset, num_replicas, rank, cfg.shuffle, seed, cfg.drop_last
-        )
+        super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
         self.batch_size = batch_size
         self.samplers = [
             DistributedSampler(
@@ -98,20 +97,6 @@ class BaseDistributedSampler(
 class RoundRobin:
     """Round-robin batch-level sampling functionality."""
 
-    def __init__(
-        self,
-        repeat_sampling: bool = False,
-        spread_samples: bool = True,
-    ):
-        """Init of RoundRobin Sampler.
-
-        Args:
-            repeat_sampling = False,  repeat sample from exhausted dataloaders
-            spread_samples = True, spread samples from shorter dataloaders
-        """
-        self.repeat_sampling = repeat_sampling
-        self.spread_samples = spread_samples
-
     @staticmethod
     def setup(
         samplers: List[Sampler[List[int]]], batch_size: int, drop_last: bool
@@ -128,12 +113,10 @@ class RoundRobin:
     def generate_indices(
         samplers: List[Sampler[List[int]]],
         cum_sizes: List[int],
+        repeat_sampling: bool,
+        spread_samples: bool,
     ) -> Iterator[List[int]]:
         """Generate dataset indices for each step."""
-        repeat_sampling, spread_samples = (
-            self.repeat_sampling,
-            self.spread_samples,
-        )
         samp_iters = [iter(sampler) for sampler in samplers]
         max_len = max(len(sampler) for sampler in samplers)
         if not repeat_sampling and spread_samples:
@@ -163,7 +146,7 @@ class RoundRobin:
 
     @staticmethod
     def get_length(
-        samplers: List[Sampler[List[int]]], repeat_sampling: bool = True
+        samplers: List[Sampler[List[int]]], repeat_sampling: bool
     ) -> int:
         """Get length of sampler."""
         sampler_lens = [len(sampler) for sampler in samplers]
@@ -175,17 +158,28 @@ class RoundRobin:
 class RoundRobinSampler(BaseSampler):
     """Round-robin batch-level sampling (single-GPU)."""
 
-    def __init__(self, *args: ArgsType, **kwargs: ArgsType) -> None:
+    def __init__(
+        self,
+        *args: ArgsType,
+        repeat_sampling: bool = False,
+        spread_samples: bool = True,
+        **kwargs: ArgsType,
+    ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
+        self.repeat_sampling = repeat_sampling
+        self.spread_samples = spread_samples
         self.samplers = RoundRobin.setup(
-            self.samplers, batch_size, self.drop_last
+            self.samplers, self.batch_size, self.drop_last
         )
 
     def __iter__(self) -> Iterator[List[int]]:
         """Iteration method."""
         yield from RoundRobin.generate_indices(
-            self.samplers, self.dataset.cumulative_sizes
+            self.samplers,
+            self.dataset.cumulative_sizes,
+            self.repeat_sampling,
+            self.spread_samples,
         )
 
     def __len__(self) -> int:
@@ -199,55 +193,64 @@ class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
     def __init__(
         self,
         *args: ArgsType,
-        num_replicas: Optional[int] = None,
-        rank: Optional[int] = None,
-        seed: int = 0,
+        repeat_sampling: bool = False,
+        spread_samples: bool = True,
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
+        self.repeat_sampling = repeat_sampling
+        self.spread_samples = spread_samples
         self.samplers = RoundRobin.setup(
-            self.samplers, batch_size, self.drop_last
+            self.samplers, self.batch_size, self.drop_last
         )
 
     def __iter__(self) -> Iterator[List[int]]:
         """Iteration method."""
         yield from RoundRobin.generate_indices(
-            self.samplers, self.dataset.cumulative_sizes, self.cfg
+            self.samplers,
+            self.dataset.cumulative_sizes,
+            self.repeat_sampling,
+            self.spread_samples,
         )
 
     def __len__(self) -> int:
         """Return length of sampler instance."""
-        return RoundRobin.get_length(self.samplers, self.cfg.repeat_sampling)
+        return RoundRobin.get_length(self.samplers, self.repeat_sampling)
 
 
 def build_data_sampler(
-    cfg: BaseSamplerConfig,
+    cfg: ModuleCfg,
     dataset: ConcatDataset,
     batch_size: int,
     generator: Optional[torch.Generator] = None,
 ) -> Sampler[List[int]]:
     """Build a sampler."""
+    sampler_type = cfg.pop("type", None)
+    if sampler_type is None:
+        raise ValueError(f"Need type argument in sampler config: {cfg}")
     if get_world_size() > 1:  # pragma: no cover
         # create distributed sampler if it exists
         registry = RegistryHolder.get_registry(BaseDistributedSampler)
         registry["BaseDistributedSampler"] = BaseDistributedSampler
-        dist_type = cfg.type.replace("Sampler", "DistributedSampler")
+        dist_type = sampler_type.replace("Sampler", "DistributedSampler")
         if dist_type in registry:
-            module = registry[dist_type](dataset, cfg, batch_size)
+            module = registry[dist_type](dataset, batch_size, **cfg)
             assert isinstance(module, BaseDistributedSampler)
             return module
         rank_zero_warn(
-            f"Distributed version of sampler {cfg.type} does not exist, "
+            f"Distributed version of sampler {dist_type} does not exist, "
             "adding a distributed sampler by default."
         )
     registry = RegistryHolder.get_registry(BaseSampler)
     registry["BaseSampler"] = BaseSampler
-    if cfg.type in registry:
-        module = registry[cfg.type](dataset, cfg, batch_size, generator)
+    if sampler_type in registry:
+        module = registry[sampler_type](
+            dataset, batch_size, **cfg, generator=generator
+        )
         assert isinstance(module, BaseSampler)
         return module
-    raise NotImplementedError(f"Sampler {cfg.type} not known!")
+    raise NotImplementedError(f"Sampler {sampler_type} not known!")
 
 
 # no coverage for this class, since we don't unittest distributed setting

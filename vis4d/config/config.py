@@ -38,8 +38,6 @@ class Launch(BaseModel):
     checkpoint_period: After N epochs, save out checkpoints. Default: 1
     resume: Whether to resume from weights (if specified), or last ckpt in
     work_dir/exp_name/version.
-    pin_memory: Enable/Disable pin_memory option for dataloader workers in
-    training.
     wandb: Use weights and biases logging instead of tensorboard (default).
     not_strict: Whether to enforce keys in weights to be consistent with
     model's.
@@ -103,7 +101,7 @@ class Config(BaseModel, extra="allow"):
     model: ModuleCfg
     train: List[ModuleCfg] = []
     test: List[ModuleCfg] = []
-    data: Optional[DataModuleConfig]
+    data: Optional[ModuleCfg]
 
     def __init__(self, **data: Any) -> None:  # type: ignore
         """Init config."""

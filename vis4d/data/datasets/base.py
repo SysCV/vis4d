@@ -4,7 +4,6 @@ import os
 import pickle
 from typing import Dict, List, Optional, Tuple, Union
 
-from pydantic import BaseModel
 from pytorch_lightning.utilities.distributed import rank_zero_info
 from scalabel.eval.detect import evaluate_det
 from scalabel.eval.ins_seg import evaluate_ins_seg
@@ -18,6 +17,7 @@ from scalabel.label.typing import Config, Dataset, Frame
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.time import Timer
+from vis4d.data import BaseReferenceSampler, BaseSampleMapper
 from vis4d.struct import MetricLogs
 
 
