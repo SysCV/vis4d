@@ -71,6 +71,12 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
+    def empty(cls, device: Optional[torch.device] = None) -> "LabelInstance":
+        """Return empty labels on device."""
+        raise NotImplementedError
+
+    @classmethod
+    @abc.abstractmethod
     def from_scalabel(
         cls,
         labels: List[Label],
@@ -93,6 +99,7 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
         original_wh: Tuple[int, int],
         output_wh: Tuple[int, int],
         clip: bool = True,
+        resolve_overlap: bool = True,
     ) -> None:
         """Postprocess label according to original image resolution.
 

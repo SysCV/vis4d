@@ -1,8 +1,6 @@
 """Test cases for max iou matcher."""
 import unittest
 
-import torch
-
 from vis4d.struct import Boxes2D
 from vis4d.unittest.utils import generate_dets
 
@@ -32,8 +30,8 @@ class TestRandom(unittest.TestCase):
             == list(range(num_boxes))
         )
 
-        match_result = matcher.match(boxes, [Boxes2D(torch.empty(0, 5))])[0]
+        match_result = matcher.match(boxes, [Boxes2D.empty()])[0]
         self.assertTrue((match_result.assigned_labels == 0.0).all())
 
-        match_result = matcher.match([Boxes2D(torch.empty(0, 5))], boxes)[0]
+        match_result = matcher.match([Boxes2D.empty()], boxes)[0]
         self.assertEqual(len(match_result.assigned_gt_indices), 0)

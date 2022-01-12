@@ -22,7 +22,7 @@ from ..heads.dense_head import (
 )
 from ..mmdet_utils import _parse_losses, add_keyword_args
 from ..mmseg_utils import load_config
-from ..utils import predictions_to_scalabel
+from ..utils import postprocess_predictions, predictions_to_scalabel
 from .base import BaseSegmentor
 
 try:
@@ -178,9 +178,9 @@ class MMEncDecSegmentor(BaseSegmentor):
         segmentations = self.generate_segmentations(inputs, features)
         assert segmentations is not None
 
-        return predictions_to_scalabel(
-            inputs, dict(sem_seg=segmentations), self.cat_mapping
-        )
+        outputs = dict(sem_seg=segmentations)
+        postprocess_predictions(inputs, outputs)
+        return predictions_to_scalabel(outputs, self.cat_mapping)
 
     def extract_features(self, inputs: InputSample) -> FeatureMaps:
         """Segmentor feature extraction stage.

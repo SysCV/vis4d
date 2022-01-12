@@ -17,7 +17,7 @@ from .base import BaseModel, BaseModelConfig, build_model
 from .detect import BaseDetectorConfig, BaseTwoStageDetector
 from .track.graph import TrackGraphConfig, build_track_graph
 from .track.similarity import SimilarityLearningConfig, build_similarity_head
-from .utils import predictions_to_scalabel
+from .utils import postprocess_predictions, predictions_to_scalabel
 
 
 class DeepSORTConfig(BaseModelConfig):
@@ -127,20 +127,18 @@ class DeepSORT(BaseModel):
             )
 
         outs: Dict[str, List[TLabelInstance]] = {"detect": [d.clone() for d in detections]}  # type: ignore # pylint: disable=line-too-long
-        outputs = predictions_to_scalabel(
-            inputs,
-            outs,
-            self.cat_mapping,
+
+        postprocess_predictions(
+            inputs, outs,
             self.cfg.detection.clip_bboxes_to_image
-            if self.cfg.detection is not None
-            else True,
+            if self.cfg.detection is not None else True,
         )
+        outputs = predictions_to_scalabel(outs, self.cat_mapping)
 
         predictions = LabelInstances(
             detections,
         )
         if len(detections[0].boxes) == 0:
-            import pdb; pdb.set_trace()
             return outputs, predictions, None  # type: ignore
 
         if self.with_reid:
@@ -159,20 +157,19 @@ class DeepSORT(BaseModel):
         """Associate detections, update track graph."""
         if len(predictions.boxes2d[0].boxes) == 0:
             tracks = copy.deepcopy(predictions)
-            tracks.boxes2d = Boxes2D(
+            tracks.boxes2d[0] = Boxes2D(
                 torch.empty(0, 5), torch.empty(0), torch.empty(0)
             ).to(self.device)
         else:
             tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
         outs: Dict[str, List[TLabelInstance]] = {"track": tracks.boxes2d}  # type: ignore # pylint: disable=line-too-long
-        return predictions_to_scalabel(
-            inputs,
-            outs,
-            self.cat_mapping,
+
+        postprocess_predictions(
+            inputs, outs,
             self.cfg.detection.clip_bboxes_to_image
-            if self.cfg.detection is not None
-            else True,
+            if self.cfg.detection is not None else True,
         )
+        return predictions_to_scalabel(outs, self.cat_mapping)
 
     def forward_train(
         self,
