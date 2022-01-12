@@ -5,6 +5,7 @@ import torch
 
 from vis4d.common.module import build_module
 from vis4d.struct import (
+    ArgsType,
     Boxes2D,
     Boxes3D,
     InputSample,
@@ -17,8 +18,6 @@ from vis4d.struct import (
 from .detect import BaseTwoStageDetector
 from .heads.roi_head import QD3DTBBox3DHead
 from .qdtrack import QDTrack
-from .track.graph import BaseTrackGraph
-from .track.similarity import BaseSimilarityHead
 from .track.utils import split_key_ref_inputs
 
 
@@ -27,24 +26,20 @@ class QD3DT(QDTrack):
 
     def __init__(
         self,
-        detection: Union[BaseTwoStageDetector, ModuleCfg],
-        similarity: Union[BaseSimilarityHead, ModuleCfg],
-        track_graph: Union[BaseTrackGraph, ModuleCfg],
         bbox_3d_head: Union[QD3DTBBox3DHead, ModuleCfg],
-        *args,
-        **kwargs
+        *args: ArgsType,
+        **kwargs: ArgsType
     ) -> None:
         """Init."""
-        super().__init__(detection, similarity, track_graph, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         assert self.category_mapping is not None
         if isinstance(bbox_3d_head, dict):
             bbox_3d_head["num_classes"] = len(self.category_mapping)
-            self.bbox_3d_head: QD3DTBBox3DHead = build_module(
+            self.bbox_3d_head: QD3DTBBox3DHead = build_module(  # TODO this should be any box3d head with same args / returns as the qd one
                 bbox_3d_head, bound=QD3DTBBox3DHead
             )
         else:
             self.bbox_3d_head = bbox_3d_head
-        self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
 
     def forward_train(
         self,
@@ -85,6 +80,7 @@ class QD3DT(QDTrack):
             frames = batch_inputs[0]
 
         # detector
+        assert isinstance(self.detector, BaseTwoStageDetector)
         feat = self.detector.extract_features(frames)
         proposals = self.detector.generate_proposals(frames, feat)
 

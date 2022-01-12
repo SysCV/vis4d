@@ -1,5 +1,5 @@
 """Vis4D optimizers."""
-from typing import Iterator
+from typing import Iterator, Tuple
 
 from pydantic import BaseModel
 from torch import optim

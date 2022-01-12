@@ -2,7 +2,13 @@
 from typing import List, Union
 
 from vis4d.common.module import build_module
-from vis4d.struct import InputSample, LossesType, ModelOutput, ModuleCfg
+from vis4d.struct import (
+    ArgsType,
+    InputSample,
+    LossesType,
+    ModelOutput,
+    ModuleCfg,
+)
 
 from .heads.dense_head import MMSegDecodeHead
 from .qdtrack import QDTrack
@@ -14,7 +20,10 @@ class QDTrackSeg(QDTrack):
     """QDTrack model with segmentation head."""
 
     def __init__(
-        self, seg_head: Union[MMSegDecodeHead, ModuleCfg], *args, **kwargs
+        self,
+        seg_head: Union[MMSegDecodeHead, ModuleCfg],
+        *args: ArgsType,
+        **kwargs: ArgsType
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)

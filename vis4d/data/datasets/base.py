@@ -20,33 +20,6 @@ from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.time import Timer
 from vis4d.struct import MetricLogs
 
-from ..mapper import SampleMapperConfig
-from ..reference import ReferenceSamplerConfig
-
-
-class BaseDatasetConfig(BaseModel, extra="allow"):
-    """Config for training/evaluation datasets."""
-
-    name: str
-    type: str
-    data_root: str
-    sample_mapper: SampleMapperConfig = SampleMapperConfig()
-    ref_sampler: ReferenceSamplerConfig = ReferenceSamplerConfig()
-    annotations: Optional[str]
-    category_mapping: Optional[Dict[str, Dict[str, int]]]
-    attributes: Optional[
-        Dict[str, Union[bool, float, str, List[float], List[str]]]
-    ]
-    config_path: Optional[str]
-    eval_metrics: List[str] = []
-    validate_frames: bool = False
-    ignore_unknown_cats: bool = False
-    cache_as_binary: bool = False
-    num_processes: int = 4
-    collect_device = "cpu"
-    multi_sensor_inference: bool = True
-    compute_global_instance_ids: bool = False
-
 
 def _detect(
     pred: List[Frame],
@@ -131,29 +104,53 @@ _eval_mapping = dict(
 class BaseDatasetLoader(metaclass=RegistryHolder):
     """Interface for loading dataset to scalabel format."""
 
-    def __init__(self, cfg: BaseDatasetConfig):
+    def __init__(
+        self,
+        name: str,
+        data_root: str,
+        sample_mapper: SampleMapper = SampleMapper(),
+        ref_sampler: ReferenceSampler = ReferenceSampler(),
+        annotations: Optional[str] = None,
+        category_mapping: Optional[Dict[str, Dict[str, int]]] = None,
+        attributes: Optional[
+            Dict[str, Union[bool, float, str, List[float], List[str]]]
+        ] = None,
+        config_path: Optional[str] = None,
+        eval_metrics: List[str] = [],
+        validate_frames: bool = False,
+        ignore_unknown_cats: bool = False,
+        cache_as_binary: bool = False,
+        num_processes: int = 4,
+        collect_device: str = "cpu",
+        multi_sensor_inference: bool = True,
+        compute_global_instance_ids: bool = False,
+    ):
         """Init dataset loader."""
-        super().__init__()
-        self.cfg = cfg
+        self.name = name
+        self.data_root = data_root
+        self.annotations = annotations
+        self.eval_metrics = eval_metrics
+        self.ignore_unknown_cats = ignore_unknown_cats
+        self.collect_device = collect_device
         self._check_metrics()
 
         timer = Timer()
-        if self.cfg.cache_as_binary:
+        if cache_as_binary:
             dataset = self.load_cached_dataset()
         else:
             dataset = self.load_dataset()
 
         assert dataset.config is not None
-        add_data_path(cfg.data_root, dataset.frames)
-        rank_zero_info(f"Loading {cfg.name} takes {timer.time():.2f} seconds.")
+        add_data_path(data_root, dataset.frames)
+        rank_zero_info(f"Loading {name} takes {timer.time():.2f} seconds.")
         self.metadata_cfg = dataset.config
         self.frames = dataset.frames
         self.groups = dataset.groups
 
     def load_cached_dataset(self) -> Dataset:
         """Load cached dataset from file."""
-        assert self.cfg.annotations is not None
-        cache_path = self.cfg.annotations.rstrip("/") + ".pkl"
+        assert self.annotations is not None
+        cache_path = self.annotations.rstrip("/") + ".pkl"
         if not os.path.exists(cache_path):
             dataset = self.load_dataset()
             with open(cache_path, "wb") as file:
@@ -170,11 +167,9 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
     def _check_metrics(self) -> None:
         """Check if evaluation metrics specified are valid."""
-        for metric in self.cfg.eval_metrics:
+        for metric in self.eval_metrics:
             if metric not in _eval_mapping:  # pragma: no cover
-                raise KeyError(
-                    f"metric {metric} is not supported in {self.cfg.name}"
-                )
+                raise KeyError(f"metric {metric} is not supported in {name}")
 
     def evaluate(
         self, metric: str, predictions: List[Frame], gts: List[Frame]
@@ -184,20 +179,10 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         Returns a dictionary of scores to log and a pretty printed string.
         """
         result = _eval_mapping[metric](
-            predictions, gts, self.metadata_cfg, self.cfg.ignore_unknown_cats
+            predictions, gts, self.metadata_cfg, self.ignore_unknown_cats
         )
         log_dict = {f"{metric}/{k}": v for k, v in result.summary().items()}
         return log_dict, str(result)
-
-
-def build_dataset_loader(cfg: BaseDatasetConfig) -> BaseDatasetLoader:
-    """Build a dataset loader."""
-    registry = RegistryHolder.get_registry(BaseDatasetLoader)
-    if cfg.type in registry:
-        dataset_loader = registry[cfg.type](cfg)
-        assert isinstance(dataset_loader, BaseDatasetLoader)
-        return dataset_loader
-    raise NotImplementedError(f"Dataset type {cfg.type} not found.")
 
 
 def add_data_path(data_root: str, frames: List[Frame]) -> None:

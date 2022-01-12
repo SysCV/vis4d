@@ -9,8 +9,6 @@ import yaml
 from pydantic import BaseModel, validator
 
 from vis4d.common.utils.distributed import get_rank
-from vis4d.data.build import DataModuleConfig
-from vis4d.data.datasets import BaseDatasetConfig
 from vis4d.struct import DictStrAny, ModuleCfg
 
 
@@ -103,9 +101,9 @@ class Config(BaseModel, extra="allow"):
 
     launch: Launch = Launch()
     model: ModuleCfg
-    train: List[BaseDatasetConfig] = []
-    test: List[BaseDatasetConfig] = []
-    data: DataModuleConfig = DataModuleConfig()
+    train: List[ModuleCfg] = []
+    test: List[ModuleCfg] = []
+    data: Optional[DataModuleConfig]
 
     def __init__(self, **data: Any) -> None:  # type: ignore
         """Init config."""

@@ -1,6 +1,6 @@
 """Utilities for mmdet wrapper."""
 import os
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import requests
@@ -54,11 +54,16 @@ def get_img_metas(images: Images) -> List[MMDetMetaData]:
     return img_metas
 
 
-def proposals_from_mmdet(proposals: List[torch.Tensor]) -> List[Boxes2D]:
+def proposals_from_mmdet(
+    proposals: List[Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]]
+) -> List[Boxes2D]:
     """Convert mmdetection proposals to Vis4D format."""
     proposals_boxes2d = []
     for proposal in proposals:
-        proposals_boxes2d.append(Boxes2D(proposal))
+        if isinstance(proposal, tuple):
+            proposals_boxes2d.append(Boxes2D(*proposal))
+        else:
+            proposals_boxes2d.append(Boxes2D(proposal))
     return proposals_boxes2d
 
 
@@ -125,16 +130,15 @@ def masks_to_mmdet_masks(masks: Sequence[InstanceMasks]) -> BitmapMasks:
 def targets_to_mmdet(
     targets: LabelInstances,
 ) -> Tuple[
-    List[torch.Tensor], List[torch.Tensor], Optional[Sequence[InstanceMasks]]
+    List[torch.Tensor], List[torch.Tensor], Optional[Sequence[BitmapMasks]]
 ]:
     """Convert Vis4D targets to mmdetection compatible format."""
     gt_bboxes = [t.boxes for t in targets.boxes2d]
     gt_labels = [t.class_ids for t in targets.boxes2d]
-    gt_masks = (
-        masks_to_mmdet_masks(targets.instance_masks)
-        if len(targets.instance_masks) > 0
-        else None
-    )
+    if all(len(t) == 0 for t in targets.instance_masks):
+        gt_masks = None
+    else:
+        gt_masks = masks_to_mmdet_masks(targets.instance_masks)
     return gt_bboxes, gt_labels, gt_masks
 
 
@@ -186,15 +190,26 @@ def _parse_losses(
     return log_vars
 
 
+def set_attr(  # type: ignore
+    attr: Any, partial_keys: List[str], last_key: str, value: Any
+) -> None:
+    """Set specific attribute in config."""
+    for i, part_k in enumerate(partial_keys):
+        if isinstance(attr, list):  # pragma: no cover
+            for attr_item in attr:
+                set_attr(attr_item, partial_keys[i:], last_key, value)
+            return
+        attr = attr.get(part_k)
+
+    if attr.get(last_key) is not None:
+        attr[last_key] = type(attr.get(last_key))(value)
+    else:
+        attr[last_key] = value
+
+
 def add_keyword_args(model_kwargs: DictStrAny, cfg: MMConfig) -> None:
     """Add keyword args in config."""
     for k, v in model_kwargs.items():
-        attr = cfg
         partial_keys = k.split(".")
         partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
-        for part_k in partial_keys:
-            attr = attr.get(part_k)
-        if attr.get(last_key) is not None:
-            attr[last_key] = type(attr.get(last_key))(v)
-        else:
-            attr[last_key] = v
+        set_attr(cfg, partial_keys, last_key, v)

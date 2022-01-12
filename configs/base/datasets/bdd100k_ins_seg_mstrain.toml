@@ -12,11 +12,6 @@ cache_as_binary = true
     [train.sample_mapper.data_backend]
     type = "HDF5Backend"
 
-    [train.ref_sampler]
-    strategy = 'uniform'
-    scope = 1
-    num_ref_imgs = 0
-
     [[train.sample_mapper.transformations]]
     type = "Resize"
     shape = [[600, 1280], [624, 1280], [648, 1280], [672, 1280], [696, 1280], [720, 1280]]

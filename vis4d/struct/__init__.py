@@ -10,6 +10,7 @@ from .labels import (
 )
 from .sample import InputSample, LabelInstances
 from .structures import (
+    ArgsType,
     DataInstance,
     DictStrAny,
     FeatureMaps,
@@ -50,4 +51,5 @@ __all__ = [
     "TLabelInstance",
     "MetricLogs",
     "FeatureMaps",
+    "ArgsType",
 ]

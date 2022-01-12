@@ -1,11 +1,12 @@
 """Quasi-dense instance similarity learning model."""
 import pickle
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 
 from vis4d.common.module import build_module
 from vis4d.struct import (
+    ArgsType,
     Boxes2D,
     FeatureMaps,
     InputSample,
@@ -17,7 +18,7 @@ from vis4d.struct import (
 )
 
 from .base import BaseModel, build_model
-from .detect import BaseTwoStageDetector
+from .detect import BaseOneStageDetector, BaseTwoStageDetector
 from .track.graph import BaseTrackGraph
 from .track.similarity import BaseSimilarityHead
 from .track.utils import split_key_ref_inputs
@@ -29,21 +30,27 @@ class QDTrack(BaseModel):
 
     def __init__(
         self,
-        detection: Union[BaseTwoStageDetector, ModuleCfg],
+        detection: Union[
+            BaseTwoStageDetector, BaseOneStageDetector, ModuleCfg
+        ],
         similarity: Union[BaseSimilarityHead, ModuleCfg],
         track_graph: Union[BaseTrackGraph, ModuleCfg],
-        *args,
-        **kwargs,
+        *args: ArgsType,
+        **kwargs: ArgsType,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
         assert self.category_mapping is not None
         if isinstance(detection, dict):
             detection["category_mapping"] = self.category_mapping
-            self.detector: BaseTwoStageDetector = build_model(detection)
+            self.detector: Union[
+                BaseTwoStageDetector, BaseOneStageDetector
+            ] = build_model(detection)
         else:
             self.detector = detection
-        assert isinstance(self.detector, BaseTwoStageDetector)
+        assert isinstance(
+            self.detector, (BaseTwoStageDetector, BaseOneStageDetector)
+        )
         if isinstance(similarity, dict):
             self.similarity_head: BaseSimilarityHead = build_module(
                 similarity, bound=BaseSimilarityHead
@@ -57,7 +64,7 @@ class QDTrack(BaseModel):
         else:
             self.track_graph = track_graph
         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
-        self.with_mask = self.detector.with_mask
+        self.with_mask = getattr(self.detector, "with_mask", False)
 
     def _run_heads_train(
         self,
@@ -71,28 +78,44 @@ class QDTrack(BaseModel):
             x.targets for x in ref_inputs
         ]
 
-        # proposal generation
-        rpn_losses, key_proposals = self.detector.generate_proposals(
-            key_inputs, key_x, key_targets
-        )
-        with torch.no_grad():
-            ref_proposals = [
-                self.detector.generate_proposals(inp, x, tgt)[1]
-                for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets)
-            ]
+        key_proposals: Optional[List[Boxes2D]]
+        ref_proposals: List[List[Boxes2D]]
+        if isinstance(self.detector, BaseTwoStageDetector):
+            # two-stage detector
+            # proposal generation
+            rpn_losses, key_proposals = self.detector.generate_proposals(
+                key_inputs, key_x, key_targets
+            )
+            with torch.no_grad():
+                ref_proposals = [
+                    self.detector.generate_proposals(inp, x, tgt)[1]
+                    for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets)
+                ]
 
-        # roi head
-        roi_losses, _ = self.detector.generate_detections(
-            key_inputs,
-            key_x,
-            key_proposals,
-            key_targets,
-        )
-        det_losses = {**rpn_losses, **roi_losses}
+            # roi head
+            roi_losses, _ = self.detector.generate_detections(
+                key_inputs,
+                key_x,
+                key_proposals,
+                key_targets,
+            )
+            det_losses = {**rpn_losses, **roi_losses}
+        else:
+            # one-stage detector
+            det_losses, key_proposals = self.detector.generate_detections(
+                key_inputs, key_x, key_targets
+            )
+            assert key_proposals is not None
+            ref_proposals = []
+            with torch.no_grad():
+                for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets):
+                    ref_p = self.detector.generate_detections(inp, x, tgt)[1]
+                    assert ref_p is not None
+                    ref_proposals.append(ref_p)
 
         # from vis4d.vis.track import imshow_bboxes
-        # for ref_imgs, ref_props in zip(ref_images, ref_proposals):
-        #     for ref_img, ref_prop in zip(ref_imgs, ref_props):
+        # for ref_inp, ref_props in zip(ref_inputs, ref_proposals):
+        #     for ref_img, ref_prop in zip(ref_inp.images, ref_props):
         #         _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
         #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
 
@@ -109,10 +132,16 @@ class QDTrack(BaseModel):
         self, inputs: InputSample, feat: FeatureMaps
     ) -> Tuple[ModelOutput, LabelInstances, List[torch.Tensor]]:
         """Get detections and tracks."""
-        proposals = self.detector.generate_proposals(inputs, feat)
-        detections, instance_segms = self.detector.generate_detections(
-            inputs, feat, proposals
-        )
+        if isinstance(self.detector, BaseTwoStageDetector):
+            # two-stage detector
+            proposals = self.detector.generate_proposals(inputs, feat)
+            detections, instance_segms = self.detector.generate_detections(
+                inputs, feat, proposals
+            )
+        else:
+            # one-stage detector
+            detections = self.detector.generate_detections(inputs, feat)
+            instance_segms = None
 
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
@@ -122,7 +151,10 @@ class QDTrack(BaseModel):
             outs["ins_seg"] = [s.clone() for s in instance_segms]
 
         postprocess_predictions(
-            inputs, outs, self.cfg.detection.clip_bboxes_to_image
+            inputs,
+            outs,
+            self.cfg.detection.clip_bboxes_to_image,
+            self.cfg.detection.resolve_overlap,
         )
         outputs = predictions_to_scalabel(outs, self.cat_mapping)
 

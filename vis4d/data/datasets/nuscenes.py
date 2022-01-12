@@ -8,9 +8,9 @@ from scalabel.label.io import load, load_label_config, save
 from scalabel.label.to_nuscenes import to_nuscenes
 from scalabel.label.typing import Dataset, Frame
 
-from vis4d.struct import MetricLogs
+from vis4d.struct import ArgsType, MetricLogs
 
-from .base import BaseDatasetConfig, BaseDatasetLoader
+from .base import BaseDatasetLoader
 
 try:  # pragma: no cover
     from nuscenes import NuScenes as nusc_data
@@ -25,23 +25,26 @@ except (ImportError, NameError):
     NUSC_INSTALLED = False
 
 
-class NuScenesDatasetConfig(BaseDatasetConfig):
-    """Config for training/evaluation datasets."""
-
-    version: str
-    split: str
-    add_non_key: bool
-    tmp_dir: str = "./nuScenes_tmp/"
-    metadata: List[str] = ["use_camera"]
-
-
 class NuScenes(BaseDatasetLoader):  # pragma: no cover
     """NuScenes dataloading class."""
 
-    def __init__(self, cfg: BaseDatasetConfig):
+    def __init__(
+        self,
+        version: str,
+        split: str,
+        add_non_key: bool,
+        *args: ArgsType,
+        tmp_dir: str = "./nuScenes_tmp/",
+        metadata: List[str] = ["use_camera"],
+        **kwargs: ArgsType,
+    ):
         """Init dataset loader."""
-        super().__init__(cfg)
-        self.cfg: NuScenesDatasetConfig = NuScenesDatasetConfig(**cfg.dict())
+        self.version = version
+        self.split = split
+        self.add_non_key = add_non_key
+        self.tmp_dir = tmp_dir
+        self.metadata = metadata
+        super().__init__(*args, **kwargs)
 
     def load_dataset(self) -> Dataset:
         """Convert NuScenes annotations to Scalabel format."""
@@ -52,27 +55,27 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         # cfg.annotations is the path to the label file in scalabel format.
         # if the file exists load it, else create it to that location
         assert (
-            self.cfg.annotations is not None
+            self.annotations is not None
         ), "Need a path to an annotation file to either load or create it."
-        if not os.path.exists(self.cfg.annotations):
+        if not os.path.exists(self.annotations):
             dataset = from_nuscenes(
-                self.cfg.data_root,
-                self.cfg.version,
-                self.cfg.split,
-                self.cfg.num_processes,
-                self.cfg.add_non_key,
+                self.data_root,
+                self.version,
+                self.split,
+                self.num_processes,
+                self.add_non_key,
             )
-            save(self.cfg.annotations, dataset)
+            save(self.annotations, dataset)
         else:
             # Load labels from existing file
             dataset = load(
-                self.cfg.annotations,
-                validate_frames=self.cfg.validate_frames,
-                nprocs=self.cfg.num_processes,
+                self.annotations,
+                validate_frames=self.validate_frames,
+                nprocs=self.num_processes,
             )
 
-        if self.cfg.config_path is not None:
-            dataset.config = load_label_config(self.cfg.config_path)
+        if self.config_path is not None:
+            dataset.config = load_label_config(self.config_path)
 
         return dataset
 
@@ -82,7 +85,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         mode: str,
     ) -> str:
         """Convert predictions back to nuScenes format, save out to tmp_dir."""
-        os.makedirs(self.cfg.tmp_dir)
+        os.makedirs(self.tmp_dir)
 
         metadata = {
             "use_camera": False,
@@ -92,10 +95,10 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             "use_external": False,
         }
 
-        for m in self.cfg.metadata:
+        for m in self.metadata:
             metadata[m] = True
 
-        result_path = os.path.join(self.cfg.tmp_dir, f"{mode}_results.json")
+        result_path = os.path.join(self.tmp_dir, f"{mode}_results.json")
 
         nusc_results = to_nuscenes(Dataset(frames=frames), mode, metadata)
 
@@ -111,8 +114,8 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
     ) -> Tuple[MetricLogs, str]:
         """Evaluate detection."""
         nusc = nusc_data(
-            version=self.cfg.version,
-            dataroot=self.cfg.data_root,
+            version=self.version,
+            dataroot=self.data_root,
             verbose=False,
         )
 
@@ -123,7 +126,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             config=cfg,
             result_path=result_path,
             eval_set=eval_set,
-            output_dir=self.cfg.tmp_dir,
+            output_dir=self.tmp_dir,
             verbose=False,
         )
         # metrics_summary = nusc_eval.main(render_curves=False)
@@ -131,7 +134,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         metrics_summary = metrics.serialize()
 
         # clean up tmp dir
-        shutil.rmtree(self.cfg.tmp_dir)
+        shutil.rmtree(self.tmp_dir)
 
         # Print high-level metrics.
         str_summary_list = ["High-level metrics:"]
@@ -200,7 +203,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
 
         result_path = self._convert_predictions(predictions, mode)
 
-        if "mini" in self.cfg.version:
+        if "mini" in self.version:
             eval_set = "mini_val"
         else:
             eval_set = "val"
@@ -212,7 +215,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
 
     def _check_metrics(self) -> None:
         """Check if evaluation metrics specified are valid."""
-        for metric in self.cfg.eval_metrics:
+        for metric in self.eval_metrics:
             if metric not in ["detect_3d"]:  # pragma: no cover
                 raise KeyError(
                     f"metric {metric} is not supported in {self.cfg.name}"

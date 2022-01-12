@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 
 from vis4d.struct import (
+    ArgsType,
     DictStrAny,
     FeatureMaps,
     InputSample,
@@ -36,6 +37,7 @@ except (ImportError, NameError):  # pragma: no cover
 
 
 MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
+BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
 REV_KEYS = [
     (r"^decode_head\.", "decode_head.mm_decode_head."),
     (r"^auxiliary_head\.", "auxiliary_head.mm_decode_head."),
@@ -53,11 +55,11 @@ class MMEncDecSegmentor(BaseSegmentor):
         model_base: str,
         pixel_mean: Tuple[float, float, float],
         pixel_std: Tuple[float, float, float],
-        *args,
+        *args: ArgsType,
         model_kwargs: Optional[DictStrAny] = None,
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
-        **kwargs,
+        **kwargs: ArgsType,
     ):
         """Init."""
         assert (
@@ -106,9 +108,7 @@ class MMEncDecSegmentor(BaseSegmentor):
             self.auxiliary_head = None
 
         if weights is not None:
-            if weights.startswith("mmseg://"):
-                weights = MMSEG_MODEL_PREFIX + weights.split("mmseg://")[-1]
-            load_checkpoint(self, weights, revise_keys=REV_KEYS)
+            load_model_checkpoint(self, weights)
 
     def _build_decode_heads(
         self,
@@ -216,6 +216,15 @@ class MMEncDecSegmentor(BaseSegmentor):
                 )
                 aux_losses.update(_parse_losses(loss_aux, "aux"))
         return aux_losses
+
+
+def load_model_checkpoint(model: BaseSegmentor, weights: str) -> None:
+    """Load MMSeg model checkpoint."""
+    if weights.startswith("mmseg://"):
+        weights = MMSEG_MODEL_PREFIX + weights.split("mmseg://")[-1]
+    elif weights.startswith("bdd100k://"):  # pragma: no cover
+        weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
+    load_checkpoint(model, weights, revise_keys=REV_KEYS)
 
 
 def get_mmseg_config(

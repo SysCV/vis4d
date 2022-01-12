@@ -1,7 +1,7 @@
 """Vis4D base module definition."""
 import abc
 import copy
-from typing import Any, Generic, Type, TypeVar, Union
+from typing import Any, Generic, TypeVar, Union
 
 from torch.nn import Module
 
@@ -35,7 +35,7 @@ class Vis4DModule(
 
 def build_module(
     cfg: ModuleCfg,
-    bound: Type[TVis4DModule] = Vis4DModule[TTrainReturn, TTestReturn],
+    bound: Any,  # Type[TVis4DModule] = Vis4DModule[TTrainReturn, TTestReturn],
 ) -> Vis4DModule[TTrainReturn, TTestReturn]:
     """Build a module from config."""
     registry = RegistryHolder.get_registry(bound)

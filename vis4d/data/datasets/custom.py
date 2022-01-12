@@ -12,11 +12,11 @@ class Custom(BaseDatasetLoader):
 
     def load_dataset(self) -> Dataset:
         """Convert data in directory to scalabel format."""
-        assert self.cfg.annotations is None and self.cfg.config_path is None
+        assert self.annotations is None and self.config_path is None
 
         frames = []
-        sub_dirs = list(os.walk(self.cfg.data_root))
-        source_dir = os.path.join(self.cfg.data_root, "")  # add trailing slash
+        sub_dirs = list(os.walk(self.data_root))
+        source_dir = os.path.join(self.data_root, "")  # add trailing slash
         for (root, dirs, files) in sub_dirs:
             if not dirs:
                 video_name = os.path.join(root, "").replace(source_dir, "")

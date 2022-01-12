@@ -15,13 +15,13 @@ class BDD100K(BaseDatasetLoader):
         """Convert BDD100K annotations to Scalabel format and prepare them."""
         assert self.cfg.annotations is not None
         bdd100k_anns = load(
-            self.cfg.annotations,
-            validate_frames=self.cfg.validate_frames,
-            nprocs=self.cfg.num_processes,
+            self.annotations,
+            validate_frames=self.validate_frames,
+            nprocs=self.num_processes,
         )
         frames = bdd100k_anns.frames
-        assert self.cfg.config_path is not None
-        bdd100k_cfg = load_bdd100k_config(self.cfg.config_path)
+        assert self.config_path is not None
+        bdd100k_cfg = load_bdd100k_config(self.config_path)
 
         scalabel_frames = bdd100k_to_scalabel(frames, bdd100k_cfg)
         return Dataset(frames=scalabel_frames, config=bdd100k_cfg.scalabel)

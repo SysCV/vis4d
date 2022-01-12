@@ -9,13 +9,9 @@ from vis4d.struct import (
     TLabelInstance,
 )
 
-from .base import BaseModel, BaseModelConfig, build_model
-from .detect import BaseDetectorConfig, BaseTwoStageDetector
-from .heads.dense_head import (
-    BaseDenseHeadConfig,
-    MMSegDecodeHead,
-    build_dense_head,
-)
+from .base import BaseModel, build_model
+from .detect import BaseTwoStageDetector
+from .heads.dense_head import MMSegDecodeHead
 from .heads.panoptic_head import (
     BasePanopticHead,
     BasePanopticHeadConfig,
@@ -116,5 +112,6 @@ class PanopticSegmentor(BaseModel):
                 for i in range(len(model_outs["ins_seg"]))
             ]
         )
+        model_outs["sem_seg"] = model_outs["pan_seg"]
 
         return model_outs

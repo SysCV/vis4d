@@ -18,7 +18,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.utilities.distributed import rank_zero_info
 from torch.optim import Optimizer
 
-from ..common.io import DataBackendConfig, build_data_backend
+from ..common.io import HDF5Backend
 from ..common.registry import RegistryHolder
 from ..struct import (
     DictStrAny,
@@ -63,9 +63,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
 
         self.inference_result_path = inference_result_path
         if self.inference_result_path is not None:
-            self.data_backend = build_data_backend(
-                DataBackendConfig(type="HDF5Backend")
-            )
+            self.data_backend = HDF5Backend()
             if not osp.exists(self.inference_result_path):
                 self.data_backend.set(self.inference_result_path, bytes())
 

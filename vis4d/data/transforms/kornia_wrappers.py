@@ -10,45 +10,39 @@ to maintain valid projective geometry in 3D tracking.
 
 Reference: https://kornia.readthedocs.io/en/latest/augmentation.base.html
 """
-from typing import Dict, List, Tuple, Union
+from typing import List
 
 import torch
 from kornia import augmentation as kornia_augmentation
 
-from vis4d.struct import Boxes2D, Images, InputSample, Intrinsics, TMasks
+from vis4d.struct import (
+    ArgsType,
+    Boxes2D,
+    DictStrAny,
+    Images,
+    InputSample,
+    Intrinsics,
+    TMasks,
+)
 
 from ..utils import transform_bbox
-from .base import AugParams, BaseAugmentation, BaseAugmentationConfig
-
-
-class KorniaAugmentationConfig(BaseAugmentationConfig):
-    """Config for Kornia augmentation wrapper."""
-
-    kornia_type: str
-    kwargs: Dict[
-        str,
-        Union[
-            bool,
-            float,
-            str,
-            Tuple[float, float],
-            Tuple[int, int],
-            List[Tuple[int, int]],
-        ],
-    ] = {}
+from .base import AugParams, BaseAugmentation
 
 
 class KorniaAugmentationWrapper(BaseAugmentation):
     """Kornia augmentation wrapper class."""
 
-    def __init__(self, cfg: BaseAugmentationConfig):
+    def __init__(
+        self,
+        kornia_type: str,
+        *args: ArgsType,
+        kornia_kwargs: DictStrAny = {},
+        **kwargs: ArgsType
+    ):
         """Initialize wrapper."""
-        super().__init__(cfg)
-        self.cfg: KorniaAugmentationConfig = KorniaAugmentationConfig(
-            **cfg.dict()
-        )
-        augmentation = getattr(kornia_augmentation, self.cfg.kornia_type)
-        self.augmentor = augmentation(p=1.0, **self.cfg.kwargs)
+        super().__init__(*args, **kwargs)
+        augmentation = getattr(kornia_augmentation, kornia_type)
+        self.augmentor = augmentation(p=1.0, **kornia_kwargs)
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
@@ -140,10 +134,9 @@ class KorniaAugmentationWrapper(BaseAugmentation):
 class KorniaColorJitter(KorniaAugmentationWrapper):
     """Wrapper for Kornia color jitter augmentation class."""
 
-    def __init__(self, cfg: BaseAugmentationConfig):
+    def __init__(self, *args: ArgsType, **kwargs: ArgsType):
         """Init."""
-        cfg.__dict__.update({"kornia_type": "ColorJitter"})
-        super().__init__(cfg)
+        super().__init__(*args, kornia_type="ColorJitter", **kwargs)
 
     def apply_mask(
         self, masks: List[TMasks], parameters: AugParams

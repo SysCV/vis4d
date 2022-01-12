@@ -13,9 +13,9 @@ from scalabel.label.typing import (
 )
 
 from ..struct import Boxes2D, Images, InputSample
-from . import ReferenceSamplerConfig, SampleMapperConfig
+from . import ReferenceSampler, SampleMapper
 from .dataset import ScalabelDataset
-from .datasets.base import BaseDatasetConfig, BaseDatasetLoader
+from .datasets import Scalabel
 
 
 class MockDatasetLoader(BaseDatasetLoader):
@@ -35,12 +35,10 @@ class MockDatasetLoader(BaseDatasetLoader):
 class TestScalabelDataset(unittest.TestCase):
     """ScalabelDataset Testcase class."""
 
-    cfg = BaseDatasetConfig(
-        name="test",
-        type="Scalabel",
+    cfg = Scalabel(
         data_root="/path/to/root",
-        dataloader=SampleMapperConfig(),
-        ref_sampler=ReferenceSamplerConfig(
+        dataloader=SampleMapper(),
+        ref_sampler=ReferenceSampler(
             strategy="sequential",
             num_ref_imgs=2,
             scope=3,
@@ -71,12 +69,10 @@ class TestScalabelDataset(unittest.TestCase):
 
     def test_getitem_fallback(self) -> None:
         """Testcase for getitem fallback if None is returned."""
-        cfg = BaseDatasetConfig(
-            name="test",
-            type="Scalabel",
+        cfg = Scalabel(
             data_root="vis4d/engine/testcases/track/bdd100k-samples/images/",
-            dataloader=SampleMapperConfig(),
-            ref_sampler=ReferenceSamplerConfig(
+            dataloader=SampleMapper,
+            ref_sampler=ReferenceSampler(
                 strategy="sequential",
                 num_ref_imgs=1,
                 scope=3,
@@ -164,9 +160,8 @@ class TestScalabelDataset(unittest.TestCase):
 
     def test_filter_attributes(self) -> None:
         """Testcase for attribute filtering."""
-        cfg = BaseDatasetConfig(
+        cfg = Scalabel(
             name="test",
-            type="Scalabel",
             data_root="/path/to/root",
             dataloader=SampleMapperConfig(),
             ref_sampler=ReferenceSamplerConfig(

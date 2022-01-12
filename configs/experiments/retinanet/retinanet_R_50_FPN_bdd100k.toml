@@ -1,0 +1,28 @@
+[[config]]
+path = "../../base/datasets/bdd100k_det.toml"
+
+[[config]]
+path = "../../base/models/mmdetection/retinanet_R_50_FPN.toml"
+
+
+[model]
+category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus" = 4, "train" = 5, "motorcycle" = 6, "bicycle" = 7, "traffic light" = 8, "traffic sign" = 9}
+weights = "bdd100k://det/models/retinanet_r50_fpn_3x_det_bdd100k.pth"
+    [model.optimizer]
+    type = "SGD"
+    lr = 0.02
+    kwargs = {"momentum" = 0.9, "weight_decay" = 0.0001}
+
+    [model.lr_scheduler]
+    type = "MultiStepLR"
+    kwargs = {"milestones" = [8, 11]}
+
+[launch]
+samples_per_gpu = 4
+workers_per_gpu = 2
+
+[trainer]
+max_epochs = 12
+flush_logs_every_n_steps = 50
+check_val_every_n_epoch = 1
+num_sanity_val_steps = 2

@@ -9,9 +9,10 @@ from typing import List, Optional, Tuple
 import motmetrics as mm
 from scalabel.label.from_mot import from_mot
 from scalabel.label.io import load, load_label_config
+from scalabel.label.transforms import box2d_to_xyxy
 from scalabel.label.typing import Dataset, Frame
 
-from vis4d.struct import MetricLogs
+from vis4d.struct import ArgsType, MetricLogs
 
 from .base import BaseDatasetConfig, BaseDatasetLoader
 
@@ -19,43 +20,47 @@ from .base import BaseDatasetConfig, BaseDatasetLoader
 class MOTDatasetConfig(BaseDatasetConfig):
     """Config for training/evaluation datasets."""
 
-    tmp_dir_root: str = "./"
-    track_iou_thr: float = 0.5
-    gt_root: Optional[str]
-    det_metrics_per_video: bool = False
-
 
 class MOTChallenge(BaseDatasetLoader):
     """MOTChallenge dataloading class."""
 
-    def __init__(self, cfg: BaseDatasetConfig):
+    def __init__(
+        self,
+        *args: ArgsType,
+        tmp_dir_root: str = "./",
+        track_iou_thr: float = 0.5,
+        gt_root: Optional[str] = None,
+        det_metrics_per_video: bool = False,
+        **kwargs: ArgsType,
+    ):
         """Init dataset loader."""
-        super().__init__(cfg)
-        self.cfg: MOTDatasetConfig = MOTDatasetConfig(**cfg.dict())
-        self.data_root = self.cfg.data_root
-        if self.cfg.gt_root is None:
+        super().__init__(*args, **kwargs)
+        self.det_metrics_per_video = det_metrics_per_video
+        self.track_iou_thr = track_iou_thr
+        self.tmp_dir_root = tmp_dir_root
+        if gt_root is None:
             self.gt_root = self.data_root
         else:
-            self.gt_root = self.cfg.gt_root  # pragma: no cover
+            self.gt_root = self.gt_root  # pragma: no cover
 
     def load_dataset(self) -> Dataset:  # pragma: no cover
         """Convert MOTChallenge annotations to scalabel format."""
-        if self.cfg.annotations is None:
-            dataset = from_mot(self.cfg.data_root)
+        if self.annotations is None:
+            dataset = from_mot(self.data_root)
         else:
-            dataset = load(self.cfg.annotations)
+            dataset = load(self.annotations)
         assert isinstance(dataset, Dataset)
 
-        if self.cfg.config_path is not None:
-            dataset.config = load_label_config(self.cfg.config_path)
+        if self.config_path is not None:
+            dataset.config = load_label_config(self.config_path)
         return dataset
 
     def _convert_predictions(
         self, frames: List[Frame]
     ) -> Tuple[List[str], List[str], str]:
         """Convert predictions back to MOT format, save out to tmp_dir."""
-        os.makedirs(self.cfg.tmp_dir_root, exist_ok=True)
-        tmp_dir = tempfile.mkdtemp(dir=self.cfg.tmp_dir_root)
+        os.makedirs(self.tmp_dir_root, exist_ok=True)
+        tmp_dir = tempfile.mkdtemp(dir=self.tmp_dir_root)
         res_files = []
         frames_per_video = defaultdict(list)
         for f in frames:
@@ -69,12 +74,7 @@ class MOTChallenge(BaseDatasetLoader):
                 if f.labels is not None:
                     for l in f.labels:
                         assert l.box2d is not None
-                        x1, y1, x2, y2 = (
-                            l.box2d.x1,
-                            l.box2d.y1,
-                            l.box2d.x2,
-                            l.box2d.y2,
-                        )
+                        x1, y1, x2, y2 = box2d_to_xyxy(l.box2d)
                         conf = l.score if l.score is not None else 1.0
                         assert f.frameIndex is not None and l.id is not None
                         res_lines += (
@@ -90,10 +90,10 @@ class MOTChallenge(BaseDatasetLoader):
 
     def _check_metrics(self) -> None:
         """Check if evaluation metrics specified are valid."""
-        for metric in self.cfg.eval_metrics:
+        for metric in self.eval_metrics:
             if metric not in ["detect", "track"]:
                 raise KeyError(
-                    f"metric {metric} is not supported in {self.cfg.name}"
+                    f"metric {metric} is not supported in {self.name}"
                 )
 
     def evaluate(
@@ -102,7 +102,7 @@ class MOTChallenge(BaseDatasetLoader):
         """Evaluate according to MOT Challenge metrics."""
         if not metric == "track":  # pragma: no cover
             log_dict, log_str = super().evaluate(metric, predictions, gts)
-            if self.cfg.det_metrics_per_video:
+            if self.det_metrics_per_video:
                 # per video detection results
                 video_names = sorted(
                     set(f.videoName for f in gts if f.videoName is not None)
@@ -131,11 +131,11 @@ class MOTChallenge(BaseDatasetLoader):
             ini_file = osp.join(self.gt_root, f"{name}/seqinfo.ini")
             if osp.exists(ini_file):
                 acc, _ = mm.utils.CLEAR_MOT_M(
-                    gt, res, ini_file, distth=1 - self.cfg.track_iou_thr
+                    gt, res, ini_file, distth=1 - self.track_iou_thr
                 )
             else:  # pragma: no cover
                 acc = mm.utils.compare_to_groundtruth(
-                    gt, res, distth=1 - self.cfg.track_iou_thr
+                    gt, res, distth=1 - self.track_iou_thr
                 )
             accs.append(acc)
 

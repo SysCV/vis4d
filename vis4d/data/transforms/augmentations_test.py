@@ -4,7 +4,7 @@ import unittest
 
 from vis4d.unittest.utils import generate_input_sample
 
-from .augmentations import RandomCrop, RandomCropConfig, Resize, ResizeConfig
+from .augmentations import RandomCrop, Resize
 
 
 class TestResize(unittest.TestCase):
@@ -12,8 +12,7 @@ class TestResize(unittest.TestCase):
 
     def test_generate_parameters(self) -> None:
         """Test generate_parameters function."""
-        aug_cfg = ResizeConfig(type="test", shape=(5, 5))
-        resize = Resize(aug_cfg)
+        resize = Resize(shape=(5, 5))
         num_imgs, num_objs, height, width = 1, 10, 10, 10
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         params = resize.generate_parameters(sample)
@@ -21,13 +20,13 @@ class TestResize(unittest.TestCase):
         self.assertEqual(params["apply"].size(0), 1)
         self.assertTrue(params["apply"].item())
         self.assertEqual(tuple(params["transform"].shape), (1, 3, 3))
-        resize.cfg.prob = 0.0
+        resize.prob = 0.0
         params = resize.generate_parameters(sample)
         self.assertTrue("apply" in params and "shape" in params)
         self.assertEqual(params["apply"].size(0), 1)
         self.assertFalse(params["apply"].item())
         sample = generate_input_sample(height, width, 10, num_objs)
-        resize.cfg.prob = 1.0
+        resize.prob = 1.0
         params = resize.generate_parameters(sample)
         self.assertTrue("apply" in params and "shape" in params)
         self.assertEqual(params["apply"].size(0), 10)
@@ -36,9 +35,8 @@ class TestResize(unittest.TestCase):
 
     def test_call(self) -> None:
         """Test __call__ function."""
-        aug_cfg = ResizeConfig(type="test", shape=(5, 5))
-        resize = Resize(aug_cfg)
-        num_imgs, num_objs, height, width = 1, 10, 10, 10
+        resize = Resize(shape=(5, 5))
+        num_imgs, num_objs, height, width = 1, 10, 10, 9
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         pre_intrs = copy.deepcopy(sample.intrinsics.tensor)
         pre_tgts = copy.deepcopy(sample.targets)
@@ -57,7 +55,7 @@ class TestResize(unittest.TestCase):
         self.assertEqual(pre_boxes.shape, new_boxes.shape)
         self.assertNotEqual(pre_masks.shape, new_masks.shape)
         self.assertFalse((pre_intrs == new_intrs).all())
-        resize.cfg.prob = 0.0
+        resize.prob = 0.0
         _, _ = resize(sample, None)
         sample = generate_input_sample(height, width, 2, num_objs)
         _, _ = resize(sample, None)
@@ -70,8 +68,7 @@ class TestRandomCrop(unittest.TestCase):
 
     def test_generate_parameters(self) -> None:
         """Test generate_parameters function."""
-        aug_cfg = RandomCropConfig(type="test", shape=(5, 5))
-        crop = RandomCrop(aug_cfg)
+        crop = RandomCrop(shape=(5, 5))
         num_imgs, num_objs, height, width = 1, 10, 10, 10
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         params = crop.generate_parameters(sample)
@@ -81,7 +78,7 @@ class TestRandomCrop(unittest.TestCase):
         )
         self.assertEqual(params["apply"].size(0), 1)
         self.assertTrue(params["apply"].item())
-        crop.cfg.prob = 0.0
+        crop.prob = 0.0
         params = crop.generate_parameters(sample)
         self.assertTrue(
             tuple(params.keys())
@@ -90,7 +87,7 @@ class TestRandomCrop(unittest.TestCase):
         self.assertEqual(params["apply"].size(0), 1)
         self.assertFalse(params["apply"].item())
         sample = generate_input_sample(height, width, 10, num_objs)
-        crop.cfg.prob = 1.0
+        crop.prob = 1.0
         params = crop.generate_parameters(sample)
         self.assertTrue(
             tuple(params.keys())
@@ -103,13 +100,11 @@ class TestRandomCrop(unittest.TestCase):
 
     def test_call(self) -> None:
         """Test __call__ function."""
-        aug_cfg = RandomCropConfig(
-            type="test",
+        crop = RandomCrop(
             shape=[(1, 1), (2, 2)],
             crop_type="absolute_range",
             allow_empty_crops=False,
         )
-        crop = RandomCrop(aug_cfg)
         num_imgs, num_objs, height, width = 1, 10, 10, 10
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         pre_intrs = copy.deepcopy(sample.intrinsics.tensor)
@@ -121,24 +116,21 @@ class TestRandomCrop(unittest.TestCase):
         self.assertEqual(new_boxes.shape[0], params["keep"][0].sum().item())
         self.assertEqual(new_masks.shape[0], params["keep"][0].sum().item())
         self.assertFalse((pre_intrs == new_intrs).all())
-        crop.cfg.prob = 0.0
+        crop.prob = 0.0
         _, _ = crop(sample, None)
         sample = generate_input_sample(height, width, 2, num_objs)
         _, _ = crop(sample, None)
         self.assertEqual(len(sample.targets.boxes2d), 2)
         self.assertEqual(len(sample.targets.instance_masks), 2)
         # segmentation masks
-        crop.cfg.prob = 1.0
+        crop.prob = 1.0
         sample = generate_input_sample(
             height, width, num_imgs, num_objs, det_input=False
         )
         results, params = crop(sample, None)
         new_masks = sample.targets.semantic_masks[0].masks
         self.assertEqual(new_masks.shape[0], num_objs)
-        aug_cfg = RandomCropConfig(
-            type="test", shape=(2, 2), cat_max_ratio=0.2
-        )
-        crop = RandomCrop(aug_cfg)
+        crop = RandomCrop(shape=(2, 2), cat_max_ratio=0.2)
         num_objs = 2
         sample = generate_input_sample(
             height, width, num_imgs, num_objs, det_input=False

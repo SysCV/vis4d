@@ -27,6 +27,7 @@ from torch.nn.modules.batchnorm import _BatchNorm
 
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
+    ArgsType,
     Boxes2D,
     DictStrAny,
     FeatureMaps,
@@ -37,7 +38,7 @@ from vis4d.struct import (
     ModelOutput,
     TLabelInstance,
 )
-from ..base import BaseModelConfig
+
 from ..utils import postprocess_predictions, predictions_to_scalabel
 from .base import BaseTwoStageDetector
 
@@ -48,21 +49,18 @@ class D2TwoStageDetector(BaseTwoStageDetector):
     def __init__(
         self,
         model_base: str,
-        *args,
-        clip_bboxes_to_image: bool = True,
+        *args: ArgsType,
         model_kwargs: Optional[DictStrAny] = None,
         override_mapping: Optional[bool] = False,
         set_batchnorm_eval: bool = False,
         weights: Optional[str] = None,
-        **kwargs,
+        **kwargs: ArgsType,
     ):
         """Init."""
         assert (
             D2_INSTALLED
         ), "D2TwoStageDetector requires detectron2 to be installed!"
-        super().__init__(
-            *args, clip_bboxes_to_image=clip_bboxes_to_image, **kwargs
-        )
+        super().__init__(*args, **kwargs)
         assert self.category_mapping is not None
         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
         self.d2_cfg = model_to_detectron2(

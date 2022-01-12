@@ -62,6 +62,9 @@ class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
         self.mm_dense_head.init_weights()
         self.mm_dense_head.train()
         self.cat_mapping = {v: k for k, v in category_mapping.items()}
+        self.proposal_cfg = self.mm_dense_head.train_cfg.get(
+            "rpn_proposal", self.mm_dense_head.test_cfg
+        )
 
     def forward_train(
         self,
@@ -73,24 +76,19 @@ class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
         assert features is not None, "MMDetDenseHead requires features"
         feat_list = list(features.values())
         img_metas = get_img_metas(inputs.images)
-        gt_bboxes, _, _ = targets_to_mmdet(targets)
+        gt_bboxes, gt_labels, _ = targets_to_mmdet(targets)
 
-        proposal_cfg = self.mm_dense_head.train_cfg.get(
-            "rpn_proposal", self.mm_dense_head.test_cfg
-        )
         rpn_losses, proposals = self.mm_dense_head.forward_train(
             feat_list,
             img_metas,
             gt_bboxes,
-            gt_labels=None,
-            proposal_cfg=proposal_cfg,
+            gt_labels=gt_labels,
+            proposal_cfg=self.proposal_cfg,
         )
         return _parse_losses(rpn_losses), proposals_from_mmdet(proposals)
 
     def forward_test(
-        self,
-        inputs: InputSample,
-        features: Optional[FeatureMaps],
+        self, inputs: InputSample, features: Optional[FeatureMaps]
     ) -> List[Boxes2D]:
         """Forward pass during testing stage."""
         assert features is not None, "MMDetDenseHead requires features"
@@ -98,3 +96,28 @@ class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
         img_metas = get_img_metas(inputs.images)
         proposals = self.mm_dense_head.simple_test(feat_list, img_metas)
         return proposals_from_mmdet(proposals)
+
+
+class MMDetRPNHead(MMDetDenseHead):
+    """mmdetection RPN head wrapper."""
+
+    def forward_train(
+        self,
+        inputs: InputSample,
+        features: Optional[FeatureMaps],
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, List[Boxes2D]]:
+        """Forward pass during training stage."""
+        assert features is not None, "MMDetRPNHead requires features"
+        feat_list = list(features.values())
+        img_metas = get_img_metas(inputs.images)
+        gt_bboxes, _, _ = targets_to_mmdet(targets)
+
+        rpn_losses, proposals = self.mm_dense_head.forward_train(
+            feat_list,
+            img_metas,
+            gt_bboxes,
+            gt_labels=None,
+            proposal_cfg=self.proposal_cfg,
+        )
+        return _parse_losses(rpn_losses), proposals_from_mmdet(proposals)

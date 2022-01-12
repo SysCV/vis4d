@@ -1,5 +1,5 @@
 """mmdetection neck wrapper."""
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 try:
     from mmcv.runner import BaseModule

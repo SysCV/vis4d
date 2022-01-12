@@ -6,7 +6,7 @@ import torch
 
 from vis4d.unittest.utils import generate_input_sample
 
-from . import BaseAugmentation, BaseAugmentationConfig
+from . import BaseAugmentation
 
 
 class TestBaseAugmentation(unittest.TestCase):
@@ -14,23 +14,21 @@ class TestBaseAugmentation(unittest.TestCase):
 
     def test_generate_parameters(self) -> None:
         """Test generate_parameters function."""
-        aug_cfg = BaseAugmentationConfig(type="test", kwargs={})
-        base_aug = BaseAugmentation(aug_cfg)
+        base_aug = BaseAugmentation()
         num_imgs, num_objs, height, width = 3, 10, 5, 5
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         params = base_aug.generate_parameters(sample)
         self.assertTrue("apply" in params)
         self.assertEqual(params["apply"].size(0), 3)
         self.assertTrue(params["apply"].all())
-        base_aug.cfg.prob = 0.0
+        base_aug.prob = 0.0
         params = base_aug.generate_parameters(sample)
         self.assertTrue("apply" in params)
         self.assertEqual(params["apply"].size(0), 3)
 
     def test_call(self) -> None:
         """Test __call__ function."""
-        aug_cfg = BaseAugmentationConfig(type="test", kwargs={})
-        base_aug = BaseAugmentation(aug_cfg)
+        base_aug = BaseAugmentation()
         num_imgs, num_objs, height, width = 3, 10, 5, 5
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         pre_image = copy.deepcopy(sample.images.tensor)

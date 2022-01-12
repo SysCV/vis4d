@@ -117,3 +117,4 @@ DictStrAny = Dict[str, Any]  # type: ignore
 MetricLogs = Dict[str, Union[float, int]]
 FeatureMaps = Dict[str, torch.Tensor]
 ModuleCfg = DictStrAny
+ArgsType = Any  # type: ignore

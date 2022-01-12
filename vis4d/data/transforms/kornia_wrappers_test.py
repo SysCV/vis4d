@@ -4,7 +4,7 @@ import unittest
 
 from vis4d.unittest.utils import generate_input_sample
 
-from . import KorniaAugmentationConfig, KorniaAugmentationWrapper
+from . import KorniaAugmentationWrapper
 
 
 class TestKorniaAugmentation(unittest.TestCase):
@@ -12,10 +12,9 @@ class TestKorniaAugmentation(unittest.TestCase):
 
     def test_generate_parameters(self) -> None:
         """Test generate_parameters function."""
-        aug_cfg = KorniaAugmentationConfig(
-            type="test", kornia_type="RandomRotation", kwargs={"degrees": 10.0}
+        kor_aug = KorniaAugmentationWrapper(
+            kornia_type="RandomRotation", kwargs={"degrees": 10.0}
         )
-        kor_aug = KorniaAugmentationWrapper(aug_cfg)
         num_imgs, num_objs, height, width = 2, 10, 5, 5
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         params = kor_aug.generate_parameters(sample)
@@ -26,14 +25,14 @@ class TestKorniaAugmentation(unittest.TestCase):
         self.assertEqual(len(params["apply"]), num_imgs)
         self.assertTrue(params["batch_prob"].all())
         self.assertTrue(params["apply"].all())
-        kor_aug.cfg.prob = 0.0
+        kor_aug.prob = 0.0
         params = kor_aug.generate_parameters(sample)
         self.assertTrue("batch_prob" in params and "degrees" in params)
         self.assertEqual(len(params["batch_prob"]), num_imgs)
         self.assertEqual(len(params["degrees"]), 2)
         self.assertFalse(params["batch_prob"].any())
         self.assertFalse(params["apply"].any())
-        kor_aug.cfg.prob = 0.5
+        kor_aug.prob = 0.5
         num_imgs = 100
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         params = kor_aug.generate_parameters(sample)
@@ -41,10 +40,9 @@ class TestKorniaAugmentation(unittest.TestCase):
 
     def test_compute_transformation(self) -> None:
         """Test compute_transformation function."""
-        aug_cfg = KorniaAugmentationConfig(
-            type="test", kornia_type="RandomRotation", kwargs={"degrees": 10.0}
+        kor_aug = KorniaAugmentationWrapper(
+            kornia_type="RandomRotation", kwargs={"degrees": 10.0}
         )
-        kor_aug = KorniaAugmentationWrapper(aug_cfg)
         num_imgs, num_objs, height, width = 2, 10, 5, 5
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         params = kor_aug.generate_parameters(sample)
@@ -54,11 +52,10 @@ class TestKorniaAugmentation(unittest.TestCase):
 
     def test_call(self) -> None:
         """Test __call__ function."""
-        aug_cfg = KorniaAugmentationConfig(
-            type="test", kornia_type="RandomRotation", kwargs={"degrees": 10.0}
+        kor_aug = KorniaAugmentationWrapper(
+            kornia_type="RandomRotation", kwargs={"degrees": 10.0}
         )
-        kor_aug = KorniaAugmentationWrapper(aug_cfg)
-        kor_aug.cfg.prob = 1.0
+        kor_aug.prob = 1.0
         num_imgs, num_objs, height, width = 1, 10, 5, 5
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         pre_intrs = copy.deepcopy(sample.intrinsics.tensor)
@@ -79,11 +76,8 @@ class TestKorniaAugmentation(unittest.TestCase):
         self.assertEqual(pre_boxes.shape, new_boxes.shape)
         self.assertEqual(pre_masks.shape, new_masks.shape)
         self.assertFalse((pre_intrs == new_intrs).all())
-        aug_cfg = KorniaAugmentationConfig(
-            type="test", kornia_type="RandomHorizontalFlip", kwargs={}
-        )
-        kor_aug = KorniaAugmentationWrapper(aug_cfg)
-        kor_aug.cfg.prob = 1.0
+        kor_aug = KorniaAugmentationWrapper(kornia_type="RandomHorizontalFlip")
+        kor_aug.prob = 1.0
         num_imgs = 3
         sample = generate_input_sample(height, width, num_imgs, num_objs)
         results, _ = kor_aug(sample, None)

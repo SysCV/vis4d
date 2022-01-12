@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.common.module import build_module
 from vis4d.struct import (
+    ArgsType,
     Boxes2D,
     DictStrAny,
     FeatureMaps,
@@ -22,7 +23,7 @@ from ..heads.dense_head import BaseDenseHead, MMDetDenseHead
 from ..heads.roi_head import BaseRoIHead, MMDetRoIHead
 from ..mmdet_utils import add_keyword_args, load_config
 from ..utils import postprocess_predictions, predictions_to_scalabel
-from .base import BaseDetectorConfig, BaseTwoStageDetector
+from .base import BaseDetector, BaseOneStageDetector, BaseTwoStageDetector
 
 try:
     from mmcv import Config as MMConfig
@@ -38,9 +39,11 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
+BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
 REV_KEYS = [
     (r"^roi_head\.", "roi_head.mm_roi_head."),
     (r"^rpn_head\.", "rpn_head.mm_dense_head."),
+    (r"^bbox_head\.", "bbox_head.mm_dense_head."),
     (r"^backbone\.", "backbone.mm_backbone."),
     (r"^neck\.", "backbone.neck.mm_neck."),
 ]
@@ -54,8 +57,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         model_base: str,
         pixel_mean: Tuple[float, float, float],
         pixel_std: Tuple[float, float, float],
-        *args,
-        clip_bboxes_to_image: bool = True,
+        *args: ArgsType,
         model_kwargs: Optional[DictStrAny] = None,
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
@@ -72,22 +74,33 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 ModuleCfg,
             ]
         ] = None,
-        **kwargs,
+        **kwargs: ArgsType,
     ):
         """Init."""
         assert (
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMTwoStageDetector requires both mmcv and mmdet to be installed!"
-        super().__init__(
-            *args, clip_bboxes_to_image=clip_bboxes_to_image, **kwargs
-        )
+        super().__init__(*args, **kwargs)
         assert self.category_mapping is not None
         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
         self.mm_cfg = get_mmdet_config(
             model_base, model_kwargs, self.category_mapping
         )
+        if pixel_mean is None or pixel_std is None:
+            assert backbone is not None, (
+                "If no custom backbone is defined,"
+                " normalization parameters must be specified!"
+            )
+            assert (
+                self.backbone.pixel_mean is not None
+                and self.backbone.pixel_std is not None
+            ), "Please specify image normalization parameters!"
+            assert (
+                pixel_mean is None and pixel_std is None
+            ), "The mean and std of pixels should both be set!"
+
         if backbone is None:
-            self.backbone = MMDetBackbone(
+            self.backbone: BaseBackbone = MMDetBackbone(
                 mm_cfg=self.mm_cfg["backbone"],
                 pixel_mean=pixel_mean,
                 pixel_std=pixel_std,
@@ -97,7 +110,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 ),
             )
         elif isinstance(backbone, dict):
-            self.backbone = build_module(backbone)
+            self.backbone = build_module(backbone, bound=BaseBackbone)
         else:
             self.backbone = backbone
 
@@ -149,10 +162,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 weights = MMDET_MODEL_PREFIX + weights.split("mmdet://")[-1]
             load_checkpoint(self, weights, revise_keys=REV_KEYS)
 
-    def forward_train(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
         assert (
             len(batch_inputs) == 1
@@ -164,20 +174,15 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         roi_losses, _ = self.roi_head(inputs, proposals, features, targets)
         return {**rpn_losses, **roi_losses}
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> ModelOutput:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Forward pass during testing stage."""
         assert (
             len(batch_inputs) == 1
         ), "No reference views allowed in MMTwoStageDetector testing!"
         inputs = batch_inputs[0]
-
         features = self.backbone(inputs)
         proposals = self.rpn_head(inputs, features)
         detections, segmentations = self.roi_head(inputs, proposals, features)
-
         outputs: Dict[str, List[TLabelInstance]] = dict(detect=detections)  # type: ignore # pylint: disable=line-too-long
         if self.with_mask:
             assert segmentations is not None
@@ -205,9 +210,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         return self.rpn_head(inputs, features, targets)
 
     def _proposals_test(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> List[Boxes2D]:
         """Test stage proposal generation."""
         return self.rpn_head(inputs, features)
@@ -230,6 +233,124 @@ class MMTwoStageDetector(BaseTwoStageDetector):
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Test stage detections generation."""
         return self.roi_head(inputs, proposals, features)
+
+
+class MMOneStageDetector(BaseOneStageDetector):
+    """mmdetection one-stage detector wrapper."""
+
+    def __init__(
+        self,
+        model_base: str,
+        pixel_mean: Tuple[float, float, float],
+        pixel_std: Tuple[float, float, float],
+        *args: ArgsType,
+        model_kwargs: Optional[DictStrAny] = None,
+        backbone_output_names: Optional[List[str]] = None,
+        weights: Optional[str] = None,
+        backbone: Optional[BaseBackbone] = None,
+        bbox_head: Optional[BaseDenseHead] = None,
+        **kwargs: ArgsType,
+    ):
+        """Init."""
+        assert (
+            MMDET_INSTALLED and MMCV_INSTALLED
+        ), "MMTwoStageDetector requires both mmcv and mmdet to be installed!"
+        super().__init__(*args, **kwargs)
+        assert self.category_mapping is not None
+        self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
+        self.mm_cfg = get_mmdet_config(
+            model_base, model_kwargs, self.category_mapping
+        )
+        if backbone is None:
+            self.backbone: BaseBackbone = MMDetBackbone(
+                mm_cfg=self.mm_cfg["backbone"],
+                pixel_mean=pixel_mean,
+                pixel_std=pixel_std,
+                neck=MMDetNeck(
+                    mm_cfg=self.mm_cfg["neck"],
+                    output_names=backbone_output_names,
+                ),
+            )
+        else:
+            self.backbone = build_module(backbone, bound=BaseBackbone)
+
+        if bbox_head is None:
+            bbox_cfg = self.mm_cfg["bbox_head"]
+            if "train_cfg" in self.mm_cfg:
+                bbox_train_cfg = self.mm_cfg["train_cfg"]
+            else:  # pragma: no cover
+                bbox_train_cfg = None
+            bbox_cfg.update(
+                train_cfg=bbox_train_cfg,
+                test_cfg=self.mm_cfg["test_cfg"],
+            )
+            self.bbox_head: BaseDenseHead[
+                List[Boxes2D], List[Boxes2D]
+            ] = MMDetDenseHead(
+                mm_cfg=bbox_cfg,
+                category_mapping=self.category_mapping,
+            )
+        else:
+            self.bbox_head = build_module(bbox_head, bound=BaseDenseHead)
+
+        if weights is not None:
+            load_model_checkpoint(self, weights)
+
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
+        """Forward pass during training stage."""
+        assert (
+            len(batch_inputs) == 1
+        ), "No reference views allowed in MMOneStageDetector training!"
+        inputs, targets = batch_inputs[0], batch_inputs[0].targets
+        assert targets is not None, "Training requires targets."
+        features = self.backbone(inputs)
+        bbox_losses, _ = self.bbox_head(inputs, features, targets)
+        return {**bbox_losses}
+
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
+        """Forward pass during testing stage."""
+        assert (
+            len(batch_inputs) == 1
+        ), "No reference views allowed in MMOneStageDetector testing!"
+        inputs = batch_inputs[0]
+        features = self.backbone(inputs)
+        detections = self.bbox_head(inputs, features)
+        outputs = dict(detect=detections)
+        postprocess_predictions(inputs, outputs, self.clip_bboxes_to_image)
+        return predictions_to_scalabel(outputs, self.cat_mapping)
+
+    def extract_features(self, inputs: InputSample) -> FeatureMaps:
+        """Detector feature extraction stage.
+
+        Return backbone output features.
+        """
+        feats = self.backbone(inputs)
+        assert isinstance(feats, dict)
+        return feats
+
+    def _detections_train(
+        self,
+        inputs: InputSample,
+        features: FeatureMaps,
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, Optional[List[Boxes2D]]]:
+        """Train stage detections generation."""
+        return self.bbox_head(inputs, features, targets)
+
+    def _detections_test(
+        self, inputs: InputSample, features: FeatureMaps
+    ) -> List[Boxes2D]:
+        """Test stage detections generation."""
+        return self.bbox_head(inputs, features)
+
+
+def load_model_checkpoint(model: BaseDetector, weights: str) -> None:
+    """Load MMDet model checkpoint."""
+    if weights.startswith("mmdet://"):
+        weights = MMDET_MODEL_PREFIX + weights.split("mmdet://")[-1]
+    elif weights.startswith("bdd100k://"):
+        weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
+    load_checkpoint(model, weights, revise_keys=REV_KEYS)
 
 
 def get_mmdet_config(

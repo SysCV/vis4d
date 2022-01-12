@@ -13,8 +13,6 @@ from pytorch_lightning.utilities.distributed import (
 )
 
 from ..config import Config, default_argument_parser, parse_config
-from ..data import build_data_module, build_dataset_loaders
-from ..data.datasets import BaseDatasetConfig
 from ..model import build_model
 from ..struct import DictStrAny
 from ..vis import ScalabelWriterCallback
@@ -28,7 +26,9 @@ from .utils import (
 
 
 def default_setup(
-    cfg: Config, trainer_args: Optional[DictStrAny] = None
+    cfg: Config,
+    trainer_args: Optional[DictStrAny] = None,
+    training: bool = True,
 ) -> pl.Trainer:
     """Perform some basic common setups at the beginning of a job.
 
@@ -127,7 +127,7 @@ def default_setup(
                     find_unused_parameters=cfg.launch.find_unused_parameters
                 )
                 trainer_args["plugins"] = [ddp_plugin]
-            if cfg.data.train_sampler is not None:
+            if cfg.data.train_sampler is not None and training:
                 # using custom sampler
                 trainer_args["replace_sampler_ddp"] = False
 
@@ -209,7 +209,7 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 
 def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Test function."""
-    trainer = default_setup(cfg, trainer_args)
+    trainer = default_setup(cfg, trainer_args, training=False)
     model = build_model(
         cfg.model,
         cfg.launch.weights,
@@ -254,7 +254,7 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 
 def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Prediction function."""
-    trainer = default_setup(cfg, trainer_args)
+    trainer = default_setup(cfg, trainer_args, training=False)
     model = build_model(
         cfg.model,
         cfg.launch.weights,
@@ -316,7 +316,7 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
 
 def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     """Tune function."""
-    trainer = default_setup(cfg, trainer_args)
+    trainer = default_setup(cfg, trainer_args, training=False)
     model = build_model(
         cfg.model,
         cfg.launch.weights,

@@ -129,10 +129,10 @@ class StandardEvaluatorCallback(BaseEvaluatorCallback):
         output_dir: Optional[str] = None,
     ) -> None:
         """Init."""
-        super().__init__(dataloader_idx, dataset_loader.cfg.collect_device)
+        super().__init__(dataloader_idx, dataset_loader.collect_device)
         self.output_dir = output_dir
-        self.name = dataset_loader.cfg.name
-        self.metrics = dataset_loader.cfg.eval_metrics
+        self.name = dataset_loader.name
+        self.metrics = dataset_loader.eval_metrics
         self.eval_func = dataset_loader.evaluate
 
     def process(
