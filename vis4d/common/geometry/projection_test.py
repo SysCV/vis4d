@@ -82,6 +82,7 @@ class TestProjection(unittest.TestCase):
             self.intrinsics,
             self.image_width,
             self.image_height,
+            torch.ones(3, dtype=torch.bool),
         )
         self.assertTrue(torch.isclose(pts2d, self.points_2d).all())
         self.assertTrue(
