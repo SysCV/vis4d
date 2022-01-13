@@ -120,7 +120,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                     assert cur_data is not None
                     return [cur_data]
 
-                group_data, group_parameters = self.mapper(group)
+                group_data, _ = self.mapper(group)
                 assert group_data is not None
                 data = [group_data]
                 for fname in group.frames:
@@ -128,7 +128,6 @@ class ScalabelDataset(Dataset):  # type: ignore
                         self.dataset.frames[
                             self.ref_sampler.frame_name_to_idx[fname]
                         ],
-                        parameters=group_parameters,
                     )
                     assert cur_data is not None
                     data.append(cur_data)

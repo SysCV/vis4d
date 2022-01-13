@@ -1,8 +1,7 @@
 """Projection utilities."""
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
-from PIL import Image
 
 from vis4d.struct import Intrinsics
 
@@ -74,19 +73,44 @@ def unproject_points(
     return pts_3d
 
 
+def generate_projected_point_mask(
+    depths: torch.Tensor,
+    pts_2d: torch.Tensor,
+    image_width: int,
+    image_height: int,
+) -> torch.Tensor:
+    """Generate mask to filter out out range points."""
+    mask = torch.ones_like(depths)
+    mask = torch.logical_and(mask, depths > 0)
+    mask = torch.logical_and(mask, pts_2d[:, 0] > 0)
+    mask = torch.logical_and(mask, pts_2d[:, 0] < image_width - 1)
+    mask = torch.logical_and(mask, pts_2d[:, 1] > 0)
+    mask = torch.logical_and(mask, pts_2d[:, 1] < image_height - 1)
+    return mask
+
+
 def generate_depth_map(
     points_cam: torch.Tensor,
     camera_intrinsics: Intrinsics,
-    image_p: Image.Image,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    image_width: int,
+    image_height: int,
+    pre_mask: Optional[torch.Tensor] = None,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Generate depth map."""
-    pts2d = project_points(points_cam, camera_intrinsics)
+    pts_2d = project_points(points_cam, camera_intrinsics)
     depths = points_cam[:, 2]
 
-    mask = torch.ones_like(depths, dtype=bool)
-    mask = torch.logical_and(mask, depths > 1.0)
-    mask = torch.logical_and(mask, pts2d[:, 0] > 1)
-    mask = torch.logical_and(mask, pts2d[:, 0] < image_p.size[0] - 1)
-    mask = torch.logical_and(mask, pts2d[:, 1] > 1)
-    mask = torch.logical_and(mask, pts2d[:, 1] < image_p.size[1] - 1)
-    return pts2d[mask, :], depths[mask]
+    depth_map = torch.zeros((image_height, image_width)).to(points_cam.device)
+    mask = generate_projected_point_mask(
+        depths, pts_2d, image_width, image_height
+    )
+    if pre_mask is not None:
+        mask &= pre_mask
+
+    pts_2d = pts_2d[mask]
+    depths = depths[mask]
+    depth_map[
+        pts_2d[:, 1].type(torch.long), pts_2d[:, 0].type(torch.long)
+    ] = depths
+
+    return depth_map, pts_2d, depths, mask

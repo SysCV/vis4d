@@ -6,10 +6,6 @@ path = "../../base/models/mmdetection/qd_3dt_R_101_FPN.toml"
 
 [model]
 category_mapping = {"bicycle" = 0, "motorcycle" = 1, "pedestrian" = 2, "bus" = 3, "car" = 4, "trailer" = 5, "truck" = 6, "construction_vehicle" = 7, "traffic_cone" = 8, "barrier" = 9}
-    [model.detection]
-    pixel_mean = [106.07, 127.705, 128.08]
-    pixel_std = [73.458, 70.129, 70.463]
-
     [model.optimizer]
     type = "SGD"
     lr = 0.01
@@ -24,7 +20,6 @@ category_mapping = {"bicycle" = 0, "motorcycle" = 1, "pedestrian" = 2, "bus" = 3
 [launch]
 samples_per_gpu = 4
 workers_per_gpu = 2
-seed = 2532270870
 
 [trainer]
 max_epochs = 24

@@ -5,13 +5,14 @@ import shutil
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
+from pytorch_lightning.utilities.distributed import rank_zero_warn
 from scalabel.label.io import load, load_label_config, save
 from scalabel.label.to_nuscenes import to_nuscenes
 from scalabel.label.typing import Dataset, Frame
 
 from vis4d.struct import MetricLogs
 
-from .base import BaseDatasetConfig, BaseDatasetLoader
+from .base import BaseDatasetConfig, BaseDatasetLoader, _eval_mapping
 
 try:  # pragma: no cover
     from nuscenes import NuScenes as nusc_data
@@ -208,12 +209,17 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             }
             str_summary = "\n".join(str_summary_list)
 
-        except AssertionError:
+        except AssertionError as e:
+            error_msg = "".join(e.args)
+            rank_zero_warn(f"Evaluation error: {error_msg}")
             log_dict = {
                 "mAP": 0,
                 "NDS": 0,
             }
-            str_summary = "Fail to evaluate due to sanity check or errors!"
+            str_summary = (
+                "Evaluation failure might be raised due to sanity check"
+            )
+            rank_zero_warn(str_summary)
 
         # clean up tmp dir
         shutil.rmtree(self.cfg.tmp_dir)
@@ -276,12 +282,19 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
                 "AMOTP": metrics.compute_metric("amotp", "all"),
             }
             str_summary = "\n".join(str_summary_list)
-        except AssertionError:
+        except AssertionError as e:
+            error_msg = "".join(e.args)
+            rank_zero_warn(f"Evaluation error: {error_msg}")
             log_dict = {
                 "aMOTA": 0,
                 "MOTP": 0,
             }
-            str_summary = "Fail to evaluate due to sanity check or motmetrics version or errors!"  # pylint: disable=line-too-long
+            str_summary = (
+                "Evaluation failure might be raised due to sanity check"
+                + " or motmetrics version is not 1.13.0"
+                + " or numpy version is not <= 1.19"
+            )
+            rank_zero_warn(str_summary)
 
         # clean up tmp dir
         shutil.rmtree(self.cfg.tmp_dir)
@@ -317,7 +330,10 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
     def _check_metrics(self) -> None:
         """Check if evaluation metrics specified are valid."""
         for metric in self.cfg.eval_metrics:
-            if metric not in ["detect_3d", "track_3d"]:  # pragma: no cover
+            if (
+                metric not in ["detect_3d", "track_3d"]
+                and metric not in _eval_mapping
+            ):  # pragma: no cover
                 raise KeyError(
                     f"metric {metric} is not supported in {self.cfg.name}"
                 )

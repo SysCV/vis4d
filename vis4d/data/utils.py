@@ -148,11 +148,7 @@ def prepare_labels(
                 if label.attributes is not None:
                     attr = label.attributes
 
-                if (
-                    not check_crowd(label)
-                    and not check_ignored(label)
-                    and label.category in frequencies
-                ):
+                if not check_crowd(label) and not check_ignored(label):
                     assert label.category is not None
                     frequencies[label.category] += 1
                     video_name = (

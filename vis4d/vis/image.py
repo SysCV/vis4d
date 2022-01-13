@@ -7,7 +7,11 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont
 
-from vis4d.common.geometry.projection import generate_depth_map, project_points
+from vis4d.common.geometry.projection import (
+    generate_depth_map,
+    generate_projected_point_mask,
+    project_points,
+)
 from vis4d.struct import Extrinsics, Intrinsics, NDArrayF64, NDArrayUI8
 
 try:  # pragma: no cover
@@ -267,7 +271,7 @@ def imshow_correspondence(
     ref_image: ImageType,
     ref_extrinsics: Extrinsics,
     ref_intrinsics: Intrinsics,
-    key_points: torch.tensor,
+    key_points: torch.Tensor,
 ) -> None:  # pragma: no cover
     """Draw corresponded pointcloud points."""
     key_im, ref_im = preprocess_image(key_image), preprocess_image(ref_image)
@@ -282,50 +286,46 @@ def imshow_correspondence(
         @ key_extrinsics.transpose().tensor[0]
         @ ref_extrinsics.inverse().transpose().tensor[0]
     )[:, :3]
-    key_pix = project_points(points_key, key_intrinsics).cpu().numpy()
-    ref_pix = project_points(points_ref, ref_intrinsics).cpu().numpy()
+    key_pix = project_points(points_key, key_intrinsics)
+    mask = generate_projected_point_mask(
+        points_key[:, 2], key_pix, key_im.szie[0], key_im.size[1]
+    )
 
-    mask = np.ones(key_pix.shape[0], dtype=bool)  # type: ignore
-    mask = np.logical_and(mask, points_key.cpu().numpy()[:, -1] > 0)
-    mask = np.logical_and(mask, points_ref.cpu().numpy()[:, -1] > 0)
-    mask = np.logical_and(mask, key_pix[:, 0] > 0)
-    mask = np.logical_and(mask, key_pix[:, 0] < key_im.size[0] - 1)
-    mask = np.logical_and(mask, key_pix[:, 1] > 0)
-    mask = np.logical_and(mask, key_pix[:, 1] < key_im.size[1] - 1)
-    mask = np.logical_and(mask, ref_pix[:, 0] > 0)
-    mask = np.logical_and(mask, ref_pix[:, 0] < ref_im.size[0] - 1)
-    mask = np.logical_and(mask, ref_pix[:, 1] > 0)
-    mask = np.logical_and(mask, ref_pix[:, 1] < ref_im.size[1] - 1)
-    ref_pix = ref_pix[mask]
+    _, ref_pix, _, mask = generate_depth_map(
+        points_ref, ref_intrinsics, ref_im.size[0], ref_im.size[1], mask
+    )
     key_pix = key_pix[mask]
 
     perm = torch.randperm(key_pix.shape[0])[:10]
-    key_pix = key_pix[perm]
-    ref_pix = ref_pix[perm]
+    key_pix = key_pix[perm].cpu().numpy()
+    ref_pix = ref_pix[perm].cpu().numpy()
 
     corresp_im = draw_lines_match(key_im, ref_im, key_pix, ref_pix)
     imshow(corresp_im)
 
 
 def imshow_pointcloud(
-    points: torch.tensor,
+    points: torch.Tensor,
     image: ImageType,
     camera_intrinsics: Intrinsics,
-    boxes3d: Box3DType,
+    boxes3d: Optional[Box3DType] = None,
     dot_size: int = 3,
     mode: str = "RGB",
 ) -> None:  # pragma: no cover
     """Show image with pointcloud points."""
     image_p = preprocess_image(image, mode)
-    pts2d, coloring = generate_depth_map(
-        points[:, :3], camera_intrinsics, image_p
+    _, pts2d, coloring, _ = generate_depth_map(
+        points[:, :3], camera_intrinsics, image_p.size[0], image_p.size[1]
     )
     pts2d, coloring = pts2d.cpu().numpy(), coloring.cpu().numpy()
 
     plt.figure(figsize=(16, 9))
     plt.scatter(pts2d[:, 0], pts2d[:, 1], c=coloring, s=dot_size)
 
-    imshow_bboxes3d(image, boxes3d, camera_intrinsics)
+    if boxes3d is not None:
+        imshow_bboxes3d(image, boxes3d, camera_intrinsics)
+    else:
+        imshow(image)
 
 
 def plotly_draw_bbox3d(
@@ -375,7 +375,7 @@ def plotly_draw_bbox3d(
 
 
 def show_pointcloud(
-    points: torch.tensor,
+    points: torch.Tensor,
     boxes3d: Optional[Box3DType] = None,
     thickness: int = 2,
 ) -> None:  # pragma: no cover

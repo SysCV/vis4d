@@ -6,10 +6,6 @@ path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"
 
 [model]
 category_mapping = {"car" = 0, "truck" = 1, "bus" = 2, "trailer" = 3, "construction_vehicle" = 4, "pedestrian" = 5, "motorcycle" = 6, "bicycle" = 7, "traffic_cone" = 8, "barrier" = 9}
-    [model.detection]
-    pixel_mean = [106.07, 127.705, 128.08]
-    pixel_std = [73.458, 70.129, 70.463]
-
     [model.optimizer]
     type = "SGD"
     lr = 0.01
