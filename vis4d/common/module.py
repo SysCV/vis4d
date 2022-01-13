@@ -9,7 +9,6 @@ from vis4d.struct import ModuleCfg
 
 from .registry import RegistryHolder
 
-TVis4DModule = TypeVar("TVis4DModule", bound="Vis4DModule")
 TTrainReturn = TypeVar("TTrainReturn")
 TTestReturn = TypeVar("TTestReturn")
 
@@ -33,9 +32,9 @@ class Vis4DModule(
         raise NotImplementedError
 
 
-def build_module(
+def build_module(  # type: ignore
     cfg: ModuleCfg,
-    bound: Any,  # Type[TVis4DModule] = Vis4DModule[TTrainReturn, TTestReturn],
+    bound: Any,
 ) -> Vis4DModule[TTrainReturn, TTestReturn]:
     """Build a module from config."""
     registry = RegistryHolder.get_registry(bound)

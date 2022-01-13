@@ -17,7 +17,6 @@ from scalabel.label.typing import Config, Dataset, Frame
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.time import Timer
-from vis4d.data import BaseReferenceSampler, BaseSampleMapper
 from vis4d.struct import MetricLogs
 
 
@@ -108,8 +107,6 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         self,
         name: str,
         data_root: str,
-        sample_mapper: SampleMapper = SampleMapper(),
-        ref_sampler: ReferenceSampler = ReferenceSampler(),
         annotations: Optional[str] = None,
         category_mapping: Optional[Dict[str, Dict[str, int]]] = None,
         attributes: Optional[
@@ -117,7 +114,6 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         ] = None,
         config_path: Optional[str] = None,
         eval_metrics: List[str] = [],
-        validate_frames: bool = False,
         ignore_unknown_cats: bool = False,
         cache_as_binary: bool = False,
         num_processes: int = 4,
@@ -129,9 +125,16 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         self.name = name
         self.data_root = data_root
         self.annotations = annotations
+        self.config_path = config_path
         self.eval_metrics = eval_metrics
         self.ignore_unknown_cats = ignore_unknown_cats
         self.collect_device = collect_device
+        self.category_mapping = category_mapping
+        self.cache_as_binary = cache_as_binary
+        self.compute_global_instance_ids = compute_global_instance_ids
+        self.attributes = attributes
+        self.num_processes = num_processes
+        self.multi_sensor_inference = multi_sensor_inference
         self._check_metrics()
 
         timer = Timer()
@@ -169,7 +172,10 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         """Check if evaluation metrics specified are valid."""
         for metric in self.eval_metrics:
             if metric not in _eval_mapping:  # pragma: no cover
-                raise KeyError(f"metric {metric} is not supported in {name}")
+                raise KeyError(
+                    f"metric {metric} is not supported in"
+                    f" dataset {self.name}"
+                )
 
     def evaluate(
         self, metric: str, predictions: List[Frame], gts: List[Frame]

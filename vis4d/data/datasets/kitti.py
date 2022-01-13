@@ -39,7 +39,6 @@ class KITTI(BaseDatasetLoader):  # pragma: no cover
         else:
             dataset = load(
                 self.annotations,
-                validate_frames=self.validate_frames,
                 nprocs=self.num_processes,
             )
 

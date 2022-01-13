@@ -14,11 +14,7 @@ from scalabel.label.typing import Dataset, Frame
 
 from vis4d.struct import ArgsType, MetricLogs
 
-from .base import BaseDatasetConfig, BaseDatasetLoader
-
-
-class MOTDatasetConfig(BaseDatasetConfig):
-    """Config for training/evaluation datasets."""
+from .base import BaseDatasetLoader
 
 
 class MOTChallenge(BaseDatasetLoader):

@@ -52,7 +52,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             NUSC_INSTALLED
         ), "Using NuScenes dataset needs NuScenes devkit installed!."
 
-        # cfg.annotations is the path to the label file in scalabel format.
+        # annotations is the path to the label file in scalabel format.
         # if the file exists load it, else create it to that location
         assert (
             self.annotations is not None
@@ -70,7 +70,6 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             # Load labels from existing file
             dataset = load(
                 self.annotations,
-                validate_frames=self.validate_frames,
                 nprocs=self.num_processes,
             )
 
@@ -218,5 +217,5 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         for metric in self.eval_metrics:
             if metric not in ["detect_3d"]:  # pragma: no cover
                 raise KeyError(
-                    f"metric {metric} is not supported in {self.cfg.name}"
+                    f"metric {metric} is not supported in {self.name}"
                 )

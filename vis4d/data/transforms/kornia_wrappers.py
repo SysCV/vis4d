@@ -10,7 +10,7 @@ to maintain valid projective geometry in 3D tracking.
 
 Reference: https://kornia.readthedocs.io/en/latest/augmentation.base.html
 """
-from typing import List
+from typing import List, Optional
 
 import torch
 from kornia import augmentation as kornia_augmentation
@@ -36,12 +36,14 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         self,
         kornia_type: str,
         *args: ArgsType,
-        kornia_kwargs: DictStrAny = {},
+        kornia_kwargs: Optional[DictStrAny] = None,
         **kwargs: ArgsType
     ):
         """Initialize wrapper."""
         super().__init__(*args, **kwargs)
         augmentation = getattr(kornia_augmentation, kornia_type)
+        if kornia_kwargs is None:
+            kornia_kwargs = {}
         self.augmentor = augmentation(p=1.0, **kornia_kwargs)
 
     def generate_parameters(self, sample: InputSample) -> AugParams:

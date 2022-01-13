@@ -58,7 +58,7 @@ class TestDLA(unittest.TestCase):
             neck=DLAUp(
                 use_deformable_convs=False,
                 start_level=2,
-                in_channels=(16, 32, 64, 128, 256, 512),
+                in_channels=[16, 32, 64, 128, 256, 512],
             ),
         )
         out = dla_custom(self.inputs)

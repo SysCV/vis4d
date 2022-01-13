@@ -88,16 +88,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         )
         if pixel_mean is None or pixel_std is None:
             assert backbone is not None, (
-                "If no custom backbone is defined,"
-                " normalization parameters must be specified!"
+                "If no custom backbone is defined, image "
+                "normalization parameters must be specified!"
             )
-            assert (
-                self.backbone.pixel_mean is not None
-                and self.backbone.pixel_std is not None
-            ), "Please specify image normalization parameters!"
-            assert (
-                pixel_mean is None and pixel_std is None
-            ), "The mean and std of pixels should both be set!"
 
         if backbone is None:
             self.backbone: BaseBackbone = MMDetBackbone(
@@ -248,7 +241,9 @@ class MMOneStageDetector(BaseOneStageDetector):
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
         backbone: Optional[BaseBackbone] = None,
-        bbox_head: Optional[BaseDenseHead] = None,
+        bbox_head: Optional[
+            BaseDenseHead[List[Boxes2D], List[Boxes2D]]
+        ] = None,
         **kwargs: ArgsType,
     ):
         """Init."""

@@ -1,5 +1,5 @@
 """Build Vis4D data loading pipeline."""
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import pytorch_lightning as pl
 import torch

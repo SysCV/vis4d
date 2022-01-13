@@ -12,8 +12,6 @@ from torch.utils.data import Dataset
 from ..common.utils.time import Timer
 from ..struct import InputSample
 from .datasets import BaseDatasetLoader
-from .mapper import build_mapper
-from .reference import build_reference_sampler
 from .utils import (
     DatasetFromList,
     discard_labels_outside_set,
@@ -33,10 +31,9 @@ class ScalabelDataset(Dataset):  # type: ignore
         image_channel_mode: str = "RGB",
     ):
         """Init."""
-        rank_zero_info("Initializing dataset: %s", dataset.cfg.name)
-        self.cfg = dataset.cfg
+        rank_zero_info("Initializing dataset: %s", dataset.name)
         self.training = training
-        cats_name2id = self.cfg.category_mapping
+        cats_name2id = dataset.category_mapping
         if cats_name2id is not None:
             class_list = list(
                 set(
@@ -57,15 +54,13 @@ class ScalabelDataset(Dataset):  # type: ignore
         self.mapper = build_mapper(
             self.cfg.sample_mapper, cats_name2id, training, image_channel_mode
         )
-        dataset.frames = filter_attributes(
-            dataset.frames, dataset.cfg.attributes
-        )
+        dataset.frames = filter_attributes(dataset.frames, dataset.attributes)
 
         t = Timer()
         frequencies = prepare_labels(
             dataset.frames,
             class_list,
-            self.cfg.compute_global_instance_ids,
+            dataset.compute_global_instance_ids,
         )
         rank_zero_info(
             f"Preprocessing {len(dataset.frames)} frames takes {t.time():.2f}"
@@ -80,7 +75,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             prepare_labels(
                 self.dataset.groups,
                 class_list,
-                self.cfg.compute_global_instance_ids,
+                dataset.compute_global_instance_ids,
             )
             rank_zero_info(
                 f"Preprocessing {len(self.dataset.groups)} groups takes "

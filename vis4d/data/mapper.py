@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from pydantic import BaseModel
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
     rank_zero_warn,
@@ -47,7 +46,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         cats_name2id: Dict[str, Dict[str, int]],
         training: bool,
         data_backend: Union[BaseDataBackend, ModuleCfg] = FileBackend(),
-        categories: Optional[List[str]] = None,
         fields_to_load: List[str] = ["boxes2d"],
         skip_empty_samples: bool = False,
         clip_bboxes_to_image: bool = True,
@@ -61,6 +59,12 @@ class BaseSampleMapper(metaclass=RegistryHolder):
     ) -> None:
         """Init Scalabel Mapper."""
         self.training = training
+        self.image_backend = image_backend
+        self.fields_to_load = fields_to_load
+        self.background_as_class = background_as_class
+        self.skip_empty_samples = skip_empty_samples
+        self.clip_bboxes_to_image = clip_bboxes_to_image
+        self.min_bboxes_area = min_bboxes_area
         self.image_channel_mode = image_channel_mode
         if skip_empty_samples and not self.training:
             rank_zero_warn(  # pragma: no cover
@@ -74,14 +78,19 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             )
         else:
             self.data_backend = data_backend
-        rank_zero_info("Using data backend: %s", self.data_backend.type)
+        rank_zero_info(
+            "Using data backend: %s", self.data_backend.__class__.__name__
+        )
         self.transformations = []
-        for transform in transformations:
-            if isinstance(transform, dict):
-                transform: BaseAugmentation = build_module(
-                    transform, bound=BaseAugmentation
-                )
-            self.transformations.append(transform)
+        if transformations is not None:
+            for transform in transformations:
+                if isinstance(transform, dict):
+                    transform_: BaseAugmentation = build_module(
+                        transform, bound=BaseAugmentation
+                    )
+                else:
+                    transform_ = transform
+                self.transformations.append(transform_)
         rank_zero_info("Transformations used: %s", self.transformations)
 
         allowed_files = [

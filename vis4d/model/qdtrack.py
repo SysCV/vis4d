@@ -1,6 +1,6 @@
 """Quasi-dense instance similarity learning model."""
 import pickle
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import torch
 
@@ -43,9 +43,7 @@ class QDTrack(BaseModel):
         assert self.category_mapping is not None
         if isinstance(detection, dict):
             detection["category_mapping"] = self.category_mapping
-            self.detector: Union[
-                BaseTwoStageDetector, BaseOneStageDetector
-            ] = build_model(detection)
+            self.detector = build_model(detection)
         else:
             self.detector = detection
         assert isinstance(
@@ -78,10 +76,9 @@ class QDTrack(BaseModel):
             x.targets for x in ref_inputs
         ]
 
-        key_proposals: Optional[List[Boxes2D]]
+        key_proposals: List[Boxes2D]
         ref_proposals: List[List[Boxes2D]]
         if isinstance(self.detector, BaseTwoStageDetector):
-            # two-stage detector
             # proposal generation
             rpn_losses, key_proposals = self.detector.generate_proposals(
                 key_inputs, key_x, key_targets
@@ -93,6 +90,7 @@ class QDTrack(BaseModel):
                 ]
 
             # roi head
+            assert isinstance(self.detector, BaseTwoStageDetector)
             roi_losses, _ = self.detector.generate_detections(
                 key_inputs,
                 key_x,

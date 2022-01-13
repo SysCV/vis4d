@@ -12,19 +12,21 @@ from scalabel.label.typing import (
     Label,
 )
 
-from ..struct import Boxes2D, Images, InputSample
-from . import ReferenceSampler, SampleMapper
+from ..struct import ArgsType, Boxes2D, Images, InputSample
+from . import BaseReferenceSampler, BaseSampleMapper
 from .dataset import ScalabelDataset
 from .datasets import Scalabel
 
 
-class MockDatasetLoader(BaseDatasetLoader):
+class MockDatasetLoader(Scalabel):
     """Scalabel dataset mockup."""
 
-    def __init__(self, cfg: BaseDatasetConfig, frames: List[Frame]) -> None:
+    def __init__(
+        self, *args: ArgsType, frames: List[Frame], **kwargs: ArgsType
+    ) -> None:
         """Init."""
         self.frames = frames
-        super().__init__(cfg)
+        super().__init__(*args, **kwargs)
 
     def load_dataset(self) -> Dataset:
         """Load and possibly convert dataset to scalabel format."""
@@ -35,20 +37,8 @@ class MockDatasetLoader(BaseDatasetLoader):
 class TestScalabelDataset(unittest.TestCase):
     """ScalabelDataset Testcase class."""
 
-    cfg = Scalabel(
-        data_root="/path/to/root",
-        dataloader=SampleMapper(),
-        ref_sampler=ReferenceSampler(
-            strategy="sequential",
-            num_ref_imgs=2,
-            scope=3,
-            frame_order="temporal",
-        ),
-    )
-
     dataset_loader = MockDatasetLoader(
-        cfg,
-        [
+        frames=[
             Frame(
                 name=str(i),
                 videoName=str(i % 2),
@@ -56,6 +46,14 @@ class TestScalabelDataset(unittest.TestCase):
             )
             for i in range(200)
         ],
+        data_root="/path/to/root",
+        sample_mapper=BaseSampleMapper(),
+        ref_sampler=BaseReferenceSampler(
+            strategy="sequential",
+            num_ref_imgs=2,
+            scope=3,
+            frame_order="temporal",
+        ),
     )
 
     dataset = ScalabelDataset(dataset_loader, True)
@@ -69,20 +67,8 @@ class TestScalabelDataset(unittest.TestCase):
 
     def test_getitem_fallback(self) -> None:
         """Testcase for getitem fallback if None is returned."""
-        cfg = Scalabel(
-            data_root="vis4d/engine/testcases/track/bdd100k-samples/images/",
-            dataloader=SampleMapper,
-            ref_sampler=ReferenceSampler(
-                strategy="sequential",
-                num_ref_imgs=1,
-                scope=3,
-                skip_nomatch_samples=True,
-            ),
-        )
-
         dataset_loader = MockDatasetLoader(
-            cfg,
-            [
+            frames=[
                 Frame(
                     name="00091078-875c1f73-0000167.jpg",
                     videoName="00091078-875c1f73",
@@ -90,6 +76,14 @@ class TestScalabelDataset(unittest.TestCase):
                 )
                 for i in range(6)
             ],
+            data_root="vis4d/engine/testcases/track/bdd100k-samples/images/",
+            sample_mapper=BaseSampleMapper,
+            ref_sampler=BaseReferenceSampler(
+                strategy="sequential",
+                num_ref_imgs=1,
+                scope=3,
+                skip_nomatch_samples=True,
+            ),
         )
         dataset = ScalabelDataset(dataset_loader, True)
         # assert makes sure that all samples will be discarded from fallback
@@ -160,23 +154,9 @@ class TestScalabelDataset(unittest.TestCase):
 
     def test_filter_attributes(self) -> None:
         """Testcase for attribute filtering."""
-        cfg = Scalabel(
-            name="test",
-            data_root="/path/to/root",
-            dataloader=SampleMapperConfig(),
-            ref_sampler=ReferenceSamplerConfig(
-                strategy="sequential",
-                num_ref_imgs=2,
-                scope=3,
-                frame_order="temporal",
-            ),
-            attributes={"timeofday": ["daytime", "night"], "weather": "clear"},
-        )
-
         # Testcase 1
         dataset_loader = MockDatasetLoader(
-            cfg,
-            [
+            frames=[
                 Frame(
                     name=str(i),
                     videoName=str(i % 2),
@@ -185,40 +165,43 @@ class TestScalabelDataset(unittest.TestCase):
                 )
                 for i in range(6)
             ],
+            data_root="/path/to/root",
+            dataloader=BaseSampleMapper(),
+            ref_sampler=BaseReferenceSampler(
+                strategy="sequential",
+                num_ref_imgs=2,
+                scope=3,
+                frame_order="temporal",
+            ),
+            attributes={"timeofday": ["daytime", "night"], "weather": "clear"},
         )
 
         dataset = ScalabelDataset(dataset_loader, True)
         self.assertTrue(len(dataset) == 6)
 
         # Testcase 2
-        dataset_loader = MockDatasetLoader(
-            cfg,
-            [
-                Frame(
-                    name=str(i),
-                    videoName=str(i % 2),
-                    frameIndex=i - i // 2 - i % 2,
-                    attributes={"timeofday": "night", "weather": "clear"},
-                )
-                for i in range(6)
-            ],
-        )
+        dataset_loader.frames = [
+            Frame(
+                name=str(i),
+                videoName=str(i % 2),
+                frameIndex=i - i // 2 - i % 2,
+                attributes={"timeofday": "night", "weather": "clear"},
+            )
+            for i in range(6)
+        ]
 
         dataset = ScalabelDataset(dataset_loader, True)
         self.assertTrue(len(dataset) == 6)
 
         # Testcase 3
-        dataset_loader = MockDatasetLoader(
-            cfg,
-            [
-                Frame(
-                    name=str(i),
-                    videoName=str(i % 2),
-                    frameIndex=i - i // 2 - i % 2,
-                    attributes={"timeofday": "daytime", "weather": "snowy"},
-                )
-                for i in range(6)
-            ],
-        )
+        dataset_loader.frames = [
+            Frame(
+                name=str(i),
+                videoName=str(i % 2),
+                frameIndex=i - i // 2 - i % 2,
+                attributes={"timeofday": "daytime", "weather": "snowy"},
+            )
+            for i in range(6)
+        ]
 
         self.assertRaises(ValueError, ScalabelDataset, dataset_loader, True)

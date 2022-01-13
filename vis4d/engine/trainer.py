@@ -12,7 +12,10 @@ from pytorch_lightning.utilities.distributed import (
     rank_zero_warn,
 )
 
+from ..common.module import build_module
 from ..config import Config, default_argument_parser, parse_config
+from ..data.build import Vis4DDataModule
+from ..data.datasets import BaseDatasetLoader, Custom
 from ..model import build_model
 from ..struct import DictStrAny, ModuleCfg
 from ..vis import ScalabelWriterCallback
@@ -154,8 +157,8 @@ def setup_category_mapping(
         if "all" in data_cfg["category_mapping"]:
             if len(data_cfg["category_mapping"]) > 1:
                 rank_zero_warn(
-                    f'"all" category mapping is specified for'
-                    " {data_cfg['name']} but other mappings exist. These"
+                    '"all" category mapping is specified for'
+                    f" {data_cfg['name']} but other mappings exist. These"
                     " will be ignored."
                 )
             data_cfg["category_mapping"] = {
@@ -184,16 +187,18 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     setup_category_mapping(cfg.train + cfg.test, cfg.model["category_mapping"])
 
     # build dataloaders
-    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
-        cfg.train, cfg.test
-    )
+    train_loaders = [
+        build_module(**cfg, bound=BaseDatasetLoader) for cfg in cfg.train
+    ]
+    test_loaders = [
+        build_module(**cfg, bound=BaseDatasetLoader) for cfg in cfg.test
+    ]
 
-    data_module = build_data_module(
+    data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_loaders,
         test_loaders,
-        predict_loaders,
         cfg.model["image_channel_mode"],
         cfg.launch.seed,
         cfg.data,
@@ -222,16 +227,14 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     setup_category_mapping(cfg.test, cfg.model["category_mapping"])
 
     # build dataloaders
-    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
-        [], cfg.test
-    )
+    test_loaders: List[BaseDatasetLoader] = [
+        build_module(**cfg, bound=BaseDatasetLoader) for cfg in cfg.test
+    ]
 
-    data_module = build_data_module(
+    data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
-        train_loaders,
         test_loaders,
-        predict_loaders,
         cfg.model["image_channel_mode"],
         cfg.launch.seed,
         cfg.data,
@@ -263,32 +266,24 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.legacy_ckpt,
     )
 
-    if cfg.launch.input_dir is None:
-        test_cfg, pred_cfg = cfg.test, []
-    else:
-        test_cfg = []
-        input_dir = cfg.launch.input_dir
-        if input_dir[-1] == "/":
-            input_dir = input_dir[:-1]
-        dataset_name = osp.basename(input_dir)
-        pred_cfg = [
-            BaseDatasetConfig(
-                type="Custom", name=dataset_name, data_root=input_dir
-            )
-        ]
     # setup category_mappings
     setup_category_mapping(test_cfg + pred_cfg, cfg.model["category_mapping"])
 
     # build dataloaders
-    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
-        [], test_cfg, pred_cfg
-    )
+    if cfg.launch.input_dir:
+        input_dir = cfg.launch.input_dir
+        if input_dir[-1] == "/":
+            input_dir = input_dir[:-1]
+        dataset_name = osp.basename(input_dir)
+        predict_loaders = [Custom(name=dataset_name, data_root=input_dir)]
+    else:
+        predict_loaders = [
+            build_module(**cfg, bound=BaseDatasetLoader) for cfg in cfg.test
+        ]
 
-    data_module = build_data_module(
+    data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
-        train_loaders,
-        test_loaders,
         predict_loaders,
         cfg.model["image_channel_mode"],
         cfg.launch.seed,
@@ -299,17 +294,12 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
         cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
     )
 
-    if len(predict_loaders) > 0:
-        dataloaders = predict_loaders
-    else:
-        dataloaders = test_loaders
-
-    assert len(dataloaders) > 0, "No datasets for prediction specified!"
+    assert len(predict_loaders) > 0, "No datasets for prediction specified!"
     evaluators = [
         ScalabelWriterCallback(
             i, osp.join(out_dir, dl.cfg.name), cfg.launch.visualize
         )
-        for i, dl in enumerate(dataloaders)
+        for i, dl in enumerate(predict_loaders)
     ]
     trainer.callbacks += evaluators  # pylint: disable=no-member
     trainer.predict(model, data_module)
@@ -329,16 +319,14 @@ def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     setup_category_mapping(cfg.test, cfg.model["category_mapping"])
 
     # build dataloaders
-    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
-        [], cfg.test
-    )
+    test_loaders = [
+        build_module(**cfg, bound=BaseDatasetLoader) for cfg in cfg.test
+    ]
 
-    data_module = build_data_module(
+    data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
-        train_loaders,
         test_loaders,
-        predict_loaders,
         cfg.model["image_channel_mode"],
         cfg.launch.seed,
         cfg.data,

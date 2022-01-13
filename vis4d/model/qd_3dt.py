@@ -3,6 +3,7 @@ from typing import List, Union
 
 import torch
 
+from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.common.module import build_module
 from vis4d.struct import (
     ArgsType,
@@ -16,7 +17,7 @@ from vis4d.struct import (
 )
 
 from .detect import BaseTwoStageDetector
-from .heads.roi_head import QD3DTBBox3DHead
+from .heads.roi_head import BaseRoIHead
 from .qdtrack import QDTrack
 from .track.utils import split_key_ref_inputs
 
@@ -26,7 +27,9 @@ class QD3DT(QDTrack):
 
     def __init__(
         self,
-        bbox_3d_head: Union[QD3DTBBox3DHead, ModuleCfg],
+        bbox_3d_head: Union[
+            BaseRoIHead[SamplingResult, List[Boxes3D]], ModuleCfg
+        ],
         *args: ArgsType,
         **kwargs: ArgsType
     ) -> None:
@@ -35,9 +38,9 @@ class QD3DT(QDTrack):
         assert self.category_mapping is not None
         if isinstance(bbox_3d_head, dict):
             bbox_3d_head["num_classes"] = len(self.category_mapping)
-            self.bbox_3d_head: QD3DTBBox3DHead = build_module(  # TODO this should be any box3d head with same args / returns as the qd one
-                bbox_3d_head, bound=QD3DTBBox3DHead
-            )
+            self.bbox_3d_head: BaseRoIHead[
+                SamplingResult, List[Boxes3D]
+            ] = build_module(bbox_3d_head, bound=BaseRoIHead)
         else:
             self.bbox_3d_head = bbox_3d_head
 
