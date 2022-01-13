@@ -113,18 +113,20 @@ class QD3DT(QDTrack):
 
         for idx, boxes3d in enumerate(boxes3d_list):
             assert isinstance(boxes3d, Boxes3D)
-            boxes3d.transform(
-                group.extrinsics.inverse() @ frames[idx].extrinsics
-            )
+            boxes3d.transform(frames[idx].extrinsics)
         boxes3d = Boxes3D.merge(boxes3d_list)
-        embeds = [torch.cat(embeddings_list)]
+
+        embeds = torch.cat(embeddings_list)
 
         boxes_2d = boxes2d.to(torch.device("cpu")).to_scalabel(
             self.cat_mapping
         )
+
         # associate detections, update graph
         predictions = LabelInstances([boxes2d], [boxes3d])
-        tracks = self.track_graph(frames[0], predictions, embeddings=embeds)
+        tracks = self.track_graph(frames[0], predictions, embeddings=[embeds])
+
+        tracks.boxes3d[0].transform(group.extrinsics.inverse())
 
         tracks_2d = (
             tracks.boxes2d[0]

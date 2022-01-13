@@ -233,3 +233,73 @@ class Images(InputInstance):
     def device(self) -> torch.device:
         """Returns current device."""
         return self.tensor.device
+
+
+class PointCloud(InputInstance):
+    """Data structure for loading point cloud."""
+
+    num_point_feature: int = 4
+
+    def __init__(self, tensor: torch.tensor):
+        """Init PointCloud class.
+
+        Args:
+            tensor (torch.Tensor): (N, C) or (B, N, C)
+        """
+        assert 2 <= len(tensor.shape) <= 3
+        if len(tensor.shape) == 2:
+            tensor = tensor.unsqueeze(0)
+        self.tensor = tensor
+
+    def __len__(self) -> int:
+        """Return number of PoinCloud."""
+        return int(self.tensor.shape[0])
+
+    def __getitem__(self, idx: int) -> "PointCloud":
+        """Access single points."""
+        return PointCloud(self.tensor[idx])
+
+    def to(self, device: torch.device) -> "PointCloud":
+        """Put PoinCloud on device."""
+        cast_tensor = self.tensor.to(device)
+        return PointCloud(cast_tensor)
+
+    @classmethod
+    def cat(
+        cls,
+        instances: List["PointCloud"],
+        device: Optional[torch.device] = None,
+    ) -> "PointCloud":
+        """Concatenate N PointCloud objects into Padded foramt.
+
+        Returns:
+            Tensor: [Batch, N_max, num_point_feature].
+        """
+        assert isinstance(instances, (list, tuple))
+        assert len(instances) > 0
+
+        if device is None:
+            device = instances[0].tensor.device
+
+        max_points = max([p.tensor.shape[1] for p in instances])
+        max_feature = max([p.tensor.shape[2] for p in instances])
+
+        tot_batch = sum([len(inst) for inst in instances])
+
+        pad_points = torch.zeros(
+            (tot_batch, max_points, max_feature), device=device
+        )
+
+        cum_len = 0
+        for inst in instances:
+            cur_len = inst.tensor.shape[0]
+            pad_points[
+                cum_len : cum_len + cur_len, : inst.tensor.shape[1], :
+            ] = inst.tensor
+            cum_len += cur_len
+        return PointCloud(pad_points)
+
+    @property
+    def device(self) -> torch.device:
+        """Returns current device."""
+        return self.tensor.device

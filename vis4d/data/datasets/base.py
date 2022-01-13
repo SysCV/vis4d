@@ -13,7 +13,7 @@ from scalabel.eval.pan_seg import evaluate_pan_seg
 from scalabel.eval.result import Result
 from scalabel.eval.sem_seg import evaluate_sem_seg
 from scalabel.label.io import group_and_sort
-from scalabel.label.typing import Config, Dataset, Frame
+from scalabel.label.typing import Config, Dataset, Frame, FrameGroup
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.time import Timer
@@ -145,6 +145,8 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
         assert dataset.config is not None
         add_data_path(data_root, dataset.frames)
+        if dataset.groups is not None:
+            add_data_path(cfg.data_root, dataset.groups)
         rank_zero_info(f"Loading {name} takes {timer.time():.2f} seconds.")
         self.metadata_cfg = dataset.config
         self.frames = dataset.frames
@@ -191,7 +193,9 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         return log_dict, str(result)
 
 
-def add_data_path(data_root: str, frames: List[Frame]) -> None:
+def add_data_path(
+    data_root: str, frames: Union[List[Frame], List[FrameGroup]]
+) -> None:
     """Add filepath to frame using data_root."""
     for ann in frames:
         assert ann.name is not None

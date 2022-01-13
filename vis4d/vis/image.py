@@ -1,11 +1,27 @@
 """Vis4D Visualization tools for analysis and debugging."""
+from multiprocessing import Process
 from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from PIL import Image, ImageDraw, ImageFont
 
-from vis4d.struct import Intrinsics, NDArrayF64, NDArrayUI8
+from vis4d.common.geometry.projection import (
+    generate_depth_map,
+    generate_projected_point_mask,
+    project_points,
+)
+from vis4d.struct import Extrinsics, Intrinsics, NDArrayF64, NDArrayUI8
+
+try:  # pragma: no cover
+    import dash
+    import plotly.graph_objects as go
+    from dash import dcc, html
+
+    DASH_INSTALLED = True
+except (ImportError, NameError):
+    DASH_INSTALLED = False
 
 from .utils import (
     Box3DType,
@@ -201,3 +217,216 @@ def get_intersection_point(
     else:
         k = k_up / k_down
     return (1 - k) * point1 + k * point2
+
+
+def draw_lines_match(
+    img1: Image.Image,
+    img2: Image.Image,
+    pts1: torch.Tensor,
+    pts2: torch.Tensor,
+    radius: int = 5,
+) -> Image:  # pragma: no cover
+    """Draw matched lines."""
+    img1 = np.array(img1)
+    img2 = np.array(img2)
+    rows1 = img1.shape[0]
+    cols1 = img1.shape[1]
+    rows2 = img2.shape[0]
+    cols2 = img2.shape[1]
+    interval = 5
+
+    out = 255 * np.ones(
+        (max([rows1, rows2]), cols1 + cols2 + interval, 3), dtype="uint8"
+    )
+    out[:rows2, cols1 + interval : cols1 + cols2 + interval, :] = img2
+    pts2[:, 0] += cols1 + interval
+
+    # Place the first image to the left
+    out[:rows1, :cols1, :] = img1
+
+    out_im = Image.fromarray(out)
+    draw = ImageDraw.Draw(out_im)
+
+    for pt1, pt2 in zip(pts1, pts2):
+        draw.ellipse(
+            [tuple(pt1.astype(int) - radius), tuple(pt1.astype(int) + radius)],
+            outline=(255, 0, 0),
+        )
+        draw.ellipse(
+            [tuple(pt2.astype(int) - radius), tuple(pt2.astype(int) + radius)],
+            outline=(255, 0, 0),
+        )
+        draw.line(
+            [tuple(pt1.astype(int)), tuple(pt2.astype(int))],
+            fill=(0, 255, 0),
+            width=1,
+        )
+    return out_im
+
+
+def imshow_correspondence(
+    key_image: ImageType,
+    key_extrinsics: Extrinsics,
+    key_intrinsics: Intrinsics,
+    ref_image: ImageType,
+    ref_extrinsics: Extrinsics,
+    ref_intrinsics: Intrinsics,
+    key_points: torch.Tensor,
+) -> None:  # pragma: no cover
+    """Draw corresponded pointcloud points."""
+    key_im, ref_im = preprocess_image(key_image), preprocess_image(ref_image)
+
+    hom_points = torch.cat(
+        [key_points[:, :3], torch.ones_like(key_points[:, 0:1])], -1
+    )
+
+    points_key = key_points[:, :3]
+    points_ref = (
+        hom_points
+        @ key_extrinsics.transpose().tensor[0]
+        @ ref_extrinsics.inverse().transpose().tensor[0]
+    )[:, :3]
+    key_pix = project_points(points_key, key_intrinsics)
+    mask = generate_projected_point_mask(
+        points_key[:, 2], key_pix, key_im.szie[0], key_im.size[1]
+    )
+
+    _, ref_pix, _, mask = generate_depth_map(
+        points_ref, ref_intrinsics, ref_im.size[0], ref_im.size[1], mask
+    )
+    key_pix = key_pix[mask]
+
+    perm = torch.randperm(key_pix.shape[0])[:10]
+    key_pix = key_pix[perm].cpu().numpy()
+    ref_pix = ref_pix[perm].cpu().numpy()
+
+    corresp_im = draw_lines_match(key_im, ref_im, key_pix, ref_pix)
+    imshow(corresp_im)
+
+
+def imshow_pointcloud(
+    points: torch.Tensor,
+    image: ImageType,
+    camera_intrinsics: Intrinsics,
+    boxes3d: Optional[Box3DType] = None,
+    dot_size: int = 3,
+    mode: str = "RGB",
+) -> None:  # pragma: no cover
+    """Show image with pointcloud points."""
+    image_p = preprocess_image(image, mode)
+    _, pts2d, coloring, _ = generate_depth_map(
+        points[:, :3], camera_intrinsics, image_p.size[0], image_p.size[1]
+    )
+    pts2d, coloring = pts2d.cpu().numpy(), coloring.cpu().numpy()
+
+    plt.figure(figsize=(16, 9))
+    plt.scatter(pts2d[:, 0], pts2d[:, 1], c=coloring, s=dot_size)
+
+    if boxes3d is not None:
+        imshow_bboxes3d(image, boxes3d, camera_intrinsics)
+    else:
+        imshow(image)
+
+
+def plotly_draw_bbox3d(
+    box: List[float],
+) -> Tuple[
+    List[NDArrayF64], List[NDArrayF64], List[NDArrayF64]
+]:  # pragma: no cover
+    """Plot 3D boxes in 3D space."""
+    ixs_box_0 = [0, 1, 2, 3, 0]
+    ixs_box_1 = [4, 5, 6, 7, 4]
+    corners = box3d_to_corners(box)
+
+    x_lines = [corners[ixs_box_0, 0]]
+    y_lines = [corners[ixs_box_0, 1]]
+    z_lines = [corners[ixs_box_0, 2]]
+
+    def f_lines_add_nones() -> None:
+        """Add nones for lines."""
+        x_lines.append(None)
+        y_lines.append(None)
+        z_lines.append(None)
+
+    f_lines_add_nones()
+
+    x_lines.extend(corners[ixs_box_1, 0])
+    y_lines.extend(corners[ixs_box_1, 1])
+    z_lines.extend(corners[ixs_box_1, 2])
+    f_lines_add_nones()
+
+    for i in range(4):
+        x_lines.extend(corners[[ixs_box_0[i], ixs_box_1[i]], 0])
+        y_lines.extend(corners[[ixs_box_0[i], ixs_box_1[i]], 1])
+        z_lines.extend(corners[[ixs_box_0[i], ixs_box_1[i]], 2])
+        f_lines_add_nones()
+
+    # heading
+    x_lines.extend(corners[[0, 5], 0])
+    y_lines.extend(corners[[0, 5], 1])
+    z_lines.extend(corners[[0, 5], 2])
+    f_lines_add_nones()
+
+    x_lines.extend(corners[[1, 4], 0])
+    y_lines.extend(corners[[1, 4], 1])
+    z_lines.extend(corners[[1, 4], 2])
+    f_lines_add_nones()
+    return x_lines, y_lines, z_lines
+
+
+def show_pointcloud(
+    points: torch.Tensor,
+    boxes3d: Optional[Box3DType] = None,
+    thickness: int = 2,
+) -> None:  # pragma: no cover
+    """Show pointcloud points."""
+    assert DASH_INSTALLED, "Visualize pointcloud in 3D needs Dash installed!."
+    points = points[:, :3].cpu()
+
+    scatter = go.Scatter3d(
+        x=points[:, 0],
+        y=points[:, 1],
+        z=points[:, 2],
+        mode="markers",
+        marker=dict(size=thickness),
+    )
+
+    data = [scatter]
+    if boxes3d is not None:
+        box_list, col_list, label_list = preprocess_boxes(boxes3d)
+        for box, color, _ in zip(box_list, col_list, label_list):
+            x_lines, y_lines, z_lines = plotly_draw_bbox3d(box)
+            lines = go.Scatter3d(
+                x=x_lines,
+                y=y_lines,
+                z=z_lines,
+                mode="lines",
+                name="lines",
+                marker=dict(size=thickness, color=f"rgb{color}"),
+            )
+            data.append(lines)
+
+    fig = go.Figure(data=data)
+
+    # set to OpenCV based camera system
+    camera = dict(
+        up=dict(x=0, y=-1, z=0),
+        center=dict(x=0, y=0, z=0),
+        eye=dict(x=0.0, y=0.0, z=-1.25),
+    )
+    fig.update_layout(scene_camera=camera, scene_aspectmode="data")
+
+    def dash_app() -> None:
+        """Establish dash app server."""
+        app = dash.Dash(__name__)
+        app.layout = html.Div(
+            [
+                html.Div([dcc.Graph(id="visualization", figure=fig)]),
+            ]
+        )
+        app.run_server(debug=False, port=8080, host="0.0.0.0")
+
+    p = Process(target=dash_app)
+    p.start()
+    input("Press Enter to continue...")
+    p.terminate()

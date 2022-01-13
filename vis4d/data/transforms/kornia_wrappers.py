@@ -12,18 +12,21 @@ Reference: https://kornia.readthedocs.io/en/latest/augmentation.base.html
 """
 from typing import List, Optional
 
+import numpy as np
 import torch
 from kornia import augmentation as kornia_augmentation
 
+from vis4d.common.geometry.rotation import normalize_angle
 from vis4d.struct import (
     ArgsType,
     Boxes2D,
+    Boxes3D,
     DictStrAny,
     Images,
     InputSample,
     Intrinsics,
-    TMasks,
-)
+    PointCloud,
+TMasks)
 
 from ..utils import transform_bbox
 from .base import AugParams, BaseAugmentation
@@ -145,3 +148,43 @@ class KorniaColorJitter(KorniaAugmentationWrapper):
     ) -> List[TMasks]:
         """Skip augmentation for mask."""
         return masks
+
+
+class KorniaRandomHorizontalFlip(KorniaAugmentationWrapper):
+    """Wrapper for Kornia random horizontal flip augmentation class."""
+
+    def __init__(self, *args: ArgsType, **kwargs: ArgsType):
+        """Init."""
+        super().__init__(*args, kornia_type="RandomHorizontalFlip", **kwargs)
+
+    def apply_box3d(
+        self, boxes: List[Boxes3D], parameters: AugParams
+    ) -> List[Boxes3D]:
+        """Apply augmentation to input box3d."""
+        for i, box in enumerate(boxes):
+            if len(box) > 0 and parameters["apply"][i]:
+                box.boxes[:, 0] *= -1.0
+                box.boxes[:, 7] = normalize_angle(np.pi - box.boxes[:, 7])
+        return boxes
+
+    def apply_points(
+        self, points: PointCloud, parameters: AugParams
+    ) -> PointCloud:
+        """Apply augmentation to input points."""
+        if parameters["apply"]:
+            points.tensor[:, :, 0] *= -1.0
+        return points
+
+    def apply_intrinsics(
+        self,
+        intrinsics: Intrinsics,
+        parameters: AugParams,
+    ) -> Intrinsics:
+        """Apply augmentation to input intrinsics."""
+        center = parameters["batch_shape"][3] / 2
+        for i, _intrinsics in enumerate(intrinsics):
+            if parameters["apply"]:
+                _intrinsics.tensor[i][0][2] = center - (
+                    _intrinsics.tensor[i][0][2] - center
+                )
+        return intrinsics

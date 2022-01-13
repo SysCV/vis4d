@@ -13,6 +13,7 @@ from vis4d.struct import (
     InputSample,
     InstanceMasks,
     Intrinsics,
+    PointCloud,
     SemanticMasks,
     TMasks,
 )
@@ -72,6 +73,12 @@ class BaseAugmentation(metaclass=RegistryHolder):
     ) -> Extrinsics:
         """Apply augmentation to input extrinsics."""
         return extrinsics
+
+    def apply_points(
+        self, points: PointCloud, parameters: AugParams
+    ) -> PointCloud:
+        """Apply augmentation to input points."""
+        return points
 
     def apply_box3d(
         self,
@@ -135,6 +142,9 @@ class BaseAugmentation(metaclass=RegistryHolder):
         sample.extrinsics = self.apply_extrinsics(
             sample.extrinsics, parameters
         )
+
+        sample.points = self.apply_points(sample.points, parameters)
+
         sample.other = self.apply_other_inputs(sample.other, parameters)
         sample.targets.boxes2d = self.apply_box2d(
             sample.targets.boxes2d, parameters

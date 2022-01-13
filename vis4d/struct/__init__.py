@@ -1,5 +1,5 @@
 """Vis4D struct module."""
-from .data import Extrinsics, Images, Intrinsics
+from .data import Extrinsics, Images, Intrinsics, PointCloud
 from .labels import (
     Boxes2D,
     Boxes3D,
@@ -19,6 +19,7 @@ from .structures import (
     MetricLogs,
     ModelOutput,
     ModuleCfg,
+    NDArrayF32,
     NDArrayF64,
     NDArrayI64,
     NDArrayUI8,
@@ -38,6 +39,7 @@ __all__ = [
     "LabelInstance",
     "TorchCheckpoint",
     "NDArrayF64",
+    "NDArrayF32",
     "NDArrayI64",
     "NDArrayUI8",
     "LossesType",
@@ -47,6 +49,7 @@ __all__ = [
     "ModelOutput",
     "DictStrAny",
     "InputSample",
+    "PointCloud",
     "LabelInstances",
     "TLabelInstance",
     "MetricLogs",

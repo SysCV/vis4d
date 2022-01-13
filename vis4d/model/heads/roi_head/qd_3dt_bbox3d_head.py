@@ -61,15 +61,14 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         norm: Optional[str] = None,
         num_groups: int = 32,
         num_rotation_bins: int = 2,
-        in_features: Optional[List[str]] = None,
+        in_features: Tuple[str, ...] = ("p2", "p3", "p4", "p5"),
     ) -> None:
         """Init."""
         super().__init__()
         self.num_shared_convs = num_shared_convs
         self.num_shared_fcs = num_shared_fcs
         self.num_rotation_bins = num_rotation_bins
-        if in_features is None:
-            self.in_features = ["p2", "p3", "p4", "p5"]
+        self.in_features = in_features
         self.proposal_append_gt = proposal_append_gt
         self.cls_out_channels = num_classes
         if isinstance(proposal_sampler, dict):
@@ -365,19 +364,17 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         cam_intrinsics: Intrinsics,
     ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         """Get 3D bounding box targets for training."""
-        targets_2d = [
-            b[p] for b, p in zip(targets.boxes2d, pos_assigned_gt_inds)
-        ]
-        targets_3d = [
-            b[p] for b, p in zip(targets.boxes3d, pos_assigned_gt_inds)
-        ]
-
         bbox_targets = self.bbox_coder.encode(
-            targets_2d, targets_3d, cam_intrinsics
+            targets.boxes2d, targets.boxes3d, cam_intrinsics
         )
 
+        bbox_targets = [
+            b[p] for b, p in zip(bbox_targets, pos_assigned_gt_inds)
+        ]
+
         labels = [
-            t.class_ids[p] for t, p in zip(targets_2d, pos_assigned_gt_inds)
+            t.class_ids[p]
+            for t, p in zip(targets.boxes2d, pos_assigned_gt_inds)
         ]
         return bbox_targets, labels
 

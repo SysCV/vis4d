@@ -59,7 +59,11 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
             depth = depth.unsqueeze(-1)
 
             # dimensions
-            dims = torch.log(targets_.dimensions) * self.dim_log_scale
+            dims = torch.where(
+                targets_.dimensions > 0,
+                torch.log(targets_.dimensions) * self.dim_log_scale,
+                targets_.dimensions.new_ones(1),
+            )
 
             # rotation
             num_bins, bin_overlap = (

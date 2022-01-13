@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 from scalabel.label.typing import Frame
 
-from .data import Extrinsics, Images, Intrinsics
+from .data import Extrinsics, Images, Intrinsics, PointCloud
 from .labels import Boxes2D, Boxes3D, InstanceMasks, SemanticMasks
 from .structures import DataInstance, InputInstance
 
@@ -139,6 +139,7 @@ class InputSample(DataInstance):
         images: Images,
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
+        points: Optional[PointCloud] = None,
         targets: Optional[LabelInstances] = None,
         other: Optional[List[Dict[str, torch.Tensor]]] = None,
     ) -> None:
@@ -158,6 +159,10 @@ class InputSample(DataInstance):
                 [Extrinsics(torch.eye(4)) for _ in range(len(metadata))]
             )
         self.extrinsics = extrinsics
+
+        if points is None:
+            points = PointCloud(torch.cat([torch.empty(len(images), 1, 4)]))
+        self.points = points
 
         if targets is None:
             targets = LabelInstances(default_len=len(metadata))
@@ -190,6 +195,7 @@ class InputSample(DataInstance):
             "images": self.images,
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
+            "points": self.points,
             "targets": self.targets,
             "other": self.other,
         }
@@ -204,6 +210,7 @@ class InputSample(DataInstance):
             self.images.to(device),
             self.intrinsics.to(device),
             self.extrinsics.to(device),
+            self.points.to(device),
             self.targets.to(device),
             [{k: v.to(device) for k, v in o.items()} for o in self.other],
         )
@@ -265,6 +272,7 @@ class InputSample(DataInstance):
             self.images[item],
             self.intrinsics[item],
             self.extrinsics[item],
+            self.points[item],
             self.targets[item],
             [self.other[item]],
         )
