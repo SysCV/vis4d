@@ -48,7 +48,7 @@ class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
     fc_out_dim: int = 1024
     roi_feat_size: int = 7
     num_classes: int
-    conv_has_bias: bool = False
+    conv_has_bias: bool = True
     norm: Optional[str] = None
     num_groups: int = 32
     num_rotation_bins: int = 2
@@ -320,19 +320,17 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         cam_intrinsics: Intrinsics,
     ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         """Get 3D bounding box targets for training."""
-        targets_2d = [
-            b[p] for b, p in zip(targets.boxes2d, pos_assigned_gt_inds)
-        ]
-        targets_3d = [
-            b[p] for b, p in zip(targets.boxes3d, pos_assigned_gt_inds)
-        ]
-
         bbox_targets = self.bbox_coder.encode(
-            targets_2d, targets_3d, cam_intrinsics
+            targets.boxes2d, targets.boxes3d, cam_intrinsics
         )
 
+        bbox_targets = [
+            b[p] for b, p in zip(bbox_targets, pos_assigned_gt_inds)
+        ]
+
         labels = [
-            t.class_ids[p] for t, p in zip(targets_2d, pos_assigned_gt_inds)
+            t.class_ids[p]
+            for t, p in zip(targets.boxes2d, pos_assigned_gt_inds)
         ]
         return bbox_targets, labels
 

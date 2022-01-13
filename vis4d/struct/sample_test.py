@@ -51,6 +51,7 @@ class TestInputSample(unittest.TestCase):
             "images",
             "intrinsics",
             "extrinsics",
+            "points",
             "targets",
             "other",
         ]

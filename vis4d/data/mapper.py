@@ -31,6 +31,7 @@ from ..struct import (
     InstanceMasks,
     Intrinsics,
     LabelInstances,
+    PointCloud,
     SemanticMasks,
 )
 from .transforms import AugParams, BaseAugmentationConfig, build_augmentations
@@ -85,6 +86,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             "semantic_masks",
             "intrinsics",
             "extrinsics",
+            "pointcloud",
         ]
         self.cats_name2id = {}
         for field in fields_to_load:
@@ -100,7 +102,11 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 self.cats_name2id[field] = cats_name2id[field]
 
     def load_input(
-        self, sample: Frame, use_empty: Optional[bool] = False
+        self,
+        sample: Frame,
+        use_empty: Optional[bool] = False,
+        group_url: Optional[str] = None,
+        group_extrinsics: Optional[ScalabelExtrinsics] = None,
     ) -> InputSample:
         """Load image according to data_backend."""
         if not use_empty:
@@ -133,6 +139,16 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             and "extrinsics" in self.cfg.fields_to_load
         ):
             input_data.extrinsics = self.load_extrinsics(sample.extrinsics)
+
+        if (
+            group_url is not None
+            and group_extrinsics is not None
+            and "pointcloud" in self.cfg.fields_to_load
+        ):
+            input_data.points = self.load_point(
+                group_url, group_extrinsics, input_data.extrinsics
+            )
+
         return input_data
 
     def load_annotation(
@@ -248,10 +264,48 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         ).to(torch.float32)
         return Extrinsics(extrinsics_matrix)
 
+    def load_point(
+        self,
+        group_url: str,
+        group_extrinsics: ScalabelExtrinsics,
+        input_data_extrinsics: Extrinsics,
+        num_point_feature: int = 4,
+        radius: float = 1.0,
+    ) -> PointCloud:
+        """Load pointcloud points and filter the near ones."""
+        points = np.fromfile(group_url, dtype=np.float32)  # type: ignore # pylint: disable=line-too-long
+        s = points.shape[0]
+        if s % 5 != 0:
+            points = points[: s - (s % 5)]
+        points = points.reshape(-1, 5)[:, :num_point_feature].T
+
+        x_filt = np.abs(points[0, :]) < radius
+        y_filt = np.abs(points[1, :]) < radius
+        not_close = np.logical_not(np.logical_and(x_filt, y_filt))
+        points = points[:, not_close].T
+        point_cloud = PointCloud(torch.as_tensor(points))
+
+        points_extrinsics = self.load_extrinsics(group_extrinsics)
+
+        hom_points = torch.cat(
+            [
+                point_cloud.tensor[:, :, :3],
+                torch.ones_like(point_cloud.tensor[:, :, 0:1]),
+            ],
+            -1,
+        )
+        points_world = hom_points @ points_extrinsics.transpose().tensor
+        point_cloud.tensor[:, :, :3] = (
+            points_world @ input_data_extrinsics.inverse().transpose().tensor
+        )[:, :, :3]
+        return point_cloud
+
     def __call__(
         self,
         sample: Frame,
         parameters: Optional[List[AugParams]] = None,
+        group_url: Optional[str] = None,
+        group_extrinsics: Optional[ScalabelExtrinsics] = None,
     ) -> Tuple[Optional[InputSample], Optional[List[AugParams]]]:
         """Prepare a single sample in detect format.
 
@@ -259,6 +313,8 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             sample (Frame): Metadata of one image, in scalabel format.
             Serialized as dict due to multi-processing.
             parameters (List[AugParams]): Augmentation parameter list.
+            group_url (str): Url of group sensor path.
+            group_extrinsics (ScalabelExtrinsics): Extrinsics for group sensor.
 
         Returns:
             InputSample: Data format that the model accepts.
@@ -274,7 +330,10 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
         # load input data
         input_data = self.load_input(
-            sample, use_empty=isinstance(sample, FrameGroup)
+            sample,
+            use_empty=isinstance(sample, FrameGroup),
+            group_url=group_url,
+            group_extrinsics=group_extrinsics,
         )
 
         if self.training:

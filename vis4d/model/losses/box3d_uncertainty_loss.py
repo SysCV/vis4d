@@ -52,7 +52,7 @@ class Box3DUncertaintyLoss(BaseLoss):
 
             return result_dict
 
-        pred = pred[torch.arange(pred.shape[0]), labels]
+        pred = pred[torch.arange(pred.shape[0], device=pred.device), labels]
 
         # delta 2dc loss
         loss_cen = smooth_l1_loss(
@@ -60,14 +60,23 @@ class Box3DUncertaintyLoss(BaseLoss):
         )
 
         # dimension loss
+        dim_weights = (target[:, 3:6] > 0).float()
         loss_dim = smooth_l1_loss(
-            pred[:, 3:6], target[:, 3:6], beta=1 / 9, reduction="mean"
+            pred[:, 3:6],
+            target[:, 3:6],
+            weight=dim_weights,
+            beta=1 / 9,
+            reduction="mean",
         )
 
         # depth loss
         depth_weights = (target[:, 2] > 0).float()
         loss_dep = smooth_l1_loss(
-            pred[:, 2], target[:, 2], weight=depth_weights, reduction="mean"
+            pred[:, 2],
+            target[:, 2],
+            weight=depth_weights,
+            beta=1 / 9,
+            reduction="mean",
         )
 
         # rotation loss
@@ -76,7 +85,7 @@ class Box3DUncertaintyLoss(BaseLoss):
             target[:, 6 : 6 + self.cfg.num_rotation_bins],
             target[:, 6 + self.cfg.num_rotation_bins :],
             self.cfg.num_rotation_bins,
-        ).mean()
+        )
 
         result_dict = dict(
             loss_ctr3d=self.cfg.loss_weights[0] * loss_cen,
@@ -106,10 +115,6 @@ class Box3DUncertaintyLoss(BaseLoss):
         result_dict.update(
             dict(loss_unc3d=self.cfg.loss_weights[4] * loss_unc3d)
         )
-
-        # reduce batch dimension after confidence loss computation
-        for k, v in result_dict.items():
-            result_dict[k] = v.mean()
         return result_dict
 
 
@@ -124,9 +129,13 @@ def rotation_loss(
     Consists of bin-based classification loss and residual-based regression
     loss.
     """
-    loss_bins = F.binary_cross_entropy_with_logits(
-        output[:, :num_bins], target_bin, reduction="none"
-    ).mean(dim=-1)
+    loss_bins = (
+        F.binary_cross_entropy_with_logits(
+            output[:, :num_bins], target_bin, reduction="none"
+        )
+        .mean(dim=0)
+        .sum()
+    )
 
     loss_res = torch.zeros_like(loss_bins)
     for i in range(num_bins):
@@ -136,15 +145,13 @@ def rotation_loss(
             loss_sin = smooth_l1_loss(
                 output[bin_mask, res_idx],
                 torch.sin(target_res[bin_mask, i]),
-                beta=1 / 9,
-                reduction="none",
+                reduction="mean",
             )
             loss_cos = smooth_l1_loss(
                 output[bin_mask, res_idx + 1],
                 torch.cos(target_res[bin_mask, i]),
-                beta=1 / 9,
-                reduction="none",
+                reduction="mean",
             )
-            loss_res[bin_mask] += loss_sin + loss_cos
+            loss_res += loss_sin + loss_cos
 
     return loss_bins + loss_res
