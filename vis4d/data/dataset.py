@@ -106,7 +106,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         if not self.training:
             if self.dataset.groups is not None:
                 group = self.dataset.groups[cur_idx]
-                if not self.cfg.multi_sensor_inference:
+                if not self.dataset.multi_sensor_inference:
                     cur_data = self.mapper(
                         self.dataset.frames[
                             self.ref_sampler.frame_name_to_idx[group.frames[0]]

@@ -114,9 +114,7 @@ class Box3DUncertaintyLoss(BaseLoss):
             beta=1 / 9,
         )
 
-        result_dict.update(
-            dict(loss_unc3d=self.loss_weights[4] * loss_unc3d)
-        )
+        result_dict.update(dict(loss_unc3d=self.loss_weights[4] * loss_unc3d))
         return result_dict
 
 

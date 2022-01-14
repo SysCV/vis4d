@@ -166,7 +166,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
     def __repr__(self) -> str:
         """Print class & params, s.t. user can inspect easily via cmd line."""
         attr_str = ""
-        for k, v in vars(self):  # TODO verify
+        for k, v in vars(self).items():
             if k != "type":
                 attr_str += f"{k}={str(v)}, "
         attr_str = attr_str.rstrip(", ")

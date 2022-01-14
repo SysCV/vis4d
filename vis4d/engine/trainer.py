@@ -15,6 +15,7 @@ from pytorch_lightning.utilities.distributed import (
 from ..common.module import build_module
 from ..config import Config, default_argument_parser, parse_config
 from ..data.build import Vis4DDataModule
+from ..data.dataset import ScalabelDataset
 from ..data.datasets import BaseDatasetLoader, Custom
 from ..model import build_model
 from ..struct import DictStrAny, ModuleCfg
@@ -186,28 +187,36 @@ def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     # setup category_mappings
     setup_category_mapping(cfg.train + cfg.test, cfg.model["category_mapping"])
 
-    # build dataloaders
-    train_loaders = [
-        build_module(**cfg, bound=BaseDatasetLoader) for cfg in cfg.train
+    # build datasets
+    train_datasets = [
+        ScalabelDataset(
+            build_module(**dl_cfg, bound=BaseDatasetLoader),
+            False,
+            cfg.model["image_channel_mode"],
+        )
+        for dl_cfg in cfg.train
     ]
-    test_loaders = [
-        build_module(**cfg, bound=BaseDatasetLoader) for cfg in cfg.test
+    test_datasets = [
+        ScalabelDataset(
+            build_module(**dl_cfg, bound=BaseDatasetLoader),
+            False,
+            cfg.model["image_channel_mode"],
+        )
+        for dl_cfg in cfg.test
     ]
 
     data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
-        train_loaders,
-        test_loaders,
-        cfg.model["image_channel_mode"],
-        cfg.launch.seed,
-        cfg.data,
+        train_datasets=train_datasets,
+        test_datasets=test_datasets,
+        seed=cfg.launch.seed,
     )
 
-    if len(test_loaders) > 0:
+    if len(test_datasets) > 0:
         evaluators = [
-            StandardEvaluatorCallback(i, dl)
-            for i, dl in enumerate(test_loaders)
+            StandardEvaluatorCallback(i, d.dataset)
+            for i, d in enumerate(test_datasets)
         ]
         trainer.callbacks += evaluators  # pylint: disable=no-member
     trainer.fit(model, data_module)
@@ -226,27 +235,32 @@ def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     # setup category_mappings
     setup_category_mapping(cfg.test, cfg.model["category_mapping"])
 
-    # build dataloaders
-    test_loaders: List[BaseDatasetLoader] = [
-        build_module(**cfg, bound=BaseDatasetLoader) for cfg in cfg.test
+    # build datasets
+    test_datasets = [
+        ScalabelDataset(
+            build_module(**dl_cfg, bound=BaseDatasetLoader),
+            False,
+            cfg.model["image_channel_mode"],
+        )
+        for dl_cfg in cfg.test
     ]
 
     data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
-        test_loaders,
-        cfg.model["image_channel_mode"],
-        cfg.launch.seed,
-        cfg.data,
+        test_datasets=test_datasets,
+        seed=cfg.launch.seed,
     )
 
-    assert len(test_loaders), "No test datasets specified!"
+    assert len(test_datasets), "No test datasets specified!"
     out_dir = osp.join(
         cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
     )
     evaluators = [
-        StandardEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
-        for i, dl in enumerate(test_loaders)
+        StandardEvaluatorCallback(
+            i, d.dataset, osp.join(out_dir, d.dataset.name)
+        )
+        for i, d in enumerate(test_datasets)
     ]
     trainer.callbacks += evaluators  # pylint: disable=no-member
     trainer.test(
@@ -281,13 +295,17 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
             build_module(**cfg, bound=BaseDatasetLoader) for cfg in cfg.test
         ]
 
+    # build datasets
+    predict_datasets = [
+        ScalabelDataset(dl, False, cfg.model["image_channel_mode"])
+        for dl in predict_loaders
+    ]
+
     data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
-        predict_loaders,
-        cfg.model["image_channel_mode"],
-        cfg.launch.seed,
-        cfg.data,
+        test_datasets=predict_datasets,
+        seed=cfg.launch.seed,
     )
 
     out_dir = osp.join(
@@ -297,7 +315,7 @@ def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     assert len(predict_loaders) > 0, "No datasets for prediction specified!"
     evaluators = [
         ScalabelWriterCallback(
-            i, osp.join(out_dir, dl.cfg.name), cfg.launch.visualize
+            i, osp.join(out_dir, dl.name), cfg.launch.visualize
         )
         for i, dl in enumerate(predict_loaders)
     ]
@@ -318,27 +336,32 @@ def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
     # setup category_mappings
     setup_category_mapping(cfg.test, cfg.model["category_mapping"])
 
-    # build dataloaders
-    test_loaders = [
-        build_module(**cfg, bound=BaseDatasetLoader) for cfg in cfg.test
+    # build datasets
+    test_datasets = [
+        ScalabelDataset(
+            build_module(**dl_cfg, bound=BaseDatasetLoader),
+            False,
+            cfg.model["image_channel_mode"],
+        )
+        for dl_cfg in cfg.test
     ]
 
     data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
-        test_loaders,
-        cfg.model["image_channel_mode"],
-        cfg.launch.seed,
-        cfg.data,
+        test_datasets=test_datasets,
+        seed=cfg.launch.seed,
     )
 
-    assert len(test_loaders), "No test datasets specified!"
+    assert len(test_datasets), "No test datasets specified!"
     out_dir = osp.join(
         cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
     )
     evaluators = [
-        StandardEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
-        for i, dl in enumerate(test_loaders)
+        StandardEvaluatorCallback(
+            i, d.dataset, osp.join(out_dir, d.dataset.name)
+        )
+        for i, d in enumerate(test_datasets)
     ]
     trainer.callbacks += evaluators  # pylint: disable=no-member
 

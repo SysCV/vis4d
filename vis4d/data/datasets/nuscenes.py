@@ -14,7 +14,6 @@ from vis4d.struct import ArgsType, MetricLogs
 
 from .base import BaseDatasetLoader, _eval_mapping
 
-
 try:  # pragma: no cover
     from nuscenes import NuScenes as nusc_data
     from nuscenes.eval.common.config import config_factory as track_configs
@@ -41,7 +40,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         add_non_key: bool,
         *args: ArgsType,
         tmp_dir: str = "./nuScenes_tmp/",
-        metadata: List[str] = ["use_camera"],
+        metadata: Tuple[str, ...] = ("use_camera",),
         **kwargs: ArgsType,
     ):
         """Init dataset loader."""

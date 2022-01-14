@@ -146,7 +146,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         assert dataset.config is not None
         add_data_path(data_root, dataset.frames)
         if dataset.groups is not None:
-            add_data_path(cfg.data_root, dataset.groups)
+            add_data_path(data_root, dataset.groups)
         rank_zero_info(f"Loading {name} takes {timer.time():.2f} seconds.")
         self.metadata_cfg = dataset.config
         self.frames = dataset.frames

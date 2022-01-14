@@ -18,7 +18,6 @@ from kornia import augmentation as kornia_augmentation
 
 from vis4d.common.geometry.rotation import normalize_angle
 from vis4d.struct import (
-    ArgsType,
     Boxes2D,
     Boxes3D,
     DictStrAny,
@@ -26,7 +25,8 @@ from vis4d.struct import (
     InputSample,
     Intrinsics,
     PointCloud,
-TMasks)
+    TMasks,
+)
 
 from ..utils import transform_bbox
 from .base import AugParams, BaseAugmentation
@@ -38,16 +38,17 @@ class KorniaAugmentationWrapper(BaseAugmentation):
     def __init__(
         self,
         kornia_type: str,
-        *args: ArgsType,
-        kornia_kwargs: Optional[DictStrAny] = None,
-        **kwargs: ArgsType
+        kwargs: Optional[DictStrAny] = None,
+        prob: float = 1.0,
+        same_on_batch: bool = False,
+        same_on_ref: bool = True,
     ):
         """Initialize wrapper."""
-        super().__init__(*args, **kwargs)
+        super().__init__(prob, same_on_batch, same_on_ref)
         augmentation = getattr(kornia_augmentation, kornia_type)
-        if kornia_kwargs is None:
-            kornia_kwargs = {}
-        self.augmentor = augmentation(p=1.0, **kornia_kwargs)
+        if kwargs is None:
+            kwargs = {}
+        self.augmentor = augmentation(p=1.0, **kwargs)
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
@@ -139,9 +140,17 @@ class KorniaAugmentationWrapper(BaseAugmentation):
 class KorniaColorJitter(KorniaAugmentationWrapper):
     """Wrapper for Kornia color jitter augmentation class."""
 
-    def __init__(self, *args: ArgsType, **kwargs: ArgsType):
+    def __init__(
+        self,
+        kwargs: Optional[DictStrAny] = None,
+        prob: float = 1.0,
+        same_on_batch: bool = False,
+        same_on_ref: bool = True,
+    ):
         """Init."""
-        super().__init__(*args, kornia_type="ColorJitter", **kwargs)
+        super().__init__(
+            "ColorJitter", kwargs, prob, same_on_batch, same_on_ref
+        )
 
     def apply_mask(
         self, masks: List[TMasks], parameters: AugParams
@@ -153,9 +162,21 @@ class KorniaColorJitter(KorniaAugmentationWrapper):
 class KorniaRandomHorizontalFlip(KorniaAugmentationWrapper):
     """Wrapper for Kornia random horizontal flip augmentation class."""
 
-    def __init__(self, *args: ArgsType, **kwargs: ArgsType):
+    def __init__(
+        self,
+        kwargs: Optional[DictStrAny] = None,
+        prob: float = 1.0,
+        same_on_batch: bool = False,
+        same_on_ref: bool = True,
+    ):
         """Init."""
-        super().__init__(*args, kornia_type="RandomHorizontalFlip", **kwargs)
+        super().__init__(
+            "RandomHorizontalFlip",
+            kwargs,
+            prob,
+            same_on_batch,
+            same_on_ref,
+        )
 
     def apply_box3d(
         self, boxes: List[Boxes3D], parameters: AugParams

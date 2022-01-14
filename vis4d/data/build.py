@@ -10,7 +10,6 @@ from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
 from ..struct import InputSample
 from .dataset import ScalabelDataset
-from .datasets import BaseDatasetLoader
 from .samplers import BaseSampler, TrackingInferenceSampler
 from .utils import identity_batch_collator
 
@@ -22,52 +21,27 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         self,
         samples_per_gpu: int,
         workers_per_gpu: int,
-        train_loaders: List[BaseDatasetLoader],
-        test_loaders: List[BaseDatasetLoader],
-        predict_loaders: List[BaseDatasetLoader],
-        image_channel_mode: str = "RGB",
+        train_datasets: Optional[List[ScalabelDataset]] = None,
+        test_datasets: Optional[List[ScalabelDataset]] = None,
+        predict_datasets: Optional[List[ScalabelDataset]] = None,
         seed: Optional[int] = None,
         pin_memory: bool = False,
         train_sampler: Optional[BaseSampler] = None,
     ) -> None:
         """Init."""
         super().__init__()  # type: ignore
-        assert not (
-            len(train_loaders)
-            == len(test_loaders)
-            == len(predict_loaders)
-            == 0
-        ), "Please specify either train, test or predict datasets."
         self.samples_per_gpu = samples_per_gpu
         self.workers_per_gpu = workers_per_gpu
-        self.image_channel_mode = image_channel_mode
         self.seed = seed
         self.pin_memory = pin_memory
-        self.train_datasets: Optional[List[ScalabelDataset]] = None
-        self.test_datasets: Optional[List[ScalabelDataset]] = None
-        self.predict_datasets: Optional[List[ScalabelDataset]] = None
+        self.train_datasets = train_datasets
+        self.test_datasets = test_datasets
+        self.predict_datasets = predict_datasets
         self.train_sampler = train_sampler
-        if len(train_loaders) > 0:
-            self.train_datasets = [
-                ScalabelDataset(dl, True, self.image_channel_mode)
-                for dl in train_loaders
-            ]
-
-        if len(test_loaders) > 0:
-            self.test_datasets = [
-                ScalabelDataset(dl, False, self.image_channel_mode)
-                for dl in test_loaders
-            ]
-
-        if len(predict_loaders) > 0:
-            self.predict_datasets = [
-                ScalabelDataset(dl, False, self.image_channel_mode)
-                for dl in predict_loaders
-            ]
 
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""
-        assert self.train_datasets is not None
+        assert self.train_datasets is not None, "No train datasets specified!"
         train_dataset = data.ConcatDataset(self.train_datasets)
         if self.train_sampler is not None:
             train_sampler: Optional[
@@ -105,7 +79,7 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
 
     def test_dataloader(self) -> List[data.DataLoader]:
         """Return dataloaders for testing."""
-        assert self.test_datasets is not None
+        assert self.test_datasets is not None, "No test datasets specified!"
         return self._build_inference_dataloaders(self.test_datasets)
 
     def transfer_batch_to_device(

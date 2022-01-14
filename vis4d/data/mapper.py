@@ -158,7 +158,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         if (
             group_url is not None
             and group_extrinsics is not None
-            and "pointcloud" in self.cfg.fields_to_load
+            and "pointcloud" in self.fields_to_load
         ):
             input_data.points = self.load_points(
                 group_url, group_extrinsics, input_data.extrinsics

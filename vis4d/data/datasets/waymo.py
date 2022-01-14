@@ -9,7 +9,9 @@ from vis4d.struct import ArgsType
 from .base import BaseDatasetLoader
 
 try:
-    from scalabel.label.from_waymo import from_waymo
+    from scalabel.label.from_waymo import (  # pylint: disable=ungrouped-imports,line-too-long
+        from_waymo,
+    )
 
     WAYMO_INSTALLED = True  # pragma: no cover
 except (ImportError, NameError):
