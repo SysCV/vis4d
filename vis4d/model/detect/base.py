@@ -95,6 +95,18 @@ class BaseOneStageDetector(BaseModel):
 class BaseTwoStageDetector(BaseModel):
     """Base class for two-stage detectors."""
 
+    def __init__(
+        self,
+        *args: ArgsType,
+        clip_bboxes_to_image: bool = True,
+        resolve_overlap: bool = True,
+        **kwargs: ArgsType,
+    ):
+        """Init."""
+        super().__init__(*args, **kwargs)
+        self.clip_bboxes_to_image = clip_bboxes_to_image
+        self.resolve_overlap = resolve_overlap
+
     @abc.abstractmethod
     def extract_features(self, inputs: InputSample) -> FeatureMaps:
         """Detector feature extraction stage.

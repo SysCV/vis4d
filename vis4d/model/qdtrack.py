@@ -151,8 +151,8 @@ class QDTrack(BaseModel):
         postprocess_predictions(
             inputs,
             outs,
-            self.cfg.detection.clip_bboxes_to_image,
-            self.cfg.detection.resolve_overlap,
+            self.detector.clip_bboxes_to_image,
+            self.detector.resolve_overlap,
         )
         outputs = predictions_to_scalabel(outs, self.cat_mapping)
 
@@ -177,7 +177,7 @@ class QDTrack(BaseModel):
             outs["seg_track"] = tracks.instance_masks
 
         postprocess_predictions(
-            inputs, outs, self.cfg.detection.clip_bboxes_to_image
+            inputs, outs, self.detector.clip_bboxes_to_image
         )
         return predictions_to_scalabel(outs, self.cat_mapping)
 

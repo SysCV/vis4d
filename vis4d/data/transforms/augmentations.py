@@ -70,6 +70,12 @@ class Resize(BaseAugmentation):
             # pylint: disable=unsubscriptable-object
             self.shape = [(int(s[0]), int(s[1])) for s in self.shape]
         else:
+            if (
+                isinstance(self.shape, list)
+                and isinstance(self.shape[0], int)
+                and isinstance(self.shape[1], int)
+            ):
+                self.shape = tuple(self.shape)
             assert isinstance(
                 self.shape, tuple
             ), "Specify shape as tuple when using multiscale mode range."
@@ -223,7 +229,7 @@ class RandomCrop(BaseAugmentation):
         ],
         *args: ArgsType,
         crop_type: str = "absolute",
-        allow_empty_crop: bool = True,
+        allow_empty_crops: bool = True,
         recompute_boxes2d: bool = False,
         cat_max_ratio: float = 1.0,
         **kwargs: ArgsType,
@@ -238,8 +244,13 @@ class RandomCrop(BaseAugmentation):
         ], f"Unknown crop type {crop_type}."
         self.crop_type = crop_type
         self.cat_max_ratio = cat_max_ratio
-        self.allow_empty_crop = allow_empty_crop
+        self.allow_empty_crops = allow_empty_crops
         self.recompute_boxes2d = recompute_boxes2d
+        if isinstance(shape, list) and (
+            (isinstance(shape[0], int) and isinstance(shape[1], int))
+            or (isinstance(shape[0], float) and isinstance(shape[1], float))
+        ):
+            shape = tuple(shape)
 
         if crop_type == "absolute":
             assert isinstance(shape, tuple)
@@ -374,7 +385,7 @@ class RandomCrop(BaseAugmentation):
                 for _ in range(10):
                     # try resampling 10 times, otherwise use last crop
                     if (
-                        self.allow_empty_crop or keep_mask.sum() != 0
+                        self.allow_empty_crops or keep_mask.sum() != 0
                     ) and not self._check_seg_max_cat(cur_sample, crop_param):
                         found_crop = True
                         break
@@ -467,7 +478,7 @@ class RandomCrop(BaseAugmentation):
                 mask.masks = mask.masks[:, y1:y2, x1:x2]
         return masks
 
-    def __call__(
+    def __call__(  # type: ignore[override]
         self, sample: InputSample, parameters: Optional[AugParams] = None
     ) -> Tuple[InputSample, AugParams]:
         """Apply augmentations to input sample."""

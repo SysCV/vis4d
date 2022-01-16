@@ -13,7 +13,6 @@ from scalabel.label.typing import (
 )
 
 from ..struct import ArgsType, Boxes2D, Images, InputSample
-from . import BaseReferenceSampler, BaseSampleMapper
 from .dataset import ScalabelDataset
 from .datasets import Scalabel
 
@@ -46,17 +45,21 @@ class TestScalabelDataset(unittest.TestCase):
             )
             for i in range(200)
         ],
+        name="mock_dataset",
         data_root="/path/to/root",
-        sample_mapper=BaseSampleMapper(),
-        ref_sampler=BaseReferenceSampler(
-            strategy="sequential",
-            num_ref_imgs=2,
-            scope=3,
-            frame_order="temporal",
-        ),
     )
 
-    dataset = ScalabelDataset(dataset_loader, True)
+    dataset = ScalabelDataset(
+        dataset_loader,
+        mapper_cfg={},
+        ref_cfg={
+            "strategy": "sequential",
+            "num_ref_imgs": 2,
+            "scope": 3,
+            "frame_order": "temporal",
+        },
+        training=True,
+    )
 
     def test_reference_sampling(self) -> None:
         """Testcase for reference view sampling."""
@@ -76,16 +79,20 @@ class TestScalabelDataset(unittest.TestCase):
                 )
                 for i in range(6)
             ],
+            name="mock_dataset",
             data_root="vis4d/engine/testcases/track/bdd100k-samples/images/",
-            sample_mapper=BaseSampleMapper,
-            ref_sampler=BaseReferenceSampler(
-                strategy="sequential",
-                num_ref_imgs=1,
-                scope=3,
-                skip_nomatch_samples=True,
-            ),
         )
-        dataset = ScalabelDataset(dataset_loader, True)
+        dataset = ScalabelDataset(
+            dataset_loader,
+            mapper_cfg={},
+            ref_cfg={
+                "strategy": "sequential",
+                "num_ref_imgs": 1,
+                "scope": 3,
+                "skip_nomatch_samples": True,
+            },
+            training=True,
+        )
         # assert makes sure that all samples will be discarded from fallback
         # candidates (due to no match) and subsequently raises a ValueError
         # since there is no fallback candidates to sample from anymore
@@ -165,18 +172,20 @@ class TestScalabelDataset(unittest.TestCase):
                 )
                 for i in range(6)
             ],
+            name="mock_dataset",
             data_root="/path/to/root",
-            dataloader=BaseSampleMapper(),
-            ref_sampler=BaseReferenceSampler(
-                strategy="sequential",
-                num_ref_imgs=2,
-                scope=3,
-                frame_order="temporal",
-            ),
             attributes={"timeofday": ["daytime", "night"], "weather": "clear"},
         )
 
-        dataset = ScalabelDataset(dataset_loader, True)
+        ref_cfg = {
+            "strategy": "sequential",
+            "num_ref_imgs": 2,
+            "scope": 3,
+            "frame_order": "temporal",
+        }
+        dataset = ScalabelDataset(
+            dataset_loader, mapper_cfg={}, ref_cfg=ref_cfg, training=True
+        )
         self.assertTrue(len(dataset) == 6)
 
         # Testcase 2
@@ -190,7 +199,9 @@ class TestScalabelDataset(unittest.TestCase):
             for i in range(6)
         ]
 
-        dataset = ScalabelDataset(dataset_loader, True)
+        dataset = ScalabelDataset(
+            dataset_loader, mapper_cfg={}, ref_cfg=ref_cfg, training=True
+        )
         self.assertTrue(len(dataset) == 6)
 
         # Testcase 3
@@ -204,4 +215,6 @@ class TestScalabelDataset(unittest.TestCase):
             for i in range(6)
         ]
 
-        self.assertRaises(ValueError, ScalabelDataset, dataset_loader, True)
+        self.assertRaises(
+            ValueError, ScalabelDataset, dataset_loader, {}, ref_cfg, True
+        )

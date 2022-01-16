@@ -192,6 +192,9 @@ def discard_labels_outside_set(
 
 def print_class_histogram(class_frequencies: Dict[str, int]) -> None:
     """Prints out given class frequencies."""
+    if len(class_frequencies) == 0:
+        return
+
     class_names = list(class_frequencies.keys())
     frequencies = list(class_frequencies.values())
     num_classes = len(class_names)

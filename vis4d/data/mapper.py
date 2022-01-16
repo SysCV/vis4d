@@ -47,7 +47,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         cats_name2id: Dict[str, Dict[str, int]],
         training: bool,
         data_backend: Union[BaseDataBackend, ModuleCfg] = FileBackend(),
-        fields_to_load: List[str] = ["boxes2d"],
+        fields_to_load: Optional[List[str]] = None,
         skip_empty_samples: bool = False,
         clip_bboxes_to_image: bool = True,
         min_bboxes_area: float = 7.0 * 7.0,
@@ -72,6 +72,8 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 "'skip_empty_samples' activated in test mode. This option is "
                 "only available in training."
             )
+        if self.fields_to_load is None:
+            self.fields_to_load = ["boxes2d"]
 
         if isinstance(data_backend, dict):
             self.data_backend: BaseDataBackend = build_module(
@@ -104,7 +106,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             "pointcloud",
         ]
         self.cats_name2id = {}
-        for field in fields_to_load:
+        for field in self.fields_to_load:
             assert (
                 field in allowed_files
             ), f"Unrecognized field={field}, allowed fields={allowed_files}"
@@ -143,6 +145,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         images = Images(image, [(image.shape[3], image.shape[2])])
         input_data = InputSample([copy.deepcopy(sample)], images)
 
+        assert self.fields_to_load is not None
         if (
             sample.intrinsics is not None
             and "intrinsics" in self.fields_to_load
@@ -172,6 +175,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         labels: Optional[List[Label]],
     ) -> None:
         """Transform annotations."""
+        assert self.fields_to_load is not None
         labels_used = []
         if labels is not None:
             instance_id_dict = {}

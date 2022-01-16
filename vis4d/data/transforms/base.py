@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 
-from vis4d.common.registry import RegistryHolder
+from vis4d.common.module import Vis4DModule
 from vis4d.struct import (
     Boxes2D,
     Boxes3D,
@@ -23,7 +23,7 @@ from .utils import sample_batched
 AugParams = DictStrAny
 
 
-class BaseAugmentation(metaclass=RegistryHolder):
+class BaseAugmentation(Vis4DModule[None, None]):
     """Base augmentation class."""
 
     def __init__(
@@ -33,6 +33,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         same_on_ref: bool = True,
     ):
         """Initialize augmentation."""
+        super().__init__()
         self.prob = prob
         self.same_on_batch = same_on_batch
         self.same_on_ref = same_on_ref
@@ -128,7 +129,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Apply augmentation to other, user-defined inputs."""
         return other
 
-    def __call__(
+    def __call__(  # type: ignore[override]
         self, sample: InputSample, parameters: Optional[AugParams] = None
     ) -> Tuple[InputSample, AugParams]:
         """Apply augmentations to input sample."""
@@ -167,7 +168,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Print class & params, s.t. user can inspect easily via cmd line."""
         attr_str = ""
         for k, v in vars(self).items():
-            if k != "type":
+            if k != "type" and not k.startswith("_"):
                 attr_str += f"{k}={str(v)}, "
         attr_str = attr_str.rstrip(", ")
         return f"{self.__class__.__name__}({attr_str})"

@@ -86,6 +86,7 @@ class MOTChallenge(BaseDatasetLoader):
 
     def _check_metrics(self) -> None:
         """Check if evaluation metrics specified are valid."""
+        assert self.eval_metrics is not None
         for metric in self.eval_metrics:
             if metric not in ["detect", "track"]:
                 raise KeyError(

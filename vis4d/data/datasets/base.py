@@ -15,7 +15,7 @@ from scalabel.eval.sem_seg import evaluate_sem_seg
 from scalabel.label.io import group_and_sort
 from scalabel.label.typing import Config, Dataset, Frame, FrameGroup
 
-from vis4d.common.registry import RegistryHolder
+from vis4d.common.module import Vis4DModule
 from vis4d.common.utils.time import Timer
 from vis4d.struct import MetricLogs
 
@@ -100,7 +100,7 @@ _eval_mapping = dict(
 )
 
 
-class BaseDatasetLoader(metaclass=RegistryHolder):
+class BaseDatasetLoader(Vis4DModule[None, None]):
     """Interface for loading dataset to scalabel format."""
 
     def __init__(
@@ -113,7 +113,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
             Dict[str, Union[bool, float, str, List[float], List[str]]]
         ] = None,
         config_path: Optional[str] = None,
-        eval_metrics: List[str] = [],
+        eval_metrics: Optional[List[str]] = None,
         ignore_unknown_cats: bool = False,
         cache_as_binary: bool = False,
         num_processes: int = 4,
@@ -122,6 +122,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         compute_global_instance_ids: bool = False,
     ):
         """Init dataset loader."""
+        super().__init__()
         self.name = name
         self.data_root = data_root
         self.annotations = annotations
@@ -135,6 +136,9 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         self.attributes = attributes
         self.num_processes = num_processes
         self.multi_sensor_inference = multi_sensor_inference
+
+        if self.eval_metrics is None:
+            self.eval_metrics = []
         self._check_metrics()
 
         timer = Timer()
@@ -172,6 +176,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
     def _check_metrics(self) -> None:
         """Check if evaluation metrics specified are valid."""
+        assert self.eval_metrics is not None
         for metric in self.eval_metrics:
             if metric not in _eval_mapping:  # pragma: no cover
                 raise KeyError(

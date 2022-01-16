@@ -9,7 +9,7 @@ from argparse import Namespace
 import torch
 
 from vis4d import config
-from vis4d.engine.trainer import predict
+from vis4d.engine.trainer import predict, setup_experiment
 from vis4d.engine.trainer import test as evaluate
 from vis4d.engine.trainer import train, tune
 from vis4d.unittest.utils import get_test_file
@@ -41,7 +41,10 @@ class BaseEngineTests:
             trainer_args = {}
             if torch.cuda.is_available():
                 trainer_args["gpus"] = "0,"  # pragma: no cover
-            train(self.cfg, trainer_args)
+            trainer, model, data_module = setup_experiment(
+                self.cfg, trainer_args
+            )
+            train(trainer, model, data_module)
             self.cfg.launch.seed = -1
 
     class TestTest(TestBase):
@@ -54,7 +57,10 @@ class BaseEngineTests:
             trainer_args = {}
             if torch.cuda.is_available():
                 trainer_args["gpus"] = "0,"  # pragma: no cover
-            evaluate(self.cfg, trainer_args)
+            trainer, model, data_module = setup_experiment(
+                self.cfg, trainer_args
+            )
+            evaluate(trainer, model, data_module)
 
     class TestDetect(TestTrain, TestTest):
         """Test cases for vis4d models."""
@@ -67,7 +73,10 @@ class BaseEngineTests:
             if torch.cuda.is_available():
                 trainer_args["gpus"] = "0,"  # pragma: no cover
             self.cfg.launch.visualize = True
-            predict(self.cfg, trainer_args)
+            trainer, model, data_module = setup_experiment(
+                self.cfg, trainer_args
+            )
+            predict(trainer, model, data_module)
 
     class TestTrack(TestTrain, TestTest):
         """Test cases for vis4d tracking."""
@@ -86,7 +95,10 @@ class BaseEngineTests:
                 trainer_args["gpus"] = "0,"  # pragma: no cover
             self.cfg.launch.input_dir = self.predict_dir
             self.cfg.launch.visualize = True
-            predict(self.cfg, trainer_args)
+            trainer, model, data_module = setup_experiment(
+                self.cfg, trainer_args
+            )
+            predict(trainer, model, data_module)
 
 
 class TestTrackD2(BaseEngineTests.TestTrain, BaseEngineTests.TestTest):
@@ -102,9 +114,9 @@ class TestTrackD2(BaseEngineTests.TestTrain, BaseEngineTests.TestTest):
         )
         cls.cfg = config.parse_config(cls.args)
         if os.path.exists(
-            cls.cfg.train[0].annotations.rstrip("/") + ".pkl"
+            cls.cfg.train[0]["annotations"].rstrip("/") + ".pkl"
         ):  # pragma: no cover
-            os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
+            os.remove(cls.cfg.train[0]["annotations"].rstrip("/") + ".pkl")
 
 
 class TestTrack3D(BaseEngineTests.TestTrack):
@@ -120,9 +132,9 @@ class TestTrack3D(BaseEngineTests.TestTrack):
         )
         cls.cfg = config.parse_config(cls.args)
         if os.path.exists(
-            cls.cfg.train[0].annotations.rstrip("/") + ".pkl"
+            cls.cfg.train[0]["annotations"].rstrip("/") + ".pkl"
         ):  # pragma: no cover
-            os.remove(cls.cfg.train[0].annotations.rstrip("/") + ".pkl")
+            os.remove(cls.cfg.train[0]["annotations"].rstrip("/") + ".pkl")
 
 
 class TestDetectMM(BaseEngineTests.TestTest):
@@ -220,7 +232,8 @@ class TestSegTrackMM(BaseEngineTests.TestTrain):
         trainer_args = {}
         if torch.cuda.is_available():
             trainer_args["gpus"] = "0,"  # pragma: no cover
-        tune(self.cfg, trainer_args)
+        trainer, model, data_module = setup_experiment(self.cfg, trainer_args)
+        tune(trainer, model, data_module, self.cfg.launch)
 
 
 class TestDLA(BaseEngineTests.TestTest):

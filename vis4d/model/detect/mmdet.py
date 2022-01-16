@@ -19,7 +19,7 @@ from vis4d.struct import (
 
 from ..backbone import BaseBackbone, MMDetBackbone
 from ..backbone.neck import MMDetNeck
-from ..heads.dense_head import BaseDenseHead, MMDetDenseHead
+from ..heads.dense_head import BaseDenseHead, MMDetDenseHead, MMDetRPNHead
 from ..heads.roi_head import BaseRoIHead, MMDetRoIHead
 from ..mmdet_utils import add_keyword_args, load_config
 from ..utils import postprocess_predictions, predictions_to_scalabel
@@ -55,9 +55,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
     def __init__(
         self,
         model_base: str,
-        pixel_mean: Tuple[float, float, float],
-        pixel_std: Tuple[float, float, float],
         *args: ArgsType,
+        pixel_mean: Optional[Tuple[float, float, float]] = None,
+        pixel_std: Optional[Tuple[float, float, float]] = None,
         model_kwargs: Optional[DictStrAny] = None,
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
@@ -120,7 +120,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 train_cfg=rpn_train_cfg,
                 test_cfg=self.mm_cfg["test_cfg"]["rpn"],
             )
-            self.rpn_head = MMDetDenseHead(
+            self.rpn_head = MMDetRPNHead(
                 mm_cfg=rpn_cfg, category_mapping=self.category_mapping
             )
         elif isinstance(rpn_head, dict):
@@ -151,9 +151,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
         self.with_mask = self.roi_head.with_mask
         if weights is not None:
-            if weights.startswith("mmdet://"):
-                weights = MMDET_MODEL_PREFIX + weights.split("mmdet://")[-1]
-            load_checkpoint(self, weights, revise_keys=REV_KEYS)
+            load_model_checkpoint(self, weights)
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
@@ -181,7 +179,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             assert segmentations is not None
             outputs["ins_seg"] = segmentations
 
-        postprocess_predictions(inputs, outputs, self.cfg.clip_bboxes_to_image)
+        postprocess_predictions(inputs, outputs, self.clip_bboxes_to_image)
         return predictions_to_scalabel(outputs, self.cat_mapping)
 
     def extract_features(self, inputs: InputSample) -> FeatureMaps:

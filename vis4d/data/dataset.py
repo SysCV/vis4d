@@ -10,8 +10,10 @@ from scalabel.label.utils import get_leaf_categories
 from torch.utils.data import Dataset
 
 from ..common.utils.time import Timer
-from ..struct import InputSample
+from ..struct import InputSample, ModuleCfg
 from .datasets import BaseDatasetLoader
+from .mapper import BaseSampleMapper
+from .reference import BaseReferenceSampler
 from .utils import (
     DatasetFromList,
     discard_labels_outside_set,
@@ -27,6 +29,8 @@ class ScalabelDataset(Dataset):  # type: ignore
     def __init__(
         self,
         dataset: BaseDatasetLoader,
+        mapper_cfg: ModuleCfg,
+        ref_cfg: ModuleCfg,
         training: bool,
         image_channel_mode: str = "RGB",
     ):
@@ -51,8 +55,11 @@ class ScalabelDataset(Dataset):  # type: ignore
             cats_name2id = {"all": {v: i for i, v in enumerate(class_list)}}
         self.cats_name2id = cats_name2id
 
-        self.mapper = build_mapper(
-            self.cfg.sample_mapper, cats_name2id, training, image_channel_mode
+        self.mapper = BaseSampleMapper(
+            cats_name2id,
+            training,
+            **mapper_cfg,
+            image_channel_mode=image_channel_mode,
         )
         dataset.frames = filter_attributes(dataset.frames, dataset.attributes)
 
@@ -84,10 +91,8 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.dataset.groups = DatasetFromList(self.dataset.groups)
 
         self._fallback_candidates = set(range(len(self.dataset.frames)))
-        self.ref_sampler = build_reference_sampler(
-            self.cfg.ref_sampler,
-            self.dataset.frames,
-            self.dataset.groups,
+        self.ref_sampler = BaseReferenceSampler(
+            self.dataset.frames, self.dataset.groups, **ref_cfg
         )
         self.has_sequences = bool(self.ref_sampler.video_to_indices)
         self._show_retry_warn = True
@@ -156,7 +161,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                     input_data.metadata[0].attributes = {}
                 input_data.metadata[0].attributes["keyframe"] = True
 
-                if self.ref_sampler.cfg.num_ref_imgs > 0:
+                if self.ref_sampler.num_ref_imgs > 0:
                     ref_data = self.ref_sampler(
                         cur_idx, input_data, self.mapper, parameters
                     )

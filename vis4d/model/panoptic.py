@@ -39,13 +39,13 @@ class PanopticSegmentor(BaseModel):
         """Init."""
         super().__init__(*args, **kwargs)
         assert self.category_mapping is not None
-        self.cfg.detection.category_mapping = self.cfg.category_mapping
         if isinstance(detection, dict):
             detection["category_mapping"] = self.category_mapping
             self.detector: BaseTwoStageDetector = build_model(detection)
         else:
             self.detector = detection
         assert isinstance(self.detector, BaseTwoStageDetector)
+        self.detector.category_mapping = self.category_mapping
         if isinstance(seg_head, dict):
             self.seg_head: BaseDenseHead[
                 Optional[Sequence[SemanticMasks]], List[SemanticMasks]
@@ -97,7 +97,7 @@ class PanopticSegmentor(BaseModel):
         postprocess_predictions(
             inputs,
             outputs,
-            clip_to_image=self.cfg.detection.clip_bboxes_to_image,
+            clip_to_image=self.detector.clip_bboxes_to_image,
             resolve_overlap=False,
         )
 
