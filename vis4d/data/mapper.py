@@ -75,7 +75,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         if self.fields_to_load is None:
             self.fields_to_load = ["boxes2d"]
 
-        if isinstance(data_backend, dict):
+        if isinstance(data_backend, dict):  # pragma: no cover
             self.data_backend: BaseDataBackend = build_module(
                 data_backend, bound=BaseDataBackend
             )
@@ -91,7 +91,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                     transform_: BaseAugmentation = build_module(
                         transform, bound=BaseAugmentation
                     )
-                else:
+                else:  # pragma: no cover
                     transform_ = transform
                 self.transformations.append(transform_)
         rank_zero_info("Transformations used: %s", self.transformations)

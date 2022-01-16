@@ -44,7 +44,7 @@ class QDTrack(BaseModel):
         if isinstance(detection, dict):
             detection["category_mapping"] = self.category_mapping
             self.detector = build_model(detection)
-        else:
+        else:  # pragma: no cover
             self.detector = detection
         assert isinstance(
             self.detector, (BaseTwoStageDetector, BaseOneStageDetector)
@@ -53,13 +53,13 @@ class QDTrack(BaseModel):
             self.similarity_head: BaseSimilarityHead = build_module(
                 similarity, bound=BaseSimilarityHead
             )
-        else:
+        else:  # pragma: no cover
             self.similarity_head = similarity
         if isinstance(track_graph, dict):
             self.track_graph: BaseTrackGraph = build_module(
                 track_graph, bound=BaseTrackGraph
             )
-        else:
+        else:  # pragma: no cover
             self.track_graph = track_graph
         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
         self.with_mask = getattr(self.detector, "with_mask", False)

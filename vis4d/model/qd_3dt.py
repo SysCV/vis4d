@@ -41,7 +41,7 @@ class QD3DT(QDTrack):
             self.bbox_3d_head: BaseRoIHead[
                 SamplingResult, List[Boxes3D]
             ] = build_module(bbox_3d_head, bound=BaseRoIHead)
-        else:
+        else:  # pragma: no cover
             self.bbox_3d_head = bbox_3d_head
 
     def forward_train(

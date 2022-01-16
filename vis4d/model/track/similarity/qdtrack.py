@@ -71,21 +71,21 @@ class QDSimilarityHead(BaseSimilarityHead):
             self.sampler: BaseSampler = build_module(
                 proposal_sampler, bound=BaseSampler
             )
-        else:
+        else:  # pragma: no cover
             self.sampler = proposal_sampler
 
         if isinstance(proposal_matcher, dict):
             self.matcher: BaseMatcher = build_module(
                 proposal_matcher, bound=BaseMatcher
             )
-        else:
+        else:  # pragma: no cover
             self.matcher = proposal_matcher
 
         if isinstance(proposal_pooler, dict):
             self.roi_pooler: BaseRoIPooler = build_module(
                 proposal_pooler, bound=BaseRoIPooler
             )
-        else:
+        else:  # pragma: no cover
             self.roi_pooler = proposal_pooler
 
         self.convs, self.fcs, last_layer_dim = self._init_embedding_head()
@@ -95,7 +95,7 @@ class QDSimilarityHead(BaseSimilarityHead):
             self.track_loss: BaseLoss = build_module(
                 track_loss, bound=BaseLoss
             )
-        else:
+        else:  # pragma: no cover
             self.track_loss = track_loss
         self.track_loss_aux: Optional[BaseLoss] = None
         if track_loss_aux is not None:
@@ -103,7 +103,7 @@ class QDSimilarityHead(BaseSimilarityHead):
                 self.track_loss_aux = build_module(
                     track_loss_aux, bound=BaseLoss
                 )
-            else:
+            else:  # pragma: no cover
                 self.track_loss_aux = track_loss_aux
 
         self._init_weights()

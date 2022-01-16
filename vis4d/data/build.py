@@ -65,7 +65,7 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         """Return dataloader(s) for prediction."""
         if self.predict_datasets is not None:
             return self._build_inference_dataloaders(self.predict_datasets)
-        return self.test_dataloader()
+        return self.test_dataloader()  # pragma: no cover
 
     def val_dataloader(self) -> List[data.DataLoader]:
         """Return dataloaders for validation."""

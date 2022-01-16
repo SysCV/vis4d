@@ -33,7 +33,7 @@ class QDTrackSeg(QDTrack):
             self.seg_head: MMSegDecodeHead = build_module(
                 seg_head, bound=MMSegDecodeHead
             )
-        else:
+        else:  # pragma: no cover
             self.seg_head = seg_head
 
     def forward_train(

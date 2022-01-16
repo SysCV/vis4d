@@ -42,7 +42,7 @@ class PanopticSegmentor(BaseModel):
         if isinstance(detection, dict):
             detection["category_mapping"] = self.category_mapping
             self.detector: BaseTwoStageDetector = build_model(detection)
-        else:
+        else:  # pragma: no cover
             self.detector = detection
         assert isinstance(self.detector, BaseTwoStageDetector)
         self.detector.category_mapping = self.category_mapping
@@ -50,13 +50,13 @@ class PanopticSegmentor(BaseModel):
             self.seg_head: BaseDenseHead[
                 Optional[Sequence[SemanticMasks]], List[SemanticMasks]
             ] = build_module(seg_head, bound=BaseDenseHead)
-        else:
+        else:  # pragma: no cover
             self.seg_head = seg_head
         if isinstance(pan_head, dict):
             self.pan_head: BasePanopticHead = build_module(
                 pan_head, bound=BasePanopticHead
             )
-        else:
+        else:  # pragma: no cover
             self.pan_head = pan_head
         self.det_mapping = {v: k for k, v in self.category_mapping.items()}
 

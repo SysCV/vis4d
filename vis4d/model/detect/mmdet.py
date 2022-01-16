@@ -104,7 +104,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             )
         elif isinstance(backbone, dict):
             self.backbone = build_module(backbone, bound=BaseBackbone)
-        else:
+        else:  # pragma: no cover
             self.backbone = backbone
 
         if rpn_head is None:
@@ -123,9 +123,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             self.rpn_head = MMDetRPNHead(
                 mm_cfg=rpn_cfg, category_mapping=self.category_mapping
             )
-        elif isinstance(rpn_head, dict):
+        elif isinstance(rpn_head, dict):  # pragma: no cover
             self.rpn_head = build_module(rpn_head, bound=BaseDenseHead)
-        else:
+        else:  # pragma: no cover
             self.rpn_head = rpn_head
 
         if roi_head is None:
@@ -144,9 +144,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 mm_cfg=roi_head_cfg,
                 category_mapping=self.category_mapping,
             )
-        elif isinstance(roi_head, dict):
+        elif isinstance(roi_head, dict):  # pragma: no cover
             self.roi_head = build_module(roi_head, bound=BaseRoIHead)
-        else:
+        else:  # pragma: no cover
             self.roi_head = roi_head
 
         self.with_mask = self.roi_head.with_mask
@@ -264,7 +264,7 @@ class MMOneStageDetector(BaseOneStageDetector):
                     output_names=backbone_output_names,
                 ),
             )
-        else:
+        else:  # pragma: no cover
             self.backbone = build_module(backbone, bound=BaseBackbone)
 
         if bbox_head is None:
@@ -283,7 +283,7 @@ class MMOneStageDetector(BaseOneStageDetector):
                 mm_cfg=bbox_cfg,
                 category_mapping=self.category_mapping,
             )
-        else:
+        else:  # pragma: no cover
             self.bbox_head = build_module(bbox_head, bound=BaseDenseHead)
 
         if weights is not None:
