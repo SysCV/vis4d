@@ -104,9 +104,12 @@ class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         for k, v in self._metrics_history[-1].items():
             if isinstance(v, (torch.Tensor, float, int)):
                 acc_value = 0.0
+                num_hist = 0
                 for hist_dict in self._metrics_history:
-                    acc_value += hist_dict[k]
-                acc_value /= len(self._metrics_history)
+                    if k in hist_dict:
+                        acc_value += hist_dict[k]
+                        num_hist += 1
+                acc_value /= num_hist
                 acc_metrics[k] = acc_value
             elif isinstance(v, str) and not v == "nan":
                 acc_metrics[k] = v

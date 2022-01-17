@@ -111,6 +111,8 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             assert (
                 field in allowed_files
             ), f"Unrecognized field={field}, allowed fields={allowed_files}"
+            if not cats_name2id:
+                continue
             if isinstance(list(cats_name2id.values())[0], int):
                 self.cats_name2id[field] = cats_name2id  # type: ignore
             else:

@@ -6,7 +6,7 @@ import requests
 import torch
 import torch.nn.functional as F
 
-from vis4d.struct import LabelInstances, NDArrayUI8, SemanticMasks
+from vis4d.struct import Images, LabelInstances, NDArrayUI8, SemanticMasks
 
 try:
     from mmcv import Config as MMConfig
@@ -42,8 +42,14 @@ def results_from_mmseg(
     return masks
 
 
-def targets_to_mmseg(targets: LabelInstances) -> torch.Tensor:
+def targets_to_mmseg(images: Images, targets: LabelInstances) -> torch.Tensor:
     """Convert Vis4D targets to mmsegmentation compatible format."""
+    if len(targets.semantic_masks) > 1:
+        # pad masks to same size for batching
+        targets.semantic_masks = SemanticMasks.pad(
+            targets.semantic_masks,
+            images.tensor.shape[-2:][::-1],
+        )
     return torch.stack(
         [t.to_hwc_mask() for t in targets.semantic_masks]
     ).unsqueeze(1)

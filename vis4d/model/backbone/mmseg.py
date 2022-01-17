@@ -16,14 +16,7 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
-from vis4d.struct import (
-    ArgsType,
-    DictStrAny,
-    FeatureMaps,
-    Images,
-    InputSample,
-    SemanticMasks,
-)
+from vis4d.struct import ArgsType, DictStrAny, FeatureMaps, Images, InputSample
 
 from .base import BaseBackbone
 
@@ -61,12 +54,6 @@ class MMSegBackbone(BaseBackbone):
             # no padding during inference to match MMSegmentation
             Images.stride = 1
         super().preprocess_inputs(inputs)
-        if self.training and len(inputs.targets.semantic_masks) > 1:
-            # pad masks to same size for batching
-            inputs.targets.semantic_masks = SemanticMasks.pad(
-                inputs.targets.semantic_masks,
-                inputs.images.tensor.shape[-2:][::-1],
-            )
         return inputs
 
     def __call__(  # type: ignore[override]

@@ -51,10 +51,14 @@ class ScalabelDataset(Dataset):  # type: ignore
                 )
             discard_labels_outside_set(dataset.frames, class_list)
         else:
-            class_list = [
-                c.name
-                for c in get_leaf_categories(dataset.metadata_cfg.categories)
-            ]
+            class_list = list(
+                set(
+                    c.name
+                    for c in get_leaf_categories(
+                        dataset.metadata_cfg.categories
+                    )
+                )
+            )
             cats_name2id = {v: i for i, v in enumerate(class_list)}
         self.cats_name2id = cats_name2id
 

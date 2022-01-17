@@ -101,7 +101,7 @@ _eval_mapping = dict(
 
 
 class BaseDatasetLoader(Vis4DModule[None, None]):
-    """Interface for loading dataset to scalabel format."""
+    """Interface for loading dataset to Scalabel format."""
 
     def __init__(
         self,
@@ -171,7 +171,7 @@ class BaseDatasetLoader(Vis4DModule[None, None]):
 
     @abc.abstractmethod
     def load_dataset(self) -> Dataset:
-        """Load and possibly convert dataset to scalabel format."""
+        """Load and possibly convert dataset to Scalabel format."""
         raise NotImplementedError
 
     def _check_metrics(self) -> None:
@@ -187,7 +187,7 @@ class BaseDatasetLoader(Vis4DModule[None, None]):
     def evaluate(
         self, metric: str, predictions: List[Frame], gts: List[Frame]
     ) -> Tuple[MetricLogs, str]:
-        """Convert predictions from scalabel format and evaluate.
+        """Convert predictions from Scalabel format and evaluate.
 
         Returns a dictionary of scores to log and a pretty printed string.
         """

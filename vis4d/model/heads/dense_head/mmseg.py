@@ -72,7 +72,7 @@ class MMSegDecodeHead(
     ) -> Tuple[LossesType, Optional[Sequence[SemanticMasks]]]:
         """Forward pass during training stage."""
         image_metas = get_img_metas(inputs.images)
-        gt_masks = targets_to_mmseg(inputs.targets)
+        gt_masks = targets_to_mmseg(inputs.images, inputs.targets)
         assert features is not None
         losses = self.mm_decode_head.forward_train(
             [features[k] for k in features.keys()],

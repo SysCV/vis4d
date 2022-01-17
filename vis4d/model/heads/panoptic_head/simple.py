@@ -1,5 +1,5 @@
 """Simple panoptic head."""
-from typing import Optional, Tuple
+from typing import List, Tuple, Union
 
 import torch
 
@@ -19,17 +19,19 @@ class SimplePanopticHead(BasePanopticHead):
 
     def __init__(
         self,
-        ignore_class: Optional[int] = -1,
+        ignore_class: Union[int, List[int]] = -1,
         overlap_thr: float = 0.5,
         stuff_area_thr: int = 4096,
         thing_conf_thr: float = 0.5,
     ):
         """Init."""
         super().__init__()
-        self.ignore_class = ignore_class
         self.overlap_thr = overlap_thr
         self.stuff_area_thr = stuff_area_thr
         self.thing_conf_thr = thing_conf_thr
+        if isinstance(ignore_class, int):
+            ignore_class = [ignore_class]
+        self.ignore_class = ignore_class
 
     def forward_train(
         self,
@@ -88,7 +90,7 @@ class SimplePanopticHead(BasePanopticHead):
             zip(sem_segm.masks, sem_segm.class_ids)
         ):
             if (
-                cls_id == self.ignore_class
+                cls_id in self.ignore_class
                 or mask.sum().item() < self.stuff_area_thr
             ):
                 mask[mask > 0] = 0
