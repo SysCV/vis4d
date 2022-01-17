@@ -165,25 +165,8 @@ def setup_category_mapping(
         ):
             if model_category_mapping is not None:
                 # default to using model category_mapping, if exists
-                data_cfg["category_mapping"] = {"all": model_category_mapping}
+                data_cfg["category_mapping"] = model_category_mapping
             continue
-        if "all" in data_cfg["category_mapping"]:
-            if len(data_cfg["category_mapping"]) > 1:
-                rank_zero_warn(
-                    '"all" category mapping is specified for'
-                    f" {data_cfg['name']} but other mappings exist. These"
-                    " will be ignored."
-                )
-            data_cfg["category_mapping"] = {
-                "all": data_cfg["category_mapping"]["all"]
-            }
-        else:
-            # validate category_mappings according to fields_to_load
-            fields = data_cfg["sample_mapper"]["fields_to_load"]
-            for field in fields:
-                assert (
-                    field in data_cfg["category_mapping"]
-                ), f"category_mapping not found for field={field}"
 
 
 def build_datasets(

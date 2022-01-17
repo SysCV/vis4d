@@ -15,6 +15,6 @@ category_mapping = {"person" = 0, "rider" = 1, "bicycle" = 2, "bus" = 3, "car" =
 
     [model.pan_head]
     type = "SimplePanopticHead"
-    ignore_class = 1
+    ignore_class = 30
     thing_conf_thr = 0.2
     overlap_thr = 0.3

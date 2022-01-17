@@ -39,20 +39,23 @@ class ScalabelDataset(Dataset):  # type: ignore
         self.training = training
         cats_name2id = dataset.category_mapping
         if cats_name2id is not None:
-            class_list = list(
-                set(
-                    cls
-                    for field in cats_name2id
-                    for cls in list(cats_name2id[field].keys())
+            if isinstance(list(cats_name2id.values())[0], int):
+                class_list = list(set(cls for cls in cats_name2id))
+            else:
+                class_list = list(
+                    set(
+                        cls
+                        for field in cats_name2id
+                        for cls in list(cats_name2id[field].keys())  # type: ignore  # pylint: disable=line-too-long
+                    )
                 )
-            )
             discard_labels_outside_set(dataset.frames, class_list)
         else:
             class_list = [
                 c.name
                 for c in get_leaf_categories(dataset.metadata_cfg.categories)
             ]
-            cats_name2id = {"all": {v: i for i, v in enumerate(class_list)}}
+            cats_name2id = {v: i for i, v in enumerate(class_list)}
         self.cats_name2id = cats_name2id
 
         self.mapper = BaseSampleMapper(

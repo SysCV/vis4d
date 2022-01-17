@@ -17,7 +17,7 @@ from scalabel.label.typing import Config, Dataset, Frame, FrameGroup
 
 from vis4d.common.module import Vis4DModule
 from vis4d.common.utils.time import Timer
-from vis4d.struct import MetricLogs
+from vis4d.struct import CategoryMap, MetricLogs
 
 
 def _detect(
@@ -108,7 +108,7 @@ class BaseDatasetLoader(Vis4DModule[None, None]):
         name: str,
         data_root: str,
         annotations: Optional[str] = None,
-        category_mapping: Optional[Dict[str, Dict[str, int]]] = None,
+        category_mapping: Optional[CategoryMap] = None,
         attributes: Optional[
             Dict[str, Union[bool, float, str, List[float], List[str]]]
         ] = None,

@@ -25,6 +25,7 @@ from ..common.registry import RegistryHolder
 from ..struct import (
     Boxes2D,
     Boxes3D,
+    CategoryMap,
     Extrinsics,
     Images,
     InputSample,
@@ -44,7 +45,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
     def __init__(
         self,
-        cats_name2id: Dict[str, Dict[str, int]],
+        cats_name2id: CategoryMap,
         training: bool,
         data_backend: Union[BaseDataBackend, ModuleCfg] = FileBackend(),
         fields_to_load: Optional[List[str]] = None,
@@ -105,18 +106,20 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             "extrinsics",
             "pointcloud",
         ]
-        self.cats_name2id = {}
+        self.cats_name2id: Dict[str, Dict[str, int]] = {}
         for field in self.fields_to_load:
             assert (
                 field in allowed_files
             ), f"Unrecognized field={field}, allowed fields={allowed_files}"
-            assert (
-                "all" in cats_name2id or field in cats_name2id
-            ), f"Field={field} not specified in category_mapping"
-            if "all" in cats_name2id:
-                self.cats_name2id[field] = cats_name2id["all"]
+            if isinstance(list(cats_name2id.values())[0], int):
+                self.cats_name2id[field] = cats_name2id  # type: ignore
             else:
-                self.cats_name2id[field] = cats_name2id[field]
+                assert (
+                    field in cats_name2id
+                ), f"Field={field} not specified in category_mapping"
+                field_map = cats_name2id[field]
+                assert isinstance(field_map, dict)
+                self.cats_name2id[field] = field_map
 
     def load_input(
         self,

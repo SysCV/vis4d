@@ -11,6 +11,7 @@ from .labels import (
 from .sample import InputSample, LabelInstances
 from .structures import (
     ArgsType,
+    CategoryMap,
     DataInstance,
     DictStrAny,
     FeatureMaps,
@@ -55,4 +56,5 @@ __all__ = [
     "MetricLogs",
     "FeatureMaps",
     "ArgsType",
+    "CategoryMap",
 ]
