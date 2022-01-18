@@ -282,7 +282,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
                 "AMOTP": metrics.compute_metric("amotp", "all"),
             }
             str_summary = "\n".join(str_summary_list)
-        except AssertionError as e:
+        except (AssertionError, ValueError) as e:
             error_msg = "".join(e.args)
             rank_zero_warn(f"Evaluation error: {error_msg}")
             log_dict = {
@@ -291,7 +291,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             }
             str_summary = (
                 "Evaluation failure might be raised due to sanity check"
-                + " or motmetrics version is not 1.13.0"
+                + " or motmetrics version is not 1.1.3"
                 + " or numpy version is not <= 1.19"
             )
             rank_zero_warn(str_summary)
