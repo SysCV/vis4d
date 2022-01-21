@@ -3,7 +3,6 @@ from typing import List, Union
 
 import torch
 
-from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.common.module import build_module
 from vis4d.struct import (
     ArgsType,
@@ -17,7 +16,7 @@ from vis4d.struct import (
 )
 
 from .detect import BaseTwoStageDetector
-from .heads.roi_head import BaseRoIHead
+from .heads.roi_head import BaseRoIHead, Det3DRoIHead
 from .qdtrack import QDTrack
 from .track.utils import split_key_ref_inputs
 
@@ -27,9 +26,7 @@ class QD3DT(QDTrack):
 
     def __init__(
         self,
-        bbox_3d_head: Union[
-            BaseRoIHead[SamplingResult, List[Boxes3D]], ModuleCfg
-        ],
+        bbox_3d_head: Union[Det3DRoIHead, ModuleCfg],
         *args: ArgsType,
         **kwargs: ArgsType
     ) -> None:
@@ -38,16 +35,13 @@ class QD3DT(QDTrack):
         assert self.category_mapping is not None
         if isinstance(bbox_3d_head, dict):
             bbox_3d_head["num_classes"] = len(self.category_mapping)
-            self.bbox_3d_head: BaseRoIHead[
-                SamplingResult, List[Boxes3D]
-            ] = build_module(bbox_3d_head, bound=BaseRoIHead)
+            self.bbox_3d_head: Det3DRoIHead = build_module(
+                bbox_3d_head, bound=BaseRoIHead
+            )
         else:  # pragma: no cover
             self.bbox_3d_head = bbox_3d_head
 
-    def forward_train(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward function for training."""
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
         key_targets = key_inputs.targets
@@ -62,15 +56,12 @@ class QD3DT(QDTrack):
 
         # 3d bbox head
         loss_bbox_3d, _ = self.bbox_3d_head(
-            key_inputs, key_proposals, key_x, key_targets
+            key_inputs, key_x, key_proposals, key_targets
         )
         losses.update(loss_bbox_3d)
         return losses
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> ModelOutput:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Compute qd-3dt output during inference."""
         assert len(batch_inputs[0]) == 1, "Currently only BS = 1 supported!"
 
@@ -92,7 +83,7 @@ class QD3DT(QDTrack):
         )
 
         # 3d head
-        boxes3d_list = self.bbox_3d_head(frames, boxes2d_list, feat)
+        boxes3d_list = self.bbox_3d_head(frames, feat, boxes2d_list)
 
         # similarity head
         embeddings_list = self.similarity_head(frames, boxes2d_list, feat)

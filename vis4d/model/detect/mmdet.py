@@ -19,9 +19,15 @@ from vis4d.struct import (
 
 from ..backbone import BaseBackbone, MMDetBackbone
 from ..backbone.neck import MMDetNeck
-from ..heads.dense_head import BaseDenseHead, MMDetDenseHead, MMDetRPNHead
-from ..heads.roi_head import BaseRoIHead, MMDetRoIHead
-from ..mmdet_utils import add_keyword_args, load_config
+from ..base import BDD100K_MODEL_PREFIX
+from ..heads.dense_head import (
+    BaseDenseHead,
+    DetDenseHead,
+    MMDetDenseHead,
+    MMDetRPNHead,
+)
+from ..heads.roi_head import BaseRoIHead, Det2DRoIHead, MMDetRoIHead
+from ..mm_utils import add_keyword_args, load_config
 from ..utils import postprocess_predictions, predictions_to_scalabel
 from .base import BaseDetector, BaseOneStageDetector, BaseTwoStageDetector
 
@@ -39,7 +45,6 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
-BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
 REV_KEYS = [
     (r"^roi_head\.", "roi_head.mm_roi_head."),
     (r"^rpn_head\.", "rpn_head.mm_dense_head."),
@@ -62,18 +67,8 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
         backbone: Optional[Union[BaseBackbone, ModuleCfg]] = None,
-        roi_head: Optional[
-            Union[BaseDenseHead[List[Boxes2D], List[Boxes2D]], ModuleCfg]
-        ] = None,
-        rpn_head: Optional[
-            Union[
-                BaseRoIHead[
-                    Optional[SamplingResult],
-                    Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
-                ],
-                ModuleCfg,
-            ]
-        ] = None,
+        rpn_head: Optional[Union[DetDenseHead, ModuleCfg]] = None,
+        roi_head: Optional[Union[Det2DRoIHead, ModuleCfg]] = None,
         **kwargs: ArgsType,
     ):
         """Init."""
@@ -162,7 +157,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         assert targets is not None, "Training requires targets."
         features = self.backbone(inputs)
         rpn_losses, proposals = self.rpn_head(inputs, features, targets)
-        roi_losses, _ = self.roi_head(inputs, proposals, features, targets)
+        roi_losses, _ = self.roi_head(inputs, features, proposals, targets)
         return {**rpn_losses, **roi_losses}
 
     def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
@@ -173,7 +168,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         inputs = batch_inputs[0]
         features = self.backbone(inputs)
         proposals = self.rpn_head(inputs, features)
-        detections, segmentations = self.roi_head(inputs, proposals, features)
+        detections, segmentations = self.roi_head(inputs, features, proposals)
         outputs: Dict[str, List[TLabelInstance]] = dict(detect=detections)  # type: ignore # pylint: disable=line-too-long
         if self.with_mask:
             assert segmentations is not None
@@ -214,7 +209,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Train stage detections generation."""
-        return self.roi_head(inputs, proposals, features, targets)
+        return self.roi_head(inputs, features, proposals, targets)
 
     def _detections_test(
         self,
@@ -223,7 +218,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         proposals: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Test stage detections generation."""
-        return self.roi_head(inputs, proposals, features)
+        return self.roi_head(inputs, features, proposals)
 
 
 class MMOneStageDetector(BaseOneStageDetector):
@@ -238,10 +233,8 @@ class MMOneStageDetector(BaseOneStageDetector):
         model_kwargs: Optional[DictStrAny] = None,
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
-        backbone: Optional[BaseBackbone] = None,
-        bbox_head: Optional[
-            BaseDenseHead[List[Boxes2D], List[Boxes2D]]
-        ] = None,
+        backbone: Optional[Union[BaseBackbone, ModuleCfg]] = None,
+        bbox_head: Optional[Union[DetDenseHead, ModuleCfg]] = None,
         **kwargs: ArgsType,
     ):
         """Init."""
@@ -264,8 +257,10 @@ class MMOneStageDetector(BaseOneStageDetector):
                     output_names=backbone_output_names,
                 ),
             )
-        else:  # pragma: no cover
+        elif isinstance(backbone, dict):
             self.backbone = build_module(backbone, bound=BaseBackbone)
+        else:  # pragma: no cover
+            self.backbone = backbone
 
         if bbox_head is None:
             bbox_cfg = self.mm_cfg["bbox_head"]
@@ -277,14 +272,13 @@ class MMOneStageDetector(BaseOneStageDetector):
                 train_cfg=bbox_train_cfg,
                 test_cfg=self.mm_cfg["test_cfg"],
             )
-            self.bbox_head: BaseDenseHead[
-                List[Boxes2D], List[Boxes2D]
-            ] = MMDetDenseHead(
-                mm_cfg=bbox_cfg,
-                category_mapping=self.category_mapping,
+            self.bbox_head: DetDenseHead = MMDetDenseHead(
+                mm_cfg=bbox_cfg, category_mapping=self.category_mapping
             )
-        else:  # pragma: no cover
+        elif isinstance(bbox_head, dict):  # pragma: no cover
             self.bbox_head = build_module(bbox_head, bound=BaseDenseHead)
+        else:  # pragma: no cover
+            self.bbox_head = bbox_head
 
         if weights is not None:
             load_model_checkpoint(self, weights)

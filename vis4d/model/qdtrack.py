@@ -18,7 +18,7 @@ from vis4d.struct import (
 )
 
 from .base import BaseModel, build_model
-from .detect import BaseOneStageDetector, BaseTwoStageDetector
+from .detect import BaseDetector, BaseOneStageDetector, BaseTwoStageDetector
 from .track.graph import BaseTrackGraph
 from .track.similarity import BaseSimilarityHead
 from .track.utils import split_key_ref_inputs
@@ -30,9 +30,7 @@ class QDTrack(BaseModel):
 
     def __init__(
         self,
-        detection: Union[
-            BaseTwoStageDetector, BaseOneStageDetector, ModuleCfg
-        ],
+        detection: Union[BaseDetector, ModuleCfg],
         similarity: Union[BaseSimilarityHead, ModuleCfg],
         track_graph: Union[BaseTrackGraph, ModuleCfg],
         *args: ArgsType,
@@ -181,10 +179,7 @@ class QDTrack(BaseModel):
         )
         return predictions_to_scalabel(outs, self.cat_mapping)
 
-    def forward_train(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward function for training."""
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
 
@@ -206,10 +201,7 @@ class QDTrack(BaseModel):
         )
         return losses
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> ModelOutput:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Compute model output during inference."""
         assert len(batch_inputs) == 1, "No reference views during test!"
         assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"

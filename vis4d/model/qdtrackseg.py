@@ -10,7 +10,7 @@ from vis4d.struct import (
     ModuleCfg,
 )
 
-from .heads.dense_head import MMSegDecodeHead
+from .heads.dense_head import BaseDenseHead, SegDenseHead
 from .qdtrack import QDTrack
 from .track.utils import split_key_ref_inputs
 from .utils import postprocess_predictions, predictions_to_scalabel
@@ -21,7 +21,7 @@ class QDTrackSeg(QDTrack):
 
     def __init__(
         self,
-        seg_head: Union[MMSegDecodeHead, ModuleCfg],
+        seg_head: Union[SegDenseHead, ModuleCfg],
         *args: ArgsType,
         **kwargs: ArgsType
     ) -> None:
@@ -30,16 +30,13 @@ class QDTrackSeg(QDTrack):
         if isinstance(seg_head, dict):
             if seg_head["category_mapping"] is None:  # pragma: no cover
                 seg_head["category_mapping"] = self.category_mapping
-            self.seg_head: MMSegDecodeHead = build_module(
-                seg_head, bound=MMSegDecodeHead
+            self.seg_head: SegDenseHead = build_module(
+                seg_head, bound=BaseDenseHead
             )
         else:  # pragma: no cover
             self.seg_head = seg_head
 
-    def forward_train(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward function for training."""
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
         key_targets = key_inputs.targets
@@ -67,10 +64,7 @@ class QDTrackSeg(QDTrack):
 
         return losses
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> ModelOutput:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Compute model output during inference."""
         assert len(batch_inputs) == 1, "No reference views during test!"
         assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"

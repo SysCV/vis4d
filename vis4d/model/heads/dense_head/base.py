@@ -1,10 +1,18 @@
 """Dense Head interface for Vis4D."""
-
 import abc
-from typing import Dict, Optional, Tuple, Union, overload
+from typing import Dict, List, Optional, Tuple, Union, overload
+
+import torch
 
 from vis4d.common.module import TTestReturn, TTrainReturn, Vis4DModule
-from vis4d.struct import FeatureMaps, InputSample, LabelInstances, LossesType
+from vis4d.struct import (
+    Boxes2D,
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+    SemanticMasks,
+)
 
 
 class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
@@ -91,3 +99,7 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
             TTestReturn: Prediction output.
         """
         raise NotImplementedError
+
+
+DetDenseHead = BaseDenseHead[List[Boxes2D], List[Boxes2D]]
+SegDenseHead = BaseDenseHead[Optional[torch.Tensor], List[SemanticMasks]]

@@ -3,7 +3,7 @@ import os
 from typing import Dict, List, Optional, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.model.mmdet_utils import (
+from vis4d.model.mm_utils import (
     _parse_losses,
     detections_from_mmdet,
     get_img_metas,
@@ -21,7 +21,7 @@ from vis4d.struct import (
     LossesType,
 )
 
-from .base import BaseRoIHead
+from .base import Det2DRoIHead
 
 try:
     from mmcv import Config as MMConfig
@@ -40,12 +40,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 
-class MMDetRoIHead(
-    BaseRoIHead[
-        Optional[SamplingResult],
-        Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
-    ]
-):
+class MMDetRoIHead(Det2DRoIHead):
     """mmdetection roi head wrapper."""
 
     def __init__(
@@ -74,8 +69,8 @@ class MMDetRoIHead(
     def forward_train(
         self,
         inputs: InputSample,
-        boxes: List[Boxes2D],
         features: FeatureMaps,
+        boxes: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Forward pass during training stage."""
@@ -101,8 +96,8 @@ class MMDetRoIHead(
     def forward_test(
         self,
         inputs: InputSample,
-        boxes: List[Boxes2D],
         features: FeatureMaps,
+        boxes: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Forward pass during testing stage."""
         assert (

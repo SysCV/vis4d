@@ -28,10 +28,10 @@ from vis4d.struct import (
     ModuleCfg,
 )
 
-from .base import BaseRoIHead
+from .base import Det3DRoIHead
 
 
-class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
+class QD3DTBBox3DHead(Det3DRoIHead):
     """QD-3DT 3D Bounding Box Head."""
 
     def __init__(  # pylint: disable=too-many-arguments
@@ -381,16 +381,16 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
     def forward_train(
         self,
         inputs: InputSample,
-        boxes: List[Boxes2D],
         features: FeatureMaps,
+        boxes: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, SamplingResult]:
         """Forward pass during training stage.
 
         Args:
             inputs: InputSamples (images, metadata, etc). Batched.
-            boxes: Input boxes to apply RoIHead on.
             features: Input feature maps. Batched.
+            boxes: Input boxes to apply RoIHead on.
             targets: Targets corresponding to InputSamples.
 
         Returns:
@@ -430,15 +430,15 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
     def forward_test(
         self,
         inputs: InputSample,
-        boxes: List[Boxes2D],
         features: FeatureMaps,
+        boxes: List[Boxes2D],
     ) -> List[Boxes3D]:
         """Forward pass during testing stage.
 
         Args:
             inputs: InputSamples (images, metadata, etc). Batched.
-            boxes: Input boxes to apply RoIHead on.
             features: Input feature maps. Batched.
+            boxes: Input boxes to apply RoIHead on.
 
         Returns:
             List[Boxes3D]: Prediction output.

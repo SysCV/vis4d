@@ -2,7 +2,7 @@
 import os
 from typing import Dict, List, Optional, Tuple, Union
 
-from vis4d.model.mmdet_utils import (
+from vis4d.model.mm_utils import (
     _parse_losses,
     get_img_metas,
     proposals_from_mmdet,
@@ -17,7 +17,7 @@ from vis4d.struct import (
     LossesType,
 )
 
-from .base import BaseDenseHead
+from .base import DetDenseHead
 
 try:
     from mmcv import Config as MMConfig
@@ -38,7 +38,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 
-class MMDetDenseHead(BaseDenseHead[List[Boxes2D], List[Boxes2D]]):
+class MMDetDenseHead(DetDenseHead):
     """mmdetection dense head wrapper."""
 
     def __init__(

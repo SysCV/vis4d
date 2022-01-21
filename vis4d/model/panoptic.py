@@ -1,5 +1,5 @@
 """Panoptic segmentation model."""
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Union
 
 from vis4d.common.module import build_module
 from vis4d.struct import (
@@ -9,13 +9,12 @@ from vis4d.struct import (
     LossesType,
     ModelOutput,
     ModuleCfg,
-    SemanticMasks,
     TLabelInstance,
 )
 
 from .base import BaseModel, build_model
 from .detect import BaseTwoStageDetector
-from .heads.dense_head import BaseDenseHead
+from .heads.dense_head import BaseDenseHead, SegDenseHead
 from .heads.panoptic_head import BasePanopticHead
 from .utils import postprocess_predictions, predictions_to_scalabel
 
@@ -26,12 +25,7 @@ class PanopticSegmentor(BaseModel):
     def __init__(
         self,
         detection: Union[BaseTwoStageDetector, ModuleCfg],
-        seg_head: Union[
-            BaseDenseHead[
-                Optional[Sequence[SemanticMasks]], List[SemanticMasks]
-            ],
-            ModuleCfg,
-        ],
+        seg_head: Union[SegDenseHead, ModuleCfg],
         pan_head: Union[BasePanopticHead, ModuleCfg],
         *args: ArgsType,
         **kwargs: ArgsType
@@ -47,9 +41,9 @@ class PanopticSegmentor(BaseModel):
         assert isinstance(self.detector, BaseTwoStageDetector)
         self.detector.category_mapping = self.category_mapping
         if isinstance(seg_head, dict):
-            self.seg_head: BaseDenseHead[
-                Optional[Sequence[SemanticMasks]], List[SemanticMasks]
-            ] = build_module(seg_head, bound=BaseDenseHead)
+            self.seg_head: SegDenseHead = build_module(
+                seg_head, bound=BaseDenseHead
+            )
         else:  # pragma: no cover
             self.seg_head = seg_head
         if isinstance(pan_head, dict):

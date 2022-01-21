@@ -37,6 +37,8 @@ from .optimize import (
     get_warmup_lr,
 )
 
+BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
+
 
 class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
     """Base Vis4D model class."""

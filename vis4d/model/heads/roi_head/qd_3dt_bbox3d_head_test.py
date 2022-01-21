@@ -78,7 +78,7 @@ class TestQDTBBox3DHead(unittest.TestCase):
         )
 
         boxes_3d_pred = box3d_head(
-            inputs, [detections], {"test": torch.rand(1)}
+            inputs, {"test": torch.rand(1)}, [detections]
         )
 
         # pylint: disable=unsubscriptable-object

@@ -16,9 +16,9 @@ from vis4d.struct import (
 
 from ..backbone import MMSegBackbone
 from ..backbone.neck import MMDetNeck
+from ..base import BDD100K_MODEL_PREFIX
 from ..heads.dense_head import MMSegDecodeHead
-from ..mmdet_utils import _parse_losses, add_keyword_args
-from ..mmseg_utils import load_config
+from ..mm_utils import _parse_losses, add_keyword_args, load_config
 from ..utils import postprocess_predictions, predictions_to_scalabel
 from .base import BaseSegmentor
 
@@ -37,7 +37,6 @@ except (ImportError, NameError):  # pragma: no cover
 
 
 MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
-BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
 REV_KEYS = [
     (r"^decode_head\.", "decode_head.mm_decode_head."),
     (r"^auxiliary_head\.", "auxiliary_head.mm_decode_head."),
