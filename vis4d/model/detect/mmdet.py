@@ -257,7 +257,7 @@ class MMOneStageDetector(BaseOneStageDetector):
                     output_names=backbone_output_names,
                 ),
             )
-        elif isinstance(backbone, dict):
+        elif isinstance(backbone, dict):  # pragma: no cover
             self.backbone = build_module(backbone, bound=BaseBackbone)
         else:  # pragma: no cover
             self.backbone = backbone
