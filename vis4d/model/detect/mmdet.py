@@ -111,6 +111,17 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 rpn_train_cfg = self.mm_cfg["train_cfg"]["rpn"]
             else:  # pragma: no cover
                 rpn_train_cfg = None
+            if (
+                "train_cfg" in self.mm_cfg
+                and "rpn_proposal" in self.mm_cfg["train_cfg"]
+            ):
+                rpn_proposal_cfg = self.mm_cfg["train_cfg"]["rpn_proposal"]
+                if rpn_train_cfg is not None:
+                    rpn_train_cfg.update(rpn_proposal=rpn_proposal_cfg)
+                else:  # pragma: no cover
+                    rpn_train_cfg = rpn_proposal_cfg
+            else:  # pragma: no cover
+                rpn_train_cfg = None
             rpn_cfg.update(
                 train_cfg=rpn_train_cfg,
                 test_cfg=self.mm_cfg["test_cfg"]["rpn"],

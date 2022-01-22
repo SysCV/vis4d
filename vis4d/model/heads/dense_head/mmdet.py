@@ -62,7 +62,7 @@ class MMDetDenseHead(DetDenseHead):
         self.mm_dense_head.init_weights()
         self.mm_dense_head.train()
         self.cat_mapping = {v: k for k, v in category_mapping.items()}
-        self.proposal_cfg = self.mm_dense_head.train_cfg.get(
+        self.proposal_cfg = self.mm_dense_head.train_cfg.pop(
             "rpn_proposal", self.mm_dense_head.test_cfg
         )
 
