@@ -16,8 +16,8 @@ from torch.utils import data
 
 from vis4d.data.samplers import build_data_sampler
 
-from ..common.module import build_module
-from ..config import Config, Launch, default_argument_parser, parse_config
+from ..common.registry import build_component
+from ..config import Config, default_argument_parser, parse_config
 from ..data.build import Vis4DDataModule
 from ..data.dataset import ScalabelDataset
 from ..data.datasets import BaseDatasetLoader, Custom
@@ -179,7 +179,7 @@ def build_datasets(
         ref_cfg = dl_cfg.pop("ref_sampler", {})
         datasets.append(
             ScalabelDataset(
-                build_module(dl_cfg, bound=BaseDatasetLoader),
+                build_component(dl_cfg, bound=BaseDatasetLoader),
                 mapper_cfg,
                 ref_cfg,
                 training,
@@ -333,23 +333,13 @@ def tune(
     trainer: pl.Trainer,
     model: BaseModel,
     data_module: pl.LightningDataModule,
-    launch: Launch,
+    tuner_params: DictStrAny,
+    tuner_metrics: List[str],
 ) -> None:
     """Tune function."""
-    if launch.tuner_params is None:
-        raise ValueError(
-            "Tuner parameters not defined! Please specify "
-            "tuner_params in Launch config."
-        )
-    if launch.tuner_metrics is None:
-        raise ValueError(
-            "Tuner metrics not defined! Please specify "
-            "tuner_metrics in Launch config."
-        )
-
     rank_zero_info("Starting hyperparameter search...")
-    search_params = launch.tuner_params
-    search_metrics = launch.tuner_metrics
+    search_params = tuner_params
+    search_metrics = tuner_metrics
     param_names = list(search_params.keys())
     param_groups = list(product(*search_params.values()))
     metrics_all = {}
@@ -362,11 +352,7 @@ def tune(
                     raise ValueError(f"Attribute {name} not found in {key}!")
             setattr(obj, key.split(".")[-1], value)
 
-        metrics = trainer.test(
-            model,
-            data_module,
-            verbose=False,
-        )
+        metrics = trainer.test(model, data_module, verbose=False)
         if len(metrics) > 0:
             rank_zero_warn(
                 "More than one dataloader found, but tuning "
@@ -399,7 +385,21 @@ def cli_main() -> None:  # pragma: no cover
     elif args.action == "predict":
         predict(trainer, model, data_module)
     elif args.action == "tune":
-        tune(trainer, model, data_module, cfg.launch)
+        if cfg.launch.tuner_params is None:
+            raise ValueError(
+                "Tuner parameters not defined! Please specify "
+                "tuner_params in Launch config."
+            )
+        if cfg.launch.tuner_metrics is None:
+            raise ValueError(
+                "Tuner metrics not defined! Please specify "
+                "tuner_metrics in Launch config."
+            )
+        tuner_params, tuner_metrics = (
+            cfg.launch.tuner_params,
+            cfg.launch.tuner_metrics,
+        )
+        tune(trainer, model, data_module, tuner_params, tuner_metrics)
     else:
         raise NotImplementedError(f"Action {args.action} not known!")
 

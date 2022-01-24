@@ -33,8 +33,7 @@ class Vis4DModule(
 
 
 def build_module(  # type: ignore
-    cfg: ModuleCfg,
-    bound: Any,
+    cfg: ModuleCfg, bound: Any
 ) -> Vis4DModule[TTrainReturn, TTestReturn]:
     """Build a module from config."""
     registry = RegistryHolder.get_registry(bound)

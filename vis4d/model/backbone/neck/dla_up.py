@@ -7,6 +7,7 @@ import torch
 from torch import nn
 
 from vis4d.common.layers import Conv2d, DeformConv
+from vis4d.common.module import Vis4DModule
 from vis4d.struct import FeatureMaps, NDArrayI64
 
 from .base import BaseNeck
@@ -26,7 +27,7 @@ def fill_up_weights(up: nn.ConvTranspose2d) -> None:
         w[c, 0, :, :] = w[0, 0, :, :]
 
 
-class IDAUp(nn.Module):  # type: ignore
+class IDAUp(Vis4DModule[torch.Tensor, torch.Tensor]):
     """IDAUp."""
 
     def __init__(
@@ -85,7 +86,7 @@ class IDAUp(nn.Module):  # type: ignore
                     m.weight.data.fill_(1)
                     m.bias.data.zero_()
 
-    def forward(
+    def __call__(  # type: ignore
         self, layers: List[torch.Tensor], startp: int, endp: int
     ) -> None:
         """Forward."""

@@ -27,9 +27,7 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
 
     @overload  # type: ignore[override]
     def __call__(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> TTestReturn:  # noqa: D102
         ...
 
@@ -85,9 +83,7 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
 
     @abc.abstractmethod
     def forward_test(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> TTestReturn:
         """Forward pass during testing stage.
 

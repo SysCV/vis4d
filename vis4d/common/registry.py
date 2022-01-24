@@ -1,6 +1,8 @@
 """Vis4D module registry."""
-
+import copy
 from typing import Any, Dict, Optional, Tuple
+
+from vis4d.struct import ModuleCfg
 
 
 class RegistryHolder(type):
@@ -49,3 +51,16 @@ class RegistryHolder(type):
             }
 
         return dict(cls.REGISTRY)  # pragma: no cover
+
+
+def build_component(cfg: ModuleCfg, bound: Any) -> Any:  # type: ignore
+    """Build a module from config."""
+    registry = RegistryHolder.get_registry(bound)
+    cfg = copy.deepcopy(cfg)
+    module_type = cfg.pop("type", None)
+    if module_type is None:
+        raise ValueError(f"Need type argument in module config: {cfg}")
+    if module_type in registry:
+        module = registry[module_type](**cfg)
+        return module
+    raise NotImplementedError(f"Module {module_type} not found.")

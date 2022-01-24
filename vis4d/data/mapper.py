@@ -20,8 +20,7 @@ from scalabel.label.utils import (
 )
 
 from ..common.io import BaseDataBackend, FileBackend
-from ..common.module import build_module
-from ..common.registry import RegistryHolder
+from ..common.registry import RegistryHolder, build_component
 from ..struct import (
     Boxes2D,
     Boxes3D,
@@ -77,7 +76,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             self.fields_to_load = ["boxes2d"]
 
         if isinstance(data_backend, dict):  # pragma: no cover
-            self.data_backend: BaseDataBackend = build_module(
+            self.data_backend: BaseDataBackend = build_component(
                 data_backend, bound=BaseDataBackend
             )
         else:
@@ -89,7 +88,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         if transformations is not None:
             for transform in transformations:
                 if isinstance(transform, dict):
-                    transform_: BaseAugmentation = build_module(
+                    transform_: BaseAugmentation = build_component(
                         transform, bound=BaseAugmentation
                     )
                 else:  # pragma: no cover

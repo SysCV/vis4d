@@ -478,7 +478,7 @@ class RandomCrop(BaseAugmentation):
                 mask.masks = mask.masks[:, y1:y2, x1:x2]
         return masks
 
-    def __call__(  # type: ignore[override]
+    def __call__(
         self, sample: InputSample, parameters: Optional[AugParams] = None
     ) -> Tuple[InputSample, AugParams]:
         """Apply augmentations to input sample."""

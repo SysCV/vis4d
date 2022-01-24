@@ -233,7 +233,13 @@ class TestSegTrackMM(BaseEngineTests.TestTrain):
         if torch.cuda.is_available():
             trainer_args["gpus"] = "0,"  # pragma: no cover
         trainer, model, data_module = setup_experiment(self.cfg, trainer_args)
-        tune(trainer, model, data_module, self.cfg.launch)
+        tune(
+            trainer,
+            model,
+            data_module,
+            self.cfg.launch.tuner_params,
+            self.cfg.launch.tuner_metrics,
+        )
 
 
 class TestDLA(BaseEngineTests.TestTest):

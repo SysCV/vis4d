@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 
-from vis4d.common.module import Vis4DModule
+from vis4d.common.registry import RegistryHolder
 from vis4d.struct import (
     Boxes2D,
     Boxes3D,
@@ -23,7 +23,7 @@ from .utils import sample_batched
 AugParams = DictStrAny
 
 
-class BaseAugmentation(Vis4DModule[None, None]):
+class BaseAugmentation(metaclass=RegistryHolder):
     """Base augmentation class."""
 
     def __init__(
@@ -52,25 +52,19 @@ class BaseAugmentation(Vis4DModule[None, None]):
         return images
 
     def apply_box2d(
-        self,
-        boxes: List[Boxes2D],
-        parameters: AugParams,
+        self, boxes: List[Boxes2D], parameters: AugParams
     ) -> List[Boxes2D]:
         """Apply augmentation to input box2d."""
         return boxes
 
     def apply_intrinsics(
-        self,
-        intrinsics: Intrinsics,
-        parameters: AugParams,
+        self, intrinsics: Intrinsics, parameters: AugParams
     ) -> Intrinsics:
         """Apply augmentation to input intrinsics."""
         return intrinsics
 
     def apply_extrinsics(
-        self,
-        extrinsics: Extrinsics,
-        parameters: AugParams,
+        self, extrinsics: Extrinsics, parameters: AugParams
     ) -> Extrinsics:
         """Apply augmentation to input extrinsics."""
         return extrinsics
@@ -82,54 +76,42 @@ class BaseAugmentation(Vis4DModule[None, None]):
         return points
 
     def apply_box3d(
-        self,
-        boxes: List[Boxes3D],
-        parameters: AugParams,
+        self, boxes: List[Boxes3D], parameters: AugParams
     ) -> List[Boxes3D]:
         """Apply augmentation to input box3d."""
         return boxes
 
     def apply_mask(
-        self,
-        masks: List[TMasks],
-        parameters: AugParams,
+        self, masks: List[TMasks], parameters: AugParams
     ) -> List[TMasks]:
         """Apply augmentation to input mask."""
         return masks
 
     def apply_instance_mask(
-        self,
-        masks: List[InstanceMasks],
-        parameters: AugParams,
+        self, masks: List[InstanceMasks], parameters: AugParams
     ) -> List[InstanceMasks]:
         """Apply augmentation to input instance mask."""
         return self.apply_mask(masks, parameters)
 
     def apply_semantic_mask(
-        self,
-        masks: List[SemanticMasks],
-        parameters: AugParams,
+        self, masks: List[SemanticMasks], parameters: AugParams
     ) -> List[SemanticMasks]:
         """Apply augmentation to input semantic mask."""
         return self.apply_mask(masks, parameters)
 
     def apply_other_targets(
-        self,
-        other: List[Dict[str, torch.Tensor]],
-        parameters: AugParams,
+        self, other: List[Dict[str, torch.Tensor]], parameters: AugParams
     ) -> List[Dict[str, torch.Tensor]]:
         """Apply augmentation to other, user-defined targets."""
         return other
 
     def apply_other_inputs(
-        self,
-        other: List[Dict[str, torch.Tensor]],
-        parameters: AugParams,
+        self, other: List[Dict[str, torch.Tensor]], parameters: AugParams
     ) -> List[Dict[str, torch.Tensor]]:
         """Apply augmentation to other, user-defined inputs."""
         return other
 
-    def __call__(  # type: ignore[override]
+    def __call__(
         self, sample: InputSample, parameters: Optional[AugParams] = None
     ) -> Tuple[InputSample, AugParams]:
         """Apply augmentations to input sample."""
