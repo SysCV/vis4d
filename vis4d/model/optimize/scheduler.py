@@ -5,7 +5,7 @@ from pydantic import BaseModel, validator
 from torch.optim import Optimizer, lr_scheduler
 
 from vis4d.common.registry import RegistryHolder
-from vis4d.struct import DictStrAny, ModuleCfg
+from vis4d.struct import DictStrAny
 
 
 class LRSchedulerConfig(BaseModel):
@@ -111,11 +111,10 @@ class PolyLRScheduler(BaseLRScheduler):
 
 
 def build_lr_scheduler(
-    optimizer: Optimizer, config: ModuleCfg
+    optimizer: Optimizer, cfg: LRSchedulerConfig
 ) -> BaseLRScheduler:
     """Build LR Scheduler from config."""
     registry = RegistryHolder.get_registry(BaseLRScheduler)
-    cfg = LRSchedulerConfig(**config)
     if cfg.type in registry:
         scheduler = registry[cfg.type]
     elif hasattr(lr_scheduler, cfg.type):

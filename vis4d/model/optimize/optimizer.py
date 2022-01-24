@@ -6,7 +6,7 @@ from torch import optim
 from torch.nn.parameter import Parameter
 
 from vis4d.common.registry import RegistryHolder
-from vis4d.struct import DictStrAny, ModuleCfg
+from vis4d.struct import DictStrAny
 
 
 class OptimizerConfig(BaseModel):
@@ -38,11 +38,10 @@ class BaseOptimizer(optim.Optimizer, metaclass=RegistryHolder):  # type: ignore
 
 
 def build_optimizer(
-    params: Iterator[Parameter], config: ModuleCfg
+    params: Iterator[Parameter], cfg: OptimizerConfig
 ) -> BaseOptimizer:
     """Build Optimizer from config."""
     registry = RegistryHolder.get_registry(BaseOptimizer)
-    cfg = OptimizerConfig(**config)
     if cfg.type in registry:
         optimizer = registry[cfg.type]  # pragma: no cover
     elif hasattr(optim, cfg.type):

@@ -1,6 +1,6 @@
 """Class for processing Scalabel type datasets."""
 import random
-from typing import List
+from typing import List, Union
 
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
@@ -9,6 +9,7 @@ from pytorch_lightning.utilities.distributed import (
 from scalabel.label.utils import get_leaf_categories
 from torch.utils.data import Dataset
 
+from ..common.registry import build_component
 from ..common.utils.time import Timer
 from ..struct import InputSample, ModuleCfg
 from .datasets import BaseDatasetLoader
@@ -29,10 +30,11 @@ class ScalabelDataset(Dataset):  # type: ignore
     def __init__(
         self,
         dataset: BaseDatasetLoader,
-        mapper_cfg: ModuleCfg,
-        ref_cfg: ModuleCfg,
         training: bool,
-        image_channel_mode: str = "RGB",
+        mapper: Union[BaseSampleMapper, ModuleCfg] = BaseSampleMapper(),
+        ref_sampler: Union[
+            BaseReferenceSampler, ModuleCfg
+        ] = BaseReferenceSampler(),
     ):
         """Init."""
         rank_zero_info("Initializing dataset: %s", dataset.name)
@@ -62,12 +64,17 @@ class ScalabelDataset(Dataset):  # type: ignore
             cats_name2id = {v: i for i, v in enumerate(class_list)}
         self.cats_name2id = cats_name2id
 
-        self.mapper = BaseSampleMapper(
-            cats_name2id,
-            training,
-            **mapper_cfg,
-            image_channel_mode=image_channel_mode,
-        )
+        if isinstance(mapper, dict):
+            if "type" not in mapper:
+                mapper["type"] = "BaseSampleMapper"
+            self.mapper: BaseSampleMapper = build_component(
+                mapper, bound=BaseSampleMapper
+            )
+        else:
+            self.mapper = mapper
+        self.mapper.setup_categories(cats_name2id)
+        self.mapper.set_training(self.training)
+
         dataset.frames = filter_attributes(dataset.frames, dataset.attributes)
 
         t = Timer()
@@ -98,9 +105,19 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.dataset.groups = DatasetFromList(self.dataset.groups)
 
         self._fallback_candidates = set(range(len(self.dataset.frames)))
-        self.ref_sampler = BaseReferenceSampler(
-            self.dataset.frames, self.dataset.groups, **ref_cfg
+
+        if isinstance(ref_sampler, dict):
+            if "type" not in ref_sampler:
+                ref_sampler["type"] = "BaseReferenceSampler"
+            self.ref_sampler: BaseReferenceSampler = build_component(
+                ref_sampler, bound=BaseReferenceSampler
+            )
+        else:
+            self.ref_sampler = ref_sampler
+        self.ref_sampler.create_mappings(
+            self.dataset.frames, self.dataset.groups
         )
+
         self.has_sequences = bool(self.ref_sampler.video_to_indices)
         self._show_retry_warn = True
 

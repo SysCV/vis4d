@@ -51,14 +51,14 @@ class TestScalabelDataset(unittest.TestCase):
 
     dataset = ScalabelDataset(
         dataset_loader,
-        mapper_cfg={},
-        ref_cfg={
+        training=True,
+        mapper={},
+        ref_sampler={
             "strategy": "sequential",
             "num_ref_imgs": 2,
             "scope": 3,
             "frame_order": "temporal",
         },
-        training=True,
     )
 
     def test_reference_sampling(self) -> None:
@@ -84,14 +84,13 @@ class TestScalabelDataset(unittest.TestCase):
         )
         dataset = ScalabelDataset(
             dataset_loader,
-            mapper_cfg={},
-            ref_cfg={
+            training=True,
+            ref_sampler={
                 "strategy": "sequential",
                 "num_ref_imgs": 1,
                 "scope": 3,
                 "skip_nomatch_samples": True,
             },
-            training=True,
         )
         # assert makes sure that all samples will be discarded from fallback
         # candidates (due to no match) and subsequently raises a ValueError
@@ -104,9 +103,9 @@ class TestScalabelDataset(unittest.TestCase):
             [Frame(name="0")],
             Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
         )
-        self.dataset.mapper.transform_input(sample, None)
+        self.dataset.mapper.transform_inputs(sample, None)
         self.assertEqual(len(sample.targets.boxes2d[0]), 0)
-        self.dataset.mapper.transform_input(sample, [])
+        self.dataset.mapper.transform_inputs(sample, [])
         self.assertEqual(len(sample.targets.boxes2d[0]), 0)
 
         labels = [
@@ -132,7 +131,7 @@ class TestScalabelDataset(unittest.TestCase):
         sample.targets.boxes2d = [
             Boxes2D.from_scalabel(labels, {"car": 0}, {"a": 2, "b": 1, "c": 0})
         ]
-        self.dataset.mapper.transform_input(sample, [])
+        self.dataset.mapper.transform_inputs(sample, [])
 
         self.assertTrue(all(sample.targets.boxes2d[0].class_ids == 0))
         self.assertEqual(sample.targets.boxes2d[0].boxes[0, 0], 10)
@@ -184,7 +183,7 @@ class TestScalabelDataset(unittest.TestCase):
             "frame_order": "temporal",
         }
         dataset = ScalabelDataset(
-            dataset_loader, mapper_cfg={}, ref_cfg=ref_cfg, training=True
+            dataset_loader, training=True, ref_sampler=ref_cfg
         )
         self.assertTrue(len(dataset) == 6)
 
@@ -200,7 +199,7 @@ class TestScalabelDataset(unittest.TestCase):
         ]
 
         dataset = ScalabelDataset(
-            dataset_loader, mapper_cfg={}, ref_cfg=ref_cfg, training=True
+            dataset_loader, training=True, ref_sampler=ref_cfg
         )
         self.assertTrue(len(dataset) == 6)
 
@@ -216,5 +215,10 @@ class TestScalabelDataset(unittest.TestCase):
         ]
 
         self.assertRaises(
-            ValueError, ScalabelDataset, dataset_loader, {}, ref_cfg, True
+            ValueError,
+            ScalabelDataset,
+            dataset_loader,
+            True,
+            {},
+            ref_cfg,
         )

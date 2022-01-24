@@ -38,16 +38,24 @@ from ..struct import (
 from .transforms import AugParams, BaseAugmentation
 from .utils import im_decode
 
+ALLOWED_FIELDS = [
+    "boxes2d",
+    "boxes3d",
+    "instance_masks",
+    "semantic_masks",
+    "intrinsics",
+    "extrinsics",
+    "pointcloud",
+]
+
 
 class BaseSampleMapper(metaclass=RegistryHolder):
     """A callable that converts a Scalabel Frame to a Vis4D InputSample."""
 
     def __init__(
         self,
-        cats_name2id: CategoryMap,
-        training: bool,
         data_backend: Union[BaseDataBackend, ModuleCfg] = FileBackend(),
-        fields_to_load: Optional[List[str]] = None,
+        fields_to_load: Tuple[str] = ("boxes2d",),
         skip_empty_samples: bool = False,
         clip_bboxes_to_image: bool = True,
         min_bboxes_area: float = 7.0 * 7.0,
@@ -59,7 +67,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         image_channel_mode: str = "RGB",
     ) -> None:
         """Init Scalabel Mapper."""
-        self.training = training
         self.image_backend = image_backend
         self.fields_to_load = fields_to_load
         self.background_as_class = background_as_class
@@ -67,13 +74,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         self.clip_bboxes_to_image = clip_bboxes_to_image
         self.min_bboxes_area = min_bboxes_area
         self.image_channel_mode = image_channel_mode
-        if skip_empty_samples and not self.training:
-            rank_zero_warn(  # pragma: no cover
-                "'skip_empty_samples' activated in test mode. This option is "
-                "only available in training."
-            )
-        if self.fields_to_load is None:
-            self.fields_to_load = ["boxes2d"]
 
         if isinstance(data_backend, dict):  # pragma: no cover
             self.data_backend: BaseDataBackend = build_component(
@@ -95,21 +95,24 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                     transform_ = transform
                 self.transformations.append(transform_)
         rank_zero_info("Transformations used: %s", self.transformations)
-
-        allowed_files = [
-            "boxes2d",
-            "boxes3d",
-            "instance_masks",
-            "semantic_masks",
-            "intrinsics",
-            "extrinsics",
-            "pointcloud",
-        ]
         self.cats_name2id: Dict[str, Dict[str, int]] = {}
+        self.training = False
+
+    def set_training(self, is_train: bool) -> None:
+        """Set training attribute."""
+        self.training = is_train
+        if self.skip_empty_samples and self.training:
+            rank_zero_warn(  # pragma: no cover
+                "'skip_empty_samples' activated in test mode. This option is "
+                "only available in training."
+            )
+
+    def setup_categories(self, cats_name2id: CategoryMap) -> None:
+        """Setup the category mappings for all fields to load."""
         for field in self.fields_to_load:
             assert (
-                field in allowed_files
-            ), f"Unrecognized field={field}, allowed fields={allowed_files}"
+                field in ALLOWED_FIELDS
+            ), f"Unrecognized field={field}, allowed fields={ALLOWED_FIELDS}"
             if not cats_name2id:
                 continue
             if isinstance(list(cats_name2id.values())[0], int):
@@ -122,7 +125,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 assert isinstance(field_map, dict)
                 self.cats_name2id[field] = field_map
 
-    def load_input(
+    def load_inputs(
         self,
         sample: Frame,
         use_empty: Optional[bool] = False,
@@ -173,13 +176,12 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
         return input_data
 
-    def load_annotation(
+    def load_annotations(
         self,
         sample: InputSample,
         labels: Optional[List[Label]],
     ) -> None:
         """Transform annotations."""
-        assert self.fields_to_load is not None
         labels_used = []
         if labels is not None:
             instance_id_dict = {}
@@ -237,7 +239,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                     )
                     sample.targets.boxes3d = [boxes3d]
 
-    def transform_input(
+    def transform_inputs(
         self,
         sample: InputSample,
         parameters: Optional[List[AugParams]] = None,
@@ -256,7 +258,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             sample, _ = aug(sample, parameters[i])
         return parameters
 
-    def postprocess_annotation(
+    def postprocess_annotations(
         self, im_wh: Tuple[int, int], targets: LabelInstances
     ) -> None:
         """Process annotations after transform."""
@@ -343,7 +345,16 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             InputSample: Data format that the model accepts.
             List[AugParams]: augmentation parameters, s.t. ref views can be
             augmented with the same parameters.
+
+        Raises:
+            AttributeError: If category mappings have not been initialized.
         """
+        if len(self.cats_name2id) == 0:
+            raise AttributeError(
+                "Category mapping not initialized! Please "
+                "execute 'SampleMapper.setup_categories'."
+            )
+
         if (
             self.skip_empty_samples
             and (sample.labels is None or len(sample.labels) == 0)
@@ -352,7 +363,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             return None, None  # pragma: no cover
 
         # load input data
-        input_data = self.load_input(
+        input_data = self.load_inputs(
             sample,
             use_empty=isinstance(sample, FrameGroup),
             group_url=group_url,
@@ -361,16 +372,16 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
         if self.training:
             # load annotations to input sample
-            self.load_annotation(input_data, sample.labels)
+            self.load_annotations(input_data, sample.labels)
 
         # apply transforms to input sample
-        parameters = self.transform_input(input_data, parameters)
+        parameters = self.transform_inputs(input_data, parameters)
 
         if not self.training:
             return input_data, parameters
 
         # postprocess boxes after transforms
-        self.postprocess_annotation(
+        self.postprocess_annotations(
             input_data.images.image_sizes[0], input_data.targets
         )
 

@@ -176,14 +176,24 @@ def build_datasets(
     datasets: List[ScalabelDataset] = []
     for dl_cfg in dset_cfgs:
         mapper_cfg = dl_cfg.pop("sample_mapper", {})
+        if (
+            "image_channel_mode" in mapper_cfg
+            and mapper_cfg["image_channel_mode"] != image_channel_mode
+        ):  # pragma: no cover
+            rank_zero_warn(
+                f"'image_channel_mode'={mapper_cfg['image_channel_mode']} "
+                "specified in SampleMapper configuration, but model expects "
+                f"{image_channel_mode}. Switching to mode required by model."
+            )
+        mapper_cfg["image_channel_mode"] = image_channel_mode
+
         ref_cfg = dl_cfg.pop("ref_sampler", {})
         datasets.append(
             ScalabelDataset(
                 build_component(dl_cfg, bound=BaseDatasetLoader),
+                training,
                 mapper_cfg,
                 ref_cfg,
-                training,
-                image_channel_mode,
             )
         )
     return datasets
@@ -253,8 +263,7 @@ def setup_experiment(
             dataset_name = osp.basename(input_dir)
             predict_loaders = [Custom(name=dataset_name, data_root=input_dir)]
             predict_datasets = [
-                ScalabelDataset(dl, {}, {}, False, cmode)
-                for dl in predict_loaders
+                ScalabelDataset(dl, False) for dl in predict_loaders
             ]
         else:
             predict_datasets = build_datasets(cfg.test, cmode, False)

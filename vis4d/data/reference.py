@@ -16,8 +16,6 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
 
     def __init__(
         self,
-        frames: List[Frame],
-        groups: Optional[List[FrameGroup]] = None,
         strategy: str = "uniform",
         num_ref_imgs: int = 0,
         scope: int = 1,
@@ -25,8 +23,8 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
         skip_nomatch_samples: bool = False,
     ) -> None:
         """Init."""
-        self.frames = frames
-        self.groups = groups
+        self.frames: Optional[List[Frame]] = None
+        self.groups: Optional[List[FrameGroup]] = None
         self.strategy = strategy
         self.num_ref_imgs = num_ref_imgs
         self.scope = scope
@@ -40,24 +38,17 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
             raise ValueError("frame_order must be key_first or temporal.")
 
         self.video_to_indices: Dict[str, List[int]] = defaultdict(list)
-        self._create_video_mapping()
+        self.frame_name_to_idx: Dict[str, int] = {}
+        self.frame_to_group: Dict[int, int] = {}
+        self.frame_to_sensor_id: Dict[int, int] = {}
 
-        if self.groups is not None:
-            self.frame_name_to_idx = {
-                f.name: i for i, f in enumerate(self.frames)
-            }
-            self.frame_to_group: Dict[int, int] = {}
-            self.frame_to_sensor_id: Dict[int, int] = {}
-            for i, g in enumerate(self.groups):
-                for sensor_id, fname in enumerate(g.frames):
-                    self.frame_to_group[self.frame_name_to_idx[fname]] = i
-                    self.frame_to_sensor_id[
-                        self.frame_name_to_idx[fname]
-                    ] = sensor_id
-
-    def _create_video_mapping(self) -> None:
-        """Creating mapping from video id to frame / group indices."""
+    def create_mappings(
+        self, frames: List[Frame], groups: Optional[List[FrameGroup]] = None
+    ) -> None:
+        """Creating mappings, e.g. from video id to frame / group indices."""
         video_to_frameidx: Dict[str, List[int]] = defaultdict(list)
+        self.frames = frames
+        self.groups = groups
         if self.groups is not None:
             for idx, group in enumerate(self.groups):
                 if group.videoName is not None:
@@ -79,6 +70,17 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
         for key, idcs in self.video_to_indices.items():
             zip_frame_idx = sorted(zip(video_to_frameidx[key], idcs))
             self.video_to_indices[key] = [idx for _, idx in zip_frame_idx]
+
+        if self.groups is not None:
+            self.frame_name_to_idx = {
+                f.name: i for i, f in enumerate(self.frames)
+            }
+            for i, g in enumerate(self.groups):
+                for sensor_id, fname in enumerate(g.frames):
+                    self.frame_to_group[self.frame_name_to_idx[fname]] = i
+                    self.frame_to_sensor_id[
+                        self.frame_name_to_idx[fname]
+                    ] = sensor_id
 
     def sort_samples(
         self, input_samples: List[InputSample]
@@ -164,6 +166,12 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
         num_retry: int = 3,
     ) -> Optional[List[InputSample]]:
         """Sample reference views from key view."""
+        if self.frames is None:
+            raise AttributeError(
+                "Please create necessary mappings before using reference "
+                "sampler by calling 'create_mappings'!"
+            )
+
         vid_id = key_data.metadata[0].videoName
         for _ in range(num_retry):
             if vid_id is not None:

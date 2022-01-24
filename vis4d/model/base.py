@@ -108,10 +108,8 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         self,
     ) -> Tuple[List[BaseOptimizer], List[BaseLRScheduler]]:
         """Configure optimizers and schedulers of model."""
-        optimizer = build_optimizer(
-            self.parameters(), self.optimizer_cfg.dict()
-        )
-        scheduler = build_lr_scheduler(optimizer, self.lr_scheduler_cfg.dict())
+        optimizer = build_optimizer(self.parameters(), self.optimizer_cfg)
+        scheduler = build_lr_scheduler(optimizer, self.lr_scheduler_cfg)
         return [optimizer], [scheduler]
 
     @no_type_check
