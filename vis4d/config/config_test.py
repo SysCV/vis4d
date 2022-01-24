@@ -12,13 +12,13 @@ class TestLoadConfig(unittest.TestCase):
     def test_det_yaml(self) -> None:
         """Check models configuration in yaml format."""
         config = read_config(get_test_file("config-det.yaml"))
-        self.assertEqual(config.model.type, "test-model")
+        self.assertEqual(config.model["type"], "test-model")
         self.assertEqual(config.launch.samples_per_gpu, 2)
 
     def test_det_toml(self) -> None:
         """Check models configuration in toml format."""
         config = read_config(get_test_file("config-det.toml"))
-        self.assertEqual(config.model.type, "test-model")
+        self.assertEqual(config.model["type"], "test-model")
         self.assertEqual(config.launch.samples_per_gpu, 2)
 
     def test_det_args(self) -> None:
@@ -31,7 +31,7 @@ class TestLoadConfig(unittest.TestCase):
         )
         cfg = parse_config(args)
         self.assertEqual(cfg.launch.samples_per_gpu, 2)
-        self.assertEqual(cfg.model.image_channel_mode, "BGR")
+        self.assertEqual(cfg.model["image_channel_mode"], "BGR")
 
     def test_det_notsupported(self) -> None:
         """Check models configuration in not-supported format."""

@@ -1,20 +1,22 @@
-"""Utilities for mmdet wrapper."""
+"""Utilities for mm wrappers."""
 import os
+import re
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import requests
 import torch
-from pydantic import BaseModel
 
 from vis4d.struct import (
     Boxes2D,
+    DictStrAny,
     Images,
     InstanceMasks,
     LabelInstances,
     LossesType,
     NDArrayF64,
     NDArrayUI8,
+    SemanticMasks,
 )
 
 try:
@@ -32,10 +34,15 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 
+MM_BASE_MAP = {
+    "mmdet": "syscv/mmdetection/master/configs/",
+    "mmseg": "open-mmlab/mmsegmentation/master/configs/",
+}
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
 MMDetResult = List[torch.Tensor]
 MMSegmResult = List[List[NDArrayUI8]]
-MMResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
+MMDetResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
+MMSegResults = Union[List[NDArrayUI8], torch.Tensor]
 
 
 def get_img_metas(images: Images) -> List[MMDetMetaData]:
@@ -142,12 +149,35 @@ def targets_to_mmdet(
     return gt_bboxes, gt_labels, gt_masks
 
 
-def load_config_from_mmdet(url: str) -> str:
+def results_from_mmseg(
+    results: MMSegResults, device: torch.device
+) -> List[SemanticMasks]:
+    """Convert mmsegmentation seg_pred to Vis4D format."""
+    masks = []
+    for result in results:
+        if isinstance(result, torch.Tensor):
+            mask = result.unsqueeze(0).byte()
+        else:  # pragma: no cover
+            mask = torch.tensor([result], device=device).byte()
+        masks.append(SemanticMasks(mask).to_nhw_mask())
+    return masks
+
+
+def targets_to_mmseg(images: Images, targets: LabelInstances) -> torch.Tensor:
+    """Convert Vis4D targets to mmsegmentation compatible format."""
+    if len(targets.semantic_masks) > 1:
+        # pad masks to same size for batching
+        targets.semantic_masks = SemanticMasks.pad(
+            targets.semantic_masks, images.tensor.shape[-2:][::-1]
+        )
+    return torch.stack(
+        [t.to_hwc_mask() for t in targets.semantic_masks]
+    ).unsqueeze(1)
+
+
+def load_config_from_mm(url: str, mm_base: str) -> str:
     """Get config from mmdetection GitHub repository."""
-    full_url = (
-        "https://raw.githubusercontent.com/"
-        "syscv/mmdetection/master/configs/" + url
-    )
+    full_url = "https://raw.githubusercontent.com/" + mm_base + url
     response = requests.get(full_url)
     assert (
         response.status_code == 200
@@ -161,13 +191,16 @@ def load_config(path: str) -> MMConfig:
         cfg = MMConfig.fromfile(path)
         if cfg.get("model"):
             cfg = cfg["model"]
-    elif path.startswith("mmdet://"):
+    elif re.compile(r"^mm(det|seg)://").search(path):
         ex = os.path.splitext(path)[1]
         cfg = MMConfig.fromstring(
-            load_config_from_mmdet(path.split("mmdet://")[-1]), ex
+            load_config_from_mm(
+                path.split(path[:8])[-1], MM_BASE_MAP[path[:5]]
+            ),
+            ex,
         ).model
     else:
-        raise FileNotFoundError(f"MMDetection config not found: {path}")
+        raise FileNotFoundError(f"MM config not found: {path}")
     return cfg
 
 
@@ -207,9 +240,9 @@ def set_attr(  # type: ignore
         attr[last_key] = value
 
 
-def add_keyword_args(config: BaseModel, cfg: MMConfig) -> None:
+def add_keyword_args(model_kwargs: DictStrAny, cfg: MMConfig) -> None:
     """Add keyword args in config."""
-    for k, v in config.model_kwargs.items():  # type: ignore
+    for k, v in model_kwargs.items():
         partial_keys = k.split(".")
         partial_keys, last_key = partial_keys[:-1], partial_keys[-1]
         set_attr(cfg, partial_keys, last_key, v)

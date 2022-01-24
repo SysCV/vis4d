@@ -2,7 +2,6 @@
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from pydantic.main import BaseModel
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.struct import (
@@ -24,27 +23,26 @@ from .utils import sample_batched
 AugParams = DictStrAny
 
 
-class BaseAugmentationConfig(BaseModel, extra="allow"):
-    """Data augmentation instance config."""
-
-    prob: float = 1.0
-    same_on_batch: bool = False
-    same_on_ref: bool = True
-    type: str
-
-
 class BaseAugmentation(metaclass=RegistryHolder):
     """Base augmentation class."""
 
-    def __init__(self, cfg: BaseAugmentationConfig):
+    def __init__(
+        self,
+        prob: float = 1.0,
+        same_on_batch: bool = False,
+        same_on_ref: bool = True,
+    ):
         """Initialize augmentation."""
-        self.cfg = cfg
+        super().__init__()
+        self.prob = prob
+        self.same_on_batch = same_on_batch
+        self.same_on_ref = same_on_ref
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
         parameters = {}
         parameters["apply"] = sample_batched(
-            len(sample), self.cfg.prob, self.cfg.same_on_batch
+            len(sample), self.prob, self.same_on_batch
         )
         return parameters
 
@@ -54,25 +52,19 @@ class BaseAugmentation(metaclass=RegistryHolder):
         return images
 
     def apply_box2d(
-        self,
-        boxes: List[Boxes2D],
-        parameters: AugParams,
+        self, boxes: List[Boxes2D], parameters: AugParams
     ) -> List[Boxes2D]:
         """Apply augmentation to input box2d."""
         return boxes
 
     def apply_intrinsics(
-        self,
-        intrinsics: Intrinsics,
-        parameters: AugParams,
+        self, intrinsics: Intrinsics, parameters: AugParams
     ) -> Intrinsics:
         """Apply augmentation to input intrinsics."""
         return intrinsics
 
     def apply_extrinsics(
-        self,
-        extrinsics: Extrinsics,
-        parameters: AugParams,
+        self, extrinsics: Extrinsics, parameters: AugParams
     ) -> Extrinsics:
         """Apply augmentation to input extrinsics."""
         return extrinsics
@@ -84,49 +76,37 @@ class BaseAugmentation(metaclass=RegistryHolder):
         return points
 
     def apply_box3d(
-        self,
-        boxes: List[Boxes3D],
-        parameters: AugParams,
+        self, boxes: List[Boxes3D], parameters: AugParams
     ) -> List[Boxes3D]:
         """Apply augmentation to input box3d."""
         return boxes
 
     def apply_mask(
-        self,
-        masks: List[TMasks],
-        parameters: AugParams,
+        self, masks: List[TMasks], parameters: AugParams
     ) -> List[TMasks]:
         """Apply augmentation to input mask."""
         return masks
 
     def apply_instance_mask(
-        self,
-        masks: List[InstanceMasks],
-        parameters: AugParams,
+        self, masks: List[InstanceMasks], parameters: AugParams
     ) -> List[InstanceMasks]:
         """Apply augmentation to input instance mask."""
         return self.apply_mask(masks, parameters)
 
     def apply_semantic_mask(
-        self,
-        masks: List[SemanticMasks],
-        parameters: AugParams,
+        self, masks: List[SemanticMasks], parameters: AugParams
     ) -> List[SemanticMasks]:
         """Apply augmentation to input semantic mask."""
         return self.apply_mask(masks, parameters)
 
     def apply_other_targets(
-        self,
-        other: List[Dict[str, torch.Tensor]],
-        parameters: AugParams,
+        self, other: List[Dict[str, torch.Tensor]], parameters: AugParams
     ) -> List[Dict[str, torch.Tensor]]:
         """Apply augmentation to other, user-defined targets."""
         return other
 
     def apply_other_inputs(
-        self,
-        other: List[Dict[str, torch.Tensor]],
-        parameters: AugParams,
+        self, other: List[Dict[str, torch.Tensor]], parameters: AugParams
     ) -> List[Dict[str, torch.Tensor]]:
         """Apply augmentation to other, user-defined inputs."""
         return other
@@ -135,7 +115,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         self, sample: InputSample, parameters: Optional[AugParams] = None
     ) -> Tuple[InputSample, AugParams]:
         """Apply augmentations to input sample."""
-        if parameters is None or not self.cfg.same_on_ref:
+        if parameters is None or not self.same_on_ref:
             parameters = self.generate_parameters(sample)
 
         sample.images = self.apply_image(sample.images, parameters)
@@ -169,29 +149,8 @@ class BaseAugmentation(metaclass=RegistryHolder):
     def __repr__(self) -> str:
         """Print class & params, s.t. user can inspect easily via cmd line."""
         attr_str = ""
-        for k, v in self.cfg.dict().items():
-            if k != "type":
+        for k, v in vars(self).items():
+            if k != "type" and not k.startswith("_"):
                 attr_str += f"{k}={str(v)}, "
         attr_str = attr_str.rstrip(", ")
         return f"{self.__class__.__name__}({attr_str})"
-
-
-def build_augmentation(cfg: BaseAugmentationConfig) -> BaseAugmentation:
-    """Build a single augmentation."""
-    registry = RegistryHolder.get_registry(BaseAugmentation)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseAugmentation)
-        return module
-    raise NotImplementedError(f"Augmentation {cfg.type} not known!")
-
-
-def build_augmentations(
-    cfgs: Optional[List[BaseAugmentationConfig]],
-) -> List[BaseAugmentation]:
-    """Build a list of augmentations."""
-    augmentations = []
-    if cfgs is not None:
-        for aug_cfg in cfgs:
-            augmentations.append(build_augmentation(aug_cfg))
-    return augmentations

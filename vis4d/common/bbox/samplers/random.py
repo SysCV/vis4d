@@ -7,20 +7,24 @@ import torch
 from vis4d.struct import Boxes2D
 
 from ..matchers.base import MatchResult
-from .base import BaseSampler, SamplerConfig, SamplingResult
+from .base import BaseSampler, SamplingResult
 from .utils import add_to_result
 
 
 class RandomSampler(BaseSampler):
     """Random sampler class."""
 
-    def __init__(self, cfg: SamplerConfig):
+    def __init__(
+        self,
+        batch_size_per_image: int,
+        positive_fraction: float,
+        bg_label: int = 0,
+    ):
         """Init."""
-        super().__init__()
-        self.cfg = cfg
-        self.bg_label = 0
+        super().__init__(batch_size_per_image, positive_fraction)
+        self.bg_label = bg_label
 
-    def sample(
+    def __call__(  # type: ignore
         self,
         matching: List[MatchResult],
         boxes: List[Boxes2D],
@@ -44,12 +48,10 @@ class RandomSampler(BaseSampler):
         positive = ((labels != -1) & (labels != self.bg_label)).nonzero()[:, 0]
         negative = (labels == self.bg_label).nonzero()[:, 0]
 
-        num_pos = int(
-            self.cfg.batch_size_per_image * self.cfg.positive_fraction
-        )
+        num_pos = int(self.batch_size_per_image * self.positive_fraction)
         # protect against not enough positive examples
         num_pos = min(positive.numel(), num_pos)
-        num_neg = self.cfg.batch_size_per_image - num_pos
+        num_neg = self.batch_size_per_image - num_pos
         # protect against not enough negative examples
         num_neg = min(negative.numel(), num_neg)
 

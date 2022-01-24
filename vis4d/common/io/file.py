@@ -1,16 +1,11 @@
 """Standard backend for local files on a hard drive."""
 import os
 
-from .base import BaseDataBackend, DataBackendConfig
+from .base import BaseDataBackend
 
 
 class FileBackend(BaseDataBackend):
     """Raw file from hard disk data backend."""
-
-    def __init__(self, cfg: DataBackendConfig):
-        """Init."""
-        super().__init__()
-        self.cfg = DataBackendConfig(**cfg.dict())
 
     def exists(self, filepath: str) -> bool:
         """Check if filepath exists."""

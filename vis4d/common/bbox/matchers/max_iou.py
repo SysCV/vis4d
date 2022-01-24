@@ -2,45 +2,11 @@
 from typing import List, Tuple
 
 import torch
-from pydantic import validator
 
 from vis4d.common.bbox.utils import bbox_iou
 from vis4d.struct import Boxes2D
 
-from .base import BaseMatcher, MatcherConfig, MatchResult
-
-
-class MaxIoUMatcherConfig(MatcherConfig):
-    """MaxIoUMatcher config."""
-
-    thresholds: List[float]
-    labels: List[int]
-    allow_low_quality_matches: bool
-
-    @validator("thresholds")
-    def validate_thresholds(  # pylint: disable=no-self-argument,no-self-use
-        cls, value: List[float]
-    ) -> List[float]:
-        """Check thresholds attribute."""
-        if not value[0] > 0:
-            raise ValueError(
-                f"Lowest threshold {value[0]} must be greater than 0!"
-            )
-        eps = 1e-4
-        value.insert(0, 0.0 - eps)
-        value.append(1.0 + eps)
-        if not all((lo <= hi for (lo, hi) in zip(value[:-1], value[1:]))):
-            raise ValueError("Thresholds must be in ascending order!")
-        return value
-
-    @validator("labels")
-    def validate_labels(  # pylint: disable=no-self-argument,no-self-use
-        cls, value: List[int]
-    ) -> List[int]:
-        """Check labels attribute."""
-        if not all((v in [-1, 0, 1] for v in value)):
-            raise ValueError("labels must be in [-1, 0, 1]!")
-        return value
+from .base import BaseMatcher, MatchResult
 
 
 # implementation modified from:
@@ -48,15 +14,37 @@ class MaxIoUMatcherConfig(MatcherConfig):
 class MaxIoUMatcher(BaseMatcher):
     """MaxIoUMatcher class."""
 
-    def __init__(self, cfg: MatcherConfig):
+    def __init__(
+        self,
+        thresholds: List[float],
+        labels: List[int],
+        allow_low_quality_matches: bool,
+    ):
         """Init."""
         super().__init__()
-        self.cfg = MaxIoUMatcherConfig(**cfg.dict())
-        assert (
-            len(self.cfg.labels) == len(self.cfg.thresholds) - 1
-        ), "Labels must be of len(thresholds) + 1."
+        self.allow_low_quality_matches = allow_low_quality_matches
+        if not thresholds[0] > 0:
+            raise ValueError(
+                f"Lowest threshold {thresholds[0]} must be greater than 0!"
+            )
+        eps = 1e-4
+        thresholds.insert(0, 0.0 - eps)
+        thresholds.append(1.0 + eps)
+        if not all(
+            (lo <= hi for (lo, hi) in zip(thresholds[:-1], thresholds[1:]))
+        ):
+            raise ValueError("Thresholds must be in ascending order!")
 
-    def match(
+        assert all(
+            (v in [-1, 0, 1] for v in labels)
+        ), "labels must be in [-1, 0, 1]!"
+        assert (
+            len(labels) == len(thresholds) - 1
+        ), "Labels must be of len(thresholds) + 1."
+        self.thresholds = thresholds
+        self.labels = labels
+
+    def __call__(  # type: ignore
         self, boxes: List[Boxes2D], targets: List[Boxes2D]
     ) -> List[MatchResult]:
         """Match all boxes to targets based on maximum IoU."""
@@ -99,7 +87,7 @@ class MaxIoUMatcher(BaseMatcher):
             )
             default_match_labels = match_quality_matrix.new_full(
                 (match_quality_matrix.shape[1],),
-                self.cfg.labels[0],
+                self.labels[0],
                 dtype=torch.int8,
             )
             return default_matches, default_match_labels
@@ -112,12 +100,12 @@ class MaxIoUMatcher(BaseMatcher):
         match_labels = matches.new_full(matches.size(), 1, dtype=torch.int8)
 
         for (l, low, high) in zip(
-            self.cfg.labels, self.cfg.thresholds[:-1], self.cfg.thresholds[1:]
+            self.labels, self.thresholds[:-1], self.thresholds[1:]
         ):
             low_high = (matched_vals >= low) & (matched_vals < high)
             match_labels[low_high] = l
 
-        if self.cfg.allow_low_quality_matches:
+        if self.allow_low_quality_matches:
             _set_low_quality_matches(match_labels, match_quality_matrix)
 
         return matches, match_labels

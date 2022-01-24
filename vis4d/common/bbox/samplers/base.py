@@ -3,9 +3,8 @@ import abc
 from typing import List, NamedTuple
 
 import torch
-from pydantic import BaseModel, Field
 
-from vis4d.common.registry import RegistryHolder
+from vis4d.common import Vis4DModule
 from vis4d.struct import Boxes2D
 
 from ..matchers.base import BaseMatcher, MatchResult
@@ -29,21 +28,19 @@ class SamplingResult(NamedTuple):
     sampled_target_indices: List[torch.Tensor]
 
 
-class SamplerConfig(BaseModel, extra="allow"):
-    """Sampler base config."""
-
-    # Field(...) necessary for linter
-    # See https://github.com/samuelcolvin/pydantic/issues/1899
-    type: str = Field(...)
-    batch_size_per_image: int = Field(...)
-    positive_fraction: float = Field(...)
-
-
-class BaseSampler(metaclass=RegistryHolder):
+class BaseSampler(Vis4DModule[SamplingResult, SamplingResult]):
     """Sampler base class."""
 
+    def __init__(
+        self, batch_size_per_image: int, positive_fraction: float
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.batch_size_per_image = batch_size_per_image
+        self.positive_fraction = positive_fraction
+
     @abc.abstractmethod
-    def sample(
+    def __call__(  # type: ignore
         self,
         matching: List[MatchResult],
         boxes: List[Boxes2D],
@@ -51,16 +48,6 @@ class BaseSampler(metaclass=RegistryHolder):
     ) -> SamplingResult:
         """Sample bounding boxes according to their struct."""
         raise NotImplementedError
-
-
-def build_sampler(cfg: SamplerConfig) -> BaseSampler:
-    """Build a bounding box sampler from config."""
-    registry = RegistryHolder.get_registry(BaseSampler)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseSampler)
-        return module
-    raise NotImplementedError(f"Sampler {cfg.type} not found.")
 
 
 @torch.no_grad()  # type: ignore
@@ -74,5 +61,5 @@ def match_and_sample_proposals(
     """Match proposals to targets and subsample."""
     if proposal_append_gt:
         proposals = [Boxes2D.merge([p, t]) for p, t in zip(proposals, targets)]
-    matching = matcher.match(proposals, targets)
-    return sampler.sample(matching, proposals, targets)
+    matching = matcher(proposals, targets)
+    return sampler(matching, proposals, targets)

@@ -1,56 +1,65 @@
 """Quasi-dense instance similarity learning model."""
 import pickle
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple, Union
 
 import torch
 
+from vis4d.common.module import build_module
 from vis4d.struct import (
+    ArgsType,
     Boxes2D,
     FeatureMaps,
     InputSample,
     LabelInstances,
     LossesType,
     ModelOutput,
+    ModuleCfg,
     TLabelInstance,
 )
 
-from .base import BaseModel, BaseModelConfig, build_model
-from .detect import (
-    BaseDetector,
-    BaseDetectorConfig,
-    BaseOneStageDetector,
-    BaseTwoStageDetector,
-)
-from .track.graph import TrackGraphConfig, build_track_graph
-from .track.similarity import SimilarityLearningConfig, build_similarity_head
+from .base import BaseModel, build_model
+from .detect import BaseDetector, BaseOneStageDetector, BaseTwoStageDetector
+from .track.graph import BaseTrackGraph
+from .track.similarity import BaseSimilarityHead
 from .track.utils import split_key_ref_inputs
 from .utils import postprocess_predictions, predictions_to_scalabel
-
-
-class QDTrackConfig(BaseModelConfig):
-    """Config for quasi-dense tracking model."""
-
-    detection: BaseDetectorConfig
-    similarity: SimilarityLearningConfig
-    track_graph: TrackGraphConfig
 
 
 class QDTrack(BaseModel):
     """QDTrack model - quasi-dense instance similarity learning."""
 
-    def __init__(self, cfg: BaseModelConfig) -> None:
+    def __init__(
+        self,
+        detection: Union[BaseDetector, ModuleCfg],
+        similarity: Union[BaseSimilarityHead, ModuleCfg],
+        track_graph: Union[BaseTrackGraph, ModuleCfg],
+        *args: ArgsType,
+        **kwargs: ArgsType,
+    ) -> None:
         """Init."""
-        super().__init__(cfg)
-        self.cfg: QDTrackConfig = QDTrackConfig(**cfg.dict())
-        assert self.cfg.category_mapping is not None
-        self.cfg.detection.category_mapping = self.cfg.category_mapping
-        self.detector: BaseDetector = build_model(self.cfg.detection)
+        super().__init__(*args, **kwargs)
+        assert self.category_mapping is not None
+        if isinstance(detection, dict):
+            detection["category_mapping"] = self.category_mapping
+            self.detector = build_model(detection)
+        else:  # pragma: no cover
+            self.detector = detection
         assert isinstance(
             self.detector, (BaseTwoStageDetector, BaseOneStageDetector)
         )
-        self.similarity_head = build_similarity_head(self.cfg.similarity)
-        self.track_graph = build_track_graph(self.cfg.track_graph)
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
+        if isinstance(similarity, dict):
+            self.similarity_head: BaseSimilarityHead = build_module(
+                similarity, bound=BaseSimilarityHead
+            )
+        else:  # pragma: no cover
+            self.similarity_head = similarity
+        if isinstance(track_graph, dict):
+            self.track_graph: BaseTrackGraph = build_module(
+                track_graph, bound=BaseTrackGraph
+            )
+        else:  # pragma: no cover
+            self.track_graph = track_graph
+        self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
         self.with_mask = getattr(self.detector, "with_mask", False)
 
     def _run_heads_train(
@@ -65,10 +74,9 @@ class QDTrack(BaseModel):
             x.targets for x in ref_inputs
         ]
 
-        key_proposals: Optional[List[Boxes2D]]
+        key_proposals: List[Boxes2D]
         ref_proposals: List[List[Boxes2D]]
         if isinstance(self.detector, BaseTwoStageDetector):
-            # two-stage detector
             # proposal generation
             rpn_losses, key_proposals = self.detector.generate_proposals(
                 key_inputs, key_x, key_targets
@@ -80,6 +88,7 @@ class QDTrack(BaseModel):
                 ]
 
             # roi head
+            assert isinstance(self.detector, BaseTwoStageDetector)
             roi_losses, _ = self.detector.generate_detections(
                 key_inputs,
                 key_x,
@@ -140,8 +149,8 @@ class QDTrack(BaseModel):
         postprocess_predictions(
             inputs,
             outs,
-            self.cfg.detection.clip_bboxes_to_image,
-            self.cfg.detection.resolve_overlap,
+            self.detector.clip_bboxes_to_image,
+            self.detector.resolve_overlap,
         )
         outputs = predictions_to_scalabel(outs, self.cat_mapping)
 
@@ -166,14 +175,11 @@ class QDTrack(BaseModel):
             outs["seg_track"] = tracks.instance_masks
 
         postprocess_predictions(
-            inputs, outs, self.cfg.detection.clip_bboxes_to_image
+            inputs, outs, self.detector.clip_bboxes_to_image
         )
         return predictions_to_scalabel(outs, self.cat_mapping)
 
-    def forward_train(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward function for training."""
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
 
@@ -195,28 +201,24 @@ class QDTrack(BaseModel):
         )
         return losses
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> ModelOutput:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Compute model output during inference."""
         assert len(batch_inputs) == 1, "No reference views during test!"
         assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"
 
         result_path = ""
-        if self.cfg.inference_result_path is not None:
+        if self.inference_result_path is not None:
             frame_name = batch_inputs[0].metadata[0].name
-            result_path = self.cfg.inference_result_path + "/" + frame_name
+            result_path = self.inference_result_path + "/" + frame_name
 
-        if (
-            self.cfg.inference_result_path is None
-            or not self.data_backend.exists(result_path)
+        if self.inference_result_path is None or not self.data_backend.exists(
+            result_path
         ):
             feat = self.detector.extract_features(batch_inputs[0])
             outs, predictions, embeddings = self._run_heads_test(
                 batch_inputs[0], feat
             )
-            if self.cfg.inference_result_path is not None:
+            if self.inference_result_path is not None:
                 predictions = predictions.to(torch.device("cpu"))
                 embeddings = [e.to(torch.device("cpu")) for e in embeddings]
                 self.data_backend.set(

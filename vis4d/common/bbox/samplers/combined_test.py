@@ -7,7 +7,6 @@ import torch
 from vis4d.struct import Boxes2D
 
 from ..matchers.base import MatchResult
-from .base import SamplerConfig
 from .combined import CombinedSampler
 
 
@@ -41,18 +40,15 @@ class TestCombined(unittest.TestCase):
         num_gts = 3
 
         sampler = CombinedSampler(
-            SamplerConfig(
-                type="combined",
-                batch_size_per_image=samples_per_img,
-                positive_fraction=pos_fract,
-                pos_strategy="instance_balanced",
-                neg_strategy="iou_balanced",
-            )
+            batch_size_per_image=samples_per_img,
+            positive_fraction=pos_fract,
+            pos_strategy="instance_balanced",
+            neg_strategy="iou_balanced",
         )
         matching, boxes, targets = self._get_boxes_targets(
             num_gts, num_samples
         )
-        sampling_result = sampler.sample(matching, boxes, targets)
+        sampling_result = sampler(matching, boxes, targets)
         sampled_boxes, sampled_targets = (
             sampling_result.sampled_boxes,
             sampling_result.sampled_targets,
@@ -72,20 +68,17 @@ class TestCombined(unittest.TestCase):
         self.assertEqual(set(sampled_idx), set(range(num_gts)))
 
         sampler = CombinedSampler(
-            SamplerConfig(
-                type="combined",
-                batch_size_per_image=samples_per_img,
-                positive_fraction=pos_fract,
-                pos_strategy="instance_balanced",
-                neg_strategy="iou_balanced",
-                floor_thr=0.1,
-                num_bins=1,
-            )
+            batch_size_per_image=samples_per_img,
+            positive_fraction=pos_fract,
+            pos_strategy="instance_balanced",
+            neg_strategy="iou_balanced",
+            floor_thr=0.1,
+            num_bins=1,
         )
         matching, boxes, targets = self._get_boxes_targets(
             num_gts, num_samples
         )
-        sampler.sample(matching, boxes, targets)
+        sampler(matching, boxes, targets)
 
         matching, boxes, targets = self._get_boxes_targets(num_gts, 128)
-        sampler.sample(matching, boxes, targets)
+        sampler(matching, boxes, targets)

@@ -129,10 +129,10 @@ class StandardEvaluatorCallback(BaseEvaluatorCallback):
         output_dir: Optional[str] = None,
     ) -> None:
         """Init."""
-        super().__init__(dataloader_idx, dataset_loader.cfg.collect_device)
+        super().__init__(dataloader_idx, dataset_loader.collect_device)
         self.output_dir = output_dir
-        self.name = dataset_loader.cfg.name
-        self.metrics = dataset_loader.cfg.eval_metrics
+        self.name = dataset_loader.name
+        self.metrics = dataset_loader.eval_metrics
         self.eval_func = dataset_loader.evaluate
 
     def process(
@@ -151,6 +151,7 @@ class StandardEvaluatorCallback(BaseEvaluatorCallback):
     def evaluate(self, epoch: int) -> Dict[str, MetricLogs]:
         """Evaluate the performance after processing all input/output pairs."""
         results = {}
+        assert self.metrics is not None
         if not self.logging_disabled and len(self.metrics) > 0:
             logger.info("Running evaluation on dataset %s...", self.name)
         for key, predictions in self._predictions.items():

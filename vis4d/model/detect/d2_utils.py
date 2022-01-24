@@ -1,6 +1,6 @@
 """Detection utils."""
 import os
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import torch
 
@@ -13,9 +13,7 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     D2_INSTALLED = False
 
-from vis4d.struct import Boxes2D, Images, InstanceMasks
-
-from .base import BaseDetectorConfig
+from vis4d.struct import Boxes2D, DictStrAny, Images, InstanceMasks
 
 model_mapping = {
     "faster-rcnn": "COCO-Detection/faster_rcnn_",
@@ -30,16 +28,6 @@ backbone_mapping = {
     "r50-c4": "R_50_C4_3x.yaml",
     "r50-dc5": "R_50_DC5_3x.yaml",
 }
-
-
-class D2TwoStageDetectorConfig(BaseDetectorConfig):
-    """Config for detectron2 two stage models."""
-
-    model_base: str
-    model_kwargs: Optional[Dict[str, Union[bool, float, str, List[float]]]]
-    override_mapping: Optional[bool] = False
-    set_batchnorm_eval: bool = False
-    weights: Optional[str]
 
 
 def detections_to_box2d(detections: List[Instances]) -> List[Boxes2D]:
@@ -140,41 +128,47 @@ def images_to_imagelist(images: Images) -> ImageList:
     )
 
 
-def model_to_detectron2(config: D2TwoStageDetectorConfig) -> CfgNode:
+def model_to_detectron2(
+    model_base: str,
+    model_kwargs: Optional[DictStrAny] = None,
+    override_mapping: Optional[bool] = False,
+    weights: Optional[str] = None,
+    category_mapping: Optional[Dict[str, int]] = None,
+) -> CfgNode:
     """Convert a Detector config to a detectron2 readable config."""
     cfg = get_cfg()
 
     # load detect base config, checkpoint
     d2_model_string = None
-    if os.path.exists(config.model_base):
-        base_cfg = config.model_base
+    if os.path.exists(model_base):
+        base_cfg = model_base
     else:
-        if config.override_mapping:
-            d2_model_string = config.model_base
+        if override_mapping:
+            d2_model_string = model_base
         else:
-            model, backbone = config.model_base.split("/")
+            model, backbone = model_base.split("/")
             d2_model_string = model_mapping[model] + backbone_mapping[backbone]
         base_cfg = model_zoo.get_config_file(d2_model_string)
 
     cfg.merge_from_file(base_cfg)
 
     # prepare checkpoint path
-    if config.weights is not None:
-        if config.weights == "detectron2" and d2_model_string is not None:
+    if weights is not None:
+        if weights == "detectron2" and d2_model_string is not None:
             cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(d2_model_string)
         else:
-            cfg.MODEL.WEIGHTS = config.weights
+            cfg.MODEL.WEIGHTS = weights
     else:
         cfg.MODEL.WEIGHTS = ""
 
     # convert detect attributes
-    assert config.category_mapping is not None
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(config.category_mapping)
-    cfg.MODEL.RETINANET.NUM_CLASSES = len(config.category_mapping)
+    assert category_mapping is not None
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(category_mapping)
+    cfg.MODEL.RETINANET.NUM_CLASSES = len(category_mapping)
 
     # add keyword args in config
-    if config.model_kwargs:
-        for k, v in config.model_kwargs.items():
+    if model_kwargs:
+        for k, v in model_kwargs.items():
             attr = cfg
             partial_keys = k.split(".")
             partial_keys, last_key = partial_keys[:-1], partial_keys[-1]

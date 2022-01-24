@@ -1,13 +1,14 @@
 """Vis4D LR schedulers."""
-from typing import Dict, List, Union
+from typing import List
 
 from pydantic import BaseModel, validator
 from torch.optim import Optimizer, lr_scheduler
 
 from vis4d.common.registry import RegistryHolder
+from vis4d.struct import DictStrAny
 
 
-class BaseLRSchedulerConfig(BaseModel):
+class LRSchedulerConfig(BaseModel):
     """Config for Vis4D model LR scheduler."""
 
     type: str = "StepLR"
@@ -15,7 +16,7 @@ class BaseLRSchedulerConfig(BaseModel):
     warmup: str = "linear"
     warmup_steps: int = 500
     warmup_ratio: float = 0.001
-    kwargs: Dict[str, Union[float, bool, List[int]]] = {"step_size": 10}
+    kwargs: DictStrAny = {"step_size": 10}
 
     @validator("mode", check_fields=False)
     def validate_mode(  # pylint: disable=no-self-argument,no-self-use
@@ -57,7 +58,7 @@ class BaseLRSchedulerConfig(BaseModel):
 
 
 def get_warmup_lr(
-    cfg: BaseLRSchedulerConfig, cur_steps: int, regular_lr: float
+    cfg: LRSchedulerConfig, cur_steps: int, regular_lr: float
 ) -> float:
     """Compute current learning rate according to warmup configuration."""
     warmup_lr = regular_lr
@@ -110,12 +111,12 @@ class PolyLRScheduler(BaseLRScheduler):
 
 
 def build_lr_scheduler(
-    optimizer: Optimizer, cfg: BaseLRSchedulerConfig
+    optimizer: Optimizer, cfg: LRSchedulerConfig
 ) -> BaseLRScheduler:
     """Build LR Scheduler from config."""
     registry = RegistryHolder.get_registry(BaseLRScheduler)
     if cfg.type in registry:
-        scheduler = registry[cfg.type]  # pragma: no cover
+        scheduler = registry[cfg.type]
     elif hasattr(lr_scheduler, cfg.type):
         scheduler = getattr(lr_scheduler, cfg.type)
     else:

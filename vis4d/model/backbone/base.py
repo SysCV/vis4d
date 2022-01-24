@@ -1,46 +1,50 @@
 """Backbone interface for Vis4D."""
-
 import abc
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import torch
-from pydantic import BaseModel, Field
 
-from vis4d.common.module import Vis4DModule
-from vis4d.common.registry import RegistryHolder
-from vis4d.struct import FeatureMaps, InputSample
+from vis4d.common.module import Vis4DModule, build_module
+from vis4d.struct import FeatureMaps, InputSample, ModuleCfg
 
-from .neck import BaseNeckConfig
-
-
-class BaseBackboneConfig(BaseModel, extra="allow"):
-    """Base config for Backbone."""
-
-    type: str = Field(...)
-    pixel_mean: Tuple[float, float, float]
-    pixel_std: Tuple[float, float, float]
-    output_names: Optional[List[str]]
-    out_indices: Optional[List[int]]
-    neck: Optional[BaseNeckConfig]
+from .neck import BaseNeck
 
 
 class BaseBackbone(Vis4DModule[FeatureMaps, FeatureMaps]):
     """Base Backbone class."""
 
-    def __init__(self, cfg: BaseBackboneConfig) -> None:
-        """Init."""
+    def __init__(
+        self,
+        pixel_mean: Tuple[float, float, float],
+        pixel_std: Tuple[float, float, float],
+        output_names: Optional[List[str]] = None,
+        out_indices: Optional[List[int]] = None,
+        neck: Optional[Union[BaseNeck, ModuleCfg]] = None,
+    ) -> None:
+        """Init BaseBackbone."""
         super().__init__()
-        self.cfg = cfg
-
+        self.output_names = output_names
+        self.out_indices = out_indices
         self.register_buffer(
             "pixel_mean",
-            torch.tensor(self.cfg.pixel_mean).view(-1, 1, 1),
+            torch.tensor(pixel_mean).view(-1, 1, 1),
             False,
         )
         self.register_buffer(
-            "pixel_std", torch.tensor(self.cfg.pixel_std).view(-1, 1, 1), False
+            "pixel_std", torch.tensor(pixel_std).view(-1, 1, 1), False
         )
 
+        if neck is not None:
+            if isinstance(neck, dict):
+                self.neck: Optional[BaseNeck] = build_module(
+                    neck, bound=BaseNeck
+                )
+            else:
+                self.neck = neck
+        else:
+            self.neck = None
+
+    @abc.abstractmethod
     def preprocess_inputs(self, inputs: InputSample) -> InputSample:
         """Normalize the input images."""
         inputs.images.tensor = (
@@ -50,13 +54,13 @@ class BaseBackbone(Vis4DModule[FeatureMaps, FeatureMaps]):
 
     def get_outputs(self, outs: List[torch.Tensor]) -> FeatureMaps:
         """Get feature map dict."""
-        if self.cfg.out_indices is not None:
-            outs = [outs[ind] for ind in self.cfg.out_indices]
-        if self.cfg.output_names is None:
+        if self.out_indices is not None:
+            outs = [outs[ind] for ind in self.out_indices]
+        if self.output_names is None:
             backbone_outs = {f"out{i}": v for i, v in enumerate(outs)}
         else:  # pragma: no cover
-            assert len(self.cfg.output_names) == len(outs)
-            backbone_outs = dict(zip(self.cfg.output_names, outs))
+            assert len(self.output_names) == len(outs)
+            backbone_outs = dict(zip(self.output_names, outs))
         return backbone_outs
 
     @abc.abstractmethod
@@ -73,15 +77,3 @@ class BaseBackbone(Vis4DModule[FeatureMaps, FeatureMaps]):
             FeatureMaps: Dictionary of output feature maps.
         """
         raise NotImplementedError
-
-
-def build_backbone(
-    cfg: BaseBackboneConfig,
-) -> BaseBackbone:
-    """Build a backbone from config."""
-    registry = RegistryHolder.get_registry(BaseBackbone)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseBackbone)
-        return module
-    raise NotImplementedError(f"Backbone {cfg.type} not found.")

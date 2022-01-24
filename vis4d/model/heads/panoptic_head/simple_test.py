@@ -3,7 +3,7 @@ import unittest
 
 from vis4d.unittest.utils import generate_input_sample, generate_semantic_masks
 
-from .simple import SimplePanopticHead, SimplePanopticHeadConfig
+from .simple import SimplePanopticHead
 
 
 class TestSimplePanopticHead(unittest.TestCase):
@@ -26,10 +26,7 @@ class TestSimplePanopticHead(unittest.TestCase):
         sem_masks.masks[0][:, :] = 0
         sem_masks.masks[1][:, :] = 1
 
-        cfg = SimplePanopticHeadConfig(
-            type="SimplePanopticHead", overlap_thr=0.99, stuff_area_thr=128
-        )
-        pan_head = SimplePanopticHead(cfg)
+        pan_head = SimplePanopticHead(overlap_thr=0.99, stuff_area_thr=128)
         ins_outs, sem_outs = pan_head(inputs, inputs.targets)
         self.assertEqual(len(ins_outs[0]), 5)
         self.assertEqual(len(sem_outs[0]), 2)

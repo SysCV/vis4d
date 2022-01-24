@@ -19,11 +19,11 @@ def datasets_to_hdf5(args: Namespace) -> None:  # pragma: no cover
         cfg = read_config(args.config)
         if cfg.train is not None:
             for dataset in cfg.train:
-                convert_single_dataset(dataset.data_root)
+                convert_single_dataset(dataset["data_root"])
 
         if cfg.test is not None:
             for dataset in cfg.test:
-                convert_single_dataset(dataset.data_root)
+                convert_single_dataset(dataset["data_root"])
 
     if args.path is not None:
         convert_single_dataset(args.path)

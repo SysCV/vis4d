@@ -28,13 +28,12 @@ from ..common.utils.distributed import (
     all_gather_object_cpu,
     all_gather_object_gpu,
 )
-
-# ignore DeprecationWarning by default (e.g. numpy)
 from ..common.utils.time import Timer
 from ..config import Config
 from ..struct import DictStrAny, InputSample, LossesType, ModelOutput
 
 logger = logging.getLogger("pytorch_lightning")
+# ignore DeprecationWarning by default (e.g. numpy)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
@@ -105,9 +104,12 @@ class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         for k, v in self._metrics_history[-1].items():
             if isinstance(v, (torch.Tensor, float, int)):
                 acc_value = 0.0
+                num_hist = 0
                 for hist_dict in self._metrics_history:
-                    acc_value += hist_dict[k]
-                acc_value /= len(self._metrics_history)
+                    if k in hist_dict:
+                        acc_value += hist_dict[k]
+                        num_hist += 1
+                acc_value /= num_hist
                 acc_metrics[k] = acc_value
             elif isinstance(v, str) and not v == "nan":
                 acc_metrics[k] = v
@@ -163,7 +165,7 @@ class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self._metrics_history.append(metrics)
 
         if batch_idx % self._refresh_rate == 0 and self.enable:
-            logger.info(
+            rank_zero_info(
                 self._compose_log_str(
                     f"Epoch {trainer.current_epoch + 1}",
                     batch_idx,
@@ -188,7 +190,7 @@ class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self._metrics_history.append(metrics)
 
         if batch_idx % self._refresh_rate == 0 and self.enable:
-            logger.info(
+            rank_zero_info(
                 self._compose_log_str(
                     "Validating",
                     batch_idx,
@@ -213,7 +215,7 @@ class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self._metrics_history.append(metrics)
 
         if batch_idx % self._refresh_rate == 0 and self.enable:
-            logger.info(
+            rank_zero_info(
                 self._compose_log_str(
                     "Testing",
                     batch_idx,
@@ -238,7 +240,7 @@ class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self._metrics_history.append(metrics)
 
         if batch_idx % self._refresh_rate == 0 and self.enable:
-            logger.info(
+            rank_zero_info(
                 self._compose_log_str(
                     "Predicting",
                     batch_idx,

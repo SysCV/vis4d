@@ -1,30 +1,33 @@
 """Dense Head interface for Vis4D."""
-
 import abc
-from typing import Dict, Optional, Tuple, Union, overload
+from typing import Dict, List, Optional, Tuple, Union, overload
 
-from pydantic import BaseModel, Field
+import torch
 
 from vis4d.common.module import TTestReturn, TTrainReturn, Vis4DModule
-from vis4d.common.registry import RegistryHolder
-from vis4d.struct import FeatureMaps, InputSample, LabelInstances, LossesType
-
-
-class BaseDenseHeadConfig(BaseModel, extra="allow"):
-    """Base config for Dense head."""
-
-    type: str = Field(...)
-    category_mapping: Optional[Dict[str, int]] = None
+from vis4d.struct import (
+    Boxes2D,
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+    SemanticMasks,
+)
 
 
 class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
     """Base Dense head class."""
 
+    def __init__(
+        self, category_mapping: Optional[Dict[str, int]] = None
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.category_mapping = category_mapping
+
     @overload  # type: ignore[override]
     def __call__(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> TTestReturn:  # noqa: D102
         ...
 
@@ -80,9 +83,7 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
 
     @abc.abstractmethod
     def forward_test(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> TTestReturn:
         """Forward pass during testing stage.
 
@@ -96,13 +97,5 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
         raise NotImplementedError
 
 
-def build_dense_head(
-    cfg: BaseDenseHeadConfig,
-) -> BaseDenseHead:  # type: ignore
-    """Build a dense head from config."""
-    registry = RegistryHolder.get_registry(BaseDenseHead)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseDenseHead)
-        return module
-    raise NotImplementedError(f"DenseHead {cfg.type} not found.")
+DetDenseHead = BaseDenseHead[List[Boxes2D], List[Boxes2D]]
+SegDenseHead = BaseDenseHead[Optional[torch.Tensor], List[SemanticMasks]]

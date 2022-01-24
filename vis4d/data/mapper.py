@@ -1,10 +1,9 @@
 """Class for processing Scalabel type datasets."""
 import copy
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from pydantic import BaseModel
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
     rank_zero_warn,
@@ -20,37 +19,34 @@ from scalabel.label.utils import (
     get_matrix_from_intrinsics,
 )
 
-from ..common.io import DataBackendConfig, build_data_backend
-from ..common.registry import RegistryHolder
+from ..common.io import BaseDataBackend, FileBackend
+from ..common.registry import RegistryHolder, build_component
 from ..struct import (
     Boxes2D,
     Boxes3D,
+    CategoryMap,
     Extrinsics,
     Images,
     InputSample,
     InstanceMasks,
     Intrinsics,
     LabelInstances,
+    ModuleCfg,
     PointCloud,
     SemanticMasks,
 )
-from .transforms import AugParams, BaseAugmentationConfig, build_augmentations
+from .transforms import AugParams, BaseAugmentation
 from .utils import im_decode
 
-
-class SampleMapperConfig(BaseModel):
-    """Config for Mapper."""
-
-    type: str = "BaseSampleMapper"
-    data_backend: DataBackendConfig = DataBackendConfig()
-    categories: Optional[List[str]] = None
-    fields_to_load: List[str] = ["boxes2d"]
-    skip_empty_samples: bool = False
-    clip_bboxes_to_image: bool = True
-    min_bboxes_area: float = 7.0 * 7.0
-    background_as_class: bool = False
-    transformations: Optional[List[BaseAugmentationConfig]] = None
-    image_backend: str = "PIL"
+ALLOWED_FIELDS = [
+    "boxes2d",
+    "boxes3d",
+    "instance_masks",
+    "semantic_masks",
+    "intrinsics",
+    "extrinsics",
+    "pointcloud",
+]
 
 
 class BaseSampleMapper(metaclass=RegistryHolder):
@@ -58,50 +54,78 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
     def __init__(
         self,
-        cfg: SampleMapperConfig,
-        cats_name2id: Dict[str, Dict[str, int]],
-        training: bool,
+        data_backend: Union[BaseDataBackend, ModuleCfg] = FileBackend(),
+        fields_to_load: Tuple[str] = ("boxes2d",),
+        skip_empty_samples: bool = False,
+        clip_bboxes_to_image: bool = True,
+        min_bboxes_area: float = 7.0 * 7.0,
+        background_as_class: bool = False,
+        transformations: Optional[
+            List[Union[BaseAugmentation, ModuleCfg]]
+        ] = None,
+        image_backend: str = "PIL",
         image_channel_mode: str = "RGB",
     ) -> None:
         """Init Scalabel Mapper."""
-        self.cfg = cfg
-        self.training = training
+        self.image_backend = image_backend
+        self.fields_to_load = fields_to_load
+        self.background_as_class = background_as_class
+        self.skip_empty_samples = skip_empty_samples
+        self.clip_bboxes_to_image = clip_bboxes_to_image
+        self.min_bboxes_area = min_bboxes_area
         self.image_channel_mode = image_channel_mode
-        if self.cfg.skip_empty_samples and not self.training:
+
+        if isinstance(data_backend, dict):  # pragma: no cover
+            self.data_backend: BaseDataBackend = build_component(
+                data_backend, bound=BaseDataBackend
+            )
+        else:
+            self.data_backend = data_backend
+        rank_zero_info(
+            "Using data backend: %s", self.data_backend.__class__.__name__
+        )
+        self.transformations = []
+        if transformations is not None:
+            for transform in transformations:
+                if isinstance(transform, dict):
+                    transform_: BaseAugmentation = build_component(
+                        transform, bound=BaseAugmentation
+                    )
+                else:  # pragma: no cover
+                    transform_ = transform
+                self.transformations.append(transform_)
+        rank_zero_info("Transformations used: %s", self.transformations)
+        self.cats_name2id: Dict[str, Dict[str, int]] = {}
+        self.training = False
+
+    def set_training(self, is_train: bool) -> None:
+        """Set training attribute."""
+        self.training = is_train
+        if self.skip_empty_samples and self.training:
             rank_zero_warn(  # pragma: no cover
                 "'skip_empty_samples' activated in test mode. This option is "
                 "only available in training."
             )
 
-        self.data_backend = build_data_backend(self.cfg.data_backend)
-        rank_zero_info("Using data backend: %s", self.cfg.data_backend.type)
-        self.transformations = build_augmentations(self.cfg.transformations)
-        rank_zero_info("Transformations used: %s", self.transformations)
-
-        fields_to_load = self.cfg.fields_to_load
-        allowed_files = [
-            "boxes2d",
-            "boxes3d",
-            "instance_masks",
-            "semantic_masks",
-            "intrinsics",
-            "extrinsics",
-            "pointcloud",
-        ]
-        self.cats_name2id = {}
-        for field in fields_to_load:
+    def setup_categories(self, cats_name2id: CategoryMap) -> None:
+        """Setup the category mappings for all fields to load."""
+        for field in self.fields_to_load:
             assert (
-                field in allowed_files
-            ), f"Unrecognized field={field}, allowed fields={allowed_files}"
-            assert (
-                "all" in cats_name2id or field in cats_name2id
-            ), f"Field={field} not specified in category_mapping"
-            if "all" in cats_name2id:
-                self.cats_name2id[field] = cats_name2id["all"]
+                field in ALLOWED_FIELDS
+            ), f"Unrecognized field={field}, allowed fields={ALLOWED_FIELDS}"
+            if not cats_name2id:
+                continue
+            if isinstance(list(cats_name2id.values())[0], int):
+                self.cats_name2id[field] = cats_name2id  # type: ignore
             else:
-                self.cats_name2id[field] = cats_name2id[field]
+                assert (
+                    field in cats_name2id
+                ), f"Field={field} not specified in category_mapping"
+                field_map = cats_name2id[field]
+                assert isinstance(field_map, dict)
+                self.cats_name2id[field] = field_map
 
-    def load_input(
+    def load_inputs(
         self,
         sample: Frame,
         use_empty: Optional[bool] = False,
@@ -115,7 +139,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             image = im_decode(
                 im_bytes,
                 mode=self.image_channel_mode,
-                backend=self.cfg.image_backend,
+                backend=self.image_backend,
             )
         else:
             image = np.empty((128, 128, 3), dtype=np.uint8)
@@ -128,30 +152,31 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         images = Images(image, [(image.shape[3], image.shape[2])])
         input_data = InputSample([copy.deepcopy(sample)], images)
 
+        assert self.fields_to_load is not None
         if (
             sample.intrinsics is not None
-            and "intrinsics" in self.cfg.fields_to_load
+            and "intrinsics" in self.fields_to_load
         ):
             input_data.intrinsics = self.load_intrinsics(sample.intrinsics)
 
         if (
             sample.extrinsics is not None
-            and "extrinsics" in self.cfg.fields_to_load
+            and "extrinsics" in self.fields_to_load
         ):
             input_data.extrinsics = self.load_extrinsics(sample.extrinsics)
 
         if (
             group_url is not None
             and group_extrinsics is not None
-            and "pointcloud" in self.cfg.fields_to_load
+            and "pointcloud" in self.fields_to_load
         ):
-            input_data.points = self.load_point(
+            input_data.points = self.load_points(
                 group_url, group_extrinsics, input_data.extrinsics
             )
 
         return input_data
 
-    def load_annotation(
+    def load_annotations(
         self,
         sample: InputSample,
         labels: Optional[List[Label]],
@@ -171,7 +196,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                         )
 
             if labels_used:
-                if "instance_masks" in self.cfg.fields_to_load:
+                if "instance_masks" in self.fields_to_load:
                     instance_masks = InstanceMasks.from_scalabel(
                         labels_used,
                         self.cats_name2id["instance_masks"],
@@ -180,17 +205,17 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                     )
                     sample.targets.instance_masks = [instance_masks]
 
-                if "semantic_masks" in self.cfg.fields_to_load:
+                if "semantic_masks" in self.fields_to_load:
                     semantic_masks = SemanticMasks.from_scalabel(
                         labels_used,
                         self.cats_name2id["semantic_masks"],
                         instance_id_dict,
                         sample.metadata[0].size,
-                        self.cfg.background_as_class,
+                        self.background_as_class,
                     )
                     sample.targets.semantic_masks = [semantic_masks]
 
-                if "boxes2d" in self.cfg.fields_to_load:
+                if "boxes2d" in self.fields_to_load:
                     boxes2d = Boxes2D.from_scalabel(
                         labels_used,
                         self.cats_name2id["boxes2d"],
@@ -206,7 +231,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                         ].get_boxes2d()
                     sample.targets.boxes2d = [boxes2d]
 
-                if "boxes3d" in self.cfg.fields_to_load:
+                if "boxes3d" in self.fields_to_load:
                     boxes3d = Boxes3D.from_scalabel(
                         labels_used,
                         self.cats_name2id["boxes3d"],
@@ -214,7 +239,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                     )
                     sample.targets.boxes3d = [boxes3d]
 
-    def transform_input(
+    def transform_inputs(
         self,
         sample: InputSample,
         parameters: Optional[List[AugParams]] = None,
@@ -233,15 +258,15 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             sample, _ = aug(sample, parameters[i])
         return parameters
 
-    def postprocess_annotation(
+    def postprocess_annotations(
         self, im_wh: Tuple[int, int], targets: LabelInstances
     ) -> None:
         """Process annotations after transform."""
         if len(targets.boxes2d[0]) == 0:
             return
-        if self.cfg.clip_bboxes_to_image:
+        if self.clip_bboxes_to_image:
             targets.boxes2d[0].clip(im_wh)
-        keep = targets.boxes2d[0].area >= self.cfg.min_bboxes_area
+        keep = targets.boxes2d[0].area >= self.min_bboxes_area
         targets.boxes2d = [targets.boxes2d[0][keep]]
         if len(targets.boxes3d[0]) > 0:
             targets.boxes3d = [targets.boxes3d[0][keep]]
@@ -264,7 +289,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         ).to(torch.float32)
         return Extrinsics(extrinsics_matrix)
 
-    def load_point(
+    def load_points(
         self,
         group_url: str,
         group_extrinsics: ScalabelExtrinsics,
@@ -320,16 +345,25 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             InputSample: Data format that the model accepts.
             List[AugParams]: augmentation parameters, s.t. ref views can be
             augmented with the same parameters.
+
+        Raises:
+            AttributeError: If category mappings have not been initialized.
         """
+        if len(self.cats_name2id) == 0:
+            raise AttributeError(
+                "Category mapping not initialized! Please "
+                "execute 'SampleMapper.setup_categories'."
+            )
+
         if (
-            self.cfg.skip_empty_samples
+            self.skip_empty_samples
             and (sample.labels is None or len(sample.labels) == 0)
             and self.training
         ):
             return None, None  # pragma: no cover
 
         # load input data
-        input_data = self.load_input(
+        input_data = self.load_inputs(
             sample,
             use_empty=isinstance(sample, FrameGroup),
             group_url=group_url,
@@ -338,38 +372,19 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
         if self.training:
             # load annotations to input sample
-            self.load_annotation(input_data, sample.labels)
+            self.load_annotations(input_data, sample.labels)
 
         # apply transforms to input sample
-        parameters = self.transform_input(input_data, parameters)
+        parameters = self.transform_inputs(input_data, parameters)
 
         if not self.training:
             return input_data, parameters
 
         # postprocess boxes after transforms
-        self.postprocess_annotation(
+        self.postprocess_annotations(
             input_data.images.image_sizes[0], input_data.targets
         )
 
-        if self.cfg.skip_empty_samples and input_data.targets.empty:
+        if self.skip_empty_samples and input_data.targets.empty:
             return None, None  # pragma: no cover
         return input_data, parameters
-
-
-def build_mapper(
-    cfg: SampleMapperConfig,
-    cats_name2id: Dict[str, Dict[str, int]],
-    training: bool,
-    image_channel_mode: str = "RGB",
-) -> BaseSampleMapper:
-    """Build a mapper."""
-    registry = RegistryHolder.get_registry(BaseSampleMapper)
-    registry["BaseSampleMapper"] = BaseSampleMapper
-    if cfg.type in registry:
-        module = registry[cfg.type](
-            cfg, cats_name2id, training, image_channel_mode
-        )
-        assert isinstance(module, BaseSampleMapper)
-    else:
-        raise NotImplementedError(f"Mapper type {cfg.type} not found.")
-    return module

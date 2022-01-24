@@ -10,6 +10,7 @@ from pytorch_lightning.utilities.distributed import rank_zero_warn
 from vis4d.common.bbox.utils import bbox_intersection
 from vis4d.data.utils import transform_bbox
 from vis4d.struct import (
+    ArgsType,
     Boxes2D,
     Boxes3D,
     Images,
@@ -20,55 +21,47 @@ from vis4d.struct import (
     TMasks,
 )
 
-from .base import AugParams, BaseAugmentation, BaseAugmentationConfig
-
-
-class ResizeConfig(BaseAugmentationConfig):
-    """Resize augmentation config.
-
-    shape: Image shape to be resized to in (H, W) format. In
-    multiscale mode 'list', shape represents the list of possible
-    shapes for resizing.
-    interpolation: Interpolation method. One of ["nearest", "bilinear",
-    "bicubic"]
-    keep_ratio: If aspect ratio of original image should be kept, the
-    new height will be scaled according to the new width and the
-    aspect ratio of the original image as:
-    new_h = new_w / (orginal_w / original_h)
-    multiscale_mode: one of [range, list],
-    scale_range: Range of sampled image scales in range mode, e.g.
-    (0.8, 1.2), indicating minimum of 0.8 * shape and maximum of
-    1.2 * shape.
-    return_transform: If the transform should be returned in matrix
-    format.
-    """
-
-    shape: Union[Tuple[int, int], List[Tuple[int, int]]]
-    keep_ratio: bool = False
-    multiscale_mode: str = "range"
-    scale_range: Tuple[float, float] = (1.0, 1.0)
-    interpolation: str = "bilinear"
+from .base import AugParams, BaseAugmentation
 
 
 class Resize(BaseAugmentation):
-    """Resize augmentation class."""
+    """Resize augmentation.
+
+    Attributes:
+        shape: Image shape to be resized to in (H, W) format. In
+        multiscale mode 'list', shape represents the list of possible
+        shapes for resizing.
+        interpolation: Interpolation method. One of ["nearest", "bilinear",
+        "bicubic"]
+        keep_ratio: If aspect ratio of original image should be kept, the
+        new height will be scaled according to the new width and the
+        aspect ratio of the original image as:
+        new_h = new_w / (orginal_w / original_h)
+        multiscale_mode: one of [range, list],
+        scale_range: Range of sampled image scales in range mode, e.g.
+        (0.8, 1.2), indicating minimum of 0.8 * shape and maximum of
+        1.2 * shape.
+        return_transform: If the transform should be returned in matrix
+        format.
+    """
 
     def __init__(
         self,
-        cfg: BaseAugmentationConfig,
+        shape: Union[Tuple[int, int], List[Tuple[int, int]]],
+        *args: ArgsType,
+        keep_ratio: bool = False,
+        multiscale_mode: str = "range",
+        scale_range: Tuple[float, float] = (1.0, 1.0),
+        interpolation: str = "bilinear",
+        **kwargs: ArgsType,
     ) -> None:
-        """Init function.
-
-        Args:
-            cfg: Augmentation config.
-        """
-        super().__init__(cfg)
-        self.cfg: ResizeConfig = ResizeConfig(**cfg.dict())
-        self.shape = self.cfg.shape
-        self.keep_ratio = self.cfg.keep_ratio
-        self.multiscale_mode = self.cfg.multiscale_mode
+        """Init function."""
+        super().__init__(*args, **kwargs)
+        self.shape = shape
+        self.keep_ratio = keep_ratio
+        self.multiscale_mode = multiscale_mode
         assert self.multiscale_mode in ["list", "range"]
-        self.scale_range = self.cfg.scale_range
+        self.scale_range = scale_range
         if self.multiscale_mode == "list":
             assert isinstance(
                 self.shape, list
@@ -77,6 +70,12 @@ class Resize(BaseAugmentation):
             # pylint: disable=unsubscriptable-object
             self.shape = [(int(s[0]), int(s[1])) for s in self.shape]
         else:
+            if (
+                isinstance(self.shape, list)
+                and isinstance(self.shape[0], int)
+                and isinstance(self.shape[1], int)
+            ):
+                self.shape = tuple(self.shape)
             assert isinstance(
                 self.shape, tuple
             ), "Specify shape as tuple when using multiscale mode range."
@@ -86,7 +85,7 @@ class Resize(BaseAugmentation):
                 f"{self.scale_range[1]} < {self.scale_range[0]}"
             )
 
-        self.interpolation = self.cfg.interpolation
+        self.interpolation = interpolation
         assert self.interpolation in ["nearest", "bilinear", "bicubic"]
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
@@ -217,87 +216,87 @@ class Resize(BaseAugmentation):
         return masks
 
 
-class RandomCropConfig(BaseAugmentationConfig):
-    """Config for RandomCrop."""
-
-    shape: Union[
-        Tuple[float, float],
-        Tuple[int, int],
-        List[Tuple[float, float]],
-        List[Tuple[int, int]],
-    ]
-    crop_type: str = "absolute"
-    allow_empty_crop: bool = True
-    recompute_boxes2d: bool = False
-    cat_max_ratio: float = 1.0
-
-
 class RandomCrop(BaseAugmentation):
     """RandomCrop augmentation class."""
 
     def __init__(
         self,
-        cfg: BaseAugmentationConfig,
+        shape: Union[
+            Tuple[float, float],
+            Tuple[int, int],
+            List[Tuple[float, float]],
+            List[Tuple[int, int]],
+        ],
+        *args: ArgsType,
+        crop_type: str = "absolute",
+        allow_empty_crops: bool = True,
+        recompute_boxes2d: bool = False,
+        cat_max_ratio: float = 1.0,
+        **kwargs: ArgsType,
     ) -> None:
-        """Init function.
-
-        Args:
-            cfg: Augmentation config.
-        """
-        super().__init__(cfg)
-        self.cfg: RandomCropConfig = RandomCropConfig(**cfg.dict())
-        assert self.cfg.crop_type in [
+        """Init function."""
+        super().__init__(*args, **kwargs)
+        assert crop_type in [
             "absolute",
             "relative",
             "absolute_range",
             "relative_range",
-        ], f"Unknown crop type {self.cfg.crop_type}."
+        ], f"Unknown crop type {crop_type}."
+        self.crop_type = crop_type
+        self.cat_max_ratio = cat_max_ratio
+        self.allow_empty_crops = allow_empty_crops
+        self.recompute_boxes2d = recompute_boxes2d
+        if isinstance(shape, list) and (
+            (isinstance(shape[0], int) and isinstance(shape[1], int))
+            or (isinstance(shape[0], float) and isinstance(shape[1], float))
+        ):
+            shape = tuple(shape)
 
-        if self.cfg.crop_type == "absolute":
-            assert isinstance(self.cfg.shape, tuple)
-            assert self.cfg.shape[0] > 0 and self.cfg.shape[1] > 0
+        if crop_type == "absolute":
+            assert isinstance(shape, tuple)
+            assert shape[0] > 0 and shape[1] > 0
             self.shape: Tuple[int, int] = (
-                int(self.cfg.shape[0]),
-                int(self.cfg.shape[1]),
+                int(shape[0]),
+                int(shape[1]),
             )
 
-        elif self.cfg.crop_type == "relative":
-            assert isinstance(self.cfg.shape, tuple)
-            assert 0 < self.cfg.shape[0] <= 1 and 0 < self.cfg.shape[1] <= 1
-            self.scale: Tuple[float, float] = self.cfg.shape
+        elif crop_type == "relative":
+            assert isinstance(shape, tuple)
+            assert 0 < shape[0] <= 1 and 0 < shape[1] <= 1
+            self.scale: Tuple[float, float] = shape
 
-        elif "range" in self.cfg.crop_type:
-            assert isinstance(self.cfg.shape, list)
-            assert len(self.cfg.shape) == 2
-            assert self.cfg.shape[1][0] >= self.cfg.shape[0][0]
-            assert self.cfg.shape[1][1] >= self.cfg.shape[0][1]
+        elif "range" in crop_type:
+            assert isinstance(shape, list)
+            assert len(shape) == 2
+            assert shape[1][0] >= shape[0][0]
+            assert shape[1][1] >= shape[0][1]
 
-            if "absolute" in self.cfg.crop_type:
-                for crop in self.cfg.shape:
+            if "absolute" in crop_type:
+                for crop in shape:
                     assert crop[0] > 0 and crop[1] > 0
                 self.shape_min: Tuple[int, int] = (
-                    int(self.cfg.shape[0][0]),
-                    int(self.cfg.shape[0][1]),
+                    int(shape[0][0]),
+                    int(shape[0][1]),
                 )
                 self.shape_max: Tuple[int, int] = (
-                    int(self.cfg.shape[1][0]),
-                    int(self.cfg.shape[1][1]),
+                    int(shape[1][0]),
+                    int(shape[1][1]),
                 )
             else:
-                for crop in self.cfg.shape:
+                for crop in shape:
                     assert 0 < crop[0] <= 1 and 0 < crop[1] <= 1
-                self.scale_min: Tuple[float, float] = self.cfg.shape[0]
-                self.scale_max: Tuple[float, float] = self.cfg.shape[1]
+                self.scale_min: Tuple[float, float] = shape[0]
+                self.scale_max: Tuple[float, float] = shape[1]
 
     def _get_crop_size(self, im_wh: torch.Tensor) -> Tuple[int, int]:
         """Generate random absolute crop size."""
         w, h = im_wh
-        if self.cfg.crop_type == "absolute":
+        if self.crop_type == "absolute":
             return (
                 min(int(self.shape[0]), h),
                 min(int(self.shape[1]), w),
             )
-        if self.cfg.crop_type == "absolute_range":
+        if self.crop_type == "absolute_range":
             crop_h = np.random.randint(
                 min(h, self.shape_min[0]), min(h, self.shape_max[0]) + 1
             )
@@ -305,7 +304,7 @@ class RandomCrop(BaseAugmentation):
                 min(w, self.shape_min[1]), min(w, self.shape_max[1]) + 1
             )
             return int(crop_h), int(crop_w)
-        if self.cfg.crop_type == "relative":
+        if self.crop_type == "relative":
             crop_h, crop_w = self.scale
             return int(h * crop_h + 0.5), int(w * crop_w + 0.5)
         # relative range
@@ -355,7 +354,7 @@ class RandomCrop(BaseAugmentation):
         )
         cnts = cnts[cls_ids != 255]
         keep_mask = (
-            len(cnts) > 1 and cnts.max() / cnts.sum() < self.cfg.cat_max_ratio
+            len(cnts) > 1 and cnts.max() / cnts.sum() < self.cat_max_ratio
         )
         return keep_mask
 
@@ -379,14 +378,14 @@ class RandomCrop(BaseAugmentation):
             keep_mask = self._get_keep_mask(cur_sample, crop_param)
             if (
                 len(cur_sample.targets.boxes2d[0]) > 0
-                or self.cfg.cat_max_ratio != 1.0
+                or self.cat_max_ratio != 1.0
             ):
                 # resample crop if conditions not satisfied
                 found_crop = False
                 for _ in range(10):
                     # try resampling 10 times, otherwise use last crop
                     if (
-                        self.cfg.allow_empty_crop or keep_mask.sum() != 0
+                        self.allow_empty_crops or keep_mask.sum() != 0
                     ) and not self._check_seg_max_cat(cur_sample, crop_param):
                         found_crop = True
                         break
@@ -493,7 +492,7 @@ class RandomCrop(BaseAugmentation):
                 for s, c in zip(sample, parameters["crop_params"])
             ]
         sample, parameters = super().__call__(sample, parameters)
-        if self.cfg.recompute_boxes2d:
+        if self.recompute_boxes2d:
             for i in range(len(sample)):
                 assert len(sample.targets.instance_masks[i]) == len(
                     sample.targets.boxes2d[i]

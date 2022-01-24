@@ -1,73 +1,110 @@
 """Similarity Head for quasi-dense instance similarity learning."""
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common.bbox.matchers import MatcherConfig, build_matcher
-from vis4d.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
+from vis4d.common.bbox.matchers import BaseMatcher
+from vis4d.common.bbox.poolers import BaseRoIPooler
 from vis4d.common.bbox.samplers import (
-    SamplerConfig,
+    BaseSampler,
     SamplingResult,
-    build_sampler,
     match_and_sample_proposals,
 )
 from vis4d.common.layers import add_conv_branch
-from vis4d.model.losses import BaseLoss, LossConfig, build_loss
+from vis4d.common.module import build_module
+from vis4d.model.losses import BaseLoss, MultiPosCrossEntropyLoss
 from vis4d.struct import (
     Boxes2D,
     FeatureMaps,
     InputSample,
     LabelInstances,
     LossesType,
+    ModuleCfg,
 )
 
 from ..utils import cosine_similarity
-from .base import BaseSimilarityHead, SimilarityLearningConfig
-
-
-class QDSimilarityHeadConfig(SimilarityLearningConfig):
-    """Quasi-dense Similarity Head config."""
-
-    in_dim: int = 256
-    num_convs: int = 4
-    conv_out_dim: int = 256
-    conv_has_bias: bool = False
-    num_fcs: int = 1
-    fc_out_dim: int = 1024
-    embedding_dim: int = 256
-    norm: str = "GroupNorm"
-    num_groups: int = 32
-    proposal_append_gt: bool = True
-    softmax_temp: float = -1.0
-    in_features: List[str] = ["p2", "p3", "p4", "p5"]
-    track_loss: LossConfig
-    track_loss_aux: Optional[LossConfig]
-    proposal_pooler: RoIPoolerConfig
-    proposal_sampler: SamplerConfig
-    proposal_matcher: MatcherConfig
+from .base import BaseSimilarityHead
 
 
 class QDSimilarityHead(BaseSimilarityHead):
     """Instance embedding head for quasi-dense similarity learning."""
 
-    def __init__(self, cfg: SimilarityLearningConfig) -> None:
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        proposal_pooler: Union[ModuleCfg, BaseRoIPooler],
+        proposal_sampler: Union[ModuleCfg, BaseSampler],
+        proposal_matcher: Union[ModuleCfg, BaseMatcher],
+        track_loss: Union[ModuleCfg, BaseLoss] = MultiPosCrossEntropyLoss(),
+        track_loss_aux: Optional[Union[ModuleCfg, BaseLoss]] = None,
+        in_dim: int = 256,
+        num_convs: int = 4,
+        conv_out_dim: int = 256,
+        conv_has_bias: bool = False,
+        num_fcs: int = 1,
+        fc_out_dim: int = 1024,
+        embedding_dim: int = 256,
+        norm: str = "GroupNorm",
+        num_groups: int = 32,
+        proposal_append_gt: bool = True,
+        softmax_temp: float = -1.0,
+        in_features: Optional[List[str]] = None,
+    ) -> None:
         """Init."""
         super().__init__()
-        self.cfg = QDSimilarityHeadConfig(**cfg.dict())
+        self.in_dim = in_dim
+        self.num_convs = num_convs
+        self.conv_out_dim = conv_out_dim
+        self.conv_has_bias = conv_has_bias
+        self.num_fcs = num_fcs
+        self.fc_out_dim = fc_out_dim
+        self.norm = norm
+        self.num_groups = num_groups
+        self.proposal_append_gt = proposal_append_gt
+        self.softmax_temp = softmax_temp
+        self.in_features = in_features
+        if in_features is None:
+            self.in_features = ["p2", "p3", "p4", "p5"]
 
-        self.sampler = build_sampler(self.cfg.proposal_sampler)
-        self.matcher = build_matcher(self.cfg.proposal_matcher)
-        self.roi_pooler = build_roi_pooler(self.cfg.proposal_pooler)
+        if isinstance(proposal_sampler, dict):
+            self.sampler: BaseSampler = build_module(
+                proposal_sampler, bound=BaseSampler
+            )
+        else:  # pragma: no cover
+            self.sampler = proposal_sampler
+
+        if isinstance(proposal_matcher, dict):
+            self.matcher: BaseMatcher = build_module(
+                proposal_matcher, bound=BaseMatcher
+            )
+        else:  # pragma: no cover
+            self.matcher = proposal_matcher
+
+        if isinstance(proposal_pooler, dict):
+            self.roi_pooler: BaseRoIPooler = build_module(
+                proposal_pooler, bound=BaseRoIPooler
+            )
+        else:  # pragma: no cover
+            self.roi_pooler = proposal_pooler
 
         self.convs, self.fcs, last_layer_dim = self._init_embedding_head()
-        self.fc_embed = nn.Linear(last_layer_dim, self.cfg.embedding_dim)
+        self.fc_embed = nn.Linear(last_layer_dim, embedding_dim)
 
-        self.track_loss = build_loss(self.cfg.track_loss)
+        if isinstance(track_loss, dict):
+            self.track_loss: BaseLoss = build_module(
+                track_loss, bound=BaseLoss
+            )
+        else:  # pragma: no cover
+            self.track_loss = track_loss
         self.track_loss_aux: Optional[BaseLoss] = None
-        if self.cfg.track_loss_aux is not None:
-            self.track_loss_aux = build_loss(self.cfg.track_loss_aux)
+        if track_loss_aux is not None:
+            if isinstance(track_loss_aux, dict):
+                self.track_loss_aux = build_module(
+                    track_loss_aux, bound=BaseLoss
+                )
+            else:  # pragma: no cover
+                self.track_loss_aux = track_loss_aux
 
         self._init_weights()
 
@@ -91,43 +128,44 @@ class QDSimilarityHead(BaseSimilarityHead):
     ) -> Tuple[torch.nn.ModuleList, torch.nn.ModuleList, int]:
         """Init modules of head."""
         convs, last_layer_dim = add_conv_branch(
-            self.cfg.num_convs,
-            self.cfg.in_dim,
-            self.cfg.conv_out_dim,
-            self.cfg.conv_has_bias,
-            self.cfg.norm,
-            self.cfg.num_groups,
+            self.num_convs,
+            self.in_dim,
+            self.conv_out_dim,
+            self.conv_has_bias,
+            self.norm,
+            self.num_groups,
         )
 
         fcs = nn.ModuleList()
-        if self.cfg.num_fcs > 0:
-            last_layer_dim *= np.prod(self.cfg.proposal_pooler.resolution)
-            for i in range(self.cfg.num_fcs):
-                fc_in_dim = last_layer_dim if i == 0 else self.cfg.fc_out_dim
+        if self.num_fcs > 0:
+            last_layer_dim *= np.prod(self.roi_pooler.resolution)
+            for i in range(self.num_fcs):
+                fc_in_dim = last_layer_dim if i == 0 else self.fc_out_dim
                 fcs.append(
                     nn.Sequential(
-                        nn.Linear(fc_in_dim, self.cfg.fc_out_dim),
+                        nn.Linear(fc_in_dim, self.fc_out_dim),
                         nn.ReLU(inplace=True),
                     )
                 )
-            last_layer_dim = self.cfg.fc_out_dim
+            last_layer_dim = self.fc_out_dim
         return convs, fcs, last_layer_dim
 
     def _head_forward(
         self, features: FeatureMaps, boxes: List[Boxes2D]
     ) -> List[torch.Tensor]:
         """Similarity head forward pass."""
-        features_list = [features[f] for f in self.cfg.in_features]
-        x = self.roi_pooler.pool(features_list, boxes)
+        assert self.in_features is not None
+        features_list = [features[f] for f in self.in_features]
+        x = self.roi_pooler(features_list, boxes)
 
         # convs
-        if self.cfg.num_convs > 0:
+        if self.num_convs > 0:
             for conv in self.convs:
                 x = conv(x)
 
         # fcs
         x = torch.flatten(x, start_dim=1)
-        if self.cfg.num_fcs > 0:
+        if self.num_fcs > 0:
             for fc in self.fcs:
                 x = fc(x)
 
@@ -166,7 +204,7 @@ class QDSimilarityHead(BaseSimilarityHead):
                 self.sampler,
                 box,
                 tgt.boxes2d,
-                self.cfg.proposal_append_gt,
+                self.proposal_append_gt,
             )
             sampling_results.append(sampling_result)
 
@@ -260,7 +298,7 @@ class QDSimilarityHead(BaseSimilarityHead):
                     key_embed,
                     ref_embed_,
                     normalize=False,
-                    temperature=self.cfg.softmax_temp,
+                    temperature=self.softmax_temp,
                 )
                 dists_curr.append(dist)
                 if self.track_loss_aux is not None:

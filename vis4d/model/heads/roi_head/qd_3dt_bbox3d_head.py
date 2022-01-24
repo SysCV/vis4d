@@ -1,22 +1,22 @@
 """3D Box Head definition for QD-3DT."""
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common.bbox.coders import BaseBoxCoderConfig, build_box3d_coder
-from vis4d.common.bbox.matchers import MatcherConfig, build_matcher
-from vis4d.common.bbox.poolers import RoIPoolerConfig, build_roi_pooler
+from vis4d.common.bbox.coders import BaseBoxCoder3D, QD3DTBox3DCoder
+from vis4d.common.bbox.matchers import BaseMatcher
+from vis4d.common.bbox.poolers import BaseRoIPooler
 from vis4d.common.bbox.samplers import (
-    SamplerConfig,
+    BaseSampler,
     SamplingResult,
-    build_sampler,
     match_and_sample_proposals,
 )
 from vis4d.common.geometry.rotation import generate_rotation_output
 from vis4d.common.layers import add_conv_branch
-from vis4d.model.losses import LossConfig, build_loss
+from vis4d.common.module import build_module
+from vis4d.model.losses import BaseLoss, Box3DUncertaintyLoss
 from vis4d.struct import (
     Boxes2D,
     Boxes3D,
@@ -25,59 +25,79 @@ from vis4d.struct import (
     Intrinsics,
     LabelInstances,
     LossesType,
+    ModuleCfg,
 )
 
-from .base import BaseRoIHead, BaseRoIHeadConfig
+from .base import Det3DRoIHead
 
 
-class QD3DTBBox3DHeadConfig(BaseRoIHeadConfig):
-    """QD-3DT 3D Bounding Box Head config."""
-
-    num_shared_convs: int = 2
-    num_shared_fcs: int = 0
-    num_dep_convs: int = 4
-    num_dep_fcs: int = 0
-    num_dim_convs: int = 4
-    num_dim_fcs: int = 0
-    num_rot_convs: int = 4
-    num_rot_fcs: int = 0
-    num_2dc_convs: int = 4
-    num_2dc_fcs: int = 0
-    in_channels: int = 256
-    conv_out_dim: int = 256
-    fc_out_dim: int = 1024
-    roi_feat_size: int = 7
-    num_classes: int
-    conv_has_bias: bool = True
-    norm: Optional[str] = None
-    num_groups: int = 32
-    num_rotation_bins: int = 2
-
-    loss: LossConfig
-    box3d_coder: BaseBoxCoderConfig
-
-    proposal_append_gt: bool
-    in_features: List[str] = ["p2", "p3", "p4", "p5"]
-    proposal_pooler: RoIPoolerConfig
-    proposal_sampler: SamplerConfig
-    proposal_matcher: MatcherConfig
-
-
-class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
+class QD3DTBBox3DHead(Det3DRoIHead):
     """QD-3DT 3D Bounding Box Head."""
 
-    def __init__(self, cfg: BaseRoIHeadConfig) -> None:
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        num_classes: int,
+        proposal_pooler: Union[ModuleCfg, BaseRoIPooler],
+        proposal_sampler: Union[ModuleCfg, BaseSampler],
+        proposal_matcher: Union[ModuleCfg, BaseMatcher],
+        box3d_coder: Union[ModuleCfg, BaseBoxCoder3D] = QD3DTBox3DCoder(),
+        loss: Union[ModuleCfg, BaseLoss] = Box3DUncertaintyLoss(),
+        proposal_append_gt: bool = True,
+        num_shared_convs: int = 2,
+        num_shared_fcs: int = 0,
+        num_dep_convs: int = 4,
+        num_dep_fcs: int = 0,
+        num_dim_convs: int = 4,
+        num_dim_fcs: int = 0,
+        num_rot_convs: int = 4,
+        num_rot_fcs: int = 0,
+        num_2dc_convs: int = 4,
+        num_2dc_fcs: int = 0,
+        in_channels: int = 256,
+        conv_out_dim: int = 256,
+        fc_out_dim: int = 1024,
+        roi_feat_size: int = 7,
+        conv_has_bias: bool = False,
+        norm: Optional[str] = None,
+        num_groups: int = 32,
+        num_rotation_bins: int = 2,
+        in_features: Tuple[str, ...] = ("p2", "p3", "p4", "p5"),
+    ) -> None:
         """Init."""
         super().__init__()
-        self.cfg = QD3DTBBox3DHeadConfig(**cfg.dict())
+        self.num_shared_convs = num_shared_convs
+        self.num_shared_fcs = num_shared_fcs
+        self.num_rotation_bins = num_rotation_bins
+        self.in_features = in_features
+        self.proposal_append_gt = proposal_append_gt
+        self.cls_out_channels = num_classes
+        if isinstance(proposal_sampler, dict):
+            self.sampler: BaseSampler = build_module(
+                proposal_sampler, bound=BaseSampler
+            )
+        else:
+            self.sampler = proposal_sampler
 
-        self.cls_out_channels = self.cfg.num_classes
+        if isinstance(proposal_matcher, dict):
+            self.matcher: BaseMatcher = build_module(
+                proposal_matcher, bound=BaseMatcher
+            )
+        else:
+            self.matcher = proposal_matcher
 
-        self.sampler = build_sampler(self.cfg.proposal_sampler)
-        self.matcher = build_matcher(self.cfg.proposal_matcher)
-        self.roi_pooler = build_roi_pooler(self.cfg.proposal_pooler)
+        if isinstance(proposal_pooler, dict):
+            self.roi_pooler: BaseRoIPooler = build_module(
+                proposal_pooler, bound=BaseRoIPooler
+            )
+        else:
+            self.roi_pooler = proposal_pooler
 
-        self.bbox_coder = build_box3d_coder(self.cfg.box3d_coder)
+        if isinstance(box3d_coder, dict):
+            self.bbox_coder: BaseBoxCoder3D = build_module(
+                box3d_coder, bound=BaseBoxCoder3D
+            )
+        else:
+            self.bbox_coder = box3d_coder
 
         # add shared convs and fcs
         (
@@ -85,9 +105,14 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
             self.shared_fcs,
             self.shared_out_channels,
         ) = self._add_conv_fc_branch(
-            self.cfg.num_shared_convs,
-            self.cfg.num_shared_fcs,
-            self.cfg.in_channels,
+            num_shared_convs,
+            num_shared_fcs,
+            in_channels,
+            conv_out_dim,
+            fc_out_dim,
+            conv_has_bias,
+            norm,
+            num_groups,
             True,
         )
 
@@ -97,9 +122,14 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
             self.dep_fcs,
             self.dep_last_dim,
         ) = self._add_conv_fc_branch(
-            self.cfg.num_dep_convs,
-            self.cfg.num_dep_fcs,
+            num_dep_convs,
+            num_dep_fcs,
             self.shared_out_channels,
+            conv_out_dim,
+            fc_out_dim,
+            conv_has_bias,
+            norm,
+            num_groups,
         )
 
         # add dim specific branch
@@ -108,9 +138,14 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
             self.dim_fcs,
             self.dim_last_dim,
         ) = self._add_conv_fc_branch(
-            self.cfg.num_dim_convs,
-            self.cfg.num_dim_fcs,
+            num_dim_convs,
+            num_dim_fcs,
             self.shared_out_channels,
+            conv_out_dim,
+            fc_out_dim,
+            conv_has_bias,
+            norm,
+            num_groups,
         )
 
         # add rot specific branch
@@ -119,9 +154,14 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
             self.rot_fcs,
             self.rot_last_dim,
         ) = self._add_conv_fc_branch(
-            self.cfg.num_rot_convs,
-            self.cfg.num_rot_fcs,
+            num_rot_convs,
+            num_rot_fcs,
             self.shared_out_channels,
+            conv_out_dim,
+            fc_out_dim,
+            conv_has_bias,
+            norm,
+            num_groups,
         )
 
         # add 2dc specific branch
@@ -130,28 +170,25 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
             self.cen_2d_fcs,
             self.cen_2d_last_dim,
         ) = self._add_conv_fc_branch(
-            self.cfg.num_2dc_convs,
-            self.cfg.num_2dc_fcs,
+            num_2dc_convs,
+            num_2dc_fcs,
             self.shared_out_channels,
+            conv_out_dim,
+            fc_out_dim,
+            conv_has_bias,
+            norm,
+            num_groups,
         )
 
-        if self.cfg.num_shared_fcs == 0:
-            if self.cfg.num_dep_fcs == 0:
-                self.dep_last_dim *= (
-                    self.cfg.roi_feat_size * self.cfg.roi_feat_size
-                )
-            if self.cfg.num_dim_fcs == 0:
-                self.dim_last_dim *= (
-                    self.cfg.roi_feat_size * self.cfg.roi_feat_size
-                )
-            if self.cfg.num_rot_fcs == 0:
-                self.rot_last_dim *= (
-                    self.cfg.roi_feat_size * self.cfg.roi_feat_size
-                )
-            if self.cfg.num_2dc_fcs == 0:
-                self.cen_2d_last_dim *= (
-                    self.cfg.roi_feat_size * self.cfg.roi_feat_size
-                )
+        if num_shared_fcs == 0:
+            if num_dep_fcs == 0:
+                self.dep_last_dim *= roi_feat_size * roi_feat_size
+            if num_dim_fcs == 0:
+                self.dim_last_dim *= roi_feat_size * roi_feat_size
+            if num_rot_fcs == 0:
+                self.rot_last_dim *= roi_feat_size * roi_feat_size
+            if num_2dc_fcs == 0:
+                self.cen_2d_last_dim *= roi_feat_size * roi_feat_size
 
         self.relu = nn.ReLU(inplace=True)
         # reconstruct fc_cls and fc_reg since input channels are changed
@@ -163,7 +200,7 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         out_dim_size = 3 * self.cls_out_channels
         self.fc_dim = nn.Linear(self.dim_last_dim, out_dim_size)
 
-        out_rot_size = 3 * self.cfg.num_rotation_bins * self.cls_out_channels
+        out_rot_size = 3 * num_rotation_bins * self.cls_out_channels
         self.fc_rot = nn.Linear(self.rot_last_dim, out_rot_size)
 
         out_2dc_size = 2 * self.cls_out_channels
@@ -172,14 +209,16 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         self._init_weights()
 
         # losses
-        self.loss = build_loss(self.cfg.loss)
+        if isinstance(loss, dict):
+            self.loss: BaseLoss = build_module(loss, bound=BaseLoss)
+        else:
+            self.loss = loss
+
         assert (
-            self.bbox_coder.cfg.num_rotation_bins  # type: ignore
-            == self.cfg.num_rotation_bins
-            == self.loss.cfg.num_rotation_bins
+            self.bbox_coder.num_rotation_bins == self.loss.num_rotation_bins
         ), (
-            "num_rotation_bins must be consistent between head, "
-            "loss and box coder."
+            "num_rotation_bins must be consistent between head, loss and box "
+            "coder."
         )
 
     def _init_weights(self) -> None:
@@ -202,6 +241,11 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         num_branch_convs: int,
         num_branch_fcs: int,
         in_channels: int,
+        conv_out_dim: int,
+        fc_out_dim: int,
+        conv_has_bias: bool,
+        norm: Optional[str],
+        num_groups: int,
         is_shared: bool = False,
     ) -> Tuple[nn.ModuleList, nn.ModuleList, int]:
         """Init modules of head."""
@@ -210,25 +254,25 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         convs, last_layer_dim = add_conv_branch(
             num_branch_convs,
             in_channels,
-            self.cfg.conv_out_dim,
-            self.cfg.conv_has_bias,
-            self.cfg.norm,
-            self.cfg.num_groups,
+            conv_out_dim,
+            conv_has_bias,
+            norm,
+            num_groups,
         )
 
         fcs = nn.ModuleList()
         if num_branch_fcs > 0:
-            if is_shared or self.cfg.num_shared_fcs == 0:
-                last_layer_dim *= np.prod(self.cfg.proposal_pooler.resolution)
+            if is_shared or num_branch_fcs == 0:
+                last_layer_dim *= np.prod(self.roi_pooler.resolution)
             for i in range(num_branch_fcs):
-                fc_in_dim = last_layer_dim if i == 0 else self.cfg.fc_out_dim
+                fc_in_dim = last_layer_dim if i == 0 else fc_out_dim
                 fcs.append(
                     nn.Sequential(
-                        nn.Linear(fc_in_dim, self.cfg.fc_out_dim),
+                        nn.Linear(fc_in_dim, fc_out_dim),
                         nn.ReLU(inplace=True),
                     )
                 )
-            last_layer_dim = self.cfg.fc_out_dim
+            last_layer_dim = fc_out_dim
         return convs, fcs, last_layer_dim
 
     def get_embeds(
@@ -236,11 +280,11 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Generate embedding from bbox feature."""
         # shared part
-        if self.cfg.num_shared_convs > 0:
+        if self.num_shared_convs > 0:
             for conv in self.shared_convs:
                 feat = conv(feat)
 
-        if self.cfg.num_shared_fcs > 0:
+        if self.num_shared_fcs > 0:
             feat = feat.view(feat.size(0), -1)
             for fc in self.shared_fcs:
                 feat = self.relu(fc(feat))
@@ -289,15 +333,15 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         x_2dc: torch.Tensor,
     ) -> torch.Tensor:
         """Generate output 3D bounding box parameters."""
-        depth = self.fc_dep(x_dep).view(-1, self.cfg.num_classes, 1)
+        depth = self.fc_dep(x_dep).view(-1, self.cls_out_channels, 1)
         depth_uncertainty = self.fc_dep_uncer(x_dep).view(
-            -1, self.cfg.num_classes, 1
+            -1, self.cls_out_channels, 1
         )
-        dim = self.fc_dim(x_dim).view(-1, self.cfg.num_classes, 3)
+        dim = self.fc_dim(x_dim).view(-1, self.cls_out_channels, 3)
         alpha = generate_rotation_output(
-            self.fc_rot(x_rot), self.cfg.num_rotation_bins
+            self.fc_rot(x_rot), self.num_rotation_bins
         )
-        delta_2dc = self.fc_2dc(x_2dc).view(-1, self.cfg.num_classes, 2)
+        delta_2dc = self.fc_2dc(x_2dc).view(-1, self.cls_out_channels, 2)
         return torch.cat([delta_2dc, depth, dim, alpha, depth_uncertainty], -1)
 
     def get_predictions(
@@ -306,7 +350,7 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
         boxes: List[Boxes2D],
     ) -> List[torch.Tensor]:
         """Get 3D bounding box prediction parameters."""
-        roi_feats = self.roi_pooler.pool(features_list, boxes)
+        roi_feats = self.roi_pooler(features_list, boxes)
         x_dep, x_dim, x_rot, x_2dc = self.get_embeds(roi_feats)
         outputs: List[torch.Tensor] = self.get_outputs(
             x_dep, x_dim, x_rot, x_2dc
@@ -337,16 +381,16 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
     def forward_train(
         self,
         inputs: InputSample,
-        boxes: List[Boxes2D],
         features: FeatureMaps,
+        boxes: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, SamplingResult]:
         """Forward pass during training stage.
 
         Args:
             inputs: InputSamples (images, metadata, etc). Batched.
-            boxes: Input boxes to apply RoIHead on.
             features: Input feature maps. Batched.
+            boxes: Input boxes to apply RoIHead on.
             targets: Targets corresponding to InputSamples.
 
         Returns:
@@ -354,7 +398,7 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
             SamplingResult: Sampling result.
         """
         assert features is not None, "QD-3DT box3D head requires features!"
-        features_list = [features[f] for f in self.cfg.in_features]
+        features_list = [features[f] for f in self.in_features]
 
         # match and sample
         sampling_results = match_and_sample_proposals(
@@ -362,7 +406,7 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
             self.sampler,
             boxes,
             inputs.targets.boxes2d,
-            self.cfg.proposal_append_gt,
+            self.proposal_append_gt,
         )
         positives = [l == 1 for l in sampling_results.sampled_labels]
         pos_assigned_gt_inds = [
@@ -386,15 +430,15 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
     def forward_test(
         self,
         inputs: InputSample,
-        boxes: List[Boxes2D],
         features: FeatureMaps,
+        boxes: List[Boxes2D],
     ) -> List[Boxes3D]:
         """Forward pass during testing stage.
 
         Args:
             inputs: InputSamples (images, metadata, etc). Batched.
-            boxes: Input boxes to apply RoIHead on.
             features: Input feature maps. Batched.
+            boxes: Input boxes to apply RoIHead on.
 
         Returns:
             List[Boxes3D]: Prediction output.
@@ -404,7 +448,7 @@ class QD3DTBBox3DHead(BaseRoIHead[SamplingResult, List[Boxes3D]]):
             dev = boxes[0].device
             return [Boxes3D.empty(dev) for _ in range(len(boxes))]
 
-        features_list = [features[f] for f in self.cfg.in_features]
+        features_list = [features[f] for f in self.in_features]
         predictions = self.get_predictions(features_list, boxes)
 
         return self.bbox_coder.decode(boxes, predictions, inputs.intrinsics)

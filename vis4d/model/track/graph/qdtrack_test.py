@@ -8,7 +8,6 @@ from vis4d.common.bbox.utils import bbox_iou
 from vis4d.struct import Boxes2D, Images, InputSample, LabelInstances
 from vis4d.unittest.utils import generate_dets
 
-from .base import TrackGraphConfig
 from .qdtrack import QDTrackGraph
 
 
@@ -17,9 +16,7 @@ class TestQDTrackGraph(unittest.TestCase):
 
     def test_get_tracks(self) -> None:
         """Testcase for get tracks method."""
-        tracker = QDTrackGraph(
-            TrackGraphConfig(type="qdtrack", keep_in_memory=3)
-        )
+        tracker = QDTrackGraph(keep_in_memory=3)
 
         h, w, num_dets = 128, 128, 64
         detections = generate_dets(h, w, num_dets)
@@ -42,9 +39,7 @@ class TestQDTrackGraph(unittest.TestCase):
 
     def test_track(self) -> None:
         """Testcase for tracking function."""
-        tracker = QDTrackGraph(
-            TrackGraphConfig(type="qdtrack", keep_in_memory=3)
-        )
+        tracker = QDTrackGraph(keep_in_memory=3)
 
         h, w, num_dets = 128, 128, 64
         sample = InputSample(
@@ -63,7 +58,7 @@ class TestQDTrackGraph(unittest.TestCase):
 
         empty_det = LabelInstances([Boxes2D(torch.empty(0, 5))])
         empty_emb = [torch.empty(0, 128)]
-        for i in range(tracker.cfg.keep_in_memory + 1):
+        for i in range(tracker.keep_in_memory + 1):
             sample.metadata[0].frameIndex = 3 + i
             result_final = tracker(sample, empty_det, embeddings=empty_emb)
 
@@ -80,10 +75,8 @@ class TestQDTrackGraph(unittest.TestCase):
 
         # check if all tracks have scores >= threshold
         for res in [result_t0, result_t1, result_t2]:
-            self.assertTrue(
-                (res.boxes[:, -1] >= tracker.cfg.obj_score_thr).all()
-            )
+            self.assertTrue((res.boxes[:, -1] >= tracker.obj_score_thr).all())
 
             # check if tracks do not overlap too much
             ious = bbox_iou(res, res) - torch.eye(len(res.boxes))
-            self.assertTrue((ious <= tracker.cfg.nms_class_iou_thr).all())
+            self.assertTrue((ious <= tracker.nms_class_iou_thr).all())

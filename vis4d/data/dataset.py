@@ -1,6 +1,6 @@
 """Class for processing Scalabel type datasets."""
 import random
-from typing import List
+from typing import List, Union
 
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
@@ -9,11 +9,12 @@ from pytorch_lightning.utilities.distributed import (
 from scalabel.label.utils import get_leaf_categories
 from torch.utils.data import Dataset
 
+from ..common.registry import build_component
 from ..common.utils.time import Timer
-from ..struct import InputSample
+from ..struct import InputSample, ModuleCfg
 from .datasets import BaseDatasetLoader
-from .mapper import build_mapper
-from .reference import build_reference_sampler
+from .mapper import BaseSampleMapper
+from .reference import BaseReferenceSampler
 from .utils import (
     DatasetFromList,
     discard_labels_outside_set,
@@ -30,42 +31,57 @@ class ScalabelDataset(Dataset):  # type: ignore
         self,
         dataset: BaseDatasetLoader,
         training: bool,
-        image_channel_mode: str = "RGB",
+        mapper: Union[BaseSampleMapper, ModuleCfg] = BaseSampleMapper(),
+        ref_sampler: Union[
+            BaseReferenceSampler, ModuleCfg
+        ] = BaseReferenceSampler(),
     ):
         """Init."""
-        rank_zero_info("Initializing dataset: %s", dataset.cfg.name)
-        self.cfg = dataset.cfg
+        rank_zero_info("Initializing dataset: %s", dataset.name)
         self.training = training
-        cats_name2id = self.cfg.category_mapping
+        cats_name2id = dataset.category_mapping
         if cats_name2id is not None:
-            class_list = list(
-                set(
-                    cls
-                    for field in cats_name2id
-                    for cls in list(cats_name2id[field].keys())
+            if isinstance(list(cats_name2id.values())[0], int):
+                class_list = list(set(cls for cls in cats_name2id))
+            else:
+                class_list = list(
+                    set(
+                        cls
+                        for field in cats_name2id
+                        for cls in list(cats_name2id[field].keys())  # type: ignore  # pylint: disable=line-too-long
+                    )
                 )
-            )
             discard_labels_outside_set(dataset.frames, class_list)
         else:
-            class_list = [
-                c.name
-                for c in get_leaf_categories(dataset.metadata_cfg.categories)
-            ]
-            cats_name2id = {"all": {v: i for i, v in enumerate(class_list)}}
+            class_list = list(
+                set(
+                    c.name
+                    for c in get_leaf_categories(
+                        dataset.metadata_cfg.categories
+                    )
+                )
+            )
+            cats_name2id = {v: i for i, v in enumerate(class_list)}
         self.cats_name2id = cats_name2id
 
-        self.mapper = build_mapper(
-            self.cfg.sample_mapper, cats_name2id, training, image_channel_mode
-        )
-        dataset.frames = filter_attributes(
-            dataset.frames, dataset.cfg.attributes
-        )
+        if isinstance(mapper, dict):
+            if "type" not in mapper:
+                mapper["type"] = "BaseSampleMapper"
+            self.mapper: BaseSampleMapper = build_component(
+                mapper, bound=BaseSampleMapper
+            )
+        else:
+            self.mapper = mapper
+        self.mapper.setup_categories(cats_name2id)
+        self.mapper.set_training(self.training)
+
+        dataset.frames = filter_attributes(dataset.frames, dataset.attributes)
 
         t = Timer()
         frequencies = prepare_labels(
             dataset.frames,
             class_list,
-            self.cfg.compute_global_instance_ids,
+            dataset.compute_global_instance_ids,
         )
         rank_zero_info(
             f"Preprocessing {len(dataset.frames)} frames takes {t.time():.2f}"
@@ -80,7 +96,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             prepare_labels(
                 self.dataset.groups,
                 class_list,
-                self.cfg.compute_global_instance_ids,
+                dataset.compute_global_instance_ids,
             )
             rank_zero_info(
                 f"Preprocessing {len(self.dataset.groups)} groups takes "
@@ -89,11 +105,19 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.dataset.groups = DatasetFromList(self.dataset.groups)
 
         self._fallback_candidates = set(range(len(self.dataset.frames)))
-        self.ref_sampler = build_reference_sampler(
-            self.cfg.ref_sampler,
-            self.dataset.frames,
-            self.dataset.groups,
+
+        if isinstance(ref_sampler, dict):
+            if "type" not in ref_sampler:
+                ref_sampler["type"] = "BaseReferenceSampler"
+            self.ref_sampler: BaseReferenceSampler = build_component(
+                ref_sampler, bound=BaseReferenceSampler
+            )
+        else:
+            self.ref_sampler = ref_sampler
+        self.ref_sampler.create_mappings(
+            self.dataset.frames, self.dataset.groups
         )
+
         self.has_sequences = bool(self.ref_sampler.video_to_indices)
         self._show_retry_warn = True
 
@@ -111,7 +135,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         if not self.training:
             if self.dataset.groups is not None:
                 group = self.dataset.groups[cur_idx]
-                if not self.cfg.multi_sensor_inference:
+                if not self.dataset.multi_sensor_inference:
                     cur_data = self.mapper(
                         self.dataset.frames[
                             self.ref_sampler.frame_name_to_idx[group.frames[0]]
@@ -161,7 +185,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                     input_data.metadata[0].attributes = {}
                 input_data.metadata[0].attributes["keyframe"] = True
 
-                if self.ref_sampler.cfg.num_ref_imgs > 0:
+                if self.ref_sampler.num_ref_imgs > 0:
                     ref_data = self.ref_sampler(
                         cur_idx, input_data, self.mapper, parameters
                     )

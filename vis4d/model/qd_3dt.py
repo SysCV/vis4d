@@ -1,49 +1,47 @@
 """Quasi-dense 3D Tracking model."""
-from typing import List
+from typing import List, Union
 
 import torch
 
-from ..struct import (
+from vis4d.common.module import build_module
+from vis4d.struct import (
+    ArgsType,
     Boxes2D,
     Boxes3D,
     InputSample,
     LabelInstances,
     LossesType,
     ModelOutput,
+    ModuleCfg,
 )
-from .base import BaseModelConfig
+
 from .detect import BaseTwoStageDetector
-from .heads.roi_head import BaseRoIHeadConfig, QD3DTBBox3DHead, build_roi_head
-from .qdtrack import QDTrack, QDTrackConfig
-from .track.graph import build_track_graph
+from .heads.roi_head import BaseRoIHead, Det3DRoIHead
+from .qdtrack import QDTrack
 from .track.utils import split_key_ref_inputs
-
-
-class QD3DTConfig(QDTrackConfig):
-    """Config for quasi-dense 3D tracking model."""
-
-    bbox_3d_head: BaseRoIHeadConfig
 
 
 class QD3DT(QDTrack):
     """QD-3DT model class."""
 
-    def __init__(self, cfg: BaseModelConfig) -> None:
-        """Init."""
-        super().__init__(cfg)
-        self.cfg = QD3DTConfig(**cfg.dict())
-        assert self.cfg.category_mapping is not None
-        self.cfg.bbox_3d_head.num_classes = len(self.cfg.category_mapping)  # type: ignore # pylint: disable=line-too-long
-        self.bbox_3d_head: QD3DTBBox3DHead = build_roi_head(
-            self.cfg.bbox_3d_head
-        )
-        self.track_graph = build_track_graph(self.cfg.track_graph)
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
-
-    def forward_train(
+    def __init__(
         self,
-        batch_inputs: List[InputSample],
-    ) -> LossesType:
+        bbox_3d_head: Union[Det3DRoIHead, ModuleCfg],
+        *args: ArgsType,
+        **kwargs: ArgsType
+    ) -> None:
+        """Init."""
+        super().__init__(*args, **kwargs)
+        assert self.category_mapping is not None
+        if isinstance(bbox_3d_head, dict):
+            bbox_3d_head["num_classes"] = len(self.category_mapping)
+            self.bbox_3d_head: Det3DRoIHead = build_module(
+                bbox_3d_head, bound=BaseRoIHead
+            )
+        else:  # pragma: no cover
+            self.bbox_3d_head = bbox_3d_head
+
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward function for training."""
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
         key_targets = key_inputs.targets
@@ -58,15 +56,12 @@ class QD3DT(QDTrack):
 
         # 3d bbox head
         loss_bbox_3d, _ = self.bbox_3d_head(
-            key_inputs, key_proposals, key_x, key_targets
+            key_inputs, key_x, key_proposals, key_targets
         )
         losses.update(loss_bbox_3d)
         return losses
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> ModelOutput:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Compute qd-3dt output during inference."""
         assert len(batch_inputs[0]) == 1, "Currently only BS = 1 supported!"
 
@@ -88,7 +83,7 @@ class QD3DT(QDTrack):
         )
 
         # 3d head
-        boxes3d_list = self.bbox_3d_head(frames, boxes2d_list, feat)
+        boxes3d_list = self.bbox_3d_head(frames, feat, boxes2d_list)
 
         # similarity head
         embeddings_list = self.similarity_head(frames, boxes2d_list, feat)
@@ -102,7 +97,7 @@ class QD3DT(QDTrack):
             boxes2d.postprocess(
                 input_size,
                 inp.images.image_sizes[0],
-                self.detector.cfg.clip_bboxes_to_image,
+                self.detector.clip_bboxes_to_image,
             )
 
         boxes2d = Boxes2D.merge(boxes2d_list)

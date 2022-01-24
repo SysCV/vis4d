@@ -1,22 +1,28 @@
 """DefaultTrainer for Vis4D."""
 import os.path as osp
 from itertools import product
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import pandas
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
     rank_zero_warn,
 )
+from torch.utils import data
 
+from vis4d.data.samplers import build_data_sampler
+
+from ..common.registry import build_component
 from ..config import Config, default_argument_parser, parse_config
-from ..data import build_data_module, build_dataset_loaders
-from ..data.datasets import BaseDatasetConfig
-from ..model import build_model
-from ..struct import DictStrAny
+from ..data.build import Vis4DDataModule
+from ..data.dataset import ScalabelDataset
+from ..data.datasets import BaseDatasetLoader, Custom
+from ..model import BaseModel, build_model
+from ..struct import DictStrAny, ModuleCfg
 from ..vis import ScalabelWriterCallback
 from .evaluator import StandardEvaluatorCallback
 from .utils import (
@@ -129,7 +135,12 @@ def default_setup(
                     find_unused_parameters=cfg.launch.find_unused_parameters
                 )
                 trainer_args["plugins"] = [ddp_plugin]
-            if cfg.data.train_sampler is not None and training:
+            if (
+                cfg.data is not None
+                and "train_sampler" in cfg.data
+                and cfg.data["train_sampler"] is not None
+                and training
+            ):
                 # using custom sampler
                 trainer_args["replace_sampler_ddp"] = False
 
@@ -143,232 +154,201 @@ def default_setup(
 
 
 def setup_category_mapping(
-    data_cfgs: List[BaseDatasetConfig],
+    data_cfgs: List[ModuleCfg],
     model_category_mapping: Optional[Dict[str, int]],
 ) -> None:
     """Setup category_mapping for each dataset."""
     for data_cfg in data_cfgs:
-        if data_cfg.category_mapping is None:
+        if (
+            "category_mapping" not in data_cfg
+            or data_cfg["category_mapping"] is None
+        ):
             if model_category_mapping is not None:
                 # default to using model category_mapping, if exists
-                data_cfg.category_mapping = {"all": model_category_mapping}
+                data_cfg["category_mapping"] = model_category_mapping
             continue
-        if "all" in data_cfg.category_mapping:
-            if len(data_cfg.category_mapping) > 1:
-                rank_zero_warn(
-                    f'"all" category mapping is specified for {data_cfg.name}'
-                    " but other mappings exist. These will be ignored."
-                )
-            data_cfg.category_mapping = {
-                "all": data_cfg.category_mapping["all"]
-            }
+
+
+def build_datasets(
+    dset_cfgs: List[ModuleCfg], image_channel_mode: str, training: bool = True
+) -> List[ScalabelDataset]:
+    """Build datasets based on configs."""
+    datasets: List[ScalabelDataset] = []
+    for dl_cfg in dset_cfgs:
+        mapper_cfg = dl_cfg.pop("sample_mapper", {})
+        if (
+            "image_channel_mode" in mapper_cfg
+            and mapper_cfg["image_channel_mode"] != image_channel_mode
+        ):  # pragma: no cover
+            rank_zero_warn(
+                f"'image_channel_mode'={mapper_cfg['image_channel_mode']} "
+                "specified in SampleMapper configuration, but model expects "
+                f"{image_channel_mode}. Switching to mode required by model."
+            )
+        mapper_cfg["image_channel_mode"] = image_channel_mode
+
+        ref_cfg = dl_cfg.pop("ref_sampler", {})
+        datasets.append(
+            ScalabelDataset(
+                build_component(dl_cfg, bound=BaseDatasetLoader),
+                training,
+                mapper_cfg,
+                ref_cfg,
+            )
+        )
+    return datasets
+
+
+def build_callbacks(
+    datasets: List[ScalabelDataset],
+    out_dir: Optional[str] = None,
+    is_predict: bool = False,
+    visualize: bool = False,
+) -> List[Callback]:
+    """Build callbacks."""
+    callbacks: List[Callback] = []
+    for i, d in enumerate(datasets):
+        out = (
+            osp.join(out_dir, d.dataset.name) if out_dir is not None else None
+        )
+        if not is_predict:
+            callbacks.append(StandardEvaluatorCallback(i, d.dataset, out))
         else:
-            # validate category_mappings according to fields_to_load
-            fields = data_cfg.sample_mapper.fields_to_load
-            for field in fields:
-                assert (
-                    field in data_cfg.category_mapping
-                ), f"category_mapping not found for field={field}"
+            assert out is not None
+            callbacks.append(ScalabelWriterCallback(i, out, visualize))
+    return callbacks
 
 
-def train(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
-    """Training function."""
-    trainer = default_setup(cfg, trainer_args)
+def setup_experiment(
+    cfg: Config, trainer_args: DictStrAny
+) -> Tuple[pl.Trainer, BaseModel, pl.LightningDataModule]:
+    """Build trainer, model, and data module."""
+    # setup trainer
+    is_train = cfg.launch.action == "train"
+    trainer = default_setup(cfg, trainer_args, training=is_train)
+
+    # setup model
     model = build_model(
         cfg.model,
-        cfg.launch.weights if not cfg.launch.resume else None,
+        cfg.launch.weights if not cfg.launch.resume or not is_train else None,
         not cfg.launch.not_strict,
         cfg.launch.legacy_ckpt,
     )
 
     # setup category_mappings
-    setup_category_mapping(cfg.train + cfg.test, cfg.model.category_mapping)
+    setup_category_mapping(cfg.train + cfg.test, cfg.model["category_mapping"])
 
-    # build dataloaders
-    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
-        cfg.train, cfg.test
+    # build datasets
+    cmode = (
+        cfg.model["image_channel_mode"]
+        if "image_channel_mode" in cfg.model
+        else "RGB"
     )
+    train_datasets = build_datasets(cfg.train, cmode) if is_train else None
+    test_datasets, predict_datasets = None, None
+    train_sampler: Optional[data.Sampler[List[int]]] = None
+    if cfg.launch.action == "train":
+        if cfg.data is not None and "train_sampler" in cfg.data:
+            # build custom train sampler
+            train_sampler = build_data_sampler(
+                cfg.data["train_sampler"],
+                data.ConcatDataset(train_datasets),
+                cfg.launch.samples_per_gpu,
+            )
+    if cfg.launch.action == "predict":
+        if cfg.launch.input_dir:
+            input_dir = cfg.launch.input_dir
+            if input_dir[-1] == "/":
+                input_dir = input_dir[:-1]
+            dataset_name = osp.basename(input_dir)
+            predict_loaders = [Custom(name=dataset_name, data_root=input_dir)]
+            predict_datasets = [
+                ScalabelDataset(dl, False) for dl in predict_loaders
+            ]
+        else:
+            predict_datasets = build_datasets(cfg.test, cmode, False)
+    else:
+        test_datasets = build_datasets(cfg.test, cmode, False)
 
-    data_module = build_data_module(
+    # build data module
+    data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
-        train_loaders,
-        test_loaders,
-        predict_loaders,
-        cfg.model.image_channel_mode,
-        cfg.launch.seed,
-        cfg.data,
+        train_datasets=train_datasets,
+        test_datasets=test_datasets,
+        predict_datasets=predict_datasets,
+        seed=cfg.launch.seed,
+        train_sampler=train_sampler,
     )
 
-    if len(test_loaders) > 0:
-        evaluators = [
-            StandardEvaluatorCallback(i, dl)
-            for i, dl in enumerate(test_loaders)
-        ]
-        trainer.callbacks += evaluators  # pylint: disable=no-member
+    # setup callbacks
+    test_dir = osp.join(
+        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
+    )
+    if cfg.launch.action == "train":
+        if test_datasets is not None and len(test_datasets) > 0:
+            trainer.callbacks += build_callbacks(  # pylint: disable=no-member
+                test_datasets
+            )
+    elif cfg.launch.action == "test":
+        assert test_datasets is not None and len(
+            test_datasets
+        ), "No test datasets specified!"
+        trainer.callbacks += build_callbacks(  # pylint: disable=no-member
+            test_datasets, test_dir
+        )
+    elif cfg.launch.action == "predict":
+        assert (
+            predict_datasets is not None and len(predict_datasets) > 0
+        ), "No predict datasets specified!"
+        trainer.callbacks += build_callbacks(  # pylint: disable=no-member
+            predict_datasets, test_dir, True, cfg.launch.visualize
+        )
+    elif cfg.launch.action == "tune":
+        assert test_datasets is not None and len(
+            test_datasets
+        ), "No test datasets specified!"
+        trainer.callbacks += build_callbacks(  # pylint: disable=no-member
+            test_datasets, test_dir
+        )
+    else:
+        raise NotImplementedError(f"Action {cfg.launch.action} not known!")
+
+    return trainer, model, data_module
+
+
+def train(
+    trainer: pl.Trainer, model: BaseModel, data_module: pl.LightningDataModule
+) -> None:
+    """Training function."""
     trainer.fit(model, data_module)
 
 
-def test(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
+def test(
+    trainer: pl.Trainer, model: BaseModel, data_module: pl.LightningDataModule
+) -> None:
     """Test function."""
-    trainer = default_setup(cfg, trainer_args, training=False)
-    model = build_model(
-        cfg.model,
-        cfg.launch.weights,
-        not cfg.launch.not_strict,
-        cfg.launch.legacy_ckpt,
-    )
-
-    # setup category_mappings
-    setup_category_mapping(cfg.test, cfg.model.category_mapping)
-
-    # build dataloaders
-    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
-        [], cfg.test
-    )
-
-    data_module = build_data_module(
-        cfg.launch.samples_per_gpu,
-        cfg.launch.workers_per_gpu,
-        train_loaders,
-        test_loaders,
-        predict_loaders,
-        cfg.model.image_channel_mode,
-        cfg.launch.seed,
-        cfg.data,
-    )
-
-    assert len(test_loaders), "No test datasets specified!"
-    out_dir = osp.join(
-        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
-    )
-    evaluators = [
-        StandardEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
-        for i, dl in enumerate(test_loaders)
-    ]
-    trainer.callbacks += evaluators  # pylint: disable=no-member
-    trainer.test(
-        model,
-        data_module,
-        verbose=False,
-    )
+    trainer.test(model, data_module, verbose=False)
 
 
-def predict(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
+def predict(
+    trainer: pl.Trainer, model: BaseModel, data_module: pl.LightningDataModule
+) -> None:
     """Prediction function."""
-    trainer = default_setup(cfg, trainer_args, training=False)
-    model = build_model(
-        cfg.model,
-        cfg.launch.weights,
-        not cfg.launch.not_strict,
-        cfg.launch.legacy_ckpt,
-    )
-
-    if cfg.launch.input_dir is None:
-        test_cfg, pred_cfg = cfg.test, []
-    else:
-        test_cfg = []
-        input_dir = cfg.launch.input_dir
-        if input_dir[-1] == "/":
-            input_dir = input_dir[:-1]
-        dataset_name = osp.basename(input_dir)
-        pred_cfg = [
-            BaseDatasetConfig(
-                type="Custom", name=dataset_name, data_root=input_dir
-            )
-        ]
-    # setup category_mappings
-    setup_category_mapping(test_cfg + pred_cfg, cfg.model.category_mapping)
-
-    # build dataloaders
-    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
-        [], test_cfg, pred_cfg
-    )
-
-    data_module = build_data_module(
-        cfg.launch.samples_per_gpu,
-        cfg.launch.workers_per_gpu,
-        train_loaders,
-        test_loaders,
-        predict_loaders,
-        cfg.model.image_channel_mode,
-        cfg.launch.seed,
-        cfg.data,
-    )
-
-    out_dir = osp.join(
-        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
-    )
-
-    if len(predict_loaders) > 0:
-        dataloaders = predict_loaders
-    else:
-        dataloaders = test_loaders
-
-    assert len(dataloaders) > 0, "No datasets for prediction specified!"
-    evaluators = [
-        ScalabelWriterCallback(
-            i, osp.join(out_dir, dl.cfg.name), cfg.launch.visualize
-        )
-        for i, dl in enumerate(dataloaders)
-    ]
-    trainer.callbacks += evaluators  # pylint: disable=no-member
     trainer.predict(model, data_module)
 
 
-def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
+def tune(
+    trainer: pl.Trainer,
+    model: BaseModel,
+    data_module: pl.LightningDataModule,
+    tuner_params: DictStrAny,
+    tuner_metrics: List[str],
+) -> None:
     """Tune function."""
-    trainer = default_setup(cfg, trainer_args, training=False)
-    model = build_model(
-        cfg.model,
-        cfg.launch.weights,
-        not cfg.launch.not_strict,
-        cfg.launch.legacy_ckpt,
-    )
-
-    # setup category_mappings
-    setup_category_mapping(cfg.test, cfg.model.category_mapping)
-
-    # build dataloaders
-    train_loaders, test_loaders, predict_loaders = build_dataset_loaders(
-        [], cfg.test
-    )
-
-    data_module = build_data_module(
-        cfg.launch.samples_per_gpu,
-        cfg.launch.workers_per_gpu,
-        train_loaders,
-        test_loaders,
-        predict_loaders,
-        cfg.model.image_channel_mode,
-        cfg.launch.seed,
-        cfg.data,
-    )
-
-    assert len(test_loaders), "No test datasets specified!"
-    out_dir = osp.join(
-        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
-    )
-    evaluators = [
-        StandardEvaluatorCallback(i, dl, osp.join(out_dir, dl.cfg.name))
-        for i, dl in enumerate(test_loaders)
-    ]
-    trainer.callbacks += evaluators  # pylint: disable=no-member
-
-    if cfg.launch.tuner_params is None:
-        raise ValueError(
-            "Tuner parameters not defined! Please specify "
-            "tuner_params in Launch config."
-        )
-    if cfg.launch.tuner_metrics is None:
-        raise ValueError(
-            "Tuner metrics not defined! Please specify "
-            "tuner_metrics in Launch config."
-        )
-
     rank_zero_info("Starting hyperparameter search...")
-    search_params = cfg.launch.tuner_params
-    search_metrics = cfg.launch.tuner_metrics
+    search_params = tuner_params
+    search_metrics = tuner_metrics
     param_names = list(search_params.keys())
     param_groups = list(product(*search_params.values()))
     metrics_all = {}
@@ -381,11 +361,7 @@ def tune(cfg: Config, trainer_args: Optional[DictStrAny] = None) -> None:
                     raise ValueError(f"Attribute {name} not found in {key}!")
             setattr(obj, key.split(".")[-1], value)
 
-        metrics = trainer.test(
-            model,
-            data_module,
-            verbose=False,
-        )
+        metrics = trainer.test(model, data_module, verbose=False)
         if len(metrics) > 0:
             rank_zero_warn(
                 "More than one dataloader found, but tuning "
@@ -408,14 +384,31 @@ def cli_main() -> None:  # pragma: no cover
     vis4d_args, trainer_args = split_args(args)
     cfg = parse_config(vis4d_args)
 
+    # setup experiment
+    trainer, model, data_module = setup_experiment(cfg, trainer_args)
+
     if args.action == "train":
-        train(cfg, trainer_args)
+        train(trainer, model, data_module)
     elif args.action == "test":
-        test(cfg, trainer_args)
+        test(trainer, model, data_module)
     elif args.action == "predict":
-        predict(cfg, trainer_args)
+        predict(trainer, model, data_module)
     elif args.action == "tune":
-        tune(cfg, trainer_args)
+        if cfg.launch.tuner_params is None:
+            raise ValueError(
+                "Tuner parameters not defined! Please specify "
+                "tuner_params in Launch config."
+            )
+        if cfg.launch.tuner_metrics is None:
+            raise ValueError(
+                "Tuner metrics not defined! Please specify "
+                "tuner_metrics in Launch config."
+            )
+        tuner_params, tuner_metrics = (
+            cfg.launch.tuner_params,
+            cfg.launch.tuner_metrics,
+        )
+        tune(trainer, model, data_module, tuner_params, tuner_metrics)
     else:
         raise NotImplementedError(f"Action {args.action} not known!")
 

@@ -8,6 +8,10 @@ from .data import Extrinsics, Images, Intrinsics, PointCloud
 from .labels import Boxes2D, Boxes3D, InstanceMasks, SemanticMasks
 from .structures import DataInstance, InputInstance
 
+InputSampleData = Union[
+    List[Frame], DataInstance, List[Dict[str, torch.Tensor]]
+]
+
 
 class LabelInstances(InputInstance):
     """Container for ground truth annotations / predictions."""
@@ -172,25 +176,16 @@ class InputSample(DataInstance):
             other = [{} for _ in range(len(metadata))]
         self.other = other
 
-    def get(
-        self, key: str
-    ) -> Union[List[Frame], DataInstance, List[Dict[str, torch.Tensor]]]:
+    def get(self, key: str) -> InputSampleData:
         """Get attribute by key."""
         if key in self.dict():
             value = self.dict()[key]
             return value
         raise AttributeError(f"Attribute {key} not found!")
 
-    def dict(
-        self,
-    ) -> Dict[
-        str, Union[List[Frame], DataInstance, List[Dict[str, torch.Tensor]]]
-    ]:
+    def dict(self) -> Dict[str, InputSampleData]:
         """Return InputSample object as dict."""
-        obj_dict: Dict[
-            str,
-            Union[List[Frame], DataInstance, List[Dict[str, torch.Tensor]]],
-        ] = {
+        obj_dict: Dict[str, InputSampleData] = {
             "metadata": self.metadata,
             "images": self.images,
             "intrinsics": self.intrinsics,
@@ -227,14 +222,7 @@ class InputSample(DataInstance):
         device: Optional[torch.device] = None,
     ) -> "InputSample":
         """Concatenate N InputSample objects."""
-        cat_dict: Dict[
-            str,
-            Union[
-                List[Frame],
-                DataInstance,
-                List[Dict[str, torch.Tensor]],
-            ],
-        ] = {}
+        cat_dict: Dict[str, InputSampleData] = {}
         for k, v in instances[0].dict().items():
             if isinstance(v, list):
                 assert len(v) > 0, "Do not input empty inputSamples to .cat!"

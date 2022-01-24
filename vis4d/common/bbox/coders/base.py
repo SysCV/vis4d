@@ -1,21 +1,14 @@
 """BBox coder base classes."""
 import abc
-from typing import List
+from typing import List, Union
 
 import torch
-from pydantic import BaseModel, Field
 
-from vis4d.common.registry import RegistryHolder
+from vis4d.common import Vis4DModule
 from vis4d.struct import Boxes2D, Boxes3D, Intrinsics
 
 
-class BaseBoxCoderConfig(BaseModel, extra="allow"):
-    """Coder base config."""
-
-    type: str = Field(...)
-
-
-class BaseBoxCoder2D(metaclass=RegistryHolder):
+class BaseBoxCoder2D(Vis4DModule[List[torch.Tensor], List[Boxes2D]]):
     """Base class for 2D box coders."""
 
     @abc.abstractmethod
@@ -32,8 +25,19 @@ class BaseBoxCoder2D(metaclass=RegistryHolder):
         """Decode the predicted box_deltas according to given base boxes."""
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def __call__(  # type: ignore
+        self,
+        boxes: List[Boxes2D],
+        targets: List[Boxes2D],
+        box_deltas: List[torch.Tensor],
+        intrinsics: Intrinsics,
+    ) -> Union[List[torch.Tensor], List[Boxes2D]]:
+        """Call."""
+        raise NotImplementedError
 
-class BaseBoxCoder3D(metaclass=RegistryHolder):
+
+class BaseBoxCoder3D(Vis4DModule[List[torch.Tensor], List[Boxes3D]]):
     """Base class for 3D box coders."""
 
     @abc.abstractmethod
@@ -56,24 +60,13 @@ class BaseBoxCoder3D(metaclass=RegistryHolder):
         """Decode the predicted box_deltas according to given base boxes."""
         raise NotImplementedError
 
-
-def build_box2d_coder(
-    cfg: BaseBoxCoderConfig,
-) -> BaseBoxCoder2D:  # pragma: no cover
-    """Build a 2D bounding box coder from config."""
-    registry = RegistryHolder.get_registry(BaseBoxCoder2D)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseBoxCoder2D)
-        return module
-    raise NotImplementedError(f"BoxCoder2D {cfg.type} not found.")
-
-
-def build_box3d_coder(cfg: BaseBoxCoderConfig) -> BaseBoxCoder3D:
-    """Build a 3D bounding box coder from config."""
-    registry = RegistryHolder.get_registry(BaseBoxCoder3D)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseBoxCoder3D)
-        return module
-    raise NotImplementedError(f"BoxCoder3D {cfg.type} not found.")
+    @abc.abstractmethod
+    def __call__(  # type: ignore
+        self,
+        boxes: List[Boxes2D],
+        targets: List[Boxes3D],
+        box_deltas: List[torch.Tensor],
+        intrinsics: Intrinsics,
+    ) -> Union[List[torch.Tensor], List[Boxes3D]]:
+        """Call."""
+        raise NotImplementedError

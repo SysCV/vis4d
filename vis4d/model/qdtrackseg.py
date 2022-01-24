@@ -1,40 +1,42 @@
 """Quasi-dense instance similarity learning model with segmentation head."""
-from typing import List
+from typing import List, Union
 
-from vis4d.struct import InputSample, LossesType, ModelOutput
-
-from .base import BaseModelConfig
-from .heads.dense_head import (
-    BaseDenseHeadConfig,
-    MMSegDecodeHead,
-    build_dense_head,
+from vis4d.common.module import build_module
+from vis4d.struct import (
+    ArgsType,
+    InputSample,
+    LossesType,
+    ModelOutput,
+    ModuleCfg,
 )
-from .qdtrack import QDTrack, QDTrackConfig
+
+from .heads.dense_head import BaseDenseHead, SegDenseHead
+from .qdtrack import QDTrack
 from .track.utils import split_key_ref_inputs
 from .utils import postprocess_predictions, predictions_to_scalabel
-
-
-class QDTrackSegConfig(QDTrackConfig):
-    """Config for quasi-dense tracking model with segmentation head."""
-
-    seg_head: BaseDenseHeadConfig
 
 
 class QDTrackSeg(QDTrack):
     """QDTrack model with segmentation head."""
 
-    def __init__(self, cfg: BaseModelConfig) -> None:
-        """Init."""
-        super().__init__(cfg)
-        self.cfg: QDTrackSegConfig = QDTrackSegConfig(**cfg.dict())
-        if self.cfg.seg_head.category_mapping is None:  # pragma: no cover
-            self.cfg.seg_head.category_mapping = self.cfg.category_mapping
-        self.seg_head: MMSegDecodeHead = build_dense_head(self.cfg.seg_head)
-
-    def forward_train(
+    def __init__(
         self,
-        batch_inputs: List[InputSample],
-    ) -> LossesType:
+        seg_head: Union[SegDenseHead, ModuleCfg],
+        *args: ArgsType,
+        **kwargs: ArgsType
+    ) -> None:
+        """Init."""
+        super().__init__(*args, **kwargs)
+        if isinstance(seg_head, dict):
+            if seg_head["category_mapping"] is None:  # pragma: no cover
+                seg_head["category_mapping"] = self.category_mapping
+            self.seg_head: SegDenseHead = build_module(
+                seg_head, bound=BaseDenseHead
+            )
+        else:  # pragma: no cover
+            self.seg_head = seg_head
+
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward function for training."""
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
         key_targets = key_inputs.targets
@@ -62,10 +64,7 @@ class QDTrackSeg(QDTrack):
 
         return losses
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> ModelOutput:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Compute model output during inference."""
         assert len(batch_inputs) == 1, "No reference views during test!"
         assert len(batch_inputs[0]) == 1, "Currently only BS=1 supported!"

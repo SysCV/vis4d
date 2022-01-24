@@ -3,17 +3,12 @@ from typing import Optional
 
 import torch
 
-from .base import BaseLoss, LossConfig
+from .base import BaseLoss
 from .utils import weight_reduce_loss
 
 
 class MultiPosCrossEntropyLoss(BaseLoss):
     """Multi-positive cross entropy loss class."""
-
-    def __init__(self, cfg: LossConfig):
-        """Init."""
-        super().__init__()
-        self.cfg = cfg
 
     def __call__(  # type: ignore # pylint: disable=arguments-differ
         self,
@@ -29,9 +24,9 @@ class MultiPosCrossEntropyLoss(BaseLoss):
         reduction = (
             reduction_override
             if reduction_override is not None
-            else self.cfg.reduction
+            else self.reduction
         )
-        loss_cls = self.cfg.loss_weight * multi_pos_cross_entropy(
+        loss_cls = self.loss_weight * multi_pos_cross_entropy(
             pred,
             target,
             weight,
