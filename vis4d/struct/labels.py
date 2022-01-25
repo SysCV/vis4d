@@ -19,9 +19,9 @@ from ..common.geometry.rotation import (
     euler_angles_to_matrix,
     matrix_to_euler_angles,
 )
+from ..common.mask import paste_masks_in_image
 from .data import Extrinsics
 from .structures import LabelInstance, NDArrayUI8
-from .utils import do_paste_mask
 
 TBoxes = TypeVar("TBoxes", bound="Boxes")
 TMasks = TypeVar("TMasks", bound="Masks")
@@ -797,82 +797,6 @@ class InstanceMasks(Masks):
             resized_masks = targets
         return InstanceMasks(resized_masks, detections=boxes)
 
-    def paste_masks_in_image(
-        self,
-        image_shape: Tuple[int, int],
-        threshold: float = 0.5,
-        bytes_per_float: int = 4,
-        gpu_mem_limit: int = 1024 ** 3,
-    ) -> None:
-        """Paste masks that are of a fixed resolution into an image.
-
-        This implementation is modified from
-        https://github.com/facebookresearch/detectron2/
-        """
-        assert (
-            self.masks.shape[-1] == self.masks.shape[-2]
-        ), "Only square mask predictions are supported"
-        num_masks = len(self.masks)
-        if num_masks == 0:  # pragma: no cover
-            return
-        assert (
-            self.detections is not None
-        ), "Converting fixed resolution masks to image needs detections!"
-
-        img_w, img_h = image_shape
-
-        # The actual implementation split the input into chunks,
-        # and paste them chunk by chunk.
-        if self.device.type == "cpu":
-            # CPU is most efficient when they are pasted one by one with
-            # skip_empty=True so that it performs minimal number of operations.
-            num_chunks = num_masks
-        else:  # pragma: no cover
-            # GPU benefits from parallelism for larger chunks, but may have
-            # memory issue int(img_h) because shape may be tensors in tracing
-            num_chunks = int(
-                np.ceil(
-                    num_masks
-                    * int(img_h)
-                    * int(img_w)
-                    * bytes_per_float
-                    / gpu_mem_limit
-                )
-            )
-            assert (
-                num_chunks <= num_masks
-            ), "Default gpu_mem_limit is too small; try increasing it"
-        chunks = torch.chunk(
-            torch.arange(num_masks, device=self.device), num_chunks
-        )
-
-        img_masks = torch.zeros(
-            num_masks,
-            img_h,
-            img_w,
-            device=self.device,
-            dtype=torch.bool if threshold >= 0 else torch.uint8,
-        )
-        for inds in chunks:
-            (masks_chunk, spatial_inds,) = do_paste_mask(
-                self.masks[inds, None, :, :],
-                self.detections.boxes[inds, :4],
-                img_h,
-                img_w,
-                skip_empty=self.device.type == "cpu",
-            )
-
-            if threshold >= 0:
-                masks_chunk = (masks_chunk >= threshold).to(dtype=torch.bool)
-            else:
-                # for visualization and debugging
-                masks_chunk = (masks_chunk * 255).to(  # pragma: no cover
-                    dtype=torch.uint8
-                )
-
-            img_masks[(inds,) + spatial_inds] = masks_chunk
-        self.masks = img_masks.type(torch.uint8)
-
     def postprocess(
         self,
         original_wh: Tuple[int, int],
@@ -884,7 +808,12 @@ class InstanceMasks(Masks):
         if len(self) == 0:
             return
         if self.size != output_wh:
-            self.paste_masks_in_image(original_wh)
+            assert (
+                self.detections is not None
+            ), "Pasting masks requires detections to be specified!"
+            self.masks = paste_masks_in_image(
+                self.masks, self.detections.boxes, original_wh
+            )
         if resolve_overlap:
             # remove overlaps in instance masks
             foreground = torch.zeros(

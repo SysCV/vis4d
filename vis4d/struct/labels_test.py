@@ -383,18 +383,6 @@ class TestMasks(unittest.TestCase):
         segm_crops = segmentations.crop_and_resize(detections, (out_h, out_w))
         self.assertEqual(len(segm_crops), 0)
 
-    def test_paste_masks_in_image(self) -> None:
-        """Testcase for pasting masks in image."""
-        h, w, num_masks, num_dets = 28, 28, 5, 5
-        out_h, out_w = 64, 32
-        segmentations = generate_instance_masks(
-            h, w, num_masks, track_ids=True
-        )
-        detections = generate_dets(h, w, num_dets, track_ids=True)
-        segmentations.detections = detections
-        segmentations.paste_masks_in_image((out_w, out_h))
-        self.assertEqual(segmentations.size, (out_w, out_h))
-
     def test_get_boxes2d(self) -> None:
         """Testcase for get_boxes2d function."""
         h, w, num_masks = 28, 28, 5

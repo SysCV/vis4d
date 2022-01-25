@@ -1,4 +1,4 @@
-"""Panoptic segmentation model."""
+"""Panoptic FPN model."""
 from typing import Dict, List, Union
 
 from vis4d.common.module import build_module
@@ -12,15 +12,15 @@ from vis4d.struct import (
     TLabelInstance,
 )
 
-from .base import BaseModel, build_model
-from .detect import BaseTwoStageDetector
-from .heads.dense_head import BaseDenseHead, SegDenseHead
-from .heads.panoptic_head import BasePanopticHead
-from .utils import postprocess_predictions, predictions_to_scalabel
+from ..base import BaseModel, build_model
+from ..detect import BaseTwoStageDetector
+from ..heads.dense_head import BaseDenseHead, SegDenseHead
+from ..heads.panoptic_head import BasePanopticHead
+from ..utils import postprocess_predictions, predictions_to_scalabel
 
 
-class PanopticSegmentor(BaseModel):
-    """Panoptic segmentation model."""
+class PanopticFPN(BaseModel):
+    """Panoptic FPN model."""
 
     def __init__(
         self,
