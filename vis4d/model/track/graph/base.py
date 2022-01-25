@@ -5,7 +5,7 @@ from typing import List, Optional, Union, cast, overload
 
 import torch
 
-from vis4d.common import Vis4DModule
+from vis4d.common.module import Vis4DModule
 from vis4d.struct import InputSample, LabelInstances, LossesType
 
 

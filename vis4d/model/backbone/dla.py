@@ -5,7 +5,7 @@ import torch
 from torch import nn
 from torch.utils import model_zoo
 
-from vis4d.common import Vis4DModule
+from vis4d.common.module import Vis4DModule
 from vis4d.struct import ArgsType, FeatureMaps, InputSample
 
 from .base import BaseBackbone

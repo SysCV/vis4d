@@ -1,6 +1,8 @@
 """Panoptic FPN model."""
 from typing import Dict, List, Union
 
+from scalabel.label.typing import Label
+
 from vis4d.common.module import build_module
 from vis4d.struct import (
     ArgsType,
@@ -53,6 +55,15 @@ class PanopticFPN(BaseModel):
         else:  # pragma: no cover
             self.pan_head = pan_head
         self.det_mapping = {v: k for k, v in self.category_mapping.items()}
+
+    @staticmethod
+    def combine_segm_outs(
+        ins_outs: List[List[Label]], sem_outs: List[List[Label]]
+    ) -> List[List[Label]]:
+        """Combine instance and semantic segmentation outputs."""
+        return [
+            ins_out + sem_out for ins_out, sem_out in zip(ins_outs, sem_outs)
+        ]
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
@@ -112,12 +123,11 @@ class PanopticFPN(BaseModel):
         )
 
         # combine ins_seg and sem_seg to get pan_seg predictions
-        model_outs.update(
-            pan_seg=[
-                model_outs["ins_seg"][i] + model_outs["sem_seg"][i]
-                for i in range(len(model_outs["ins_seg"]))
-            ]
+        model_outs["pan_seg"] = self.combine_segm_outs(
+            model_outs["ins_seg"], model_outs["sem_seg"]
         )
-        model_outs["sem_seg"] = model_outs["pan_seg"]
+        if getattr(self.pan_head, "ignore_class", -1) != -1:
+            # set semantic segmentation prediction to panoptic segmentation
+            model_outs["sem_seg"] = model_outs["pan_seg"]
 
         return model_outs

@@ -4,13 +4,16 @@ import unittest
 import torch
 from scalabel.label.typing import ImageSize
 
-from vis4d.struct import Boxes2D, Boxes3D, Extrinsics, Masks, SemanticMasks
 from vis4d.unittest.utils import (
     generate_dets,
     generate_dets3d,
     generate_instance_masks,
     generate_semantic_masks,
 )
+
+from ..data import Extrinsics
+from .boxes import Boxes2D, Boxes3D
+from .masks import MaskLogits, Masks, SemanticMasks
 
 
 class TestBoxes2D(unittest.TestCase):
@@ -348,6 +351,14 @@ class TestMasks(unittest.TestCase):
         self.assertEqual(segmentations.height, 256)
         self.assertEqual(segmentations.width, 64)
 
+    def test_from_hwc(self) -> None:
+        """Testcase for conversion from a HxW semantic mask."""
+        masks = SemanticMasks.from_hwc_tensor(
+            torch.Tensor([[0, 1], [0, 255]]).int()
+        )
+        self.assertEqual(len(masks.masks), 2)
+        self.assertEqual(len(masks.masks.unique()), 2)
+
     def test_semantic_postprocess(self) -> None:
         """Testcase for postprocessing a Semantic Masks object."""
         h, w, num_masks = 128, 128, 10
@@ -396,6 +407,16 @@ class TestMasks(unittest.TestCase):
         boxes = segmentations.get_boxes2d()
         self.assertEqual(len(boxes), 0)
 
+    def test_instance_postprocess(self) -> None:
+        """Testcase for postprocessing a Instance Masks object."""
+        h, w, num_masks, num_dets = 28, 28, 10, 10
+        segmentations = generate_instance_masks(h, w, num_masks)
+        dets = generate_dets(h, w, num_dets)
+        segmentations.detections = dets
+        segmentations.postprocess((w - 1, h - 1), (w - 2, h - 2))
+        self.assertEqual(segmentations.height, 27)
+        self.assertEqual(segmentations.width, 27)
+
     def test_pad(self) -> None:
         """Testcase for pad function."""
         h, w, num_masks = 28, 28, 5
@@ -407,3 +428,21 @@ class TestMasks(unittest.TestCase):
         segmentations = SemanticMasks.pad([segmentations], pad_shape)[0]
         self.assertEqual(segmentations.height, 128)
         self.assertEqual(segmentations.width, 56)
+
+    def test_mask_logits(self) -> None:
+        """Testcase for MaskLogits."""
+        h, w, num_masks, num_dets = 28, 28, 5, 5
+        pad_shape = (56, 128)
+        logits = MaskLogits(torch.rand((num_masks, h, w)))
+        logits.resize(pad_shape)
+        self.assertEqual(logits.size, pad_shape)
+
+        logits = MaskLogits(torch.rand((num_masks, h, w)))
+        dets = generate_dets(h, w, num_dets)
+        logits_paste = logits.paste_masks(dets, pad_shape)
+        self.assertEqual(logits_paste.size, pad_shape)
+        self.assertEqual(len(logits_paste), num_masks)
+
+        logits = MaskLogits(torch.rand((num_masks, h, w)))
+        logits.postprocess(pad_shape, (w, h))
+        self.assertEqual(logits.size, pad_shape)
