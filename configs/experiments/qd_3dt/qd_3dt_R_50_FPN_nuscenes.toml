@@ -18,8 +18,9 @@ category_mapping = {"bicycle" = 0, "motorcycle" = 1, "pedestrian" = 2, "bus" = 3
     kwargs = {"milestones" = [8, 11]}
 
 [launch]
-samples_per_gpu = 1
+samples_per_gpu = 4
 workers_per_gpu = 2
+seed = 1
 
 [trainer]
 max_epochs = 12
