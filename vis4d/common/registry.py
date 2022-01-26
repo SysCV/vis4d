@@ -2,8 +2,6 @@
 import copy
 from typing import Any, Dict, Optional, Tuple
 
-from vis4d.struct import ModuleCfg
-
 
 class RegistryHolder(type):
     """Registry for all modules in Vis4D."""
@@ -57,7 +55,7 @@ class RegistryHolder(type):
         return dict(cls.REGISTRY)  # pragma: no cover
 
 
-def build_component(cfg: ModuleCfg, bound: Any) -> Any:  # type: ignore
+def build_component(cfg: Dict[str, Any], bound: Any) -> Any:  # type: ignore
     """Build a component from config."""
     registry = RegistryHolder.get_registry(bound)
     cfg = copy.deepcopy(cfg)
