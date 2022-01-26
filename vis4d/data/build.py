@@ -14,6 +14,103 @@ from .samplers import BaseSampler, TrackingInferenceSampler
 from .utils import identity_batch_collator
 
 
+class Vis4DDatasetHandler(data.ConcatDataset):
+
+    def __init__(self, datasets: Iterable[Dataset],
+        clip_bboxes_to_image: bool = True,
+        min_bboxes_area: float = 7.0 * 7.0,
+         transformations: Optional[List[Union[BaseAugmentation, ModuleCfg]]] = None
+    ) -> None:
+        """Init."""
+        super().__init__(datasets)
+        self.clip_bboxes_to_image = clip_bboxes_to_image
+        self.min_bboxes_area = min_bboxes_area
+        self.transformations = []
+        if transformations is not None:
+            for transform in transformations:
+                if isinstance(transform, dict):
+                    transform_: BaseAugmentation = build_component(
+                        transform, bound=BaseAugmentation
+                    )
+                else:  # pragma: no cover
+                    transform_ = transform
+                self.transformations.append(transform_)
+        rank_zero_info("Transformations used: %s", self.transformations)
+
+    def transform_inputs(
+            self,
+            samples: List[InputSample],
+    ) -> None:
+        """Apply transforms to input samples.
+
+        Args:
+            samples: Input sample and (possibly) reference views.
+        """
+        parameters = []
+        for sample in samples:
+            for i, aug in enumerate(self.transformations):
+                if len(parameters) < len(self.transformations):
+                    if aug.num_samples > 1:
+                        idcs = np.random.randint(0, len(self), aug.num_samples)
+                        addsamples = [super().__getitem__(idx) for idx in idcs]
+                        sample = InputSample.cat([sample, *addsamples])
+                    sample, params = aug(sample)
+                    parameters.append(params)
+                else:
+                    sample, _ = aug(sample, parameters[i])
+
+    def postprocess_annotations(
+            self, im_wh: Tuple[int, int], targets: LabelInstances
+    ) -> None:
+        """Process annotations after transform."""
+        if len(targets.boxes2d[0]) == 0:
+            return
+        if self.clip_bboxes_to_image:
+            targets.boxes2d[0].clip(im_wh)
+        keep = targets.boxes2d[0].area >= self.min_bboxes_area
+        targets.boxes2d = [targets.boxes2d[0][keep]]
+        if len(targets.boxes3d[0]) > 0:
+            targets.boxes3d = [targets.boxes3d[0][keep]]
+        if len(targets.instance_masks[0]) > 0:
+            targets.instance_masks = [targets.instance_masks[0][keep]]
+
+    def augment_data(self, data: List[InputSample], training: bool) -> List[InputSample]:
+        # apply transforms to input sample
+        parameters = self.transform_inputs(input_data, parameters)
+
+        if not training:
+            return input_data, parameters
+
+        # postprocess boxes after transforms
+        self.postprocess_annotations(
+            input_data.images.image_sizes[0], input_data.targets
+        )
+
+
+    def sort_samples(
+        self, input_samples: List[InputSample]
+    ) -> List[InputSample]:
+        """Sort samples according to sampling cfg."""
+        if self.frame_order == "key_first":
+            return input_samples
+        if self.frame_order == "temporal":
+            return sorted(
+                input_samples,
+                key=lambda x: x.metadata[0].frameIndex
+                if x.metadata[0].frameIndex is not None
+                else 0,
+            )
+        raise NotImplementedError(
+            f"Frame ordering {self.frame_order} not " f"implemented."
+        )
+
+    def __getitem__(self, idx):
+        """Wrap getitem to apply augmentations."""
+        current_sample = super().__getitem__(idx)
+
+
+
+
 class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
     """Default Data module for Vis4D."""
 

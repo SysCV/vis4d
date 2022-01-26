@@ -171,13 +171,13 @@ class ScalabelDataset(Dataset):  # type: ignore
                         ]
                     ]
                 ]
-                input_data, parameters = self.mapper(
+                input_data = self.mapper(
                     self.dataset.frames[cur_idx],
                     group_url=group.url,
                     group_extrinsics=group.extrinsics,
                 )
             else:
-                input_data, parameters = self.mapper(
+                input_data = self.mapper(
                     self.dataset.frames[cur_idx]
                 )
             if input_data is not None:
@@ -187,12 +187,10 @@ class ScalabelDataset(Dataset):  # type: ignore
 
                 if self.ref_sampler.num_ref_imgs > 0:
                     ref_data = self.ref_sampler(
-                        cur_idx, input_data, self.mapper, parameters
+                        cur_idx, input_data, self.mapper
                     )
                     if ref_data is not None:
-                        return self.ref_sampler.sort_samples(
-                            [input_data] + ref_data
-                        )
+                        return [input_data] + ref_data
                 else:
                     return [input_data]
 

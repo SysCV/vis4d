@@ -24,6 +24,15 @@ from vis4d.struct import (
 from .base import AugParams, BaseAugmentation
 
 
+def im_resize():
+    align_corners = None if self.interpolation == "nearest" else False
+    im_resized = F.interpolate(
+        inputs,
+        (H, W),
+        mode=self.interpolation,
+        align_corners=align_corners,
+    )
+
 class Resize(BaseAugmentation):
     """Resize augmentation.
 
@@ -504,3 +513,78 @@ class RandomCrop(BaseAugmentation):
                     i
                 ].get_boxes2d()
         return sample, parameters
+
+
+class Mosaic(BaseAugmentation):
+    """Mosaic augmentation."""
+
+    def __init__(
+        self,
+        num_samples: int,
+        *args: ArgsType,
+        **kwargs: ArgsType,
+    ) -> None:
+        """Init function."""
+        super().__init__(*args, **kwargs)
+        self.num_samples = 4
+        self.out_shape = (3, 800, 1440)
+
+    def _mosaic_combine(self, index: int, center: Tuple[int, int]) -> Tuple[List[int], List[int]]:
+        """Compute the mosaic parameters for the image at the current index.
+
+        Index:
+        0 = top_left, 1 = top_right, bottom_left, bottom_right
+        """
+
+
+    def apply_image(self, images: Images, parameters: AugParams) -> Images:
+        """Apply augmentation to input image."""
+        assert len(images) == self.num_samples, \
+            "Number of images must be equal to the number of samples " \
+            "required for creating the mosaic."
+        C, H, W = self.out_shape
+        mosaic_img = torch.zeros((1, C, H, W))
+
+        # mosaic center x, y
+        center_x = int(random.uniform(*self.center_ratio_range) * W)
+        center_y = int(random.uniform(*self.center_ratio_range) * H)
+        center = (center_x, center_y)
+
+        for i, img in images:
+            w_i, h_i = img.image_sizes[0]
+
+            # resize current image
+            # TODO keep ratio option
+
+            # compute the combine parameters
+            paste_coord, crop_coord = self._mosaic_combine(i, center, )
+            x1_p, y1_p, x2_p, y2_p = paste_coord
+            x1_c, y1_c, x2_c, y2_c = crop_coord
+
+            # crop and paste image
+            mosaic_img[y1_p:y2_p, x1_p:x2_p] = img[y1_c:y2_c, x1_c:x2_c]
+
+        return images
+
+    def apply_box2d(
+        self, boxes: List[Boxes2D], parameters: AugParams
+    ) -> List[Boxes2D]:
+        """Apply augmentation to input box2d."""
+        return boxes
+
+    def __call__(
+        self, sample: InputSample, parameters: Optional[AugParams] = None
+    ) -> Tuple[InputSample, AugParams]:
+        """Apply augmentations to input sample."""
+        if parameters is None or not self.same_on_ref:
+            parameters = self.generate_parameters(sample)
+
+        images = self.apply_image(sample.images, parameters)
+        boxes2d = self.apply_box2d(
+            sample.targets.boxes2d, parameters
+        )
+
+        # TODO check for other targets / inputs, raise Exception
+
+        new_sample = InputSample(sample.metadata[0], images, targets=LabelInstances(boxes2d=boxes2d))
+        return new_sample

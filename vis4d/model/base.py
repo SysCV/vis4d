@@ -108,9 +108,23 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         self,
     ) -> Tuple[List[BaseOptimizer], List[BaseLRScheduler]]:
         """Configure optimizers and schedulers of model."""
-        optimizer = build_optimizer(self.parameters(), self.optimizer_cfg)
+        params = []
+        for name, param in self.named_parameters():
+            param_group = {'params': [param]}
+            if 'bias' in name or 'norm' in name:
+                param_group['weight_decay'] = 0.
+            params.append(param_group)
+        optimizer = build_optimizer(params, self.optimizer_cfg)
         scheduler = build_lr_scheduler(optimizer, self.lr_scheduler_cfg)
         return [optimizer], [scheduler]
+
+    # def configure_optimizers(
+    #     self,
+    # ) -> Tuple[List[BaseOptimizer], List[BaseLRScheduler]]:
+    #     """Configure optimizers and schedulers of model."""
+    #     optimizer = build_optimizer(self.parameters(), self.optimizer_cfg)
+    #     scheduler = build_lr_scheduler(optimizer, self.lr_scheduler_cfg)
+    #     return [optimizer], [scheduler]
 
     @no_type_check
     def optimizer_step(
@@ -279,6 +293,11 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
                 new_state_dict[k] = v
             checkpoint["state_dict"] = new_state_dict
 
+        new_state_dict = {}
+        for k, v in checkpoint["state_dict"].items():
+            new_state_dict["detector." + k] = v
+        checkpoint["state_dict"] = new_state_dict
+
         return super()._load_model_state(  # type: ignore
             checkpoint, strict=strict, **cls_kwargs_new
         )
@@ -301,7 +320,7 @@ def build_model(
             module = registry[model_type](**cfg)
         else:
             module = registry[model_type].load_from_checkpoint(  # type: ignore # pragma: no cover # pylint: disable=line-too-long
-                ckpt, strict=strict, **cfg, legacy_ckpt=legacy_ckpt
+                ckpt, strict=strict, **cfg
             )
         assert isinstance(module, BaseModel)
         return module

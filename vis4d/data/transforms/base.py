@@ -37,6 +37,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         self.prob = prob
         self.same_on_batch = same_on_batch
         self.same_on_ref = same_on_ref
+        self.num_samples = 1
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
