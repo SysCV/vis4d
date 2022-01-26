@@ -1,5 +1,5 @@
 """Quasi-dense 3D Tracking model."""
-from typing import List
+from typing import List, Tuple
 
 import torch
 
@@ -114,14 +114,19 @@ class QD3DT(QDTrack):
 
         embeds = torch.cat(embeddings_list)
 
-        boxes_2d = boxes2d.to(torch.device("cpu")).to_scalabel(
-            self.cat_mapping
+        # post processing
+        boxes2d, boxes3d, embeds = self.post_processing(
+            boxes2d, boxes3d, embeds
         )
 
         # associate detections, update graph
         predictions = LabelInstances([boxes2d], [boxes3d])
         tracks = self.track_graph(frames[0], predictions, embeddings=[embeds])
 
+        # Update 3D score and move 3D boxes into group sensor coordinate
+        tracks.boxes3d[0].boxes[:, -1] = (
+            tracks.boxes3d[0].score * tracks.boxes2d[0].score
+        )
         tracks.boxes3d[0].transform(group.extrinsics.inverse())
 
         tracks_2d = (
@@ -135,8 +140,59 @@ class QD3DT(QDTrack):
             .to_scalabel(self.cat_mapping)
         )
         return dict(
-            detect=[boxes_2d],
+            detect=[tracks_2d],
             track=[tracks_2d],
             detect_3d=[tracks_3d],
             track_3d=[tracks_3d],
         )
+
+    def post_processing(
+        self, boxes2d: Boxes2D, boxes3d: Boxes3D, embeds: torch.Tensor
+    ) -> Tuple[Boxes2D, Boxes3D, torch.Tensor]:
+        """Post process the multi-camera results."""
+        boxes_2d = torch.empty(
+            (0, boxes2d.boxes.shape[1]), device=boxes2d.device
+        )
+        boxes_3d = torch.empty(
+            (0, boxes3d.boxes.shape[1]), device=boxes3d.device
+        )
+        embeds_post = torch.empty((0, embeds.shape[1]), device=embeds.device)
+        class_ids = torch.empty((0), device=boxes2d.device)
+
+        boxes3d_post = Boxes3D(boxes_3d, class_ids)
+        boxes2d_post = Boxes2D(boxes_2d, class_ids)
+
+        for idx, (box2d, box3d) in enumerate(zip(boxes2d, boxes3d)):
+            nms_flag = 0
+            # Pedestrian
+            if box2d.class_ids[0] == 2:
+                nms_dist = 1
+            else:
+                nms_dist = 2
+            for i, (box2d_post, box3d_post) in enumerate(
+                zip(boxes2d_post, boxes3d_post)
+            ):
+                if box2d_post.class_ids == box2d.class_ids:
+                    if (
+                        torch.cdist(box3d.center, box3d_post.center, p=2)
+                        <= nms_dist
+                        and boxes3d[idx].score * boxes2d[idx].score
+                        > box3d_post.score * box2d_post.score
+                    ):
+                        nms_flag = 1
+                        boxes_3d[i] = box3d.boxes
+                        boxes_2d[i] = box2d.boxes
+                        embeds_post[i] = embeds[idx]
+                        break
+            if nms_flag == 0:
+                boxes_3d = torch.cat([boxes_3d, box3d.boxes])
+                boxes_2d = torch.cat([boxes_2d, box2d.boxes])
+                class_ids = torch.cat([class_ids, box2d.class_ids[0]])
+                embeds_post = torch.cat(
+                    [embeds_post, embeds[idx].unsqueeze(0)]
+                )
+
+            boxes2d_post = Boxes2D(boxes_2d, class_ids)
+            boxes3d_post = Boxes3D(boxes_3d, class_ids)
+
+        return boxes2d_post, boxes3d_post, embeds_post
