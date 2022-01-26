@@ -1,10 +1,8 @@
 """Motion model base class."""
 import abc
-from typing import List, Optional
 
 import torch
 from pydantic import BaseModel, Field
-
 from vist.common.registry import RegistryHolder
 
 

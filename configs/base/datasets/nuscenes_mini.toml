@@ -12,7 +12,7 @@ cache_as_binary = true
     skip_empty_samples = true
 
     [train.ref_sampler]
-    scope = 3
+    scope = 2
     num_ref_imgs = 1
 
     [[train.sample_mapper.transformations]]
