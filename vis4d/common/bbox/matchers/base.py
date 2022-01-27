@@ -4,7 +4,7 @@ from typing import List, NamedTuple
 
 import torch
 
-from vis4d.common.module import Vis4DModule
+from vis4d.common import Vis4DModule
 from vis4d.struct import Boxes2D
 
 

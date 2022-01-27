@@ -1,6 +1,6 @@
 """Base Vis4D neck class."""
 
-from vis4d.common.module import Vis4DModule
+from vis4d.common import Vis4DModule
 from vis4d.struct import FeatureMaps
 
 

@@ -5,8 +5,8 @@ from typing import Dict, List, Optional, Tuple, Union, cast, overload
 
 import torch
 
+from vis4d.common import Vis4DModule
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.common.module import Vis4DModule
 from vis4d.struct import (
     Boxes2D,
     FeatureMaps,

@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 import torch
 
-from vis4d.common.module import Vis4DModule
+from vis4d.common import Vis4DModule
 
 
 class BaseLoss(Vis4DModule[torch.Tensor, torch.Tensor]):

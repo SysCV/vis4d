@@ -3,7 +3,7 @@
 import abc
 from typing import List, Optional, Tuple, Union, overload
 
-from vis4d.common.module import Vis4DModule
+from vis4d.common import Vis4DModule
 from vis4d.struct import (
     InputSample,
     InstanceMasks,
