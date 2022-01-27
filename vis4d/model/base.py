@@ -278,6 +278,8 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
                     k = k.replace(pattern, replacement)
                 new_state_dict[k] = v
             checkpoint["state_dict"] = new_state_dict
+        if "hyper_parameters" in checkpoint:
+            checkpoint["hyper_parameters"].pop("legacy_ckpt", False)
 
         return super()._load_model_state(  # type: ignore
             checkpoint, strict=strict, **cls_kwargs_new

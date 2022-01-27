@@ -1,13 +1,16 @@
 """Vis4D base module definition."""
+from __future__ import annotations
+
 import abc
 import copy
-from typing import Any, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, Union
 
 from torch.nn import Module
 
-from vis4d.struct import ModuleCfg
-
 from .registry import RegistryHolder
+
+if TYPE_CHECKING:  # pragma: no cover
+    from vis4d.struct import ModuleCfg
 
 TTrainReturn = TypeVar("TTrainReturn")
 TTestReturn = TypeVar("TTestReturn")

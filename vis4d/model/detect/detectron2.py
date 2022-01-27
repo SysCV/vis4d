@@ -228,5 +228,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         segmentations: Optional[List[InstanceMasks]] = None
         dets_boxes2d = detections_to_box2d(detections)
         if self.with_mask:
-            segmentations = segmentations_to_bitmask(detections, dets_boxes2d)
+            segmentations = segmentations_to_bitmask(
+                inputs, detections, dets_boxes2d
+            )
         return dets_boxes2d, segmentations

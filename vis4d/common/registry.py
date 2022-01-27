@@ -1,8 +1,11 @@
 """Vis4D module registry."""
-import copy
-from typing import Any, Dict, Optional, Tuple
+from __future__ import annotations
 
-from vis4d.struct import ModuleCfg
+import copy
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+
+if TYPE_CHECKING:  # pragma: no cover
+    from vis4d.struct import DictStrAny, ModuleCfg
 
 
 class RegistryHolder(type):
@@ -13,7 +16,7 @@ class RegistryHolder(type):
     # Ignore mcs vs. cls since it conflicts with PEP8:
     # https://github.com/PyCQA/pylint/issues/2028
     def __new__(  # type: ignore # pylint: disable=bad-mcs-classmethod-argument
-        cls, name: str, bases: Tuple[Any], attrs: Dict[str, Any]
+        cls, name: str, bases: Tuple[Any], attrs: DictStrAny
     ) -> "RegistryHolder":
         """Method called when constructing a new class.
 

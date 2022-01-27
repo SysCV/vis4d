@@ -2,7 +2,7 @@
 import torch
 from torch import nn
 
-from vis4d.common.module import Vis4DModule
+from vis4d.common import Vis4DModule
 
 try:
     from mmcv.ops.modulated_deform_conv import ModulatedDeformConv2dPack

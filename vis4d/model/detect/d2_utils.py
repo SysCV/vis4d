@@ -13,7 +13,14 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     D2_INSTALLED = False
 
-from vis4d.struct import Boxes2D, DictStrAny, Images, InstanceMasks
+from vis4d.common.mask import paste_masks_in_image
+from vis4d.struct import (
+    Boxes2D,
+    DictStrAny,
+    Images,
+    InputSample,
+    InstanceMasks,
+)
 
 model_mapping = {
     "faster-rcnn": "COCO-Detection/faster_rcnn_",
@@ -65,14 +72,21 @@ def proposal_to_box2d(proposals: List[Instances]) -> List[Boxes2D]:
 
 
 def segmentations_to_bitmask(
-    segmentations: List[Instances], detections: List[Boxes2D]
+    inputs: InputSample,
+    segmentations: List[Instances],
+    detections: List[Boxes2D],
 ) -> List[InstanceMasks]:
     """Convert d2 Instances representing segmentations to Masks."""
     result = []
-    for segmentation, det in zip(segmentations, detections):
+    for inp, segmentation, det in zip(inputs, segmentations, detections):
+        pred_mask = paste_masks_in_image(
+            segmentation.pred_masks.squeeze(1),
+            det.boxes,
+            inp.images.image_sizes[0],
+        )
         result.append(
             InstanceMasks(
-                (segmentation.pred_masks.squeeze(1) >= 0.5).type(torch.uint8),
+                pred_mask,
                 class_ids=segmentation.pred_classes,
                 score=segmentation.scores,
                 detections=det,
