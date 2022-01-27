@@ -9,7 +9,7 @@ from torch.nn import Module
 
 from .registry import RegistryHolder
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from vis4d.struct import ModuleCfg
 
 TTrainReturn = TypeVar("TTrainReturn")
