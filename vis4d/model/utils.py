@@ -4,12 +4,9 @@ from typing import Dict, List, Optional, Union
 import torch
 from scalabel.label.typing import Frame
 
-from vis4d.common.mask import paste_masks_in_image
 from vis4d.struct import (
-    Boxes2D,
     Images,
     InputSample,
-    InstanceMasks,
     LabelInstances,
     MaskLogits,
     ModelOutput,
