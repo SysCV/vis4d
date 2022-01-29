@@ -12,6 +12,7 @@ from vis4d.struct import (
 )
 
 from .base import BasePanopticHead, PanopticMasks
+from .utils import prune_instance_masks
 
 
 class SimplePanopticHead(BasePanopticHead):
@@ -54,36 +55,9 @@ class SimplePanopticHead(BasePanopticHead):
         Uses a simple combining logic following
         "combine_semantic_and_instance_predictions.py" in panopticapi.
         """
-        # foreground mask
-        foreground = torch.zeros(
-            ins_segm.masks.shape[1:], dtype=torch.bool, device=ins_segm.device
+        foreground, _ = prune_instance_masks(
+            ins_segm, self.thing_conf_thr, self.overlap_thr
         )
-
-        # sort instance outputs by scores
-        sorted_inds = ins_segm.score.argsort(descending=True)
-
-        # add instances one-by-one, check for overlaps with existing ones
-        for inst_id in sorted_inds:
-            mask = ins_segm.masks[inst_id]  # H,W
-            score = ins_segm.score[inst_id].item()
-            if score < self.thing_conf_thr:
-                mask[mask > 0] = 0
-                continue
-
-            mask_area = mask.sum().item()
-            if mask_area == 0:
-                continue
-
-            intersect = torch.logical_and(mask, foreground)
-            intersect_area = intersect.sum().item()
-
-            if intersect_area * 1.0 / mask_area > self.overlap_thr:
-                mask[mask > 0] = 0
-                continue
-
-            if intersect_area > 0:
-                ins_segm.masks[inst_id] = torch.logical_and(mask, ~foreground)
-            foreground = torch.logical_or(mask, foreground)
 
         # add semantic results to remaining empty areas
         for i, (mask, cls_id) in enumerate(

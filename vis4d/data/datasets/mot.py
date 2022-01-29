@@ -8,7 +8,7 @@ from typing import List, Optional, Tuple
 
 import motmetrics as mm
 from scalabel.label.from_mot import from_mot
-from scalabel.label.io import load, load_label_config
+from scalabel.label.io import load
 from scalabel.label.transforms import box2d_to_xyxy
 from scalabel.label.typing import Dataset, Frame
 
@@ -48,7 +48,8 @@ class MOTChallenge(BaseDatasetLoader):
         assert isinstance(dataset, Dataset)
 
         if self.config_path is not None:
-            dataset.config = load_label_config(self.config_path)
+            _, metadata_cfg = self.load_config()
+            dataset.config = metadata_cfg
         return dataset
 
     def _convert_predictions(

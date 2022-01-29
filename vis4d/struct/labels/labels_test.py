@@ -14,6 +14,7 @@ from vis4d.unittest.utils import (
 from ..data import Extrinsics
 from .boxes import Boxes2D, Boxes3D
 from .masks import MaskLogits, Masks, SemanticMasks
+from .tags import ImageTags
 
 
 class TestBoxes2D(unittest.TestCase):
@@ -27,10 +28,14 @@ class TestBoxes2D(unittest.TestCase):
         class_to_idx = {"car": 0}
         scalabel_dets = detections.to_scalabel(idx_to_class)
 
-        detections_new = Boxes2D.from_scalabel(scalabel_dets, class_to_idx)
+        assert scalabel_dets.labels is not None
+        detections_new = Boxes2D.from_scalabel(
+            scalabel_dets.labels, class_to_idx
+        )
 
-        scalabel_dets[0].box2d = None
-        dets_with_none = Boxes2D.from_scalabel(scalabel_dets, class_to_idx)
+        dets_labels = scalabel_dets.labels
+        dets_labels[0].box2d = None  # pylint: disable=unsubscriptable-object
+        dets_with_none = Boxes2D.from_scalabel(dets_labels, class_to_idx)
         self.assertTrue(
             torch.isclose(
                 dets_with_none.boxes[0], detections_new.boxes[1]
@@ -48,16 +53,26 @@ class TestBoxes2D(unittest.TestCase):
 
         detections_new.track_ids = None
         dets_without_tracks = detections_new.to_scalabel(idx_to_class)
+        assert dets_without_tracks.labels is not None
         self.assertTrue(
             all(
-                (str(i) == det.id for i, det in enumerate(dets_without_tracks))
+                (
+                    str(i) == det.id
+                    for i, det in enumerate(dets_without_tracks.labels)
+                )
             )
         )
 
         detections.boxes = detections.boxes[:, :-1]
         self.assertEqual(detections.score, None)
         scalabel_dets_no_score = detections.to_scalabel(idx_to_class)
-        self.assertTrue(all(d.score is None for d in scalabel_dets_no_score))
+        assert scalabel_dets_no_score.labels is not None
+        self.assertTrue(
+            all(
+                d.score is None
+                for _, d in enumerate(scalabel_dets_no_score.labels)
+            )
+        )
 
     def test_clone(self) -> None:
         """Testcase for cloning a Boxes2D object."""
@@ -188,10 +203,14 @@ class TestBoxes3D(unittest.TestCase):
         class_to_idx = {"car": 0}
         scalabel_dets = detections.to_scalabel(idx_to_class)
 
-        detections_new = Boxes3D.from_scalabel(scalabel_dets, class_to_idx)
+        assert scalabel_dets.labels is not None
+        detections_new = Boxes3D.from_scalabel(
+            scalabel_dets.labels, class_to_idx
+        )
 
-        scalabel_dets[0].box3d = None
-        dets_with_none = Boxes3D.from_scalabel(scalabel_dets, class_to_idx)
+        dets_labels = scalabel_dets.labels
+        dets_labels[0].box3d = None  # pylint: disable=unsubscriptable-object
+        dets_with_none = Boxes3D.from_scalabel(dets_labels, class_to_idx)
         self.assertTrue(
             torch.isclose(
                 dets_with_none.boxes[0], detections_new.boxes[1]
@@ -209,9 +228,13 @@ class TestBoxes3D(unittest.TestCase):
 
         detections_new.track_ids = None
         dets_without_tracks = detections_new.to_scalabel(idx_to_class)
+        assert dets_without_tracks.labels is not None
         self.assertTrue(
             all(
-                (str(i) == det.id for i, det in enumerate(dets_without_tracks))
+                (
+                    str(i) == det.id
+                    for i, det in enumerate(dets_without_tracks.labels)
+                )
             )
         )
 
@@ -224,7 +247,13 @@ class TestBoxes3D(unittest.TestCase):
         detections.boxes = detections.boxes[:, :-1]
         self.assertEqual(detections.score, None)
         scalabel_dets_no_score = detections.to_scalabel(idx_to_class)
-        self.assertTrue(all(d.score is None for d in scalabel_dets_no_score))
+        assert scalabel_dets_no_score.labels is not None
+        self.assertTrue(
+            all(
+                d.score is None
+                for _, d in enumerate(scalabel_dets_no_score.labels)
+            )
+        )
 
     def test_clone(self) -> None:
         """Testcase for cloning a Boxes2D object."""
@@ -281,15 +310,17 @@ class TestMasks(unittest.TestCase):
         class_to_idx = {"car": 0}
         scalabel_segms = segmentations.to_scalabel(idx_to_class)
 
+        assert scalabel_segms.labels is not None
         segms_new = Masks.from_scalabel(
-            scalabel_segms,
+            scalabel_segms.labels,
             class_to_idx,
             image_size=ImageSize(width=w, height=h),
         )
 
-        scalabel_segms[0].rle = None
+        segm_labels = scalabel_segms.labels
+        segm_labels[0].rle = None  # pylint: disable=unsubscriptable-object
         segms_with_none = Masks.from_scalabel(
-            scalabel_segms,
+            segm_labels,
             class_to_idx,
             image_size=ImageSize(width=w, height=h),
         )
@@ -311,18 +342,25 @@ class TestMasks(unittest.TestCase):
 
         segms_new.track_ids = None
         segms_without_tracks = segms_new.to_scalabel(idx_to_class)
+        assert segms_without_tracks.labels is not None
         self.assertTrue(
             all(
                 (
                     str(i) == segm.id
-                    for i, segm in enumerate(segms_without_tracks)
+                    for i, segm in enumerate(segms_without_tracks.labels)
                 )
             )
         )
 
         segmentations.score = None
         scalabel_segms_no_score = segmentations.to_scalabel(idx_to_class)
-        self.assertTrue(all(d.score is None for d in scalabel_segms_no_score))
+        assert scalabel_segms_no_score.labels is not None
+        self.assertTrue(
+            all(
+                d.score is None
+                for _, d in enumerate(scalabel_segms_no_score.labels)
+            )
+        )
 
     def test_clone(self) -> None:
         """Testcase for cloning a Masks object."""
@@ -446,3 +484,16 @@ class TestMasks(unittest.TestCase):
         logits = MaskLogits(torch.rand((num_masks, h, w)))
         logits.postprocess(pad_shape, (w, h))
         self.assertEqual(logits.size, pad_shape)
+
+
+class TestImageTags(unittest.TestCase):
+    """Test cases Vis4D ImageTags."""
+
+    def test_tags(self) -> None:
+        """Testcase for conversion to / from scalabel."""
+        tags = ImageTags(torch.tensor([1]), ["test"])
+        tags_copy = tags.clone()
+        self.assertEqual(tags.tags[0].item(), tags_copy.tags[0].item())
+        self.assertEqual(len(tags), len(tags_copy))
+        tags_copy.to(tags.device)
+        self.assertEqual(tags.device, tags_copy.device)

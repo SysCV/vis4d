@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple, Union
 
 import numpy as np
 from pytorch_lightning.utilities.distributed import rank_zero_warn
-from scalabel.label.io import load, load_label_config, save
+from scalabel.label.io import load, save
 from scalabel.label.to_nuscenes import to_nuscenes
 from scalabel.label.typing import Dataset, Frame
 
@@ -79,7 +79,8 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             )
 
         if self.config_path is not None:
-            dataset.config = load_label_config(self.config_path)
+            _, metadata_cfg = self.load_config()
+            dataset.config = metadata_cfg
 
         return dataset
 

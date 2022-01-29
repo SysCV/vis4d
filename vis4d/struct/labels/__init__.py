@@ -1,6 +1,7 @@
 """Vis4D labels module."""
 from .boxes import Boxes2D, Boxes3D
 from .masks import InstanceMasks, MaskLogits, Masks, SemanticMasks, TMasks
+from .tags import ImageTags
 
 __all__ = [
     "Boxes2D",
@@ -10,4 +11,5 @@ __all__ = [
     "MaskLogits",
     "InstanceMasks",
     "SemanticMasks",
+    "ImageTags",
 ]

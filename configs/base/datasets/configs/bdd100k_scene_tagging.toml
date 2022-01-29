@@ -1,0 +1,24 @@
+[imageSize]
+height = 720
+width = 1280
+
+[[categories]]
+name = "tunnel"
+
+[[categories]]
+name = "residential"
+
+[[categories]]
+name = "parking lot"
+
+[[categories]]
+name = "undefined"
+
+[[categories]]
+name = "city street"
+
+[[categories]]
+name = "gas stations"
+
+[[categories]]
+name = "highway"

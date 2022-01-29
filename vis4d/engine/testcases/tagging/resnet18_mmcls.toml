@@ -1,0 +1,12 @@
+[[config]]
+path = "../configs/datasets/bdd100k/tagging.toml"
+
+[[config]]
+path = "../configs/models/mmclassification/resnet18.toml"
+
+[launch]
+samples_per_gpu = 1
+workers_per_gpu = 0
+
+[trainer]
+max_steps = 1

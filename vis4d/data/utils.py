@@ -137,11 +137,17 @@ def prepare_labels(
     frames: Union[List[Frame], List[FrameGroup]],
     cat_names: List[str],
     global_instance_ids: bool = False,
+    tagging_attribute: Optional[List[str]] = None,
 ) -> Dict[str, int]:
     """Add category id and instance id to labels, return class frequencies."""
     instance_ids: Dict[str, List[str]] = defaultdict(list)
     frequencies = {cat: 0 for cat in cat_names}
     for frame_id, ann in enumerate(frames):
+        if tagging_attribute is not None and ann.attributes is not None:
+            for tag_attr in tagging_attribute:
+                ann_attr = ann.attributes[tag_attr]
+                assert isinstance(ann_attr, str)
+                frequencies[ann_attr] += 1
         if ann.labels is not None:
             for label in ann.labels:
                 attr: Dict[str, Union[bool, int, float, str]] = {}

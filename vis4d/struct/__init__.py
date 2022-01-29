@@ -3,7 +3,9 @@ from .data import Extrinsics, Images, Intrinsics, PointCloud
 from .labels import (
     Boxes2D,
     Boxes3D,
+    ImageTags,
     InstanceMasks,
+    MaskLogits,
     Masks,
     SemanticMasks,
     TMasks,
@@ -15,6 +17,7 @@ from .structures import (
     DataInstance,
     DictStrAny,
     FeatureMaps,
+    FieldCategoryMap,
     LabelInstance,
     LossesType,
     MetricLogs,
@@ -24,6 +27,7 @@ from .structures import (
     NDArrayF64,
     NDArrayI64,
     NDArrayUI8,
+    TagAttr,
     TLabelInstance,
     TorchCheckpoint,
 )
@@ -34,8 +38,10 @@ __all__ = [
     "Masks",
     "ModuleCfg",
     "TMasks",
+    "MaskLogits",
     "InstanceMasks",
     "SemanticMasks",
+    "ImageTags",
     "DataInstance",
     "LabelInstance",
     "TorchCheckpoint",
@@ -57,4 +63,6 @@ __all__ = [
     "FeatureMaps",
     "ArgsType",
     "CategoryMap",
+    "FieldCategoryMap",
+    "TagAttr",
 ]

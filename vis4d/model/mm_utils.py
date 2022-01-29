@@ -11,6 +11,7 @@ from vis4d.struct import (
     Boxes2D,
     DictStrAny,
     Images,
+    ImageTags,
     InstanceMasks,
     LabelInstances,
     LossesType,
@@ -35,6 +36,7 @@ except (ImportError, NameError):  # pragma: no cover
 
 
 MM_BASE_MAP = {
+    "mmcls": "open-mmlab/mmclassification/master/configs/",
     "mmdet": "syscv/mmdetection/master/configs/",
     "mmseg": "open-mmlab/mmsegmentation/master/configs/",
 }
@@ -59,6 +61,21 @@ def get_img_metas(images: Images) -> List[MMDetMetaData]:
         img_metas.append(meta)
 
     return img_metas
+
+
+def results_from_mmcls(
+    results: torch.Tensor, tag_attr: str
+) -> List[ImageTags]:
+    """Convert mmclassification pred to Vis4D format."""
+    return [
+        ImageTags(result.argmax().unsqueeze(0), [tag_attr])
+        for result in results
+    ]
+
+
+def targets_to_mmcls(targets: LabelInstances) -> torch.Tensor:
+    """Convert Vis4D targets to mmclassification compatible format."""
+    return torch.cat([t.tags[:1] for t in targets.image_tags])
 
 
 def proposals_from_mmdet(
@@ -163,18 +180,6 @@ def results_from_mmseg(
     return masks
 
 
-def targets_to_mmseg(images: Images, targets: LabelInstances) -> torch.Tensor:
-    """Convert Vis4D targets to mmsegmentation compatible format."""
-    if len(targets.semantic_masks) > 1:
-        # pad masks to same size for batching
-        targets.semantic_masks = SemanticMasks.pad(
-            targets.semantic_masks, images.tensor.shape[-2:][::-1]
-        )
-    return torch.stack(
-        [t.to_hwc_mask() for t in targets.semantic_masks]
-    ).unsqueeze(1)
-
-
 def load_config_from_mm(url: str, mm_base: str) -> str:
     """Get config from mmdetection GitHub repository."""
     full_url = "https://raw.githubusercontent.com/" + mm_base + url
@@ -191,7 +196,7 @@ def load_config(path: str) -> MMConfig:
         cfg = MMConfig.fromfile(path)
         if cfg.get("model"):
             cfg = cfg["model"]
-    elif re.compile(r"^mm(det|seg)://").search(path):
+    elif re.compile(r"^mm(cls|det|seg)://").search(path):
         ex = os.path.splitext(path)[1]
         cfg = MMConfig.fromstring(
             load_config_from_mm(

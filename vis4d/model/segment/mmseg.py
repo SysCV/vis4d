@@ -109,10 +109,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         if weights is not None:
             load_model_checkpoint(self, weights)
 
-    def _build_decode_heads(
-        self,
-        mm_cfg: MMConfig,
-    ) -> MMSegDecodeHeads:
+    def _build_decode_heads(self, mm_cfg: MMConfig) -> MMSegDecodeHeads:
         """Build decode heads given config."""
         assert self.category_mapping is not None
         decode_head: MMSegDecodeHeads
@@ -146,10 +143,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         losses, _ = self.generate_segmentations(inputs, features, targets)
         return losses
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> ModelOutput:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Forward pass during testing stage."""
         assert (
             len(batch_inputs) == 1
@@ -186,18 +180,14 @@ class MMEncDecSegmentor(BaseSegmentor):
         return segment_losses, None
 
     def _segmentations_test(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> List[SemanticMasks]:
         """Test stage segmentations generation."""
         assert not isinstance(self.decode_head, torch.nn.ModuleList)
         return self.decode_head(inputs, features)
 
     def generate_auxiliaries(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> LossesType:
         """Segmentor auxiliary head stage.
 

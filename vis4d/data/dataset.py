@@ -41,16 +41,22 @@ class ScalabelDataset(Dataset):  # type: ignore
         self.training = training
         cats_name2id = dataset.category_mapping
         if cats_name2id is not None:
-            if isinstance(list(cats_name2id.values())[0], int):
-                class_list = list(set(cls for cls in cats_name2id))
-            else:
+            if isinstance(cats_name2id, list):
                 class_list = list(
-                    set(
-                        cls
-                        for field in cats_name2id
-                        for cls in list(cats_name2id[field].keys())  # type: ignore  # pylint: disable=line-too-long
-                    )
+                    set(cls for cat_maps in cats_name2id for cls in cat_maps)
                 )
+            else:
+                class_list = []
+                for k, v in cats_name2id.items():
+                    if isinstance(v, int):
+                        class_list.append(k)
+                    elif isinstance(v, dict):
+                        class_list.extend(list(v))
+                    else:  # pragma: no cover
+                        class_list.extend(
+                            [cls for cat_map in v for cls in cat_map]
+                        )
+            class_list = list(set(class_list))
             discard_labels_outside_set(dataset.frames, class_list)
         else:
             class_list = list(
@@ -74,6 +80,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.mapper = mapper
         self.mapper.setup_categories(cats_name2id)
         self.mapper.set_training(self.training)
+        self.mapper.tagging_attribute = dataset.tagging_attribute
 
         dataset.frames = filter_attributes(dataset.frames, dataset.attributes)
 
@@ -82,6 +89,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             dataset.frames,
             class_list,
             dataset.compute_global_instance_ids,
+            dataset.tagging_attribute,
         )
         rank_zero_info(
             f"Preprocessing {len(dataset.frames)} frames takes {t.time():.2f}"

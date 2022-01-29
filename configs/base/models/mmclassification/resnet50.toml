@@ -1,0 +1,8 @@
+[model]
+type = "MMImageClassifier"
+tagging_attribute = "weather"
+category_mapping = {"rainy" = 0, "snowy" = 1, "clear" = 2, "overcast" = 3, "undefined" = 4, "partly cloudy" = 5, "foggy" = 6}
+model_base = "mmcls://_base_/models/resnet50.py"
+pixel_mean = [123.675, 116.28, 103.53]
+pixel_std = [58.395, 57.12, 57.375]
+weights = "bdd100k://tagging/weather/models/resnet50_5x_weather_tag_bdd100k.pth"

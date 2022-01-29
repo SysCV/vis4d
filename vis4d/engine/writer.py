@@ -68,10 +68,7 @@ class ScalabelWriterCallback(Vis4DWriterCallback):
     """Run model and visualize & save output."""
 
     def __init__(
-        self,
-        dataloader_idx: int,
-        output_dir: str,
-        visualize: bool = True,
+        self, dataloader_idx: int, output_dir: str, visualize: bool = True
     ) -> None:
         """Init."""
         super().__init__(dataloader_idx, output_dir)
@@ -86,7 +83,8 @@ class ScalabelWriterCallback(Vis4DWriterCallback):
             for inp, out in zip(inputs, output):
                 metadata = inp[0].metadata[0]
                 prediction = copy.deepcopy(metadata)
-                prediction.labels = out
+                prediction.labels = out.labels
+                prediction.attributes = out.attributes
                 self._predictions[key].append(prediction)
                 if self._visualize and isinstance(prediction, FrameGroup):
                     rank_zero_warn(  # pragma: no cover

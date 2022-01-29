@@ -12,12 +12,27 @@ from scalabel.eval.mots import acc_single_video_mots, evaluate_seg_track
 from scalabel.eval.pan_seg import evaluate_pan_seg
 from scalabel.eval.result import Result
 from scalabel.eval.sem_seg import evaluate_sem_seg
-from scalabel.label.io import group_and_sort
+from scalabel.eval.tagging import evaluate_tagging
+from scalabel.label.io import group_and_sort, load_label_config
 from scalabel.label.typing import Config, Dataset, Frame, FrameGroup
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.time import Timer
-from vis4d.struct import CategoryMap, MetricLogs
+from vis4d.struct import FieldCategoryMap, MetricLogs, TagAttr
+
+
+def _tagging(
+    pred: List[Frame],
+    gt: List[Frame],
+    cfg: List[Config],
+    tag_attrs: Optional[List[str]] = None,
+) -> List[Result]:
+    """Evaluate image tagging."""
+    assert tag_attrs is not None
+    return [
+        evaluate_tagging(gt, pred, c, tag_attr, nproc=1)
+        for c, tag_attr in zip(cfg, tag_attrs)
+    ]
 
 
 def _detect(
@@ -91,6 +106,7 @@ def _pan_seg(
 
 
 _eval_mapping = dict(
+    tagging=_tagging,
     detect=_detect,
     track=_track,
     ins_seg=_ins_seg,
@@ -108,11 +124,11 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         name: str,
         data_root: str,
         annotations: Optional[str] = None,
-        category_mapping: Optional[CategoryMap] = None,
+        category_mapping: Optional[FieldCategoryMap] = None,
         attributes: Optional[
             Dict[str, Union[bool, float, str, List[float], List[str]]]
         ] = None,
-        config_path: Optional[str] = None,
+        config_path: Optional[Union[str, List[str]]] = None,
         eval_metrics: Optional[List[str]] = None,
         ignore_unknown_cats: bool = False,
         cache_as_binary: bool = False,
@@ -120,6 +136,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         collect_device: str = "cpu",
         multi_sensor_inference: bool = True,
         compute_global_instance_ids: bool = False,
+        tagging_attribute: Optional[TagAttr] = None,
     ):
         """Init dataset loader."""
         super().__init__()
@@ -136,6 +153,12 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         self.attributes = attributes
         self.num_processes = num_processes
         self.multi_sensor_inference = multi_sensor_inference
+        if tagging_attribute is not None and not isinstance(
+            tagging_attribute, list
+        ):
+            self.tagging_attribute: Optional[List[str]] = [tagging_attribute]
+        else:
+            self.tagging_attribute = tagging_attribute
 
         if self.eval_metrics is None:
             self.eval_metrics = []
@@ -156,6 +179,13 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         self.frames = dataset.frames
         self.groups = dataset.groups
 
+        if self.config_path is not None:
+            self.configs, _ = self.load_config()
+        else:
+            self.configs = [self.metadata_cfg]
+            if len(self.eval_metrics) > 1:
+                self.configs *= len(self.eval_metrics)
+
     def load_cached_dataset(self) -> Dataset:
         """Load cached dataset from file."""
         assert self.annotations is not None
@@ -168,6 +198,35 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
             with open(cache_path, "rb") as file:
                 dataset = pickle.loads(file.read())
         return dataset
+
+    def _get_config_path(self) -> Optional[List[str]]:
+        """Get config paths."""
+        if self.config_path is None:  # pragma: no cover
+            return None
+        cfg = self.config_path
+        assert self.eval_metrics is not None
+        if isinstance(cfg, list):
+            if len(self.eval_metrics) > 0:
+                assert len(cfg) >= len(self.eval_metrics), (
+                    "Length of config_path (as a list) must be greater than "
+                    "number of eval_metrics, if specified"
+                )
+        elif isinstance(cfg, str):
+            cfg = [cfg]
+            if len(self.eval_metrics) > 1:
+                # use same config for each metric by default
+                cfg *= len(self.eval_metrics)
+        return cfg
+
+    def load_config(self) -> Tuple[List[Config], Config]:
+        """Load Scalabel configs."""
+        cfg_paths = self._get_config_path()
+        assert cfg_paths is not None
+        cfgs = [load_label_config(cfg_path) for cfg_path in cfg_paths]
+        combine_cfg = Config(
+            categories=[c for cfg in cfgs for c in cfg.categories]
+        )
+        return cfgs, combine_cfg
 
     @abc.abstractmethod
     def load_dataset(self) -> Dataset:
@@ -191,11 +250,30 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
         Returns a dictionary of scores to log and a pretty printed string.
         """
-        result = _eval_mapping[metric](
-            predictions, gts, self.metadata_cfg, self.ignore_unknown_cats
+        assert self.eval_metrics is not None
+        if metric != "tagging":
+            eval_cfg = self.configs[self.eval_metrics.index(metric)]
+            result: Union[Result, List[Result]] = _eval_mapping[metric](  # type: ignore  # pylint: disable=line-too-long
+                predictions, gts, eval_cfg, self.ignore_unknown_cats
+            )
+            assert not isinstance(result, list)
+            log_dict = {
+                f"{metric}/{k}": v for k, v in result.summary().items()
+            }
+            return log_dict, str(result)
+        assert self.tagging_attribute is not None
+        result = _tagging(
+            predictions,
+            gts,
+            self.configs,
+            tag_attrs=self.tagging_attribute,
         )
-        log_dict = {f"{metric}/{k}": v for k, v in result.summary().items()}
-        return log_dict, str(result)
+        log_dict, res_str = {}, ""
+        for res, tag_attr in zip(result, self.tagging_attribute):
+            for k, v in res.summary().items():
+                log_dict[f"{metric}/{k}/{tag_attr}"] = v
+            res_str += f"{tag_attr}:{str(res)}"
+        return log_dict, res_str
 
 
 def add_data_path(

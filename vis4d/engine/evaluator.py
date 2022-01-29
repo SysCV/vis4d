@@ -145,7 +145,8 @@ class StandardEvaluatorCallback(BaseEvaluatorCallback):
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):
                 prediction = copy.deepcopy(inp[0].metadata[0])
-                prediction.labels = out
+                prediction.labels = out.labels
+                prediction.attributes = out.attributes
                 self._predictions[key].append(prediction)
 
     def evaluate(self, epoch: int) -> Dict[str, MetricLogs]:

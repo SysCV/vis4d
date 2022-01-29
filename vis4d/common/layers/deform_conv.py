@@ -18,13 +18,17 @@ BN_MOMENTUM = 0.1
 class DeformConv(Vis4DModule[torch.Tensor, torch.Tensor]):
     """Deformable Convolution."""
 
-    def __init__(self, chi: int, cho: int) -> None:
+    def __init__(self, chi: int, cho: int, norm: str = "BN") -> None:
         """Init."""
         assert MMCV_INSTALLED, "DeformConv requires mmcv to be installed!"
         super().__init__()
-        self.actf = nn.Sequential(
-            nn.BatchNorm2d(cho, momentum=BN_MOMENTUM), nn.ReLU(inplace=True)
-        )
+        if norm == "BN":
+            norm_module = nn.BatchNorm2d(cho, momentum=BN_MOMENTUM)
+        elif norm == "GN":  # pragma: no cover
+            norm_module = nn.GroupNorm(32, cho)
+        else:
+            raise ValueError(f"Unknown norm={norm}")
+        self.actf = nn.Sequential(norm_module, nn.ReLU(inplace=True))
         self.conv = ModulatedDeformConv2dPack(
             chi,
             cho,

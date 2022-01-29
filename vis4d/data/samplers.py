@@ -13,7 +13,7 @@ from torch.utils.data import (
 )
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.common.registry import RegistryHolder
+from vis4d.common import RegistryHolder
 from vis4d.common.utils import get_world_size
 from vis4d.struct import ArgsType, ModuleCfg
 
@@ -115,12 +115,14 @@ class RoundRobin:
         cum_sizes: List[int],
         repeat_sampling: bool,
         spread_samples: bool,
+        max_samples: int,
     ) -> Iterator[List[int]]:
         """Generate dataset indices for each step."""
         samp_iters = [iter(sampler) for sampler in samplers]
-        max_len = max(len(sampler) for sampler in samplers)
+        samp_lens = RoundRobin.get_sampler_lens(samplers, max_samples)
+        max_len = max(samp_lens)
         if not repeat_sampling and spread_samples:
-            samp_interval = [max_len // len(sampler) for sampler in samplers]
+            samp_interval = [max_len // samp_len for samp_len in samp_lens]
         else:  # pragma: no cover
             if spread_samples:
                 rank_zero_warn(
@@ -145,11 +147,25 @@ class RoundRobin:
                 yield [b + start_index for b in batch]
 
     @staticmethod
+    def get_sampler_lens(
+        samplers: List[Sampler[List[int]]], max_samples: int
+    ) -> List[int]:
+        """Get length of each sampler."""
+        return [
+            len(sampler)
+            if max_samples == -1
+            else min(len(sampler), max_samples)
+            for sampler in samplers
+        ]
+
+    @staticmethod
     def get_length(
-        samplers: List[Sampler[List[int]]], repeat_sampling: bool
+        samplers: List[Sampler[List[int]]],
+        repeat_sampling: bool,
+        max_samples: int,
     ) -> int:
-        """Get length of sampler."""
-        sampler_lens = [len(sampler) for sampler in samplers]
+        """Get length of round-robin sampler."""
+        sampler_lens = RoundRobin.get_sampler_lens(samplers, max_samples)
         if repeat_sampling:  # pragma: no cover
             return max(sampler_lens) * len(samplers)
         return sum(sampler_lens)
@@ -163,12 +179,14 @@ class RoundRobinSampler(BaseSampler):
         *args: ArgsType,
         repeat_sampling: bool = False,
         spread_samples: bool = True,
+        max_samples: int = -1,
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
         self.repeat_sampling = repeat_sampling
         self.spread_samples = spread_samples
+        self.max_samples = max_samples
         self.samplers = RoundRobin.setup(
             self.samplers, self.batch_size, self.drop_last
         )
@@ -180,11 +198,14 @@ class RoundRobinSampler(BaseSampler):
             self.dataset.cumulative_sizes,
             self.repeat_sampling,
             self.spread_samples,
+            self.max_samples,
         )
 
     def __len__(self) -> int:
         """Return length of sampler instance."""
-        return RoundRobin.get_length(self.samplers, self.repeat_sampling)
+        return RoundRobin.get_length(
+            self.samplers, self.repeat_sampling, self.max_samples
+        )
 
 
 class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
@@ -195,12 +216,14 @@ class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
         *args: ArgsType,
         repeat_sampling: bool = False,
         spread_samples: bool = True,
+        max_samples: int = -1,
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
         self.repeat_sampling = repeat_sampling
         self.spread_samples = spread_samples
+        self.max_samples = max_samples
         self.samplers = RoundRobin.setup(
             self.samplers, self.batch_size, self.drop_last
         )
@@ -212,11 +235,14 @@ class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
             self.dataset.cumulative_sizes,
             self.repeat_sampling,
             self.spread_samples,
+            self.max_samples,
         )
 
     def __len__(self) -> int:
         """Return length of sampler instance."""
-        return RoundRobin.get_length(self.samplers, self.repeat_sampling)
+        return RoundRobin.get_length(
+            self.samplers, self.repeat_sampling, self.max_samples
+        )
 
 
 def build_data_sampler(

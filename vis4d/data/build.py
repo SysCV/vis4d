@@ -8,9 +8,9 @@ from torch.utils.data.distributed import DistributedSampler
 
 from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
-from ..struct import InputSample
+from ..struct import InputSample, ModuleCfg
 from .dataset import ScalabelDataset
-from .samplers import BaseSampler, TrackingInferenceSampler
+from .samplers import TrackingInferenceSampler, build_data_sampler
 from .utils import identity_batch_collator
 
 
@@ -26,7 +26,7 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         predict_datasets: Optional[List[ScalabelDataset]] = None,
         seed: Optional[int] = None,
         pin_memory: bool = False,
-        train_sampler: Optional[BaseSampler] = None,
+        train_sampler: Optional[ModuleCfg] = None,
     ) -> None:
         """Init."""
         super().__init__()  # type: ignore
@@ -44,12 +44,16 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         assert self.train_datasets is not None, "No train datasets specified!"
         train_dataset = data.ConcatDataset(self.train_datasets)
         if self.train_sampler is not None:
+            train_sampler = build_data_sampler(
+                self.train_sampler, train_dataset, self.samples_per_gpu
+            )
             batch_size, shuffle = 1, False
         else:
+            train_sampler = None
             batch_size, shuffle = self.samples_per_gpu, True
         train_dataloader = data.DataLoader(
             train_dataset,
-            batch_sampler=self.train_sampler,
+            batch_sampler=train_sampler,
             batch_size=batch_size,
             num_workers=self.workers_per_gpu,
             collate_fn=identity_batch_collator,

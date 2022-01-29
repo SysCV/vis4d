@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from scalabel.label.transforms import mask_to_rle, poly2ds_to_mask, rle_to_mask
-from scalabel.label.typing import ImageSize, Label
+from scalabel.label.typing import Frame, ImageSize, Label
 from torchvision.ops import roi_align
 
 from vis4d.common.mask import paste_masks_in_image
@@ -165,7 +165,7 @@ class Masks(LabelInstance):
 
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
-    ) -> List[Label]:
+    ) -> Frame:
         """Convert from internal to scalabel format."""
         labels = []
         for i, mask in enumerate(self.masks):
@@ -186,7 +186,7 @@ class Masks(LabelInstance):
             label_dict = dict(id=label_id, category=cls, score=score, rle=rle)
             labels.append(Label(**label_dict))
 
-        return labels
+        return Frame(name="", labels=labels)
 
     def __getitem__(self: "TMasks", item) -> "TMasks":  # type: ignore
         """Shadows tensor based indexing while returning new Masks."""

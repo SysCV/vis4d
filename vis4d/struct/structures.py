@@ -15,7 +15,7 @@ from typing import (
 import numpy as np
 import numpy.typing as npt
 import torch
-from scalabel.label.typing import ImageSize, Label
+from scalabel.label.typing import Frame, ImageSize, Label
 
 TDataInstance = TypeVar("TDataInstance", bound="DataInstance")
 TInputInstance = TypeVar("TInputInstance", bound="InputInstance")
@@ -90,7 +90,7 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
-    ) -> List[Label]:
+    ) -> Frame:
         """Convert from ours to scalabel format."""
         raise NotImplementedError
 
@@ -113,9 +113,11 @@ NDArrayI64 = npt.NDArray[np.int64]
 NDArrayUI8 = npt.NDArray[np.uint8]
 TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
 LossesType = Dict[str, torch.Tensor]
-ModelOutput = Dict[str, List[List[Label]]]
+ModelOutput = Dict[str, List[Frame]]
 DictStrAny = Dict[str, Any]  # type: ignore
-CategoryMap = Union[Dict[str, int], Dict[str, Dict[str, int]]]
+CategoryMap = Union[Dict[str, int], List[Dict[str, int]]]
+FieldCategoryMap = Union[CategoryMap, Dict[str, CategoryMap]]
+TagAttr = Union[str, List[str]]
 MetricLogs = Dict[str, Union[float, int]]
 FeatureMaps = Dict[str, torch.Tensor]
 ModuleCfg = DictStrAny

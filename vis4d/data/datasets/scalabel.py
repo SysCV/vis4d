@@ -1,6 +1,5 @@
 """Dataset loader for scalabel format."""
-
-from scalabel.label.io import load, load_label_config
+from scalabel.label.io import load
 from scalabel.label.typing import Dataset
 
 from .base import BaseDatasetLoader
@@ -18,7 +17,7 @@ class Scalabel(BaseDatasetLoader):
         )
         metadata_cfg = dataset.config
         if self.config_path is not None:
-            metadata_cfg = load_label_config(self.config_path)
+            _, metadata_cfg = self.load_config()
         assert metadata_cfg is not None
         dataset.config = metadata_cfg
         return dataset

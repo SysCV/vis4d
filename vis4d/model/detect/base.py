@@ -1,5 +1,4 @@
 """Base class for Vis4D detectors."""
-
 import abc
 from typing import List, Optional, Tuple, Union, overload
 

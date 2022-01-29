@@ -1,6 +1,6 @@
 """Class for processing Scalabel type datasets."""
 import copy
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -24,9 +24,10 @@ from ..common.registry import RegistryHolder, build_component
 from ..struct import (
     Boxes2D,
     Boxes3D,
-    CategoryMap,
     Extrinsics,
+    FieldCategoryMap,
     Images,
+    ImageTags,
     InputSample,
     InstanceMasks,
     Intrinsics,
@@ -34,6 +35,7 @@ from ..struct import (
     ModuleCfg,
     PointCloud,
     SemanticMasks,
+    TagAttr,
 )
 from .transforms import AugParams, BaseAugmentation
 from .utils import im_decode
@@ -46,6 +48,7 @@ ALLOWED_FIELDS = [
     "intrinsics",
     "extrinsics",
     "pointcloud",
+    "image_tags",
 ]
 
 
@@ -65,6 +68,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         ] = None,
         image_backend: str = "PIL",
         image_channel_mode: str = "RGB",
+        tagging_attribute: Optional[TagAttr] = None,
     ) -> None:
         """Init Scalabel Mapper."""
         self.image_backend = image_backend
@@ -74,6 +78,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         self.clip_bboxes_to_image = clip_bboxes_to_image
         self.min_bboxes_area = min_bboxes_area
         self.image_channel_mode = image_channel_mode
+        self.tagging_attribute = tagging_attribute
 
         if isinstance(data_backend, dict):  # pragma: no cover
             self.data_backend: BaseDataBackend = build_component(
@@ -95,7 +100,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                     transform_ = transform
                 self.transformations.append(transform_)
         rank_zero_info("Transformations used: %s", self.transformations)
-        self.cats_name2id: Dict[str, Dict[str, int]] = {}
+        self.cats_name2id: Dict[str, List[Dict[str, int]]] = {}
         self.training = False
 
     def set_training(self, is_train: bool) -> None:
@@ -107,7 +112,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 "only available in training."
             )
 
-    def setup_categories(self, cats_name2id: CategoryMap) -> None:
+    def setup_categories(self, cats_name2id: FieldCategoryMap) -> None:
         """Setup the category mappings for all fields to load."""
         for field in self.fields_to_load:
             assert (
@@ -115,15 +120,17 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             ), f"Unrecognized field={field}, allowed fields={ALLOWED_FIELDS}"
             if not cats_name2id:
                 continue
-            if isinstance(list(cats_name2id.values())[0], int):
-                self.cats_name2id[field] = cats_name2id  # type: ignore
+            if isinstance(cats_name2id, list):
+                self.cats_name2id[field] = cats_name2id
+            elif isinstance(list(cats_name2id.values())[0], int):
+                self.cats_name2id[field] = [cats_name2id]  # type: ignore
             else:
                 assert (
                     field in cats_name2id
                 ), f"Field={field} not specified in category_mapping"
                 field_map = cats_name2id[field]
                 assert isinstance(field_map, dict)
-                self.cats_name2id[field] = field_map
+                self.cats_name2id[field] = [field_map]
 
     def load_inputs(
         self,
@@ -177,9 +184,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         return input_data
 
     def load_annotations(
-        self,
-        sample: InputSample,
-        labels: Optional[List[Label]],
+        self, sample: InputSample, labels: Optional[List[Label]]
     ) -> None:
         """Transform annotations."""
         labels_used = []
@@ -199,7 +204,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 if "instance_masks" in self.fields_to_load:
                     instance_masks = InstanceMasks.from_scalabel(
                         labels_used,
-                        self.cats_name2id["instance_masks"],
+                        self.cats_name2id["instance_masks"][0],
                         instance_id_dict,
                         sample.metadata[0].size,
                     )
@@ -208,7 +213,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 if "semantic_masks" in self.fields_to_load:
                     semantic_masks = SemanticMasks.from_scalabel(
                         labels_used,
-                        self.cats_name2id["semantic_masks"],
+                        self.cats_name2id["semantic_masks"][0],
                         instance_id_dict,
                         sample.metadata[0].size,
                         self.background_as_class,
@@ -218,7 +223,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 if "boxes2d" in self.fields_to_load:
                     boxes2d = Boxes2D.from_scalabel(
                         labels_used,
-                        self.cats_name2id["boxes2d"],
+                        self.cats_name2id["boxes2d"][0],
                         instance_id_dict,
                     )
                     if len(sample.targets.instance_masks[0]) > 0 and (
@@ -234,10 +239,27 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 if "boxes3d" in self.fields_to_load:
                     boxes3d = Boxes3D.from_scalabel(
                         labels_used,
-                        self.cats_name2id["boxes3d"],
+                        self.cats_name2id["boxes3d"][0],
                         instance_id_dict,
                     )
                     sample.targets.boxes3d = [boxes3d]
+
+        if sample.metadata[0].attributes is not None:
+            if "image_tags" in self.fields_to_load:
+                image_tags, tag_maps = [], self.cats_name2id["image_tags"]
+                if isinstance(self.tagging_attribute, list):
+                    tag_attrs: Sequence[Optional[str]] = self.tagging_attribute
+                elif self.tagging_attribute is None:  # pragma: no cover
+                    tag_attrs = [None] * len(tag_maps)
+                else:  # pragma: no cover
+                    tag_attrs = [self.tagging_attribute]
+                for cats_map, tag_attr in zip(tag_maps, tag_attrs):
+                    image_tags.append(
+                        ImageTags.from_scalabel(
+                            sample.metadata[0], cats_map, tag_attr
+                        )
+                    )
+                sample.targets.image_tags = [ImageTags.merge(image_tags)]
 
     def transform_inputs(
         self,

@@ -94,10 +94,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         ) / self.d2_detector.pixel_std
         return inputs
 
-    def forward_train(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """D2 model forward pass during training stage."""
         assert (
             len(batch_inputs) == 1
@@ -114,10 +111,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         )
         return {**rpn_losses, **detect_losses}
 
-    def forward_test(
-        self,
-        batch_inputs: List[InputSample],
-    ) -> ModelOutput:
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
         """Forward pass during testing stage."""
         assert (
             len(batch_inputs) == 1
@@ -164,9 +158,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         return rpn_losses, proposal_to_box2d(proposals)
 
     def _proposals_test(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> List[Boxes2D]:
         """Test stage proposal generation."""
         images_d2 = images_to_imagelist(inputs.images)
@@ -198,10 +190,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
         with self.d2_event_storage:
             _, detect_losses = self.d2_detector.roi_heads(
-                images_d2,
-                features,
-                proposals,
-                targets_d2,
+                images_d2, features, proposals, targets_d2
             )
         return detect_losses, None
 
@@ -219,10 +208,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
         with self.d2_event_storage:
             detections, _ = self.d2_detector.roi_heads(
-                images_d2,
-                features,
-                proposals,
-                targets_d2,
+                images_d2, features, proposals, targets_d2
             )
 
         segmentations: Optional[List[InstanceMasks]] = None

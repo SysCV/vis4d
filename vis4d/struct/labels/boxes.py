@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple, Type, TypeVar
 
 import torch
 from scalabel.label.transforms import box2d_to_xyxy, xyxy_to_box2d
-from scalabel.label.typing import Box3D, ImageSize, Label
+from scalabel.label.typing import Box3D, Frame, ImageSize, Label
 
 from vis4d.common.geometry.rotation import (
     euler_angles_to_matrix,
@@ -156,7 +156,7 @@ class Boxes(LabelInstance):
     @abc.abstractmethod
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
-    ) -> List[Label]:
+    ) -> Frame:
         """Convert from ours to scalabel format."""
         raise NotImplementedError
 
@@ -254,7 +254,7 @@ class Boxes2D(Boxes):
 
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
-    ) -> List[Label]:
+    ) -> Frame:
         """Convert from internal to scalabel format."""
         labels = []
         for i in range(len(self.boxes)):
@@ -281,7 +281,7 @@ class Boxes2D(Boxes):
             label_dict["category"] = cls
             labels.append(Label(**label_dict))
 
-        return labels
+        return Frame(name="", labels=labels)
 
     def postprocess(
         self,
@@ -401,7 +401,7 @@ class Boxes3D(Boxes):
 
     def to_scalabel(
         self, idx_to_class: Optional[Dict[int, str]] = None
-    ) -> List[Label]:
+    ) -> Frame:
         """Convert from internal to scalabel format."""
         labels = []
         for i in range(len(self.boxes)):
@@ -441,7 +441,7 @@ class Boxes3D(Boxes):
             label_dict["category"] = cls
             labels.append(Label(**label_dict))
 
-        return labels
+        return Frame(name="", labels=labels)
 
     def transform(self, extrinsics: Extrinsics) -> None:
         """Transform Boxes3D with given Extrinsics.

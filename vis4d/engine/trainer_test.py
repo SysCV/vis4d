@@ -286,13 +286,13 @@ class TestSemSegMMDeepLab(BaseEngineTests.TestTrain):
         cls.cfg.launch.tqdm = True
 
 
-class TestPanSeg(BaseEngineTests.TestTrain):
-    """Panoptic segmentation test cases."""
+class TestPanSegFPN(BaseEngineTests.TestTrain):
+    """Panoptic FPN test cases."""
 
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
-        cls.work_dir = "./unittests/unittest_pan_seg/"
+        cls.work_dir = "./unittests/unittest_pan_seg_fpn/"
         args = Namespace(
             config=get_test_file("panoptic/panoptic_fpn.toml"),
             work_dir=cls.work_dir,
@@ -309,6 +309,34 @@ class TestMTL(BaseEngineTests.TestTrain, BaseEngineTests.TestTest):
         cls.work_dir = "./unittests/unittest_mtl/"
         args = Namespace(
             config=get_test_file("mtl/qdtrackseg.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(args)
+
+
+class TestTaggingMM(BaseEngineTests.TestTrain):
+    """MMClassification tagging test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_tagging_mm/"
+        args = Namespace(
+            config=get_test_file("tagging/resnet18_mmcls.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(args)
+
+
+class TestTaggingMulti(BaseEngineTests.TestTrain):
+    """Multi-label tagging test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_tagging_multi/"
+        args = Namespace(
+            config=get_test_file("tagging/resnet18_multilabel_mmcls.toml"),
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)

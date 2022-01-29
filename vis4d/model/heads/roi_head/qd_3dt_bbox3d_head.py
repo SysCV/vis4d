@@ -345,9 +345,7 @@ class QD3DTBBox3DHead(Det3DRoIHead):
         return torch.cat([delta_2dc, depth, dim, alpha, depth_uncertainty], -1)
 
     def get_predictions(
-        self,
-        features_list: List[torch.Tensor],
-        boxes: List[Boxes2D],
+        self, features_list: List[torch.Tensor], boxes: List[Boxes2D]
     ) -> List[torch.Tensor]:
         """Get 3D bounding box prediction parameters."""
         roi_feats = self.roi_pooler(features_list, boxes)
@@ -441,7 +439,7 @@ class QD3DTBBox3DHead(Det3DRoIHead):
             boxes: Input boxes to apply RoIHead on.
 
         Returns:
-            List[Boxes3D]: Prediction output.
+            List[Boxes3D]: A list of 3D box predictions.
         """
         assert features is not None, "QD-3DT box3D head requires features!"
         if sum(len(b) for b in boxes) == 0:

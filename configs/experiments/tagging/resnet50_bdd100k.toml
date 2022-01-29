@@ -1,0 +1,23 @@
+[[config]]
+path = "../../base/datasets/bdd100k_tagging.toml"
+
+[[config]]
+path = "../../base/models/mmclassification/resnet50.toml"
+
+[model]
+    [model.optimizer]
+    type = "SGD"
+    lr = 0.1
+    kwargs = {"momentum" = 0.9, "weight_decay" = 0.0001}
+
+    [model.lr_scheduler]
+    type = "MultiStepLR"
+    kwargs = {"milestones" = [30, 45]}
+
+[launch]
+samples_per_gpu = 12
+workers_per_gpu = 4
+
+[trainer]
+max_epochs = 60
+check_val_every_n_epoch = 5

@@ -2,7 +2,6 @@
 import os
 from typing import Dict, List, Optional, Tuple, Union
 
-import torch
 import torch.nn.functional as F
 
 try:
@@ -25,14 +24,15 @@ from vis4d.model.mm_utils import (
     _parse_losses,
     get_img_metas,
     results_from_mmseg,
-    targets_to_mmseg,
 )
+from vis4d.model.utils import seg_targets_to_tensor, seg_tensor_to_logits
 from vis4d.struct import (
     DictStrAny,
     FeatureMaps,
     InputSample,
     LabelInstances,
     LossesType,
+    MaskLogits,
     SemanticMasks,
 )
 
@@ -72,18 +72,15 @@ class MMSegDecodeHead(SegDenseHead):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[torch.Tensor]]:
+    ) -> Tuple[LossesType, Optional[List[MaskLogits]]]:
         """Forward pass during training stage."""
-        image_metas = get_img_metas(inputs.images)
-        gt_masks = targets_to_mmseg(inputs.images, inputs.targets)
+        gt_masks = seg_targets_to_tensor(inputs.images, inputs.targets)
         assert features is not None
-        losses = self.mm_decode_head.forward_train(
-            [features[k] for k in features.keys()],
-            image_metas,
-            gt_masks,
-            self.train_cfg,
+        seg_logits = self.mm_decode_head.forward(
+            [features[k] for k in features.keys()]
         )
-        return _parse_losses(losses), None
+        losses = self.mm_decode_head.losses(seg_logits, gt_masks)
+        return _parse_losses(losses), seg_tensor_to_logits(seg_logits)
 
     def forward_test(
         self, inputs: InputSample, features: FeatureMaps

@@ -12,9 +12,6 @@ from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
     rank_zero_warn,
 )
-from torch.utils import data
-
-from vis4d.data.samplers import build_data_sampler
 
 from ..common.registry import build_component
 from ..config import Config, default_argument_parser, parse_config
@@ -236,7 +233,12 @@ def setup_experiment(
     )
 
     # setup category_mappings
-    setup_category_mapping(cfg.train + cfg.test, cfg.model["category_mapping"])
+    model_map = (
+        cfg.model["category_mapping"]
+        if "category_mapping" in cfg.model
+        else None
+    )
+    setup_category_mapping(cfg.train + cfg.test, model_map)
 
     # build datasets
     cmode = (
@@ -246,15 +248,13 @@ def setup_experiment(
     )
     train_datasets = build_datasets(cfg.train, cmode) if is_train else None
     test_datasets, predict_datasets = None, None
-    train_sampler: Optional[data.Sampler[List[int]]] = None
-    if cfg.launch.action == "train":
-        if cfg.data is not None and "train_sampler" in cfg.data:
-            # build custom train sampler
-            train_sampler = build_data_sampler(
-                cfg.data["train_sampler"],
-                data.ConcatDataset(train_datasets),
-                cfg.launch.samples_per_gpu,
-            )
+    train_sampler = (
+        cfg.data["train_sampler"]
+        if cfg.launch.action == "train"
+        and cfg.data is not None
+        and "train_sampler" in cfg.data
+        else None
+    )
     if cfg.launch.action == "predict":
         if cfg.launch.input_dir:
             input_dir = cfg.launch.input_dir

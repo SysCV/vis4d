@@ -48,6 +48,9 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         augmentation = getattr(kornia_augmentation, kornia_type)
         if kwargs is None:
             kwargs = {}
+        for k, v in kwargs.items():
+            if isinstance(v, list):
+                kwargs[k] = tuple(v)
         self.augmentor = augmentation(p=1.0, **kwargs)
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
@@ -77,9 +80,7 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         return parameters
 
     def apply_intrinsics(
-        self,
-        intrinsics: Intrinsics,
-        parameters: AugParams,
+        self, intrinsics: Intrinsics, parameters: AugParams
     ) -> Intrinsics:
         """Apply augmentation to input intrinsics."""
         transform = parameters["transform"]
@@ -104,9 +105,7 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         return Images.cat(all_ims)
 
     def apply_box2d(
-        self,
-        boxes: List[Boxes2D],
-        parameters: AugParams,
+        self, boxes: List[Boxes2D], parameters: AugParams
     ) -> List[Boxes2D]:
         """Apply augmentation to input box2d."""
         for i, box in enumerate(boxes):
@@ -118,9 +117,7 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         return boxes
 
     def apply_mask(
-        self,
-        masks: List[TMasks],
-        parameters: AugParams,
+        self, masks: List[TMasks], parameters: AugParams
     ) -> List[TMasks]:
         """Apply augmentation to input mask."""
         for i, mask in enumerate(masks):
@@ -197,9 +194,7 @@ class KorniaRandomHorizontalFlip(KorniaAugmentationWrapper):
         return points
 
     def apply_intrinsics(
-        self,
-        intrinsics: Intrinsics,
-        parameters: AugParams,
+        self, intrinsics: Intrinsics, parameters: AugParams
     ) -> Intrinsics:
         """Apply augmentation to input intrinsics."""
         center = parameters["batch_shape"][3] / 2

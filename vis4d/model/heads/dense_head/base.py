@@ -11,6 +11,7 @@ from vis4d.struct import (
     InputSample,
     LabelInstances,
     LossesType,
+    MaskLogits,
     SemanticMasks,
 )
 
@@ -97,5 +98,6 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
         raise NotImplementedError
 
 
+ClsDenseHead = BaseDenseHead[Optional[List[torch.Tensor]], List[torch.Tensor]]
 DetDenseHead = BaseDenseHead[List[Boxes2D], List[Boxes2D]]
-SegDenseHead = BaseDenseHead[Optional[torch.Tensor], List[SemanticMasks]]
+SegDenseHead = BaseDenseHead[Optional[List[MaskLogits]], List[SemanticMasks]]

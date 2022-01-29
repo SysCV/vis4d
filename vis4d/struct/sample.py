@@ -5,7 +5,7 @@ import torch
 from scalabel.label.typing import Frame
 
 from .data import Extrinsics, Images, Intrinsics, PointCloud
-from .labels import Boxes2D, Boxes3D, InstanceMasks, SemanticMasks
+from .labels import Boxes2D, Boxes3D, ImageTags, InstanceMasks, SemanticMasks
 from .structures import DataInstance, InputInstance
 
 InputSampleData = Union[
@@ -22,11 +22,19 @@ class LabelInstances(InputInstance):
         boxes3d: Optional[List[Boxes3D]] = None,
         instance_masks: Optional[List[InstanceMasks]] = None,
         semantic_masks: Optional[List[SemanticMasks]] = None,
+        image_tags: Optional[List[ImageTags]] = None,
         other: Optional[List[Dict[str, torch.Tensor]]] = None,
         default_len: int = 1,
     ) -> None:
         """Init."""
-        inputs = (boxes2d, boxes3d, instance_masks, semantic_masks, other)
+        inputs = (
+            boxes2d,
+            boxes3d,
+            instance_masks,
+            semantic_masks,
+            image_tags,
+            other,
+        )
         annotation_len = default_len
         device = torch.device("cpu")
         if not all(x is None for x in inputs):
@@ -59,6 +67,12 @@ class LabelInstances(InputInstance):
             ]
         self.semantic_masks = semantic_masks
 
+        if image_tags is None:
+            image_tags = [
+                ImageTags.empty(device) for _ in range(annotation_len)
+            ]
+        self.image_tags = image_tags
+
         if other is None:
             other = [{} for _ in range(annotation_len)]
         self.other = other
@@ -70,6 +84,7 @@ class LabelInstances(InputInstance):
             [b.to(device) for b in self.boxes3d],
             [m.to(device) for m in self.instance_masks],
             [m.to(device) for m in self.semantic_masks],
+            [t.to(device) for t in self.image_tags],
             [{k: v.to(device) for k, v in o.items()} for o in self.other],
         )
 
@@ -88,6 +103,7 @@ class LabelInstances(InputInstance):
                 + len(self.boxes3d[i])
                 + len(self.instance_masks[i])
                 + len(self.semantic_masks[i])
+                + len(self.image_tags[i])
                 + len(self.other[i])
             )
         return annotation_sum == 0
@@ -109,6 +125,7 @@ class LabelInstances(InputInstance):
             [self.boxes3d[item]],
             [self.instance_masks[item]],
             [self.semantic_masks[item]],
+            [self.image_tags[item]],
         )
 
     @classmethod
@@ -129,6 +146,7 @@ class LabelInstances(InputInstance):
             new_instance.boxes3d.extend(inst.boxes3d)
             new_instance.instance_masks.extend(inst.instance_masks)
             new_instance.semantic_masks.extend(inst.semantic_masks)
+            new_instance.image_tags.extend(inst.image_tags)
             new_instance.other.extend(inst.other)
 
         return new_instance

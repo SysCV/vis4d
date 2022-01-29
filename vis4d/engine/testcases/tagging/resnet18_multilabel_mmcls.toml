@@ -1,0 +1,12 @@
+[[config]]
+path = "../configs/datasets/bdd100k/tagging_multilabel.toml"
+
+[[config]]
+path = "../configs/models/mmclassification/resnet18_multilabel.toml"
+
+[launch]
+samples_per_gpu = 1
+workers_per_gpu = 0
+
+[trainer]
+max_steps = 1

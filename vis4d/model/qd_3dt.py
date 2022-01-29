@@ -1,5 +1,5 @@
 """Quasi-dense 3D Tracking model."""
-from typing import List, Union
+from typing import Dict, List, Union
 
 import torch
 
@@ -13,12 +13,14 @@ from vis4d.struct import (
     LossesType,
     ModelOutput,
     ModuleCfg,
+    TLabelInstance,
 )
 
 from .detect import BaseTwoStageDetector
 from .heads.roi_head import BaseRoIHead, Det3DRoIHead
 from .qdtrack import QDTrack
 from .track.utils import split_key_ref_inputs
+from .utils import predictions_to_scalabel
 
 
 class QD3DT(QDTrack):
@@ -109,29 +111,16 @@ class QD3DT(QDTrack):
 
         embeds = torch.cat(embeddings_list)
 
-        boxes_2d = boxes2d.to(torch.device("cpu")).to_scalabel(
-            self.cat_mapping
-        )
-
         # associate detections, update graph
         predictions = LabelInstances([boxes2d], [boxes3d])
         tracks = self.track_graph(frames[0], predictions, embeddings=[embeds])
 
         tracks.boxes3d[0].transform(group.extrinsics.inverse())
 
-        tracks_2d = (
-            tracks.boxes2d[0]
-            .to(torch.device("cpu"))
-            .to_scalabel(self.cat_mapping)
+        outputs: Dict[str, List[TLabelInstance]] = dict(  # type: ignore
+            detect=[boxes2d],
+            track=tracks.boxes2d,
+            detect_3d=tracks.boxes3d,
+            track_3d=tracks.boxes3d,
         )
-        tracks_3d = (
-            tracks.boxes3d[0]
-            .to(torch.device("cpu"))
-            .to_scalabel(self.cat_mapping)
-        )
-        return dict(
-            detect=[boxes_2d],
-            track=[tracks_2d],
-            detect_3d=[tracks_3d],
-            track_3d=[tracks_3d],
-        )
+        return predictions_to_scalabel(outputs, self.cat_mapping)

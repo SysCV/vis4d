@@ -1,0 +1,22 @@
+[model]
+type = "MultiLabelClassifier"
+    [model.backbone]
+    type = "MMClsBackbone"
+    mm_cfg = "configs/base/models/mmclassification/resnet50_backbone.py"
+    pixel_mean = [123.675, 116.28, 103.53]
+    pixel_std = [58.395, 57.12, 57.375]
+        [model.backbone.neck]
+        type = "MMClsNeck"
+        mm_cfg = {"type" = "GlobalAveragePooling"}
+
+    [[model.head]]
+    type = "MMClsHead"
+    category_mapping = {"rainy" = 0, "snowy" = 1, "clear" = 2, "overcast" = 3, "undefined" = 4, "partly cloudy" = 5, "foggy" = 6}
+    mm_cfg = "configs/base/models/mmclassification/linear_cls_head.py"
+    tagging_attribute = "weather"
+
+    [[model.head]]
+    type = "MMClsHead"
+    category_mapping = {"tunnel" = 0, "residential" = 1, "parking lot" = 2, "undefined" = 3, "city street" = 4, "gas stations" = 5, "highway" = 6}
+    mm_cfg = "configs/base/models/mmclassification/linear_cls_head.py"
+    tagging_attribute = "scene"
