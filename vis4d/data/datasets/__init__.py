@@ -8,6 +8,7 @@ from .mot import MOTChallenge
 from .nuscenes import NuScenes
 from .scalabel import Scalabel
 from .waymo import Waymo
+from .shift import SHIFTDataset
 
 __all__ = [
     "BaseDatasetLoader",
@@ -19,4 +20,5 @@ __all__ = [
     "NuScenes",
     "KITTI",
     "MOTChallenge",
+    "SHIFTDataset"
 ]
