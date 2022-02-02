@@ -144,6 +144,7 @@ class InputSample(DataInstance):
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
         points: Optional[PointCloud] = None,
+        depth_maps: Optional[Images] = None,
         targets: Optional[LabelInstances] = None,
         other: Optional[List[Dict[str, torch.Tensor]]] = None,
     ) -> None:
@@ -168,6 +169,10 @@ class InputSample(DataInstance):
             points = PointCloud(torch.cat([torch.empty(len(images), 1, 4)]))
         self.points = points
 
+        if depth_maps is None:
+            points = Images(torch.cat([torch.empty(len(images), 1, 1)]))
+        self.depth_maps = depth_maps
+
         if targets is None:
             targets = LabelInstances(default_len=len(metadata))
         self.targets = targets
@@ -191,6 +196,7 @@ class InputSample(DataInstance):
             "intrinsics": self.intrinsics,
             "extrinsics": self.extrinsics,
             "points": self.points,
+            "depth_maps": self.depth_maps,
             "targets": self.targets,
             "other": self.other,
         }
@@ -206,6 +212,7 @@ class InputSample(DataInstance):
             self.intrinsics.to(device),
             self.extrinsics.to(device),
             self.points.to(device),
+            self.depth_maps.to(device),
             self.targets.to(device),
             [{k: v.to(device) for k, v in o.items()} for o in self.other],
         )
@@ -261,6 +268,7 @@ class InputSample(DataInstance):
             self.intrinsics[item],
             self.extrinsics[item],
             self.points[item],
+            self.depth_maps[item],
             self.targets[item],
             [self.other[item]],
         )

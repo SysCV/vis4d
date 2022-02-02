@@ -46,6 +46,7 @@ ALLOWED_FIELDS = [
     "intrinsics",
     "extrinsics",
     "pointcloud",
+    "depth_map"
 ]
 
 
@@ -173,6 +174,9 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             input_data.points = self.load_points(
                 group_url, group_extrinsics, input_data.extrinsics
             )
+
+        if "depth_map" in self.fields_to_load:
+            input_data.depth_maps = self.load_depth_map(sample.depth_url)
 
         return input_data
 
@@ -324,6 +328,33 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             points_world @ input_data_extrinsics.inverse().transpose().tensor
         )[:, :, :3]
         return point_cloud
+
+    def load_depth_map(
+        self, 
+        depth_url: str, 
+        max_depth: float = 1000.0,
+        byte_format: str = "BGR"
+    ) -> Images:
+        im_bytes = self.data_backend.get(depth_url)
+        image = im_decode(im_bytes, mode=self.image_channel_mode)
+        if image.shape[2] > 3:
+            image = image[:, :, :3]
+        image = image.astype(np.float32)
+
+        if byte_format == "BGR":
+            image = image[:, :, 2] * 256 * 256 + image[:, :, 1] * 256 + image[:, :, 0]
+        elif byte_format == "RGB":
+            image = image[:, :, 0] * 256 * 256 + image[:, :, 1] * 256 + image[:, :, 2]
+        else:
+            raise NotImplementedError
+        
+        image /= max_depth
+        image = torch.as_tensor(
+            np.ascontiguousarray(image),
+            dtype=torch.float32,
+        ).unsqueeze(0).unsqueeze(0)
+        images = Images(image, [(image.shape[3], image.shape[2])])
+        return images
 
     def __call__(
         self,
