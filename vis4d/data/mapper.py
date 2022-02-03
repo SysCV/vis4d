@@ -66,8 +66,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         self.fields_to_load = fields_to_load
         self.background_as_class = background_as_class
         self.skip_empty_samples = skip_empty_samples
-        self.clip_bboxes_to_image = clip_bboxes_to_image
-        self.min_bboxes_area = min_bboxes_area
         self.image_channel_mode = image_channel_mode
 
         if isinstance(data_backend, dict):  # pragma: no cover

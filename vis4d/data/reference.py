@@ -2,6 +2,7 @@
 from collections import defaultdict
 from typing import Dict, List, Optional
 
+import copy
 import numpy as np
 from scalabel.label.typing import Frame, FrameGroup
 
@@ -159,14 +160,12 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
             if vid_id is not None:
                 ref_data = []
                 for ref_idx in self.sample_ref_indices(vid_id, cur_idx):
-                    ref_sample = mapper(
-                        self.frames[ref_idx],
-                    )[0]
+                    ref_sample = mapper(self.frames[ref_idx])
                     if ref_sample is None:
                         break  # pragma: no cover
                     ref_data.append(ref_sample)
             else:  # pragma: no cover
-                ref_data = [key_data for _ in range(self.num_ref_imgs)]
+                ref_data = [copy.deepcopy(key_data) for _ in range(self.num_ref_imgs)]
             if (
                 not self.skip_nomatch_samples
                 or self.has_matches(key_data, ref_data)

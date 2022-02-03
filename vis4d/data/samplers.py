@@ -274,7 +274,7 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
     ) -> None:
         """Init."""
         super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
-        self.sequences = list(dataset.ref_sampler.video_to_indices.keys())
+        self.sequences = list(dataset.datasets[0].ref_sampler.video_to_indices.keys())  # TODO fix
         self.num_seqs = len(self.sequences)
         assert self.num_seqs >= self.num_replicas, (
             f"Number of sequences ({self.num_seqs}) must be greater or "
@@ -284,7 +284,7 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
         self._local_seqs = chunks[self.rank]
         self._local_idcs = []
         for seq in self._local_seqs:
-            self._local_idcs.extend(dataset.ref_sampler.video_to_indices[seq])
+            self._local_idcs.extend(dataset.datasets[0].ref_sampler.video_to_indices[seq])
 
     def __iter__(self) -> Generator[int, None, None]:
         """Iteration method."""

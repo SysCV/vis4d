@@ -13,6 +13,7 @@ from vis4d.struct import (
     ArgsType,
     Boxes2D,
     Boxes3D,
+LabelInstances,
     Images,
     InputSample,
     InstanceMasks,
@@ -22,16 +23,8 @@ from vis4d.struct import (
 )
 
 from .base import AugParams, BaseAugmentation
+from .utils import get_resize_shape, im_flip, im_resize
 
-
-def im_resize():
-    align_corners = None if self.interpolation == "nearest" else False
-    im_resized = F.interpolate(
-        inputs,
-        (H, W),
-        mode=self.interpolation,
-        align_corners=align_corners,
-    )
 
 class Resize(BaseAugmentation):
     """Resize augmentation.
@@ -127,22 +120,10 @@ class Resize(BaseAugmentation):
             assert isinstance(self.shape, list)
             shape = torch.tensor(random.sample(self.shape, k=len(sample)))
 
-        if self.keep_ratio:
-            for i, sh in enumerate(shape):
-                w, h = sample.images.image_sizes[i]
-                long_edge, short_edge = max(sh), min(sh)
-                scale_factor = min(
-                    long_edge / max(h, w), short_edge / min(h, w)
-                )
-                sh[0] = int(h * scale_factor + 0.5)
-                sh[1] = int(w * scale_factor + 0.5)
-        else:
-            # if h is long edge in original image, but is not in the current
-            # resize shape, we flip (h, w) to avoid large image distortions
-            for i, sh in enumerate(shape):
-                w, h = sample.images.image_sizes[i]
-                if w < h and not sh[1] < sh[0]:
-                    shape[i] = torch.flip(sh.unsqueeze(0), (0, 1)).squeeze(0)
+        for i, sh in enumerate(shape):
+            sh[1], sh[0] = get_resize_shape(
+                sample.images.image_sizes[i], (sh[1], sh[0]), self.keep_ratio
+            )
 
         transform = (
             torch.eye(3, device=sample.device)
@@ -520,57 +501,153 @@ class Mosaic(BaseAugmentation):
 
     def __init__(
         self,
-        num_samples: int,
         *args: ArgsType,
+        interpolation: str = "bilinear",
         **kwargs: ArgsType,
     ) -> None:
         """Init function."""
         super().__init__(*args, **kwargs)
         self.num_samples = 4
         self.out_shape = (3, 800, 1440)
+        self.center_ratio_range = (0.5, 1.5)
+        self.pad_value = 114.0
+        self.interpolation = interpolation
+        # TODO clip to image option for clipping boxes to current image
 
-    def _mosaic_combine(self, index: int, center: Tuple[int, int]) -> Tuple[List[int], List[int]]:
+    def _mosaic_combine(
+        self, index: int, center: Tuple[int, int], im_wh: Tuple[int, int]
+    ) -> Tuple[List[int], List[int]]:
         """Compute the mosaic parameters for the image at the current index.
 
         Index:
-        0 = top_left, 1 = top_right, bottom_left, bottom_right
+        0 = top_left, 1 = top_right, 3 = bottom_left, 4 = bottom_right
         """
+        assert index in (0, 1, 2, 3)
+        if index == 0:
+            # index0 to top left part of image
+            x1, y1, x2, y2 = (
+                max(center[0] - im_wh[0], 0),
+                max(center[1] - im_wh[1], 0),
+                center[0],
+                center[1],
+            )
+            crop_coord = (
+                im_wh[0] - (x2 - x1),
+                im_wh[1] - (y2 - y1),
+                im_wh[0],
+                im_wh[1],
+            )
 
+        elif index == 1:
+            # index1 to top right part of image
+            x1, y1, x2, y2 = (
+                center[0],
+                max(center[1] - im_wh[1], 0),
+                min(center[0] + im_wh[0], self.out_shape[2] * 2),
+                center[1],
+            )
+            crop_coord = (
+                0,
+                im_wh[1] - (y2 - y1),
+                min(im_wh[0], x2 - x1),
+                im_wh[1],
+            )
+
+        elif index == 2:
+            # index2 to bottom left part of image
+            x1, y1, x2, y2 = (
+                max(center[0] - im_wh[0], 0),
+                center[1],
+                center[0],
+                min(self.out_shape[1] * 2, center[1] + im_wh[1]),
+            )
+            crop_coord = (
+                im_wh[0] - (x2 - x1),
+                0,
+                im_wh[0],
+                min(y2 - y1, im_wh[1]),
+            )
+
+        else:
+            # index3 to bottom right part of image
+            x1, y1, x2, y2 = (
+                center[0],
+                center[1],
+                min(center[0] + im_wh[0], self.out_shape[2] * 2),
+                min(self.out_shape[1] * 2, center[1] + im_wh[1]),
+            )
+            crop_coord = 0, 0, min(im_wh[0], x2 - x1), min(y2 - y1, im_wh[1])
+
+        paste_coord = x1, y1, x2, y2
+        return paste_coord, crop_coord
 
     def apply_image(self, images: Images, parameters: AugParams) -> Images:
         """Apply augmentation to input image."""
-        assert len(images) == self.num_samples, \
-            "Number of images must be equal to the number of samples " \
+        assert len(images) == self.num_samples, (
+            "Number of images must be equal to the number of samples "
             "required for creating the mosaic."
+        )
         C, H, W = self.out_shape
-        mosaic_img = torch.zeros((1, C, H, W))
+        mosaic_img = torch.full((1, C, H * 2, W * 2), self.pad_value)
 
         # mosaic center x, y
         center_x = int(random.uniform(*self.center_ratio_range) * W)
         center_y = int(random.uniform(*self.center_ratio_range) * H)
         center = (center_x, center_y)
 
-        for i, img in images:
-            w_i, h_i = img.image_sizes[0]
-
+        paste_coords, crop_coords, im_scales = [], [], []
+        for i, img in enumerate(images):
             # resize current image
-            # TODO keep ratio option
+            ori_wh = img.image_sizes[0]
+            w_i, h_i = get_resize_shape(ori_wh, (W, H), keep_ratio=True)
+            img = im_resize(img, (h_i, w_i), self.interpolation)
 
             # compute the combine parameters
-            paste_coord, crop_coord = self._mosaic_combine(i, center, )
+            paste_coord, crop_coord = self._mosaic_combine(
+                i, center, (w_i, h_i)
+            )
             x1_p, y1_p, x2_p, y2_p = paste_coord
             x1_c, y1_c, x2_c, y2_c = crop_coord
 
             # crop and paste image
-            mosaic_img[y1_p:y2_p, x1_p:x2_p] = img[y1_c:y2_c, x1_c:x2_c]
+            mosaic_img[:, :, y1_p:y2_p, x1_p:x2_p] = img.tensor[:, :, y1_c:y2_c, x1_c:x2_c]
+            paste_coords.append(paste_coord)
+            crop_coords.append(crop_coord)
+            im_scales.append((w_i / ori_wh[0], h_i / ori_wh[1]))
 
-        return images
+        parameters["im_scales"] = im_scales
+        parameters["paste_params"] = paste_coords
+        parameters["crop_params"] = crop_coords
+        return Images(mosaic_img, image_sizes=[(W * 2, H * 2)])
 
     def apply_box2d(
         self, boxes: List[Boxes2D], parameters: AugParams
     ) -> List[Boxes2D]:
         """Apply augmentation to input box2d."""
-        return boxes
+        for i, box in enumerate(boxes):
+            paste_coord, crop_coord, im_scale = (
+                parameters["paste_params"][i],
+                parameters["crop_params"][i],
+                parameters["im_scales"][i],
+            )
+            x1_p, y1_p, x2_p, y2_p = paste_coord
+            x1_c, y1_c, x2_c, y2_c = crop_coord
+
+            # adjust boxes to new image size and origin coord
+            if len(box) > 0:
+                pw = x1_p - x1_c
+                ph = y1_p - y1_c
+                box.boxes[:, [0, 2]] = im_scale[0] * box.boxes[:, [0, 2]] + pw
+                box.boxes[:, [1, 3]] = im_scale[1] * box.boxes[:, [1, 3]] + ph
+
+                # TODO adjust track ids with image prefix
+
+                # filter boxes outside current image
+                crop_box = Boxes2D(torch.tensor(paste_coord).unsqueeze(0))
+                overlap = bbox_intersection(box, crop_box)
+                keep_mask = overlap.squeeze(-1) > 0
+                boxes[i] = box[keep_mask]
+        return [Boxes2D.merge(boxes)]
 
     def __call__(
         self, sample: InputSample, parameters: Optional[AugParams] = None
@@ -580,11 +657,140 @@ class Mosaic(BaseAugmentation):
             parameters = self.generate_parameters(sample)
 
         images = self.apply_image(sample.images, parameters)
-        boxes2d = self.apply_box2d(
-            sample.targets.boxes2d, parameters
-        )
+        boxes2d = self.apply_box2d(sample.targets.boxes2d, parameters)
 
         # TODO check for other targets / inputs, raise Exception
 
-        new_sample = InputSample(sample.metadata[0], images, targets=LabelInstances(boxes2d=boxes2d))
-        return new_sample
+        new_sample = InputSample(
+            [sample.metadata[0]], images, targets=LabelInstances(boxes2d=boxes2d)
+        )
+        return new_sample, parameters
+
+
+class MixUp(BaseAugmentation):
+    """MixUp Augmentation.
+
+
+                         mixup transform
+                +------------------------------+
+                | mixup image   |              |
+                |      +--------|--------+     |
+                |      |        |        |     |
+                |---------------+        |     |
+                |      |                 |     |
+                |      |      image      |     |
+                |      |                 |     |
+                |      |                 |     |
+                |      |-----------------+     |
+                |             pad              |
+                +------------------------------+
+
+     The mixup transform steps are as follows::
+        1. Another random image is picked by dataset and embedded in
+           the top left patch(after padding and resizing)
+        2. The target of mixup transform is the weighted average of mixup
+           image and origin image.
+    """
+
+    def __init__(
+        self,
+        *args: ArgsType,
+        interpolation: str = "bilinear",
+        **kwargs: ArgsType,
+    ) -> None:
+        """Init function."""
+        super().__init__(*args, **kwargs)
+        self.num_samples = 2
+        self.flip_ratio = 1.0
+        self.ratio_range = (0.5, 1.5)
+        self.out_shape = (3, 800, 1440)
+        self.pad_value = 114.0
+        self.interpolation = interpolation
+
+    def apply_image(self, images: Images, parameters: AugParams) -> Images:
+        """Apply MixUp on image pair."""
+        assert len(images) == 2, "MixUp only supports num_samples=2!"
+        C, H, W = self.out_shape
+        ori_img, other_img = images[0], images[1]
+        ori_w, ori_h = ori_img.image_sizes[0]
+
+        # resize, scale jitter other image
+        other_ori_wh = other_img.image_sizes[0]
+        w_i, h_i = get_resize_shape(other_ori_wh, (W, H), keep_ratio=True)
+        jit_factor = random.uniform(*self.ratio_range)
+        h_i, w_i = int(jit_factor * h_i), int(jit_factor * w_i)
+        other_img = im_resize(other_img, (h_i, w_i), self.interpolation)
+
+        # random horizontal flip other image
+        is_flip = random.uniform(0, 1) > self.flip_ratio
+        if is_flip:
+            other_img = im_flip(other_img)
+
+        # pad, optionally random crop other image
+        padded_img = torch.full((1, C, max(h_i, ori_h), max(w_i, ori_w)), self.pad_value)
+        padded_img[:, :, :h_i, :w_i] = other_img[0].tensor
+
+        x_offset, y_offset = 0, 0
+        if padded_img.shape[2] > ori_h:
+            y_offset = random.randint(0, padded_img.shape[2] - ori_h)
+        if padded_img.shape[3] > ori_w:
+            x_offset = random.randint(0, padded_img.shape[3] - ori_w)
+        padded_cropped_img = padded_img[:, :, y_offset:y_offset + ori_h, x_offset:x_offset + ori_w]
+
+        parameters["mixup_param"] = dict(
+            im_scale=(w_i / other_ori_wh[0], h_i / other_ori_wh[1]),
+            other_ori_wh=other_ori_wh,
+            is_flip=is_flip,
+            crop_coord=(x_offset, y_offset, x_offset + ori_w, y_offset + ori_h)
+        )
+
+        # mix ori and other
+        mixup_img = 0.5 * ori_img[0].tensor + 0.5 * padded_cropped_img
+        return Images(mixup_img, image_sizes=[(W * 2, H * 2)])
+
+    def apply_box2d(
+        self, boxes: List[Boxes2D], parameters: AugParams
+    ) -> List[Boxes2D]:
+        assert len(boxes) == 2, "MixUp only supports num_samples=2!"
+        ori_boxes, other_boxes = boxes[0], boxes[1]
+
+        crop_coord, im_scale = parameters["mixup_param"]["crop_coord"], \
+                               parameters["mixup_param"]["im_scale"]
+        x1_c, y1_c, x2_c, y2_c = crop_coord
+
+        # adjust boxes to new image size and origin coord
+        if len(other_boxes) > 0:
+            if parameters["mixup_param"]["is_flip"]:
+                w = parameters["mixup_param"]["other_ori_wh"][0]
+                other_boxes.boxes[:, [0, 2]] = w - other_boxes.boxes[:, [0, 2]]
+
+            other_boxes.boxes[:, [0, 2]] = im_scale[0] * other_boxes.boxes[:, [0, 2]] - x1_c
+            other_boxes.boxes[:, [1, 3]] = im_scale[1] * other_boxes.boxes[:, [1, 3]] - y1_c
+
+            # TODO adjust track ids with image prefix
+
+            # filter boxes outside other image
+            crop_box = Boxes2D(torch.tensor(crop_coord).unsqueeze(0))
+            overlap = bbox_intersection(other_boxes, crop_box)
+            keep_mask = overlap.squeeze(-1) > 0
+            other_boxes = other_boxes[keep_mask]
+
+        return [Boxes2D.merge([ori_boxes, other_boxes])]
+
+    def __call__(
+        self, sample: InputSample, parameters: Optional[AugParams] = None
+    ) -> Tuple[InputSample, AugParams]:
+        """Apply augmentations to input sample."""
+        if parameters is None or not self.same_on_ref:
+            parameters = self.generate_parameters(sample)
+
+        images = self.apply_image(sample.images, parameters)
+        boxes2d = self.apply_box2d(sample.targets.boxes2d, parameters)
+
+        # TODO check for other targets / inputs, raise Exception
+
+        new_sample = InputSample(
+            [sample.metadata[0]], images, targets=LabelInstances(boxes2d=boxes2d)
+        )
+        return new_sample, parameters
+

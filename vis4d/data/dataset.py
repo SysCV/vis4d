@@ -177,9 +177,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                     group_extrinsics=group.extrinsics,
                 )
             else:
-                input_data = self.mapper(
-                    self.dataset.frames[cur_idx]
-                )
+                input_data = self.mapper(self.dataset.frames[cur_idx])
             if input_data is not None:
                 if input_data.metadata[0].attributes is None:
                     input_data.metadata[0].attributes = {}

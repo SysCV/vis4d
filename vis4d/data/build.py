@@ -1,25 +1,31 @@
 """Build Vis4D data loading pipeline."""
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Iterable, Tuple
 
 import pytorch_lightning as pl
+from pytorch_lightning.utilities.distributed import rank_zero_info
 import torch
+import numpy as np
 from torch.utils import data
 from torch.utils.data.distributed import DistributedSampler
 
-from ..common.registry import RegistryHolder
+from ..common.registry import RegistryHolder, build_component
 from ..common.utils import get_world_size
-from ..struct import InputSample
+from .transforms import BaseAugmentation
 from .dataset import ScalabelDataset
 from .samplers import BaseSampler, TrackingInferenceSampler
 from .utils import identity_batch_collator
+from ..struct import ModuleCfg, LabelInstances, InputSample
 
 
 class Vis4DDatasetHandler(data.ConcatDataset):
-
-    def __init__(self, datasets: Iterable[Dataset],
+    def __init__(
+        self,
+        datasets: Iterable[data.Dataset],
         clip_bboxes_to_image: bool = True,
         min_bboxes_area: float = 7.0 * 7.0,
-         transformations: Optional[List[Union[BaseAugmentation, ModuleCfg]]] = None
+        transformations: Optional[
+            List[Union[BaseAugmentation, ModuleCfg]]
+        ] = None,
     ) -> None:
         """Init."""
         super().__init__(datasets)
@@ -37,30 +43,8 @@ class Vis4DDatasetHandler(data.ConcatDataset):
                 self.transformations.append(transform_)
         rank_zero_info("Transformations used: %s", self.transformations)
 
-    def transform_inputs(
-            self,
-            samples: List[InputSample],
-    ) -> None:
-        """Apply transforms to input samples.
-
-        Args:
-            samples: Input sample and (possibly) reference views.
-        """
-        parameters = []
-        for sample in samples:
-            for i, aug in enumerate(self.transformations):
-                if len(parameters) < len(self.transformations):
-                    if aug.num_samples > 1:
-                        idcs = np.random.randint(0, len(self), aug.num_samples)
-                        addsamples = [super().__getitem__(idx) for idx in idcs]
-                        sample = InputSample.cat([sample, *addsamples])
-                    sample, params = aug(sample)
-                    parameters.append(params)
-                else:
-                    sample, _ = aug(sample, parameters[i])
-
     def postprocess_annotations(
-            self, im_wh: Tuple[int, int], targets: LabelInstances
+        self, im_wh: Tuple[int, int], targets: LabelInstances
     ) -> None:
         """Process annotations after transform."""
         if len(targets.boxes2d[0]) == 0:
@@ -74,41 +58,44 @@ class Vis4DDatasetHandler(data.ConcatDataset):
         if len(targets.instance_masks[0]) > 0:
             targets.instance_masks = [targets.instance_masks[0][keep]]
 
-    def augment_data(self, data: List[InputSample], training: bool) -> List[InputSample]:
-        # apply transforms to input sample
-        parameters = self.transform_inputs(input_data, parameters)
-
-        if not training:
-            return input_data, parameters
-
-        # postprocess boxes after transforms
-        self.postprocess_annotations(
-            input_data.images.image_sizes[0], input_data.targets
-        )
-
-
-    def sort_samples(
-        self, input_samples: List[InputSample]
-    ) -> List[InputSample]:
+    def sort_samples(self, samples: List[InputSample]) -> List[InputSample]:
         """Sort samples according to sampling cfg."""
         if self.frame_order == "key_first":
-            return input_samples
+            return samples
         if self.frame_order == "temporal":
             return sorted(
-                input_samples,
+                samples,
                 key=lambda x: x.metadata[0].frameIndex
                 if x.metadata[0].frameIndex is not None
                 else 0,
             )
         raise NotImplementedError(
-            f"Frame ordering {self.frame_order} not " f"implemented."
+            f"Frame ordering {self.frame_order} not implemented."
         )
 
     def __getitem__(self, idx):
         """Wrap getitem to apply augmentations."""
-        current_sample = super().__getitem__(idx)
+        getitem = super().__getitem__
+        samples = getitem(idx)
+        for aug_i, aug in enumerate(self.transformations):
+            if aug.num_samples > 1:
+                idcs = np.random.randint(0, len(self), aug.num_samples - 1)
+                addsamples = [getitem(i) for i in idcs]
+            else:
+                addsamples = None
 
+            params = None
+            for samp_i, sample in enumerate(samples):
+                if addsamples is not None:
+                    sample = InputSample.cat([sample, *[s[samp_i] for s in addsamples]])
+                if params is None:
+                    params = aug.generate_parameters(sample)
+                samples[samp_i], _ = aug(sample, params)
 
+        for s in samples:
+            self.postprocess_annotations(s.images.image_sizes[0], s.targets)
+        # TODO sort samples integration
+        return samples
 
 
 class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
@@ -118,9 +105,9 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         self,
         samples_per_gpu: int,
         workers_per_gpu: int,
-        train_datasets: Optional[List[ScalabelDataset]] = None,
-        test_datasets: Optional[List[ScalabelDataset]] = None,
-        predict_datasets: Optional[List[ScalabelDataset]] = None,
+        train_datasets: Optional[Vis4DDatasetHandler] = None,
+        test_datasets: Optional[List[Vis4DDatasetHandler]] = None,
+        predict_datasets: Optional[List[Vis4DDatasetHandler]] = None,
         seed: Optional[int] = None,
         pin_memory: bool = False,
         train_sampler: Optional[BaseSampler] = None,
@@ -139,13 +126,13 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""
         assert self.train_datasets is not None, "No train datasets specified!"
-        train_dataset = data.ConcatDataset(self.train_datasets)
+        # TODO option to customize DatasetHandler
         if self.train_sampler is not None:
             batch_size, shuffle = 1, False
         else:
             batch_size, shuffle = self.samples_per_gpu, True
         train_dataloader = data.DataLoader(
-            train_dataset,
+            self.train_datasets,
             batch_sampler=self.train_sampler,
             batch_size=batch_size,
             num_workers=self.workers_per_gpu,
@@ -194,7 +181,7 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         dataloaders = []
         for dataset in datasets:
             sampler: Optional[data.Sampler] = None
-            if get_world_size() > 1 and dataset.has_sequences:
+            if get_world_size() > 1:# and dataset.has_sequences: TODO fix
                 sampler = TrackingInferenceSampler(dataset)  # pragma: no cover
             elif get_world_size() > 1 and self.train_sampler is not None:
                 # manually create distributed sampler for inference if using

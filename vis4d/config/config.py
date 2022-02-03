@@ -101,6 +101,8 @@ class Config(BaseModel, extra="allow"):
     model: ModuleCfg
     train: List[ModuleCfg] = []
     test: List[ModuleCfg] = []
+    train_dshandler: Optional[ModuleCfg]
+    test_dshandler: Optional[ModuleCfg]
     data: Optional[ModuleCfg]
 
     def __init__(self, **data: Any) -> None:  # type: ignore

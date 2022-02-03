@@ -18,7 +18,7 @@ from vis4d.data.samplers import build_data_sampler
 
 from ..common.registry import build_component
 from ..config import Config, default_argument_parser, parse_config
-from ..data.build import Vis4DDataModule
+from ..data.build import Vis4DDataModule, Vis4DDatasetHandler
 from ..data.dataset import ScalabelDataset
 from ..data.datasets import BaseDatasetLoader, Custom
 from ..model import BaseModel, build_model
@@ -245,6 +245,9 @@ def setup_experiment(
         else "RGB"
     )
     train_datasets = build_datasets(cfg.train, cmode) if is_train else None
+    if is_train:
+        train_datasets = Vis4DDatasetHandler(train_datasets, **cfg.train_dshandler)
+
     test_datasets, predict_datasets = None, None
     train_sampler: Optional[data.Sampler[List[int]]] = None
     if cfg.launch.action == "train":
@@ -252,9 +255,10 @@ def setup_experiment(
             # build custom train sampler
             train_sampler = build_data_sampler(
                 cfg.data["train_sampler"],
-                data.ConcatDataset(train_datasets),
+                train_datasets,
                 cfg.launch.samples_per_gpu,
             )
+
     if cfg.launch.action == "predict":
         if cfg.launch.input_dir:
             input_dir = cfg.launch.input_dir
@@ -269,13 +273,14 @@ def setup_experiment(
             predict_datasets = build_datasets(cfg.test, cmode, False)
     else:
         test_datasets = build_datasets(cfg.test, cmode, False)
+        test_datasets_handled = [Vis4DDatasetHandler([ds], **cfg.test_dshandler) for ds in test_datasets]
 
     # build data module
     data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
         train_datasets=train_datasets,
-        test_datasets=test_datasets,
+        test_datasets=test_datasets_handled,
         predict_datasets=predict_datasets,
         seed=cfg.launch.seed,
         train_sampler=train_sampler,
