@@ -490,7 +490,7 @@ class TestImageTags(unittest.TestCase):
     """Test cases Vis4D ImageTags."""
 
     def test_tags(self) -> None:
-        """Testcase for conversion to / from scalabel."""
+        """Testcase for ImageTags."""
         tags = ImageTags(torch.tensor([1]), ["test"])
         tags_copy = tags.clone()
         self.assertEqual(tags.tags[0].item(), tags_copy.tags[0].item())

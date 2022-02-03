@@ -94,10 +94,7 @@ class MMDetRoIHead(Det2DRoIHead):
         return _parse_losses(detect_losses), None
 
     def forward_test(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
-        boxes: List[Boxes2D],
+        self, inputs: InputSample, features: FeatureMaps, boxes: List[Boxes2D]
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Forward pass during testing stage."""
         assert (
@@ -118,10 +115,7 @@ class MMDetRoIHead(Det2DRoIHead):
         segmentations: Optional[List[InstanceMasks]] = None
         if self.with_mask:
             masks = self.mm_roi_head.simple_test_mask(
-                feat_list,
-                img_metas,
-                bboxes,
-                labels,
+                feat_list, img_metas, bboxes, labels
             )
             segmentations = segmentations_from_mmdet(
                 masks, detections, inputs.device

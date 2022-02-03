@@ -346,9 +346,12 @@ def load_model_checkpoint(model: BaseDetector, weights: str) -> None:
     """Load MMDet model checkpoint."""
     if weights.startswith("mmdet://"):
         weights = MMDET_MODEL_PREFIX + weights.split("mmdet://")[-1]
+        load_checkpoint(model, weights, revise_keys=REV_KEYS)
     elif weights.startswith("bdd100k://"):
         weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
-    load_checkpoint(model, weights, revise_keys=REV_KEYS)
+        load_checkpoint(model, weights, revise_keys=REV_KEYS)
+    else:
+        load_checkpoint(model, weights)
 
 
 def get_mmdet_config(
