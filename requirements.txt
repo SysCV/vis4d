@@ -13,6 +13,7 @@ pytoml
 pyyaml
 pytorch-lightning
 setuptools
+sklearn
 tqdm
 wheel
 h5py
