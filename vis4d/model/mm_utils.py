@@ -190,23 +190,19 @@ def load_config_from_mm(url: str, mm_base: str) -> str:
     return response.text
 
 
-def load_config(path: str) -> MMConfig:
+def load_config(path: str, key: str = "model") -> MMConfig:
     """Load config either from file or from URL."""
     if os.path.exists(path):
         cfg = MMConfig.fromfile(path)
-        if cfg.get("model"):
-            cfg = cfg["model"]
     elif re.compile(r"^mm(cls|det|seg)://").search(path):
-        ex = os.path.splitext(path)[1]
-        cfg = MMConfig.fromstring(
-            load_config_from_mm(
-                path.split(path[:8])[-1], MM_BASE_MAP[path[:5]]
-            ),
-            ex,
-        ).model
+        mm_cfg = load_config_from_mm(
+            path.split(path[:8])[-1], MM_BASE_MAP[path[:5]]
+        )
+        cfg = MMConfig.fromstring(mm_cfg, os.path.splitext(path)[1])
     else:
         raise FileNotFoundError(f"MM config not found: {path}")
-    return cfg
+    assert key in cfg
+    return cfg[key]
 
 
 def _parse_losses(

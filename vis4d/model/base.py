@@ -206,8 +206,8 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         """
         return self.forward_test(batch)
 
-    def on_train_start(self) -> None:
-        """Called at the beginning of training after sanity check."""
+    def on_fit_start(self) -> None:
+        """Called at the beginning of fit."""
         if self._freeze:
             self.freeze_parameters(self._freeze_parameters)
 

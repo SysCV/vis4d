@@ -1,9 +1,7 @@
 """mmclassification backbone wrapper."""
-import os
 from typing import Optional, Union
 
 try:
-    from mmcv import Config as MMConfig
     from mmcv.runner import BaseModule
     from mmcv.runner.checkpoint import load_checkpoint
     from mmcv.utils import ConfigDict
@@ -21,6 +19,7 @@ except (ImportError, NameError):  # pragma: no cover
 
 from vis4d.struct import ArgsType, DictStrAny, FeatureMaps, InputSample
 
+from ..mm_utils import load_config
 from .base import BaseBackbone
 
 MMCLS_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
@@ -41,15 +40,12 @@ class MMClsBackbone(BaseBackbone):
             MMCLS_INSTALLED and MMCV_INSTALLED
         ), "MMClsBackbone requires both mmcv and mmcls to be installed!"
         super().__init__(*args, **kwargs)
-        if isinstance(mm_cfg, dict):
-            mm_cfg_dict = mm_cfg
-        else:  # pragma: no cover
-            # load from config
-            assert os.path.exists(mm_cfg)
-            mm_cfg_ = MMConfig.fromfile(mm_cfg)
-            assert "backbone" in mm_cfg_
-            mm_cfg_dict = mm_cfg_["backbone"]
-        self.mm_backbone = build_backbone(ConfigDict(**mm_cfg_dict))
+        mm_dict = (
+            mm_cfg
+            if isinstance(mm_cfg, dict)
+            else load_config(mm_cfg, "backbone")
+        )
+        self.mm_backbone = build_backbone(ConfigDict(**mm_dict))
         assert isinstance(self.mm_backbone, BaseModule)
         self.mm_backbone.init_weights()
         self.mm_backbone.train()

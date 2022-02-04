@@ -1,11 +1,9 @@
 """mmsegmentation decode head wrapper."""
-import os
 from typing import Dict, List, Optional, Tuple, Union
 
 import torch.nn.functional as F
 
 try:
-    from mmcv import Config as MMConfig
     from mmcv.utils import ConfigDict
 
     MMCV_INSTALLED = True
@@ -23,6 +21,7 @@ except (ImportError, NameError):  # pragma: no cover
 from vis4d.model.mm_utils import (
     _parse_losses,
     get_img_metas,
+    load_config,
     results_from_mmseg,
 )
 from vis4d.model.utils import seg_targets_to_tensor, seg_tensor_to_logits
@@ -50,17 +49,14 @@ class MMSegDecodeHead(SegDenseHead):
             MMSEG_INSTALLED and MMCV_INSTALLED
         ), "MMSegDecodeHead requires both mmcv and mmseg to be installed!"
         super().__init__(category_mapping)
-        if isinstance(mm_cfg, dict):
-            mm_cfg_dict = mm_cfg
-        else:
-            # load from config
-            assert os.path.exists(mm_cfg)
-            mm_cfg_ = MMConfig.fromfile(mm_cfg)
-            assert "decode_head" in mm_cfg_
-            mm_cfg_dict = mm_cfg_["decode_head"]
-        self.train_cfg = mm_cfg_dict.pop("train_cfg", None)
-        self.test_cfg = mm_cfg_dict.pop("test_cfg", None)
-        self.mm_decode_head = build_head(ConfigDict(**mm_cfg_dict))
+        mm_dict = (
+            mm_cfg
+            if isinstance(mm_cfg, dict)
+            else load_config(mm_cfg, "decode_head")
+        )
+        self.train_cfg = mm_dict.pop("train_cfg", None)
+        self.test_cfg = mm_dict.pop("test_cfg", None)
+        self.mm_decode_head = build_head(ConfigDict(**mm_dict))
         assert isinstance(self.mm_decode_head, BaseDecodeHead)
         self.mm_decode_head.init_weights()
         self.mm_decode_head.train()

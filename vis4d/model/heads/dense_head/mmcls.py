@@ -1,9 +1,7 @@
 """mmclassification classification head wrapper."""
-import os
 from typing import Dict, List, Optional, Tuple, Union
 
 try:
-    from mmcv import Config as MMConfig
     from mmcv.utils import ConfigDict
 
     MMCV_INSTALLED = True
@@ -20,6 +18,7 @@ except (ImportError, NameError):  # pragma: no cover
 
 from vis4d.model.mm_utils import (
     _parse_losses,
+    load_config,
     results_from_mmcls,
     targets_to_mmcls,
 )
@@ -50,15 +49,10 @@ class MMClsHead(ClsDenseHead):
         ), "MMClsHead requires both mmcv and mmcls to be installed!"
         super().__init__(category_mapping)
         self.tagging_attribute = tagging_attribute
-        if isinstance(mm_cfg, dict):
-            mm_cfg_dict = mm_cfg
-        else:  # pragma: no cover
-            # load from config
-            assert os.path.exists(mm_cfg)
-            mm_cfg_ = MMConfig.fromfile(mm_cfg)
-            assert "head" in mm_cfg_
-            mm_cfg_dict = mm_cfg_["head"]
-        self.mm_cls_head = build_head(ConfigDict(**mm_cfg_dict))
+        mm_dict = (
+            mm_cfg if isinstance(mm_cfg, dict) else load_config(mm_cfg, "head")
+        )
+        self.mm_cls_head = build_head(ConfigDict(**mm_dict))
         assert isinstance(self.mm_cls_head, BaseHead)
         self.mm_cls_head.init_weights()
         self.mm_cls_head.train()

@@ -1,5 +1,4 @@
 """mmdetection roi head wrapper."""
-import os
 from typing import Dict, List, Optional, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
@@ -7,6 +6,7 @@ from vis4d.model.mm_utils import (
     _parse_losses,
     detections_from_mmdet,
     get_img_metas,
+    load_config,
     proposals_to_mmdet,
     segmentations_from_mmdet,
     targets_to_mmdet,
@@ -24,7 +24,6 @@ from vis4d.struct import (
 from .base import Det2DRoIHead
 
 try:
-    from mmcv import Config as MMConfig
     from mmcv.utils import ConfigDict
 
     MMCV_INSTALLED = True
@@ -51,15 +50,12 @@ class MMDetRoIHead(Det2DRoIHead):
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMDetRoIHead requires both mmcv and mmdet to be installed!"
         super().__init__(category_mapping)
-        if isinstance(mm_cfg, dict):
-            mm_cfg_dict = mm_cfg
-        else:  # pragma: no cover
-            # load from config
-            assert os.path.exists(mm_cfg)
-            mm_cfg_ = MMConfig.fromfile(mm_cfg)
-            assert "roi_head" in mm_cfg_
-            mm_cfg_dict = mm_cfg_["roi_head"]
-        self.mm_roi_head = build_head(ConfigDict(**mm_cfg_dict))
+        mm_dict = (
+            mm_cfg
+            if isinstance(mm_cfg, dict)
+            else load_config(mm_cfg, "roi_head")
+        )
+        self.mm_roi_head = build_head(ConfigDict(**mm_dict))
         assert isinstance(self.mm_roi_head, MMBaseRoIHead)
         self.mm_roi_head.init_weights()
         self.mm_roi_head.train()

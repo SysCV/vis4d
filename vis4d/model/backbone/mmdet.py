@@ -1,9 +1,10 @@
 """mmdetection backbone wrapper."""
-from typing import Optional
+from typing import Optional, Union
 
 try:
     from mmcv.runner import BaseModule
     from mmcv.runner.checkpoint import load_checkpoint
+    from mmcv.utils import ConfigDict
 
     MMCV_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
@@ -18,6 +19,7 @@ except (ImportError, NameError):  # pragma: no cover
 
 from vis4d.struct import ArgsType, DictStrAny, FeatureMaps, InputSample
 
+from ..mm_utils import load_config
 from .base import BaseBackbone
 
 MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
@@ -28,7 +30,7 @@ class MMDetBackbone(BaseBackbone):
 
     def __init__(
         self,
-        mm_cfg: DictStrAny,
+        mm_cfg: Union[DictStrAny, str],
         *args: ArgsType,
         weights: Optional[str] = None,
         **kwargs: ArgsType,
@@ -38,7 +40,12 @@ class MMDetBackbone(BaseBackbone):
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMDetBackbone requires both mmcv and mmdet to be installed!"
         super().__init__(*args, **kwargs)
-        self.mm_backbone = build_backbone(mm_cfg)
+        mm_dict = (
+            mm_cfg
+            if isinstance(mm_cfg, dict)
+            else load_config(mm_cfg, "backbone")
+        )
+        self.mm_backbone = build_backbone(ConfigDict(**mm_dict))
         assert isinstance(self.mm_backbone, BaseModule)
         self.mm_backbone.init_weights()
         self.mm_backbone.train()
