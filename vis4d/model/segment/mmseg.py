@@ -16,15 +16,18 @@ from vis4d.struct import (
 
 from ..backbone import MMSegBackbone
 from ..backbone.neck import MMDetNeck
-from ..base import BDD100K_MODEL_PREFIX
 from ..heads.dense_head import MMSegDecodeHead
-from ..mm_utils import _parse_losses, add_keyword_args, load_config
+from ..mm_utils import (
+    _parse_losses,
+    add_keyword_args,
+    load_config,
+    load_model_checkpoint,
+)
 from ..utils import postprocess_predictions, predictions_to_scalabel
 from .base import BaseSegmentor
 
 try:
     from mmcv import Config as MMConfig
-    from mmcv.runner.checkpoint import load_checkpoint
 
     MMCV_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
@@ -35,8 +38,6 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
-
-MMSEG_MODEL_PREFIX = "https://download.openmmlab.com/mmsegmentation/v0.5/"
 REV_KEYS = [
     (r"^decode_head\.", "decode_head.mm_decode_head."),
     (r"^auxiliary_head\.", "auxiliary_head.mm_decode_head."),
@@ -107,7 +108,7 @@ class MMEncDecSegmentor(BaseSegmentor):
             self.auxiliary_head = None
 
         if weights is not None:
-            load_model_checkpoint(self, weights)
+            load_model_checkpoint(self, weights, REV_KEYS)
 
     def _build_decode_heads(self, mm_cfg: MMConfig) -> MMSegDecodeHeads:
         """Build decode heads given config."""
@@ -205,15 +206,6 @@ class MMEncDecSegmentor(BaseSegmentor):
                 )
                 aux_losses.update(_parse_losses(loss_aux, "aux"))
         return aux_losses
-
-
-def load_model_checkpoint(model: BaseSegmentor, weights: str) -> None:
-    """Load MMSeg model checkpoint."""
-    if weights.startswith("mmseg://"):
-        weights = MMSEG_MODEL_PREFIX + weights.split("mmseg://")[-1]
-    elif weights.startswith("bdd100k://"):  # pragma: no cover
-        weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
-    load_checkpoint(model, weights, revise_keys=REV_KEYS)
 
 
 def get_mmseg_config(

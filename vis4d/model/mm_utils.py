@@ -20,8 +20,11 @@ from vis4d.struct import (
     SemanticMasks,
 )
 
+from .base import BaseModel
+
 try:
     from mmcv import Config as MMConfig
+    from mmcv.runner.checkpoint import load_checkpoint
 
     MMCV_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
@@ -35,10 +38,16 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 
-MM_BASE_MAP = {
-    "mmcls": "open-mmlab/mmclassification/master/configs/",
-    "mmdet": "syscv/mmdetection/master/configs/",
-    "mmseg": "open-mmlab/mmsegmentation/master/configs/",
+BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
+MM_CFG_MAP = {
+    "mmcls://": "open-mmlab/mmclassification/master/configs/",
+    "mmdet://": "syscv/mmdetection/master/configs/",
+    "mmseg://": "open-mmlab/mmsegmentation/master/configs/",
+}
+MM_MODEL_MAP = {
+    "mmcls://": "https://download.openmmlab.com/mmclassification/v0/",
+    "mmdet://": "https://download.openmmlab.com/mmdetection/v2.0/",
+    "mmseg://": "https://download.openmmlab.com/mmsegmentation/v0.5/",
 }
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
 MMDetResult = List[torch.Tensor]
@@ -180,6 +189,21 @@ def results_from_mmseg(
     return masks
 
 
+def load_model_checkpoint(
+    model: BaseModel, weights: str, rev_keys: List[Tuple[str, str]]
+) -> None:
+    """Load MM model checkpoint."""
+    if re.compile(r"^mm(cls|det|seg)://").search(weights):
+        pre = weights[:8]
+        weights = MM_MODEL_MAP[pre] + weights.split(pre)[-1]
+        load_checkpoint(model, weights, revise_keys=rev_keys)
+    elif weights.startswith("bdd100k://"):
+        weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
+        load_checkpoint(model, weights, revise_keys=rev_keys)
+    else:  # pragma: no cover
+        load_checkpoint(model, weights)
+
+
 def load_config_from_mm(url: str, mm_base: str) -> str:
     """Get config from mmdetection GitHub repository."""
     full_url = "https://raw.githubusercontent.com/" + mm_base + url
@@ -195,9 +219,8 @@ def load_config(path: str, key: str = "model") -> MMConfig:
     if os.path.exists(path):
         cfg = MMConfig.fromfile(path)
     elif re.compile(r"^mm(cls|det|seg)://").search(path):
-        mm_cfg = load_config_from_mm(
-            path.split(path[:8])[-1], MM_BASE_MAP[path[:5]]
-        )
+        pre = path[:8]
+        mm_cfg = load_config_from_mm(path.split(pre)[-1], MM_CFG_MAP[pre])
         cfg = MMConfig.fromstring(mm_cfg, os.path.splitext(path)[1])
     else:
         raise FileNotFoundError(f"MM config not found: {path}")

@@ -16,15 +16,18 @@ from vis4d.struct import (
 
 from ..backbone import BaseBackbone, MMClsBackbone
 from ..backbone.neck import MMClsNeck
-from ..base import BDD100K_MODEL_PREFIX
 from ..heads.dense_head import ClsDenseHead, MMClsHead
-from ..mm_utils import _parse_losses, add_keyword_args, load_config
+from ..mm_utils import (
+    _parse_losses,
+    add_keyword_args,
+    load_config,
+    load_model_checkpoint,
+)
 from ..utils import postprocess_predictions, predictions_to_scalabel
 from .base import BaseClassifier
 
 try:
     from mmcv import Config as MMConfig
-    from mmcv.runner.checkpoint import load_checkpoint
 
     MMCV_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
@@ -36,8 +39,6 @@ except (ImportError, NameError):  # pragma: no cover
     MMCLS_INSTALLED = False
 
 
-MMCLS_MODEL_PREFIX = "https://download.openmmlab.com/mmclassification/v0/"
-BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
 REV_KEYS = [
     (r"^head\.", "head.mm_cls_head."),
     (r"^backbone\.", "backbone.mm_backbone."),
@@ -105,7 +106,7 @@ class MMImageClassifier(BaseClassifier):
             self.head = head
 
         if weights is not None:
-            load_model_checkpoint(self, weights)
+            load_model_checkpoint(self, weights, REV_KEYS)
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
@@ -154,15 +155,6 @@ class MMImageClassifier(BaseClassifier):
     ) -> List[ImageTags]:
         """Test stage classifications generation."""
         return self.head(inputs, features)
-
-
-def load_model_checkpoint(model: BaseClassifier, weights: str) -> None:
-    """Load MMCls model checkpoint."""
-    if weights.startswith("mmcls://"):
-        weights = MMCLS_MODEL_PREFIX + weights.split("mmcls://")[-1]
-    elif weights.startswith("bdd100k://"):  # pragma: no cover
-        weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
-    load_checkpoint(model, weights, revise_keys=REV_KEYS)
 
 
 def get_mmcls_config(
