@@ -36,7 +36,7 @@ class MMClsNeck(BaseNeck):
         """Init."""
         assert (
             MMCLS_INSTALLED and MMCV_INSTALLED
-        ), "MMClsNeck requires both mmcv and mmdet to be installed!"
+        ), "MMClsNeck requires both mmcv and mmcls to be installed!"
         super().__init__()
         mm_dict = (
             mm_cfg if isinstance(mm_cfg, dict) else load_config(mm_cfg, "neck")
