@@ -190,9 +190,13 @@ def results_from_mmseg(
 
 
 def load_model_checkpoint(
-    model: BaseModel, weights: str, rev_keys: List[Tuple[str, str]]
+    model: BaseModel,
+    weights: str,
+    rev_keys: Optional[List[Tuple[str, str]]] = None,
 ) -> None:
     """Load MM model checkpoint."""
+    if rev_keys is None:
+        rev_keys = [(r"^module\.", "")]
     if re.compile(r"^mm(cls|det|seg)://").search(weights):
         pre = weights[:8]
         weights = MM_MODEL_MAP[pre] + weights.split(pre)[-1]

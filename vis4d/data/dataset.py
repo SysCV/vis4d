@@ -59,14 +59,8 @@ class ScalabelDataset(Dataset):  # type: ignore
             class_list = list(set(class_list))
             discard_labels_outside_set(dataset.frames, class_list)
         else:
-            class_list = list(
-                set(
-                    c.name
-                    for c in get_leaf_categories(
-                        dataset.metadata_cfg.categories
-                    )
-                )
-            )
+            cats = dataset.metadata_cfg.categories
+            class_list = list(set(c.name for c in get_leaf_categories(cats)))
             cats_name2id = {v: i for i, v in enumerate(class_list)}
         self.cats_name2id = cats_name2id
 
@@ -80,7 +74,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.mapper = mapper
         self.mapper.setup_categories(cats_name2id)
         self.mapper.set_training(self.training)
-        self.mapper.tagging_attribute = dataset.tagging_attribute
+        self.mapper.tag_attr = dataset.tagging_attribute
 
         dataset.frames = filter_attributes(dataset.frames, dataset.attributes)
 

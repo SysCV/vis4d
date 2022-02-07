@@ -1,9 +1,7 @@
 """Vis4D Backbone module."""
 from .base import BaseBackbone
 from .dla import DLA
-from .mmcls import MMClsBackbone
-from .mmdet import MMDetBackbone
-from .mmseg import MMSegBackbone
+from .mm_backbone import MMDetBackbone, MMSegBackbone, MMClsBackbone
 
 __all__ = [
     "BaseBackbone",

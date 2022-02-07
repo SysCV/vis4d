@@ -62,7 +62,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         skip_empty_samples: bool = False,
         clip_bboxes_to_image: bool = True,
         min_bboxes_area: float = 7.0 * 7.0,
-        background_as_class: bool = False,
+        bg_as_class: bool = False,
         transformations: Optional[
             List[Union[BaseAugmentation, ModuleCfg]]
         ] = None,
@@ -73,12 +73,12 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         """Init Scalabel Mapper."""
         self.image_backend = image_backend
         self.fields_to_load = fields_to_load
-        self.background_as_class = background_as_class
+        self.bg_as_class = bg_as_class
         self.skip_empty_samples = skip_empty_samples
         self.clip_bboxes_to_image = clip_bboxes_to_image
         self.min_bboxes_area = min_bboxes_area
         self.image_channel_mode = image_channel_mode
-        self.tagging_attribute = tagging_attribute
+        self.tag_attr: Optional[Sequence[Optional[str]]] = tagging_attribute
 
         if isinstance(data_backend, dict):  # pragma: no cover
             self.data_backend: BaseDataBackend = build_component(
@@ -131,6 +131,11 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 field_map = cats_name2id[field]
                 assert isinstance(field_map, dict)
                 self.cats_name2id[field] = [field_map]
+        if "image_tags" in self.cats_name2id and not isinstance(
+            self.tag_attr, list
+        ):
+            if self.tag_attr is None:
+                self.tag_attr = [None] * len(self.cats_name2id["image_tags"])
 
     def load_inputs(
         self,
@@ -187,79 +192,59 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         self, sample: InputSample, labels: Optional[List[Label]]
     ) -> None:
         """Transform annotations."""
-        labels_used = []
-        if labels is not None:
-            instance_id_dict = {}
-            for label in labels:
-                assert label.attributes is not None
-                assert label.category is not None
-                if not check_crowd(label) and not check_ignored(label):
-                    labels_used.append(label)
-                    if label.id not in instance_id_dict:
-                        instance_id_dict[label.id] = int(
-                            label.attributes["instance_id"]
-                        )
-
-            if labels_used:
-                if "instance_masks" in self.fields_to_load:
-                    instance_masks = InstanceMasks.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["instance_masks"][0],
-                        instance_id_dict,
-                        sample.metadata[0].size,
-                    )
-                    sample.targets.instance_masks = [instance_masks]
-
-                if "semantic_masks" in self.fields_to_load:
-                    semantic_masks = SemanticMasks.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["semantic_masks"][0],
-                        instance_id_dict,
-                        sample.metadata[0].size,
-                        self.background_as_class,
-                    )
-                    sample.targets.semantic_masks = [semantic_masks]
-
-                if "boxes2d" in self.fields_to_load:
-                    boxes2d = Boxes2D.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["boxes2d"][0],
-                        instance_id_dict,
-                    )
-                    if len(sample.targets.instance_masks[0]) > 0 and (
-                        len(boxes2d) == 0
-                        or len(boxes2d)
-                        != len(sample.targets.instance_masks[0])
-                    ):  # pragma: no cover
-                        boxes2d = sample.targets.instance_masks[
-                            0
-                        ].get_boxes2d()
-                    sample.targets.boxes2d = [boxes2d]
-
-                if "boxes3d" in self.fields_to_load:
-                    boxes3d = Boxes3D.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["boxes3d"][0],
-                        instance_id_dict,
-                    )
-                    sample.targets.boxes3d = [boxes3d]
-
-        if sample.metadata[0].attributes is not None:
+        frame = sample.metadata[0]
+        if frame.attributes is not None:
             if "image_tags" in self.fields_to_load:
+                assert self.tag_attr is not None
                 image_tags, tag_maps = [], self.cats_name2id["image_tags"]
-                if isinstance(self.tagging_attribute, list):
-                    tag_attrs: Sequence[Optional[str]] = self.tagging_attribute
-                elif self.tagging_attribute is None:  # pragma: no cover
-                    tag_attrs = [None] * len(tag_maps)
-                else:  # pragma: no cover
-                    tag_attrs = [self.tagging_attribute]
-                for cats_map, tag_attr in zip(tag_maps, tag_attrs):
+                for cats_map, tag_attr in zip(tag_maps, self.tag_attr):
                     image_tags.append(
-                        ImageTags.from_scalabel(
-                            sample.metadata[0], cats_map, tag_attr
-                        )
+                        ImageTags.from_scalabel(frame, cats_map, tag_attr)
                     )
                 sample.targets.image_tags = [ImageTags.merge(image_tags)]
+
+        if labels is None:
+            return
+        labels_used, instid_map = [], {}
+        for label in labels:
+            assert label.attributes is not None and label.category is not None
+            if not check_crowd(label) and not check_ignored(label):
+                labels_used.append(label)
+                if label.id not in instid_map:
+                    instid_map[label.id] = int(label.attributes["instance_id"])
+        if not labels_used:
+            return
+
+        if "instance_masks" in self.fields_to_load:
+            ins_map = self.cats_name2id["instance_masks"][0]
+            instance_masks = InstanceMasks.from_scalabel(
+                labels_used, ins_map, instid_map, frame.size
+            )
+            sample.targets.instance_masks = [instance_masks]
+
+        if "semantic_masks" in self.fields_to_load:
+            sem_map = self.cats_name2id["semantic_masks"][0]
+            semantic_masks = SemanticMasks.from_scalabel(
+                labels_used, sem_map, instid_map, frame.size, self.bg_as_class
+            )
+            sample.targets.semantic_masks = [semantic_masks]
+
+        if "boxes2d" in self.fields_to_load:
+            boxes2d = Boxes2D.from_scalabel(
+                labels_used, self.cats_name2id["boxes2d"][0], instid_map
+            )
+            ins_masks = sample.targets.instance_masks[0]
+            if len(ins_masks) > 0 and (
+                len(boxes2d) == 0 or len(boxes2d) != len(ins_masks)
+            ):  # pragma: no cover
+                boxes2d = ins_masks.get_boxes2d()
+            sample.targets.boxes2d = [boxes2d]
+
+        if "boxes3d" in self.fields_to_load:
+            boxes3d = Boxes3D.from_scalabel(
+                labels_used, self.cats_name2id["boxes3d"][0], instid_map
+            )
+            sample.targets.boxes3d = [boxes3d]
 
     def transform_inputs(
         self,

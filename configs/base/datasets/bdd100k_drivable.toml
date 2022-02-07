@@ -12,7 +12,7 @@ cache_as_binary = true
     [train.sample_mapper]
     fields_to_load = ["semantic_masks"]
     skip_empty_samples = true
-    background_as_class = true
+    bg_as_class = true
 
     [train.sample_mapper.data_backend]
     type = "HDF5Backend"
@@ -53,7 +53,7 @@ cache_as_binary = true
 
     [test.sample_mapper]
     fields_to_load = ["semantic_masks"]
-    background_as_class = true
+    bg_as_class = true
 
     [test.sample_mapper.data_backend]
     type = "HDF5Backend"

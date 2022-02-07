@@ -22,8 +22,6 @@ from vis4d.struct import DictStrAny, FeatureMaps
 
 from .base import BaseNeck
 
-MMCLS_MODEL_PREFIX = "https://download.openmmlab.com/mmclassification/v0/"
-
 
 class MMClsNeck(BaseNeck):
     """mmclassification neck wrapper."""

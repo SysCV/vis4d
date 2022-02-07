@@ -21,8 +21,6 @@ from vis4d.struct import DictStrAny, FeatureMaps
 
 from .base import BaseNeck
 
-MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
-
 
 class MMDetNeck(BaseNeck):
     """mmdetection neck wrapper."""
