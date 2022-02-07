@@ -1,9 +1,9 @@
 [[config]]
-path = "../../base/datasets/bdd100k_tagging_multilabel.toml"
+path = "../../base/datasets/bdd100k_tagging_multi.toml"
 
 
 [[config]]
-path = "../../base/models/mmclassification/resnet50_multilabel.toml"
+path = "../../base/models/mmclassification/resnet50_multi.toml"
 
 
 [model]

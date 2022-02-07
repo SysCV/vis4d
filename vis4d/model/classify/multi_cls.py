@@ -1,4 +1,4 @@
-"""Multi-label image classifier."""
+"""Multi image classifier."""
 from typing import List, Optional, Tuple, Union
 
 from scalabel.label.typing import Frame
@@ -21,8 +21,8 @@ from ..utils import postprocess_predictions, predictions_to_scalabel
 from .base import BaseClassifier
 
 
-class MultiLabelClassifier(BaseClassifier):
-    """Multi-label image classifier."""
+class MultiImageClassifier(BaseClassifier):
+    """Multi image classifier."""
 
     def __init__(
         self,

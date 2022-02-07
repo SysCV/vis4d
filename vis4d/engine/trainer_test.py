@@ -336,7 +336,7 @@ class TestTaggingMulti(BaseEngineTests.TestTrain):
         """Set up class."""
         cls.work_dir = "./unittests/unittest_tagging_multi/"
         args = Namespace(
-            config=get_test_file("tagging/resnet18_multilabel_mmcls.toml"),
+            config=get_test_file("tagging/resnet18_multi.toml"),
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)

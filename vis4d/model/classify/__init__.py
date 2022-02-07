@@ -1,6 +1,6 @@
 """Classifier module."""
 from .base import BaseClassifier
 from .mmcls import MMImageClassifier
-from .multi_label import MultiLabelClassifier
+from .multi_cls import MultiImageClassifier
 
-__all__ = ["BaseClassifier", "MMImageClassifier", "MultiLabelClassifier"]
+__all__ = ["BaseClassifier", "MMImageClassifier", "MultiImageClassifier"]
