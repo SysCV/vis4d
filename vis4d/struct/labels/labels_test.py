@@ -20,29 +20,26 @@ from .tags import ImageTags
 class TestBoxes2D(unittest.TestCase):
     """Test cases Vis4D Boxes2D."""
 
+    hm, wm, num_dets = 128, 128, 10
+    detections = generate_dets(hm, wm, num_dets, track_ids=True)
+
     def test_scalabel(self) -> None:
         """Testcase for conversion to / from scalabel."""
-        h, w, num_dets = 128, 128, 10
-        detections = generate_dets(h, w, num_dets, track_ids=True)
-        idx_to_class = {0: "car"}
-        class_to_idx = {"car": 0}
+        detections = self.detections.clone()
+        idx_to_class, class_to_idx = {0: "car"}, {"car": 0}
         scalabel_dets = detections.to_scalabel(idx_to_class)
 
         assert scalabel_dets.labels is not None
-        detections_new = Boxes2D.from_scalabel(
-            scalabel_dets.labels, class_to_idx
-        )
+        dets_new = Boxes2D.from_scalabel(scalabel_dets.labels, class_to_idx)
 
         dets_labels = scalabel_dets.labels
         dets_labels[0].box2d = None  # pylint: disable=unsubscriptable-object
-        dets_with_none = Boxes2D.from_scalabel(dets_labels, class_to_idx)
+        dets_none = Boxes2D.from_scalabel(dets_labels, class_to_idx)
         self.assertTrue(
-            torch.isclose(
-                dets_with_none.boxes[0], detections_new.boxes[1]
-            ).all()
+            torch.isclose(dets_none.boxes[0], dets_new.boxes[1]).all()
         )
 
-        for det, det_new in zip(detections, detections_new):
+        for det, det_new in zip(detections, dets_new):
             self.assertTrue(torch.isclose(det.boxes, det_new.boxes).all())
             self.assertTrue(
                 torch.isclose(det.class_ids.long(), det_new.class_ids).all()
@@ -51,36 +48,27 @@ class TestBoxes2D(unittest.TestCase):
                 torch.isclose(det.track_ids.long(), det_new.track_ids).all()
             )
 
-        detections_new.track_ids = None
-        dets_without_tracks = detections_new.to_scalabel(idx_to_class)
-        assert dets_without_tracks.labels is not None
+        dets_new.track_ids = None
+        dets_no_tracks = dets_new.to_scalabel(idx_to_class)
+        det_labels = dets_no_tracks.labels
+        assert det_labels is not None
         self.assertTrue(
-            all(
-                (
-                    str(i) == det.id
-                    for i, det in enumerate(dets_without_tracks.labels)
-                )
-            )
+            all((str(i) == det.id for i, det in enumerate(det_labels)))
         )
 
         detections.boxes = detections.boxes[:, :-1]
-        self.assertEqual(detections.score, None)
+        self.assertEqual(detections.score, None)  # pylint: disable=no-member
         scalabel_dets_no_score = detections.to_scalabel(idx_to_class)
-        assert scalabel_dets_no_score.labels is not None
-        self.assertTrue(
-            all(
-                d.score is None
-                for _, d in enumerate(scalabel_dets_no_score.labels)
-            )
-        )
+        det_labels = scalabel_dets_no_score.labels
+        assert det_labels is not None
+        self.assertTrue(all(d.score is None for _, d in enumerate(det_labels)))
 
     def test_clone(self) -> None:
         """Testcase for cloning a Boxes2D object."""
-        h, w, num_dets = 128, 128, 10
-        detections = generate_dets(h, w, num_dets, track_ids=True)
-        detections_new = detections.clone()
+        detections = self.detections.clone()
+        dets_new = detections.clone()
 
-        for det, det_new in zip(detections, detections_new):
+        for det, det_new in zip(detections, dets_new):
             self.assertTrue(torch.isclose(det.boxes, det_new.boxes).all())
             self.assertTrue(
                 torch.isclose(det.class_ids, det_new.class_ids).all()
@@ -91,25 +79,20 @@ class TestBoxes2D(unittest.TestCase):
 
     def test_merge(self) -> None:
         """Testcase for merging a list of Boxes2D objects."""
-        h, w, num_dets = 128, 128, 10
-        det = generate_dets(h, w, num_dets, track_ids=True)
-        det_new = Boxes2D.merge([det, det])
+        d = self.detections.clone()
+        d_new = Boxes2D.merge([d, d])
 
         self.assertTrue(
+            torch.isclose(torch.cat([d.boxes, d.boxes]), d_new.boxes).all()
+        )
+        self.assertTrue(
             torch.isclose(
-                torch.cat([det.boxes, det.boxes]), det_new.boxes
+                torch.cat([d.class_ids, d.class_ids]), d_new.class_ids
             ).all()
         )
-
         self.assertTrue(
             torch.isclose(
-                torch.cat([det.class_ids, det.class_ids]), det_new.class_ids
-            ).all()
-        )
-
-        self.assertTrue(
-            torch.isclose(
-                torch.cat([det.track_ids, det.track_ids]), det_new.track_ids
+                torch.cat([d.track_ids, d.track_ids]), d_new.track_ids
             ).all()
         )
 
@@ -122,61 +105,30 @@ class TestBoxes3D(unittest.TestCase):
         num_dets = 10
         detections = generate_dets3d(num_dets, track_ids=True)
         # test transform
-        # pylint: disable=no-member
-        dets_tr = detections.clone()
-        dets_tr.transform(Extrinsics(torch.eye(4).unsqueeze(0)))
+        dets_tr = detections.clone()  # pylint: disable=no-member
+        dets_tr.transform(  # pylint: disable=no-member
+            Extrinsics(torch.eye(4).unsqueeze(0))
+        )
         self.assertTrue(
             torch.isclose(dets_tr.boxes, detections.boxes, atol=1e-4).all()
         )
 
         box3d = Boxes3D(
             torch.tensor(
-                [
-                    [
-                        18.63882979851619,
-                        0.19359276352412746,
-                        59.024867320654835,
-                        1.642,
-                        0.621,
-                        0.669,
-                        0,
-                        -3.120828115749234,
-                        0,
-                    ]
-                ]
+                [[18.639, 0.194, 59.025, 1.642, 0.621, 0.669, 0, -3.121, 0]]
             )
         )
         extrinsics = Extrinsics(
             torch.tensor(
                 [
-                    [
-                        -9.40165212e-01,
-                        -1.55825481e-02,
-                        -3.40362392e-01,
-                        4.10872441e02,
-                    ],
-                    [
-                        3.39996835e-01,
-                        2.20946316e-02,
-                        -9.40166996e-01,
-                        1.17957081e03,
-                    ],
-                    [
-                        2.21703791e-02,
-                        -9.99634439e-01,
-                        -1.54745870e-02,
-                        1.49367752e00,
-                    ],
-                    [
-                        0.00000000e00,
-                        0.00000000e00,
-                        0.00000000e00,
-                        1.00000000e00,
-                    ],
+                    [-9.40165e-01, -1.55825e-02, -3.40362e-01, 4.10872e02],
+                    [3.39997e-01, 2.20946e-02, -9.40167e-01, 1.17957e03],
+                    [2.21704e-02, -9.99634e-01, -1.54746e-02, 1.49368e00],
+                    [0.0e00, 0.0e00, 0.0e00, 1.0e00],
                 ]
             )
         )
-        box3d_worldspace = torch.tensor(
+        box3d_world = torch.tensor(
             [[373.26, 1130.42, 0.80, 1.64, 0.62, 0.67, -0.37]]
         )
 
@@ -185,9 +137,7 @@ class TestBoxes3D(unittest.TestCase):
 
         # euler angles can differ here depending on the transformation
         self.assertTrue(
-            torch.isclose(
-                box3d.center, box3d_worldspace[:, :3], atol=1e-2
-            ).all()
+            torch.isclose(box3d.center, box3d_world[:, :3], atol=1e-2).all()
         )
 
         box3d.transform(extrinsics.inverse())
@@ -199,25 +149,20 @@ class TestBoxes3D(unittest.TestCase):
         """Testcase for conversion to / from scalabel."""
         num_dets = 10
         detections = generate_dets3d(num_dets, track_ids=True)
-        idx_to_class = {0: "car"}
-        class_to_idx = {"car": 0}
+        idx_to_class, class_to_idx = {0: "car"}, {"car": 0}
         scalabel_dets = detections.to_scalabel(idx_to_class)
 
         assert scalabel_dets.labels is not None
-        detections_new = Boxes3D.from_scalabel(
-            scalabel_dets.labels, class_to_idx
-        )
+        dets_new = Boxes3D.from_scalabel(scalabel_dets.labels, class_to_idx)
 
         dets_labels = scalabel_dets.labels
         dets_labels[0].box3d = None  # pylint: disable=unsubscriptable-object
-        dets_with_none = Boxes3D.from_scalabel(dets_labels, class_to_idx)
+        dets_none = Boxes3D.from_scalabel(dets_labels, class_to_idx)
         self.assertTrue(
-            torch.isclose(
-                dets_with_none.boxes[0], detections_new.boxes[1]
-            ).all()
+            torch.isclose(dets_none.boxes[0], dets_new.boxes[1]).all()
         )
 
-        for det, det_new in zip(detections, detections_new):
+        for det, det_new in zip(detections, dets_new):
             self.assertTrue(torch.isclose(det.boxes, det_new.boxes).all())
             self.assertTrue(
                 torch.isclose(det.class_ids.long(), det_new.class_ids).all()
@@ -226,16 +171,12 @@ class TestBoxes3D(unittest.TestCase):
                 torch.isclose(det.track_ids.long(), det_new.track_ids).all()
             )
 
-        detections_new.track_ids = None
-        dets_without_tracks = detections_new.to_scalabel(idx_to_class)
-        assert dets_without_tracks.labels is not None
+        dets_new.track_ids = None
+        dets_no_tracks = dets_new.to_scalabel(idx_to_class)
+        det_labels = dets_no_tracks.labels
+        assert det_labels is not None
         self.assertTrue(
-            all(
-                (
-                    str(i) == det.id
-                    for i, det in enumerate(dets_without_tracks.labels)
-                )
-            )
+            all((str(i) == det.id for i, det in enumerate(det_labels)))
         )
 
         rotx, roty, rotz = detections.rot_x, detections.rot_y, detections.rot_z
@@ -247,21 +188,17 @@ class TestBoxes3D(unittest.TestCase):
         detections.boxes = detections.boxes[:, :-1]
         self.assertEqual(detections.score, None)
         scalabel_dets_no_score = detections.to_scalabel(idx_to_class)
-        assert scalabel_dets_no_score.labels is not None
-        self.assertTrue(
-            all(
-                d.score is None
-                for _, d in enumerate(scalabel_dets_no_score.labels)
-            )
-        )
+        det_labels = scalabel_dets_no_score.labels
+        assert det_labels is not None
+        self.assertTrue(all(d.score is None for _, d in enumerate(det_labels)))
 
     def test_clone(self) -> None:
         """Testcase for cloning a Boxes2D object."""
         num_dets = 10
         detections = generate_dets3d(num_dets, track_ids=True)
-        detections_new = detections.clone()
+        dets_new = detections.clone()
 
-        for det, det_new in zip(detections, detections_new):
+        for det, det_new in zip(detections, dets_new):
             self.assertTrue(torch.isclose(det.boxes, det_new.boxes).all())
             self.assertTrue(
                 torch.isclose(det.class_ids, det_new.class_ids).all()
@@ -271,26 +208,24 @@ class TestBoxes3D(unittest.TestCase):
             )
 
     def test_cat(self) -> None:
-        """Testcase for concatenating a list of Boxes2D objects."""
+        """Testcase for concatenating a list of Boxes3D objects."""
         num_dets = 10
-        det = generate_dets3d(num_dets, track_ids=True)
-        det_new = Boxes3D.merge([det, det])
+        d = generate_dets3d(num_dets, track_ids=True)
+        d_new = Boxes3D.merge([d, d])
+
+        self.assertTrue(
+            torch.isclose(torch.cat([d.boxes, d.boxes]), d_new.boxes).all()
+        )
 
         self.assertTrue(
             torch.isclose(
-                torch.cat([det.boxes, det.boxes]), det_new.boxes
+                torch.cat([d.class_ids, d.class_ids]), d_new.class_ids
             ).all()
         )
 
         self.assertTrue(
             torch.isclose(
-                torch.cat([det.class_ids, det.class_ids]), det_new.class_ids
-            ).all()
-        )
-
-        self.assertTrue(
-            torch.isclose(
-                torch.cat([det.track_ids, det.track_ids]), det_new.track_ids
+                torch.cat([d.track_ids, d.track_ids]), d_new.track_ids
             ).all()
         )
 
@@ -298,31 +233,27 @@ class TestBoxes3D(unittest.TestCase):
 class TestMasks(unittest.TestCase):
     """Test cases Vis4D Masks."""
 
+    hm, wm, num_masks = 128, 128, 10
+    segmentations = generate_instance_masks(hm, wm, num_masks, track_ids=True)
+
     def test_scalabel(self) -> None:
         """Testcase for conversion to / from scalabel."""
-        h, w, num_masks = 128, 128, 10
-        segmentations = generate_instance_masks(
-            h, w, num_masks, track_ids=True
-        )
+        h, w, segmentations = self.hm, self.wm, self.segmentations.clone()
         self.assertEqual(segmentations.height, 128)
         self.assertEqual(segmentations.width, 128)
-        idx_to_class = {0: "car"}
-        class_to_idx = {"car": 0}
+        idx_to_class, class_to_idx = {0: "car"}, {"car": 0}
         scalabel_segms = segmentations.to_scalabel(idx_to_class)
 
         assert scalabel_segms.labels is not None
+        img_size = ImageSize(width=w, height=h)
         segms_new = Masks.from_scalabel(
-            scalabel_segms.labels,
-            class_to_idx,
-            image_size=ImageSize(width=w, height=h),
+            scalabel_segms.labels, class_to_idx, image_size=img_size
         )
 
         segm_labels = scalabel_segms.labels
         segm_labels[0].rle = None  # pylint: disable=unsubscriptable-object
         segms_with_none = Masks.from_scalabel(
-            segm_labels,
-            class_to_idx,
-            image_size=ImageSize(width=w, height=h),
+            segm_labels, class_to_idx, image_size=img_size
         )
         self.assertTrue(
             torch.isclose(segms_with_none.masks[0], segms_new.masks[1]).all()
@@ -342,35 +273,24 @@ class TestMasks(unittest.TestCase):
 
         segms_new.track_ids = None
         segms_without_tracks = segms_new.to_scalabel(idx_to_class)
-        assert segms_without_tracks.labels is not None
+        segms_labels = segms_without_tracks.labels
+        assert segms_labels is not None
         self.assertTrue(
-            all(
-                (
-                    str(i) == segm.id
-                    for i, segm in enumerate(segms_without_tracks.labels)
-                )
-            )
+            all((str(i) == segm.id for i, segm in enumerate(segms_labels)))
         )
 
         segmentations.score = None
         scalabel_segms_no_score = segmentations.to_scalabel(idx_to_class)
-        assert scalabel_segms_no_score.labels is not None
+        segms_labels = scalabel_segms_no_score.labels
+        assert segms_labels is not None
         self.assertTrue(
-            all(
-                d.score is None
-                for _, d in enumerate(scalabel_segms_no_score.labels)
-            )
+            all(d.score is None for _, d in enumerate(segms_labels))
         )
 
     def test_clone(self) -> None:
         """Testcase for cloning a Masks object."""
-        h, w, num_masks = 128, 128, 10
-        segmentations = generate_instance_masks(
-            h, w, num_masks, track_ids=True
-        )
-        segms_new = segmentations.clone()
-
-        for segm, segm_new in zip(segmentations, segms_new):
+        segms_new = self.segmentations.clone()
+        for segm, segm_new in zip(self.segmentations, segms_new):
             self.assertTrue(torch.isclose(segm.masks, segm_new.masks).all())
             self.assertTrue(
                 torch.isclose(segm.class_ids, segm_new.class_ids).all()
@@ -381,10 +301,7 @@ class TestMasks(unittest.TestCase):
 
     def test_resize(self) -> None:
         """Testcase for resizing a Masks object."""
-        h, w, num_masks = 128, 128, 10
-        segmentations = generate_instance_masks(
-            h, w, num_masks, track_ids=True
-        )
+        segmentations = self.segmentations.clone()
         segmentations.resize((64, 256))
         self.assertEqual(segmentations.height, 256)
         self.assertEqual(segmentations.width, 64)
@@ -413,31 +330,26 @@ class TestMasks(unittest.TestCase):
         h, w, num_masks, num_dets = 128, 128, 4, 10
         out_h, out_w = 64, 32
         inds = torch.LongTensor([0, 1, 2, 3, 0, 1, 2, 3, 0, 1])
-        segmentations = generate_instance_masks(
-            h, w, num_masks, track_ids=True
-        )[inds]
+        segms = generate_instance_masks(h, w, num_masks, track_ids=True)[inds]
         detections = generate_dets(h, w, num_dets, track_ids=True)
-        segm_crops = segmentations.crop_and_resize(detections, (out_h, out_w))
+        segm_crops = segms.crop_and_resize(detections, (out_h, out_w))
         self.assertEqual(len(segm_crops.masks), num_dets)
         self.assertEqual(segm_crops.masks.size(1), out_h)
         self.assertEqual(segm_crops.masks.size(2), out_w)
-        segm_crops = segmentations.crop_and_resize(
+        segm_crops = segms.crop_and_resize(
             detections, (out_h, out_w), binarize=False
         )
         self.assertEqual(len(segm_crops.masks), num_dets)
         self.assertEqual(segm_crops.masks.size(1), out_h)
         self.assertEqual(segm_crops.masks.size(2), out_w)
-        segmentations = generate_instance_masks(h, w, 0, track_ids=True)
+        segms = generate_instance_masks(h, w, 0, track_ids=True)
         detections = generate_dets(h, w, 0, track_ids=True)
-        segm_crops = segmentations.crop_and_resize(detections, (out_h, out_w))
+        segm_crops = segms.crop_and_resize(detections, (out_h, out_w))
         self.assertEqual(len(segm_crops), 0)
 
     def test_get_boxes2d(self) -> None:
         """Testcase for get_boxes2d function."""
-        h, w, num_masks = 28, 28, 5
-        segmentations = generate_instance_masks(
-            h, w, num_masks, track_ids=True
-        )
+        h, w, segmentations = self.hm, self.wm, self.segmentations.clone()
         boxes = segmentations.get_boxes2d()
         self.assertEqual(len(boxes), len(segmentations))
         self.assertTrue(torch.isclose(boxes.score, segmentations.score).all())
@@ -447,18 +359,16 @@ class TestMasks(unittest.TestCase):
 
     def test_instance_postprocess(self) -> None:
         """Testcase for postprocessing a Instance Masks object."""
-        h, w, num_masks, num_dets = 28, 28, 10, 10
-        segmentations = generate_instance_masks(h, w, num_masks)
-        dets = generate_dets(h, w, num_dets)
+        h, w, segmentations = self.hm, self.wm, self.segmentations.clone()
+        dets = generate_dets(h, w, 10)
         segmentations.detections = dets
         segmentations.postprocess((w - 1, h - 1), (w - 2, h - 2))
-        self.assertEqual(segmentations.height, 27)
-        self.assertEqual(segmentations.width, 27)
+        self.assertEqual(segmentations.height, 127)
+        self.assertEqual(segmentations.width, 127)
 
     def test_pad(self) -> None:
         """Testcase for pad function."""
-        h, w, num_masks = 28, 28, 5
-        pad_shape = (56, 128)
+        h, w, num_masks, pad_shape = 28, 28, 5, (56, 128)
         segmentations = generate_semantic_masks(h, w, num_masks)
         segmentations = SemanticMasks.pad([segmentations], pad_shape)[0]
         self.assertEqual(segmentations.height, 128)
@@ -469,8 +379,7 @@ class TestMasks(unittest.TestCase):
 
     def test_mask_logits(self) -> None:
         """Testcase for MaskLogits."""
-        h, w, num_masks, num_dets = 28, 28, 5, 5
-        pad_shape = (56, 128)
+        h, w, num_masks, num_dets, pad_shape = 28, 28, 5, 5, (56, 128)
         logits = MaskLogits(torch.rand((num_masks, h, w)))
         logits.resize(pad_shape)
         self.assertEqual(logits.size, pad_shape)

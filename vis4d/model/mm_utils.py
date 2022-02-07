@@ -195,7 +195,7 @@ def load_model_checkpoint(
     rev_keys: Optional[List[Tuple[str, str]]] = None,
 ) -> None:
     """Load MM model checkpoint."""
-    if rev_keys is None:
+    if rev_keys is None:  # pragma: no cover
         rev_keys = [(r"^module\.", "")]
     if re.compile(r"^mm(cls|det|seg)://").search(weights):
         pre = weights[:8]

@@ -1,4 +1,4 @@
-"""Multi-label classification head."""
+"""Multi classification head."""
 import copy
 from typing import List, Optional, Tuple, Union
 
@@ -19,7 +19,7 @@ from .base import BaseDenseHead, ClsDenseHead
 
 
 class MultiClsHead(ClsDenseHead):
-    """Multi-label classification head."""
+    """Multi classification head."""
 
     def __init__(self, heads: Union[List[ClsDenseHead], List[ModuleCfg]]):
         """Init."""

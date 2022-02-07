@@ -30,7 +30,7 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMCLS_INSTALLED = False
 
-from vis4d.struct import ArgsType, DictStrAny, FeatureMaps, InputSample, Images
+from vis4d.struct import ArgsType, DictStrAny, FeatureMaps, Images, InputSample
 
 from ..mm_utils import load_config, load_model_checkpoint
 from .base import BaseBackbone
