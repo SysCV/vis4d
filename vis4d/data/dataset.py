@@ -140,15 +140,15 @@ class ScalabelDataset(Dataset):  # type: ignore
                         self.dataset.frames[
                             self.ref_sampler.frame_name_to_idx[group.frames[0]]
                         ]
-                    )[0]
+                    )
                     assert cur_data is not None
                     return [cur_data]
 
-                group_data, _ = self.mapper(group)
+                group_data = self.mapper(group)
                 assert group_data is not None
                 data = [group_data]
                 for fname in group.frames:
-                    cur_data, _ = self.mapper(
+                    cur_data = self.mapper(
                         self.dataset.frames[
                             self.ref_sampler.frame_name_to_idx[fname]
                         ],
@@ -157,7 +157,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                     data.append(cur_data)
                 return data
 
-            cur_data = self.mapper(self.dataset.frames[cur_idx])[0]
+            cur_data = self.mapper(self.dataset.frames[cur_idx])
             assert cur_data is not None
             data = [cur_data]
             return data

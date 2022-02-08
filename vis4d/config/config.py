@@ -94,15 +94,14 @@ class Launch(BaseModel):
         return value
 
 
-class Config(BaseModel, extra="allow"):
+class Config(BaseModel):
     """Overall config object."""
 
     launch: Launch = Launch()
     model: ModuleCfg
     train: List[ModuleCfg] = []
+    train_handler: Optional[ModuleCfg]
     test: List[ModuleCfg] = []
-    train_dshandler: Optional[ModuleCfg]
-    test_dshandler: Optional[ModuleCfg]
     data: Optional[ModuleCfg]
 
     def __init__(self, **data: Any) -> None:  # type: ignore

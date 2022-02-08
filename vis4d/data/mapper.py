@@ -30,12 +30,10 @@ from ..struct import (
     InputSample,
     InstanceMasks,
     Intrinsics,
-    LabelInstances,
     ModuleCfg,
     PointCloud,
     SemanticMasks,
 )
-from .transforms import AugParams, BaseAugmentation
 from .utils import im_decode
 
 ALLOWED_FIELDS = [

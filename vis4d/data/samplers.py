@@ -17,7 +17,7 @@ from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils import get_world_size
 from vis4d.struct import ArgsType, ModuleCfg
 
-from .dataset import ScalabelDataset
+from .handler import Vis4DDatasetHandler
 
 
 class BaseSampler(Sampler[List[int]], metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
@@ -265,7 +265,7 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
 
     def __init__(
         self,
-        dataset: ScalabelDataset,
+        dataset: Vis4DDatasetHandler,
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
         shuffle: bool = True,
@@ -274,7 +274,9 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
     ) -> None:
         """Init."""
         super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
-        self.sequences = list(dataset.datasets[0].ref_sampler.video_to_indices.keys())  # TODO fix
+        self.sequences = list(
+            dataset.datasets[0].ref_sampler.video_to_indices.keys()
+        )  # TODO fix
         self.num_seqs = len(self.sequences)
         assert self.num_seqs >= self.num_replicas, (
             f"Number of sequences ({self.num_seqs}) must be greater or "
@@ -284,7 +286,11 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
         self._local_seqs = chunks[self.rank]
         self._local_idcs = []
         for seq in self._local_seqs:
-            self._local_idcs.extend(dataset.datasets[0].ref_sampler.video_to_indices[seq])
+            self._local_idcs.extend(
+                dataset.datasets[0].ref_sampler.video_to_indices[
+                    seq
+                ]  # TODO fix
+            )
 
     def __iter__(self) -> Generator[int, None, None]:
         """Iteration method."""

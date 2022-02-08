@@ -1,15 +1,14 @@
 """Reference view sampling component of Vis4D datasets."""
+import copy
 from collections import defaultdict
 from typing import Dict, List, Optional
 
-import copy
 import numpy as np
 from scalabel.label.typing import Frame, FrameGroup
 
 from ..common.registry import RegistryHolder
 from ..struct import InputSample
 from .mapper import BaseSampleMapper
-from .transforms import AugParams
 
 
 class BaseReferenceSampler(metaclass=RegistryHolder):
@@ -165,7 +164,9 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
                         break  # pragma: no cover
                     ref_data.append(ref_sample)
             else:  # pragma: no cover
-                ref_data = [copy.deepcopy(key_data) for _ in range(self.num_ref_imgs)]
+                ref_data = [
+                    copy.deepcopy(key_data) for _ in range(self.num_ref_imgs)
+                ]
             if (
                 not self.skip_nomatch_samples
                 or self.has_matches(key_data, ref_data)
