@@ -94,7 +94,7 @@ class Launch(BaseModel):
         return value
 
 
-class Config(BaseModel):
+class Config(BaseModel, extra="allow"):
     """Overall config object."""
 
     launch: Launch = Launch()

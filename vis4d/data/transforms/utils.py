@@ -31,7 +31,7 @@ def sample_batched(num: int, prob: float, same: bool = False) -> torch.Tensor:
 def get_resize_shape(
     ori_wh: Tuple[int, int], new_wh: Tuple[int, int], keep_ratio: bool = True
 ) -> Tuple[int, int]:
-    """Get shape for resize, considering keep_ratio and long edge."""
+    """Get shape for resize, considering keep_ratio."""
     w, h = ori_wh
     new_w, new_h = new_wh
     if keep_ratio:
@@ -40,10 +40,6 @@ def get_resize_shape(
         new_h = int(h * scale_factor + 0.5)
         new_w = int(w * scale_factor + 0.5)
     return new_w, new_h
-    # elif w < h and not new_w < new_h or w > h and not new_w > new_h:
-    #     # if long edge in original image is different from long edge in
-    #     # resize shape, we flip it to avoid large image distortions
-    #     return new_h, new_w TODO check effect on COCO numbers
 
 
 def im_resize(

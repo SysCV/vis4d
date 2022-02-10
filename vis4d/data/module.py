@@ -18,7 +18,7 @@ from .utils import identity_batch_collator
 class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
     """Default data module for Vis4D."""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         samples_per_gpu: int,
         workers_per_gpu: int,
@@ -97,8 +97,13 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         dataloaders = []
         for dataset in datasets:
             sampler: Optional[data.Sampler] = None
-            if get_world_size() > 1:  # and dataset.has_sequences: TODO fix
-                sampler = TrackingInferenceSampler(dataset)  # pragma: no cover
+            assert (
+                len(dataset.datasets) == 1
+            ), "Inference needs a single dataset per handler."
+            if get_world_size() > 1 and dataset.datasets[0].has_sequences:
+                sampler = TrackingInferenceSampler(
+                    dataset.datasets[0]
+                )  # pragma: no cover # pylint: disable=line-too-long
             elif get_world_size() > 1 and self.train_sampler is not None:
                 # manually create distributed sampler for inference if using
                 # custom training sampler

@@ -642,7 +642,7 @@ class Mosaic(BaseAugmentation):
             mosaic_img[:, :, y1_p:y2_p, x1_p:x2_p] = img.tensor[
                 :, :, y1_c:y2_c, x1_c:x2_c
             ]
-        return Images(mosaic_img, image_sizes=[(c * 2, h * 2)])
+        return Images(mosaic_img, image_sizes=[(w * 2, h * 2)])
 
     def apply_box2d(
         self, boxes: List[Boxes2D], parameters: AugParams
@@ -676,8 +676,12 @@ class Mosaic(BaseAugmentation):
                 boxes[i] = box[keep_mask]
 
                 if self.clip_inside_image:
-                    boxes[i].boxes[:, [0, 2]] = boxes[i].boxes.clip(x1_p, x2_p)
-                    boxes[i].boxes[:, [1, 3]] = boxes[i].boxes.clip(y1_p, y2_p)
+                    boxes[i].boxes[:, [0, 2]] = (
+                        boxes[i].boxes[:, [0, 2]].clip(x1_p, x2_p)
+                    )
+                    boxes[i].boxes[:, [1, 3]] = (
+                        boxes[i].boxes[:, [1, 3]].clip(y1_p, y2_p)
+                    )
 
         return [Boxes2D.merge(boxes)]
 
@@ -845,8 +849,12 @@ class MixUp(BaseAugmentation):
 
             if self.clip_inside_image:
                 new_w, new_h = parameters["other_new_wh"]
-                other_boxes.boxes[:, [0, 2]] = other_boxes.boxes.clip(0, new_w)
-                other_boxes.boxes[:, [1, 3]] = other_boxes.boxes.clip(0, new_h)
+                other_boxes.boxes[:, [0, 2]] = other_boxes.boxes[
+                    :, [0, 2]
+                ].clip(0, new_w)
+                other_boxes.boxes[:, [1, 3]] = other_boxes.boxes[
+                    :, [1, 3]
+                ].clip(0, new_h)
 
         return [Boxes2D.merge([ori_boxes, other_boxes])]
 

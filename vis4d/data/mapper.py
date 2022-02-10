@@ -294,12 +294,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         Raises:
             AttributeError: If category mappings have not been initialized.
         """
-        if len(self.cats_name2id) == 0:
-            raise AttributeError(
-                "Category mapping not initialized! Please "
-                "execute 'SampleMapper.setup_categories'."
-            )
-
         if (
             self.skip_empty_samples
             and (sample.labels is None or len(sample.labels) == 0)
@@ -316,6 +310,12 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         )
 
         if self.training:
+            if len(self.cats_name2id) == 0:
+                raise AttributeError(
+                    "Category mapping not initialized! Please "
+                    "execute 'SampleMapper.setup_categories'."
+                )
+
             # load annotations to input sample
             self.load_annotations(input_data, sample.labels)
 

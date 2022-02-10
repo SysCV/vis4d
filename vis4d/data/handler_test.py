@@ -6,24 +6,22 @@ from scalabel.label.typing import Box2D, Frame, Label
 
 from ..struct import Boxes2D, Images, InputSample
 from .dataset_test import TestScalabelDataset
+from .handler import Vis4DDatasetHandler, sort_by_frame_index
 
 
-class TestDataModule(unittest.TestCase):
-    """ScalabelDataset Testcase class."""
+class TestDataHandler(unittest.TestCase):
+    """DataHandler Testcase class."""
 
     dataset = TestScalabelDataset.dataset
+    handler = Vis4DDatasetHandler([dataset])
 
-    def test_transform_input(self) -> None:
-        """Test the transform_input method in ScalabelDataset."""
+    @staticmethod
+    def _make_test_sample() -> InputSample:
+        """Create new sample mockup for testing."""
         sample = InputSample(
             [Frame(name="0")],
             Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
         )
-        self.handler.transform_inputs(sample, None)
-        self.assertEqual(len(sample.targets.boxes2d[0]), 0)
-        self.dataset.mapper.transform_inputs(sample, [])
-        self.assertEqual(len(sample.targets.boxes2d[0]), 0)
-
         labels = [
             Label(
                 id="a",
@@ -47,16 +45,26 @@ class TestDataModule(unittest.TestCase):
         sample.targets.boxes2d = [
             Boxes2D.from_scalabel(labels, {"car": 0}, {"a": 2, "b": 1, "c": 0})
         ]
-        self.dataset.mapper.transform_inputs(sample, [])
+        return sample
 
-        self.assertTrue(all(sample.targets.boxes2d[0].class_ids == 0))
-        self.assertEqual(sample.targets.boxes2d[0].boxes[0, 0], 10)
-        self.assertEqual(sample.targets.boxes2d[0].boxes[1, 0], 11)
-        self.assertEqual(sample.targets.boxes2d[0].boxes[2, 0], 12)
+    def test_postprocess_annotations(self) -> None:
+        """Test postprocessing of annotations."""
+        sample = self._make_test_sample()
+        self.handler.min_bboxes_area = 12 * 12
+        # pylint: disable=protected-access
+        self.handler._postprocess_annotations((128, 128), sample.targets)
+        self.assertEqual(len(sample.targets.boxes2d[0]), 0)
+        self.handler.min_bboxes_area = 7 * 7
 
-        self.assertEqual(sample.targets.boxes2d[0].track_ids[0], 2)
-        self.assertEqual(sample.targets.boxes2d[0].track_ids[1], 1)
-        self.assertEqual(sample.targets.boxes2d[0].track_ids[2], 0)
+    def test_rescale_track_ids(self) -> None:
+        """Test rescaling of track ids."""
+        sample = self._make_test_sample()
+        sample.targets.boxes2d[0].track_ids = torch.tensor([10, 20, 30])
+        # pylint: disable=protected-access
+        self.handler._rescale_track_ids([sample])
+        self.assertEqual(
+            tuple(sample.targets.boxes2d[0].track_ids.numpy()), (0, 1, 2)
+        )
 
     def test_sort_samples(self) -> None:
         """Test the sort_samples method in MapDataset."""
@@ -70,6 +78,6 @@ class TestDataModule(unittest.TestCase):
                 Images(torch.zeros(1, 3, 128, 128), [(128, 128)]),
             ),
         ]
-        sorted_samples = self.dataset.ref_sampler.sort_samples(input_samples)
+        sorted_samples = sort_by_frame_index(input_samples)
         self.assertEqual(sorted_samples[0].metadata[0].frameIndex, 0)
         self.assertEqual(sorted_samples[1].metadata[0].frameIndex, 1)

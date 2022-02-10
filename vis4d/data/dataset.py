@@ -63,7 +63,6 @@ class ScalabelDataset(Dataset):  # type: ignore
             )
             cats_name2id = {v: i for i, v in enumerate(class_list)}
         self.cats_name2id = cats_name2id
-
         if isinstance(mapper, dict):
             if "type" not in mapper:
                 mapper["type"] = "BaseSampleMapper"

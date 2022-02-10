@@ -178,8 +178,7 @@ def build_datasets(
 ) -> Tuple[List[Vis4DDatasetHandler], List[ScalabelDataset]]:
     """Build datasets based on configs."""
     datasets: List[ScalabelDataset] = []
-    if handler_cfg is None:
-        _handler_cfgs = []
+    _handler_cfgs = []
 
     for dl_cfg in dataset_cfgs:
         mapper_cfg = dl_cfg.pop("sample_mapper", {})
@@ -195,19 +194,16 @@ def build_datasets(
             )
         mapper_cfg["image_channel_mode"] = image_channel_mode
 
-        # TODO Temporary fix to keep configs compatible, will be removed once static configurations are replaced
-        if handler_cfg is None:
-            _handler_cfg = {}
-            _handler_cfg["clip_bboxes_to_image"] = mapper_cfg.pop(
-                "clip_bboxes_to_image", True
-            )
-            _handler_cfg["min_bboxes_area"] = mapper_cfg.pop(
-                "min_bboxes_area", 7.0 * 7.0
-            )
-            _handler_cfg["transformations"] = mapper_cfg.pop(
-                "transformations", []
-            )
-            _handler_cfgs.append(_handler_cfg)
+        # TODO Temporary fix to keep configs compatible, will be removed once static configurations are replaced # pylint: disable=line-too-long,fixme
+        _handler_cfg = {}
+        _handler_cfg["clip_bboxes_to_image"] = mapper_cfg.pop(
+            "clip_bboxes_to_image", True
+        )
+        _handler_cfg["min_bboxes_area"] = mapper_cfg.pop(
+            "min_bboxes_area", 7.0 * 7.0
+        )
+        _handler_cfg["transformations"] = mapper_cfg.pop("transformations", [])
+        _handler_cfgs.append(_handler_cfg)
 
         datasets.append(
             ScalabelDataset(
