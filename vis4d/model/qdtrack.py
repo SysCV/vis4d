@@ -185,7 +185,9 @@ class QDTrack(BaseModel):
 
         # from vis4d.vis.image import imshow_bboxes
         # for batch_i, key_inp in enumerate(key_inputs):
-        #     imshow_bboxes(key_inp.images.tensor[0], key_inp.targets.boxes2d[0])
+        #     imshow_bboxes(
+        #         key_inp.images.tensor[0], key_inp.targets.boxes2d[0]
+        #     )
         #     for ref_i, ref_inp in enumerate(ref_inputs):
         #         imshow_bboxes(
         #             ref_inp[batch_i].images.tensor[0],
