@@ -47,7 +47,7 @@ If you want to modify the package:
 
     python setup.py develop
 
-See `here<https://stackoverflow.com/questions/19048732/python-setup-py-develop-vs-install>`_ for further explanation.
+See `here <https://stackoverflow.com/questions/19048732/python-setup-py-develop-vs-install>`_ for further explanation.
 For systems where you cannot write to the python installation use:
 
 .. code:: bash
@@ -56,7 +56,7 @@ For systems where you cannot write to the python installation use:
 
 
 Common issues
-===============================================
++++++++++++++++++++++++++++++++++++++++
 
 Error: “Expected 88 from C header, got 80 from PyObject”
 

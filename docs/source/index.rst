@@ -8,11 +8,17 @@ Welcome to Vis4D's documentation!
 
    getting_started/install
    getting_started/usage
-   getting_started/customize
 
 
 .. toctree::
-   :caption: FAQ
+   :maxdepth: 2
+   :caption: Tutorials
+
+   tutorials/customize
+
+
+.. toctree::
+   :caption: Tips and Tricks
 
    faq
 
@@ -20,6 +26,7 @@ Welcome to Vis4D's documentation!
    :caption: Community
 
    contribute
+
 
 .. toctree::
    :maxdepth: 2

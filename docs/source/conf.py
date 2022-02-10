@@ -66,18 +66,18 @@ pygments_dark_style = "monokai"
 html_theme = 'furo'
 
 html_theme_options = {
-    #'light_logo': 'img/kornia_logo_only_light.svg',
-    #'dark_logo': 'img/kornia_logo_only_dark.svg',
+    #'light_logo': 'img/logo_light.svg',  TODO add logo
+    #'dark_logo': 'img/logo_dark.svg',
     "sidebar_hide_name": True,
     "navigation_with_keys": True,
     "light_css_variables": {
-        "color-sidebar-background": "#3980F5",
-        "color-sidebar-background-border": "#3980F5",
+        "color-sidebar-background": "#34495E",
+        "color-sidebar-background-border": "#34495E",
         "color-sidebar-caption-text": "white",
         "color-sidebar-link-text--top-level": "white",
         "color-sidebar-link-text": "white",
         "sidebar-caption-font-size": "normal",
-        "color-sidebar-item-background--hover": " #5dade2",
+        "color-sidebar-item-background--hover": "#85929E",
     },
     "dark_css_variables": {
         "color-sidebar-background": "#1a1c1e",
@@ -87,7 +87,7 @@ html_theme_options = {
     },
 }
 
-#html_favicon = '_static/img/kornia_logo_favicon.png'
+#html_favicon = '_static/img/logo_favicon.png'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

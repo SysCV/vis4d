@@ -1,12 +1,12 @@
 Command line arguments overview
 =================================
 
-Standard Options (command line only):
+Standard Options
 +++++++++++++++++++++++++++++++++++++++
 action (positional argument): train / test / predict
 config: Filepath to config file
 
-Launch Options:
+Launch Options
 +++++++++++++++++++++++++++++++++++++++
 - work_dir: Specific directory to save checkpoints, logs, etc. Integrates with exp_name and version to work_dir/exp_name/version. Default: ./vis4d-workspace/
 - exp_name: Name of current experiment. Default: <name of model>
