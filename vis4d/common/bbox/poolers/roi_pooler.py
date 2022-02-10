@@ -1,4 +1,5 @@
 """Vis4D RoI Pooling module."""
+import abc
 import math
 from typing import List, Tuple
 
@@ -49,7 +50,6 @@ class MultiScaleRoIPooler(BaseRoIPooler):
                 indices.
         """
         super().__init__(resolution)
-        self.pooling_op = pooling_op
         self.canonical_level = canonical_level
         self.canonical_box_size = canonical_box_size
         self.sampling_ratio = sampling_ratio
@@ -165,7 +165,7 @@ class MultiScaleRoIAlign(MultiScaleRoIPooler):
         boxes: torch.Tensor,
         spatial_scale: float = 1.0,
     ) -> torch.Tensor:
-        """RoIAlign wrapper."""
+        """Roialign wrapper."""
         return roi_align(
             inputs,
             boxes,
@@ -185,5 +185,5 @@ class MultiScaleRoIPool(MultiScaleRoIPooler):
         boxes: torch.Tensor,
         spatial_scale: float = 1.0,
     ) -> torch.Tensor:
-        """RoIPool wrapper."""
+        """Roipool wrapper."""
         return roi_pool(inputs, boxes, self.resolution, spatial_scale)

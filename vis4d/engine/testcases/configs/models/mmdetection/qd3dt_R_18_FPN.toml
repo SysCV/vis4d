@@ -22,8 +22,7 @@ image_channel_mode = "RGB"
         loss_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
 
         [model.bbox_3d_head.proposal_pooler]
-        type = "MultiScaleRoIPooler"
-        pooling_op = "RoIAlign"
+        type = "MultiScaleRoIAlign"
         resolution = [7, 7]
         strides = [4, 8, 16, 32]
         sampling_ratio = 0
@@ -76,8 +75,7 @@ image_channel_mode = "RGB"
         hard_mining = true
 
         [model.similarity.proposal_pooler]
-        type = "MultiScaleRoIPooler"
-        pooling_op = "RoIAlign"
+        type = "MultiScaleRoIAlign"
         resolution = [7, 7]
         strides = [4, 8, 16, 32]
         sampling_ratio = 0
