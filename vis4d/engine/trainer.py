@@ -275,10 +275,15 @@ def setup_experiment(
         if "image_channel_mode" in cfg.model
         else "RGB"
     )
-    train_handlers, train_datasets = (
+    train_handlers, _ = (
         build_datasets(cfg.train, cmode, True, cfg.train_handler)
         if is_train
         else (None, None)
+    )
+    train_handler = (
+        Vis4DDatasetHandler(train_handlers, False, 0.0)
+        if train_handlers is not None
+        else None
     )
     test_handlers, test_datasets, = (
         None,
@@ -291,7 +296,7 @@ def setup_experiment(
             # build custom train sampler
             train_sampler = build_data_sampler(
                 cfg.data["train_sampler"],
-                train_datasets,
+                train_handler,
                 cfg.launch.samples_per_gpu,
             )
 
@@ -316,9 +321,7 @@ def setup_experiment(
     data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
-        train_datasets=Vis4DDatasetHandler(train_handlers, False, 0.0)
-        if train_handlers is not None
-        else None,
+        train_datasets=train_handler,
         test_datasets=test_handlers,
         predict_datasets=predict_handlers,
         seed=cfg.launch.seed,
