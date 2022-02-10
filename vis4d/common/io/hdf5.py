@@ -9,7 +9,7 @@ try:
 except ImportError as e:  # pragma: no cover
     raise ImportError("Please install h5py to enable HDF5Backend.") from e
 
-from .base import BaseDataBackend, DataBackendConfig
+from .base import BaseDataBackend
 
 
 class HDF5Backend(BaseDataBackend):
@@ -23,11 +23,9 @@ class HDF5Backend(BaseDataBackend):
     convert your dataset to the expected hdf5 format before using this backend.
     """
 
-    def __init__(self, cfg: DataBackendConfig):
+    def __init__(self) -> None:
         """Init."""
         super().__init__()
-
-        self.cfg = DataBackendConfig(**cfg.dict())
         self.db_cache: Dict[str, h5py.File] = {}
 
     @staticmethod

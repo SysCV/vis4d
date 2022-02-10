@@ -3,10 +3,7 @@
 import abc
 from typing import List, Optional, Tuple, Union, overload
 
-from pydantic import BaseModel, Field
-
-from vis4d.common.module import Vis4DModule
-from vis4d.common.registry import RegistryHolder
+from vis4d.common import Vis4DModule
 from vis4d.struct import (
     InputSample,
     InstanceMasks,
@@ -16,12 +13,6 @@ from vis4d.struct import (
 )
 
 PanopticMasks = Tuple[List[InstanceMasks], List[SemanticMasks]]
-
-
-class BasePanopticHeadConfig(BaseModel, extra="allow"):
-    """Base config for Panoptic head."""
-
-    type: str = Field(...)
 
 
 class BasePanopticHead(Vis4DModule[LossesType, PanopticMasks]):
@@ -96,15 +87,3 @@ class BasePanopticHead(Vis4DModule[LossesType, PanopticMasks]):
             PanopticMasks: Prediction outputs.
         """
         raise NotImplementedError
-
-
-def build_panoptic_head(
-    cfg: BasePanopticHeadConfig,
-) -> BasePanopticHead:
-    """Build a panoptic head from config."""
-    registry = RegistryHolder.get_registry(BasePanopticHead)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BasePanopticHead)
-        return module
-    raise NotImplementedError(f"PanopticHead {cfg.type} not found.")

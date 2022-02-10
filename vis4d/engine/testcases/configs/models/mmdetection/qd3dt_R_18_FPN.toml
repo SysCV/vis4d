@@ -1,5 +1,6 @@
 [model]
 type = "QD3DT"
+image_channel_mode = "RGB"
     [model.detection]
     type = "MMTwoStageDetector"
     model_base = "vis4d/engine/testcases/configs/models/mmdetection/mmdet_cfg_frcnn_r18fpn.py"

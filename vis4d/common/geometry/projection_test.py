@@ -71,9 +71,7 @@ class TestProjection(unittest.TestCase):
             self.image_width,
             self.image_height,
         )
-        self.assertTrue(
-            torch.isclose(mask, torch.ones(3, dtype=torch.bool)).all()
-        )
+        self.assertTrue(torch.eq(mask, torch.ones(3, dtype=torch.bool)).all())
 
     def test_generate_depth_map(self) -> None:
         """Test generate depth map function."""

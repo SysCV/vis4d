@@ -6,10 +6,9 @@ from torch import nn
 from torch.utils import model_zoo
 
 from vis4d.common import Vis4DModule
-from vis4d.struct import FeatureMaps, InputSample
+from vis4d.struct import ArgsType, FeatureMaps, InputSample
 
-from .base import BaseBackbone, BaseBackboneConfig
-from .neck import BaseNeck, build_neck
+from .base import BaseBackbone
 
 BN_MOMENTUM = 0.1
 DLA_MODEL_PREFIX = "http://dl.yf.io/dla/models/"
@@ -398,40 +397,39 @@ class Tree(Vis4DModule[torch.Tensor, torch.Tensor]):
         return input_x
 
 
-class DLAConfig(BaseBackboneConfig):
-    """Config for DLA backbone."""
-
-    name: Optional[str]
-    levels: Tuple[int, int, int, int, int, int] = (1, 1, 1, 2, 2, 1)
-    channels: Tuple[int, int, int, int, int, int] = (16, 32, 64, 128, 256, 512)
-    block: str = "BasicBlock"
-    residual_root: bool = False
-    cardinality: int = 32
-    weights: Optional[str]
-    style: str = "imagenet"
-
-
 class DLA(BaseBackbone):
     """DLA backbone."""
 
-    def __init__(self, cfg: BaseBackboneConfig) -> None:
+    def __init__(
+        self,
+        *args: ArgsType,
+        name: Optional[str] = None,
+        levels: Tuple[int, int, int, int, int, int] = (1, 1, 1, 2, 2, 1),
+        channels: Tuple[int, int, int, int, int, int] = (
+            16,
+            32,
+            64,
+            128,
+            256,
+            512,
+        ),
+        block: str = "BasicBlock",
+        residual_root: bool = False,
+        cardinality: int = 32,
+        weights: Optional[str] = None,
+        style: str = "imagenet",
+        **kwargs: ArgsType,
+    ) -> None:
         """Init."""
-        super().__init__(cfg)
-        self.cfg: DLAConfig = DLAConfig(**cfg.dict())
-        if self.cfg.name is not None:
-            assert self.cfg.name in DLA_ARCH_SETTINGS
-            arch_setting = DLA_ARCH_SETTINGS[self.cfg.name]
+        super().__init__(*args, **kwargs)
+        if name is not None:
+            assert name in DLA_ARCH_SETTINGS
+            arch_setting = DLA_ARCH_SETTINGS[name]
             levels, channels, residual_root, block = arch_setting
-            if self.cfg.name == "dla102x2":  # pragma: no cover
+            if name == "dla102x2":  # pragma: no cover
                 BottleneckX.cardinality = 64
         else:
-            levels, channels, residual_root, block = (
-                self.cfg.levels,
-                self.cfg.channels,
-                self.cfg.residual_root,
-                self.cfg.block,
-            )
-            BottleneckX.cardinality = self.cfg.cardinality
+            BottleneckX.cardinality = cardinality
         self.base_layer = nn.Sequential(
             nn.Conv2d(
                 3, channels[0], kernel_size=7, stride=1, padding=3, bias=False
@@ -482,19 +480,15 @@ class DLA(BaseBackbone):
             root_residual=residual_root,
         )
 
-        self.neck: Optional[BaseNeck] = None
-        if self.cfg.neck is not None:
-            self.neck = build_neck(self.cfg.neck)
-
-        if self.cfg.weights is not None:  # pragma: no cover
-            if self.cfg.weights.startswith("dla://"):
-                weights_name = self.cfg.weights.split("dla://")[-1]
+        if weights is not None:  # pragma: no cover
+            if weights.startswith("dla://"):
+                weights_name = weights.split("dla://")[-1]
                 assert weights_name in DLA_MODEL_MAPPING
-                self.cfg.weights = (
-                    f"{DLA_MODEL_PREFIX}{self.cfg.style}/"
+                weights = (
+                    f"{DLA_MODEL_PREFIX}{style}/"
                     f"{DLA_MODEL_MAPPING[weights_name]}"
                 )
-            self.load_pretrained_model(self.cfg.weights)
+            self.load_pretrained_model(weights)
 
     @staticmethod
     def _make_conv_level(

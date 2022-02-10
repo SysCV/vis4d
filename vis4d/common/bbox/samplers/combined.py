@@ -3,61 +3,52 @@ from collections import defaultdict
 from typing import Dict, List, Union
 
 import torch
-from pydantic import validator
 
 from vis4d.struct import Boxes2D
 
 from ..matchers.base import MatchResult
 from ..utils import non_intersection, random_choice
-from .base import BaseSampler, SamplerConfig, SamplingResult
+from .base import BaseSampler, SamplingResult
 from .utils import add_to_result
-
-
-class CombinedSamplerConfig(SamplerConfig):
-    """Config for CombinedSampler."""
-
-    pos_strategy: str
-    neg_strategy: str
-    neg_pos_ub: float = 3.0
-    floor_thr: float = -1.0
-    floor_fraction: float = 0.0
-    num_bins: int = 3
-
-    # Disable some pylint options in validator:
-    # https://github.com/samuelcolvin/pydantic/issues/568
-    @validator("pos_strategy", check_fields=False)
-    def validate_pos_strategy(  # pylint: disable=no-self-argument,no-self-use
-        cls, value: str
-    ) -> str:
-        """Check pos_strategy attribute."""
-        if not value in ["instance_balanced", "iou_balanced"]:
-            raise ValueError(
-                "pos_strategy must be in [instance_balanced, iou_balanced]"
-            )
-        return value
-
-    @validator("neg_strategy", check_fields=False)
-    def validate_neg_strategy(  # pylint: disable=no-self-argument,no-self-use
-        cls, value: str
-    ) -> str:
-        """Check neg_strategy attribute."""
-        if not value in ["instance_balanced", "iou_balanced"]:
-            raise ValueError(
-                "neg_strategy must be in [instance_balanced, iou_balanced]"
-            )
-        return value
 
 
 class CombinedSampler(BaseSampler):
     """Combined sampler. Can have different strategies for pos/neg samples."""
 
-    def __init__(self, cfg: SamplerConfig):
+    def __init__(
+        self,
+        batch_size_per_image: int,
+        positive_fraction: float,
+        pos_strategy: str,
+        neg_strategy: str,
+        neg_pos_ub: float = 3.0,
+        floor_thr: float = -1.0,
+        floor_fraction: float = 0.0,
+        num_bins: int = 3,
+        bg_label: int = 0,
+    ):
         """Init."""
-        super().__init__()
-        self.cfg = CombinedSamplerConfig(**cfg.dict())
-        self.bg_label = 0
-        self.pos_strategy = getattr(self, self.cfg.pos_strategy + "_sampling")
-        self.neg_strategy = getattr(self, self.cfg.neg_strategy + "_sampling")
+        super().__init__(batch_size_per_image, positive_fraction)
+        self.neg_pos_ub = neg_pos_ub
+        self.floor_thr = floor_thr
+        self.floor_fraction = floor_fraction
+        self.num_bins = num_bins
+        self.bg_label = bg_label
+
+        if (
+            not pos_strategy
+            in [
+                "instance_balanced",
+                "iou_balanced",
+            ]
+            or not neg_strategy in ["instance_balanced", "iou_balanced"]
+        ):
+            raise ValueError(
+                "strategies must be in [instance_balanced, iou_balanced]"
+            )
+
+        self.pos_strategy = getattr(self, pos_strategy + "_sampling")
+        self.neg_strategy = getattr(self, neg_strategy + "_sampling")
 
     @staticmethod
     def instance_balanced_sampling(
@@ -104,20 +95,16 @@ class CombinedSampler(BaseSampler):
             return idx_tensor
 
         # define 'floor' set - set with low iou samples
-        if self.cfg.floor_thr >= 0:
-            floor_set = idx_tensor[assigned_gt_ious <= self.cfg.floor_thr]
-            iou_sampling_set = idx_tensor[
-                assigned_gt_ious > self.cfg.floor_thr
-            ]
+        if self.floor_thr >= 0:
+            floor_set = idx_tensor[assigned_gt_ious <= self.floor_thr]
+            iou_sampling_set = idx_tensor[assigned_gt_ious > self.floor_thr]
         else:
             floor_set = None
-            iou_sampling_set = idx_tensor[
-                assigned_gt_ious > self.cfg.floor_thr
-            ]
+            iou_sampling_set = idx_tensor[assigned_gt_ious > self.floor_thr]
 
-        num_iou_set_samples = int(sample_size * (1 - self.cfg.floor_fraction))
+        num_iou_set_samples = int(sample_size * (1 - self.floor_fraction))
         if len(iou_sampling_set) > num_iou_set_samples:
-            if self.cfg.num_bins >= 2:
+            if self.num_bins >= 2:
                 iou_sampled_inds = self.sample_within_intervals(
                     idx_tensor, assigned_gt_ious, num_iou_set_samples
                 )
@@ -149,7 +136,7 @@ class CombinedSampler(BaseSampler):
 
         return sampled_inds
 
-    def sample(
+    def __call__(  # type: ignore
         self,
         matching: List[MatchResult],
         boxes: List[Boxes2D],
@@ -157,7 +144,7 @@ class CombinedSampler(BaseSampler):
     ) -> SamplingResult:
         """Sample boxes according to strategies defined in cfg."""
         pos_sample_size = int(
-            self.cfg.batch_size_per_image * self.cfg.positive_fraction
+            self.batch_size_per_image * self.positive_fraction
         )
         result: Dict[
             str, Union[List[Boxes2D], List[torch.Tensor]]
@@ -172,10 +159,10 @@ class CombinedSampler(BaseSampler):
             negative = negative_mask.nonzero()[:, 0]
 
             num_pos = min(positive.numel(), pos_sample_size)
-            num_neg = self.cfg.batch_size_per_image - num_pos
+            num_neg = self.batch_size_per_image - num_pos
 
-            if self.cfg.neg_pos_ub >= 0:
-                neg_upper_bound = int(self.cfg.neg_pos_ub * num_pos)
+            if self.neg_pos_ub >= 0:
+                neg_upper_bound = int(self.neg_pos_ub * num_pos)
                 num_neg = min(num_neg, neg_upper_bound)
 
             pos_idx = self.pos_strategy(
@@ -203,13 +190,13 @@ class CombinedSampler(BaseSampler):
         sample_size: int,
     ) -> torch.Tensor:
         """Sample according to N iou intervals where N = num bins."""
-        floor_thr = max(self.cfg.floor_thr, 0.0)
+        floor_thr = max(self.floor_thr, 0.0)
         max_iou = assigned_gt_ious.max()
-        iou_interval = (max_iou - floor_thr) / self.cfg.num_bins
-        per_bin_samples = int(sample_size / self.cfg.num_bins)
+        iou_interval = (max_iou - floor_thr) / self.num_bins
+        per_bin_samples = int(sample_size / self.num_bins)
 
         sampled_inds = []
-        for i in range(self.cfg.num_bins):
+        for i in range(self.num_bins):
             start_iou = floor_thr + i * iou_interval
             end_iou = floor_thr + (i + 1) * iou_interval
             tmp_set = (

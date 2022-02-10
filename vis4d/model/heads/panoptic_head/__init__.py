@@ -1,11 +1,5 @@
 """Panoptic heads."""
-from .base import BasePanopticHead, BasePanopticHeadConfig, build_panoptic_head
-from .simple import SimplePanopticHead, SimplePanopticHeadConfig
+from .base import BasePanopticHead
+from .simple import SimplePanopticHead
 
-__all__ = [
-    "BasePanopticHeadConfig",
-    "BasePanopticHead",
-    "build_panoptic_head",
-    "SimplePanopticHead",
-    "SimplePanopticHeadConfig",
-]
+__all__ = ["BasePanopticHead", "SimplePanopticHead"]

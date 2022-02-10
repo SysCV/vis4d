@@ -3,16 +3,9 @@ import abc
 from typing import List, NamedTuple
 
 import torch
-from pydantic import BaseModel, Field
 
-from vis4d.common.registry import RegistryHolder
+from vis4d.common import Vis4DModule
 from vis4d.struct import Boxes2D
-
-
-class MatcherConfig(BaseModel, extra="allow"):
-    """Matcher base config."""
-
-    type: str = Field(...)
 
 
 class MatchResult(NamedTuple):
@@ -28,22 +21,12 @@ class MatchResult(NamedTuple):
     assigned_labels: torch.Tensor
 
 
-class BaseMatcher(metaclass=RegistryHolder):
+class BaseMatcher(Vis4DModule[List[MatchResult], List[MatchResult]]):
     """Base class for box / target matchers."""
 
     @abc.abstractmethod
-    def match(
+    def __call__(  # type: ignore
         self, boxes: List[Boxes2D], targets: List[Boxes2D]
     ) -> List[MatchResult]:
         """Match bounding boxes according to their struct."""
         raise NotImplementedError
-
-
-def build_matcher(cfg: MatcherConfig) -> BaseMatcher:
-    """Build a bounding box matcher from config."""
-    registry = RegistryHolder.get_registry(BaseMatcher)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseMatcher)
-        return module
-    raise NotImplementedError(f"Matcher {cfg.type} not found.")

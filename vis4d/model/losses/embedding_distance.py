@@ -5,26 +5,28 @@ import torch
 
 from vis4d.common.bbox.utils import random_choice
 
-from .base import BaseLoss, LossConfig
+from .base import BaseLoss
 from .utils import l2_loss
-
-
-class EmbeddingDistanceLossConfig(LossConfig):
-    """Config for embedding distance loss."""
-
-    neg_pos_ub: float = -1.0
-    pos_margin: float = -1.0
-    neg_margin: float = -1.0
-    hard_mining: bool = False
 
 
 class EmbeddingDistanceLoss(BaseLoss):
     """Embedding distance loss."""
 
-    def __init__(self, cfg: LossConfig):
+    def __init__(
+        self,
+        reduction: str = "mean",
+        loss_weight: Optional[float] = 1.0,
+        neg_pos_ub: float = -1.0,
+        pos_margin: float = -1.0,
+        neg_margin: float = -1.0,
+        hard_mining: bool = False,
+    ):
         """Init."""
-        super().__init__()
-        self.cfg = EmbeddingDistanceLossConfig(**cfg.dict())
+        super().__init__(reduction, loss_weight)
+        self.neg_pos_ub = neg_pos_ub
+        self.neg_margin = neg_margin
+        self.pos_margin = pos_margin
+        self.hard_mining = hard_mining
 
     def __call__(  # type: ignore # pylint: disable=arguments-differ
         self,
@@ -51,10 +53,10 @@ class EmbeddingDistanceLoss(BaseLoss):
         reduction = (
             reduction_override
             if reduction_override is not None
-            else self.cfg.reduction
+            else self.reduction
         )
         pred, weight, avg_factor = self.update_weight(pred, target, weight)
-        loss = self.cfg.loss_weight * l2_loss(
+        loss = self.loss_weight * l2_loss(
             pred, target, weight, reduction=reduction, avg_factor=avg_factor
         )
         return loss
@@ -74,19 +76,19 @@ class EmbeddingDistanceLoss(BaseLoss):
         pos_inds = target == 1
         neg_inds = target == 0
 
-        if self.cfg.pos_margin > 0:
-            pred[pos_inds] -= self.cfg.pos_margin
-        if self.cfg.neg_margin > 0:
-            pred[neg_inds] -= self.cfg.neg_margin
+        if self.pos_margin > 0:
+            pred[pos_inds] -= self.pos_margin
+        if self.neg_margin > 0:
+            pred[neg_inds] -= self.neg_margin
         pred = torch.clamp(pred, min=0, max=1)
 
         num_pos = max(1, int((target == 1).sum()))
         num_neg = int((target == 0).sum())
-        if self.cfg.neg_pos_ub > 0 and num_neg / num_pos > self.cfg.neg_pos_ub:
-            num_neg = int(num_pos * self.cfg.neg_pos_ub)
+        if self.neg_pos_ub > 0 and num_neg / num_pos > self.neg_pos_ub:
+            num_neg = int(num_pos * self.neg_pos_ub)
             neg_idx = torch.nonzero(target == 0, as_tuple=False)
 
-            if self.cfg.hard_mining:
+            if self.hard_mining:
                 costs = l2_loss(pred, target, reduction="none")[
                     neg_idx[:, 0], neg_idx[:, 1]
                 ].detach()

@@ -1,5 +1,5 @@
 """Simple panoptic head."""
-from typing import Optional, Tuple
+from typing import List, Tuple, Union
 
 import torch
 
@@ -11,27 +11,27 @@ from vis4d.struct import (
     SemanticMasks,
 )
 
-from .base import BasePanopticHead, BasePanopticHeadConfig, PanopticMasks
-
-
-class SimplePanopticHeadConfig(BasePanopticHeadConfig):
-    """Config for simple panoptic head."""
-
-    ignore_class: Optional[int] = -1
-    overlap_thr: float = 0.5
-    stuff_area_thr: int = 4096
-    thing_conf_thr: float = 0.5
+from .base import BasePanopticHead, PanopticMasks
 
 
 class SimplePanopticHead(BasePanopticHead):
     """Simple panoptic head."""
 
-    def __init__(self, cfg: BasePanopticHeadConfig):
+    def __init__(
+        self,
+        ignore_class: Union[int, List[int]] = -1,
+        overlap_thr: float = 0.5,
+        stuff_area_thr: int = 4096,
+        thing_conf_thr: float = 0.5,
+    ):
         """Init."""
         super().__init__()
-        self.cfg: SimplePanopticHeadConfig = SimplePanopticHeadConfig(
-            **cfg.dict()
-        )
+        self.overlap_thr = overlap_thr
+        self.stuff_area_thr = stuff_area_thr
+        self.thing_conf_thr = thing_conf_thr
+        if isinstance(ignore_class, int):
+            ignore_class = [ignore_class]
+        self.ignore_class = ignore_class
 
     def forward_train(
         self,
@@ -66,7 +66,7 @@ class SimplePanopticHead(BasePanopticHead):
         for inst_id in sorted_inds:
             mask = ins_segm.masks[inst_id]  # H,W
             score = ins_segm.score[inst_id].item()
-            if score < self.cfg.thing_conf_thr:
+            if score < self.thing_conf_thr:
                 mask[mask > 0] = 0
                 continue
 
@@ -77,7 +77,7 @@ class SimplePanopticHead(BasePanopticHead):
             intersect = torch.logical_and(mask, foreground)
             intersect_area = intersect.sum().item()
 
-            if intersect_area * 1.0 / mask_area > self.cfg.overlap_thr:
+            if intersect_area * 1.0 / mask_area > self.overlap_thr:
                 mask[mask > 0] = 0
                 continue
 
@@ -90,8 +90,8 @@ class SimplePanopticHead(BasePanopticHead):
             zip(sem_segm.masks, sem_segm.class_ids)
         ):
             if (
-                cls_id == self.cfg.ignore_class
-                or mask.sum().item() < self.cfg.stuff_area_thr
+                cls_id in self.ignore_class
+                or mask.sum().item() < self.stuff_area_thr
             ):
                 mask[mask > 0] = 0
                 continue

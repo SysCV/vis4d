@@ -16,46 +16,37 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
-from vis4d.struct import DictStrAny, FeatureMaps, InputSample
+from vis4d.struct import ArgsType, DictStrAny, FeatureMaps, InputSample
 
-from .base import BaseBackbone, BaseBackboneConfig
-from .neck import BaseNeck, build_neck
+from .base import BaseBackbone
 
 MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
-
-
-class MMDetBackboneConfig(BaseBackboneConfig):
-    """Config for mmdet backbones."""
-
-    mm_cfg: DictStrAny
-    weights: Optional[str]
 
 
 class MMDetBackbone(BaseBackbone):
     """mmdetection backbone wrapper."""
 
-    def __init__(self, cfg: BaseBackboneConfig):
+    def __init__(
+        self,
+        mm_cfg: DictStrAny,
+        *args: ArgsType,
+        weights: Optional[str] = None,
+        **kwargs: ArgsType,
+    ):
         """Init."""
         assert (
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMDetBackbone requires both mmcv and mmdet to be installed!"
-        super().__init__(cfg)
-        self.cfg: MMDetBackboneConfig = MMDetBackboneConfig(**cfg.dict())
-        self.mm_backbone = build_backbone(self.cfg.mm_cfg)
+        super().__init__(*args, **kwargs)
+        self.mm_backbone = build_backbone(mm_cfg)
         assert isinstance(self.mm_backbone, BaseModule)
         self.mm_backbone.init_weights()
         self.mm_backbone.train()
 
-        self.neck: Optional[BaseNeck] = None
-        if self.cfg.neck is not None:
-            self.neck = build_neck(self.cfg.neck)
-
-        if self.cfg.weights is not None:  # pragma: no cover
-            if self.cfg.weights.startswith("mmdet://"):
-                self.cfg.weights = (
-                    MMDET_MODEL_PREFIX + self.cfg.weights.split("mmdet://")[-1]
-                )
-            load_checkpoint(self.mm_backbone, self.cfg.weights)
+        if weights is not None:  # pragma: no cover
+            if weights.startswith("mmdet://"):
+                weights = MMDET_MODEL_PREFIX + weights.split("mmdet://")[-1]
+            load_checkpoint(self.mm_backbone, weights)
 
     def __call__(  # type: ignore[override]
         self, inputs: InputSample

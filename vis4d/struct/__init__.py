@@ -10,6 +10,8 @@ from .labels import (
 )
 from .sample import InputSample, LabelInstances
 from .structures import (
+    ArgsType,
+    CategoryMap,
     DataInstance,
     DictStrAny,
     FeatureMaps,
@@ -17,6 +19,7 @@ from .structures import (
     LossesType,
     MetricLogs,
     ModelOutput,
+    ModuleCfg,
     NDArrayF32,
     NDArrayF64,
     NDArrayI64,
@@ -29,6 +32,7 @@ __all__ = [
     "Boxes2D",
     "Boxes3D",
     "Masks",
+    "ModuleCfg",
     "TMasks",
     "InstanceMasks",
     "SemanticMasks",
@@ -51,4 +55,6 @@ __all__ = [
     "TLabelInstance",
     "MetricLogs",
     "FeatureMaps",
+    "ArgsType",
+    "CategoryMap",
 ]

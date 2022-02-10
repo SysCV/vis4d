@@ -1,9 +1,9 @@
 """mmdetection roi head wrapper."""
 import os
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.model.mmdet_utils import (
+from vis4d.model.mm_utils import (
     _parse_losses,
     detections_from_mmdet,
     get_img_metas,
@@ -21,7 +21,7 @@ from vis4d.struct import (
     LossesType,
 )
 
-from .base import BaseRoIHead, BaseRoIHeadConfig
+from .base import Det2DRoIHead
 
 try:
     from mmcv import Config as MMConfig
@@ -40,48 +40,37 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 
-class MMDetRoIHeadConfig(BaseRoIHeadConfig):
-    """Config for mmdetection roi heads."""
-
-    mm_cfg: Union[DictStrAny, str]
-
-
-class MMDetRoIHead(
-    BaseRoIHead[
-        Optional[SamplingResult],
-        Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
-    ]
-):
+class MMDetRoIHead(Det2DRoIHead):
     """mmdetection roi head wrapper."""
 
-    def __init__(self, cfg: BaseRoIHeadConfig) -> None:
+    def __init__(
+        self, mm_cfg: Union[DictStrAny, str], category_mapping: Dict[str, int]
+    ) -> None:
         """Init."""
         assert (
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMDetRoIHead requires both mmcv and mmdet to be installed!"
-        super().__init__()
-        self.cfg: MMDetRoIHeadConfig = MMDetRoIHeadConfig(**cfg.dict())
-        if isinstance(self.cfg.mm_cfg, dict):
-            mm_cfg = self.cfg.mm_cfg
+        super().__init__(category_mapping)
+        if isinstance(mm_cfg, dict):
+            mm_cfg_dict = mm_cfg
         else:  # pragma: no cover
             # load from config
-            assert os.path.exists(self.cfg.mm_cfg)
-            mm_cfg = MMConfig.fromfile(self.cfg.mm_cfg)
-            assert "roi_head" in mm_cfg
-            mm_cfg = mm_cfg["roi_head"]
-        self.mm_roi_head = build_head(ConfigDict(**mm_cfg))
+            assert os.path.exists(mm_cfg)
+            mm_cfg_ = MMConfig.fromfile(mm_cfg)
+            assert "roi_head" in mm_cfg_
+            mm_cfg_dict = mm_cfg_["roi_head"]
+        self.mm_roi_head = build_head(ConfigDict(**mm_cfg_dict))
         assert isinstance(self.mm_roi_head, MMBaseRoIHead)
         self.mm_roi_head.init_weights()
         self.mm_roi_head.train()
         self.with_mask = self.mm_roi_head.with_mask
-        assert self.cfg.category_mapping is not None
-        self.cat_mapping = {v: k for k, v in self.cfg.category_mapping.items()}
+        self.cat_mapping = {v: k for k, v in category_mapping.items()}
 
     def forward_train(
         self,
         inputs: InputSample,
-        boxes: List[Boxes2D],
         features: FeatureMaps,
+        boxes: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
         """Forward pass during training stage."""
@@ -107,8 +96,8 @@ class MMDetRoIHead(
     def forward_test(
         self,
         inputs: InputSample,
-        boxes: List[Boxes2D],
         features: FeatureMaps,
+        boxes: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Forward pass during testing stage."""
         assert (

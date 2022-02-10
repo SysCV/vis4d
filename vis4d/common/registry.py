@@ -1,6 +1,11 @@
 """Vis4D module registry."""
+from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple
+import copy
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+
+if TYPE_CHECKING:  # pragma: no cover
+    from vis4d.struct import DictStrAny, ModuleCfg
 
 
 class RegistryHolder(type):
@@ -11,7 +16,7 @@ class RegistryHolder(type):
     # Ignore mcs vs. cls since it conflicts with PEP8:
     # https://github.com/PyCQA/pylint/issues/2028
     def __new__(  # type: ignore # pylint: disable=bad-mcs-classmethod-argument
-        cls, name: str, bases: Tuple[Any], attrs: Dict[str, Any]
+        cls, name: str, bases: Tuple[Any], attrs: DictStrAny
     ) -> "RegistryHolder":
         """Method called when constructing a new class.
 
@@ -20,10 +25,14 @@ class RegistryHolder(type):
         """
         new_cls = type.__new__(cls, name, bases, attrs)
         assert isinstance(new_cls, RegistryHolder)
-        if len(bases):  # must inherit from some base class beyond Registry
-            base = str(bases[0]).replace("<class '", "").replace("'>", "")
-            module_name = ".".join([*base.split(".")[:-2], new_cls.__name__])
-            cls.REGISTRY[module_name] = new_cls
+        if len(bases):  # inherits from some base class beyond Registry
+            base_name = bases[0]
+        else:
+            base_name = str(new_cls)
+
+        base = str(base_name).replace("<class '", "").replace("'>", "")
+        module_name = ".".join([*base.split(".")[:-2], new_cls.__name__])
+        cls.REGISTRY[module_name] = new_cls
         return new_cls
 
     @classmethod
@@ -49,3 +58,16 @@ class RegistryHolder(type):
             }
 
         return dict(cls.REGISTRY)  # pragma: no cover
+
+
+def build_component(cfg: ModuleCfg, bound: Any) -> Any:  # type: ignore
+    """Build a component from config."""
+    registry = RegistryHolder.get_registry(bound)
+    cfg = copy.deepcopy(cfg)
+    module_type = cfg.pop("type", None)
+    if module_type is None:
+        raise ValueError(f"Need type argument in module config: {cfg}")
+    if module_type in registry:
+        module = registry[module_type](**cfg)
+        return module
+    raise NotImplementedError(f"Component {module_type} not found.")

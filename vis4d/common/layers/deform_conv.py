@@ -2,6 +2,8 @@
 import torch
 from torch import nn
 
+from vis4d.common import Vis4DModule
+
 try:
     from mmcv.ops.modulated_deform_conv import ModulatedDeformConv2dPack
 
@@ -13,7 +15,7 @@ except (ImportError, NameError):  # pragma: no cover
 BN_MOMENTUM = 0.1
 
 
-class DeformConv(nn.Module):  # type: ignore
+class DeformConv(Vis4DModule[torch.Tensor, torch.Tensor]):
     """Deformable Convolution."""
 
     def __init__(self, chi: int, cho: int) -> None:
@@ -33,7 +35,7 @@ class DeformConv(nn.Module):  # type: ignore
             deform_groups=1,
         )
 
-    def forward(self, input_x: torch.Tensor) -> torch.Tensor:
+    def __call__(self, input_x: torch.Tensor) -> torch.Tensor:  # type: ignore
         """Forward."""
         input_x = self.conv(input_x)
         input_x = self.actf(input_x)

@@ -4,9 +4,8 @@ import abc
 from typing import Dict, List, Optional, Tuple, Union, cast, overload
 
 import torch
-from pydantic import BaseModel, Field
 
-from vis4d.common import RegistryHolder, Vis4DModule
+from vis4d.common import Vis4DModule
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
     Boxes2D,
@@ -15,12 +14,6 @@ from vis4d.struct import (
     LabelInstances,
     LossesType,
 )
-
-
-class SimilarityLearningConfig(BaseModel, extra="allow"):
-    """Base config for similarity learning."""
-
-    type: str = Field(...)
 
 
 class BaseSimilarityHead(
@@ -131,13 +124,3 @@ class BaseSimilarityHead(
             tensor per batch element).
         """
         raise NotImplementedError
-
-
-def build_similarity_head(cfg: SimilarityLearningConfig) -> BaseSimilarityHead:
-    """Build a SimilarityHead from config."""
-    registry = RegistryHolder.get_registry(BaseSimilarityHead)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg)
-        assert isinstance(module, BaseSimilarityHead)
-        return module
-    raise NotImplementedError(f"RoIHead {cfg.type} not found.")

@@ -9,10 +9,7 @@ import yaml
 from pydantic import BaseModel, validator
 
 from vis4d.common.utils.distributed import get_rank
-from vis4d.data.build import DataModuleConfig
-from vis4d.data.datasets import BaseDatasetConfig
-from vis4d.model import BaseModelConfig
-from vis4d.struct import DictStrAny
+from vis4d.struct import DictStrAny, ModuleCfg
 
 
 class Launch(BaseModel):
@@ -41,8 +38,6 @@ class Launch(BaseModel):
     checkpoint_period: After N epochs, save out checkpoints. Default: 1
     resume: Whether to resume from weights (if specified), or last ckpt in
     work_dir/exp_name/version.
-    pin_memory: Enable/Disable pin_memory option for dataloader workers in
-    training.
     wandb: Use weights and biases logging instead of tensorboard (default).
     not_strict: Whether to enforce keys in weights to be consistent with
     model's.
@@ -103,16 +98,16 @@ class Config(BaseModel, extra="allow"):
     """Overall config object."""
 
     launch: Launch = Launch()
-    model: BaseModelConfig
-    train: List[BaseDatasetConfig] = []
-    test: List[BaseDatasetConfig] = []
-    data: DataModuleConfig = DataModuleConfig()
+    model: ModuleCfg
+    train: List[ModuleCfg] = []
+    test: List[ModuleCfg] = []
+    data: Optional[ModuleCfg]
 
     def __init__(self, **data: Any) -> None:  # type: ignore
         """Init config."""
         super().__init__(**data)
         if self.launch.exp_name == "":
-            self.launch.exp_name = self.model.type
+            self.launch.exp_name = self.model["type"]
 
 
 def parse_config(args: Namespace) -> Config:

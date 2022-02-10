@@ -5,7 +5,7 @@ from scalabel.label.io import load
 
 from vis4d.unittest.utils import get_test_file
 
-from .mot import MOTChallenge, MOTDatasetConfig
+from .mot import MOTChallenge
 
 
 class TestMOTEval(unittest.TestCase):
@@ -34,12 +34,9 @@ class TestMOTEval(unittest.TestCase):
             "num_migrate": 8,
         }
         mot_dataset = MOTChallenge(
-            MOTDatasetConfig(
-                name="mot17_test",
-                type="",
-                data_root=get_test_file("motchallenge"),
-                annotations=get_test_file("motchallenge/result.json"),
-            )
+            name="mot17_test",
+            data_root=get_test_file("motchallenge"),
+            annotations=get_test_file("motchallenge/result.json"),
         )
         mot_results = load(get_test_file("motchallenge/result.json")).frames
         metrics, _ = mot_dataset.evaluate("track", mot_results, [])
@@ -48,11 +45,10 @@ class TestMOTEval(unittest.TestCase):
 
     def test_check_metrics(self) -> None:
         """Test the check metrics function."""
-        cfg = MOTDatasetConfig(
+        args = dict(
             name="mot17_test",
-            type="",
             data_root=get_test_file("motchallenge"),
             annotations=get_test_file("motchallenge/result.json"),
             eval_metrics=["a", "b"],
         )
-        self.assertRaises(KeyError, MOTChallenge, cfg)
+        self.assertRaises(KeyError, MOTChallenge, **args)

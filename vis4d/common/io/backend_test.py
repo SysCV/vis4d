@@ -6,7 +6,6 @@ import unittest
 from vis4d.data.utils import str_decode
 
 from ..utils import timeit
-from .base import DataBackendConfig
 from .file import FileBackend
 from .hdf5 import HDF5Backend
 
@@ -17,8 +16,8 @@ class TestBackends(unittest.TestCase):
     @timeit  # type: ignore
     def test_get(self) -> None:
         """Test image retrieval from different backends."""
-        backend_file = FileBackend(DataBackendConfig(type="file"))
-        backend_hdf5 = HDF5Backend(DataBackendConfig(type="hdf5"))
+        backend_file = FileBackend()
+        backend_hdf5 = HDF5Backend()
         sample_path = (
             "vis4d/engine/testcases/track/bdd100k-samples/images/"
             "00091078-875c1f73/00091078-875c1f73-0000166.jpg"

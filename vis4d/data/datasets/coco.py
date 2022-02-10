@@ -14,17 +14,17 @@ class COCO(BaseDatasetLoader):
 
     def load_dataset(self) -> Dataset:
         """Convert COCO annotations to scalabel format and prepare them."""
-        assert self.cfg.annotations is not None
-        if not os.path.exists(self.cfg.annotations) or not os.path.isfile(
-            self.cfg.annotations
+        assert self.annotations is not None
+        if not os.path.exists(self.annotations) or not os.path.isfile(
+            self.annotations
         ):
             raise FileNotFoundError(
-                f"COCO json file not found: {self.cfg.annotations}"
+                f"COCO json file not found: {self.annotations}"
             )
-        with open(self.cfg.annotations, "r", encoding="utf-8") as f:
+        with open(self.annotations, "r", encoding="utf-8") as f:
             coco_anns = json.load(f)
         frames, metadata_cfg = coco_to_scalabel(coco_anns)
-        if self.cfg.config_path is not None:
-            metadata_cfg = load_label_config(self.cfg.config_path)
+        if self.config_path is not None:
+            metadata_cfg = load_label_config(self.config_path)
 
         return Dataset(frames=frames, config=metadata_cfg)
