@@ -690,7 +690,7 @@ class Mosaic(BaseAugmentation):
     ) -> Tuple[InputSample, AugParams]:
         """Apply augmentations to input sample."""
         if parameters is None or not self.same_on_ref:
-            parameters = self.generate_parameters(sample)
+            parameters = self.generate_parameters(sample)  # pragma: no cover
 
         images = self.apply_image(sample.images, parameters)
         boxes2d = self.apply_box2d(sample.targets.boxes2d, parameters)
@@ -863,7 +863,7 @@ class MixUp(BaseAugmentation):
     ) -> Tuple[InputSample, AugParams]:
         """Apply augmentations to input sample."""
         if parameters is None or not self.same_on_ref:
-            parameters = self.generate_parameters(sample)
+            parameters = self.generate_parameters(sample)  # pragma: no cover
 
         images = self.apply_image(sample.images, parameters)
         boxes2d = self.apply_box2d(sample.targets.boxes2d, parameters)

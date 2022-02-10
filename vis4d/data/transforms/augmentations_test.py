@@ -2,9 +2,10 @@
 import copy
 import unittest
 
+from vis4d.struct import InputSample
 from vis4d.unittest.utils import generate_input_sample
 
-from .augmentations import RandomCrop, Resize
+from .augmentations import MixUp, RandomCrop, Resize
 
 
 class TestResize(unittest.TestCase):
@@ -139,3 +140,31 @@ class TestRandomCrop(unittest.TestCase):
         new_masks = sample.targets.semantic_masks[0].masks
         self.assertEqual(new_masks.shape[0], num_objs)
         self.assertEqual(new_masks.shape[1:], (2, 2))
+
+
+class TestMixUp(unittest.TestCase):
+    """Test cases Vis4D MixUp."""
+
+    def test_mixup(self) -> None:
+        """Test mixup augmentation."""
+        mixup = MixUp(out_shape=(10, 10), ratio_range=(1.2, 1.5))
+        num_imgs, num_objs, height, width = 1, 10, 10, 9
+        samples = [
+            generate_input_sample(
+                height, width, num_imgs, num_objs, track_ids=True
+            )
+        ]
+        samples += [
+            generate_input_sample(
+                height, width, num_imgs, num_objs, track_ids=True
+            )
+        ]
+        sample = InputSample.cat(samples)
+        out, _ = mixup(sample)
+        self.assertEqual(len(out.images.image_sizes), 1)
+        self.assertEqual(out.images.image_sizes[0], (20, 20))
+        self.assertTrue(
+            len(out.targets.boxes2d[0])
+            <= len(samples[0].targets.boxes2d[0])
+            + len(samples[1].targets.boxes2d[0])
+        )

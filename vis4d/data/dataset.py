@@ -112,7 +112,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                 ref_sampler, bound=BaseReferenceSampler
             )
         else:
-            self.ref_sampler = ref_sampler
+            self.ref_sampler = ref_sampler  # pragma: no cover
         self.ref_sampler.create_mappings(
             self.dataset.frames, self.dataset.groups
         )

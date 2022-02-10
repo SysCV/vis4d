@@ -104,22 +104,6 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         """
         raise NotImplementedError
 
-    # def configure_optimizers(
-    #     self,
-    # ) -> Tuple[List[BaseOptimizer], List[BaseLRScheduler]]:
-    #     """Configure optimizers and schedulers of model."""
-    #     params = []
-    #     for name, param in self.named_parameters():
-    #         param_group = {"params": [param]}
-    #         if "bias" in name or "norm" in name:
-    #             param_group["weight_decay"] = 0.0
-    #         if "similarity" in name:
-    #             param_group["lr"] = self.optimizer_cfg.lr * 100
-    #         params.append(param_group)
-    #     optimizer = build_optimizer(params, self.optimizer_cfg)
-    #     scheduler = build_lr_scheduler(optimizer, self.lr_scheduler_cfg)
-    #     return [optimizer], [scheduler]
-
     def configure_optimizers(
         self,
     ) -> Tuple[List[BaseOptimizer], List[BaseLRScheduler]]:
