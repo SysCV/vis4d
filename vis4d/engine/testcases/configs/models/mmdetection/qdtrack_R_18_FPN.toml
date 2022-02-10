@@ -38,8 +38,7 @@ category_mapping = {"pedestrian" = 0, "rider" = 1, "car" = 2, "truck" = 3, "bus"
         hard_mining = true
 
         [model.similarity.proposal_pooler]
-        type = "MultiScaleRoIPooler"
-        pooling_op = "RoIAlign"
+        type = "MultiScaleRoIAlign"
         resolution = [7, 7]
         strides = [4, 8, 16, 32]
         sampling_ratio = 0
