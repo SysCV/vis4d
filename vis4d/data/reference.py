@@ -1,4 +1,5 @@
 """Reference view sampling component of Vis4D datasets."""
+import copy
 from collections import defaultdict
 from typing import Dict, List, Optional
 
@@ -8,7 +9,6 @@ from scalabel.label.typing import Frame, FrameGroup
 from ..common.registry import RegistryHolder
 from ..struct import InputSample
 from .mapper import BaseSampleMapper
-from .transforms import AugParams
 
 
 class BaseReferenceSampler(metaclass=RegistryHolder):
@@ -82,23 +82,6 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
                         self.frame_name_to_idx[fname]
                     ] = sensor_id
 
-    def sort_samples(
-        self, input_samples: List[InputSample]
-    ) -> List[InputSample]:
-        """Sort samples according to sampling cfg."""
-        if self.frame_order == "key_first":
-            return input_samples
-        if self.frame_order == "temporal":
-            return sorted(
-                input_samples,
-                key=lambda x: x.metadata[0].frameIndex
-                if x.metadata[0].frameIndex is not None
-                else 0,
-            )
-        raise NotImplementedError(
-            f"Frame ordering {self.frame_order} not " f"implemented."
-        )
-
     def sample_ref_indices(
         self, video: str, key_dataset_index: int
     ) -> List[int]:
@@ -162,7 +145,6 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
         cur_idx: int,
         key_data: InputSample,
         mapper: BaseSampleMapper,
-        parameters: Optional[List[AugParams]],
         num_retry: int = 3,
     ) -> Optional[List[InputSample]]:
         """Sample reference views from key view."""
@@ -177,23 +159,14 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
             if vid_id is not None:
                 ref_data = []
                 for ref_idx in self.sample_ref_indices(vid_id, cur_idx):
-                    ref_sample = mapper(
-                        self.frames[ref_idx],
-                        parameters=parameters,
-                    )[0]
+                    ref_sample = mapper(self.frames[ref_idx])
                     if ref_sample is None:
                         break  # pragma: no cover
                     ref_data.append(ref_sample)
             else:  # pragma: no cover
-                if parameters is not None:
-                    ref_data = [key_data for _ in range(self.num_ref_imgs)]
-                else:
-                    ref_data = []
-                    for _ in range(self.num_ref_imgs):
-                        ref_sample = mapper(self.frames[cur_idx])[0]
-                        if ref_sample is None:
-                            break
-                        ref_data.append(ref_sample)
+                ref_data = [
+                    copy.deepcopy(key_data) for _ in range(self.num_ref_imgs)
+                ]
             if (
                 not self.skip_nomatch_samples
                 or self.has_matches(key_data, ref_data)

@@ -57,3 +57,19 @@ class TestDataStructures(unittest.TestCase):
         self.assertEqual(points[0].tensor.shape, (1, 1, 4))
         points = points.to(torch.device("cpu"))
         self.assertEqual(points.device, torch.device("cpu"))
+
+    def test_im_resize(self) -> None:
+        """Testcase for Images resize."""
+        im = Images(torch.zeros(2, 1, 128, 128), [(110, 110), (120, 120)])
+        im.resize((256, 256))
+        self.assertEqual(im.tensor.shape, (2, 1, 256, 256))
+        self.assertEqual(im.image_sizes[0], im.image_sizes[1], (256, 256))
+
+    def test_im_flip(self) -> None:
+        """Testcase for Images flip."""
+        im = Images(torch.tensor([[[[0, 1], [2, 3]]]]), [(2, 2)])
+        im.flip()
+        self.assertTrue(
+            (im.tensor[0, 0] - torch.tensor([[1, 0], [3, 2]]) == 0).all()
+        )
+        self.assertEqual(im.image_sizes[0], (2, 2))
