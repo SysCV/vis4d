@@ -4,7 +4,6 @@ from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from pytorch_lightning.utilities.distributed import rank_zero_info
 from torch.utils import data
 
 from vis4d.common.registry import RegistryHolder, build_component
@@ -52,7 +51,6 @@ class Vis4DDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type
                 else:  # pragma: no cover
                     transform_ = transform
                 self.transformations.append(transform_)
-        rank_zero_info("Transformations used: %s", self.transformations)
 
     def _postprocess_annotations(
         self, im_wh: Tuple[int, int], targets: LabelInstances

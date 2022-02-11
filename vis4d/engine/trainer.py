@@ -280,11 +280,14 @@ def setup_experiment(
         if is_train
         else (None, None)
     )
-    train_handler = (
-        Vis4DDatasetHandler(train_handlers, False, 0.0)
-        if train_handlers is not None
-        else None
-    )
+    if train_handlers is not None:
+        if len(train_handlers) > 1:
+            train_handler = Vis4DDatasetHandler(train_handlers, False, 0.0)
+        else:
+            train_handler = train_handlers[0]
+    else:
+        train_handler = None
+
     test_handlers, test_datasets, = (
         None,
         None,
