@@ -6,7 +6,7 @@ import torch
 from vis4d.struct import Boxes2D
 from vis4d.unittest.utils import generate_dets
 
-from .roi_pooler import MultiScaleRoIPooler
+from .roi_pooler import MultiScaleRoIAlign, MultiScaleRoIPool
 
 
 class TestMultiScaleRoIPooler(unittest.TestCase):
@@ -14,8 +14,7 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
 
     def test_pool(self) -> None:
         """Testcase for pool function."""
-        pooler = MultiScaleRoIPooler(
-            pooling_op="RoIAlign",
+        pooler = MultiScaleRoIAlign(
             resolution=(7, 7),
             strides=[8, 16],
             sampling_ratio=0,
@@ -38,8 +37,7 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
         out = pooler(inputs, boxes_list)
         self.assertEqual(out.shape, (N * 10, C, 7, 7))
 
-        pooler = MultiScaleRoIPooler(
-            pooling_op="RoIPool",
+        pooler = MultiScaleRoIPool(
             resolution=(7, 7),
             strides=[8],
             sampling_ratio=0,

@@ -6,7 +6,7 @@ from scalabel.label.typing import Frame
 
 from vis4d.common.bbox.coders import QD3DTBox3DCoder
 from vis4d.common.bbox.matchers import MaxIoUMatcher
-from vis4d.common.bbox.poolers import MultiScaleRoIPooler
+from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.samplers import CombinedSampler
 from vis4d.model.losses import Box3DUncertaintyLoss
 from vis4d.struct import Images, InputSample
@@ -28,8 +28,7 @@ class TestQDTBBox3DHead(unittest.TestCase):
             labels=[0, -1, 1],
             allow_low_quality_matches=False,
         )
-        pooler_cfg = MultiScaleRoIPooler(
-            pooling_op="RoIAlign",
+        pooler_cfg = MultiScaleRoIAlign(
             resolution=(7, 7),
             strides=[4, 8, 16, 32],
             sampling_ratio=0,

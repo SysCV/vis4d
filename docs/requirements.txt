@@ -1,0 +1,6 @@
+sphinx
+furo
+sphinx_autodoc_typehints
+sphinx_autodoc_defaultargs
+sphinx_copybutton
+sphinx_design
