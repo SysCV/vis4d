@@ -21,11 +21,11 @@ from vis4d.common.utils.time import Timer
 from vis4d.struct import FieldCategoryMap, MetricLogs, TagAttr
 
 
-def _tagging(
-    pred: List[Frame], gt: List[Frame], cfg: Config, tag_attrs: List[str]
+def _tagging(  # pylint: disable=unused-argument
+    pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
 ) -> Result:
     """Wrapper for evaluate_tagging function."""
-    return evaluate_tagging(gt, pred, cfg, tag_attrs, nproc=1)
+    return evaluate_tagging(gt, pred, cfg, nproc=1)
 
 
 def _detect(  # pylint: disable=unused-argument
@@ -117,7 +117,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         collect_device: str = "cpu",
         multi_sensor_inference: bool = True,
         compute_global_instance_ids: bool = False,
-        tagging_attribute: Optional[TagAttr] = None,
+        tagging_attr: Optional[TagAttr] = None,
     ):
         """Init dataset loader."""
         super().__init__()
@@ -134,12 +134,10 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         self.attributes = attributes
         self.num_processes = num_processes
         self.multi_sensor_inference = multi_sensor_inference
-        if tagging_attribute is not None and not isinstance(
-            tagging_attribute, list
-        ):
-            self.tag_attr: Optional[List[str]] = [tagging_attribute]
+        if tagging_attr is not None and not isinstance(tagging_attr, list):
+            self.tag_attr: Optional[List[str]] = [tagging_attr]
         else:
-            self.tag_attr = tagging_attribute
+            self.tag_attr = tagging_attr
 
         if self.eval_metrics is None:
             self.eval_metrics = []
@@ -187,7 +185,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         cfg = self.config_path
         assert self.eval_metrics is not None
         if isinstance(cfg, list):
-            if len(self.eval_metrics) > 0:
+            if len(self.eval_metrics) > 0:  # pragma: no cover
                 assert len(cfg) >= len(self.eval_metrics), (
                     "Length of config_path (as a list) must be greater than "
                     "number of eval_metrics, if specified"
@@ -233,15 +231,9 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         """
         assert self.eval_metrics is not None
         eval_cfg = self.configs[self.eval_metrics.index(metric)]
-        if metric != "tagging":
-            result = _eval_mapping[metric](  # type: ignore
-                predictions, gts, eval_cfg, self.ignore_unknown_cats
-            )
-        else:
-            assert self.tag_attr is not None
-            result = _tagging(
-                predictions, gts, eval_cfg, tag_attrs=self.tag_attr
-            )
+        result = _eval_mapping[metric](
+            predictions, gts, eval_cfg, self.ignore_unknown_cats
+        )
         log_dict = {f"{metric}/{k}": v for k, v in result.summary().items()}
         return log_dict, str(result)
 

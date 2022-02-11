@@ -22,11 +22,31 @@ class Track(TypedDict):
 
 
 class QDTrackGraph(BaseTrackGraph):
-    """Tracking graph construction for quasi-dense instance similarity."""
+    """Tracking graph construction for quasi-dense instance similarity.
+
+    Attributes:
+        keep_in_memory: threshold for keeping occluded objects in memory
+        init_score_thr: Confidence threshold for initializing a new track
+        obj_score_thr: Confidence treshold s.t. a detection is considered in
+        the track / det matching process.
+        match_score_thr: Similarity score threshold for matching a detection to
+        an existing track.
+        memo_backdrop_frames: Number of timesteps to keep backdrops.
+        memo_momentum: Momentum of embedding memory for smoothing embeddings.
+        nms_conf_thr:
+        nms_backdrop_iou_thr: Maximum IoU of a backdrop with another detection.
+        nms_class_iou_thr: Maximum IoU of a high score detection with another
+        of a different class.
+        with_cats: If to consider category information for tracking (i.e. all
+        detections within a track must have consistent category labels).
+
+        Note: Backdrops are low-score detections kept in case they have high
+        similarity with a high-score detection in succeeding frames.
+    """
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        keep_in_memory: int,  # threshold for keeping occluded objects in mem
+        keep_in_memory: int,
         init_score_thr: float = 0.7,
         obj_score_thr: float = 0.3,
         match_score_thr: float = 0.5,
@@ -54,7 +74,6 @@ class QDTrackGraph(BaseTrackGraph):
         assert 0 <= memo_momentum <= 1.0
         assert keep_in_memory >= 0
         assert memo_backdrop_frames >= 0
-
         self.reset()
 
     def reset(self) -> None:

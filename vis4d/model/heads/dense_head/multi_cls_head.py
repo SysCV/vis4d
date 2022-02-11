@@ -45,7 +45,7 @@ class MultiClsHead(ClsDenseHead):
     def _build_tag_head(cfg: ModuleCfg) -> ClsDenseHead:
         """Build head with config."""
         assert cfg["category_mapping"] is not None
-        assert cfg["tagging_attribute"] is not None
+        assert cfg["tagging_attr"] is not None
         return build_module(cfg, bound=BaseDenseHead)
 
     def forward_train(

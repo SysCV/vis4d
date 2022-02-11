@@ -41,14 +41,14 @@ class MMClsHead(ClsDenseHead):
         self,
         mm_cfg: Union[DictStrAny, str],
         category_mapping: Dict[str, int],
-        tagging_attribute: str,
+        tagging_attr: str,
     ):
         """Init."""
         assert (
             MMCLS_INSTALLED and MMCV_INSTALLED
         ), "MMClsHead requires both mmcv and mmcls to be installed!"
         super().__init__(category_mapping)
-        self.tagging_attribute = tagging_attribute
+        self.tagging_attr = tagging_attr
         mm_dict = (
             mm_cfg if isinstance(mm_cfg, dict) else load_config(mm_cfg, "head")
         )
@@ -70,7 +70,7 @@ class MMClsHead(ClsDenseHead):
         losses = self.mm_cls_head.forward_train(
             tuple(features[k] for k in features.keys()), gt_labels
         )
-        return _parse_losses(losses, self.tagging_attribute), None
+        return _parse_losses(losses, self.tagging_attr), None
 
     def forward_test(
         self, inputs: InputSample, features: FeatureMaps
@@ -79,4 +79,4 @@ class MMClsHead(ClsDenseHead):
         outs = self.mm_cls_head.simple_test(
             tuple(features[k] for k in features.keys()), post_process=False
         )
-        return results_from_mmcls(outs, self.tagging_attribute)
+        return results_from_mmcls(outs, self.tagging_attr)

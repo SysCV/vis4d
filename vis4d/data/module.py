@@ -1,4 +1,4 @@
-"""Build Vis4D data loading pipeline."""
+"""Data module composing the data loading pipeline."""
 from typing import List, Optional, Union
 
 import pytorch_lightning as pl
@@ -10,20 +10,21 @@ from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
 from ..struct import InputSample, ModuleCfg
 from .dataset import ScalabelDataset
+from .handler import Vis4DDatasetHandler
 from .samplers import TrackingInferenceSampler, build_data_sampler
 from .utils import identity_batch_collator
 
 
 class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
-    """Default Data module for Vis4D."""
+    """Default data module for Vis4D."""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         samples_per_gpu: int,
         workers_per_gpu: int,
-        train_datasets: Optional[List[ScalabelDataset]] = None,
-        test_datasets: Optional[List[ScalabelDataset]] = None,
-        predict_datasets: Optional[List[ScalabelDataset]] = None,
+        train_datasets: Optional[Vis4DDatasetHandler] = None,
+        test_datasets: Optional[List[Vis4DDatasetHandler]] = None,
+        predict_datasets: Optional[List[Vis4DDatasetHandler]] = None,
         seed: Optional[int] = None,
         pin_memory: bool = False,
         train_sampler: Optional[ModuleCfg] = None,
@@ -42,17 +43,16 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""
         assert self.train_datasets is not None, "No train datasets specified!"
-        train_dataset = data.ConcatDataset(self.train_datasets)
         if self.train_sampler is not None:
             train_sampler = build_data_sampler(
-                self.train_sampler, train_dataset, self.samples_per_gpu
+                self.train_sampler, self.train_datasets, self.samples_per_gpu
             )
             batch_size, shuffle = 1, False
         else:
             train_sampler = None
             batch_size, shuffle = self.samples_per_gpu, True
         train_dataloader = data.DataLoader(
-            train_dataset,
+            self.train_datasets,
             batch_sampler=train_sampler,
             batch_size=batch_size,
             num_workers=self.workers_per_gpu,
@@ -101,8 +101,13 @@ class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         dataloaders = []
         for dataset in datasets:
             sampler: Optional[data.Sampler] = None
-            if get_world_size() > 1 and dataset.has_sequences:
-                sampler = TrackingInferenceSampler(dataset)  # pragma: no cover
+            assert (
+                len(dataset.datasets) == 1
+            ), "Inference needs a single dataset per handler."
+            if get_world_size() > 1 and dataset.datasets[0].has_sequences:
+                sampler = TrackingInferenceSampler(
+                    dataset.datasets[0]
+                )  # pragma: no cover # pylint: disable=line-too-long
             elif get_world_size() > 1 and self.train_sampler is not None:
                 # manually create distributed sampler for inference if using
                 # custom training sampler

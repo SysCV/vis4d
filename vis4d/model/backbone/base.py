@@ -44,7 +44,6 @@ class BaseBackbone(Vis4DModule[FeatureMaps, FeatureMaps]):
         else:
             self.neck = None
 
-    @abc.abstractmethod
     def preprocess_inputs(self, inputs: InputSample) -> InputSample:
         """Normalize the input images."""
         inputs.images.tensor = (

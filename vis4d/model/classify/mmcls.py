@@ -52,7 +52,7 @@ class MMImageClassifier(BaseClassifier):
     def __init__(
         self,
         model_base: str,
-        tagging_attribute: str,
+        tagging_attr: str,
         *args: ArgsType,
         pixel_mean: Optional[Tuple[float, float, float]] = None,
         pixel_std: Optional[Tuple[float, float, float]] = None,
@@ -98,7 +98,7 @@ class MMImageClassifier(BaseClassifier):
             self.head = MMClsHead(
                 mm_cfg=self.mm_cfg["head"],
                 category_mapping=self.category_mapping,
-                tagging_attribute=tagging_attribute,
+                tagging_attr=tagging_attr,
             )
         elif isinstance(head, dict):  # pragma: no cover
             self.head = build_module(head, bound=ClsDenseHead)

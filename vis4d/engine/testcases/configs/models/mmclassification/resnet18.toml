@@ -1,6 +1,6 @@
 [model]
 type = "MMImageClassifier"
-tagging_attribute = "weather"
+tagging_attr = "weather"
 category_mapping = {"rainy" = 0, "snowy" = 1, "clear" = 2, "overcast" = 3, "undefined" = 4, "partly cloudy" = 5, "foggy" = 6}
 model_base = "mmcls://_base_/models/resnet18.py"
 model_kwargs= {"head.num_classes" = 7}

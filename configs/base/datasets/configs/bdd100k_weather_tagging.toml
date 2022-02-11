@@ -3,22 +3,24 @@ height = 720
 width = 1280
 
 [[categories]]
-name = "rainy"
+name = "weather"
+    [[categories.subcategories]]
+    name = "rainy"
 
-[[categories]]
-name = "snowy"
+    [[categories.subcategories]]
+    name = "snowy"
 
-[[categories]]
-name = "clear"
+    [[categories.subcategories]]
+    name = "clear"
 
-[[categories]]
-name = "overcast"
+    [[categories.subcategories]]
+    name = "overcast"
 
-[[categories]]
-name = "undefined"
+    [[categories.subcategories]]
+    name = "undefined"
 
-[[categories]]
-name = "partly cloudy"
+    [[categories.subcategories]]
+    name = "partly cloudy"
 
-[[categories]]
-name = "foggy"
+    [[categories.subcategories]]
+    name = "foggy"
