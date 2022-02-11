@@ -1,4 +1,4 @@
-"""Vis4D Label data structures."""
+"""Vis4D Image Tags data structure."""
 from typing import Dict, List, Optional
 
 import numpy as np
