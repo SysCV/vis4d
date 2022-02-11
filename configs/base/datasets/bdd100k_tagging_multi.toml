@@ -3,7 +3,7 @@ name = "bdd100k_tag_train"
 type = "Scalabel"
 annotations = "data/bdd100k/labels/det_20/det_train.json"
 data_root = "data/bdd100k/images/100k/train/"
-config_path = ["configs/base/datasets/configs/bdd100k_weather_tagging.toml", "configs/base/datasets/configs/bdd100k_scene_tagging.toml"]
+config_path = "configs/base/datasets/configs/bdd100k_tagging.toml"
 cache_as_binary = true
 num_processes = 0
 category_mapping = [{"rainy" = 0, "snowy" = 1, "clear" = 2, "overcast" = 3, "undefined" = 4, "partly cloudy" = 5, "foggy" = 6}, {"tunnel" = 0, "residential" = 1, "parking lot" = 2, "undefined" = 3, "city street" = 4, "gas stations" = 5, "highway" = 6}]
@@ -23,7 +23,7 @@ name = "bdd100k_tag_val"
 type = "Scalabel"
 annotations = "data/bdd100k/labels/det_20/det_val.json"
 data_root = "data/bdd100k/images/100k/val/"
-config_path = ["configs/base/datasets/configs/bdd100k_weather_tagging.toml", "configs/base/datasets/configs/bdd100k_scene_tagging.toml"]
+config_path = "configs/base/datasets/configs/bdd100k_tagging.toml"
 cache_as_binary = true
 num_processes = 0
 eval_metrics = ["tagging"]

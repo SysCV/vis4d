@@ -22,34 +22,21 @@ from vis4d.struct import FieldCategoryMap, MetricLogs, TagAttr
 
 
 def _tagging(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: List[Config],
-    tag_attrs: Optional[List[str]] = None,
-) -> List[Result]:
-    """Evaluate image tagging."""
-    assert tag_attrs is not None
-    return [
-        evaluate_tagging(gt, pred, c, tag_attr, nproc=1)
-        for c, tag_attr in zip(cfg, tag_attrs)
-    ]
+    pred: List[Frame], gt: List[Frame], cfg: Config, tag_attrs: List[str]
+) -> Result:
+    """Wrapper for evaluate_tagging function."""
+    return evaluate_tagging(gt, pred, cfg, tag_attrs, nproc=1)
 
 
-def _detect(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: Config,
-    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
+def _detect(  # pylint: disable=unused-argument
+    pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
 ) -> Result:
     """Wrapper for evaluate_det function."""
     return evaluate_det(gt, pred, cfg, nproc=1)
 
 
-def _ins_seg(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: Config,
-    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
+def _ins_seg(  # pylint: disable=unused-argument
+    pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
 ) -> Result:
     """Wrapper for evaluate_ins_seg function."""
     return evaluate_ins_seg(gt, pred, cfg, nproc=1)
@@ -83,21 +70,15 @@ def _seg_track(
     )
 
 
-def _sem_seg(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: Config,
-    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
+def _sem_seg(  # pylint: disable=unused-argument
+    pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
 ) -> Result:
     """Wrapper for evaluate_sem_seg function."""
     return evaluate_sem_seg(gt, pred, cfg, nproc=1)
 
 
 def _pan_seg(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: Config,
-    ignore_unknown_cats: bool,
+    pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
 ) -> Result:
     """Wrapper for evaluate_pan_seg function."""
     return evaluate_pan_seg(
@@ -156,9 +137,9 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         if tagging_attribute is not None and not isinstance(
             tagging_attribute, list
         ):
-            self.tagging_attribute: Optional[List[str]] = [tagging_attribute]
+            self.tag_attr: Optional[List[str]] = [tagging_attribute]
         else:
-            self.tagging_attribute = tagging_attribute
+            self.tag_attr = tagging_attribute
 
         if self.eval_metrics is None:
             self.eval_metrics = []
@@ -251,29 +232,18 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         Returns a dictionary of scores to log and a pretty printed string.
         """
         assert self.eval_metrics is not None
+        eval_cfg = self.configs[self.eval_metrics.index(metric)]
         if metric != "tagging":
-            eval_cfg = self.configs[self.eval_metrics.index(metric)]
-            result: Union[Result, List[Result]] = _eval_mapping[metric](  # type: ignore  # pylint: disable=line-too-long
+            result = _eval_mapping[metric](  # type: ignore
                 predictions, gts, eval_cfg, self.ignore_unknown_cats
             )
-            assert not isinstance(result, list)
-            log_dict = {
-                f"{metric}/{k}": v for k, v in result.summary().items()
-            }
-            return log_dict, str(result)
-        assert self.tagging_attribute is not None
-        result = _tagging(
-            predictions,
-            gts,
-            self.configs,
-            tag_attrs=self.tagging_attribute,
-        )
-        log_dict, res_str = {}, ""
-        for res, tag_attr in zip(result, self.tagging_attribute):
-            for k, v in res.summary().items():
-                log_dict[f"{metric}/{k}/{tag_attr}"] = v
-            res_str += f"{tag_attr}:{str(res)}"
-        return log_dict, res_str
+        else:
+            assert self.tag_attr is not None
+            result = _tagging(
+                predictions, gts, eval_cfg, tag_attrs=self.tag_attr
+            )
+        log_dict = {f"{metric}/{k}": v for k, v in result.summary().items()}
+        return log_dict, str(result)
 
 
 def add_data_path(

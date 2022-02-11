@@ -74,7 +74,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             self.mapper = mapper
         self.mapper.setup_categories(cats_name2id)
         self.mapper.set_training(self.training)
-        self.mapper.tag_attr = dataset.tagging_attribute
+        self.mapper.tag_attr = dataset.tag_attr
 
         dataset.frames = filter_attributes(dataset.frames, dataset.attributes)
 
@@ -83,7 +83,7 @@ class ScalabelDataset(Dataset):  # type: ignore
             dataset.frames,
             class_list,
             dataset.compute_global_instance_ids,
-            dataset.tagging_attribute,
+            dataset.tag_attr,
         )
         rank_zero_info(
             f"Preprocessing {len(dataset.frames)} frames takes {t.time():.2f}"

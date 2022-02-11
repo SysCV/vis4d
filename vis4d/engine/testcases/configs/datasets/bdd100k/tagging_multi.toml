@@ -3,7 +3,7 @@ name = "bdd100k_tag_sample_train"
 type = "Scalabel"
 annotations = "vis4d/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "vis4d/engine/testcases/detect/bdd100k-samples/images"
-config_path = ["vis4d/engine/testcases/tagging/bdd100k-samples/weather.toml", "vis4d/engine/testcases/tagging/bdd100k-samples/scene.toml"]
+config_path = "vis4d/engine/testcases/tagging/bdd100k-samples/config.toml"
 num_processes = 0
 category_mapping = [{"rainy" = 0, "snowy" = 1, "clear" = 2, "overcast" = 3, "undefined" = 4, "partly cloudy" = 5, "foggy" = 6}, {"tunnel" = 0, "residential" = 1, "parking lot" = 2, "undefined" = 3, "city street" = 4, "gas stations" = 5, "highway" = 6}]
 tagging_attribute = ["weather", "scene"]
@@ -19,7 +19,7 @@ name = "bdd100k_tag_sample_val"
 type = "Scalabel"
 annotations = "vis4d/engine/testcases/detect/bdd100k-samples/annotation.json"
 data_root = "vis4d/engine/testcases/detect/bdd100k-samples/images"
-config_path = ["vis4d/engine/testcases/tagging/bdd100k-samples/weather.toml", "vis4d/engine/testcases/tagging/bdd100k-samples/scene.toml"]
+config_path = "vis4d/engine/testcases/tagging/bdd100k-samples/config.toml"
 num_processes = 0
 eval_metrics = ["tagging"]
 category_mapping = [{"rainy" = 0, "snowy" = 1, "clear" = 2, "overcast" = 3, "undefined" = 4, "partly cloudy" = 5, "foggy" = 6}, {"tunnel" = 0, "residential" = 1, "parking lot" = 2, "undefined" = 3, "city street" = 4, "gas stations" = 5, "highway" = 6}]
