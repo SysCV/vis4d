@@ -147,7 +147,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         )
         return sample, parameters
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover
         """Print class & params, s.t. user can inspect easily via cmd line."""
         attr_str = ""
         for k, v in vars(self).items():

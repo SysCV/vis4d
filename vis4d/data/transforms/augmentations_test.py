@@ -2,10 +2,12 @@
 import copy
 import unittest
 
+import torch
+
 from vis4d.struct import InputSample
 from vis4d.unittest.utils import generate_input_sample
 
-from .augmentations import MixUp, RandomCrop, Resize
+from .augmentations import MixUp, Mosaic, RandomCrop, Resize
 
 
 class TestResize(unittest.TestCase):
@@ -140,6 +142,32 @@ class TestRandomCrop(unittest.TestCase):
         new_masks = sample.targets.semantic_masks[0].masks
         self.assertEqual(new_masks.shape[0], num_objs)
         self.assertEqual(new_masks.shape[1:], (2, 2))
+
+
+class TestMosaic(unittest.TestCase):
+    """Test cases Vis4D Mosaic."""
+
+    def test_mosaic(self) -> None:
+        """Test mosaic augmentation."""
+        mosaic = Mosaic(out_shape=(10, 10), pad_value=0.0)
+        num_imgs, num_objs, height, width = 1, 10, 10, 9
+        samples = []
+        for _ in range(4):
+            samples += [
+                generate_input_sample(
+                    height, width, num_imgs, num_objs, track_ids=True
+                )
+            ]
+        sample = InputSample.cat(samples)
+        sample.images.tensor = torch.zeros_like(sample.images.tensor)
+        out, _ = mosaic(sample)
+        self.assertEqual(len(out.images.image_sizes), 1)
+        self.assertEqual(out.images.image_sizes[0], (20, 20))
+        self.assertTrue((out.images.tensor == 0.0).all())
+        self.assertTrue(
+            len(out.targets.boxes2d[0])
+            <= sum([len(s.targets.boxes2d[0]) for s in samples])
+        )
 
 
 class TestMixUp(unittest.TestCase):

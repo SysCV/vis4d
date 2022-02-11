@@ -1,4 +1,4 @@
-"""DatasetHanlder that manages one / multiple dataset(s)."""
+"""DatasetHandler that manages one / multiple dataset(s)."""
 from collections import defaultdict
 from typing import Callable, Iterable, List, Optional, Tuple, Union
 
@@ -22,7 +22,12 @@ def sort_by_frame_index(samples: List[InputSample]) -> List[InputSample]:
 
 
 class Vis4DDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
-    """DatasetHandler class. Takes care of e.g. augmentations."""
+    """DatasetHandler class.
+
+    This class wraps one or multiple instances of ScalabelDataset so that the
+    augmentation and annotation postprocessing settings can be shared across
+    those datasets.
+    """
 
     def __init__(
         self,

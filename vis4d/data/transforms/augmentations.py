@@ -23,7 +23,7 @@ from vis4d.struct import (
 )
 
 from .base import AugParams, BaseAugmentation
-from .utils import get_resize_shape, im_flip, im_resize
+from .utils import get_resize_shape
 
 
 class Resize(BaseAugmentation):
@@ -633,7 +633,7 @@ class Mosaic(BaseAugmentation):
         for i, img in enumerate(images):
             # resize current image
             w_i, h_i = parameters["im_shapes"][i]
-            img = im_resize(img, (h_i, w_i), self.interpolation)
+            img.resize((h_i, w_i), self.interpolation)
 
             x1_p, y1_p, x2_p, y2_p = parameters["paste_params"][i]
             x1_c, y1_c, x2_c, y2_c = parameters["crop_params"][i]
@@ -795,11 +795,11 @@ class MixUp(BaseAugmentation):
         w_i, h_i = parameters["im_shape"]
 
         # resize, scale jitter other image
-        other_img = im_resize(other_img, (h_i, w_i), self.interpolation)
+        other_img.resize((h_i, w_i), self.interpolation)
 
         # random horizontal flip other image
         if parameters["is_flip"]:
-            other_img = im_flip(other_img)
+            other_img.flip()
 
         # pad, optionally random crop other image
         padded_img = torch.full((1, c, *parameters["pad_hw"]), self.pad_value)
