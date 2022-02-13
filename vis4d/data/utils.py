@@ -85,7 +85,8 @@ def im_decode(
         if mode == "BGR":
             img: NDArrayUI8 = np.array(pil_img)[..., [2, 1, 0]]
         elif mode == "RGB":
-            img = np.array(pil_img)
+            # drop alpha channel if existing
+            img = np.array(pil_img)[..., :3]
     elif backend == "cv2":  # pragma: no cover
         if not CV2_INSTALLED:
             raise ImportError(

@@ -170,7 +170,10 @@ class InputSample(DataInstance):
         self.points = points
 
         if depth_maps is None:
-            points = Images(torch.cat([torch.empty(len(images), 1, 1)]))
+            sizes = [(1, 1)] * len(images)
+            depth_maps = Images(
+                torch.empty(len(images), 1, 1, 1), image_sizes=sizes
+            )
         self.depth_maps = depth_maps
 
         if targets is None:

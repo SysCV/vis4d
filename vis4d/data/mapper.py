@@ -176,7 +176,9 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             )
 
         if "depth_map" in self.fields_to_load:
-            input_data.depth_maps = self.load_depth_map(sample.depth_url)
+            input_data.depth_maps = self.load_depth_map(
+                str(sample.attributes["__depth_url__"])
+            )
 
         return input_data
 
@@ -335,6 +337,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         max_depth: float = 1000.0,
         byte_format: str = "BGR",
     ) -> Images:
+        """Prepare a single depth image with color to depth conversion."""
         im_bytes = self.data_backend.get(depth_url)
         image = im_decode(im_bytes, mode=self.image_channel_mode)
         if image.shape[2] > 3:
