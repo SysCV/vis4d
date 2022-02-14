@@ -308,8 +308,8 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             )
         else:
             raise NotImplementedError
-
-        image /= max_depth
+        assert max_depth > 0, "Max depth value must be greater than 0."
+        image = image / max_depth
         image = (
             torch.as_tensor(
                 np.ascontiguousarray(image),

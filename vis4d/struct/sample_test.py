@@ -52,6 +52,7 @@ class TestInputSample(unittest.TestCase):
             "intrinsics",
             "extrinsics",
             "points",
+            "depth_maps",
             "targets",
             "other",
         ]
