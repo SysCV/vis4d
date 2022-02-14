@@ -75,6 +75,10 @@ class BaseAugmentation(metaclass=RegistryHolder):
         """Apply augmentation to input points."""
         return points
 
+    def apply_depth(self, depth_map: Images, parameters: AugParams) -> Images:
+        """Apply augmentation to input points."""
+        return depth_map
+
     def apply_box3d(
         self, boxes: List[Boxes3D], parameters: AugParams
     ) -> List[Boxes3D]:
@@ -127,6 +131,8 @@ class BaseAugmentation(metaclass=RegistryHolder):
         )
 
         sample.points = self.apply_points(sample.points, parameters)
+
+        sample.depth_maps = self.apply_depth(sample.images, parameters)
 
         sample.other = self.apply_other_inputs(sample.other, parameters)
         sample.targets.boxes2d = self.apply_box2d(

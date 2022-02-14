@@ -147,10 +147,12 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         else:
             dataset = self.load_dataset()
 
+        # complete data path
         assert dataset.config is not None
         add_data_path(data_root, dataset.frames)
         if dataset.groups is not None:
             add_data_path(data_root, dataset.groups)
+        self.edit_data_path(dataset)
         rank_zero_info(f"Loading {name} takes {timer.time():.2f} seconds.")
         self.metadata_cfg = dataset.config
         self.frames = dataset.frames
@@ -168,6 +170,10 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
             with open(cache_path, "rb") as file:
                 dataset = pickle.loads(file.read())
         return dataset
+
+    def edit_data_path(self, dataset: Dataset) -> None:
+        """Custom editing for data path."""
+        pass
 
     @abc.abstractmethod
     def load_dataset(self) -> Dataset:

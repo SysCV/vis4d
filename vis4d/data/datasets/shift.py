@@ -17,8 +17,6 @@ class SHIFTDataset(BaseDatasetLoader):
         Category(name="truck"),
     ]
 
-    HAVE_DEPTH = True
-
     def load_dataset(self) -> Dataset:
         """Load Scalabel frames from json."""
         assert self.annotations is not None
@@ -32,17 +30,14 @@ class SHIFTDataset(BaseDatasetLoader):
         )
         assert metadata_cfg is not None
         self.dataset.config = metadata_cfg
-
-        if SHIFTDataset.HAVE_DEPTH:
-            self.prase_depth_map()
-
         return self.dataset
 
-    def prase_depth_map(self) -> None:
+    def edit_data_path(self, dataset: Dataset) -> None:
         """Add temporal url for depth images via filename replacement."""
         rank_zero_info("Converting depth map URLs...")
-        with tqdm(total=len(self.dataset.frames)) as pbar:
-            for frame in self.dataset.frames:
+        num_frames = len(dataset.frames)
+        with tqdm(total=num_frames) as pbar:
+            for frame in dataset.frames:
                 depth_url = str(frame.url)
                 depth_url = depth_url.replace("data.hdf5", "depth.hdf5")
                 depth_url = depth_url.replace("img_center.png", "depth.png")

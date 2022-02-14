@@ -504,3 +504,40 @@ class RandomCrop(BaseAugmentation):
                     i
                 ].get_boxes2d()
         return sample, parameters
+
+
+class GaussianNoiseOnDepth(BaseAugmentation):
+    """Depth augmentation via additive Gaussian noise.
+
+    Attributes:
+
+    """
+
+    def __init__(
+        self,
+        sigma_range: Tuple[int, int],
+        *args: ArgsType,
+        numerical_mode: str = "linear",
+        **kwargs: ArgsType,
+    ):
+        """Init function."""
+        super().__init__(*args, **kwargs)
+        assert (
+            sigma_range[0] >= 0 and sigma_range[1] >= sigma_range[0]
+        ), "Illegal range for the sigma."
+        self.sigma_range = sigma_range
+        self.numerical_mode = numerical_mode
+
+    def generate_parameters(self, sample: InputSample) -> AugParams:
+        """Generate current parameters."""
+        params = super().generate_parameters(sample)
+        params["depth_noise_numerical_mode"] = self.numerical_mode
+        params["depth_noise_sigma"] = np.random.uniform(
+            self.sigma_range[0], self.sigma_range[1]
+        )
+        return params
+
+    def apply_depth(self, depth_map, parameters):
+        print("depth_map", depth_map.tensor.shape)
+        print(parameters)
+        return depth_map
