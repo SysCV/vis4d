@@ -30,12 +30,10 @@ from ..struct import (
     InputSample,
     InstanceMasks,
     Intrinsics,
-    LabelInstances,
     ModuleCfg,
     PointCloud,
     SemanticMasks,
 )
-from .transforms import AugParams, BaseAugmentation
 from .utils import im_decode
 
 ALLOWED_FIELDS = [
@@ -58,12 +56,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         data_backend: Union[BaseDataBackend, ModuleCfg] = FileBackend(),
         fields_to_load: Tuple[str] = ("boxes2d",),
         skip_empty_samples: bool = False,
-        clip_bboxes_to_image: bool = True,
-        min_bboxes_area: float = 7.0 * 7.0,
         background_as_class: bool = False,
-        transformations: Optional[
-            List[Union[BaseAugmentation, ModuleCfg]]
-        ] = None,
         image_backend: str = "PIL",
         image_channel_mode: str = "RGB",
     ) -> None:
@@ -72,8 +65,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         self.fields_to_load = fields_to_load
         self.background_as_class = background_as_class
         self.skip_empty_samples = skip_empty_samples
-        self.clip_bboxes_to_image = clip_bboxes_to_image
-        self.min_bboxes_area = min_bboxes_area
         self.image_channel_mode = image_channel_mode
 
         if isinstance(data_backend, dict):  # pragma: no cover
@@ -85,17 +76,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         rank_zero_info(
             "Using data backend: %s", self.data_backend.__class__.__name__
         )
-        self.transformations = []
-        if transformations is not None:
-            for transform in transformations:
-                if isinstance(transform, dict):
-                    transform_: BaseAugmentation = build_component(
-                        transform, bound=BaseAugmentation
-                    )
-                else:  # pragma: no cover
-                    transform_ = transform
-                self.transformations.append(transform_)
-        rank_zero_info("Transformations used: %s", self.transformations)
         self.cats_name2id: Dict[str, Dict[str, int]] = {}
         self.training = False
 
@@ -249,40 +229,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                     )
                     sample.targets.boxes3d = [boxes3d]
 
-    def transform_inputs(
-        self,
-        sample: InputSample,
-        parameters: Optional[List[AugParams]] = None,
-    ) -> List[AugParams]:
-        """Apply transforms to input sample."""
-        if parameters is None:
-            parameters = []
-        else:
-            assert len(parameters) == len(self.transformations), (
-                "Length of augmentation parameters must equal the number of "
-                "augmentations!"
-            )
-        for i, aug in enumerate(self.transformations):
-            if len(parameters) < len(self.transformations):
-                parameters.append(aug.generate_parameters(sample))
-            sample, _ = aug(sample, parameters[i])
-        return parameters
-
-    def postprocess_annotations(
-        self, im_wh: Tuple[int, int], targets: LabelInstances
-    ) -> None:
-        """Process annotations after transform."""
-        if len(targets.boxes2d[0]) == 0:
-            return
-        if self.clip_bboxes_to_image:
-            targets.boxes2d[0].clip(im_wh)
-        keep = targets.boxes2d[0].area >= self.min_bboxes_area
-        targets.boxes2d = [targets.boxes2d[0][keep]]
-        if len(targets.boxes3d[0]) > 0:
-            targets.boxes3d = [targets.boxes3d[0][keep]]
-        if len(targets.instance_masks[0]) > 0:
-            targets.instance_masks = [targets.instance_masks[0][keep]]
-
     @staticmethod
     def load_intrinsics(intrinsics: ScalabelIntrinsics) -> Intrinsics:
         """Transform intrinsic camera matrix according to augmentations."""
@@ -378,11 +324,10 @@ class BaseSampleMapper(metaclass=RegistryHolder):
     def __call__(
         self,
         sample: Frame,
-        parameters: Optional[List[AugParams]] = None,
         group_url: Optional[str] = None,
         group_extrinsics: Optional[ScalabelExtrinsics] = None,
-    ) -> Tuple[Optional[InputSample], Optional[List[AugParams]]]:
-        """Prepare a single sample in detect format.
+    ) -> Optional[InputSample]:
+        """Prepare a single sample in Vis4D format.
 
         Args:
             sample (Frame): Metadata of one image, in scalabel format.
@@ -399,18 +344,12 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         Raises:
             AttributeError: If category mappings have not been initialized.
         """
-        if len(self.cats_name2id) == 0:
-            raise AttributeError(
-                "Category mapping not initialized! Please "
-                "execute 'SampleMapper.setup_categories'."
-            )
-
         if (
             self.skip_empty_samples
             and (sample.labels is None or len(sample.labels) == 0)
             and self.training
         ):
-            return None, None  # pragma: no cover
+            return None  # pragma: no cover
 
         # load input data
         input_data = self.load_inputs(
@@ -421,20 +360,15 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         )
 
         if self.training:
+            if len(self.cats_name2id) == 0:
+                raise AttributeError(
+                    "Category mapping not initialized! Please "
+                    "execute 'SampleMapper.setup_categories'."
+                )
+
             # load annotations to input sample
             self.load_annotations(input_data, sample.labels)
 
-        # apply transforms to input sample
-        parameters = self.transform_inputs(input_data, parameters)
-
-        if not self.training:
-            return input_data, parameters
-
-        # postprocess boxes after transforms
-        self.postprocess_annotations(
-            input_data.images.image_sizes[0], input_data.targets
-        )
-
         if self.skip_empty_samples and input_data.targets.empty:
-            return None, None  # pragma: no cover
-        return input_data, parameters
+            return None  # pragma: no cover
+        return input_data

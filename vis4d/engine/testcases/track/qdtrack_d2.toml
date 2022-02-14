@@ -1,6 +1,26 @@
 [[config]]
 path = "../configs/datasets/bdd100k/track.toml"
 
+[train_handler]
+
+    [[train_handler.transformations]]
+    type = "Mosaic"
+    out_shape = [720, 1280]
+
+    [[train_handler.transformations]]
+    type = "MixUp"
+    out_shape = [720, 1280]
+
+    [[train_handler.transformations]]
+    type = "KorniaAugmentationWrapper"
+    kornia_type = "RandomHorizontalFlip"
+    prob = 0.5
+
+    [[train_handler.transformations]]
+    type = "Resize"
+    shape = [720, 1280]
+    keep_ratio = true
+
 [[config]]
 path = "../configs/models/detectron2/qdtrack_R_50_FPN.toml"
 

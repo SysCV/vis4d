@@ -100,6 +100,7 @@ class Config(BaseModel, extra="allow"):
     launch: Launch = Launch()
     model: ModuleCfg
     train: List[ModuleCfg] = []
+    train_handler: Optional[ModuleCfg]
     test: List[ModuleCfg] = []
     data: Optional[ModuleCfg]
 
@@ -183,7 +184,7 @@ def nested_update(ori: DictStrAny, new: DictStrAny) -> DictStrAny:
     """Update function for updating a nested dict."""
     for k, v in new.items():
         if isinstance(v, dict) and not isinstance(
-            v, toml.decoder.InlineTableDict  # type: ignore
+            v, toml.decoder.InlineTableDict
         ):
             ori[k] = nested_update(ori.get(k, {}), v)
         else:

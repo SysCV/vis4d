@@ -1,4 +1,5 @@
 """Vis4D RoI Pooling module."""
+import abc
 import math
 from typing import List, Tuple
 
@@ -14,27 +15,21 @@ from .utils import assign_boxes_to_levels, boxes_to_tensor
 # implementation modified from:
 # https://github.com/facebookresearch/detectron2/
 class MultiScaleRoIPooler(BaseRoIPooler):
-    """Vis4D wrapper for torchvision roi pooling class.
-
-    Supports multiple scales.
-    """
+    """Wrapper for  roi pooling that supports multi-scale feature maps."""
 
     def __init__(
         self,
         resolution: Tuple[int, int],
-        pooling_op: str,
         strides: List[int],
         sampling_ratio: int,
         canonical_box_size: int = 224,
         canonical_level: int = 4,
         aligned: bool = True,
     ):
-        """Multi-scale version of RoIPooling / RoIAlgin operations.
+        """Multi-scale version of arbitrary RoI pooling operations.
 
         Args:
             resolution: Pooler resolution.
-            pooling_op: Name of pooling operation that should be applied.
-                "RoIPool" or "RoIAlign".
             strides: feature map strides relative to the input.
                 The strides must be powers of 2 and a monotically decreasing
                 geometric sequence with a factor of 1/2.
@@ -55,17 +50,11 @@ class MultiScaleRoIPooler(BaseRoIPooler):
                 indices.
         """
         super().__init__(resolution)
-        self.pooling_op = pooling_op
         self.canonical_level = canonical_level
         self.canonical_box_size = canonical_box_size
         self.sampling_ratio = sampling_ratio
         self.aligned = aligned
         self.strides = strides
-
-        assert self.pooling_op in [
-            "RoIAlign",
-            "RoIPool",
-        ], f"Unknown pooling_op: {pooling_op}"
 
         # Map scale (defined as 1 / stride) to its feature map level under the
         # assumption that stride is a power of 2.
@@ -156,6 +145,7 @@ class MultiScaleRoIPooler(BaseRoIPooler):
 
         return output
 
+    @abc.abstractmethod
     def _pooling_op(
         self,
         inputs: torch.Tensor,
@@ -163,15 +153,37 @@ class MultiScaleRoIPooler(BaseRoIPooler):
         spatial_scale: float = 1.0,
     ) -> torch.Tensor:
         """Execute pooling op defined in config."""
-        if self.pooling_op == "RoIAlign":
-            return roi_align(
-                inputs,
-                boxes,
-                self.resolution,
-                spatial_scale,
-                self.sampling_ratio,
-                self.aligned,
-            )
-        if self.pooling_op == "RoIPool":
-            return roi_pool(inputs, boxes, self.resolution, spatial_scale)
-        raise ValueError(f"Unknown pooling_op: {self.pooling_op}")
+        raise NotImplementedError
+
+
+class MultiScaleRoIAlign(MultiScaleRoIPooler):
+    """RoI Align supporting multi-scale inputs."""
+
+    def _pooling_op(
+        self,
+        inputs: torch.Tensor,
+        boxes: torch.Tensor,
+        spatial_scale: float = 1.0,
+    ) -> torch.Tensor:
+        """Roialign wrapper."""
+        return roi_align(
+            inputs,
+            boxes,
+            self.resolution,
+            spatial_scale,
+            self.sampling_ratio,
+            self.aligned,
+        )
+
+
+class MultiScaleRoIPool(MultiScaleRoIPooler):
+    """RoI Pool supporting multi-scale inputs."""
+
+    def _pooling_op(
+        self,
+        inputs: torch.Tensor,
+        boxes: torch.Tensor,
+        spatial_scale: float = 1.0,
+    ) -> torch.Tensor:
+        """Roipool wrapper."""
+        return roi_pool(inputs, boxes, self.resolution, spatial_scale)

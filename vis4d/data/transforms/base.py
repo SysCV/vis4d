@@ -37,6 +37,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         self.prob = prob
         self.same_on_batch = same_on_batch
         self.same_on_ref = same_on_ref
+        self.num_samples = 1
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
         """Generate current parameters."""
@@ -152,7 +153,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
         )
         return sample, parameters
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover
         """Print class & params, s.t. user can inspect easily via cmd line."""
         attr_str = ""
         for k, v in vars(self).items():

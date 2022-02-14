@@ -63,7 +63,6 @@ class ScalabelDataset(Dataset):  # type: ignore
             )
             cats_name2id = {v: i for i, v in enumerate(class_list)}
         self.cats_name2id = cats_name2id
-
         if isinstance(mapper, dict):
             if "type" not in mapper:
                 mapper["type"] = "BaseSampleMapper"
@@ -113,7 +112,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                 ref_sampler, bound=BaseReferenceSampler
             )
         else:
-            self.ref_sampler = ref_sampler
+            self.ref_sampler = ref_sampler  # pragma: no cover
         self.ref_sampler.create_mappings(
             self.dataset.frames, self.dataset.groups
         )
@@ -140,15 +139,15 @@ class ScalabelDataset(Dataset):  # type: ignore
                         self.dataset.frames[
                             self.ref_sampler.frame_name_to_idx[group.frames[0]]
                         ]
-                    )[0]
+                    )
                     assert cur_data is not None
                     return [cur_data]
 
-                group_data, _ = self.mapper(group)
+                group_data = self.mapper(group)
                 assert group_data is not None
                 data = [group_data]
                 for fname in group.frames:
-                    cur_data, _ = self.mapper(
+                    cur_data = self.mapper(
                         self.dataset.frames[
                             self.ref_sampler.frame_name_to_idx[fname]
                         ],
@@ -157,7 +156,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                     data.append(cur_data)
                 return data
 
-            cur_data = self.mapper(self.dataset.frames[cur_idx])[0]
+            cur_data = self.mapper(self.dataset.frames[cur_idx])
             assert cur_data is not None
             data = [cur_data]
             return data
@@ -171,15 +170,13 @@ class ScalabelDataset(Dataset):  # type: ignore
                         ]
                     ]
                 ]
-                input_data, parameters = self.mapper(
+                input_data = self.mapper(
                     self.dataset.frames[cur_idx],
                     group_url=group.url,
                     group_extrinsics=group.extrinsics,
                 )
             else:
-                input_data, parameters = self.mapper(
-                    self.dataset.frames[cur_idx]
-                )
+                input_data = self.mapper(self.dataset.frames[cur_idx])
             if input_data is not None:
                 if input_data.metadata[0].attributes is None:
                     input_data.metadata[0].attributes = {}
@@ -187,12 +184,10 @@ class ScalabelDataset(Dataset):  # type: ignore
 
                 if self.ref_sampler.num_ref_imgs > 0:
                     ref_data = self.ref_sampler(
-                        cur_idx, input_data, self.mapper, parameters
+                        cur_idx, input_data, self.mapper
                     )
                     if ref_data is not None:
-                        return self.ref_sampler.sort_samples(
-                            [input_data] + ref_data
-                        )
+                        return [input_data] + ref_data
                 else:
                     return [input_data]
 

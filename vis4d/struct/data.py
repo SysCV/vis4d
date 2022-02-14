@@ -1,9 +1,11 @@
 """Vis4D Input data structures."""
 
 import itertools
+from enum import Enum
 from typing import List, Optional, Tuple, Union
 
 import torch
+import torch.nn.functional as F
 
 from .structures import InputInstance
 
@@ -143,6 +145,13 @@ class Extrinsics(InputInstance):
         return len(self.tensor)
 
 
+class FlipMode(Enum):
+    """Enum defining the axis for horizontal / vertical flip."""
+
+    HORIZONTAL = 3
+    VERTICAL = 2
+
+
 class Images(InputInstance):
     """Data structure for saving images."""
 
@@ -233,6 +242,32 @@ class Images(InputInstance):
     def device(self) -> torch.device:
         """Returns current device."""
         return self.tensor.device
+
+    def resize(
+        self, resize_hw: Tuple[int, int], mode: str = "bilinear"
+    ) -> None:
+        """Resizes Images object."""
+        align_corners = None if mode == "nearest" else False
+        resized_ims = []
+        for i in range(len(self)):
+            w, h = self.image_sizes[i]
+            im_t = F.interpolate(
+                self.tensor[i : i + 1, ..., :h, :w],
+                resize_hw,
+                mode=mode,
+                align_corners=align_corners,
+            )
+            resized_ims.append(im_t)
+            self.image_sizes[i] = (im_t.shape[3], im_t.shape[2])
+        self.tensor = torch.cat(resized_ims)
+
+    def flip(self, mode: FlipMode = FlipMode.HORIZONTAL) -> None:
+        """Flips Images object."""
+        for i in range(len(self)):
+            w, h = self.image_sizes[i]
+            self.tensor[i : i + 1, ..., :h, :w] = self.tensor[
+                i : i + 1, ..., :h, :w
+            ].flip(mode.value)
 
 
 class PointCloud(InputInstance):
