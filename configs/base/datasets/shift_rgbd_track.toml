@@ -1,0 +1,53 @@
+[[train]]
+name = "shift_3dtrack_train"
+type = "SHIFTDataset"
+annotations = "data/SHIFT/mot/img_center/image_center_box3d.train.json"
+attributes = {"weather" = ["clear"], "timeofday" = ["daytime"]}
+data_root = "data/SHIFT/mot/img_center/data.hdf5"
+
+num_processes = 0
+cache_as_binary = true
+    [train.sample_mapper]
+    skip_empty_samples = true
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "depth_map"]
+
+    [train.ref_sampler]
+    strategy = 'uniform'
+    scope = 3
+    num_ref_imgs = 1
+    skip_nomatch_samples = true
+
+    [train.sample_mapper.data_backend]
+    type = "HDF5Backend" 
+
+    [[train.sample_mapper.transformations]]
+    type = "Resize"
+    shape = [800, 1280]
+
+    [[train.sample_mapper.transformations]]
+    type = "KorniaAugmentationWrapper"
+    kornia_type = "RandomHorizontalFlip"
+    prob = 0.5
+
+    [[train.sample_mapper.transformations]]
+    type = "GaussianNoiseOnDepth"
+    sigma_range = [0, 5]
+
+[[test]]
+name = "shift_3dtrack_val"
+type = "SHIFTDataset"
+annotations = "data/SHIFT/mot/img_center/image_center_box3d.val.json"
+attributes = {"weather" = ["clear"], "timeofday" = ["daytime"]}
+data_root = "/cluster/work/cvl/mnaeem/CarlaData/dist/mot/img_center/data.hdf5"
+eval_metrics = ["detect", "track"]
+num_processes = 0
+cache_as_binary = true
+    [test.sample_mapper]
+    fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "depth_map"]
+
+    [test.sample_mapper.data_backend]
+    type = "HDF5Backend" 
+
+    [[test.sample_mapper.transformations]]
+    type = "Resize"
+    shape = [800, 1280]
