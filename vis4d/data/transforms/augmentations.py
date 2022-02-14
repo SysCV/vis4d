@@ -502,6 +502,9 @@ class Mosaic(BaseAugmentation):
     NOTE: So far, it only works with Images and Boxes2D. There is no support
     for other inputs or targets like InstanceMasks, etc.
     """
+
+    def __init__(
+        self,
         out_shape: Tuple[int, int],
         *args: ArgsType,
         center_ratio_range: Tuple[float, float] = (0.5, 1.5),
@@ -874,15 +877,16 @@ class MixUp(BaseAugmentation):
 
 
 class GaussianNoiseOnDepth(BaseAugmentation):
-    """Depth augmentation via additive Gaussian noise.
+    r"""Depth augmentation via additive Gaussian noise.
 
     Attributes:
     sigma_range: Lower and upper bound of noise variance, e.g., (0, 5).
     numerical_mode: Mode of how to apply noise. One of ["linear", "inverse"].
-        - Linear: $D = D + \\epsilon, \\epsilon \\sim N(0, \\sigma)$.
-        - Inverse: $\\frac{1}{D} = \\frac{1}{D} + \\epsilon$,
-        $\\epsilon \\sim N(0, \\sigma)$.
+        - Linear: $D = D + \epsilon, \epsilon \sim N(0, \sigma)$.
+        - Inverse: $\frac{1}{D} = \frac{1}{D} + \epsilon$,
+        $\epsilon \sim N(0, \sigma)$.
     """
+
     def __init__(
         self,
         sigma_range: Tuple[int, int],
@@ -907,7 +911,7 @@ class GaussianNoiseOnDepth(BaseAugmentation):
         )
         return params
 
-    def apply_depth(self, depth_map, parameters) -> Images:
+    def apply_depth(self, depth_map: Images, parameters: AugParams) -> Images:
         """Add Gaussian noise to the depth values."""
         shape = depth_map.tensor.shape
         sigma = parameters["depth_noise_sigma"]
