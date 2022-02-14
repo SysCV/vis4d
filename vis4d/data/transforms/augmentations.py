@@ -510,7 +510,11 @@ class GaussianNoiseOnDepth(BaseAugmentation):
     """Depth augmentation via additive Gaussian noise.
 
     Attributes:
-
+    sigma_range: Lower and upper bound of noise variance, e.g., (0, 5).
+    numerical_mode: Mode of how to apply noise. One of ["linear", "inverse"].
+        - Linear: $D = D + \\epsilon, \\epsilon \\sim N(0, \\sigma)$.
+        - Inverse: $\\frac{1}{D} = \\frac{1}{D} + \\epsilon$,
+        $\\epsilon \\sim N(0, \\sigma)$.
     """
 
     def __init__(
@@ -537,7 +541,16 @@ class GaussianNoiseOnDepth(BaseAugmentation):
         )
         return params
 
-    def apply_depth(self, depth_map, parameters):
-        print("depth_map", depth_map.tensor.shape)
-        print(parameters)
+    def apply_depth(self, depth_map, parameters) -> Images:
+        """Add Gaussian noise to the depth values."""
+        shape = depth_map.tensor.shape
+        sigma = parameters["depth_noise_sigma"]
+        mode = parameters["depth_noise_numerical_mode"]
+        if mode == "linear":
+            depth_map.tensor += np.random.normal(0, sigma, size=shape)
+        elif mode == "inverse":
+            depth_map_inv = 1.0 / depth_map.tensor
+            depth_map_inv += np.random.normal(0, sigma, size=shape)
+            depth_map_inv = np.clip(depth_map_inv, 1e-5, None)
+            depth_map.tensor = 1.0 / depth_map_inv
         return depth_map
