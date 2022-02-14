@@ -212,5 +212,4 @@ class KorniaRandomHorizontalFlip(KorniaAugmentationWrapper):
 
     def apply_depth(self, depth_map, parameters) -> Images:
         """Apply augmentation to input depth maps."""
-        print(parameters["apply"], depth_map.tensor.shape)
         return self.apply_image(depth_map, parameters)
