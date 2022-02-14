@@ -47,7 +47,6 @@ class BaseBackbone(Vis4DModule[FeatureMaps, FeatureMaps]):
     @abc.abstractmethod
     def preprocess_inputs(self, inputs: InputSample) -> InputSample:
         """Normalize the input images."""
-        print(inputs.images.tensor.shape, self.pixel_mean.shape)
         inputs.images.tensor = (
             inputs.images.tensor - self.pixel_mean
         ) / self.pixel_std

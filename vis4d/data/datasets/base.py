@@ -173,7 +173,6 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
     def edit_data_path(self, dataset: Dataset) -> None:
         """Custom editing for data path."""
-        pass
 
     @abc.abstractmethod
     def load_dataset(self) -> Dataset:

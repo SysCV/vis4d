@@ -132,7 +132,7 @@ class BaseAugmentation(metaclass=RegistryHolder):
 
         sample.points = self.apply_points(sample.points, parameters)
 
-        sample.depth_maps = self.apply_depth(sample.images, parameters)
+        sample.depth_maps = self.apply_depth(sample.depth_maps, parameters)
 
         sample.other = self.apply_other_inputs(sample.other, parameters)
         sample.targets.boxes2d = self.apply_box2d(
