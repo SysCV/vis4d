@@ -295,13 +295,13 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         image = image.astype(np.float32)
 
         if byte_format == "BGR":
-            image = (
+            depth = (
                 image[:, :, 2] * 256 * 256
                 + image[:, :, 1] * 256
                 + image[:, :, 0]
             )
         elif byte_format == "RGB":  # pragma: no cover
-            image = (
+            depth = (
                 image[:, :, 0] * 256 * 256
                 + image[:, :, 1] * 256
                 + image[:, :, 2]
@@ -309,16 +309,16 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         else:
             raise NotImplementedError
         assert max_depth > 0, "Max depth value must be greater than 0."
-        image_tensor = (
+        depth_tensor = (
             torch.as_tensor(
-                np.ascontiguousarray(image / max_depth),
+                np.ascontiguousarray(depth / max_depth),
                 dtype=torch.float32,
             )
             .unsqueeze(0)
             .unsqueeze(0)
         )
         images = Images(
-            image_tensor, [(image_tensor.shape[3], image_tensor.shape[2])]
+            depth_tensor, [(depth_tensor.shape[3], depth_tensor.shape[2])]
         )
         return images
 

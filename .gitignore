@@ -71,10 +71,3 @@ vis4d-workspace
 vis4d.egg-info
 
 *.tmp
-
-# data folder
-/data/
-/checkpoint/
-
-# temporal unit test files
-/unittests/
