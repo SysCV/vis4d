@@ -1,5 +1,5 @@
 [[config]]
-path = "../configs/datasets/shift/rgbd_track.toml"
+path = "../configs/datasets/shift/rgbd_track_inv.toml"
 
 [[config]]
 path = "../configs/models/mmdetection/qd3dt_R_18_FPN.toml"

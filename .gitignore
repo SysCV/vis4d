@@ -75,3 +75,6 @@ vis4d.egg-info
 # data folder
 /data/
 /checkpoint/
+
+# temporal unit test files
+/unittests/

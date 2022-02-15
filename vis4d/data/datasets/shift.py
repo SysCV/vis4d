@@ -41,7 +41,7 @@ class SHIFTDataset(BaseDatasetLoader):
                 depth_url = str(frame.url)
                 depth_url = depth_url.replace("data.hdf5", "depth.hdf5")
                 depth_url = depth_url.replace("img_center.png", "depth.png")
-                if frame.attributes is None:
+                if frame.attributes is None:  # pragma: no cover
                     frame.attributes = {}
                 frame.attributes["__depth_url__"] = depth_url
                 pbar.update(1)

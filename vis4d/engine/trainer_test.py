@@ -315,7 +315,7 @@ class TestMTL(BaseEngineTests.TestTrain, BaseEngineTests.TestTest):
 
 
 class TestSHIFT(BaseEngineTests.TestTrain):
-    """MTL test cases."""
+    """SHIFT Dataset test cases."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -323,6 +323,21 @@ class TestSHIFT(BaseEngineTests.TestTrain):
         cls.work_dir = "./unittests/unittest_shift/"
         args = Namespace(
             config=get_test_file("track/qd3dt_shift.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(args)
+        print(cls.cfg)
+
+
+class TestSHIFTDepthInv(BaseEngineTests.TestTrain):
+    """SHIFT Dataset test cases (with depth aug. of inverse mode)."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_shift/"
+        args = Namespace(
+            config=get_test_file("track/qd3dt_shift_inv_depth.toml"),
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)
