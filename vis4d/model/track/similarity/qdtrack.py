@@ -326,7 +326,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         """
         losses = {}
 
-        if sum(len(e) for e in key_embeddings) == 0:
+        if sum(len(e) for e in key_embeddings) == 0:  # pragma: no cover
             loss_track = sum([e.sum() for e in key_embeddings])
             loss_track_aux = loss_track
         else:
