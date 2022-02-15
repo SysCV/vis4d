@@ -71,10 +71,14 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             self.data_backend: BaseDataBackend = build_component(
                 data_backend, bound=BaseDataBackend
             )
+            print("MapperBack:", self.data_backend, data_backend)
         else:
             self.data_backend = data_backend
+            print("MapperBackFall:", self.data_backend, data_backend)
         rank_zero_info(
-            "Using data backend: %s", self.data_backend.__class__.__name__
+            "Using data backend: %s %s",
+            self.data_backend.__class__.__name__,
+            data_backend,
         )
         self.cats_name2id: Dict[str, Dict[str, int]] = {}
         self.training = False
@@ -309,16 +313,18 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         else:
             raise NotImplementedError
         assert max_depth > 0, "Max depth value must be greater than 0."
-        image = image / max_depth
+        image_normalized = image / max_depth # type: ignore
         image_tensor = (
             torch.as_tensor(
-                np.ascontiguousarray(image),
+                np.ascontiguousarray(image_normalized),
                 dtype=torch.float32,
             )
             .unsqueeze(0)
             .unsqueeze(0)
         )
-        images = Images(image_tensor, [(image.shape[3], image.shape[2])])
+        images = Images(
+            image_tensor, [(image_tensor.shape[3], image_tensor.shape[2])]
+        )
         return images
 
     def __call__(

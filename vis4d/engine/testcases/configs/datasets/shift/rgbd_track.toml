@@ -3,9 +3,8 @@ name = "shift_3dtrack_train"
 type = "SHIFTDataset"
 annotations = "vis4d/engine/testcases/track/shift-samples/train.sample.json"
 data_root = "vis4d/engine/testcases/track/shift-samples/data.hdf5"
-
 num_processes = 0
-cache_as_binary = true
+cache_as_binary = false
     [train.sample_mapper]
     skip_empty_samples = true
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "depth_map"]
@@ -40,12 +39,13 @@ annotations = "vis4d/engine/testcases/track/shift-samples/train.sample.json"
 data_root = "vis4d/engine/testcases/track/shift-samples/data.hdf5"
 eval_metrics = ["detect", "track"]
 num_processes = 0
-cache_as_binary = true
+cache_as_binary = false
     [test.sample_mapper]
+    skip_empty_samples = false
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "depth_map"]
 
     [test.sample_mapper.data_backend]
-    type = "HDF5Backend" 
+    type = "HDF5Backend"
 
     [[test.sample_mapper.transformations]]
     type = "Resize"

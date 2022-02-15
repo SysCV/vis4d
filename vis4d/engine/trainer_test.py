@@ -312,3 +312,18 @@ class TestMTL(BaseEngineTests.TestTrain, BaseEngineTests.TestTest):
             work_dir=cls.work_dir,
         )
         cls.cfg = config.parse_config(args)
+
+
+class TestSHIFT(BaseEngineTests.TestTrain):
+    """MTL test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Set up class."""
+        cls.work_dir = "./unittests/unittest_shift/"
+        args = Namespace(
+            config=get_test_file("track/qd3dt_shift.toml"),
+            work_dir=cls.work_dir,
+        )
+        cls.cfg = config.parse_config(args)
+        print(cls.cfg)
