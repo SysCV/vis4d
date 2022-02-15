@@ -325,36 +325,42 @@ class QDSimilarityHead(BaseSimilarityHead):
         number of batch elements.
         """
         losses = {}
-
-        loss_track = torch.tensor(0.0, device=key_embeddings[0].device)
-        loss_track_aux = torch.tensor(0.0, device=key_embeddings[0].device)
-        dists, cos_dists = self.match(key_embeddings, ref_embeddings)
-        track_targets, track_weights = self.get_targets(
-            key_targets, ref_targets
-        )
-        # for each reference view
-        for curr_dists, curr_cos_dists, curr_targets, curr_weights in zip(
-            dists, cos_dists, track_targets, track_weights
-        ):
-            # for each batch element
-            for _dists, _cos_dists, _targets, _weights in zip(
-                curr_dists, curr_cos_dists, curr_targets, curr_weights
+        
+        if sum(len(e) for e in key_embeddings) == 0:
+            loss_track = sum([e.sum() for e in key_embeddings])
+            loss_track_aux = loss_track
+        else:
+            loss_track = torch.tensor(0.0, device=key_embeddings[0].device)
+            loss_track_aux = torch.tensor(0.0, device=key_embeddings[0].device)
+            dists, cos_dists = self.match(key_embeddings, ref_embeddings)
+            track_targets, track_weights = self.get_targets(
+                key_targets, ref_targets
+            )
+            # for each reference view
+            for curr_dists, curr_cos_dists, curr_targets, curr_weights in zip(
+                dists, cos_dists, track_targets, track_weights
             ):
-                if all(_dists.shape):
-                    loss_track += self.track_loss(
-                        _dists,
-                        _targets,
-                        _weights,
-                        avg_factor=_weights.sum() + 1e-5,
-                    )
-                    if self.track_loss_aux is not None:
-                        loss_track_aux += self.track_loss_aux(
-                            _cos_dists, _targets
+                # for each batch element
+                for _dists, _cos_dists, _targets, _weights in zip(
+                    curr_dists, curr_cos_dists, curr_targets, curr_weights
+                ):
+                    if all(_dists.shape):
+                        loss_track += self.track_loss(
+                            _dists,
+                            _targets,
+                            _weights,
+                            avg_factor=_weights.sum() + 1e-5,
                         )
+                        if self.track_loss_aux is not None:
+                            loss_track_aux += self.track_loss_aux(
+                                _cos_dists, _targets
+                            )
 
-        num_pairs = len(dists) * len(dists[0])
-        losses["track_loss"] = loss_track / num_pairs
-        if self.track_loss_aux is not None:
-            losses["track_loss_aux"] = loss_track_aux / num_pairs
+            num_pairs = len(dists) * len(dists[0])
+            loss_track /= num_pairs
+            if self.track_loss_aux is not None:
+                loss_track_aux /= num_pairs
 
+        losses["track_loss"] = loss_track
+        losses["track_loss_aux"] = loss_track_aux
         return losses

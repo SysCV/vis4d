@@ -1,0 +1,37 @@
+# This workflow will deploy the documentation in docs/ to http://docs.vis.xyz/
+
+name: deploy docs
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --ignore-installed -r docs/requirements.txt
+      - name: website build
+        run: |
+          cd docs
+          make html
+      - name: deploy website to AWS
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --acl public-read --follow-symlinks --exclude ".DS_Store"
+        env:
+          AWS_S3_BUCKET: docs.vis.xyz
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SOURCE_DIR: "docs/build/src/html/"
