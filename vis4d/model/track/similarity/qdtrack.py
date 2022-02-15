@@ -325,7 +325,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         number of batch elements.
         """
         losses = {}
-        
+
         if sum(len(e) for e in key_embeddings) == 0:
             loss_track = sum([e.sum() for e in key_embeddings])
             loss_track_aux = loss_track
