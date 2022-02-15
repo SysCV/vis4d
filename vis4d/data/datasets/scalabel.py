@@ -11,10 +11,7 @@ class Scalabel(BaseDatasetLoader):
     def load_dataset(self) -> Dataset:
         """Load Scalabel frames from json."""
         assert self.annotations is not None
-        dataset = load(
-            self.annotations,
-            nprocs=self.num_processes,
-        )
+        dataset = load(self.annotations, nprocs=self.num_processes)
         metadata_cfg = dataset.config
         if self.config_path is not None:
             _, metadata_cfg = self.load_config()

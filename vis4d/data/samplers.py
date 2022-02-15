@@ -1,5 +1,5 @@
 """Vis4D data samplers."""
-from typing import Generator, Iterator, List, Optional
+from typing import Generator, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -98,10 +98,35 @@ class RoundRobin:
     """Round-robin batch-level sampling functionality."""
 
     @staticmethod
-    def setup(
+    def setup_parameters(
+        samplers: List[Sampler[List[int]]],
+        repeat_interval: Union[int, List[int]],
+        spread_samples: Union[bool, List[bool]],
+        max_samples: Union[int, List[int]],
+    ) -> Tuple[List[int], List[bool], List[int]]:
+        """Setup sampler parameters."""
+        if isinstance(repeat_interval, int):
+            repeat_interval_ = [repeat_interval] * len(samplers)
+        else:
+            assert len(repeat_interval) == len(samplers)
+            repeat_interval_ = repeat_interval
+        if isinstance(spread_samples, bool):
+            spread_samples_ = [spread_samples] * len(samplers)
+        else:
+            assert len(spread_samples) == len(samplers)
+            spread_samples_ = spread_samples
+        if isinstance(max_samples, int):
+            max_samples_ = [max_samples] * len(samplers)
+        else:
+            assert len(max_samples) == len(samplers)
+            max_samples_ = max_samples
+        return repeat_interval_, spread_samples_, max_samples_
+
+    @staticmethod
+    def setup_samplers(
         samplers: List[Sampler[List[int]]], batch_size: int, drop_last: bool
     ) -> List[Sampler[List[int]]]:
-        """Setup."""
+        """Setup samplers."""
         if batch_size > 1:
             samplers = [
                 BatchSampler(sampler, batch_size, drop_last)
@@ -113,62 +138,80 @@ class RoundRobin:
     def generate_indices(
         samplers: List[Sampler[List[int]]],
         cum_sizes: List[int],
-        repeat_sampling: bool,
-        spread_samples: bool,
-        max_samples: int,
+        repeat_interval: List[int],
+        spread_samples: List[bool],
+        max_samples: List[int],
     ) -> Iterator[List[int]]:
         """Generate dataset indices for each step."""
         samp_iters = [iter(sampler) for sampler in samplers]
         samp_lens = RoundRobin.get_sampler_lens(samplers, max_samples)
-        max_len = max(samp_lens)
-        if not repeat_sampling and spread_samples:
-            samp_interval = [max_len // samp_len for samp_len in samp_lens]
-        else:  # pragma: no cover
-            if spread_samples:
-                rank_zero_warn(
-                    "both spread_samples and repeat_sampling are set to True"
-                    ", but repeat_sampling overrides spread_samples behavior"
-                )
-            samp_interval = [1 for sampler in samplers]
-        for e in range(max_len):
+        samp_interval = RoundRobin.get_samp_intervals(
+            samplers, samp_lens, repeat_interval, spread_samples
+        )
+        for e in range(max(samp_lens)):
             for i, samp_it in enumerate(samp_iters):
-                if e % samp_interval[i] != 0:
+                if samp_interval[i] != 0 and e % samp_interval[i] != 0:
                     continue
                 batch = next(samp_it, None)
-                if batch is None:  # pragma: no cover
-                    if not repeat_sampling:
+                if batch is None:
+                    if repeat_interval[i] == 0:
                         continue
                     samp_iters[i] = iter(samplers[i])
                     batch = next(samp_iters[i], None)
                 assert batch is not None
-                if not isinstance(batch, list):  # pragma: no cover
+                if not isinstance(batch, list):
                     batch = [batch]
                 start_index = cum_sizes[i - 1] if i > 0 else 0
                 yield [b + start_index for b in batch]
 
     @staticmethod
     def get_sampler_lens(
-        samplers: List[Sampler[List[int]]], max_samples: int
+        samplers: List[Sampler[List[int]]], max_samples: List[int]
     ) -> List[int]:
         """Get length of each sampler."""
         return [
             len(sampler)
-            if max_samples == -1
-            else min(len(sampler), max_samples)
-            for sampler in samplers
+            if max_samples[i] == -1
+            else min(len(sampler), max_samples[i])
+            for i, sampler in enumerate(samplers)
         ]
+
+    @staticmethod
+    def get_samp_intervals(
+        samplers: List[Sampler[List[int]]],
+        samp_lens: List[int],
+        repeat_interval: List[int],
+        spread_samples: List[bool],
+    ) -> List[int]:
+        """Get length of each sampler."""
+        samp_interval, max_len = [], max(samp_lens)
+        for i in range(len(samplers)):
+            if repeat_interval[i] == 0 and spread_samples[i]:
+                samp_interval.append(max_len // samp_lens[i])
+                continue
+            if spread_samples[i]:
+                rank_zero_warn(
+                    "both spread_samples and repeat_interval are set to True,"
+                    " but repeat_interval overrides spread_samples behavior"
+                )
+            samp_interval.append(repeat_interval[i])
+        return samp_interval
 
     @staticmethod
     def get_length(
         samplers: List[Sampler[List[int]]],
-        repeat_sampling: bool,
-        max_samples: int,
+        repeat_interval: List[int],
+        max_samples: List[int],
     ) -> int:
         """Get length of round-robin sampler."""
         sampler_lens = RoundRobin.get_sampler_lens(samplers, max_samples)
-        if repeat_sampling:  # pragma: no cover
-            return max(sampler_lens) * len(samplers)
-        return sum(sampler_lens)
+        total_len = 0
+        for i, _ in enumerate(samplers):
+            if repeat_interval[i] > 0:
+                total_len += max(sampler_lens) // repeat_interval[i]
+            else:
+                total_len += sampler_lens[i]
+        return total_len
 
 
 class RoundRobinSampler(BaseSampler):
@@ -177,17 +220,21 @@ class RoundRobinSampler(BaseSampler):
     def __init__(
         self,
         *args: ArgsType,
-        repeat_sampling: bool = False,
-        spread_samples: bool = True,
-        max_samples: int = -1,
+        repeat_interval: Union[int, List[int]] = 0,
+        spread_samples: Union[bool, List[bool]] = True,
+        max_samples: Union[int, List[int]] = -1,
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
-        self.repeat_sampling = repeat_sampling
-        self.spread_samples = spread_samples
-        self.max_samples = max_samples
-        self.samplers = RoundRobin.setup(
+        (
+            self.repeat_interval,
+            self.spread_samples,
+            self.max_samples,
+        ) = RoundRobin.setup_parameters(
+            self.samplers, repeat_interval, spread_samples, max_samples
+        )
+        self.samplers = RoundRobin.setup_samplers(
             self.samplers, self.batch_size, self.drop_last
         )
 
@@ -196,7 +243,7 @@ class RoundRobinSampler(BaseSampler):
         yield from RoundRobin.generate_indices(
             self.samplers,
             self.dataset.cumulative_sizes,
-            self.repeat_sampling,
+            self.repeat_interval,
             self.spread_samples,
             self.max_samples,
         )
@@ -204,7 +251,7 @@ class RoundRobinSampler(BaseSampler):
     def __len__(self) -> int:
         """Return length of sampler instance."""
         return RoundRobin.get_length(
-            self.samplers, self.repeat_sampling, self.max_samples
+            self.samplers, self.repeat_interval, self.max_samples
         )
 
 
@@ -214,17 +261,21 @@ class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
     def __init__(
         self,
         *args: ArgsType,
-        repeat_sampling: bool = False,
-        spread_samples: bool = True,
-        max_samples: int = -1,
+        repeat_interval: Union[int, List[int]] = 0,
+        spread_samples: Union[bool, List[bool]] = True,
+        max_samples: Union[int, List[int]] = -1,
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
-        self.repeat_sampling = repeat_sampling
-        self.spread_samples = spread_samples
-        self.max_samples = max_samples
-        self.samplers = RoundRobin.setup(
+        (
+            self.repeat_interval,
+            self.spread_samples,
+            self.max_samples,
+        ) = RoundRobin.setup_parameters(
+            self.samplers, repeat_interval, spread_samples, max_samples
+        )
+        self.samplers = RoundRobin.setup_samplers(
             self.samplers, self.batch_size, self.drop_last
         )
 
@@ -233,7 +284,7 @@ class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
         yield from RoundRobin.generate_indices(
             self.samplers,
             self.dataset.cumulative_sizes,
-            self.repeat_sampling,
+            self.repeat_interval,
             self.spread_samples,
             self.max_samples,
         )
@@ -241,7 +292,7 @@ class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
     def __len__(self) -> int:
         """Return length of sampler instance."""
         return RoundRobin.get_length(
-            self.samplers, self.repeat_sampling, self.max_samples
+            self.samplers, self.repeat_interval, self.max_samples
         )
 
 

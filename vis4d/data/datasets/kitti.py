@@ -37,9 +37,6 @@ class KITTI(BaseDatasetLoader):  # pragma: no cover
             dataset = from_kitti(data_dir, self.data_type)
             save(self.annotations, dataset)
         else:
-            dataset = load(
-                self.annotations,
-                nprocs=self.num_processes,
-            )
+            dataset = load(self.annotations, nprocs=self.num_processes)
 
         return dataset
