@@ -61,7 +61,7 @@ class MultiImageClassifier(BaseClassifier):
         """Forward pass during training stage."""
         assert (
             len(batch_inputs) == 1
-        ), "No reference views allowed in MultiLabelClassifier training!"
+        ), "No reference views allowed in MultiImageClassifier training!"
         inputs, targets = batch_inputs[0], batch_inputs[0].targets
         assert targets is not None, "Training requires targets."
         features = self.extract_features(inputs)
@@ -72,7 +72,7 @@ class MultiImageClassifier(BaseClassifier):
         """Forward pass during testing stage."""
         assert (
             len(batch_inputs) == 1
-        ), "No reference views allowed in MultiLabelClassifier testing!"
+        ), "No reference views allowed in MultiImageClassifier testing!"
         inputs = batch_inputs[0]
         features = self.extract_features(inputs)
         classifications = self.generate_classifications(inputs, features)

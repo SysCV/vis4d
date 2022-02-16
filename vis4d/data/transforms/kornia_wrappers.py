@@ -48,9 +48,6 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         augmentation = getattr(kornia_augmentation, kornia_type)
         if kwargs is None:
             kwargs = {}
-        for k, v in kwargs.items():
-            if isinstance(v, list):
-                kwargs[k] = tuple(v)
         self.augmentor = augmentation(p=1.0, **kwargs)
 
     def generate_parameters(self, sample: InputSample) -> AugParams:
@@ -168,11 +165,7 @@ class KorniaRandomHorizontalFlip(KorniaAugmentationWrapper):
     ):
         """Init."""
         super().__init__(
-            "RandomHorizontalFlip",
-            kwargs,
-            prob,
-            same_on_batch,
-            same_on_ref,
+            "RandomHorizontalFlip", kwargs, prob, same_on_batch, same_on_ref
         )
 
     def apply_box3d(

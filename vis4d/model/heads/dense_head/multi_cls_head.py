@@ -26,11 +26,12 @@ class MultiClsHead(ClsDenseHead):
         super().__init__()
         self.category_mappings = []
         for i, h in enumerate(heads):
-            head: ClsDenseHead = (
-                self._build_tag_head(h)  # type: ignore
-                if isinstance(h, dict)
-                else h
-            )
+            if isinstance(h, dict):
+                assert h["category_mapping"] is not None
+                assert h["tagging_attr"] is not None
+                head: ClsDenseHead = build_module(h, bound=BaseDenseHead)
+            else:
+                head = h  # type: ignore
             self.add_module(str(i), head)
             assert head.category_mapping is not None
             self.category_mappings.append(
@@ -40,13 +41,6 @@ class MultiClsHead(ClsDenseHead):
     def __len__(self) -> int:
         """Return number of classification heads."""
         return len(self.category_mappings)
-
-    @staticmethod
-    def _build_tag_head(cfg: ModuleCfg) -> ClsDenseHead:
-        """Build head with config."""
-        assert cfg["category_mapping"] is not None
-        assert cfg["tagging_attr"] is not None
-        return build_module(cfg, bound=BaseDenseHead)
 
     def forward_train(
         self,

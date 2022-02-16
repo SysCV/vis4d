@@ -107,7 +107,7 @@ def instance_ids_to_global(
     """Use local (per video) instance ids to produce global ones."""
     video_names = list(local_instance_ids.keys())
     for frame_id, ann in enumerate(frames):
-        if ann.labels is None:
+        if ann.labels is None:  # pragma: no cover
             continue
         for label in ann.labels:
             assert label.attributes is not None
