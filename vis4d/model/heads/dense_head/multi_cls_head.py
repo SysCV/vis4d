@@ -30,7 +30,7 @@ class MultiClsHead(ClsDenseHead):
                 assert h["category_mapping"] is not None
                 assert h["tagging_attr"] is not None
                 head: ClsDenseHead = build_module(h, bound=BaseDenseHead)
-            else:
+            else:  # pragma: no cover
                 head = h  # type: ignore
             self.add_module(str(i), head)
             assert head.category_mapping is not None
