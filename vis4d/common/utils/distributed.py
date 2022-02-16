@@ -167,7 +167,7 @@ def all_gather_object_cpu(  # type: ignore
         data: any picklable object.
         pl_module: LightningModule that contains the gathering op for the
         backend currently in use.
-        tmpdir: Save path for temporary files. If None, savely create tmpdir.
+        tmpdir: Save path for temporary files. If None, safely create tmpdir.
         rank_zero_only: if results should only be returned on rank 0
 
     Returns:

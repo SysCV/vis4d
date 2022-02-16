@@ -46,7 +46,7 @@ def rotation_output_to_alpha(
 
     Uses method described in (with two bins):
     See: 3D Bounding Box Estimation Using Deep Learning and Geometry,
-     Mousavian et al., CVPR'17
+    Mousavian et al., CVPR'17
     """
     out_range = torch.tensor(list(range(len(output))), device=output.device)
     bin_idx = output[:, :num_bins].argmax(dim=-1)
@@ -69,14 +69,14 @@ def generate_rotation_output(
 
     The viewpoint (alpha) prediction (N, num_bins + 2 * num_bins) consists of:
     bin confidences (N, num_bins): softmax logits for bin probability.
-        1st entry is probability for orientation being in bin 1,
-        2nd entry is probability for orientation being in bin 2,
-        and so on.
+    1st entry is probability for orientation being in bin 1,
+    2nd entry is probability for orientation being in bin 2,
+    and so on.
     bin residual (N, num_bins * 2): angle residual w.r.t. bin N orientation,
-        represented as sin and cos values.
+    represented as sin and cos values.
 
     See: 3D Bounding Box Estimation Using Deep Learning and Geometry,
-     Mousavian et al., CVPR'17
+    Mousavian et al., CVPR'17
     """
     pred = pred.view(pred.size(0), -1, 3 * num_bins)
     bin_logits = pred[..., :num_bins]
@@ -129,7 +129,7 @@ def euler_angles_to_matrix(
     Args:
         euler_angles: Euler angles in radians as tensor of shape (..., 3).
         convention: Convention string of three uppercase letters from
-            {"X", "Y", and "Z"}.
+        "X", "Y", and "Z".
 
     Returns:
         Rotation matrices as tensor of shape (..., 3, 3).

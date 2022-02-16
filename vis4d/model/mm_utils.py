@@ -233,11 +233,7 @@ def set_attr(  # type: ignore
                 set_attr(attr_item, partial_keys[i:], last_key, value)
             return
         attr = attr.get(part_k)
-
-    if attr.get(last_key) is not None:
-        attr[last_key] = type(attr.get(last_key))(value)
-    else:
-        attr[last_key] = value
+    attr[last_key] = value
 
 
 def add_keyword_args(model_kwargs: DictStrAny, cfg: MMConfig) -> None:

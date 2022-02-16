@@ -9,10 +9,14 @@
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+
+
+import os
+import sys
+PATH_HERE = os.path.abspath(os.path.dirname(__file__))
+PATH_ROOT = os.path.join(PATH_HERE, "..", "..")
+
+sys.path.insert(0, os.path.abspath(PATH_ROOT))
 
 
 # -- Project information -----------------------------------------------------
@@ -29,13 +33,14 @@ author = 'Tobias Fischer'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.coverage',
     'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
-    'sphinx_autodoc_defaultargs',
+    #'sphinx_autodoc_defaultargs',
     'sphinx_copybutton',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
@@ -105,3 +110,27 @@ texinfo_documents = [
         'Miscellaneous',
     )
 ]
+
+
+# This is the expected signature of the handler for this event, cf doc
+def autodoc_skip_member_handler(app, what, name, obj, skip, options):
+    # exclude unit tests from api doc
+    return name.endswith("_test") or "unittest" in name
+
+# Automatically called by sphinx at startup
+def setup(app):
+    # Connect the autodoc-skip-member event from apidoc to the callback
+    app.connect('autodoc-skip-member', autodoc_skip_member_handler)
+
+
+# auto doc options
+autosummary_generate = True
+autodoc_member_order = "groupwise"
+autoclass_content = "both"
+autodoc_default_options = {
+    "members": True,
+    "methods": True,
+    "special-members": "__call__",
+    "exclude-members": "_abc_impl",
+    "show-inheritance": True,
+}
