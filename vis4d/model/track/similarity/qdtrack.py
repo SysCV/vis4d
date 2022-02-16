@@ -325,6 +325,10 @@ class QDSimilarityHead(BaseSimilarityHead):
         number of batch elements.
         """
         losses = {}
+        if sum(len(e) for e in key_embeddings) == 0:  # pragma: no cover
+            losses["track_loss"] = sum([e.sum() for e in key_embeddings])
+            losses["track_loss_aux"] = losses["track_loss"]
+            return losses
 
         loss_track = torch.tensor(0.0, device=key_embeddings[0].device)
         loss_track_aux = torch.tensor(0.0, device=key_embeddings[0].device)

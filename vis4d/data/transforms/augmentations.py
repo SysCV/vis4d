@@ -748,7 +748,7 @@ class MixUp(BaseAugmentation):
         ori_img, other_img = sample.images[0], sample.images[1]
         ori_w, ori_h = ori_img.image_sizes[0]
 
-        is_flip = random.uniform(0, 1) > self.flip_ratio
+        is_flip = random.uniform(0, 1) <= self.flip_ratio
         other_ori_wh = other_img.image_sizes[0]
         w_i, h_i = get_resize_shape(other_ori_wh, (w, h), keep_ratio=True)
         jit_factor = random.uniform(*self.ratio_range)
@@ -815,7 +815,7 @@ class MixUp(BaseAugmentation):
         if len(other_boxes) > 0:
             if parameters["is_flip"]:
                 w = parameters["other_ori_wh"][0]
-                other_boxes.boxes[:, [0, 2]] = w - other_boxes.boxes[:, [0, 2]]
+                other_boxes.boxes[:, [2, 0]] = w - other_boxes.boxes[:, [0, 2]]
 
             other_boxes.boxes[:, [0, 2]] = (
                 im_scale[0] * other_boxes.boxes[:, [0, 2]] - x1_c
