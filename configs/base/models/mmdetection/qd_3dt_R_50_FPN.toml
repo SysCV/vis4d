@@ -20,8 +20,7 @@ type = "QD3DT"
         loss_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
 
         [model.bbox_3d_head.proposal_pooler]
-        type = "MultiScaleRoIPooler"
-        pooling_op = "RoIAlign"
+        type = "MultiScaleRoIAlign"
         resolution = [7, 7]
         strides = [4, 8, 16, 32]
         sampling_ratio = 0
@@ -83,8 +82,7 @@ type = "QD3DT"
         hard_mining = true
 
         [model.similarity.proposal_pooler]
-        type = "MultiScaleRoIPooler"
-        pooling_op = "RoIAlign"
+        type = "MultiScaleRoIAlign"
         resolution = [7, 7]
         strides = [4, 8, 16, 32]
         sampling_ratio = 0

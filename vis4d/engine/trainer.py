@@ -18,9 +18,10 @@ from vis4d.data.samplers import build_data_sampler
 
 from ..common.registry import build_component
 from ..config import Config, default_argument_parser, parse_config
-from ..data.build import Vis4DDataModule
 from ..data.dataset import ScalabelDataset
-from ..data.datasets import BaseDatasetLoader, Custom
+from ..data.datasets import BaseDatasetLoader
+from ..data.handler import Vis4DDatasetHandler
+from ..data.module import Vis4DDataModule
 from ..model import BaseModel, build_model
 from ..struct import DictStrAny, ModuleCfg
 from ..vis import ScalabelWriterCallback
@@ -170,12 +171,18 @@ def setup_category_mapping(
 
 
 def build_datasets(
-    dset_cfgs: List[ModuleCfg], image_channel_mode: str, training: bool = True
-) -> List[ScalabelDataset]:
+    dataset_cfgs: List[ModuleCfg],
+    image_channel_mode: str,
+    training: bool = True,
+    handler_cfg: Optional[ModuleCfg] = None,
+) -> Tuple[List[Vis4DDatasetHandler], List[ScalabelDataset]]:
     """Build datasets based on configs."""
     datasets: List[ScalabelDataset] = []
-    for dl_cfg in dset_cfgs:
+    _handler_cfgs = []
+
+    for dl_cfg in dataset_cfgs:
         mapper_cfg = dl_cfg.pop("sample_mapper", {})
+        ref_cfg = dl_cfg.pop("ref_sampler", {})
         if (
             "image_channel_mode" in mapper_cfg
             and mapper_cfg["image_channel_mode"] != image_channel_mode
@@ -187,7 +194,17 @@ def build_datasets(
             )
         mapper_cfg["image_channel_mode"] = image_channel_mode
 
-        ref_cfg = dl_cfg.pop("ref_sampler", {})
+        # TODO Temporary fix to keep configs compatible, will be removed once static configurations are replaced # pylint: disable=line-too-long,fixme
+        _handler_cfg = {}
+        _handler_cfg["clip_bboxes_to_image"] = mapper_cfg.pop(
+            "clip_bboxes_to_image", True
+        )
+        _handler_cfg["min_bboxes_area"] = mapper_cfg.pop(
+            "min_bboxes_area", 7.0 * 7.0
+        )
+        _handler_cfg["transformations"] = mapper_cfg.pop("transformations", [])
+        _handler_cfgs.append(_handler_cfg)
+
         datasets.append(
             ScalabelDataset(
                 build_component(dl_cfg, bound=BaseDatasetLoader),
@@ -196,7 +213,21 @@ def build_datasets(
                 ref_cfg,
             )
         )
-    return datasets
+    if handler_cfg is None:
+        result = []
+        for ds, _handler_cfg in zip(datasets, _handler_cfgs):
+            _handler_cfg["datasets"] = [ds]
+            if "type" not in _handler_cfg:
+                _handler_cfg["type"] = "Vis4DDatasetHandler"
+            result.append(
+                build_component(_handler_cfg, bound=Vis4DDatasetHandler)
+            )
+    else:
+        handler_cfg["datasets"] = datasets
+        if "type" not in handler_cfg:
+            handler_cfg["type"] = "Vis4DDatasetHandler"
+        result = [build_component(handler_cfg, bound=Vis4DDatasetHandler)]
+    return result, datasets
 
 
 def build_callbacks(
@@ -244,39 +275,58 @@ def setup_experiment(
         if "image_channel_mode" in cfg.model
         else "RGB"
     )
-    train_datasets = build_datasets(cfg.train, cmode) if is_train else None
-    test_datasets, predict_datasets = None, None
+    train_handlers, _ = (
+        build_datasets(cfg.train, cmode, True, cfg.train_handler)
+        if is_train
+        else (None, None)
+    )
+    if train_handlers is not None:
+        if len(train_handlers) > 1:
+            train_handler = Vis4DDatasetHandler(train_handlers, False, 0.0)
+        else:
+            train_handler = train_handlers[0]
+    else:
+        train_handler = None
+
+    test_handlers, test_datasets, = (
+        None,
+        None,
+    )
+    predict_handlers, predict_datasets = None, None
     train_sampler: Optional[data.Sampler[List[int]]] = None
     if cfg.launch.action == "train":
         if cfg.data is not None and "train_sampler" in cfg.data:
             # build custom train sampler
             train_sampler = build_data_sampler(
                 cfg.data["train_sampler"],
-                data.ConcatDataset(train_datasets),
+                train_handler,
                 cfg.launch.samples_per_gpu,
             )
+
     if cfg.launch.action == "predict":
         if cfg.launch.input_dir:
             input_dir = cfg.launch.input_dir
             if input_dir[-1] == "/":
                 input_dir = input_dir[:-1]
             dataset_name = osp.basename(input_dir)
-            predict_loaders = [Custom(name=dataset_name, data_root=input_dir)]
-            predict_datasets = [
-                ScalabelDataset(dl, False) for dl in predict_loaders
+            predict_loaders = [
+                dict(type="Custom", name=dataset_name, data_root=input_dir)
             ]
         else:
-            predict_datasets = build_datasets(cfg.test, cmode, False)
+            predict_loaders = cfg.test
+        predict_handlers, predict_datasets = build_datasets(
+            predict_loaders, cmode, False
+        )
     else:
-        test_datasets = build_datasets(cfg.test, cmode, False)
+        test_handlers, test_datasets = build_datasets(cfg.test, cmode, False)
 
     # build data module
     data_module = Vis4DDataModule(
         cfg.launch.samples_per_gpu,
         cfg.launch.workers_per_gpu,
-        train_datasets=train_datasets,
-        test_datasets=test_datasets,
-        predict_datasets=predict_datasets,
+        train_datasets=train_handler,
+        test_datasets=test_handlers,
+        predict_datasets=predict_handlers,
         seed=cfg.launch.seed,
         train_sampler=train_sampler,
     )

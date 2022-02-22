@@ -18,7 +18,7 @@ class SamplingResult(NamedTuple):
     sampled_labels: List[Tensor] of {0, -1, 1} = {neg, ignore, pos}.
     sampled_indices: List[Tensor] Index of input Boxes2D.
     sampled_label_indices: List[Tensor] Index of assigned target for each
-        sampled box.
+    sampled box.
     """
 
     sampled_boxes: List[Boxes2D]
