@@ -109,7 +109,9 @@ class TestBoxes3D(unittest.TestCase):
         # test transform
         # pylint: disable=no-member
         dets_tr = detections.clone()
-        dets_tr.transform(Extrinsics(torch.eye(4).unsqueeze(0)))
+        dets_tr.transform(
+            Extrinsics(torch.eye(4).unsqueeze(0)), in_image_frame=True
+        )
         self.assertTrue(
             torch.isclose(dets_tr.boxes, detections.boxes, atol=1e-4).all()
         )
@@ -175,7 +177,7 @@ class TestBoxes3D(unittest.TestCase):
             ).all()
         )
 
-        box3d.transform(extrinsics.inverse())
+        box3d.transform(extrinsics.inverse(), in_image_frame=True)
         self.assertTrue(
             torch.isclose(box3d.boxes, box3d_orig.boxes, atol=1e-2).all()
         )

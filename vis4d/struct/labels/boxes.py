@@ -443,7 +443,9 @@ class Boxes3D(Boxes):
 
         return labels
 
-    def transform(self, extrinsics: Extrinsics) -> None:
+    def transform(
+        self, extrinsics: Extrinsics, in_image_frame: bool = False
+    ) -> None:
         """Transform Boxes3D with given Extrinsics.
 
         Note: Mutates current Boxes3D.
@@ -458,6 +460,12 @@ class Boxes3D(Boxes):
         ).unsqueeze(-1)
         self.boxes[:, :3] = (extrinsics.tensor @ center)[:, :3, 0]
         rot = extrinsics.rotation @ euler_angles_to_matrix(self.orientation)
-        # we use XZY convention here, since Z usually points up, but we assume
-        # OpenCV cam coordinates (Y points down).
-        self.boxes[:, 6:9] = matrix_to_euler_angles(rot, "XZY")[:, [0, 2, 1]]
+
+        if in_image_frame:
+            # we use XZY convention here, since Z usually points up, but we
+            # assume OpenCV cam coordinates (Y points down).
+            self.boxes[:, 6:9] = matrix_to_euler_angles(rot, "XZY")[
+                :, [0, 2, 1]
+            ]
+        else:
+            self.boxes[:, 6:9] = matrix_to_euler_angles(rot)

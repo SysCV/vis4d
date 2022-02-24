@@ -47,6 +47,10 @@ class Vis4DDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type
         self.min_bboxes_area = min_bboxes_area
         self.sample_sort = sample_sort
         self.transformations = []
+        # TODO Temporary fix to separate augmentation btw group and frames, will be removed once split the dataset into single vs multi sensor # pylint: disable=line-too-long,fixme
+        self.use_group = (
+            len(datasets) == 1 and datasets[0].dataset.groups is not None
+        )
         if transformations is not None:
             for transform in transformations:
                 if isinstance(transform, dict):
@@ -121,7 +125,8 @@ class Vis4DDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type
                     sample = InputSample.cat(
                         [sample, *[s[samp_i] for s in addsamples]]
                     )
-                if params is None:
+                # TODO Temporary fix to separate augmentation btw group and frames, will be removed once split the dataset into single vs multi sensor # pylint: disable=line-too-long,fixme
+                if params is None and not (self.use_group and samp_i == 0):
                     params = aug.generate_parameters(sample)
                 samples[samp_i], _ = aug(sample, params)
 
