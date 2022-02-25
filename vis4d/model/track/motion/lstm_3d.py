@@ -3,42 +3,38 @@ import numpy as np
 import torch
 from torch import nn
 
-from .base import BaseMotionModel, MotionModelConfig
-
-
-class LSTM3DMotionModelConfig(MotionModelConfig):
-    """VeloLSTM 3D motion model config."""
-
-    init_flag: bool = True
+from .base import BaseMotionModel
+from vis4d.struct import ArgsType
 
 
 class LSTM3DMotionModel(BaseMotionModel):
     """LSTM 3D motion model."""
 
-    def __init__(self, cfg: MotionModelConfig, detections_3d: torch.Tensor):
-        """Initialize a motion model tracker using initial bounding box.
-
-        Args:
-            cfg: motion tracker config.
-            detections_3d: x, y, z, h, w, l, ry, depth confidence
-        """
-        self.cfg = LSTM3DMotionModelConfig(**cfg.dict())
+    def __init__(
+        self,
+        lstm: nn.Module,
+        detections_3d: torch.Tensor,
+        init_flag: bool = True,
+        *args: ArgsType,
+        **kwargs: ArgsType,
+    ):
+        """Initialize a motion model using initial bounding box."""
+        super().__init__(*args, **kwargs)
+        self.init_flag = init_flag
 
         self.device = detections_3d.device
-        self.lstm = self.cfg.lstm.to(self.device)
+        self.lstm = lstm.to(self.device)
         self.lstm.eval()
 
         self.pi = torch.tensor(np.pi).to(self.device)
 
-        bbox_3d = detections_3d[: self.cfg.motion_dims]
-        info = detections_3d[self.cfg.motion_dims :]
+        bbox_3d = detections_3d[: self.motion_dims]
+        info = detections_3d[self.motion_dims :]
 
         self.obj_state = torch.cat([bbox_3d, bbox_3d.new_zeros(3)])
-        self.history = bbox_3d.new_zeros(
-            self.cfg.num_frames, self.cfg.motion_dims
-        )
+        self.history = bbox_3d.new_zeros(self.num_frames, self.motion_dims)
         self.ref_history = torch.cat(
-            [bbox_3d.view(1, self.cfg.motion_dims)] * (self.cfg.num_frames + 1)
+            [bbox_3d.view(1, self.motion_dims)] * (self.num_frames + 1)
         )
         self.avg_angle = bbox_3d[6]
         self.avg_dim = bbox_3d[3:6]
@@ -60,10 +56,8 @@ class LSTM3DMotionModel(BaseMotionModel):
         )
         # align orientation history
         self.history[:, 3] = self.history[-1, 3]
-        self.prev_ref[: self.cfg.motion_dims] = self.obj_state[
-            : self.cfg.motion_dims
-        ]
-        if self.cfg.motion_dims > 3:
+        self.prev_ref[: self.motion_dims] = self.obj_state[: self.motion_dims]
+        if self.motion_dims > 3:
             self.avg_angle = self.fix_angle(self.ref_history[:, 3]).mean(
                 axis=0
             )
@@ -78,15 +72,13 @@ class LSTM3DMotionModel(BaseMotionModel):
         self.history = torch.cat(
             [
                 (self.ref_history[-1] - self.ref_history[-2]).view(
-                    1, self.cfg.motion_dims
+                    1, self.motion_dims
                 )
             ]
-            * self.cfg.num_frames
+            * self.num_frames
         )
-        self.prev_ref[: self.cfg.motion_dims] = self.obj_state[
-            : self.cfg.motion_dims
-        ]
-        if self.cfg.motion_dims > 3:
+        self.prev_ref[: self.motion_dims] = self.obj_state[: self.motion_dims]
+        if self.motion_dims > 3:
             self.avg_angle = self.fix_angle(self.ref_history[:, 3]).mean(
                 axis=0
             )
@@ -97,17 +89,17 @@ class LSTM3DMotionModel(BaseMotionModel):
 
     def update(self, obs_3d: torch.Tensor):
         """Updates the state vector with observed bbox."""
-        bbox_3d = obs_3d[: self.cfg.motion_dims]
-        info = obs_3d[self.cfg.motion_dims :]
+        bbox_3d = obs_3d[: self.motion_dims]
+        info = obs_3d[self.motion_dims :]
 
-        self.cfg.time_since_update = 0
-        self.cfg.hits += 1
-        self.cfg.hit_streak += 1
+        self.time_since_update = 0
+        self.hits += 1
+        self.hit_streak += 1
 
-        if self.cfg.age == 1:
-            self.obj_state[: self.cfg.motion_dims] = bbox_3d.clone()
+        if self.age == 1:
+            self.obj_state[: self.motion_dims] = bbox_3d.clone()
 
-        if self.cfg.motion_dims > 3:
+        if self.motion_dims > 3:
             # orientation correction
             self.obj_state[6] = self.fix_angle(self.obj_state[6])
             bbox_3d[6] = self.fix_angle(bbox_3d[6])
@@ -136,20 +128,18 @@ class LSTM3DMotionModel(BaseMotionModel):
 
         with torch.no_grad():
             refined_loc, self.hidden_ref = self.lstm.refine(
-                self.obj_state[: self.cfg.motion_dims].view(
-                    1, self.cfg.motion_dims
-                ),
-                bbox_3d.view(1, self.cfg.motion_dims),
-                self.prev_ref.view(1, self.cfg.motion_dims),
+                self.obj_state[: self.motion_dims].view(1, self.motion_dims),
+                bbox_3d.view(1, self.motion_dims),
+                self.prev_ref.view(1, self.motion_dims),
                 info.view(1, 1),
                 self.hidden_ref,
             )
 
-        refined_obj = refined_loc.view(self.cfg.motion_dims)
-        if self.cfg.motion_dims > 3:
+        refined_obj = refined_loc.view(self.motion_dims)
+        if self.motion_dims > 3:
             refined_obj[6] = self.fix_angle(refined_obj[6])
 
-        self.obj_state[: self.cfg.motion_dims] = refined_obj
+        self.obj_state[: self.motion_dims] = refined_obj
         self.prev_obs = bbox_3d
 
         if (
@@ -162,9 +152,9 @@ class LSTM3DMotionModel(BaseMotionModel):
                     self.ref_history[r_indx][6] + self.pi
                 )
 
-        if self.cfg.init_flag:
+        if self.init_flag:
             self._init_history(refined_obj)
-            self.cfg.init_flag = False
+            self.init_flag = False
         else:
             self._update_history(refined_obj)
 
@@ -174,29 +164,27 @@ class LSTM3DMotionModel(BaseMotionModel):
         """Advances the state vector and returns the predicted bounding box."""
         with torch.no_grad():
             pred_loc, hidden_pred = self.lstm.predict(
-                self.history[..., : self.cfg.motion_dims].view(
-                    self.cfg.num_frames, -1, self.cfg.motion_dims
+                self.history[..., : self.motion_dims].view(
+                    self.num_frames, -1, self.motion_dims
                 ),
-                self.obj_state[: self.cfg.motion_dims],
+                self.obj_state[: self.motion_dims],
                 self.hidden_pred,
             )
 
         pred_state = self.obj_state.clone()
-        pred_state[: self.cfg.motion_dims] = pred_loc.view(
-            self.cfg.motion_dims
-        )
+        pred_state[: self.motion_dims] = pred_loc.view(self.motion_dims)
         pred_state[7:] = pred_state[:3] - self.prev_ref[:3]
-        if self.cfg.motion_dims > 3:
+        if self.motion_dims > 3:
             pred_state[6] = self.fix_angle(pred_state[6])
 
         if update_state:
             self.hidden_pred = hidden_pred
             self.obj_state = pred_state
 
-        self.cfg.age += 1
-        if self.cfg.time_since_update > 0:
-            self.cfg.hit_streak = 0
-        self.cfg.time_since_update += 1
+        self.age += 1
+        if self.time_since_update > 0:
+            self.hit_streak = 0
+        self.time_since_update += 1
 
         return pred_state
 

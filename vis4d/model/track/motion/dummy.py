@@ -1,47 +1,42 @@
 """Dummy 3D motion model."""
 import torch
 
-from .base import BaseMotionModel, MotionModelConfig
-
-
-class Dummy3DMotionModelConfig(MotionModelConfig):
-    """Dummy 3D motion model config."""
-
-    motion_momentum: float = 0.9
+from .base import BaseMotionModel
+from vis4d.struct import ArgsType
 
 
 class Dummy3DMotionModel(BaseMotionModel):
     """Dummy 3D motion model."""
 
-    def __init__(self, cfg, detections_3d):
-        """Initialize a motion model tracker using initial bounding box.
+    def __init__(
+        self,
+        detections_3d: torch.Tensor,
+        motion_momentum: float = 0.9,
+        *args: ArgsType,
+        **kwargs: ArgsType,
+    ):
+        """Initialize a motion model using initial bounding box."""
+        super().__init__(*args, **kwargs)
+        self.motion_momentum = motion_momentum
 
-        Args:
-            cfg: motion tracker config.
-            detections_3d: x, y, z, h, w, l, ry, depth confidence
-        """
-        self.cfg = Dummy3DMotionModelConfig(**cfg.dict())
-
-        bbox_3d = detections_3d[: self.cfg.motion_dims]
-        info = detections_3d[self.cfg.motion_dims :]
+        bbox_3d = detections_3d[: self.motion_dims]
+        info = detections_3d[self.motion_dims :]
 
         self.obj_state = torch.cat([bbox_3d, bbox_3d.new_zeros(3)])
-        self.history = bbox_3d.new_zeros(
-            self.cfg.num_frames, self.cfg.motion_dims
-        )
+        self.history = bbox_3d.new_zeros(self.num_frames, self.motion_dims)
         self.prev_ref = bbox_3d.clone()
         self.info = info
 
     def update(self, detections_3d):
         """Update the state vector with observed bbox."""
-        bbox_3d = detections_3d[: self.cfg.motion_dims]
-        info = detections_3d[self.cfg.motion_dims :]
+        bbox_3d = detections_3d[: self.motion_dims]
+        info = detections_3d[self.motion_dims :]
 
-        self.cfg.time_since_update = 0
-        self.cfg.hits += 1
-        self.cfg.hit_streak += 1
+        self.time_since_update = 0
+        self.hits += 1
+        self.hit_streak += 1
 
-        self.obj_state += self.cfg.motion_momentum * (
+        self.obj_state += self.motion_momentum * (
             torch.cat([bbox_3d, bbox_3d.new_zeros(3)]) - self.obj_state
         )
         self.prev_ref = bbox_3d
@@ -49,10 +44,10 @@ class Dummy3DMotionModel(BaseMotionModel):
 
     def predict(self, *args, **kwargs):
         """Advance the state vector and returns the predicted bounding box."""
-        self.cfg.age += 1
-        if self.cfg.time_since_update > 0:
-            self.cfg.hit_streak = 0
-        self.cfg.time_since_update += 1
+        self.age += 1
+        if self.time_since_update > 0:
+            self.hit_streak = 0
+        self.time_since_update += 1
 
         return self.obj_state
 

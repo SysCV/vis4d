@@ -2,24 +2,29 @@
 import abc
 
 import torch
-from pydantic import BaseModel, Field
-from vist.common.registry import RegistryHolder
+from vis4d.common.registry import RegistryHolder
 
 
-class MotionModelConfig(BaseModel, extra="allow"):
-    """Base config for motion tracker."""
+class BaseMotionModel(metaclass=RegistryHolder):
+    """Base class for motion model."""
 
-    type: str = Field(...)
-    num_frames: int
-    motion_dims: int
-    hits: int = 1
-    hit_streak: int = 0
-    time_since_update: int = 0
-    age: int = 0
-
-
-class BaseMotionModel(metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
-    """Base class for motion tracker."""
+    def __init__(
+        self,
+        num_frames: int,
+        motion_dims: int,
+        hits: int = 1,
+        hit_streak: int = 0,
+        time_since_update: int = 0,
+        age: int = 0,
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.num_frames = num_frames
+        self.motion_dims = motion_dims
+        self.hits = hits
+        self.hit_streak = hit_streak
+        self.time_since_update = time_since_update
+        self.age = age
 
     @staticmethod
     def update_array(
@@ -50,15 +55,3 @@ class BaseMotionModel(metaclass=RegistryHolder):  # type: ignore # pylint: disab
     def get_history(self, *args, **kwargs) -> torch.Tensor:  # type: ignore
         """Returns the history of estimation."""
         raise NotImplementedError
-
-
-def build_motion_model(
-    cfg: MotionModelConfig, detections: torch.Tensor
-) -> BaseMotionModel:
-    """Build a tracking graph optimize from config."""
-    registry = RegistryHolder.get_registry(BaseMotionModel)
-    if cfg.type in registry:
-        module = registry[cfg.type](cfg, detections)
-        assert isinstance(module, BaseMotionModel)
-        return module
-    raise NotImplementedError(f"Motion model {cfg.type} not found.")

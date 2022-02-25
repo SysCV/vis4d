@@ -4,8 +4,6 @@ from typing import Tuple
 import torch
 from torch import nn
 
-from vis4d.model.track.graph.base import TrackGraphConfig
-
 
 def init_module(layer: nn.Module) -> None:
     """Initialize modules weights and biases."""
@@ -234,31 +232,3 @@ class VeloLSTM(nn.Module):
         output_pred = torch.sum(attention * vel_history, dim=0) + location
 
         return output_pred, (h_n, c_n)
-
-
-LSTM_MODEL_ZOO = {
-    "VeloLSTM": VeloLSTM,
-}
-
-
-def build_lstm_model(cfg: TrackGraphConfig) -> nn.Module:
-    """Build LSTM model."""
-    lstm_model = LSTM_MODEL_ZOO.get(cfg.lstm_name)(
-        1,
-        cfg.feature_dim,
-        cfg.hidden_size,
-        cfg.num_layers,
-        cfg.motion_dims,
-    )
-    if cfg.lstm_ckpt_name is not None:
-        ckpt = torch.load(cfg.lstm_ckpt_name, map_location="cpu")
-        try:
-            lstm_model.load_state_dict(ckpt["state_dict"])
-        except (RuntimeError, KeyError) as ke:
-            print(f"Cannot load full model: {ke}")
-            state = lstm_model.state_dict()
-            state.update(ckpt["state_dict"])
-            lstm_model.load_state_dict(state)
-        del ckpt
-    lstm_model.eval()
-    return lstm_model
