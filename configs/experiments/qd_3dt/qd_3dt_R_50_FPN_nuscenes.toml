@@ -9,6 +9,7 @@ category_mapping = {"bicycle" = 0, "motorcycle" = 1, "pedestrian" = 2, "bus" = 3
     [model.optimizer]
     type = "SGD"
     lr = 0.01
+    paramwise_options = {"bboxfc_lr_mult" = 10.0}
     kwargs = {"momentum" = 0.9, "weight_decay" = 0.0001}
 
     [model.lr_scheduler]

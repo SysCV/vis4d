@@ -48,9 +48,13 @@ class Vis4DDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type
         self.sample_sort = sample_sort
         self.transformations = []
         # TODO Temporary fix to separate augmentation btw group and frames, will be removed once split the dataset into single vs multi sensor # pylint: disable=line-too-long,fixme
-        self.use_group = (
-            len(datasets) == 1 and datasets[0].dataset.groups is not None
-        )
+        if len(datasets) == 1:
+            self.use_group = (
+                not datasets[0].mapper.training
+                and datasets[0].dataset.groups is not None
+            )
+        else:
+            self.use_group = False
         if transformations is not None:
             for transform in transformations:
                 if isinstance(transform, dict):

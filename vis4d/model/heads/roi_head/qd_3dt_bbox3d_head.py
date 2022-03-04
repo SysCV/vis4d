@@ -410,7 +410,7 @@ class QD3DTBBox3DHead(Det3DRoIHead):
         )
         positives = [l == 1 for l in sampling_results.sampled_labels]
         pos_assigned_gt_inds = [
-            i[p]
+            i[p] if len(p) != 0 else p
             for i, p in zip(sampling_results.sampled_target_indices, positives)
         ]
         pos_boxes = [

@@ -81,7 +81,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
     def set_training(self, is_train: bool) -> None:
         """Set training attribute."""
         self.training = is_train
-        if self.skip_empty_samples and self.training:
+        if self.skip_empty_samples and not self.training:
             rank_zero_warn(  # pragma: no cover
                 "'skip_empty_samples' activated in test mode. This option is "
                 "only available in training."
