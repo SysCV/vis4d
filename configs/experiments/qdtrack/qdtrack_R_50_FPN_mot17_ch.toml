@@ -4,9 +4,6 @@ path = "../../base/datasets/crowdhuman_mot17.toml"
 [[config]]
 path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"
 
-
-
-
 [model]
 category_mapping = {"pedestrian" = 0}
 image_channel_mode = "BGR"

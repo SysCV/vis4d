@@ -51,8 +51,12 @@ def transform_bbox(
     x2y2 = transform_points(x2y2, trans_mat)
     x1y2 = transform_points(x1y2, trans_mat)
 
-    x_all = torch.stack((x1y1[..., 0], x2y2[..., 0], x2y1[..., 0], x1y2[..., 0]), -1)
-    y_all = torch.stack((x1y1[..., 1], x2y2[..., 1], x2y1[..., 1], x1y2[..., 1]), -1)
+    x_all = torch.stack(
+        (x1y1[..., 0], x2y2[..., 0], x2y1[..., 0], x1y2[..., 0]), -1
+    )
+    y_all = torch.stack(
+        (x1y1[..., 1], x2y2[..., 1], x2y1[..., 1], x1y2[..., 1]), -1
+    )
     transformed_boxes = torch.stack(
         (
             x_all.min(dim=-1)[0],

@@ -1,7 +1,6 @@
 [[config]]
 path = "../../base/datasets/bdd100k_track_det.toml"
 
-
 [[config]]
 path = "../../base/models/mmdetection/qdtrack_R_50_FPN.toml"
 
