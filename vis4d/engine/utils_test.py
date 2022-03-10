@@ -3,7 +3,7 @@ import logging
 import unittest
 from argparse import Namespace
 
-from .utils import setup_logger, split_args
+from .utils import setup_logger
 
 logger = logging.getLogger("pytorch_lightning")
 

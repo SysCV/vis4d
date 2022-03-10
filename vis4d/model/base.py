@@ -48,7 +48,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         category_mapping: Optional[Dict[str, int]] = None,
         image_channel_mode: str = "RGB",
         optimizer: ModuleCfg = {},
-        lr_scheduler: ModuleCfg = {},
+        lr_scheduler: ModuleCfg = {},  # TODO align with lightningCLI
         freeze: bool = False,
         freeze_parameters: Optional[List[str]] = None,
         inference_result_path: Optional[str] = None,
@@ -294,25 +294,25 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         )
 
 
-def build_model(
-    cfg: ModuleCfg,
-    ckpt: Optional[str] = None,
-    strict: bool = True,
-    legacy_ckpt: bool = False,
-) -> BaseModel:
-    """Build Vis4D model and optionally load weights from ckpt."""
-    registry = RegistryHolder.get_registry(BaseModel)
-    cfg = copy.deepcopy(cfg)
-    model_type = cfg.pop("type", None)
-    if model_type is None:
-        raise ValueError(f"Need type argument in module config: {cfg}")
-    if model_type in registry:
-        if ckpt is None:
-            module = registry[model_type](**cfg)
-        else:
-            module = registry[model_type].load_from_checkpoint(  # type: ignore # pragma: no cover # pylint: disable=line-too-long
-                ckpt, strict=strict, **cfg, legacy_ckpt=legacy_ckpt
-            )
-        assert isinstance(module, BaseModel)
-        return module
-    raise NotImplementedError(f"Model {model_type} not found.")
+# def build_model(  # TODO remove
+#     cfg: ModuleCfg,
+#     ckpt: Optional[str] = None,
+#     strict: bool = True,
+#     legacy_ckpt: bool = False,
+# ) -> BaseModel:
+#     """Build Vis4D model and optionally load weights from ckpt."""
+#     registry = RegistryHolder.get_registry(BaseModel)
+#     cfg = copy.deepcopy(cfg)
+#     model_type = cfg.pop("type", None)
+#     if model_type is None:
+#         raise ValueError(f"Need type argument in module config: {cfg}")
+#     if model_type in registry:
+#         if ckpt is None:
+#             module = registry[model_type](**cfg)
+#         else:
+#             module = registry[model_type].load_from_checkpoint(  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+#                 ckpt, strict=strict, **cfg, legacy_ckpt=legacy_ckpt
+#             )
+#         assert isinstance(module, BaseModel)
+#         return module
+#     raise NotImplementedError(f"Model {model_type} not found.")

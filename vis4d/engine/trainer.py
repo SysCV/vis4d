@@ -1,157 +1,266 @@
-"""DefaultTrainer for Vis4D."""
+"""Vis4D Trainer."""
+import itertools
 import os.path as osp
+from argparse import Namespace
+from datetime import datetime
 from itertools import product
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 
 import pandas
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
+from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
     rank_zero_warn,
 )
 from torch.utils import data
-
-from vis4d.data.samplers import build_data_sampler
+from torch.utils.collect_env import get_pretty_env_info
 
 from ..common.registry import build_component
 from ..config import Config, default_argument_parser, parse_config
 from ..data.dataset import ScalabelDataset
 from ..data.datasets import BaseDatasetLoader
-from ..data.handler import Vis4DDatasetHandler
-from ..data.module import Vis4DDataModule
-from ..model import BaseModel, build_model
+from ..data.handler import BaseDatasetHandler
+from ..data.module import BaseDataModule
+from ..data.samplers import (
+    BaseDistributedSampler,
+    BaseSampler,
+    build_data_sampler,
+)
+from ..model import BaseModel
 from ..struct import DictStrAny, ModuleCfg
 from ..vis import ScalabelWriterCallback
 from .evaluator import StandardEvaluatorCallback
-from .utils import (
-    Vis4DProgressBar,
-    Vis4DTQDMProgressBar,
-    setup_logging,
-    split_args,
-)
+from .utils import Vis4DProgressBar, Vis4DTQDMProgressBar, setup_logger
 
 
-def default_setup(
-    cfg: Config,
-    trainer_args: Optional[DictStrAny] = None,
-    training: bool = True,
-) -> pl.Trainer:
-    """Perform some basic common setups at the beginning of a job.
+class DefaultTrainer(pl.Trainer):
+    """DefaultTrainer in Vis4D.
 
-    1. Set all seeds
-    2. Setup callback: tensorboard logger, LRMonitor, GPUMonitor, Checkpoint
-    3. Init pytorch lightning Trainer
-    4. Set up cmd line logger
-    5. Log basic information about environment, trainer arguments, and config
-    6. Backup the args / config to the output directory
+    Attributes:
+        work_dir: Specific directory to save checkpoints, logs, etc. Integrates
+        with exp_name and version to work_dir/exp_name/version.
+        Default: ./vis4d-workspace/
+        exp_name: Name of current experiment. Default: <name of model>
+        version: Version of current experiment. Default: <timestamp>
+        input_dir: Input directory in case you want to run inference on a folder
+        with input data (e.g. images that can be temporally sorted by name).
+        find_unused_parameters: Activates PyTorch checking for unused parameters
+        in DDP setting. Deactivated by default for better performance.
+        visualize: If you're running in predict mode, this option lets you
+        visualize the model predictions in the output_dir.
+        seed: Set random seed for numpy, torch, python. Default: None,
+        i.e. no specific random seed is chosen.
+        weights: Filepath for weights to load in test / predict. Default: "best",
+        will load the best checkpoint in work_dir/exp_name/version.
+        checkpoint_period: After N epochs, save out checkpoints. Default: 1
+        resume: Whether to resume from weights (if specified), or last ckpt in
+        work_dir/exp_name/version.
+        wandb: Use weights and biases logging instead of tensorboard (default).
+        not_strict: Whether to enforce keys in weights to be consistent with
+        model's.
+        tqdm: Activate tqdm based terminal logging behavior.
+        legacy_ckpt: If model to load is a legacy checkpoint.
     """
-    # set seeds
-    pl.seed_everything(cfg.launch.seed, workers=True)
 
-    # prepare trainer args
-    if trainer_args is None:
-        trainer_args = {}  # pragma: no cover
-    if "trainer" in cfg.dict().keys():
-        trainer_args.update(cfg.dict()["trainer"])
+    def __init__(
+        self,
+        *args,  # TODO check for overlap with existing args
+        wandb: bool = False,
+        tqdm: bool = False,
+        work_dir: str = "vis4d-workspace",
+        exp_name: str = "unnamed",
+        version: str = (
+            str(datetime.now())
+            .split(".", maxsplit=1)[0]
+            .replace(" ", "_")
+            .replace(":", "-")
+        ),
+        input_dir: Optional[str] = None,
+        find_unused_parameters: bool = False,
+        visualize: bool = False,
+        weights: Optional[str] = None,
+        checkpoint_period: int = 1,
+        resume: bool = False,
+        not_strict: bool = False,
+        legacy_ckpt: bool = False,
+        tuner_params: Optional[DictStrAny] = None,
+        tuner_metrics: Optional[List[str]] = None,
+        **kwargs,
+    ):  # TODO handle all params
+        """Perform some basic common setups at the beginning of a job.
 
-    # setup experiment logging
-    if "logger" not in trainer_args or (
-        isinstance(trainer_args["logger"], bool) and trainer_args["logger"]
-    ):
-        if cfg.launch.wandb:  # pragma: no cover
-            exp_logger = pl.loggers.WandbLogger(
-                save_dir=cfg.launch.work_dir,
-                project=cfg.launch.exp_name,
-                name=cfg.launch.version,
-            )
+        2. Setup callbacks: logger, LRMonitor, GPUMonitor, Checkpoint
+        3. Init pytorch lightning Trainer
+        4. Set up cmd line logger
+        5. Log information about environment, trainer arguments, etc
+        6. Backup the args / config to the output directory
+        """
+        if input_dir is not None:
+            if not os.path.exists(input_dir):
+                raise FileNotFoundError(
+                    f"Input directory does not exist: {input_dir}"
+                )
+
+        # print env, super init
+        rank_zero_info("Environment info: %s", get_pretty_env_info())
+
+        self.tuner_params = tuner_params
+        self.tuner_metrics = tuner_metrics
+
+        # setup experiment logging
+        if "logger" not in kwargs or (
+            isinstance(kwargs["logger"], bool) and kwargs["logger"]
+        ):
+            if wandb:  # pragma: no cover
+                exp_logger = pl.loggers.WandbLogger(
+                    save_dir=work_dir,
+                    project=exp_name,
+                    name=version,
+                )
+            else:
+                exp_logger = pl.loggers.TensorBoardLogger(  # type: ignore
+                    save_dir=work_dir,
+                    name=exp_name,
+                    version=version,
+                    default_hp_metric=False,
+                    log_graph=True,
+                )
+            kwargs["logger"] = exp_logger
+
+        callbacks = []
+
+        # add learning rate / GPU stats monitor (logs to tensorboard)
+        callbacks += [
+            pl.callbacks.LearningRateMonitor(logging_interval="step")
+        ]
+
+        # add progress bar (train progress separate from validation)
+        if tqdm:
+            progress_bar = Vis4DTQDMProgressBar()
         else:
-            exp_logger = pl.loggers.TensorBoardLogger(  # type: ignore
-                save_dir=cfg.launch.work_dir,
-                name=cfg.launch.exp_name,
-                version=cfg.launch.version,
-                default_hp_metric=False,
+            progress_bar = Vis4DProgressBar()
+        callbacks += [progress_bar]
+
+        # add Model checkpointer
+        self.output_dir = osp.join(work_dir, exp_name, version)
+        callbacks += [
+            pl.callbacks.ModelCheckpoint(
+                dirpath=osp.join(self.output_dir, "checkpoints"),
+                verbose=True,
+                save_last=True,
+                every_n_epochs=checkpoint_period,
+                save_on_train_epoch_end=True,
             )
-        trainer_args["logger"] = exp_logger
+        ]
 
-    # add learning rate / GPU stats monitor (logs to tensorboard)
-    lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval="step")
+        # resume from checkpoint if specified
+        if resume and weights:  # pragma: no cover
+            if osp.exists(osp.join(self.output_dir, "checkpoints/last.ckpt")):
+                weights = osp.join(self.output_dir, "checkpoints/last.ckpt")
+            else:
+                raise ValueError(
+                    "resume set to True but there is no checkpoint to "
+                    "resume! Please specify a checkpoint via weights "
+                    "or configure a directory that contains a checkpoint at "
+                    "work_dir/exp_name/version/checkpoints/last.ckpt."
+                )
+        # trainer_args["ckpt_path"] = weights TODO move to cli
 
-    # add progress bar (train progress separate from validation)
-    if cfg.launch.tqdm:
-        progress_bar = Vis4DTQDMProgressBar()
-    else:
-        progress_bar = Vis4DProgressBar()
+        # add distributed plugin
+        if "gpus" in kwargs:  # pragma: no cover
+            gpu_ids = parse_gpu_ids(kwargs["gpus"])
+            num_gpus = len(gpu_ids) if gpu_ids is not None else 0
+            if num_gpus > 1:
+                if (
+                    kwargs["accelerator"] == "ddp"
+                    or kwargs["accelerator"] is None
+                ):
+                    ddp_plugin = DDPPlugin(
+                        find_unused_parameters=find_unused_parameters
+                    )
+                    kwargs["plugins"] = [ddp_plugin]
+                elif kwargs["accelerator"] == "ddp_spawn":
+                    ddp_plugin = DDPSpawnPlugin(
+                        find_unused_parameters=find_unused_parameters
+                    )  # type: ignore
+                    kwargs["plugins"] = [ddp_plugin]
+                elif kwargs["accelerator"] == "ddp2":
+                    ddp_plugin = DDP2Plugin(
+                        find_unused_parameters=find_unused_parameters
+                    )
+                    kwargs["plugins"] = [ddp_plugin]
+                if (
+                    cfg.data is not None
+                    and "train_sampler" in cfg.data
+                    and cfg.data["train_sampler"] is not None
+                    and training
+                ):
+                    # using custom sampler
+                    kwargs["replace_sampler_ddp"] = False
 
-    # add Model checkpointer
-    output_dir = osp.join(
-        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
-    )
-    checkpoint = pl.callbacks.ModelCheckpoint(
-        dirpath=osp.join(output_dir, "checkpoints"),
-        verbose=True,
-        save_last=True,
-        every_n_epochs=cfg.launch.checkpoint_period,
-        save_on_train_epoch_end=True,
-    )
-
-    # resume from checkpoint if specified
-    if cfg.launch.resume:  # pragma: no cover
-        if cfg.launch.weights is not None:
-            resume_path = cfg.launch.weights
-        elif osp.exists(osp.join(output_dir, "checkpoints/last.ckpt")):
-            resume_path = osp.join(output_dir, "checkpoints/last.ckpt")
+        if "callbacks" not in kwargs or kwargs["callbacks"] is None:
+            kwargs["callbacks"] = callbacks
+        elif isinstance(kwargs["callbacks"], pl.callbacks.Callback):
+            kwargs["callbacks"] = [kwargs["callbacks"], *callbacks]
         else:
+            kwargs["callbacks"] += callbacks
+
+        # setup cmd line logging, print and save info about trainer
+        setup_logger(osp.join(self.output_dir, "log.txt"))
+        super().__init__(*args, **kwargs)
+
+    @property
+    def log_dir(self) -> Optional[str]:
+        dirpath = self.accelerator.broadcast(self.output_dir)
+        return dirpath
+
+    def tune(self) -> None:
+        """Tune function."""
+        rank_zero_info("Starting hyperparameter search...")
+        if self.tuner_params is None:
             raise ValueError(
-                "cfg.launch.resume set to True but there is no checkpoint to "
-                "resume! Please specify a checkpoint via cfg.launch.weights "
-                "or configure a directory that contains a checkpoint at "
-                "work_dir/exp_name/version/checkpoints/last.ckpt."
+                "Tuner parameters not defined! Please specify "
+                "tuner_params in Trainer arguments."
             )
+        if self.tuner_metrics is None:
+            raise ValueError(
+                "Tuner metrics not defined! Please specify "
+                "tuner_metrics in Trainer arguments."
+            )
+        search_params = self.tuner_params
+        search_metrics = self.tuner_metrics
+        param_names = list(search_params.keys())
+        param_groups = list(product(*search_params.values()))
+        metrics_all = {}
+        for param_group in param_groups:
+            for key, value in zip(param_names, param_group):
+                obj = model
+                for name in key.split(".")[:-1]:
+                    obj = getattr(obj, name, None)  # type: ignore
+                    if obj is None:
+                        raise ValueError(
+                            f"Attribute {name} not found in {key}!"
+                        )
+                setattr(obj, key.split(".")[-1], value)
 
-        trainer_args["resume_from_checkpoint"] = resume_path
-
-    # add distributed plugin
-    if "gpus" in trainer_args:  # pragma: no cover
-        gpu_ids = parse_gpu_ids(trainer_args["gpus"])
-        num_gpus = len(gpu_ids) if gpu_ids is not None else 0
-        if num_gpus > 1:
-            if (
-                trainer_args["accelerator"] == "ddp"
-                or trainer_args["accelerator"] is None
-            ):
-                ddp_plugin = DDPPlugin(
-                    find_unused_parameters=cfg.launch.find_unused_parameters
+            metrics = self.test(verbose=False)
+            if len(metrics) > 0:
+                rank_zero_warn(
+                    "More than one dataloader found, but tuning "
+                    "requires a single dataset to tune parameters on!"
                 )
-                trainer_args["plugins"] = [ddp_plugin]
-            elif trainer_args["accelerator"] == "ddp_spawn":
-                ddp_plugin = DDPSpawnPlugin(
-                    find_unused_parameters=cfg.launch.find_unused_parameters
-                )  # type: ignore
-                trainer_args["plugins"] = [ddp_plugin]
-            elif trainer_args["accelerator"] == "ddp2":
-                ddp_plugin = DDP2Plugin(
-                    find_unused_parameters=cfg.launch.find_unused_parameters
-                )
-                trainer_args["plugins"] = [ddp_plugin]
-            if (
-                cfg.data is not None
-                and "train_sampler" in cfg.data
-                and cfg.data["train_sampler"] is not None
-                and training
-            ):
-                # using custom sampler
-                trainer_args["replace_sampler_ddp"] = False
-
-    # create trainer
-    trainer_args["callbacks"] = [lr_monitor, progress_bar, checkpoint]
-    trainer = pl.Trainer(**trainer_args)
-
-    # setup cmd line logging, print and save info about trainer / cfg / env
-    setup_logging(output_dir, trainer_args, cfg)
-    return trainer
+            metrics_all[str(param_group)] = {
+                k: v for k, v in metrics[0].items() if k in search_metrics
+            }
+        rank_zero_info("Done!")
+        rank_zero_info("The following parameters have been considered:")
+        rank_zero_info("\n" + str(list(search_params.keys())))
+        rank_zero_info("Hyperparameter search result:")
+        rank_zero_info("\n" + str(pandas.DataFrame.from_dict(metrics_all)))
 
 
 def setup_category_mapping(
@@ -170,298 +279,41 @@ def setup_category_mapping(
             continue
 
 
-def build_datasets(
-    dataset_cfgs: List[ModuleCfg],
-    image_channel_mode: str,
-    training: bool = True,
-    handler_cfg: Optional[ModuleCfg] = None,
-) -> Tuple[List[Vis4DDatasetHandler], List[ScalabelDataset]]:
-    """Build datasets based on configs."""
-    datasets: List[ScalabelDataset] = []
-    _handler_cfgs = []
+class BaseCLI(LightningCLI):
+    """Default CLI for Vis4D"""
 
-    for dl_cfg in dataset_cfgs:
-        mapper_cfg = dl_cfg.pop("sample_mapper", {})
-        ref_cfg = dl_cfg.pop("ref_sampler", {})
-        if (
-            "image_channel_mode" in mapper_cfg
-            and mapper_cfg["image_channel_mode"] != image_channel_mode
-        ):  # pragma: no cover
-            rank_zero_warn(
-                f"'image_channel_mode'={mapper_cfg['image_channel_mode']} "
-                "specified in SampleMapper configuration, but model expects "
-                f"{image_channel_mode}. Switching to mode required by model."
-            )
-        mapper_cfg["image_channel_mode"] = image_channel_mode
-
-        # TODO Temporary fix to keep configs compatible, will be removed once static configurations are replaced # pylint: disable=line-too-long,fixme
-        _handler_cfg = {}
-        _handler_cfg["clip_bboxes_to_image"] = mapper_cfg.pop(
-            "clip_bboxes_to_image", True
+    def __init__(
+        self,
+        model_class: Optional[
+            Union[Type[BaseModel], Callable[..., BaseModel]]
+        ] = None,
+        datamodule_class: Optional[
+            Union[Type[BaseDataModule], Callable[..., BaseDataModule]]
+        ] = None,
+        save_config_callback: Optional[
+            Type[SaveConfigCallback]
+        ] = SaveConfigCallback,
+        trainer_class: Union[
+            Type[pl.Trainer], Callable[..., pl.Trainer]
+        ] = DefaultTrainer,
+        seed_everything_default: Optional[int] = None,
+        description: str = "Vis4D command line tool",
+        env_prefix: str = "V4D",
+        **kwargs: ArgsType,
+    ) -> None:
+        if seed_everything_default is not None:
+            rank_zero_info("Using random seed: %s", seed_everything_default)
+        super().__init__(
+            model_class=model_class,
+            datamodule_class=datamodule_class,
+            save_config_callback=save_config_callback,
+            trainer_class=trainer_class,
+            description=description,
+            env_prefix=env_prefix,
+            seed_everything_default=seed_everything_default,
+            **kwargs,
         )
-        _handler_cfg["min_bboxes_area"] = mapper_cfg.pop(
-            "min_bboxes_area", 7.0 * 7.0
-        )
-        _handler_cfg["transformations"] = mapper_cfg.pop("transformations", [])
-        _handler_cfgs.append(_handler_cfg)
 
-        datasets.append(
-            ScalabelDataset(
-                build_component(dl_cfg, bound=BaseDatasetLoader),
-                training,
-                mapper_cfg,
-                ref_cfg,
-            )
-        )
-    if handler_cfg is None:
-        result = []
-        for ds, _handler_cfg in zip(datasets, _handler_cfgs):
-            _handler_cfg["datasets"] = [ds]
-            if "type" not in _handler_cfg:
-                _handler_cfg["type"] = "Vis4DDatasetHandler"
-            result.append(
-                build_component(_handler_cfg, bound=Vis4DDatasetHandler)
-            )
-    else:
-        handler_cfg["datasets"] = datasets
-        if "type" not in handler_cfg:
-            handler_cfg["type"] = "Vis4DDatasetHandler"
-        result = [build_component(handler_cfg, bound=Vis4DDatasetHandler)]
-    return result, datasets
-
-
-def build_callbacks(
-    datasets: List[ScalabelDataset],
-    out_dir: Optional[str] = None,
-    is_predict: bool = False,
-    visualize: bool = False,
-) -> List[Callback]:
-    """Build callbacks."""
-    callbacks: List[Callback] = []
-    for i, d in enumerate(datasets):
-        out = (
-            osp.join(out_dir, d.dataset.name) if out_dir is not None else None
-        )
-        if not is_predict:
-            callbacks.append(StandardEvaluatorCallback(i, d.dataset, out))
-        else:
-            assert out is not None
-            callbacks.append(ScalabelWriterCallback(i, out, visualize))
-    return callbacks
-
-
-def setup_experiment(
-    cfg: Config, trainer_args: DictStrAny
-) -> Tuple[pl.Trainer, BaseModel, pl.LightningDataModule]:
-    """Build trainer, model, and data module."""
-    # setup trainer
-    is_train = cfg.launch.action == "train"
-    trainer = default_setup(cfg, trainer_args, training=is_train)
-
-    # setup model
-    model = build_model(
-        cfg.model,
-        cfg.launch.weights if not cfg.launch.resume or not is_train else None,
-        not cfg.launch.not_strict,
-        cfg.launch.legacy_ckpt,
-    )
-
-    # setup category_mappings
-    setup_category_mapping(cfg.train + cfg.test, cfg.model["category_mapping"])
-
-    # build datasets
-    cmode = (
-        cfg.model["image_channel_mode"]
-        if "image_channel_mode" in cfg.model
-        else "RGB"
-    )
-    train_handlers, _ = (
-        build_datasets(cfg.train, cmode, True, cfg.train_handler)
-        if is_train
-        else (None, None)
-    )
-    if train_handlers is not None:
-        if len(train_handlers) > 1:
-            train_handler = Vis4DDatasetHandler(train_handlers, False, 0.0)
-        else:
-            train_handler = train_handlers[0]
-    else:
-        train_handler = None
-
-    test_handlers, test_datasets, = (
-        None,
-        None,
-    )
-    predict_handlers, predict_datasets = None, None
-    train_sampler: Optional[data.Sampler[List[int]]] = None
-    if cfg.launch.action == "train":
-        if cfg.data is not None and "train_sampler" in cfg.data:
-            # build custom train sampler
-            train_sampler = build_data_sampler(
-                cfg.data["train_sampler"],
-                train_handler,
-                cfg.launch.samples_per_gpu,
-            )
-
-    if cfg.launch.action == "predict":
-        if cfg.launch.input_dir:
-            input_dir = cfg.launch.input_dir
-            if input_dir[-1] == "/":
-                input_dir = input_dir[:-1]
-            dataset_name = osp.basename(input_dir)
-            predict_loaders = [
-                dict(type="Custom", name=dataset_name, data_root=input_dir)
-            ]
-        else:
-            predict_loaders = cfg.test
-        predict_handlers, predict_datasets = build_datasets(
-            predict_loaders, cmode, False
-        )
-    else:
-        test_handlers, test_datasets = build_datasets(cfg.test, cmode, False)
-
-    # build data module
-    data_module = Vis4DDataModule(
-        cfg.launch.samples_per_gpu,
-        cfg.launch.workers_per_gpu,
-        train_datasets=train_handler,
-        test_datasets=test_handlers,
-        predict_datasets=predict_handlers,
-        seed=cfg.launch.seed,
-        train_sampler=train_sampler,
-    )
-
-    # setup callbacks
-    test_dir = osp.join(
-        cfg.launch.work_dir, cfg.launch.exp_name, cfg.launch.version
-    )
-    if cfg.launch.action == "train":
-        if test_datasets is not None and len(test_datasets) > 0:
-            trainer.callbacks += build_callbacks(  # pylint: disable=no-member
-                test_datasets
-            )
-    elif cfg.launch.action == "test":
-        assert test_datasets is not None and len(
-            test_datasets
-        ), "No test datasets specified!"
-        trainer.callbacks += build_callbacks(  # pylint: disable=no-member
-            test_datasets, test_dir
-        )
-    elif cfg.launch.action == "predict":
-        assert (
-            predict_datasets is not None and len(predict_datasets) > 0
-        ), "No predict datasets specified!"
-        trainer.callbacks += build_callbacks(  # pylint: disable=no-member
-            predict_datasets, test_dir, True, cfg.launch.visualize
-        )
-    elif cfg.launch.action == "tune":
-        assert test_datasets is not None and len(
-            test_datasets
-        ), "No test datasets specified!"
-        trainer.callbacks += build_callbacks(  # pylint: disable=no-member
-            test_datasets, test_dir
-        )
-    else:
-        raise NotImplementedError(f"Action {cfg.launch.action} not known!")
-
-    return trainer, model, data_module
-
-
-def train(
-    trainer: pl.Trainer, model: BaseModel, data_module: pl.LightningDataModule
-) -> None:
-    """Training function."""
-    trainer.fit(model, data_module)
-
-
-def test(
-    trainer: pl.Trainer, model: BaseModel, data_module: pl.LightningDataModule
-) -> None:
-    """Test function."""
-    trainer.test(model, data_module, verbose=False)
-
-
-def predict(
-    trainer: pl.Trainer, model: BaseModel, data_module: pl.LightningDataModule
-) -> None:
-    """Prediction function."""
-    trainer.predict(model, data_module)
-
-
-def tune(
-    trainer: pl.Trainer,
-    model: BaseModel,
-    data_module: pl.LightningDataModule,
-    tuner_params: DictStrAny,
-    tuner_metrics: List[str],
-) -> None:
-    """Tune function."""
-    rank_zero_info("Starting hyperparameter search...")
-    search_params = tuner_params
-    search_metrics = tuner_metrics
-    param_names = list(search_params.keys())
-    param_groups = list(product(*search_params.values()))
-    metrics_all = {}
-    for param_group in param_groups:
-        for key, value in zip(param_names, param_group):
-            obj = model
-            for name in key.split(".")[:-1]:
-                obj = getattr(obj, name, None)  # type: ignore
-                if obj is None:
-                    raise ValueError(f"Attribute {name} not found in {key}!")
-            setattr(obj, key.split(".")[-1], value)
-
-        metrics = trainer.test(model, data_module, verbose=False)
-        if len(metrics) > 0:
-            rank_zero_warn(
-                "More than one dataloader found, but tuning "
-                "requires a single dataset to tune parameters on!"
-            )
-        metrics_all[str(param_group)] = {
-            k: v for k, v in metrics[0].items() if k in search_metrics
-        }
-    rank_zero_info("Done!")
-    rank_zero_info("The following parameters have been considered:")
-    rank_zero_info("\n" + str(list(search_params.keys())))
-    rank_zero_info("Hyperparameter search result:")
-    rank_zero_info("\n" + str(pandas.DataFrame.from_dict(metrics_all)))
-
-
-def cli_main() -> None:  # pragma: no cover
-    """Main function when called from command line."""
-    parser = default_argument_parser()
-    args = parser.parse_args()
-    vis4d_args, trainer_args = split_args(args)
-    cfg = parse_config(vis4d_args)
-
-    # setup experiment
-    trainer, model, data_module = setup_experiment(cfg, trainer_args)
-
-    if args.action == "train":
-        train(trainer, model, data_module)
-    elif args.action == "test":
-        test(trainer, model, data_module)
-    elif args.action == "predict":
-        predict(trainer, model, data_module)
-    elif args.action == "tune":
-        if cfg.launch.tuner_params is None:
-            raise ValueError(
-                "Tuner parameters not defined! Please specify "
-                "tuner_params in Launch config."
-            )
-        if cfg.launch.tuner_metrics is None:
-            raise ValueError(
-                "Tuner metrics not defined! Please specify "
-                "tuner_metrics in Launch config."
-            )
-        tuner_params, tuner_metrics = (
-            cfg.launch.tuner_params,
-            cfg.launch.tuner_metrics,
-        )
-        tune(trainer, model, data_module, tuner_params, tuner_metrics)
-    else:
-        raise NotImplementedError(f"Action {args.action} not known!")
-
-
-if __name__ == "__main__":  # pragma: no cover
-    cli_main()
+    def instantiate_classes(self) -> None:
+        super().instantiate_classes()
+        self.datamodule.set_cat_map(self.model.category_mapping)

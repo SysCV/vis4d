@@ -1,14 +1,14 @@
 """Data module init."""
 from .dataset import ScalabelDataset
-from .handler import Vis4DDatasetHandler
+from .handler import BaseDatasetHandler
 from .mapper import BaseSampleMapper
-from .module import Vis4DDataModule
+from .module import BaseDataModule
 from .reference import BaseReferenceSampler
 from .samplers import TrackingInferenceSampler
 
 __all__ = [
-    "Vis4DDataModule",
-    "Vis4DDatasetHandler",
+    "BaseDataModule",
+    "BaseDatasetHandler",
     "ScalabelDataset",
     "TrackingInferenceSampler",
     "BaseSampleMapper",

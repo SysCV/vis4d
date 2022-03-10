@@ -158,8 +158,10 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
     def load_cached_dataset(self) -> Dataset:
         """Load cached dataset from file."""
-        assert self.annotations is not None
-        cache_path = self.annotations.rstrip("/") + ".pkl"
+        if self.annotations is None:
+            cache_path = self.data_root.rstrip("/") + ".pkl"
+        else:
+            cache_path = self.annotations.rstrip("/") + ".pkl"
         if not os.path.exists(cache_path):
             dataset = self.load_dataset()
             with open(cache_path, "wb") as file:

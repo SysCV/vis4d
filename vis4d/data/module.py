@@ -1,44 +1,136 @@
 """Data module composing the data loading pipeline."""
+import itertools
+import os.path as osp
 from typing import List, Optional, Union
 
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning.callbacks import Callback
 from torch.utils import data
 from torch.utils.data.distributed import DistributedSampler
 
 from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
+from ..config import Config
+from ..engine.evaluator import StandardEvaluatorCallback
 from ..struct import InputSample
 from .dataset import ScalabelDataset
-from .handler import Vis4DDatasetHandler
+from .datasets import BaseDatasetLoader
+from .handler import BaseDatasetHandler
 from .samplers import BaseSampler, TrackingInferenceSampler
+from .transforms import BaseAugmentation
 from .utils import identity_batch_collator
 
 
-class Vis4DDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
+def build_callbacks(
+    datasets: List[ScalabelDataset],
+    out_dir: Optional[str] = None,
+    is_predict: bool = False,
+    visualize: bool = False,
+) -> List[Callback]:
+    """Build callbacks."""
+    callbacks: List[Callback] = []
+    for i, d in enumerate(datasets):
+        out = (
+            osp.join(out_dir, d.dataset.name) if out_dir is not None else None
+        )
+        if not is_predict:
+            callbacks.append(StandardEvaluatorCallback(i, d.dataset, out))
+        else:
+            assert out is not None
+            callbacks.append(ScalabelWriterCallback(i, out, visualize))
+    return callbacks
+
+
+class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
     """Default data module for Vis4D."""
 
     def __init__(
         self,
-        samples_per_gpu: int,
-        workers_per_gpu: int,
-        train_datasets: Optional[Vis4DDatasetHandler] = None,
-        test_datasets: Optional[List[Vis4DDatasetHandler]] = None,
-        predict_datasets: Optional[List[Vis4DDatasetHandler]] = None,
-        seed: Optional[int] = None,
+        samples_per_gpu: int = 1,
+        workers_per_gpu: int = 1,
         pin_memory: bool = False,
-        train_sampler: Optional[BaseSampler] = None,
+        visualize: bool = False,
     ) -> None:
         """Init."""
         super().__init__()  # type: ignore
+        self.visualize = visualize
         self.samples_per_gpu = samples_per_gpu
         self.workers_per_gpu = workers_per_gpu
-        self.seed = seed
         self.pin_memory = pin_memory
-        self.train_datasets = train_datasets
-        self.test_datasets = test_datasets
-        self.predict_datasets = predict_datasets
-        self.train_sampler = train_sampler
+        self.train_datasets: Optional[BaseDatasetHandler] = None
+        self.test_datasets: Optional[List[BaseDatasetHandler]] = None
+        self.predict_datasets: Optional[List[BaseDatasetHandler]] = None
+        self.train_sampler: Optional[BaseSampler] = None
+
+    def prepare_data(self):
+        """Data preparation operations to perform on the master process.
+
+        Do things that might write to disk or that need to be done only from
+        a single process in distributed settings.
+        """
+
+    def setup(self, stage: Optional[str] = None):
+        """Data preparation operations to perform on every GPU.
+
+        Setup:
+        - Set Train / Test / Predict Datasets
+        - Wrap datasets into handlers with transformations
+        - Setup data callbacks
+        - Optionally: Define train sampler for custom dataset sampling.
+        """
+        raise NotImplementedError
+
+    def convert_input_dir_to_dataset(self):
+        if cfg.launch.input_dir:  # TODO needs refinement
+            input_dir = cfg.launch.input_dir
+            if input_dir[-1] == "/":
+                input_dir = input_dir[:-1]
+            dataset_name = osp.basename(input_dir)
+            self.predict_datasets = [
+                Custom(name=dataset_name, data_root=input_dir)
+            ]
+        else:
+            self.predict_datasets = self.test_datasets
+
+    def setup_data_callbacks(self, stage: str, log_dir: str) -> List[Callback]:
+        """setup callbacks"""
+        if stage == "fit":
+            if self.test_datasets is not None and len(self.test_datasets) > 0:
+                # TODO callbacks vs dataset handlers in inference sync
+                test_datasets = list(
+                    itertools.chain(*[h.datasets for h in self.test_datasets])
+                )
+                return build_callbacks(test_datasets)
+        elif stage == "test":
+            assert self.test_datasets is not None and len(
+                self.test_datasets
+            ), "No test datasets specified!"
+            test_datasets = list(
+                itertools.chain(*[h.datasets for h in self.test_datasets])
+            )
+            return build_callbacks(test_datasets, log_dir)
+        elif stage == "predict":
+            assert (
+                self.predict_datasets is not None
+                and len(self.predict_datasets) > 0
+            ), "No predict datasets specified!"
+            predict_datasets = list(
+                itertools.chain(*[h.datasets for h in self.predict_datasets])
+            )
+            return build_callbacks(
+                predict_datasets, log_dir, True, self.visualize
+            )
+        elif stage == "tune":
+            assert self.test_datasets is not None and len(
+                self.test_datasets
+            ), "No test datasets specified!"
+            test_datasets = list(
+                itertools.chain(*[h.datasets for h in self.test_datasets])
+            )
+            return build_callbacks(test_datasets, log_dir)
+        else:
+            raise NotImplementedError(f"Action {stage} not known!")
 
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""

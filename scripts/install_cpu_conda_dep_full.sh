@@ -1,5 +1,5 @@
-#!/bin/bash
-eval "$(conda shell.bash hook)"
+CONDA_PATH=$(conda info | grep -i 'base environment' | awk '{print $4}')
+source $CONDA_PATH/etc/profile.d/conda.sh
 conda create --name vis4d python=3.8
 conda activate vis4d
 conda install pytorch torchvision torchaudio cpuonly -c pytorch

@@ -22,7 +22,6 @@ from pytorch_lightning.utilities.distributed import (
 )
 from scalabel.label.typing import Frame
 from termcolor import colored
-from torch.utils.collect_env import get_pretty_env_info
 
 from ..common.utils.distributed import (
     all_gather_object_cpu,
@@ -31,6 +30,16 @@ from ..common.utils.distributed import (
 from ..common.utils.time import Timer
 from ..config import Config
 from ..struct import DictStrAny, InputSample, LossesType, ModelOutput
+
+try:
+    from mmcv.utils import get_logger
+
+    mm_logger = get_logger("mmdet")
+    mm_logger.setLevel(logging.WARNING)
+
+    MMCV_INSTALLED = True
+except (ImportError, NameError):  # pragma: no cover
+    MMCV_INSTALLED = False
 
 logger = logging.getLogger("pytorch_lightning")
 # ignore DeprecationWarning by default (e.g. numpy)
@@ -264,12 +273,14 @@ class _ColorFormatter(logging.Formatter):
         return prefix + " " + log
 
 
+@rank_zero_only
 def setup_logger(
     filepath: Optional[str] = None,
     color: bool = True,
-    std_out_level: int = logging.DEBUG,
+    std_out_level: int = logging.INFO,
 ) -> None:
     """Configure logging for Vis4D using the pytorch lightning logger."""
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
     # get PL logger, remove handlers to re-define behavior
     # https://pytorch-lightning.readthedocs.io/en/stable/extensions/logging.html#configure-console-logging
     for h in logger.handlers:
@@ -300,50 +311,6 @@ def setup_logger(
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(plain_formatter)
         logger.addHandler(fh)
-
-
-@rank_zero_only
-def setup_logging(
-    output_dir: str, trainer_args: DictStrAny, cfg: Config
-) -> None:
-    """Setup command line logger, create output dir, save info."""
-    setup_logger(osp.join(output_dir, "log.txt"))
-
-    # print env / config
-    rank_zero_info("Environment info: %s", get_pretty_env_info())
-    rank_zero_info(
-        "Running with full config:\n %s",
-        str(debug.format(cfg)).split("\n", 1)[1],
-    )
-    if cfg.launch.seed is not None:
-        rank_zero_info("Using random seed: %s", cfg.launch.seed)
-
-    # save trainer args (converted to string)
-    path = osp.join(output_dir, "trainer_args.yaml")
-    for key, arg in trainer_args.items():
-        trainer_args[key] = str(arg)
-    with open(path, "w", encoding="utf-8") as outfile:
-        yaml.dump(trainer_args, outfile, default_flow_style=False)
-    rank_zero_info("Trainer arguments saved to %s", path)
-
-    # save Vis4D config
-    path = osp.join(output_dir, "config.json")
-    with open(path, "w", encoding="utf-8") as outfile:
-        json.dump(trainer_args, outfile)
-    rank_zero_info("Vis4D Config saved to %s", path)
-
-
-def split_args(args: Namespace) -> Tuple[Namespace, DictStrAny]:
-    """Split argparse Namespace into Vis4D and pl.Trainer arguments."""
-    params = vars(args)
-    valid_kwargs = inspect.signature(pl.Trainer.__init__).parameters
-    trainer_kwargs = Namespace(
-        **{name: params[name] for name in valid_kwargs if name in params}
-    )
-    vis4d_kwargs = Namespace(
-        **{name: params[name] for name in params if name not in valid_kwargs}
-    )
-    return vis4d_kwargs, vars(trainer_kwargs)
 
 
 def all_gather_predictions(

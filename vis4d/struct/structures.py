@@ -107,6 +107,25 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
         """
 
 
+ALLOWED_INPUTS = (  # TODO incorporate / modify
+    "images",
+    "intrinsics",
+    "extrinsics",
+    "pointcloud",
+    "other",
+)
+
+ALLOWED_TARGETS = (
+    "boxes2d",
+    "boxes3d",
+    "instance_masks",
+    "semantic_masks",
+    "other",
+)
+
+CategoryMap = Union[Dict[str, int], Dict[str, Dict[str, int]]]
+
+
 NDArrayF64 = npt.NDArray[np.float64]
 NDArrayF32 = npt.NDArray[np.float32]
 NDArrayI64 = npt.NDArray[np.int64]
@@ -115,7 +134,6 @@ TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
 LossesType = Dict[str, torch.Tensor]
 ModelOutput = Dict[str, List[List[Label]]]
 DictStrAny = Dict[str, Any]  # type: ignore
-CategoryMap = Union[Dict[str, int], Dict[str, Dict[str, int]]]
 MetricLogs = Dict[str, Union[float, int]]
 FeatureMaps = Dict[str, torch.Tensor]
 ModuleCfg = DictStrAny

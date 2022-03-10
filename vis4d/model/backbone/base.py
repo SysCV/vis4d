@@ -19,7 +19,7 @@ class BaseBackbone(Vis4DModule[FeatureMaps, FeatureMaps]):
         pixel_std: Tuple[float, float, float],
         output_names: Optional[List[str]] = None,
         out_indices: Optional[List[int]] = None,
-        neck: Optional[Union[BaseNeck, ModuleCfg]] = None,
+        neck: Optional[BaseNeck] = None,
     ) -> None:
         """Init BaseBackbone."""
         super().__init__()
@@ -33,16 +33,7 @@ class BaseBackbone(Vis4DModule[FeatureMaps, FeatureMaps]):
         self.register_buffer(
             "pixel_std", torch.tensor(pixel_std).view(-1, 1, 1), False
         )
-
-        if neck is not None:
-            if isinstance(neck, dict):
-                self.neck: Optional[BaseNeck] = build_module(
-                    neck, bound=BaseNeck
-                )
-            else:
-                self.neck = neck
-        else:
-            self.neck = None
+        self.neck = neck
 
     def preprocess_inputs(self, inputs: InputSample) -> InputSample:
         """Normalize the input images."""

@@ -32,6 +32,7 @@ try:
     MMDET_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
+    BitmapMasks = None
 
 
 MM_BASE_MAP = {

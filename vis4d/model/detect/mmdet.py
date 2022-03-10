@@ -1,4 +1,5 @@
 """mmdetection detector wrapper."""
+import os
 from typing import Dict, List, Optional, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
@@ -40,6 +41,8 @@ except (ImportError, NameError):  # pragma: no cover
     MMCV_INSTALLED = False
 
 try:
+    import mmdet
+
     MMDET_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
@@ -66,9 +69,9 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         model_kwargs: Optional[DictStrAny] = None,
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
-        backbone: Optional[Union[BaseBackbone, ModuleCfg]] = None,
-        rpn_head: Optional[Union[DetDenseHead, ModuleCfg]] = None,
-        roi_head: Optional[Union[Det2DRoIHead, ModuleCfg]] = None,
+        backbone: Optional[BaseBackbone] = None,
+        rpn_head: Optional[DetDenseHead] = None,
+        roi_head: Optional[Det2DRoIHead] = None,
         **kwargs: ArgsType,
     ):
         """Init."""
@@ -76,7 +79,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMTwoStageDetector requires both mmcv and mmdet to be installed!"
         super().__init__(*args, **kwargs)
-        assert self.category_mapping is not None
+        assert self.category_mapping is not None, "Need category mapping"
         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
         self.mm_cfg = get_mmdet_config(
             model_base, model_kwargs, self.category_mapping
@@ -97,9 +100,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                     output_names=backbone_output_names,
                 ),
             )
-        elif isinstance(backbone, dict):
-            self.backbone = build_module(backbone, bound=BaseBackbone)
-        else:  # pragma: no cover
+        else:
             self.backbone = backbone
 
         if rpn_head is None:
@@ -129,9 +130,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
             self.rpn_head = MMDetRPNHead(
                 mm_cfg=rpn_cfg, category_mapping=self.category_mapping
             )
-        elif isinstance(rpn_head, dict):  # pragma: no cover
-            self.rpn_head = build_module(rpn_head, bound=BaseDenseHead)
-        else:  # pragma: no cover
+        else:
             self.rpn_head = rpn_head
 
         if roi_head is None:
@@ -150,9 +149,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 mm_cfg=roi_head_cfg,
                 category_mapping=self.category_mapping,
             )
-        elif isinstance(roi_head, dict):  # pragma: no cover
-            self.roi_head = build_module(roi_head, bound=BaseRoIHead)
-        else:  # pragma: no cover
+        else:
             self.roi_head = roi_head
 
         self.with_mask = self.roi_head.with_mask
@@ -244,8 +241,8 @@ class MMOneStageDetector(BaseOneStageDetector):
         model_kwargs: Optional[DictStrAny] = None,
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
-        backbone: Optional[Union[BaseBackbone, ModuleCfg]] = None,
-        bbox_head: Optional[Union[DetDenseHead, ModuleCfg]] = None,
+        backbone: Optional[BaseBackbone] = None,
+        bbox_head: Optional[DetDenseHead] = None,
         **kwargs: ArgsType,
     ):
         """Init."""
@@ -268,9 +265,7 @@ class MMOneStageDetector(BaseOneStageDetector):
                     output_names=backbone_output_names,
                 ),
             )
-        elif isinstance(backbone, dict):  # pragma: no cover
-            self.backbone = build_module(backbone, bound=BaseBackbone)
-        else:  # pragma: no cover
+        else:
             self.backbone = backbone
 
         if bbox_head is None:
@@ -286,9 +281,7 @@ class MMOneStageDetector(BaseOneStageDetector):
             self.bbox_head: DetDenseHead = MMDetDenseHead(
                 mm_cfg=bbox_cfg, category_mapping=self.category_mapping
             )
-        elif isinstance(bbox_head, dict):  # pragma: no cover
-            self.bbox_head = build_module(bbox_head, bound=BaseDenseHead)
-        else:  # pragma: no cover
+        else:
             self.bbox_head = bbox_head
 
         if weights is not None:
@@ -357,7 +350,13 @@ def get_mmdet_config(
     category_mapping: Optional[Dict[str, int]] = None,
 ) -> MMConfig:
     """Convert a Detector config to a mmdet readable config."""
-    cfg = load_config(model_base)
+    if "mmdet://" in model_base:  # TODO integrate for mmseg etc
+        cwd = os.getcwd()
+        os.chdir(os.path.dirname(mmdet.__file__).rstrip("mmdet") + "configs")
+        cfg = load_config(model_base.replace("mmdet://", ""))
+        os.chdir(cwd)
+    else:
+        cfg = load_config(model_base)
 
     # convert detect attributes
     if category_mapping is not None:

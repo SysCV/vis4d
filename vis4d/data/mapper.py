@@ -36,119 +36,89 @@ from ..struct import (
 )
 from .utils import im_decode
 
-ALLOWED_FIELDS = [
-    "boxes2d",
-    "boxes3d",
-    "instance_masks",
-    "semantic_masks",
-    "intrinsics",
-    "extrinsics",
-    "pointcloud",
-]
-
 
 class BaseSampleMapper(metaclass=RegistryHolder):
     """A callable that converts a Scalabel Frame to a Vis4D InputSample."""
 
     def __init__(
         self,
-        data_backend: Union[BaseDataBackend, ModuleCfg] = FileBackend(),
-        fields_to_load: Tuple[str] = ("boxes2d",),
+        data_backend: BaseDataBackend = FileBackend(),
+        inputs_to_load: Tuple[str] = ("images",),
+        targets_to_load: Tuple[str] = ("boxes2d",),
         skip_empty_samples: bool = False,
         background_as_class: bool = False,
         image_backend: str = "PIL",
         image_channel_mode: str = "RGB",
+        category_mapping: CategoryMap = {},
     ) -> None:
         """Init Scalabel Mapper."""
         self.image_backend = image_backend
-        self.fields_to_load = fields_to_load
+        self.inputs_to_load = inputs_to_load
+        self.targets_to_load = targets_to_load
         self.background_as_class = background_as_class
         self.skip_empty_samples = skip_empty_samples
         self.image_channel_mode = image_channel_mode
 
-        if isinstance(data_backend, dict):  # pragma: no cover
-            self.data_backend: BaseDataBackend = build_component(
-                data_backend, bound=BaseDataBackend
-            )
-        else:
-            self.data_backend = data_backend
+        self.data_backend = data_backend
         rank_zero_info(
             "Using data backend: %s", self.data_backend.__class__.__name__
         )
-        self.cats_name2id: Dict[str, Dict[str, int]] = {}
-        self.training = False
 
-    def set_training(self, is_train: bool) -> None:
-        """Set training attribute."""
-        self.training = is_train
-        if self.skip_empty_samples and self.training:
-            rank_zero_warn(  # pragma: no cover
-                "'skip_empty_samples' activated in test mode. This option is "
-                "only available in training."
-            )
-
-    def setup_categories(self, cats_name2id: CategoryMap) -> None:
-        """Setup the category mappings for all fields to load."""
-        for field in self.fields_to_load:
-            assert (
-                field in ALLOWED_FIELDS
-            ), f"Unrecognized field={field}, allowed fields={ALLOWED_FIELDS}"
-            if not cats_name2id:
-                continue
-            if isinstance(list(cats_name2id.values())[0], int):
-                self.cats_name2id[field] = cats_name2id  # type: ignore
-            else:
-                assert (
-                    field in cats_name2id
-                ), f"Field={field} not specified in category_mapping"
-                field_map = cats_name2id[field]
-                assert isinstance(field_map, dict)
-                self.cats_name2id[field] = field_map
+        self.cats_name2id = {}
+        if len(category_mapping) > 0:
+            for target in self.targets_to_load:
+                if isinstance(list(category_mapping.values())[0], int):
+                    self.cats_name2id[target] = category_mapping
+                else:
+                    assert (
+                        target in category_mapping
+                    ), f"Target={target} not specified in category_mapping"
+                    target_map = category_mapping[target]
+                    assert isinstance(field_map, dict)
+                    self.cats_name2id[target] = target_map
 
     def load_inputs(
         self,
         sample: Frame,
-        use_empty: Optional[bool] = False,
         group_url: Optional[str] = None,
         group_extrinsics: Optional[ScalabelExtrinsics] = None,
     ) -> InputSample:
         """Load image according to data_backend."""
-        if not use_empty:
-            assert sample.url is not None
+        input_data = InputSample([copy.deepcopy(sample)])
+        if sample.url is not None and "images" in self.inputs_to_load:
             im_bytes = self.data_backend.get(sample.url)
             image = im_decode(
                 im_bytes,
                 mode=self.image_channel_mode,
                 backend=self.image_backend,
             )
-        else:
-            image = np.empty((128, 128, 3), dtype=np.uint8)
 
-        sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
-        image = torch.as_tensor(
-            np.ascontiguousarray(image.transpose(2, 0, 1)),
-            dtype=torch.float32,
-        ).unsqueeze(0)
-        images = Images(image, [(image.shape[3], image.shape[2])])
-        input_data = InputSample([copy.deepcopy(sample)], images)
+            input_data.metadata[0].size = ImageSize(
+                width=image.shape[1], height=image.shape[0]
+            )
+            image = torch.as_tensor(
+                np.ascontiguousarray(image.transpose(2, 0, 1)),
+                dtype=torch.float32,
+            ).unsqueeze(0)
+            images = Images(image, [(image.shape[3], image.shape[2])])
+            input_data.images = images
 
-        assert self.fields_to_load is not None
         if (
             sample.intrinsics is not None
-            and "intrinsics" in self.fields_to_load
+            and "intrinsics" in self.inputs_to_load
         ):
             input_data.intrinsics = self.load_intrinsics(sample.intrinsics)
 
         if (
             sample.extrinsics is not None
-            and "extrinsics" in self.fields_to_load
+            and "extrinsics" in self.inputs_to_load
         ):
             input_data.extrinsics = self.load_extrinsics(sample.extrinsics)
 
         if (
             group_url is not None
             and group_extrinsics is not None
-            and "pointcloud" in self.fields_to_load
+            and "pointcloud" in self.inputs_to_load
         ):
             input_data.points = self.load_points(
                 group_url, group_extrinsics, input_data.extrinsics
@@ -176,7 +146,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                         )
 
             if labels_used:
-                if "instance_masks" in self.fields_to_load:
+                if "instance_masks" in self.targets_to_load:
                     instance_masks = InstanceMasks.from_scalabel(
                         labels_used,
                         self.cats_name2id["instance_masks"],
@@ -185,7 +155,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                     )
                     sample.targets.instance_masks = [instance_masks]
 
-                if "semantic_masks" in self.fields_to_load:
+                if "semantic_masks" in self.targets_to_load:
                     semantic_masks = SemanticMasks.from_scalabel(
                         labels_used,
                         self.cats_name2id["semantic_masks"],
@@ -195,7 +165,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                     )
                     sample.targets.semantic_masks = [semantic_masks]
 
-                if "boxes2d" in self.fields_to_load:
+                if "boxes2d" in self.targets_to_load:
                     boxes2d = Boxes2D.from_scalabel(
                         labels_used,
                         self.cats_name2id["boxes2d"],
@@ -211,7 +181,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                         ].get_boxes2d()
                     sample.targets.boxes2d = [boxes2d]
 
-                if "boxes3d" in self.fields_to_load:
+                if "boxes3d" in self.targets_to_load:
                     boxes3d = Boxes3D.from_scalabel(
                         labels_used,
                         self.cats_name2id["boxes3d"],
@@ -274,17 +244,18 @@ class BaseSampleMapper(metaclass=RegistryHolder):
     def __call__(
         self,
         sample: Frame,
+        training: bool,
         group_url: Optional[str] = None,
         group_extrinsics: Optional[ScalabelExtrinsics] = None,
     ) -> Optional[InputSample]:
         """Prepare a single sample in Vis4D format.
 
         Args:
-            sample (Frame): Metadata of one image, in scalabel format.
+            sample: Metadata of one image, in scalabel format.
             Serialized as dict due to multi-processing.
-            parameters (List[AugParams]): Augmentation parameter list.
-            group_url (str): Url of group sensor path.
-            group_extrinsics (ScalabelExtrinsics): Extrinsics for group sensor.
+            training: If mode is training, annotations will be loaded.
+            group_url: Url of group sensor path.
+            group_extrinsics: Extrinsics for group sensor.
 
         Returns:
             InputSample: Data format that the model accepts.
@@ -297,23 +268,22 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         if (
             self.skip_empty_samples
             and (sample.labels is None or len(sample.labels) == 0)
-            and self.training
+            and training
         ):
             return None  # pragma: no cover
 
         # load input data
         input_data = self.load_inputs(
             sample,
-            use_empty=isinstance(sample, FrameGroup),
             group_url=group_url,
             group_extrinsics=group_extrinsics,
         )
 
-        if self.training:
+        if len(self.targets_to_load) and training:
             if len(self.cats_name2id) == 0:
                 raise AttributeError(
-                    "Category mapping not initialized! Please "
-                    "execute 'SampleMapper.setup_categories'."
+                    "Category mapping is empty but targets_to_load is not. "
+                    "Please specify a category mapping."
                 )
 
             # load annotations to input sample

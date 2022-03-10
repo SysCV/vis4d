@@ -17,6 +17,7 @@ tqdm
 wheel
 h5py
 git+https://github.com/scalabel/scalabel.git
+termcolor
 torch
 torchaudio
 torchvision

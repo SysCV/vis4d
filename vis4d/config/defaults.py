@@ -1,5 +1,6 @@
 """Default argument parser for vis4d."""
-import argparse
+from argparse import ArgumentParser
+from typing import Optional
 
 import pytorch_lightning as pl
 
@@ -13,9 +14,14 @@ def help_from_docstring(key: str, docstring: str) -> str:
     return result
 
 
-def default_argument_parser() -> argparse.ArgumentParser:
+def default_argument_parser(
+    parser: Optional[ArgumentParser] = None,
+) -> ArgumentParser:
     """Create a parser with common vis4d arguments."""
-    parser = argparse.ArgumentParser(description="Vis4D command line tool.")
+    if parser == None:
+        parser = argparse.ArgumentParser(
+            description="Vis4D command line tool."
+        )
     parser.add_argument(
         "action",
         type=str,

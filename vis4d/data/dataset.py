@@ -1,6 +1,6 @@
 """Class for processing Scalabel type datasets."""
 import random
-from typing import List, Union
+from typing import List, Optional, Union
 
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
@@ -31,48 +31,20 @@ class ScalabelDataset(Dataset):  # type: ignore
         self,
         dataset: BaseDatasetLoader,
         training: bool,
-        mapper: Union[BaseSampleMapper, ModuleCfg] = BaseSampleMapper(),
-        ref_sampler: Union[
-            BaseReferenceSampler, ModuleCfg
-        ] = BaseReferenceSampler(),
+        mapper: Optional[BaseSampleMapper] = None,
+        ref_sampler: Optional[BaseReferenceSampler] = None,
     ):
         """Init."""
         rank_zero_info("Initializing dataset: %s", dataset.name)
         self.training = training
-        cats_name2id = dataset.category_mapping
-        if cats_name2id is not None:
-            if isinstance(list(cats_name2id.values())[0], int):
-                class_list = list(set(cls for cls in cats_name2id))
-            else:
-                class_list = list(
-                    set(
-                        cls
-                        for field in cats_name2id
-                        for cls in list(cats_name2id[field].keys())  # type: ignore  # pylint: disable=line-too-long
-                    )
-                )
-            discard_labels_outside_set(dataset.frames, class_list)
-        else:
-            class_list = list(
-                set(
-                    c.name
-                    for c in get_leaf_categories(
-                        dataset.metadata_cfg.categories
-                    )
-                )
+        self.mapper = mapper if mapper is not None else BaseSampleMapper()
+
+        class_list = list(
+            set(
+                c.name
+                for c in get_leaf_categories(dataset.metadata_cfg.categories)
             )
-            cats_name2id = {v: i for i, v in enumerate(class_list)}
-        self.cats_name2id = cats_name2id
-        if isinstance(mapper, dict):
-            if "type" not in mapper:
-                mapper["type"] = "BaseSampleMapper"
-            self.mapper: BaseSampleMapper = build_component(
-                mapper, bound=BaseSampleMapper
-            )
-        else:
-            self.mapper = mapper
-        self.mapper.setup_categories(cats_name2id)
-        self.mapper.set_training(self.training)
+        )
 
         dataset.frames = filter_attributes(dataset.frames, dataset.attributes)
 
@@ -105,14 +77,9 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         self._fallback_candidates = set(range(len(self.dataset.frames)))
 
-        if isinstance(ref_sampler, dict):
-            if "type" not in ref_sampler:
-                ref_sampler["type"] = "BaseReferenceSampler"
-            self.ref_sampler: BaseReferenceSampler = build_component(
-                ref_sampler, bound=BaseReferenceSampler
-            )
-        else:
-            self.ref_sampler = ref_sampler  # pragma: no cover
+        self.ref_sampler = (
+            ref_sampler if ref_sampler is not None else BaseReferenceSampler()
+        )
         self.ref_sampler.create_mappings(
             self.dataset.frames, self.dataset.groups
         )
@@ -138,12 +105,13 @@ class ScalabelDataset(Dataset):  # type: ignore
                     cur_data = self.mapper(
                         self.dataset.frames[
                             self.ref_sampler.frame_name_to_idx[group.frames[0]]
-                        ]
+                        ],
+                        self.training,
                     )
                     assert cur_data is not None
                     return [cur_data]
 
-                group_data = self.mapper(group)
+                group_data = self.mapper(group, self.training)
                 assert group_data is not None
                 data = [group_data]
                 for fname in group.frames:
@@ -151,12 +119,13 @@ class ScalabelDataset(Dataset):  # type: ignore
                         self.dataset.frames[
                             self.ref_sampler.frame_name_to_idx[fname]
                         ],
+                        self.training,
                     )
                     assert cur_data is not None
                     data.append(cur_data)
                 return data
 
-            cur_data = self.mapper(self.dataset.frames[cur_idx])
+            cur_data = self.mapper(self.dataset.frames[cur_idx], self.training)
             assert cur_data is not None
             data = [cur_data]
             return data
@@ -172,11 +141,14 @@ class ScalabelDataset(Dataset):  # type: ignore
                 ]
                 input_data = self.mapper(
                     self.dataset.frames[cur_idx],
+                    self.training,
                     group_url=group.url,
                     group_extrinsics=group.extrinsics,
                 )
             else:
-                input_data = self.mapper(self.dataset.frames[cur_idx])
+                input_data = self.mapper(
+                    self.dataset.frames[cur_idx], self.training
+                )
             if input_data is not None:
                 if input_data.metadata[0].attributes is None:
                     input_data.metadata[0].attributes = {}
@@ -184,7 +156,7 @@ class ScalabelDataset(Dataset):  # type: ignore
 
                 if self.ref_sampler.num_ref_imgs > 0:
                     ref_data = self.ref_sampler(
-                        cur_idx, input_data, self.mapper
+                        cur_idx, input_data, self.training, self.mapper
                     )
                     if ref_data is not None:
                         return [input_data] + ref_data
