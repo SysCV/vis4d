@@ -301,6 +301,12 @@ def setup_logger(
         fh.setFormatter(plain_formatter)
         logger.addHandler(fh)
 
+    from mmcv.utils import get_logger
+    mm_logger = get_logger("mmdet")
+    mm_logger.setLevel(logging.ERROR)
+    mm_logger = get_logger("mmcv")
+    mm_logger.setLevel(logging.ERROR)
+
 
 @rank_zero_only
 def setup_logging(

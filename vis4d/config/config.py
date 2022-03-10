@@ -160,7 +160,6 @@ def read_config(filepath: str) -> Config:
         for cfg in config_dict["config"]:
             assert "path" in cfg, "Config arguments must have path!"
             nested_update(subconfig_dict, load_config(cfg["path"]))
-
         nested_update(subconfig_dict, config_dict)
         config_dict = subconfig_dict
         os.chdir(cwd)
