@@ -1,4 +1,4 @@
-# This workflow will deploy the documentation in docs/ to http://docs.vis.xyz/
+# This workflow will deploy the documentation in docs/ to http://docs.vis.xyz/4d/
 
 name: deploy docs
 on:
@@ -31,7 +31,7 @@ jobs:
         with:
           args: --acl public-read --follow-symlinks --exclude ".DS_Store"
         env:
-          AWS_S3_BUCKET: docs.vis.xyz
+          AWS_S3_BUCKET: docs.vis.xyz/4d
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          SOURCE_DIR: "docs/build/src/html/"
+          SOURCE_DIR: "docs/build/html/"
