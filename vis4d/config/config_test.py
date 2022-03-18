@@ -36,3 +36,12 @@ class TestLoadConfig(unittest.TestCase):
     def test_det_notsupported(self) -> None:
         """Check models configuration in not-supported format."""
         self.assertRaises(NotImplementedError, read_config, "")
+
+    def test_list_replacemnet(self) -> None:
+        """Check cmd line argument parsing to launch cfg."""
+        args = Namespace(
+            config=get_test_file("config-det.toml"),
+            cfg_options="train.1.name=trainer-temp",
+        )
+        cfg = parse_config(args)
+        self.assertEqual(cfg.train[1]["name"], "trainer-temp")

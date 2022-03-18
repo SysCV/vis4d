@@ -3,3 +3,9 @@ type = "test-model"
 
 [launch]
 samples_per_gpu = 2
+
+[[train]]
+name = "trainer-1"
+
+[[train]]
+name = "trainer-2"

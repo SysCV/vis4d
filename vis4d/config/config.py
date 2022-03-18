@@ -173,8 +173,24 @@ def keylist_update(  # type: ignore
 ) -> None:
     """Update nested dict based on multiple keys saved in a list."""
     cur_key = key_list.pop(0)
+    if isinstance(my_dict, list):
+        cur_key = int(cur_key)
+        assert (
+            cur_key < len(my_dict) and cur_key >= 0
+        ), f"The index '{cur_key}' is out of range!"
+    elif isinstance(my_dict, dict):
+        assert (
+            cur_key in my_dict
+        ), f"The key '{cur_key}' does not exist in config!"
+    else:
+        raise NotImplementedError(
+            f"The key '{cur_key}' does not match config's structure!"
+        )
+
     if len(key_list) == 0:
-        my_dict[cur_key] = value
+        # Assign the value with type casting to leaf node.
+        type_of_item = type(my_dict[cur_key])
+        my_dict[cur_key] = type_of_item(value)
         return
     keylist_update(my_dict[cur_key], key_list, value)
 
