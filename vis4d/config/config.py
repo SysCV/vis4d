@@ -191,8 +191,10 @@ def keylist_update(  # type: ignore
         if new_key:
             my_dict[cur_key] = value
         else:
-            # Type casting based on leaf node.
+            # Type casting based on the field to be replaced.
             to_type = type(my_dict[cur_key])
+            if to_type == bool:
+                value = value.lower() in ("true", "t", "1")
             my_dict[cur_key] = to_type(value)
         return
     keylist_update(my_dict[cur_key], key_list, value)

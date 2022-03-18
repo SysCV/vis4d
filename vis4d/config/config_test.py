@@ -39,10 +39,16 @@ class TestLoadConfig(unittest.TestCase):
 
     def test_list_replacemnet(self) -> None:
         """Check cmd line argument parsing to launch cfg."""
+        cfg_options = [
+            "train.0.name=trainer-test",
+            "train.1.cache_as_binary=false",
+            "launch.samples_per_gpu=4",
+        ]
         args = Namespace(
             config=get_test_file("config-det.toml"),
-            cfg_options="train.1.name=test,launch.samples_per_gpu=4",
+            cfg_options=",".join(cfg_options),
         )
         cfg = parse_config(args)
-        self.assertEqual(cfg.train[1]["name"], "test")
-        self.assertEqual(type(cfg.launch.samples_per_gpu), int)
+        self.assertEqual(cfg.train[0]["name"], "trainer-test")
+        self.assertEqual(cfg.train[1]["cache_as_binary"], False)
+        self.assertEqual(cfg.launch.samples_per_gpu, 4)

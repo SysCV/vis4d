@@ -6,6 +6,8 @@ samples_per_gpu = 2
 
 [[train]]
 name = "trainer-1"
+cache_as_binary = true
 
 [[train]]
 name = "trainer-2"
+cache_as_binary = true
