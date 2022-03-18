@@ -41,7 +41,8 @@ class TestLoadConfig(unittest.TestCase):
         """Check cmd line argument parsing to launch cfg."""
         args = Namespace(
             config=get_test_file("config-det.toml"),
-            cfg_options="train.1.name=trainer-temp",
+            cfg_options="train.1.name=test,launch.samples_per_gpu=4",
         )
         cfg = parse_config(args)
-        self.assertEqual(cfg.train[1]["name"], "trainer-temp")
+        self.assertEqual(cfg.train[1]["name"], "test")
+        self.assertEqual(type(cfg.launch.samples_per_gpu), int)
