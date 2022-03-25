@@ -1,7 +1,11 @@
 """Utilities for mm wrappers."""
 import os
 import re
+import tempfile
+from io import BytesIO
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from urllib.request import urlopen
+from zipfile import ZipFile
 
 import numpy as np
 import requests
@@ -39,6 +43,11 @@ MM_BASE_MAP = {
     "mmdet": "syscv/mmdetection/master/configs/",
     "mmseg": "open-mmlab/mmsegmentation/master/configs/",
 }
+MM_CFG_MAP = {
+    "mmdet": "mmdetection-master/configs/",
+    "mmseg": "mmsegmentation-master/configs/",
+}
+
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
 MMDetResult = List[torch.Tensor]
 MMSegmResult = List[List[NDArrayUI8]]
@@ -194,12 +203,29 @@ def load_config(path: str) -> MMConfig:
             cfg = cfg["model"]
     elif re.compile(r"^mm(det|seg)://").search(path):
         ex = os.path.splitext(path)[1]
-        cfg = MMConfig.fromstring(
-            load_config_from_mm(
-                path.split(path[:8])[-1], MM_BASE_MAP[path[:5]]
-            ),
-            ex,
-        ).model
+        cfg_content = load_config_from_mm(
+            path.split(path[:8])[-1], MM_BASE_MAP[path[:5]]
+        )
+        if cfg_content.find("_base_") >= 0:
+            cwd = os.getcwd()
+            with tempfile.TemporaryDirectory() as temp_config_dir:
+                # download configs
+                url_tmp = MM_BASE_MAP[path[:5]].replace(
+                    "master/configs/", "archive"
+                )
+                with ZipFile(
+                    BytesIO(
+                        urlopen(
+                            f"https://github.com/{url_tmp}/master.zip"
+                        ).read()
+                    )
+                ) as zipfile:
+                    zipfile.extractall(path=temp_config_dir)
+                os.chdir(os.path.join(temp_config_dir, MM_CFG_MAP[path[:5]]))
+                cfg = MMConfig.fromfile(path.replace("mmdet://", "")).model
+                os.chdir(cwd)
+        else:
+            cfg = MMConfig.fromstring(cfg_content, ex).model
     else:
         raise FileNotFoundError(f"MM config not found: {path}")
     return cfg

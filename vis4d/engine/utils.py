@@ -1,34 +1,21 @@
 """Vis4D engine utils."""
 import datetime
-import inspect
-import itertools
-import json
 import logging
 import os
 import sys
 import warnings
-from argparse import Namespace
-from os import path as osp
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
 import pytorch_lightning as pl
 import torch
-import yaml
-from devtools import debug
 from pytorch_lightning.callbacks.progress.tqdm_progress import reset
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
     rank_zero_only,
 )
-from scalabel.label.typing import Frame
 from termcolor import colored
 
-from ..common.utils.distributed import (
-    all_gather_object_cpu,
-    all_gather_object_gpu,
-)
 from ..common.utils.time import Timer
-from ..config import Config
 from ..struct import DictStrAny, InputSample, LossesType, ModelOutput
 
 try:
@@ -46,7 +33,7 @@ logger = logging.getLogger("pytorch_lightning")
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
-class Vis4DTQDMProgressBar(pl.callbacks.TQDMProgressBar):  # type: ignore
+class TQDMProgressBar(pl.callbacks.TQDMProgressBar):  # type: ignore
     """TQDMProgressBar keeping training and validation progress separate."""
 
     def on_train_epoch_start(
@@ -60,7 +47,7 @@ class Vis4DTQDMProgressBar(pl.callbacks.TQDMProgressBar):  # type: ignore
         )
 
 
-class Vis4DProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
+class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
     """ProgressBar with separate printout per log step."""
 
     def __init__(self, refresh_rate: int = 50) -> None:
@@ -280,7 +267,6 @@ def setup_logger(
     std_out_level: int = logging.INFO,
 ) -> None:
     """Configure logging for Vis4D using the pytorch lightning logger."""
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
     # get PL logger, remove handlers to re-define behavior
     # https://pytorch-lightning.readthedocs.io/en/stable/extensions/logging.html#configure-console-logging
     for h in logger.handlers:
@@ -311,43 +297,3 @@ def setup_logger(
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(plain_formatter)
         logger.addHandler(fh)
-
-
-def all_gather_predictions(
-    predictions: Dict[str, List[Frame]],
-    pl_module: pl.LightningModule,
-    collect_device: str,
-) -> Optional[Dict[str, List[Frame]]]:  # pragma: no cover
-    """Gather prediction dict in distributed setting."""
-    if collect_device == "gpu":
-        predictions_list = all_gather_object_gpu(predictions, pl_module)
-    elif collect_device == "cpu":
-        predictions_list = all_gather_object_cpu(predictions, pl_module)
-    else:
-        raise ValueError(f"Collect device {collect_device} unknown.")
-
-    if predictions_list is None:
-        return None
-
-    result = {}
-    for key in predictions:
-        prediction_list = [p[key] for p in predictions_list]
-        result[key] = list(itertools.chain(*prediction_list))
-    return result
-
-
-def all_gather_gts(
-    gts: List[Frame], pl_module: pl.LightningModule, collect_device: str
-) -> Optional[List[Frame]]:  # pragma: no cover
-    """Gather gts list in distributed setting."""
-    if collect_device == "gpu":
-        gts_list = all_gather_object_gpu(gts, pl_module)
-    elif collect_device == "cpu":
-        gts_list = all_gather_object_cpu(gts, pl_module)
-    else:
-        raise ValueError(f"Collect device {collect_device} unknown.")
-
-    if gts_list is None:
-        return None
-
-    return list(itertools.chain(*gts_list))

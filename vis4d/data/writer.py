@@ -12,13 +12,13 @@ from scalabel.label.io import save
 from scalabel.label.typing import Frame, FrameGroup
 from scalabel.vis.label import LabelViewer, UIConfig
 
-from ..common.utils.distributed import get_rank, get_world_size
-from ..struct import InputSample, ModelOutput
-from ..vis.utils import preprocess_image
+from vis4d.common.utils.distributed import get_rank, get_world_size
+from vis4d.struct import InputSample, ModelOutput
+from vis4d.vis.utils import preprocess_image
 
 
-class Vis4DWriterCallback(Callback):
-    """Vis4D prediction writer base class."""
+class BaseWriterCallback(Callback):
+    """Prediction writer base class."""
 
     def __init__(self, dataloader_idx: int, output_dir: str):
         """Init."""
@@ -64,7 +64,7 @@ class Vis4DWriterCallback(Callback):
         self.reset()
 
 
-class ScalabelWriterCallback(Vis4DWriterCallback):
+class ScalabelWriterCallback(BaseWriterCallback):
     """Run model and visualize & save output."""
 
     def __init__(

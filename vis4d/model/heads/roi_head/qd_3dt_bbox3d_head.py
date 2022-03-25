@@ -1,5 +1,5 @@
 """3D Box Head definition for QD-3DT."""
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -15,7 +15,6 @@ from vis4d.common.bbox.samplers import (
 )
 from vis4d.common.geometry.rotation import generate_rotation_output
 from vis4d.common.layers import add_conv_branch
-from vis4d.common.module import build_module
 from vis4d.model.losses import BaseLoss, Box3DUncertaintyLoss
 from vis4d.struct import (
     Boxes2D,
@@ -25,7 +24,6 @@ from vis4d.struct import (
     Intrinsics,
     LabelInstances,
     LossesType,
-    ModuleCfg,
 )
 
 from .base import Det3DRoIHead

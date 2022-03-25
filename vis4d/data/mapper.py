@@ -1,15 +1,12 @@
 """Class for processing Scalabel type datasets."""
 import copy
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from pytorch_lightning.utilities.distributed import (
-    rank_zero_info,
-    rank_zero_warn,
-)
+from pytorch_lightning.utilities.distributed import rank_zero_info
 from scalabel.label.typing import Extrinsics as ScalabelExtrinsics
-from scalabel.label.typing import Frame, FrameGroup, ImageSize
+from scalabel.label.typing import Frame, ImageSize
 from scalabel.label.typing import Intrinsics as ScalabelIntrinsics
 from scalabel.label.typing import Label
 from scalabel.label.utils import (
@@ -20,8 +17,10 @@ from scalabel.label.utils import (
 )
 
 from ..common.io import BaseDataBackend, FileBackend
-from ..common.registry import RegistryHolder, build_component
+from ..common.registry import RegistryHolder
 from ..struct import (
+    ALLOWED_INPUTS,
+    ALLOWED_TARGETS,
     Boxes2D,
     Boxes3D,
     CategoryMap,
@@ -30,7 +29,6 @@ from ..struct import (
     InputSample,
     InstanceMasks,
     Intrinsics,
-    ModuleCfg,
     PointCloud,
     SemanticMasks,
 )
@@ -49,12 +47,22 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         background_as_class: bool = False,
         image_backend: str = "PIL",
         image_channel_mode: str = "RGB",
-        category_mapping: CategoryMap = {},
+        category_map: Optional[CategoryMap] = None,
     ) -> None:
         """Init Scalabel Mapper."""
         self.image_backend = image_backend
         self.inputs_to_load = inputs_to_load
+        if not all(ele in ALLOWED_INPUTS for ele in inputs_to_load):
+            raise ValueError(
+                f"Found invalid inputs: {inputs_to_load}, "
+                f"allowed set of inputs: {ALLOWED_INPUTS}"
+            )
         self.targets_to_load = targets_to_load
+        if not all(ele in ALLOWED_TARGETS for ele in targets_to_load):
+            raise ValueError(
+                f"Found invalid targets: {targets_to_load}, "
+                f"allowed set of targets: {ALLOWED_TARGETS}"
+            )
         self.background_as_class = background_as_class
         self.skip_empty_samples = skip_empty_samples
         self.image_channel_mode = image_channel_mode
@@ -64,17 +72,17 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             "Using data backend: %s", self.data_backend.__class__.__name__
         )
 
-        self.cats_name2id = {}
-        if len(category_mapping) > 0:
+        self.cats_name2id: Dict[str, Dict[str, int]] = {}
+        if category_map is not None:
             for target in self.targets_to_load:
-                if isinstance(list(category_mapping.values())[0], int):
-                    self.cats_name2id[target] = category_mapping
+                if isinstance(list(category_map.values())[0], int):
+                    self.cats_name2id[target] = category_map  # type: ignore
                 else:
                     assert (
-                        target in category_mapping
+                        target in category_map
                     ), f"Target={target} not specified in category_mapping"
-                    target_map = category_mapping[target]
-                    assert isinstance(field_map, dict)
+                    target_map = category_map[target]
+                    assert isinstance(target_map, dict)
                     self.cats_name2id[target] = target_map
 
     def load_inputs(
@@ -279,7 +287,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             group_extrinsics=group_extrinsics,
         )
 
-        if len(self.targets_to_load) and training:
+        if len(self.targets_to_load) > 0 and training:
             if len(self.cats_name2id) == 0:
                 raise AttributeError(
                     "Category mapping is empty but targets_to_load is not. "

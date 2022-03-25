@@ -1,5 +1,5 @@
 """Similarity Head for quasi-dense instance similarity learning."""
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -14,19 +14,13 @@ from vis4d.common.bbox.samplers import (
     match_and_sample_proposals,
 )
 from vis4d.common.layers import add_conv_branch
-from vis4d.common.module import build_module
-from vis4d.model.losses import (
-    BaseLoss,
-    EmbeddingDistanceLoss,
-    MultiPosCrossEntropyLoss,
-)
+from vis4d.model.losses import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
 from vis4d.struct import (
     Boxes2D,
     FeatureMaps,
     InputSample,
     LabelInstances,
     LossesType,
-    ModuleCfg,
 )
 
 from ..utils import cosine_similarity
@@ -38,22 +32,9 @@ class QDSimilarityHead(BaseSimilarityHead):
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        proposal_pooler: BaseRoIPooler = MultiScaleRoIAlign(
-            resolution=[7, 7], strides=[4, 8, 16, 32], sampling_ratio=0
-        ),
-        proposal_sampler: BaseSampler = CombinedSampler(
-            batch_size_per_image=256,
-            positive_fraction=0.5,
-            pos_strategy="instance_balanced",
-            neg_strategy="iou_balanced",
-        ),
-        proposal_matcher: BaseMatcher = MaxIoUMatcher(
-            thresholds=[0.3, 0.7],
-            labels=[0, -1, 1],
-            allow_low_quality_matches=False,
-        ),
-        track_loss: BaseLoss = MultiPosCrossEntropyLoss(loss_weight=0.25),
-        track_loss_aux: BaseLoss = EmbeddingDistanceLoss(),
+        proposal_pooler: Optional[BaseRoIPooler] = None,
+        proposal_sampler: Optional[BaseSampler] = None,
+        proposal_matcher: Optional[BaseMatcher] = None,
         in_dim: int = 256,
         num_convs: int = 4,
         conv_out_dim: int = 256,
@@ -83,15 +64,37 @@ class QDSimilarityHead(BaseSimilarityHead):
         if in_features is None:
             self.in_features = ["p2", "p3", "p4", "p5"]
 
-        self.sampler = proposal_sampler
-        self.matcher = proposal_matcher
-        self.roi_pooler = proposal_pooler
+        if proposal_sampler is not None:
+            self.sampler = proposal_sampler
+        else:
+            self.sampler = CombinedSampler(
+                batch_size_per_image=256,
+                positive_fraction=0.5,
+                pos_strategy="instance_balanced",
+                neg_strategy="iou_balanced",
+            )
+
+        if proposal_matcher is not None:
+            self.matcher = proposal_matcher
+        else:
+            self.matcher = MaxIoUMatcher(
+                thresholds=[0.3, 0.7],
+                labels=[0, -1, 1],
+                allow_low_quality_matches=False,
+            )
+
+        if proposal_pooler is not None:
+            self.roi_pooler = proposal_pooler
+        else:
+            self.roi_pooler = MultiScaleRoIAlign(
+                resolution=[7, 7], strides=[4, 8, 16, 32], sampling_ratio=0
+            )
 
         self.convs, self.fcs, last_layer_dim = self._init_embedding_head()
         self.fc_embed = nn.Linear(last_layer_dim, embedding_dim)
 
-        self.track_loss = track_loss
-        self.track_loss_aux = track_loss_aux
+        self.track_loss = MultiPosCrossEntropyLoss(loss_weight=0.25)
+        self.track_loss_aux = EmbeddingDistanceLoss()
         self._init_weights()
 
     def _init_weights(self) -> None:

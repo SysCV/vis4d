@@ -12,9 +12,9 @@ from scalabel.common import mute
 from scalabel.label.io import save
 from scalabel.label.typing import Frame
 
-from ..data.datasets import BaseDatasetLoader
-from ..struct import InputSample, MetricLogs, ModelOutput
-from .utils import all_gather_gts, all_gather_predictions
+from vis4d.data.datasets import BaseDatasetLoader
+from vis4d.data.utils import all_gather_gts, all_gather_predictions
+from vis4d.struct import InputSample, MetricLogs, ModelOutput
 
 mute(True)  # turn off undesired logs during eval
 logger = logging.getLogger("pytorch_lightning")
@@ -119,7 +119,7 @@ class BaseEvaluatorCallback(Callback):
         self.logging_disabled = False
 
 
-class StandardEvaluatorCallback(BaseEvaluatorCallback):
+class DefaultEvaluatorCallback(BaseEvaluatorCallback):
     """Evaluate model using metrics supported by the dataset."""
 
     def __init__(

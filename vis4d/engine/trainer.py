@@ -1,40 +1,29 @@
 """Vis4D Trainer."""
-import itertools
 import os.path as osp
-from argparse import Namespace
 from datetime import datetime
 from itertools import product
-from typing import Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Callable, Dict, List, Optional, Type, Union
 
 import pandas
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
+from pytorch_lightning.tuner.lr_finder import _LRFinder
 from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
     rank_zero_warn,
 )
-from torch.utils import data
+from pytorch_lightning.utilities.types import (
+    EVAL_DATALOADERS,
+    TRAIN_DATALOADERS,
+)
 from torch.utils.collect_env import get_pretty_env_info
 
-from ..common.registry import build_component
-from ..config import Config, default_argument_parser, parse_config
-from ..data.dataset import ScalabelDataset
-from ..data.datasets import BaseDatasetLoader
-from ..data.handler import BaseDatasetHandler
 from ..data.module import BaseDataModule
-from ..data.samplers import (
-    BaseDistributedSampler,
-    BaseSampler,
-    build_data_sampler,
-)
 from ..model import BaseModel
-from ..struct import DictStrAny, ModuleCfg
-from ..vis import ScalabelWriterCallback
-from .evaluator import StandardEvaluatorCallback
-from .utils import Vis4DProgressBar, Vis4DTQDMProgressBar, setup_logger
+from ..struct import ArgsType, DictStrAny
+from .utils import DefaultProgressBar, TQDMProgressBar, setup_logger
 
 
 class DefaultTrainer(pl.Trainer):
@@ -44,18 +33,10 @@ class DefaultTrainer(pl.Trainer):
         work_dir: Specific directory to save checkpoints, logs, etc. Integrates
         with exp_name and version to work_dir/exp_name/version.
         Default: ./vis4d-workspace/
-        exp_name: Name of current experiment. Default: <name of model>
+        exp_name: Name of current experiment. Default: unnamed
         version: Version of current experiment. Default: <timestamp>
-        input_dir: Input directory in case you want to run inference on a folder
-        with input data (e.g. images that can be temporally sorted by name).
-        find_unused_parameters: Activates PyTorch checking for unused parameters
-        in DDP setting. Deactivated by default for better performance.
-        visualize: If you're running in predict mode, this option lets you
-        visualize the model predictions in the output_dir.
-        seed: Set random seed for numpy, torch, python. Default: None,
-        i.e. no specific random seed is chosen.
-        weights: Filepath for weights to load in test / predict. Default: "best",
-        will load the best checkpoint in work_dir/exp_name/version.
+        find_unused_parameters: Activates PyTorch checking for unused
+        parameters in DDP setting. Default: False, for better performance.
         checkpoint_period: After N epochs, save out checkpoints. Default: 1
         resume: Whether to resume from weights (if specified), or last ckpt in
         work_dir/exp_name/version.
@@ -63,53 +44,44 @@ class DefaultTrainer(pl.Trainer):
         not_strict: Whether to enforce keys in weights to be consistent with
         model's.
         tqdm: Activate tqdm based terminal logging behavior.
-        legacy_ckpt: If model to load is a legacy checkpoint.
+        tuner_params: which parameters to tune.
+        tuner_metrics: which metrics to observe while tuning.
     """
 
     def __init__(
         self,
-        *args,  # TODO check for overlap with existing args
-        wandb: bool = False,
-        tqdm: bool = False,
+        *args: ArgsType,
         work_dir: str = "vis4d-workspace",
         exp_name: str = "unnamed",
-        version: str = (
-            str(datetime.now())
-            .split(".", maxsplit=1)[0]
-            .replace(" ", "_")
-            .replace(":", "-")
-        ),
-        input_dir: Optional[str] = None,
+        version: Optional[str] = None,
         find_unused_parameters: bool = False,
-        visualize: bool = False,
-        weights: Optional[str] = None,
         checkpoint_period: int = 1,
         resume: bool = False,
-        not_strict: bool = False,
-        legacy_ckpt: bool = False,
+        wandb: bool = False,
+        tqdm: bool = False,
         tuner_params: Optional[DictStrAny] = None,
         tuner_metrics: Optional[List[str]] = None,
-        **kwargs,
-    ):  # TODO handle all params
+        **kwargs: ArgsType,
+    ) -> None:
         """Perform some basic common setups at the beginning of a job.
 
-        2. Setup callbacks: logger, LRMonitor, GPUMonitor, Checkpoint
-        3. Init pytorch lightning Trainer
-        4. Set up cmd line logger
-        5. Log information about environment, trainer arguments, etc
-        6. Backup the args / config to the output directory
+        1. Print environment info
+        2. Setup callbacks: logger, LRMonitor, GPUMonitor, Checkpoint, etc
+        3. Init distributed plugin
         """
-        if input_dir is not None:
-            if not os.path.exists(input_dir):
-                raise FileNotFoundError(
-                    f"Input directory does not exist: {input_dir}"
-                )
-
-        # print env, super init
         rank_zero_info("Environment info: %s", get_pretty_env_info())
 
         self.tuner_params = tuner_params
         self.tuner_metrics = tuner_metrics
+        self.resume = resume
+        timestamp = (
+            str(datetime.now())
+            .split(".", maxsplit=1)[0]
+            .replace(" ", "_")
+            .replace(":", "-")
+        )
+        if version is None:
+            version = timestamp
 
         # setup experiment logging
         if "logger" not in kwargs or (
@@ -131,7 +103,7 @@ class DefaultTrainer(pl.Trainer):
                 )
             kwargs["logger"] = exp_logger
 
-        callbacks = []
+        callbacks: List[pl.callbacks.Callback] = []
 
         # add learning rate / GPU stats monitor (logs to tensorboard)
         callbacks += [
@@ -140,9 +112,9 @@ class DefaultTrainer(pl.Trainer):
 
         # add progress bar (train progress separate from validation)
         if tqdm:
-            progress_bar = Vis4DTQDMProgressBar()
+            progress_bar = TQDMProgressBar()
         else:
-            progress_bar = Vis4DProgressBar()
+            progress_bar = DefaultProgressBar()
         callbacks += [progress_bar]
 
         # add Model checkpointer
@@ -156,19 +128,6 @@ class DefaultTrainer(pl.Trainer):
                 save_on_train_epoch_end=True,
             )
         ]
-
-        # resume from checkpoint if specified
-        if resume and weights:  # pragma: no cover
-            if osp.exists(osp.join(self.output_dir, "checkpoints/last.ckpt")):
-                weights = osp.join(self.output_dir, "checkpoints/last.ckpt")
-            else:
-                raise ValueError(
-                    "resume set to True but there is no checkpoint to "
-                    "resume! Please specify a checkpoint via weights "
-                    "or configure a directory that contains a checkpoint at "
-                    "work_dir/exp_name/version/checkpoints/last.ckpt."
-                )
-        # trainer_args["ckpt_path"] = weights TODO move to cli
 
         # add distributed plugin
         if "gpus" in kwargs:  # pragma: no cover
@@ -193,14 +152,6 @@ class DefaultTrainer(pl.Trainer):
                         find_unused_parameters=find_unused_parameters
                     )
                     kwargs["plugins"] = [ddp_plugin]
-                if (
-                    cfg.data is not None
-                    and "train_sampler" in cfg.data
-                    and cfg.data["train_sampler"] is not None
-                    and training
-                ):
-                    # using custom sampler
-                    kwargs["replace_sampler_ddp"] = False
 
         if "callbacks" not in kwargs or kwargs["callbacks"] is None:
             kwargs["callbacks"] = callbacks
@@ -210,15 +161,27 @@ class DefaultTrainer(pl.Trainer):
             kwargs["callbacks"] += callbacks
 
         # setup cmd line logging, print and save info about trainer
-        setup_logger(osp.join(self.output_dir, "log.txt"))
+        setup_logger(osp.join(self.output_dir, f"log_{timestamp}.txt"))
         super().__init__(*args, **kwargs)
 
     @property
     def log_dir(self) -> Optional[str]:
+        """Get current logging directory."""
         dirpath = self.accelerator.broadcast(self.output_dir)
-        return dirpath
+        return dirpath  # type: ignore
 
-    def tune(self) -> None:
+    def tune(
+        self,
+        model: pl.LightningModule,
+        train_dataloaders: Optional[
+            Union[TRAIN_DATALOADERS, pl.LightningDataModule]
+        ] = None,
+        val_dataloaders: Optional[EVAL_DATALOADERS] = None,
+        datamodule: Optional[pl.LightningDataModule] = None,
+        scale_batch_size_kwargs: Optional[DictStrAny] = None,
+        lr_find_kwargs: Optional[DictStrAny] = None,
+        train_dataloader: Optional[pl.LightningDataModule] = None,
+    ) -> Dict[str, Optional[Union[int, _LRFinder]]]:
         """Tune function."""
         rank_zero_info("Starting hyperparameter search...")
         if self.tuner_params is None:
@@ -261,28 +224,13 @@ class DefaultTrainer(pl.Trainer):
         rank_zero_info("\n" + str(list(search_params.keys())))
         rank_zero_info("Hyperparameter search result:")
         rank_zero_info("\n" + str(pandas.DataFrame.from_dict(metrics_all)))
-
-
-def setup_category_mapping(
-    data_cfgs: List[ModuleCfg],
-    model_category_mapping: Optional[Dict[str, int]],
-) -> None:
-    """Setup category_mapping for each dataset."""
-    for data_cfg in data_cfgs:
-        if (
-            "category_mapping" not in data_cfg
-            or data_cfg["category_mapping"] is None
-        ):
-            if model_category_mapping is not None:
-                # default to using model category_mapping, if exists
-                data_cfg["category_mapping"] = model_category_mapping
-            continue
+        return {}
 
 
 class BaseCLI(LightningCLI):
-    """Default CLI for Vis4D"""
+    """Default CLI for Vis4D."""
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         model_class: Optional[
             Union[Type[BaseModel], Callable[..., BaseModel]]
@@ -301,6 +249,7 @@ class BaseCLI(LightningCLI):
         env_prefix: str = "V4D",
         **kwargs: ArgsType,
     ) -> None:
+        """Init."""
         if seed_everything_default is not None:
             rank_zero_info("Using random seed: %s", seed_everything_default)
         super().__init__(
@@ -315,5 +264,19 @@ class BaseCLI(LightningCLI):
         )
 
     def instantiate_classes(self) -> None:
+        """Instantiate trainer, datamodule and model."""
         super().instantiate_classes()
-        self.datamodule.set_cat_map(self.model.category_mapping)
+        self.datamodule.set_category_mapping(self.model.category_mapping)
+
+        if isinstance(self.trainer, DefaultTrainer):
+            if self.trainer.resume:  # pragma: no cover
+                weights = self.config_init[self.config_init["subcommand"]][
+                    "ckpt_path"
+                ]
+                if weights is None:
+                    weights = osp.join(
+                        self.trainer.output_dir, "checkpoints/last.ckpt"
+                    )
+                self.config_init[self.config_init["subcommand"]][
+                    "ckpt_path"
+                ] = weights

@@ -1,11 +1,11 @@
 """Backbone interface for Vis4D."""
 import abc
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import torch
 
-from vis4d.common.module import Vis4DModule, build_module
-from vis4d.struct import FeatureMaps, InputSample, ModuleCfg
+from vis4d.common.module import Vis4DModule
+from vis4d.struct import FeatureMaps, InputSample
 
 from .neck import BaseNeck
 

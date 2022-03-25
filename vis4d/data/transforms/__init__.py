@@ -13,6 +13,8 @@ __all__ = [
     "Resize",
     "RandomCrop",
     "MixUp",
-    "Mosaic" "KorniaAugmentationWrapper",
-    "KorniaRandomHorizontalFlip" "KorniaColorJitter",
+    "Mosaic",
+    "KorniaAugmentationWrapper",
+    "KorniaRandomHorizontalFlip",
+    "KorniaColorJitter",
 ]

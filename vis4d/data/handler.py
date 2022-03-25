@@ -6,9 +6,9 @@ import numpy as np
 import torch
 from torch.utils import data
 
-from vis4d.common.registry import RegistryHolder, build_component
+from vis4d.common.registry import RegistryHolder
 from vis4d.data.transforms import BaseAugmentation
-from vis4d.struct import InputSample, LabelInstances, ModuleCfg
+from vis4d.struct import InputSample, LabelInstances
 
 
 def sort_by_frame_index(samples: List[InputSample]) -> List[InputSample]:

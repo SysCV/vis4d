@@ -1,9 +1,11 @@
 # Quasi-Dense Similarity Learning for Multiple Object Tracking
 
-This is a re-implementation of the paper [Quasi-Dense Similarity Learning for Multiple Object Tracking](https://arxiv.org/abs/2006.06664).
+
+This is the updated official implementation of the paper [Quasi-Dense Similarity Learning for Multiple Object Tracking](https://arxiv.org/abs/2006.06664).
 
 ## Model Zoo
 
+##### TODO update
 We provide pre-trained models for all main experiments:
 
 ### BDD100K test set

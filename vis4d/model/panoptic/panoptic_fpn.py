@@ -1,22 +1,20 @@
 """Panoptic FPN model."""
-from typing import Dict, List, Union
+from typing import Dict, List
 
 from scalabel.label.typing import Label
 
-from vis4d.common.module import build_module
 from vis4d.struct import (
     ArgsType,
     InputSample,
     LabelInstances,
     LossesType,
     ModelOutput,
-    ModuleCfg,
     TLabelInstance,
 )
 
 from ..base import BaseModel
 from ..detect import BaseTwoStageDetector
-from ..heads.dense_head import BaseDenseHead, SegDenseHead
+from ..heads.dense_head import SegDenseHead
 from ..heads.panoptic_head import BasePanopticHead
 from ..utils import postprocess_predictions, predictions_to_scalabel
 

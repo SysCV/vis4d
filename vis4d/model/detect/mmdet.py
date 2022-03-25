@@ -1,9 +1,7 @@
 """mmdetection detector wrapper."""
-import os
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.common.module import build_module
 from vis4d.struct import (
     ArgsType,
     Boxes2D,
@@ -14,20 +12,14 @@ from vis4d.struct import (
     LabelInstances,
     LossesType,
     ModelOutput,
-    ModuleCfg,
     TLabelInstance,
 )
 
 from ..backbone import BaseBackbone, MMDetBackbone
 from ..backbone.neck import MMDetNeck
 from ..base import BDD100K_MODEL_PREFIX
-from ..heads.dense_head import (
-    BaseDenseHead,
-    DetDenseHead,
-    MMDetDenseHead,
-    MMDetRPNHead,
-)
-from ..heads.roi_head import BaseRoIHead, Det2DRoIHead, MMDetRoIHead
+from ..heads.dense_head import DetDenseHead, MMDetDenseHead, MMDetRPNHead
+from ..heads.roi_head import Det2DRoIHead, MMDetRoIHead
 from ..mm_utils import add_keyword_args, load_config
 from ..utils import postprocess_predictions, predictions_to_scalabel
 from .base import BaseDetector, BaseOneStageDetector, BaseTwoStageDetector
@@ -41,7 +33,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMCV_INSTALLED = False
 
 try:
-    import mmdet
+    import mmdet  # pylint: disable=unused-import
 
     MMDET_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
@@ -350,13 +342,7 @@ def get_mmdet_config(
     category_mapping: Optional[Dict[str, int]] = None,
 ) -> MMConfig:
     """Convert a Detector config to a mmdet readable config."""
-    if "mmdet://" in model_base:  # TODO integrate for mmseg etc
-        cwd = os.getcwd()
-        os.chdir(os.path.dirname(mmdet.__file__).rstrip("mmdet") + "configs")
-        cfg = load_config(model_base.replace("mmdet://", ""))
-        os.chdir(cwd)
-    else:
-        cfg = load_config(model_base)
+    cfg = load_config(model_base)
 
     # convert detect attributes
     if category_mapping is not None:

@@ -107,7 +107,7 @@ class LabelInstance(DataInstance, metaclass=abc.ABCMeta):
         """
 
 
-ALLOWED_INPUTS = (  # TODO incorporate / modify
+ALLOWED_INPUTS = (
     "images",
     "intrinsics",
     "extrinsics",

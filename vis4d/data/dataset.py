@@ -1,6 +1,6 @@
 """Class for processing Scalabel type datasets."""
 import random
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
@@ -9,15 +9,13 @@ from pytorch_lightning.utilities.distributed import (
 from scalabel.label.utils import get_leaf_categories
 from torch.utils.data import Dataset
 
-from ..common.registry import build_component
 from ..common.utils.time import Timer
-from ..struct import InputSample, ModuleCfg
+from ..struct import InputSample
 from .datasets import BaseDatasetLoader
 from .mapper import BaseSampleMapper
 from .reference import BaseReferenceSampler
 from .utils import (
     DatasetFromList,
-    discard_labels_outside_set,
     filter_attributes,
     prepare_labels,
     print_class_histogram,

@@ -8,6 +8,7 @@ from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
+import pytorch_lightning as pl
 import torch
 from PIL import Image, ImageOps
 from pytorch_lightning.utilities.distributed import rank_zero_info
@@ -19,6 +20,10 @@ from termcolor import colored
 from vis4d.struct import InputSample, NDArrayI64, NDArrayUI8
 
 from ..common.geometry.transform import transform_points
+from ..common.utils.distributed import (
+    all_gather_object_cpu,
+    all_gather_object_gpu,
+)
 
 try:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module
@@ -344,3 +349,43 @@ class DatasetFromList(torch.utils.data.Dataset):  # type: ignore
             return copy.deepcopy(self._lst[idx])
 
         return self._lst[idx]  # pragma: no cover
+
+
+def all_gather_predictions(
+    predictions: Dict[str, List[Frame]],
+    pl_module: pl.LightningModule,
+    collect_device: str,
+) -> Optional[Dict[str, List[Frame]]]:  # pragma: no cover
+    """Gather prediction dict in distributed setting."""
+    if collect_device == "gpu":
+        predictions_list = all_gather_object_gpu(predictions, pl_module)
+    elif collect_device == "cpu":
+        predictions_list = all_gather_object_cpu(predictions, pl_module)
+    else:
+        raise ValueError(f"Collect device {collect_device} unknown.")
+
+    if predictions_list is None:
+        return None
+
+    result = {}
+    for key in predictions:
+        prediction_list = [p[key] for p in predictions_list]
+        result[key] = list(itertools.chain(*prediction_list))
+    return result
+
+
+def all_gather_gts(
+    gts: List[Frame], pl_module: pl.LightningModule, collect_device: str
+) -> Optional[List[Frame]]:  # pragma: no cover
+    """Gather gts list in distributed setting."""
+    if collect_device == "gpu":
+        gts_list = all_gather_object_gpu(gts, pl_module)
+    elif collect_device == "cpu":
+        gts_list = all_gather_object_cpu(gts, pl_module)
+    else:
+        raise ValueError(f"Collect device {collect_device} unknown.")
+
+    if gts_list is None:
+        return None
+
+    return list(itertools.chain(*gts_list))
