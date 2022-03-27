@@ -277,14 +277,15 @@ class TestMasks(unittest.TestCase):
         )
         self.assertEqual(segmentations.height, 128)
         self.assertEqual(segmentations.width, 128)
-        idx_to_class = {0: "car"}
-        class_to_idx = {"car": 0}
+        idx_to_class = {0: "car", 1: "background"}
+        class_to_idx = {"car": 0, "background": 1}
         scalabel_segms = segmentations.to_scalabel(idx_to_class)
 
         segms_new = Masks.from_scalabel(
             scalabel_segms,
             class_to_idx,
             image_size=ImageSize(width=w, height=h),
+            bg_as_class=True,
         )
 
         scalabel_segms[0].rle = None
@@ -292,6 +293,7 @@ class TestMasks(unittest.TestCase):
             scalabel_segms,
             class_to_idx,
             image_size=ImageSize(width=w, height=h),
+            bg_as_class=True,
         )
         self.assertTrue(
             torch.isclose(segms_with_none.masks[0], segms_new.masks[1]).all()

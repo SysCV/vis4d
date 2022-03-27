@@ -352,7 +352,7 @@ class InstanceMasks(Masks):
         resolve_overlap: bool = True,
     ) -> None:
         """Postprocess instance masks."""
-        if len(self) == 0:
+        if len(self) == 0:  # pragma: no cover
             return
         if self.size != output_wh:
             assert (
