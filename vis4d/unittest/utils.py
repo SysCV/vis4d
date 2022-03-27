@@ -5,7 +5,7 @@ import os
 from typing import List
 
 import torch
-from scalabel.label.typing import Frame
+from scalabel.label.typing import Frame, ImageSize
 
 from vis4d.struct import (
     Boxes2D,
@@ -29,15 +29,27 @@ def get_test_file(file_name: str) -> str:
 
 
 def generate_dets(
-    height: int, width: int, num_dets: int, track_ids: bool = False
+    height: int,
+    width: int,
+    num_dets: int,
+    track_ids: bool = False,
+    use_score: bool = True,
 ) -> Boxes2D:
     """Create random detections."""
     state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
     rand_max = torch.repeat_interleave(
-        torch.tensor([[width, height, width, height, 1.0]]), num_dets, dim=0
+        torch.tensor(
+            [
+                [width, height, width, height, 1.0]
+                if use_score
+                else [width, height, width, height]
+            ]
+        ),
+        num_dets,
+        dim=0,
     )
-    box_tensor = torch.rand(num_dets, 5) * rand_max
+    box_tensor = torch.rand(num_dets, 5 if use_score else 4) * rand_max
     sorted_xy = [
         box_tensor[:, [0, 2]].sort(dim=-1)[0],
         box_tensor[:, [1, 3]].sort(dim=-1)[0],
@@ -52,7 +64,7 @@ def generate_dets(
         dim=-1,
     )
     tracks = torch.arange(0, num_dets) if track_ids else None
-    dets = Boxes2D(box_tensor, torch.zeros(num_dets), tracks)
+    dets = Boxes2D(box_tensor, torch.zeros(num_dets, dtype=torch.long), tracks)
     torch.random.set_rng_state(state)
     return dets
 
@@ -121,7 +133,7 @@ def generate_feature_list(
     for i in range(list_len):
         features_list.append(
             torch.rand(
-                1, channels, init_height // (2**i), init_width // (2**i)
+                1, channels, init_height // (2 ** i), init_width // (2 ** i)
             )
         )
 
@@ -135,6 +147,7 @@ def generate_input_sample(
     num_objs: int,
     track_ids: bool = False,
     det_input: bool = True,
+    use_score: bool = True,
 ) -> InputSample:
     """Create random InputSample."""
     state = torch.random.get_rng_state()
@@ -143,13 +156,25 @@ def generate_input_sample(
         torch.float32
     )
     images = Images(image_tensor, [(width, height)] * num_imgs)
-    sample = InputSample([Frame(name="test_frame")] * num_imgs, images)
+    sample = InputSample(
+        [
+            Frame(
+                name="test_frame",
+                frameIndex=0,
+                size=ImageSize(width=width, height=height),
+            )
+        ]
+        * num_imgs,
+        images,
+    )
     sample.intrinsics = Intrinsics.cat(
         [Intrinsics(torch.eye(3)) for _ in range(num_imgs)]
     )
     if det_input:
         sample.targets = LabelInstances(
-            boxes2d=[generate_dets(height, width, num_objs, track_ids)]
+            boxes2d=[
+                generate_dets(height, width, num_objs, track_ids, use_score)
+            ]
             * num_imgs,
             instance_masks=[
                 generate_instance_masks(height, width, num_objs, track_ids)

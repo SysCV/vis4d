@@ -73,21 +73,14 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             save(self.annotations, dataset)
         else:
             # Load labels from existing file
-            dataset = load(
-                self.annotations,
-                nprocs=self.num_processes,
-            )
+            dataset = load(self.annotations, nprocs=self.num_processes)
 
         if self.config_path is not None:
             dataset.config = load_label_config(self.config_path)
 
         return dataset
 
-    def _convert_predictions(
-        self,
-        frames: List[Frame],
-        mode: str,
-    ) -> str:
+    def _convert_predictions(self, frames: List[Frame], mode: str) -> str:
         """Convert predictions back to nuScenes format, save out to tmp_dir."""
         os.makedirs(self.tmp_dir)
 
@@ -165,15 +158,11 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         return str_summary_list
 
     def _eval_detection(
-        self,
-        result_path: str,
-        eval_set: str,
+        self, result_path: str, eval_set: str
     ) -> Tuple[MetricLogs, str]:
         """Evaluate detection."""
         nusc = nusc_data(
-            version=self.version,
-            dataroot=self.data_root,
-            verbose=False,
+            version=self.version, dataroot=self.data_root, verbose=False
         )
 
         try:  # pragma: no cover
@@ -205,19 +194,13 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
                 str_summary_list, class_aps, class_tps
             )
 
-            log_dict = {
-                "mAP": mean_ap,
-                "NDS": nd_score,
-            }
+            log_dict = {"mAP": mean_ap, "NDS": nd_score}
             str_summary = "\n".join(str_summary_list)
 
         except AssertionError as e:
             error_msg = "".join(e.args)
             rank_zero_warn(f"Evaluation error: {error_msg}")
-            log_dict = {
-                "mAP": 0,
-                "NDS": 0,
-            }
+            log_dict = {"mAP": 0, "NDS": 0}
             str_summary = (
                 "Evaluation failure might be raised due to sanity check"
             )
@@ -229,9 +212,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         return log_dict, str_summary
 
     def _eval_tracking(
-        self,
-        result_path: str,
-        eval_set: str,
+        self, result_path: str, eval_set: str
     ) -> Tuple[MetricLogs, str]:
         """Evaluate tracking."""
         try:  # pragma: no cover
@@ -287,10 +268,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         except AssertionError as e:
             error_msg = "".join(e.args)
             rank_zero_warn(f"Evaluation error: {error_msg}")
-            log_dict = {
-                "aMOTA": 0,
-                "MOTP": 0,
-            }
+            log_dict = {"aMOTA": 0, "MOTP": 0}
             str_summary = (
                 "Evaluation failure might be raised due to sanity check"
                 + " or motmetrics version is not 1.13.0"

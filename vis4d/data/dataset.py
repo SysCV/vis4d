@@ -45,13 +45,10 @@ class ScalabelDataset(Dataset):  # type: ignore
         )
 
         dataset.frames = filter_attributes(dataset.frames, dataset.attributes)
+        cmpt_gbl_ids = dataset.compute_global_instance_ids
 
         t = Timer()
-        frequencies = prepare_labels(
-            dataset.frames,
-            class_list,
-            dataset.compute_global_instance_ids,
-        )
+        frequencies = prepare_labels(dataset.frames, class_list, cmpt_gbl_ids)
         rank_zero_info(
             f"Preprocessing {len(dataset.frames)} frames takes {t.time():.2f}"
             " seconds."
@@ -62,11 +59,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         self.dataset.frames = DatasetFromList(self.dataset.frames)
         if self.dataset.groups is not None:
             t.reset()
-            prepare_labels(
-                self.dataset.groups,
-                class_list,
-                dataset.compute_global_instance_ids,
-            )
+            prepare_labels(self.dataset.groups, class_list, cmpt_gbl_ids)
             rank_zero_info(
                 f"Preprocessing {len(self.dataset.groups)} groups takes "
                 f"{t.time():.2f} seconds."
@@ -96,14 +89,13 @@ class ScalabelDataset(Dataset):  # type: ignore
         retry_count = 0
         cur_idx = int(idx)
 
+        frame2id = self.ref_sampler.frame_name_to_idx
         if not self.training:
             if self.dataset.groups is not None:
                 group = self.dataset.groups[cur_idx]
                 if not self.dataset.multi_sensor_inference:
                     cur_data = self.mapper(
-                        self.dataset.frames[
-                            self.ref_sampler.frame_name_to_idx[group.frames[0]]
-                        ],
+                        self.dataset.frames[frame2id[group.frames[0]]],
                         self.training,
                     )
                     assert cur_data is not None
@@ -114,10 +106,7 @@ class ScalabelDataset(Dataset):  # type: ignore
                 data = [group_data]
                 for fname in group.frames:
                     cur_data = self.mapper(
-                        self.dataset.frames[
-                            self.ref_sampler.frame_name_to_idx[fname]
-                        ],
-                        self.training,
+                        self.dataset.frames[frame2id[fname]], self.training
                     )
                     assert cur_data is not None
                     data.append(cur_data)
@@ -129,24 +118,21 @@ class ScalabelDataset(Dataset):  # type: ignore
             return data
 
         while True:
+            cur_frame = self.dataset.frames[cur_idx]
             if self.dataset.groups is not None:
                 group = self.dataset.groups[
                     self.ref_sampler.frame_to_group[
-                        self.ref_sampler.frame_name_to_idx[
-                            self.dataset.frames[cur_idx].name
-                        ]
+                        self.ref_sampler.frame_name_to_idx[cur_frame.name]
                     ]
                 ]
                 input_data = self.mapper(
-                    self.dataset.frames[cur_idx],
+                    cur_frame,
                     self.training,
                     group_url=group.url,
                     group_extrinsics=group.extrinsics,
                 )
             else:
-                input_data = self.mapper(
-                    self.dataset.frames[cur_idx], self.training
-                )
+                input_data = self.mapper(cur_frame, self.training)
             if input_data is not None:
                 if input_data.metadata[0].attributes is None:
                     input_data.metadata[0].attributes = {}

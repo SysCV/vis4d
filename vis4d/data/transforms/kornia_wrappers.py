@@ -77,9 +77,7 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         return parameters
 
     def apply_intrinsics(
-        self,
-        intrinsics: Intrinsics,
-        parameters: AugParams,
+        self, intrinsics: Intrinsics, parameters: AugParams
     ) -> Intrinsics:
         """Apply augmentation to input intrinsics."""
         transform = parameters["transform"]
@@ -104,23 +102,18 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         return Images.cat(all_ims)
 
     def apply_box2d(
-        self,
-        boxes: List[Boxes2D],
-        parameters: AugParams,
+        self, boxes: List[Boxes2D], parameters: AugParams
     ) -> List[Boxes2D]:
         """Apply augmentation to input box2d."""
         for i, box in enumerate(boxes):
             if len(box) > 0 and parameters["apply"][i]:
                 boxes[i].boxes[:, :4] = transform_bbox(
-                    parameters["transform"][i],
-                    box.boxes[:, :4],
+                    parameters["transform"][i], box.boxes[:, :4]
                 )
         return boxes
 
     def apply_mask(
-        self,
-        masks: List[TMasks],
-        parameters: AugParams,
+        self, masks: List[TMasks], parameters: AugParams
     ) -> List[TMasks]:
         """Apply augmentation to input mask."""
         for i, mask in enumerate(masks):
@@ -171,11 +164,7 @@ class KorniaRandomHorizontalFlip(KorniaAugmentationWrapper):
     ):
         """Init."""
         super().__init__(
-            "RandomHorizontalFlip",
-            kwargs,
-            prob,
-            same_on_batch,
-            same_on_ref,
+            "RandomHorizontalFlip", kwargs, prob, same_on_batch, same_on_ref
         )
 
     def apply_box3d(
@@ -197,9 +186,7 @@ class KorniaRandomHorizontalFlip(KorniaAugmentationWrapper):
         return points
 
     def apply_intrinsics(
-        self,
-        intrinsics: Intrinsics,
-        parameters: AugParams,
+        self, intrinsics: Intrinsics, parameters: AugParams
     ) -> Intrinsics:
         """Apply augmentation to input intrinsics."""
         center = parameters["batch_shape"][3] / 2

@@ -36,7 +36,10 @@ class SampleDataModule(BaseDataModule):
             f"vis4d/engine/testcases/{self.task}/bdd100k-samples/config.toml"
         )
         bdd100k_loader = BDD100K(
-            f"bdd100k_{self.task}_sample", data_root, annotations, config_path
+            f"bdd100k_{self.task}_sample",
+            data_root,
+            annotations,
+            config_path=config_path,
         )
         self.train_datasets = BaseDatasetHandler(
             ScalabelDataset(bdd100k_loader, True)

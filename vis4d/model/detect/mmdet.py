@@ -17,16 +17,14 @@ from vis4d.struct import (
 
 from ..backbone import BaseBackbone, MMDetBackbone
 from ..backbone.neck import MMDetNeck
-from ..base import BDD100K_MODEL_PREFIX
 from ..heads.dense_head import DetDenseHead, MMDetDenseHead, MMDetRPNHead
 from ..heads.roi_head import Det2DRoIHead, MMDetRoIHead
-from ..mm_utils import add_keyword_args, load_config
+from ..mm_utils import add_keyword_args, load_config, load_model_checkpoint
 from ..utils import postprocess_predictions, predictions_to_scalabel
-from .base import BaseDetector, BaseOneStageDetector, BaseTwoStageDetector
+from .base import BaseOneStageDetector, BaseTwoStageDetector
 
 try:
     from mmcv import Config as MMConfig
-    from mmcv.runner.checkpoint import load_checkpoint
 
     MMCV_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
@@ -39,7 +37,6 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
-MMDET_MODEL_PREFIX = "https://download.openmmlab.com/mmdetection/v2.0/"
 REV_KEYS = [
     (r"^roi_head\.", "roi_head.mm_roi_head."),
     (r"^rpn_head\.", "rpn_head.mm_dense_head."),
@@ -146,7 +143,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
         self.with_mask = self.roi_head.with_mask
         if weights is not None:
-            load_model_checkpoint(self, weights)
+            load_model_checkpoint(self, weights, REV_KEYS)
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
@@ -277,7 +274,7 @@ class MMOneStageDetector(BaseOneStageDetector):
             self.bbox_head = bbox_head
 
         if weights is not None:
-            load_model_checkpoint(self, weights)
+            load_model_checkpoint(self, weights, REV_KEYS)
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
@@ -325,15 +322,6 @@ class MMOneStageDetector(BaseOneStageDetector):
     ) -> List[Boxes2D]:
         """Test stage detections generation."""
         return self.bbox_head(inputs, features)
-
-
-def load_model_checkpoint(model: BaseDetector, weights: str) -> None:
-    """Load MMDet model checkpoint."""
-    if weights.startswith("mmdet://"):
-        weights = MMDET_MODEL_PREFIX + weights.split("mmdet://")[-1]
-    elif weights.startswith("bdd100k://"):
-        weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
-    load_checkpoint(model, weights, revise_keys=REV_KEYS)
 
 
 def get_mmdet_config(

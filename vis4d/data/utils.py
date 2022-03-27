@@ -112,30 +112,27 @@ def instance_ids_to_global(
     """Use local (per video) instance ids to produce global ones."""
     video_names = list(local_instance_ids.keys())
     for frame_id, ann in enumerate(frames):
-        if ann.labels is not None:
-            for label in ann.labels:
-                assert label.attributes is not None
-                if not check_crowd(label) and not check_ignored(label):
-                    video_name = (
-                        ann.videoName
-                        if ann.videoName is not None
-                        else "no-video-" + str(frame_id)
+        if ann.labels is None:  # pragma: no cover
+            continue
+        for label in ann.labels:
+            assert label.attributes is not None
+            if not check_crowd(label) and not check_ignored(label):
+                video_name = (
+                    ann.videoName
+                    if ann.videoName is not None
+                    else "no-video-" + str(frame_id)
+                )
+                sum_previous_vids = sum(
+                    (
+                        len(local_instance_ids[v])
+                        for v in video_names[: video_names.index(video_name)]
                     )
-                    sum_previous_vids = sum(
-                        (
-                            len(local_instance_ids[v])
-                            for v in video_names[
-                                : video_names.index(video_name)
-                            ]
-                        )
-                    )
-                    label.attributes[
-                        "instance_id"
-                    ] = sum_previous_vids + local_instance_ids[
-                        video_name
-                    ].index(
-                        label.id
-                    )
+                )
+                label.attributes[
+                    "instance_id"
+                ] = sum_previous_vids + local_instance_ids[video_name].index(
+                    label.id
+                )
 
 
 def prepare_labels(

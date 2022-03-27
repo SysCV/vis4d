@@ -44,7 +44,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         inputs_to_load: Tuple[str] = ("images",),
         targets_to_load: Tuple[str] = ("boxes2d",),
         skip_empty_samples: bool = False,
-        background_as_class: bool = False,
+        bg_as_class: bool = False,
         image_backend: str = "PIL",
         image_channel_mode: str = "RGB",
         category_map: Optional[CategoryMap] = None,
@@ -63,7 +63,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 f"Found invalid targets: {targets_to_load}, "
                 f"allowed set of targets: {ALLOWED_TARGETS}"
             )
-        self.background_as_class = background_as_class
+        self.bg_as_class = bg_as_class
         self.skip_empty_samples = skip_empty_samples
         self.image_channel_mode = image_channel_mode
 
@@ -135,67 +135,52 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         return input_data
 
     def load_annotations(
-        self,
-        sample: InputSample,
-        labels: Optional[List[Label]],
+        self, sample: InputSample, labels: Optional[List[Label]]
     ) -> None:
         """Transform annotations."""
-        labels_used = []
-        if labels is not None:
-            instance_id_dict = {}
-            for label in labels:
-                assert label.attributes is not None
-                assert label.category is not None
-                if not check_crowd(label) and not check_ignored(label):
-                    labels_used.append(label)
-                    if label.id not in instance_id_dict:
-                        instance_id_dict[label.id] = int(
-                            label.attributes["instance_id"]
-                        )
+        if labels is None:
+            return
+        labels_used, instid_map = [], {}
+        for label in labels:
+            assert label.attributes is not None and label.category is not None
+            if not check_crowd(label) and not check_ignored(label):
+                labels_used.append(label)
+                if label.id not in instid_map:
+                    instid_map[label.id] = int(label.attributes["instance_id"])
+        if not labels_used:
+            return
 
-            if labels_used:
-                if "instance_masks" in self.targets_to_load:
-                    instance_masks = InstanceMasks.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["instance_masks"],
-                        instance_id_dict,
-                        sample.metadata[0].size,
-                    )
-                    sample.targets.instance_masks = [instance_masks]
+        frame = sample.metadata[0]
+        if "instance_masks" in self.targets_to_load:
+            ins_map = self.cats_name2id["instance_masks"]
+            instance_masks = InstanceMasks.from_scalabel(
+                labels_used, ins_map, instid_map, frame.size
+            )
+            sample.targets.instance_masks = [instance_masks]
 
-                if "semantic_masks" in self.targets_to_load:
-                    semantic_masks = SemanticMasks.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["semantic_masks"],
-                        instance_id_dict,
-                        sample.metadata[0].size,
-                        self.background_as_class,
-                    )
-                    sample.targets.semantic_masks = [semantic_masks]
+        if "semantic_masks" in self.targets_to_load:
+            sem_map = self.cats_name2id["semantic_masks"]
+            semantic_masks = SemanticMasks.from_scalabel(
+                labels_used, sem_map, instid_map, frame.size, self.bg_as_class
+            )
+            sample.targets.semantic_masks = [semantic_masks]
 
-                if "boxes2d" in self.targets_to_load:
-                    boxes2d = Boxes2D.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["boxes2d"],
-                        instance_id_dict,
-                    )
-                    if len(sample.targets.instance_masks[0]) > 0 and (
-                        len(boxes2d) == 0
-                        or len(boxes2d)
-                        != len(sample.targets.instance_masks[0])
-                    ):  # pragma: no cover
-                        boxes2d = sample.targets.instance_masks[
-                            0
-                        ].get_boxes2d()
-                    sample.targets.boxes2d = [boxes2d]
+        if "boxes2d" in self.targets_to_load:
+            boxes2d = Boxes2D.from_scalabel(
+                labels_used, self.cats_name2id["boxes2d"], instid_map
+            )
+            ins_masks = sample.targets.instance_masks[0]
+            if len(ins_masks) > 0 and (
+                len(boxes2d) == 0 or len(boxes2d) != len(ins_masks)
+            ):  # pragma: no cover
+                boxes2d = ins_masks.get_boxes2d()
+            sample.targets.boxes2d = [boxes2d]
 
-                if "boxes3d" in self.targets_to_load:
-                    boxes3d = Boxes3D.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["boxes3d"],
-                        instance_id_dict,
-                    )
-                    sample.targets.boxes3d = [boxes3d]
+        if "boxes3d" in self.targets_to_load:
+            boxes3d = Boxes3D.from_scalabel(
+                labels_used, self.cats_name2id["boxes3d"], instid_map
+            )
+            sample.targets.boxes3d = [boxes3d]
 
     @staticmethod
     def load_intrinsics(intrinsics: ScalabelIntrinsics) -> Intrinsics:

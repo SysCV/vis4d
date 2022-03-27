@@ -7,6 +7,7 @@ from scalabel.label.typing import Category, Config, Dataset, Frame
 from ..struct import ArgsType
 from .dataset import ScalabelDataset
 from .datasets import Scalabel
+from .mapper import BaseSampleMapper
 from .reference import BaseReferenceSampler
 
 
@@ -77,6 +78,7 @@ class TestScalabelDataset(unittest.TestCase):
         dataset = ScalabelDataset(
             dataset_loader,
             training=True,
+            mapper=BaseSampleMapper(category_map={"test": 0}),
             ref_sampler=BaseReferenceSampler(
                 strategy="sequential",
                 num_ref_imgs=1,
@@ -129,6 +131,7 @@ class TestScalabelDataset(unittest.TestCase):
             for i in range(6)
         ]
 
+        ref_sampler.frames = None
         dataset = ScalabelDataset(
             dataset_loader, training=True, ref_sampler=ref_sampler
         )

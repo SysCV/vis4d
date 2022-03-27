@@ -29,9 +29,6 @@ from ..struct import (
 )
 from .optimize import BaseLRWarmup, LinearLRWarmup
 
-BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
-
-
 DEFAULT_OPTIM = {
     "class_path": "torch.optim.SGD",
     "init_args": {
@@ -40,7 +37,6 @@ DEFAULT_OPTIM = {
         "weight_decay": 0.0001,
     },
 }
-
 
 DEFAULT_SCHEDULER = {
     "class_path": "torch.optim.lr_scheduler.StepLR",
@@ -249,8 +245,8 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         """
         return self.forward_test(batch)
 
-    def on_train_start(self) -> None:
-        """Called at the beginning of training after sanity check."""
+    def on_fit_start(self) -> None:
+        """Called at the beginning of fit."""
         self.load_pretrained_weights()
         if self._freeze:
             self.freeze_parameters(self._freeze_parameters)

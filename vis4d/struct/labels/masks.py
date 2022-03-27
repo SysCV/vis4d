@@ -98,14 +98,14 @@ class Masks(LabelInstance):
         class_to_idx: Dict[str, int],
         label_id_to_idx: Optional[Dict[str, int]] = None,
         image_size: Optional[ImageSize] = None,
-        background_as_class: bool = False,
+        bg_as_class: bool = False,
     ) -> "TMasks":
         """Convert from scalabel format to internal."""
         bitmask_list, cls_list, idx_list = [], [], []
         score_list = []
         has_class_ids = all((b.category is not None for b in labels))
         has_score = all((b.score is not None for b in labels))
-        if background_as_class:
+        if bg_as_class:
             foreground: Optional[NDArrayUI8] = None
         for i, label in enumerate(labels):
             if label.poly2d is None and label.rle is None:
@@ -131,19 +131,19 @@ class Masks(LabelInstance):
             idx_list.append(idx)
             if has_score:
                 score_list.append(score)
-            if background_as_class:
+            if bg_as_class:
                 foreground = (
                     bitmask
                     if foreground is None
                     else np.logical_or(foreground, bitmask)
                 )
-        if background_as_class:
+        if bg_as_class:
             assert foreground is not None
             bitmask_list.append(np.logical_not(foreground))
             idx_list.append(len(labels))
             if has_class_ids:
                 assert "background" in class_to_idx, (
-                    '"background_as_class" requires "background" class to be '
+                    '"bg_as_class" requires "background" class to be '
                     "in category_mapping"
                 )
                 cls_list.append(class_to_idx["background"])

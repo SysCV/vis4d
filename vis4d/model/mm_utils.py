@@ -23,8 +23,11 @@ from vis4d.struct import (
     SemanticMasks,
 )
 
+from .base import BaseModel
+
 try:
     from mmcv import Config as MMConfig
+    from mmcv.runner.checkpoint import load_checkpoint
 
     MMCV_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
@@ -39,13 +42,18 @@ except (ImportError, NameError):  # pragma: no cover
     BitmapMasks = None
 
 
-MM_BASE_MAP = {
-    "mmdet": "syscv/mmdetection/master/configs/",
-    "mmseg": "open-mmlab/mmsegmentation/master/configs/",
+BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
+MM_MODEL_MAP = {
+    "mmdet://": "https://download.openmmlab.com/mmdetection/v2.0/",
+    "mmseg://": "https://download.openmmlab.com/mmsegmentation/v0.5/",
 }
 MM_CFG_MAP = {
-    "mmdet": "mmdetection-master/configs/",
-    "mmseg": "mmsegmentation-master/configs/",
+    "mmdet://": "syscv/mmdetection/master/configs/",
+    "mmseg://": "open-mmlab/mmsegmentation/master/configs/",
+}
+MM_ZIP_MAP = {
+    "mmdet://": "mmdetection-master/configs/",
+    "mmseg://": "mmsegmentation-master/configs/",
 }
 
 MMDetMetaData = Dict[str, Union[Tuple[int, int, int], bool, NDArrayF64]]
@@ -185,6 +193,25 @@ def targets_to_mmseg(images: Images, targets: LabelInstances) -> torch.Tensor:
     ).unsqueeze(1)
 
 
+def load_model_checkpoint(
+    model: BaseModel,
+    weights: str,
+    rev_keys: Optional[List[Tuple[str, str]]] = None,
+) -> None:
+    """Load MM model checkpoint."""
+    if rev_keys is None:  # pragma: no cover
+        rev_keys = [(r"^module\.", "")]
+    if re.compile(r"^mm(det|seg)://").search(weights):
+        pre = weights[:8]
+        weights = MM_MODEL_MAP[pre] + weights.split(pre)[-1]
+        load_checkpoint(model, weights, revise_keys=rev_keys)
+    elif weights.startswith("bdd100k://"):
+        weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
+        load_checkpoint(model, weights, revise_keys=rev_keys)
+    else:  # pragma: no cover
+        load_checkpoint(model, weights)
+
+
 def load_config_from_mm(url: str, mm_base: str) -> str:
     """Get config from mmdetection GitHub repository."""
     full_url = "https://raw.githubusercontent.com/" + mm_base + url
@@ -195,24 +222,18 @@ def load_config_from_mm(url: str, mm_base: str) -> str:
     return response.text
 
 
-def load_config(path: str) -> MMConfig:
+def load_config(path: str, key: str = "model") -> MMConfig:
     """Load config either from file or from URL."""
     if os.path.exists(path):
         cfg = MMConfig.fromfile(path)
-        if cfg.get("model"):
-            cfg = cfg["model"]
     elif re.compile(r"^mm(det|seg)://").search(path):
-        ex = os.path.splitext(path)[1]
-        cfg_content = load_config_from_mm(
-            path.split(path[:8])[-1], MM_BASE_MAP[path[:5]]
-        )
+        pre = path[:8]
+        cfg_content = load_config_from_mm(path.split(pre)[-1], MM_CFG_MAP[pre])
         if cfg_content.find("_base_") >= 0:
             cwd = os.getcwd()
             with tempfile.TemporaryDirectory() as temp_config_dir:
                 # download configs
-                url_tmp = MM_BASE_MAP[path[:5]].replace(
-                    "master/configs/", "archive"
-                )
+                url_tmp = MM_CFG_MAP[pre].replace("master/configs/", "archive")
                 with ZipFile(
                     BytesIO(
                         urlopen(
@@ -221,14 +242,15 @@ def load_config(path: str) -> MMConfig:
                     )
                 ) as zipfile:
                     zipfile.extractall(path=temp_config_dir)
-                os.chdir(os.path.join(temp_config_dir, MM_CFG_MAP[path[:5]]))
-                cfg = MMConfig.fromfile(path.replace("mmdet://", "")).model
+                os.chdir(os.path.join(temp_config_dir, MM_ZIP_MAP[pre]))
+                cfg = MMConfig.fromfile(path.replace("mmdet://", ""))
                 os.chdir(cwd)
         else:
-            cfg = MMConfig.fromstring(cfg_content, ex).model
+            cfg = MMConfig.fromstring(cfg_content, os.path.splitext(path)[1])
     else:
         raise FileNotFoundError(f"MM config not found: {path}")
-    return cfg
+    assert key in cfg
+    return cfg[key]
 
 
 def _parse_losses(

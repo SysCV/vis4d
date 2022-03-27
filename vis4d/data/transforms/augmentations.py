@@ -409,9 +409,7 @@ class RandomCrop(BaseAugmentation):
         return Images.cat(all_ims)
 
     def apply_box2d(
-        self,
-        boxes: List[Boxes2D],
-        parameters: AugParams,
+        self, boxes: List[Boxes2D], parameters: AugParams
     ) -> List[Boxes2D]:
         """Apply augmentation to input box2d."""
         for i, box in enumerate(boxes):
@@ -422,9 +420,7 @@ class RandomCrop(BaseAugmentation):
         return boxes
 
     def apply_box3d(
-        self,
-        boxes: List[Boxes3D],
-        parameters: AugParams,
+        self, boxes: List[Boxes3D], parameters: AugParams
     ) -> List[Boxes3D]:
         """Apply augmentation to input box3d."""
         for i, box in enumerate(boxes):
@@ -433,9 +429,7 @@ class RandomCrop(BaseAugmentation):
         return boxes
 
     def apply_intrinsics(
-        self,
-        intrinsics: Intrinsics,
-        parameters: AugParams,
+        self, intrinsics: Intrinsics, parameters: AugParams
     ) -> Intrinsics:
         """Apply augmentation to input intrinsics."""
         x1, y1, _, _ = parameters["crop_params"].T
@@ -444,9 +438,7 @@ class RandomCrop(BaseAugmentation):
         return intrinsics
 
     def apply_instance_mask(
-        self,
-        masks: List[InstanceMasks],
-        parameters: AugParams,
+        self, masks: List[InstanceMasks], parameters: AugParams
     ) -> List[InstanceMasks]:
         """Apply augmentation to input instance mask."""
         for i, mask in enumerate(masks):
@@ -457,9 +449,7 @@ class RandomCrop(BaseAugmentation):
         return masks
 
     def apply_semantic_mask(
-        self,
-        masks: List[SemanticMasks],
-        parameters: AugParams,
+        self, masks: List[SemanticMasks], parameters: AugParams
     ) -> List[SemanticMasks]:
         """Apply augmentation to input semantic mask."""
         for i, mask in enumerate(masks):
