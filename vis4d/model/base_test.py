@@ -2,8 +2,10 @@
 import unittest
 from typing import Optional
 
-from vis4d.common.bbox.poolers import MultiScaleRoIAlign
+import torch
+
 from vis4d.common.bbox.matchers import MaxIoUMatcher
+from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.samplers import CombinedSampler
 from vis4d.model.detect import (
     D2TwoStageDetector,
@@ -20,8 +22,8 @@ from vis4d.model.track.similarity import QDSimilarityHead
 from vis4d.unittest.utils import generate_input_sample
 
 from .base import BaseModel
-from .qdtrack import QDTrack
 from .qd_3dt import QD3DT
+from .qdtrack import QDTrack
 
 
 class BaseModelTests:
@@ -36,7 +38,7 @@ class BaseModelTests:
         def test_train(self) -> None:
             """Test case for training."""
             assert self.model is not None
-            self.model.training = True
+            self.model.train()
             inputs = [generate_input_sample(32, 32, 2, 3, use_score=False)]
             outs = self.model(inputs)
             self.assertTrue(isinstance(outs, dict))
@@ -45,14 +47,14 @@ class BaseModelTests:
         def test_test(self) -> None:
             """Test case for testing."""
             assert self.model is not None
-            self.model.training = False
+            self.model.eval()
             inputs = [generate_input_sample(32, 32, 1, 3, use_score=False)]
             outs = self.model(inputs)
             self.assertTrue(isinstance(outs, dict))
             self.assertGreater(len(outs), 0)
 
-    class TestDetect3D(unittest.TestCase):
-        """Base test case for vis4d 3D detect models."""
+    class TestTrack(unittest.TestCase):
+        """Base test case for vis4d tracking models."""
 
         model: Optional[BaseModel] = None
         category_mapping = {"pedestrian": 0, "rider": 1, "car": 2}
@@ -60,11 +62,14 @@ class BaseModelTests:
         def test_train(self) -> None:
             """Test case for training."""
             assert self.model is not None
-            self.model.training = True
+            self.model.train()
             inputs = [
                 generate_input_sample(
-                    32, 32, 2, 3, det3d_input=True, use_score=False
-                )
+                    32, 32, 2, 3, use_score=False, track_ids=True
+                ),
+                generate_input_sample(
+                    32, 32, 2, 3, use_score=False, track_ids=True
+                ),
             ]
             outs = self.model(inputs)
             self.assertTrue(isinstance(outs, dict))
@@ -73,15 +78,60 @@ class BaseModelTests:
         def test_test(self) -> None:
             """Test case for testing."""
             assert self.model is not None
-            self.model.training = False
+            with torch.no_grad():
+                self.model.eval()
+                inputs = [generate_input_sample(32, 32, 1, 3, use_score=False)]
+                outs = self.model(inputs)
+                self.assertTrue(isinstance(outs, dict))
+                self.assertGreater(len(outs), 0)
+
+    class TestTrack3D(unittest.TestCase):
+        """Base test case for vis4d 3D track models."""
+
+        model: Optional[BaseModel] = None
+        category_mapping = {"pedestrian": 0, "rider": 1, "car": 2}
+
+        def test_train(self) -> None:
+            """Test case for training."""
+            assert self.model is not None
+            self.model.train()
             inputs = [
                 generate_input_sample(
-                    32, 32, 1, 3, det3d_input=True, use_score=False
-                )
+                    32,
+                    32,
+                    2,
+                    3,
+                    det3d_input=True,
+                    use_score=False,
+                    track_ids=True,
+                ),
+                generate_input_sample(
+                    32,
+                    32,
+                    2,
+                    3,
+                    det3d_input=True,
+                    use_score=False,
+                    track_ids=True,
+                ),
             ]
             outs = self.model(inputs)
             self.assertTrue(isinstance(outs, dict))
             self.assertGreater(len(outs), 0)
+
+        def test_test(self) -> None:
+            """Test case for testing."""
+            assert self.model is not None
+            with torch.no_grad():
+                self.model.eval()
+                inputs = [
+                    generate_input_sample(
+                        32, 32, 1, 3, det3d_input=True, use_score=False
+                    )
+                ]
+                outs = self.model(inputs)
+                self.assertTrue(isinstance(outs, dict))
+                self.assertGreater(len(outs), 0)
 
     class TestSegment(unittest.TestCase):
         """Base test case for vis4d segment models."""
@@ -92,7 +142,7 @@ class BaseModelTests:
         def test_train(self) -> None:
             """Test case for training."""
             assert self.model is not None
-            self.model.training = True
+            self.model.train()
             inputs = [generate_input_sample(32, 32, 2, 3, det_input=False)]
             outs = self.model(inputs)
             self.assertTrue(isinstance(outs, dict))
@@ -101,11 +151,12 @@ class BaseModelTests:
         def test_test(self) -> None:
             """Test case for testing."""
             assert self.model is not None
-            self.model.training = False
-            inputs = [generate_input_sample(32, 32, 2, 3, det_input=False)]
-            outs = self.model(inputs)
-            self.assertTrue(isinstance(outs, dict))
-            self.assertGreater(len(outs), 0)
+            with torch.no_grad():
+                self.model.eval()
+                inputs = [generate_input_sample(32, 32, 2, 3, det_input=False)]
+                outs = self.model(inputs)
+                self.assertTrue(isinstance(outs, dict))
+                self.assertGreater(len(outs), 0)
 
     class TestPanoptic(unittest.TestCase):
         """Base test case for vis4d panoptic models."""
@@ -116,7 +167,7 @@ class BaseModelTests:
         def test_train(self) -> None:
             """Test case for training."""
             assert self.model is not None
-            self.model.training = True
+            self.model.train()
             inputs = [
                 generate_input_sample(
                     32, 32, 2, 3, pan_input=True, use_score=False
@@ -129,15 +180,16 @@ class BaseModelTests:
         def test_test(self) -> None:
             """Test case for testing."""
             assert self.model is not None
-            self.model.training = False
-            inputs = [
-                generate_input_sample(
-                    32, 32, 2, 3, pan_input=True, use_score=False
-                )
-            ]
-            outs = self.model(inputs)
-            self.assertTrue(isinstance(outs, dict))
-            self.assertGreater(len(outs), 0)
+            self.model.eval()
+            with torch.no_grad():
+                inputs = [
+                    generate_input_sample(
+                        32, 32, 2, 3, pan_input=True, use_score=False
+                    )
+                ]
+                outs = self.model(inputs)
+                self.assertTrue(isinstance(outs, dict))
+                self.assertGreater(len(outs), 0)
 
 
 class TestDetectMMFasterRCNN(BaseModelTests.TestDetect):
@@ -205,7 +257,7 @@ class TestDetectD2MaskRCNN(BaseModelTests.TestDetect):
         )
 
 
-class TestQDTrackFasterRCNN(BaseModelTests.TestDetect):
+class TestQDTrackFasterRCNN(BaseModelTests.TestTrack):
     """QDTrack with Faster R-CNN track test cases."""
 
     @classmethod
@@ -225,7 +277,7 @@ class TestQDTrackFasterRCNN(BaseModelTests.TestDetect):
         )
 
 
-class TestQDTrackRetinaNet(BaseModelTests.TestDetect):
+class TestQDTrackRetinaNet(BaseModelTests.TestTrack):
     """QDTrack with RetinaNet track test cases."""
 
     @classmethod
@@ -245,7 +297,7 @@ class TestQDTrackRetinaNet(BaseModelTests.TestDetect):
         )
 
 
-class TestQD3DT(BaseModelTests.TestDetect3D):
+class TestQD3DT(BaseModelTests.TestTrack3D):
     """QD3DT test cases."""
 
     @classmethod

@@ -17,13 +17,14 @@ from vis4d.struct import (
 from ..backbone import MMSegBackbone
 from ..backbone.neck import MMDetNeck
 from ..heads.dense_head import MMSegDecodeHead
-from ..mm_utils import (
+from ..utils import (
     _parse_losses,
     add_keyword_args,
     load_config,
     load_model_checkpoint,
+    postprocess_predictions,
+    predictions_to_scalabel,
 )
-from ..utils import postprocess_predictions, predictions_to_scalabel
 from .base import BaseSegmentor
 
 try:

@@ -2,7 +2,7 @@
 import inspect
 import math
 import os
-from typing import List
+from typing import Dict, List
 
 import torch
 from scalabel.label.typing import Frame, ImageSize
@@ -16,6 +16,7 @@ from vis4d.struct import (
     Intrinsics,
     LabelInstances,
     SemanticMasks,
+    TLabelInstance,
 )
 
 
@@ -179,7 +180,7 @@ def generate_input_sample(
     sample.intrinsics = Intrinsics.cat(
         [Intrinsics(torch.eye(3)) for _ in range(num_imgs)]
     )
-    targets = {}
+    targets: Dict[str, TLabelInstance] = {}  # type: ignore
     if det_input or pan_input:
         targets["boxes2d"] = [
             generate_dets(height, width, num_objs, track_ids, use_score)

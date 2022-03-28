@@ -16,6 +16,7 @@ from .mapper import BaseSampleMapper
 from .reference import BaseReferenceSampler
 from .utils import (
     DatasetFromList,
+    discard_labels_outside_set,
     filter_attributes,
     prepare_labels,
     print_class_histogram,
@@ -37,12 +38,24 @@ class ScalabelDataset(Dataset):  # type: ignore
         self.training = training
         self.mapper = mapper if mapper is not None else BaseSampleMapper()
 
-        class_list = list(
-            set(
-                c.name
-                for c in get_leaf_categories(dataset.metadata_cfg.categories)
+        if len(self.mapper.cats_name2id) > 0:
+            class_list = list(
+                set(
+                    cls
+                    for field in self.mapper.cats_name2id
+                    for cls in list(self.mapper.cats_name2id[field].keys())
+                )
             )
-        )
+            discard_labels_outside_set(dataset.frames, class_list)
+        else:
+            class_list = list(
+                set(
+                    c.name
+                    for c in get_leaf_categories(
+                        dataset.metadata_cfg.categories
+                    )
+                )
+            )
 
         dataset.frames = filter_attributes(dataset.frames, dataset.attributes)
         cmpt_gbl_ids = dataset.compute_global_instance_ids

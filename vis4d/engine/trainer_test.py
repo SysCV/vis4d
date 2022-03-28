@@ -1,100 +1,96 @@
-"""Test cases for Vis4D engine Trainer."""
-import os
+"""Test cases for Vis4D engine."""
 import shutil
-from argparse import Namespace
-from typing import Optional
-from unittest import mock
+import unittest
+from typing import List, Optional, Union
 
-import pytest
-import torch
+from _pytest.monkeypatch import MonkeyPatch
+from pytorch_lightning import Callback
 from pytorch_lightning.utilities.cli import SaveConfigCallback
 
-from vis4d.data import BaseDataModule
-from vis4d.data.dataset import ScalabelDataset
-from vis4d.data.datasets import BDD100K
-from vis4d.data.handler import BaseDatasetHandler
 from vis4d.model import BaseModel
-from vis4d.unittest.utils import get_test_file
+from vis4d.struct import ArgsType
 
-# TODO update tests
 from .trainer import BaseCLI, DefaultTrainer
 
 
-class SampleDataModule(BaseDataModule):
-    def __init__(self, task: str, *args, **kwargs):
-        self.task = task
-        super().__init__(*args, **kwargs)
+class MockModel(BaseModel):
+    """Model Mockup."""
 
-    def setup(self, stage: Optional[str] = None) -> None:
-        annotations = (
-            f"vis4d/engine/testcases/{self.task}/bdd100k-samples/labels/"
-        )
-        data_root = (
-            f"vis4d/engine/testcases/{self.task}/bdd100k-samples/images"
-        )
-        config_path = (
-            f"vis4d/engine/testcases/{self.task}/bdd100k-samples/config.toml"
-        )
-        bdd100k_loader = BDD100K(
-            f"bdd100k_{self.task}_sample",
-            data_root,
-            annotations,
-            config_path=config_path,
-        )
-        self.train_datasets = BaseDatasetHandler(
-            ScalabelDataset(bdd100k_loader, True)
-        )
-        self.test_datasets = [
-            BaseDatasetHandler(ScalabelDataset(bdd100k_loader, False))
-        ]
-
-
-class Model(BaseModel):
-    def __init__(self, model_param: int, *args, **kwargs):
+    def __init__(self, model_param: int, *args: ArgsType, **kwargs: ArgsType):
+        """Init."""
         super().__init__(*args, **kwargs)
         self.model_param = model_param
 
 
-def _trainer_builder():
+def _trainer_builder(
+    exp_name: str,
+    fast_dev_run: bool = False,
+    callbacks: Optional[Union[List[Callback], Callback]] = None,
+) -> DefaultTrainer:
+    """Build mockup trainer."""
     return DefaultTrainer(
-        work_dir="./unittests/", exp_name="test", fast_dev_run=True
+        work_dir="./unittests/",
+        exp_name=exp_name,
+        fast_dev_run=fast_dev_run,
+        callbacks=callbacks,
     )
 
 
-@pytest.mark.parametrize(
-    ["trainer_class", "model_class"], [(_trainer_builder, Model)]
-)
-def test_base_cli(trainer_class, model_class, monkeypatch):
-    """Test that CLI correctly instantiates model, trainer and calls fit."""
-    expected_model = dict(model_param=7)
-    expected_trainer = dict(limit_train_batches=100)
+class TestCLI(unittest.TestCase):
+    """Test cases for vis4d cli."""
 
-    def fit(trainer, model):
-        for k, v in expected_model.items():
-            assert getattr(model, k) == v
-        for k, v in expected_trainer.items():
-            assert getattr(trainer, k) == v
-        save_callback = [
-            x for x in trainer.callbacks if isinstance(x, SaveConfigCallback)
-        ]
-        assert len(save_callback) == 1
-        save_callback[0].on_train_start(trainer, model)
+    def setUp(self) -> None:
+        """Set up test case."""
+        self.monkeypatch = MonkeyPatch()
 
-    def on_train_start(callback, trainer, _):
-        config_dump = callback.parser.dump(callback.config, skip_none=False)
-        for k, v in expected_model.items():
-            assert f"  {k}: {v}" in config_dump
-        for k, v in expected_trainer.items():
-            assert f"  {k}: {v}" in config_dump
-        trainer.ran_asserts = True
+    def test_base_cli(self) -> None:
+        """Test that CLI correctly instantiates model/trainer and calls fit."""
+        expected_model = dict(model_param=7)
+        expected_trainer = dict(exp_name="cli_test")
 
-    monkeypatch.setattr(DefaultTrainer, "fit", fit)
-    monkeypatch.setattr(SaveConfigCallback, "on_train_start", on_train_start)
+        def fit(trainer, model):  # type: ignore
+            for k, v in expected_model.items():
+                assert getattr(model, k) == v
+            for k, v in expected_trainer.items():  # type: ignore # pylint: disable=line-too-long
+                assert getattr(trainer, k) == v
+            save_callback = [
+                x
+                for x in trainer.callbacks
+                if isinstance(x, SaveConfigCallback)
+            ]
+            assert len(save_callback) == 1
+            save_callback[0].on_train_start(trainer, model)
 
-    with mock.patch("sys.argv", ["any.py", "fit", "--model.model_param=7"]):
-        cli = BaseCLI(
-            model_class,
-            trainer_class=trainer_class,
-            datamodule_class=SampleDataModule,
+        def on_train_start(callback, trainer, _):  # type: ignore
+            config_dump = callback.parser.dump(
+                callback.config, skip_none=False
+            )
+            for k, v in expected_model.items():
+                assert f"  {k}: {v}" in config_dump
+            for k, v in expected_trainer.items():  # type: ignore
+                assert f"  {k}: {v}" in config_dump
+            trainer.ran_asserts = True
+
+        self.monkeypatch.setattr(DefaultTrainer, "fit", fit)
+        self.monkeypatch.setattr(
+            SaveConfigCallback, "on_train_start", on_train_start
         )
-        assert hasattr(cli.trainer, "ran_asserts") and cli.trainer.ran_asserts
+
+        with unittest.mock.patch(
+            "sys.argv",
+            [
+                "any.py",
+                "fit",
+                "--model.model_param=7",
+                "--trainer.exp_name=cli_test",
+            ],
+        ):
+            cli = BaseCLI(MockModel, trainer_class=_trainer_builder)
+            assert (
+                hasattr(cli.trainer, "ran_asserts") and cli.trainer.ran_asserts  # type: ignore # pylint: disable=line-too-long
+            )
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """Clean up test files."""
+        shutil.rmtree("./unittests/", ignore_errors=True)

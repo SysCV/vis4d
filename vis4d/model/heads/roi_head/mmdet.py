@@ -2,7 +2,7 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.model.mm_utils import (
+from vis4d.model.utils import (
     _parse_losses,
     detections_from_mmdet,
     get_img_metas,

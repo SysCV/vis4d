@@ -82,6 +82,10 @@ class DefaultTrainer(pl.Trainer):
         )
         if version is None:
             version = timestamp
+        self.work_dir = work_dir
+        self.exp_name = exp_name
+        self.version = version
+        self.output_dir = osp.join(work_dir, exp_name, version)
 
         # setup experiment logging
         if "logger" not in kwargs or (
@@ -118,7 +122,6 @@ class DefaultTrainer(pl.Trainer):
         callbacks += [progress_bar]
 
         # add Model checkpointer
-        self.output_dir = osp.join(work_dir, exp_name, version)
         callbacks += [
             pl.callbacks.ModelCheckpoint(
                 dirpath=osp.join(self.output_dir, "checkpoints"),
@@ -266,7 +269,10 @@ class BaseCLI(LightningCLI):
     def instantiate_classes(self) -> None:
         """Instantiate trainer, datamodule and model."""
         super().instantiate_classes()
-        self.datamodule.set_category_mapping(self.model.category_mapping)
+        if self.datamodule is not None and isinstance(
+            self.datamodule, BaseDataModule
+        ):
+            self.datamodule.set_category_mapping(self.model.category_mapping)
 
         if isinstance(self.trainer, DefaultTrainer):
             if self.trainer.resume:  # pragma: no cover

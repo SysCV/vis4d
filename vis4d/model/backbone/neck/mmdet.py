@@ -16,7 +16,7 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
-from vis4d.model.mm_utils import load_config
+from vis4d.model.utils import load_config
 from vis4d.struct import DictStrAny, FeatureMaps
 
 from .base import BaseNeck

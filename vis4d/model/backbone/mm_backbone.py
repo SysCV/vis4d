@@ -25,7 +25,7 @@ except (ImportError, NameError):  # pragma: no cover
 
 from vis4d.struct import ArgsType, DictStrAny, FeatureMaps, Images, InputSample
 
-from ..mm_utils import load_config, load_model_checkpoint
+from ..utils import load_config, load_model_checkpoint
 from .base import BaseBackbone
 
 

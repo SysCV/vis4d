@@ -19,8 +19,13 @@ from ..backbone import BaseBackbone, MMDetBackbone
 from ..backbone.neck import MMDetNeck
 from ..heads.dense_head import DetDenseHead, MMDetDenseHead, MMDetRPNHead
 from ..heads.roi_head import Det2DRoIHead, MMDetRoIHead
-from ..mm_utils import add_keyword_args, load_config, load_model_checkpoint
-from ..utils import postprocess_predictions, predictions_to_scalabel
+from ..utils import (
+    add_keyword_args,
+    load_config,
+    load_model_checkpoint,
+    postprocess_predictions,
+    predictions_to_scalabel,
+)
 from .base import BaseOneStageDetector, BaseTwoStageDetector
 
 try:

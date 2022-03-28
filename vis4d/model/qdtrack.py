@@ -1,6 +1,6 @@
 """Quasi-dense instance similarity learning model."""
 import pickle
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 
@@ -61,8 +61,7 @@ class QDTrack(BaseModel):
             x.targets for x in ref_inputs
         ]
 
-        key_proposals: List[Boxes2D]
-        ref_proposals: List[List[Boxes2D]]
+        key_proposals: Optional[List[Boxes2D]]
         if isinstance(self.detector, BaseTwoStageDetector):
             # proposal generation
             rpn_losses, key_proposals = self.detector.generate_proposals(
@@ -129,9 +128,9 @@ class QDTrack(BaseModel):
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
 
-        outs: Dict[str, List[TLabelInstance]] = {
+        outs: Dict[str, List[TLabelInstance]] = {  # type: ignore
             "detect": [d.clone() for d in detections]
-        }  # type: ignore
+        }
         if instance_segms is not None:
             outs["ins_seg"] = [s.clone() for s in instance_segms]
 
@@ -159,9 +158,9 @@ class QDTrack(BaseModel):
     ) -> ModelOutput:
         """Associate detections, update track graph."""
         tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
-        outs: Dict[str, List[TLabelInstance]] = {
+        outs: Dict[str, List[TLabelInstance]] = {  # type: ignore
             "track": tracks.boxes2d
-        }  # type: ignore
+        }
         if self.with_mask:
             outs["seg_track"] = tracks.instance_masks
 

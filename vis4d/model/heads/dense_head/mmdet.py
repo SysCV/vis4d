@@ -1,7 +1,7 @@
 """mmdetection dense head wrapper."""
 from typing import Dict, List, Optional, Tuple, Union
 
-from vis4d.model.mm_utils import (
+from vis4d.model.utils import (
     _parse_losses,
     get_img_metas,
     load_config,
