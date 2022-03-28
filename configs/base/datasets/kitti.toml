@@ -1,22 +1,18 @@
 [[train]]
 name = "kitti_track_train"
-annotations = "data/KITTI/tracking_training.json"
 type = "KITTI"
 data_root = "data/KITTI"
-input_dir = "data/KITTI"
-split = "training"
 data_type = "tracking"
-output_dir = "data/KITTI"
-num_processes = 0
+split = "training"
+annotations = "data/KITTI/tracking_training.json"
+cache_as_binary = true
     [train.sample_mapper]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "pointcloud"]
     skip_empty_samples = true
 
     [train.ref_sampler]
-    strategy = 'uniform'
-    scope = 5
+    scope = 3
     num_ref_imgs = 1
-    skip_nomatch_samples = true
 
     [[train.sample_mapper.transformations]]
     type = "Resize"
@@ -28,23 +24,19 @@ num_processes = 0
 
 [[train]]
 name = "kitti_det_train"
-annotations = "data/KITTI/detection_training.json"
 type = "KITTI"
 data_root = "data/KITTI"
-input_dir = "data/KITTI"
-split = "training"
 data_type = "detection"
-output_dir = "data/KITTI"
-num_processes = 0
+split = "training"
+annotations = "data/KITTI/detection_training.json"
+cache_as_binary = true
     [train.sample_mapper]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics", "pointcloud"]
     skip_empty_samples = true
 
     [train.ref_sampler]
-    strategy = 'uniform'
-    scope = 5
+    scope = 3
     num_ref_imgs = 1
-    skip_nomatch_samples = true
 
     [[train.sample_mapper.transformations]]
     type = "Resize"
@@ -56,15 +48,14 @@ num_processes = 0
 
 [[test]]
 name = "kitti_track_val"
-annotations = "data/KITTI/tracking_training.json"
 type = "KITTI"
 data_root = "data/KITTI"
-input_dir = "data/KITTI"
-split = "training"
 data_type = "tracking"
-output_dir = "data/KITTI"
+split = "training"
 multi_sensor_inference = false
-num_processes = 0
+annotations = "data/KITTI/tracking_training.json"
+eval_metrics = ["detect", "track"]
+cache_as_binary = true
     [test.sample_mapper]
     fields_to_load = ["boxes2d", "boxes3d", "intrinsics", "extrinsics"]
 

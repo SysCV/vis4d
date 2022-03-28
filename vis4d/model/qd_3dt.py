@@ -102,13 +102,16 @@ class QD3DT(QDTrack):
 
         boxes2d = Boxes2D.merge(boxes2d_list)
 
-        non_empty_3d_list = []
-        for idx, boxes3d in enumerate(boxes3d_list):
-            assert isinstance(boxes3d, Boxes3D)
-            if len(boxes3d) != 0:
-                boxes3d.transform(frames[idx].extrinsics)
-                non_empty_3d_list.append(boxes3d)
-        boxes3d = Boxes3D.merge(non_empty_3d_list)
+        if sum(len(b) for b in boxes3d_list) == 0:
+            boxes3d = Boxes3D.merge(boxes3d_list)
+        else:
+            non_empty_3d_list = []
+            for idx, boxes3d in enumerate(boxes3d_list):
+                assert isinstance(boxes3d, Boxes3D)
+                if len(boxes3d) != 0:
+                    boxes3d.transform(frames[idx].extrinsics)
+                    non_empty_3d_list.append(boxes3d)
+            boxes3d = Boxes3D.merge(non_empty_3d_list)
 
         embeds = torch.cat(embeddings_list)
 

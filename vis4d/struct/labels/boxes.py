@@ -354,6 +354,15 @@ class Boxes3D(Boxes):
         return self.boxes[:, 6:9]
 
     @classmethod
+    def empty(
+        cls: Type["TBoxes"], device: Optional[torch.device] = None
+    ) -> "TBoxes":
+        """Return empty boxes on device."""
+        return cls(torch.empty(0, 10), torch.empty(0), torch.empty(0)).to(
+            device
+        )
+
+    @classmethod
     def from_scalabel(
         cls,
         labels: List[Label],

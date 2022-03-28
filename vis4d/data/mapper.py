@@ -244,7 +244,8 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         radius: float = 1.0,
     ) -> PointCloud:
         """Load pointcloud points and filter the near ones."""
-        points = np.fromfile(group_url, dtype=np.float32)  # type: ignore # pylint: disable=line-too-long
+        points_bytes = self.data_backend.get(group_url)
+        points = np.frombuffer(points_bytes, dtype=np.float32)  # type: ignore # pylint: disable=line-too-long
         s = points.shape[0]
         if s % 5 != 0:
             points = points[: s - (s % 5)]
