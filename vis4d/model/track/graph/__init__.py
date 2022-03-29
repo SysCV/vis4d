@@ -6,5 +6,5 @@ from .qdtrack import QDTrackGraph
 __all__ = [
     "BaseTrackGraph",
     "QDTrackGraph",
-    "QD3DTrachGraph",
+    "QD3DTrackGraph",
 ]

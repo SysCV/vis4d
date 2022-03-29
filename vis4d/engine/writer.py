@@ -8,15 +8,13 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.distributed import rank_zero_warn
-from scalabel.label.io import save
 from scalabel.label.typing import Frame, FrameGroup
 from scalabel.vis.label import LabelViewer, UIConfig
 
-from ..common.utils.distributed import get_rank, get_world_size
 from ..data.datasets import BaseDatasetLoader
 from ..struct import InputSample, ModelOutput
-from .utils import all_gather_predictions
 from ..vis.utils import preprocess_image
+from .utils import all_gather_predictions
 
 
 class Vis4DWriterCallback(Callback):

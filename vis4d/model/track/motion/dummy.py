@@ -12,10 +12,10 @@ class Dummy3DMotionModel(BaseMotionModel):
     def __init__(
         self,
         detections_3d: torch.Tensor,
-        motion_momentum: float = 0.9,
         *args: ArgsType,
+        motion_momentum: float = 0.9,
         **kwargs: ArgsType,
-    ):
+    ) -> None:
         """Initialize a motion model using initial bounding box."""
         super().__init__(*args, **kwargs)
         self.motion_momentum = motion_momentum
@@ -28,7 +28,7 @@ class Dummy3DMotionModel(BaseMotionModel):
         self.prev_ref = bbox_3d.clone()
         self.info = info
 
-    def update(self, detections_3d):
+    def update(self, detections_3d: torch.Tensor) -> None:  # type: ignore
         """Update the state vector with observed bbox."""
         bbox_3d = detections_3d[: self.motion_dims]
         info = detections_3d[self.motion_dims :]
@@ -43,7 +43,7 @@ class Dummy3DMotionModel(BaseMotionModel):
         self.prev_ref = bbox_3d
         self.info = info
 
-    def predict(self, *args, **kwargs):
+    def predict(self) -> torch.Tensor:  # type: ignore
         """Advance the state vector and returns the predicted bounding box."""
         self.age += 1
         if self.time_since_update > 0:
@@ -52,10 +52,10 @@ class Dummy3DMotionModel(BaseMotionModel):
 
         return self.obj_state
 
-    def get_state(self):
+    def get_state(self) -> torch.Tensor:  # type: ignore
         """Return the current bounding box estimate."""
         return self.obj_state
 
-    def get_history(self):
+    def get_history(self) -> torch.Tensor:  # type: ignore
         """Return the history of estimates."""
         return self.history

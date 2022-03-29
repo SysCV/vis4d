@@ -49,13 +49,16 @@ type = "QD3DT"
     keep_in_memory = 10  # timesteps
     init_score_thr = 0.8
     obj_score_thr = 0.5
-    lstm_name = "VeloLSTM"
-    lstm_ckpt_name = "vis4d-workspace/checkpoints/batch128_min10_seq10_dim7_VeloLSTM_nuscenes_100_linear.pth"
 
-        [model.track_graph.motion_model]
+    [model.track_graph.motion_model]
         type = "LSTM3DMotionModel"
         motion_dims = 7
         num_frames = 5
+        lstm_name = "VeloLSTM"
+        lstm_ckpt_name = "vis4d-workspace/checkpoints/batch128_min10_seq10_dim7_VeloLSTM_nuscenes_100_linear.pth"
+        feature_dim = 64
+        hidden_size = 128
+        num_layers = 2
 
     [model.similarity]
     type = "QDSimilarityHead"

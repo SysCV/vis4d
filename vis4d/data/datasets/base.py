@@ -13,7 +13,7 @@ from scalabel.eval.pan_seg import evaluate_pan_seg
 from scalabel.eval.result import Result
 from scalabel.eval.sem_seg import evaluate_sem_seg
 from scalabel.label.io import group_and_sort, save
-from scalabel.label.typing import Config, Dataset, Frame, FrameGroup, Label
+from scalabel.label.typing import Config, Dataset, Frame, FrameGroup
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.time import Timer
@@ -200,7 +200,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         return log_dict, str(result)
 
     def save_predictions(
-        self, output_dir: str, metric: str, predictions: List[List[Label]]
+        self, output_dir: str, metric: str, predictions: List[Frame]
     ) -> None:
         """Save model predictions in Scalabel format."""
         if self.custom_save:

@@ -230,8 +230,10 @@ def matrix_to_euler_angles(
     if tait_bryan:
         rads = matrix[..., i0, i2]
         # safety for nan
-        rads[torch.where(rads > 1.0)] = torch.tensor([1.0]).to(rads.device)
-        rads[torch.where(rads < -1.0)] = torch.tensor([-1.0]).to(rads.device)
+        rads[torch.where(rads > 1.0)] = rads.new_tensor([1.0]).to(rads.device)
+        rads[torch.where(rads < -1.0)] = rads.new_tensor([-1.0]).to(
+            rads.device
+        )
         central_angle = torch.asin(
             rads * (-1.0 if i0 - i2 in [-1, 2] else 1.0)
         )

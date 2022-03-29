@@ -27,6 +27,8 @@ try:
         cvtColor,
         imdecode,
     )
+
+    CV2_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
     CV2_INSTALLED = False
 

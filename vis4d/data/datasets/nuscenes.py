@@ -5,10 +5,13 @@ import shutil
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
-from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
+from pytorch_lightning.utilities.distributed import (
+    rank_zero_info,
+    rank_zero_warn,
+)
 from scalabel.label.io import load, load_label_config, save
 from scalabel.label.to_nuscenes import to_nuscenes
-from scalabel.label.typing import Dataset, Frame, Label
+from scalabel.label.typing import Dataset, Frame
 
 from vis4d.struct import ArgsType, MetricLogs
 
@@ -343,7 +346,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
                 )
 
     def save_predictions(
-        self, output_dir: str, metric: str, predictions: List[List[Label]]
+        self, output_dir: str, metric: str, predictions: List[Frame]
     ) -> None:
         """Save model predictions in nuScenes official format."""
         mode = None

@@ -15,10 +15,10 @@ class LSTM3DMotionModel(BaseMotionModel):
         self,
         lstm: nn.Module,
         detections_3d: torch.Tensor,
-        init_flag: bool = True,
         *args: ArgsType,
+        init_flag: bool = True,
         **kwargs: ArgsType,
-    ):
+    ) -> None:
         """Initialize a motion model using initial bounding box."""
         super().__init__(*args, **kwargs)
         self.init_flag = init_flag
@@ -49,7 +49,7 @@ class LSTM3DMotionModel(BaseMotionModel):
         """Fix the angle value."""
         return (angle + self.pi) % (2 * self.pi) - self.pi
 
-    def _update_history(self, bbox_3d: torch.Tensor):
+    def _update_history(self, bbox_3d: torch.Tensor) -> None:
         """Update velocity history."""
         self.ref_history = self.update_array(self.ref_history, bbox_3d)
         self.history = self.update_array(
@@ -67,7 +67,7 @@ class LSTM3DMotionModel(BaseMotionModel):
             self.avg_angle = self.prev_obs[6]
             self.avg_dim = self.prev_obs[3:6]
 
-    def _init_history(self, bbox_3d: torch.Tensor):
+    def _init_history(self, bbox_3d: torch.Tensor) -> None:
         """Initialize velocity history."""
         self.ref_history = self.update_array(self.ref_history, bbox_3d)
         self.history = torch.cat(
@@ -88,7 +88,7 @@ class LSTM3DMotionModel(BaseMotionModel):
             self.avg_angle = self.prev_obs[6]
             self.avg_dim = self.prev_obs[3:6]
 
-    def update(self, obs_3d: torch.Tensor):
+    def update(self, obs_3d: torch.Tensor) -> None:  # type: ignore
         """Updates the state vector with observed bbox."""
         bbox_3d = obs_3d[: self.motion_dims]
         info = obs_3d[self.motion_dims :]
@@ -161,7 +161,7 @@ class LSTM3DMotionModel(BaseMotionModel):
 
         self.info = info
 
-    def predict(self, update_state: bool = True):
+    def predict(self, update_state: bool = True) -> torch.Tensor:  # type: ignore # pylint: disable=line-too-long
         """Advances the state vector and returns the predicted bounding box."""
         with torch.no_grad():
             pred_loc, hidden_pred = self.lstm.predict(
@@ -189,10 +189,10 @@ class LSTM3DMotionModel(BaseMotionModel):
 
         return pred_state
 
-    def get_state(self):
+    def get_state(self) -> torch.Tensor:  # type: ignore
         """Returns the current bounding box estimate."""
         return self.obj_state
 
-    def get_history(self):
+    def get_history(self) -> torch.Tensor:  # type: ignore
         """Returns the history of estimates."""
         return self.history

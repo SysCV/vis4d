@@ -9,7 +9,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from scalabel.common import mute
-from scalabel.label.io import save
 from scalabel.label.typing import Frame
 
 from ..data.datasets import BaseDatasetLoader

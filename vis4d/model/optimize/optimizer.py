@@ -1,9 +1,9 @@
 """Vis4D optimizers."""
 import re
-from typing import Dict, Iterator, List, Optional, Tuple, Union
+from typing import Iterator, List, Optional, Tuple
 
 from pydantic import BaseModel
-from pytorch_lightning.utilities import rank_zero_info
+from pytorch_lightning.utilities.distributed import rank_zero_info
 from torch import optim
 from torch.nn.parameter import Parameter
 
@@ -42,7 +42,7 @@ class BaseOptimizer(optim.Optimizer, metaclass=RegistryHolder):  # type: ignore
 
 def set_param_wise_optim(
     params: Iterator[Tuple[str, Parameter]], cfg: OptimizerConfig
-) -> List[Dict[str, Union[Parameter, float]]]:
+) -> List[DictStrAny]:
     """Setting param-wise lr and weight decay."""
     if cfg.paramwise_options is None:
         new_params = [{"params": [param]} for _, param in params]
@@ -55,8 +55,6 @@ def set_param_wise_optim(
     bias_lr_mult = cfg.paramwise_options.get("bias_lr_mult", 1.0)
     bias_decay_mult = cfg.paramwise_options.get("bias_decay_mult", 1.0)
     norm_decay_mult = cfg.paramwise_options.get("norm_decay_mult", 1.0)
-    dcn_offset_lr_mult = cfg.paramwise_options.get("dcn_offset_lr_mult", 1.0)
-    embed_lr_mult = cfg.paramwise_options.get("embed_lr_mult", 1.0)
     bboxfc_lr_mult = cfg.paramwise_options.get("bboxfc_lr_mult", 1.0)
 
     new_params = []
@@ -69,31 +67,27 @@ def set_param_wise_optim(
             new_params.append(param_group)
             continue
 
-        # for norm layers, overwrite the weight decay of weight and bias
-        # TODO: obtain the norm layer prefixes dynamically
-        if re.search(r"(bn|gn)(\d+)?.(weight|bias)", name):
-            if base_wd is not None:
-                param_group["weight_decay"] = base_wd * norm_decay_mult
-        # for other layers, overwrite both lr and weight decay of bias
-        elif name.endswith(".bias") and name.find("offset") == -1:
-            param_group["lr"] = base_lr * bias_lr_mult
-            if base_wd is not None:
-                param_group["weight_decay"] = base_wd * bias_decay_mult
-        # otherwise use the global settings
-        elif name.find("offset") != -1:
-            param_group["lr"] = base_lr * dcn_offset_lr_mult
-            rank_zero_info(f"{name} with lr_multi: {dcn_offset_lr_mult}")
-        elif name.find("embed_head") != -1:
-            param_group["lr"] = base_lr * embed_lr_mult
-            rank_zero_info(f"{name} with lr_multi: {embed_lr_mult}")
-        elif (
+        bbox_head = (
             name.find("cls") != -1
             or name.find("reg") != -1
             or name.find("dep") != -1
             or name.find("dim") != -1
             or name.find("rot") != -1
             or name.find("2dc") != -1
-        ):
+        )
+
+        # For norm layers, overwrite the weight decay of weight and bias
+        # TODO: obtain the norm layer prefixes dynamically  # pylint: disable=line-too-long,fixme
+        if re.search(r"(bn|gn)(\d+)?.(weight|bias)", name):
+            if base_wd is not None:
+                param_group["weight_decay"] = base_wd * norm_decay_mult
+        # For the other layers, overwrite both lr and weight decay of bias
+        elif name.endswith(".bias") and name.find("offset") == -1:
+            param_group["lr"] = base_lr * bias_lr_mult
+            if base_wd is not None:
+                param_group["weight_decay"] = base_wd * bias_decay_mult
+        # Overwrite bbox head lr
+        elif bbox_head:
             param_group["lr"] = base_lr * bboxfc_lr_mult
             rank_zero_info(f"{name} with lr_multi: {bboxfc_lr_mult}")
         new_params.append(param_group)

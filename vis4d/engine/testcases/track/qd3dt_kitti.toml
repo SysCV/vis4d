@@ -5,14 +5,17 @@ path = "../configs/datasets/kitti/track.toml"
 path = "../configs/models/mmdetection/qd3dt_R_18_FPN.toml"
 
 [model]
-category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2}
+category_mapping = {"car" = 0, "pedestrian" = 1, "cyclist" = 2, "truck" = 3, "tram" = 4, "misc" = 5}
     [model.optimizer]
     type = "SGD"
-    lr = 0.005
+    lr = 0.01
+    paramwise_options = {"bboxfc_lr_mult" = 10.0}
     kwargs = {"momentum" = 0.9, "weight_decay" = 0.0001}
 
     [model.lr_scheduler]
     type = "MultiStepLR"
+    warmup_steps = 1000
+    warmup_ratio = 0.1
     kwargs = {"milestones" = [8, 11]}
 
 [launch]

@@ -126,7 +126,7 @@ class QD3DT(QDTrack):
 
         # Update 3D score and move 3D boxes into group sensor coordinate
         tracks.boxes3d[0].boxes[:, -1] = (
-            tracks.boxes3d[0].score * tracks.boxes2d[0].score
+            tracks.boxes3d[0].score * tracks.boxes2d[0].score  # type: ignore
         )
         tracks.boxes3d[0].transform(group.extrinsics.inverse())
 
@@ -147,8 +147,9 @@ class QD3DT(QDTrack):
             track_3d=[tracks_3d],
         )
 
+    @staticmethod
     def post_processing(
-        self, boxes2d: Boxes2D, boxes3d: Boxes3D, embeds: torch.Tensor
+        boxes2d: Boxes2D, boxes3d: Boxes3D, embeds: torch.Tensor
     ) -> Tuple[Boxes2D, Boxes3D, torch.Tensor]:
         """Post process the multi-camera results."""
         boxes_2d = torch.empty(
@@ -177,8 +178,8 @@ class QD3DT(QDTrack):
                     if (
                         torch.cdist(box3d.center, box3d_post.center, p=2)
                         <= nms_dist
-                        and boxes3d[idx].score * boxes2d[idx].score
-                        > box3d_post.score * box2d_post.score
+                        and boxes3d[idx].score * boxes2d[idx].score  # type: ignore # pylint: disable=line-too-long
+                        > box3d_post.score * box2d_post.score  # type: ignore
                     ):
                         nms_flag = 1
                         boxes_3d[i] = box3d.boxes

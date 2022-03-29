@@ -36,7 +36,7 @@ def init_lstm_module(layer: nn.Module) -> None:
             param.data.fill_(0)
 
 
-class VeloLSTM(nn.Module):
+class VeloLSTM(nn.Module):  # type: ignore
     """Estimating object location in world coordinates.
 
     Prediction LSTM:
@@ -55,7 +55,7 @@ class VeloLSTM(nn.Module):
         num_layers: int,
         loc_dim: int,
         dropout: float = 0.0,
-    ):
+    ) -> None:
         """Init."""
         super().__init__()
         self.batch_size = batch_size
