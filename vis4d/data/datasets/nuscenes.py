@@ -5,10 +5,10 @@ import shutil
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
-from pytorch_lightning.utilities.distributed import rank_zero_warn
+from pytorch_lightning.utilities import rank_zero_info, rank_zero_warn
 from scalabel.label.io import load, load_label_config, save
 from scalabel.label.to_nuscenes import to_nuscenes
-from scalabel.label.typing import Dataset, Frame
+from scalabel.label.typing import Dataset, Frame, Label
 
 from vis4d.struct import ArgsType, MetricLogs
 
@@ -85,11 +85,13 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
 
     def _convert_predictions(
         self,
+        output_dir: str,
         frames: List[Frame],
+        metric: str,
         mode: str,
     ) -> str:
         """Convert predictions back to nuScenes format, save out to tmp_dir."""
-        os.makedirs(self.tmp_dir)
+        os.makedirs(output_dir, exist_ok=True)
 
         metadata = {
             "use_camera": False,
@@ -102,7 +104,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         for m in self.metadata:
             metadata[m] = True
 
-        result_path = os.path.join(self.tmp_dir, f"{mode}_results.json")
+        result_path = os.path.join(output_dir, f"{metric}_predictions.json")
 
         nusc_results = to_nuscenes(Dataset(frames=frames), mode, metadata)
 
@@ -223,9 +225,6 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             )
             rank_zero_warn(str_summary)
 
-        # clean up tmp dir
-        shutil.rmtree(self.tmp_dir)
-
         return log_dict, str_summary
 
     def _eval_tracking(
@@ -298,9 +297,6 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             )
             rank_zero_warn(str_summary)
 
-        # clean up tmp dir
-        shutil.rmtree(self.tmp_dir)
-
         return log_dict, str_summary
 
     def evaluate(
@@ -315,7 +311,9 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         else:
             mode = "tracking"
 
-        result_path = self._convert_predictions(predictions, mode)
+        result_path = self._convert_predictions(
+            self.tmp_dir, predictions, metric, mode
+        )
 
         if "mini" in self.version:
             eval_set = "mini_val"
@@ -326,6 +324,9 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             log_dict, str_summary = self._eval_detection(result_path, eval_set)
         else:
             log_dict, str_summary = self._eval_tracking(result_path, eval_set)
+
+        # clean up tmp dir
+        shutil.rmtree(self.tmp_dir)
 
         return log_dict, str_summary
 
@@ -340,3 +341,22 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
                 raise KeyError(
                     f"metric {metric} is not supported in {self.name}"
                 )
+
+    def save_predictions(
+        self, output_dir: str, metric: str, predictions: List[List[Label]]
+    ) -> None:
+        """Save model predictions in nuScenes official format."""
+        mode = None
+        if self.custom_save:
+            if metric == "detect_3d":
+                mode = "detection"
+            elif metric == "track_3d":
+                mode = "tracking"
+
+        if mode is None:
+            super().save_predictions(output_dir, metric, predictions)
+        else:
+            rank_zero_info(f"Save {metric} in custom format.")
+            _ = self._convert_predictions(
+                output_dir, predictions, metric, mode
+            )

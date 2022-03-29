@@ -134,6 +134,10 @@ class StandardEvaluatorCallback(BaseEvaluatorCallback):
         self.name = dataset_loader.name
         self.metrics = dataset_loader.eval_metrics
         self.eval_func = dataset_loader.evaluate
+        self.save_func = dataset_loader.save_predictions
+
+        if self.output_dir is not None:
+            os.makedirs(self.output_dir, exist_ok=True)
 
     def process(
         self, inputs: List[List[InputSample]], outputs: ModelOutput
@@ -155,12 +159,8 @@ class StandardEvaluatorCallback(BaseEvaluatorCallback):
         if not self.logging_disabled and len(self.metrics) > 0:
             logger.info("Running evaluation on dataset %s...", self.name)
         for key, predictions in self._predictions.items():
-            if self.output_dir:
-                os.makedirs(self.output_dir, exist_ok=True)
-                file_path = os.path.join(
-                    self.output_dir, f"{key}_predictions.json"
-                )
-                save(file_path, predictions)
+            if self.output_dir is not None:
+                self.save_func(self.output_dir, key, predictions)
 
             if key in self.metrics:
                 log_dict, log_str = self.eval_func(key, predictions, self._gts)

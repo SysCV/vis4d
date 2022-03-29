@@ -1,8 +1,9 @@
 """Dummy 3D motion model."""
 import torch
 
-from .base import BaseMotionModel
 from vis4d.struct import ArgsType
+
+from .base import BaseMotionModel
 
 
 class Dummy3DMotionModel(BaseMotionModel):

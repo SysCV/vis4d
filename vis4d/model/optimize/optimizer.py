@@ -1,14 +1,14 @@
 """Vis4D optimizers."""
 import re
-from typing import Iterator, Tuple, Union, List, Dict, Optional
+from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from pydantic import BaseModel
+from pytorch_lightning.utilities import rank_zero_info
 from torch import optim
 from torch.nn.parameter import Parameter
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.struct import DictStrAny
-from pytorch_lightning.utilities import rank_zero_info
 
 
 class OptimizerConfig(BaseModel):

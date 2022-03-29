@@ -3,8 +3,9 @@ import numpy as np
 import torch
 from torch import nn
 
-from .base import BaseMotionModel
 from vis4d.struct import ArgsType
+
+from .base import BaseMotionModel
 
 
 class LSTM3DMotionModel(BaseMotionModel):

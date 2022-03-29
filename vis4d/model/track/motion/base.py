@@ -2,6 +2,7 @@
 import abc
 
 import torch
+
 from vis4d.common.registry import RegistryHolder
 
 

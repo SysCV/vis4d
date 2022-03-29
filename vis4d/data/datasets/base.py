@@ -12,8 +12,8 @@ from scalabel.eval.mots import acc_single_video_mots, evaluate_seg_track
 from scalabel.eval.pan_seg import evaluate_pan_seg
 from scalabel.eval.result import Result
 from scalabel.eval.sem_seg import evaluate_sem_seg
-from scalabel.label.io import group_and_sort
-from scalabel.label.typing import Config, Dataset, Frame, FrameGroup
+from scalabel.label.io import group_and_sort, save
+from scalabel.label.typing import Config, Dataset, Frame, FrameGroup, Label
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.time import Timer
@@ -120,6 +120,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         collect_device: str = "cpu",
         multi_sensor_inference: bool = True,
         compute_global_instance_ids: bool = False,
+        custom_save: bool = False,
     ):
         """Init dataset loader."""
         super().__init__()
@@ -136,6 +137,7 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         self.attributes = attributes
         self.num_processes = num_processes
         self.multi_sensor_inference = multi_sensor_inference
+        self.custom_save = custom_save
 
         if self.eval_metrics is None:
             self.eval_metrics = []
@@ -196,6 +198,17 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         )
         log_dict = {f"{metric}/{k}": v for k, v in result.summary().items()}
         return log_dict, str(result)
+
+    def save_predictions(
+        self, output_dir: str, metric: str, predictions: List[List[Label]]
+    ) -> None:
+        """Save model predictions in Scalabel format."""
+        if self.custom_save:
+            rank_zero_info(
+                f"Use custom save but save {metric} in Scalabel format."
+            )
+        file_path = os.path.join(output_dir, f"{metric}_predictions.json")
+        save(file_path, predictions)
 
 
 def add_data_path(

@@ -1,4 +1,4 @@
 """Vis4D visualization package."""
-from vis4d.engine.writer import ScalabelWriterCallback
+from vis4d.engine.writer import StandardWriterCallback
 
-__all__ = ["ScalabelWriterCallback"]
+__all__ = ["StandardWriterCallback"]

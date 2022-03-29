@@ -3,12 +3,12 @@ import copy
 from typing import Dict, List, Optional, Tuple, TypedDict, Union
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 from vis4d.common.bbox.utils import bbox_iou
-
 from vis4d.common.registry import build_component
+from vis4d.model.track.motion import BaseMotionModel, VeloLSTM
 from vis4d.struct import (
     ArgsType,
     Boxes2D,
@@ -17,10 +17,8 @@ from vis4d.struct import (
     LabelInstances,
     ModuleCfg,
 )
-from vis4d.model.track.motion import BaseMotionModel, VeloLSTM
 
 from .qdtrack import QDTrackGraph
-import pdb
 
 
 class Track(TypedDict):

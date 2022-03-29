@@ -24,7 +24,7 @@ from ..data.handler import Vis4DDatasetHandler
 from ..data.module import Vis4DDataModule
 from ..model import BaseModel, build_model
 from ..struct import DictStrAny, ModuleCfg
-from ..vis import ScalabelWriterCallback
+from ..vis import StandardWriterCallback
 from .evaluator import StandardEvaluatorCallback
 from .utils import (
     Vis4DProgressBar,
@@ -246,7 +246,9 @@ def build_callbacks(
             callbacks.append(StandardEvaluatorCallback(i, d.dataset, out))
         else:
             assert out is not None
-            callbacks.append(ScalabelWriterCallback(i, out, visualize))
+            callbacks.append(
+                StandardWriterCallback(i, d.dataset, out, visualize)
+            )
     return callbacks
 
 
