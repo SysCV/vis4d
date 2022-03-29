@@ -31,7 +31,7 @@ image_channel_mode = "BGR"
 
     [model.lr_scheduler]
     type = "MultiStepLR"
-    kwargs = {"milestones" = [24, 33]}
+    kwargs = {"milestones" = [8, 11]}
 
     [model.similarity.proposal_matcher]
     type = "MaxIoUMatcher"
@@ -50,7 +50,7 @@ samples_per_gpu = 4
 workers_per_gpu = 2
 
 [trainer]
-max_epochs = 36
+max_epochs = 12
 check_val_every_n_epoch = 1
 num_sanity_val_steps = 2
 gradient_clip_val = 35

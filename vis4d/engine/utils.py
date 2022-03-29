@@ -32,6 +32,13 @@ from ..common.utils.time import Timer
 from ..config import Config
 from ..struct import DictStrAny, InputSample, LossesType, ModelOutput
 
+try:
+    from mmcv.utils import get_logger
+
+    MMCV_INSTALLED = True
+except (ImportError, NameError):  # pragma: no cover
+    MMCV_INSTALLED = False
+
 logger = logging.getLogger("pytorch_lightning")
 # ignore DeprecationWarning by default (e.g. numpy)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -300,6 +307,12 @@ def setup_logger(
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(plain_formatter)
         logger.addHandler(fh)
+
+    if MMCV_INSTALLED:
+        mm_logger = get_logger("mmdet")
+        mm_logger.setLevel(logging.ERROR)
+        mm_logger = get_logger("mmcv")
+        mm_logger.setLevel(logging.ERROR)
 
 
 @rank_zero_only

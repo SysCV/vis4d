@@ -156,7 +156,7 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
 
         vid_id = key_data.metadata[0].videoName
         for _ in range(num_retry):
-            if vid_id is not None:
+            if vid_id is not None and self.scope > 0:
                 ref_data = []
                 for ref_idx in self.sample_ref_indices(vid_id, cur_idx):
                     ref_sample = mapper(self.frames[ref_idx])

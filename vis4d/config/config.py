@@ -160,7 +160,6 @@ def read_config(filepath: str) -> Config:
         for cfg in config_dict["config"]:
             assert "path" in cfg, "Config arguments must have path!"
             nested_update(subconfig_dict, load_config(cfg["path"]))
-
         nested_update(subconfig_dict, config_dict)
         config_dict = subconfig_dict
         os.chdir(cwd)
@@ -174,8 +173,29 @@ def keylist_update(  # type: ignore
 ) -> None:
     """Update nested dict based on multiple keys saved in a list."""
     cur_key = key_list.pop(0)
+    new_key = False
+    if isinstance(my_dict, list):
+        cur_key = int(cur_key)
+        assert (
+            0 <= cur_key < len(my_dict)
+        ), f"The index '{cur_key}' is out of range!"
+    elif isinstance(my_dict, dict):
+        if cur_key not in my_dict:
+            new_key = True
+    else:
+        raise NotImplementedError(
+            f"The key '{cur_key}' does not match config's structure!"
+        )
+
     if len(key_list) == 0:
-        my_dict[cur_key] = value
+        if new_key:
+            my_dict[cur_key] = value
+        else:
+            # Type casting based on the field to be replaced.
+            to_type = type(my_dict[cur_key])
+            if to_type == bool:
+                value = value.lower() in ("true", "t", "1")
+            my_dict[cur_key] = to_type(value)
         return
     keylist_update(my_dict[cur_key], key_list, value)
 
