@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple, TypedDict
 
 import torch
 import torch.nn.functional as F
+from pytorch_lightning.utilities.distributed import rank_zero_warn
 from torch import nn
 
 from vis4d.common.bbox.utils import bbox_iou
@@ -47,49 +48,33 @@ class QD3DTrackGraph(QDTrackGraph):
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
-        self.motion_model = motion_model
-        self.motion_dims = motion_model["motion_dims"]
         self.bbox_affinity_weight = bbox_affinity_weight
         self.feat_affinity_weight = 1 - bbox_affinity_weight
 
-        if motion_model["lstm_name"] is not None:
-            self.motion_model["lstm"] = self.build_lstm_model(
-                motion_model.pop("lstm_name"),
-                motion_model.pop("lstm_ckpt_name"),
-                motion_model.pop("feature_dim"),
-                motion_model.pop("hidden_size"),
-                motion_model.pop("num_layers"),
-            )
-
-    def build_lstm_model(
-        self,
-        lstm_name: str,
-        lstm_ckpt_name: str,
-        feature_dim: int,
-        hidden_size: int,
-        num_layers: int,
-    ) -> Optional[nn.Module]:
-        """Build LSTM motion model."""
-        lstm_model = None
-        if lstm_name == "VeloLSTM":
+        # Build LSTM motion model
+        if "lstm" in motion_model:
+            lstm = motion_model.pop("lstm")
             lstm_model = VeloLSTM(
                 1,
-                feature_dim,
-                hidden_size,
-                num_layers,
-                self.motion_dims,
+                lstm["feature_dim"],
+                lstm["hidden_size"],
+                lstm["num_layers"],
+                motion_model["motion_dims"],
             )
-            if lstm_ckpt_name is not None:
-                ckpt = torch.load(lstm_ckpt_name, map_location="cpu")
+            if "checkpoint" in lstm:  # pragma: no cover
+                ckpt = torch.load(lstm["checkpoint"], map_location="cpu")
                 try:
                     lstm_model.load_state_dict(ckpt["state_dict"])
                 except (RuntimeError, KeyError) as ke:
-                    print(f"Cannot load full model: {ke}")
+                    rank_zero_warn(f"Cannot load full model: {ke}")
                     state = lstm_model.state_dict()
                     state.update(ckpt["state_dict"])
                     lstm_model.load_state_dict(state)
                 del ckpt
-        return lstm_model
+            motion_model["lstm_model"] = lstm_model
+
+        self.motion_model = motion_model
+        self.motion_dims = motion_model["motion_dims"]
 
     def reset(self) -> None:
         """Reset tracks."""

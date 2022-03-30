@@ -51,8 +51,3 @@ class BaseMotionModel(metaclass=RegistryHolder):
     def get_state(self, *args, **kwargs) -> torch.Tensor:  # type: ignore
         """Returns the current bbox estimation."""
         raise NotImplementedError
-
-    @abc.abstractmethod
-    def get_history(self, *args, **kwargs) -> torch.Tensor:  # type: ignore
-        """Returns the history of estimation."""
-        raise NotImplementedError

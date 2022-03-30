@@ -1,5 +1,6 @@
 """LSTM 3D motion model."""
-import numpy as np
+from typing import Tuple
+
 import torch
 from torch import nn
 
@@ -13,7 +14,7 @@ class LSTM3DMotionModel(BaseMotionModel):
 
     def __init__(
         self,
-        lstm: nn.Module,
+        lstm_model: nn.Module,
         detections_3d: torch.Tensor,
         *args: ArgsType,
         init_flag: bool = True,
@@ -24,10 +25,8 @@ class LSTM3DMotionModel(BaseMotionModel):
         self.init_flag = init_flag
 
         self.device = detections_3d.device
-        self.lstm = lstm.to(self.device)
-        self.lstm.eval()
-
-        self.pi = torch.tensor(np.pi).to(self.device)
+        self.lstm_model = lstm_model.to(self.device)
+        self.lstm_model.eval()
 
         bbox_3d = detections_3d[: self.motion_dims]
         info = detections_3d[self.motion_dims :]
@@ -37,17 +36,11 @@ class LSTM3DMotionModel(BaseMotionModel):
         self.ref_history = torch.cat(
             [bbox_3d.view(1, self.motion_dims)] * (self.num_frames + 1)
         )
-        self.avg_angle = bbox_3d[6]
-        self.avg_dim = bbox_3d[3:6]
         self.prev_obs = bbox_3d.clone()
         self.prev_ref = bbox_3d.clone()
         self.info = info
-        self.hidden_pred = self.lstm.init_hidden(self.device)
-        self.hidden_ref = self.lstm.init_hidden(self.device)
-
-    def fix_angle(self, angle: torch.Tensor) -> torch.Tensor:
-        """Fix the angle value."""
-        return (angle + self.pi) % (2 * self.pi) - self.pi
+        self.hidden_pred = self.lstm_model.init_hidden(self.device)
+        self.hidden_ref = self.lstm_model.init_hidden(self.device)
 
     def _update_history(self, bbox_3d: torch.Tensor) -> None:
         """Update velocity history."""
@@ -55,17 +48,7 @@ class LSTM3DMotionModel(BaseMotionModel):
         self.history = self.update_array(
             self.history, self.ref_history[-1] - self.ref_history[-2]
         )
-        # align orientation history
-        self.history[:, 3] = self.history[-1, 3]
         self.prev_ref[: self.motion_dims] = self.obj_state[: self.motion_dims]
-        if self.motion_dims > 3:
-            self.avg_angle = self.fix_angle(self.ref_history[:, 3]).mean(
-                axis=0
-            )
-            self.avg_dim = self.ref_history.mean(axis=0)[3:6]
-        else:
-            self.avg_angle = self.prev_obs[6]
-            self.avg_dim = self.prev_obs[3:6]
 
     def _init_history(self, bbox_3d: torch.Tensor) -> None:
         """Initialize velocity history."""
@@ -79,14 +62,6 @@ class LSTM3DMotionModel(BaseMotionModel):
             * self.num_frames
         )
         self.prev_ref[: self.motion_dims] = self.obj_state[: self.motion_dims]
-        if self.motion_dims > 3:
-            self.avg_angle = self.fix_angle(self.ref_history[:, 3]).mean(
-                axis=0
-            )
-            self.avg_dim = self.ref_history.mean(axis=0)[3:6]
-        else:
-            self.avg_angle = self.prev_obs[6]
-            self.avg_dim = self.prev_obs[3:6]
 
     def update(self, obs_3d: torch.Tensor) -> None:  # type: ignore
         """Updates the state vector with observed bbox."""
@@ -100,35 +75,8 @@ class LSTM3DMotionModel(BaseMotionModel):
         if self.age == 1:
             self.obj_state[: self.motion_dims] = bbox_3d.clone()
 
-        if self.motion_dims > 3:
-            # orientation correction
-            self.obj_state[6] = self.fix_angle(self.obj_state[6])
-            bbox_3d[6] = self.fix_angle(bbox_3d[6])
-
-            # if the angle of two theta is not acute angle
-            # make the theta still in the range
-            curr_yaw = bbox_3d[6]
-            if (
-                self.pi / 2.0
-                < abs(curr_yaw - self.obj_state[6])
-                < self.pi * 3 / 2.0
-            ):
-                self.obj_state[6] += self.pi
-                if self.obj_state[6] > self.pi:
-                    self.obj_state[6] -= self.pi * 2
-                if self.obj_state[6] < -self.pi:
-                    self.obj_state[6] += self.pi * 2
-
-            # now the angle is acute: < 90 or > 270,
-            # convert the case of > 270 to < 90
-            if abs(curr_yaw - self.obj_state[6]) >= self.pi * 3 / 2.0:
-                if curr_yaw > 0:
-                    self.obj_state[6] += self.pi * 2
-                else:
-                    self.obj_state[6] -= self.pi * 2
-
         with torch.no_grad():
-            refined_loc, self.hidden_ref = self.lstm.refine(
+            refined_loc, self.hidden_ref = self.lstm_model.refine(
                 self.obj_state[: self.motion_dims].view(1, self.motion_dims),
                 bbox_3d.view(1, self.motion_dims),
                 self.prev_ref.view(1, self.motion_dims),
@@ -137,21 +85,9 @@ class LSTM3DMotionModel(BaseMotionModel):
             )
 
         refined_obj = refined_loc.view(self.motion_dims)
-        if self.motion_dims > 3:
-            refined_obj[6] = self.fix_angle(refined_obj[6])
 
         self.obj_state[: self.motion_dims] = refined_obj
         self.prev_obs = bbox_3d
-
-        if (
-            self.pi / 2.0
-            < abs(bbox_3d[6] - self.avg_angle)
-            < self.pi * 3 / 2.0
-        ):
-            for r_indx, _ in enumerate(self.ref_history):
-                self.ref_history[r_indx][6] = self.fix_angle(
-                    self.ref_history[r_indx][6] + self.pi
-                )
 
         if self.init_flag:
             self._init_history(refined_obj)
@@ -164,7 +100,7 @@ class LSTM3DMotionModel(BaseMotionModel):
     def predict(self, update_state: bool = True) -> torch.Tensor:  # type: ignore # pylint: disable=line-too-long
         """Advances the state vector and returns the predicted bounding box."""
         with torch.no_grad():
-            pred_loc, hidden_pred = self.lstm.predict(
+            pred_loc, hidden_pred = self.lstm_model.predict(
                 self.history[..., : self.motion_dims].view(
                     self.num_frames, -1, self.motion_dims
                 ),
@@ -174,9 +110,7 @@ class LSTM3DMotionModel(BaseMotionModel):
 
         pred_state = self.obj_state.clone()
         pred_state[: self.motion_dims] = pred_loc.view(self.motion_dims)
-        pred_state[7:] = pred_state[:3] - self.prev_ref[:3]
-        if self.motion_dims > 3:
-            pred_state[6] = self.fix_angle(pred_state[6])
+        pred_state[self.motion_dims :] = pred_state[:3] - self.prev_ref[:3]
 
         if update_state:
             self.hidden_pred = hidden_pred
@@ -193,6 +127,220 @@ class LSTM3DMotionModel(BaseMotionModel):
         """Returns the current bounding box estimate."""
         return self.obj_state
 
-    def get_history(self) -> torch.Tensor:  # type: ignore
-        """Returns the history of estimates."""
-        return self.history
+
+class VeloLSTM(nn.Module):  # type: ignore
+    """Estimating object location in world coordinates.
+
+    Prediction LSTM:
+        Input: 5 frames velocity
+        Output: Next frame location
+    Updating LSTM:
+        Input: predicted location and observed location
+        Output: Refined location
+    """
+
+    def __init__(
+        self,
+        batch_size: int,
+        feature_dim: int,
+        hidden_size: int,
+        num_layers: int,
+        loc_dim: int,
+        dropout: float = 0.0,
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.batch_size = batch_size
+        self.feature_dim = feature_dim
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.loc_dim = loc_dim
+
+        self.vel2feat = nn.Linear(
+            loc_dim,
+            feature_dim,
+        )
+
+        self.pred_lstm = nn.LSTM(
+            input_size=feature_dim,
+            hidden_size=hidden_size,
+            dropout=dropout,
+            num_layers=num_layers,
+        )
+
+        self.pred2atten = nn.Linear(
+            hidden_size,
+            loc_dim,
+            bias=False,
+        )
+
+        self.conf2feat = nn.Linear(
+            1,
+            feature_dim,
+            bias=False,
+        )
+
+        self.refine_lstm = nn.LSTM(
+            input_size=3 * feature_dim,
+            hidden_size=hidden_size,
+            dropout=dropout,
+            num_layers=num_layers,
+        )
+
+        self.conf2atten = nn.Linear(
+            hidden_size,
+            loc_dim,
+            bias=False,
+        )
+
+        self._init_param()
+
+    def init_hidden(self, device: str) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Initializae hidden state.
+
+        The axes semantics are (num_layers, minibatch_size, hidden_dim)
+        """
+        return (
+            torch.zeros(self.num_layers, self.batch_size, self.hidden_size).to(
+                device
+            ),
+            torch.zeros(self.num_layers, self.batch_size, self.hidden_size).to(
+                device
+            ),
+        )
+
+    def _init_param(self) -> None:
+        """Initialize parameters."""
+        init_module(self.vel2feat)
+        init_module(self.pred2atten)
+        init_module(self.conf2feat)
+        init_module(self.conf2atten)
+        init_lstm_module(self.pred_lstm)
+        init_lstm_module(self.refine_lstm)
+
+    def refine(
+        self,
+        location: torch.Tensor,
+        observation: torch.Tensor,
+        prev_location: torch.Tensor,
+        confidence: torch.Tensor,
+        hc_0: Tuple[torch.Tensor, torch.Tensor],
+    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        """Refine predicted location using single frame estimation at t+1.
+
+        Input:
+            location: (num_batch x loc_dim), location from prediction
+            observation: (num_batch x loc_dim), location from single frame
+            estimation
+            prev_location: (num_batch x loc_dim), refined location
+            confidence: (num_batch X 1), depth estimation confidence
+            hc_0: (num_layers, num_batch, hidden_size), tuple of hidden and
+            cell
+        Middle:
+            loc_embed: (1, num_batch x feature_dim), predicted location feature
+            obs_embed: (1, num_batch x feature_dim), single frame location
+            feature
+            conf_embed: (1, num_batch x feature_dim), depth estimation
+            confidence feature
+            embed: (1, num_batch x 2*feature_dim), location feature
+            out: (1 x num_batch x hidden_size), lstm output
+        Output:
+            hc_n: (num_layers, num_batch, hidden_size), tuple of updated
+            hidden, cell
+            output_pred: (num_batch x loc_dim), predicted location
+        """
+        num_batch = location.shape[0]
+
+        pred_vel = location - prev_location
+        obsv_vel = observation - prev_location
+
+        # Embed feature to hidden_size
+        loc_embed = self.vel2feat(pred_vel).view(num_batch, self.feature_dim)
+        obs_embed = self.vel2feat(obsv_vel).view(num_batch, self.feature_dim)
+        conf_embed = self.conf2feat(confidence).view(
+            num_batch, self.feature_dim
+        )
+        embed = torch.cat(
+            [
+                loc_embed,
+                obs_embed,
+                conf_embed,
+            ],
+            dim=1,
+        ).view(1, num_batch, 3 * self.feature_dim)
+
+        out, (h_n, c_n) = self.refine_lstm(embed, hc_0)
+
+        delta_vel_atten = torch.sigmoid(self.conf2atten(out)).view(
+            num_batch, self.loc_dim
+        )
+
+        output_pred = (
+            delta_vel_atten * obsv_vel
+            + (1.0 - delta_vel_atten) * pred_vel
+            + prev_location
+        )
+
+        return output_pred, (h_n, c_n)
+
+    def predict(
+        self,
+        vel_history: torch.Tensor,
+        location: torch.Tensor,
+        hc_0: Tuple[torch.Tensor, torch.Tensor],
+    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        """Predict location at t+1 using updated location at t.
+
+        Input:
+            vel_history: (num_seq, num_batch, loc_dim), velocity from previous
+            num_seq updates
+            location: (num_batch, loc_dim), location from previous update
+            hc_0: (num_layers, num_batch, hidden_size), tuple of hidden and
+            cell
+        Middle:
+            embed: (num_seq, num_batch x feature_dim), location feature
+            out: (num_seq x num_batch x hidden_size), lstm output
+            attention_logit: (num_seq x num_batch x loc_dim), the predicted
+            residual
+        Output:
+            hc_n: (num_layers, num_batch, hidden_size), tuple of updated
+            hidden, cell
+            output_pred: (num_batch x loc_dim), predicted location
+        """
+        num_seq, num_batch, _ = vel_history.shape
+
+        # Embed feature to hidden_size
+        embed = self.vel2feat(vel_history).view(
+            num_seq, num_batch, self.feature_dim
+        )
+
+        out, (h_n, c_n) = self.pred_lstm(embed, hc_0)
+
+        attention_logit = self.pred2atten(out).view(
+            num_seq, num_batch, self.loc_dim
+        )
+        attention = torch.softmax(attention_logit, dim=0)
+
+        output_pred = torch.sum(attention * vel_history, dim=0) + location
+
+        return output_pred, (h_n, c_n)
+
+
+def init_module(layer: nn.Module) -> None:
+    """Initialize modules weights and biases."""
+    for m in layer.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.xavier_normal_(m.weight.data)
+            if m.bias is not None:
+                m.bias.data.zero_()
+
+
+def init_lstm_module(layer: nn.Module) -> None:
+    """Initialize LSTM weights and biases."""
+    for name, param in layer.named_parameters():
+        if "weight_ih" in name:
+            torch.nn.init.xavier_uniform_(param.data)
+        elif "weight_hh" in name:
+            torch.nn.init.orthogonal_(param.data)
+        elif "bias" in name:
+            param.data.fill_(0)

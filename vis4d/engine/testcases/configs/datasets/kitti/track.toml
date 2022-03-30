@@ -52,6 +52,7 @@ data_root = "vis4d/engine/testcases/track/kitti-samples/"
 data_type = "detection"
 split = "training"
 annotations = "vis4d/engine/testcases/track/kitti-samples/tracking_training.json"
+custom_save = true
 eval_metrics = []
 cache_as_binary = true
     [test.sample_mapper]

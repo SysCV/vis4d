@@ -102,7 +102,7 @@ class QD3DT(QDTrack):
 
         boxes2d = Boxes2D.merge(boxes2d_list)
 
-        if sum(len(b) for b in boxes3d_list) == 0:
+        if sum(len(b) for b in boxes3d_list) == 0:  # pragma: no cover
             boxes3d = Boxes3D.merge(boxes3d_list)
         else:
             non_empty_3d_list = []
@@ -180,7 +180,7 @@ class QD3DT(QDTrack):
                         <= nms_dist
                         and boxes3d[idx].score * boxes2d[idx].score  # type: ignore # pylint: disable=line-too-long
                         > box3d_post.score * box2d_post.score  # type: ignore
-                    ):
+                    ):  # pragma: no cover
                         nms_flag = 1
                         boxes_3d[i] = box3d.boxes
                         boxes_2d[i] = box2d.boxes
