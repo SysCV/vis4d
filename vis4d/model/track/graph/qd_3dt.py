@@ -319,13 +319,17 @@ class QD3DTrackGraph(QDTrackGraph):
             obs_3d = self.parse_observation(detections_3d.boxes, batch=True)
 
             # Box 3D
-            depth_weight = F.pairwise_distance(
-                obs_3d[:, : self.motion_dims][..., None],
-                memo_boxes_3d_predict[:, : self.motion_dims][
-                    ..., None
-                ].transpose(2, 0),
-            )
-            scores_iou = torch.exp(-depth_weight / 10.0)
+            bbox3d_weight_list = []
+            for memo_box_3d_predict in memo_boxes_3d_predict:
+                bbox3d_weight_list.append(
+                    F.pairwise_distance(
+                        obs_3d[:, : self.motion_dims],
+                        memo_box_3d_predict[: self.motion_dims],
+                        keepdim=True,
+                    )
+                )
+            bbox3d_weight = torch.cat(bbox3d_weight_list, axis=1)
+            scores_iou = torch.exp(-bbox3d_weight / 10.0)
 
             # Depth Ordering
             scores_depth = self.depth_ordering(
