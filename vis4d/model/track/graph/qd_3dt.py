@@ -209,28 +209,45 @@ class QD3DTrackGraph(QDTrackGraph):
         memo_vs: torch.Tensor,
     ) -> torch.Tensor:
         """Depth ordering matching."""
-        centroid_weight = F.pairwise_distance(
-            obsv_boxes_3d[..., :3, None],
-            memo_boxes_3d_predict[..., :3, None].transpose(2, 0),
-        )
+        # Centroid
+        centroid_weight_list = []
+        for memo_box_3d_predict in memo_boxes_3d_predict:
+            centroid_weight_list.append(
+                F.pairwise_distance(
+                    obsv_boxes_3d[:, :3], memo_box_3d_predict[:3], keepdim=True
+                )
+            )
+        centroid_weight = torch.cat(centroid_weight_list, axis=1)
         centroid_weight = torch.exp(-centroid_weight / 10.0)
+
         # Moving distance should be aligned
-        # V_observed-tracked vs. V_velocity
-        motion_weight = F.pairwise_distance(
-            obsv_boxes_3d[..., :3, None]
-            - memo_boxes_3d[..., :3, None].transpose(2, 0),
-            memo_vs[..., :3, None].transpose(2, 0),
-        )
+        motion_weight_list = []
+        obsv_vs = (
+            obsv_boxes_3d[:, :3, None]
+            - memo_boxes_3d[:, :3, None].transpose(2, 0)
+        ).transpose(1, 2)
+        for v in obsv_vs:
+            motion_weight_list.append(
+                F.pairwise_distance(v, memo_vs[:, :3]).unsqueeze(0)
+            )
+        motion_weight = torch.cat(motion_weight_list, axis=0)
         motion_weight = torch.exp(-motion_weight / 5.0)
+
         # Moving direction should be aligned
         # Set to 0.5 when two vector not within +-90 degree
-        cos_sim = F.cosine_similarity(
-            obsv_boxes_3d[..., :2, None]
-            - memo_boxes_3d[..., :2, None].transpose(2, 0),
-            memo_vs[..., :2, None].transpose(2, 0),
-        )
+        cos_sim_list = []
+        obsv_direct = (
+            obsv_boxes_3d[:, :2, None]
+            - memo_boxes_3d[:, :2, None].transpose(2, 0)
+        ).transpose(1, 2)
+        for d in obsv_direct:
+            cos_sim_list.append(
+                F.cosine_similarity(d, memo_vs[:, :2]).unsqueeze(0)
+            )
+        cos_sim = torch.cat(cos_sim_list, axis=0)
         cos_sim += 1.0
         cos_sim /= 2.0
+
         scores_depth = (
             cos_sim * centroid_weight + (1.0 - cos_sim) * motion_weight
         )
@@ -301,7 +318,7 @@ class QD3DTrackGraph(QDTrackGraph):
 
             obs_3d = self.parse_observation(detections_3d.boxes, batch=True)
 
-            # BBox IoU
+            # Box 3D
             depth_weight = F.pairwise_distance(
                 obs_3d[:, : self.motion_dims][..., None],
                 memo_boxes_3d_predict[:, : self.motion_dims][
