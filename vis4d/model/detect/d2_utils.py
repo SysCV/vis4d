@@ -126,7 +126,7 @@ def target_to_instance(
             gt_box.track_ids,
         )
         fields = dict(gt_boxes=Boxes(boxes), gt_classes=cls)
-        if track_ids is not None:
+        if track_ids is not None:  # pragma: no cover
             fields["track_ids"] = track_ids
         if gt_mask is not None and len(gt_mask) > 0:
             fields["gt_masks"] = BitMasks(gt_mask.masks)
@@ -170,7 +170,7 @@ def model_to_detectron2(
     if weights is not None:
         if weights == "detectron2" and d2_model_string is not None:
             cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(d2_model_string)
-        else:
+        else:  # pragma: no cover
             cfg.MODEL.WEIGHTS = weights
     else:
         cfg.MODEL.WEIGHTS = ""

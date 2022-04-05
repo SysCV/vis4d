@@ -57,10 +57,11 @@ class QD3DT(QDTrack):
         # if there is more than one InputSample, we switch to multi-sensor:
         # 1st elem is group, rest are sensor frames
         group = batch_inputs[0].to(self.device)
-        if len(batch_inputs) > 1:
-            frames = InputSample.cat(batch_inputs[1:])
-        else:
-            frames = batch_inputs[0]
+        frames = (
+            InputSample.cat(batch_inputs[1:])
+            if len(batch_inputs) > 1
+            else batch_inputs[0]
+        )
 
         # detector
         assert isinstance(self.detector, BaseTwoStageDetector)

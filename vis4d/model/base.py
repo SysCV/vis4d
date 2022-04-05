@@ -258,7 +258,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         """
         if self._weights is not None:
             map_location = self.device
-            if osp.isfile(self._weights):
+            if osp.isfile(self._weights):  # pragma: no cover
                 filename = osp.expanduser(self._weights)
                 checkpoint = torch.load(filename, map_location=map_location)
             elif self._weights.startswith("http"):
@@ -267,7 +267,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
                     checkpoint = load_url(
                         self._weights, map_location=map_location
                     )
-                if world_size > 1:
+                if world_size > 1:  # pragma: no cover
                     torch.distributed.barrier()
                     if rank > 0:
                         checkpoint = load_url(
@@ -277,10 +277,11 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
                 raise FileNotFoundError(f"{self._weights} can not be found.")
 
             # get state_dict from checkpoint
-            if "state_dict" in checkpoint:
-                state_dict = checkpoint["state_dict"]
-            else:
-                state_dict = checkpoint
+            state_dict = (
+                checkpoint["state_dict"]
+                if "state_dict" in checkpoint
+                else checkpoint
+            )
 
             # strip prefix of state_dict
             if self._revise_keys is not None:
@@ -288,6 +289,8 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
                     state_dict = OrderedDict(
                         {re.sub(p, r, k): v for k, v in state_dict.items()}
                     )
+
+            self.on_load_checkpoint({"state_dict": state_dict})
 
             # load state_dict
             self.load_state_dict(state_dict, strict=self._strict)

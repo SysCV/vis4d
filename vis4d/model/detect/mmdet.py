@@ -56,10 +56,10 @@ class MMTwoStageDetector(BaseTwoStageDetector):
 
     def __init__(
         self,
-        model_base: str,
         *args: ArgsType,
         pixel_mean: Optional[Tuple[float, float, float]] = None,
         pixel_std: Optional[Tuple[float, float, float]] = None,
+        model_base: Optional[str] = None,
         model_kwargs: Optional[DictStrAny] = None,
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
@@ -75,9 +75,11 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         super().__init__(*args, **kwargs)
         assert self.category_mapping is not None, "Need category mapping"
         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
-        self.mm_cfg = get_mmdet_config(
-            model_base, model_kwargs, self.category_mapping
-        )
+        if backbone is None or rpn_head is None or roi_head is None:
+            assert model_base is not None
+            self.mm_cfg = get_mmdet_config(
+                model_base, model_kwargs, self.category_mapping
+            )
         if pixel_mean is None or pixel_std is None:
             assert backbone is not None, (
                 "If no custom backbone is defined, image "
@@ -228,10 +230,10 @@ class MMOneStageDetector(BaseOneStageDetector):
 
     def __init__(
         self,
-        model_base: str,
-        pixel_mean: Tuple[float, float, float],
-        pixel_std: Tuple[float, float, float],
         *args: ArgsType,
+        pixel_mean: Optional[Tuple[float, float, float]] = None,
+        pixel_std: Optional[Tuple[float, float, float]] = None,
+        model_base: Optional[str] = None,
         model_kwargs: Optional[DictStrAny] = None,
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
@@ -246,9 +248,17 @@ class MMOneStageDetector(BaseOneStageDetector):
         super().__init__(*args, **kwargs)
         assert self.category_mapping is not None
         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
-        self.mm_cfg = get_mmdet_config(
-            model_base, model_kwargs, self.category_mapping
-        )
+        if backbone is None or bbox_head is None:
+            assert model_base is not None
+            self.mm_cfg = get_mmdet_config(
+                model_base, model_kwargs, self.category_mapping
+            )
+        if pixel_mean is None or pixel_std is None:
+            assert backbone is not None, (
+                "If no custom backbone is defined, image "
+                "normalization parameters must be specified!"
+            )
+
         if backbone is None:
             self.backbone: BaseBackbone = MMDetBackbone(
                 mm_cfg=self.mm_cfg["backbone"],

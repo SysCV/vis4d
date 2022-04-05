@@ -163,7 +163,7 @@ def targets_to_mmdet(
     """Convert Vis4D targets to mmdetection compatible format."""
     gt_bboxes = [t.boxes for t in targets.boxes2d]
     gt_labels = [t.class_ids for t in targets.boxes2d]
-    if all(len(t) == 0 for t in targets.instance_masks):
+    if all(len(t) == 0 for t in targets.instance_masks):  # pragma: no cover
         gt_masks = None
     else:
         gt_masks = masks_to_mmdet_masks(targets.instance_masks)

@@ -418,6 +418,12 @@ class TestMasks(unittest.TestCase):
         segmentations.postprocess((w - 1, h - 1), (w - 2, h - 2))
         self.assertEqual(segmentations.height, 27)
         self.assertEqual(segmentations.width, 27)
+        segmentations = generate_instance_masks(h, w, num_masks)
+        dets = generate_dets(h, w, num_dets)
+        segmentations.detections = dets
+        segmentations.postprocess((w - 1, h - 1), (w, h))
+        self.assertEqual(segmentations.height, 27)
+        self.assertEqual(segmentations.width, 27)
 
     def test_pad(self) -> None:
         """Testcase for pad function."""

@@ -165,6 +165,7 @@ def generate_input_sample(
     det3d_input: bool = False,
     pan_input: bool = False,
     use_score: bool = True,
+    frame_name: str = "test_frame",
 ) -> InputSample:
     """Create random InputSample."""
     state = torch.random.get_rng_state()
@@ -176,7 +177,7 @@ def generate_input_sample(
     sample = InputSample(
         [
             Frame(
-                name="test_frame",
+                name=frame_name,
                 frameIndex=0,
                 size=ImageSize(width=width, height=height),
             )
