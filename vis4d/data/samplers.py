@@ -3,7 +3,7 @@ from typing import Generator, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from pytorch_lightning.utilities.distributed import rank_zero_warn
+from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from torch.utils.data import (
     BatchSampler,
     ConcatDataset,

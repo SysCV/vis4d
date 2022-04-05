@@ -1,15 +1,15 @@
 """Vis4D engine utils."""
 import datetime
 import logging
+import math
 import os
 import sys
 import warnings
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.callbacks.progress.tqdm_progress import reset
-from pytorch_lightning.utilities.distributed import (
+from pytorch_lightning.utilities.rank_zero import (
     rank_zero_info,
     rank_zero_only,
 )
@@ -33,6 +33,15 @@ logger = logging.getLogger("pytorch_lightning")
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
+def convert_inf(x: Optional[Union[int, float]]) -> Optional[Union[int, float]]:
+    """The tqdm doesn't support inf/nan values.
+    We have to convert it to None.
+    """
+    if x is None or math.isinf(x) or math.isnan(x):
+        return None
+    return x
+
+
 class TQDMProgressBar(pl.callbacks.TQDMProgressBar):  # type: ignore
     """TQDMProgressBar keeping training and validation progress separate."""
 
@@ -41,7 +50,11 @@ class TQDMProgressBar(pl.callbacks.TQDMProgressBar):  # type: ignore
     ) -> None:
         """Reset progress bar using total training batches."""
         self._train_batch_idx = 0
-        reset(self.main_progress_bar, self.total_train_batches)
+        if not self.main_progress_bar.disable:
+            self.main_progress_bar.reset(
+                total=convert_inf(self.total_train_batches)
+            )
+            self.main_progress_bar.n = 0
         self.main_progress_bar.set_description(
             f"Epoch {trainer.current_epoch}"
         )

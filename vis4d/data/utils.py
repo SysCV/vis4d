@@ -11,7 +11,7 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 from PIL import Image, ImageOps
-from pytorch_lightning.utilities.distributed import rank_zero_info
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from scalabel.label.typing import Frame, FrameGroup
 from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate

@@ -4,7 +4,7 @@ import os
 import pickle
 from typing import Dict, List, Optional, Tuple, Union
 
-from pytorch_lightning.utilities.distributed import rank_zero_info
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from scalabel.eval.detect import evaluate_det
 from scalabel.eval.ins_seg import evaluate_ins_seg
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
