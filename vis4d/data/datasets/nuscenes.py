@@ -5,7 +5,7 @@ import shutil
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
-from pytorch_lightning.utilities.distributed import rank_zero_warn
+from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from scalabel.label.io import load, load_label_config, save
 from scalabel.label.to_nuscenes import to_nuscenes
 from scalabel.label.typing import Dataset, Frame

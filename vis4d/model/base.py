@@ -9,7 +9,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union, no_type_check
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.utilities.cli import instantiate_class
-from pytorch_lightning.utilities.distributed import (
+from pytorch_lightning.utilities.rank_zero import (
     rank_zero_info,
     rank_zero_warn,
 )

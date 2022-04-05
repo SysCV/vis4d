@@ -10,7 +10,7 @@ from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
 from pytorch_lightning.tuner.lr_finder import _LRFinder
 from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
-from pytorch_lightning.utilities.distributed import (
+from pytorch_lightning.utilities.rank_zero import (
     rank_zero_info,
     rank_zero_warn,
 )
@@ -148,7 +148,7 @@ class DefaultTrainer(pl.Trainer):
                 elif kwargs["accelerator"] == "ddp_spawn":
                     ddp_plugin = DDPSpawnPlugin(
                         find_unused_parameters=find_unused_parameters
-                    )  # type: ignore
+                    )
                     kwargs["plugins"] = [ddp_plugin]
                 elif kwargs["accelerator"] == "ddp2":
                     ddp_plugin = DDP2Plugin(

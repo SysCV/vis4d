@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Sequence
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.utilities.distributed import rank_zero_warn
+from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from scalabel.label.io import save
 from scalabel.label.typing import Frame, FrameGroup
 from scalabel.vis.label import LabelViewer, UIConfig

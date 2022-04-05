@@ -2,7 +2,7 @@
 import random
 from typing import List, Optional
 
-from pytorch_lightning.utilities.distributed import (
+from pytorch_lightning.utilities.rank_zero import (
     rank_zero_info,
     rank_zero_warn,
 )
