@@ -120,6 +120,7 @@ class QDTrackYOLOX(QDTrack):
         if self.current_epoch == self.trainer.max_epochs - self.no_aug_epochs:
             self.detector.mm_detector.bbox_head.use_l1 = True
             self.train_dataloader.transformations = default_augs(self.im_hw)
+            self.trainer.re
 
     def configure_optimizers(self):
         """Configure optimizers and schedulers of model."""

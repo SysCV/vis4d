@@ -120,11 +120,12 @@ class KorniaAugmentationWrapper(BaseAugmentation):
             if len(mask) > 0 and parameters["apply"][i]:
                 mask.masks = (
                     self.augmentor.apply_transform(
-                        mask.masks.float().unsqueeze(1),
+                        mask.masks.float().unsqueeze(0),
                         parameters,
-                        parameters["transform"][i],
+                        parameters["transform"][i].unsqueeze(0),
                     )
-                    .squeeze(1)
+                    .squeeze(0)
+                    .round()
                     .type(mask.masks.dtype)
                 )
         return masks

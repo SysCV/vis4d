@@ -43,7 +43,7 @@ class TQDMProgressBar(pl.callbacks.TQDMProgressBar):  # type: ignore
         self._train_batch_idx = 0
         reset(self.main_progress_bar, self.total_train_batches)
         self.main_progress_bar.set_description(
-            f"Epoch {trainer.current_epoch + 1}"
+            f"Epoch {trainer.current_epoch}"
         )
 
 
@@ -163,7 +163,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         if batch_idx % self._refresh_rate == 0 and self.enable:
             rank_zero_info(
                 self._compose_log_str(
-                    f"Epoch {trainer.current_epoch + 1}",
+                    f"Epoch {trainer.current_epoch}",
                     batch_idx,
                     self.total_train_batches,
                 )

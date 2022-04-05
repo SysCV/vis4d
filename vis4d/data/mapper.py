@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from pytorch_lightning.utilities.distributed import rank_zero_info
 from scalabel.label.typing import Extrinsics as ScalabelExtrinsics
-from scalabel.label.typing import Frame, ImageSize
+from scalabel.label.typing import Frame, FrameGroup, ImageSize
 from scalabel.label.typing import Intrinsics as ScalabelIntrinsics
 from scalabel.label.typing import Label
 from scalabel.label.utils import (
@@ -41,8 +41,8 @@ class BaseSampleMapper(metaclass=RegistryHolder):
     def __init__(
         self,
         data_backend: BaseDataBackend = FileBackend(),
-        inputs_to_load: Tuple[str] = ("images",),
-        targets_to_load: Tuple[str] = ("boxes2d",),
+        inputs_to_load: Tuple[str, ...] = ("images",),
+        targets_to_load: Tuple[str, ...] = ("boxes2d",),
         skip_empty_samples: bool = False,
         bg_as_class: bool = False,
         image_backend: str = "PIL",
@@ -71,46 +71,52 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         rank_zero_info(
             "Using data backend: %s", self.data_backend.__class__.__name__
         )
-
         self.cats_name2id: Dict[str, Dict[str, int]] = {}
         if category_map is not None:
-            for target in self.targets_to_load:
-                if isinstance(list(category_map.values())[0], int):
-                    self.cats_name2id[target] = category_map  # type: ignore
-                else:
-                    assert (
-                        target in category_map
-                    ), f"Target={target} not specified in category_mapping"
-                    target_map = category_map[target]
-                    assert isinstance(target_map, dict)
-                    self.cats_name2id[target] = target_map
+            self.setup_categories(category_map)
+
+    def setup_categories(self, category_map: CategoryMap) -> None:
+        """Setup categories."""
+        for target in self.targets_to_load:
+            if isinstance(list(category_map.values())[0], int):
+                self.cats_name2id[target] = category_map  # type: ignore
+            else:
+                assert (
+                    target in category_map
+                ), f"Target={target} not specified in category_mapping"
+                target_map = category_map[target]
+                assert isinstance(target_map, dict)
+                self.cats_name2id[target] = target_map
 
     def load_inputs(
         self,
         sample: Frame,
+        use_empty: Optional[bool] = False,
         group_url: Optional[str] = None,
         group_extrinsics: Optional[ScalabelExtrinsics] = None,
     ) -> InputSample:
         """Load image according to data_backend."""
         input_data = InputSample([copy.deepcopy(sample)])
         if sample.url is not None and "images" in self.inputs_to_load:
-            im_bytes = self.data_backend.get(sample.url)
-            image = im_decode(
-                im_bytes,
-                mode=self.image_channel_mode,
-                backend=self.image_backend,
-            )
+            if not use_empty:
+                im_bytes = self.data_backend.get(sample.url)
+                image = im_decode(
+                    im_bytes,
+                    mode=self.image_channel_mode,
+                    backend=self.image_backend,
+                )
+                input_data.metadata[0].size = ImageSize(
+                    width=image.shape[1], height=image.shape[0]
+                )
+            else:
+                image = np.empty((128, 128, 3), dtype=np.uint8)
 
-            input_data.metadata[0].size = ImageSize(
-                width=image.shape[1], height=image.shape[0]
-            )
             image = torch.as_tensor(
                 np.ascontiguousarray(image.transpose(2, 0, 1)),
                 dtype=torch.float32,
             ).unsqueeze(0)
             images = Images(image, [(image.shape[3], image.shape[2])])
             input_data.images = images
-
         if (
             sample.intrinsics is not None
             and "intrinsics" in self.inputs_to_load
@@ -268,6 +274,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         # load input data
         input_data = self.load_inputs(
             sample,
+            use_empty=isinstance(sample, FrameGroup),
             group_url=group_url,
             group_extrinsics=group_extrinsics,
         )

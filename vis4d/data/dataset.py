@@ -36,14 +36,13 @@ class ScalabelDataset(Dataset):  # type: ignore
         """Init."""
         rank_zero_info("Initializing dataset: %s", dataset.name)
         self.training = training
-        self.mapper = mapper if mapper is not None else BaseSampleMapper()
 
-        if len(self.mapper.cats_name2id) > 0:
+        if mapper is not None and len(mapper.cats_name2id) > 0:
             class_list = list(
                 set(
                     cls
-                    for field in self.mapper.cats_name2id
-                    for cls in list(self.mapper.cats_name2id[field].keys())
+                    for field in mapper.cats_name2id
+                    for cls in list(mapper.cats_name2id[field].keys())
                 )
             )
             discard_labels_outside_set(dataset.frames, class_list)
@@ -55,6 +54,12 @@ class ScalabelDataset(Dataset):  # type: ignore
                         dataset.metadata_cfg.categories
                     )
                 )
+            )
+
+        self.mapper = BaseSampleMapper() if mapper is None else mapper
+        if len(self.mapper.cats_name2id) == 0 and len(class_list) > 0:
+            self.mapper.setup_categories(
+                category_map={c: i for i, c in enumerate(class_list)}
             )
 
         dataset.frames = filter_attributes(dataset.frames, dataset.attributes)

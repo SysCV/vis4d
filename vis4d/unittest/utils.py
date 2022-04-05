@@ -2,12 +2,17 @@
 import inspect
 import math
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional, Union
 
 import torch
+from pytorch_lightning import Callback
 from scalabel.label.typing import Frame, ImageSize
+from torch import nn
 
+from vis4d.engine import DefaultTrainer
+from vis4d.model import BaseModel
 from vis4d.struct import (
+    ArgsType,
     Boxes2D,
     Boxes3D,
     Images,
@@ -15,6 +20,8 @@ from vis4d.struct import (
     InstanceMasks,
     Intrinsics,
     LabelInstances,
+    LossesType,
+    ModelOutput,
     SemanticMasks,
     TLabelInstance,
 )
@@ -199,3 +206,40 @@ def generate_input_sample(
     sample.targets = LabelInstances(**targets)
     torch.random.set_rng_state(state)
     return sample
+
+
+class MockModel(BaseModel):
+    """Model Mockup."""
+
+    def __init__(self, model_param: int, *args: ArgsType, **kwargs: ArgsType):
+        """Init."""
+        super().__init__(*args, **kwargs)
+        self.model_param = model_param
+        self.linear = nn.Linear(10, 1)
+
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
+        """Train step mockup."""
+        return {
+            "my_loss": (
+                self.linear(torch.rand((1, 10), device=self.device)) - 0
+            ).sum()
+        }
+
+    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
+        """Test step mockup."""
+        return {}
+
+
+def _trainer_builder(
+    exp_name: str,
+    fast_dev_run: bool = False,
+    callbacks: Optional[Union[List[Callback], Callback]] = None,
+) -> DefaultTrainer:
+    """Build mockup trainer."""
+    return DefaultTrainer(
+        work_dir="./unittests/",
+        exp_name=exp_name,
+        fast_dev_run=fast_dev_run,
+        callbacks=callbacks,
+        max_steps=10,
+    )

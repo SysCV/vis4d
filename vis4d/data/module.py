@@ -9,8 +9,8 @@ from pytorch_lightning.callbacks import Callback
 from torch.utils import data
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.data.evaluator import DefaultEvaluatorCallback
-from vis4d.data.writer import ScalabelWriterCallback
+from vis4d.data.callbacks.evaluator import DefaultEvaluatorCallback
+from vis4d.data.callbacks.writer import ScalabelWriterCallback
 
 from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
@@ -97,7 +97,6 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
     def setup(self, stage: Optional[str] = None) -> None:
         """Data preparation operations to perform on every GPU.
 
-        Setup:
         - Create Train / Test / Predict Datasets
         - Setup data callbacks
         """

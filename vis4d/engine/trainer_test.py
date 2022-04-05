@@ -1,39 +1,12 @@
 """Test cases for Vis4D engine."""
 import shutil
 import unittest
-from typing import List, Optional, Union
 
 from _pytest.monkeypatch import MonkeyPatch
-from pytorch_lightning import Callback
 from pytorch_lightning.utilities.cli import SaveConfigCallback
 
-from vis4d.model import BaseModel
-from vis4d.struct import ArgsType
-
+from ..unittest.utils import MockModel, _trainer_builder
 from .trainer import BaseCLI, DefaultTrainer
-
-
-class MockModel(BaseModel):
-    """Model Mockup."""
-
-    def __init__(self, model_param: int, *args: ArgsType, **kwargs: ArgsType):
-        """Init."""
-        super().__init__(*args, **kwargs)
-        self.model_param = model_param
-
-
-def _trainer_builder(
-    exp_name: str,
-    fast_dev_run: bool = False,
-    callbacks: Optional[Union[List[Callback], Callback]] = None,
-) -> DefaultTrainer:
-    """Build mockup trainer."""
-    return DefaultTrainer(
-        work_dir="./unittests/",
-        exp_name=exp_name,
-        fast_dev_run=fast_dev_run,
-        callbacks=callbacks,
-    )
 
 
 class TestCLI(unittest.TestCase):

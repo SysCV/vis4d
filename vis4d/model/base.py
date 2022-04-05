@@ -171,7 +171,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         if self.trainer.global_step < self.lr_warmup.warmup_steps:
             for pg in optimizer.param_groups:
                 pg["lr"] = self.lr_warmup(self.trainer.global_step, base_lr)
-        elif self.trainer.global_step == self.lr_scheduler_cfg.warmup_steps:
+        elif self.trainer.global_step == self.lr_warmup.warmup_steps:
             for pg in optimizer.param_groups:
                 pg["lr"] = base_lr
 
