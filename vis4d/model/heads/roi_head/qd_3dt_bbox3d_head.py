@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common.bbox.coders import BaseBoxCoder3D, QD3DTBox3DCoder
+from vis4d.common.bbox.coders import QD3DTBox3DCoder
 from vis4d.common.bbox.matchers import BaseMatcher
 from vis4d.common.bbox.poolers import BaseRoIPooler
 from vis4d.common.bbox.samplers import (
@@ -15,7 +15,7 @@ from vis4d.common.bbox.samplers import (
 )
 from vis4d.common.geometry.rotation import generate_rotation_output
 from vis4d.common.layers import add_conv_branch
-from vis4d.model.losses import BaseLoss, Box3DUncertaintyLoss
+from vis4d.model.losses import Box3DUncertaintyLoss
 from vis4d.struct import (
     Boxes2D,
     Boxes3D,
@@ -32,14 +32,12 @@ from .base import Det3DRoIHead
 class QD3DTBBox3DHead(Det3DRoIHead):
     """QD-3DT 3D Bounding Box Head."""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         num_classes: int,
         proposal_pooler: BaseRoIPooler,
         proposal_sampler: BaseSampler,
         proposal_matcher: BaseMatcher,
-        box3d_coder: BaseBoxCoder3D = QD3DTBox3DCoder(),
-        loss: BaseLoss = Box3DUncertaintyLoss(),
         proposal_append_gt: bool = True,
         num_shared_convs: int = 2,
         num_shared_fcs: int = 0,
@@ -72,7 +70,7 @@ class QD3DTBBox3DHead(Det3DRoIHead):
         self.sampler = proposal_sampler
         self.matcher = proposal_matcher
         self.roi_pooler = proposal_pooler
-        self.bbox_coder = box3d_coder
+        self.bbox_coder = QD3DTBox3DCoder()
 
         # add shared convs and fcs
         (
@@ -182,7 +180,7 @@ class QD3DTBBox3DHead(Det3DRoIHead):
         self.fc_2dc = nn.Linear(self.cen_2d_last_dim, out_2dc_size)
 
         self._init_weights()
-        self.loss = loss
+        self.loss = Box3DUncertaintyLoss()
 
         assert (
             self.bbox_coder.num_rotation_bins == self.loss.num_rotation_bins

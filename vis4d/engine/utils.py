@@ -65,13 +65,17 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         """Init."""
         super().__init__()
         self._refresh_rate = refresh_rate
-        self.enable = True
+        self._enabled = True
         self.timer = Timer()
         self._metrics_history: List[DictStrAny] = []
 
     def disable(self) -> None:
         """Disable progressbar."""
-        self.enable = False  # pragma: no cover
+        self._enabled = False  # pragma: no cover
+
+    def enable(self) -> None:
+        """Enable progressbar."""
+        self._enabled = True
 
     def on_train_epoch_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -171,7 +175,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         metrics = self.get_metrics(trainer, pl_module)
         self._metrics_history.append(metrics)
 
-        if batch_idx % self._refresh_rate == 0 and self.enable:
+        if batch_idx % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     f"Epoch {trainer.current_epoch}",
@@ -196,7 +200,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         metrics = self.get_metrics(trainer, pl_module)
         self._metrics_history.append(metrics)
 
-        if batch_idx % self._refresh_rate == 0 and self.enable:
+        if batch_idx % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     "Validating",
@@ -221,7 +225,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         metrics = self.get_metrics(trainer, pl_module)
         self._metrics_history.append(metrics)
 
-        if batch_idx % self._refresh_rate == 0 and self.enable:
+        if batch_idx % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     "Testing",
@@ -246,7 +250,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         metrics = self.get_metrics(trainer, pl_module)
         self._metrics_history.append(metrics)
 
-        if batch_idx % self._refresh_rate == 0 and self.enable:
+        if batch_idx % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     "Predicting",

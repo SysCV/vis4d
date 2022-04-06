@@ -19,6 +19,9 @@ class MockDataset(Dataset):  # type: ignore
         """Len."""
         return self.end - self.start
 
+    def __getitem__(self, item: int) -> None:
+        """Getitem."""
+
 
 class TestRoundRobinSampler(unittest.TestCase):
     """Round-robin sampler testcase class."""

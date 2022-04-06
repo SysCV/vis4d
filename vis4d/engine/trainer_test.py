@@ -1,12 +1,51 @@
 """Test cases for Vis4D engine."""
 import shutil
 import unittest
+from typing import Dict, List
 
+import pytorch_lightning as pl
 from _pytest.monkeypatch import MonkeyPatch
 from pytorch_lightning.utilities.cli import SaveConfigCallback
 
+from vis4d.struct import ArgsType
+
 from ..unittest.utils import MockModel, _trainer_builder
 from .trainer import BaseCLI, DefaultTrainer
+
+
+class TestTrainer(unittest.TestCase):
+    """Testcases for DefaultTrainer."""
+
+    def setUp(self) -> None:
+        """Set up test case."""
+        self.monkeypatch = MonkeyPatch()
+
+    def test_custom_init(self) -> None:
+        """Test setup with some custom options like tqdm progress bar."""
+        DefaultTrainer(
+            work_dir="./unittests/",
+            exp_name="trainer_test",
+            fast_dev_run=True,
+            callbacks=pl.callbacks.LearningRateMonitor(),
+        )
+
+    def test_tune(self) -> None:
+        """Test tune function."""
+        trainer = DefaultTrainer(
+            work_dir="./unittests/",
+            exp_name="test_tune",
+            tuner_params={"model_param": [0, 1, 2, 3]},
+            tuner_metrics=["my_metric"],
+        )
+        model = MockModel(model_param=7)
+
+        def dummy_test(  # pylint: disable=unused-argument
+            *args: ArgsType, **kwargs: ArgsType
+        ) -> List[Dict[str, float]]:
+            return [{"my_metric": model.model_param}]
+
+        self.monkeypatch.setattr(DefaultTrainer, "test", dummy_test)
+        trainer.tune(model)
 
 
 class TestCLI(unittest.TestCase):
@@ -56,6 +95,7 @@ class TestCLI(unittest.TestCase):
                 "fit",
                 "--model.model_param=7",
                 "--trainer.exp_name=cli_test",
+                "--seed_everything=0",
             ],
         ):
             cli = BaseCLI(MockModel, trainer_class=_trainer_builder)

@@ -267,7 +267,7 @@ class BaseCLI(LightningCLI):
         super().instantiate_classes()
         if self.datamodule is not None and isinstance(
             self.datamodule, BaseDataModule
-        ):
+        ):  # pragma: no cover
             self.datamodule.set_category_mapping(self.model.category_mapping)
 
         if isinstance(self.trainer, DefaultTrainer):

@@ -1,6 +1,7 @@
 """Writer callback tests."""
 import unittest
 
+from ..datasets import Scalabel
 from .writer import ScalabelWriterCallback
 
 
