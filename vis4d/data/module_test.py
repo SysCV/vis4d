@@ -1,10 +1,8 @@
 """DataModule tests."""
 import shutil
-import unittest
 from typing import List, Optional, Tuple
 
-from parameterized import parameterized
-from pytest import MonkeyPatch
+import pytest
 
 from vis4d.struct import ArgsType, Images, InputSample
 from vis4d.unittest.utils import MockModel, _trainer_builder
@@ -192,54 +190,52 @@ class SampleDataModule(BaseDataModule):
         ]
 
 
-class TestDataModule(unittest.TestCase):
-    """Test cases for base data module."""
-
+@pytest.mark.parametrize("task", ALLOWED_TASKS)  # type: ignore
+def test_data(task: str, monkeypatch) -> None:
+    """Test tracking data loading."""
+    batch_size = 1
+    im_hw = (360, 640)
     predict_dir = (
         "vis4d/engine/testcases/track/bdd100k-samples/images/"
         "00091078-875c1f73/"
     )
+    data_module = SampleDataModule(
+        task,
+        im_hw,
+        input_dir=predict_dir,
+        workers_per_gpu=0,
+        samples_per_gpu=batch_size,
+    )
 
-    def setUp(self) -> None:
-        """Set up test case."""
-        self.trainer = _trainer_builder("data_module_test")
-        self.model = MockModel(model_param=7)
-        self.monkeypatch = MonkeyPatch()
+    Images.stride = 1
 
-    @parameterized.expand(ALLOWED_TASKS)  # type: ignore
-    def test_data(self, task: str) -> None:
-        """Test tracking data loading."""
-        batch_size = 1
-        im_hw = (360, 640)
-        data_module = SampleDataModule(
-            task,
-            im_hw,
-            input_dir=self.predict_dir,
-            workers_per_gpu=0,
-            samples_per_gpu=batch_size,
-        )
+    def train_step(batch: List[InputSample]) -> None:
+        assert len(batch) == 1
+        sample = batch[0]
+        assert len(sample) == batch_size
+        N, C, H, W = sample.images.tensor.shape
+        assert N == batch_size
+        assert C == 3
+        assert H <= im_hw[0]
+        assert W <= im_hw[1]
 
-        Images.stride = 1
+    trainer = _trainer_builder("data_module_test")
+    model = MockModel(model_param=7)
 
-        def train_step(batch: List[InputSample]) -> None:
-            self.assertEqual(len(batch), 1)
-            sample = batch[0]
-            self.assertEqual(len(sample), batch_size)
-            N, C, H, W = sample.images.tensor.shape
-            self.assertEqual(N, batch_size)
-            self.assertEqual(C, 3)
-            self.assertLessEqual(H, im_hw[0])
-            self.assertLessEqual(W, im_hw[1])
+    monkeypatch.setattr(model, "training_step", train_step)
 
-        self.monkeypatch.setattr(self.model, "training_step", train_step)
+    # test full loop
+    trainer.fit(model, data_module)
+    trainer.test(model, data_module)
+    trainer.predict(model, data_module)
+    Images.stride = 32
 
-        # test full loop
-        self.trainer.fit(self.model, data_module)
-        self.trainer.test(self.model, data_module)
-        self.trainer.predict(self.model, data_module)
-        Images.stride = 32
 
-    @classmethod
-    def tearDownClass(cls) -> None:
-        """Clean up test files."""
+@pytest.fixture(scope="module", autouse=True)
+def teardown(request) -> None:
+    """Clean up test files."""
+
+    def remove_test_dir():
         shutil.rmtree("./unittests/", ignore_errors=True)
+
+    request.addfinalizer(remove_test_dir)

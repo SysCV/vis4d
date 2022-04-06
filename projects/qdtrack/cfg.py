@@ -1,8 +1,5 @@
 """QDTrack runtime configuration."""
-from projects.common.datasets import (
-    bdd100k_track_map,
-    mot17_map,
-)
+from projects.common.datasets import bdd100k_track_map, mot17_map
 from projects.common.models import build_faster_rcnn, build_yolox
 from projects.qdtrack.qdtrack import QDTrackYOLOX
 from projects.qdtrack.data import QDTrackDataModule
@@ -25,6 +22,16 @@ def setup_model(experiment: str, detector: str = "") -> QDTrack:
                 keep_in_memory=30, init_score_thr=0.9, obj_score_thr=0.5
             )
         category_mapping = mot17_map
+    elif experiment == "mot20":
+        if detector == "YOLOX":
+            track_graph = QDTrackGraph(
+                keep_in_memory=30, init_score_thr=0.8, obj_score_thr=0.2
+            )
+        else:
+            track_graph = QDTrackGraph(
+                keep_in_memory=30, init_score_thr=0.9, obj_score_thr=0.5
+            )
+        category_mapping = mot17_map
     elif experiment == "bdd100k":
         track_graph = QDTrackGraph(keep_in_memory=10)
         category_mapping = bdd100k_track_map
@@ -35,7 +42,7 @@ def setup_model(experiment: str, detector: str = "") -> QDTrack:
         detector = build_yolox(category_mapping)
         similarity_head = QDSimilarityHead(
             proposal_pooler=MultiScaleRoIAlign(0, (7, 7), [8, 16, 32]),
-            in_features=['out0', 'out1', 'out2'],
+            in_features=["out0", "out1", "out2"],
             in_dim=320,
         )
         model = QDTrackYOLOX(

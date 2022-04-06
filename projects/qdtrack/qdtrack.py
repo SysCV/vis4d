@@ -16,6 +16,7 @@ from vis4d.model.track.graph import BaseTrackGraph
 from vis4d.model.track.similarity import BaseSimilarityHead
 from vis4d.model.track.utils import split_key_ref_inputs
 from vis4d.model.utils import postprocess_predictions, predictions_to_scalabel
+from vis4d.model import QDTrack
 from vis4d.struct import (
     ArgsType,
     Boxes2D,

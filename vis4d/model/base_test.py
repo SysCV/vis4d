@@ -1,12 +1,16 @@
 """Test cases for Vis4D models."""
+import shutil
 import unittest
 from typing import Optional
 
+import pytest
 import torch
 
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.samplers import CombinedSampler
+from vis4d.data import BaseDataModule, BaseDatasetHandler, ScalabelDataset
+from vis4d.data.datasets import BaseDatasetLoader, Scalabel
 from vis4d.model.backbone import MMDetBackbone
 from vis4d.model.backbone.neck import MMDetNeck
 from vis4d.model.detect import (
@@ -21,11 +25,17 @@ from vis4d.model.heads.dense_head import (
 )
 from vis4d.model.heads.panoptic_head import SimplePanopticHead
 from vis4d.model.heads.roi_head import MMDetRoIHead, QD3DTBBox3DHead
+from vis4d.model.optimize import LinearLRWarmup
 from vis4d.model.panoptic import PanopticFPN
 from vis4d.model.segment import MMEncDecSegmentor
 from vis4d.model.track.graph import QDTrackGraph
 from vis4d.model.track.similarity import QDSimilarityHead
-from vis4d.unittest.utils import generate_input_sample
+from vis4d.struct import ArgsType
+from vis4d.unittest.utils import (
+    MockModel,
+    _trainer_builder,
+    generate_input_sample,
+)
 
 from .base import BaseModel
 from .qd_3dt import QD3DT
@@ -79,6 +89,7 @@ class BaseModelTests:
                     32, 32, 2, 3, use_score=False, track_ids=True
                 ),
             ]
+            inputs[1].metadata[0].attributes = {"keyframe": True}
             outs = self.model(inputs)
             self.assertTrue(isinstance(outs, dict))
             self.assertGreater(len(outs), 0)
@@ -89,6 +100,22 @@ class BaseModelTests:
             with torch.no_grad():
                 self.model.eval()
                 inputs = [generate_input_sample(32, 32, 1, 3, use_score=False)]
+                outs = self.model(inputs)
+                self.assertTrue(isinstance(outs, dict))
+                self.assertGreater(len(outs), 0)
+
+    class TestTrackInference(unittest.TestCase):
+        """Base test case for vis4d tracking models with inference results."""
+
+        model: Optional[BaseModel] = None
+
+        def test_test(self) -> None:
+            """Test case for testing."""
+            assert self.model is not None
+            with torch.no_grad():
+                self.model.eval()
+                inputs = [generate_input_sample(32, 32, 1, 3, use_score=False)]
+                self.model(inputs)
                 outs = self.model(inputs)
                 self.assertTrue(isinstance(outs, dict))
                 self.assertGreater(len(outs), 0)
@@ -285,8 +312,8 @@ class TestQDTrackMaskRCNN(BaseModelTests.TestTrack):
         )
 
 
-class TestQDTrackInferenceResults(BaseModelTests.TestTrack):
-    """QDTrack with Faster R-CNN track with inference results test cases."""
+class TestQDTrackInferenceResults(BaseModelTests.TestTrackInference):
+    """QDTrack track with inference results test cases."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -318,7 +345,7 @@ class TestQDTrackInferenceResults(BaseModelTests.TestTrack):
             ),
             track_graph=QDTrackGraph(10),
             category_mapping=TEST_MAPPING,
-            inference_result_path="unittests/results.hdf5",
+            inference_result_path="./unittests/results.hdf5",
         )
 
 
@@ -692,3 +719,60 @@ class TestModelConstruction(unittest.TestCase):
             category_mapping=TEST_MAPPING,
         )
         self.assertTrue(isinstance(model, MMOneStageDetector))
+
+
+class SampleDataModule(BaseDataModule):
+    """Load sample data."""
+
+    def __init__(self, *args: ArgsType, **kwargs: ArgsType):
+        """Init."""
+        super().__init__(*args, **kwargs)
+
+    def create_datasets(self, stage: Optional[str] = None) -> None:
+        """Load data, setup data pipeline."""
+        base = "vis4d/engine/testcases/detect"
+        dataset_loader: BaseDatasetLoader = Scalabel(
+            "bdd100k_detect_sample",
+            f"{base}/bdd100k-samples/images",
+            f"{base}/bdd100k-samples/labels/",
+            config_path=f"{base}/bdd100k-samples/config.toml",
+        )
+
+        self.train_datasets = BaseDatasetHandler(
+            ScalabelDataset(dataset_loader, True, mapper=None)
+        )
+        self.test_datasets = [
+            BaseDatasetHandler(
+                ScalabelDataset(dataset_loader, False, mapper=None)
+            )
+        ]
+
+
+def test_optimize() -> None:
+    """Test model optimization."""
+    predict_dir = (
+        "vis4d/engine/testcases/track/bdd100k-samples/images/"
+        "00091078-875c1f73/"
+    )
+    trainer = _trainer_builder("optimize_test")
+    model = MockModel(
+        model_param=7,
+        lr_scheduler_init={
+            "class_path": "vis4d.model.optimize.PolyLRScheduler",
+            "mode": "step",
+            "init_args": {"max_steps": 10},
+        },
+        lr_warmup=LinearLRWarmup(0.5, 1),
+    )
+    data_module = SampleDataModule(input_dir=predict_dir, workers_per_gpu=0)
+    trainer.fit(model, data_module)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def teardown(request) -> None:
+    """Clean up test files."""
+
+    def remove_test_dir():
+        shutil.rmtree("./unittests/", ignore_errors=True)
+
+    request.addfinalizer(remove_test_dir)

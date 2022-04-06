@@ -84,7 +84,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
     def set_batchnorm_eval(self) -> None:
         """Set all batchnorm layers in backbone to eval mode."""
         for m in self.d2_detector.modules():
-            if isinstance(m, _BatchNorm):
+            if isinstance(m, _BatchNorm):  # pragma: no cover
                 m.eval()
 
     def preprocess_inputs(self, inputs: InputSample) -> InputSample:

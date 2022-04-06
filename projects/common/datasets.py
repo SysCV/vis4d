@@ -35,6 +35,21 @@ mot17_val = lambda: MOTChallenge(
     cache_as_binary=True,
 )
 
+mot20_train = lambda: MOTChallenge(
+    name="mot20_train",
+    data_root="data/MOT20/train",
+    annotations="data/MOT20/train/train_scalabel.json",
+    cache_as_binary=True,
+)
+
+mot20_val = lambda: MOTChallenge(
+    name="mot20_val",
+    data_root="data/MOT20/train",
+    annotations="data/MOT20/train/val_scalabel.json",
+    eval_metrics=["detect", "track"],
+    cache_as_binary=True,
+)
+
 # BDD100K
 bdd100k_track_map = {
     "pedestrian": 0,

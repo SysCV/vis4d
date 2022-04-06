@@ -9,6 +9,8 @@ from projects.common.datasets import (
     crowdhuman_trainval,
     mot17_train,
     mot17_val,
+    mot20_train,
+    mot20_val,
 )
 from vis4d.common.io import FileBackend, HDF5Backend
 from vis4d.data import (
@@ -26,7 +28,7 @@ class QDTrackDataModule(BaseDataModule):
     def __init__(
         self, experiment: str, use_hdf5: bool = False, *args, **kwargs
     ) -> None:
-        """"""
+        """Init."""
         super().__init__(*args, **kwargs)
         self.experiment = experiment
         self.use_hdf5 = use_hdf5
@@ -76,6 +78,37 @@ class QDTrackDataModule(BaseDataModule):
             test_transforms = [Resize(shape=(800, 1440))]
             test_datasets = [
                 ScalabelDataset(mot17_val(), False, test_sample_mapper)
+            ]
+        elif self.experiment == "mot20":
+            # train pipeline
+            train_datasets = []
+            train_datasets += [
+                ScalabelDataset(
+                    crowdhuman_trainval(),
+                    True,
+                    train_sample_mapper,
+                    BaseReferenceSampler(num_ref_imgs=1, scope=0),
+                )
+            ]
+            train_datasets += [
+                ScalabelDataset(
+                    mot20_train(),
+                    True,
+                    train_sample_mapper,
+                    BaseReferenceSampler(
+                        scope=10, num_ref_imgs=1, skip_nomatch_samples=True
+                    ),
+                )
+            ]
+            train_transforms = mosaic_mixup(
+                (896, 1600),
+                multiscale_sizes=[(32 * i, 1600) for i in range(20, 36)],
+            )
+
+            # test pipeline
+            test_transforms = [Resize(shape=(896, 1600))]
+            test_datasets = [
+                ScalabelDataset(mot20_val(), False, test_sample_mapper)
             ]
         elif self.experiment == "bdd100k":
             train_datasets = []

@@ -1,5 +1,5 @@
 """Standard data augmentation pipelines."""
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from vis4d.data.transforms import (
     BaseAugmentation,
@@ -29,7 +29,9 @@ def multi_scale(im_hw: Tuple[int, int]) -> List[BaseAugmentation]:
 
 
 def mosaic_mixup(
-    im_hw: Tuple[int, int], clip_inside_image: bool = True
+    im_hw: Tuple[int, int],
+    clip_inside_image: bool = True,
+    multiscale_sizes: Optional[List[Tuple[int, int]]] = None,
 ) -> List[BaseAugmentation]:
     augs = []
     augs += [Mosaic(out_shape=im_hw, clip_inside_image=clip_inside_image)]
@@ -47,7 +49,14 @@ def mosaic_mixup(
     ]
     augs += [MixUp(out_shape=im_hw, clip_inside_image=clip_inside_image)]
     augs += [KorniaRandomHorizontalFlip(prob=0.5)]
-    augs += [Resize(shape=im_hw, keep_ratio=True)]
+    if multiscale_sizes is None:
+        augs += [Resize(shape=im_hw, keep_ratio=True)]
+    else:
+        augs += [
+            Resize(
+                shape=multiscale_sizes, multiscale_mode="list", keep_ratio=True
+            )
+        ]
     return augs
 
 

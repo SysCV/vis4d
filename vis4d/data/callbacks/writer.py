@@ -121,11 +121,10 @@ class ScalabelWriterCallback(BaseWriterCallback):
         """Write the aggregated output."""
         for key, predictions in self._predictions.items():
             os.makedirs(os.path.join(self._output_dir, key), exist_ok=True)
-            if get_world_size() > 1:
-                filename = f"predictions_{get_rank()}.json"  # pragma: no cover
+            if get_world_size() > 1:  # pragma: no cover
+                filename = f"predictions_{get_rank()}.json"
             else:
                 filename = "predictions.json"
             save(
-                os.path.join(self._output_dir, key, filename),
-                predictions,
+                os.path.join(self._output_dir, key, filename), predictions
             )
