@@ -33,6 +33,7 @@ class TestBackends(unittest.TestCase):
 
         # check exists
         self.assertFalse(backend_hdf5.exists("invalid_path"))
+        self.assertTrue(backend_hdf5.exists(hdf5_path))
 
         # check set
         os.makedirs("./unittests/", exist_ok=True)

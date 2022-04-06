@@ -6,8 +6,8 @@ from typing import List, Optional, Tuple
 from parameterized import parameterized
 from pytest import MonkeyPatch
 
-from vis4d.struct import ArgsType, InputSample
-from vis4d.unittest.utils import MockModel, _trainer_builder, get_test_file
+from vis4d.struct import ArgsType, Images, InputSample
+from vis4d.unittest.utils import MockModel, _trainer_builder
 
 from .dataset import ScalabelDataset
 from .datasets import BDD100K, COCO, KITTI, BaseDatasetLoader, Scalabel
@@ -38,10 +38,17 @@ ALLOWED_TASKS = [
 class SampleDataModule(BaseDataModule):
     """Load sample data to test data pipelines."""
 
-    def __init__(self, task: str, *args: ArgsType, **kwargs: ArgsType):
+    def __init__(
+        self,
+        task: str,
+        im_hw: Tuple[int, int],
+        *args: ArgsType,
+        **kwargs: ArgsType,
+    ):
         """Init."""
         assert task in ALLOWED_TASKS
         self.task = task
+        self.im_hw = im_hw
         super().__init__(*args, **kwargs)
 
     def create_datasets(self, stage: Optional[str] = None) -> None:
@@ -114,12 +121,11 @@ class SampleDataModule(BaseDataModule):
 
         mapper = None
 
-        im_hw = (360, 640)
         transforms = []
         if self.task == "track":
             transforms += [
-                Mosaic(out_shape=im_hw),
-                MixUp(out_shape=im_hw),
+                Mosaic(out_shape=self.im_hw),
+                MixUp(out_shape=self.im_hw),
             ]
 
         transforms += [
@@ -134,8 +140,8 @@ class SampleDataModule(BaseDataModule):
                 },
             ),
             KorniaRandomHorizontalFlip(prob=0.5),
-            Resize(shape=im_hw, keep_ratio=True, scale_range=(0.8, 1.2)),
-            RandomCrop(shape=im_hw),
+            Resize(shape=self.im_hw, keep_ratio=True, scale_range=(0.8, 1.2)),
+            RandomCrop(shape=self.im_hw),
             KorniaColorJitter(
                 prob=0.5,
                 kwargs={
@@ -203,21 +209,35 @@ class TestDataModule(unittest.TestCase):
     @parameterized.expand(ALLOWED_TASKS)  # type: ignore
     def test_data(self, task: str) -> None:
         """Test tracking data loading."""
+        batch_size = 1
+        im_hw = (360, 640)
         data_module = SampleDataModule(
-            task, input_dir=self.predict_dir, workers_per_gpu=0
+            task,
+            im_hw,
+            input_dir=self.predict_dir,
+            workers_per_gpu=0,
+            samples_per_gpu=batch_size,
         )
 
-        # def my_train_step(batch: List[InputSample], *args, **kwargs):
-        #     from vis4d.vis.image import imshow_masks
-        #     sample = batch[0]
-        #     imshow_masks(sample.images[0].tensor[0], sample.targets.semantic_masks[0])
-        #
-        # self.monkeypatch.setattr(self.model, "training_step", my_train_step)
+        Images.stride = 1
+
+        def train_step(batch: List[InputSample]) -> None:
+            self.assertEqual(len(batch), 1)
+            sample = batch[0]
+            self.assertEqual(len(sample), batch_size)
+            N, C, H, W = sample.images.tensor.shape
+            self.assertEqual(N, batch_size)
+            self.assertEqual(C, 3)
+            self.assertLessEqual(H, im_hw[0])
+            self.assertLessEqual(W, im_hw[1])
+
+        self.monkeypatch.setattr(self.model, "training_step", train_step)
 
         # test full loop
         self.trainer.fit(self.model, data_module)
         self.trainer.test(self.model, data_module)
         self.trainer.predict(self.model, data_module)
+        Images.stride = 32
 
     @classmethod
     def tearDownClass(cls) -> None:

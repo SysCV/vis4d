@@ -33,21 +33,19 @@ logger = logging.getLogger("pytorch_lightning")
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
-def convert_inf(x: Optional[Union[int, float]]) -> Optional[Union[int, float]]:
-    """The tqdm doesn't support inf/nan values.
-    We have to convert it to None.
-    """
-    if x is None or math.isinf(x) or math.isnan(x):
+def convert_inf(
+    number: Optional[Union[int, float]]
+) -> Optional[Union[int, float]]:
+    """Since TQDM doesn't support inf/nan values, convert to None."""
+    if number is None or math.isinf(number) or math.isnan(number):
         return None
-    return x
+    return number
 
 
 class TQDMProgressBar(pl.callbacks.TQDMProgressBar):  # type: ignore
     """TQDMProgressBar keeping training and validation progress separate."""
 
-    def on_train_epoch_start(
-        self, trainer: pl.Trainer, pl_module: pl.LightningModule
-    ) -> None:
+    def on_train_epoch_start(self, trainer: pl.Trainer) -> None:
         """Reset progress bar using total training batches."""
         self._train_batch_idx = 0
         if not self.main_progress_bar.disable:
@@ -203,7 +201,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
                 self._compose_log_str(
                     "Validating",
                     batch_idx,
-                    self.total_val_batches,
+                    self.trainer.num_val_batches[dataloader_idx],
                 )
             )
 
@@ -228,7 +226,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
                 self._compose_log_str(
                     "Testing",
                     batch_idx,
-                    self.total_test_batches,
+                    self.trainer.num_test_batches[dataloader_idx],
                 )
             )
 
@@ -253,7 +251,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
                 self._compose_log_str(
                     "Predicting",
                     batch_idx,
-                    self.total_predict_batches,
+                    self.trainer.num_predict_batches[dataloader_idx],
                 )
             )
 

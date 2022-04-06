@@ -137,20 +137,17 @@ class DefaultTrainer(pl.Trainer):
             gpu_ids = parse_gpu_ids(kwargs["gpus"])
             num_gpus = len(gpu_ids) if gpu_ids is not None else 0
             if num_gpus > 1:
-                if (
-                    kwargs["accelerator"] == "ddp"
-                    or kwargs["accelerator"] is None
-                ):
+                if kwargs["strategy"] == "ddp" or kwargs["strategy"] is None:
                     ddp_plugin = DDPPlugin(
                         find_unused_parameters=find_unused_parameters
                     )
                     kwargs["plugins"] = [ddp_plugin]
-                elif kwargs["accelerator"] == "ddp_spawn":
+                elif kwargs["strategy"] == "ddp_spawn":
                     ddp_plugin = DDPSpawnPlugin(
                         find_unused_parameters=find_unused_parameters
                     )
                     kwargs["plugins"] = [ddp_plugin]
-                elif kwargs["accelerator"] == "ddp2":
+                elif kwargs["strategy"] == "ddp2":
                     ddp_plugin = DDP2Plugin(
                         find_unused_parameters=find_unused_parameters
                     )
@@ -170,7 +167,7 @@ class DefaultTrainer(pl.Trainer):
     @property
     def log_dir(self) -> Optional[str]:
         """Get current logging directory."""
-        dirpath = self.accelerator.broadcast(self.output_dir)
+        dirpath = self.strategy.broadcast(self.output_dir)
         return dirpath  # type: ignore
 
     def tune(
@@ -183,7 +180,6 @@ class DefaultTrainer(pl.Trainer):
         datamodule: Optional[pl.LightningDataModule] = None,
         scale_batch_size_kwargs: Optional[DictStrAny] = None,
         lr_find_kwargs: Optional[DictStrAny] = None,
-        train_dataloader: Optional[pl.LightningDataModule] = None,
     ) -> Dict[str, Optional[Union[int, _LRFinder]]]:
         """Tune function."""
         rank_zero_info("Starting hyperparameter search...")
