@@ -5,6 +5,8 @@ from typing import Dict, List
 
 import pytest
 import pytorch_lightning as pl
+from _pytest.fixtures import FixtureRequest
+from _pytest.monkeypatch import MonkeyPatch
 from pytorch_lightning.utilities.cli import SaveConfigCallback
 
 from vis4d.struct import ArgsType
@@ -23,7 +25,7 @@ def test_custom_init() -> None:
     )
 
 
-def test_tune(monkeypatch) -> None:
+def test_tune(monkeypatch: MonkeyPatch) -> None:
     """Test tune function."""
     trainer = DefaultTrainer(
         work_dir="./unittests/",
@@ -42,7 +44,7 @@ def test_tune(monkeypatch) -> None:
     trainer.tune(model)
 
 
-def test_base_cli(monkeypatch) -> None:
+def test_base_cli(monkeypatch: MonkeyPatch) -> None:
     """Test that CLI correctly instantiates model/trainer and calls fit."""
     expected_model = dict(model_param=7)
     expected_trainer = dict(exp_name="cli_test")
@@ -86,10 +88,10 @@ def test_base_cli(monkeypatch) -> None:
 
 
 @pytest.fixture(scope="module", autouse=True)
-def teardown(request) -> None:
+def teardown(request: FixtureRequest) -> None:
     """Clean up test files."""
 
-    def remove_test_dir():
+    def remove_test_dir() -> None:
         shutil.rmtree("./unittests/", ignore_errors=True)
 
     request.addfinalizer(remove_test_dir)

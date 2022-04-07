@@ -166,6 +166,7 @@ def generate_input_sample(
     pan_input: bool = False,
     use_score: bool = True,
     frame_name: str = "test_frame",
+    video_name: str = "test_video",
 ) -> InputSample:
     """Create random InputSample."""
     state = torch.random.get_rng_state()
@@ -178,6 +179,7 @@ def generate_input_sample(
         [
             Frame(
                 name=frame_name,
+                videoName=video_name,
                 frameIndex=0,
                 size=ImageSize(width=width, height=height),
             )
