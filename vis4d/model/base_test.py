@@ -5,6 +5,7 @@ from typing import Optional
 
 import pytest
 import torch
+from _pytest.fixtures import FixtureRequest
 
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
@@ -769,10 +770,10 @@ def test_optimize() -> None:
 
 
 @pytest.fixture(scope="module", autouse=True)
-def teardown(request) -> None:
+def teardown(request: FixtureRequest) -> None:
     """Clean up test files."""
 
-    def remove_test_dir():
+    def remove_test_dir() -> None:
         shutil.rmtree("./unittests/", ignore_errors=True)
 
     request.addfinalizer(remove_test_dir)

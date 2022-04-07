@@ -3,6 +3,8 @@ import shutil
 from typing import List, Optional, Tuple
 
 import pytest
+from _pytest.fixtures import FixtureRequest
+from _pytest.monkeypatch import MonkeyPatch
 
 from vis4d.struct import ArgsType, Images, InputSample
 from vis4d.unittest.utils import MockModel, _trainer_builder
@@ -199,7 +201,7 @@ class SampleDataModule(BaseDataModule):
 
 
 @pytest.mark.parametrize("task", ALLOWED_TASKS)
-def test_data(task: str, monkeypatch) -> None:
+def test_data(task: str, monkeypatch: MonkeyPatch) -> None:
     """Test tracking data loading."""
     batch_size = 1
     im_hw = (360, 640)
@@ -240,10 +242,10 @@ def test_data(task: str, monkeypatch) -> None:
 
 
 @pytest.fixture(scope="module", autouse=True)
-def teardown(request) -> None:
+def teardown(request: FixtureRequest) -> None:
     """Clean up test files."""
 
-    def remove_test_dir():
+    def remove_test_dir() -> None:
         shutil.rmtree("./unittests/", ignore_errors=True)
 
     request.addfinalizer(remove_test_dir)
