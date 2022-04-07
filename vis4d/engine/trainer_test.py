@@ -17,31 +17,39 @@ from .trainer import BaseCLI, DefaultTrainer
 
 def test_custom_init() -> None:
     """Test setup with some custom options like tqdm progress bar."""
-    DefaultTrainer(
+    trainer = DefaultTrainer(
         work_dir="./unittests/",
         exp_name="trainer_test",
-        fast_dev_run=True,
         callbacks=pl.callbacks.LearningRateMonitor(),
+        tqdm=True,
+        max_steps=2,
     )
+    model = MockModel(model_param=7)
+    trainer.fit(model, [None])
 
 
 def test_tune(monkeypatch: MonkeyPatch) -> None:
     """Test tune function."""
+    model_params = [0, 1, 2, 3]
     trainer = DefaultTrainer(
         work_dir="./unittests/",
         exp_name="test_tune",
-        tuner_params={"model_param": [0, 1, 2, 3]},
+        tuner_params={"model_param": model_params},
         tuner_metrics=["my_metric"],
     )
     model = MockModel(model_param=7)
 
+    model_param_vals = []
+
     def dummy_test(  # pylint: disable=unused-argument
         *args: ArgsType, **kwargs: ArgsType
     ) -> List[Dict[str, float]]:
-        return [{"my_metric": model.model_param}]
+        model_param_vals.append(model.model_param)
+        return [{"my_metric": 0}]
 
     monkeypatch.setattr(DefaultTrainer, "test", dummy_test)
     trainer.tune(model)
+    assert set(model_param_vals) == set(model_params)
 
 
 def test_base_cli(monkeypatch: MonkeyPatch) -> None:
@@ -49,10 +57,10 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
     expected_model = dict(model_param=7)
     expected_trainer = dict(exp_name="cli_test")
 
-    def fit(trainer, model):  # type: ignore
+    def fit(trainer, model):
         for k, v in expected_model.items():
             assert getattr(model, k) == v
-        for k, v in expected_trainer.items():  # type: ignore # pylint: disable=line-too-long
+        for k, v in expected_trainer.items():
             assert getattr(trainer, k) == v
         save_callback = [
             x for x in trainer.callbacks if isinstance(x, SaveConfigCallback)
@@ -60,11 +68,11 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
         assert len(save_callback) == 1
         save_callback[0].on_train_start(trainer, model)
 
-    def on_train_start(callback, trainer, _):  # type: ignore
+    def on_train_start(callback, trainer, _):
         config_dump = callback.parser.dump(callback.config, skip_none=False)
         for k, v in expected_model.items():
             assert f"  {k}: {v}" in config_dump
-        for k, v in expected_trainer.items():  # type: ignore
+        for k, v in expected_trainer.items():
             assert f"  {k}: {v}" in config_dump
         trainer.ran_asserts = True
 
@@ -82,9 +90,7 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
         ],
     ):
         cli = BaseCLI(MockModel, trainer_class=_trainer_builder)
-        assert (
-            hasattr(cli.trainer, "ran_asserts") and cli.trainer.ran_asserts  # type: ignore # pylint: disable=line-too-long
-        )
+        assert hasattr(cli.trainer, "ran_asserts") and cli.trainer.ran_asserts
 
 
 @pytest.fixture(scope="module", autouse=True)

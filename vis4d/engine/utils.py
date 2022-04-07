@@ -16,7 +16,7 @@ from pytorch_lightning.utilities.rank_zero import (
 from termcolor import colored
 
 from ..common.utils.time import Timer
-from ..struct import DictStrAny, InputSample, LossesType, ModelOutput
+from ..struct import ArgsType, DictStrAny, InputSample, LossesType, ModelOutput
 
 try:
     from mmcv.utils import get_logger
@@ -38,14 +38,16 @@ def convert_inf(
 ) -> Optional[Union[int, float]]:
     """Since TQDM doesn't support inf/nan values, convert to None."""
     if number is None or math.isinf(number) or math.isnan(number):
-        return None
-    return number
+        return None  # pragma: no cover
+    return number  # pragma: no cover
 
 
 class TQDMProgressBar(pl.callbacks.TQDMProgressBar):  # type: ignore
     """TQDMProgressBar keeping training and validation progress separate."""
 
-    def on_train_epoch_start(self, trainer: pl.Trainer) -> None:
+    def on_train_epoch_start(
+        self, trainer: "pl.Trainer", *_: ArgsType
+    ) -> None:
         """Reset progress bar using total training batches."""
         self._train_batch_idx = 0
         if not self.main_progress_bar.disable:
@@ -65,7 +67,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         """Init."""
         super().__init__()
         self._refresh_rate = refresh_rate
-        self._enabled = True
+        self.enable()
         self.timer = Timer()
         self._metrics_history: List[DictStrAny] = []
 

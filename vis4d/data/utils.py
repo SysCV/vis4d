@@ -89,7 +89,7 @@ def im_decode(
         if pil_img.mode == "L":  # pragma: no cover
             # convert grayscale image to RGB
             pil_img = pil_img.convert("RGB")
-        if mode == "BGR":
+        if mode == "BGR":  # pragma: no cover
             img: NDArrayUI8 = np.array(pil_img)[..., [2, 1, 0]]
         elif mode == "RGB":
             img = np.array(pil_img)

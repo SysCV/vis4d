@@ -154,7 +154,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
                 if label.id not in instid_map:
                     instid_map[label.id] = int(label.attributes["instance_id"])
         if not labels_used:
-            return
+            return  # pragma: no cover
 
         frame = sample.metadata[0]
         if "instance_masks" in self.targets_to_load:

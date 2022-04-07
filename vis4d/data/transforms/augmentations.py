@@ -72,12 +72,6 @@ class Resize(BaseAugmentation):
             # pylint: disable=unsubscriptable-object
             self.shape = [(int(s[0]), int(s[1])) for s in self.shape]
         else:
-            if (
-                isinstance(self.shape, list)
-                and isinstance(self.shape[0], int)
-                and isinstance(self.shape[1], int)
-            ):
-                self.shape = tuple(self.shape)
             assert isinstance(
                 self.shape, tuple
             ), "Specify shape as tuple when using multiscale mode range."
@@ -236,11 +230,6 @@ class RandomCrop(BaseAugmentation):
         self.cat_max_ratio = cat_max_ratio
         self.allow_empty_crops = allow_empty_crops
         self.recompute_boxes2d = recompute_boxes2d
-        if isinstance(shape, list) and (
-            (isinstance(shape[0], int) and isinstance(shape[1], int))
-            or (isinstance(shape[0], float) and isinstance(shape[1], float))
-        ):
-            shape = tuple(shape)
 
         if crop_type == "absolute":
             assert isinstance(shape, tuple)
@@ -379,9 +368,11 @@ class RandomCrop(BaseAugmentation):
                     ) and not self._check_seg_max_cat(cur_sample, crop_param):
                         found_crop = True
                         break
-                    crop_param = self._sample_crop(im_wh)
-                    keep_mask = self._get_keep_mask(cur_sample, crop_param)
-                if not found_crop:
+                    crop_param = self._sample_crop(im_wh)  # pragma: no cover
+                    keep_mask = self._get_keep_mask(
+                        cur_sample, crop_param
+                    )  # pragma: no cover
+                if not found_crop:  # pragma: no cover
                     rank_zero_warn(
                         "Random crop not found within 10 resamples."
                     )

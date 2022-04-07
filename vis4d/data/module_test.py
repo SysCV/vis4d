@@ -70,6 +70,7 @@ class SampleDataModule(BaseDataModule):
                 data_root,
                 annotations,
                 config_path=config_path,
+                compute_global_instance_ids=True,
             )
         elif self.task == "insseg":
             annotations = (
@@ -118,10 +119,10 @@ class SampleDataModule(BaseDataModule):
                 "kitti_sample",
                 data_root,
                 annotations,
-                multi_sensor_inference=False if self.task == "detect3d" else True
+                multi_sensor_inference=self.task != "detect3d",
             )
 
-        mapper = None
+        mapper = BaseSampleMapper(category_map=self.category_mapping)
 
         transforms = []
         if self.task == "track":
@@ -157,13 +158,19 @@ class SampleDataModule(BaseDataModule):
 
         if self.task == "insseg":
             targets: Tuple[str, ...] = ("boxes2d", "instance_masks")
-            mapper = BaseSampleMapper(targets_to_load=targets)
+            mapper = BaseSampleMapper(
+                targets_to_load=targets, category_map=self.category_mapping
+            )
         if self.task == "segment":
             targets = ("boxes2d", "semantic_masks")
-            mapper = BaseSampleMapper(targets_to_load=targets)
+            mapper = BaseSampleMapper(
+                targets_to_load=targets, category_map=self.category_mapping
+            )
         elif self.task == "panoptic":
             targets = ("boxes2d", "instance_masks", "semantic_masks")
-            mapper = BaseSampleMapper(targets_to_load=targets)
+            mapper = BaseSampleMapper(
+                targets_to_load=targets, category_map=self.category_mapping
+            )
         elif self.task == "detect3d":
             inputs: Tuple[str, ...] = ("images", "intrinsics", "pointcloud")
             targets = (
@@ -171,7 +178,9 @@ class SampleDataModule(BaseDataModule):
                 "boxes3d",
             )
             mapper = BaseSampleMapper(
-                inputs_to_load=inputs, targets_to_load=targets
+                inputs_to_load=inputs,
+                targets_to_load=targets,
+                category_map=self.category_mapping,
             )
         elif self.task == "track3d":
             inputs = ("images", "intrinsics", "extrinsics", "pointcloud")
@@ -180,12 +189,16 @@ class SampleDataModule(BaseDataModule):
                 "boxes3d",
             )
             mapper = BaseSampleMapper(
-                inputs_to_load=inputs, targets_to_load=targets
+                inputs_to_load=inputs,
+                targets_to_load=targets,
+                category_map=self.category_mapping,
             )
 
         ref_sampler = None
         if self.task in ["track", "track3d"]:
-            ref_sampler = BaseReferenceSampler(num_ref_imgs=1, scope=3)
+            ref_sampler = BaseReferenceSampler(
+                num_ref_imgs=1, scope=3, skip_nomatch_samples=True
+            )
 
         self.train_datasets = BaseDatasetHandler(
             ScalabelDataset(
@@ -215,6 +228,15 @@ def test_data(task: str, monkeypatch: MonkeyPatch) -> None:
         input_dir=predict_dir,
         workers_per_gpu=0,
         samples_per_gpu=batch_size,
+        sampler_cfg={"type": "RoundRobinSampler"},
+    )
+    data_module.set_category_mapping(
+        {
+            "boxes2d": {"car": 0},
+            "instance_masks": {"car": 0},
+            "semantic_masks": {"car": 0},
+            "boxes3d": {"car": 0},
+        }
     )
 
     Images.stride = 1

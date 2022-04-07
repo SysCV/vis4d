@@ -201,7 +201,7 @@ class DefaultTrainer(pl.Trainer):
         for param_group in param_groups:
             for key, value in zip(param_names, param_group):
                 obj = model
-                for name in key.split(".")[:-1]:
+                for name in key.split(".")[:-1]:  # pragma: no cover
                     obj = getattr(obj, name, None)  # type: ignore
                     if obj is None:
                         raise ValueError(
@@ -243,14 +243,11 @@ class BaseCLI(LightningCLI):
         trainer_class: Union[
             Type[pl.Trainer], Callable[..., pl.Trainer]
         ] = DefaultTrainer,
-        seed_everything_default: Optional[int] = None,
         description: str = "Vis4D command line tool",
         env_prefix: str = "V4D",
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
-        if seed_everything_default is not None:
-            rank_zero_info("Using random seed: %s", seed_everything_default)
         super().__init__(
             model_class=model_class,
             datamodule_class=datamodule_class,
@@ -258,7 +255,6 @@ class BaseCLI(LightningCLI):
             trainer_class=trainer_class,
             description=description,
             env_prefix=env_prefix,
-            seed_everything_default=seed_everything_default,
             **kwargs,
         )
 

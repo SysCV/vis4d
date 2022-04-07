@@ -130,7 +130,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
             ]
             self.predict_datasets = [BaseDatasetHandler(dataset)]
         else:
-            self.predict_datasets = self.test_datasets
+            self.predict_datasets = self.test_datasets  # pragma: no cover
 
     def setup_data_callbacks(self, stage: str, log_dir: str) -> List[Callback]:
         """Setup callbacks for evaluation and prediction writing."""
@@ -140,8 +140,8 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
                     itertools.chain(*[h.datasets for h in self.test_datasets])
                 )
                 return build_callbacks(test_datasets)
-            return []
-        if stage == "test":
+            return []  # pragma: no cover
+        if stage in ["test", "tune"]:
             assert self.test_datasets is not None and len(
                 self.test_datasets
             ), "No test datasets specified!"
@@ -161,14 +161,6 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
             return build_callbacks(
                 predict_datasets, log_dir, True, self.visualize
             )
-        if stage == "tune":
-            assert self.test_datasets is not None and len(
-                self.test_datasets
-            ), "No test datasets specified!"
-            test_datasets = list(
-                itertools.chain(*[h.datasets for h in self.test_datasets])
-            )
-            return build_callbacks(test_datasets, log_dir)
         raise NotImplementedError(f"Action {stage} not known!")
 
     def train_dataloader(self) -> data.DataLoader:
@@ -251,20 +243,20 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
                 elif self.video_based_inference is None:
                     video_based_inference = True
 
-            if get_world_size() > 1 and video_based_inference:
+            if (
+                get_world_size() > 1 and video_based_inference
+            ):  # pragma: no cover
                 assert isinstance(current_dataset, ScalabelDataset), (
                     "Need type ScalabelDataset for TrackingInferenceSampler"
                     " to split dataset by sequences!"
                 )
-                sampler = TrackingInferenceSampler(
-                    current_dataset
-                )  # pragma: no cover
-            elif get_world_size() > 1 and self._sampler_cfg is not None:
+                sampler = TrackingInferenceSampler(current_dataset)
+            elif (
+                get_world_size() > 1 and self._sampler_cfg is not None
+            ):  # pragma: no cover
                 # manually create distributed sampler for inference if using
                 # custom training sampler
-                sampler = DistributedSampler(  # pragma: no cover
-                    dataset, shuffle=False
-                )
+                sampler = DistributedSampler(dataset, shuffle=False)
 
             test_dataloader = data.DataLoader(
                 dataset,
