@@ -12,6 +12,7 @@ from .datasets import BDD100K, COCO, KITTI, BaseDatasetLoader, Scalabel
 from .handler import BaseDatasetHandler
 from .mapper import BaseSampleMapper
 from .module import BaseDataModule
+from .reference import BaseReferenceSampler
 from .transforms import (
     KorniaAugmentationWrapper,
     KorniaColorJitter,
@@ -115,6 +116,7 @@ class SampleDataModule(BaseDataModule):
                 "kitti_sample",
                 data_root,
                 annotations,
+                multi_sensor_inference=False if self.task == "detect3d" else True
             )
 
         mapper = None
@@ -179,8 +181,14 @@ class SampleDataModule(BaseDataModule):
                 inputs_to_load=inputs, targets_to_load=targets
             )
 
+        ref_sampler = None
+        if self.task in ["track", "track3d"]:
+            ref_sampler = BaseReferenceSampler(num_ref_imgs=1, scope=3)
+
         self.train_datasets = BaseDatasetHandler(
-            ScalabelDataset(dataset_loader, True, mapper=mapper),
+            ScalabelDataset(
+                dataset_loader, True, mapper=mapper, ref_sampler=ref_sampler
+            ),
             transformations=transforms,
         )
         self.test_datasets = [
@@ -190,7 +198,7 @@ class SampleDataModule(BaseDataModule):
         ]
 
 
-@pytest.mark.parametrize("task", ALLOWED_TASKS)  # type: ignore
+@pytest.mark.parametrize("task", ALLOWED_TASKS)
 def test_data(task: str, monkeypatch) -> None:
     """Test tracking data loading."""
     batch_size = 1
@@ -210,7 +218,7 @@ def test_data(task: str, monkeypatch) -> None:
     Images.stride = 1
 
     def train_step(batch: List[InputSample]) -> None:
-        assert len(batch) == 1
+        assert len(batch) in [1, 2]  # ref / no ref view
         sample = batch[0]
         assert len(sample) == batch_size
         N, C, H, W = sample.images.tensor.shape

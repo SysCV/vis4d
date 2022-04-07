@@ -125,6 +125,4 @@ class ScalabelWriterCallback(BaseWriterCallback):
                 filename = f"predictions_{get_rank()}.json"
             else:
                 filename = "predictions.json"
-            save(
-                os.path.join(self._output_dir, key, filename), predictions
-            )
+            save(os.path.join(self._output_dir, key, filename), predictions)
