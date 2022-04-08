@@ -1,6 +1,8 @@
 black
 coverage[toml]
+click==8.0.4
 isort
+jsonargparse
 mypy
 numpy>=1.21.0
 pandas
