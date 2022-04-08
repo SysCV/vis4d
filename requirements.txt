@@ -19,7 +19,6 @@ h5py
 git+https://github.com/scalabel/scalabel.git
 termcolor
 torch
-torchaudio
 torchvision
 git+https://github.com/bdd100k/bdd100k.git
 devtools
