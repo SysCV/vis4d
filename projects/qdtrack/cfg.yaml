@@ -1,3 +1,6 @@
+data:
+  experiment: "bdd100k"
+
 model:
   category_mapping:
     pedestrian: 0
@@ -28,7 +31,3 @@ model:
     class_path: torch.optim.lr_scheduler.MultiStepLR
     init_args:
       milestones: [8, 11]
-
-data:
-  sampler_cfg:
-    type: RoundRobinSampler

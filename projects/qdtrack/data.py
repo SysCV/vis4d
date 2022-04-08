@@ -1,5 +1,5 @@
 """QDTrack data module."""
-from typing import Optional
+from typing import List, Optional
 
 from projects.common.data_pipelines import default, mosaic_mixup
 from projects.common.datasets import (
@@ -12,7 +12,7 @@ from projects.common.datasets import (
     mot20_train,
     mot20_val,
 )
-from vis4d.common.io import FileBackend, HDF5Backend
+from vis4d.common.io import BaseDataBackend, FileBackend, HDF5Backend
 from vis4d.data import (
     BaseDatasetHandler,
     BaseReferenceSampler,
@@ -20,13 +20,19 @@ from vis4d.data import (
     ScalabelDataset,
 )
 from vis4d.data.module import BaseDataModule
-from vis4d.data.transforms import Resize
-from vis4d.struct import CategoryMap
+from vis4d.data.transforms import BaseAugmentation, Resize
+from vis4d.struct import ArgsType
 
 
 class QDTrackDataModule(BaseDataModule):
+    """QDTrack data module."""
+
     def __init__(
-        self, experiment: str, use_hdf5: bool = False, *args, **kwargs
+        self,
+        experiment: str,
+        *args: ArgsType,
+        use_hdf5: bool = False,
+        **kwargs: ArgsType,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
@@ -36,7 +42,7 @@ class QDTrackDataModule(BaseDataModule):
     def create_datasets(self, stage: Optional[str] = None) -> None:
         """Setup data pipelines for each experiment."""
         if not self.use_hdf5:
-            data_backend = FileBackend()
+            data_backend: BaseDataBackend = FileBackend()
         else:
             data_backend = HDF5Backend()
 
@@ -75,7 +81,9 @@ class QDTrackDataModule(BaseDataModule):
             clip_to_image = False
 
             # test pipeline
-            test_transforms = [Resize(shape=(800, 1440))]
+            test_transforms: List[BaseAugmentation] = [
+                Resize(shape=(800, 1440))
+            ]
             test_datasets = [
                 ScalabelDataset(mot17_val(), False, test_sample_mapper)
             ]

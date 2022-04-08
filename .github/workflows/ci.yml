@@ -1,4 +1,4 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# This workflow will install Python dependencies, run tests and lint
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
 name: ci
@@ -28,19 +28,22 @@ jobs:
           python3 -m pip freeze
 
       - name: isort
-        run: python3 -m isort -c vis4d
+        run: python3 -m isort -c vis4d projects
 
       - name: black
-        run: python3 -m black --check vis4d
+        run: python3 -m black --check vis4d projects
 
       - name: lint
-        run: python3 -m pylint vis4d
+        run: python3 -m pylint vis4d projects
 
       - name: docstyle
-        run: python3 -m pydocstyle --convention=google vis4d
+        run: python3 -m pydocstyle --convention=google vis4d projects
 
       - name: mypy
-        run: python3 -m mypy --strict vis4d
+        run: |
+          python3 -m mypy --strict vis4d
+          python3 -m mypy projects
+
 
   test:
     name: test py${{ matrix.python-version }}
@@ -61,9 +64,6 @@ jobs:
           python3 -m pip install --upgrade pip
           bash ./scripts/install_cpu_dep_full.sh
           python3 -m pip freeze
-
-      # - name: test
-      #   run: python3 -m pytest --pyargs vis4d
 
       - name: test
         run: python3 -m coverage run --source=vis4d -m pytest --pyargs vis4d

@@ -1,32 +1,12 @@
 """Quasi-dense instance similarity learning model."""
-import pickle
-from typing import Dict, List, Tuple
+from typing import Tuple
 
 import torch
 from pytorch_lightning.utilities.cli import instantiate_class
 
 from projects.common.data_pipelines import default as default_augs
-from vis4d.model.base import BaseModel
-from vis4d.model.detect import (
-    BaseDetector,
-    BaseOneStageDetector,
-    BaseTwoStageDetector,
-)
-from vis4d.model.track.graph import BaseTrackGraph
-from vis4d.model.track.similarity import BaseSimilarityHead
-from vis4d.model.track.utils import split_key_ref_inputs
-from vis4d.model.utils import postprocess_predictions, predictions_to_scalabel
 from vis4d.model import QDTrack
-from vis4d.struct import (
-    ArgsType,
-    Boxes2D,
-    FeatureMaps,
-    InputSample,
-    LabelInstances,
-    LossesType,
-    ModelOutput,
-    TLabelInstance,
-)
+from vis4d.struct import ArgsType
 
 try:
     from mmdet.core.bbox.assigners import SimOTAAssigner
@@ -36,7 +16,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 
-class ClippedSimOTAAssigner(SimOTAAssigner):
+class ClippedSimOTAAssigner(SimOTAAssigner):  # type: ignore
     """Modified SimOTAAssigner to support boxes with center outside of img."""
 
     def __init__(self, h: int, w: int, *args, **kwargs) -> None:
@@ -45,6 +25,7 @@ class ClippedSimOTAAssigner(SimOTAAssigner):
         self.im_h, self.im_w = h, w
 
     def get_in_gt_and_in_center_info(self, priors, gt_bboxes):
+        """Compute labels for classification branch."""
         num_gt = gt_bboxes.size(0)
 
         repeated_x = priors[:, 0].unsqueeze(1).repeat(1, num_gt)
@@ -95,6 +76,8 @@ class ClippedSimOTAAssigner(SimOTAAssigner):
 
 
 class QDTrackYOLOX(QDTrack):
+    """QDTrack + YOLOX detector."""
+
     def __init__(
         self,
         *args: ArgsType,
@@ -119,9 +102,11 @@ class QDTrackYOLOX(QDTrack):
     def on_train_epoch_start(self):
         """In the last training epochs: add L1 loss, turn off augmentations."""
         if self.current_epoch == self.trainer.max_epochs - self.no_aug_epochs:
-            self.detector.mm_detector.bbox_head.use_l1 = True
-            self.train_dataloader.transformations = default_augs(self.im_hw)
-            self.trainer.re
+            self.detector.bbox_head.mm_dense_head.use_l1 = True
+            self.trainer.datamodule.train_datasets.transformations = (
+                default_augs(self.im_hw)
+            )
+            self.trainer.reset_train_dataloader(self)
 
     def configure_optimizers(self):
         """Configure optimizers and schedulers of model."""

@@ -1,11 +1,10 @@
 """Vis4D engine utils."""
 import datetime
 import logging
-import math
 import os
 import sys
 import warnings
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import pytorch_lightning as pl
 import torch
@@ -16,7 +15,7 @@ from pytorch_lightning.utilities.rank_zero import (
 from termcolor import colored
 
 from ..common.utils.time import Timer
-from ..struct import ArgsType, DictStrAny, InputSample, LossesType, ModelOutput
+from ..struct import DictStrAny, InputSample, LossesType, ModelOutput
 
 try:
     from mmcv.utils import get_logger
@@ -33,37 +32,10 @@ logger = logging.getLogger("pytorch_lightning")
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
-def convert_inf(
-    number: Optional[Union[int, float]]
-) -> Optional[Union[int, float]]:
-    """Since TQDM doesn't support inf/nan values, convert to None."""
-    if number is None or math.isinf(number) or math.isnan(number):
-        return None  # pragma: no cover
-    return number  # pragma: no cover
-
-
-class TQDMProgressBar(pl.callbacks.TQDMProgressBar):  # type: ignore
-    """TQDMProgressBar keeping training and validation progress separate."""
-
-    def on_train_epoch_start(
-        self, trainer: "pl.Trainer", *_: ArgsType
-    ) -> None:
-        """Reset progress bar using total training batches."""
-        self._train_batch_idx = 0
-        if not self.main_progress_bar.disable:
-            self.main_progress_bar.reset(
-                total=convert_inf(self.total_train_batches)
-            )
-            self.main_progress_bar.n = 0
-        self.main_progress_bar.set_description(
-            f"Epoch {trainer.current_epoch}"
-        )
-
-
 class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
     """ProgressBar with separate printout per log step."""
 
-    def __init__(self, refresh_rate: int = 50) -> None:
+    def __init__(self, refresh_rate: int = 2) -> None:
         """Init."""
         super().__init__()
         self._refresh_rate = refresh_rate
@@ -87,11 +59,11 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self.timer.reset()
         self._metrics_history = []
 
-    def on_predict_epoch_start(
+    def on_predict_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
-        """Reset timer on start of epoch."""
-        super().on_train_epoch_start(trainer, pl_module)
+        """Reset timer on start of predict."""
+        super().on_predict_start(trainer, pl_module)
         self.timer.reset()
         self._metrics_history = []
 
@@ -99,7 +71,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Reset timer on start of validation."""
-        super().on_train_epoch_start(trainer, pl_module)
+        super().on_validation_start(trainer, pl_module)
         self.timer.reset()
         self._metrics_history = []
 
@@ -107,13 +79,16 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Reset timer on start of test."""
-        super().on_train_epoch_start(trainer, pl_module)
+        super().on_test_start(trainer, pl_module)
         self.timer.reset()
         self._metrics_history = []
 
     def _get_metrics(self) -> DictStrAny:
         """Get current running avg of metrics and clean history."""
-        acc_metrics = {}
+        acc_metrics: DictStrAny = {}
+        if len(self._metrics_history) == 0:
+            return acc_metrics
+
         for k, v in self._metrics_history[-1].items():
             if isinstance(v, (torch.Tensor, float, int)):
                 acc_value = 0.0
@@ -151,15 +126,15 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
             else:
                 kv_str = f"{k}: {v}"
             metrics_list.append(kv_str)
-        metr_str = ", ".join(metrics_list)
+
         time_str = f"ETA: {eta_str}, " + (
             f"{time_sec_avg:.2f}s/it"
             if time_sec_avg > 1
             else f"{1/time_sec_avg:.2f}it/s"
         )
-        logging_str = (
-            f"{prefix}: {batch_idx}/{total_batches}, {time_str}, {metr_str}"
-        )
+        logging_str = f"{prefix}: {batch_idx}/{total_batches}, {time_str}"
+        if len(metrics_list) > 0:
+            logging_str += ", " + ", ".join(metrics_list)
         return logging_str
 
     def on_train_batch_end(
@@ -177,11 +152,11 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         metrics = self.get_metrics(trainer, pl_module)
         self._metrics_history.append(metrics)
 
-        if batch_idx % self._refresh_rate == 0 and self._enabled:
+        if self.train_batch_idx % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     f"Epoch {trainer.current_epoch}",
-                    batch_idx,
+                    self.train_batch_idx,
                     self.total_train_batches,
                 )
             )
@@ -199,14 +174,12 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         super().on_validation_batch_end(
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
-        metrics = self.get_metrics(trainer, pl_module)
-        self._metrics_history.append(metrics)
 
-        if batch_idx % self._refresh_rate == 0 and self._enabled:
+        if self.val_batch_idx % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     "Validating",
-                    batch_idx,
+                    self.val_batch_idx,
                     self.trainer.num_val_batches[dataloader_idx],
                 )
             )
@@ -224,14 +197,12 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         super().on_test_batch_end(
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
-        metrics = self.get_metrics(trainer, pl_module)
-        self._metrics_history.append(metrics)
 
-        if batch_idx % self._refresh_rate == 0 and self._enabled:
+        if self.test_batch_idx % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     "Testing",
-                    batch_idx,
+                    self.train_batch_idx,
                     self.trainer.num_test_batches[dataloader_idx],
                 )
             )
@@ -249,14 +220,12 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         super().on_predict_batch_end(
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
-        metrics = self.get_metrics(trainer, pl_module)
-        self._metrics_history.append(metrics)
 
-        if batch_idx % self._refresh_rate == 0 and self._enabled:
+        if self.predict_batch_idx % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     "Predicting",
-                    batch_idx,
+                    self.predict_batch_idx,
                     self.trainer.num_predict_batches[dataloader_idx],
                 )
             )

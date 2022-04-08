@@ -5,42 +5,34 @@ This is the updated official implementation of the paper [Quasi-Dense Similarity
 
 ## Model Zoo
 
-##### TODO update
 We provide pre-trained models for all main experiments:
 
-### BDD100K test set
+### BDD100K
 
+To reproduce our training, run:
+```python
+ python projects/qdtrack/run.py fit --data.experiment bdd100k --trainer.gpus 8 --data.samples_per_gpu 2
+ ```
+
+Note that we train our model on 8 RTX 2080 Ti GPUs. If you use a different configuration, adjust the parameters accordingly.
+
+##### TODO update numbers, model link
 | mMOTA | mIDF1  | ID Sw. |
 |-------|--------|--------|
 | 35.5  | 52.3   |  10790 |
 
+To test the pretrained model, run:
+```python
+ python projects/qdtrack/run.py test --data.experiment bdd100k --trainer.gpus <number of available gpus> --ckpt_path <path to weights>
+ ```
+
 ### MOT
 
+##### TODO update numbers, model link
 | Dataset | MOTA | IDF1  | ID Sw. | MT | ML |
 |-------|--------|--------| ----| ---| ---|
-| MOT16 | 69.8 | 67.1 | 1097 | 316 | 150 |
-| MOT17 | 68.7 | 66.3 | 3378 | 957 | 516 |
+| MOT17 | 69.8 | 67.1 | 1097 | 316 | 150 |
+| MOT20 | 68.7 | 66.3 | 3378 | 957 | 516 |
 
-### Waymo validation set
 
-| Category   | MOTA | IDF1 | ID Sw. |
-|------------|------|------|--------|
-| Vehicle    | 55.6 | 66.2 | 24309  | 
-| Pedestrian | 50.3 | 58.4 | 6347   |
-| Cyclist    | 26.2 | 45.7 | 56     | 
-| All        | 44.0 | 56.8 | 30712  | 
-
-### TAO
-
-| Split   | AP50 | AP75 | AP | 
-|---------|------|------|----|
-| val     | 16.1 | 5.0  | 7.0|
-| test    | 12.4 | 4.5  | 5.2|
-
-## Training
-
-To reproduce our training, please execute the following:
-
-```
-python run.py train --experiment bdd100k --backbone R50FPN --schedule 1x
-```
+### DanceTrack

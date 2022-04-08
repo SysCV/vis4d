@@ -6,6 +6,7 @@ from typing import Callable, Dict, List, Optional, Type, Union
 
 import pandas
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
 from pytorch_lightning.tuner.lr_finder import _LRFinder
 from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
@@ -23,7 +24,7 @@ from torch.utils.collect_env import get_pretty_env_info
 from ..data.module import BaseDataModule
 from ..model import BaseModel
 from ..struct import ArgsType, DictStrAny
-from .utils import DefaultProgressBar, TQDMProgressBar, setup_logger
+from .utils import DefaultProgressBar, setup_logger
 
 
 class DefaultTrainer(pl.Trainer):
@@ -59,6 +60,7 @@ class DefaultTrainer(pl.Trainer):
         resume: bool = False,
         wandb: bool = False,
         tqdm: bool = False,
+        progress_bar_refresh_rate: int = 50,
         tuner_params: Optional[DictStrAny] = None,
         tuner_metrics: Optional[List[str]] = None,
         **kwargs: ArgsType,
@@ -116,9 +118,9 @@ class DefaultTrainer(pl.Trainer):
 
         # add progress bar (train progress separate from validation)
         if tqdm:
-            progress_bar = TQDMProgressBar()
+            progress_bar = TQDMProgressBar(progress_bar_refresh_rate)
         else:
-            progress_bar = DefaultProgressBar()
+            progress_bar = DefaultProgressBar(progress_bar_refresh_rate)
         callbacks += [progress_bar]
 
         # add Model checkpointer

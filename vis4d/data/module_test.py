@@ -209,7 +209,10 @@ class SampleDataModule(BaseDataModule):
         self.test_datasets = [
             BaseDatasetHandler(
                 ScalabelDataset(dataset_loader, False, mapper=mapper)
-            )
+            ),
+            BaseDatasetHandler(
+                ScalabelDataset(dataset_loader, False, mapper=mapper)
+            ),
         ]
 
 
