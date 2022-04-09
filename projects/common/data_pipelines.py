@@ -1,6 +1,8 @@
 """Standard data augmentation pipelines."""
 from typing import List, Optional, Tuple
 
+from vis4d.common.io import BaseDataBackend, FileBackend, HDF5Backend
+from vis4d.data.module import BaseDataModule
 from vis4d.data.transforms import (
     BaseAugmentation,
     KorniaAugmentationWrapper,
@@ -11,6 +13,31 @@ from vis4d.data.transforms import (
     RandomCrop,
     Resize,
 )
+from vis4d.struct import ArgsType
+
+
+class CommonDataModule(BaseDataModule):
+    """Common data module."""
+
+    def __init__(
+        self,
+        experiment: str,
+        *args: ArgsType,
+        use_hdf5: bool = False,
+        **kwargs: ArgsType,
+    ) -> None:
+        """Init."""
+        super().__init__(*args, **kwargs)
+        self.experiment = experiment
+        self.use_hdf5 = use_hdf5
+
+    def _setup_backend(self) -> BaseDataBackend:
+        """Setup data backend."""
+        return FileBackend() if not self.use_hdf5 else HDF5Backend()
+
+    def create_datasets(self, stage: Optional[str] = None) -> None:
+        """Setup data pipelines for each experiment."""
+        raise NotImplementedError
 
 
 def default(im_hw: Tuple[int, int]) -> List[BaseAugmentation]:

@@ -11,7 +11,6 @@ from vis4d.data.datasets import (
 
 # CH, MOT17
 
-
 mot17_map = {"pedestrian": 0}
 
 crowdhuman_trainval = lambda: Scalabel(
@@ -52,6 +51,19 @@ mot20_val = lambda: MOTChallenge(
 )
 
 # BDD100K
+
+bdd100k_det_map = {
+    "pedestrian": 0,
+    "rider": 1,
+    "car": 2,
+    "truck": 3,
+    "bus": 4,
+    "train": 5,
+    "motorcycle": 6,
+    "bicycle": 7,
+    "traffic light": 8,
+    "traffic sign": 9,
+}
 bdd100k_track_map = {
     "pedestrian": 0,
     "rider": 1,
@@ -61,6 +73,37 @@ bdd100k_track_map = {
     "train": 5,
     "motorcycle": 6,
     "bicycle": 7,
+}
+bdd100k_track_map = {
+    "pedestrian": 0,
+    "rider": 1,
+    "car": 2,
+    "truck": 3,
+    "bus": 4,
+    "train": 5,
+    "motorcycle": 6,
+    "bicycle": 7,
+}
+bdd100k_seg_map = {
+    "road": 0,
+    "sidewalk": 1,
+    "building": 2,
+    "wall": 3,
+    "fence": 4,
+    "pole": 5,
+    "traffic light": 6,
+    "traffic sign": 7,
+    "vegetation": 8,
+    "terrain": 9,
+    "sky": 10,
+    "pedestrian": 11,
+    "rider": 12,
+    "car": 13,
+    "truck": 14,
+    "bus": 15,
+    "train": 16,
+    "motorcycle": 17,
+    "bicycle": 18,
 }
 
 bdd100k_track_train = lambda: BDD100K(
@@ -81,6 +124,14 @@ bdd100k_det_train = lambda: BDD100K(
     cache_as_binary=True,
 )
 
+bdd100k_pan_seg_train = lambda: BDD100K(
+    name="bdd100k_pan_seg_train",
+    annotations="data/bdd100k/labels/sem_ins_seg_train.json",
+    data_root="data/bdd100k/images/10k/train/",
+    config_path="pan_seg",
+    num_processes=0,
+    cache_as_binary=True,
+)
 
 bdd100k_track_val = lambda: BDD100K(
     name="bdd100k_track_val",
@@ -91,7 +142,110 @@ bdd100k_track_val = lambda: BDD100K(
     cache_as_binary=True,
 )
 
+bdd100k_det_val = lambda: BDD100K(
+    name="bdd100k_det_val",
+    annotations="data/bdd100k/labels/det_20/det_val.json",
+    data_root="data/bdd100k/images/100k/val/",
+    config_path="det",
+    eval_metrics=["detect"],
+    num_processes=0,
+    cache_as_binary=True,
+)
+
+bdd100k_pan_seg_val = lambda: BDD100K(
+    name="bdd100k_pan_seg_val",
+    annotations="data/bdd100k/labels/sem_ins_seg_val.json",
+    data_root="data/bdd100k/images/10k/val/",
+    config_path="pan_seg",
+    eval_metrics=["pan_seg"],
+    num_processes=0,
+    cache_as_binary=True,
+)
+
 # COCO
+
+coco_det_map = {
+    "person": 0,
+    "bicycle": 1,
+    "car": 2,
+    "motorcycle": 3,
+    "airplane": 4,
+    "bus": 5,
+    "train": 6,
+    "truck": 7,
+    "boat": 8,
+    "traffic light": 9,
+    "fire hydrant": 10,
+    "stop sign": 11,
+    "parking meter": 12,
+    "bench": 13,
+    "bird": 14,
+    "cat": 15,
+    "dog": 16,
+    "horse": 17,
+    "sheep": 18,
+    "cow": 19,
+    "elephant": 20,
+    "bear": 21,
+    "zebra": 22,
+    "giraffe": 23,
+    "backpack": 24,
+    "umbrella": 25,
+    "handbag": 26,
+    "tie": 27,
+    "suitcase": 28,
+    "frisbee": 29,
+    "skis": 30,
+    "snowboard": 31,
+    "sports ball": 32,
+    "kite": 33,
+    "baseball bat": 34,
+    "baseball glove": 35,
+    "skateboard": 36,
+    "surfboard": 37,
+    "tennis racket": 38,
+    "bottle": 39,
+    "wine glass": 40,
+    "cup": 41,
+    "fork": 42,
+    "knife": 43,
+    "spoon": 44,
+    "bowl": 45,
+    "banana": 46,
+    "apple": 47,
+    "sandwich": 48,
+    "orange": 49,
+    "broccoli": 50,
+    "carrot": 51,
+    "hot dog": 52,
+    "pizza": 53,
+    "donut": 54,
+    "cake": 55,
+    "chair": 56,
+    "couch": 57,
+    "potted plant": 58,
+    "bed": 59,
+    "dining table": 60,
+    "toilet": 61,
+    "tv": 62,
+    "laptop": 63,
+    "mouse": 64,
+    "remote": 65,
+    "keyboard": 66,
+    "cell phone": 67,
+    "microwave": 68,
+    "oven": 69,
+    "toaster": 70,
+    "sink": 71,
+    "refrigerator": 72,
+    "book": 73,
+    "clock": 74,
+    "vase": 75,
+    "scissors": 76,
+    "teddy bear": 77,
+    "hair drier": 78,
+    "toothbrush": 79,
+}
 
 coco_train = lambda: COCO(
     name="coco_det_train",

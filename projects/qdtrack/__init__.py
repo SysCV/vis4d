@@ -1,1 +1,1 @@
-"""qdtrack project package."""
+"""QDTrack project package."""

@@ -1,6 +1,7 @@
 """QDTrack runtime configuration."""
 from projects.common.datasets import bdd100k_track_map, mot17_map
 from projects.common.models import build_faster_rcnn, build_yolox
+from projects.common.optimizers import sgd, step_schedule
 from projects.qdtrack.data import QDTrackDataModule
 from projects.qdtrack.qdtrack import QDTrackYOLOX
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
@@ -8,33 +9,6 @@ from vis4d.engine.trainer import BaseCLI, DefaultTrainer
 from vis4d.model import QDTrack
 from vis4d.model.track.graph import QDTrackGraph
 from vis4d.model.track.similarity import QDSimilarityHead
-from vis4d.struct import DictStrAny
-
-
-def sgd(
-    lr: float, momentum: float = 0.9, weight_decay: float = 0.0001
-) -> DictStrAny:
-    """Standard SGD optimizer cfg with given lr."""
-    lr_scheduler_cfg = {
-        "class_path": "torch.optim.SGD",
-        "init_args": {
-            "lr": lr,
-            "momentum": momentum,
-            "weight_decay": weight_decay,
-        },
-    }
-    return lr_scheduler_cfg
-
-
-def step_schedule(max_epochs: int = 12) -> DictStrAny:
-    """Create standard step schedule cfg according to max epochs."""
-    lr_scheduler_cfg = {
-        "class_path": "torch.optim.lr_scheduler.MultiStepLR",
-        "init_args": {
-            "milestones": [int(max_epochs * 2 / 3), int(max_epochs * 11 / 12)]
-        },
-    }
-    return lr_scheduler_cfg
 
 
 def setup_model(

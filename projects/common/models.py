@@ -1,10 +1,12 @@
 """Common models."""
 from vis4d.model.detect.mmdet import MMOneStageDetector, MMTwoStageDetector
-from vis4d.struct import CategoryMap
+from vis4d.struct import CategoryMap, DictStrAny
 
 
-def build_faster_rcnn(
-    category_mapping: CategoryMap, backbone: str = "r50_fpn"
+def build_faster_rcnn(  # pylint: disable=dangerous-default-value
+    category_mapping: CategoryMap,
+    backbone: str = "r50_fpn",
+    model_kwargs: DictStrAny = {},
 ) -> MMTwoStageDetector:
     """Build a default Faster-RCNN detector."""
     faster_rcnn = MMTwoStageDetector(
@@ -18,12 +20,29 @@ def build_faster_rcnn(
         pixel_mean=(123.675, 116.28, 103.53),
         pixel_std=(58.395, 57.12, 57.375),
         backbone_output_names=["p2", "p3", "p4", "p5", "p6"],
+        **model_kwargs,
     )
     return faster_rcnn
 
 
-def build_retinanet(
+def build_mask_rcnn(
     category_mapping: CategoryMap, backbone: str = "r50_fpn"
+) -> MMTwoStageDetector:
+    """Build a default Mask-RCNN network."""
+    faster_rcnn = MMTwoStageDetector(
+        category_mapping=category_mapping,
+        model_base=f"mmdet://mask_rcnn/mask_rcnn_{backbone}_1x_coco.py",
+        pixel_mean=(123.675, 116.28, 103.53),
+        pixel_std=(58.395, 57.12, 57.375),
+        backbone_output_names=["p2", "p3", "p4", "p5", "p6"],
+    )
+    return faster_rcnn
+
+
+def build_retinanet(  # pylint: disable=dangerous-default-value
+    category_mapping: CategoryMap,
+    backbone: str = "r50_fpn",
+    model_kwargs: DictStrAny = {},
 ) -> MMOneStageDetector:
     """Build a default RetinaNet detector."""
     retinanet = MMOneStageDetector(
@@ -32,12 +51,15 @@ def build_retinanet(
         pixel_mean=(123.675, 116.28, 103.53),
         pixel_std=(58.395, 57.12, 57.375),
         backbone_output_names=["p2", "p3", "p4", "p5", "p6"],
+        **model_kwargs,
     )
     return retinanet
 
 
-def build_yolox(
-    category_mapping: CategoryMap, version: str = "yolox_x"
+def build_yolox(  # pylint: disable=dangerous-default-value
+    category_mapping: CategoryMap,
+    version: str = "yolox_x",
+    model_kwargs: DictStrAny = {},
 ) -> MMOneStageDetector:
     """Build a default YOLOX detector."""
     yolox = MMOneStageDetector(
@@ -54,5 +76,6 @@ def build_yolox(
         pixel_std=(1.0, 1.0, 1.0),
         weights="mmdet://yolox/yolox_x_8x8_300e_coco/"
         "yolox_x_8x8_300e_coco_20211126_140254-1ef88d67.pth",
+        **model_kwargs,
     )
     return yolox

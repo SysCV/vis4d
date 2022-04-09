@@ -1,7 +1,11 @@
 """QDTrack data module."""
 from typing import List, Optional
 
-from projects.common.data_pipelines import default, mosaic_mixup
+from projects.common.data_pipelines import (
+    CommonDataModule,
+    default,
+    mosaic_mixup,
+)
 from projects.common.datasets import (
     bdd100k_det_train,
     bdd100k_track_train,
@@ -12,39 +16,21 @@ from projects.common.datasets import (
     mot20_train,
     mot20_val,
 )
-from vis4d.common.io import BaseDataBackend, FileBackend, HDF5Backend
 from vis4d.data import (
     BaseDatasetHandler,
     BaseReferenceSampler,
     BaseSampleMapper,
     ScalabelDataset,
 )
-from vis4d.data.module import BaseDataModule
 from vis4d.data.transforms import BaseAugmentation, Resize
-from vis4d.struct import ArgsType
 
 
-class QDTrackDataModule(BaseDataModule):
+class QDTrackDataModule(CommonDataModule):
     """QDTrack data module."""
-
-    def __init__(
-        self,
-        experiment: str,
-        *args: ArgsType,
-        use_hdf5: bool = False,
-        **kwargs: ArgsType,
-    ) -> None:
-        """Init."""
-        super().__init__(*args, **kwargs)
-        self.experiment = experiment
-        self.use_hdf5 = use_hdf5
 
     def create_datasets(self, stage: Optional[str] = None) -> None:
         """Setup data pipelines for each experiment."""
-        if not self.use_hdf5:
-            data_backend: BaseDataBackend = FileBackend()
-        else:
-            data_backend = HDF5Backend()
+        data_backend = self._setup_backend()
 
         train_sample_mapper = BaseSampleMapper(
             category_map=self.category_mapping,
