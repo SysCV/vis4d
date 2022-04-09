@@ -90,11 +90,11 @@ def mosaic_mixup(
     return augs
 
 
-def add_colorjitter(augs: List[BaseAugmentation]) -> None:
+def add_colorjitter(augs: List[BaseAugmentation], p: float = 0.5) -> None:
     """Add color jitter to existing augmentation pipeline."""
     augs += [
         KorniaColorJitter(
-            prob=0.5,
+            prob=p,
             kwargs={
                 "brightness": [0.875, 1.125],
                 "contrast": [0.5, 1.5],

@@ -124,6 +124,15 @@ bdd100k_det_train = lambda: BDD100K(
     cache_as_binary=True,
 )
 
+bdd100k_sem_seg_train = lambda: BDD100K(
+    name="bdd100k_sem_seg_train",
+    annotations="data/bdd100k/labels/sem_seg_train_rle.json",
+    data_root="data/bdd100k/images/10k/train/",
+    config_path="sem_seg",
+    num_processes=0,
+    cache_as_binary=True,
+)
+
 bdd100k_pan_seg_train = lambda: BDD100K(
     name="bdd100k_pan_seg_train",
     annotations="data/bdd100k/labels/sem_ins_seg_train.json",
@@ -148,6 +157,16 @@ bdd100k_det_val = lambda: BDD100K(
     data_root="data/bdd100k/images/100k/val/",
     config_path="det",
     eval_metrics=["detect"],
+    num_processes=0,
+    cache_as_binary=True,
+)
+
+bdd100k_sem_seg_val = lambda: BDD100K(
+    name="bdd100k_sem_seg_val",
+    annotations="data/bdd100k/labels/sem_seg_val_rle.json",
+    data_root="data/bdd100k/images/10k/val/",
+    config_path="sem_seg",
+    eval_metrics=["sem_seg"],
     num_processes=0,
     cache_as_binary=True,
 )

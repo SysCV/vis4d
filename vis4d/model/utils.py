@@ -246,7 +246,7 @@ def load_config(path: str, key: str = "model") -> MMConfig:
                 ) as zipfile:
                     zipfile.extractall(path=temp_config_dir)
                 os.chdir(os.path.join(temp_config_dir, MM_ZIP_MAP[pre]))
-                cfg = MMConfig.fromfile(path.replace("mmdet://", ""))
+                cfg = MMConfig.fromfile(path.replace(pre, ""))
                 os.chdir(cwd)
         else:
             cfg = MMConfig.fromstring(cfg_content, os.path.splitext(path)[1])

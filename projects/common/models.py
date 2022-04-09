@@ -1,5 +1,6 @@
 """Common models."""
 from vis4d.model.detect.mmdet import MMOneStageDetector, MMTwoStageDetector
+from vis4d.model.segment import MMEncDecSegmentor
 from vis4d.struct import CategoryMap, DictStrAny
 
 
@@ -79,3 +80,35 @@ def build_yolox(  # pylint: disable=dangerous-default-value
         **model_kwargs,
     )
     return yolox
+
+
+def build_deeplabv3plus(  # pylint: disable=dangerous-default-value
+    category_mapping: CategoryMap,
+    backbone: str = "r50-d8",
+    model_kwargs: DictStrAny = {},
+) -> MMEncDecSegmentor:
+    """Build a default DeepLabv3+ segmentor."""
+    deeplabv3plus = MMEncDecSegmentor(
+        category_mapping=category_mapping,
+        model_base=f"mmseg://deeplabv3plus/deeplabv3plus_{backbone}_512x1024_80k_cityscapes.py",  # pylint: disable=line-too-long
+        pixel_mean=(123.675, 116.28, 103.53),
+        pixel_std=(58.395, 57.12, 57.375),
+        **model_kwargs,
+    )
+    return deeplabv3plus
+
+
+def build_semantic_fpn(  # pylint: disable=dangerous-default-value
+    category_mapping: CategoryMap,
+    backbone: str = "r50",
+    model_kwargs: DictStrAny = {},
+) -> MMEncDecSegmentor:
+    """Build a default SemanticFPN segmentor."""
+    semantic_fpn = MMEncDecSegmentor(
+        category_mapping=category_mapping,
+        model_base=f"mmseg://sem_fpn/fpn_{backbone}_512x1024_80k_cityscapes.py",  # pylint: disable=line-too-long
+        pixel_mean=(123.675, 116.28, 103.53),
+        pixel_std=(58.395, 57.12, 57.375),
+        **model_kwargs,
+    )
+    return semantic_fpn

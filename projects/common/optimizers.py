@@ -26,3 +26,19 @@ def step_schedule(max_epochs: int = 12) -> DictStrAny:
         },
     }
     return lr_scheduler_cfg
+
+
+def poly_schedule(
+    max_steps: int = 40000, power: float = 0.9, min_lr: float = 0.0001
+) -> DictStrAny:
+    """Create poly schedule cfg."""
+    lr_scheduler_cfg = {
+        "class_path": "vis4d.model.optimize.scheduler.PolyLRScheduler",
+        "init_args": {
+            "max_steps": max_steps,
+            "power": power,
+            "min_lr": min_lr,
+        },
+        "mode": "step",
+    }
+    return lr_scheduler_cfg
