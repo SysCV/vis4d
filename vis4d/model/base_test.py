@@ -1,4 +1,5 @@
 """Test cases for Vis4D models."""
+import os
 import shutil
 import unittest
 from typing import Optional
@@ -319,6 +320,7 @@ class TestQDTrackInferenceResults(BaseModelTests.TestTrackInference):
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
+        os.makedirs("./unittests/", exist_ok=True)
         cls.model = QDTrack(
             detection=MMTwoStageDetector(
                 model_base="vis4d/model/testcases/mmdet_cfg_frcnn_r18fpn.py",
