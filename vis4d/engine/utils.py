@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import pytorch_lightning as pl
 import torch
@@ -15,7 +15,7 @@ from pytorch_lightning.utilities.rank_zero import (
 from termcolor import colored
 
 from ..common.utils.time import Timer
-from ..struct import DictStrAny, InputSample, LossesType, ModelOutput
+from ..struct import DictStrAny, InputSample, ModelOutput
 
 try:
     from mmcv.utils import get_logger
@@ -35,7 +35,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
     """ProgressBar with separate printout per log step."""
 
-    def __init__(self, refresh_rate: int = 2) -> None:
+    def __init__(self, refresh_rate: int = 50) -> None:
         """Init."""
         super().__init__()
         self._refresh_rate = refresh_rate
@@ -108,7 +108,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self,
         prefix: str,
         batch_idx: int,
-        total_batches: int,
+        total_batches: Union[int, float],
     ) -> str:
         """Compose log str from given information."""
         time_sec_tot = self.timer.time()
@@ -141,9 +141,10 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
-        outputs: LossesType,
+        outputs: ModelOutput,
         batch: List[InputSample],
         batch_idx: int,
+        unused: int = 0,
     ) -> None:
         """Train phase logging."""
         super().on_train_batch_end(
@@ -152,7 +153,9 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         metrics = self.get_metrics(trainer, pl_module)
         self._metrics_history.append(metrics)
 
-        if self.train_batch_idx % self._refresh_rate == 0 and self._enabled:
+        if (
+            self.train_batch_idx - 1
+        ) % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     f"Epoch {trainer.current_epoch}",
@@ -168,14 +171,16 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         outputs: ModelOutput,
         batch: List[InputSample],
         batch_idx: int,
-        dataloader_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         """Validation phase logging."""
         super().on_validation_batch_end(
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
 
-        if self.val_batch_idx % self._refresh_rate == 0 and self._enabled:
+        if (
+            self.val_batch_idx - 1
+        ) % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     "Validating",
@@ -191,14 +196,16 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         outputs: ModelOutput,
         batch: List[InputSample],
         batch_idx: int,
-        dataloader_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         """Test phase logging."""
         super().on_test_batch_end(
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
 
-        if self.test_batch_idx % self._refresh_rate == 0 and self._enabled:
+        if (
+            self.test_batch_idx - 1
+        ) % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     "Testing",
@@ -214,14 +221,16 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         outputs: ModelOutput,
         batch: List[InputSample],
         batch_idx: int,
-        dataloader_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         """Predict phase logging."""
         super().on_predict_batch_end(
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
 
-        if self.predict_batch_idx % self._refresh_rate == 0 and self._enabled:
+        if (
+            self.predict_batch_idx - 1
+        ) % self._refresh_rate == 0 and self._enabled:
             rank_zero_info(
                 self._compose_log_str(
                     "Predicting",

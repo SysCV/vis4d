@@ -101,7 +101,7 @@ class QDTrackYOLOX(QDTrack):
 
     def on_train_epoch_start(self):
         """In the last training epochs: add L1 loss, turn off augmentations."""
-        if self.current_epoch == self.trainer.max_epochs - self.no_aug_epochs:
+        if self.current_epoch >= self.trainer.max_epochs - self.no_aug_epochs:
             self.detector.bbox_head.mm_dense_head.use_l1 = True
             self.trainer.datamodule.train_datasets.transformations = (
                 default_augs(self.im_hw)

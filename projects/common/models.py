@@ -1,15 +1,19 @@
 """Common models."""
+from typing import Optional
+
 from vis4d.model.detect.mmdet import MMOneStageDetector, MMTwoStageDetector
 from vis4d.model.segment import MMEncDecSegmentor
 from vis4d.struct import CategoryMap, DictStrAny
 
 
-def build_faster_rcnn(  # pylint: disable=dangerous-default-value
+def build_faster_rcnn(
     category_mapping: CategoryMap,
     backbone: str = "r50_fpn",
-    model_kwargs: DictStrAny = {},
+    model_kwargs: Optional[DictStrAny] = None,
 ) -> MMTwoStageDetector:
     """Build a default Faster-RCNN detector."""
+    if model_kwargs is None:
+        model_kwargs = {}
     faster_rcnn = MMTwoStageDetector(
         category_mapping=category_mapping,
         model_base=f"mmdet://faster_rcnn/faster_rcnn_{backbone}_1x_coco.py",
@@ -40,12 +44,14 @@ def build_mask_rcnn(
     return faster_rcnn
 
 
-def build_retinanet(  # pylint: disable=dangerous-default-value
+def build_retinanet(
     category_mapping: CategoryMap,
     backbone: str = "r50_fpn",
-    model_kwargs: DictStrAny = {},
+    model_kwargs: Optional[DictStrAny] = None,
 ) -> MMOneStageDetector:
     """Build a default RetinaNet detector."""
+    if model_kwargs is None:
+        model_kwargs = {}
     retinanet = MMOneStageDetector(
         category_mapping=category_mapping,
         model_base=f"mmdet://retinanet/retinanet_{backbone}_1x_coco.py",
@@ -57,12 +63,14 @@ def build_retinanet(  # pylint: disable=dangerous-default-value
     return retinanet
 
 
-def build_yolox(  # pylint: disable=dangerous-default-value
+def build_yolox(
     category_mapping: CategoryMap,
     version: str = "yolox_x",
-    model_kwargs: DictStrAny = {},
+    model_kwargs: Optional[DictStrAny] = None,
 ) -> MMOneStageDetector:
     """Build a default YOLOX detector."""
+    if model_kwargs is None:
+        model_kwargs = {}
     yolox = MMOneStageDetector(
         category_mapping=category_mapping,
         model_base=f"mmdet://yolox/{version}_8x8_300e_coco.py",
@@ -82,12 +90,14 @@ def build_yolox(  # pylint: disable=dangerous-default-value
     return yolox
 
 
-def build_deeplabv3plus(  # pylint: disable=dangerous-default-value
+def build_deeplabv3plus(
     category_mapping: CategoryMap,
     backbone: str = "r50-d8",
-    model_kwargs: DictStrAny = {},
+    model_kwargs: Optional[DictStrAny] = None,
 ) -> MMEncDecSegmentor:
     """Build a default DeepLabv3+ segmentor."""
+    if model_kwargs is None:
+        model_kwargs = {}
     deeplabv3plus = MMEncDecSegmentor(
         category_mapping=category_mapping,
         model_base=f"mmseg://deeplabv3plus/deeplabv3plus_{backbone}_512x1024_80k_cityscapes.py",  # pylint: disable=line-too-long
@@ -98,12 +108,14 @@ def build_deeplabv3plus(  # pylint: disable=dangerous-default-value
     return deeplabv3plus
 
 
-def build_semantic_fpn(  # pylint: disable=dangerous-default-value
+def build_semantic_fpn(
     category_mapping: CategoryMap,
     backbone: str = "r50",
-    model_kwargs: DictStrAny = {},
+    model_kwargs: Optional[DictStrAny] = None,
 ) -> MMEncDecSegmentor:
     """Build a default SemanticFPN segmentor."""
+    if model_kwargs is None:
+        model_kwargs = {}
     semantic_fpn = MMEncDecSegmentor(
         category_mapping=category_mapping,
         model_base=f"mmseg://sem_fpn/fpn_{backbone}_512x1024_80k_cityscapes.py",  # pylint: disable=line-too-long

@@ -2,7 +2,7 @@ black
 coverage[toml]
 click==8.0.4
 isort
-jsonargparse
+jsonargparse[signatures]
 mypy
 numpy>=1.21.0
 pandas
@@ -13,7 +13,7 @@ pylint
 pytest
 pytoml
 pyyaml
-pytorch-lightning
+pytorch-lightning>=1.6.0
 setuptools
 tqdm
 wheel

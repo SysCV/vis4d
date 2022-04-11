@@ -6,8 +6,10 @@ from typing import Callable, Dict, List, Optional, Type, Union
 
 import pandas
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
+from pytorch_lightning.strategies.strategy import Strategy
 from pytorch_lightning.tuner.lr_finder import _LRFinder
 from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
@@ -118,7 +120,9 @@ class DefaultTrainer(pl.Trainer):
 
         # add progress bar (train progress separate from validation)
         if tqdm:
-            progress_bar = TQDMProgressBar(progress_bar_refresh_rate)
+            progress_bar: ProgressBarBase = TQDMProgressBar(
+                progress_bar_refresh_rate
+            )
         else:
             progress_bar = DefaultProgressBar(progress_bar_refresh_rate)
         callbacks += [progress_bar]
@@ -140,7 +144,7 @@ class DefaultTrainer(pl.Trainer):
             num_gpus = len(gpu_ids) if gpu_ids is not None else 0
             if num_gpus > 1:
                 if kwargs["strategy"] == "ddp" or kwargs["strategy"] is None:
-                    ddp_plugin = DDPPlugin(
+                    ddp_plugin: Strategy = DDPPlugin(
                         find_unused_parameters=find_unused_parameters
                     )
                     kwargs["plugins"] = [ddp_plugin]
