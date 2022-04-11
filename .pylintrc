@@ -58,10 +58,8 @@ enable=use-symbolic-message-instead,useless-supression,fixme
 # import-error: ignore this error due to optional requirements that may not
 # be installed
 # ignore arguments-differ due to variadic arguments in Vis4DModule
-# W0223 ignore until https://github.com/PyTorchLightning/pytorch-lightning/issues/10667 is fixed
 # E0633: ignore due to overload not recognized in detectron2 wrapper
-# too-many-arguments: Ignore due to classes with many attributes (args to init)
-disable=C0330,not-callable,too-many-ancestors,R0902,import-error,arguments-differ,W0223,E0633,too-many-arguments
+disable=C0330,not-callable,too-many-ancestors,R0902,import-error,arguments-differ,E0633,too-many-arguments,invalid-name,attribute-defined-outside-init
 
 
 [REPORTS]

@@ -16,10 +16,10 @@ class EmbeddingDistanceLoss(BaseLoss):
         self,
         reduction: str = "mean",
         loss_weight: Optional[float] = 1.0,
-        neg_pos_ub: float = -1.0,
-        pos_margin: float = -1.0,
-        neg_margin: float = -1.0,
-        hard_mining: bool = False,
+        neg_pos_ub: float = 3.0,
+        pos_margin: float = 0.0,
+        neg_margin: float = 0.3,
+        hard_mining: bool = True,
     ):
         """Init."""
         super().__init__(reduction, loss_weight)

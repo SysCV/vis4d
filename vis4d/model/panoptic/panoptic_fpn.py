@@ -1,22 +1,20 @@
 """Panoptic FPN model."""
-from typing import Dict, List, Union
+from typing import Dict, List
 
 from scalabel.label.typing import Label
 
-from vis4d.common.module import build_module
 from vis4d.struct import (
     ArgsType,
     InputSample,
     LabelInstances,
     LossesType,
     ModelOutput,
-    ModuleCfg,
     TLabelInstance,
 )
 
-from ..base import BaseModel, build_model
+from ..base import BaseModel
 from ..detect import BaseTwoStageDetector
-from ..heads.dense_head import BaseDenseHead, SegDenseHead
+from ..heads.dense_head import SegDenseHead
 from ..heads.panoptic_head import BasePanopticHead
 from ..utils import postprocess_predictions, predictions_to_scalabel
 
@@ -26,34 +24,20 @@ class PanopticFPN(BaseModel):
 
     def __init__(
         self,
-        detection: Union[BaseTwoStageDetector, ModuleCfg],
-        seg_head: Union[SegDenseHead, ModuleCfg],
-        pan_head: Union[BasePanopticHead, ModuleCfg],
+        detection: BaseTwoStageDetector,
+        seg_head: SegDenseHead,
+        pan_head: BasePanopticHead,
         *args: ArgsType,
         **kwargs: ArgsType
     ):
         """Init."""
         super().__init__(*args, **kwargs)
         assert self.category_mapping is not None
-        if isinstance(detection, dict):
-            detection["category_mapping"] = self.category_mapping
-            self.detector: BaseTwoStageDetector = build_model(detection)
-        else:  # pragma: no cover
-            self.detector = detection
+        self.detector = detection
         assert isinstance(self.detector, BaseTwoStageDetector)
         self.detector.category_mapping = self.category_mapping
-        if isinstance(seg_head, dict):
-            self.seg_head: SegDenseHead = build_module(
-                seg_head, bound=BaseDenseHead
-            )
-        else:  # pragma: no cover
-            self.seg_head = seg_head
-        if isinstance(pan_head, dict):
-            self.pan_head: BasePanopticHead = build_module(
-                pan_head, bound=BasePanopticHead
-            )
-        else:  # pragma: no cover
-            self.pan_head = pan_head
+        self.seg_head = seg_head
+        self.pan_head = pan_head
         self.det_mapping = {v: k for k, v in self.category_mapping.items()}
 
     @staticmethod

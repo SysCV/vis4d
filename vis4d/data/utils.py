@@ -8,9 +8,10 @@ from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
+import pytorch_lightning as pl
 import torch
 from PIL import Image, ImageOps
-from pytorch_lightning.utilities.distributed import rank_zero_info
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from scalabel.label.typing import Frame, FrameGroup
 from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
@@ -19,6 +20,10 @@ from termcolor import colored
 from vis4d.struct import InputSample, NDArrayI64, NDArrayUI8
 
 from ..common.geometry.transform import transform_points
+from ..common.utils.distributed import (
+    all_gather_object_cpu,
+    all_gather_object_gpu,
+)
 
 try:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module
@@ -27,6 +32,8 @@ try:
         cvtColor,
         imdecode,
     )
+
+    CV2_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
     CV2_INSTALLED = False
 
@@ -42,27 +49,19 @@ def transform_bbox(
         boxes.shape
     ), "trans_mat and boxes must have same number of dimensions!"
     x1y1 = boxes[..., :2]
-    x2y1 = torch.stack((boxes[..., 2], boxes[..., 1]), -1)
     x2y2 = boxes[..., 2:]
-    x1y2 = torch.stack((boxes[..., 0], boxes[..., 3]), -1)
 
     x1y1 = transform_points(x1y1, trans_mat)
-    x2y1 = transform_points(x2y1, trans_mat)
     x2y2 = transform_points(x2y2, trans_mat)
-    x1y2 = transform_points(x1y2, trans_mat)
 
-    x_all = torch.stack(
-        (x1y1[..., 0], x2y2[..., 0], x2y1[..., 0], x1y2[..., 0]), -1
-    )
-    y_all = torch.stack(
-        (x1y1[..., 1], x2y2[..., 1], x2y1[..., 1], x1y2[..., 1]), -1
-    )
+    x1x2 = torch.stack((x1y1[..., 0], x2y2[..., 0]), -1)
+    y1y2 = torch.stack((x1y1[..., 1], x2y2[..., 1]), -1)
     transformed_boxes = torch.stack(
         (
-            x_all.min(dim=-1)[0],
-            y_all.min(dim=-1)[0],
-            x_all.max(dim=-1)[0],
-            y_all.max(dim=-1)[0],
+            x1x2.min(dim=-1)[0],
+            y1y2.min(dim=-1)[0],
+            x1x2.max(dim=-1)[0],
+            y1y2.max(dim=-1)[0],
         ),
         -1,
     )
@@ -90,7 +89,7 @@ def im_decode(
         if pil_img.mode == "L":  # pragma: no cover
             # convert grayscale image to RGB
             pil_img = pil_img.convert("RGB")
-        if mode == "BGR":
+        if mode == "BGR":  # pragma: no cover
             img: NDArrayUI8 = np.array(pil_img)[..., [2, 1, 0]]
         elif mode == "RGB":
             img = np.array(pil_img)
@@ -115,30 +114,27 @@ def instance_ids_to_global(
     """Use local (per video) instance ids to produce global ones."""
     video_names = list(local_instance_ids.keys())
     for frame_id, ann in enumerate(frames):
-        if ann.labels is not None:
-            for label in ann.labels:
-                assert label.attributes is not None
-                if not check_crowd(label) and not check_ignored(label):
-                    video_name = (
-                        ann.videoName
-                        if ann.videoName is not None
-                        else "no-video-" + str(frame_id)
+        if ann.labels is None:  # pragma: no cover
+            continue
+        for label in ann.labels:
+            assert label.attributes is not None
+            if not check_crowd(label) and not check_ignored(label):
+                video_name = (
+                    ann.videoName
+                    if ann.videoName is not None
+                    else "no-video-" + str(frame_id)
+                )
+                sum_previous_vids = sum(
+                    (
+                        len(local_instance_ids[v])
+                        for v in video_names[: video_names.index(video_name)]
                     )
-                    sum_previous_vids = sum(
-                        (
-                            len(local_instance_ids[v])
-                            for v in video_names[
-                                : video_names.index(video_name)
-                            ]
-                        )
-                    )
-                    label.attributes[
-                        "instance_id"
-                    ] = sum_previous_vids + local_instance_ids[
-                        video_name
-                    ].index(
-                        label.id
-                    )
+                )
+                label.attributes[
+                    "instance_id"
+                ] = sum_previous_vids + local_instance_ids[video_name].index(
+                    label.id
+                )
 
 
 def prepare_labels(
@@ -352,3 +348,43 @@ class DatasetFromList(torch.utils.data.Dataset):  # type: ignore
             return copy.deepcopy(self._lst[idx])
 
         return self._lst[idx]  # pragma: no cover
+
+
+def all_gather_predictions(
+    predictions: Dict[str, List[Frame]],
+    pl_module: pl.LightningModule,
+    collect_device: str,
+) -> Optional[Dict[str, List[Frame]]]:  # pragma: no cover
+    """Gather prediction dict in distributed setting."""
+    if collect_device == "gpu":
+        predictions_list = all_gather_object_gpu(predictions, pl_module)
+    elif collect_device == "cpu":
+        predictions_list = all_gather_object_cpu(predictions, pl_module)
+    else:
+        raise ValueError(f"Collect device {collect_device} unknown.")
+
+    if predictions_list is None:
+        return None
+
+    result = {}
+    for key in predictions:
+        prediction_list = [p[key] for p in predictions_list]
+        result[key] = list(itertools.chain(*prediction_list))
+    return result
+
+
+def all_gather_gts(
+    gts: List[Frame], pl_module: pl.LightningModule, collect_device: str
+) -> Optional[List[Frame]]:  # pragma: no cover
+    """Gather gts list in distributed setting."""
+    if collect_device == "gpu":
+        gts_list = all_gather_object_gpu(gts, pl_module)
+    elif collect_device == "cpu":
+        gts_list = all_gather_object_cpu(gts, pl_module)
+    else:
+        raise ValueError(f"Collect device {collect_device} unknown.")
+
+    if gts_list is None:
+        return None
+
+    return list(itertools.chain(*gts_list))

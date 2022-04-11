@@ -6,7 +6,7 @@ from typing import List, Tuple
 import torch
 from torchvision.ops import roi_align, roi_pool
 
-from vis4d.struct import Boxes2D
+from vis4d.struct import ArgsType, Boxes2D
 
 from .base import BaseRoIPooler
 from .utils import assign_boxes_to_levels, boxes_to_tensor
@@ -21,7 +21,6 @@ class MultiScaleRoIPooler(BaseRoIPooler):
         self,
         resolution: Tuple[int, int],
         strides: List[int],
-        sampling_ratio: int,
         canonical_box_size: int = 224,
         canonical_level: int = 4,
         aligned: bool = True,
@@ -33,7 +32,6 @@ class MultiScaleRoIPooler(BaseRoIPooler):
             strides: feature map strides relative to the input.
                 The strides must be powers of 2 and a monotically decreasing
                 geometric sequence with a factor of 1/2.
-            sampling_ratio: Parameter for the RoIAlign (see torchvision).
             canonical_box_size: Canonical box size in pixels (sqrt(box area)).
                 The default is heuristically defined as 224 pixels in the FPN
                 paper (based on ImageNet pre-training).
@@ -52,7 +50,6 @@ class MultiScaleRoIPooler(BaseRoIPooler):
         super().__init__(resolution)
         self.canonical_level = canonical_level
         self.canonical_box_size = canonical_box_size
-        self.sampling_ratio = sampling_ratio
         self.aligned = aligned
         self.strides = strides
 
@@ -158,6 +155,13 @@ class MultiScaleRoIPooler(BaseRoIPooler):
 
 class MultiScaleRoIAlign(MultiScaleRoIPooler):
     """RoI Align supporting multi-scale inputs."""
+
+    def __init__(
+        self, sampling_ratio: int, *args: ArgsType, **kwargs: ArgsType
+    ) -> None:
+        """Init."""
+        super().__init__(*args, **kwargs)
+        self.sampling_ratio = sampling_ratio
 
     def _pooling_op(
         self,

@@ -1,73 +1,107 @@
 """Base class for Vis4D models."""
 import abc
-import copy
 import os.path as osp
+import re
+from collections import OrderedDict
 from collections.abc import Iterable
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Union,
-    no_type_check,
-)
+from typing import Callable, Dict, List, Optional, Tuple, Union, no_type_check
 
 import pytorch_lightning as pl
-from pytorch_lightning.utilities.distributed import rank_zero_info
-from torch.optim import Optimizer
+import torch
+from pytorch_lightning.utilities.cli import instantiate_class
+from pytorch_lightning.utilities.rank_zero import (
+    rank_zero_info,
+    rank_zero_warn,
+)
+from torch.optim import Optimizer, lr_scheduler
+from torch.utils.model_zoo import load_url
 
 from ..common.io import HDF5Backend
 from ..common.registry import RegistryHolder
+from ..common.utils.distributed import get_rank, get_world_size
 from ..struct import (
+    ArgsType,
     DictStrAny,
     InputSample,
     LossesType,
     ModelOutput,
     ModuleCfg,
 )
-from .optimize import (
-    BaseLRScheduler,
-    BaseOptimizer,
-    LRSchedulerConfig,
-    OptimizerConfig,
-    build_lr_scheduler,
-    build_optimizer,
-    get_warmup_lr,
-)
+from .optimize import BaseLRWarmup, LinearLRWarmup
 
-BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
+DEFAULT_OPTIM = {
+    "class_path": "torch.optim.SGD",
+    "init_args": {
+        "lr": 1.0e-3,
+        "momentum": 0.9,
+        "weight_decay": 0.0001,
+    },
+}
+
+DEFAULT_SCHEDULER = {
+    "class_path": "torch.optim.lr_scheduler.StepLR",
+    "mode": "epoch",
+    "init_args": {"step_size": 10},
+}
 
 
 class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
-    """Base Vis4D model class."""
+    """Base model class."""
 
-    def __init__(  # pylint: disable=dangerous-default-value
+    def __init__(
         self,
+        *args: ArgsType,
+        optimizer_init: Optional[ModuleCfg] = None,
+        lr_scheduler_init: Optional[ModuleCfg] = None,
         category_mapping: Optional[Dict[str, int]] = None,
         image_channel_mode: str = "RGB",
-        optimizer: ModuleCfg = {},
-        lr_scheduler: ModuleCfg = {},
         freeze: bool = False,
         freeze_parameters: Optional[List[str]] = None,
         inference_result_path: Optional[str] = None,
+        weights: Optional[str] = None,
+        strict: bool = True,
+        revise_keys: Optional[List[Tuple[str, str]]] = None,
+        lr_warmup: Optional[BaseLRWarmup] = None,
+        **kwargs: ArgsType,
     ):
         """Init."""
+        if len(args) > 0:
+            rank_zero_warn(f"Found unused positional arguments: {args}")
+        if len(kwargs) > 0:
+            rank_zero_warn(f"Found unused keyword arguments: {kwargs}")
         super().__init__()
+
+        self.optimizer_init = (
+            optimizer_init if optimizer_init is not None else DEFAULT_OPTIM
+        )
+        self.lr_scheduler_init = (
+            lr_scheduler_init
+            if lr_scheduler_init is not None
+            else DEFAULT_SCHEDULER
+        )
+        if not self.lr_scheduler_init.get("mode", "epoch") in [
+            "step",
+            "epoch",
+        ]:
+            raise ValueError(
+                "Attribute mode of LR Scheduler must be either step or epoch, "
+                f"found {self.lr_scheduler_init['mode']}"
+            )
+
         self.category_mapping = category_mapping
         self.image_channel_mode = image_channel_mode
-        self.optimizer_cfg = OptimizerConfig(**optimizer)
-        self.lr_scheduler_cfg = LRSchedulerConfig(**lr_scheduler)
 
         self._freeze = freeze
         self._freeze_parameters = freeze_parameters
-
+        self._weights = weights
+        self._strict = strict
+        self._revise_keys = revise_keys
+        self.lr_warmup = (
+            lr_warmup if lr_warmup is not None else LinearLRWarmup(0.001, 500)
+        )
         self.inference_result_path = inference_result_path
         if self.inference_result_path is not None:
             self.data_backend = HDF5Backend()
-            if not osp.exists(self.inference_result_path):
-                self.data_backend.set(self.inference_result_path, bytes())
 
     def __call__(
         self, batch_inputs: List[InputSample]
@@ -106,10 +140,10 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
 
     def configure_optimizers(
         self,
-    ) -> Tuple[List[BaseOptimizer], List[BaseLRScheduler]]:
+    ) -> Tuple[List[Optimizer], List[lr_scheduler._LRScheduler]]:
         """Configure optimizers and schedulers of model."""
-        optimizer = build_optimizer(self.parameters(), self.optimizer_cfg)
-        scheduler = build_lr_scheduler(optimizer, self.lr_scheduler_cfg)
+        optimizer = instantiate_class(self.parameters(), self.optimizer_init)
+        scheduler = instantiate_class(optimizer, self.lr_scheduler_init)
         return [optimizer], [scheduler]
 
     @no_type_check
@@ -125,23 +159,26 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         using_lbfgs: bool = None,
     ) -> None:
         """Optimizer step plus learning rate warmup."""
-        if self.trainer.global_step < self.lr_scheduler_cfg.warmup_steps:
+        base_lr = optimizer.defaults.get("lr", None)
+        if base_lr is None:
+            raise ValueError(
+                "Couldn't determine base LR from optimizer defaults: "
+                f"{optimizer.defaults}"
+            )
+
+        if self.trainer.global_step < self.lr_warmup.warmup_steps:
             for pg in optimizer.param_groups:
-                pg["lr"] = get_warmup_lr(
-                    self.lr_scheduler_cfg,
-                    self.trainer.global_step,
-                    self.optimizer_cfg.lr,
-                )
-        elif self.trainer.global_step == self.lr_scheduler_cfg.warmup_steps:
+                pg["lr"] = self.lr_warmup(self.trainer.global_step, base_lr)
+        elif self.trainer.global_step == self.lr_warmup.warmup_steps:
             for pg in optimizer.param_groups:
-                pg["lr"] = self.optimizer_cfg.lr
+                pg["lr"] = base_lr
 
         # update params
         optimizer.step(closure=optimizer_closure)
 
         # if lr_scheduler is step-based, we need to call .step(), PL calls
         # .step() only after each epoch.
-        if self.lr_scheduler_cfg.mode == "step":
+        if self.lr_scheduler_init.get("mode", "epoch") == "step":
             lr_schedulers = self.lr_schedulers()
             if isinstance(lr_schedulers, Iterable):  # pragma: no cover
                 for scheduler in lr_schedulers:
@@ -206,10 +243,55 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         """
         return self.forward_test(batch)
 
-    def on_train_start(self) -> None:
-        """Called at the beginning of training after sanity check."""
+    def on_fit_start(self) -> None:
+        """Called at the beginning of fit."""
+        self.load_pretrained_weights()
         if self._freeze:
             self.freeze_parameters(self._freeze_parameters)
+
+    def load_pretrained_weights(self) -> None:
+        """Load pretrained weights from file / URL.
+
+        Note: Only for training phase.
+        """
+        if self._weights is not None:
+            map_location = self.device
+            if osp.isfile(self._weights):  # pragma: no cover
+                filename = osp.expanduser(self._weights)
+                checkpoint = torch.load(filename, map_location=map_location)
+            elif self._weights.startswith("http"):
+                rank, world_size = get_rank(), get_world_size()
+                if rank == 0:
+                    checkpoint = load_url(
+                        self._weights, map_location=map_location
+                    )
+                if world_size > 1:  # pragma: no cover
+                    torch.distributed.barrier()
+                    if rank > 0:
+                        checkpoint = load_url(
+                            self._weights, map_location=map_location
+                        )
+            else:
+                raise FileNotFoundError(f"{self._weights} can not be found.")
+
+            # get state_dict from checkpoint
+            state_dict = (
+                checkpoint["state_dict"]
+                if "state_dict" in checkpoint
+                else checkpoint
+            )
+
+            # strip prefix of state_dict
+            if self._revise_keys is not None:
+                for p, r in self._revise_keys:
+                    state_dict = OrderedDict(
+                        {re.sub(p, r, k): v for k, v in state_dict.items()}
+                    )
+
+            self.on_load_checkpoint({"state_dict": state_dict})
+
+            # load state_dict
+            self.load_state_dict(state_dict, strict=self._strict)
 
     def freeze_parameters(
         self, parameters: Optional[List[str]] = None
@@ -254,60 +336,3 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
                         f"loaded shape: {state_dict[k].shape}"
                     )
                     state_dict[k] = model_state_dict[k]
-
-    @classmethod
-    def _load_model_state(  # type: ignore
-        cls, checkpoint: DictStrAny, strict: bool = True, **cls_kwargs_new: Any
-    ) -> "BaseModel":  # pragma: no cover
-        """Legacy checkpoint support in _load_model_state."""
-        is_legacy = cls_kwargs_new.pop("legacy_ckpt", False)
-        if is_legacy:
-            rev_keys = [
-                (".backbone.", ".backbone.mm_backbone."),
-                (".neck.", ".backbone.neck.mm_neck."),
-                (".roi_head.", ".roi_head.mm_roi_head."),
-                (".rpn_head.", ".rpn_head.mm_dense_head."),
-                (".decode_head.", ".decode_head.mm_decode_head."),
-                (".auxiliary_head.", ".auxiliary_head.mm_decode_head."),
-                ("mm_detector.", ""),
-                ("mm_segmentor.", ""),
-            ]
-            new_state_dict = {}
-            for k, v in checkpoint["state_dict"].items():
-                for pattern, replacement in rev_keys:
-                    k = k.replace(pattern, replacement)
-                new_state_dict[k] = v
-            checkpoint["state_dict"] = new_state_dict
-        if "hyper_parameters" in checkpoint:
-            checkpoint["hyper_parameters"].pop("legacy_ckpt", False)
-
-        if "hyper_parameters" in checkpoint:
-            checkpoint["hyper_parameters"].pop("legacy_ckpt", False)
-
-        return super()._load_model_state(  # type: ignore
-            checkpoint, strict=strict, **cls_kwargs_new
-        )
-
-
-def build_model(
-    cfg: ModuleCfg,
-    ckpt: Optional[str] = None,
-    strict: bool = True,
-    legacy_ckpt: bool = False,
-) -> BaseModel:
-    """Build Vis4D model and optionally load weights from ckpt."""
-    registry = RegistryHolder.get_registry(BaseModel)
-    cfg = copy.deepcopy(cfg)
-    model_type = cfg.pop("type", None)
-    if model_type is None:
-        raise ValueError(f"Need type argument in module config: {cfg}")
-    if model_type in registry:
-        if ckpt is None:
-            module = registry[model_type](**cfg)
-        else:
-            module = registry[model_type].load_from_checkpoint(  # type: ignore # pragma: no cover # pylint: disable=line-too-long
-                ckpt, strict=strict, **cfg, legacy_ckpt=legacy_ckpt
-            )
-        assert isinstance(module, BaseModel)
-        return module
-    raise NotImplementedError(f"Model {model_type} not found.")

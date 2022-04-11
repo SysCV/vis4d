@@ -1,4 +1,0 @@
-model:
-  type: test-model
-launch:
-  samples_per_gpu: 2

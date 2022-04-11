@@ -1,10 +1,19 @@
 """Quasi-dense instance similarity learning model."""
 import pickle
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import torch
 
-from vis4d.common.module import build_module
+from vis4d.model.base import BaseModel
+from vis4d.model.detect import (
+    BaseDetector,
+    BaseOneStageDetector,
+    BaseTwoStageDetector,
+)
+from vis4d.model.track.graph import BaseTrackGraph
+from vis4d.model.track.similarity import BaseSimilarityHead
+from vis4d.model.track.utils import split_key_ref_inputs
+from vis4d.model.utils import postprocess_predictions, predictions_to_scalabel
 from vis4d.struct import (
     ArgsType,
     Boxes2D,
@@ -13,16 +22,8 @@ from vis4d.struct import (
     LabelInstances,
     LossesType,
     ModelOutput,
-    ModuleCfg,
     TLabelInstance,
 )
-
-from .base import BaseModel, build_model
-from .detect import BaseDetector, BaseOneStageDetector, BaseTwoStageDetector
-from .track.graph import BaseTrackGraph
-from .track.similarity import BaseSimilarityHead
-from .track.utils import split_key_ref_inputs
-from .utils import postprocess_predictions, predictions_to_scalabel
 
 
 class QDTrack(BaseModel):
@@ -30,35 +31,21 @@ class QDTrack(BaseModel):
 
     def __init__(
         self,
-        detection: Union[BaseDetector, ModuleCfg],
-        similarity: Union[BaseSimilarityHead, ModuleCfg],
-        track_graph: Union[BaseTrackGraph, ModuleCfg],
+        detection: BaseDetector,
+        similarity: BaseSimilarityHead,
+        track_graph: BaseTrackGraph,
         *args: ArgsType,
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
-        assert self.category_mapping is not None
-        if isinstance(detection, dict):
-            detection["category_mapping"] = self.category_mapping
-            self.detector = build_model(detection)
-        else:  # pragma: no cover
-            self.detector = detection
+        assert self.category_mapping is not None, "Need category mapping"
+        self.detector = detection
         assert isinstance(
             self.detector, (BaseTwoStageDetector, BaseOneStageDetector)
         )
-        if isinstance(similarity, dict):
-            self.similarity_head: BaseSimilarityHead = build_module(
-                similarity, bound=BaseSimilarityHead
-            )
-        else:  # pragma: no cover
-            self.similarity_head = similarity
-        if isinstance(track_graph, dict):
-            self.track_graph: BaseTrackGraph = build_module(
-                track_graph, bound=BaseTrackGraph
-            )
-        else:  # pragma: no cover
-            self.track_graph = track_graph
+        self.similarity_head = similarity
+        self.track_graph = track_graph
         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
         self.with_mask = getattr(self.detector, "with_mask", False)
 
@@ -74,8 +61,7 @@ class QDTrack(BaseModel):
             x.targets for x in ref_inputs
         ]
 
-        key_proposals: List[Boxes2D]
-        ref_proposals: List[List[Boxes2D]]
+        key_proposals: Optional[List[Boxes2D]]
         if isinstance(self.detector, BaseTwoStageDetector):
             # proposal generation
             rpn_losses, key_proposals = self.detector.generate_proposals(
@@ -142,7 +128,9 @@ class QDTrack(BaseModel):
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
 
-        outs: Dict[str, List[TLabelInstance]] = {"detect": [d.clone() for d in detections]}  # type: ignore # pylint: disable=line-too-long
+        outs: Dict[str, List[TLabelInstance]] = {  # type: ignore
+            "detect": [d.clone() for d in detections]
+        }
         if instance_segms is not None:
             outs["ins_seg"] = [s.clone() for s in instance_segms]
 
@@ -170,7 +158,9 @@ class QDTrack(BaseModel):
     ) -> ModelOutput:
         """Associate detections, update track graph."""
         tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
-        outs: Dict[str, List[TLabelInstance]] = {"track": tracks.boxes2d}  # type: ignore # pylint: disable=line-too-long
+        outs: Dict[str, List[TLabelInstance]] = {  # type: ignore
+            "track": tracks.boxes2d
+        }
         if self.with_mask:
             outs["seg_track"] = tracks.instance_masks
 

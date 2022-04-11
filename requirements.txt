@@ -1,6 +1,8 @@
 black
 coverage[toml]
+click==8.0.4
 isort
+jsonargparse[signatures]
 mypy
 numpy>=1.21.0
 pandas
@@ -11,12 +13,13 @@ pylint
 pytest
 pytoml
 pyyaml
-pytorch-lightning
+pytorch-lightning>=1.6.0
 setuptools
 tqdm
 wheel
 h5py
 git+https://github.com/scalabel/scalabel.git
+termcolor
 torch
 torchvision
 git+https://github.com/bdd100k/bdd100k.git

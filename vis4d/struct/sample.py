@@ -140,7 +140,7 @@ class InputSample(DataInstance):
     def __init__(
         self,
         metadata: List[Frame],
-        images: Images,
+        images: Optional[Images] = None,
         intrinsics: Optional[Intrinsics] = None,
         extrinsics: Optional[Extrinsics] = None,
         points: Optional[PointCloud] = None,
@@ -149,8 +149,13 @@ class InputSample(DataInstance):
     ) -> None:
         """Init."""
         self.metadata = metadata
+
+        if images is None:
+            images = Images(
+                torch.empty((len(metadata), 3, 0, 0)),
+                [(0, 0) for _ in range(len(metadata))],
+            )
         self.images = images
-        assert len(metadata) == len(images)
 
         if intrinsics is None:
             intrinsics = Intrinsics.cat(
@@ -165,7 +170,7 @@ class InputSample(DataInstance):
         self.extrinsics = extrinsics
 
         if points is None:
-            points = PointCloud(torch.cat([torch.empty(len(images), 1, 4)]))
+            points = PointCloud(torch.empty((len(images), 0, 4)))
         self.points = points
 
         if targets is None:

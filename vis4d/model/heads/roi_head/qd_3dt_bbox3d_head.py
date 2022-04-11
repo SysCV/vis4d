@@ -1,11 +1,11 @@
 """3D Box Head definition for QD-3DT."""
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common.bbox.coders import BaseBoxCoder3D, QD3DTBox3DCoder
+from vis4d.common.bbox.coders import QD3DTBox3DCoder
 from vis4d.common.bbox.matchers import BaseMatcher
 from vis4d.common.bbox.poolers import BaseRoIPooler
 from vis4d.common.bbox.samplers import (
@@ -15,8 +15,7 @@ from vis4d.common.bbox.samplers import (
 )
 from vis4d.common.geometry.rotation import generate_rotation_output
 from vis4d.common.layers import add_conv_branch
-from vis4d.common.module import build_module
-from vis4d.model.losses import BaseLoss, Box3DUncertaintyLoss
+from vis4d.model.losses import Box3DUncertaintyLoss
 from vis4d.struct import (
     Boxes2D,
     Boxes3D,
@@ -25,7 +24,6 @@ from vis4d.struct import (
     Intrinsics,
     LabelInstances,
     LossesType,
-    ModuleCfg,
 )
 
 from .base import Det3DRoIHead
@@ -34,14 +32,12 @@ from .base import Det3DRoIHead
 class QD3DTBBox3DHead(Det3DRoIHead):
     """QD-3DT 3D Bounding Box Head."""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         num_classes: int,
-        proposal_pooler: Union[ModuleCfg, BaseRoIPooler],
-        proposal_sampler: Union[ModuleCfg, BaseSampler],
-        proposal_matcher: Union[ModuleCfg, BaseMatcher],
-        box3d_coder: Union[ModuleCfg, BaseBoxCoder3D] = QD3DTBox3DCoder(),
-        loss: Union[ModuleCfg, BaseLoss] = Box3DUncertaintyLoss(),
+        proposal_pooler: BaseRoIPooler,
+        proposal_sampler: BaseSampler,
+        proposal_matcher: BaseMatcher,
         proposal_append_gt: bool = True,
         num_shared_convs: int = 2,
         num_shared_fcs: int = 0,
@@ -71,33 +67,10 @@ class QD3DTBBox3DHead(Det3DRoIHead):
         self.in_features = in_features
         self.proposal_append_gt = proposal_append_gt
         self.cls_out_channels = num_classes
-        if isinstance(proposal_sampler, dict):
-            self.sampler: BaseSampler = build_module(
-                proposal_sampler, bound=BaseSampler
-            )
-        else:
-            self.sampler = proposal_sampler
-
-        if isinstance(proposal_matcher, dict):
-            self.matcher: BaseMatcher = build_module(
-                proposal_matcher, bound=BaseMatcher
-            )
-        else:
-            self.matcher = proposal_matcher
-
-        if isinstance(proposal_pooler, dict):
-            self.roi_pooler: BaseRoIPooler = build_module(
-                proposal_pooler, bound=BaseRoIPooler
-            )
-        else:
-            self.roi_pooler = proposal_pooler
-
-        if isinstance(box3d_coder, dict):
-            self.bbox_coder: BaseBoxCoder3D = build_module(
-                box3d_coder, bound=BaseBoxCoder3D
-            )
-        else:
-            self.bbox_coder = box3d_coder
+        self.sampler = proposal_sampler
+        self.matcher = proposal_matcher
+        self.roi_pooler = proposal_pooler
+        self.bbox_coder = QD3DTBox3DCoder()
 
         # add shared convs and fcs
         (
@@ -207,12 +180,7 @@ class QD3DTBBox3DHead(Det3DRoIHead):
         self.fc_2dc = nn.Linear(self.cen_2d_last_dim, out_2dc_size)
 
         self._init_weights()
-
-        # losses
-        if isinstance(loss, dict):
-            self.loss: BaseLoss = build_module(loss, bound=BaseLoss)
-        else:
-            self.loss = loss
+        self.loss = Box3DUncertaintyLoss()
 
         assert (
             self.bbox_coder.num_rotation_bins == self.loss.num_rotation_bins

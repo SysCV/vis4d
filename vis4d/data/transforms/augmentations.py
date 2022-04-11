@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
-from pytorch_lightning.utilities.distributed import rank_zero_warn
+from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 
 from vis4d.common.bbox.utils import bbox_intersection
 from vis4d.data.utils import transform_bbox
@@ -72,12 +72,6 @@ class Resize(BaseAugmentation):
             # pylint: disable=unsubscriptable-object
             self.shape = [(int(s[0]), int(s[1])) for s in self.shape]
         else:
-            if (
-                isinstance(self.shape, list)
-                and isinstance(self.shape[0], int)
-                and isinstance(self.shape[1], int)
-            ):
-                self.shape = tuple(self.shape)
             assert isinstance(
                 self.shape, tuple
             ), "Specify shape as tuple when using multiscale mode range."
@@ -236,11 +230,6 @@ class RandomCrop(BaseAugmentation):
         self.cat_max_ratio = cat_max_ratio
         self.allow_empty_crops = allow_empty_crops
         self.recompute_boxes2d = recompute_boxes2d
-        if isinstance(shape, list) and (
-            (isinstance(shape[0], int) and isinstance(shape[1], int))
-            or (isinstance(shape[0], float) and isinstance(shape[1], float))
-        ):
-            shape = tuple(shape)
 
         if crop_type == "absolute":
             assert isinstance(shape, tuple)
@@ -379,9 +368,11 @@ class RandomCrop(BaseAugmentation):
                     ) and not self._check_seg_max_cat(cur_sample, crop_param):
                         found_crop = True
                         break
-                    crop_param = self._sample_crop(im_wh)
-                    keep_mask = self._get_keep_mask(cur_sample, crop_param)
-                if not found_crop:
+                    crop_param = self._sample_crop(im_wh)  # pragma: no cover
+                    keep_mask = self._get_keep_mask(
+                        cur_sample, crop_param
+                    )  # pragma: no cover
+                if not found_crop:  # pragma: no cover
                     rank_zero_warn(
                         "Random crop not found within 10 resamples."
                     )
@@ -409,9 +400,7 @@ class RandomCrop(BaseAugmentation):
         return Images.cat(all_ims)
 
     def apply_box2d(
-        self,
-        boxes: List[Boxes2D],
-        parameters: AugParams,
+        self, boxes: List[Boxes2D], parameters: AugParams
     ) -> List[Boxes2D]:
         """Apply augmentation to input box2d."""
         for i, box in enumerate(boxes):
@@ -422,9 +411,7 @@ class RandomCrop(BaseAugmentation):
         return boxes
 
     def apply_box3d(
-        self,
-        boxes: List[Boxes3D],
-        parameters: AugParams,
+        self, boxes: List[Boxes3D], parameters: AugParams
     ) -> List[Boxes3D]:
         """Apply augmentation to input box3d."""
         for i, box in enumerate(boxes):
@@ -433,9 +420,7 @@ class RandomCrop(BaseAugmentation):
         return boxes
 
     def apply_intrinsics(
-        self,
-        intrinsics: Intrinsics,
-        parameters: AugParams,
+        self, intrinsics: Intrinsics, parameters: AugParams
     ) -> Intrinsics:
         """Apply augmentation to input intrinsics."""
         x1, y1, _, _ = parameters["crop_params"].T
@@ -444,9 +429,7 @@ class RandomCrop(BaseAugmentation):
         return intrinsics
 
     def apply_instance_mask(
-        self,
-        masks: List[InstanceMasks],
-        parameters: AugParams,
+        self, masks: List[InstanceMasks], parameters: AugParams
     ) -> List[InstanceMasks]:
         """Apply augmentation to input instance mask."""
         for i, mask in enumerate(masks):
@@ -457,9 +440,7 @@ class RandomCrop(BaseAugmentation):
         return masks
 
     def apply_semantic_mask(
-        self,
-        masks: List[SemanticMasks],
-        parameters: AugParams,
+        self, masks: List[SemanticMasks], parameters: AugParams
     ) -> List[SemanticMasks]:
         """Apply augmentation to input semantic mask."""
         for i, mask in enumerate(masks):

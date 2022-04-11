@@ -18,6 +18,7 @@ class TestDLA(unittest.TestCase):
             name="dla46_c",
             pixel_mean=(0.0, 0.0, 0.0),
             pixel_std=(1.0, 1.0, 1.0),
+            weights="http://dl.yf.io/dla/models/imagenet/dla46_c-2bfd52c3.pth",
         )
         out = dla46_c(self.inputs)
         self.assertEqual(len(out), 6)
@@ -57,6 +58,21 @@ class TestDLA(unittest.TestCase):
             residual_root=True,
             neck=DLAUp(
                 use_deformable_convs=False,
+                start_level=2,
+                in_channels=[16, 32, 64, 128, 256, 512],
+            ),
+        )
+        out = dla_custom(self.inputs)
+        self.assertEqual(tuple(out["out0"].shape[2:]), (8, 8))
+        dla_custom = DLA(
+            pixel_mean=(0.0, 0.0, 0.0),
+            pixel_std=(1.0, 1.0, 1.0),
+            levels=(1, 1, 1, 2, 2, 1),
+            channels=(16, 32, 64, 128, 256, 512),
+            block="BasicBlock",
+            residual_root=True,
+            neck=DLAUp(
+                use_deformable_convs=True,
                 start_level=2,
                 in_channels=[16, 32, 64, 128, 256, 512],
             ),

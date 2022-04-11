@@ -137,6 +137,9 @@ class QDTrackGraph(BaseTrackGraph):
     ) -> Tuple[Boxes2D, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Remove overlapping objects across classes via nms."""
         # duplicate removal for potential backdrops and cross classes
+        if len(detections) == 0:
+            detections.boxes = torch.empty((0, 5), device=detections.device)
+
         scores = detections.score
         assert scores is not None
         scores, inds = scores.sort(descending=True)

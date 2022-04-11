@@ -6,14 +6,14 @@ from scalabel.label.typing import Box2D, Frame, Label
 
 from ..struct import Boxes2D, Images, InputSample
 from .dataset_test import TestScalabelDataset
-from .handler import Vis4DDatasetHandler, sort_by_frame_index
+from .handler import BaseDatasetHandler, sort_by_frame_index
 
 
 class TestDataHandler(unittest.TestCase):
     """DataHandler Testcase class."""
 
     dataset = TestScalabelDataset.dataset
-    handler = Vis4DDatasetHandler([dataset])
+    handler = BaseDatasetHandler([dataset])
 
     @staticmethod
     def _make_test_sample() -> InputSample:

@@ -1,10 +1,10 @@
 """mmdetection dense head wrapper."""
-import os
 from typing import Dict, List, Optional, Tuple, Union
 
-from vis4d.model.mm_utils import (
+from vis4d.model.utils import (
     _parse_losses,
     get_img_metas,
+    load_config,
     proposals_from_mmdet,
     targets_to_mmdet,
 )
@@ -20,7 +20,6 @@ from vis4d.struct import (
 from .base import DetDenseHead
 
 try:
-    from mmcv import Config as MMConfig
     from mmcv.utils import ConfigDict
 
     MMCV_INSTALLED = True
@@ -49,15 +48,12 @@ class MMDetDenseHead(DetDenseHead):
             MMDET_INSTALLED and MMCV_INSTALLED
         ), "MMDetDenseHead requires both mmcv and mmdet to be installed!"
         super().__init__(category_mapping)
-        if isinstance(mm_cfg, dict):
-            mm_cfg_dict = mm_cfg
-        else:  # pragma: no cover
-            # load from config
-            assert os.path.exists(mm_cfg)
-            mm_cfg_ = MMConfig.fromfile(mm_cfg)
-            assert "dense_head" in mm_cfg_
-            mm_cfg_dict = mm_cfg_["dense_head"]
-        self.mm_dense_head = build_head(ConfigDict(**mm_cfg_dict))
+        mm_dict = (
+            mm_cfg
+            if isinstance(mm_cfg, dict)
+            else load_config(mm_cfg, "dense_head")
+        )
+        self.mm_dense_head = build_head(ConfigDict(**mm_dict))
         assert isinstance(self.mm_dense_head, MMBaseDenseHead)
         self.mm_dense_head.init_weights()
         self.mm_dense_head.train()
