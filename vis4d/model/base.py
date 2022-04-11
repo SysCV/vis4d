@@ -102,8 +102,6 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         self.inference_result_path = inference_result_path
         if self.inference_result_path is not None:
             self.data_backend = HDF5Backend()
-            if not osp.exists(self.inference_result_path):
-                self.data_backend.set(self.inference_result_path, bytes())
 
     def __call__(
         self, batch_inputs: List[InputSample]

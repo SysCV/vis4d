@@ -12,10 +12,11 @@ from pytorch_lightning.utilities.rank_zero import (
     rank_zero_info,
     rank_zero_only,
 )
+from pytorch_lightning.utilities.types import STEP_OUTPUT
 from termcolor import colored
 
 from ..common.utils.time import Timer
-from ..struct import DictStrAny, InputSample, ModelOutput
+from ..struct import ArgsType, DictStrAny
 
 try:
     from mmcv.utils import get_logger
@@ -141,8 +142,8 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
-        outputs: ModelOutput,
-        batch: List[InputSample],
+        outputs: STEP_OUTPUT,
+        batch: ArgsType,
         batch_idx: int,
         unused: int = 0,
     ) -> None:
@@ -168,8 +169,8 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
-        outputs: ModelOutput,
-        batch: List[InputSample],
+        outputs: Optional[STEP_OUTPUT],
+        batch: ArgsType,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
@@ -193,8 +194,8 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
-        outputs: ModelOutput,
-        batch: List[InputSample],
+        outputs: Optional[STEP_OUTPUT],
+        batch: ArgsType,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
@@ -218,8 +219,8 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
-        outputs: ModelOutput,
-        batch: List[InputSample],
+        outputs: ArgsType,
+        batch: ArgsType,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
