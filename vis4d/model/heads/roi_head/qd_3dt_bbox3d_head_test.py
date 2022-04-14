@@ -4,11 +4,9 @@ import unittest
 import torch
 from scalabel.label.typing import Frame
 
-from vis4d.common.bbox.coders import QD3DTBox3DCoder
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.samplers import CombinedSampler
-from vis4d.model.losses import Box3DUncertaintyLoss
 from vis4d.struct import Images, InputSample
 from vis4d.unittest.utils import generate_dets, generate_feature_list
 
@@ -20,9 +18,6 @@ class TestQDTBBox3DHead(unittest.TestCase):
 
     def test_box3d_detection(self) -> None:
         """Testcase for box3d detection."""
-        boxcoder_cfg = QD3DTBox3DCoder()
-        loss_cfg = Box3DUncertaintyLoss()
-
         matcher_cfg = MaxIoUMatcher(
             thresholds=[0.5, 0.5],
             labels=[0, -1, 1],
@@ -53,8 +48,6 @@ class TestQDTBBox3DHead(unittest.TestCase):
             num_2dc_fcs=1,
             norm="GroupNorm",
             proposal_append_gt=True,
-            loss=loss_cfg,
-            box3d_coder=boxcoder_cfg,
             proposal_pooler=pooler_cfg,
             proposal_sampler=sampler_cfg,
             proposal_matcher=matcher_cfg,

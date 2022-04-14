@@ -17,7 +17,7 @@ from .base import BaseBoxCoder3D
 
 
 class QD3DTBox3DCoder(BaseBoxCoder3D):
-    """3D bounding box coder based on qd-3dt."""
+    """3D bounding box coder based on qd_3dt."""
 
     def __init__(
         self,

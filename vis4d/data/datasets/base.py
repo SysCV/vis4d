@@ -4,7 +4,7 @@ import os
 import pickle
 from typing import Dict, List, Optional, Tuple, Union
 
-from pytorch_lightning.utilities.distributed import rank_zero_info
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from scalabel.eval.detect import evaluate_det
 from scalabel.eval.ins_seg import evaluate_ins_seg
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
@@ -17,7 +17,7 @@ from scalabel.label.typing import Config, Dataset, Frame, FrameGroup
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.time import Timer
-from vis4d.struct import CategoryMap, MetricLogs
+from vis4d.struct import MetricLogs
 
 
 def _detect(
@@ -108,7 +108,6 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         name: str,
         data_root: str,
         annotations: Optional[str] = None,
-        category_mapping: Optional[CategoryMap] = None,
         attributes: Optional[
             Dict[str, Union[bool, float, str, List[float], List[str]]]
         ] = None,
@@ -131,7 +130,6 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
         self.eval_metrics = eval_metrics
         self.ignore_unknown_cats = ignore_unknown_cats
         self.collect_device = collect_device
-        self.category_mapping = category_mapping
         self.cache_as_binary = cache_as_binary
         self.compute_global_instance_ids = compute_global_instance_ids
         self.attributes = attributes
@@ -160,8 +158,10 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
 
     def load_cached_dataset(self) -> Dataset:
         """Load cached dataset from file."""
-        assert self.annotations is not None
-        cache_path = self.annotations.rstrip("/") + ".pkl"
+        if self.annotations is None:  # pragma: no cover
+            cache_path = self.data_root.rstrip("/") + ".pkl"
+        else:
+            cache_path = self.annotations.rstrip("/") + ".pkl"
         if not os.path.exists(cache_path):
             dataset = self.load_dataset()
             with open(cache_path, "wb") as file:

@@ -158,6 +158,6 @@ class DLAUp(BaseNeck):
             outs.insert(0, layers[self.end_level - 1])
         self.ida_final(outs, 0, len(outs))
         outs = [outs[-1]]
-        if self.output_names is None:  # pragma: no cover
+        if self.output_names is None:
             return {f"out{i}": v for i, v in enumerate(outs)}
-        return dict(zip(self.output_names, outs))
+        return dict(zip(self.output_names, outs))  # pragma: no cover

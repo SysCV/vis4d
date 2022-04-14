@@ -1,27 +1,26 @@
 """Similarity Head for quasi-dense instance similarity learning."""
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common.bbox.matchers import BaseMatcher
-from vis4d.common.bbox.poolers import BaseRoIPooler
+from vis4d.common.bbox.matchers import BaseMatcher, MaxIoUMatcher
+from vis4d.common.bbox.poolers import BaseRoIPooler, MultiScaleRoIAlign
 from vis4d.common.bbox.samplers import (
     BaseSampler,
+    CombinedSampler,
     SamplingResult,
     match_and_sample_proposals,
 )
 from vis4d.common.layers import add_conv_branch
-from vis4d.common.module import build_module
-from vis4d.model.losses import BaseLoss, MultiPosCrossEntropyLoss
+from vis4d.model.losses import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
 from vis4d.struct import (
     Boxes2D,
     FeatureMaps,
     InputSample,
     LabelInstances,
     LossesType,
-    ModuleCfg,
 )
 
 from ..utils import cosine_similarity
@@ -33,11 +32,9 @@ class QDSimilarityHead(BaseSimilarityHead):
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        proposal_pooler: Union[ModuleCfg, BaseRoIPooler],
-        proposal_sampler: Union[ModuleCfg, BaseSampler],
-        proposal_matcher: Union[ModuleCfg, BaseMatcher],
-        track_loss: Union[ModuleCfg, BaseLoss] = MultiPosCrossEntropyLoss(),
-        track_loss_aux: Optional[Union[ModuleCfg, BaseLoss]] = None,
+        proposal_pooler: Optional[BaseRoIPooler] = None,
+        proposal_sampler: Optional[BaseSampler] = None,
+        proposal_matcher: Optional[BaseMatcher] = None,
         in_dim: int = 256,
         num_convs: int = 4,
         conv_out_dim: int = 256,
@@ -67,45 +64,37 @@ class QDSimilarityHead(BaseSimilarityHead):
         if in_features is None:
             self.in_features = ["p2", "p3", "p4", "p5"]
 
-        if isinstance(proposal_sampler, dict):
-            self.sampler: BaseSampler = build_module(
-                proposal_sampler, bound=BaseSampler
-            )
-        else:  # pragma: no cover
+        if proposal_sampler is not None:
             self.sampler = proposal_sampler
-
-        if isinstance(proposal_matcher, dict):
-            self.matcher: BaseMatcher = build_module(
-                proposal_matcher, bound=BaseMatcher
+        else:
+            self.sampler = CombinedSampler(
+                batch_size_per_image=256,
+                positive_fraction=0.5,
+                pos_strategy="instance_balanced",
+                neg_strategy="iou_balanced",
             )
-        else:  # pragma: no cover
+
+        if proposal_matcher is not None:
             self.matcher = proposal_matcher
-
-        if isinstance(proposal_pooler, dict):
-            self.roi_pooler: BaseRoIPooler = build_module(
-                proposal_pooler, bound=BaseRoIPooler
+        else:
+            self.matcher = MaxIoUMatcher(
+                thresholds=[0.3, 0.7],
+                labels=[0, -1, 1],
+                allow_low_quality_matches=False,
             )
-        else:  # pragma: no cover
+
+        if proposal_pooler is not None:
             self.roi_pooler = proposal_pooler
+        else:
+            self.roi_pooler = MultiScaleRoIAlign(
+                resolution=[7, 7], strides=[4, 8, 16, 32], sampling_ratio=0
+            )
 
         self.convs, self.fcs, last_layer_dim = self._init_embedding_head()
         self.fc_embed = nn.Linear(last_layer_dim, embedding_dim)
 
-        if isinstance(track_loss, dict):
-            self.track_loss: BaseLoss = build_module(
-                track_loss, bound=BaseLoss
-            )
-        else:  # pragma: no cover
-            self.track_loss = track_loss
-        self.track_loss_aux: Optional[BaseLoss] = None
-        if track_loss_aux is not None:
-            if isinstance(track_loss_aux, dict):
-                self.track_loss_aux = build_module(
-                    track_loss_aux, bound=BaseLoss
-                )
-            else:  # pragma: no cover
-                self.track_loss_aux = track_loss_aux
-
+        self.track_loss = MultiPosCrossEntropyLoss(loss_weight=0.25)
+        self.track_loss_aux = EmbeddingDistanceLoss()
         self._init_weights()
 
     def _init_weights(self) -> None:

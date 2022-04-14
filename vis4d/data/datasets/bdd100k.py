@@ -12,12 +12,9 @@ class BDD100K(BaseDatasetLoader):
     """BDD100K dataloading class."""
 
     def load_dataset(self) -> Dataset:
-        """Convert BDD100K annotations to Scalabel format and prepare them."""
+        """Convert BDD100K annotations to Scalabel format."""
         assert self.annotations is not None
-        bdd100k_anns = load(
-            self.annotations,
-            nprocs=self.num_processes,
-        )
+        bdd100k_anns = load(self.annotations, nprocs=self.num_processes)
         frames = bdd100k_anns.frames
         assert self.config_path is not None
         bdd100k_cfg = load_bdd100k_config(self.config_path)

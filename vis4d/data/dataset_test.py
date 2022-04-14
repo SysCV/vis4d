@@ -7,6 +7,8 @@ from scalabel.label.typing import Category, Config, Dataset, Frame
 from ..struct import ArgsType
 from .dataset import ScalabelDataset
 from .datasets import Scalabel
+from .mapper import BaseSampleMapper
+from .reference import BaseReferenceSampler
 
 
 class MockDatasetLoader(Scalabel):
@@ -44,13 +46,12 @@ class TestScalabelDataset(unittest.TestCase):
     dataset = ScalabelDataset(
         dataset_loader,
         training=True,
-        mapper={},
-        ref_sampler={
-            "strategy": "sequential",
-            "num_ref_imgs": 2,
-            "scope": 3,
-            "frame_order": "temporal",
-        },
+        ref_sampler=BaseReferenceSampler(
+            strategy="sequential",
+            num_ref_imgs=2,
+            scope=3,
+            frame_order="temporal",
+        ),
     )
 
     def test_reference_sampling(self) -> None:
@@ -77,12 +78,13 @@ class TestScalabelDataset(unittest.TestCase):
         dataset = ScalabelDataset(
             dataset_loader,
             training=True,
-            ref_sampler={
-                "strategy": "sequential",
-                "num_ref_imgs": 1,
-                "scope": 3,
-                "skip_nomatch_samples": True,
-            },
+            mapper=BaseSampleMapper(category_map={"test": 0}),
+            ref_sampler=BaseReferenceSampler(
+                strategy="sequential",
+                num_ref_imgs=1,
+                scope=3,
+                skip_nomatch_samples=True,
+            ),
         )
         # assert makes sure that all samples will be discarded from fallback
         # candidates (due to no match) and subsequently raises a ValueError
@@ -107,14 +109,14 @@ class TestScalabelDataset(unittest.TestCase):
             attributes={"timeofday": ["daytime", "night"], "weather": "clear"},
         )
 
-        ref_cfg = {
-            "strategy": "sequential",
-            "num_ref_imgs": 2,
-            "scope": 3,
-            "frame_order": "temporal",
-        }
+        ref_sampler = BaseReferenceSampler(
+            strategy="sequential",
+            num_ref_imgs=2,
+            scope=3,
+            frame_order="temporal",
+        )
         dataset = ScalabelDataset(
-            dataset_loader, training=True, ref_sampler=ref_cfg
+            dataset_loader, training=True, ref_sampler=ref_sampler
         )
         self.assertTrue(len(dataset) == 6)
 
@@ -129,8 +131,9 @@ class TestScalabelDataset(unittest.TestCase):
             for i in range(6)
         ]
 
+        ref_sampler.frames = None
         dataset = ScalabelDataset(
-            dataset_loader, training=True, ref_sampler=ref_cfg
+            dataset_loader, training=True, ref_sampler=ref_sampler
         )
         self.assertTrue(len(dataset) == 6)
 
@@ -150,6 +153,6 @@ class TestScalabelDataset(unittest.TestCase):
             ScalabelDataset,
             dataset_loader,
             True,
-            {},
-            ref_cfg,
+            None,
+            ref_sampler,
         )

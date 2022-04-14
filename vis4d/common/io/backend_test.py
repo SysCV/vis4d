@@ -33,6 +33,12 @@ class TestBackends(unittest.TestCase):
 
         # check exists
         self.assertFalse(backend_hdf5.exists("invalid_path"))
+        invalid_inhdf5 = (
+            "vis4d/engine/testcases/track/"
+            "bdd100k-samples/images_.hdf5/invalid_path"
+        )
+        self.assertFalse(backend_hdf5.exists(invalid_inhdf5))
+        self.assertTrue(backend_hdf5.exists(hdf5_path))
 
         # check set
         os.makedirs("./unittests/", exist_ok=True)
