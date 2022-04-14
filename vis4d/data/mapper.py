@@ -1,13 +1,10 @@
 """Class for processing Scalabel type datasets."""
 import copy
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from pytorch_lightning.utilities.distributed import (
-    rank_zero_info,
-    rank_zero_warn,
-)
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from scalabel.label.typing import Extrinsics as ScalabelExtrinsics
 from scalabel.label.typing import Frame, FrameGroup, ImageSize
 from scalabel.label.typing import Intrinsics as ScalabelIntrinsics
@@ -20,8 +17,10 @@ from scalabel.label.utils import (
 )
 
 from ..common.io import BaseDataBackend, FileBackend
-from ..common.registry import RegistryHolder, build_component
+from ..common.registry import RegistryHolder
 from ..struct import (
+    ALLOWED_INPUTS,
+    ALLOWED_TARGETS,
     Boxes2D,
     Boxes3D,
     CategoryMap,
@@ -30,21 +29,10 @@ from ..struct import (
     InputSample,
     InstanceMasks,
     Intrinsics,
-    ModuleCfg,
     PointCloud,
     SemanticMasks,
 )
 from .utils import im_decode
-
-ALLOWED_FIELDS = [
-    "boxes2d",
-    "boxes3d",
-    "instance_masks",
-    "semantic_masks",
-    "intrinsics",
-    "extrinsics",
-    "pointcloud",
-]
 
 
 class BaseSampleMapper(metaclass=RegistryHolder):
@@ -52,58 +40,53 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
     def __init__(
         self,
-        data_backend: Union[BaseDataBackend, ModuleCfg] = FileBackend(),
-        fields_to_load: Tuple[str] = ("boxes2d",),
+        data_backend: BaseDataBackend = FileBackend(),
+        inputs_to_load: Tuple[str, ...] = ("images",),
+        targets_to_load: Tuple[str, ...] = ("boxes2d",),
         skip_empty_samples: bool = False,
-        background_as_class: bool = False,
+        bg_as_class: bool = False,
         image_backend: str = "PIL",
         image_channel_mode: str = "RGB",
+        category_map: Optional[CategoryMap] = None,
     ) -> None:
         """Init Scalabel Mapper."""
         self.image_backend = image_backend
-        self.fields_to_load = fields_to_load
-        self.background_as_class = background_as_class
+        self.inputs_to_load = inputs_to_load
+        if not all(ele in ALLOWED_INPUTS for ele in inputs_to_load):
+            raise ValueError(
+                f"Found invalid inputs: {inputs_to_load}, "
+                f"allowed set of inputs: {ALLOWED_INPUTS}"
+            )
+        self.targets_to_load = targets_to_load
+        if not all(ele in ALLOWED_TARGETS for ele in targets_to_load):
+            raise ValueError(
+                f"Found invalid targets: {targets_to_load}, "
+                f"allowed set of targets: {ALLOWED_TARGETS}"
+            )
+        self.bg_as_class = bg_as_class
         self.skip_empty_samples = skip_empty_samples
         self.image_channel_mode = image_channel_mode
 
-        if isinstance(data_backend, dict):  # pragma: no cover
-            self.data_backend: BaseDataBackend = build_component(
-                data_backend, bound=BaseDataBackend
-            )
-        else:
-            self.data_backend = data_backend
+        self.data_backend = data_backend
         rank_zero_info(
             "Using data backend: %s", self.data_backend.__class__.__name__
         )
         self.cats_name2id: Dict[str, Dict[str, int]] = {}
-        self.training = False
+        if category_map is not None:
+            self.setup_categories(category_map)
 
-    def set_training(self, is_train: bool) -> None:
-        """Set training attribute."""
-        self.training = is_train
-        if self.skip_empty_samples and not self.training:
-            rank_zero_warn(  # pragma: no cover
-                "'skip_empty_samples' activated in test mode. This option is "
-                "only available in training."
-            )
-
-    def setup_categories(self, cats_name2id: CategoryMap) -> None:
-        """Setup the category mappings for all fields to load."""
-        for field in self.fields_to_load:
-            assert (
-                field in ALLOWED_FIELDS
-            ), f"Unrecognized field={field}, allowed fields={ALLOWED_FIELDS}"
-            if not cats_name2id:
-                continue
-            if isinstance(list(cats_name2id.values())[0], int):
-                self.cats_name2id[field] = cats_name2id  # type: ignore
+    def setup_categories(self, category_map: CategoryMap) -> None:
+        """Setup categories."""
+        for target in self.targets_to_load:
+            if isinstance(list(category_map.values())[0], int):
+                self.cats_name2id[target] = category_map  # type: ignore
             else:
                 assert (
-                    field in cats_name2id
-                ), f"Field={field} not specified in category_mapping"
-                field_map = cats_name2id[field]
-                assert isinstance(field_map, dict)
-                self.cats_name2id[field] = field_map
+                    target in category_map
+                ), f"Target={target} not specified in category_mapping"
+                target_map = category_map[target]
+                assert isinstance(target_map, dict)
+                self.cats_name2id[target] = target_map
 
     def load_inputs(
         self,
@@ -113,42 +96,43 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         group_extrinsics: Optional[ScalabelExtrinsics] = None,
     ) -> InputSample:
         """Load image according to data_backend."""
-        if not use_empty:
-            assert sample.url is not None
-            im_bytes = self.data_backend.get(sample.url)
-            image = im_decode(
-                im_bytes,
-                mode=self.image_channel_mode,
-                backend=self.image_backend,
-            )
-        else:
-            image = np.empty((128, 128, 3), dtype=np.uint8)
+        input_data = InputSample([copy.deepcopy(sample)])
+        if sample.url is not None and "images" in self.inputs_to_load:
+            if not use_empty:
+                im_bytes = self.data_backend.get(sample.url)
+                image = im_decode(
+                    im_bytes,
+                    mode=self.image_channel_mode,
+                    backend=self.image_backend,
+                )
+                input_data.metadata[0].size = ImageSize(
+                    width=image.shape[1], height=image.shape[0]
+                )
+            else:
+                image = np.empty((128, 128, 3), dtype=np.uint8)
 
-        sample.size = ImageSize(width=image.shape[1], height=image.shape[0])
-        image = torch.as_tensor(
-            np.ascontiguousarray(image.transpose(2, 0, 1)),
-            dtype=torch.float32,
-        ).unsqueeze(0)
-        images = Images(image, [(image.shape[3], image.shape[2])])
-        input_data = InputSample([copy.deepcopy(sample)], images)
-
-        assert self.fields_to_load is not None
+            image = torch.as_tensor(
+                np.ascontiguousarray(image.transpose(2, 0, 1)),
+                dtype=torch.float32,
+            ).unsqueeze(0)
+            images = Images(image, [(image.shape[3], image.shape[2])])
+            input_data.images = images
         if (
             sample.intrinsics is not None
-            and "intrinsics" in self.fields_to_load
+            and "intrinsics" in self.inputs_to_load
         ):
             input_data.intrinsics = self.load_intrinsics(sample.intrinsics)
 
         if (
             sample.extrinsics is not None
-            and "extrinsics" in self.fields_to_load
+            and "extrinsics" in self.inputs_to_load
         ):
             input_data.extrinsics = self.load_extrinsics(sample.extrinsics)
 
         if (
             group_url is not None
             and group_extrinsics is not None
-            and "pointcloud" in self.fields_to_load
+            and "pointcloud" in self.inputs_to_load
         ):
             input_data.points = self.load_points(
                 group_url, group_extrinsics, input_data.extrinsics
@@ -157,67 +141,52 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         return input_data
 
     def load_annotations(
-        self,
-        sample: InputSample,
-        labels: Optional[List[Label]],
+        self, sample: InputSample, labels: Optional[List[Label]]
     ) -> None:
         """Transform annotations."""
-        labels_used = []
-        if labels is not None:
-            instance_id_dict = {}
-            for label in labels:
-                assert label.attributes is not None
-                assert label.category is not None
-                if not check_crowd(label) and not check_ignored(label):
-                    labels_used.append(label)
-                    if label.id not in instance_id_dict:
-                        instance_id_dict[label.id] = int(
-                            label.attributes["instance_id"]
-                        )
+        if labels is None:
+            return
+        labels_used, instid_map = [], {}
+        for label in labels:
+            assert label.attributes is not None and label.category is not None
+            if not check_crowd(label) and not check_ignored(label):
+                labels_used.append(label)
+                if label.id not in instid_map:
+                    instid_map[label.id] = int(label.attributes["instance_id"])
+        if not labels_used:
+            return  # pragma: no cover
 
-            if labels_used:
-                if "instance_masks" in self.fields_to_load:
-                    instance_masks = InstanceMasks.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["instance_masks"],
-                        instance_id_dict,
-                        sample.metadata[0].size,
-                    )
-                    sample.targets.instance_masks = [instance_masks]
+        frame = sample.metadata[0]
+        if "instance_masks" in self.targets_to_load:
+            ins_map = self.cats_name2id["instance_masks"]
+            instance_masks = InstanceMasks.from_scalabel(
+                labels_used, ins_map, instid_map, frame.size
+            )
+            sample.targets.instance_masks = [instance_masks]
 
-                if "semantic_masks" in self.fields_to_load:
-                    semantic_masks = SemanticMasks.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["semantic_masks"],
-                        instance_id_dict,
-                        sample.metadata[0].size,
-                        self.background_as_class,
-                    )
-                    sample.targets.semantic_masks = [semantic_masks]
+        if "semantic_masks" in self.targets_to_load:
+            sem_map = self.cats_name2id["semantic_masks"]
+            semantic_masks = SemanticMasks.from_scalabel(
+                labels_used, sem_map, instid_map, frame.size, self.bg_as_class
+            )
+            sample.targets.semantic_masks = [semantic_masks]
 
-                if "boxes2d" in self.fields_to_load:
-                    boxes2d = Boxes2D.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["boxes2d"],
-                        instance_id_dict,
-                    )
-                    if len(sample.targets.instance_masks[0]) > 0 and (
-                        len(boxes2d) == 0
-                        or len(boxes2d)
-                        != len(sample.targets.instance_masks[0])
-                    ):  # pragma: no cover
-                        boxes2d = sample.targets.instance_masks[
-                            0
-                        ].get_boxes2d()
-                    sample.targets.boxes2d = [boxes2d]
+        if "boxes2d" in self.targets_to_load:
+            boxes2d = Boxes2D.from_scalabel(
+                labels_used, self.cats_name2id["boxes2d"], instid_map
+            )
+            ins_masks = sample.targets.instance_masks[0]
+            if len(ins_masks) > 0 and (
+                len(boxes2d) == 0 or len(boxes2d) != len(ins_masks)
+            ):  # pragma: no cover
+                boxes2d = ins_masks.get_boxes2d()
+            sample.targets.boxes2d = [boxes2d]
 
-                if "boxes3d" in self.fields_to_load:
-                    boxes3d = Boxes3D.from_scalabel(
-                        labels_used,
-                        self.cats_name2id["boxes3d"],
-                        instance_id_dict,
-                    )
-                    sample.targets.boxes3d = [boxes3d]
+        if "boxes3d" in self.targets_to_load:
+            boxes3d = Boxes3D.from_scalabel(
+                labels_used, self.cats_name2id["boxes3d"], instid_map
+            )
+            sample.targets.boxes3d = [boxes3d]
 
     @staticmethod
     def load_intrinsics(intrinsics: ScalabelIntrinsics) -> Intrinsics:
@@ -275,17 +244,18 @@ class BaseSampleMapper(metaclass=RegistryHolder):
     def __call__(
         self,
         sample: Frame,
+        training: bool,
         group_url: Optional[str] = None,
         group_extrinsics: Optional[ScalabelExtrinsics] = None,
     ) -> Optional[InputSample]:
         """Prepare a single sample in Vis4D format.
 
         Args:
-            sample (Frame): Metadata of one image, in scalabel format.
+            sample: Metadata of one image, in scalabel format.
             Serialized as dict due to multi-processing.
-            parameters (List[AugParams]): Augmentation parameter list.
-            group_url (str): Url of group sensor path.
-            group_extrinsics (ScalabelExtrinsics): Extrinsics for group sensor.
+            training: If mode is training, annotations will be loaded.
+            group_url: Url of group sensor path.
+            group_extrinsics: Extrinsics for group sensor.
 
         Returns:
             InputSample: Data format that the model accepts.
@@ -298,7 +268,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         if (
             self.skip_empty_samples
             and (sample.labels is None or len(sample.labels) == 0)
-            and self.training
+            and training
         ):
             return None  # pragma: no cover
 
@@ -310,11 +280,11 @@ class BaseSampleMapper(metaclass=RegistryHolder):
             group_extrinsics=group_extrinsics,
         )
 
-        if self.training:
+        if len(self.targets_to_load) > 0 and training:
             if len(self.cats_name2id) == 0:
                 raise AttributeError(
-                    "Category mapping not initialized! Please "
-                    "execute 'SampleMapper.setup_categories'."
+                    "Category mapping is empty but targets_to_load is not. "
+                    "Please specify a category mapping."
                 )
 
             # load annotations to input sample

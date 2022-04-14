@@ -275,11 +275,11 @@ class PointCloud(InputInstance):
 
     num_point_feature: int = 4
 
-    def __init__(self, tensor: torch.tensor):
+    def __init__(self, tensor: torch.Tensor):
         """Init PointCloud class.
 
         Args:
-            tensor (torch.Tensor): (N, C) or (B, N, C)
+            tensor: (N, C) or (B, N, C) Tensor of C dimensional input points.
         """
         assert 2 <= len(tensor.shape) <= 3
         if len(tensor.shape) == 2:

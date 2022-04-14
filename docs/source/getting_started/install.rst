@@ -21,16 +21,16 @@ Optionally, detectron2 and mmsegmentation can be installed with:
     python3 -m pip install mmsegmentation
 
 
-The standard location for datasets in the experiments in configs/experiments is:
+The standard location for datasets used in the experiments is:
 
 .. code:: bash
-
-    --data
-        --bdd100k
-        --MOT17
-    --train
-        --test
-    --nuscenes
+    --root
+        --data
+            --bdd100k
+            --MOT17
+        --train
+            --test
+        --nuscenes
 
 and the original folder structure of the data.
 

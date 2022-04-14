@@ -65,6 +65,15 @@ class TestResize(unittest.TestCase):
         self.assertEqual(len(sample.targets.boxes2d), 2)
         self.assertEqual(len(sample.targets.instance_masks), 2)
 
+    def test_multiscale_list(self) -> None:
+        """Test multiscale list mode."""
+        shapes = [(5, 5), (10, 10)]
+        resize = Resize(shape=shapes, multiscale_mode="list")
+        num_imgs, num_objs, height, width = 1, 20, 20, 9
+        sample = generate_input_sample(height, width, num_imgs, num_objs)
+        sample, _ = resize(sample, None)
+        self.assertTrue(sample.images.image_sizes[0] in shapes)
+
 
 class TestRandomCrop(unittest.TestCase):
     """Test cases Vis4D RandomCrop."""
@@ -107,6 +116,7 @@ class TestRandomCrop(unittest.TestCase):
             shape=[(1, 1), (2, 2)],
             crop_type="absolute_range",
             allow_empty_crops=False,
+            recompute_boxes2d=True,
         )
         num_imgs, num_objs, height, width = 1, 10, 10, 10
         sample = generate_input_sample(height, width, num_imgs, num_objs)
@@ -142,6 +152,25 @@ class TestRandomCrop(unittest.TestCase):
         new_masks = sample.targets.semantic_masks[0].masks
         self.assertEqual(new_masks.shape[0], num_objs)
         self.assertEqual(new_masks.shape[1:], (2, 2))
+
+    def test_relative(self) -> None:
+        """Test relative crop option."""
+        crop = RandomCrop(shape=(0.5, 0.5), crop_type="relative")
+        num_imgs, num_objs, height, width = 1, 10, 10, 10
+        sample = generate_input_sample(height, width, num_imgs, num_objs)
+        sample, _ = crop(sample, None)
+        self.assertEqual(sample.images.image_sizes[0], (5, 5))
+
+    def test_relative_range(self) -> None:
+        """Test relative range crop option."""
+        crop = RandomCrop(
+            shape=[(0.1, 0.1), (0.5, 0.5)], crop_type="relative_range"
+        )
+        num_imgs, num_objs, height, width = 1, 10, 10, 10
+        sample = generate_input_sample(height, width, num_imgs, num_objs)
+        sample, _ = crop(sample, None)
+        self.assertTrue(1 <= sample.images.image_sizes[0][0] <= 5)
+        self.assertTrue(1 <= sample.images.image_sizes[0][1] <= 5)
 
 
 class TestMosaic(unittest.TestCase):

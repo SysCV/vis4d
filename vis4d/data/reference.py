@@ -47,6 +47,11 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
     ) -> None:
         """Creating mappings, e.g. from video id to frame / group indices."""
         video_to_frameidx: Dict[str, List[int]] = defaultdict(list)
+        if self.frames is not None:
+            raise AttributeError(
+                "Cannot create mappings for non-empty sampler."
+            )
+
         self.frames = frames
         self.groups = groups
         if self.groups is not None:
@@ -144,6 +149,7 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
         self,
         cur_idx: int,
         key_data: InputSample,
+        training: bool,
         mapper: BaseSampleMapper,
         num_retry: int = 3,
     ) -> Optional[List[InputSample]]:
@@ -159,7 +165,7 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
             if vid_id is not None and self.scope > 0:
                 ref_data = []
                 for ref_idx in self.sample_ref_indices(vid_id, cur_idx):
-                    ref_sample = mapper(self.frames[ref_idx])
+                    ref_sample = mapper(self.frames[ref_idx], training)
                     if ref_sample is None:
                         break  # pragma: no cover
                     ref_data.append(ref_sample)

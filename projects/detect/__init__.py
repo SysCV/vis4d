@@ -1,0 +1,1 @@
+"""Detect project package."""

@@ -10,6 +10,8 @@ from .labels import (
 )
 from .sample import InputSample, LabelInstances
 from .structures import (
+    ALLOWED_INPUTS,
+    ALLOWED_TARGETS,
     ArgsType,
     CategoryMap,
     DataInstance,
@@ -57,4 +59,6 @@ __all__ = [
     "FeatureMaps",
     "ArgsType",
     "CategoryMap",
+    "ALLOWED_INPUTS",
+    "ALLOWED_TARGETS",
 ]

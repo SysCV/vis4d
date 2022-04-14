@@ -1,314 +1,103 @@
-# type: ignore
-"""Test cases for Vis4D engine Trainer."""
-
-import os
+"""Test cases for Vis4D engine."""
 import shutil
 import unittest
-from argparse import Namespace
+from typing import Dict, List
 
-import torch
+import pytest
+import pytorch_lightning as pl
+from _pytest.fixtures import FixtureRequest
+from _pytest.monkeypatch import MonkeyPatch
+from pytorch_lightning.utilities.cli import SaveConfigCallback
 
-from vis4d import config
-from vis4d.engine.trainer import predict, setup_experiment
-from vis4d.engine.trainer import test as evaluate
-from vis4d.engine.trainer import train, tune
-from vis4d.unittest.utils import get_test_file
+from vis4d.struct import ArgsType
 
-
-class BaseEngineTests:
-    """Base class for engine tests."""
-
-    class TestBase(unittest.TestCase):
-        """Base test case for vis4d models."""
-
-        cfg = None
-        work_dir = None
-        args = None
-
-        @classmethod
-        def tearDownClass(cls) -> None:
-            """Clean up dataset registry, files."""
-            shutil.rmtree(cls.work_dir, ignore_errors=True)
-
-    class TestTrain(TestBase):
-        """Base test case for vis4d models."""
-
-        def test_train(self) -> None:
-            """Testcase for training."""
-            self.assertIsNotNone(self.cfg)
-            self.cfg.launch.action = "train"
-            self.cfg.launch.seed = 42
-            trainer_args = {}
-            if torch.cuda.is_available():
-                trainer_args["gpus"] = "0,"  # pragma: no cover
-            trainer, model, data_module = setup_experiment(
-                self.cfg, trainer_args
-            )
-            train(trainer, model, data_module)
-            self.cfg.launch.seed = -1
-
-    class TestTest(TestBase):
-        """Base test case for vis4d models."""
-
-        def test_testfunc(self) -> None:
-            """Testcase for test function."""
-            self.assertIsNotNone(self.cfg)
-            self.cfg.launch.action = "test"
-            trainer_args = {}
-            if torch.cuda.is_available():
-                trainer_args["gpus"] = "0,"  # pragma: no cover
-            trainer, model, data_module = setup_experiment(
-                self.cfg, trainer_args
-            )
-            evaluate(trainer, model, data_module)
-
-    class TestDetect(TestTrain, TestTest):
-        """Test cases for vis4d models."""
-
-        def test_predict(self) -> None:
-            """Testcase for predict."""
-            self.assertIsNotNone(self.cfg)
-            self.cfg.launch.action = "predict"
-            trainer_args = {}
-            if torch.cuda.is_available():
-                trainer_args["gpus"] = "0,"  # pragma: no cover
-            self.cfg.launch.visualize = True
-            trainer, model, data_module = setup_experiment(
-                self.cfg, trainer_args
-            )
-            predict(trainer, model, data_module)
-
-    class TestTrack(TestTrain, TestTest):
-        """Test cases for vis4d tracking."""
-
-        predict_dir = (
-            "vis4d/engine/testcases/track/bdd100k-samples/images/"
-            "00091078-875c1f73/"
-        )
-
-        def test_predict(self) -> None:
-            """Testcase for predict."""
-            self.assertIsNotNone(self.cfg)
-            self.cfg.launch.action = "predict"
-            trainer_args = {}
-            if torch.cuda.is_available():
-                trainer_args["gpus"] = "0,"  # pragma: no cover
-            self.cfg.launch.input_dir = self.predict_dir
-            self.cfg.launch.visualize = True
-            trainer, model, data_module = setup_experiment(
-                self.cfg, trainer_args
-            )
-            predict(trainer, model, data_module)
+from ..unittest.utils import MockModel, _trainer_builder
+from .trainer import BaseCLI, DefaultTrainer
 
 
-class TestTrackD2(BaseEngineTests.TestTrain, BaseEngineTests.TestTest):
-    """Detectron2 tracking test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_track_d2/"
-        cls.args = Namespace(
-            config=get_test_file("track/qdtrack_d2.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(cls.args)
-        if os.path.exists(
-            cls.cfg.train[0]["annotations"].rstrip("/") + ".pkl"
-        ):  # pragma: no cover
-            os.remove(cls.cfg.train[0]["annotations"].rstrip("/") + ".pkl")
+def test_custom_init() -> None:
+    """Test setup with some custom options like tqdm progress bar."""
+    trainer = DefaultTrainer(
+        work_dir="./unittests/",
+        exp_name="trainer_test",
+        callbacks=pl.callbacks.LearningRateMonitor(),
+        tqdm=True,
+        max_steps=2,
+    )
+    model = MockModel(model_param=7)
+    trainer.fit(model, [None])
 
 
-class TestTrack3D(BaseEngineTests.TestTrack):
-    """3D tracking test cases."""
+def test_tune(monkeypatch: MonkeyPatch) -> None:
+    """Test tune function."""
+    model_params = [0, 1, 2, 3]
+    trainer = DefaultTrainer(
+        work_dir="./unittests/",
+        exp_name="test_tune",
+        tuner_params={"model_param": model_params},
+        tuner_metrics=["my_metric"],
+    )
+    model = MockModel(model_param=7)
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_track_3d/"
-        cls.args = Namespace(
-            config=get_test_file("track/qd3dt_kitti.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(cls.args)
-        if os.path.exists(
-            cls.cfg.train[0]["annotations"].rstrip("/") + ".pkl"
-        ):  # pragma: no cover
-            os.remove(cls.cfg.train[0]["annotations"].rstrip("/") + ".pkl")
+    model_param_vals = []
 
+    def dummy_test(  # pylint: disable=unused-argument
+        *args: ArgsType, **kwargs: ArgsType
+    ) -> List[Dict[str, float]]:
+        model_param_vals.append(model.model_param)
+        return [{"my_metric": 0}]
 
-class TestDetectMM(BaseEngineTests.TestTest):
-    """MMDetection detection test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_detect_mm/"
-        args = Namespace(
-            config=get_test_file("detect/faster_rcnn_mmdet.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
+    monkeypatch.setattr(DefaultTrainer, "test", dummy_test)
+    trainer.tune(model)
+    assert set(model_param_vals) == set(model_params)
 
 
-class TestOneStageDetectMM(BaseEngineTests.TestTrain):
-    """MMDetection one-stage detection test cases."""
+def test_base_cli(monkeypatch: MonkeyPatch) -> None:
+    """Test that CLI correctly instantiates model/trainer and calls fit."""
+    expected_model = dict(model_param=7)
+    expected_trainer = dict(exp_name="cli_test")
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_onestage_detect_mm/"
-        args = Namespace(
-            config=get_test_file("detect/retinanet_mmdet.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
+    def fit(trainer, model):
+        for k, v in expected_model.items():
+            assert getattr(model, k) == v
+        for k, v in expected_trainer.items():
+            assert getattr(trainer, k) == v
+        save_callback = [
+            x for x in trainer.callbacks if isinstance(x, SaveConfigCallback)
+        ]
+        assert len(save_callback) == 1
+        save_callback[0].on_train_start(trainer, model)
 
+    def on_train_start(callback, trainer, _):
+        config_dump = callback.parser.dump(callback.config, skip_none=False)
+        for k, v in expected_model.items():
+            assert f"  {k}: {v}" in config_dump
+        for k, v in expected_trainer.items():
+            assert f"  {k}: {v}" in config_dump
+        trainer.ran_asserts = True
 
-class TestOneStageTrackMM(BaseEngineTests.TestTrain):
-    """MMDetection one-stage tracking test cases."""
+    monkeypatch.setattr(DefaultTrainer, "fit", fit)
+    monkeypatch.setattr(SaveConfigCallback, "on_train_start", on_train_start)
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_onestage_track_mm/"
-        args = Namespace(
-            config=get_test_file("track/qdtrack_retinanet_mmdet.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
-
-
-class TestInsSegD2(BaseEngineTests.TestDetect):
-    """Detectron2 instance segmentation test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_ins_seg_d2/"
-        cls.args = Namespace(
-            config=get_test_file("detect/mask_rcnn_d2.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(cls.args)
-
-
-class TestInsSegMM(BaseEngineTests.TestTrain):
-    """MMDetection instance segmentation test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_ins_seg_mm/"
-        args = Namespace(
-            config=get_test_file("detect/mask_rcnn_mmdet.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
+    with unittest.mock.patch(
+        "sys.argv",
+        [
+            "any.py",
+            "fit",
+            "--model.model_param=7",
+            "--trainer.exp_name=cli_test",
+            "--seed_everything=0",
+        ],
+    ):
+        cli = BaseCLI(MockModel, trainer_class=_trainer_builder)
+        assert hasattr(cli.trainer, "ran_asserts") and cli.trainer.ran_asserts
 
 
-class TestSegTrackMM(BaseEngineTests.TestTrain):
-    """MMDetection segmentation tracking test cases."""
+@pytest.fixture(scope="module", autouse=True)
+def teardown(request: FixtureRequest) -> None:
+    """Clean up test files."""
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_seg_track_mm/"
-        args = Namespace(
-            config=get_test_file("track/mask_qdtrack_mmdet.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
+    def remove_test_dir() -> None:
+        shutil.rmtree("./unittests/", ignore_errors=True)
 
-    def test_tune(self) -> None:
-        """Testcase for tune function."""
-        self.assertIsNotNone(self.cfg)
-        self.cfg.launch.action = "tune"
-        self.cfg.launch.tuner_params = {
-            "track_graph.obj_score_thr": [0.55, 0.6]
-        }
-        self.cfg.launch.tuner_metrics = ["track/MOTA", "track/IDF1"]
-        self.cfg.model["inference_result_path"] = "unittests/results.hdf5"
-        trainer_args = {}
-        if torch.cuda.is_available():
-            trainer_args["gpus"] = "0,"  # pragma: no cover
-        trainer, model, data_module = setup_experiment(self.cfg, trainer_args)
-        tune(
-            trainer,
-            model,
-            data_module,
-            self.cfg.launch.tuner_params,
-            self.cfg.launch.tuner_metrics,
-        )
-
-
-class TestDLA(BaseEngineTests.TestTest):
-    """DLA test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_dla/"
-        args = Namespace(
-            config=get_test_file("detect/faster_rcnn_dla.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
-
-
-class TestSemSegMMFPN(BaseEngineTests.TestTrain):
-    """MMSegmenation semantic segmentation test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_sem_seg_mm_fpn/"
-        args = Namespace(
-            config=get_test_file("segment/fpn_mmseg.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
-        cls.cfg.launch.tqdm = True
-
-
-class TestSemSegMMDeepLab(BaseEngineTests.TestTrain):
-    """MMSegmenation semantic segmentation test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_sem_seg_mm_deeplab/"
-        args = Namespace(
-            config=get_test_file("segment/deeplabv3_mmseg.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
-        cls.cfg.launch.tqdm = True
-
-
-class TestPanSeg(BaseEngineTests.TestTrain):
-    """Panoptic segmentation test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_pan_seg/"
-        args = Namespace(
-            config=get_test_file("panoptic/panoptic_fpn.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
-
-
-class TestMTL(BaseEngineTests.TestTrain, BaseEngineTests.TestTest):
-    """MTL test cases."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """Set up class."""
-        cls.work_dir = "./unittests/unittest_mtl/"
-        args = Namespace(
-            config=get_test_file("mtl/qdtrackseg.toml"),
-            work_dir=cls.work_dir,
-        )
-        cls.cfg = config.parse_config(args)
+    request.addfinalizer(remove_test_dir)

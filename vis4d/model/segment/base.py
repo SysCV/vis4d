@@ -27,9 +27,7 @@ class BaseSegmentor(BaseModel):
 
     @overload
     def generate_segmentations(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> List[SemanticMasks]:
         ...
 
@@ -75,9 +73,7 @@ class BaseSegmentor(BaseModel):
 
     @abc.abstractmethod
     def _segmentations_test(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
+        self, inputs: InputSample, features: FeatureMaps
     ) -> List[SemanticMasks]:
         """Test stage segmentations generation."""
         raise NotImplementedError

@@ -40,7 +40,6 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
         pooler = MultiScaleRoIPool(
             resolution=(7, 7),
             strides=[8],
-            sampling_ratio=0,
         )
         out = pooler([inputs[0]], boxes_list)
         self.assertEqual(out.shape, (N * 10, C, 7, 7))

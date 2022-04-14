@@ -4,11 +4,10 @@ from typing import Dict, List, Optional, Tuple, TypedDict
 
 import torch
 import torch.nn.functional as F
-from pytorch_lightning.utilities.distributed import rank_zero_warn
+from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from torch import nn
 
 from vis4d.common.bbox.utils import bbox_iou
-from vis4d.common.registry import build_component
 from vis4d.model.track.motion import BaseMotionModel, VeloLSTM
 from vis4d.struct import (
     ArgsType,
@@ -442,9 +441,7 @@ class QD3DTrackGraph(QDTrackGraph):
         backdrop_motion_model = []
         for bd_ind in backdrop_inds:
             motion_cfg["detections_3d"] = detections_3d[bd_ind].boxes[0]
-            backdrop_motion_model.append(
-                build_component(motion_cfg, bound=BaseMotionModel)
-            )
+            # TODO add motion model setup
 
         self.backdrops.insert(
             0,
@@ -542,7 +539,7 @@ class QD3DTrackGraph(QDTrackGraph):
         obs_3d = self.parse_observation(bbox_3d)
         motion_cfg = self.motion_model.copy()
         motion_cfg["detections_3d"] = obs_3d
-        motion_model = build_component(motion_cfg, bound=BaseMotionModel)
+        motion_model = None  # TODO add motion model setup
         self.tracks[track_id] = dict(
             bbox=bbox,
             bbox_3d=bbox_3d,

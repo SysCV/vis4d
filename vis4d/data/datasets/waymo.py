@@ -63,9 +63,6 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
             save(scalabel_anns_path, dataset)
         else:
             # Load labels from existing file
-            dataset = load(
-                scalabel_anns_path,
-                nprocs=self.num_processes,
-            )
+            dataset = load(scalabel_anns_path, nprocs=self.num_processes)
 
         return dataset

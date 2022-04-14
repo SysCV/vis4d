@@ -24,5 +24,6 @@ class TestD2Utils(unittest.TestCase):
         det2cfg = model_to_detectron2(
             get_test_file("test-cfg.yaml"),
             category_mapping={"car": 0, "pedestrian": 1},
+            model_kwargs={"SOLVER.MAX_ITER": 270000},
         )
         self.assertEqual(det2cfg.MODEL.META_ARCHITECTURE, "GeneralizedRCNN")

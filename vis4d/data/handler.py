@@ -6,9 +6,9 @@ import numpy as np
 import torch
 from torch.utils import data
 
-from vis4d.common.registry import RegistryHolder, build_component
+from vis4d.common.registry import RegistryHolder
 from vis4d.data.transforms import BaseAugmentation
-from vis4d.struct import InputSample, LabelInstances, ModuleCfg
+from vis4d.struct import InputSample, LabelInstances
 
 
 def sort_by_frame_index(samples: List[InputSample]) -> List[InputSample]:
@@ -21,7 +21,7 @@ def sort_by_frame_index(samples: List[InputSample]) -> List[InputSample]:
     )
 
 
-class Vis4DDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
+class BaseDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
     """DatasetHandler class.
 
     This class wraps one or multiple instances of ScalabelDataset so that the
@@ -31,22 +31,25 @@ class Vis4DDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type
 
     def __init__(
         self,
-        datasets: Iterable[data.Dataset],
+        datasets: Union[data.Dataset, Iterable[data.Dataset]],
         clip_bboxes_to_image: bool = True,
         min_bboxes_area: float = 7.0 * 7.0,
-        transformations: Optional[
-            List[Union[BaseAugmentation, ModuleCfg]]
-        ] = None,
+        transformations: Optional[List[BaseAugmentation]] = None,
         sample_sort: Callable[
             [List[InputSample]], List[InputSample]
         ] = lambda x: x,
     ) -> None:
         """Init."""
+        if isinstance(datasets, data.Dataset):
+            datasets = [datasets]
         super().__init__(datasets)
         self.clip_bboxes_to_image = clip_bboxes_to_image
         self.min_bboxes_area = min_bboxes_area
         self.sample_sort = sample_sort
-        self.transformations = []
+        self.transformations = (
+            [] if transformations is None else transformations
+        )
+
         # TODO Temporary fix to separate augmentation btw group and frames, will be removed once split the dataset into single vs multi sensor # pylint: disable=line-too-long,fixme
         if len(datasets) == 1:  # type: ignore
             self.use_group = (
@@ -55,15 +58,6 @@ class Vis4DDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type
             )
         else:
             self.use_group = False
-        if transformations is not None:
-            for transform in transformations:
-                if isinstance(transform, dict):
-                    transform_: BaseAugmentation = build_component(
-                        transform, bound=BaseAugmentation
-                    )
-                else:  # pragma: no cover
-                    transform_ = transform
-                self.transformations.append(transform_)
 
     def _postprocess_annotations(
         self, im_wh: Tuple[int, int], targets: LabelInstances
