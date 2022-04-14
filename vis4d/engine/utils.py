@@ -15,6 +15,7 @@ import pytorch_lightning as pl
 import torch
 import yaml
 from devtools import debug
+from packaging import version
 from pytorch_lightning.callbacks.progress.tqdm_progress import reset
 from pytorch_lightning.utilities.distributed import (
     rank_zero_info,
@@ -397,3 +398,15 @@ def all_gather_gts(
         return None
 
     return list(itertools.chain(*gts_list))
+
+
+def is_torch_tf32_available() -> bool:
+    """Check if torch TF32 is available."""
+    return not (
+        not torch.cuda.is_available()
+        or torch.version.cuda is None
+        or torch.cuda.get_device_properties(torch.cuda.current_device()).major
+        < 8
+        or int(torch.version.cuda.split(".", maxsplit=1)[0]) < 11
+        or version.parse(torch.__version__) < version.parse("1.7")
+    )

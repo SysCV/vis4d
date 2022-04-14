@@ -1,9 +1,11 @@
 """LSTM 3D motion model."""
 from typing import Tuple
 
+import numpy as np
 import torch
 from torch import nn
 
+from vis4d.common.geometry.rotation import normalize_angle
 from vis4d.struct import ArgsType
 
 from .base import BaseMotionModel
@@ -75,6 +77,27 @@ class LSTM3DMotionModel(BaseMotionModel):
         if self.age == 1:
             self.obj_state[: self.motion_dims] = bbox_3d.clone()
 
+        self.obj_state[6] = normalize_angle(self.obj_state[6])
+        bbox_3d[6] = normalize_angle(bbox_3d[6])
+
+        # if the angle of two theta is not acute angle
+        # make the theta still in the range
+        curr_yaw = bbox_3d[6]
+        if np.pi / 2.0 < abs(curr_yaw - self.obj_state[6]) < np.pi * 3 / 2.0:
+            self.obj_state[6] += np.pi
+            if self.obj_state[6] > np.pi:
+                self.obj_state[6] -= np.pi * 2
+            if self.obj_state[6] < -np.pi:
+                self.obj_state[6] += np.pi * 2
+
+        # now the angle is acute: < 90 or > 270,
+        # convert the case of > 270 to < 90
+        if abs(curr_yaw - self.obj_state[6]) >= np.pi * 3 / 2.0:
+            if curr_yaw > 0:
+                self.obj_state[6] += np.pi * 2
+            else:
+                self.obj_state[6] -= np.pi * 2
+
         with torch.no_grad():
             refined_loc, self.hidden_ref = self.lstm_model.refine(
                 self.obj_state[: self.motion_dims].view(1, self.motion_dims),
@@ -85,6 +108,7 @@ class LSTM3DMotionModel(BaseMotionModel):
             )
 
         refined_obj = refined_loc.view(self.motion_dims)
+        refined_obj[6] = normalize_angle(refined_obj[6])
 
         self.obj_state[: self.motion_dims] = refined_obj
         self.prev_obs = bbox_3d
@@ -111,6 +135,8 @@ class LSTM3DMotionModel(BaseMotionModel):
         pred_state = self.obj_state.clone()
         pred_state[: self.motion_dims] = pred_loc.view(self.motion_dims)
         pred_state[self.motion_dims :] = pred_state[:3] - self.prev_ref[:3]
+
+        pred_state[6] = normalize_angle(pred_state[6])
 
         if update_state:
             self.hidden_pred = hidden_pred

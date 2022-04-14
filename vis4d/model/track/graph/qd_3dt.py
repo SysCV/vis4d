@@ -136,7 +136,7 @@ class QD3DTrackGraph(QDTrackGraph):
             if len(class_ids) > 0
             else torch.empty((0,), device=device)
         )
-        ids = torch.tensor(ids).to(device)
+        ids = torch.tensor(ids, device=device)
 
         if add_backdrops:
             for backdrop in self.backdrops:
@@ -339,7 +339,7 @@ class QD3DTrackGraph(QDTrackGraph):
                 memo_vs[:, : self.motion_dims],
             )
 
-            # Quasi Dense
+            # match using bisoftmax metric
             feats = torch.mm(embeddings, memo_embeds.t())
             d2t_scores = feats.softmax(dim=1)
             t2d_scores = feats.softmax(dim=0)
@@ -347,9 +347,10 @@ class QD3DTrackGraph(QDTrackGraph):
 
             # Score with categories
             if self.with_cats:
-                scores_cats = detections.class_ids.view(
-                    -1, 1
-                ) == memo_dets.class_ids.view(1, -1)
+                scores_cats = (
+                    detections.class_ids.view(-1, 1)
+                    == memo_dets.class_ids.view(1, -1).float()
+                )
 
             scores = (
                 self.bbox_affinity_weight * scores_iou * scores_depth
@@ -358,7 +359,8 @@ class QD3DTrackGraph(QDTrackGraph):
             scores /= self.bbox_affinity_weight + self.feat_affinity_weight
             scores *= (scores_iou > 0.0).float()
             scores *= (scores_depth > 0.0).float()
-            scores *= scores_cats
+            if self.with_cats:
+                scores *= scores_cats
 
             for i in range(len(detections)):
                 conf, memo_ind = torch.max(scores[i, :], dim=0)
@@ -374,7 +376,6 @@ class QD3DTrackGraph(QDTrackGraph):
                             scores[(i + 1) :, memo_ind] = 0
                         elif conf > self.nms_conf_thr:  # pragma: no cover
                             ids[i] = -2
-
         new_inds = (ids == -1) & (detections_scores > self.init_score_thr)
         num_news = new_inds.sum()
         ids[new_inds] = torch.arange(
@@ -387,8 +388,7 @@ class QD3DTrackGraph(QDTrackGraph):
 
         self.update(ids, detections, detections_3d, embeddings, frame_id)
 
-        # remove backdrops, low score
-        valids[valids.clone()] = ids > -1
+        valids[valids.clone()] = ids > -1  # remove backdrops, low score
         result = copy.deepcopy(predictions)
         for pred in result.get_instance_labels():
             if len(pred[0]) > 0:  # type: ignore
@@ -493,6 +493,7 @@ class QD3DTrackGraph(QDTrackGraph):
         )
 
         # Update Box3D with center, dim, rot_y
+        self.tracks[track_id]["bbox_3d"] = bbox_3d
         self.tracks[track_id]["bbox_3d"][:6] = pd_box_3d[:6]
         self.tracks[track_id]["bbox_3d"][7] = pd_box_3d[6]
 
@@ -513,14 +514,14 @@ class QD3DTrackGraph(QDTrackGraph):
     ) -> torch.Tensor:
         """Parse required boudning box."""
         if batch:
-            obs_3d = torch.zeros((bbox_3d.shape[0], self.motion_dims + 1)).to(
-                bbox_3d.device
+            obs_3d = torch.zeros(
+                (bbox_3d.shape[0], self.motion_dims + 1), device=bbox_3d.device
             )
             obs_3d[:, :6] = bbox_3d[:, :6]
             obs_3d[:, 6] = bbox_3d[:, 7]
             obs_3d[:, 7] = bbox_3d[:, -1]
         else:
-            obs_3d = torch.zeros(self.motion_dims + 1).to(bbox_3d.device)
+            obs_3d = torch.zeros(self.motion_dims + 1, device=bbox_3d.device)
             obs_3d[:6] = bbox_3d[:6]
             obs_3d[6] = bbox_3d[7]
             obs_3d[7] = bbox_3d[-1]
@@ -549,6 +550,6 @@ class QD3DTrackGraph(QDTrackGraph):
             embed=embedding,
             class_id=class_id,
             last_frame=frame_id,
-            velocity=torch.zeros(self.motion_dims).to(bbox_3d.device),
+            velocity=torch.zeros(self.motion_dims, device=bbox_3d.device),
             acc_frame=0,
         )

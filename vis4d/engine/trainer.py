@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
@@ -29,6 +30,7 @@ from .evaluator import StandardEvaluatorCallback
 from .utils import (
     Vis4DProgressBar,
     Vis4DTQDMProgressBar,
+    is_torch_tf32_available,
     setup_logging,
     split_args,
 )
@@ -50,6 +52,10 @@ def default_setup(
     """
     # set seeds
     pl.seed_everything(cfg.launch.seed, workers=True)
+
+    if is_torch_tf32_available():  # pragma: no cover
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
 
     # prepare trainer args
     if trainer_args is None:

@@ -152,49 +152,21 @@ class QD3DT(QDTrack):
         boxes2d: Boxes2D, boxes3d: Boxes3D, embeds: torch.Tensor
     ) -> Tuple[Boxes2D, Boxes3D, torch.Tensor]:
         """Post process the multi-camera results."""
-        boxes_2d = torch.empty(
-            (0, boxes2d.boxes.shape[1]), device=boxes2d.device
-        )
-        boxes_3d = torch.empty(
-            (0, boxes3d.boxes.shape[1]), device=boxes3d.device
-        )
-        embeds_post = torch.empty((0, embeds.shape[1]), device=embeds.device)
-        class_ids = torch.empty((0), device=boxes2d.device)
-
-        boxes3d_post = Boxes3D(boxes_3d, class_ids)
-        boxes2d_post = Boxes2D(boxes_2d, class_ids)
-
-        for idx, (box2d, box3d) in enumerate(zip(boxes2d, boxes3d)):
-            nms_flag = 0
-            # Pedestrian
-            if box2d.class_ids[0] == 2:
+        keep_indices = torch.ones(len(boxes3d))
+        for i, box3d in enumerate(boxes3d):
+            current_3d_score = box3d.score * boxes2d[i].score  # type: ignore
+            if box3d.class_ids in [0, 1, 2, 8, 9]:
                 nms_dist = 1
             else:
                 nms_dist = 2
-            for i, (box2d_post, box3d_post) in enumerate(
-                zip(boxes2d_post, boxes3d_post)
-            ):
-                if box2d_post.class_ids == box2d.class_ids:
-                    if (
-                        torch.cdist(box3d.center, box3d_post.center, p=2)
-                        <= nms_dist
-                        and boxes3d[idx].score * boxes2d[idx].score  # type: ignore # pylint: disable=line-too-long
-                        > box3d_post.score * box2d_post.score  # type: ignore
-                    ):  # pragma: no cover
-                        nms_flag = 1
-                        boxes_3d[i] = box3d.boxes
-                        boxes_2d[i] = box2d.boxes
-                        embeds_post[i] = embeds[idx]
-                        break
-            if nms_flag == 0:
-                boxes_3d = torch.cat([boxes_3d, box3d.boxes])
-                boxes_2d = torch.cat([boxes_2d, box2d.boxes])
-                class_ids = torch.cat([class_ids, box2d.class_ids[0]])
-                embeds_post = torch.cat(
-                    [embeds_post, embeds[idx].unsqueeze(0)]
-                )
-
-            boxes2d_post = Boxes2D(boxes_2d, class_ids)
-            boxes3d_post = Boxes3D(boxes_3d, class_ids)
-
-        return boxes2d_post, boxes3d_post, embeds_post
+            distance = torch.cdist(boxes3d.center, box3d.center)
+            nms_candidates = (distance < nms_dist).nonzero().squeeze(-1)
+            for candiate in nms_candidates:
+                if boxes3d[candiate].class_ids == box3d.class_ids and (
+                    boxes2d[candiate].score * boxes3d[candiate].score  # type: ignore # pylint: disable=line-too-long
+                    > current_3d_score
+                ):
+                    keep_indices[i] = 0
+                    break
+        keep = keep_indices == 1
+        return boxes2d[keep], boxes3d[keep], embeds[keep]
