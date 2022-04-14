@@ -3,6 +3,7 @@ from typing import List, Tuple, Union
 
 import torch
 
+from vis4d.common.bbox.utils import distance_3d_nms
 from vis4d.common.module import build_module
 from vis4d.struct import (
     ArgsType,
@@ -116,8 +117,11 @@ class QD3DT(QDTrack):
         embeds = torch.cat(embeddings_list)
 
         # post processing
-        boxes2d, boxes3d, embeds = self.post_processing(
-            boxes2d, boxes3d, embeds
+        keep_indices = distance_3d_nms(boxes3d, self.cat_mapping, boxes2d)
+        boxes2d, boxes3d, embeds = (
+            boxes2d[keep_indices],
+            boxes3d[keep_indices],
+            embeds[keep_indices],
         )
 
         # associate detections, update graph
@@ -146,27 +150,3 @@ class QD3DT(QDTrack):
             detect_3d=[tracks_3d],
             track_3d=[tracks_3d],
         )
-
-    @staticmethod
-    def post_processing(
-        boxes2d: Boxes2D, boxes3d: Boxes3D, embeds: torch.Tensor
-    ) -> Tuple[Boxes2D, Boxes3D, torch.Tensor]:
-        """Post process the multi-camera results."""
-        keep_indices = torch.ones(len(boxes3d))
-        for i, box3d in enumerate(boxes3d):
-            current_3d_score = box3d.score * boxes2d[i].score  # type: ignore
-            if box3d.class_ids in [0, 1, 2, 8, 9]:
-                nms_dist = 1
-            else:
-                nms_dist = 2
-            distance = torch.cdist(boxes3d.center, box3d.center)
-            nms_candidates = (distance < nms_dist).nonzero().squeeze(-1)
-            for candiate in nms_candidates:
-                if boxes3d[candiate].class_ids == box3d.class_ids and (
-                    boxes2d[candiate].score * boxes3d[candiate].score  # type: ignore # pylint: disable=line-too-long
-                    > current_3d_score
-                ):
-                    keep_indices[i] = 0
-                    break
-        keep = keep_indices == 1
-        return boxes2d[keep], boxes3d[keep], embeds[keep]

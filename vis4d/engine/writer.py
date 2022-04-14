@@ -13,6 +13,7 @@ from scalabel.vis.label import LabelViewer, UIConfig
 
 from ..data.datasets import BaseDatasetLoader
 from ..struct import InputSample, ModelOutput
+from ..struct.data import Images
 from ..vis.utils import preprocess_image
 from .utils import all_gather_predictions
 
@@ -107,34 +108,52 @@ class StandardWriterCallback(Vis4DWriterCallback):
                 prediction = copy.deepcopy(metadata)
                 prediction.labels = out
                 self._predictions[key].append(prediction)
-                if self._visualize and isinstance(prediction, FrameGroup):
-                    rank_zero_warn(  # pragma: no cover
-                        "Visualization not supported for multi-sensor datasets"
-                    )
-                elif self._visualize:
-                    if self.viewer is None or metadata.frameIndex in [None, 0]:
-                        size = metadata.size
-                        assert size is not None
-                        w, h = size.width, size.height
-                        self.viewer = LabelViewer(UIConfig(width=w, height=h))
+                if self._visualize:
+                    reset_viewer = metadata.frameIndex in [None, 0]
+                    if isinstance(prediction, FrameGroup):
+                        rank_zero_warn(  # pragma: no cover
+                            "Visualization don't support multi-sensor dataset."
+                        )
+                    else:
+                        save_dir = os.path.join(
+                            self.output_dir, f"{key}_visualization"
+                        )
+                        self.do_visualization(
+                            metadata,
+                            prediction,
+                            save_dir,
+                            inp[0].images,
+                            reset_viewer=reset_viewer,
+                        )
 
-                    video_name = (
-                        prediction.videoName
-                        if prediction.videoName is not None
-                        else ""
-                    )
-                    save_path = os.path.join(
-                        self.output_dir,
-                        f"{key}_visualization",
-                        video_name,
-                        prediction.name,
-                    )
-                    self.viewer.draw(
-                        np.array(preprocess_image(inp[0].images.tensor[0])),
-                        prediction,
-                    )
-                    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-                    self.viewer.save(save_path)
+    def do_visualization(
+        self,
+        metadata: Frame,
+        prediction: Frame,
+        save_dir: str,
+        images: Images,
+        reset_viewer: bool,
+    ) -> None:
+        """Do Visualization."""
+        if self.viewer is None or reset_viewer:
+            size = metadata.size
+            assert size is not None
+            w, h = size.width, size.height
+            self.viewer = LabelViewer(UIConfig(width=w, height=h))
+        video_name = (
+            prediction.videoName if prediction.videoName is not None else ""
+        )
+        save_path = os.path.join(
+            save_dir,
+            video_name,
+            prediction.name,
+        )
+        self.viewer.draw(
+            np.array(preprocess_image(images.tensor[0])),
+            prediction,
+        )
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        self.viewer.save(save_path)
 
     def write(self) -> None:
         """Write the aggregated output."""
