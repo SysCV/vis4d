@@ -3,29 +3,30 @@ from typing import Optional
 
 from vis4d.model.detect.mmdet import MMOneStageDetector, MMTwoStageDetector
 from vis4d.model.segment import MMEncDecSegmentor
-from vis4d.struct import CategoryMap, DictStrAny
+from vis4d.struct import CategoryMap, DictStrAny, ArgsType
 
 
 def build_faster_rcnn(
     category_mapping: CategoryMap,
     backbone: str = "r50_fpn",
     model_kwargs: Optional[DictStrAny] = None,
+    **kwargs: ArgsType,
 ) -> MMTwoStageDetector:
     """Build a default Faster-RCNN detector."""
     if model_kwargs is None:
-        model_kwargs = {}
-    faster_rcnn = MMTwoStageDetector(
-        category_mapping=category_mapping,
-        model_base=f"mmdet://faster_rcnn/faster_rcnn_{backbone}_1x_coco.py",
-        model_kwargs={
+        model_kwargs = {
             "rpn_head.loss_bbox.type": "SmoothL1Loss",
             "rpn_head.loss_bbox.beta": 0.111,
             "roi_head.bbox_head.loss_bbox.type": "SmoothL1Loss",
-        },
+        }
+    faster_rcnn = MMTwoStageDetector(
+        category_mapping=category_mapping,
+        model_base=f"mmdet://_base_/models/faster_rcnn_{backbone}.py",
+        model_kwargs=model_kwargs,
         pixel_mean=(123.675, 116.28, 103.53),
         pixel_std=(58.395, 57.12, 57.375),
         backbone_output_names=["p2", "p3", "p4", "p5", "p6"],
-        **model_kwargs,
+        **kwargs,
     )
     return faster_rcnn
 

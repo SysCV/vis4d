@@ -53,7 +53,7 @@ class BaseDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type:
         # TODO Temporary fix to separate augmentation btw group and frames, will be removed once split the dataset into single vs multi sensor # pylint: disable=line-too-long,fixme
         if len(datasets) == 1:  # type: ignore
             self.use_group = (
-                not datasets[0].mapper.training  # type: ignore
+                not datasets[0].training  # type: ignore
                 and datasets[0].dataset.groups is not None  # type: ignore
             )
         else:

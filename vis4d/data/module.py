@@ -102,7 +102,6 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         - Create Train / Test / Predict Datasets
         - Setup data callbacks
         """
-        self.create_datasets(stage)
         self.trainer.callbacks += self.setup_data_callbacks(
             stage, self.trainer.log_dir
         )

@@ -342,6 +342,7 @@ nuscenes_train = lambda: NuScenes(
     split="train",
     add_non_key=False,
     annotations="data/nuscenes/scalabel_train.json",
+    cache_as_binary=True,
 )
 
 nuscenes_mini_train = lambda: NuScenes(
@@ -351,6 +352,7 @@ nuscenes_mini_train = lambda: NuScenes(
     split="mini_train",
     add_non_key=False,
     annotations="data/nuscenes/scalabel_mini_train.json",
+    cache_as_binary=True,
 )
 
 nuscenes_val = lambda: NuScenes(
@@ -358,20 +360,23 @@ nuscenes_val = lambda: NuScenes(
     data_root="data/nuscenes",
     version="v1.0-trainval",
     split="val",
-    add_non_key=True,
-    annotations="data/nuscenes/scalabel_val_full.json",
-    eval_metrics=["detect_3d", "track_3d"],
+    add_non_key=False,
+    annotations="data/nuscenes/scalabel_val.json",
+    custom_save=True,
+    eval_metrics=["detect_3d"],
+    cache_as_binary=True,
 )
 
 nuscenes_mini_val = lambda: NuScenes(
     name="nuscenes_mini_val",
-    type="NuScenes",
     data_root="data/nuscenes",
     version="v1.0-mini",
     split="mini_val",
-    add_non_key=True,
-    annotations="data/nuscenes/scalabel_mini_val_full.json",
-    eval_metrics=["detect_3d", "track_3d"],
+    add_non_key=False,
+    annotations="data/nuscenes/scalabel_mini_val.json",
+    custom_save=True,
+    eval_metrics=["detect_3d"],
+    cache_as_binary=True,
 )
 
 # Waymo

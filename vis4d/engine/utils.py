@@ -211,7 +211,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
             rank_zero_info(
                 self._compose_log_str(
                     "Testing",
-                    self.train_batch_idx,
+                    self.test_batch_idx,
                     self.trainer.num_test_batches[dataloader_idx],
                 )
             )

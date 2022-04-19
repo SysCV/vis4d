@@ -30,6 +30,7 @@ class CommonDataModule(BaseDataModule):
         super().__init__(*args, **kwargs)
         self.experiment = experiment
         self.use_hdf5 = use_hdf5
+        self.create_datasets()
 
     def _setup_backend(self) -> BaseDataBackend:
         """Setup data backend."""
