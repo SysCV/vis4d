@@ -11,6 +11,7 @@ from vis4d.model import QD3DT
 from vis4d.model.heads.roi_head import QD3DTBBox3DHead
 from vis4d.model.track.graph import QD3DTrackGraph
 from vis4d.model.track.similarity import QDSimilarityHead
+from vis4d.model.optimize.warmup import LinearLRWarmup
 
 
 def setup_model(
@@ -31,6 +32,8 @@ def setup_model(
     track_graph = QD3DTrackGraph(motion_model=None, keep_in_memory=10)
 
     detector_kwargs = {
+        # "backbone.depth": 101,
+        # "backbone.init_cfg.checkpoint": "torchvision://resnet101",
         "rpn_head.anchor_generator.scales": [4, 8],
         "rpn_head.anchor_generator.ratios": [0.25, 0.5, 1.0, 2.0, 4.0],
         "rpn_head.loss_bbox.type": "SmoothL1Loss",
@@ -75,6 +78,7 @@ def setup_model(
         bbox_3d_head=box3d_head,
         lr_scheduler_init=step_schedule(max_epochs),
         optimizer_init=sgd(lr),
+        lr_warmup=LinearLRWarmup(warmup_ratio=0.1, warmup_steps=1000),
     )
     return model
 

@@ -1,9 +1,14 @@
 """Common optimizers."""
+from typing import Optional
+
 from vis4d.struct import DictStrAny
 
 
 def sgd(
-    lr: float, momentum: float = 0.9, weight_decay: float = 0.0001
+    lr: float,
+    momentum: float = 0.9,
+    weight_decay: float = 0.0001,
+    paramwise_options: Optional[DictStrAny] = None,
 ) -> DictStrAny:
     """Standard SGD optimizer cfg with given lr."""
     lr_scheduler_cfg = {
@@ -13,6 +18,7 @@ def sgd(
             "momentum": momentum,
             "weight_decay": weight_decay,
         },
+        "paramwise_options": paramwise_options,
     }
     return lr_scheduler_cfg
 

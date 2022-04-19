@@ -4,6 +4,8 @@ from datetime import datetime
 from itertools import product
 from typing import Callable, Dict, List, Optional, Type, Union
 
+import torch
+
 import pandas
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
@@ -26,7 +28,7 @@ from torch.utils.collect_env import get_pretty_env_info
 from ..data.module import BaseDataModule
 from ..model import BaseModel
 from ..struct import ArgsType, DictStrAny
-from .utils import DefaultProgressBar, setup_logger
+from .utils import DefaultProgressBar, setup_logger, is_torch_tf32_available
 
 
 class DefaultTrainer(pl.Trainer):
@@ -74,6 +76,10 @@ class DefaultTrainer(pl.Trainer):
         3. Init distributed plugin
         """
         rank_zero_info("Environment info: %s", get_pretty_env_info())
+
+        if is_torch_tf32_available():  # pragma: no cover
+            torch.backends.cuda.matmul.allow_tf32 = False
+            torch.backends.cudnn.allow_tf32 = False
 
         self.tuner_params = tuner_params
         self.tuner_metrics = tuner_metrics
@@ -254,6 +260,7 @@ class BaseCLI(LightningCLI):
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
+        setup_logger()
         super().__init__(
             model_class=model_class,
             datamodule_class=datamodule_class,

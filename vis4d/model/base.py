@@ -4,10 +4,20 @@ import os.path as osp
 import re
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import Callable, Dict, List, Optional, Tuple, Union, no_type_check
+from typing import (
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    no_type_check,
+    Iterator,
+)
 
 import pytorch_lightning as pl
 import torch
+from torch.nn.parameter import Parameter
 from pytorch_lightning.utilities.cli import instantiate_class
 from pytorch_lightning.utilities.rank_zero import (
     rank_zero_info,
@@ -142,9 +152,64 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         self,
     ) -> Tuple[List[Optimizer], List[lr_scheduler._LRScheduler]]:
         """Configure optimizers and schedulers of model."""
-        optimizer = instantiate_class(self.parameters(), self.optimizer_init)
+        params = self.set_param_wise_optim(self.named_parameters())
+        optimizer = instantiate_class(params, self.optimizer_init)
         scheduler = instantiate_class(optimizer, self.lr_scheduler_init)
         return [optimizer], [scheduler]
+
+    def set_param_wise_optim(
+        self, params: Iterator[Tuple[str, Parameter]]
+    ) -> List[DictStrAny]:
+        """Setting param-wise lr and weight decay."""
+        paramwise_options = self.optimizer_init.pop("paramwise_options")
+        if paramwise_options is None:
+            new_params = [{"params": [param]} for _, param in params]
+            return new_params
+
+        base_lr = self.optimizer_init["init_args"]["lr"]
+        base_wd = self.optimizer_init["init_args"]["weight_decay"]
+
+        # get param-wise options
+        bias_lr_mult = paramwise_options.get("bias_lr_mult", 1.0)
+        bias_decay_mult = paramwise_options.get("bias_decay_mult", 1.0)
+        norm_decay_mult = paramwise_options.get("norm_decay_mult", 1.0)
+        bboxfc_lr_mult = paramwise_options.get("bboxfc_lr_mult", 1.0)
+
+        new_params = []
+        for name, param in params:
+            param_group = {"params": [param]}
+            if not param.requires_grad:
+                # FP16 training needs to copy gradient/weight between master
+                # weight copy and model weight, it is convenient to keep all
+                # parameters here to align with model.parameters()
+                new_params.append(param_group)
+                continue
+
+            bbox_head = (
+                name.find("cls") != -1
+                or name.find("reg") != -1
+                or name.find("dep") != -1
+                or name.find("dim") != -1
+                or name.find("rot") != -1
+                or name.find("2dc") != -1
+            )
+
+            # For norm layers, overwrite the weight decay of weight and bias
+            # TODO: obtain the norm layer prefixes dynamically  # pylint: disable=line-too-long,fixme
+            if re.search(r"(bn|gn)(\d+)?.(weight|bias)", name):
+                if base_wd is not None:
+                    param_group["weight_decay"] = base_wd * norm_decay_mult
+            # For the other layers, overwrite both lr and weight decay of bias
+            elif name.endswith(".bias") and name.find("offset") == -1:
+                param_group["lr"] = base_lr * bias_lr_mult
+                if base_wd is not None:
+                    param_group["weight_decay"] = base_wd * bias_decay_mult
+            # Overwrite bbox head lr
+            elif bbox_head:
+                param_group["lr"] = base_lr * bboxfc_lr_mult
+                rank_zero_info(f"{name} with lr_multi: {bboxfc_lr_mult}")
+            new_params.append(param_group)
+        return new_params
 
     @no_type_check
     def optimizer_step(

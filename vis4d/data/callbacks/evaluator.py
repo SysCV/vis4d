@@ -149,7 +149,8 @@ class DefaultEvaluatorCallback(BaseEvaluatorCallback):
             for inp, out in zip(inputs, output):
                 prediction = copy.deepcopy(inp[0].metadata[0])
                 prediction.labels = out
-                self._predictions[key].append(prediction)
+                if not "group" in key:
+                    self._predictions[key].append(prediction)
 
     def evaluate(self, epoch: int) -> Dict[str, MetricLogs]:
         """Evaluate the performance after processing all input/output pairs."""

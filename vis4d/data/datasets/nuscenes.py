@@ -206,12 +206,13 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             log_dict = {"mAP": mean_ap, "NDS": nd_score}
             str_summary = "\n".join(str_summary_list)
 
-        except AssertionError as e:
+        except (AssertionError, Exception) as e:
             error_msg = "".join(e.args)
             rank_zero_warn(f"Evaluation error: {error_msg}")
             log_dict = {"mAP": 0, "NDS": 0}
             str_summary = (
                 "Evaluation failure might be raised due to sanity check"
+                + "or all emtpy boxes. "
             )
             rank_zero_warn(str_summary)
 
