@@ -29,6 +29,13 @@ from ..struct import (
 )
 from .optimize import BaseLRWarmup, LinearLRWarmup
 
+try:
+    from mmcv.runner.fp16_utils import wrap_fp16_model
+
+    MMCV_INSTALLED = True
+except (ImportError, NameError):  # pragma: no cover
+    MMCV_INSTALLED = False
+
 DEFAULT_OPTIM = {
     "class_path": "torch.optim.SGD",
     "init_args": {
@@ -102,6 +109,15 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         self.inference_result_path = inference_result_path
         if self.inference_result_path is not None:
             self.data_backend = HDF5Backend()
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        """Setup model according to trainer parameters, stage, etc."""
+        if (
+            self.trainer is not None
+            and self.trainer.precision == 16
+            and MMCV_INSTALLED
+        ):
+            wrap_fp16_model(self)  # pragma: no cover
 
     def __call__(
         self, batch_inputs: List[InputSample]

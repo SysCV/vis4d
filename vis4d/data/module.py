@@ -86,6 +86,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         self.predict_datasets: Optional[List[BaseDatasetHandler]] = None
         self._sampler_cfg = sampler_cfg
         self.category_mapping: Optional[CategoryMap] = None
+        self.create_datasets()
 
     def set_category_mapping(self, cat_map: CategoryMap) -> None:
         """Set default category mapping used when creating the datasets."""
@@ -99,8 +100,8 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
     def setup(self, stage: Optional[str] = None) -> None:
         """Data preparation operations to perform on every GPU.
 
-        - Create Train / Test / Predict Datasets
         - Setup data callbacks
+        - Set sampler for DDP
         """
         self.trainer.callbacks += self.setup_data_callbacks(
             stage, self.trainer.log_dir

@@ -27,8 +27,10 @@ def setup_model(
     else:
         raise NotImplementedError(f"Experiment {experiment} not known!")
 
-    # TODO add motion model
-    track_graph = QD3DTrackGraph(motion_model=None, keep_in_memory=10)
+    # TODO add motion model and QD3DT grpah
+    from vis4d.model.track.graph import QDTrackGraph
+
+    track_graph = QDTrackGraph(keep_in_memory=10)
 
     detector_kwargs = {
         "rpn_head.anchor_generator.scales": [4, 8],
