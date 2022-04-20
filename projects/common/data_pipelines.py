@@ -1,6 +1,8 @@
 """Standard data augmentation pipelines."""
 from typing import List, Optional, Tuple
 
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
+
 from vis4d.common.io import BaseDataBackend, FileBackend, HDF5Backend
 from vis4d.data.module import BaseDataModule
 from vis4d.data.transforms import (
@@ -27,18 +29,15 @@ class CommonDataModule(BaseDataModule):
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
-        super().__init__(*args, **kwargs)
         self.experiment = experiment
         self.use_hdf5 = use_hdf5
-        self.create_datasets()
+        super().__init__(*args, **kwargs)
 
     def _setup_backend(self) -> BaseDataBackend:
         """Setup data backend."""
-        return FileBackend() if not self.use_hdf5 else HDF5Backend()
-
-    def create_datasets(self, stage: Optional[str] = None) -> None:
-        """Setup data pipelines for each experiment."""
-        raise NotImplementedError
+        backend = FileBackend() if not self.use_hdf5 else HDF5Backend()
+        rank_zero_info("Using data backend: %s", backend.__class__.__name__)
+        return backend
 
 
 def default(im_hw: Tuple[int, int]) -> List[BaseAugmentation]:

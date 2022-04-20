@@ -8,7 +8,7 @@ from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from torch import nn
 
 from vis4d.common.bbox.utils import bbox_iou
-from vis4d.model.track.motion import BaseMotionModel, VeloLSTM
+from vis4d.model.track.motion import VeloLSTM
 from vis4d.struct import (
     ArgsType,
     Boxes2D,

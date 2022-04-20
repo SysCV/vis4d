@@ -114,8 +114,8 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
     ) -> str:
         """Compose log str from given information."""
         time_sec_tot = self.timer.time()
-        time_sec_avg = time_sec_tot / (batch_idx + 1)
-        eta_sec = time_sec_avg * (total_batches - (batch_idx + 1))
+        time_sec_avg = time_sec_tot / batch_idx
+        eta_sec = time_sec_avg * (total_batches - batch_idx)
         if not eta_sec == float("inf"):
             eta_str = str(datetime.timedelta(seconds=int(eta_sec)))
         else:  # pragma: no cover
@@ -134,7 +134,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
             if time_sec_avg > 1
             else f"{1/time_sec_avg:.2f}it/s"
         )
-        logging_str = f"{prefix}: {batch_idx}/{total_batches}, {time_str}"
+        logging_str = f"{prefix}: {batch_idx - 1}/{total_batches}, {time_str}"
         if len(metrics_list) > 0:
             logging_str += ", " + ", ".join(metrics_list)
         return logging_str

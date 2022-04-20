@@ -36,15 +36,15 @@ class Resize(BaseAugmentation):
         interpolation: Interpolation method. One of ["nearest", "bilinear",
         "bicubic"]
         keep_ratio: If aspect ratio of original image should be kept, the
-        new height will be scaled according to the new width and the
-        aspect ratio of the original image as:
-        new_h = new_w / (orginal_w / original_h)
+        new shape will modified to fit the aspect ratio of the original image.
         multiscale_mode: one of [range, list],
         scale_range: Range of sampled image scales in range mode, e.g.
         (0.8, 1.2), indicating minimum of 0.8 * shape and maximum of
         1.2 * shape.
-        return_transform: If the transform should be returned in matrix
-        format.
+        align_long_edge: If keep_ratio is true, this option indicates if shape
+        should be automatically aligned with the long edge of the original
+        image, e.g. original shape=(100, 80), original shape=(100, 200) will
+        yield (125, 100) as new shape. Default: False.
     """
 
     def __init__(
@@ -55,6 +55,7 @@ class Resize(BaseAugmentation):
         multiscale_mode: str = "range",
         scale_range: Tuple[float, float] = (1.0, 1.0),
         interpolation: str = "bilinear",
+        align_long_edge: bool = False,
         **kwargs: ArgsType,
     ) -> None:
         """Init function."""
@@ -64,6 +65,7 @@ class Resize(BaseAugmentation):
         self.multiscale_mode = multiscale_mode
         assert self.multiscale_mode in ["list", "range"]
         self.scale_range = scale_range
+        self.align_long_edge = align_long_edge
         if self.multiscale_mode == "list":
             assert isinstance(
                 self.shape, list
@@ -112,11 +114,14 @@ class Resize(BaseAugmentation):
             shape = torch.stack([h_new, w_new], -1)
         else:
             assert isinstance(self.shape, list)
-            shape = torch.tensor(random.sample(self.shape, k=len(sample)))
+            shape = torch.tensor(random.choices(self.shape, k=len(sample)))
 
         for i, sh in enumerate(shape):
             sh[1], sh[0] = get_resize_shape(
-                sample.images.image_sizes[i], (sh[1], sh[0]), self.keep_ratio
+                sample.images.image_sizes[i],
+                (sh[1], sh[0]),
+                self.keep_ratio,
+                self.align_long_edge,
             )
 
         transform = (

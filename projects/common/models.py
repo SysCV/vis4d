@@ -3,7 +3,7 @@ from typing import Optional
 
 from vis4d.model.detect.mmdet import MMOneStageDetector, MMTwoStageDetector
 from vis4d.model.segment import MMEncDecSegmentor
-from vis4d.struct import CategoryMap, DictStrAny, ArgsType
+from vis4d.struct import ArgsType, CategoryMap, DictStrAny
 
 
 def build_faster_rcnn(

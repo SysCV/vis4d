@@ -75,8 +75,6 @@ class DefaultTrainer(pl.Trainer):
         2. Setup callbacks: logger, LRMonitor, GPUMonitor, Checkpoint, etc
         3. Init distributed plugin
         """
-        rank_zero_info("Environment info: %s", get_pretty_env_info())
-
         if is_torch_tf32_available():  # pragma: no cover
             torch.backends.cuda.matmul.allow_tf32 = False
             torch.backends.cudnn.allow_tf32 = False
@@ -84,17 +82,18 @@ class DefaultTrainer(pl.Trainer):
         self.tuner_params = tuner_params
         self.tuner_metrics = tuner_metrics
         self.resume = resume
-        timestamp = (
-            str(datetime.now())
-            .split(".", maxsplit=1)[0]
-            .replace(" ", "_")
-            .replace(":", "-")
-        )
-        if version is None:
-            version = timestamp
         self.work_dir = work_dir
         self.exp_name = exp_name
+        if version is None:
+            timestamp = (
+                str(datetime.now())
+                .split(".", maxsplit=1)[0]
+                .replace(" ", "_")
+                .replace(":", "-")
+            )
+            version = timestamp
         self.version = version
+
         self.output_dir = osp.join(work_dir, exp_name, version)
 
         # setup experiment logging
@@ -172,8 +171,6 @@ class DefaultTrainer(pl.Trainer):
         else:
             kwargs["callbacks"] += callbacks
 
-        # setup cmd line logging, print and save info about trainer
-        setup_logger(osp.join(self.output_dir, f"log_{timestamp}.txt"))
         super().__init__(*args, **kwargs)
 
     @property
@@ -257,6 +254,7 @@ class BaseCLI(LightningCLI):
         ] = DefaultTrainer,
         description: str = "Vis4D command line tool",
         env_prefix: str = "V4D",
+        save_config_overwrite: bool = True,
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
@@ -268,26 +266,52 @@ class BaseCLI(LightningCLI):
             trainer_class=trainer_class,
             description=description,
             env_prefix=env_prefix,
+            save_config_overwrite=save_config_overwrite,
             **kwargs,
         )
 
     def instantiate_classes(self) -> None:
         """Instantiate trainer, datamodule and model."""
-        super().instantiate_classes()
+        # setup cmd line logging, print env info
+        subcommand = self.config["subcommand"]
+        work_dir = self.config[subcommand].trainer.work_dir
+        exp_name = self.config[subcommand].trainer.exp_name
+        version = self.config[subcommand].trainer.version
+        timestamp = (
+            str(datetime.now())
+            .split(".", maxsplit=1)[0]
+            .replace(" ", "_")
+            .replace(":", "-")
+        )
+        if version is None:
+            version = timestamp
+        self.config[subcommand].trainer.version = version
+        setup_logger(
+            osp.join(work_dir, exp_name, version, f"log_{timestamp}.txt")
+        )
+        rank_zero_info("Environment info: %s", get_pretty_env_info())
+
+        # instantiate classes
+        self.config_init = self.parser.instantiate_classes(self.config)
+        self.datamodule = self._get(self.config_init, "data")
+        self.model = self._get(self.config_init, "model")
+        self._add_configure_optimizers_method_to_model(self.subcommand)
+        self.trainer = self.instantiate_trainer()
+        assert isinstance(self.trainer, DefaultTrainer), (
+            "Trainer needs to inherit from DefaultTrainer "
+            "for BaseCLI to work properly."
+        )
+
+        # connect attributes
         if self.datamodule is not None and isinstance(
             self.datamodule, BaseDataModule
         ):  # pragma: no cover
             self.datamodule.set_category_mapping(self.model.category_mapping)
 
-        if isinstance(self.trainer, DefaultTrainer):
-            if self.trainer.resume:  # pragma: no cover
-                weights = self.config_init[self.config_init["subcommand"]][
-                    "ckpt_path"
-                ]
-                if weights is None:
-                    weights = osp.join(
-                        self.trainer.output_dir, "checkpoints/last.ckpt"
-                    )
-                self.config_init[self.config_init["subcommand"]][
-                    "ckpt_path"
-                ] = weights
+        if self.trainer.resume:  # pragma: no cover
+            weights = self.config_init[subcommand].ckpt_path
+            if weights is None:
+                weights = osp.join(
+                    self.trainer.output_dir, "checkpoints/last.ckpt"
+                )
+            self.config_init[subcommand].ckpt_path = weights
