@@ -9,9 +9,9 @@ from vis4d.data.datasets import (
     Waymo,
 )
 
-# CH, MOT17
+# CH, MOT17, MOT20
 
-mot17_map = {"pedestrian": 0}
+mot_map = {"pedestrian": 0}
 
 crowdhuman_trainval = lambda: Scalabel(
     name="crowdhuman_trainval",

@@ -4,10 +4,12 @@ from typing import List, Optional
 from projects.common.data_pipelines import CommonDataModule, default
 from projects.common.datasets import (
     kitti_det_train,
+    kitti_track_map,
     kitti_track_train,
     kitti_track_val,
     nuscenes_mini_train,
     nuscenes_mini_val,
+    nuscenes_track_map,
     nuscenes_train,
     nuscenes_val,
 )
@@ -28,7 +30,6 @@ class QD3DTDataModule(CommonDataModule):
         data_backend = self._setup_backend()
 
         train_sample_mapper = BaseSampleMapper(
-            category_map=self.category_mapping,
             data_backend=data_backend,
             inputs_to_load=("images", "intrinsics", "extrinsics"),
             targets_to_load=("boxes2d", "boxes3d"),
@@ -41,6 +42,7 @@ class QD3DTDataModule(CommonDataModule):
 
         if self.experiment == "kitti":
             # train pipeline
+            train_sample_mapper.setup_categories(kitti_track_map)
             train_datasets = []
             train_datasets += [
                 ScalabelDataset(
@@ -60,6 +62,7 @@ class QD3DTDataModule(CommonDataModule):
             train_transforms = default(im_hw=(375, 1242))
 
             # test pipeline
+            test_sample_mapper.setup_categories(kitti_track_map)
             test_transforms: List[BaseAugmentation] = [
                 Resize(shape=(375, 1242))
             ]
@@ -68,6 +71,7 @@ class QD3DTDataModule(CommonDataModule):
             ]
         elif self.experiment == "nuscenes":
             # train pipeline
+            train_sample_mapper.setup_categories(nuscenes_track_map)
             train_datasets = [
                 ScalabelDataset(
                     nuscenes_train(),
@@ -79,12 +83,14 @@ class QD3DTDataModule(CommonDataModule):
             train_transforms = default(im_hw=(900, 1600))
 
             # test pipeline
+            test_sample_mapper.setup_categories(nuscenes_track_map)
             test_transforms = [Resize(shape=(900, 1600))]
             test_datasets = [
                 ScalabelDataset(nuscenes_val(), False, test_sample_mapper)
             ]
         elif self.experiment == "nuscenes_mini":
             # train pipeline
+            train_sample_mapper.setup_categories(nuscenes_track_map)
             train_datasets = [
                 ScalabelDataset(
                     nuscenes_mini_train(),
@@ -96,6 +102,7 @@ class QD3DTDataModule(CommonDataModule):
             train_transforms = default(im_hw=(900, 1600))
 
             # test pipeline
+            test_sample_mapper.setup_categories(nuscenes_track_map)
             test_transforms = [Resize(shape=(900, 1600))]
             test_datasets = [
                 ScalabelDataset(nuscenes_mini_val(), False, test_sample_mapper)

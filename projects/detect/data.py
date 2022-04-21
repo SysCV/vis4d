@@ -3,8 +3,10 @@ from typing import List, Optional
 
 from projects.common.data_pipelines import CommonDataModule, default
 from projects.common.datasets import (
+    bdd100k_det_map,
     bdd100k_det_train,
     bdd100k_det_val,
+    coco_det_map,
     coco_train,
     coco_val,
 )
@@ -20,18 +22,19 @@ class DetectDataModule(CommonDataModule):
         data_backend = self._setup_backend()
 
         train_sample_mapper = BaseSampleMapper(
-            category_map=self.category_mapping,
             data_backend=data_backend,
             skip_empty_samples=True,
         )
         test_sample_mapper = BaseSampleMapper(data_backend=data_backend)
 
         if self.experiment == "bdd100k":
+            train_sample_mapper.setup_categories(bdd100k_det_map)
             train_datasets = [
                 ScalabelDataset(bdd100k_det_train(), True, train_sample_mapper)
             ]
             train_transforms = default((720, 1280))
 
+            test_sample_mapper.setup_categories(bdd100k_det_map)
             test_transforms: List[BaseAugmentation] = [
                 Resize(shape=(720, 1280))
             ]
@@ -39,13 +42,13 @@ class DetectDataModule(CommonDataModule):
                 ScalabelDataset(bdd100k_det_val(), False, test_sample_mapper)
             ]
         elif self.experiment == "coco":
-            # train pipeline
+            train_sample_mapper.setup_categories(coco_det_map)
             train_datasets = [
                 ScalabelDataset(coco_train(), True, train_sample_mapper)
             ]
             train_transforms = default((800, 1333))
 
-            # test pipeline
+            test_sample_mapper.setup_categories(coco_det_map)
             test_transforms = [Resize(shape=(800, 133))]
             test_datasets = [
                 ScalabelDataset(coco_val(), False, test_sample_mapper)

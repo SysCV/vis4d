@@ -8,6 +8,7 @@ from projects.common.data_pipelines import (
 )
 from projects.common.datasets import (
     bdd100k_det_train,
+    bdd100k_track_map,
     bdd100k_track_train,
     bdd100k_track_val,
     crowdhuman_trainval,
@@ -15,6 +16,7 @@ from projects.common.datasets import (
     mot17_val,
     mot20_train,
     mot20_val,
+    mot_map,
 )
 from vis4d.data import (
     BaseDatasetHandler,
@@ -33,7 +35,6 @@ class QDTrackDataModule(CommonDataModule):
         data_backend = self._setup_backend()
 
         train_sample_mapper = BaseSampleMapper(
-            category_map=self.category_mapping,
             data_backend=data_backend,
             skip_empty_samples=True,
         )
@@ -42,6 +43,7 @@ class QDTrackDataModule(CommonDataModule):
         clip_to_image = True
         if self.experiment == "mot17":
             # train pipeline
+            train_sample_mapper.setup_categories(mot_map)
             train_datasets = []
             train_datasets += [
                 ScalabelDataset(
@@ -67,6 +69,7 @@ class QDTrackDataModule(CommonDataModule):
             clip_to_image = False
 
             # test pipeline
+            test_sample_mapper.setup_categories(mot_map)
             test_transforms: List[BaseAugmentation] = [
                 Resize(shape=(800, 1440))
             ]
@@ -75,6 +78,7 @@ class QDTrackDataModule(CommonDataModule):
             ]
         elif self.experiment == "mot20":
             # train pipeline
+            train_sample_mapper.setup_categories(mot_map)
             train_datasets = []
             train_datasets += [
                 ScalabelDataset(
@@ -100,11 +104,13 @@ class QDTrackDataModule(CommonDataModule):
             )
 
             # test pipeline
+            test_sample_mapper.setup_categories(mot_map)
             test_transforms = [Resize(shape=(896, 1600))]
             test_datasets = [
                 ScalabelDataset(mot20_val(), False, test_sample_mapper)
             ]
         elif self.experiment == "bdd100k":
+            train_sample_mapper.setup_categories(bdd100k_track_map)
             train_datasets = []
             train_datasets += [
                 ScalabelDataset(
@@ -127,6 +133,7 @@ class QDTrackDataModule(CommonDataModule):
 
             train_transforms = default((720, 1280))
 
+            test_sample_mapper.setup_categories(bdd100k_track_map)
             test_transforms = [Resize(shape=(720, 1280))]
             test_datasets = [
                 ScalabelDataset(bdd100k_track_val(), False, test_sample_mapper)
