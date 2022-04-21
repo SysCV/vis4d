@@ -4,10 +4,9 @@ from datetime import datetime
 from itertools import product
 from typing import Callable, Dict, List, Optional, Type, Union
 
-import torch
-
 import pandas
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
@@ -28,7 +27,7 @@ from torch.utils.collect_env import get_pretty_env_info
 from ..data.module import BaseDataModule
 from ..model import BaseModel
 from ..struct import ArgsType, DictStrAny
-from .utils import DefaultProgressBar, setup_logger, is_torch_tf32_available
+from .utils import DefaultProgressBar, is_torch_tf32_available, setup_logger
 
 
 class DefaultTrainer(pl.Trainer):

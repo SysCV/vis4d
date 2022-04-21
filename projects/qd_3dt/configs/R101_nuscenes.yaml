@@ -1,0 +1,15 @@
+# QD3DT with R101 for nuscenes dataset
+trainer:
+  exp_name: QD3DT_R101_NUSC
+  num_sanity_val_steps: 0
+  gradient_clip_val: 10
+
+model:
+  max_epochs: 24
+  backbone: "r101_fpn"
+  lstm_ckpt: "vis4d-workspace/checkpoints/batch128_min10_seq10_dim7_VeloLSTM_nuscenes_100_linear.pth"
+
+data:
+  experiment: "nuscenes"
+  samples_per_gpu: 4
+  workers_per_gpu: 2

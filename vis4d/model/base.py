@@ -7,22 +7,22 @@ from collections.abc import Iterable
 from typing import (
     Callable,
     Dict,
+    Iterator,
     List,
     Optional,
     Tuple,
     Union,
     no_type_check,
-    Iterator,
 )
 
 import pytorch_lightning as pl
 import torch
-from torch.nn.parameter import Parameter
 from pytorch_lightning.utilities.cli import instantiate_class
 from pytorch_lightning.utilities.rank_zero import (
     rank_zero_info,
     rank_zero_warn,
 )
+from torch.nn.parameter import Parameter
 from torch.optim import Optimizer, lr_scheduler
 from torch.utils.model_zoo import load_url
 

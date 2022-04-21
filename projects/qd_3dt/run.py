@@ -1,4 +1,6 @@
 """QD-3DT runtime configuration."""
+from typing import Optional
+
 from projects.common.datasets import kitti_track_map, nuscenes_track_map
 from projects.common.models import build_faster_rcnn
 from projects.common.optimizers import sgd, step_schedule
@@ -9,16 +11,17 @@ from vis4d.common.bbox.samplers import CombinedSampler
 from vis4d.engine.trainer import BaseCLI
 from vis4d.model import QD3DT
 from vis4d.model.heads.roi_head import QD3DTBBox3DHead
+from vis4d.model.optimize.warmup import LinearLRWarmup
 from vis4d.model.track.graph import QD3DTrackGraph
 from vis4d.model.track.similarity import QDSimilarityHead
-from vis4d.model.optimize.warmup import LinearLRWarmup
 
 
 def setup_model(
     experiment: str,
-    lr: float = 0.02,
+    lr: float = 0.01,
     max_epochs: int = 12,
     backbone: str = "r50_fpn",
+    lstm_ckpt: Optional[str] = None,
 ) -> QD3DT:
     """Setup model with experiment specific hyperparameters."""
     if experiment == "kitti":
@@ -28,14 +31,12 @@ def setup_model(
     else:
         raise NotImplementedError(f"Experiment {experiment} not known!")
 
-    # TODO add motion model and QD3DT grpah
-    from vis4d.model.track.graph import QDTrackGraph
-
-    track_graph = QDTrackGraph(keep_in_memory=10)
+    track_graph = QD3DTrackGraph(
+        keep_in_memory=10,
+        lstm_ckpt=lstm_ckpt,
+    )
 
     detector_kwargs = {
-        # "backbone.depth": 101,
-        # "backbone.init_cfg.checkpoint": "torchvision://resnet101",
         "rpn_head.anchor_generator.scales": [4, 8],
         "rpn_head.anchor_generator.ratios": [0.25, 0.5, 1.0, 2.0, 4.0],
         "rpn_head.loss_bbox.type": "SmoothL1Loss",
@@ -48,6 +49,14 @@ def setup_model(
         "roi_head.bbox_head.loss_bbox.beta": 0.111,
         "roi_head.bbox_head.loss_bbox.loss_weight": 5.0,
     }
+
+    if "r101" in backbone:  # pragma: no cover
+        detector_kwargs["backbone.depth"] = 101
+        detector_kwargs[
+            "backbone.init_cfg.checkpoint"
+        ] = "torchvision://resnet101"
+        backbone = "r50_fpn"
+
     detector = build_faster_rcnn(
         category_mapping, backbone, model_kwargs=detector_kwargs
     )
@@ -79,7 +88,7 @@ def setup_model(
         track_graph=track_graph,
         bbox_3d_head=box3d_head,
         lr_scheduler_init=step_schedule(max_epochs),
-        optimizer_init=sgd(lr),
+        optimizer_init=sgd(lr, paramwise_options={"bboxfc_lr_mult": 10.0}),
         lr_warmup=LinearLRWarmup(warmup_ratio=0.1, warmup_steps=1000),
     )
     return model
