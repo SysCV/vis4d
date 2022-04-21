@@ -302,12 +302,6 @@ class BaseCLI(LightningCLI):
             "for BaseCLI to work properly."
         )
 
-        # connect attributes
-        if self.datamodule is not None and isinstance(
-            self.datamodule, BaseDataModule
-        ):  # pragma: no cover
-            self.datamodule.set_category_mapping(self.model.category_mapping)
-
         if self.trainer.resume:  # pragma: no cover
             weights = self.config_init[subcommand].ckpt_path
             if weights is None:

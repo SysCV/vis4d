@@ -1,5 +1,5 @@
 """QDTrack runtime configuration."""
-from projects.common.datasets import bdd100k_track_map, mot17_map
+from projects.common.datasets import bdd100k_track_map, mot_map
 from projects.common.models import build_faster_rcnn, build_yolox
 from projects.common.optimizers import sgd, step_schedule
 from projects.qdtrack.data import QDTrackDataModule
@@ -27,7 +27,7 @@ def setup_model(
             track_graph = QDTrackGraph(
                 keep_in_memory=30, init_score_thr=0.9, obj_score_thr=0.5
             )
-        category_mapping = mot17_map
+        category_mapping = mot_map
     elif experiment == "mot20":
         if detector == "YOLOX":
             track_graph = QDTrackGraph(
@@ -37,7 +37,7 @@ def setup_model(
             track_graph = QDTrackGraph(
                 keep_in_memory=30, init_score_thr=0.9, obj_score_thr=0.5
             )
-        category_mapping = mot17_map
+        category_mapping = mot_map
     elif experiment == "bdd100k":
         track_graph = QDTrackGraph(keep_in_memory=10)
         category_mapping = bdd100k_track_map
