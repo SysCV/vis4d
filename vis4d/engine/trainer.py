@@ -258,7 +258,6 @@ class BaseCLI(LightningCLI):
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
-        setup_logger()
         super().__init__(
             model_class=model_class,
             datamodule_class=datamodule_class,
