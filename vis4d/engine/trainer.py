@@ -290,6 +290,7 @@ class BaseCLI(LightningCLI):
         rank_zero_info("Environment info: %s", get_pretty_env_info())
 
         # instantiate classes
+        self.config[subcommand].data.subcommand = subcommand
         self.config_init = self.parser.instantiate_classes(self.config)
         self.datamodule = self._get(self.config_init, "data")
         self.model = self._get(self.config_init, "model")

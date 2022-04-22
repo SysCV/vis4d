@@ -50,13 +50,6 @@ def setup_model(
         "roi_head.bbox_head.loss_bbox.loss_weight": 5.0,
     }
 
-    if "r101" in backbone:  # pragma: no cover
-        detector_kwargs["backbone.depth"] = 101
-        detector_kwargs[
-            "backbone.init_cfg.checkpoint"
-        ] = "torchvision://resnet101"
-        backbone = "r50_fpn"
-
     detector = build_faster_rcnn(
         category_mapping, backbone, model_kwargs=detector_kwargs
     )

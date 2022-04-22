@@ -1,5 +1,5 @@
 """QD-3DT data module."""
-from typing import List, Optional
+from typing import Optional
 
 from projects.common.data_pipelines import CommonDataModule, default
 from projects.common.datasets import (
@@ -19,13 +19,13 @@ from vis4d.data import (
     BaseSampleMapper,
     ScalabelDataset,
 )
-from vis4d.data.transforms import BaseAugmentation, Resize
+from vis4d.data.transforms import Resize
 
 
 class QD3DTDataModule(CommonDataModule):
     """QD-3DT data module."""
 
-    def create_datasets(self, subcommand: Optional[str] = None) -> None:
+    def create_datasets(self, stage: Optional[str] = None) -> None:
         """Setup data pipelines for each experiment."""
         data_backend = self._setup_backend()
 
@@ -39,7 +39,7 @@ class QD3DTDataModule(CommonDataModule):
             test_dataset_list = [kitti_track_val]
 
             train_transforms = default(im_hw=(375, 1242))
-            test_transforms: [Resize(shape=(375, 1242))]
+            test_transforms = [Resize(shape=(375, 1242))]
         elif "nuscenes" in self.experiment:
             category_mapping = nuscenes_track_map
             if self.experiment == "nuscenes_mini":
@@ -59,7 +59,7 @@ class QD3DTDataModule(CommonDataModule):
 
         # train pipeline
         train_datasets = []
-        if subcommand is None or subcommand == "fit":
+        if stage is None or stage == "fit":
             train_sample_mapper = BaseSampleMapper(
                 data_backend=data_backend,
                 inputs_to_load=("images", "intrinsics", "extrinsics"),

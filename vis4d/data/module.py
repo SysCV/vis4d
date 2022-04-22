@@ -93,7 +93,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         """Set default category mapping used when creating the datasets."""
         self.category_mapping = cat_map
 
-    def create_datasets(self, subcommand: Optional[str] = None) -> None:
+    def create_datasets(self, stage: Optional[str] = None) -> None:
         """Create Train / Test / Predict Datasets."""
         raise NotImplementedError
 

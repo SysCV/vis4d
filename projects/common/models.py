@@ -21,7 +21,7 @@ def build_faster_rcnn(
         }
     faster_rcnn = MMTwoStageDetector(
         category_mapping=category_mapping,
-        model_base=f"mmdet://_base_/models/faster_rcnn_{backbone}.py",
+        model_base=f"mmdet://faster_rcnn/faster_rcnn_{backbone}_1x_coco.py",
         model_kwargs=model_kwargs,
         pixel_mean=(123.675, 116.28, 103.53),
         pixel_std=(58.395, 57.12, 57.375),

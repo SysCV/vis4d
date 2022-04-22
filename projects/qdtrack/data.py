@@ -41,31 +41,32 @@ class QDTrackDataModule(CommonDataModule):
         test_sample_mapper = BaseSampleMapper(data_backend=data_backend)
 
         clip_to_image = True
+        train_datasets, train_transforms = [], None
         if self.experiment == "mot17":
             # train pipeline
-            train_sample_mapper.setup_categories(mot_map)
-            train_datasets = []
-            train_datasets += [
-                ScalabelDataset(
-                    crowdhuman_trainval(),
-                    True,
-                    train_sample_mapper,
-                    BaseReferenceSampler(num_ref_imgs=1, scope=0),
+            if stage is None or stage == "fit":
+                train_sample_mapper.setup_categories(mot_map)
+                train_datasets += [
+                    ScalabelDataset(
+                        crowdhuman_trainval(),
+                        True,
+                        train_sample_mapper,
+                        BaseReferenceSampler(num_ref_imgs=1, scope=0),
+                    )
+                ]
+                train_datasets += [
+                    ScalabelDataset(
+                        mot17_train(),
+                        True,
+                        train_sample_mapper,
+                        BaseReferenceSampler(
+                            scope=10, num_ref_imgs=1, skip_nomatch_samples=True
+                        ),
+                    )
+                ]
+                train_transforms = mosaic_mixup(
+                    (800, 1440), clip_inside_image=False
                 )
-            ]
-            train_datasets += [
-                ScalabelDataset(
-                    mot17_train(),
-                    True,
-                    train_sample_mapper,
-                    BaseReferenceSampler(
-                        scope=10, num_ref_imgs=1, skip_nomatch_samples=True
-                    ),
-                )
-            ]
-            train_transforms = mosaic_mixup(
-                (800, 1440), clip_inside_image=False
-            )
             clip_to_image = False
 
             # test pipeline
@@ -77,31 +78,31 @@ class QDTrackDataModule(CommonDataModule):
                 ScalabelDataset(mot17_val(), False, test_sample_mapper)
             ]
         elif self.experiment == "mot20":
-            # train pipeline
-            train_sample_mapper.setup_categories(mot_map)
-            train_datasets = []
-            train_datasets += [
-                ScalabelDataset(
-                    crowdhuman_trainval(),
-                    True,
-                    train_sample_mapper,
-                    BaseReferenceSampler(num_ref_imgs=1, scope=0),
+            if stage is None or stage == "fit":
+                # train pipeline
+                train_sample_mapper.setup_categories(mot_map)
+                train_datasets += [
+                    ScalabelDataset(
+                        crowdhuman_trainval(),
+                        True,
+                        train_sample_mapper,
+                        BaseReferenceSampler(num_ref_imgs=1, scope=0),
+                    )
+                ]
+                train_datasets += [
+                    ScalabelDataset(
+                        mot20_train(),
+                        True,
+                        train_sample_mapper,
+                        BaseReferenceSampler(
+                            scope=10, num_ref_imgs=1, skip_nomatch_samples=True
+                        ),
+                    )
+                ]
+                train_transforms = mosaic_mixup(
+                    (896, 1600),
+                    multiscale_sizes=[(32 * i, 1600) for i in range(20, 36)],
                 )
-            ]
-            train_datasets += [
-                ScalabelDataset(
-                    mot20_train(),
-                    True,
-                    train_sample_mapper,
-                    BaseReferenceSampler(
-                        scope=10, num_ref_imgs=1, skip_nomatch_samples=True
-                    ),
-                )
-            ]
-            train_transforms = mosaic_mixup(
-                (896, 1600),
-                multiscale_sizes=[(32 * i, 1600) for i in range(20, 36)],
-            )
 
             # test pipeline
             test_sample_mapper.setup_categories(mot_map)
@@ -110,28 +111,27 @@ class QDTrackDataModule(CommonDataModule):
                 ScalabelDataset(mot20_val(), False, test_sample_mapper)
             ]
         elif self.experiment == "bdd100k":
-            train_sample_mapper.setup_categories(bdd100k_track_map)
-            train_datasets = []
-            train_datasets += [
-                ScalabelDataset(
-                    bdd100k_det_train(),
-                    True,
-                    train_sample_mapper,
-                    BaseReferenceSampler(num_ref_imgs=1, scope=0),
-                )
-            ]
-            train_datasets += [
-                ScalabelDataset(
-                    bdd100k_track_train(),
-                    True,
-                    train_sample_mapper,
-                    BaseReferenceSampler(
-                        scope=10, num_ref_imgs=1, skip_nomatch_samples=True
-                    ),
-                )
-            ]
-
-            train_transforms = default((720, 1280))
+            if stage is None or stage == "fit":
+                train_sample_mapper.setup_categories(bdd100k_track_map)
+                train_datasets += [
+                    ScalabelDataset(
+                        bdd100k_det_train(),
+                        True,
+                        train_sample_mapper,
+                        BaseReferenceSampler(num_ref_imgs=1, scope=0),
+                    )
+                ]
+                train_datasets += [
+                    ScalabelDataset(
+                        bdd100k_track_train(),
+                        True,
+                        train_sample_mapper,
+                        BaseReferenceSampler(
+                            scope=10, num_ref_imgs=1, skip_nomatch_samples=True
+                        ),
+                    )
+                ]
+                train_transforms = default((720, 1280))
 
             test_sample_mapper.setup_categories(bdd100k_track_map)
             test_transforms = [Resize(shape=(720, 1280))]
@@ -143,11 +143,14 @@ class QDTrackDataModule(CommonDataModule):
                 f"Experiment {self.experiment} not known!"
             )
 
-        train_handler = BaseDatasetHandler(
-            train_datasets,
-            clip_bboxes_to_image=clip_to_image,
-            transformations=train_transforms,
-        )
+        if len(train_datasets) > 0:
+            train_handler = BaseDatasetHandler(
+                train_datasets,
+                clip_bboxes_to_image=clip_to_image,
+                transformations=train_transforms,
+            )
+            self.train_datasets = train_handler
+
         test_handlers = [
             BaseDatasetHandler(
                 ds,
@@ -157,5 +160,4 @@ class QDTrackDataModule(CommonDataModule):
             )
             for ds in test_datasets
         ]
-        self.train_datasets = train_handler
         self.test_datasets = test_handlers
