@@ -25,105 +25,82 @@ from vis4d.data.transforms import BaseAugmentation, Resize
 class QD3DTDataModule(CommonDataModule):
     """QD-3DT data module."""
 
-    def create_datasets(self, stage: Optional[str] = None) -> None:
+    def create_datasets(self, subcommand: Optional[str] = None) -> None:
         """Setup data pipelines for each experiment."""
         data_backend = self._setup_backend()
 
-        train_sample_mapper = BaseSampleMapper(
-            data_backend=data_backend,
-            inputs_to_load=("images", "intrinsics", "extrinsics"),
-            targets_to_load=("boxes2d", "boxes3d"),
-            skip_empty_samples=True,
-        )
-        test_sample_mapper = BaseSampleMapper(
-            data_backend=data_backend,
-            inputs_to_load=("images", "intrinsics", "extrinsics"),
-        )
-
         if self.experiment == "kitti":
-            # train pipeline
-            train_sample_mapper.setup_categories(kitti_track_map)
-            train_datasets = []
-            train_datasets += [
-                ScalabelDataset(
-                    kitti_track_train(),
-                    True,
-                    train_sample_mapper,
-                    BaseReferenceSampler(num_ref_imgs=1, scope=3),
-                )
+            category_mapping = kitti_track_map
+            train_dataset_list = [kitti_track_train, kitti_det_train]
+            ref_sampler_list = [
+                BaseReferenceSampler(scope=3, num_ref_imgs=1),
+                None,
             ]
-            train_datasets += [
-                ScalabelDataset(
-                    kitti_det_train(),
-                    True,
-                    train_sample_mapper,
-                )
-            ]
+            test_dataset_list = [kitti_track_val]
+
             train_transforms = default(im_hw=(375, 1242))
+            test_transforms: [Resize(shape=(375, 1242))]
+        elif "nuscenes" in self.experiment:
+            category_mapping = nuscenes_track_map
+            if self.experiment == "nuscenes_mini":
+                train_dataset_list = [nuscenes_mini_train]
+                test_dataset_list = [nuscenes_mini_val]
+            else:
+                train_dataset_list = [nuscenes_train]
+                test_dataset_list = [nuscenes_val]
+            ref_sampler_list = [BaseReferenceSampler(scope=2, num_ref_imgs=1)]
 
-            # test pipeline
-            test_sample_mapper.setup_categories(kitti_track_map)
-            test_transforms: List[BaseAugmentation] = [
-                Resize(shape=(375, 1242))
-            ]
-            test_datasets = [
-                ScalabelDataset(kitti_track_val(), False, test_sample_mapper)
-            ]
-        elif self.experiment == "nuscenes":
-            # train pipeline
-            train_sample_mapper.setup_categories(nuscenes_track_map)
-            train_datasets = [
-                ScalabelDataset(
-                    nuscenes_train(),
-                    True,
-                    train_sample_mapper,
-                    BaseReferenceSampler(scope=2, num_ref_imgs=1),
-                )
-            ]
             train_transforms = default(im_hw=(900, 1600))
-
-            # test pipeline
-            test_sample_mapper.setup_categories(nuscenes_track_map)
             test_transforms = [Resize(shape=(900, 1600))]
-            test_datasets = [
-                ScalabelDataset(nuscenes_val(), False, test_sample_mapper)
-            ]
-        elif self.experiment == "nuscenes_mini":
-            # train pipeline
-            train_sample_mapper.setup_categories(nuscenes_track_map)
-            train_datasets = [
-                ScalabelDataset(
-                    nuscenes_mini_train(),
-                    True,
-                    train_sample_mapper,
-                    BaseReferenceSampler(scope=2, num_ref_imgs=1),
-                )
-            ]
-            train_transforms = default(im_hw=(900, 1600))
-
-            # test pipeline
-            test_sample_mapper.setup_categories(nuscenes_track_map)
-            test_transforms = [Resize(shape=(900, 1600))]
-            test_datasets = [
-                ScalabelDataset(nuscenes_mini_val(), False, test_sample_mapper)
-            ]
         else:
             raise NotImplementedError(
                 f"Experiment {self.experiment} not known!"
             )
 
-        train_handler = BaseDatasetHandler(
-            train_datasets,
-            transformations=train_transforms,
-        )
-        test_handlers = [
-            BaseDatasetHandler(
-                ds,
-                transformations=test_transforms,
-                clip_bboxes_to_image=False,
-                min_bboxes_area=0.0,
+        # train pipeline
+        train_datasets = []
+        if subcommand is None or subcommand == "fit":
+            train_sample_mapper = BaseSampleMapper(
+                data_backend=data_backend,
+                inputs_to_load=("images", "intrinsics", "extrinsics"),
+                targets_to_load=("boxes2d", "boxes3d"),
+                skip_empty_samples=True,
+                category_map=category_mapping,
             )
-            for ds in test_datasets
-        ]
-        self.train_datasets = train_handler
-        self.test_datasets = test_handlers
+
+            for dataset, ref_sampler in zip(
+                train_dataset_list, ref_sampler_list
+            ):
+                train_datasets.append(
+                    ScalabelDataset(
+                        dataset(),
+                        training=True,
+                        mapper=train_sample_mapper,
+                        ref_sampler=ref_sampler,
+                    )
+                )
+            self.train_datasets = BaseDatasetHandler(
+                train_datasets,
+                transformations=train_transforms,
+            )
+
+        # test pipeline
+        self.test_datasets = []
+        test_sample_mapper = BaseSampleMapper(
+            data_backend=data_backend,
+            inputs_to_load=("images", "intrinsics", "extrinsics"),
+            category_map=category_mapping,
+        )
+
+        for dataset in test_dataset_list:
+            test_dataset = ScalabelDataset(
+                dataset(), training=False, mapper=test_sample_mapper
+            )
+            self.test_datasets.append(
+                BaseDatasetHandler(
+                    test_dataset,
+                    transformations=test_transforms,
+                    clip_bboxes_to_image=False,
+                    min_bboxes_area=0.0,
+                )
+            )

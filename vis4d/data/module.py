@@ -72,6 +72,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         input_dir: Optional[str] = None,
         sampler_cfg: Optional[ModuleCfg] = None,
         video_based_inference: Optional[bool] = None,
+        subcommand: Optional[str] = None,
     ) -> None:
         """Init."""
         super().__init__()  # type: ignore
@@ -86,13 +87,13 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         self.predict_datasets: Optional[List[BaseDatasetHandler]] = None
         self._sampler_cfg = sampler_cfg
         self.category_mapping: Optional[CategoryMap] = None
-        self.create_datasets()
+        self.create_datasets(subcommand)
 
     def set_category_mapping(self, cat_map: CategoryMap) -> None:
         """Set default category mapping used when creating the datasets."""
         self.category_mapping = cat_map
 
-    def create_datasets(self, stage: Optional[str] = None) -> None:
+    def create_datasets(self, subcommand: Optional[str] = None) -> None:
         """Create Train / Test / Predict Datasets."""
         raise NotImplementedError
 
