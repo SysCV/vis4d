@@ -3,8 +3,8 @@ import pickle
 from typing import Dict, List, Optional, Tuple
 
 import torch
+from torch import nn
 
-from vis4d.model.base import BaseModel
 from vis4d.model.detect import (
     BaseDetector,
     BaseOneStageDetector,
@@ -26,7 +26,7 @@ from vis4d.struct import (
 )
 
 
-class QDTrack(BaseModel):
+class QDTrack(nn.Module):
     """QDTrack model - quasi-dense instance similarity learning."""
 
     def __init__(
@@ -34,11 +34,13 @@ class QDTrack(BaseModel):
         detection: BaseDetector,
         similarity: BaseSimilarityHead,
         track_graph: BaseTrackGraph,
-        *args: ArgsType,
-        **kwargs: ArgsType,
+        category_mapping: Optional[Dict[str, int]] = None,
+        image_channel_mode: str = "RGB",
     ) -> None:
         """Init."""
-        super().__init__(*args, **kwargs)
+        super().__init__()
+        self.category_mapping = category_mapping
+        self.image_channel_mode = image_channel_mode
         assert self.category_mapping is not None, "Need category mapping"
         self.detector = detection
         assert isinstance(

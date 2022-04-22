@@ -1,17 +1,16 @@
 """Base class for Vis4D models."""
-import abc
 import os.path as osp
 import re
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import Callable, Dict, List, Optional, Tuple, Union, no_type_check
+from typing import Callable, List, Optional, Tuple, no_type_check
 
 import pytorch_lightning as pl
 import torch
+from torch import nn
 from pytorch_lightning.utilities.cli import instantiate_class
 from pytorch_lightning.utilities.rank_zero import (
     rank_zero_info,
-    rank_zero_warn,
 )
 from torch.optim import Optimizer, lr_scheduler
 from torch.utils.model_zoo import load_url
@@ -20,7 +19,6 @@ from ..common.io import HDF5Backend
 from ..common.registry import RegistryHolder
 from ..common.utils.distributed import get_rank, get_world_size
 from ..struct import (
-    ArgsType,
     DictStrAny,
     InputSample,
     LossesType,
@@ -50,11 +48,9 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
 
     def __init__(
         self,
-        *args: ArgsType,
+        model: nn.Module,
         optimizer_init: Optional[ModuleCfg] = None,
         lr_scheduler_init: Optional[ModuleCfg] = None,
-        category_mapping: Optional[Dict[str, int]] = None,
-        image_channel_mode: str = "RGB",
         freeze: bool = False,
         freeze_parameters: Optional[List[str]] = None,
         inference_result_path: Optional[str] = None,
@@ -62,13 +58,8 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         strict: bool = True,
         revise_keys: Optional[List[Tuple[str, str]]] = None,
         lr_warmup: Optional[BaseLRWarmup] = None,
-        **kwargs: ArgsType,
     ):
         """Init."""
-        if len(args) > 0:
-            rank_zero_warn(f"Found unused positional arguments: {args}")
-        if len(kwargs) > 0:
-            rank_zero_warn(f"Found unused keyword arguments: {kwargs}")
         super().__init__()
 
         self.optimizer_init = (
@@ -87,10 +78,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
                 "Attribute mode of LR Scheduler must be either step or epoch, "
                 f"found {self.lr_scheduler_init['mode']}"
             )
-
-        self.category_mapping = category_mapping
-        self.image_channel_mode = image_channel_mode
-
+        self.model = model
         self._freeze = freeze
         self._freeze_parameters = freeze_parameters
         self._weights = weights
@@ -102,41 +90,6 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         self.inference_result_path = inference_result_path
         if self.inference_result_path is not None:
             self.data_backend = HDF5Backend()
-
-    def __call__(
-        self, batch_inputs: List[InputSample]
-    ) -> Union[LossesType, ModelOutput]:  # pragma: no cover
-        """Forward."""
-        if self.training:
-            return self.forward_train(batch_inputs)
-        return self.forward_test(batch_inputs)
-
-    @abc.abstractmethod
-    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
-        """Forward pass during training stage.
-
-        Args:
-            batch_inputs: List of batched model inputs. One InputSample
-            contains all batch elements of a single view. One view is either
-            the key frame or a reference frame.
-
-        Returns:
-            LossesType: A dict of scalar loss tensors.
-        """
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
-        """Forward pass during testing stage.
-
-        Args:
-            batch_inputs: Model input (batched).
-
-        Returns:
-            ModelOutput: Dict of Scalabel results (List[Label]), e.g. tracking
-            and separate detection result.
-        """
-        raise NotImplementedError
 
     def configure_optimizers(
         self,
@@ -190,7 +143,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         self, batch: List[InputSample], *args, **kwargs
     ) -> LossesType:
         """Wrap training step of LightningModule. Add overall loss."""
-        losses = self.forward_train(batch)
+        losses = self.model(batch)
         losses["loss"] = sum(list(losses.values()))
 
         losses_detached = {k: v.detach() for k, v in losses.items()}
@@ -216,13 +169,13 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         self, batch: List[InputSample], *args, **kwargs
     ) -> ModelOutput:
         """Wrap test step of LightningModule."""
-        return self.forward_test(batch)
+        return self.model(batch)
 
     def validation_step(  # type: ignore # pylint: disable=arguments-differ
         self, batch: List[InputSample], *args, **kwargs
     ) -> ModelOutput:
         """Wrap validation step of LightningModule."""
-        return self.forward_test(batch)
+        return self.model(batch)
 
     def predict_step(
         self,
@@ -241,7 +194,7 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
             ModelOutput: Dict of Scalabel results (List[Label]), e.g. tracking
             and separate detection result.
         """
-        return self.forward_test(batch)
+        return self.model(batch)
 
     def on_fit_start(self) -> None:
         """Called at the beginning of fit."""
