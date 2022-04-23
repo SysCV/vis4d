@@ -159,7 +159,9 @@ class DefaultEvaluatorCallback(BaseEvaluatorCallback):
             logger.info("Running evaluation on dataset %s...", self.name)
         for key, predictions in self._predictions.items():
             if self.output_dir is not None:
-                self.save_func(self.output_dir, key, predictions)
+                output_dir = os.path.join(self.output_dir, key)
+                os.makedirs(output_dir, exist_ok=True)
+                self.save_func(output_dir, key, predictions)
 
             if key in self.metrics:
                 log_dict, log_str = self.eval_func(key, predictions, self._gts)

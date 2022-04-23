@@ -62,7 +62,7 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
             dims = torch.where(
                 targets_.dimensions > 0,
                 torch.log(targets_.dimensions) * self.dim_log_scale,
-                targets_.dimensions.new_ones(1),
+                targets_.dimensions.new_ones(1) * 100.0,
             )
 
             # rotation
