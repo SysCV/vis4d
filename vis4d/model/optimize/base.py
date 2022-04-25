@@ -15,17 +15,17 @@ from pytorch_lightning.utilities.rank_zero import (
 from torch.optim import Optimizer, lr_scheduler
 from torch.utils.model_zoo import load_url
 
-from ..common.io import HDF5Backend
-from ..common.registry import RegistryHolder
-from ..common.utils.distributed import get_rank, get_world_size
-from ..struct import (
+from vis4d.common.io import HDF5Backend
+from vis4d.common.registry import RegistryHolder
+from vis4d.common.utils.distributed import get_rank, get_world_size
+from vis4d.struct import (
     DictStrAny,
     InputSample,
     LossesType,
     ModelOutput,
     ModuleCfg,
 )
-from .optimize import BaseLRWarmup, LinearLRWarmup
+from vis4d.model.optimize import BaseLRWarmup, LinearLRWarmup
 
 DEFAULT_OPTIM = {
     "class_path": "torch.optim.SGD",

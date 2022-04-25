@@ -2,6 +2,7 @@
 
 import abc
 from typing import List, Optional, Tuple, Union, overload
+from torch import nn
 
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
@@ -14,21 +15,17 @@ from vis4d.struct import (
     LossesType,
 )
 
-from ..base import BaseModel
 
-
-class BaseOneStageDetector(BaseModel):
+class BaseOneStageDetector(nn.Module):
     """Base single-stage detector class."""
 
     def __init__(
         self,
-        *args: ArgsType,
         clip_bboxes_to_image: bool = True,
         resolve_overlap: bool = True,
-        **kwargs: ArgsType,
     ):
         """Init."""
-        super().__init__(*args, **kwargs)
+        super().__init__()
         self.clip_bboxes_to_image = clip_bboxes_to_image
         self.resolve_overlap = resolve_overlap
 
@@ -92,18 +89,16 @@ class BaseOneStageDetector(BaseModel):
         raise NotImplementedError
 
 
-class BaseTwoStageDetector(BaseModel):
+class BaseTwoStageDetector(nn.Module):
     """Base class for two-stage detectors."""
 
     def __init__(
         self,
-        *args: ArgsType,
         clip_bboxes_to_image: bool = True,
         resolve_overlap: bool = True,
-        **kwargs: ArgsType,
     ):
         """Init."""
-        super().__init__(*args, **kwargs)
+        super().__init__()
         self.clip_bboxes_to_image = clip_bboxes_to_image
         self.resolve_overlap = resolve_overlap
 

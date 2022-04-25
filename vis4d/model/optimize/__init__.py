@@ -6,8 +6,10 @@ from .warmup import (
     ExponentialLRWarmup,
     LinearLRWarmup,
 )
+from .base import BaseModel
 
 __all__ = [
+    "BaseModel",
     "PolyLRScheduler",
     "BaseLRWarmup",
     "LinearLRWarmup",

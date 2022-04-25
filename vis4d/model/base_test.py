@@ -39,7 +39,7 @@ from vis4d.unittest.utils import (
     generate_input_sample,
 )
 
-from .base import BaseModel
+from vis4d.model.optimize.base import BaseModel
 from .qd_3dt import QD3DT
 from .qdtrack import QDTrack
 

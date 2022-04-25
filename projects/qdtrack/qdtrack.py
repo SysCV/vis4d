@@ -6,6 +6,7 @@ from pytorch_lightning.utilities.cli import instantiate_class
 
 from projects.common.data_pipelines import default as default_augs
 from vis4d.model import QDTrack
+from vis4d.model.optimize import BaseModel
 from vis4d.struct import ArgsType
 
 try:
@@ -81,14 +82,12 @@ class QDTrackYOLOX(QDTrack):
     def __init__(
         self,
         *args: ArgsType,
-        no_aug_epochs: int = 10,
         im_hw: Tuple[int, int] = (800, 1440),
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
         assert MMDET_INSTALLED, "QDTrackYOLOX needs mmdet installed!"
-        self.no_aug_epochs = no_aug_epochs
         self.im_hw = im_hw
         if self.detector.bbox_head.mm_dense_head.train_cfg:
             assign_args = (
@@ -98,6 +97,22 @@ class QDTrackYOLOX(QDTrack):
             self.detector.bbox_head.mm_dense_head.assigner = (
                 ClippedSimOTAAssigner(*im_hw, **assign_args)
             )
+
+
+class YOLOXOptimize(BaseModel):
+    """QDTrack + YOLOX detector optimization routine."""
+
+    def __init__(
+            self,
+            *args: ArgsType,
+            no_aug_epochs: int = 10,
+            **kwargs: ArgsType,
+    ) -> None:
+        """Init."""
+        super().__init__(*args, **kwargs)
+        self.no_aug_epochs = no_aug_epochs
+        assert hasattr(self.model, "im_hw"), "Need image hw to reset augmentations"
+        self.im_hw = self.model.im_hw
 
     def on_train_epoch_start(self):
         """In the last training epochs: add L1 loss, turn off augmentations."""
