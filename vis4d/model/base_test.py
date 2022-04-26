@@ -39,7 +39,7 @@ from vis4d.unittest.utils import (
     generate_input_sample,
 )
 
-from vis4d.model.optimize.base import BaseModel
+from vis4d.model.optimize.optimizer import DefaultOptimizer
 from .qd_3dt import QD3DT
 from .qdtrack import QDTrack
 
@@ -54,7 +54,7 @@ class BaseModelTests:
     class TestDetect(unittest.TestCase):
         """Base test case for vis4d detect models."""
 
-        model: Optional[BaseModel] = None
+        model: Optional[DefaultOptimizer] = None
 
         def test_train(self) -> None:
             """Test case for training."""
@@ -77,7 +77,7 @@ class BaseModelTests:
     class TestTrack(unittest.TestCase):
         """Base test case for vis4d tracking models."""
 
-        model: Optional[BaseModel] = None
+        model: Optional[DefaultOptimizer] = None
 
         def test_train(self) -> None:
             """Test case for training."""
@@ -109,7 +109,7 @@ class BaseModelTests:
     class TestTrackInference(unittest.TestCase):
         """Base test case for vis4d tracking models with inference results."""
 
-        model: Optional[BaseModel] = None
+        model: Optional[DefaultOptimizer] = None
 
         def test_test(self) -> None:
             """Test case for testing."""
@@ -125,7 +125,7 @@ class BaseModelTests:
     class TestTrack3D(unittest.TestCase):
         """Base test case for vis4d 3D track models."""
 
-        model: Optional[BaseModel] = None
+        model: Optional[DefaultOptimizer] = None
 
         def test_train(self) -> None:
             """Test case for training."""
@@ -172,7 +172,7 @@ class BaseModelTests:
     class TestSegment(unittest.TestCase):
         """Base test case for vis4d segment models."""
 
-        model: Optional[BaseModel] = None
+        model: Optional[DefaultOptimizer] = None
 
         def test_train(self) -> None:
             """Test case for training."""
@@ -196,7 +196,7 @@ class BaseModelTests:
     class TestPanoptic(unittest.TestCase):
         """Base test case for vis4d panoptic models."""
 
-        model: Optional[BaseModel] = None
+        model: Optional[DefaultOptimizer] = None
 
         def test_train(self) -> None:
             """Test case for training."""

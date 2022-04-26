@@ -43,8 +43,8 @@ DEFAULT_SCHEDULER = {
 }
 
 
-class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
-    """Base model class."""
+class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
+    """Default optimization routine."""
 
     def __init__(
         self,
@@ -53,7 +53,6 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         lr_scheduler_init: Optional[ModuleCfg] = None,
         freeze: bool = False,
         freeze_parameters: Optional[List[str]] = None,
-        inference_result_path: Optional[str] = None,
         weights: Optional[str] = None,
         strict: bool = True,
         revise_keys: Optional[List[Tuple[str, str]]] = None,
@@ -87,9 +86,6 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         self.lr_warmup = (
             lr_warmup if lr_warmup is not None else LinearLRWarmup(0.001, 500)
         )
-        self.inference_result_path = inference_result_path
-        if self.inference_result_path is not None:
-            self.data_backend = HDF5Backend()
 
     def configure_optimizers(
         self,

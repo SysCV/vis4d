@@ -6,7 +6,7 @@ from pytorch_lightning.utilities.cli import instantiate_class
 
 from projects.common.data_pipelines import default as default_augs
 from vis4d.model import QDTrack
-from vis4d.model.optimize import BaseModel
+from vis4d.model.optimize import DefaultOptimizer
 from vis4d.struct import ArgsType
 
 try:
@@ -99,7 +99,7 @@ class QDTrackYOLOX(QDTrack):
             )
 
 
-class YOLOXOptimize(BaseModel):
+class YOLOXOptimize(DefaultOptimizer):
     """QDTrack + YOLOX detector optimization routine."""
 
     def __init__(

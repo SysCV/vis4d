@@ -34,14 +34,9 @@ class QDTrack(nn.Module):
         detection: BaseDetector,
         similarity: BaseSimilarityHead,
         track_graph: BaseTrackGraph,
-        category_mapping: Optional[Dict[str, int]] = None,
-        image_channel_mode: str = "RGB",
     ) -> None:
         """Init."""
         super().__init__()
-        self.category_mapping = category_mapping
-        self.image_channel_mode = image_channel_mode
-        assert self.category_mapping is not None, "Need category mapping"
         self.detector = detection
         assert isinstance(
             self.detector, (BaseTwoStageDetector, BaseOneStageDetector)
@@ -169,7 +164,7 @@ class QDTrack(nn.Module):
         postprocess_predictions(
             inputs, outs, self.detector.clip_bboxes_to_image
         )
-        return predictions_to_scalabel(outs, self.cat_mapping)
+        return outs
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward function for training."""

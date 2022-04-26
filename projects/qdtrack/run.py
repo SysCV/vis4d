@@ -9,7 +9,7 @@ from vis4d.engine.trainer import BaseCLI, DefaultTrainer
 from vis4d.model import QDTrack
 from vis4d.model.track.graph import QDTrackGraph
 from vis4d.model.track.similarity import QDSimilarityHead
-from vis4d.model.optimize.base import BaseModel
+from vis4d.model.optimize.optimizer import DefaultOptimizer
 
 def setup_model(
     experiment: str,
@@ -71,9 +71,9 @@ def setup_model(
 
     if experiment == "mot17":
         model.detector.clip_bboxes_to_image = False
-    return BaseModel(model,
-            lr_scheduler_init=step_schedule(max_epochs),
-            optimizer_init=sgd(lr),)
+    return DefaultOptimizer(model,
+                            lr_scheduler_init=step_schedule(max_epochs),
+                            optimizer_init=sgd(lr), )
 
 
 class QDTrackCLI(BaseCLI):

@@ -6,10 +6,10 @@ from .warmup import (
     ExponentialLRWarmup,
     LinearLRWarmup,
 )
-from .base import BaseModel
+from .optimizer import DefaultOptimizer
 
 __all__ = [
-    "BaseModel",
+    "DefaultOptimizer",
     "PolyLRScheduler",
     "BaseLRWarmup",
     "LinearLRWarmup",
