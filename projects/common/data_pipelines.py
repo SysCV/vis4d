@@ -33,6 +33,10 @@ class CommonDataModule(BaseDataModule):
         self.use_hdf5 = use_hdf5
         super().__init__(*args, **kwargs)
 
+    def create_datasets(self, stage: Optional[str] = None) -> None:
+        """Create Train / Test / Predict Datasets."""
+        raise NotImplementedError
+
     def _setup_backend(self) -> BaseDataBackend:
         """Setup data backend."""
         backend = FileBackend() if not self.use_hdf5 else HDF5Backend()

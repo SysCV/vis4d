@@ -1,5 +1,5 @@
 """QD-3DT data module."""
-from typing import Optional
+from typing import Callable, List, Optional
 
 from projects.common.data_pipelines import CommonDataModule, default
 from projects.common.datasets import (
@@ -19,7 +19,8 @@ from vis4d.data import (
     BaseSampleMapper,
     ScalabelDataset,
 )
-from vis4d.data.transforms import Resize
+from vis4d.data.datasets import BaseDatasetLoader
+from vis4d.data.transforms import BaseAugmentation, Resize
 
 
 class QD3DTDataModule(CommonDataModule):
@@ -31,23 +32,32 @@ class QD3DTDataModule(CommonDataModule):
 
         if self.experiment == "kitti":
             category_mapping = kitti_track_map
-            train_dataset_list = [kitti_track_train(), kitti_det_train()]
+            train_dataset_list: List[Callable[[], BaseDatasetLoader]] = [
+                kitti_track_train,
+                kitti_det_train,
+            ]
             ref_sampler_list = [
                 BaseReferenceSampler(scope=3, num_ref_imgs=1),
                 None,
             ]
-            test_dataset_list = [kitti_track_val()]
+            test_dataset_list: List[Callable[[], BaseDatasetLoader]] = [
+                kitti_track_val
+            ]
 
-            train_transforms = default(im_hw=(375, 1242))
-            test_transforms = [Resize(shape=(375, 1242))]
+            train_transforms: List[BaseAugmentation] = default(
+                im_hw=(375, 1242)
+            )
+            test_transforms: List[BaseAugmentation] = [
+                Resize(shape=(375, 1242))
+            ]
         elif "nuscenes" in self.experiment:
             category_mapping = nuscenes_track_map
             if self.experiment == "nuscenes_mini":
-                train_dataset_list = [nuscenes_mini_train()]
-                test_dataset_list = [nuscenes_mini_val()]
+                train_dataset_list = [nuscenes_mini_train]
+                test_dataset_list = [nuscenes_mini_val]
             else:
-                train_dataset_list = [nuscenes_train()]
-                test_dataset_list = [nuscenes_val()]
+                train_dataset_list = [nuscenes_train]
+                test_dataset_list = [nuscenes_val]
             ref_sampler_list = [BaseReferenceSampler(scope=2, num_ref_imgs=1)]
 
             train_transforms = default(im_hw=(900, 1600))

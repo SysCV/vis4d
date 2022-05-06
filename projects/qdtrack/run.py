@@ -71,7 +71,8 @@ def setup_model(
                 category_mapping, backbone="r50_caffe_fpn"
             )
             detector.load_pretrained_weights(
-                "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco-person/faster_rcnn_r50_fpn_1x_coco-person_20201216_175929-d022e227.pth",
+                "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco-person/faster"
+                "_rcnn_r50_fpn_1x_coco-person_20201216_175929-d022e227.pth",
                 strict=False,
             )
             similarity_head = QDSimilarityHead(

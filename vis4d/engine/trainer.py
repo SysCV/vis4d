@@ -4,9 +4,9 @@ from datetime import datetime
 from itertools import product
 from typing import Callable, Dict, List, Optional, Type, Union
 
-import torch
 import pandas
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin

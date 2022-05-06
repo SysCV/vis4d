@@ -154,7 +154,7 @@ class LSTM3DMotionModel(BaseMotionModel):
         return self.obj_state
 
 
-class VeloLSTM(nn.Module):  # type: ignore
+class VeloLSTM(nn.Module):  # type: ignore  # pylint: disable=abstract-method
     """Estimating object location in world coordinates.
 
     Prediction LSTM:

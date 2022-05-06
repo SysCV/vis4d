@@ -4,9 +4,8 @@ from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from torch.utils import data
-
 from scalabel.label.typing import FrameGroup
+from torch.utils import data
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.data.transforms import BaseAugmentation

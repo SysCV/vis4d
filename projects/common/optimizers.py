@@ -1,5 +1,5 @@
 """Common optimizers."""
-from typing import Optional, List
+from typing import List, Optional
 
 from vis4d.struct import DictStrAny
 
@@ -49,7 +49,7 @@ def step_schedule(
 ) -> DictStrAny:
     """Create standard step schedule cfg according to max epochs."""
     if milestones is None:
-        [int(max_epochs * 2 / 3), int(max_epochs * 11 / 12)]
+        milestones = [int(max_epochs * 2 / 3), int(max_epochs * 11 / 12)]
     lr_scheduler_cfg = {
         "class_path": "torch.optim.lr_scheduler.MultiStepLR",
         "init_args": {"milestones": milestones, "gamma": gamma},

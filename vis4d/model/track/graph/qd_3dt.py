@@ -16,7 +16,7 @@ from vis4d.struct import (
     DictStrAny,
     InputSample,
     LabelInstances,
-    ModuleCfg,
+    LossesType,
 )
 
 from .qdtrack import QDTrackGraph
@@ -74,11 +74,8 @@ class QD3DTrackGraph(QDTrackGraph):
                 lstm_model.load_state_dict(state)
             del ckpt
 
-        self.motion_model = {
-            "num_frames": num_frames,
-            "motion_dims": motion_dims,
-            "lstm_model": lstm_model,
-        }
+        self.num_frames = num_frames
+        self.motion_model = lstm_model
 
     def reset(self) -> None:
         """Reset tracks."""
@@ -133,9 +130,7 @@ class QD3DTrackGraph(QDTrackGraph):
         velocities = (
             torch.cat(velocities)
             if len(velocities) > 0
-            else torch.empty(
-                (0, self.motion_model["motion_dims"]), device=device
-            )
+            else torch.empty((0, self.motion_model.loc_dim), device=device)
         )
         class_ids = (
             torch.cat(class_ids)
@@ -161,7 +156,7 @@ class QD3DTrackGraph(QDTrackGraph):
                 motion_models.extend(backdrop["motion_model"])
                 backdrop_vs = torch.zeros_like(
                     backdrop["detections_3d"].boxes[
-                        :, : self.motion_model["motion_dims"]
+                        :, : self.motion_model.loc_dim
                     ]
                 )
                 velocities = torch.cat([velocities, backdrop_vs])
@@ -321,7 +316,7 @@ class QD3DTrackGraph(QDTrackGraph):
             for ind, memo_motion_model in enumerate(memo_motion_models):
                 memo_velo = memo_motion_model.predict(
                     update_state=memo_motion_model.age != 0
-                )[self.motion_model["motion_dims"] :]
+                )[self.motion_model.loc_dim :]
                 memo_boxes_3d_predict[ind, :3] += memo_velo
 
             obs_3d = self.parse_observation(detections_3d.boxes, batch=True)
@@ -331,10 +326,8 @@ class QD3DTrackGraph(QDTrackGraph):
             for memo_box_3d_predict in memo_boxes_3d_predict:
                 bbox3d_weight_list.append(
                     F.pairwise_distance(
-                        obs_3d[:, : self.motion_model["motion_dims"]],
-                        memo_box_3d_predict[
-                            : self.motion_model["motion_dims"]
-                        ],
+                        obs_3d[:, : self.motion_model.loc_dim],
+                        memo_box_3d_predict[: self.motion_model.loc_dim],
                         keepdim=True,
                     )
                 )
@@ -343,10 +336,10 @@ class QD3DTrackGraph(QDTrackGraph):
 
             # Depth Ordering
             scores_depth = self.depth_ordering(
-                obs_3d[:, : self.motion_model["motion_dims"]],
-                memo_obs_3d[:, : self.motion_model["motion_dims"]],
-                memo_boxes_3d_predict[:, : self.motion_model["motion_dims"]],
-                memo_vs[:, : self.motion_model["motion_dims"]],
+                obs_3d[:, : self.motion_model.loc_dim],
+                memo_obs_3d[:, : self.motion_model.loc_dim],
+                memo_boxes_3d_predict[:, : self.motion_model.loc_dim],
+                memo_vs[:, : self.motion_model.loc_dim],
             )
 
             # match using bisoftmax metric
@@ -410,6 +403,16 @@ class QD3DTrackGraph(QDTrackGraph):
 
         return result
 
+    def forward_train(
+        self,
+        inputs: List[InputSample],
+        predictions: List[LabelInstances],
+        targets: Optional[List[LabelInstances]],
+        **kwargs: List[torch.Tensor],
+    ) -> LossesType:
+        """Forward of QDTrackGraph in training stage."""
+        raise NotImplementedError
+
     def update(  # type: ignore # pylint: disable=arguments-differ
         self,
         ids: torch.Tensor,
@@ -452,10 +455,10 @@ class QD3DTrackGraph(QDTrackGraph):
         for bd_ind in backdrop_inds:
             backdrop_motion_model.append(
                 LSTM3DMotionModel(
-                    num_frames=self.motion_model["num_frames"],
-                    lstm_model=self.motion_model["lstm_model"],
+                    num_frames=self.num_frames,
+                    lstm_model=self.motion_model,
                     detections_3d=detections_3d[bd_ind].boxes[0],
-                    motion_dims=self.motion_model["motion_dims"],
+                    motion_dims=self.motion_model.loc_dim,
                 )
             )
 
@@ -497,13 +500,13 @@ class QD3DTrackGraph(QDTrackGraph):
         self.tracks[track_id]["motion_model"].update(obs_3d)
 
         pd_box_3d = self.tracks[track_id]["motion_model"].get_state()[
-            : self.motion_model["motion_dims"]
+            : self.motion_model.loc_dim
         ]
 
         prev_obs = self.parse_observation(self.tracks[track_id]["bbox_3d"])
-        velocity = (
-            pd_box_3d - prev_obs[: self.motion_model["motion_dims"]]
-        ) / (frame_id - self.tracks[track_id]["last_frame"])
+        velocity = (pd_box_3d - prev_obs[: self.motion_model.loc_dim]) / (
+            frame_id - self.tracks[track_id]["last_frame"]
+        )
 
         # Update Box3D with center, dim, rot_y
         self.tracks[track_id]["bbox_3d"] = bbox_3d
@@ -528,7 +531,7 @@ class QD3DTrackGraph(QDTrackGraph):
         """Parse required boudning box."""
         if batch:
             obs_3d = torch.zeros(
-                (bbox_3d.shape[0], self.motion_model["motion_dims"] + 1),
+                (bbox_3d.shape[0], self.motion_model.loc_dim + 1),
                 device=bbox_3d.device,
             )
             obs_3d[:, :6] = bbox_3d[:, :6]
@@ -536,7 +539,7 @@ class QD3DTrackGraph(QDTrackGraph):
             obs_3d[:, 7] = bbox_3d[:, -1]
         else:
             obs_3d = torch.zeros(
-                self.motion_model["motion_dims"] + 1, device=bbox_3d.device
+                self.motion_model.loc_dim + 1, device=bbox_3d.device
             )
             obs_3d[:6] = bbox_3d[:6]
             obs_3d[6] = bbox_3d[7]
@@ -557,10 +560,10 @@ class QD3DTrackGraph(QDTrackGraph):
         bbox_3d = detection_3d.boxes[0]
         obs_3d = self.parse_observation(bbox_3d)
         motion_model = LSTM3DMotionModel(
-            num_frames=self.motion_model["num_frames"],
-            lstm_model=self.motion_model["lstm_model"],
+            num_frames=self.num_frames,
+            lstm_model=self.motion_model,
             detections_3d=obs_3d,
-            motion_dims=self.motion_model["motion_dims"],
+            motion_dims=self.motion_model.loc_dim,
         )
 
         self.tracks[track_id] = dict(
@@ -571,7 +574,7 @@ class QD3DTrackGraph(QDTrackGraph):
             class_id=class_id,
             last_frame=frame_id,
             velocity=torch.zeros(
-                self.motion_model["motion_dims"], device=bbox_3d.device
+                self.motion_model.loc_dim, device=bbox_3d.device
             ),
             acc_frame=0,
         )
