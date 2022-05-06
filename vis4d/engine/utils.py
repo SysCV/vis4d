@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import pytorch_lightning as pl
 import torch
@@ -17,7 +17,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 from termcolor import colored
 
 from ..common.utils.time import Timer
-from ..struct import ArgsType, DictStrAny
+from ..struct import ArgsType
 
 try:
     from mmcv.utils import get_logger
@@ -43,7 +43,6 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         self._refresh_rate = refresh_rate
         self.enable()
         self.timer = Timer()
-        self._metrics_history: List[DictStrAny] = []
 
     def disable(self) -> None:
         """Disable progressbar."""
@@ -59,7 +58,6 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         """Reset timer on start of epoch."""
         super().on_train_epoch_start(trainer, pl_module)
         self.timer.reset()
-        self._metrics_history = []
 
     def on_predict_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -67,7 +65,6 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         """Reset timer on start of predict."""
         super().on_predict_start(trainer, pl_module)
         self.timer.reset()
-        self._metrics_history = []
 
     def on_validation_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -75,7 +72,6 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         """Reset timer on start of validation."""
         super().on_validation_start(trainer, pl_module)
         self.timer.reset()
-        self._metrics_history = []
 
     def on_test_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -83,34 +79,13 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         """Reset timer on start of test."""
         super().on_test_start(trainer, pl_module)
         self.timer.reset()
-        self._metrics_history = []
-
-    def _get_metrics(self) -> DictStrAny:
-        """Get current running avg of metrics and clean history."""
-        acc_metrics: DictStrAny = {}
-        if len(self._metrics_history) == 0:
-            return acc_metrics
-
-        for k, v in self._metrics_history[-1].items():
-            if isinstance(v, (torch.Tensor, float, int)):
-                acc_value = 0.0
-                num_hist = 0
-                for hist_dict in self._metrics_history:
-                    if k in hist_dict:
-                        acc_value += hist_dict[k]
-                        num_hist += 1
-                acc_value /= num_hist
-                acc_metrics[k] = acc_value
-            elif isinstance(v, str) and not v == "nan":
-                acc_metrics[k] = v
-        self._metrics_history = []
-        return acc_metrics
 
     def _compose_log_str(
         self,
         prefix: str,
         batch_idx: int,
         total_batches: Union[int, float],
+        metrics: Optional[Dict[str, Union[int, float]]] = None,
     ) -> str:
         """Compose log str from given information."""
         time_sec_tot = self.timer.time()
@@ -121,13 +96,18 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         else:  # pragma: no cover
             eta_str = "---"
 
-        metrics_list = []
-        for k, v in self._get_metrics().items():
-            if isinstance(v, (torch.Tensor, float)):
-                kv_str = f"{k}: {v:.3f}"
-            else:
-                kv_str = f"{k}: {v}"
-            metrics_list.append(kv_str)
+        metrics_list: List[str] = []
+        if metrics is not None:
+            for k, v in metrics.items():
+                name = k.split("/")[-1]  # remove prefix, e.g. train/loss
+                if isinstance(v, (torch.Tensor, float)):
+                    kv_str = f"{name}: {v:.3f}"
+                else:
+                    kv_str = f"{name}: {v}"
+                if name == "loss":  # put total loss first
+                    metrics_list.insert(0, kv_str)
+                else:
+                    metrics_list.append(kv_str)
 
         time_str = f"ETA: {eta_str}, " + (
             f"{time_sec_avg:.2f}s/it"
@@ -152,19 +132,19 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         super().on_train_batch_end(
             trainer, pl_module, outputs, batch, batch_idx
         )
-        metrics = self.get_metrics(trainer, pl_module)
-        self._metrics_history.append(metrics)
 
-        if (
-            self.train_batch_idx - 1
-        ) % self._refresh_rate == 0 and self._enabled:
-            rank_zero_info(
-                self._compose_log_str(
-                    f"Epoch {trainer.current_epoch}",
-                    self.train_batch_idx,
-                    self.total_train_batches,
+        if self._enabled:
+            # use logged metrics instead of progress_bar_metrics to avoid
+            # copying to cpu until this is fixed by PL
+            if (self.train_batch_idx - 1) % self._refresh_rate == 0:
+                rank_zero_info(
+                    self._compose_log_str(
+                        f"Epoch {trainer.current_epoch}",
+                        self.train_batch_idx,
+                        self.total_train_batches,
+                        trainer.progress_bar_metrics,
+                    )
                 )
-            )
 
     def on_validation_batch_end(
         self,

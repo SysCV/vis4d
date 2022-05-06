@@ -1,5 +1,5 @@
 """Quasi-dense 3D Tracking model."""
-from typing import List, Tuple
+from typing import List
 
 import torch
 

@@ -25,6 +25,7 @@ from pytorch_lightning.utilities.rank_zero import (
 from torch.nn.parameter import Parameter
 from torch.optim import Optimizer, lr_scheduler
 from torch.utils.model_zoo import load_url
+from torchmetrics import MeanMetric
 
 from ..common.io import HDF5Backend
 from ..common.registry import RegistryHolder
@@ -274,23 +275,29 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         losses = self.forward_train(batch)
         losses["loss"] = sum(list(losses.values()))
 
-        losses_detached = {k: v.detach() for k, v in losses.items()}
-        # tensorboard logging with prefix
-        self.log_dict(
-            {"train/" + k: v for k, v in losses_detached.items()},
-            prog_bar=False,
-            logger=True,
-            on_step=True,
-            on_epoch=False,
-        )
-        # progress bar logging without prefix
-        self.log_dict(
-            losses_detached,
-            prog_bar=True,
-            logger=False,
-            on_step=True,
-            on_epoch=False,
-        )
+        log_dict = {}
+        metric_attributes = []
+        for k, v in losses.items():
+            if not hasattr(self, k):
+                metric = MeanMetric()
+                metric.to(self.device)
+                setattr(self, k, metric)
+
+            metric = getattr(self, k)
+            metric(v.detach())
+            log_dict["train/" + k] = metric
+            metric_attributes += [k]
+
+        for (k, v), k_name in zip(log_dict.items(), metric_attributes):
+            self.log(
+                k,
+                v,
+                logger=True,
+                prog_bar=True,
+                on_step=True,
+                on_epoch=False,
+                metric_attribute=k_name,
+            )
         return losses
 
     def test_step(  # type: ignore # pylint: disable=arguments-differ
@@ -326,53 +333,51 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
 
     def on_fit_start(self) -> None:
         """Called at the beginning of fit."""
-        self.load_pretrained_weights()
+        if self._weights is not None:
+            self.load_pretrained_weights(self._weights, self._strict)
         if self._freeze:
             self.freeze_parameters(self._freeze_parameters)
 
-    def load_pretrained_weights(self) -> None:
+    def load_pretrained_weights(
+        self, weights: str, strict: bool = True
+    ) -> None:
         """Load pretrained weights from file / URL.
 
         Note: Only for training phase.
         """
-        if self._weights is not None:
-            map_location = self.device
-            if osp.isfile(self._weights):  # pragma: no cover
-                filename = osp.expanduser(self._weights)
-                checkpoint = torch.load(filename, map_location=map_location)
-            elif self._weights.startswith("http"):
-                rank, world_size = get_rank(), get_world_size()
-                if rank == 0:
-                    checkpoint = load_url(
-                        self._weights, map_location=map_location
-                    )
-                if world_size > 1:  # pragma: no cover
-                    torch.distributed.barrier()
-                    if rank > 0:
-                        checkpoint = load_url(
-                            self._weights, map_location=map_location
-                        )
-            else:
-                raise FileNotFoundError(f"{self._weights} can not be found.")
+        map_location = self.device
+        if osp.isfile(weights):  # pragma: no cover
+            filename = osp.expanduser(weights)
+            checkpoint = torch.load(filename, map_location=map_location)
+        elif weights.startswith("http"):
+            rank, world_size = get_rank(), get_world_size()
+            if rank == 0:
+                checkpoint = load_url(weights, map_location=map_location)
+            if world_size > 1:  # pragma: no cover
+                torch.distributed.barrier()
+                if rank > 0:
+                    checkpoint = load_url(weights, map_location=map_location)
+        else:
+            raise FileNotFoundError(f"{weights} can not be found.")
 
-            # get state_dict from checkpoint
-            state_dict = (
-                checkpoint["state_dict"]
-                if "state_dict" in checkpoint
-                else checkpoint
-            )
+        # get state_dict from checkpoint
+        state_dict = (
+            checkpoint["state_dict"]
+            if "state_dict" in checkpoint
+            else checkpoint
+        )
 
-            # strip prefix of state_dict
-            if self._revise_keys is not None:
-                for p, r in self._revise_keys:
-                    state_dict = OrderedDict(
-                        {re.sub(p, r, k): v for k, v in state_dict.items()}
-                    )
+        # strip prefix of state_dict
+        if self._revise_keys is not None:
+            for p, r in self._revise_keys:
+                state_dict = OrderedDict(
+                    {re.sub(p, r, k): v for k, v in state_dict.items()}
+                )
 
-            self.on_load_checkpoint({"state_dict": state_dict})
+        self.on_load_checkpoint({"state_dict": state_dict})
 
-            # load state_dict
-            self.load_state_dict(state_dict, strict=self._strict)
+        # load state_dict
+        self.load_state_dict(state_dict, strict=strict)
 
     def freeze_parameters(
         self, parameters: Optional[List[str]] = None

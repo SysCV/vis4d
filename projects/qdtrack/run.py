@@ -4,6 +4,7 @@ from projects.common.models import build_faster_rcnn, build_yolox
 from projects.common.optimizers import sgd, step_schedule
 from projects.qdtrack.data import QDTrackDataModule
 from projects.qdtrack.qdtrack import QDTrackYOLOX
+from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.engine.trainer import BaseCLI
 from vis4d.model import QDTrack
@@ -50,6 +51,11 @@ def setup_model(
             proposal_pooler=MultiScaleRoIAlign(0, (7, 7), [8, 16, 32]),
             in_features=["out0", "out1", "out2"],
             in_dim=320,
+            proposal_matcher=MaxIoUMatcher(
+                [0.5, 0.7], [0, -1, 1], allow_low_quality_matches=False
+            )
+            if experiment == "mot17"
+            else None,
         )
         model = QDTrackYOLOX(
             category_mapping=category_mapping,
@@ -60,9 +66,25 @@ def setup_model(
             optimizer_init=sgd(lr, weight_decay=0.0005),
         )
     else:
-        detector = build_faster_rcnn(category_mapping)
-        similarity_head = QDSimilarityHead()
+        if experiment == "mot17":
+            detector = build_faster_rcnn(
+                category_mapping, backbone="r50_caffe_fpn"
+            )
+            detector.load_pretrained_weights(
+                "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco-person/faster_rcnn_r50_fpn_1x_coco-person_20201216_175929-d022e227.pth",
+                strict=False,
+            )
+            similarity_head = QDSimilarityHead(
+                proposal_matcher=MaxIoUMatcher(
+                    [0.5, 0.7], [0, -1, 1], allow_low_quality_matches=False
+                )
+            )
+        else:
+            detector = build_faster_rcnn(category_mapping)
+            similarity_head = QDSimilarityHead()
+
         model = QDTrack(
+            image_channel_mode=detector.image_channel_mode,
             category_mapping=category_mapping,
             detection=detector,
             similarity=similarity_head,

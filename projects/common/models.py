@@ -19,12 +19,21 @@ def build_faster_rcnn(
             "rpn_head.loss_bbox.beta": 0.111,
             "roi_head.bbox_head.loss_bbox.type": "SmoothL1Loss",
         }
+    if "caffe" in backbone:
+        mean = (103.530, 116.280, 123.675)
+        std = (1.0, 1.0, 1.0)
+        mode = "BGR"
+    else:
+        mean = (123.675, 116.28, 103.53)
+        std = (58.395, 57.12, 57.375)
+        mode = "RGB"
     faster_rcnn = MMTwoStageDetector(
+        image_channel_mode=mode,
         category_mapping=category_mapping,
         model_base=f"mmdet://faster_rcnn/faster_rcnn_{backbone}_1x_coco.py",
         model_kwargs=model_kwargs,
-        pixel_mean=(123.675, 116.28, 103.53),
-        pixel_std=(58.395, 57.12, 57.375),
+        pixel_mean=mean,
+        pixel_std=std,
         backbone_output_names=["p2", "p3", "p4", "p5", "p6"],
         **kwargs,
     )
