@@ -6,6 +6,8 @@ import numpy as np
 import torch
 from torch.utils import data
 
+from scalabel.label.typing import FrameGroup
+
 from vis4d.common.registry import RegistryHolder
 from vis4d.data.transforms import BaseAugmentation
 from vis4d.struct import InputSample, LabelInstances
@@ -49,15 +51,6 @@ class BaseDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type:
         self.transformations = (
             [] if transformations is None else transformations
         )
-
-        # TODO Temporary fix to separate augmentation btw group and frames, will be removed once split the dataset into single vs multi sensor # pylint: disable=line-too-long,fixme
-        if len(datasets) == 1:  # type: ignore
-            self.use_group = (
-                not datasets[0].training  # type: ignore
-                and datasets[0].dataset.groups is not None  # type: ignore
-            )
-        else:
-            self.use_group = False
 
     def _postprocess_annotations(
         self, im_wh: Tuple[int, int], targets: LabelInstances
@@ -124,7 +117,9 @@ class BaseDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type:
                         [sample, *[s[samp_i] for s in addsamples]]
                     )
                 # TODO Temporary fix to separate augmentation btw group and frames, will be removed once split the dataset into single vs multi sensor # pylint: disable=line-too-long,fixme
-                if params is None and not (self.use_group and samp_i == 0):
+                if params is None and not isinstance(
+                    sample.metadata[0], FrameGroup
+                ):
                     params = aug.generate_parameters(sample)
                 samples[samp_i], _ = aug(sample, params)
 

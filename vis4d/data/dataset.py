@@ -32,6 +32,7 @@ class ScalabelDataset(Dataset):  # type: ignore
         training: bool,
         mapper: Optional[BaseSampleMapper] = None,
         ref_sampler: Optional[BaseReferenceSampler] = None,
+        inference_with_group: bool = False,
     ):
         """Init."""
         rank_zero_info("Initializing dataset: %s", dataset.name)
@@ -84,6 +85,10 @@ class ScalabelDataset(Dataset):  # type: ignore
             )
             self.dataset.groups = DatasetFromList(self.dataset.groups)
 
+            if not self.training:
+                # TODO Temporary set inference_with_group as True by default, will be removed once split the dataset into single vs multi sensor # pylint: disable=line-too-long,fixme
+                inference_with_group = True
+
         self._fallback_candidates = set(range(len(self.dataset.frames)))
 
         self.ref_sampler = (
@@ -96,9 +101,11 @@ class ScalabelDataset(Dataset):  # type: ignore
         self.has_sequences = bool(self.ref_sampler.video_to_indices)
         self._show_retry_warn = True
 
+        self.inference_with_group = inference_with_group
+
     def __len__(self) -> int:
         """Return length of dataset."""
-        if self.dataset.groups is not None and not self.training:
+        if self.inference_with_group:
             return len(self.dataset.groups)
         return len(self.dataset.frames)
 
@@ -109,7 +116,7 @@ class ScalabelDataset(Dataset):  # type: ignore
 
         frame2id = self.ref_sampler.frame_name_to_idx
         if not self.training:
-            if self.dataset.groups is not None:
+            if self.inference_with_group:
                 group = self.dataset.groups[cur_idx]
                 if not self.dataset.multi_sensor_inference:
                     cur_data = self.mapper(

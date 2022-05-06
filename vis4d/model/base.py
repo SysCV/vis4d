@@ -385,6 +385,9 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
                     if name.startswith(freeze_param) and name not in pnames:
                         params.append(param)
                         pnames.append(name)
+            for name, module in self.named_modules():
+                if name in parameters:
+                    module.eval()
         else:  # pragma: no cover
             params = self.parameters()
 
@@ -405,8 +408,8 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         """Allow for mismatched shapes when loading checkpoints."""
         state_dict = checkpoint["state_dict"]
         model_state_dict = self.state_dict()
-        for k in checkpoint["state_dict"]:
-            if k in model_state_dict:
+        for k in model_state_dict:
+            if k in checkpoint["state_dict"]:
                 if (
                     checkpoint["state_dict"][k].shape
                     != model_state_dict[k].shape
@@ -417,3 +420,8 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
                         f"loaded shape: {state_dict[k].shape}"
                     )
                     state_dict[k] = model_state_dict[k]
+            else:
+                rank_zero_info(
+                    f"Skip parameter: {k}, which is not in the checkpoint."
+                )
+                state_dict[k] = model_state_dict[k]
