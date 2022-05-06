@@ -1,5 +1,5 @@
 """Common optimizers."""
-from typing import Optional
+from typing import Optional, List
 
 from vis4d.struct import DictStrAny
 
@@ -23,13 +23,36 @@ def sgd(
     return lr_scheduler_cfg
 
 
-def step_schedule(max_epochs: int = 12) -> DictStrAny:
+def adam(
+    lr: float,
+    amsgrad: bool = False,
+    weight_decay: float = 0.0001,
+    paramwise_options: Optional[DictStrAny] = None,
+) -> DictStrAny:
+    """Standard Adam optimizer cfg with given lr."""
+    lr_scheduler_cfg = {
+        "class_path": "torch.optim.Adam",
+        "init_args": {
+            "lr": lr,
+            "weight_decay": weight_decay,
+            "amsgrad": amsgrad,
+        },
+        "paramwise_options": paramwise_options,
+    }
+    return lr_scheduler_cfg
+
+
+def step_schedule(
+    max_epochs: int = 12,
+    milestones: Optional[List[int]] = None,
+    gamma: float = 0.1,
+) -> DictStrAny:
     """Create standard step schedule cfg according to max epochs."""
+    if milestones is None:
+        [int(max_epochs * 2 / 3), int(max_epochs * 11 / 12)]
     lr_scheduler_cfg = {
         "class_path": "torch.optim.lr_scheduler.MultiStepLR",
-        "init_args": {
-            "milestones": [int(max_epochs * 2 / 3), int(max_epochs * 11 / 12)]
-        },
+        "init_args": {"milestones": milestones, "gamma": gamma},
     }
     return lr_scheduler_cfg
 
