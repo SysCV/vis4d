@@ -14,17 +14,7 @@ from .qd_3dt import QD3DTrackGraph
 class TestQD3DTrackGraph(unittest.TestCase):
     """Test cases for QD3DT tracking graph construction."""
 
-    motion_model = {
-        "type": "LSTM3DMotionModel",
-        "motion_dims": 7,
-        "num_frames": 5,
-    }
-    motion_model["lstm"] = {
-        "feature_dim": 64,
-        "hidden_size": 128,
-        "num_layers": 2,
-    }
-    tracker = QD3DTrackGraph(motion_model, keep_in_memory=3)
+    tracker = QD3DTrackGraph(keep_in_memory=3)
 
     def test_get_tracks(self) -> None:
         """Testcase for get tracks method."""

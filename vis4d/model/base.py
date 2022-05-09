@@ -178,7 +178,12 @@ class BaseModel(pl.LightningModule, metaclass=RegistryHolder):
         self, params: Iterator[Tuple[str, Parameter]]
     ) -> List[DictStrAny]:
         """Setting param-wise lr and weight decay."""
-        paramwise_options = self.optimizer_init.pop("paramwise_options")
+        paramwise_options = (
+            self.optimizer_init.pop("paramwise_options")
+            if "paramwise_options" in self.optimizer_init
+            else None
+        )
+
         if paramwise_options is None:
             new_params = [{"params": [param]} for _, param in params]
             return new_params

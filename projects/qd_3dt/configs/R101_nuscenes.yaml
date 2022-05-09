@@ -3,6 +3,7 @@ trainer:
   exp_name: QD3DT_R101_NUSC
   num_sanity_val_steps: 0
   gradient_clip_val: 10
+  use_tf32: False
 
 model:
   max_epochs: 24
@@ -13,3 +14,5 @@ data:
   experiment: "nuscenes"
   samples_per_gpu: 4
   workers_per_gpu: 2
+
+seed_everything: 1
