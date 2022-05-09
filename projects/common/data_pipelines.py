@@ -64,6 +64,7 @@ def multi_scale(im_hw: Tuple[int, int]) -> List[BaseAugmentation]:
 def mosaic_mixup(
     im_hw: Tuple[int, int],
     clip_inside_image: bool = True,
+    multiscale_range: Optional[Tuple[float, float]] = None,
     multiscale_sizes: Optional[List[Tuple[int, int]]] = None,
 ) -> List[BaseAugmentation]:
     """Generate augmentation pipeline used for YOLOX training."""
@@ -86,11 +87,21 @@ def mosaic_mixup(
     if multiscale_sizes is None:
         augs += [Resize(shape=im_hw, keep_ratio=True)]
     else:
-        augs += [
-            Resize(
-                shape=multiscale_sizes, multiscale_mode="list", keep_ratio=True
-            )
-        ]
+        if multiscale_range is not None:
+            assert multiscale_sizes is None
+            augs += [
+                Resize(
+                    shape=im_hw, scale_range=multiscale_range, keep_ratio=True
+                )
+            ]
+        elif multiscale_sizes is not None:
+            augs += [
+                Resize(
+                    shape=multiscale_sizes,
+                    multiscale_mode="list",
+                    keep_ratio=True,
+                )
+            ]
     return augs
 
 

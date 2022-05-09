@@ -219,7 +219,7 @@ def print_class_histogram(class_frequencies: Dict[str, int]) -> None:
             ]
         )
     )
-    total_num_instances = sum(data[1::2])
+    total_num_instances = sum(data[1::2])  # type: ignore
     data.extend([None] * (n_cols - (len(data) % n_cols)))
     if num_classes > 1:
         data.extend(["total", total_num_instances])
