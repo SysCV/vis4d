@@ -1,0 +1,23 @@
+# QD3DT with R101 for nuscenes dataset
+trainer:
+  exp_name: QD3DT_R101_NUSC_MOTION
+  num_sanity_val_steps: 0
+  gradient_clip_val: 3
+  use_tf32: False
+  find_unused_parameters: True
+  check_val_every_n_epoch: 10
+
+model:
+  lr: 0.005
+  max_epochs: 100
+  backbone: "r101_fpn"
+  train_motion: True
+  freeze_parameters: ["detector", "similarity_head", "bbox_3d_head"]
+  pretrain_weights: "vis4d-workspace/QD3DT_R101_NUSC/qd_3dt_R_101_FPN_nuscenes_24/checkpoints/last.ckpt"
+
+data:
+  experiment: "nuscenes_motion"
+  samples_per_gpu: 64
+  workers_per_gpu: 2
+
+seed_everything: 100

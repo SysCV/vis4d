@@ -22,6 +22,8 @@ from vis4d.data import (
 from vis4d.data.datasets import BaseDatasetLoader
 from vis4d.data.transforms import BaseAugmentation, Resize
 
+from .trajectory import TrajectoryData
+
 
 class QD3DTDataModule(CommonDataModule):
     """QD-3DT data module."""
@@ -55,6 +57,14 @@ class QD3DTDataModule(CommonDataModule):
             if self.experiment == "nuscenes_mini":
                 train_dataset_list = [nuscenes_mini_train]
                 test_dataset_list = [nuscenes_mini_val]
+            elif self.experiment == "nuscenes_motion":
+                self.train_datasets = TrajectoryData(
+                    pure_detection_path="data/nuscenes/pure_detect_3d.json",
+                    annotations_path="data/nuscenes/scalabel_train.json",
+                    cache_path="data/nuscenes/scalabel_traj.pkl",
+                    cats_name2id=category_mapping,
+                )
+                test_dataset_list = [nuscenes_mini_val]
             else:
                 train_dataset_list = [nuscenes_train]
                 test_dataset_list = [nuscenes_val]
@@ -69,7 +79,9 @@ class QD3DTDataModule(CommonDataModule):
 
         # train pipeline
         train_datasets = []
-        if stage is None or stage == "fit":
+        if (
+            stage is None or stage == "fit"
+        ) and not "motion" in self.experiment:
             train_sample_mapper = BaseSampleMapper(
                 data_backend=data_backend,
                 inputs_to_load=("images", "intrinsics", "extrinsics"),

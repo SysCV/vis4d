@@ -2,12 +2,14 @@
 import copy
 from typing import Dict, List, Optional, Tuple, TypedDict
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from torch import nn
 
 from vis4d.common.bbox.utils import bbox_iou
+from vis4d.common.geometry.rotation import normalize_angle
 from vis4d.model.track.motion import LSTM3DMotionModel, VeloLSTM
 from vis4d.struct import (
     ArgsType,
@@ -48,6 +50,7 @@ class QD3DTrackGraph(QDTrackGraph):
         feature_dim: int = 64,
         hidden_size: int = 128,
         num_layers: int = 2,
+        depth_weight: float = 0.9,
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
@@ -57,7 +60,6 @@ class QD3DTrackGraph(QDTrackGraph):
 
         # Build LSTM motion model
         lstm_model = VeloLSTM(
-            1,
             feature_dim,
             hidden_size,
             num_layers,
@@ -76,6 +78,165 @@ class QD3DTrackGraph(QDTrackGraph):
 
         self.num_frames = num_frames
         self.motion_model = lstm_model
+        self.depth_weight = depth_weight
+
+    def forward_train(
+        self,
+        inputs: List[InputSample],
+        predictions: List[LabelInstances],
+        targets: Optional[List[LabelInstances]],
+        **kwargs: List[torch.Tensor],
+    ) -> LossesType:
+        """Forward of QD3DTrackGraph in training stage."""
+        pred_traj = torch.cat(
+            [
+                self.parse_observation(boxes3d.boxes, batch=True).unsqueeze(0)
+                for boxes3d in predictions.boxes3d
+            ],
+            dim=0,
+        )
+        gt_traj = torch.cat(
+            [
+                self.parse_observation(boxes3d.boxes, batch=True).unsqueeze(0)
+                for boxes3d in targets.boxes3d
+            ],
+            dim=0,
+        )
+
+        loc_preds, loc_refines = self._run_engine(pred_traj)
+
+        losses = self._loss_term(loc_preds, loc_refines, gt_traj)
+
+        return losses
+
+    def _loss_term(
+        self,
+        loc_preds: torch.Tensor,
+        loc_refines: torch.Tensor,
+        gt_traj: torch.Tensor,
+    ) -> torch.Tensor:
+        """Loss term for VeloLSTM."""
+        refine_loss = F.smooth_l1_loss(
+            loc_refines,
+            gt_traj[:, 1:, : self.motion_model.loc_dim],
+            reduction="mean",
+        )
+        pred_loss = F.smooth_l1_loss(
+            loc_preds,
+            gt_traj[:, 1:, : self.motion_model.loc_dim],
+            reduction="mean",
+        )
+        linear_loss = self.linear_motion_loss(loc_refines)
+        linear_loss += self.linear_motion_loss(loc_preds)
+
+        losses = {
+            "refine_loss": refine_loss * self.depth_weight,
+            "pred_loss": pred_loss * self.depth_weight,
+            "linear_loss": linear_loss * (1 - self.depth_weight),
+        }
+
+        return losses
+
+    @staticmethod
+    def linear_motion_loss(outputs: torch.Tensor) -> torch.Tensor:
+        """Linear motion loss.
+
+        Loss: |(loc_t - loc_t-1), (loc_t-1, loc_t-2)|_1 for t = [2, s_len]
+        """
+        s_len = outputs.shape[1]
+
+        loss = outputs.new_zeros(1)
+        for idx in range(2, s_len, 1):
+            curr_motion = outputs[:, idx] - outputs[:, idx - 1]
+            past_motion = outputs[:, idx - 1] - outputs[:, idx - 2]
+            loss += F.l1_loss(past_motion, curr_motion, reduction="mean")
+        return loss / (s_len - 2)
+
+    def _run_engine(
+        self, pred_traj: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Run QD3DTrackGraph in training stage."""
+        loc_preds_list = []
+        loc_refines_list = []
+
+        hidden_predict = self.motion_model.init_hidden(
+            pred_traj.device, batch_size=pred_traj.shape[0]
+        )
+        hidden_refine = self.motion_model.init_hidden(
+            pred_traj.device, batch_size=pred_traj.shape[0]
+        )
+
+        vel_history = pred_traj.new_zeros(
+            self.num_frames, pred_traj.shape[0], self.motion_model.loc_dim
+        )
+
+        # Starting condition
+        prev_refine = pred_traj[:, 0, : self.motion_model.loc_dim]
+        loc_pred = pred_traj[:, 1, : self.motion_model.loc_dim]
+
+        # LSTM
+        for i in range(1, pred_traj.shape[1]):
+            loc_pred[:, 6] = normalize_angle(loc_pred[:, 6])
+
+            for batch_id in range(pred_traj.shape[0]):
+                # if the angle of two theta is not acute angle
+                # make the theta still in the range
+                curr_yaw = normalize_angle(pred_traj[batch_id, i, 6])
+                if (
+                    np.pi / 2.0
+                    < abs(curr_yaw - loc_pred[batch_id, 6])
+                    < np.pi * 3 / 2.0
+                ):
+                    loc_pred[batch_id, 6] += np.pi
+                if loc_pred[batch_id, 6] > np.pi:
+                    loc_pred[batch_id, 6] -= np.pi * 2
+                if loc_pred[batch_id, 6] < -np.pi:
+                    loc_pred[batch_id, 6] += np.pi * 2
+
+                # now the angle is acute: < 90 or > 270,
+                # convert the case of > 270 to < 90
+                if abs(curr_yaw - loc_pred[batch_id, 3:4]) >= np.pi * 3 / 2.0:
+                    if curr_yaw > 0:
+                        loc_pred[batch_id, 6] += np.pi * 2
+                    else:
+                        loc_pred[batch_id, 6] -= np.pi * 2
+
+            loc_refine, hidden_refine = self.motion_model.refine(
+                loc_pred.detach().clone(),
+                pred_traj[:, i, : self.motion_model.loc_dim],
+                prev_refine.detach().clone(),
+                pred_traj[:, i, -1].unsqueeze(-1),
+                hidden_refine,
+            )
+            loc_refine[:, 6] = normalize_angle(loc_refine[:, 6])
+
+            if i == 1:
+                vel_history = torch.cat(
+                    [(loc_refine - prev_refine).unsqueeze(0)] * self.num_frames
+                )
+            else:
+                vel_history = torch.cat(
+                    [vel_history[1:], (loc_refine - prev_refine).unsqueeze(0)],
+                    dim=0,
+                )
+            prev_refine = loc_refine
+
+            loc_pred, hidden_predict = self.motion_model.predict(
+                vel_history, loc_refine.detach().clone(), hidden_predict
+            )
+            loc_pred[:, 6] = normalize_angle(loc_pred[:, 6])
+
+            loc_preds_list.append(loc_pred)
+            loc_refines_list.append(loc_refine)
+
+        loc_refines = torch.cat(loc_refines_list, dim=1).view(
+            pred_traj.shape[0], -1, self.motion_model.loc_dim
+        )
+        loc_preds = torch.cat(loc_preds_list, dim=1).view(
+            pred_traj.shape[0], -1, self.motion_model.loc_dim
+        )
+
+        return loc_preds, loc_refines
 
     def reset(self) -> None:
         """Reset tracks."""
@@ -402,16 +563,6 @@ class QD3DTrackGraph(QDTrackGraph):
                         pred[0].boxes[i] = self.tracks[int(tid)]["bbox_3d"]  # type: ignore # pylint: disable=line-too-long
 
         return result
-
-    def forward_train(
-        self,
-        inputs: List[InputSample],
-        predictions: List[LabelInstances],
-        targets: Optional[List[LabelInstances]],
-        **kwargs: List[torch.Tensor],
-    ) -> LossesType:
-        """Forward of QDTrackGraph in training stage."""
-        raise NotImplementedError
 
     def update(  # type: ignore # pylint: disable=arguments-differ
         self,

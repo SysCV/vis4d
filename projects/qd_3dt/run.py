@@ -1,9 +1,9 @@
 """QD-3DT runtime configuration."""
-from typing import Optional
+from typing import List, Optional
 
 from projects.common.datasets import kitti_track_map, nuscenes_track_map
 from projects.common.models import build_faster_rcnn
-from projects.common.optimizers import sgd, step_schedule
+from projects.common.optimizers import adam, sgd, step_schedule
 from projects.qd_3dt.data import QD3DTDataModule
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
@@ -22,6 +22,10 @@ def setup_model(
     max_epochs: int = 12,
     backbone: str = "r50_fpn",
     lstm_ckpt: Optional[str] = None,
+    pure_det: bool = False,
+    train_motion: bool = False,
+    pretrain_weights: Optional[str] = None,
+    freeze_parameters: Optional[List[str]] = None,
 ) -> QD3DT:
     """Setup model with experiment specific hyperparameters."""
     if experiment == "kitti":
@@ -74,15 +78,31 @@ def setup_model(
 
     similarity_head = QDSimilarityHead()
 
+    if train_motion:
+        lr_scheduler_init = step_schedule(
+            max_epochs, milestones=[20, 40, 60, 80], gamma=0.5
+        )
+        optimizer_init = adam(lr, amsgrad=True)
+        lr_warmup = LinearLRWarmup(warmup_ratio=1.0, warmup_steps=1)
+    else:
+        lr_scheduler_init = step_schedule(max_epochs)
+        optimizer_init = sgd(lr, paramwise_options={"bboxfc_lr_mult": 10.0})
+        lr_warmup = LinearLRWarmup(warmup_ratio=0.1, warmup_steps=1000)
+
     model = QD3DT(
         category_mapping=category_mapping,
         detection=detector,
         similarity=similarity_head,
         track_graph=track_graph,
         bbox_3d_head=box3d_head,
-        lr_scheduler_init=step_schedule(max_epochs),
-        optimizer_init=sgd(lr, paramwise_options={"bboxfc_lr_mult": 10.0}),
-        lr_warmup=LinearLRWarmup(warmup_ratio=0.1, warmup_steps=1000),
+        train_motion=train_motion,
+        pure_det=pure_det,
+        lr_scheduler_init=lr_scheduler_init,
+        optimizer_init=optimizer_init,
+        lr_warmup=lr_warmup,
+        freeze=freeze_parameters is not None,
+        freeze_parameters=freeze_parameters,
+        weights=pretrain_weights,
     )
     return model
 

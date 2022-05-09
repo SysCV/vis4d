@@ -41,8 +41,12 @@ class LSTM3DMotionModel(BaseMotionModel):
         self.prev_obs = bbox_3d.clone()
         self.prev_ref = bbox_3d.clone()
         self.info = info
-        self.hidden_pred = self.lstm_model.init_hidden(self.device)
-        self.hidden_ref = self.lstm_model.init_hidden(self.device)
+        self.hidden_pred = self.lstm_model.init_hidden(
+            self.device, batch_size=1
+        )
+        self.hidden_ref = self.lstm_model.init_hidden(
+            self.device, batch_size=1
+        )
 
     def _update_history(self, bbox_3d: torch.Tensor) -> None:
         """Update velocity history."""
@@ -167,16 +171,14 @@ class VeloLSTM(nn.Module):  # type: ignore  # pylint: disable=abstract-method
 
     def __init__(
         self,
-        batch_size: int,
         feature_dim: int,
         hidden_size: int,
         num_layers: int,
         loc_dim: int,
-        dropout: float = 0.0,
+        dropout: float = 0.1,
     ) -> None:
         """Init."""
         super().__init__()
-        self.batch_size = batch_size
         self.feature_dim = feature_dim
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -221,16 +223,18 @@ class VeloLSTM(nn.Module):  # type: ignore  # pylint: disable=abstract-method
 
         self._init_param()
 
-    def init_hidden(self, device: str) -> Tuple[torch.Tensor, torch.Tensor]:
+    def init_hidden(
+        self, device: str, batch_size: int
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Initializae hidden state.
 
         The axes semantics are (num_layers, minibatch_size, hidden_dim)
         """
         return (
-            torch.zeros(self.num_layers, self.batch_size, self.hidden_size).to(
+            torch.zeros(self.num_layers, batch_size, self.hidden_size).to(
                 device
             ),
-            torch.zeros(self.num_layers, self.batch_size, self.hidden_size).to(
+            torch.zeros(self.num_layers, batch_size, self.hidden_size).to(
                 device
             ),
         )

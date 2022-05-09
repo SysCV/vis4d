@@ -24,15 +24,33 @@ class QD3DT(QDTrack):
     """QD-3DT model class."""
 
     def __init__(
-        self, bbox_3d_head: Det3DRoIHead, *args: ArgsType, **kwargs: ArgsType
+        self,
+        bbox_3d_head: Det3DRoIHead,
+        *args: ArgsType,
+        train_motion: bool = False,
+        pure_det: bool = False,
+        **kwargs: ArgsType
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
         assert self.category_mapping is not None
         self.bbox_3d_head = bbox_3d_head
+        self.train_motion = train_motion
+        self.pure_det = pure_det
+
+    def forward_train_motion(
+        self, batch_inputs: List[InputSample]
+    ) -> LossesType:
+        """Forward function for training with motion."""
+        losses = self.track_graph(
+            batch_inputs, batch_inputs[0].targets, batch_inputs[1].targets
+        )
+        return losses
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward function for training."""
+        if self.train_motion:
+            return self.forward_train_motion(batch_inputs)
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
         key_targets = key_inputs.targets
 
@@ -113,6 +131,14 @@ class QD3DT(QDTrack):
             boxes3d[keep_indices],
             embeds[keep_indices],
         )
+
+        if self.pure_det:
+            detect_3d = boxes3d.to(torch.device("cpu")).to_scalabel(
+                self.cat_mapping
+            )
+            return dict(
+                detect_3d=[detect_3d],
+            )
 
         # associate detections, update graph
         predictions = LabelInstances([boxes2d], [boxes3d])
