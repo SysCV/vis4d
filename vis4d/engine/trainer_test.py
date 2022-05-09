@@ -9,9 +9,10 @@ from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
 from pytorch_lightning.utilities.cli import SaveConfigCallback
 
+from vis4d.data.module_test import SampleDataModule
 from vis4d.struct import ArgsType
 
-from ..unittest.utils import MockModel, _trainer_builder
+from ..unittest.utils import MockModel
 from .trainer import BaseCLI, DefaultTrainer
 
 
@@ -56,12 +57,15 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
     """Test that CLI correctly instantiates model/trainer and calls fit."""
     expected_model = dict(model_param=7)
     expected_trainer = dict(exp_name="cli_test")
+    expected_datamodule = {"task": "track", "im_hw": (360, 640)}
 
-    def fit(trainer, model):
+    def fit(trainer, model, datamodule):
         for k, v in expected_model.items():
             assert getattr(model, k) == v
         for k, v in expected_trainer.items():
             assert getattr(trainer, k) == v
+        for k, v in expected_datamodule.items():
+            assert getattr(datamodule, k) == v
         save_callback = [
             x for x in trainer.callbacks if isinstance(x, SaveConfigCallback)
         ]
@@ -86,10 +90,14 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
             "fit",
             "--model.model_param=7",
             "--trainer.exp_name=cli_test",
+            "--trainer.work_dir=./unittests/",
+            "--trainer.max_steps=10",
+            "--data.task=track",
+            "--data.im_hw=[360, 640]",
             "--seed_everything=0",
         ],
     ):
-        cli = BaseCLI(MockModel, trainer_class=_trainer_builder)
+        cli = BaseCLI(MockModel, datamodule_class=SampleDataModule)
         assert hasattr(cli.trainer, "ran_asserts") and cli.trainer.ran_asserts
 
 
