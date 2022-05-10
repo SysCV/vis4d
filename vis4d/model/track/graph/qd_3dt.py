@@ -63,7 +63,7 @@ class QD3DTrackGraph(QDTrackGraph):
             num_layers,
             motion_dims,
         )
-        if lstm_ckpt is not None:
+        if lstm_ckpt is not None:  # pragma: no cover
             ckpt = torch.load(lstm_ckpt, map_location="cpu")
             try:
                 lstm_model.load_state_dict(ckpt["state_dict"])

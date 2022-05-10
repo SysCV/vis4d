@@ -27,7 +27,7 @@ class TestDefaultWriterCallback(unittest.TestCase):
             eval_metrics=["detect"],
         )
         dataset = ScalabelDataset(dataset_loader, False)
-        writer = DefaultWriterCallback(0, dataset, self.write_path)
+        writer = DefaultWriterCallback(0, dataset_loader, self.write_path)
 
         frames = []
         for samples in dataset:
@@ -39,7 +39,7 @@ class TestDefaultWriterCallback(unittest.TestCase):
             frames.append(frame)
 
         writer.write()
-        pred_path = f"{self.write_path}/detect/predictions.json"
+        pred_path = f"{self.write_path}/detect/detect_predictions.json"
         saved_frames = load(pred_path).frames
         compare_results(saved_frames, frames)
 

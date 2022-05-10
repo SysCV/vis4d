@@ -63,6 +63,7 @@ class DefaultTrainer(pl.Trainer):
         resume: bool = False,
         wandb: bool = False,
         tqdm: bool = False,
+        use_tf32: bool = True,
         progress_bar_refresh_rate: int = 50,
         tuner_params: Optional[DictStrAny] = None,
         tuner_metrics: Optional[List[str]] = None,
@@ -75,8 +76,15 @@ class DefaultTrainer(pl.Trainer):
         3. Init distributed plugin
         """
         if is_torch_tf32_available():  # pragma: no cover
-            torch.backends.cuda.matmul.allow_tf32 = False
-            torch.backends.cudnn.allow_tf32 = False
+            if use_tf32:
+                rank_zero_warn(
+                    "Torch TF32 is available and turned on by default! "
+                    + "It might harm the performance due to the precision. "
+                    + "You can turn it off by setting trainer.use_tf32=False."
+                )
+            else:
+                torch.backends.cuda.matmul.allow_tf32 = False
+                torch.backends.cudnn.allow_tf32 = False
 
         self.tuner_params = tuner_params
         self.tuner_metrics = tuner_metrics
