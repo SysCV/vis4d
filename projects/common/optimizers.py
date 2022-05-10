@@ -5,10 +5,7 @@ from vis4d.struct import DictStrAny
 
 
 def sgd(
-    lr: float,
-    momentum: float = 0.9,
-    weight_decay: float = 0.0001,
-    paramwise_options: Optional[DictStrAny] = None,
+    lr: float, momentum: float = 0.9, weight_decay: float = 0.0001
 ) -> DictStrAny:
     """Standard SGD optimizer cfg with given lr."""
     lr_scheduler_cfg = {
@@ -18,16 +15,12 @@ def sgd(
             "momentum": momentum,
             "weight_decay": weight_decay,
         },
-        "paramwise_options": paramwise_options,
     }
     return lr_scheduler_cfg
 
 
 def adam(
-    lr: float,
-    amsgrad: bool = False,
-    weight_decay: float = 0.0001,
-    paramwise_options: Optional[DictStrAny] = None,
+    lr: float, amsgrad: bool = False, weight_decay: float = 0.0001
 ) -> DictStrAny:
     """Standard Adam optimizer cfg with given lr."""
     lr_scheduler_cfg = {
@@ -37,7 +30,6 @@ def adam(
             "weight_decay": weight_decay,
             "amsgrad": amsgrad,
         },
-        "paramwise_options": paramwise_options,
     }
     return lr_scheduler_cfg
 

@@ -5,6 +5,7 @@ from projects.common.datasets import kitti_track_map, nuscenes_track_map
 from projects.common.models import build_faster_rcnn
 from projects.common.optimizers import sgd, step_schedule
 from projects.qd_3dt.data import QD3DTDataModule
+from projects.qd_3dt.qd_3dt import StandardQD3DT
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.samplers import CombinedSampler
@@ -74,14 +75,14 @@ def setup_model(
 
     similarity_head = QDSimilarityHead()
 
-    model = QD3DT(
+    model = StandardQD3DT(
         category_mapping=category_mapping,
         detection=detector,
         similarity=similarity_head,
         track_graph=track_graph,
         bbox_3d_head=box3d_head,
         lr_scheduler_init=step_schedule(max_epochs),
-        optimizer_init=sgd(lr, paramwise_options={"bboxfc_lr_mult": 10.0}),
+        optimizer_init=sgd(lr),
         lr_warmup=LinearLRWarmup(warmup_ratio=0.1, warmup_steps=1000),
     )
     return model
