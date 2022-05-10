@@ -1,6 +1,8 @@
 """Standard data augmentation pipelines."""
 from typing import List, Optional, Tuple
 
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
+
 from vis4d.common.io import BaseDataBackend, FileBackend, HDF5Backend
 from vis4d.data.module import BaseDataModule
 from vis4d.data.transforms import (
@@ -27,17 +29,19 @@ class CommonDataModule(BaseDataModule):
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
-        super().__init__(*args, **kwargs)
         self.experiment = experiment
         self.use_hdf5 = use_hdf5
+        super().__init__(*args, **kwargs)
+
+    def create_datasets(self, stage: Optional[str] = None) -> None:
+        """Create Train / Test / Predict Datasets."""
+        raise NotImplementedError
 
     def _setup_backend(self) -> BaseDataBackend:
         """Setup data backend."""
-        return FileBackend() if not self.use_hdf5 else HDF5Backend()
-
-    def create_datasets(self, stage: Optional[str] = None) -> None:
-        """Setup data pipelines for each experiment."""
-        raise NotImplementedError
+        backend = FileBackend() if not self.use_hdf5 else HDF5Backend()
+        rank_zero_info("Using data backend: %s", backend.__class__.__name__)
+        return backend
 
 
 def default(im_hw: Tuple[int, int]) -> List[BaseAugmentation]:
@@ -60,6 +64,7 @@ def multi_scale(im_hw: Tuple[int, int]) -> List[BaseAugmentation]:
 def mosaic_mixup(
     im_hw: Tuple[int, int],
     clip_inside_image: bool = True,
+    multiscale_range: Optional[Tuple[float, float]] = None,
     multiscale_sizes: Optional[List[Tuple[int, int]]] = None,
 ) -> List[BaseAugmentation]:
     """Generate augmentation pipeline used for YOLOX training."""
@@ -82,11 +87,21 @@ def mosaic_mixup(
     if multiscale_sizes is None:
         augs += [Resize(shape=im_hw, keep_ratio=True)]
     else:
-        augs += [
-            Resize(
-                shape=multiscale_sizes, multiscale_mode="list", keep_ratio=True
-            )
-        ]
+        if multiscale_range is not None:
+            assert multiscale_sizes is None
+            augs += [
+                Resize(
+                    shape=im_hw, scale_range=multiscale_range, keep_ratio=True
+                )
+            ]
+        elif multiscale_sizes is not None:
+            augs += [
+                Resize(
+                    shape=multiscale_sizes,
+                    multiscale_mode="list",
+                    keep_ratio=True,
+                )
+            ]
     return augs
 
 

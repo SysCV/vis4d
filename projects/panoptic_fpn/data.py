@@ -37,13 +37,16 @@ class PanopticFPNDataModule(CommonDataModule):
             data_backend=data_backend,
         )
 
+        train_datasets, train_transforms = [], None
         if self.experiment == "bdd100k":
-            train_datasets = [
-                ScalabelDataset(
-                    bdd100k_pan_seg_train(), True, train_sample_mapper
-                )
-            ]
-            train_transforms = default((720, 1280))
+            if stage is None or stage == "fit":
+                train_datasets += [
+                    ScalabelDataset(
+                        bdd100k_pan_seg_train(), True, train_sample_mapper
+                    )
+                ]
+                train_transforms = default((720, 1280))
+
             test_transforms: List[BaseAugmentation] = [
                 Resize(shape=(720, 1280))
             ]
@@ -57,14 +60,16 @@ class PanopticFPNDataModule(CommonDataModule):
                 f"Experiment {self.experiment} not known!"
             )
 
-        train_handler = BaseDatasetHandler(
-            train_datasets, transformations=train_transforms
-        )
+        if len(train_datasets) > 0:
+            train_handler = BaseDatasetHandler(
+                train_datasets, transformations=train_transforms
+            )
+            self.train_datasets = train_handler
+
         test_handlers = [
             BaseDatasetHandler(
                 ds, transformations=test_transforms, min_bboxes_area=0.0
             )
             for ds in test_datasets
         ]
-        self.train_datasets = train_handler
         self.test_datasets = test_handlers

@@ -53,7 +53,7 @@ class QD3DTBBox3DHead(Det3DRoIHead):
         conv_out_dim: int = 256,
         fc_out_dim: int = 1024,
         roi_feat_size: int = 7,
-        conv_has_bias: bool = False,
+        conv_has_bias: bool = True,
         norm: Optional[str] = None,
         num_groups: int = 32,
         num_rotation_bins: int = 2,
@@ -378,7 +378,7 @@ class QD3DTBBox3DHead(Det3DRoIHead):
         )
         positives = [l == 1 for l in sampling_results.sampled_labels]
         pos_assigned_gt_inds = [
-            i[p]
+            i[p] if len(p) != 0 else p
             for i, p in zip(sampling_results.sampled_target_indices, positives)
         ]
         pos_boxes = [

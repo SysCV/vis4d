@@ -1,6 +1,6 @@
 black
-coverage[toml]
 click==8.0.4
+coverage[toml]
 isort
 jsonargparse[signatures]
 mypy

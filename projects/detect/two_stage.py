@@ -3,7 +3,7 @@ from projects.common.datasets import bdd100k_det_map, coco_det_map
 from projects.common.models import build_faster_rcnn
 from projects.common.optimizers import sgd, step_schedule
 from projects.detect.data import DetectDataModule
-from vis4d.engine.trainer import BaseCLI, DefaultTrainer
+from vis4d.engine.trainer import BaseCLI
 from vis4d.model.detect.mmdet import MMTwoStageDetector
 
 
@@ -47,5 +47,4 @@ if __name__ == "__main__":
     DetectCLI(
         model_class=setup_model,
         datamodule_class=DetectDataModule,
-        trainer_class=DefaultTrainer,
     )

@@ -8,11 +8,11 @@ from scalabel.label.utils import compare_results
 
 from ..dataset import ScalabelDataset
 from ..datasets import Scalabel
-from .writer import ScalabelWriterCallback
+from .writer import DefaultWriterCallback
 
 
-class TestScalabelWriterCallback(unittest.TestCase):
-    """Test cases for ScalabelWriterCallback."""
+class TestDefaultWriterCallback(unittest.TestCase):
+    """Test cases for DefaultWriterCallback."""
 
     write_path = "./unittests/writer_test/"
 
@@ -27,7 +27,7 @@ class TestScalabelWriterCallback(unittest.TestCase):
             eval_metrics=["detect"],
         )
         dataset = ScalabelDataset(dataset_loader, False)
-        writer = ScalabelWriterCallback(0, output_dir=self.write_path)
+        writer = DefaultWriterCallback(0, dataset_loader, self.write_path)
 
         frames = []
         for samples in dataset:
@@ -39,7 +39,7 @@ class TestScalabelWriterCallback(unittest.TestCase):
             frames.append(frame)
 
         writer.write()
-        pred_path = f"{self.write_path}/detect/predictions.json"
+        pred_path = f"{self.write_path}/detect/detect_predictions.json"
         saved_frames = load(pred_path).frames
         compare_results(saved_frames, frames)
 

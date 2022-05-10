@@ -1,11 +1,11 @@
-"""Two-stage detector runtime configuration."""
+"""Segmentor runtime configuration."""
 from typing import List, Optional, Union
 
 from projects.common.datasets import bdd100k_seg_map
 from projects.common.models import build_deeplabv3plus, build_semantic_fpn
 from projects.common.optimizers import poly_schedule, sgd
 from projects.segment.data import SegmentDataModule
-from vis4d.engine.trainer import BaseCLI, DefaultTrainer
+from vis4d.engine.trainer import BaseCLI
 from vis4d.model.segment import MMEncDecSegmentor
 
 
@@ -64,5 +64,4 @@ if __name__ == "__main__":
     SegmentCLI(
         model_class=setup_model,
         datamodule_class=SegmentDataModule,
-        trainer_class=DefaultTrainer,
     )

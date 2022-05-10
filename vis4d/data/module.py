@@ -10,7 +10,7 @@ from torch.utils import data
 from torch.utils.data.distributed import DistributedSampler
 
 from vis4d.data.callbacks.evaluator import DefaultEvaluatorCallback
-from vis4d.data.callbacks.writer import ScalabelWriterCallback
+from vis4d.data.callbacks.writer import DefaultWriterCallback
 
 from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
@@ -38,7 +38,9 @@ def build_callbacks(
             callbacks.append(DefaultEvaluatorCallback(i, d.dataset, out))
         else:
             assert out is not None
-            callbacks.append(ScalabelWriterCallback(i, out, visualize))
+            callbacks.append(
+                DefaultWriterCallback(i, d.dataset, out, visualize)
+            )
     return callbacks
 
 
@@ -70,6 +72,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         input_dir: Optional[str] = None,
         sampler_cfg: Optional[ModuleCfg] = None,
         video_based_inference: Optional[bool] = None,
+        subcommand: Optional[str] = None,
     ) -> None:
         """Init."""
         super().__init__()  # type: ignore
@@ -84,6 +87,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         self.predict_datasets: Optional[List[BaseDatasetHandler]] = None
         self._sampler_cfg = sampler_cfg
         self.category_mapping: Optional[CategoryMap] = None
+        self.create_datasets(subcommand)
 
     def set_category_mapping(self, cat_map: CategoryMap) -> None:
         """Set default category mapping used when creating the datasets."""
@@ -97,10 +101,9 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
     def setup(self, stage: Optional[str] = None) -> None:
         """Data preparation operations to perform on every GPU.
 
-        - Create Train / Test / Predict Datasets
         - Setup data callbacks
+        - Set sampler for DDP
         """
-        self.create_datasets(stage)
         self.trainer.callbacks += self.setup_data_callbacks(
             stage, self.trainer.log_dir
         )

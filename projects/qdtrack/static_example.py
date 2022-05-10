@@ -7,12 +7,11 @@ python static_example.py fit --config cfg.yaml
 The file cfg.yaml contains an example configuration for bdd100k training.
 """
 from projects.qdtrack.data import QDTrackDataModule
-from vis4d.engine.trainer import BaseCLI, DefaultTrainer
+from vis4d.engine.trainer import BaseCLI
 from vis4d.model import QDTrack
 
 if __name__ == "__main__":
     BaseCLI(
         model_class=QDTrack,
         datamodule_class=QDTrackDataModule,
-        trainer_class=DefaultTrainer,
     )

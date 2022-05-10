@@ -62,7 +62,7 @@ class Box3DUncertaintyLoss(BaseLoss):
         )
 
         # dimension loss
-        dim_weights = (target[:, 3:6] > 0).float()
+        dim_weights = (target[:, 3:6] != 100.0).float()
         loss_dim = smooth_l1_loss(
             pred[:, 3:6],
             target[:, 3:6],

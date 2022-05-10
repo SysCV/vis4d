@@ -6,6 +6,7 @@ from typing import Callable, Dict, List, Optional, Type, Union
 
 import pandas
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
@@ -26,7 +27,7 @@ from torch.utils.collect_env import get_pretty_env_info
 from ..data.module import BaseDataModule
 from ..model import BaseModel
 from ..struct import ArgsType, DictStrAny
-from .utils import DefaultProgressBar, setup_logger
+from .utils import DefaultProgressBar, is_torch_tf32_available, setup_logger
 
 
 class DefaultTrainer(pl.Trainer):
@@ -62,6 +63,7 @@ class DefaultTrainer(pl.Trainer):
         resume: bool = False,
         wandb: bool = False,
         tqdm: bool = False,
+        use_tf32: bool = True,
         progress_bar_refresh_rate: int = 50,
         tuner_params: Optional[DictStrAny] = None,
         tuner_metrics: Optional[List[str]] = None,
@@ -73,22 +75,32 @@ class DefaultTrainer(pl.Trainer):
         2. Setup callbacks: logger, LRMonitor, GPUMonitor, Checkpoint, etc
         3. Init distributed plugin
         """
-        rank_zero_info("Environment info: %s", get_pretty_env_info())
+        if is_torch_tf32_available():  # pragma: no cover
+            if use_tf32:
+                rank_zero_warn(
+                    "Torch TF32 is available and turned on by default! "
+                    + "It might harm the performance due to the precision. "
+                    + "You can turn it off by setting trainer.use_tf32=False."
+                )
+            else:
+                torch.backends.cuda.matmul.allow_tf32 = False
+                torch.backends.cudnn.allow_tf32 = False
 
         self.tuner_params = tuner_params
         self.tuner_metrics = tuner_metrics
         self.resume = resume
-        timestamp = (
-            str(datetime.now())
-            .split(".", maxsplit=1)[0]
-            .replace(" ", "_")
-            .replace(":", "-")
-        )
-        if version is None:
-            version = timestamp
         self.work_dir = work_dir
         self.exp_name = exp_name
+        if version is None:
+            timestamp = (
+                str(datetime.now())
+                .split(".", maxsplit=1)[0]
+                .replace(" ", "_")
+                .replace(":", "-")
+            )
+            version = timestamp
         self.version = version
+
         self.output_dir = osp.join(work_dir, exp_name, version)
 
         # setup experiment logging
@@ -166,8 +178,6 @@ class DefaultTrainer(pl.Trainer):
         else:
             kwargs["callbacks"] += callbacks
 
-        # setup cmd line logging, print and save info about trainer
-        setup_logger(osp.join(self.output_dir, f"log_{timestamp}.txt"))
         super().__init__(*args, **kwargs)
 
     @property
@@ -251,6 +261,7 @@ class BaseCLI(LightningCLI):
         ] = DefaultTrainer,
         description: str = "Vis4D command line tool",
         env_prefix: str = "V4D",
+        save_config_overwrite: bool = True,
         **kwargs: ArgsType,
     ) -> None:
         """Init."""
@@ -261,26 +272,47 @@ class BaseCLI(LightningCLI):
             trainer_class=trainer_class,
             description=description,
             env_prefix=env_prefix,
+            save_config_overwrite=save_config_overwrite,
             **kwargs,
         )
 
     def instantiate_classes(self) -> None:
         """Instantiate trainer, datamodule and model."""
-        super().instantiate_classes()
-        if self.datamodule is not None and isinstance(
-            self.datamodule, BaseDataModule
-        ):  # pragma: no cover
-            self.datamodule.set_category_mapping(self.model.category_mapping)
+        # setup cmd line logging, print env info
+        subcommand = self.config["subcommand"]
+        work_dir = self.config[subcommand].trainer.work_dir
+        exp_name = self.config[subcommand].trainer.exp_name
+        version = self.config[subcommand].trainer.version
+        timestamp = (
+            str(datetime.now())
+            .split(".", maxsplit=1)[0]
+            .replace(" ", "_")
+            .replace(":", "-")
+        )
+        if version is None:
+            version = timestamp
+        self.config[subcommand].trainer.version = version
+        setup_logger(
+            osp.join(work_dir, exp_name, version, f"log_{timestamp}.txt")
+        )
+        rank_zero_info("Environment info: %s", get_pretty_env_info())
 
-        if isinstance(self.trainer, DefaultTrainer):
-            if self.trainer.resume:  # pragma: no cover
-                weights = self.config_init[self.config_init["subcommand"]][
-                    "ckpt_path"
-                ]
-                if weights is None:
-                    weights = osp.join(
-                        self.trainer.output_dir, "checkpoints/last.ckpt"
-                    )
-                self.config_init[self.config_init["subcommand"]][
-                    "ckpt_path"
-                ] = weights
+        # instantiate classes
+        self.config[subcommand].data.subcommand = subcommand
+        self.config_init = self.parser.instantiate_classes(self.config)
+        self.datamodule = self._get(self.config_init, "data")
+        self.model = self._get(self.config_init, "model")
+        self._add_configure_optimizers_method_to_model(self.subcommand)
+        self.trainer = self.instantiate_trainer()
+        assert isinstance(self.trainer, DefaultTrainer), (
+            "Trainer needs to inherit from DefaultTrainer "
+            "for BaseCLI to work properly."
+        )
+
+        if self.trainer.resume:  # pragma: no cover
+            weights = self.config_init[subcommand].ckpt_path
+            if weights is None:
+                weights = osp.join(
+                    self.trainer.output_dir, "checkpoints/last.ckpt"
+                )
+            self.config_init[subcommand].ckpt_path = weights
