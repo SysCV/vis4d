@@ -4,15 +4,7 @@ import os.path as osp
 import re
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import (
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Union,
-    no_type_check,
-)
+from typing import Callable, Dict, List, Optional, Tuple, Union, no_type_check
 
 import pytorch_lightning as pl
 import torch

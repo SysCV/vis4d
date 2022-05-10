@@ -3,7 +3,6 @@ from pytorch_lightning.utilities.cli import instantiate_class
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
 
 from vis4d.model import QD3DT
-from vis4d.struct import ArgsType
 
 
 class StandardQD3DT(QD3DT):  # type: ignore
