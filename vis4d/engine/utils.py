@@ -101,9 +101,11 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
             for k, v in metrics.items():
                 name = k.split("/")[-1]  # remove prefix, e.g. train/loss
                 if isinstance(v, (torch.Tensor, float)):
-                    kv_str = f"{name}: {v:.3f}"
-                else:
-                    kv_str = f"{name}: {v}"  # pragma: no cover
+                    kv_str = (
+                        f"{name}: {v:.3f}"
+                        if isinstance(v, (torch.Tensor, float))
+                        else f"{name}: {v}"
+                    )
                 if name == "loss":  # put total loss first
                     metrics_list.insert(0, kv_str)
                 else:

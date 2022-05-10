@@ -4,7 +4,10 @@ import os
 import pickle
 from typing import Dict, List, Optional, Tuple, Union
 
-from pytorch_lightning.utilities.rank_zero import rank_zero_info
+from pytorch_lightning.utilities.rank_zero import (
+    rank_zero_info,
+    rank_zero_warn,
+)
 from scalabel.eval.detect import evaluate_det
 from scalabel.eval.ins_seg import evaluate_ins_seg
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
@@ -204,9 +207,11 @@ class BaseDatasetLoader(metaclass=RegistryHolder):
     ) -> None:
         """Save model predictions in Scalabel format."""
         if self.custom_save:
-            rank_zero_info(
-                f"Use custom save but save {metric} in Scalabel format."
+            rank_zero_warn(
+                f"You specified custom_save for dataset loader {self.name}, "
+                f"but Scalabel saving is still used for {metric}."
             )
+
         file_path = os.path.join(output_dir, f"{metric}_predictions.json")
         save(file_path, predictions)
 
