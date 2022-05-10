@@ -103,7 +103,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
                 if isinstance(v, (torch.Tensor, float)):
                     kv_str = f"{name}: {v:.3f}"
                 else:
-                    kv_str = f"{name}: {v}"
+                    kv_str = f"{name}: {v}"  # pragma: no cover
                 if name == "loss":  # put total loss first
                     metrics_list.insert(0, kv_str)
                 else:
