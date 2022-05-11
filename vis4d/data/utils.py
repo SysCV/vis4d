@@ -49,19 +49,27 @@ def transform_bbox(
         boxes.shape
     ), "trans_mat and boxes must have same number of dimensions!"
     x1y1 = boxes[..., :2]
+    x2y1 = torch.stack((boxes[..., 2], boxes[..., 1]), -1)
     x2y2 = boxes[..., 2:]
+    x1y2 = torch.stack((boxes[..., 0], boxes[..., 3]), -1)
 
     x1y1 = transform_points(x1y1, trans_mat)
+    x2y1 = transform_points(x2y1, trans_mat)
     x2y2 = transform_points(x2y2, trans_mat)
+    x1y2 = transform_points(x1y2, trans_mat)
 
-    x1x2 = torch.stack((x1y1[..., 0], x2y2[..., 0]), -1)
-    y1y2 = torch.stack((x1y1[..., 1], x2y2[..., 1]), -1)
+    x_all = torch.stack(
+        (x1y1[..., 0], x2y2[..., 0], x2y1[..., 0], x1y2[..., 0]), -1
+    )
+    y_all = torch.stack(
+        (x1y1[..., 1], x2y2[..., 1], x2y1[..., 1], x1y2[..., 1]), -1
+    )
     transformed_boxes = torch.stack(
         (
-            x1x2.min(dim=-1)[0],
-            y1y2.min(dim=-1)[0],
-            x1x2.max(dim=-1)[0],
-            y1y2.max(dim=-1)[0],
+            x_all.min(dim=-1)[0],
+            y_all.min(dim=-1)[0],
+            x_all.max(dim=-1)[0],
+            y_all.max(dim=-1)[0],
         ),
         -1,
     )
@@ -219,7 +227,7 @@ def print_class_histogram(class_frequencies: Dict[str, int]) -> None:
             ]
         )
     )
-    total_num_instances = sum(data[1::2])
+    total_num_instances = sum(data[1::2])  # type: ignore
     data.extend([None] * (n_cols - (len(data) % n_cols)))
     if num_classes > 1:
         data.extend(["total", total_num_instances])

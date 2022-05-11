@@ -5,7 +5,10 @@ import shutil
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
-from pytorch_lightning.utilities.rank_zero import rank_zero_warn
+from pytorch_lightning.utilities.rank_zero import (
+    rank_zero_info,
+    rank_zero_warn,
+)
 from scalabel.label.io import load, load_label_config, save
 from scalabel.label.to_nuscenes import to_nuscenes
 from scalabel.label.typing import Dataset, Frame
@@ -80,9 +83,15 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
 
         return dataset
 
-    def _convert_predictions(self, frames: List[Frame], mode: str) -> str:
+    def _convert_predictions(
+        self,
+        output_dir: str,
+        frames: List[Frame],
+        metric: str,
+        mode: str,
+    ) -> str:
         """Convert predictions back to nuScenes format, save out to tmp_dir."""
-        os.makedirs(self.tmp_dir)
+        os.makedirs(output_dir, exist_ok=True)
 
         metadata = {
             "use_camera": False,
@@ -95,7 +104,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         for m in self.metadata:
             metadata[m] = True
 
-        result_path = os.path.join(self.tmp_dir, f"{mode}_results.json")
+        result_path = os.path.join(output_dir, f"{metric}_predictions.json")
 
         nusc_results = to_nuscenes(Dataset(frames=frames), mode, metadata)
 
@@ -197,17 +206,18 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             log_dict = {"mAP": mean_ap, "NDS": nd_score}
             str_summary = "\n".join(str_summary_list)
 
-        except AssertionError as e:
+        except (  # pylint: disable=broad-except
+            AssertionError,
+            Exception,
+        ) as e:
             error_msg = "".join(e.args)
             rank_zero_warn(f"Evaluation error: {error_msg}")
             log_dict = {"mAP": 0, "NDS": 0}
             str_summary = (
                 "Evaluation failure might be raised due to sanity check"
+                + "or all emtpy boxes. "
             )
             rank_zero_warn(str_summary)
-
-        # clean up tmp dir
-        shutil.rmtree(self.tmp_dir)
 
         return log_dict, str_summary
 
@@ -265,19 +275,16 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
                 "AMOTP": metrics.compute_metric("amotp", "all"),
             }
             str_summary = "\n".join(str_summary_list)
-        except AssertionError as e:
+        except (AssertionError, ValueError) as e:
             error_msg = "".join(e.args)
             rank_zero_warn(f"Evaluation error: {error_msg}")
             log_dict = {"aMOTA": 0, "MOTP": 0}
             str_summary = (
                 "Evaluation failure might be raised due to sanity check"
-                + " or motmetrics version is not 1.13.0"
+                + " or motmetrics version is not 1.1.3"
                 + " or numpy version is not <= 1.19"
             )
             rank_zero_warn(str_summary)
-
-        # clean up tmp dir
-        shutil.rmtree(self.tmp_dir)
 
         return log_dict, str_summary
 
@@ -293,7 +300,9 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
         else:
             mode = "tracking"
 
-        result_path = self._convert_predictions(predictions, mode)
+        result_path = self._convert_predictions(
+            self.tmp_dir, predictions, metric, mode
+        )
 
         if "mini" in self.version:
             eval_set = "mini_val"
@@ -304,6 +313,9 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
             log_dict, str_summary = self._eval_detection(result_path, eval_set)
         else:
             log_dict, str_summary = self._eval_tracking(result_path, eval_set)
+
+        # clean up tmp dir
+        shutil.rmtree(self.tmp_dir)
 
         return log_dict, str_summary
 
@@ -318,3 +330,22 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
                 raise KeyError(
                     f"metric {metric} is not supported in {self.name}"
                 )
+
+    def save_predictions(
+        self, output_dir: str, metric: str, predictions: List[Frame]
+    ) -> None:
+        """Save model predictions in nuScenes official format."""
+        mode = None
+        if self.custom_save:
+            if metric == "detect_3d":
+                mode = "detection"
+            elif metric == "track_3d":
+                mode = "tracking"
+
+        if mode is None:
+            super().save_predictions(output_dir, metric, predictions)
+        else:
+            rank_zero_info(f"Save {metric} in custom format.")
+            _ = self._convert_predictions(
+                output_dir, predictions, metric, mode
+            )

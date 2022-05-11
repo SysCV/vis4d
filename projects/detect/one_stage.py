@@ -4,7 +4,6 @@ from projects.common.models import build_retinanet, build_yolox
 from projects.common.optimizers import sgd, step_schedule
 from projects.detect.data import DetectDataModule
 from projects.detect.two_stage import DetectCLI
-from vis4d.engine.trainer import DefaultTrainer
 from vis4d.model.detect.mmdet import MMOneStageDetector
 
 
@@ -41,5 +40,4 @@ if __name__ == "__main__":
     DetectCLI(
         model_class=setup_model,
         datamodule_class=DetectDataModule,
-        trainer_class=DefaultTrainer,
     )

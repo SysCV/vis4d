@@ -3,7 +3,7 @@ from projects.common.datasets import bdd100k_seg_map, bdd100k_track_map
 from projects.common.models import build_mask_rcnn
 from projects.common.optimizers import sgd, step_schedule
 from projects.panoptic_fpn.data import PanopticFPNDataModule
-from vis4d.engine.trainer import BaseCLI, DefaultTrainer
+from vis4d.engine.trainer import BaseCLI
 from vis4d.model.heads.dense_head import MMSegDecodeHead
 from vis4d.model.heads.panoptic_head import SimplePanopticHead
 from vis4d.model.panoptic import PanopticFPN
@@ -57,5 +57,4 @@ if __name__ == "__main__":
     PanopticFPNCLI(
         model_class=setup_model,
         datamodule_class=PanopticFPNDataModule,
-        trainer_class=DefaultTrainer,
     )

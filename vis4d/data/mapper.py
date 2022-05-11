@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from scalabel.label.typing import Extrinsics as ScalabelExtrinsics
 from scalabel.label.typing import Frame, FrameGroup, ImageSize
 from scalabel.label.typing import Intrinsics as ScalabelIntrinsics
@@ -68,9 +67,6 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         self.image_channel_mode = image_channel_mode
 
         self.data_backend = data_backend
-        rank_zero_info(
-            "Using data backend: %s", self.data_backend.__class__.__name__
-        )
         self.cats_name2id: Dict[str, Dict[str, int]] = {}
         if category_map is not None:
             self.setup_categories(category_map)
@@ -213,7 +209,8 @@ class BaseSampleMapper(metaclass=RegistryHolder):
         radius: float = 1.0,
     ) -> PointCloud:
         """Load pointcloud points and filter the near ones."""
-        points = np.fromfile(group_url, dtype=np.float32)  # type: ignore # pylint: disable=line-too-long
+        points_bytes = self.data_backend.get(group_url)
+        points = np.frombuffer(points_bytes, dtype=np.float32)  # type: ignore # pylint: disable=line-too-long
         s = points.shape[0]
         if s % 5 != 0:
             points = points[: s - (s % 5)]

@@ -4,6 +4,7 @@ from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+from scalabel.label.typing import FrameGroup
 from torch.utils import data
 
 from vis4d.common.registry import RegistryHolder
@@ -114,7 +115,10 @@ class BaseDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type:
                     sample = InputSample.cat(
                         [sample, *[s[samp_i] for s in addsamples]]
                     )
-                if params is None:
+                # TODO Temporary fix to separate augmentation btw group and frames, will be removed once split the dataset into single vs multi sensor # pylint: disable=line-too-long,fixme
+                if params is None and not isinstance(
+                    sample.metadata[0], FrameGroup
+                ):
                     params = aug.generate_parameters(sample)
                 samples[samp_i], _ = aug(sample, params)
 

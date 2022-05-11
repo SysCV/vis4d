@@ -3,6 +3,7 @@ from typing import List
 
 import torch
 
+from vis4d.common.bbox.utils import distance_3d_nms
 from vis4d.struct import (
     ArgsType,
     Boxes2D,
@@ -51,7 +52,7 @@ class QD3DT(QDTrack):
         return losses
 
     def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
-        """Compute qd-3dt output during inference."""
+        """Compute qd_3dt output during inference."""
         assert len(batch_inputs[0]) == 1, "Currently only BS = 1 supported!"
 
         # if there is more than one InputSample, we switch to multi-sensor:
@@ -92,21 +93,35 @@ class QD3DT(QDTrack):
 
         boxes2d = Boxes2D.merge(boxes2d_list)
 
-        for idx, boxes3d in enumerate(boxes3d_list):
-            assert isinstance(boxes3d, Boxes3D)
-            boxes3d.transform(frames[idx].extrinsics)
-        boxes3d = Boxes3D.merge(boxes3d_list)
+        if sum(len(b) for b in boxes3d_list) == 0:  # pragma: no cover
+            boxes3d = Boxes3D.merge(boxes3d_list)
+        else:
+            non_empty_3d_list = []
+            for idx, boxes3d in enumerate(boxes3d_list):
+                assert isinstance(boxes3d, Boxes3D)
+                if len(boxes3d) != 0:
+                    boxes3d.transform(frames[idx].extrinsics)
+                    non_empty_3d_list.append(boxes3d)
+            boxes3d = Boxes3D.merge(non_empty_3d_list)
 
         embeds = torch.cat(embeddings_list)
 
-        boxes_2d = boxes2d.to(torch.device("cpu")).to_scalabel(
-            self.cat_mapping
+        # post processing
+        keep_indices = distance_3d_nms(boxes3d, self.cat_mapping, boxes2d)
+        boxes2d, boxes3d, embeds = (
+            boxes2d[keep_indices],
+            boxes3d[keep_indices],
+            embeds[keep_indices],
         )
 
         # associate detections, update graph
         predictions = LabelInstances([boxes2d], [boxes3d])
         tracks = self.track_graph(frames[0], predictions, embeddings=[embeds])
 
+        # Update 3D score and move 3D boxes into group sensor coordinate
+        tracks.boxes3d[0].boxes[:, -1] = (
+            tracks.boxes3d[0].score * tracks.boxes2d[0].score  # type: ignore
+        )
         tracks.boxes3d[0].transform(group.extrinsics.inverse())
 
         tracks_2d = (
@@ -120,7 +135,7 @@ class QD3DT(QDTrack):
             .to_scalabel(self.cat_mapping)
         )
         return dict(
-            detect=[boxes_2d],
+            detect=[tracks_2d],
             track=[tracks_2d],
             detect_3d=[tracks_3d],
             track_3d=[tracks_3d],

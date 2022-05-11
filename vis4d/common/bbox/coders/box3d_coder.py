@@ -17,7 +17,7 @@ from .base import BaseBoxCoder3D
 
 
 class QD3DTBox3DCoder(BaseBoxCoder3D):
-    """3D bounding box coder based on qd-3dt."""
+    """3D bounding box coder based on qd_3dt."""
 
     def __init__(
         self,
@@ -62,7 +62,7 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
             dims = torch.where(
                 targets_.dimensions > 0,
                 torch.log(targets_.dimensions) * self.dim_log_scale,
-                targets_.dimensions.new_ones(1),
+                targets_.dimensions.new_ones(1) * 100.0,
             )
 
             # rotation
