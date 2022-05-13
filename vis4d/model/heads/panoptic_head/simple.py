@@ -7,7 +7,7 @@ from vis4d.struct import (
     InputSample,
     InstanceMasks,
     LabelInstances,
-    LossesType,
+    Losses,
     SemanticMasks,
 )
 
@@ -38,7 +38,7 @@ class SimplePanopticHead(BasePanopticHead):
         inputs: InputSample,
         predictions: LabelInstances,
         targets: LabelInstances,
-    ) -> LossesType:  # pragma: no cover
+    ) -> Losses:  # pragma: no cover
         """Forward pass during training stage.
 
         Returns no losses since simple panoptic head has no learnable

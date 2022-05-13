@@ -16,7 +16,7 @@ from vis4d.struct import (
     DictStrAny,
     InputSample,
     LabelInstances,
-    LossesType,
+    Losses,
 )
 
 from .qdtrack import QDTrackGraph
@@ -409,7 +409,7 @@ class QD3DTrackGraph(QDTrackGraph):
         predictions: List[LabelInstances],
         targets: Optional[List[LabelInstances]],
         **kwargs: List[torch.Tensor],
-    ) -> LossesType:
+    ) -> Losses:
         """Forward of QDTrackGraph in training stage."""
         raise NotImplementedError
 

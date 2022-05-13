@@ -10,7 +10,7 @@ from vis4d.struct import (
     InputSample,
     InstanceMasks,
     LabelInstances,
-    LossesType,
+    Losses,
     ModelOutput,
     TLabelInstance,
 )
@@ -152,7 +152,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         if weights is not None:
             load_model_checkpoint(self, weights, REV_KEYS)
 
-    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> Losses:
         """Forward pass during training stage."""
         assert (
             len(batch_inputs) == 1
@@ -195,7 +195,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, List[Boxes2D]]:
+    ) -> Tuple[Losses, List[Boxes2D]]:
         """Train stage proposal generation."""
         return self.rpn_head(inputs, features, targets)
 
@@ -211,7 +211,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         features: FeatureMaps,
         proposals: List[Boxes2D],
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+    ) -> Tuple[Losses, Optional[SamplingResult]]:
         """Train stage detections generation."""
         return self.roi_head(inputs, features, proposals, targets)
 
@@ -291,7 +291,7 @@ class MMOneStageDetector(BaseOneStageDetector):
         if weights is not None:
             load_model_checkpoint(self, weights, REV_KEYS)
 
-    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> Losses:
         """Forward pass during training stage."""
         assert (
             len(batch_inputs) == 1
@@ -328,7 +328,7 @@ class MMOneStageDetector(BaseOneStageDetector):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[List[Boxes2D]]]:
+    ) -> Tuple[Losses, Optional[List[Boxes2D]]]:
         """Train stage detections generation."""
         return self.bbox_head(inputs, features, targets)
 

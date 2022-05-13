@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, TypedDict, Union
 import torch
 
 from vis4d.common.bbox.utils import bbox_iou
-from vis4d.struct import Boxes2D, InputSample, LabelInstances, LossesType
+from vis4d.struct import Boxes2D, InputSample, LabelInstances, Losses
 
 from .base import BaseTrackGraph
 
@@ -170,7 +170,7 @@ class QDTrackGraph(BaseTrackGraph):
         predictions: List[LabelInstances],
         targets: Optional[List[LabelInstances]],
         **kwargs: List[torch.Tensor],
-    ) -> LossesType:
+    ) -> Losses:
         """Forward of QDTrackGraph in training stage."""
         raise NotImplementedError
 

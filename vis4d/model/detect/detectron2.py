@@ -34,7 +34,7 @@ from vis4d.struct import (
     InputSample,
     InstanceMasks,
     LabelInstances,
-    LossesType,
+    Losses,
     ModelOutput,
     TLabelInstance,
 )
@@ -97,7 +97,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
     def forward_train(
         self,
         batch_inputs: List[InputSample],
-    ) -> LossesType:
+    ) -> Losses:
         """D2 model forward pass during training stage."""
         assert (
             len(batch_inputs) == 1
@@ -149,7 +149,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, List[Boxes2D]]:
+    ) -> Tuple[Losses, List[Boxes2D]]:
         """Train stage proposal generation."""
         images_d2 = images_to_imagelist(inputs.images)
         targets_d2: Optional[List[Instances]] = target_to_instance(
@@ -185,7 +185,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         features: FeatureMaps,
         proposals: List[Boxes2D],
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+    ) -> Tuple[Losses, Optional[SamplingResult]]:
         """Train stage detections generation."""
         images_d2 = images_to_imagelist(inputs.images)
         proposals = box2d_to_proposal(proposals, inputs.images.image_sizes)

@@ -1,4 +1,5 @@
 """Vis4D optimize tools."""
+from .optimizer import DefaultOptimizer
 from .scheduler import PolyLRScheduler
 from .warmup import (
     BaseLRWarmup,
@@ -6,7 +7,6 @@ from .warmup import (
     ExponentialLRWarmup,
     LinearLRWarmup,
 )
-from .optimizer import DefaultOptimizer
 
 __all__ = [
     "DefaultOptimizer",

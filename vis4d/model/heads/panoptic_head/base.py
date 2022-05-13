@@ -8,14 +8,14 @@ from vis4d.struct import (
     InputSample,
     InstanceMasks,
     LabelInstances,
-    LossesType,
+    Losses,
     SemanticMasks,
 )
 
 PanopticMasks = Tuple[List[InstanceMasks], List[SemanticMasks]]
 
 
-class BasePanopticHead(Vis4DModule[LossesType, PanopticMasks]):
+class BasePanopticHead(Vis4DModule[Losses, PanopticMasks]):
     """Base Panoptic head class."""
 
     @overload  # type: ignore[override]
@@ -30,7 +30,7 @@ class BasePanopticHead(Vis4DModule[LossesType, PanopticMasks]):
         inputs: InputSample,
         predictions: LabelInstances,
         targets: LabelInstances,
-    ) -> LossesType:
+    ) -> Losses:
         ...
 
     def __call__(
@@ -38,7 +38,7 @@ class BasePanopticHead(Vis4DModule[LossesType, PanopticMasks]):
         inputs: InputSample,
         predictions: LabelInstances,
         targets: Optional[LabelInstances] = None,
-    ) -> Union[LossesType, PanopticMasks]:
+    ) -> Union[Losses, PanopticMasks]:
         """Base Panoptic head forward.
 
         Args:
@@ -60,7 +60,7 @@ class BasePanopticHead(Vis4DModule[LossesType, PanopticMasks]):
         inputs: InputSample,
         predictions: LabelInstances,
         targets: LabelInstances,
-    ) -> LossesType:
+    ) -> Losses:
         """Forward pass during training stage.
 
         Args:

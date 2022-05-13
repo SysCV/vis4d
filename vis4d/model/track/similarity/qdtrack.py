@@ -20,7 +20,7 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     LabelInstances,
-    LossesType,
+    Losses,
 )
 
 from ..utils import cosine_similarity
@@ -169,7 +169,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         boxes: List[List[Boxes2D]],
         features: Optional[List[FeatureMaps]],
         targets: List[LabelInstances],
-    ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
+    ) -> Tuple[Losses, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
 
         Args:
@@ -304,7 +304,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         key_targets: List[Boxes2D],
         ref_embeddings: List[List[torch.Tensor]],
         ref_targets: List[List[Boxes2D]],
-    ) -> LossesType:
+    ) -> Losses:
         """Calculate losses for tracking.
 
         Key inputs are of type List[Tensor/Boxes2D] (Lists are length N)

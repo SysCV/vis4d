@@ -23,7 +23,7 @@ from vis4d.struct import (
     InputSample,
     Intrinsics,
     LabelInstances,
-    LossesType,
+    Losses,
 )
 
 from .base import Det3DRoIHead
@@ -352,7 +352,7 @@ class QD3DTBBox3DHead(Det3DRoIHead):
         features: FeatureMaps,
         boxes: List[Boxes2D],
         targets: LabelInstances,
-    ) -> Tuple[LossesType, SamplingResult]:
+    ) -> Tuple[Losses, SamplingResult]:
         """Forward pass during training stage.
 
         Args:

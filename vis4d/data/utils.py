@@ -245,58 +245,6 @@ def print_class_histogram(class_frequencies: Dict[str, int]) -> None:
     )
 
 
-def check_attributes(
-    frame_attributes: Union[bool, float, str],
-    allowed_attributes: Union[bool, float, str, List[float], List[str]],
-) -> bool:
-    """Check if attributes for current frame are allowed.
-
-    Args:
-        frame_attributes: Attributes of current frame.
-        allowed_attributes: Attributes allowed.
-
-    Returns:
-        boolean, whether frame attributes are allowed.
-    """
-    if isinstance(allowed_attributes, list):
-        # assert frame_attributes not in allowed_attributes
-        return frame_attributes in allowed_attributes
-    return frame_attributes == allowed_attributes
-
-
-def filter_attributes(
-    frames: List[Frame],
-    attributes_dict: Optional[
-        Dict[str, Union[bool, float, str, List[float], List[str]]]
-    ],
-) -> List[Frame]:
-    """Filter samples according to allowed attributes.
-
-    Args:
-        frames: A list of Frame instances to filter.
-        attributes_dict: Dictionary of allowed attributes. Each dictionary
-            entry contains all allowed attributes for that key.
-
-    Returns:
-        A list of filtered Frame instances.
-
-    Raises:
-        ValueError: If the filtering removes all frames, we throw an error.
-    """
-    if attributes_dict:
-        for attributes_key in attributes_dict:
-            attributes = attributes_dict[attributes_key]
-            frames = [
-                f
-                for f in frames
-                if f.attributes
-                and check_attributes(f.attributes[attributes_key], attributes)
-            ]
-        if len(frames) == 0:
-            raise ValueError("Dataset empty after filtering by attributes!")
-    return frames
-
-
 # reference:
 # https://github.com/facebookresearch/detectron2/blob/7f8f29deae278b75625872c8a0b00b74129446ac/detectron2/data/common.py#L109
 class DatasetFromList(torch.utils.data.Dataset):  # type: ignore

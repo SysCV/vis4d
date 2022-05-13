@@ -14,7 +14,7 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     LabelInstances,
-    LossesType,
+    Losses,
 )
 
 from .base import DetDenseHead
@@ -67,7 +67,7 @@ class MMDetDenseHead(DetDenseHead):
         inputs: InputSample,
         features: Optional[FeatureMaps],
         targets: LabelInstances,
-    ) -> Tuple[LossesType, List[Boxes2D]]:
+    ) -> Tuple[Losses, List[Boxes2D]]:
         """Forward pass during training stage."""
         assert features is not None, "MMDetDenseHead requires features"
         feat_list = list(features.values())
@@ -102,7 +102,7 @@ class MMDetRPNHead(MMDetDenseHead):
         inputs: InputSample,
         features: Optional[FeatureMaps],
         targets: LabelInstances,
-    ) -> Tuple[LossesType, List[Boxes2D]]:
+    ) -> Tuple[Losses, List[Boxes2D]]:
         """Forward pass during training stage."""
         assert features is not None, "MMDetRPNHead requires features"
         feat_list = list(features.values())

@@ -10,12 +10,12 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     LabelInstances,
-    LossesType,
+    Losses,
     SemanticMasks,
 )
 
 
-class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
+class BaseDenseHead(Vis4DModule[Tuple[Losses, TTrainReturn], TTestReturn]):
     """Base Dense head class."""
 
     def __init__(
@@ -37,7 +37,7 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, TTrainReturn]:
+    ) -> Tuple[Losses, TTrainReturn]:
         ...
 
     def __call__(
@@ -45,7 +45,7 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
         inputs: InputSample,
         features: FeatureMaps,
         targets: Optional[LabelInstances] = None,
-    ) -> Union[Tuple[LossesType, TTrainReturn], TTestReturn]:
+    ) -> Union[Tuple[Losses, TTrainReturn], TTestReturn]:
         """Base Dense head forward.
 
         Args:
@@ -67,7 +67,7 @@ class BaseDenseHead(Vis4DModule[Tuple[LossesType, TTrainReturn], TTestReturn]):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, TTrainReturn]:
+    ) -> Tuple[Losses, TTrainReturn]:
         """Forward pass during training stage.
 
         Args:

@@ -7,11 +7,9 @@ from typing import Callable, List, Optional, Tuple, no_type_check
 
 import pytorch_lightning as pl
 import torch
-from torch import nn
 from pytorch_lightning.utilities.cli import instantiate_class
-from pytorch_lightning.utilities.rank_zero import (
-    rank_zero_info,
-)
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
+from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 from torch.utils.model_zoo import load_url
 from torchmetrics import MeanMetric
@@ -22,11 +20,12 @@ from vis4d.common.utils.distributed import get_rank, get_world_size
 from vis4d.struct import (
     DictStrAny,
     InputSample,
-    LossesType,
+    Losses,
     ModelOutput,
     ModuleCfg,
 )
-from vis4d.model.optimize import BaseLRWarmup, LinearLRWarmup
+
+from .warmup import BaseLRWarmup, LinearLRWarmup
 
 try:
     from mmcv.runner.fp16_utils import wrap_fp16_model
@@ -109,7 +108,7 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
 
     def __call__(
         self, batch_inputs: List[InputSample]
-    ) -> Union[LossesType, ModelOutput]:  # pragma: no cover
+    ) -> Union[Losses, ModelOutput]:  # pragma: no cover
         """Forward."""
         if self.training:
             return self.forward_train(batch_inputs)
@@ -165,7 +164,7 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
 
     def training_step(  # type: ignore # pylint: disable=arguments-differ
         self, batch: List[InputSample], *args, **kwargs
-    ) -> LossesType:
+    ) -> Losses:
         """Wrap training step of LightningModule. Add overall loss."""
         losses = self.model(batch)
         losses["loss"] = sum(list(losses.values()))

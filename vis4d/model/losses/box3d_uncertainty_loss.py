@@ -4,7 +4,7 @@ from typing import Tuple
 import torch
 import torch.nn.functional as F
 
-from vis4d.struct import LossesType
+from vis4d.struct import Losses
 
 from .base import BaseLoss
 from .utils import smooth_l1_loss
@@ -38,7 +38,7 @@ class Box3DUncertaintyLoss(BaseLoss):
         pred: torch.Tensor,
         target: torch.Tensor,
         labels: torch.Tensor,
-    ) -> LossesType:
+    ) -> Losses:
         """Compute box3d loss."""
         if pred.size(0) == 0:
             loss_ctr3d = loss_dep3d = loss_dim3d = loss_rot3d = loss_conf3d = (

@@ -10,7 +10,7 @@ from vis4d.struct import (
     Boxes3D,
     InputSample,
     LabelInstances,
-    LossesType,
+    Losses,
     ModelOutput,
 )
 
@@ -31,7 +31,7 @@ class QD3DT(QDTrack):
         assert self.category_mapping is not None
         self.bbox_3d_head = bbox_3d_head
 
-    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> Losses:
         """Forward function for training."""
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
         key_targets = key_inputs.targets

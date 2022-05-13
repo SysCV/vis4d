@@ -20,7 +20,7 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     LabelInstances,
-    LossesType,
+    Losses,
     ModelOutput,
     TLabelInstance,
 )
@@ -52,7 +52,7 @@ class QDTrack(nn.Module):
         ref_inputs: List[InputSample],
         key_x: FeatureMaps,
         ref_x: List[FeatureMaps],
-    ) -> Tuple[LossesType, List[Boxes2D], List[List[Boxes2D]]]:
+    ) -> Tuple[Losses, List[Boxes2D], List[List[Boxes2D]]]:
         """Get detection and tracking losses."""
         key_targets, ref_targets = key_inputs.targets, [
             x.targets for x in ref_inputs
@@ -166,7 +166,15 @@ class QDTrack(nn.Module):
         )
         return outs
 
-    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
+    def forward(
+        self, batch_inputs: List[InputSample]
+    ) -> Union[Losses, ModelOutput]:
+        """Forward function of QDTrack."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)
+
+    def forward_train(self, batch_inputs: List[InputSample]) -> Losses:
         """Forward function for training."""
         key_inputs, ref_inputs = split_key_ref_inputs(batch_inputs)
 

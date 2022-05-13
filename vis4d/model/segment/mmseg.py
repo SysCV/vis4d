@@ -9,7 +9,7 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     LabelInstances,
-    LossesType,
+    Losses,
     ModelOutput,
     SemanticMasks,
 )
@@ -134,7 +134,7 @@ class MMEncDecSegmentor(BaseSegmentor):
             )
         return decode_head
 
-    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> Losses:
         """Forward pass during training stage."""
         assert (
             len(batch_inputs) == 1
@@ -171,7 +171,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
+    ) -> Tuple[Losses, Optional[List[SemanticMasks]]]:
         """Train stage segmentations generation."""
         assert not isinstance(self.decode_head, torch.nn.ModuleList)
         decode_losses, _ = self.decode_head(inputs, features, targets)
@@ -192,7 +192,7 @@ class MMEncDecSegmentor(BaseSegmentor):
 
     def generate_auxiliaries(
         self, inputs: InputSample, features: FeatureMaps
-    ) -> LossesType:
+    ) -> Losses:
         """Segmentor auxiliary head stage.
 
         Return auxiliary losses (empty if no targets).

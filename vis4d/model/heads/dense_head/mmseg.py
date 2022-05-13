@@ -31,7 +31,7 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     LabelInstances,
-    LossesType,
+    Losses,
     SemanticMasks,
 )
 
@@ -68,7 +68,7 @@ class MMSegDecodeHead(SegDenseHead):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[torch.Tensor]]:
+    ) -> Tuple[Losses, Optional[torch.Tensor]]:
         """Forward pass during training stage."""
         image_metas = get_img_metas(inputs.images)
         gt_masks = targets_to_mmseg(inputs.images, inputs.targets)

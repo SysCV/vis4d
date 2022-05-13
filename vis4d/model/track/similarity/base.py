@@ -12,13 +12,13 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     LabelInstances,
-    LossesType,
+    Losses,
 )
 
 
 class BaseSimilarityHead(
     Vis4DModule[
-        Tuple[LossesType, Optional[List[SamplingResult]]],
+        Tuple[Losses, Optional[List[SamplingResult]]],
         List[torch.Tensor],
     ]
 ):
@@ -40,7 +40,7 @@ class BaseSimilarityHead(
         boxes: List[List[Boxes2D]],
         features: Optional[List[FeatureMaps]],
         targets: List[LabelInstances],
-    ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
+    ) -> Tuple[Losses, Optional[List[SamplingResult]]]:
         ...
 
     def __call__(
@@ -53,7 +53,7 @@ class BaseSimilarityHead(
         ] = None,
         targets: Optional[List[LabelInstances]] = None,
     ) -> Union[
-        Tuple[LossesType, Optional[List[SamplingResult]]], List[torch.Tensor]
+        Tuple[Losses, Optional[List[SamplingResult]]], List[torch.Tensor]
     ]:
         """Forward function of similarity head.
 
@@ -87,7 +87,7 @@ class BaseSimilarityHead(
         boxes: List[List[Boxes2D]],
         features: Optional[List[FeatureMaps]],
         targets: List[LabelInstances],
-    ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
+    ) -> Tuple[Losses, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
 
         Args:

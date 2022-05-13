@@ -18,7 +18,7 @@ from vis4d.struct import (
     InputSample,
     InstanceMasks,
     LabelInstances,
-    LossesType,
+    Losses,
     ModelOutput,
     NDArrayF64,
     NDArrayUI8,
@@ -258,7 +258,7 @@ def load_config(path: str, key: str = "model") -> MMConfig:
 
 def _parse_losses(
     losses: Dict[str, torch.Tensor], prefix: Optional[str] = None
-) -> LossesType:
+) -> Losses:
     """Parse losses to a scalar tensor."""
     log_vars = {}
     for name, value in losses.items():

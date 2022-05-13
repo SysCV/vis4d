@@ -18,7 +18,7 @@ from vis4d.struct import (
     InputSample,
     InstanceMasks,
     LabelInstances,
-    LossesType,
+    Losses,
 )
 
 from .base import Det2DRoIHead
@@ -68,7 +68,7 @@ class MMDetRoIHead(Det2DRoIHead):
         features: FeatureMaps,
         boxes: List[Boxes2D],
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[SamplingResult]]:
+    ) -> Tuple[Losses, Optional[SamplingResult]]:
         """Forward pass during training stage."""
         assert (
             boxes is not None

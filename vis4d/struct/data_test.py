@@ -5,6 +5,8 @@ import torch
 
 from .data import Extrinsics, Images, Intrinsics, PointCloud
 
+# TODO remove, move relevant parts to new locations (data / common)
+
 
 class TestDataStructures(unittest.TestCase):
     """Test cases Vis4D data structures."""

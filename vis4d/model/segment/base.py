@@ -7,7 +7,7 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     LabelInstances,
-    LossesType,
+    Losses,
     SemanticMasks,
 )
 
@@ -37,7 +37,7 @@ class BaseSegmentor(BaseModel):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
+    ) -> Tuple[Losses, Optional[List[SemanticMasks]]]:
         ...
 
     def generate_segmentations(
@@ -47,7 +47,7 @@ class BaseSegmentor(BaseModel):
         targets: Optional[LabelInstances] = None,
     ) -> Union[
         Tuple[
-            LossesType,
+            Losses,
             Optional[List[SemanticMasks]],
         ],
         List[SemanticMasks],
@@ -67,7 +67,7 @@ class BaseSegmentor(BaseModel):
         inputs: InputSample,
         features: FeatureMaps,
         targets: LabelInstances,
-    ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
+    ) -> Tuple[Losses, Optional[List[SemanticMasks]]]:
         """Train stage segmentations generation."""
         raise NotImplementedError
 

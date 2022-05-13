@@ -20,7 +20,7 @@ from vis4d.struct import (
     InstanceMasks,
     Intrinsics,
     LabelInstances,
-    LossesType,
+    Losses,
     ModelOutput,
     SemanticMasks,
     TLabelInstance,
@@ -220,7 +220,7 @@ class MockModel(BaseModel):
         self.model_param = model_param
         self.linear = nn.Linear(10, 1)
 
-    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> Losses:
         """Train step mockup."""
         return {
             "my_loss": (

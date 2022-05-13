@@ -15,33 +15,12 @@ from vis4d.data.callbacks.writer import DefaultWriterCallback
 from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
 from ..struct import CategoryMap, InputSample, ModuleCfg
-from .dataset import ScalabelDataset
-from .datasets import Custom
+from .datasets import BaseDataset, Custom
 from .handler import BaseDatasetHandler
 from .samplers import TrackingInferenceSampler, build_data_sampler
 from .utils import identity_batch_collator
 
-
-def build_callbacks(
-    datasets: List[ScalabelDataset],
-    out_dir: Optional[str] = None,
-    is_predict: bool = False,
-    visualize: bool = False,
-) -> List[Callback]:
-    """Build callbacks."""
-    callbacks: List[Callback] = []
-    for i, d in enumerate(datasets):
-        out = (
-            osp.join(out_dir, d.dataset.name) if out_dir is not None else None
-        )
-        if not is_predict:
-            callbacks.append(DefaultEvaluatorCallback(i, d.dataset, out))
-        else:
-            assert out is not None
-            callbacks.append(
-                DefaultWriterCallback(i, d.dataset, out, visualize)
-            )
-    return callbacks
+# TODO make abstract
 
 
 class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
@@ -86,12 +65,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         self.test_datasets: Optional[List[BaseDatasetHandler]] = None
         self.predict_datasets: Optional[List[BaseDatasetHandler]] = None
         self._sampler_cfg = sampler_cfg
-        self.category_mapping: Optional[CategoryMap] = None
         self.create_datasets(subcommand)
-
-    def set_category_mapping(self, cat_map: CategoryMap) -> None:
-        """Set default category mapping used when creating the datasets."""
-        self.category_mapping = cat_map
 
     def create_datasets(self, stage: Optional[str] = None) -> None:
         """Create Train / Test / Predict Datasets."""
@@ -128,12 +102,33 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
             if self.input_dir[-1] == "/":
                 self.input_dir = self.input_dir[:-1]
             dataset_name = osp.basename(self.input_dir)
-            dataset = [
-                ScalabelDataset(Custom(dataset_name, self.input_dir), False)
+            self.predict_datasets = [
+                BaseDatasetHandler(Custom(dataset_name, self.input_dir))
             ]
-            self.predict_datasets = [BaseDatasetHandler(dataset)]
         else:
             self.predict_datasets = self.test_datasets  # pragma: no cover
+
+    @staticmethod
+    def build_callbacks(
+        datasets: List[BaseDataset],
+        out_dir: Optional[str] = None,
+        is_predict: bool = False,
+        visualize: bool = False,
+    ) -> List[Callback]:
+        """Build callbacks."""
+        callbacks: List[Callback] = []
+        for i, d in enumerate(datasets):
+            out = (
+                osp.join(out_dir, d.dataset.name)
+                if out_dir is not None
+                else None
+            )
+            if not is_predict:
+                callbacks.append(DefaultEvaluatorCallback(i, d, out))
+            else:
+                assert out is not None
+                callbacks.append(DefaultWriterCallback(i, d, out, visualize))
+        return callbacks
 
     def setup_data_callbacks(self, stage: str, log_dir: str) -> List[Callback]:
         """Setup callbacks for evaluation and prediction writing."""
@@ -142,7 +137,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
                 test_datasets = list(
                     itertools.chain(*[h.datasets for h in self.test_datasets])
                 )
-                return build_callbacks(test_datasets)
+                return self.build_callbacks(test_datasets)
             return []  # pragma: no cover
         if stage in ["test", "tune"]:
             assert self.test_datasets is not None and len(
@@ -151,7 +146,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
             test_datasets = list(
                 itertools.chain(*[h.datasets for h in self.test_datasets])
             )
-            return build_callbacks(test_datasets, log_dir)
+            return self.build_callbacks(test_datasets, log_dir)
         if stage == "predict":
             self.convert_input_dir_to_dataset()
             assert (
@@ -161,7 +156,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
             predict_datasets = list(
                 itertools.chain(*[h.datasets for h in self.predict_datasets])
             )
-            return build_callbacks(
+            return self.build_callbacks(
                 predict_datasets, log_dir, True, self.visualize
             )
         raise NotImplementedError(f"Action {stage} not known!")

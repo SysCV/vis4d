@@ -28,6 +28,7 @@ from vis4d.model.heads.dense_head import (
 from vis4d.model.heads.panoptic_head import SimplePanopticHead
 from vis4d.model.heads.roi_head import MMDetRoIHead, QD3DTBBox3DHead
 from vis4d.model.optimize import LinearLRWarmup
+from vis4d.model.optimize.optimizer import DefaultOptimizer
 from vis4d.model.panoptic import PanopticFPN
 from vis4d.model.segment import MMEncDecSegmentor
 from vis4d.model.track.graph import QDTrackGraph
@@ -39,7 +40,6 @@ from vis4d.unittest.utils import (
     generate_input_sample,
 )
 
-from vis4d.model.optimize.optimizer import DefaultOptimizer
 from .qd_3dt import QD3DT
 from .qdtrack import QDTrack
 

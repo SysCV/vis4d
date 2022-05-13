@@ -1,5 +1,5 @@
 """Datasets module."""
-from .base import BaseDatasetLoader
+from .base import BaseDataset
 from .bdd100k import BDD100K
 from .coco import COCO
 from .custom import Custom
@@ -10,7 +10,7 @@ from .scalabel import Scalabel
 from .waymo import Waymo
 
 __all__ = [
-    "BaseDatasetLoader",
+    "BaseDataset",
     "BDD100K",
     "Scalabel",
     "COCO",

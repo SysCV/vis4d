@@ -6,10 +6,10 @@ from typing import List, Optional, Union, cast, overload
 import torch
 
 from vis4d.common import Vis4DModule
-from vis4d.struct import InputSample, LabelInstances, LossesType
+from vis4d.struct import InputSample, LabelInstances, Losses
 
 
-class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
+class BaseTrackGraph(Vis4DModule[LabelInstances, Losses]):
     """Base class for tracking graph optimization."""
 
     @abc.abstractmethod
@@ -33,7 +33,7 @@ class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
         predictions: List[LabelInstances],
         targets: Optional[List[LabelInstances]],
         **kwargs: List[torch.Tensor],
-    ) -> LossesType:
+    ) -> Losses:
         ...
 
     def __call__(
@@ -42,7 +42,7 @@ class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
         predictions: Union[List[LabelInstances], LabelInstances],
         targets: Optional[List[LabelInstances]] = None,
         **kwargs: Union[List[torch.Tensor], torch.Tensor],
-    ) -> Union[LabelInstances, LossesType]:
+    ) -> Union[LabelInstances, Losses]:
         """Forward method. Decides between train / test logic."""
         if targets is not None:  # pragma: no cover
             inputs = cast(List[InputSample], inputs)
@@ -59,7 +59,7 @@ class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
         predictions: List[LabelInstances],
         targets: List[LabelInstances],
         **kwargs: List[torch.Tensor],
-    ) -> LossesType:
+    ) -> Losses:
         """Process inputs, match detections with existing tracks."""
         raise NotImplementedError
 

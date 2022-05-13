@@ -7,7 +7,7 @@ from vis4d.struct import (
     ArgsType,
     InputSample,
     LabelInstances,
-    LossesType,
+    Losses,
     ModelOutput,
     TLabelInstance,
 )
@@ -49,7 +49,7 @@ class PanopticFPN(BaseModel):
             ins_out + sem_out for ins_out, sem_out in zip(ins_outs, sem_outs)
         ]
 
-    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> Losses:
         """Forward pass during training stage."""
         assert (
             len(batch_inputs) == 1
