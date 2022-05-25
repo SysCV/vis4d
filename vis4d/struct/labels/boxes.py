@@ -1,20 +1,14 @@
 """Vis4D Boxes data structures."""
-import abc
-from typing import Dict, List, Optional, Tuple, Type, TypeVar
+from typing import List, Optional, Tuple, Type, TypedDict
 
 import torch
-from scalabel.label.transforms import box2d_to_xyxy, xyxy_to_box2d
-from scalabel.label.typing import Box3D, ImageSize, Label
-
 from vis4d.common.geometry.rotation import (
     euler_angles_to_matrix,
     matrix_to_euler_angles,
 )
 
-from ..data import Extrinsics
-from ..structures import LabelInstance
 
-# TODO adjust to util functions
+# TODO adjust util functions
 
 
 def merge(cls: Type["TBoxes"], instances: List["TBoxes"]) -> "TBoxes":
@@ -53,6 +47,10 @@ class Boxes2D(TypedDict):
     track_ids: torch.LongTensor (N,) where each entry is the track id of
     the respective box.
     """
+    class_id: torch.Tensor
+    score: Optional[torch.Tensor]
+    track_id: Optional[torch.Tensor]
+
 
 
 def scale(self, scale_factor_xy: Tuple[float, float]) -> None:

@@ -2,12 +2,10 @@
 
 import itertools
 from enum import Enum
-from typing import List, Optional, Tuple, Union
-
+from typing import List, Optional, Tuple
+from .sample import InputData
 import torch
 import torch.nn.functional as F
-
-from .structures import InputInstance
 
 # TODO restructure, move to data utilies or common
 
@@ -20,7 +18,7 @@ def inverse(self) -> torch.Tensor:
     return inv
 
 
-def get_image(self, inputdata: InputData, idx: int) -> "Images":
+def get_image(self, inputdata: InputData, idx: int) -> torch.Tensor:
     """Access the individual image in its original size.
 
     Args:
@@ -30,58 +28,53 @@ def get_image(self, inputdata: InputData, idx: int) -> "Images":
         Tensor: an image of shape (C_1, ..., C_K, H, W)
         where K >= 1
     """
-    size = self.image_sizes[idx]
-    return Images(
-        self.tensor[idx : idx + 1, ..., : size[1], : size[0]], [size]
-    )
+    size = self.image_sizes[idx]  # TODO this assumes bottom-right padding, needs to be documented in data type
+    return inputdata["images"][idx : idx + 1, ..., : size[1], : size[0]]
 
 
 def batch_images(
-    cls,
     instances: List[torch.Tensor],
     device: Optional[torch.device] = None,
     stride: int = 32,
 ) -> torch.Tensor:
-    """Concatenate and pad."""
+    """Batch a list of images in to a single tensor.
+
+    Concatenates and pads the input images considering stride. Creates Tensor
+    on target device if specified.
+    """
     assert isinstance(instances, (list, tuple))
     assert len(instances) > 0
-    assert all((isinstance(inst, Images) for inst in instances))
+    assert all((isinstance(inst, torch.Tensor) for inst in instances))
     max_hw = (
-        max([im.tensor.shape[-2] for im in instances]),
-        max([im.tensor.shape[-1] for im in instances]),
+        max([im.shape[-2] for im in instances]),
+        max([im.shape[-1] for im in instances]),
     )
     lens = [len(x) for x in instances]
 
     # ensure divisibility by stride
-    pad = lambda x: (x + (cls.stride - 1)) // cls.stride * cls.stride
+    pad = lambda x: (x + (stride - 1)) // stride * stride
     max_hw = (pad(x) for x in max_hw)  # type: ignore
 
     batch_shape = (
-        [sum(lens)] + list(instances[0].tensor.shape[1:-2]) + list(max_hw)
+        [sum(lens)] + list(instances[0].shape[1:-2]) + list(max_hw)
     )
     if device is None:
-        device = instances[0].tensor.device
+        device = instances[0].device
     pad_imgs = torch.zeros(batch_shape, device=device)
     cum_len = 0
     for img, cur_len in zip(instances, lens):
         pad_imgs[
             cum_len : cum_len + cur_len,
             ...,
-            : img.tensor.shape[-2],
-            : img.tensor.shape[-1],
-        ].copy_(img.tensor)
+            : img.shape[-2],
+            : img.shape[-1],
+        ].copy_(img)
         cum_len += cur_len
-
-    all_sizes = list(
-        itertools.chain.from_iterable([x.image_sizes for x in instances])
-    )
-    return Images(pad_imgs.contiguous(), all_sizes)
+    return pad_imgs.contiguous()
 
 
-def resize(
-    self, resize_hw: Tuple[int, int], mode: str = "bilinear"
-) -> None:  # TODO adjust
-    """Resizes Images object."""
+def resize( resize_hw: Tuple[int, int], mode: str = "bilinear") -> None:
+    """Resizes Images object."""  # TODO adjust
     align_corners = None if mode == "nearest" else False
     resized_ims = []
     for i in range(len(self)):

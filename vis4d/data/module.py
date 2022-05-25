@@ -14,7 +14,7 @@ from vis4d.data.callbacks.writer import DefaultWriterCallback
 
 from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
-from ..struct import CategoryMap, InputSample, ModuleCfg
+from ..struct import InputSample, ModuleCfg
 from .datasets import BaseDataset, Custom
 from .handler import BaseDatasetHandler
 from .samplers import TrackingInferenceSampler, build_data_sampler
@@ -216,7 +216,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
             [batch[j][i] for j in range(len(batch))]
             for i in range(len(batch[0]))
         ]
-        return [InputSample.cat(elem, device) for elem in batch]
+        return [batch_input(elem, device) for elem in batch]
 
     def _build_inference_dataloaders(
         self, datasets: List[BaseDatasetHandler]

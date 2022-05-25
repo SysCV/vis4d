@@ -8,25 +8,21 @@ from .labels import (
     SemanticMasks,
     TMasks,
 )
-from .sample import InputSample, LabelInstances
+from .sample import InputData
 from .structures import (
     ALLOWED_INPUTS,
     ALLOWED_TARGETS,
     ArgsType,
     CategoryMap,
-    DataInstance,
     DictStrAny,
     FeatureMaps,
-    LabelInstance,
     Losses,
     MetricLogs,
     ModelOutput,
-    ModuleCfg,
     NDArrayF32,
     NDArrayF64,
     NDArrayI64,
     NDArrayUI8,
-    TLabelInstance,
     TorchCheckpoint,
 )
 

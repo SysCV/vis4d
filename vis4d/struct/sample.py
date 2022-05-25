@@ -1,12 +1,7 @@
 """Input sample definition in Vis4D."""
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, TypedDict
 
 import torch
-from scalabel.label.typing import Frame
-
-from .data import Extrinsics, Images, Intrinsics, PointCloud
-from .labels import Boxes2D, Boxes3D, InstanceMasks, SemanticMasks
-from .structures import DataInstance, InputInstance
 
 # TODO convert to utility functions
 # def to(self, device: torch.device) -> "LabelInstances":
@@ -117,77 +112,3 @@ class InputData(TypedDict):
     points: Optional[torch.Tensor] = None
     targets: Optional[Targets] = None
     other: Optional[List[Dict[str, torch.Tensor]]] = None
-
-    # TODO convert to utility functions
-    # def to(  # pylint: disable=invalid-name
-    #     self, device: torch.device
-    # ) -> "InputSample":
-    #     """Move to device (CPU / GPU / ...)."""
-    #     return InputSample(
-    #         self.metadata,
-    #         self.images.to(device),
-    #         self.intrinsics.to(device),
-    #         self.extrinsics.to(device),
-    #         self.points.to(device),
-    #         self.targets.to(device),
-    #         [{k: v.to(device) for k, v in o.items()} for o in self.other],
-    #     )
-    #
-    # @property
-    # def device(self) -> torch.device:
-    #     """Returns current device if applicable."""
-    #     return self.images.device
-    #
-    # @classmethod
-    # def cat(
-    #     cls,
-    #     instances: List["InputSample"],
-    #     device: Optional[torch.device] = None,
-    # ) -> "InputSample":
-    #     """Concatenate N InputSample objects."""
-    #     cat_dict: Dict[str, InputSampleData] = {}
-    #     for k, v in instances[0].dict().items():
-    #         if isinstance(v, list):
-    #             assert len(v) > 0, "Do not input empty inputSamples to .cat!"
-    #             attr_list = []
-    #             if isinstance(v[0], dict):
-    #                 for inst in instances:
-    #                     attr_v = inst.get(k)
-    #                     for item in attr_v:
-    #                         assert isinstance(item, dict)
-    #                         attr_list += [
-    #                             {k: v.to(device) for k, v in item.items()}
-    #                         ]
-    #             else:
-    #                 for inst in instances:
-    #                     attr_v = inst.get(k)
-    #                     assert isinstance(attr_v, list)
-    #                     attr_list += attr_v  # type: ignore
-    #             cat_dict[k] = attr_list
-    #         elif isinstance(v, InputInstance):
-    #             cat_dict[k] = type(v).cat(
-    #                 [inst.get(k) for inst in instances], device  # type: ignore
-    #             )
-    #         else:
-    #             raise AttributeError(
-    #                 f"Class {type(v)} for attribute {k} must be of type list "
-    #                 "or InputInstance!"
-    #             )
-    #
-    #     return InputSample(**cat_dict)  # type: ignore
-    #
-    # def __getitem__(self, item: int) -> "InputSample":
-    #     """Return single element."""
-    #     return InputSample(
-    #         [self.metadata[item]],
-    #         self.images[item],
-    #         self.intrinsics[item],
-    #         self.extrinsics[item],
-    #         self.points[item],
-    #         self.targets[item],
-    #         [self.other[item]],
-    #     )
-    #
-    # def __len__(self) -> int:
-    #     """Return number of elements in InputSample."""
-    #     return len(self.metadata)
