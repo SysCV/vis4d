@@ -3,14 +3,13 @@ from typing import Dict, List, Union
 
 import torch
 
-from vis4d.struct import Boxes2D
 
 from ..matchers import MatchResult
 
 
 def prepare_target(
     sampled_idcs: torch.Tensor,
-    target: Boxes2D,
+    target: torch.Tensor,
     assigned_gt_indices: torch.Tensor,
 ) -> Boxes2D:
     """Prepare target from sampled indices."""

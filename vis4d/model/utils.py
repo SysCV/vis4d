@@ -28,21 +28,13 @@ from vis4d.struct import (
 
 from .base import BaseModel
 
-try:
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
+if MMCV_AVAILABLE:
     from mmcv import Config as MMConfig
     from mmcv.runner.checkpoint import load_checkpoint
 
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
-
-try:
+if MMDET_AVAILABLE:
     from mmdet.core.mask import BitmapMasks
-
-    MMDET_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMDET_INSTALLED = False
-    BitmapMasks = None
 
 
 BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"

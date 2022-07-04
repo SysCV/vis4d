@@ -3,21 +3,15 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
-
-try:
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMSEG_AVAILABLE
+if MMCV_AVAILABLE:
     from mmcv.utils import ConfigDict
 
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
 
-try:
+if MMSEG_AVAILABLE:
     from mmseg.models import build_head
     from mmseg.models.decode_heads.decode_head import BaseDecodeHead
 
-    MMSEG_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMSEG_INSTALLED = False
 
 from vis4d.model.utils import (
     _parse_losses,
@@ -46,7 +40,7 @@ class MMSegDecodeHead(SegDenseHead):
     ):
         """Init."""
         assert (
-            MMSEG_INSTALLED and MMCV_INSTALLED
+            MMSEG_AVAILABLE and MMCV_AVAILABLE
         ), "MMSegDecodeHead requires both mmcv and mmseg to be installed!"
         super().__init__(category_mapping)
         mm_dict = (

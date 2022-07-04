@@ -1,5 +1,4 @@
 """Data module init."""
-from .dataset import ScalabelDataset
 from .handler import BaseDatasetHandler
 from .mapper import BaseSampleMapper
 from .module import BaseDataModule

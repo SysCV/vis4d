@@ -3,15 +3,7 @@ import os
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import torch
-
-try:
-    from detectron2 import model_zoo
-    from detectron2.config import CfgNode, get_cfg
-    from detectron2.structures import BitMasks, Boxes, ImageList, Instances
-
-    D2_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    D2_INSTALLED = False
+from vis4d.common.utils.imports import DETECTRON2_AVAILABLE
 
 from vis4d.common.mask import paste_masks_in_image
 from vis4d.struct import (

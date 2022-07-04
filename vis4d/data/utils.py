@@ -17,7 +17,7 @@ from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
 from termcolor import colored
 
-from vis4d.struct import InputSample, NDArrayI64, NDArrayUI8
+from vis4d.struct import NDArrayI64, NDArrayUI8
 
 from ..common.geometry.transform import transform_points
 from ..common.utils.distributed import (
@@ -25,17 +25,14 @@ from ..common.utils.distributed import (
     all_gather_object_gpu,
 )
 
-try:
+from vis4d.common.utils.imports import OPENCV_AVAILABLE
+if OPENCV_AVAILABLE:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module
         COLOR_BGR2RGB,
         IMREAD_COLOR,
         cvtColor,
         imdecode,
     )
-
-    CV2_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    CV2_INSTALLED = False
 
 
 D2BoxType = Dict[str, Union[bool, float, str]]
@@ -79,9 +76,7 @@ def transform_bbox(
     return transformed_boxes
 
 
-def identity_batch_collator(
-    batch: List[List[InputSample]],
-) -> List[List[InputSample]]:
+def identity_batch_collator(batch: Any) -> Any:
     """Identity function batch collator."""
     return batch
 
@@ -102,7 +97,7 @@ def im_decode(
         elif mode == "RGB":
             img = np.array(pil_img)
     elif backend == "cv2":  # pragma: no cover
-        if not CV2_INSTALLED:
+        if not OPENCV_AVAILABLE:
             raise ImportError(
                 "Please install opencv-python to use cv2 backend!"
             )

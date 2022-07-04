@@ -27,17 +27,10 @@ from ..utils import (
 )
 from .base import BaseSegmentor
 
-try:
+from vis4d.common.utils.imports import MMCV_AVAILABLE
+if MMCV_AVAILABLE:
     from mmcv import Config as MMConfig
 
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
-
-try:
-    MMSEG_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMSEG_INSTALLED = False
 
 REV_KEYS = [
     (r"^decode_head\.", "decode_head.mm_decode_head."),
@@ -64,7 +57,7 @@ class MMEncDecSegmentor(BaseSegmentor):
     ):
         """Init."""
         assert (
-            MMSEG_INSTALLED and MMCV_INSTALLED
+            MMSEG_AVAILABLE and MMCV_AVAILABLE
         ), "MMEncDecSegmentor requires both mmcv and mmseg to be installed!"
         super().__init__(*args, **kwargs)
         assert self.category_mapping is not None

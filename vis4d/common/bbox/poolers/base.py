@@ -3,12 +3,13 @@ import abc
 from typing import List, Tuple
 
 import torch
+from torch import nn
 
-from vis4d.common import Vis4DModule
 from vis4d.struct import Boxes2D
 
+# TODO should be abstract?
 
-class BaseRoIPooler(Vis4DModule[torch.Tensor, torch.Tensor]):
+class BaseRoIPooler(nn.Module):
     """Base class for RoI poolers."""
 
     def __init__(self, resolution: Tuple[int, int]) -> None:
@@ -17,7 +18,7 @@ class BaseRoIPooler(Vis4DModule[torch.Tensor, torch.Tensor]):
         self.resolution = resolution
 
     @abc.abstractmethod
-    def __call__(  # type: ignore
+    def forward(
         self, features: List[torch.Tensor], boxes: List[Boxes2D]
     ) -> torch.Tensor:
         """Pool features in input bounding boxes from given feature maps."""

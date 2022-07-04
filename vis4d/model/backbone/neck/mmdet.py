@@ -1,20 +1,13 @@
 """mmdetection neck wrapper."""
 from typing import List, Optional, Union
-
-try:
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
+if MMCV_AVAILABLE:
     from mmcv.runner import BaseModule
     from mmcv.utils import ConfigDict
 
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
 
-try:
+if MMDET_AVAILABLE:
     from mmdet.models import build_neck
-
-    MMDET_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMDET_INSTALLED = False
 
 from vis4d.model.utils import load_config
 from vis4d.struct import DictStrAny, FeatureMaps
@@ -34,7 +27,7 @@ class MMDetNeck(BaseNeck):
     ):
         """Init."""
         assert (
-            MMDET_INSTALLED and MMCV_INSTALLED
+            MMDET_AVAILABLE and MMCV_AVAILABLE
         ), "MMDetNeck requires both mmcv and mmdet to be installed!"
         super().__init__()
         mm_dict = (

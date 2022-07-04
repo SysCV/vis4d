@@ -13,15 +13,12 @@ from vis4d.common.geometry.projection import (
     project_points,
 )
 from vis4d.struct import Extrinsics, Intrinsics, NDArrayF64, NDArrayUI8
-
-try:  # pragma: no cover
+from vis4d.common.utils.imports import DASH_AVAILABLE
+if DASH_AVAILABLE:  # pragma: no cover
     import dash
     import plotly.graph_objects as go
     from dash import dcc, html
 
-    DASH_INSTALLED = True
-except (ImportError, NameError):
-    DASH_INSTALLED = False
 
 from .utils import (
     Box3DType,
@@ -380,7 +377,7 @@ def show_pointcloud(
     thickness: int = 2,
 ) -> None:  # pragma: no cover
     """Show pointcloud points."""
-    assert DASH_INSTALLED, "Visualize pointcloud in 3D needs Dash installed!."
+    assert DASH_AVAILABLE, "Visualize pointcloud in 3D needs Dash installed!."
     points = points[:, :3].cpu()
 
     scatter = go.Scatter3d(

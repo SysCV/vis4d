@@ -27,20 +27,9 @@ from ..utils import (
     predictions_to_scalabel,
 )
 from .base import BaseOneStageDetector, BaseTwoStageDetector
-
-try:
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
+if MMCV_AVAILABLE:
     from mmcv import Config as MMConfig
-
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
-
-try:
-    import mmdet  # pylint: disable=unused-import
-
-    MMDET_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMDET_INSTALLED = False
 
 REV_KEYS = [
     (r"^roi_head\.", "roi_head.mm_roi_head."),
@@ -70,7 +59,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
     ):
         """Init."""
         assert (
-            MMDET_INSTALLED and MMCV_INSTALLED
+            MMDET_AVAILABLE and MMCV_AVAILABLE
         ), "MMTwoStageDetector requires both mmcv and mmdet to be installed!"
         super().__init__(*args, **kwargs)
         assert self.category_mapping is not None, "Need category mapping"
@@ -243,7 +232,7 @@ class MMOneStageDetector(BaseOneStageDetector):
     ):
         """Init."""
         assert (
-            MMDET_INSTALLED and MMCV_INSTALLED
+            MMDET_AVAILABLE and MMCV_AVAILABLE
         ), "MMTwoStageDetector requires both mmcv and mmdet to be installed!"
         super().__init__(*args, **kwargs)
         assert self.category_mapping is not None

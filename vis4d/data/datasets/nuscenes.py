@@ -9,15 +9,14 @@ from pytorch_lightning.utilities.rank_zero import (
     rank_zero_info,
     rank_zero_warn,
 )
-from scalabel.label.io import load, load_label_config, save
-from scalabel.label.to_nuscenes import to_nuscenes
-from scalabel.label.typing import Dataset, Frame
 
 from vis4d.struct import ArgsType, MetricLogs
 
 from .base import BaseDatasetLoader, _eval_mapping
 
-try:  # pragma: no cover
+from vis4d.common.utils.imports import NUSCENES_AVAILABLE, SCALABEL_AVAILABLE
+
+if NUSCENES_AVAILABLE:
     from nuscenes import NuScenes as nusc_data
     from nuscenes.eval.common.config import config_factory as track_configs
     from nuscenes.eval.detection.config import config_factory
@@ -25,12 +24,13 @@ try:  # pragma: no cover
     from nuscenes.eval.tracking.evaluate import TrackingEval as track_eval
     from nuscenes.eval.tracking.utils import metric_name_to_print_format
 
-    # pylint: disable=ungrouped-imports
+if SCALABEL_AVAILABLE:
     from scalabel.label.from_nuscenes import from_nuscenes
+    from scalabel.label.io import load, load_label_config, save
+    from scalabel.label.to_nuscenes import to_nuscenes
+    from scalabel.label.typing import Dataset, Frame
 
-    NUSC_INSTALLED = True
-except (ImportError, NameError):
-    NUSC_INSTALLED = False
+
 
 
 class NuScenes(BaseDatasetLoader):  # pragma: no cover
@@ -57,7 +57,7 @@ class NuScenes(BaseDatasetLoader):  # pragma: no cover
     def load_dataset(self) -> Dataset:
         """Convert NuScenes annotations to Scalabel format."""
         assert (
-            NUSC_INSTALLED
+            NUSCENES_AVAILABLE
         ), "Using NuScenes dataset needs NuScenes devkit installed!."
 
         # annotations is the path to the label file in scalabel format.

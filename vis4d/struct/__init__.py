@@ -1,13 +1,4 @@
 """Vis4D struct module."""
-from .data import Extrinsics, Images, Intrinsics, PointCloud
-from .labels import (
-    Boxes2D,
-    Boxes3D,
-    InstanceMasks,
-    Masks,
-    SemanticMasks,
-    TMasks,
-)
 from .sample import InputData
 from .structures import (
     ALLOWED_INPUTS,
@@ -27,30 +18,14 @@ from .structures import (
 )
 
 __all__ = [
-    "Boxes2D",
-    "Boxes3D",
-    "Masks",
-    "ModuleCfg",
-    "TMasks",
-    "InstanceMasks",
-    "SemanticMasks",
-    "DataInstance",
-    "LabelInstance",
     "TorchCheckpoint",
     "NDArrayF64",
     "NDArrayF32",
     "NDArrayI64",
     "NDArrayUI8",
     "Losses",
-    "Images",
-    "Intrinsics",
-    "Extrinsics",
     "ModelOutput",
     "DictStrAny",
-    "InputSample",
-    "PointCloud",
-    "LabelInstances",
-    "TLabelInstance",
     "MetricLogs",
     "FeatureMaps",
     "ArgsType",

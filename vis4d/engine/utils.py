@@ -19,15 +19,12 @@ from termcolor import colored
 from ..common.utils.time import Timer
 from ..struct import ArgsType
 
-try:
+from vis4d.common.utils.imports import MMCV_AVAILABLE
+if MMCV_AVAILABLE:
     from mmcv.utils import get_logger
 
     mm_logger = get_logger("mmdet")
     mm_logger.setLevel(logging.WARNING)
-
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
 
 logger = logging.getLogger("pytorch_lightning")
 # ignore DeprecationWarning by default (e.g. numpy)

@@ -8,14 +8,6 @@ from vis4d.struct import ArgsType
 
 from .base import BaseDatasetLoader
 
-try:
-    from scalabel.label.from_waymo import (  # pylint: disable=ungrouped-imports,line-too-long
-        from_waymo,
-    )
-
-    WAYMO_INSTALLED = True  # pragma: no cover
-except (ImportError, NameError):
-    WAYMO_INSTALLED = False
 
 
 class Waymo(BaseDatasetLoader):  # pragma: no cover
@@ -38,7 +30,7 @@ class Waymo(BaseDatasetLoader):  # pragma: no cover
     def load_dataset(self) -> Dataset:
         """Convert Waymo annotations to Scalabel format."""
         assert (
-            WAYMO_INSTALLED
+            WAYMO_AVAILABLE
         ), "Using waymo dataset needs waymo open dataset reader installed!."
 
         # annotations is the path to the label file in scalabel format.

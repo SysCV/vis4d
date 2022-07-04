@@ -27,12 +27,6 @@ from vis4d.struct import (
 
 from .warmup import BaseLRWarmup, LinearLRWarmup
 
-try:
-    from mmcv.runner.fp16_utils import wrap_fp16_model
-
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
 
 DEFAULT_OPTIM = {
     "class_path": "torch.optim.SGD",
@@ -102,7 +96,7 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
         if (
             self.trainer is not None
             and self.trainer.precision == 16
-            and MMCV_INSTALLED
+            and MMCV_AVAILABLE
         ):
             wrap_fp16_model(self)  # pragma: no cover
 

@@ -18,23 +18,15 @@ from vis4d.struct import (
 )
 
 from .base import DetDenseHead
-
-try:
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
+if MMCV_AVAILABLE:
     from mmcv.utils import ConfigDict
 
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
-
-try:
+if MMDET_AVAILABLE:
     from mmdet.models import build_head
     from mmdet.models.dense_heads.base_dense_head import (
         BaseDenseHead as MMBaseDenseHead,
     )
-
-    MMDET_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMDET_INSTALLED = False
 
 
 class MMDetDenseHead(DetDenseHead):
@@ -45,7 +37,7 @@ class MMDetDenseHead(DetDenseHead):
     ) -> None:
         """Init."""
         assert (
-            MMDET_INSTALLED and MMCV_INSTALLED
+            MMDET_AVAILABLE and MMCV_AVAILABLE
         ), "MMDetDenseHead requires both mmcv and mmdet to be installed!"
         super().__init__(category_mapping)
         mm_dict = (

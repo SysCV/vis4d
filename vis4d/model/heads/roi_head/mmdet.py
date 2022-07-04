@@ -23,20 +23,15 @@ from vis4d.struct import (
 
 from .base import Det2DRoIHead
 
-try:
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
+if MMCV_AVAILABLE:
     from mmcv.utils import ConfigDict
 
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
 
-try:
+if MMDET_AVAIABLE:
     from mmdet.models import build_head
     from mmdet.models.roi_heads import BaseRoIHead as MMBaseRoIHead
 
-    MMDET_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMDET_INSTALLED = False
 
 
 class MMDetRoIHead(Det2DRoIHead):
@@ -47,7 +42,7 @@ class MMDetRoIHead(Det2DRoIHead):
     ) -> None:
         """Init."""
         assert (
-            MMDET_INSTALLED and MMCV_INSTALLED
+            MMDET_AVAILABLE and MMCV_AVAILABLE
         ), "MMDetRoIHead requires both mmcv and mmdet to be installed!"
         super().__init__(category_mapping)
         mm_dict = (

@@ -204,19 +204,19 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         assert self.test_datasets is not None, "No test datasets specified!"
         return self._build_inference_dataloaders(self.test_datasets)
 
-    def transfer_batch_to_device(
-        self,
-        batch: List[List[InputSample]],
-        device: torch.device,
-        dataloader_idx: int,
-    ) -> List[InputSample]:
-        """Put input in correct format for model, move to device."""
-        # group by ref views by sequence: NxM --> MxN, where M=num_refs, N=BS
-        batch = [
-            [batch[j][i] for j in range(len(batch))]
-            for i in range(len(batch[0]))
-        ]
-        return [batch_input(elem, device) for elem in batch]
+    # def transfer_batch_to_device(
+    #     self,
+    #     batch: List[List[InputSample]],
+    #     device: torch.device,
+    #     dataloader_idx: int,
+    # ) -> List[InputSample]:
+    #     """Put input in correct format for model, move to device."""
+    #     # group by ref views by sequence: NxM --> MxN, where M=num_refs, N=BS
+    #     batch = [
+    #         [batch[j][i] for j in range(len(batch))]
+    #         for i in range(len(batch[0]))
+    #     ]
+    #     return [batch_input(elem, device) for elem in batch]
 
     def _build_inference_dataloaders(
         self, datasets: List[BaseDatasetHandler]

@@ -3,8 +3,7 @@ import abc
 from typing import List, NamedTuple
 
 import torch
-
-from vis4d.common import Vis4DModule
+from torch import nn
 from vis4d.struct import Boxes2D
 
 from ..matchers.base import BaseMatcher, MatchResult
@@ -28,7 +27,7 @@ class SamplingResult(NamedTuple):
     sampled_target_indices: List[torch.Tensor]
 
 
-class BaseSampler(Vis4DModule[SamplingResult, SamplingResult]):
+class BaseSampler(nn.Module):
     """Sampler base class."""
 
     def __init__(

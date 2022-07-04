@@ -9,12 +9,6 @@ from vis4d.model import QDTrack
 from vis4d.model.optimize import DefaultOptimizer
 from vis4d.struct import ArgsType
 
-try:
-    from mmdet.core.bbox.assigners import SimOTAAssigner
-
-    MMDET_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMDET_INSTALLED = False
 
 
 class ClippedSimOTAAssigner(SimOTAAssigner):  # type: ignore
@@ -87,7 +81,7 @@ class QDTrackYOLOX(QDTrack):
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
-        assert MMDET_INSTALLED, "QDTrackYOLOX needs mmdet installed!"
+        assert MMDET_AVAILABLE, "QDTrackYOLOX needs mmdet installed!"
         self.im_hw = im_hw
         if self.detector.bbox_head.mm_dense_head.train_cfg:
             assign_args = (

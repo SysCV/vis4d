@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 
-try:
+IF DETECTRON2_AVAILABLE:
     from detectron2.checkpoint import DetectionCheckpointer
     from detectron2.modeling import GeneralizedRCNN
     from detectron2.structures import Instances
@@ -19,9 +19,6 @@ try:
         target_to_instance,
     )
 
-    D2_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    D2_INSTALLED = False
 
 from torch.nn.modules.batchnorm import _BatchNorm
 
@@ -58,7 +55,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
     ):
         """Init."""
         assert (
-            D2_INSTALLED
+            DETECTRON2_AVAILABLE
         ), "D2TwoStageDetector requires detectron2 to be installed!"
         super().__init__(*args, **kwargs)
         assert self.category_mapping is not None

@@ -4,10 +4,9 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-try:
+from vis4d.common.utils.imports import H5PY_AVAILABLE
+if H5PY_AVAILABLE:
     import h5py
-except ImportError as e:  # pragma: no cover
-    raise ImportError("Please install h5py to enable HDF5Backend.") from e
 
 from .base import BaseDataBackend
 

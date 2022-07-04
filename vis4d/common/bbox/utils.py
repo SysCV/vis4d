@@ -3,10 +3,9 @@ from typing import Dict, Optional
 
 import torch
 
-from vis4d.struct import Boxes2D, Boxes3D
 
 
-def bbox_intersection(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
+def bbox_intersection(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     """Given two lists of boxes of size N and M, compute N x M intersection.
 
     Args:
@@ -26,7 +25,7 @@ def bbox_intersection(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
     return intersection
 
 
-def bbox_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
+def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     """Compute IoU between all pairs of boxes.
 
     Args:
@@ -36,7 +35,7 @@ def bbox_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
     Returns:
         Tensor: IoU (N, M).
     """
-    area1 = boxes1.area
+    area1 = boxes1.area  # TODO revise function
     area2 = boxes2.area
     inter = bbox_intersection(boxes1, boxes2)
 
@@ -61,17 +60,16 @@ def non_intersection(t1: torch.Tensor, t2: torch.Tensor) -> torch.Tensor:
 
 
 def distance_3d_nms(
-    boxes3d: Boxes3D,
+    boxes3d: torch.Tensor,
     cat_mapping: Dict[int, str],
-    boxes2d: Optional[Boxes2D] = None,
 ) -> torch.Tensor:
-    """Distance based 3D NMS."""
-    keep_indices = torch.ones(len(boxes3d)).bool()
+    """Distance based 3D NMS.
 
-    if boxes2d is not None:
-        boxes2d_scores = boxes2d.score
-    else:  # pragma: no cover
-        boxes2d_scores = torch.ones(len(boxes3d))
+    Args:
+
+    """
+    # TODO documentation, revise function
+    keep_indices = torch.ones(len(boxes3d)).bool()
 
     distance_matrix = torch.cdist(
         boxes3d.center.unsqueeze(0),
@@ -79,7 +77,6 @@ def distance_3d_nms(
     ).squeeze(-1)
 
     for i, box3d in enumerate(boxes3d):
-        current_3d_score = box3d.score * boxes2d_scores[i]  # type: ignore
         current_class = cat_mapping[int(box3d.class_ids)]
 
         if current_class in ["pedestrian", "traffic_cone"]:
@@ -92,7 +89,7 @@ def distance_3d_nms(
         nms_candidates = (distance_matrix[i] < nms_dist).nonzero().squeeze(-1)
 
         valid_candidates = (
-            boxes3d[nms_candidates].score * boxes2d_scores[nms_candidates]  # type: ignore # pylint: disable=line-too-long
+            boxes3d[nms_candidates].score * boxes2d_scores[nms_candidates]
             > current_3d_score
         )[(boxes3d[nms_candidates].class_ids == box3d.class_ids).squeeze(0)]
 

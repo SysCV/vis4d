@@ -1,27 +1,17 @@
 """mmdetection backbone wrapper."""
 from typing import Optional, Union
 
-try:
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE, MMSEG_AVAILABLE
+if MMCV_AVAILABLE:
     from mmcv.runner import BaseModule
     from mmcv.utils import ConfigDict
 
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
-
-try:
+if MMDET_AVAILABLE:
     from mmdet.models import build_backbone as build_mmdet_backbone
 
-    MMDET_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMDET_INSTALLED = False
 
-try:
+if MMSEG_AVAIABLE:
     from mmseg.models import build_backbone as build_mmseg_backbone
-
-    MMSEG_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMSEG_INSTALLED = False
 
 from vis4d.struct import ArgsType, DictStrAny, FeatureMaps, Images, InputSample
 
@@ -41,7 +31,7 @@ class MMDetBackbone(BaseBackbone):
     ):
         """Init."""
         assert (
-            MMDET_INSTALLED and MMCV_INSTALLED
+            MMDET_AVAILABLE and MMCV_AVAILABLE
         ), "MMDetBackbone requires both mmcv and mmdet to be installed!"
         super().__init__(*args, **kwargs)
         mm_dict = (
@@ -93,7 +83,7 @@ class MMSegBackbone(MMDetBackbone):
     ):
         """Init."""
         assert (
-            MMSEG_INSTALLED and MMCV_INSTALLED
+            MMSEG_AVAILABLE and MMCV_AVAILABLE
         ), "MMSegBackbone requires both mmcv and mmseg to be installed!"
         super().__init__(mm_cfg, *args, weights=weights, **kwargs)
 

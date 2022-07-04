@@ -4,9 +4,6 @@ from typing import List, NamedTuple
 
 import torch
 
-from vis4d.common import Vis4DModule
-from vis4d.struct import Boxes2D
-
 
 class MatchResult(NamedTuple):
     """Match result class. Stores expected result tensors.
@@ -21,7 +18,7 @@ class MatchResult(NamedTuple):
     assigned_labels: torch.Tensor
 
 
-class BaseMatcher(Vis4DModule[List[MatchResult], List[MatchResult]]):
+class BaseMatcher(nn.Module):
     """Base class for box / target matchers."""
 
     @abc.abstractmethod
