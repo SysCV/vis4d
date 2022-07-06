@@ -30,8 +30,11 @@ from vis4d.model.heads.roi_head import MMDetRoIHead, QD3DTBBox3DHead
 from vis4d.model.optimize import LinearLRWarmup
 from vis4d.model.panoptic import PanopticFPN
 from vis4d.model.segment import MMEncDecSegmentor
-from vis4d.model.track.graph import QDTrackGraph
-from vis4d.model.track.similarity import QDSimilarityHead
+from vis4d.model.track.graph import DeepSORTTrackGraph, QDTrackGraph
+from vis4d.model.track.similarity import (
+    DeepSortSimilarityHead,
+    QDSimilarityHead,
+)
 from vis4d.struct import ArgsType
 from vis4d.unittest.utils import (
     MockModel,
@@ -40,6 +43,7 @@ from vis4d.unittest.utils import (
 )
 
 from .base import BaseModel
+from .deepsort import DeepSort
 from .qd_3dt import QD3DT
 from .qdtrack import QDTrack
 
@@ -349,6 +353,66 @@ class TestQDTrackInferenceResults(BaseModelTests.TestTrackInference):
             track_graph=QDTrackGraph(10),
             category_mapping=TEST_MAPPING,
             inference_result_path="./unittests/results.hdf5",
+        )
+
+
+class TestDeepSortMaskRCNN(BaseModelTests.TestTrack):
+    """Deep Sort with Mask R-CNN track test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+
+        """Set up class."""
+        cls.model = DeepSort(
+            detection=MMTwoStageDetector(
+                model_base="vis4d/model/testcases/mmdet_cfg_maskrcnn_r18fpn.py",  # pylint: disable=line-too-long
+                pixel_mean=PIXEL_MEAN,
+                pixel_std=PIXEL_STD,
+                backbone_output_names=["p2", "p3", "p4", "p5", "p6"],
+                category_mapping=TEST_MAPPING,
+            ),
+            similarity=DeepSortSimilarityHead(
+                num_classes=len(TEST_MAPPING.keys())
+            ),
+            track_graph=DeepSORTTrackGraph(
+                num_classes=len(TEST_MAPPING.keys()),
+                kalman_filter_params={
+                    "cov_motion_Q": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+                    "cov_project_R": [0.1, 0.1, 0.1, 0.1],
+                    "cov_P0": [1, 1, 1, 1, 1, 1, 1, 1],
+                },
+            ),
+            category_mapping=TEST_MAPPING,
+        )
+
+
+class TestDeepSortRetinaNet(BaseModelTests.TestTrack):
+    """Deep Sort with Mask R-CNN track test cases."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+
+        """Set up class."""
+        cls.model = DeepSort(
+            detection=MMOneStageDetector(
+                model_base="vis4d/model/testcases/mmdet_cfg_retinanet_r18fpn.py",  # pylint: disable=line-too-long
+                pixel_mean=PIXEL_MEAN,
+                pixel_std=PIXEL_STD,
+                backbone_output_names=["p2", "p3", "p4", "p5", "p6"],
+                category_mapping=TEST_MAPPING,
+            ),
+            similarity=DeepSortSimilarityHead(
+                num_classes=len(TEST_MAPPING.keys())
+            ),
+            track_graph=DeepSORTTrackGraph(
+                num_classes=len(TEST_MAPPING.keys()),
+                kalman_filter_params={
+                    "cov_motion_Q": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+                    "cov_project_R": [0.1, 0.1, 0.1, 0.1],
+                    "cov_P0": [1, 1, 1, 1, 1, 1, 1, 1],
+                },
+            ),
+            category_mapping=TEST_MAPPING,
         )
 
 
