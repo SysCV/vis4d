@@ -4,7 +4,7 @@ import unittest
 import torch
 from scalabel.label.typing import Box2D, Frame, Label
 
-from ..struct import Boxes2D, Images, InputSample
+from ..struct import Boxes2D
 from .dataset_test import TestScalabelDataset
 from .handler import BaseDatasetHandler, sort_by_frame_index
 

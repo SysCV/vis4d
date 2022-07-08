@@ -15,36 +15,37 @@ from pytorch_lightning.utilities.rank_zero import (
 from scalabel.label.utils import get_leaf_categories
 from torch.utils.data import Dataset
 
+from vis4d.common.io import BaseDataBackend, FileBackend
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.time import Timer
-from vis4d.struct import MetricLogs
-
-from ..common.io import BaseDataBackend, FileBackend
-from ..common.registry import RegistryHolder
-from ..reference import BaseReferenceSampler
-from ..struct import (
+from vis4d.struct import (
     ALLOWED_INPUTS,
     ALLOWED_TARGETS,
     Boxes2D,
     Boxes3D,
     CategoryMap,
+    DictStrAny,
     Extrinsics,
-    Images,
+    InputData,
     InputSample,
     InstanceMasks,
     Intrinsics,
-    PointCloud,
+    MetricLogs,
     SemanticMasks,
 )
+
+from ..reference import BaseReferenceSampler
 from ..utils import (
     DatasetFromList,
     discard_labels_outside_set,
-    filter_attributes,
     prepare_labels,
     print_class_histogram,
 )
 
 # TODO make abstract
+
+DataDict = DictStrAny  # TODO define more thoroughly if possible
+Frame = None  # TODO this is a scalabel frame, type hints should be updated
 
 
 class BaseDataset(metaclass=RegistryHolder):

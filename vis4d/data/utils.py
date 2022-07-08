@@ -17,6 +17,7 @@ from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
 from termcolor import colored
 
+from vis4d.common.utils.imports import OPENCV_AVAILABLE
 from vis4d.struct import NDArrayI64, NDArrayUI8
 
 from ..common.geometry.transform import transform_points
@@ -25,7 +26,6 @@ from ..common.utils.distributed import (
     all_gather_object_gpu,
 )
 
-from vis4d.common.utils.imports import OPENCV_AVAILABLE
 if OPENCV_AVAILABLE:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module
         COLOR_BGR2RGB,

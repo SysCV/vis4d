@@ -10,7 +10,7 @@ from torchvision.ops import roi_align
 
 from vis4d.common.mask import paste_masks_in_image
 
-from ..structures import LabelInstance, NDArrayUI8
+from ..structures import NDArrayUI8
 from .boxes import Boxes2D
 
 TMasks = TypeVar("TMasks", bound="Masks")

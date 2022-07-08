@@ -34,6 +34,16 @@ ALLOWED_TARGETS = (
 
 CategoryMap = Union[Dict[str, int], Dict[str, Dict[str, int]]]
 
+# TODO remove later on
+Boxes2D = torch.Tensor
+Boxes3D = torch.Tensor
+InstanceMasks = torch.Tensor
+SemanticMasks = torch.Tensor
+TMasks = Union[InstanceMasks, SemanticMasks]
+InputSample = Dict[str, Union[torch.Tensor, List[torch.Tensor]]]
+Intrinsics = torch.Tensor
+Extrinsics = torch.Tensor
+
 
 NDArrayF64 = npt.NDArray[np.float64]
 NDArrayF32 = npt.NDArray[np.float32]

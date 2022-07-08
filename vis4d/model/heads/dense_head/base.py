@@ -9,7 +9,6 @@ from vis4d.struct import (
     Boxes2D,
     FeatureMaps,
     InputSample,
-    LabelInstances,
     Losses,
     SemanticMasks,
 )
@@ -36,7 +35,7 @@ class BaseDenseHead(Vis4DModule[Tuple[Losses, TTrainReturn], TTestReturn]):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, TTrainReturn]:
         ...
 
@@ -44,7 +43,7 @@ class BaseDenseHead(Vis4DModule[Tuple[Losses, TTrainReturn], TTestReturn]):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: Optional[LabelInstances] = None,
+        targets=None,
     ) -> Union[Tuple[Losses, TTrainReturn], TTestReturn]:
         """Base Dense head forward.
 
@@ -66,7 +65,7 @@ class BaseDenseHead(Vis4DModule[Tuple[Losses, TTrainReturn], TTestReturn]):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, TTrainReturn]:
         """Forward pass during training stage.
 

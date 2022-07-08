@@ -10,11 +10,10 @@ from pytorch_lightning.utilities.rank_zero import (
     rank_zero_warn,
 )
 
+from vis4d.common.utils.imports import NUSCENES_AVAILABLE, SCALABEL_AVAILABLE
 from vis4d.struct import ArgsType, MetricLogs
 
 from .base import BaseDatasetLoader, _eval_mapping
-
-from vis4d.common.utils.imports import NUSCENES_AVAILABLE, SCALABEL_AVAILABLE
 
 if NUSCENES_AVAILABLE:
     from nuscenes import NuScenes as nusc_data
@@ -29,8 +28,6 @@ if SCALABEL_AVAILABLE:
     from scalabel.label.io import load, load_label_config, save
     from scalabel.label.to_nuscenes import to_nuscenes
     from scalabel.label.typing import Dataset, Frame
-
-
 
 
 class NuScenes(BaseDatasetLoader):  # pragma: no cover

@@ -4,8 +4,9 @@ from typing import Dict, Optional
 import torch
 
 
-
-def bbox_intersection(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
+def bbox_intersection(
+    boxes1: torch.Tensor, boxes2: torch.Tensor
+) -> torch.Tensor:
     """Given two lists of boxes of size N and M, compute N x M intersection.
 
     Args:

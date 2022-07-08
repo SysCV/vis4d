@@ -12,13 +12,13 @@ from vis4d.common.geometry.projection import (
     generate_projected_point_mask,
     project_points,
 )
-from vis4d.struct import Extrinsics, Intrinsics, NDArrayF64, NDArrayUI8
 from vis4d.common.utils.imports import DASH_AVAILABLE
+from vis4d.struct import Extrinsics, Intrinsics, NDArrayF64, NDArrayUI8
+
 if DASH_AVAILABLE:  # pragma: no cover
     import dash
     import plotly.graph_objects as go
     from dash import dcc, html
-
 
 from .utils import (
     Box3DType,

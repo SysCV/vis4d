@@ -15,13 +15,7 @@ from vis4d.common.bbox.samplers import (
 )
 from vis4d.common.layers import add_conv_branch
 from vis4d.model.losses import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
-from vis4d.struct import (
-    Boxes2D,
-    FeatureMaps,
-    InputSample,
-    LabelInstances,
-    Losses,
-)
+from vis4d.struct import Boxes2D, FeatureMaps, InputSample, Losses
 
 from ..utils import cosine_similarity
 from .base import BaseSimilarityHead
@@ -168,7 +162,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         inputs: List[InputSample],
         boxes: List[List[Boxes2D]],
         features: Optional[List[FeatureMaps]],
-        targets: List[LabelInstances],
+        targets,
     ) -> Tuple[Losses, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
 

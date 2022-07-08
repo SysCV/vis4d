@@ -21,10 +21,8 @@ from vis4d.struct import (
     Boxes2D,
     Boxes3D,
     DictStrAny,
-    Images,
     InputSample,
     Intrinsics,
-    PointCloud,
     TMasks,
 )
 
@@ -83,7 +81,9 @@ class KorniaAugmentationWrapper(BaseAugmentation):
         transform = parameters["transform"]
         return Intrinsics(torch.matmul(transform, intrinsics.tensor))
 
-    def apply_image(self, images: Images, parameters: AugParams) -> Images:
+    def apply_image(
+        self, images: torch.Tensor, parameters: AugParams
+    ) -> torch.Tensor:
         """Apply augmentation to input image."""
         all_ims = []
         for i, im in enumerate(images):
@@ -179,8 +179,8 @@ class KorniaRandomHorizontalFlip(KorniaAugmentationWrapper):
         return boxes
 
     def apply_points(
-        self, points: PointCloud, parameters: AugParams
-    ) -> PointCloud:
+        self, points: torch.Tensor, parameters: AugParams
+    ) -> torch.Tensor:
         """Apply augmentation to input points."""
         if parameters["apply"]:
             points.tensor[:, :, 0] *= -1.0

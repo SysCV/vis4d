@@ -1,7 +1,12 @@
 """mmdetection backbone wrapper."""
 from typing import Optional, Union
 
-from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE, MMSEG_AVAILABLE
+from vis4d.common.utils.imports import (
+    MMCV_AVAILABLE,
+    MMDET_AVAILABLE,
+    MMSEG_AVAILABLE,
+)
+
 if MMCV_AVAILABLE:
     from mmcv.runner import BaseModule
     from mmcv.utils import ConfigDict

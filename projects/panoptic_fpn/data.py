@@ -8,7 +8,7 @@ from projects.common.datasets import (
     bdd100k_seg_map,
     bdd100k_track_map,
 )
-from vis4d.data import BaseDatasetHandler, BaseSampleMapper, ScalabelDataset
+from vis4d.data import BaseDatasetHandler
 from vis4d.data.transforms import BaseAugmentation, Resize
 
 

@@ -3,13 +3,7 @@ from typing import List, Tuple, Union
 
 import torch
 
-from vis4d.struct import (
-    InputSample,
-    InstanceMasks,
-    LabelInstances,
-    Losses,
-    SemanticMasks,
-)
+from vis4d.struct import InputSample, InstanceMasks, Losses, SemanticMasks
 
 from .base import BasePanopticHead, PanopticMasks
 
@@ -36,8 +30,8 @@ class SimplePanopticHead(BasePanopticHead):
     def forward_train(
         self,
         inputs: InputSample,
-        predictions: LabelInstances,
-        targets: LabelInstances,
+        predictions,
+        targets,
     ) -> Losses:  # pragma: no cover
         """Forward pass during training stage.
 
@@ -99,9 +93,7 @@ class SimplePanopticHead(BasePanopticHead):
 
         return ins_segm, sem_segm
 
-    def forward_test(
-        self, inputs: InputSample, predictions: LabelInstances
-    ) -> PanopticMasks:
+    def forward_test(self, inputs: InputSample, predictions) -> PanopticMasks:
         """Forward pass during testing stage."""
         instance_segms, semantic_segms = (
             predictions.instance_masks,

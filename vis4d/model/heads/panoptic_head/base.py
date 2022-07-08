@@ -4,13 +4,7 @@ import abc
 from typing import List, Optional, Tuple, Union, overload
 
 from vis4d.common import Vis4DModule
-from vis4d.struct import (
-    InputSample,
-    InstanceMasks,
-    LabelInstances,
-    Losses,
-    SemanticMasks,
-)
+from vis4d.struct import InputSample, InstanceMasks, Losses, SemanticMasks
 
 PanopticMasks = Tuple[List[InstanceMasks], List[SemanticMasks]]
 
@@ -20,7 +14,7 @@ class BasePanopticHead(Vis4DModule[Losses, PanopticMasks]):
 
     @overload  # type: ignore[override]
     def __call__(
-        self, inputs: InputSample, predictions: LabelInstances
+        self, inputs: InputSample, predictions
     ) -> PanopticMasks:  # noqa: D102
         ...
 
@@ -28,16 +22,16 @@ class BasePanopticHead(Vis4DModule[Losses, PanopticMasks]):
     def __call__(
         self,
         inputs: InputSample,
-        predictions: LabelInstances,
-        targets: LabelInstances,
+        predictions,
+        targets,
     ) -> Losses:
         ...
 
     def __call__(
         self,
         inputs: InputSample,
-        predictions: LabelInstances,
-        targets: Optional[LabelInstances] = None,
+        predictions,
+        targets=None,
     ) -> Union[Losses, PanopticMasks]:
         """Base Panoptic head forward.
 
@@ -58,8 +52,8 @@ class BasePanopticHead(Vis4DModule[Losses, PanopticMasks]):
     def forward_train(
         self,
         inputs: InputSample,
-        predictions: LabelInstances,
-        targets: LabelInstances,
+        predictions,
+        targets,
     ) -> Losses:
         """Forward pass during training stage.
 
@@ -74,9 +68,7 @@ class BasePanopticHead(Vis4DModule[Losses, PanopticMasks]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward_test(
-        self, inputs: InputSample, predictions: LabelInstances
-    ) -> PanopticMasks:
+    def forward_test(self, inputs: InputSample, predictions) -> PanopticMasks:
         """Forward pass during testing stage.
 
         Args:

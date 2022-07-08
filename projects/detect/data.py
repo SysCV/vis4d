@@ -10,7 +10,7 @@ from projects.common.datasets import (
     coco_train,
     coco_val,
 )
-from vis4d.data import BaseDatasetHandler, BaseSampleMapper, ScalabelDataset
+from vis4d.data import BaseDatasetHandler
 from vis4d.data.transforms import BaseAugmentation, Resize
 
 

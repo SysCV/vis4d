@@ -2,6 +2,7 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 from vis4d.model.utils import (
     _parse_losses,
     detections_from_mmdet,
@@ -17,13 +18,11 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     InstanceMasks,
-    LabelInstances,
     Losses,
 )
 
 from .base import Det2DRoIHead
 
-from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 if MMCV_AVAILABLE:
     from mmcv.utils import ConfigDict
 
@@ -31,7 +30,6 @@ if MMCV_AVAILABLE:
 if MMDET_AVAIABLE:
     from mmdet.models import build_head
     from mmdet.models.roi_heads import BaseRoIHead as MMBaseRoIHead
-
 
 
 class MMDetRoIHead(Det2DRoIHead):
@@ -62,7 +60,7 @@ class MMDetRoIHead(Det2DRoIHead):
         inputs: InputSample,
         features: FeatureMaps,
         boxes: List[Boxes2D],
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[SamplingResult]]:
         """Forward pass during training stage."""
         assert (

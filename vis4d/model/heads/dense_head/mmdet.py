@@ -1,6 +1,7 @@
 """mmdetection dense head wrapper."""
 from typing import Dict, List, Optional, Tuple, Union
 
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 from vis4d.model.utils import (
     _parse_losses,
     get_img_metas,
@@ -8,17 +9,10 @@ from vis4d.model.utils import (
     proposals_from_mmdet,
     targets_to_mmdet,
 )
-from vis4d.struct import (
-    Boxes2D,
-    DictStrAny,
-    FeatureMaps,
-    InputSample,
-    LabelInstances,
-    Losses,
-)
+from vis4d.struct import Boxes2D, DictStrAny, FeatureMaps, InputSample, Losses
 
 from .base import DetDenseHead
-from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
+
 if MMCV_AVAILABLE:
     from mmcv.utils import ConfigDict
 
@@ -58,7 +52,7 @@ class MMDetDenseHead(DetDenseHead):
         self,
         inputs: InputSample,
         features: Optional[FeatureMaps],
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, List[Boxes2D]]:
         """Forward pass during training stage."""
         assert features is not None, "MMDetDenseHead requires features"
@@ -93,7 +87,7 @@ class MMDetRPNHead(MMDetDenseHead):
         self,
         inputs: InputSample,
         features: Optional[FeatureMaps],
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, List[Boxes2D]]:
         """Forward pass during training stage."""
         assert features is not None, "MMDetRPNHead requires features"

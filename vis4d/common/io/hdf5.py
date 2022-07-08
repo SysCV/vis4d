@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 from vis4d.common.utils.imports import H5PY_AVAILABLE
+
 if H5PY_AVAILABLE:
     import h5py
 

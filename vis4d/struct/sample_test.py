@@ -4,7 +4,7 @@ import unittest
 import torch
 from scalabel.label.typing import Frame
 
-from . import Boxes2D, Images, InputSample, LabelInstances
+from . import Boxes2D
 
 
 class TestLabelInstances(unittest.TestCase):

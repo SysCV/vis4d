@@ -3,7 +3,9 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
+
 from vis4d.common.utils.imports import MMCV_AVAILABLE, MMSEG_AVAILABLE
+
 if MMCV_AVAILABLE:
     from mmcv.utils import ConfigDict
 
@@ -11,7 +13,6 @@ if MMCV_AVAILABLE:
 if MMSEG_AVAILABLE:
     from mmseg.models import build_head
     from mmseg.models.decode_heads.decode_head import BaseDecodeHead
-
 
 from vis4d.model.utils import (
     _parse_losses,
@@ -24,7 +25,6 @@ from vis4d.struct import (
     DictStrAny,
     FeatureMaps,
     InputSample,
-    LabelInstances,
     Losses,
     SemanticMasks,
 )
@@ -61,7 +61,7 @@ class MMSegDecodeHead(SegDenseHead):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[torch.Tensor]]:
         """Forward pass during training stage."""
         image_metas = get_img_metas(inputs.images)

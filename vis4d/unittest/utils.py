@@ -15,15 +15,12 @@ from vis4d.struct import (
     ArgsType,
     Boxes2D,
     Boxes3D,
-    Images,
     InputSample,
     InstanceMasks,
     Intrinsics,
-    LabelInstances,
     Losses,
     ModelOutput,
     SemanticMasks,
-    TLabelInstance,
 )
 
 
@@ -190,7 +187,7 @@ def generate_input_sample(
     sample.intrinsics = Intrinsics.cat(
         [Intrinsics(torch.eye(3)) for _ in range(num_imgs)]
     )
-    targets: Dict[str, TLabelInstance] = {}  # type: ignore
+    targets = {}  # type: ignore
     if det_input or pan_input:
         targets["boxes2d"] = [
             generate_dets(height, width, num_objs, track_ids, use_score)

@@ -3,12 +3,12 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 
+from vis4d.common.utils.imports import MMCV_AVAILABLE
 from vis4d.struct import (
     ArgsType,
     DictStrAny,
     FeatureMaps,
     InputSample,
-    LabelInstances,
     Losses,
     ModelOutput,
     SemanticMasks,
@@ -27,7 +27,6 @@ from ..utils import (
 )
 from .base import BaseSegmentor
 
-from vis4d.common.utils.imports import MMCV_AVAILABLE
 if MMCV_AVAILABLE:
     from mmcv import Config as MMConfig
 
@@ -163,7 +162,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[List[SemanticMasks]]]:
         """Train stage segmentations generation."""
         assert not isinstance(self.decode_head, torch.nn.ModuleList)

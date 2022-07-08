@@ -4,6 +4,7 @@ from typing import List, NamedTuple
 
 import torch
 from torch import nn
+
 from vis4d.struct import Boxes2D
 
 from ..matchers.base import BaseMatcher, MatchResult

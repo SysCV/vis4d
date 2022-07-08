@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, TypedDict, Union
 import torch
 
 from vis4d.common.bbox.utils import bbox_iou
-from vis4d.struct import Boxes2D, InputSample, LabelInstances, Losses
+from vis4d.struct import Boxes2D, InputSample, Losses
 
 from .base import BaseTrackGraph
 
@@ -167,8 +167,8 @@ class QDTrackGraph(BaseTrackGraph):
     def forward_train(
         self,
         inputs: List[InputSample],
-        predictions: List[LabelInstances],
-        targets: Optional[List[LabelInstances]],
+        predictions,
+        targets,
         **kwargs: List[torch.Tensor],
     ) -> Losses:
         """Forward of QDTrackGraph in training stage."""
@@ -177,10 +177,10 @@ class QDTrackGraph(BaseTrackGraph):
     def forward_test(
         self,
         inputs: InputSample,
-        predictions: LabelInstances,
+        predictions,
         embeddings: Optional[torch.Tensor] = None,
         **kwargs: torch.Tensor,
-    ) -> LabelInstances:
+    ):
         """Process inputs, match detections with existing tracks."""
         assert (
             embeddings is not None

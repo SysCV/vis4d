@@ -9,11 +9,9 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 
-from vis4d.struct import InputSample, ModelOutput
-from vis4d.struct.data import Images
+from vis4d.struct import InputData, InputSample, ModelOutput
 from vis4d.vis.utils import preprocess_image
 
-from ..datasets import BaseDatasetLoader
 from ..utils import all_gather_predictions
 
 
@@ -82,7 +80,7 @@ class DefaultWriterCallback(BaseWriterCallback):
     def __init__(
         self,
         dataloader_idx: int,
-        dataset: BaseDatasetLoader,
+        dataset,
         output_dir: str,
         visualize: bool = True,
     ) -> None:

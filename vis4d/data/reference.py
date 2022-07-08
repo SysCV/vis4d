@@ -8,7 +8,6 @@ from scalabel.label.typing import Frame, FrameGroup
 
 from ..common.registry import RegistryHolder
 from ..struct import InputSample
-from .mapper import BaseSampleMapper
 
 
 class BaseReferenceSampler(metaclass=RegistryHolder):
@@ -150,7 +149,7 @@ class BaseReferenceSampler(metaclass=RegistryHolder):
         cur_idx: int,
         key_data: InputSample,
         training: bool,
-        mapper: BaseSampleMapper,
+        mapper,
         num_retry: int = 3,
     ) -> Optional[List[InputSample]]:
         """Sample reference views from key view."""

@@ -9,11 +9,9 @@ from vis4d.struct import (
     Boxes3D,
     DictStrAny,
     Extrinsics,
-    Images,
     InputSample,
     InstanceMasks,
     Intrinsics,
-    PointCloud,
     SemanticMasks,
     TMasks,
 )
@@ -48,7 +46,9 @@ class BaseAugmentation(metaclass=RegistryHolder):
         return parameters
 
     # pylint: disable=unused-argument,no-self-use
-    def apply_image(self, images: Images, parameters: AugParams) -> Images:
+    def apply_image(
+        self, images: torch.Tensor, parameters: AugParams
+    ) -> torch.Tensor:
         """Apply augmentation to input image."""
         return images
 
@@ -71,8 +71,8 @@ class BaseAugmentation(metaclass=RegistryHolder):
         return extrinsics
 
     def apply_points(
-        self, points: PointCloud, parameters: AugParams
-    ) -> PointCloud:
+        self, points: torch.Tensor, parameters: AugParams
+    ) -> torch.Tensor:
         """Apply augmentation to input points."""
         return points
 

@@ -19,10 +19,8 @@ from vis4d.struct import (
     Boxes2D,
     FeatureMaps,
     InputSample,
-    LabelInstances,
     Losses,
     ModelOutput,
-    TLabelInstance,
 )
 
 
@@ -109,7 +107,7 @@ class QDTrack(nn.Module):
 
     def _run_heads_test(
         self, inputs: InputSample, feat: FeatureMaps
-    ) -> Tuple[ModelOutput, LabelInstances, List[torch.Tensor]]:
+    ) -> Tuple[ModelOutput, List[torch.Tensor]]:
         """Get detections and tracks."""
         if isinstance(self.detector, BaseTwoStageDetector):
             # two-stage detector
@@ -125,9 +123,7 @@ class QDTrack(nn.Module):
         # similarity head
         embeddings = self.similarity_head(inputs, detections, feat)
 
-        outs: Dict[str, List[TLabelInstance]] = {  # type: ignore
-            "detect": [d.clone() for d in detections]
-        }
+        outs = {"detect": [d.clone() for d in detections]}  # type: ignore
         if instance_segms is not None:
             outs["ins_seg"] = [s.clone() for s in instance_segms]
 
@@ -150,14 +146,12 @@ class QDTrack(nn.Module):
     def _track(
         self,
         inputs: InputSample,
-        predictions: LabelInstances,
+        predictions,
         embeddings: List[torch.Tensor],
     ) -> ModelOutput:
         """Associate detections, update track graph."""
         tracks = self.track_graph(inputs, predictions, embeddings=embeddings)
-        outs: Dict[str, List[TLabelInstance]] = {  # type: ignore
-            "track": tracks.boxes2d
-        }
+        outs = {"track": tracks.boxes2d}  # type: ignore
         if self.with_mask:
             outs["seg_track"] = tracks.instance_masks
 

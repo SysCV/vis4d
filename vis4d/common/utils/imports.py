@@ -1,5 +1,5 @@
 """Check if optional packages required byh some modules are available."""
-#from pytorch_lightning.utilities.imports import _RequirementAvailable
+# from pytorch_lightning.utilities.imports import _RequirementAvailable
 # TODO wait for release
 _RequirementAvailable = lambda x: True
 

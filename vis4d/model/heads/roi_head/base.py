@@ -10,7 +10,6 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     InstanceMasks,
-    LabelInstances,
     Losses,
 )
 
@@ -40,7 +39,7 @@ class BaseRoIHead(Vis4DModule[Tuple[Losses, TTrainReturn], TTestReturn]):
         inputs: InputSample,
         features: FeatureMaps,
         boxes: List[Boxes2D],
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, TTrainReturn]:
         ...
 
@@ -49,7 +48,7 @@ class BaseRoIHead(Vis4DModule[Tuple[Losses, TTrainReturn], TTestReturn]):
         inputs: InputSample,
         features: FeatureMaps,
         boxes: List[Boxes2D],
-        targets: Optional[LabelInstances] = None,
+        targets=None,
     ) -> Union[Tuple[Losses, TTrainReturn], TTestReturn]:
         """Base RoI head forward.
 
@@ -74,7 +73,7 @@ class BaseRoIHead(Vis4DModule[Tuple[Losses, TTrainReturn], TTestReturn]):
         inputs: InputSample,
         features: FeatureMaps,
         boxes: List[Boxes2D],
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, TTrainReturn]:
         """Forward pass during training stage.
 

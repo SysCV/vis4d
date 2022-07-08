@@ -22,7 +22,6 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     Intrinsics,
-    LabelInstances,
     Losses,
 )
 
@@ -328,7 +327,7 @@ class QD3DTBBox3DHead(Det3DRoIHead):
     def get_targets(
         self,
         pos_assigned_gt_inds: List[torch.Tensor],
-        targets: LabelInstances,
+        targets,
         cam_intrinsics: Intrinsics,
     ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         """Get 3D bounding box targets for training."""
@@ -351,7 +350,7 @@ class QD3DTBBox3DHead(Det3DRoIHead):
         inputs: InputSample,
         features: FeatureMaps,
         boxes: List[Boxes2D],
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, SamplingResult]:
         """Forward pass during training stage.
 

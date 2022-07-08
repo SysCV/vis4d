@@ -30,10 +30,8 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     InstanceMasks,
-    LabelInstances,
     Losses,
     ModelOutput,
-    TLabelInstance,
 )
 
 from ..utils import postprocess_predictions, predictions_to_scalabel
@@ -126,7 +124,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
             inputs, features, proposals
         )
 
-        outputs: Dict[str, List[TLabelInstance]] = dict(detect=detections)  # type: ignore # pylint: disable=line-too-long
+        outputs = dict(detect=detections)  # type: ignore # pylint: disable=line-too-long
         if self.with_mask:
             assert segmentations is not None
             outputs["ins_seg"] = segmentations
@@ -145,7 +143,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, List[Boxes2D]]:
         """Train stage proposal generation."""
         images_d2 = images_to_imagelist(inputs.images)
@@ -181,7 +179,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
         inputs: InputSample,
         features: FeatureMaps,
         proposals: List[Boxes2D],
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[SamplingResult]]:
         """Train stage detections generation."""
         images_d2 = images_to_imagelist(inputs.images)

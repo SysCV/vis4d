@@ -2,11 +2,11 @@
 from typing import List, Optional, Tuple, Type, TypedDict
 
 import torch
+
 from vis4d.common.geometry.rotation import (
     euler_angles_to_matrix,
     matrix_to_euler_angles,
 )
-
 
 # TODO adjust util functions
 
@@ -47,10 +47,10 @@ class Boxes2D(TypedDict):
     track_ids: torch.LongTensor (N,) where each entry is the track id of
     the respective box.
     """
+
     class_id: torch.Tensor
     score: Optional[torch.Tensor]
     track_id: Optional[torch.Tensor]
-
 
 
 def scale(self, scale_factor_xy: Tuple[float, float]) -> None:

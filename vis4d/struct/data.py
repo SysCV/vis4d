@@ -3,9 +3,11 @@
 import itertools
 from enum import Enum
 from typing import List, Optional, Tuple
-from .sample import InputData
+
 import torch
 import torch.nn.functional as F
+
+from .sample import InputData
 
 # TODO restructure, move to data utilies or common
 
@@ -28,7 +30,9 @@ def get_image(self, inputdata: InputData, idx: int) -> torch.Tensor:
         Tensor: an image of shape (C_1, ..., C_K, H, W)
         where K >= 1
     """
-    size = self.image_sizes[idx]  # TODO this assumes bottom-right padding, needs to be documented in data type
+    size = self.image_sizes[
+        idx
+    ]  # TODO this assumes bottom-right padding, needs to be documented in data type
     return inputdata["images"][idx : idx + 1, ..., : size[1], : size[0]]
 
 
@@ -55,9 +59,7 @@ def batch_images(
     pad = lambda x: (x + (stride - 1)) // stride * stride
     max_hw = (pad(x) for x in max_hw)  # type: ignore
 
-    batch_shape = (
-        [sum(lens)] + list(instances[0].shape[1:-2]) + list(max_hw)
-    )
+    batch_shape = [sum(lens)] + list(instances[0].shape[1:-2]) + list(max_hw)
     if device is None:
         device = instances[0].device
     pad_imgs = torch.zeros(batch_shape, device=device)
@@ -73,7 +75,7 @@ def batch_images(
     return pad_imgs.contiguous()
 
 
-def resize( resize_hw: Tuple[int, int], mode: str = "bilinear") -> None:
+def resize(resize_hw: Tuple[int, int], mode: str = "bilinear") -> None:
     """Resizes Images object."""  # TODO adjust
     align_corners = None if mode == "nearest" else False
     resized_ims = []

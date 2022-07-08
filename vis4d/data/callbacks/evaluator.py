@@ -11,7 +11,6 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 from scalabel.common import mute
 from scalabel.label.typing import Frame
 
-from vis4d.data.datasets import BaseDatasetLoader
 from vis4d.data.utils import all_gather_gts, all_gather_predictions
 from vis4d.struct import InputSample, MetricLogs, ModelOutput
 
@@ -124,7 +123,7 @@ class DefaultEvaluatorCallback(BaseEvaluatorCallback):
     def __init__(
         self,
         dataloader_idx: int,
-        dataset_loader: BaseDatasetLoader,
+        dataset_loader,
         output_dir: Optional[str] = None,
     ) -> None:
         """Init."""

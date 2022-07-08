@@ -4,8 +4,6 @@ from torch import nn
 
 from vis4d.common import Vis4DModule
 
-
-
 BN_MOMENTUM = 0.1
 
 

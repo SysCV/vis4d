@@ -3,8 +3,6 @@ import unittest
 
 import torch
 
-from .data import Extrinsics, Images, Intrinsics, PointCloud
-
 # TODO remove, move relevant parts to new locations (data / common)
 
 

@@ -9,6 +9,7 @@ from vis4d.struct import Boxes2D
 
 # TODO should be abstract?
 
+
 class BaseRoIPooler(nn.Module):
     """Base class for RoI poolers."""
 

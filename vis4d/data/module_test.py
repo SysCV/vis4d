@@ -6,7 +6,7 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
 
-from vis4d.struct import ArgsType, Images, InputSample
+from vis4d.struct import ArgsType, InputSample
 from vis4d.unittest.utils import MockModel, _trainer_builder
 
 from .dataset import ScalabelDataset

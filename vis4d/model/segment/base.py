@@ -3,13 +3,7 @@
 import abc
 from typing import List, Optional, Tuple, Union, overload
 
-from vis4d.struct import (
-    FeatureMaps,
-    InputSample,
-    LabelInstances,
-    Losses,
-    SemanticMasks,
-)
+from vis4d.struct import FeatureMaps, InputSample, Losses, SemanticMasks
 
 from ..base import BaseModel
 
@@ -36,7 +30,7 @@ class BaseSegmentor(BaseModel):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[List[SemanticMasks]]]:
         ...
 
@@ -44,7 +38,7 @@ class BaseSegmentor(BaseModel):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: Optional[LabelInstances] = None,
+        targets=None,
     ) -> Union[
         Tuple[
             Losses,
@@ -66,7 +60,7 @@ class BaseSegmentor(BaseModel):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[List[SemanticMasks]]]:
         """Train stage segmentations generation."""
         raise NotImplementedError

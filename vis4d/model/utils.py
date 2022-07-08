@@ -11,24 +11,22 @@ import numpy as np
 import requests
 import torch
 
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 from vis4d.struct import (
     Boxes2D,
     DictStrAny,
     Images,
     InputSample,
     InstanceMasks,
-    LabelInstances,
     Losses,
     ModelOutput,
     NDArrayF64,
     NDArrayUI8,
     SemanticMasks,
-    TLabelInstance,
 )
 
 from .base import BaseModel
 
-from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 if MMCV_AVAILABLE:
     from mmcv import Config as MMConfig
     from mmcv.runner.checkpoint import load_checkpoint
@@ -58,7 +56,7 @@ MMDetResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
 MMSegResults = Union[List[NDArrayUI8], torch.Tensor]
 
 
-def get_img_metas(images: Images) -> List[MMDetMetaData]:
+def get_img_metas(images: torch.Tensor) -> List[MMDetMetaData]:
     """Create image metadata in mmdetection format."""
     img_metas = []
     _, c, padh, padw = images.tensor.shape  # type: Tuple[int, int, int, int]
@@ -148,7 +146,7 @@ def masks_to_mmdet_masks(masks: Sequence[InstanceMasks]) -> BitmapMasks:
 
 
 def targets_to_mmdet(
-    targets: LabelInstances,
+    targets,
 ) -> Tuple[
     List[torch.Tensor], List[torch.Tensor], Optional[Sequence[BitmapMasks]]
 ]:
@@ -176,7 +174,7 @@ def results_from_mmseg(
     return masks
 
 
-def targets_to_mmseg(images: Images, targets: LabelInstances) -> torch.Tensor:
+def targets_to_mmseg(images: torch.Tensor, targets) -> torch.Tensor:
     """Convert Vis4D targets to mmsegmentation compatible format."""
     if len(targets.semantic_masks) > 1:
         # pad masks to same size for batching
@@ -290,7 +288,7 @@ def add_keyword_args(model_kwargs: DictStrAny, cfg: MMConfig) -> None:
 
 def postprocess_predictions(
     inputs: InputSample,
-    predictions: Dict[str, List[TLabelInstance]],
+    predictions,
     clip_to_image: bool = True,
     resolve_overlap: bool = True,
 ) -> None:

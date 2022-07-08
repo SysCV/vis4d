@@ -16,10 +16,11 @@ from pytorch_lightning.utilities.rank_zero import (
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from termcolor import colored
 
+from vis4d.common.utils.imports import MMCV_AVAILABLE
+
 from ..common.utils.time import Timer
 from ..struct import ArgsType
 
-from vis4d.common.utils.imports import MMCV_AVAILABLE
 if MMCV_AVAILABLE:
     from mmcv.utils import get_logger
 

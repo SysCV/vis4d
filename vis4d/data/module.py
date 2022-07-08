@@ -4,7 +4,6 @@ import os.path as osp
 from typing import List, Optional, Union, no_type_check
 
 import pytorch_lightning as pl
-import torch
 from pytorch_lightning.callbacks import Callback
 from torch.utils import data
 from torch.utils.data.distributed import DistributedSampler
@@ -14,8 +13,9 @@ from vis4d.data.callbacks.writer import DefaultWriterCallback
 
 from ..common.registry import RegistryHolder
 from ..common.utils import get_world_size
-from ..struct import InputSample, ModuleCfg
-from .datasets import BaseDataset, Custom
+from .datasets import (  # , Custom TODO re-implement custom with new interface
+    BaseDataset,
+)
 from .handler import BaseDatasetHandler
 from .samplers import TrackingInferenceSampler, build_data_sampler
 from .utils import identity_batch_collator

@@ -15,7 +15,6 @@ from vis4d.struct import (
     Boxes3D,
     DictStrAny,
     InputSample,
-    LabelInstances,
     Losses,
 )
 
@@ -260,10 +259,10 @@ class QD3DTrackGraph(QDTrackGraph):
     def forward_test(
         self,
         inputs: InputSample,
-        predictions: LabelInstances,
+        predictions,
         embeddings: Optional[torch.Tensor] = None,
         **kwargs: torch.Tensor,
-    ) -> LabelInstances:
+    ):
         """Process inputs, match detections with existing tracks."""
         assert (
             embeddings is not None
@@ -406,8 +405,8 @@ class QD3DTrackGraph(QDTrackGraph):
     def forward_train(
         self,
         inputs: List[InputSample],
-        predictions: List[LabelInstances],
-        targets: Optional[List[LabelInstances]],
+        predictions,
+        targets,
         **kwargs: List[torch.Tensor],
     ) -> Losses:
         """Forward of QDTrackGraph in training stage."""

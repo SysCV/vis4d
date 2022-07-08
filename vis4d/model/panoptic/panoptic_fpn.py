@@ -3,14 +3,7 @@ from typing import Dict, List
 
 from scalabel.label.typing import Label
 
-from vis4d.struct import (
-    ArgsType,
-    InputSample,
-    LabelInstances,
-    Losses,
-    ModelOutput,
-    TLabelInstance,
-)
+from vis4d.struct import ArgsType, InputSample, Losses, ModelOutput
 
 from ..base import BaseModel
 from ..detect import BaseTwoStageDetector
@@ -80,7 +73,7 @@ class PanopticFPN(BaseModel):
         semantic_segms = self.seg_head(inputs, feat)
 
         assert instance_segms is not None
-        outputs: Dict[str, List[TLabelInstance]] = dict(  # type: ignore
+        outputs = dict(  # type: ignore
             detect=detections, ins_seg=instance_segms, sem_seg=semantic_segms
         )
         postprocess_predictions(

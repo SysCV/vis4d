@@ -72,8 +72,8 @@ def setup_model(
                 category_mapping,
                 backbone="r50_caffe_fpn",
                 weights="mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco-"
-                        "person/faster_rcnn_r50_fpn_1x_coco-person_"
-                        "20201216_175929-d022e227.pth",
+                "person/faster_rcnn_r50_fpn_1x_coco-person_"
+                "20201216_175929-d022e227.pth",
             )
             similarity_head = QDSimilarityHead(
                 proposal_matcher=MaxIoUMatcher(

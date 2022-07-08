@@ -27,7 +27,6 @@ from vis4d.struct import (
 
 from .warmup import BaseLRWarmup, LinearLRWarmup
 
-
 DEFAULT_OPTIM = {
     "class_path": "torch.optim.SGD",
     "init_args": {

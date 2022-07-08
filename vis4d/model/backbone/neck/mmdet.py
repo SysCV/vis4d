@@ -1,6 +1,8 @@
 """mmdetection neck wrapper."""
 from typing import List, Optional, Union
+
 from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
+
 if MMCV_AVAILABLE:
     from mmcv.runner import BaseModule
     from mmcv.utils import ConfigDict

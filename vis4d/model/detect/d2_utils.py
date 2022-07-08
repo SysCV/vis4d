@@ -3,9 +3,9 @@ import os
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import torch
-from vis4d.common.utils.imports import DETECTRON2_AVAILABLE
 
 from vis4d.common.mask import paste_masks_in_image
+from vis4d.common.utils.imports import DETECTRON2_AVAILABLE
 from vis4d.struct import (
     Boxes2D,
     DictStrAny,
@@ -126,7 +126,7 @@ def target_to_instance(
     return result
 
 
-def images_to_imagelist(images: Images) -> ImageList:
+def images_to_imagelist(images: torch.Tensor) -> ImageList:
     """Convert Images to ImageList (switch from wh to hw for image sizes)."""
     return ImageList(
         images.tensor,

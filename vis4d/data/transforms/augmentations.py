@@ -13,11 +13,10 @@ from vis4d.struct import (
     ArgsType,
     Boxes2D,
     Boxes3D,
-    Images,
+    Extrinsics,
     InputSample,
     InstanceMasks,
     Intrinsics,
-    LabelInstances,
     SemanticMasks,
     TMasks,
 )
@@ -160,7 +159,9 @@ class Resize(BaseAugmentation):
             torch.matmul(parameters["transform"], intrinsics.tensor)
         )
 
-    def apply_image(self, images: Images, parameters: AugParams) -> Images:
+    def apply_image(
+        self, images: torch.Tensor, parameters: AugParams
+    ) -> torch.Tensor:
         """Apply augmentation to input image."""
         all_ims = []
         for i, im in enumerate(images):
@@ -389,7 +390,9 @@ class RandomCrop(BaseAugmentation):
         parameters["keep"] = keep_masks
         return parameters
 
-    def apply_image(self, images: Images, parameters: AugParams) -> Images:
+    def apply_image(
+        self, images: torch.Tensor, parameters: AugParams
+    ) -> torch.Tensor:
         """Apply augmentation to input image."""
         all_ims: List[Images] = []
         for i, im in enumerate(images):
@@ -610,7 +613,9 @@ class Mosaic(BaseAugmentation):
         )
         return parameters
 
-    def apply_image(self, images: Images, parameters: AugParams) -> Images:
+    def apply_image(
+        self, images: torch.Tensor, parameters: AugParams
+    ) -> torch.Tensor:
         """Apply augmentation to input image."""
         h, w = self.out_shape
         c = images.tensor.shape[1]
@@ -773,7 +778,9 @@ class MixUp(BaseAugmentation):
         )
         return parameters
 
-    def apply_image(self, images: Images, parameters: AugParams) -> Images:
+    def apply_image(
+        self, images: torch.Tensor, parameters: AugParams
+    ) -> torch.Tensor:
         """Apply MixUp on image pair."""
         h, w = self.out_shape
         c = images.tensor.shape[1]

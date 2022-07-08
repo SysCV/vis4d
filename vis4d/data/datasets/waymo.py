@@ -9,7 +9,6 @@ from vis4d.struct import ArgsType
 from .base import BaseDatasetLoader
 
 
-
 class Waymo(BaseDatasetLoader):  # pragma: no cover
     """Waymo Open dataloading class."""
 

@@ -9,7 +9,7 @@ from torch.utils import data
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.data.transforms import BaseAugmentation
-from vis4d.struct import InputSample, LabelInstances
+from vis4d.struct import InputSample
 
 
 def sort_by_frame_index(samples: List[InputSample]) -> List[InputSample]:
@@ -52,7 +52,7 @@ class BaseDatasetHandler(data.ConcatDataset, metaclass=RegistryHolder):  # type:
         )
 
     def _postprocess_annotations(
-        self, im_wh: Tuple[int, int], targets: LabelInstances
+        self, im_wh: Tuple[int, int], targets
     ) -> None:
         """Process annotations after transform."""
         if len(targets.boxes2d[0]) == 0:

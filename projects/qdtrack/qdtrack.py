@@ -10,7 +10,6 @@ from vis4d.model.optimize import DefaultOptimizer
 from vis4d.struct import ArgsType
 
 
-
 class ClippedSimOTAAssigner(SimOTAAssigner):  # type: ignore
     """Modified SimOTAAssigner to support boxes with center outside of img."""
 

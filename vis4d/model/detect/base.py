@@ -12,7 +12,6 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     InstanceMasks,
-    LabelInstances,
     Losses,
 )
 
@@ -49,7 +48,7 @@ class BaseOneStageDetector(nn.Module):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[List[Boxes2D]]]:
         ...
 
@@ -58,7 +57,7 @@ class BaseOneStageDetector(nn.Module):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: Optional[LabelInstances] = None,
+        targets=None,
     ) -> Union[
         Tuple[Losses, Optional[List[Boxes2D]]], List[Boxes2D]
     ]:  # pragma: no cover
@@ -77,7 +76,7 @@ class BaseOneStageDetector(nn.Module):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[List[Boxes2D]]]:
         """Train stage detections generation."""
         raise NotImplementedError
@@ -122,7 +121,7 @@ class BaseTwoStageDetector(nn.Module):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, List[Boxes2D]]:
         ...
 
@@ -130,7 +129,7 @@ class BaseTwoStageDetector(nn.Module):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: Optional[LabelInstances] = None,
+        targets=None,
     ) -> Union[Tuple[Losses, List[Boxes2D]], List[Boxes2D]]:
         """Detector RPN stage.
 
@@ -145,7 +144,7 @@ class BaseTwoStageDetector(nn.Module):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, List[Boxes2D]]:
         """Train stage proposal generation."""
         raise NotImplementedError
@@ -172,7 +171,7 @@ class BaseTwoStageDetector(nn.Module):
         inputs: InputSample,
         features: FeatureMaps,
         proposals: List[Boxes2D],
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[SamplingResult]]:
         ...
 
@@ -181,7 +180,7 @@ class BaseTwoStageDetector(nn.Module):
         inputs: InputSample,
         features: FeatureMaps,
         proposals: List[Boxes2D],
-        targets: Optional[LabelInstances] = None,
+        targets=None,
     ) -> Union[
         Tuple[Losses, Optional[SamplingResult]],
         Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
@@ -200,7 +199,7 @@ class BaseTwoStageDetector(nn.Module):
         inputs: InputSample,
         features: FeatureMaps,
         proposals: List[Boxes2D],
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[SamplingResult]]:
         """Train stage detections generation."""
         raise NotImplementedError

@@ -2,6 +2,7 @@
 from typing import Dict, List, Optional, Tuple
 
 from vis4d.common.bbox.samplers import SamplingResult
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 from vis4d.struct import (
     ArgsType,
     Boxes2D,
@@ -9,10 +10,8 @@ from vis4d.struct import (
     FeatureMaps,
     InputSample,
     InstanceMasks,
-    LabelInstances,
     Losses,
     ModelOutput,
-    TLabelInstance,
 )
 
 from ..backbone import BaseBackbone, MMDetBackbone
@@ -27,7 +26,7 @@ from ..utils import (
     predictions_to_scalabel,
 )
 from .base import BaseOneStageDetector, BaseTwoStageDetector
-from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
+
 if MMCV_AVAILABLE:
     from mmcv import Config as MMConfig
 
@@ -162,7 +161,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         features = self.backbone(inputs)
         proposals = self.rpn_head(inputs, features)
         detections, segmentations = self.roi_head(inputs, features, proposals)
-        outputs: Dict[str, List[TLabelInstance]] = dict(detect=detections)  # type: ignore # pylint: disable=line-too-long
+        outputs = dict(detect=detections)  # type: ignore # pylint: disable=line-too-long
         if self.with_mask:
             assert segmentations is not None
             outputs["ins_seg"] = segmentations
@@ -183,7 +182,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, List[Boxes2D]]:
         """Train stage proposal generation."""
         return self.rpn_head(inputs, features, targets)
@@ -199,7 +198,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         inputs: InputSample,
         features: FeatureMaps,
         proposals: List[Boxes2D],
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[SamplingResult]]:
         """Train stage detections generation."""
         return self.roi_head(inputs, features, proposals, targets)
@@ -316,7 +315,7 @@ class MMOneStageDetector(BaseOneStageDetector):
         self,
         inputs: InputSample,
         features: FeatureMaps,
-        targets: LabelInstances,
+        targets,
     ) -> Tuple[Losses, Optional[List[Boxes2D]]]:
         """Train stage detections generation."""
         return self.bbox_head(inputs, features, targets)

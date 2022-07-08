@@ -1,4 +1,7 @@
 """Dataset loader for scalabel format."""
+from typing import Dict, List, Optional, Tuple, Union
+
+import torch
 from scalabel.eval.detect import evaluate_det
 from scalabel.eval.ins_seg import evaluate_ins_seg
 from scalabel.eval.mot import acc_single_video_mot, evaluate_track
@@ -19,8 +22,17 @@ from scalabel.label.utils import (
     get_matrix_from_intrinsics,
 )
 
-from .base import BaseDataset
-from .utils import im_decode
+from vis4d.struct import (
+    CategoryMap,
+    Extrinsics,
+    InputData,
+    Intrinsics,
+    MetricLogs,
+    ModelOutput,
+)
+
+from ..utils import im_decode
+from .base import BaseDataset, DataDict
 
 
 def _detect(
@@ -229,7 +241,7 @@ class Scalabel(BaseDataset):
         use_empty: Optional[bool] = False,
         group_url: Optional[str] = None,
         group_extrinsics: Optional[ScalabelExtrinsics] = None,
-    ) -> InputSample:
+    ) -> InputData:
         """Load image according to data_backend."""
         input_data = InputSample([copy.deepcopy(sample)])
         if sample.url is not None and "images" in self.inputs_to_load:
@@ -275,9 +287,7 @@ class Scalabel(BaseDataset):
 
         return input_data
 
-    def load_annotations(
-        self, sample: InputSample, labels: Optional[List[Label]]
-    ) -> None:
+    def load_annotations(self, sample, labels: Optional[List[Label]]) -> None:
         """Transform annotations."""
         if labels is None:
             return
@@ -346,7 +356,7 @@ class Scalabel(BaseDataset):
         input_data_extrinsics: Extrinsics,
         num_point_feature: int = 4,
         radius: float = 1.0,
-    ) -> PointCloud:
+    ) -> torch.Tensor:
         """Load pointcloud points and filter the near ones."""
         points_bytes = self.data_backend.get(group_url)
         points = np.frombuffer(points_bytes, dtype=np.float32)  # type: ignore # pylint: disable=line-too-long
@@ -380,7 +390,7 @@ class Scalabel(BaseDataset):
         self,
         sample: DataDict,
         training: bool,
-    ) -> Optional[InputSample]:
+    ) -> Optional[InputData]:
         """Prepare a single sample in Vis4D format.
 
         Args:
