@@ -62,9 +62,7 @@ class MMDetBackbone(BaseBackbone):
         """Build MM backbone with config."""
         return build_mmdet_backbone(cfg)
 
-    def __call__(  # type: ignore[override]
-        self, inputs: InputSample
-    ) -> FeatureMaps:
+    def forward(self, inputs: InputSample) -> FeatureMaps:
         """Backbone forward.
 
         Args:

@@ -1,15 +1,15 @@
 """Tracking base class."""
 
 import abc
-from typing import List, Optional, Union, cast, overload
+from typing import List, Optional, Union, cast
 
 import torch
+from torch import nn
 
-from vis4d.common import Vis4DModule
 from vis4d.struct import InputSample, LabelInstances, LossesType
 
 
-class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
+class BaseTrackGraph(nn.Module):
     """Base class for tracking graph optimization."""
 
     @abc.abstractmethod
@@ -17,26 +17,7 @@ class BaseTrackGraph(Vis4DModule[LabelInstances, LossesType]):
         """Reset track memory during inference."""
         raise NotImplementedError
 
-    @overload  # type: ignore[override]
-    def __call__(
-        self,
-        inputs: InputSample,
-        predictions: LabelInstances,
-        **kwargs: torch.Tensor,
-    ) -> LabelInstances:  # noqa: D102
-        ...
-
-    @overload
-    def __call__(
-        self,
-        inputs: List[InputSample],
-        predictions: List[LabelInstances],
-        targets: Optional[List[LabelInstances]],
-        **kwargs: List[torch.Tensor],
-    ) -> LossesType:
-        ...
-
-    def __call__(
+    def forward(
         self,
         inputs: Union[List[InputSample], InputSample],
         predictions: Union[List[LabelInstances], LabelInstances],

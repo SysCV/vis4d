@@ -12,6 +12,7 @@ from pytorch_lightning.utilities.cli import SaveConfigCallback
 from vis4d.data.module_test import SampleDataModule
 from vis4d.struct import ArgsType
 
+from ..model.optimize import DefaultOptimizer
 from ..unittest.utils import MockModel
 from .trainer import BaseCLI, DefaultTrainer
 
@@ -25,7 +26,7 @@ def test_custom_init() -> None:
         tqdm=True,
         max_steps=2,
     )
-    model = MockModel(model_param=7)
+    model = DefaultOptimizer(MockModel(model_param=7))
     trainer.fit(model, [None])
 
 
@@ -88,7 +89,7 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
         [
             "any.py",
             "fit",
-            "--model.model_param=7",
+            "--model.model.model_param=7",
             "--trainer.exp_name=cli_test",
             "--trainer.work_dir=./unittests/",
             "--trainer.max_steps=10",
@@ -97,7 +98,8 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
             "--seed_everything=0",
         ],
     ):
-        cli = BaseCLI(MockModel, datamodule_class=SampleDataModule)
+        # TODO DefaultOptimizer doesn't work as model here
+        cli = BaseCLI(DefaultOptimizer, datamodule_class=SampleDataModule)
         assert hasattr(cli.trainer, "ran_asserts") and cli.trainer.ran_asserts
 
 

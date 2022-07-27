@@ -8,16 +8,17 @@ from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.engine.trainer import BaseCLI
 from vis4d.model import QDTrack
+from vis4d.model.optimize.optimizer import DefaultOptimizer
 from vis4d.model.track.graph import QDTrackGraph
 from vis4d.model.track.similarity import QDSimilarityHead
-from vis4d.model.optimize.optimizer import DefaultOptimizer
+
 
 def setup_model(
     experiment: str,
     lr: float = 0.02,
     max_epochs: int = 12,
     detector: str = "FRCNN",
-) -> QDTrack:
+) -> DefaultOptimizer:
     """Setup model with experiment specific hyperparameters."""
     if experiment == "mot17":
         if detector == "YOLOX":
@@ -85,8 +86,6 @@ def setup_model(
             similarity_head = QDSimilarityHead()
 
         model = QDTrack(
-            image_channel_mode=detector.image_channel_mode,
-            category_mapping=category_mapping,
             detection=detector,
             similarity=similarity_head,
             track_graph=track_graph,
@@ -94,9 +93,11 @@ def setup_model(
 
     if experiment == "mot17":
         model.detector.clip_bboxes_to_image = False
-    return DefaultOptimizer(model,
-                            lr_scheduler_init=step_schedule(max_epochs),
-                            optimizer_init=sgd(lr), )
+    return DefaultOptimizer(
+        model,
+        lr_scheduler_init=step_schedule(max_epochs),
+        optimizer_init=sgd(lr),
+    )
 
 
 class QDTrackCLI(BaseCLI):

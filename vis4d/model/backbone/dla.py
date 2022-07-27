@@ -5,7 +5,6 @@ import torch
 from torch import nn
 from torch.utils import model_zoo
 
-from vis4d.common import Vis4DModule
 from vis4d.struct import ArgsType, FeatureMaps, InputSample
 
 from .base import BaseBackbone
@@ -88,7 +87,7 @@ DLA_ARCH_SETTINGS = {
 }
 
 
-class BasicBlock(Vis4DModule[torch.Tensor, torch.Tensor]):
+class BasicBlock(nn.Module):
     """BasicBlock."""
 
     def __init__(
@@ -119,7 +118,7 @@ class BasicBlock(Vis4DModule[torch.Tensor, torch.Tensor]):
         self.bn2 = nn.BatchNorm2d(planes, momentum=BN_MOMENTUM)
         self.stride = stride
 
-    def __call__(  # type: ignore
+    def forward(
         self, input_x: torch.Tensor, residual: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Forward."""
@@ -139,7 +138,7 @@ class BasicBlock(Vis4DModule[torch.Tensor, torch.Tensor]):
         return out
 
 
-class Bottleneck(Vis4DModule[torch.Tensor, torch.Tensor]):
+class Bottleneck(nn.Module):
     """Bottleneck."""
 
     expansion = 2
@@ -172,7 +171,7 @@ class Bottleneck(Vis4DModule[torch.Tensor, torch.Tensor]):
         self.relu = nn.ReLU(inplace=True)
         self.stride = stride
 
-    def __call__(  # type: ignore
+    def forward(
         self, input_x: torch.Tensor, residual: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Forward."""
@@ -196,7 +195,7 @@ class Bottleneck(Vis4DModule[torch.Tensor, torch.Tensor]):
         return out
 
 
-class BottleneckX(Vis4DModule[torch.Tensor, torch.Tensor]):
+class BottleneckX(nn.Module):
     """BottleneckX."""
 
     expansion = 2
@@ -231,7 +230,7 @@ class BottleneckX(Vis4DModule[torch.Tensor, torch.Tensor]):
         self.relu = nn.ReLU(inplace=True)
         self.stride = stride
 
-    def __call__(  # type: ignore
+    def forward(
         self, input_x: torch.Tensor, residual: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Forward."""
@@ -255,7 +254,7 @@ class BottleneckX(Vis4DModule[torch.Tensor, torch.Tensor]):
         return out
 
 
-class Root(Vis4DModule[torch.Tensor, torch.Tensor]):
+class Root(nn.Module):
     """Root."""
 
     def __init__(
@@ -279,7 +278,7 @@ class Root(Vis4DModule[torch.Tensor, torch.Tensor]):
         self.relu = nn.ReLU(inplace=True)
         self.residual = residual
 
-    def __call__(self, *input_x: torch.Tensor) -> torch.Tensor:  # type: ignore
+    def forward(self, *input_x: torch.Tensor) -> torch.Tensor:
         """Forward."""
         children = input_x
         input_x = self.conv(torch.cat(input_x, 1))
@@ -291,7 +290,7 @@ class Root(Vis4DModule[torch.Tensor, torch.Tensor]):
         return input_x
 
 
-class Tree(Vis4DModule[torch.Tensor, torch.Tensor]):
+class Tree(nn.Module):
     """Tree."""
 
     def __init__(  # pylint: disable=too-many-arguments
@@ -375,7 +374,7 @@ class Tree(Vis4DModule[torch.Tensor, torch.Tensor]):
                 nn.BatchNorm2d(out_channels, momentum=BN_MOMENTUM),
             )
 
-    def __call__(  # type: ignore
+    def forward(
         self,
         input_x: torch.Tensor,
         residual: Optional[torch.Tensor] = None,
@@ -393,7 +392,7 @@ class Tree(Vis4DModule[torch.Tensor, torch.Tensor]):
             input_x = self.root(input_x2, input_x1, *children)
         else:
             children.append(input_x1)
-            input_x = self.tree2(input_x1, children=children)  # type: ignore
+            input_x = self.tree2(input_x1, children=children)
         return input_x
 
 
@@ -527,9 +526,7 @@ class DLA(BaseBackbone):
             model_weights = torch.load(weights)
         self.load_state_dict(model_weights, strict=False)
 
-    def __call__(  # type: ignore[override]
-        self, inputs: InputSample
-    ) -> FeatureMaps:
+    def forward(self, inputs: InputSample) -> FeatureMaps:
         """Backbone forward."""
         inputs = self.preprocess_inputs(inputs)
         outs = []

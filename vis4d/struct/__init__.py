@@ -28,6 +28,8 @@ from .structures import (
     NDArrayUI8,
     TLabelInstance,
     TorchCheckpoint,
+    TTestReturn,
+    TTrainReturn,
 )
 
 __all__ = [
@@ -61,4 +63,6 @@ __all__ = [
     "CategoryMap",
     "ALLOWED_INPUTS",
     "ALLOWED_TARGETS",
+    "TTrainReturn",
+    "TTestReturn",
 ]

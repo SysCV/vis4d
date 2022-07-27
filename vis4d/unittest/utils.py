@@ -10,7 +10,6 @@ from scalabel.label.typing import Frame, ImageSize
 from torch import nn
 
 from vis4d.engine import DefaultTrainer
-from vis4d.model import BaseModel
 from vis4d.struct import (
     ArgsType,
     Boxes2D,
@@ -211,7 +210,7 @@ def generate_input_sample(
     return sample
 
 
-class MockModel(BaseModel):
+class MockModel(nn.Module):
     """Model Mockup."""
 
     def __init__(self, model_param: int, *args: ArgsType, **kwargs: ArgsType):
@@ -220,17 +219,23 @@ class MockModel(BaseModel):
         self.model_param = model_param
         self.linear = nn.Linear(10, 1)
 
-    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
-        """Train step mockup."""
-        return {
-            "my_loss": (
-                self.linear(torch.rand((1, 10), device=self.device)) - 0
-            ).sum()
-        }
-
-    def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
-        """Test step mockup."""
-        return {}
+    def forward(
+        self,
+        batch_inputs: List[
+            InputSample
+        ],  # pylint: disable=unused-argument,line-too-long
+    ) -> Union[LossesType, ModelOutput]:
+        """Forward."""
+        if self.training:
+            return {
+                "my_loss": (
+                    self.linear(
+                        torch.rand((1, 10), device=self.linear.weight.device)
+                    )
+                    - 0
+                ).sum()
+            }
+        return {}  # type: ignore
 
 
 def _trainer_builder(

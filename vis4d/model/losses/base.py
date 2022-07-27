@@ -1,14 +1,12 @@
 """Base class for meta architectures."""
 
 import abc
-from typing import Any, Optional
+from typing import Optional
 
-import torch
-
-from vis4d.common import Vis4DModule
+from torch import nn
 
 
-class BaseLoss(Vis4DModule[torch.Tensor, torch.Tensor]):
+class BaseLoss(nn.Module, abc.ABC):
     """Base loss class."""
 
     def __init__(
@@ -18,13 +16,3 @@ class BaseLoss(Vis4DModule[torch.Tensor, torch.Tensor]):
         super().__init__()
         self.reduction = reduction
         self.loss_weight = loss_weight
-
-    @abc.abstractmethod
-    def __call__(  # type: ignore
-        self, *args: Any, **kwargs: Any
-    ) -> torch.Tensor:
-        """Loss function implementation.
-
-        Returns the reduced loss (scalar).
-        """
-        raise NotImplementedError

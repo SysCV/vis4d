@@ -6,12 +6,13 @@ from projects.panoptic_fpn.data import PanopticFPNDataModule
 from vis4d.engine.trainer import BaseCLI
 from vis4d.model.heads.dense_head import MMSegDecodeHead
 from vis4d.model.heads.panoptic_head import SimplePanopticHead
+from vis4d.model.optimize import DefaultOptimizer
 from vis4d.model.panoptic import PanopticFPN
 
 
 def setup_model(
     experiment: str, lr: float = 0.02, max_epochs: int = 12
-) -> PanopticFPN:
+) -> DefaultOptimizer:
     """Setup model with experiment specific hyperparameters."""
     if experiment != "bdd100k":
         raise NotImplementedError(f"Experiment {experiment} not known!")
@@ -37,11 +38,13 @@ def setup_model(
         pan_head=SimplePanopticHead(
             ignore_class=[11, 12, 13, 14, 15, 16, 17, 18]
         ),
+    )
+
+    return DefaultOptimizer(
+        model,
         lr_scheduler_init=step_schedule(max_epochs),
         optimizer_init=sgd(lr),
     )
-
-    return model
 
 
 class PanopticFPNCLI(BaseCLI):

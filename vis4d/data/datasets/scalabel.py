@@ -19,19 +19,3 @@ class Scalabel(BaseDatasetLoader):
         assert metadata_cfg is not None
         dataset.config = metadata_cfg
         return dataset
-
-
-
-
-
-def predictions_to_scalabel(
-    predictions: Dict[str, List[TLabelInstance]],
-    idx_to_class: Optional[Dict[int, str]] = None,
-) -> ModelOutput:  # TODO integrate
-    """Convert predictions into ModelOutput (Scalabel)."""
-    outputs = {}
-    for key, values in predictions.items():
-        outputs[key] = [
-            v.to(torch.device("cpu")).to_scalabel(idx_to_class) for v in values
-        ]
-    return outputs

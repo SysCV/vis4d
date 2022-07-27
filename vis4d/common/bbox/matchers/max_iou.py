@@ -44,7 +44,7 @@ class MaxIoUMatcher(BaseMatcher):
         self.thresholds = thresholds
         self.labels = labels
 
-    def __call__(  # type: ignore
+    def forward(
         self, boxes: List[Boxes2D], targets: List[Boxes2D]
     ) -> List[MatchResult]:
         """Match all boxes to targets based on maximum IoU."""

@@ -21,7 +21,7 @@ from vis4d.struct import (
     LossesType,
 )
 
-from .base import Det2DRoIHead
+from .base import BaseRoIHead
 
 try:
     from mmcv.utils import ConfigDict
@@ -39,7 +39,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 
-class MMDetRoIHead(Det2DRoIHead):
+class MMDetRoIHead(BaseRoIHead):
     """mmdetection roi head wrapper."""
 
     def __init__(

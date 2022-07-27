@@ -33,7 +33,7 @@ class Box3DUncertaintyLoss(BaseLoss):
         self.loss_weights = loss_weights
         self.num_rotation_bins = num_rotation_bins
 
-    def __call__(  # type: ignore # pylint: disable=arguments-differ
+    def forward(  # pylint: disable=arguments-differ
         self,
         pred: torch.Tensor,
         target: torch.Tensor,

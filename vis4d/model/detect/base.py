@@ -1,12 +1,12 @@
 """Base class for Vis4D detectors."""
 
 import abc
-from typing import List, Optional, Tuple, Union, overload
+from typing import Dict, List, Optional, Tuple, Union, overload
+
 from torch import nn
 
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
-    ArgsType,
     Boxes2D,
     FeatureMaps,
     InputSample,
@@ -21,6 +21,8 @@ class BaseOneStageDetector(nn.Module):
 
     def __init__(
         self,
+        image_channel_mode: str = "RGB",
+        category_mapping: Optional[Dict[str, int]] = None,
         clip_bboxes_to_image: bool = True,
         resolve_overlap: bool = True,
     ):
@@ -28,6 +30,8 @@ class BaseOneStageDetector(nn.Module):
         super().__init__()
         self.clip_bboxes_to_image = clip_bboxes_to_image
         self.resolve_overlap = resolve_overlap
+        self.category_mapping = category_mapping
+        self.image_channel_mode = image_channel_mode
 
     @abc.abstractmethod
     def extract_features(self, inputs: InputSample) -> FeatureMaps:
@@ -94,6 +98,8 @@ class BaseTwoStageDetector(nn.Module):
 
     def __init__(
         self,
+        image_channel_mode: str = "RGB",
+        category_mapping: Optional[Dict[str, int]] = None,
         clip_bboxes_to_image: bool = True,
         resolve_overlap: bool = True,
     ):
@@ -101,6 +107,8 @@ class BaseTwoStageDetector(nn.Module):
         super().__init__()
         self.clip_bboxes_to_image = clip_bboxes_to_image
         self.resolve_overlap = resolve_overlap
+        self.category_mapping = category_mapping
+        self.image_channel_mode = image_channel_mode
 
     @abc.abstractmethod
     def extract_features(self, inputs: InputSample) -> FeatureMaps:

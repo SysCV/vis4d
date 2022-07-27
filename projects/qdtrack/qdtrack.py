@@ -103,15 +103,17 @@ class YOLOXOptimize(DefaultOptimizer):
     """QDTrack + YOLOX detector optimization routine."""
 
     def __init__(
-            self,
-            *args: ArgsType,
-            no_aug_epochs: int = 10,
-            **kwargs: ArgsType,
+        self,
+        *args: ArgsType,
+        no_aug_epochs: int = 10,
+        **kwargs: ArgsType,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
         self.no_aug_epochs = no_aug_epochs
-        assert hasattr(self.model, "im_hw"), "Need image hw to reset augmentations"
+        assert hasattr(
+            self.model, "im_hw"
+        ), "Need image hw to reset augmentations"
         self.im_hw = self.model.im_hw
 
     def on_train_epoch_start(self):

@@ -21,6 +21,9 @@ TDataInstance = TypeVar("TDataInstance", bound="DataInstance")
 TInputInstance = TypeVar("TInputInstance", bound="InputInstance")
 TLabelInstance = TypeVar("TLabelInstance", bound="LabelInstance")
 
+TTrainReturn = TypeVar("TTrainReturn")
+TTestReturn = TypeVar("TTestReturn")
+
 
 class DataInstance(metaclass=abc.ABCMeta):
     """Meta class for input data."""
@@ -132,7 +135,7 @@ NDArrayI64 = npt.NDArray[np.int64]
 NDArrayUI8 = npt.NDArray[np.uint8]
 TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
 LossesType = Dict[str, torch.Tensor]
-ModelOutput = Dict[str, List[TLabelInstance]]
+ModelOutput = Dict[str, List[List[Label]]]
 DictStrAny = Dict[str, Any]  # type: ignore
 MetricLogs = Dict[str, Union[float, int]]
 FeatureMaps = Dict[str, torch.Tensor]

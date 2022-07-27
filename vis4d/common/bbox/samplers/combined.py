@@ -136,7 +136,7 @@ class CombinedSampler(BaseSampler):
 
         return sampled_inds
 
-    def __call__(  # type: ignore
+    def forward(
         self,
         matching: List[MatchResult],
         boxes: List[Boxes2D],

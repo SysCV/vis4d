@@ -1,7 +1,9 @@
 """Base class for Vis4D segmentors."""
 
 import abc
-from typing import List, Optional, Tuple, Union, overload
+from typing import Dict, List, Optional, Tuple, Union, overload
+
+from torch import nn
 
 from vis4d.struct import (
     FeatureMaps,
@@ -11,11 +13,19 @@ from vis4d.struct import (
     SemanticMasks,
 )
 
-from ..base import BaseModel
 
-
-class BaseSegmentor(BaseModel):
+class BaseSegmentor(nn.Module):
     """Base segmentor class."""
+
+    def __init__(
+        self,
+        image_channel_mode: str = "RGB",
+        category_mapping: Optional[Dict[str, int]] = None,
+    ):
+        """Init."""
+        super().__init__()
+        self.category_mapping = category_mapping
+        self.image_channel_mode = image_channel_mode
 
     @abc.abstractmethod
     def extract_features(self, inputs: InputSample) -> FeatureMaps:

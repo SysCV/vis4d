@@ -1,9 +1,10 @@
 """Panoptic Head interface for Vis4D."""
 
 import abc
-from typing import List, Optional, Tuple, Union, overload
+from typing import List, Optional, Tuple, Union
 
-from vis4d.common import Vis4DModule
+from torch import nn
+
 from vis4d.struct import (
     InputSample,
     InstanceMasks,
@@ -15,25 +16,10 @@ from vis4d.struct import (
 PanopticMasks = Tuple[List[InstanceMasks], List[SemanticMasks]]
 
 
-class BasePanopticHead(Vis4DModule[LossesType, PanopticMasks]):
+class BasePanopticHead(nn.Module):
     """Base Panoptic head class."""
 
-    @overload  # type: ignore[override]
-    def __call__(
-        self, inputs: InputSample, predictions: LabelInstances
-    ) -> PanopticMasks:  # noqa: D102
-        ...
-
-    @overload
-    def __call__(
-        self,
-        inputs: InputSample,
-        predictions: LabelInstances,
-        targets: LabelInstances,
-    ) -> LossesType:
-        ...
-
-    def __call__(
+    def forward(
         self,
         inputs: InputSample,
         predictions: LabelInstances,

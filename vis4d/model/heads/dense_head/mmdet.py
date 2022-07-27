@@ -17,7 +17,7 @@ from vis4d.struct import (
     LossesType,
 )
 
-from .base import DetDenseHead
+from .base import BaseDenseHead
 
 try:
     from mmcv.utils import ConfigDict
@@ -37,7 +37,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 
-class MMDetDenseHead(DetDenseHead):
+class MMDetDenseHead(BaseDenseHead):
     """mmdetection dense head wrapper."""
 
     def __init__(

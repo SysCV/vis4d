@@ -134,6 +134,14 @@ class MMEncDecSegmentor(BaseSegmentor):
             )
         return decode_head
 
+    def forward(
+        self, batch_inputs: List[InputSample]
+    ) -> Union[LossesType, ModelOutput]:
+        """Forward."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)
+
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
         assert (

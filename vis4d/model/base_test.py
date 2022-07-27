@@ -27,7 +27,7 @@ from vis4d.model.heads.dense_head import (
 )
 from vis4d.model.heads.panoptic_head import SimplePanopticHead
 from vis4d.model.heads.roi_head import MMDetRoIHead, QD3DTBBox3DHead
-from vis4d.model.optimize import LinearLRWarmup
+from vis4d.model.optimize import DefaultOptimizer, LinearLRWarmup
 from vis4d.model.panoptic import PanopticFPN
 from vis4d.model.segment import MMEncDecSegmentor
 from vis4d.model.track.graph import QDTrackGraph
@@ -39,7 +39,6 @@ from vis4d.unittest.utils import (
     generate_input_sample,
 )
 
-from vis4d.model.optimize.optimizer import DefaultOptimizer
 from .qd_3dt import QD3DT
 from .qdtrack import QDTrack
 
@@ -243,7 +242,6 @@ class TestDetectMMFasterRCNN(BaseModelTests.TestDetect):
                 "roi_head.bbox_head.loss_bbox.type": "SmoothL1Loss",
             },
             category_mapping=TEST_MAPPING,
-            extra_kwargs_test=None,
         )
 
 
@@ -285,8 +283,6 @@ class TestDetectD2MaskRCNN(BaseModelTests.TestDetect):
         """Set up class."""
         cls.model = D2TwoStageDetector(
             model_base="mask-rcnn/r50-fpn",
-            pixel_mean=PIXEL_MEAN,
-            pixel_std=PIXEL_STD,
             image_channel_mode="BGR",
             weights="detectron2",
             category_mapping=TEST_MAPPING,
@@ -310,7 +306,6 @@ class TestQDTrackMaskRCNN(BaseModelTests.TestTrack):
             ),
             similarity=QDSimilarityHead(in_dim=64),
             track_graph=QDTrackGraph(10),
-            category_mapping=TEST_MAPPING,
         )
 
 
@@ -347,7 +342,6 @@ class TestQDTrackInferenceResults(BaseModelTests.TestTrackInference):
                 ),
             ),
             track_graph=QDTrackGraph(10),
-            category_mapping=TEST_MAPPING,
             inference_result_path="./unittests/results.hdf5",
         )
 
@@ -368,7 +362,6 @@ class TestQDTrackRetinaNet(BaseModelTests.TestTrack):
             ),
             similarity=QDSimilarityHead(in_dim=64),
             track_graph=QDTrackGraph(10),
-            category_mapping=TEST_MAPPING,
         )
 
 
@@ -429,8 +422,6 @@ class TestQD3DT(BaseModelTests.TestTrack3D):
             ),
             similarity=QDSimilarityHead(in_dim=64),
             track_graph=QDTrackGraph(10),
-            image_channel_mode="RGB",
-            category_mapping=TEST_MAPPING,
         )
 
 
@@ -497,16 +488,18 @@ class TestPanopticFPN(BaseModelTests.TestPanoptic):
         )
 
 
-class TestBaseModel(unittest.TestCase):
-    """Test cases for BaseModel."""
+class TestDefaultOptimizer(unittest.TestCase):
+    """Test cases for DefaultOptimizer."""
 
     def test_load_weights_and_freeze(self) -> None:
         """Test loading pretrained weights and freezing params."""
-        model = MMOneStageDetector(
-            model_base="mmdet://_base_/models/retinanet_r50_fpn.py",
-            pixel_mean=PIXEL_MEAN,
-            pixel_std=PIXEL_STD,
-            category_mapping=TEST_MAPPING,
+        model = DefaultOptimizer(
+            MMOneStageDetector(
+                model_base="mmdet://_base_/models/retinanet_r50_fpn.py",
+                pixel_mean=PIXEL_MEAN,
+                pixel_std=PIXEL_STD,
+                category_mapping=TEST_MAPPING,
+            ),
             strict=False,
             freeze=True,
             freeze_parameters=["bbox_head"],
@@ -758,8 +751,8 @@ def test_optimize() -> None:
         "00091078-875c1f73/"
     )
     trainer = _trainer_builder("optimize_test")
-    model = MockModel(
-        model_param=7,
+    model = DefaultOptimizer(
+        MockModel(model_param=7),
         lr_scheduler_init={
             "class_path": "vis4d.model.optimize.PolyLRScheduler",
             "mode": "step",

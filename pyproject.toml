@@ -21,9 +21,6 @@ line_length = 79
             'raise AttributeError',
             'raise FileNotFoundError',
 
-            # Don't complain about pydantic validators
-            '@validator',
-
             # Don't complain about overloads
             '@overload',
         ]

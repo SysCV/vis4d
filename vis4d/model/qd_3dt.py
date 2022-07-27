@@ -15,7 +15,7 @@ from vis4d.struct import (
 )
 
 from .detect import BaseTwoStageDetector
-from .heads.roi_head import Det3DRoIHead
+from .heads.roi_head import BaseRoIHead
 from .qdtrack import QDTrack
 from .track.utils import split_key_ref_inputs
 
@@ -24,11 +24,11 @@ class QD3DT(QDTrack):
     """QD-3DT model class."""
 
     def __init__(
-        self, bbox_3d_head: Det3DRoIHead, *args: ArgsType, **kwargs: ArgsType
+        self, bbox_3d_head: BaseRoIHead, *args: ArgsType, **kwargs: ArgsType
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
-        assert self.category_mapping is not None
+        self.category_mapping = self.detector.category_mapping
         self.bbox_3d_head = bbox_3d_head
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
@@ -57,7 +57,7 @@ class QD3DT(QDTrack):
 
         # if there is more than one InputSample, we switch to multi-sensor:
         # 1st elem is group, rest are sensor frames
-        group = batch_inputs[0].to(self.device)
+        group = batch_inputs[0]
         frames = (
             InputSample.cat(batch_inputs[1:])
             if len(batch_inputs) > 1
@@ -120,7 +120,7 @@ class QD3DT(QDTrack):
 
         # Update 3D score and move 3D boxes into group sensor coordinate
         tracks.boxes3d[0].boxes[:, -1] = (
-            tracks.boxes3d[0].score * tracks.boxes2d[0].score  # type: ignore
+            tracks.boxes3d[0].score * tracks.boxes2d[0].score
         )
         tracks.boxes3d[0].transform(group.extrinsics.inverse())
 

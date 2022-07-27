@@ -3,8 +3,8 @@ import abc
 from typing import List, NamedTuple
 
 import torch
+from torch import nn
 
-from vis4d.common import Vis4DModule
 from vis4d.struct import Boxes2D
 
 
@@ -21,11 +21,11 @@ class MatchResult(NamedTuple):
     assigned_labels: torch.Tensor
 
 
-class BaseMatcher(Vis4DModule[List[MatchResult], List[MatchResult]]):
+class BaseMatcher(nn.Module):
     """Base class for box / target matchers."""
 
     @abc.abstractmethod
-    def __call__(  # type: ignore
+    def forward(
         self, boxes: List[Boxes2D], targets: List[Boxes2D]
     ) -> List[MatchResult]:
         """Match bounding boxes according to their struct."""

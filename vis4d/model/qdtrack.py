@@ -1,10 +1,11 @@
 """Quasi-dense instance similarity learning model."""
 import pickle
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import nn
 
+from vis4d.common.io.hdf5 import HDF5Backend
 from vis4d.model.detect import (
     BaseDetector,
     BaseOneStageDetector,
@@ -15,7 +16,6 @@ from vis4d.model.track.similarity import BaseSimilarityHead
 from vis4d.model.track.utils import split_key_ref_inputs
 from vis4d.model.utils import postprocess_predictions, predictions_to_scalabel
 from vis4d.struct import (
-    ArgsType,
     Boxes2D,
     FeatureMaps,
     InputSample,
@@ -34,6 +34,7 @@ class QDTrack(nn.Module):
         detection: BaseDetector,
         similarity: BaseSimilarityHead,
         track_graph: BaseTrackGraph,
+        inference_result_path: Optional[str] = None,
     ) -> None:
         """Init."""
         super().__init__()
@@ -43,8 +44,17 @@ class QDTrack(nn.Module):
         )
         self.similarity_head = similarity
         self.track_graph = track_graph
-        self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
+        assert (
+            self.detector.category_mapping is not None
+        ), "Need category mapping for qdtrack!"
+        self.cat_mapping = {
+            v: k for k, v in self.detector.category_mapping.items()
+        }
         self.with_mask = getattr(self.detector, "with_mask", False)
+
+        self.inference_result_path = inference_result_path
+        if self.inference_result_path is not None:
+            self.data_backend = HDF5Backend()
 
     def _run_heads_train(
         self,
@@ -164,7 +174,7 @@ class QDTrack(nn.Module):
         postprocess_predictions(
             inputs, outs, self.detector.clip_bboxes_to_image
         )
-        return outs
+        return predictions_to_scalabel(outs, self.cat_mapping)
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward function for training."""
@@ -218,8 +228,16 @@ class QDTrack(nn.Module):
             predictions, embeddings = pickle.loads(
                 self.data_backend.get(result_path)
             )
-            predictions = predictions.to(self.device)
-            embeddings = [e.to(self.device) for e in embeddings]
+            predictions = predictions.to(batch_inputs[0].device)
+            embeddings = [e.to(batch_inputs[0].device) for e in embeddings]
 
         outs.update(self._track(batch_inputs[0], predictions, embeddings))
         return outs
+
+    def forward(
+        self, batch_inputs: List[InputSample]
+    ) -> Union[LossesType, ModelOutput]:
+        """Forward."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)

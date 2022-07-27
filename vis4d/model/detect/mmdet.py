@@ -1,5 +1,5 @@
 """mmdetection detector wrapper."""
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
@@ -17,8 +17,8 @@ from vis4d.struct import (
 
 from ..backbone import BaseBackbone, MMDetBackbone
 from ..backbone.neck import MMDetNeck
-from ..heads.dense_head import DetDenseHead, MMDetDenseHead, MMDetRPNHead
-from ..heads.roi_head import Det2DRoIHead, MMDetRoIHead
+from ..heads.dense_head import BaseDenseHead, MMDetDenseHead, MMDetRPNHead
+from ..heads.roi_head import BaseRoIHead, MMDetRoIHead
 from ..utils import (
     add_keyword_args,
     load_config,
@@ -64,8 +64,8 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
         backbone: Optional[BaseBackbone] = None,
-        rpn_head: Optional[DetDenseHead] = None,
-        roi_head: Optional[Det2DRoIHead] = None,
+        rpn_head: Optional[BaseDenseHead] = None,
+        roi_head: Optional[BaseRoIHead] = None,
         **kwargs: ArgsType,
     ):
         """Init."""
@@ -151,6 +151,14 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         self.with_mask = self.roi_head.with_mask
         if weights is not None:
             load_model_checkpoint(self, weights, REV_KEYS)
+
+    def forward(
+        self, batch_inputs: List[InputSample]
+    ) -> Union[LossesType, ModelOutput]:
+        """Forward."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
@@ -238,7 +246,7 @@ class MMOneStageDetector(BaseOneStageDetector):
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
         backbone: Optional[BaseBackbone] = None,
-        bbox_head: Optional[DetDenseHead] = None,
+        bbox_head: Optional[BaseDenseHead] = None,
         **kwargs: ArgsType,
     ):
         """Init."""
@@ -282,7 +290,7 @@ class MMOneStageDetector(BaseOneStageDetector):
                 train_cfg=bbox_train_cfg,
                 test_cfg=self.mm_cfg["test_cfg"],
             )
-            self.bbox_head: DetDenseHead = MMDetDenseHead(
+            self.bbox_head: BaseDenseHead = MMDetDenseHead(
                 mm_cfg=bbox_cfg, category_mapping=self.category_mapping
             )
         else:
@@ -290,6 +298,14 @@ class MMOneStageDetector(BaseOneStageDetector):
 
         if weights is not None:
             load_model_checkpoint(self, weights, REV_KEYS)
+
+    def forward(
+        self, batch_inputs: List[InputSample]
+    ) -> Union[LossesType, ModelOutput]:
+        """Forward."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)
 
     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""

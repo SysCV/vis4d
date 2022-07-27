@@ -10,7 +10,7 @@ from .utils import weight_reduce_loss
 class MultiPosCrossEntropyLoss(BaseLoss):
     """Multi-positive cross entropy loss class."""
 
-    def __call__(  # type: ignore # pylint: disable=arguments-differ
+    def forward(
         self,
         pred: torch.Tensor,
         target: torch.Tensor,

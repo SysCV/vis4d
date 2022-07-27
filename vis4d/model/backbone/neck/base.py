@@ -1,13 +1,13 @@
 """Base Vis4D neck class."""
+from torch import nn
 
-from vis4d.common import Vis4DModule
 from vis4d.struct import FeatureMaps
 
 
-class BaseNeck(Vis4DModule[FeatureMaps, FeatureMaps]):
+class BaseNeck(nn.Module):
     """Base Neck class."""
 
-    def __call__(  # type: ignore[override]
+    def forward(
         self,
         inputs: FeatureMaps,
     ) -> FeatureMaps:

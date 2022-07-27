@@ -3,14 +3,14 @@ import abc
 from typing import List, Optional, Tuple
 
 import torch
+from torch import nn
 
-from vis4d.common.module import Vis4DModule
 from vis4d.struct import FeatureMaps, InputSample
 
 from .neck import BaseNeck
 
 
-class BaseBackbone(Vis4DModule[FeatureMaps, FeatureMaps]):
+class BaseBackbone(nn.Module):
     """Base Backbone class."""
 
     def __init__(
@@ -54,7 +54,7 @@ class BaseBackbone(Vis4DModule[FeatureMaps, FeatureMaps]):
         return backbone_outs
 
     @abc.abstractmethod
-    def __call__(  # type: ignore[override]
+    def forward(
         self,
         inputs: InputSample,
     ) -> FeatureMaps:

@@ -1,5 +1,5 @@
 """Detectron2 detector wrapper."""
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 
@@ -232,3 +232,11 @@ class D2TwoStageDetector(BaseTwoStageDetector):
                 inputs, detections, dets_boxes2d
             )
         return dets_boxes2d, segmentations
+
+    def forward(
+        self, batch_inputs: List[InputSample]
+    ) -> Union[LossesType, ModelOutput]:
+        """Forward."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)
