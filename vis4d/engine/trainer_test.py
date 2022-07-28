@@ -60,7 +60,14 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
     expected_trainer = dict(exp_name="cli_test")
     expected_datamodule = {"task": "track", "im_hw": (360, 640)}
 
+    # wrap model into setup function to modify model_param via cmd line
+    def model_setup(model_param: int = 7) -> DefaultOptimizer:
+        return DefaultOptimizer(MockModel(model_param=model_param))
+
     def fit(trainer, model, datamodule):
+        # do this because 'model' will be DefaultOptimizer, and we want to
+        # check MockModel here
+        model = model.model
         for k, v in expected_model.items():
             assert getattr(model, k) == v
         for k, v in expected_trainer.items():
@@ -89,7 +96,7 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
         [
             "any.py",
             "fit",
-            "--model.model.model_param=7",
+            "--model.model_param=7",
             "--trainer.exp_name=cli_test",
             "--trainer.work_dir=./unittests/",
             "--trainer.max_steps=10",
@@ -98,8 +105,7 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
             "--seed_everything=0",
         ],
     ):
-        # TODO DefaultOptimizer doesn't work as model here
-        cli = BaseCLI(DefaultOptimizer, datamodule_class=SampleDataModule)
+        cli = BaseCLI(model_setup, datamodule_class=SampleDataModule)
         assert hasattr(cli.trainer, "ran_asserts") and cli.trainer.ran_asserts
 
 

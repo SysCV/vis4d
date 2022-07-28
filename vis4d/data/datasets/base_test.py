@@ -2,7 +2,7 @@
 import os
 import unittest
 
-from scalabel.label.utils import compare_results
+from scalabel.label.test_utils import compare_results
 
 from .scalabel import Scalabel
 

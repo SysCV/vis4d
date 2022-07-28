@@ -4,7 +4,7 @@ import shutil
 import unittest
 
 from scalabel.label.io import load
-from scalabel.label.utils import compare_results
+from scalabel.label.test_utils import compare_results
 
 from ..dataset import ScalabelDataset
 from ..datasets import Scalabel
