@@ -35,12 +35,9 @@ class BaseBackbone(nn.Module):
         )
         self.neck = neck
 
-    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
+    def preprocess_inputs(self, inputs: torch.Tensor) -> torch.Tensor:
         """Normalize the input images."""
-        inputs.images.tensor = (
-            inputs.images.tensor - self.pixel_mean
-        ) / self.pixel_std
-        return inputs
+        return (inputs - self.pixel_mean) / self.pixel_std
 
     def get_outputs(self, outs: List[torch.Tensor]) -> FeatureMaps:
         """Get feature map dict."""
@@ -56,14 +53,15 @@ class BaseBackbone(nn.Module):
     @abc.abstractmethod
     def forward(
         self,
-        inputs: InputSample,
+        inputs: torch.Tensor,
     ) -> FeatureMaps:
         """Base Backbone forward.
 
         Args:
-            inputs: Model Inputs, batched.
+            inputs (Tensor[N, C, H, W]): Image input to process. Expected to
+                type float32 with vlaues ranging 0..255.
 
         Returns:
-            FeatureMaps: Dictionary of output feature maps.
+            FeatureMaps (Dict[Tensor]): output feature maps.
         """
         raise NotImplementedError

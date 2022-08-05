@@ -35,10 +35,10 @@ from vis4d.struct import (
     SemanticMasks,
 )
 
-from .base import BaseDenseHead
+from .base import BaseSegmentationHead
 
 
-class MMSegDecodeHead(BaseDenseHead):
+class MMSegDecodeHead(BaseSegmentationHead):
     """mmsegmentation decode head wrapper."""
 
     def __init__(

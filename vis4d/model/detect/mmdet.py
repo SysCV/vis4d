@@ -17,7 +17,7 @@ from vis4d.struct import (
 
 from ..backbone import BaseBackbone, MMDetBackbone
 from ..backbone.neck import MMDetNeck
-from ..heads.dense_head import BaseDenseHead, MMDetDenseHead, MMDetRPNHead
+from ..heads.dense_head import MMBaseDenseHead
 from ..heads.roi_head import BaseRoIHead, MMDetRoIHead
 from ..utils import (
     add_keyword_args,

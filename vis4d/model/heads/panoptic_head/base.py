@@ -19,7 +19,7 @@ PanopticMasks = Tuple[List[InstanceMasks], List[SemanticMasks]]
 class BasePanopticHead(nn.Module):
     """Base Panoptic head class."""
 
-    def forward(
+    def forward(  # TODO restructure
         self,
         inputs: InputSample,
         predictions: LabelInstances,

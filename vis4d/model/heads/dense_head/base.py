@@ -1,21 +1,15 @@
 """Dense Head interface for Vis4D."""
 import abc
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
+import torch
 from torch import nn
 
-from vis4d.struct import (
-    FeatureMaps,
-    InputSample,
-    LabelInstances,
-    LossesType,
-    TTestReturn,
-    TTrainReturn,
-)
+from vis4d.struct import Boxes2D, FeatureMaps, LossesType
 
 
-class BaseDenseHead(nn.Module):
-    """Base Dense head class."""
+class BaseDenseBox2DHead(nn.Module, abc.ABC):
+    """Base Box2D head class."""
 
     def __init__(
         self, category_mapping: Optional[Dict[str, int]] = None
@@ -24,58 +18,58 @@ class BaseDenseHead(nn.Module):
         super().__init__()
         self.category_mapping = category_mapping
 
+    @abc.abstractmethod
     def forward(
         self,
-        inputs: InputSample,
         features: FeatureMaps,
-        targets: Optional[LabelInstances] = None,
-    ) -> Union[Tuple[LossesType, TTrainReturn], TTestReturn]:
-        """Base Dense head forward.
+    ) -> Tuple[FeatureMaps, FeatureMaps]:
+        """Base Box2D head forward.
 
         Args:
-            inputs: Model Inputs, batched.
-            features: Input feature maps.
-            targets: Container with targets, e.g. Boxes2D / 3D, Masks, ...
+            features (Dict[Tensor]): Input feature maps.
 
         Returns:
-            [LossesType, TTrainReturn] / TTestReturn: In train mode, return
-            losses and intermediate outputs. In test mode, return predictions.
+            Tuple[FeatureMaps, FeatureMaps]: Class scores and box
+                regression parameters per image.
         """
-        if targets is not None:
-            return self.forward_train(inputs, features, targets)
-        return self.forward_test(inputs, features)
+        pass
 
     @abc.abstractmethod
-    def forward_train(
+    def postprocess(
+        self, class_outs: FeatureMaps, regression_outs: FeatureMaps
+    ) -> List[Boxes2D]:
+        """Box2D head postprocessing.
+
+        Args:
+            class_outs (Dict[Tensor]): Class scores TODO finish
+            class_outs (Dict[Tensor]): Regression parameters per
+
+        Returns:
+            List[Boxes2D]: Output boxes after postprocessing.
+        """
+        pass
+
+    @abc.abstractmethod
+    def loss(
         self,
-        inputs: InputSample,
-        features: FeatureMaps,
-        targets: LabelInstances,
-    ) -> Tuple[LossesType, TTrainReturn]:
-        """Forward pass during training stage.
+        class_outs: FeatureMaps,
+        regression_outs: FeatureMaps,
+        targets: List[Boxes2D],
+        images_shape: Tuple[int, int, int, int],
+    ) -> LossesType:
+        """Loss computation.
 
         Args:
-            inputs: InputSamples (images, metadata, etc). Batched.
-            features: Input feature maps. Batched.
-            targets: Targets corresponding to InputSamples.
-
+            outputs: Network outputs.
+            targets (List[Boxes2D]): Target 2D boxes.
+            metadata (Dict): Dictionary of metadata needed for loss, e.g.
+                image size, feature map strides, etc.
         Returns:
-            Tuple[LossesType, TTrainReturn]: Tuple of:
-             (dict of scalar loss tensors, predictions / other outputs)
+            LossesType: Dictionary of scalar loss tensors.
         """
-        raise NotImplementedError
+        pass
 
-    @abc.abstractmethod
-    def forward_test(
-        self, inputs: InputSample, features: FeatureMaps
-    ) -> TTestReturn:
-        """Forward pass during testing stage.
 
-        Args:
-            inputs: InputSamples (images, metadata, etc). Batched.
-            features: Input feature maps. Batched.
-
-        Returns:
-            TTestReturn: Prediction output.
-        """
-        raise NotImplementedError
+class BaseSegmentationHead(nn.Module):
+    # TODO
+    ...

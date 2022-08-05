@@ -526,7 +526,7 @@ class DLA(BaseBackbone):
             model_weights = torch.load(weights)
         self.load_state_dict(model_weights, strict=False)
 
-    def forward(self, inputs: InputSample) -> FeatureMaps:
+    def forward(self, inputs: torch.Tensor) -> FeatureMaps:
         """Backbone forward."""
         inputs = self.preprocess_inputs(inputs)
         outs = []

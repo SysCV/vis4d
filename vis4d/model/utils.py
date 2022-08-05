@@ -65,17 +65,17 @@ MMDetResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
 MMSegResults = Union[List[NDArrayUI8], torch.Tensor]
 
 
-def get_img_metas(images: Images) -> List[MMDetMetaData]:
+def get_img_metas(
+    images_shape: Tuple[int, int, int, int]
+) -> List[MMDetMetaData]:
     """Create image metadata in mmdetection format."""
     img_metas = []
-    _, c, padh, padw = images.tensor.shape  # type: Tuple[int, int, int, int]
-    for i in range(len(images)):
+    n, c, h, w = images.shape  # type: Tuple[int, int, int, int]
+    for _ in range(n):
         meta: MMDetMetaData = {}
-        w, h = images.image_sizes[i]
-        meta["img_shape"] = meta["ori_shape"] = (h, w, c)
+        meta["img_shape"] = meta["ori_shape"] = meta["pad_shape"] = (h, w, c)
         meta["scale_factor"] = np.ones(4, dtype=np.float64)
         meta["flip"] = False
-        meta["pad_shape"] = (padh, padw, c)
         img_metas.append(meta)
 
     return img_metas

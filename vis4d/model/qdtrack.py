@@ -58,13 +58,13 @@ class QDTrack(nn.Module):
 
     def _run_heads_train(
         self,
-        key_inputs: InputSample,
-        ref_inputs: List[InputSample],
+        key_images: torch.Tensor,
+        ref_images: List[torch.Tensor],
         key_x: FeatureMaps,
         ref_x: List[FeatureMaps],
     ) -> Tuple[LossesType, List[Boxes2D], List[List[Boxes2D]]]:
         """Get detection and tracking losses."""
-        key_targets, ref_targets = key_inputs.targets, [
+        key_targets, ref_targets = key_images.targets, [
             x.targets for x in ref_inputs
         ]
 
@@ -72,18 +72,18 @@ class QDTrack(nn.Module):
         if isinstance(self.detector, BaseTwoStageDetector):
             # proposal generation
             rpn_losses, key_proposals = self.detector.generate_proposals(
-                key_inputs, key_x, key_targets
+                key_images, key_x, key_targets
             )
             with torch.no_grad():
                 ref_proposals = [
                     self.detector.generate_proposals(inp, x, tgt)[1]
-                    for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets)
+                    for inp, x, tgt in zip(ref_images, ref_x, ref_targets)
                 ]
 
             # roi head
             assert isinstance(self.detector, BaseTwoStageDetector)
             roi_losses, _ = self.detector.generate_detections(
-                key_inputs,
+                key_images,
                 key_x,
                 key_proposals,
                 key_targets,
@@ -92,30 +92,32 @@ class QDTrack(nn.Module):
         else:
             # one-stage detector
             det_losses, key_proposals = self.detector.generate_detections(
-                key_inputs, key_x, key_targets
+                key_images, key_x, key_targets
             )
             assert key_proposals is not None
             ref_proposals = []
             with torch.no_grad():
-                for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets):
+                for inp, x, tgt in zip(ref_images, ref_x, ref_targets):
                     ref_p = self.detector.generate_detections(inp, x, tgt)[1]
                     assert ref_p is not None
                     ref_proposals.append(ref_p)
 
-        # from vis4d.vis.track import imshow_bboxes
-        # for ref_inp, ref_props in zip(ref_inputs, ref_proposals):
-        #     for ref_img, ref_prop in zip(ref_inp.images, ref_props):
-        #         _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
-        #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
-
         # track head
         track_losses, _ = self.similarity_head(
-            [key_inputs, *ref_inputs],
+            [key_inputs, *ref_images],
             [key_proposals, *ref_proposals],
             [key_x, *ref_x],
             [key_targets, *ref_targets],
         )
         return {**det_losses, **track_losses}, key_proposals, ref_proposals
+
+    def debug_logging(self, logger) -> Dict[str, torch.Tensor]:
+        """Logging for debugging"""
+        # from vis4d.vis.track import imshow_bboxes
+        # for ref_inp, ref_props in zip(ref_inputs, ref_proposals):
+        #     for ref_img, ref_prop in zip(ref_inp.images, ref_props):
+        #         _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
+        #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
 
     def _run_heads_test(
         self, inputs: InputSample, feat: FeatureMaps
@@ -191,12 +193,16 @@ class QDTrack(nn.Module):
         #            ref_inp[batch_i].targets.boxes2d[0],
         #        )
 
+        # TODO temporary connector code
+        key_images = key_inputs.images.tensor
+        ref_images = [inp.images.tensor for inp in ref_inputs]
+
         # feature extraction
-        key_x = self.detector.extract_features(key_inputs)
-        ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]
+        key_x = self.detector.extract_features(key_images)
+        ref_x = [self.detector.extract_features(im) for im in ref_images]
 
         losses, _, _ = self._run_heads_train(
-            key_inputs, ref_inputs, key_x, ref_x
+            key_images, ref_images, key_x, ref_x
         )
         return losses
 

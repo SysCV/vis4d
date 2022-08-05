@@ -40,7 +40,7 @@ def setup_model(
                 keep_in_memory=30, init_score_thr=0.9, obj_score_thr=0.5
             )
         category_mapping = mot_map
-    elif experiment == "bdd100k":
+    elif experiment in ["bdd100k", "sample"]:
         track_graph = QDTrackGraph(keep_in_memory=10)
         category_mapping = bdd100k_track_map
     else:
