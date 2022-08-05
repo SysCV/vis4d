@@ -17,7 +17,7 @@ from vis4d.struct import (
 
 from ..backbone import BaseBackbone, MMDetBackbone
 from ..backbone.neck import MMDetNeck
-from ..heads.dense_head import MMBaseDenseHead
+from ..heads.dense_head import MMDetDenseHead
 from ..heads.roi_head import BaseRoIHead, MMDetRoIHead
 from ..utils import (
     add_keyword_args,
@@ -64,7 +64,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
         backbone: Optional[BaseBackbone] = None,
-        rpn_head: Optional[BaseDenseHead] = None,
+        rpn_head: Optional[MMDetDenseHead] = None,
         roi_head: Optional[BaseRoIHead] = None,
         **kwargs: ArgsType,
     ):
@@ -123,7 +123,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
                 train_cfg=rpn_train_cfg,
                 test_cfg=self.mm_cfg["test_cfg"]["rpn"],
             )
-            self.rpn_head = MMDetRPNHead(
+            self.rpn_head = MMDetDenseHead(
                 mm_cfg=rpn_cfg, category_mapping=self.category_mapping
             )
         else:
@@ -246,7 +246,7 @@ class MMOneStageDetector(BaseOneStageDetector):
         backbone_output_names: Optional[List[str]] = None,
         weights: Optional[str] = None,
         backbone: Optional[BaseBackbone] = None,
-        bbox_head: Optional[BaseDenseHead] = None,
+        bbox_head: Optional[MMDetDenseHead] = None,
         **kwargs: ArgsType,
     ):
         """Init."""
@@ -290,7 +290,7 @@ class MMOneStageDetector(BaseOneStageDetector):
                 train_cfg=bbox_train_cfg,
                 test_cfg=self.mm_cfg["test_cfg"],
             )
-            self.bbox_head: BaseDenseHead = MMDetDenseHead(
+            self.bbox_head = MMDetDenseHead(
                 mm_cfg=bbox_cfg, category_mapping=self.category_mapping
             )
         else:

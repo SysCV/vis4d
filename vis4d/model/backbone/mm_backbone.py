@@ -1,5 +1,6 @@
 """mmdetection backbone wrapper."""
 from typing import Optional, Union
+
 import torch
 
 try:

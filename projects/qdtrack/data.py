@@ -9,8 +9,8 @@ from projects.common.data_pipelines import (
 from projects.common.datasets import (
     bdd100k_det_train,
     bdd100k_detect_sample,
-    bdd100k_track_sample,
     bdd100k_track_map,
+    bdd100k_track_sample,
     bdd100k_track_train,
     bdd100k_track_val,
     crowdhuman_trainval,
@@ -166,7 +166,9 @@ class QDTrackDataModule(CommonDataModule):
             test_sample_mapper.setup_categories(bdd100k_track_map)
             test_transforms = [Resize(shape=(720, 1280))]
             test_datasets = [
-                ScalabelDataset(bdd100k_track_sample(), False, test_sample_mapper)
+                ScalabelDataset(
+                    bdd100k_track_sample(), False, test_sample_mapper
+                )
             ]
         else:
             raise NotImplementedError(
