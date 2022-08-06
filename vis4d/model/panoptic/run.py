@@ -6,7 +6,7 @@ from vis4d.engine.trainer import BaseCLI
 from vis4d.model.heads.dense_head import MMSegDecodeHead
 from vis4d.model.heads.panoptic_head import SimplePanopticHead
 from vis4d.model.panoptic import PanopticFPN
-from vis4d.panoptic_fpn.data import PanopticFPNDataModule
+from vis4d.model.panoptic.data import PanopticFPNDataModule
 
 
 def setup_model(
