@@ -5,7 +5,7 @@ from projects.common.datasets import kitti_track_map, nuscenes_track_map
 from projects.common.models import build_faster_rcnn
 from projects.common.optimizers import sgd, step_schedule
 from projects.qd_3dt.data import QD3DTDataModule
-from projects.qd_3dt.qd_3dt import StandardQD3DT
+from projects.qd_3dt.qd_3dt import QD3DTOptimizer
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.samplers import CombinedSampler
@@ -23,7 +23,7 @@ def setup_model(
     max_epochs: int = 12,
     backbone: str = "r50_fpn",
     lstm_ckpt: Optional[str] = None,
-) -> QD3DT:
+) -> QD3DTOptimizer:
     """Setup model with experiment specific hyperparameters."""
     if experiment == "kitti":
         category_mapping = kitti_track_map
@@ -75,17 +75,19 @@ def setup_model(
 
     similarity_head = QDSimilarityHead()
 
-    model = StandardQD3DT(
-        category_mapping=category_mapping,
+    model = QD3DT(
         detection=detector,
         similarity=similarity_head,
         track_graph=track_graph,
         bbox_3d_head=box3d_head,
+    )
+    runtime = QD3DTOptimizer(
+        model,
         lr_scheduler_init=step_schedule(max_epochs),
         optimizer_init=sgd(lr),
         lr_warmup=LinearLRWarmup(warmup_ratio=0.1, warmup_steps=1000),
     )
-    return model
+    return runtime
 
 
 class QD3DTCLI(BaseCLI):

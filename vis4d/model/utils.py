@@ -10,6 +10,7 @@ from zipfile import ZipFile
 import numpy as np
 import requests
 import torch
+from torch import nn
 
 from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 from vis4d.struct import (
@@ -24,8 +25,6 @@ from vis4d.struct import (
     NDArrayUI8,
     SemanticMasks,
 )
-
-from .base import BaseModel
 
 if MMCV_AVAILABLE:
     from mmcv import Config as MMConfig
@@ -56,17 +55,17 @@ MMDetResults = Union[List[MMDetResult], List[Tuple[MMDetResult, MMSegmResult]]]
 MMSegResults = Union[List[NDArrayUI8], torch.Tensor]
 
 
-def get_img_metas(images: torch.Tensor) -> List[MMDetMetaData]:
+def get_img_metas(
+    images_shape: Tuple[int, int, int, int]
+) -> List[MMDetMetaData]:
     """Create image metadata in mmdetection format."""
     img_metas = []
-    _, c, padh, padw = images.tensor.shape  # type: Tuple[int, int, int, int]
-    for i in range(len(images)):
+    n, c, h, w = images_shape
+    for _ in range(n):
         meta: MMDetMetaData = {}
-        w, h = images.image_sizes[i]
-        meta["img_shape"] = meta["ori_shape"] = (h, w, c)
+        meta["img_shape"] = meta["ori_shape"] = meta["pad_shape"] = (h, w, c)
         meta["scale_factor"] = np.ones(4, dtype=np.float64)
         meta["flip"] = False
-        meta["pad_shape"] = (padh, padw, c)
         img_metas.append(meta)
 
     return img_metas
@@ -187,7 +186,7 @@ def targets_to_mmseg(images: torch.Tensor, targets) -> torch.Tensor:
 
 
 def load_model_checkpoint(
-    model: BaseModel,
+    model: nn.Module,
     weights: str,
     rev_keys: Optional[List[Tuple[str, str]]] = None,
 ) -> None:

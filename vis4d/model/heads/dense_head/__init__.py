@@ -1,13 +1,11 @@
 """Dense heads."""
-from .base import BaseDenseHead, DetDenseHead, SegDenseHead
-from .mmdet import MMDetDenseHead, MMDetRPNHead
+from .base import BaseDenseBox2DHead, BaseSegmentationHead
+from .mmdet import MMDetDenseHead
 from .mmseg import MMSegDecodeHead
 
 __all__ = [
-    "BaseDenseHead",
-    "DetDenseHead",
-    "SegDenseHead",
+    "BaseDenseBox2DHead",
+    "BaseSegmentationHead",
     "MMSegDecodeHead",
     "MMDetDenseHead",
-    "MMDetRPNHead",
 ]

@@ -9,6 +9,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
+from pytorch_lightning.core import LightningModule
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
 from pytorch_lightning.strategies.strategy import Strategy
 from pytorch_lightning.tuner.lr_finder import _LRFinder
@@ -25,7 +26,6 @@ from pytorch_lightning.utilities.types import (
 from torch.utils.collect_env import get_pretty_env_info
 
 from ..data.module import BaseDataModule
-from ..model import BaseModel
 from ..struct import ArgsType, DictStrAny
 from .utils import DefaultProgressBar, is_torch_tf32_available, setup_logger
 
@@ -248,7 +248,7 @@ class BaseCLI(LightningCLI):
     def __init__(  # type: ignore
         self,
         model_class: Optional[
-            Union[Type[BaseModel], Callable[..., BaseModel]]
+            Union[Type[LightningModule], Callable[..., LightningModule]]
         ] = None,
         datamodule_class: Optional[
             Union[Type[BaseDataModule], Callable[..., BaseDataModule]]

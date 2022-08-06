@@ -40,7 +40,7 @@ class BaseSampler(nn.Module):
         self.positive_fraction = positive_fraction
 
     @abc.abstractmethod
-    def __call__(  # type: ignore
+    def forward(
         self,
         matching: List[MatchResult],
         boxes: List[Boxes2D],

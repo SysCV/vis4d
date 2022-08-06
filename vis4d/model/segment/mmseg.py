@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 
-from vis4d.common.utils.imports import MMCV_AVAILABLE
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMSEG_AVAILABLE
 from vis4d.struct import (
     ArgsType,
     DictStrAny,
@@ -126,7 +126,15 @@ class MMEncDecSegmentor(BaseSegmentor):
             )
         return decode_head
 
-    def forward_train(self, batch_inputs: List[InputSample]) -> Losses:
+    def forward(
+        self, batch_inputs: List[InputSample]
+    ) -> Union[Losses, ModelOutput]:
+        """Forward."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)
+
+    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
         """Forward pass during training stage."""
         assert (
             len(batch_inputs) == 1

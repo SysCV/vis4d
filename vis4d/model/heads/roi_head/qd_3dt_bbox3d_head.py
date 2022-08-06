@@ -25,10 +25,10 @@ from vis4d.struct import (
     Losses,
 )
 
-from .base import Det3DRoIHead
+from .base import BaseRoIHead
 
 
-class QD3DTBBox3DHead(Det3DRoIHead):
+class QD3DTBBox3DHead(BaseRoIHead):
     """QD-3DT 3D Bounding Box Head."""
 
     def __init__(

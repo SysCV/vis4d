@@ -4,7 +4,7 @@ from projects.common.models import build_faster_rcnn
 from projects.common.optimizers import sgd, step_schedule
 from projects.detect.data import DetectDataModule
 from vis4d.engine.trainer import BaseCLI
-from vis4d.model.detect.mmdet import MMTwoStageDetector
+from vis4d.model.optimize import DefaultOptimizer
 
 
 def setup_model(
@@ -12,7 +12,7 @@ def setup_model(
     lr: float = 0.02,
     max_epochs: int = 12,
     detector: str = "FRCNN",
-) -> MMTwoStageDetector:
+) -> DefaultOptimizer:
     """Setup model with experiment specific hyperparameters."""
     if experiment == "bdd100k":
         category_mapping = bdd100k_det_map
@@ -21,17 +21,16 @@ def setup_model(
     else:
         raise NotImplementedError(f"Experiment {experiment} not known!")
 
-    model_kwargs = {
-        "lr_scheduler_init": step_schedule(max_epochs),
-        "optimizer_init": sgd(lr),
-    }
-
     if detector == "FRCNN":
-        model = build_faster_rcnn(category_mapping, model_kwargs=model_kwargs)
+        model = build_faster_rcnn(category_mapping)
     else:
         raise NotImplementedError(f"Detector {detector} not known!")
 
-    return model
+    return DefaultOptimizer(
+        model,
+        lr_scheduler_init=step_schedule(max_epochs),
+        optimizer_init=sgd(lr),
+    )
 
 
 class DetectCLI(BaseCLI):

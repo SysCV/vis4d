@@ -1,31 +1,32 @@
 """Panoptic FPN model."""
-from typing import Dict, List
+from typing import Dict, List, Union
 
 from scalabel.label.typing import Label
+from torch import nn
 
 from vis4d.struct import ArgsType, InputSample, Losses, ModelOutput
 
-from ..base import BaseModel
 from ..detect import BaseTwoStageDetector
-from ..heads.dense_head import SegDenseHead
+from ..heads.dense_head import BaseSegmentationHead
 from ..heads.panoptic_head import BasePanopticHead
 from ..utils import postprocess_predictions, predictions_to_scalabel
 
 
-class PanopticFPN(BaseModel):
+class PanopticFPN(nn.Module):
     """Panoptic FPN model."""
 
     def __init__(
         self,
+        category_mapping: Dict[str, int],
         detection: BaseTwoStageDetector,
-        seg_head: SegDenseHead,
+        seg_head: BaseSegmentationHead,
         pan_head: BasePanopticHead,
         *args: ArgsType,
         **kwargs: ArgsType
     ):
         """Init."""
         super().__init__(*args, **kwargs)
-        assert self.category_mapping is not None
+        self.category_mapping = category_mapping
         self.detector = detection
         assert isinstance(self.detector, BaseTwoStageDetector)
         self.detector.category_mapping = self.category_mapping
@@ -108,3 +109,11 @@ class PanopticFPN(BaseModel):
             model_outs["sem_seg"] = model_outs["pan_seg"]
 
         return model_outs
+
+    def forward(
+        self, batch_inputs: List[InputSample]
+    ) -> Union[LossesType, ModelOutput]:
+        """Forward."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)

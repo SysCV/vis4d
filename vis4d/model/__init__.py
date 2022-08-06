@@ -5,7 +5,6 @@ from .qdtrack import QDTrack
 from .segment import BaseSegmentor, MMEncDecSegmentor
 
 __all__ = [
-    "BaseModel",
     "BaseSegmentor",
     "MMEncDecSegmentor",
     "PanopticFPN",

@@ -106,6 +106,23 @@ bdd100k_seg_map = {
     "bicycle": 18,
 }
 
+bdd100k_detect_sample_path = "vis4d/engine/testcases/detect"
+bdd100k_detect_sample = lambda: Scalabel(
+    name="bdd100k_detect_sample",
+    data_root=f"{bdd100k_detect_sample_path}/bdd100k-samples/images",
+    annotations=f"{bdd100k_detect_sample_path}/bdd100k-samples/labels/",
+    config_path=f"{bdd100k_detect_sample_path}/bdd100k-samples/config.toml",
+)
+
+bdd100k_track_sample_path = "vis4d/engine/testcases/track"
+bdd100k_track_sample = lambda: Scalabel(
+    name="bdd100k_track_sample",
+    data_root=f"{bdd100k_track_sample_path}/bdd100k-samples/images",
+    annotations=f"{bdd100k_track_sample_path}/bdd100k-samples/labels/",
+    config_path=f"{bdd100k_track_sample_path}/bdd100k-samples/config.toml",
+)
+
+
 bdd100k_track_train = lambda: BDD100K(
     name="bdd100k_track_train",
     annotations="data/bdd100k/labels/box_track_20/train/",

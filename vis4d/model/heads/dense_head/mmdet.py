@@ -1,7 +1,6 @@
 """mmdetection dense head wrapper."""
 from typing import Dict, List, Optional, Tuple, Union
 
-from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 from vis4d.model.utils import (
     _parse_losses,
     get_img_metas,
@@ -9,12 +8,21 @@ from vis4d.model.utils import (
     proposals_from_mmdet,
     targets_to_mmdet,
 )
-from vis4d.struct import Boxes2D, DictStrAny, FeatureMaps, InputSample, Losses
+from vis4d.struct import (
+    Boxes2D,
+    DictStrAny,
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+)
 
-from .base import DetDenseHead
+from .base import BaseDenseBox2DHead
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 
 if MMCV_AVAILABLE:
     from mmcv.utils import ConfigDict
+
 
 if MMDET_AVAILABLE:
     from mmdet.models import build_head
@@ -23,8 +31,8 @@ if MMDET_AVAILABLE:
     )
 
 
-class MMDetDenseHead(DetDenseHead):
-    """mmdetection dense head wrapper."""
+class MMDetDenseHead(BaseDenseBox2DHead):
+    """mmdetection dense box2d head wrapper."""
 
     def __init__(
         self, mm_cfg: Union[DictStrAny, str], category_mapping: Dict[str, int]
@@ -44,62 +52,68 @@ class MMDetDenseHead(DetDenseHead):
         self.mm_dense_head.init_weights()
         self.mm_dense_head.train()
         self.cat_mapping = {v: k for k, v in category_mapping.items()}
-        self.proposal_cfg = self.mm_dense_head.train_cfg.pop(
+        self.train_cfg = self.mm_dense_head.train_cfg.pop(
             "rpn_proposal", self.mm_dense_head.test_cfg
         )
+        self.test_cfg = self.mm_dense_head.test_cfg
 
-    def forward_train(
+    def forward(
         self,
-        inputs: InputSample,
         features: Optional[FeatureMaps],
-        targets,
-    ) -> Tuple[Losses, List[Boxes2D]]:
+        targets: List[Boxes2D],
+    ) -> Tuple[FeatureMaps, FeatureMaps]:
         """Forward pass during training stage."""
-        assert features is not None, "MMDetDenseHead requires features"
-        feat_list = list(features.values())
-        img_metas = get_img_metas(inputs.images)
-        gt_bboxes, gt_labels, _ = targets_to_mmdet(targets)
+        cls_outs, box_outs = self.mm_dense_head(list(features.values()))
+        return {k: v for k, v in zip(feat_list.keys(), cls_outs)}, {
+            k: v for k, v in zip(feat_list.keys(), box_outs)
+        }
 
-        rpn_losses, proposals = self.mm_dense_head.forward_train(
-            feat_list,
-            img_metas,
-            gt_bboxes,
-            gt_labels=gt_labels,
-            proposal_cfg=self.proposal_cfg,
-        )
-        return _parse_losses(rpn_losses), proposals_from_mmdet(proposals)
-
-    def forward_test(
-        self, inputs: InputSample, features: Optional[FeatureMaps]
+    def postprocess(
+        self,
+        class_outs: FeatureMaps,
+        regression_outs: FeatureMaps,
+        images_shape: Tuple[int, int, int, int],
     ) -> List[Boxes2D]:
-        """Forward pass during testing stage."""
-        assert features is not None, "MMDetDenseHead requires features"
-        feat_list = list(features.values())
-        img_metas = get_img_metas(inputs.images)
-        proposals = self.mm_dense_head.simple_test(feat_list, img_metas)
-        return proposals_from_mmdet(proposals)
+        """MMDet head postprocessing wrapper.
 
+        Args:
+            outputs (Tensor): Network outputs.
 
-class MMDetRPNHead(MMDetDenseHead):
-    """mmdetection RPN head wrapper."""
+        Returns:
+            List[Boxes2D]: Output boxes after postprocessing.
+        """
+        if self.training:
+            cfg = self.train_cfg
+        else:
+            cfg = self.test_cfg
 
-    def forward_train(
-        self,
-        inputs: InputSample,
-        features: Optional[FeatureMaps],
-        targets,
-    ) -> Tuple[Losses, List[Boxes2D]]:
-        """Forward pass during training stage."""
-        assert features is not None, "MMDetRPNHead requires features"
-        feat_list = list(features.values())
-        img_metas = get_img_metas(inputs.images)
-        gt_bboxes, _, _ = targets_to_mmdet(targets)
-
-        rpn_losses, proposals = self.mm_dense_head.forward_train(
-            feat_list,
-            img_metas,
-            gt_bboxes,
-            gt_labels=None,
-            proposal_cfg=self.proposal_cfg,
+        boxes = self.mm_dense_head.get_bboxes(
+            class_outs.values(),
+            regression_outs.values(),
+            get_img_metas(images_shape),
+            cfg=cfg,
         )
-        return _parse_losses(rpn_losses), proposals_from_mmdet(proposals)
+        return proposals_from_mmdet(boxes)
+
+    def loss(
+        self,
+        class_outs: FeatureMaps,
+        regression_outs: FeatureMaps,
+        targets: List[Boxes2D],
+        images_shape: Tuple[int, int, int, int],
+    ) -> LossesType:
+        """MMDet head loss wrapper.
+
+        Args:
+            outputs: Network outputs.
+            targets (List[Boxes2D]): Target 2D boxes.
+            metadata (Dict): Dictionary of metadata needed for loss, e.g.
+                image size, feature map strides, etc.
+        Returns:
+            LossesType: Dictionary of scalar loss tensors.
+        """
+        img_metas = get_img_metas(images_shape)
+        gt_bboxes, gt_labels, _ = targets_to_mmdet(targets)
+        self.mm_dense_head.loss(
+            class_outs, regression_outs, gt_bboxes, gt_labels, img_metas
+        )

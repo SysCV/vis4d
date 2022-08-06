@@ -28,7 +28,7 @@ class EmbeddingDistanceLoss(BaseLoss):
         self.pos_margin = pos_margin
         self.hard_mining = hard_mining
 
-    def __call__(  # type: ignore # pylint: disable=arguments-differ
+    def forward(  # pylint: disable=arguments-differ
         self,
         pred: torch.Tensor,
         target: torch.Tensor,

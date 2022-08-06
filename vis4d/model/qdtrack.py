@@ -1,10 +1,11 @@
 """Quasi-dense instance similarity learning model."""
 import pickle
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import nn
 
+from vis4d.common.io.hdf5 import HDF5Backend
 from vis4d.model.detect import (
     BaseDetector,
     BaseOneStageDetector,
@@ -15,7 +16,6 @@ from vis4d.model.track.similarity import BaseSimilarityHead
 from vis4d.model.track.utils import split_key_ref_inputs
 from vis4d.model.utils import postprocess_predictions, predictions_to_scalabel
 from vis4d.struct import (
-    ArgsType,
     Boxes2D,
     FeatureMaps,
     InputSample,
@@ -32,6 +32,7 @@ class QDTrack(nn.Module):
         detection: BaseDetector,
         similarity: BaseSimilarityHead,
         track_graph: BaseTrackGraph,
+        inference_result_path: Optional[str] = None,
     ) -> None:
         """Init."""
         super().__init__()
@@ -41,18 +42,27 @@ class QDTrack(nn.Module):
         )
         self.similarity_head = similarity
         self.track_graph = track_graph
-        self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
+        assert (
+            self.detector.category_mapping is not None
+        ), "Need category mapping for qdtrack!"
+        self.cat_mapping = {
+            v: k for k, v in self.detector.category_mapping.items()
+        }
         self.with_mask = getattr(self.detector, "with_mask", False)
+
+        self.inference_result_path = inference_result_path
+        if self.inference_result_path is not None:
+            self.data_backend = HDF5Backend()
 
     def _run_heads_train(
         self,
-        key_inputs: InputSample,
-        ref_inputs: List[InputSample],
+        key_images: torch.Tensor,
+        ref_images: List[torch.Tensor],
         key_x: FeatureMaps,
         ref_x: List[FeatureMaps],
     ) -> Tuple[Losses, List[Boxes2D], List[List[Boxes2D]]]:
         """Get detection and tracking losses."""
-        key_targets, ref_targets = key_inputs.targets, [
+        key_targets, ref_targets = key_images.targets, [
             x.targets for x in ref_inputs
         ]
 
@@ -60,18 +70,18 @@ class QDTrack(nn.Module):
         if isinstance(self.detector, BaseTwoStageDetector):
             # proposal generation
             rpn_losses, key_proposals = self.detector.generate_proposals(
-                key_inputs, key_x, key_targets
+                key_images, key_x, key_targets
             )
             with torch.no_grad():
                 ref_proposals = [
                     self.detector.generate_proposals(inp, x, tgt)[1]
-                    for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets)
+                    for inp, x, tgt in zip(ref_images, ref_x, ref_targets)
                 ]
 
             # roi head
             assert isinstance(self.detector, BaseTwoStageDetector)
             roi_losses, _ = self.detector.generate_detections(
-                key_inputs,
+                key_images,
                 key_x,
                 key_proposals,
                 key_targets,
@@ -80,30 +90,32 @@ class QDTrack(nn.Module):
         else:
             # one-stage detector
             det_losses, key_proposals = self.detector.generate_detections(
-                key_inputs, key_x, key_targets
+                key_images, key_x, key_targets
             )
             assert key_proposals is not None
             ref_proposals = []
             with torch.no_grad():
-                for inp, x, tgt in zip(ref_inputs, ref_x, ref_targets):
+                for inp, x, tgt in zip(ref_images, ref_x, ref_targets):
                     ref_p = self.detector.generate_detections(inp, x, tgt)[1]
                     assert ref_p is not None
                     ref_proposals.append(ref_p)
 
-        # from vis4d.vis.track import imshow_bboxes
-        # for ref_inp, ref_props in zip(ref_inputs, ref_proposals):
-        #     for ref_img, ref_prop in zip(ref_inp.images, ref_props):
-        #         _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
-        #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
-
         # track head
         track_losses, _ = self.similarity_head(
-            [key_inputs, *ref_inputs],
+            [key_inputs, *ref_images],
             [key_proposals, *ref_proposals],
             [key_x, *ref_x],
             [key_targets, *ref_targets],
         )
         return {**det_losses, **track_losses}, key_proposals, ref_proposals
+
+    def debug_logging(self, logger) -> Dict[str, torch.Tensor]:
+        """Logging for debugging"""
+        # from vis4d.vis.track import imshow_bboxes
+        # for ref_inp, ref_props in zip(ref_inputs, ref_proposals):
+        #     for ref_img, ref_prop in zip(ref_inp.images, ref_props):
+        #         _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
+        #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
 
     def _run_heads_test(
         self, inputs: InputSample, feat: FeatureMaps
@@ -158,7 +170,7 @@ class QDTrack(nn.Module):
         postprocess_predictions(
             inputs, outs, self.detector.clip_bboxes_to_image
         )
-        return outs
+        return predictions_to_scalabel(outs, self.cat_mapping)
 
     def forward(
         self, batch_inputs: List[InputSample]
@@ -183,12 +195,16 @@ class QDTrack(nn.Module):
         #            ref_inp[batch_i].targets.boxes2d[0],
         #        )
 
+        # TODO temporary connector code
+        key_images = key_inputs.images.tensor
+        ref_images = [inp.images.tensor for inp in ref_inputs]
+
         # feature extraction
-        key_x = self.detector.extract_features(key_inputs)
-        ref_x = [self.detector.extract_features(inp) for inp in ref_inputs]
+        key_x = self.detector.extract_features(key_images)
+        ref_x = [self.detector.extract_features(im) for im in ref_images]
 
         losses, _, _ = self._run_heads_train(
-            key_inputs, ref_inputs, key_x, ref_x
+            key_images, ref_images, key_x, ref_x
         )
         return losses
 
@@ -220,8 +236,16 @@ class QDTrack(nn.Module):
             predictions, embeddings = pickle.loads(
                 self.data_backend.get(result_path)
             )
-            predictions = predictions.to(self.device)
-            embeddings = [e.to(self.device) for e in embeddings]
+            predictions = predictions.to(batch_inputs[0].device)
+            embeddings = [e.to(batch_inputs[0].device) for e in embeddings]
 
         outs.update(self._track(batch_inputs[0], predictions, embeddings))
         return outs
+
+    def forward(
+        self, batch_inputs: List[InputSample]
+    ) -> Union[LossesType, ModelOutput]:
+        """Forward."""
+        if self.training:
+            return self.forward_train(batch_inputs)
+        return self.forward_test(batch_inputs)

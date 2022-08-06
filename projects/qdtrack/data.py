@@ -8,7 +8,9 @@ from projects.common.data_pipelines import (
 )
 from projects.common.datasets import (
     bdd100k_det_train,
+    bdd100k_detect_sample,
     bdd100k_track_map,
+    bdd100k_track_sample,
     bdd100k_track_train,
     bdd100k_track_val,
     crowdhuman_trainval,
@@ -137,6 +139,36 @@ class QDTrackDataModule(CommonDataModule):
             test_transforms = [Resize(shape=(720, 1280))]
             test_datasets = [
                 ScalabelDataset(bdd100k_track_val(), False, test_sample_mapper)
+            ]
+        elif self.experiment == "sample":
+            if stage is None or stage == "fit":
+                train_sample_mapper.setup_categories(bdd100k_track_map)
+                train_datasets += [
+                    ScalabelDataset(
+                        bdd100k_detect_sample(),
+                        True,
+                        train_sample_mapper,
+                        BaseReferenceSampler(num_ref_imgs=1, scope=0),
+                    )
+                ]
+                train_datasets += [
+                    ScalabelDataset(
+                        bdd100k_track_sample(),
+                        True,
+                        train_sample_mapper,
+                        BaseReferenceSampler(
+                            scope=10, num_ref_imgs=1, skip_nomatch_samples=True
+                        ),
+                    )
+                ]
+                train_transforms = default((720, 1280))
+
+            test_sample_mapper.setup_categories(bdd100k_track_map)
+            test_transforms = [Resize(shape=(720, 1280))]
+            test_datasets = [
+                ScalabelDataset(
+                    bdd100k_track_sample(), False, test_sample_mapper
+                )
             ]
         else:
             raise NotImplementedError(

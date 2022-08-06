@@ -2,11 +2,11 @@
 from pytorch_lightning.utilities.cli import instantiate_class
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
 
-from vis4d.model import QD3DT
+from vis4d.model.optimize import DefaultOptimizer
 
 
-class StandardQD3DT(QD3DT):  # type: ignore
-    """Standard Quasi-dense 3D Tracking model."""
+class QD3DTOptimizer(DefaultOptimizer):  # type: ignore
+    """Standard Quasi-dense 3D Tracking optimizer."""
 
     def configure_optimizers(self):
         """Configure optimizers and schedulers of model."""

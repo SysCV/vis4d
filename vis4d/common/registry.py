@@ -42,7 +42,7 @@ class RegistryHolder(type):
 
         Args:
             cls_type: The super class for which you'd like to get the
-            registered subclasses. E.g. input vis4d.model.BaseModel to get
+            registered subclasses. E.g. input vis4d.data.BaseDataset to get
             all registered models.
 
         Returns:

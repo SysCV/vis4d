@@ -1,20 +1,21 @@
 """RoI Head interface for Vis4D."""
 import abc
-from typing import Dict, List, Optional, Tuple, Union, overload
+from typing import Dict, List, Optional, Tuple, Union
 
-from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.common.module import TTestReturn, TTrainReturn, Vis4DModule
+from torch import nn
+
 from vis4d.struct import (
     Boxes2D,
-    Boxes3D,
     FeatureMaps,
     InputSample,
-    InstanceMasks,
-    Losses,
+    LabelInstances,
+    LossesType,
+    TTestReturn,
+    TTrainReturn,
 )
 
 
-class BaseRoIHead(Vis4DModule[Tuple[Losses, TTrainReturn], TTestReturn]):
+class BaseRoIHead(nn.Module):
     """Base RoI head class."""
 
     def __init__(
@@ -24,32 +25,13 @@ class BaseRoIHead(Vis4DModule[Tuple[Losses, TTrainReturn], TTestReturn]):
         super().__init__()
         self.category_mapping = category_mapping
 
-    @overload  # type: ignore[override]
-    def __call__(
+    def forward(
         self,
         inputs: InputSample,
         features: FeatureMaps,
         boxes: List[Boxes2D],
-    ) -> TTestReturn:  # noqa: D102
-        ...
-
-    @overload
-    def __call__(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
-        boxes: List[Boxes2D],
-        targets,
-    ) -> Tuple[Losses, TTrainReturn]:
-        ...
-
-    def __call__(
-        self,
-        inputs: InputSample,
-        features: FeatureMaps,
-        boxes: List[Boxes2D],
-        targets=None,
-    ) -> Union[Tuple[Losses, TTrainReturn], TTestReturn]:
+        targets: Optional[LabelInstances] = None,
+    ) -> Union[Tuple[LossesType, TTrainReturn], TTestReturn]:
         """Base RoI head forward.
 
         Args:
@@ -73,8 +55,8 @@ class BaseRoIHead(Vis4DModule[Tuple[Losses, TTrainReturn], TTestReturn]):
         inputs: InputSample,
         features: FeatureMaps,
         boxes: List[Boxes2D],
-        targets,
-    ) -> Tuple[Losses, TTrainReturn]:
+        targets: LabelInstances,
+    ) -> Tuple[LossesType, TTrainReturn]:
         """Forward pass during training stage.
 
         Args:
@@ -107,10 +89,3 @@ class BaseRoIHead(Vis4DModule[Tuple[Losses, TTrainReturn], TTestReturn]):
             TTestReturn: Prediction output.
         """
         raise NotImplementedError
-
-
-Det2DRoIHead = BaseRoIHead[
-    Optional[SamplingResult],
-    Tuple[List[Boxes2D], Optional[List[InstanceMasks]]],
-]
-Det3DRoIHead = BaseRoIHead[SamplingResult, List[Boxes3D]]

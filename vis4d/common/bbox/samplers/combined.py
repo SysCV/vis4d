@@ -35,14 +35,10 @@ class CombinedSampler(BaseSampler):
         self.num_bins = num_bins
         self.bg_label = bg_label
 
-        if (
-            not pos_strategy
-            in [
-                "instance_balanced",
-                "iou_balanced",
-            ]
-            or not neg_strategy in ["instance_balanced", "iou_balanced"]
-        ):
+        if not pos_strategy in [
+            "instance_balanced",
+            "iou_balanced",
+        ] or not neg_strategy in ["instance_balanced", "iou_balanced"]:
             raise ValueError(
                 "strategies must be in [instance_balanced, iou_balanced]"
             )
@@ -136,7 +132,7 @@ class CombinedSampler(BaseSampler):
 
         return sampled_inds
 
-    def __call__(  # type: ignore
+    def forward(
         self,
         matching: List[MatchResult],
         boxes: List[Boxes2D],

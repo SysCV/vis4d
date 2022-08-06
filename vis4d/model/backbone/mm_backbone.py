@@ -57,9 +57,7 @@ class MMDetBackbone(BaseBackbone):
         """Build MM backbone with config."""
         return build_mmdet_backbone(cfg)
 
-    def __call__(  # type: ignore[override]
-        self, inputs: InputSample
-    ) -> FeatureMaps:
+    def forward(self, inputs: torch.Tensor) -> FeatureMaps:
         """Backbone forward.
 
         Args:
@@ -68,8 +66,7 @@ class MMDetBackbone(BaseBackbone):
         Returns:
             FeatureMaps: Dictionary of output feature maps.
         """
-        inputs = self.preprocess_inputs(inputs)
-        outs = self.mm_backbone(inputs.images.tensor)
+        outs = self.mm_backbone(self.preprocess_inputs(inputs))
         backbone_outs = self.get_outputs(outs)
         if self.neck is not None:
             return self.neck(backbone_outs)
@@ -96,11 +93,3 @@ class MMSegBackbone(MMDetBackbone):
     def build_mm_backbone(cfg: ConfigDict) -> BaseModule:
         """Build MM backbone with config."""
         return build_mmseg_backbone(cfg)
-
-    def preprocess_inputs(self, inputs: InputSample) -> InputSample:
-        """Normalize the input images, pad masks."""
-        if not self.training:
-            # no padding during inference to match MMSegmentation
-            Images.stride = 1
-        super().preprocess_inputs(inputs)
-        return inputs

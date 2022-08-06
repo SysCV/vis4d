@@ -1,38 +1,30 @@
 """Panoptic Head interface for Vis4D."""
 
 import abc
-from typing import List, Optional, Tuple, Union, overload
+from typing import List, Optional, Tuple, Union
 
-from vis4d.common import Vis4DModule
-from vis4d.struct import InputSample, InstanceMasks, Losses, SemanticMasks
+from torch import nn
+
+from vis4d.struct import (
+    InputSample,
+    InstanceMasks,
+    LabelInstances,
+    LossesType,
+    SemanticMasks,
+)
 
 PanopticMasks = Tuple[List[InstanceMasks], List[SemanticMasks]]
 
 
-class BasePanopticHead(Vis4DModule[Losses, PanopticMasks]):
+class BasePanopticHead(nn.Module):
     """Base Panoptic head class."""
 
-    @overload  # type: ignore[override]
-    def __call__(
-        self, inputs: InputSample, predictions
-    ) -> PanopticMasks:  # noqa: D102
-        ...
-
-    @overload
-    def __call__(
+    def forward(  # TODO restructure
         self,
         inputs: InputSample,
-        predictions,
-        targets,
-    ) -> Losses:
-        ...
-
-    def __call__(
-        self,
-        inputs: InputSample,
-        predictions,
-        targets=None,
-    ) -> Union[Losses, PanopticMasks]:
+        predictions: LabelInstances,
+        targets: Optional[LabelInstances] = None,
+    ) -> Union[LossesType, PanopticMasks]:
         """Base Panoptic head forward.
 
         Args:
@@ -52,9 +44,9 @@ class BasePanopticHead(Vis4DModule[Losses, PanopticMasks]):
     def forward_train(
         self,
         inputs: InputSample,
-        predictions,
-        targets,
-    ) -> Losses:
+        predictions: LabelInstances,
+        targets: LabelInstances,
+    ) -> LossesType:
         """Forward pass during training stage.
 
         Args:
@@ -68,7 +60,9 @@ class BasePanopticHead(Vis4DModule[Losses, PanopticMasks]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward_test(self, inputs: InputSample, predictions) -> PanopticMasks:
+    def forward_test(
+        self, inputs: InputSample, predictions: LabelInstances
+    ) -> PanopticMasks:
         """Forward pass during testing stage.
 
         Args:

@@ -255,7 +255,7 @@ def test_data(task: str, monkeypatch: MonkeyPatch) -> None:
         assert W <= im_hw[1]
 
     trainer = _trainer_builder("data_module_test")
-    model = MockModel(model_param=7)
+    model = DefaultOptimizer(MockModel(model_param=7))
 
     monkeypatch.setattr(model, "training_step", train_step)
 

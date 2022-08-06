@@ -6,9 +6,6 @@ from typing import List, Optional, Union, cast, overload
 import torch
 from torch import nn
 
-from vis4d.struct import InputSample, Losses
-
-
 class BaseTrackGraph(nn.Module):
     """Base class for tracking graph optimization."""
 
@@ -17,26 +14,7 @@ class BaseTrackGraph(nn.Module):
         """Reset track memory during inference."""
         raise NotImplementedError
 
-    @overload  # type: ignore[override]
-    def __call__(
-        self,
-        inputs: InputSample,
-        predictions,
-        **kwargs: torch.Tensor,
-    ):  # noqa: D102
-        ...
-
-    @overload
-    def __call__(
-        self,
-        inputs: List[InputSample],
-        predictions,
-        targets,
-        **kwargs: List[torch.Tensor],
-    ) -> Losses:
-        ...
-
-    def __call__(
+    def forward(
         self,
         inputs: Union[List[InputSample], InputSample],
         predictions,

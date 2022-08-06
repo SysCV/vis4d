@@ -1,43 +1,25 @@
 """Vis4D base class for similarity networks."""
 
 import abc
-from typing import Dict, List, Optional, Tuple, Union, cast, overload
+from typing import Dict, List, Optional, Tuple, Union, cast
 
 import torch
+from torch import nn
 
-from vis4d.common import Vis4DModule
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.struct import Boxes2D, FeatureMaps, InputSample, Losses
+from vis4d.struct import (
+    Boxes2D,
+    FeatureMaps,
+    InputSample,
+    LabelInstances,
+    LossesType,
+)
 
 
-class BaseSimilarityHead(
-    Vis4DModule[
-        Tuple[Losses, Optional[List[SamplingResult]]],
-        List[torch.Tensor],
-    ]
-):
+class BaseSimilarityHead(nn.Module):
     """Base similarity learning head class."""
 
-    @overload  # type: ignore[override] # noqa: D102
-    def __call__(
-        self,
-        inputs: InputSample,
-        boxes: List[Boxes2D],
-        features: Optional[FeatureMaps],
-    ) -> List[torch.Tensor]:  # noqa: D102
-        ...
-
-    @overload
-    def __call__(
-        self,
-        inputs: List[InputSample],
-        boxes: List[List[Boxes2D]],
-        features: Optional[List[FeatureMaps]],
-        targets,
-    ) -> Tuple[Losses, Optional[List[SamplingResult]]]:
-        ...
-
-    def __call__(
+    def forward(
         self,
         inputs: Union[List[InputSample], InputSample],
         boxes: Union[List[List[Boxes2D]], List[Boxes2D]],
@@ -45,9 +27,9 @@ class BaseSimilarityHead(
             Optional[List[Dict[str, torch.Tensor]]],
             Optional[Dict[str, torch.Tensor]],
         ] = None,
-        targets=None,
+        targets: Optional[List[LabelInstances]] = None,
     ) -> Union[
-        Tuple[Losses, Optional[List[SamplingResult]]], List[torch.Tensor]
+        Tuple[LossesType, Optional[List[SamplingResult]]], List[torch.Tensor]
     ]:
         """Forward function of similarity head.
 
@@ -80,8 +62,8 @@ class BaseSimilarityHead(
         inputs: List[InputSample],
         boxes: List[List[Boxes2D]],
         features: Optional[List[FeatureMaps]],
-        targets,
-    ) -> Tuple[Losses, Optional[List[SamplingResult]]]:
+        targets: List[LabelInstances],
+    ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
 
         Args:

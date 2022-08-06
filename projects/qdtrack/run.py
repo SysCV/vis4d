@@ -18,7 +18,7 @@ def setup_model(
     lr: float = 0.02,
     max_epochs: int = 12,
     detector: str = "FRCNN",
-) -> QDTrack:
+) -> DefaultOptimizer:
     """Setup model with experiment specific hyperparameters."""
     if experiment == "mot17":
         if detector == "YOLOX":
@@ -40,7 +40,7 @@ def setup_model(
                 keep_in_memory=30, init_score_thr=0.9, obj_score_thr=0.5
             )
         category_mapping = mot_map
-    elif experiment == "bdd100k":
+    elif experiment in ["bdd100k", "sample"]:
         track_graph = QDTrackGraph(keep_in_memory=10)
         category_mapping = bdd100k_track_map
     else:
@@ -85,8 +85,6 @@ def setup_model(
             similarity_head = QDSimilarityHead()
 
         model = QDTrack(
-            image_channel_mode=detector.image_channel_mode,
-            category_mapping=category_mapping,
             detection=detector,
             similarity=similarity_head,
             track_graph=track_graph,

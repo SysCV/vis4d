@@ -3,7 +3,7 @@ import os.path as osp
 import re
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import Callable, List, Optional, Tuple, no_type_check
+from typing import Callable, List, Optional, Tuple, Union, no_type_check
 
 import pytorch_lightning as pl
 import torch
@@ -14,7 +14,6 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.model_zoo import load_url
 from torchmetrics import MeanMetric
 
-from vis4d.common.io import HDF5Backend
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.distributed import get_rank, get_world_size
 from vis4d.struct import (
@@ -22,7 +21,6 @@ from vis4d.struct import (
     InputSample,
     Losses,
     ModelOutput,
-    ModuleCfg,
 )
 
 from .warmup import BaseLRWarmup, LinearLRWarmup
@@ -86,9 +84,6 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
         self.lr_warmup = (
             lr_warmup if lr_warmup is not None else LinearLRWarmup(0.001, 500)
         )
-        self.inference_result_path = inference_result_path
-        if self.inference_result_path is not None:
-            self.data_backend = HDF5Backend()
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Setup model according to trainer parameters, stage, etc."""

@@ -21,7 +21,7 @@ from vis4d.struct import (
     Losses,
 )
 
-from .base import Det2DRoIHead
+from .base import BaseRoIHead
 
 if MMCV_AVAILABLE:
     from mmcv.utils import ConfigDict
@@ -32,7 +32,7 @@ if MMDET_AVAIABLE:
     from mmdet.models.roi_heads import BaseRoIHead as MMBaseRoIHead
 
 
-class MMDetRoIHead(Det2DRoIHead):
+class MMDetRoIHead(BaseRoIHead):
     """mmdetection roi head wrapper."""
 
     def __init__(
