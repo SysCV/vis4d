@@ -3,6 +3,8 @@ from typing import Dict, List, Union
 
 import torch
 
+from vis4d.struct import Boxes2D
+
 from ..matchers import MatchResult
 
 

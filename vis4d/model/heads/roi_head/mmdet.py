@@ -27,7 +27,7 @@ if MMCV_AVAILABLE:
     from mmcv.utils import ConfigDict
 
 
-if MMDET_AVAIABLE:
+if MMDET_AVAILABLE:
     from mmdet.models import build_head
     from mmdet.models.roi_heads import BaseRoIHead as MMBaseRoIHead
 

@@ -9,7 +9,7 @@ from vis4d.struct import ArgsType, InputSample, Losses, ModelOutput
 from ..detect import BaseTwoStageDetector
 from ..heads.dense_head import BaseSegmentationHead
 from ..heads.panoptic_head import BasePanopticHead
-from ..utils import postprocess_predictions, predictions_to_scalabel
+from ..utils import postprocess_predictions
 
 
 class PanopticFPN(nn.Module):
@@ -112,7 +112,7 @@ class PanopticFPN(nn.Module):
 
     def forward(
         self, batch_inputs: List[InputSample]
-    ) -> Union[LossesType, ModelOutput]:
+    ) -> Union[Losses, ModelOutput]:
         """Forward."""
         if self.training:
             return self.forward_train(batch_inputs)

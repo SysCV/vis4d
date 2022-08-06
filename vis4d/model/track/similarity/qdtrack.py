@@ -175,7 +175,7 @@ class QDSimilarityHead(BaseSimilarityHead):
             targets: Corresponding targets to each InputSample.
 
         Returns:
-            LossesType: A dict of scalar loss tensors.
+            Losses: A dict of scalar loss tensors.
             Optional[List[SamplingResult]]: Sampling results. Key first, then
                 reference views.
         """

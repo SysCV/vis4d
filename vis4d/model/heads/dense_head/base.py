@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 from torch import nn
 
-from vis4d.struct import Boxes2D, FeatureMaps, LossesType
+from vis4d.struct import Boxes2D, FeatureMaps, Losses
 
 
 class BaseDenseBox2DHead(nn.Module, abc.ABC):
@@ -56,7 +56,7 @@ class BaseDenseBox2DHead(nn.Module, abc.ABC):
         regression_outs: FeatureMaps,
         targets: List[Boxes2D],
         images_shape: Tuple[int, int, int, int],
-    ) -> LossesType:
+    ) -> Losses:
         """Loss computation.
 
         Args:
@@ -65,7 +65,7 @@ class BaseDenseBox2DHead(nn.Module, abc.ABC):
             metadata (Dict): Dictionary of metadata needed for loss, e.g.
                 image size, feature map strides, etc.
         Returns:
-            LossesType: Dictionary of scalar loss tensors.
+            Losses: Dictionary of scalar loss tensors.
         """
         pass
 

@@ -14,14 +14,8 @@ from vis4d.model.detect import (
 from vis4d.model.track.graph import BaseTrackGraph
 from vis4d.model.track.similarity import BaseSimilarityHead
 from vis4d.model.track.utils import split_key_ref_inputs
-from vis4d.model.utils import postprocess_predictions, predictions_to_scalabel
-from vis4d.struct import (
-    Boxes2D,
-    FeatureMaps,
-    InputSample,
-    Losses,
-    ModelOutput,
-)
+from vis4d.model.utils import postprocess_predictions
+from vis4d.struct import Boxes2D, FeatureMaps, InputSample, Losses, ModelOutput
 
 
 class QDTrack(nn.Module):
@@ -244,7 +238,7 @@ class QDTrack(nn.Module):
 
     def forward(
         self, batch_inputs: List[InputSample]
-    ) -> Union[LossesType, ModelOutput]:
+    ) -> Union[Losses, ModelOutput]:
         """Forward."""
         if self.training:
             return self.forward_train(batch_inputs)

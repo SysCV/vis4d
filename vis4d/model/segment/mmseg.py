@@ -23,7 +23,6 @@ from ..utils import (
     load_config,
     load_model_checkpoint,
     postprocess_predictions,
-    predictions_to_scalabel,
 )
 from .base import BaseSegmentor
 
@@ -134,7 +133,7 @@ class MMEncDecSegmentor(BaseSegmentor):
             return self.forward_train(batch_inputs)
         return self.forward_test(batch_inputs)
 
-    def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
+    def forward_train(self, batch_inputs: List[InputSample]) -> Losses:
         """Forward pass during training stage."""
         assert (
             len(batch_inputs) == 1

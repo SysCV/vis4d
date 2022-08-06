@@ -23,8 +23,6 @@ from .structures import (
     SemanticMasks,
     TMasks,
     TorchCheckpoint,
-    TTestReturn,
-    TTrainReturn,
 )
 
 __all__ = [
@@ -50,6 +48,4 @@ __all__ = [
     "CategoryMap",
     "ALLOWED_INPUTS",
     "ALLOWED_TARGETS",
-    "TTrainReturn",
-    "TTestReturn",
 ]

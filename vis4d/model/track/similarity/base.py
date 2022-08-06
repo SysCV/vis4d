@@ -7,13 +7,7 @@ import torch
 from torch import nn
 
 from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.struct import (
-    Boxes2D,
-    FeatureMaps,
-    InputSample,
-    LabelInstances,
-    LossesType,
-)
+from vis4d.struct import Boxes2D, FeatureMaps, InputSample, Losses
 
 
 class BaseSimilarityHead(nn.Module):
@@ -27,9 +21,9 @@ class BaseSimilarityHead(nn.Module):
             Optional[List[Dict[str, torch.Tensor]]],
             Optional[Dict[str, torch.Tensor]],
         ] = None,
-        targets: Optional[List[LabelInstances]] = None,
+        targets=None,
     ) -> Union[
-        Tuple[LossesType, Optional[List[SamplingResult]]], List[torch.Tensor]
+        Tuple[Losses, Optional[List[SamplingResult]]], List[torch.Tensor]
     ]:
         """Forward function of similarity head.
 
@@ -42,7 +36,7 @@ class BaseSimilarityHead(nn.Module):
             targets: Targets corresponding to InputSamples.
 
         Returns:
-            LossesType: A dict of scalar loss tensors.
+            Losses: A dict of scalar loss tensors.
             Optional[List[SamplingResult]]: Sampling results. Key first, then
                 reference views.
         """
@@ -62,8 +56,8 @@ class BaseSimilarityHead(nn.Module):
         inputs: List[InputSample],
         boxes: List[List[Boxes2D]],
         features: Optional[List[FeatureMaps]],
-        targets: List[LabelInstances],
-    ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
+        targets,
+    ) -> Tuple[Losses, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
 
         Args:
@@ -75,7 +69,7 @@ class BaseSimilarityHead(nn.Module):
             targets: Targets corresponding to InputSamples.
 
         Returns:
-            LossesType: A dict of scalar loss tensors.
+            Losses: A dict of scalar loss tensors.
             Optional[List[SamplingResult]]: Sampling results. Key first, then
                 reference views.
         """

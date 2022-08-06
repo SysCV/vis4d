@@ -16,12 +16,7 @@ from torchmetrics import MeanMetric
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils.distributed import get_rank, get_world_size
-from vis4d.struct import (
-    DictStrAny,
-    InputSample,
-    Losses,
-    ModelOutput,
-)
+from vis4d.struct import DictStrAny, InputSample, Losses, ModelOutput
 
 from .warmup import BaseLRWarmup, LinearLRWarmup
 
@@ -47,8 +42,8 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
     def __init__(
         self,
         model: nn.Module,
-        optimizer_init: Optional[ModuleCfg] = None,
-        lr_scheduler_init: Optional[ModuleCfg] = None,
+        optimizer_init=None,
+        lr_scheduler_init=None,
         freeze: bool = False,
         freeze_parameters: Optional[List[str]] = None,
         weights: Optional[str] = None,

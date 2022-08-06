@@ -1,6 +1,8 @@
 """mmdetection backbone wrapper."""
 from typing import Optional, Union
 
+import torch
+
 from vis4d.common.utils.imports import (
     MMCV_AVAILABLE,
     MMDET_AVAILABLE,
@@ -15,10 +17,10 @@ if MMDET_AVAILABLE:
     from mmdet.models import build_backbone as build_mmdet_backbone
 
 
-if MMSEG_AVAIABLE:
+if MMSEG_AVAILABLE:
     from mmseg.models import build_backbone as build_mmseg_backbone
 
-from vis4d.struct import ArgsType, DictStrAny, FeatureMaps, Images, InputSample
+from vis4d.struct import ArgsType, DictStrAny, FeatureMaps
 
 from ..utils import load_config, load_model_checkpoint
 from .base import BaseBackbone

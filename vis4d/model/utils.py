@@ -16,11 +16,9 @@ from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 from vis4d.struct import (
     Boxes2D,
     DictStrAny,
-    Images,
     InputSample,
     InstanceMasks,
     Losses,
-    ModelOutput,
     NDArrayF64,
     NDArrayUI8,
     SemanticMasks,

@@ -361,7 +361,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
             targets: Targets corresponding to InputSamples.
 
         Returns:
-            LossesType: A dict of scalar loss tensors.
+            Losses: A dict of scalar loss tensors.
             SamplingResult: Sampling result.
         """
         assert features is not None, "QD-3DT box3D head requires features!"

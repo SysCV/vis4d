@@ -221,7 +221,7 @@ class MockModel(nn.Module):
         batch_inputs: List[
             InputSample
         ],  # pylint: disable=unused-argument,line-too-long
-    ) -> Union[LossesType, ModelOutput]:
+    ) -> Union[Losses, ModelOutput]:
         """Forward."""
         if self.training:
             return {

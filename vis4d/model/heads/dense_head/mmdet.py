@@ -1,6 +1,7 @@
 """mmdetection dense head wrapper."""
 from typing import Dict, List, Optional, Tuple, Union
 
+from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 from vis4d.model.utils import (
     _parse_losses,
     get_img_metas,
@@ -8,17 +9,9 @@ from vis4d.model.utils import (
     proposals_from_mmdet,
     targets_to_mmdet,
 )
-from vis4d.struct import (
-    Boxes2D,
-    DictStrAny,
-    FeatureMaps,
-    InputSample,
-    LabelInstances,
-    LossesType,
-)
+from vis4d.struct import Boxes2D, DictStrAny, FeatureMaps, Losses
 
 from .base import BaseDenseBox2DHead
-from vis4d.common.utils.imports import MMCV_AVAILABLE, MMDET_AVAILABLE
 
 if MMCV_AVAILABLE:
     from mmcv.utils import ConfigDict
@@ -101,7 +94,7 @@ class MMDetDenseHead(BaseDenseBox2DHead):
         regression_outs: FeatureMaps,
         targets: List[Boxes2D],
         images_shape: Tuple[int, int, int, int],
-    ) -> LossesType:
+    ) -> Losses:
         """MMDet head loss wrapper.
 
         Args:
@@ -110,7 +103,7 @@ class MMDetDenseHead(BaseDenseBox2DHead):
             metadata (Dict): Dictionary of metadata needed for loss, e.g.
                 image size, feature map strides, etc.
         Returns:
-            LossesType: Dictionary of scalar loss tensors.
+            Losses: Dictionary of scalar loss tensors.
         """
         img_metas = get_img_metas(images_shape)
         gt_bboxes, gt_labels, _ = targets_to_mmdet(targets)

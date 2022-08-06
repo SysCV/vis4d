@@ -1,12 +1,6 @@
 """Datasets used for projects in Vis4D."""
-from vis4d.data.datasets import (
-    BDD100K,
-    COCO,
-    KITTI,
-    MOTChallenge,
-    NuScenes,
+from vis4d.data.datasets import (  # BDD100K,; COCO,; KITTI,; MOTChallenge,; NuScenes,; Waymo,  # TODO uncomment once revised
     Scalabel,
-    Waymo,
 )
 
 # CH, MOT17, MOT20

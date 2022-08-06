@@ -5,13 +5,7 @@ from typing import List, Optional, Tuple, Union
 
 from torch import nn
 
-from vis4d.struct import (
-    InputSample,
-    InstanceMasks,
-    LabelInstances,
-    LossesType,
-    SemanticMasks,
-)
+from vis4d.struct import InputSample, InstanceMasks, Losses, SemanticMasks
 
 PanopticMasks = Tuple[List[InstanceMasks], List[SemanticMasks]]
 
@@ -22,9 +16,9 @@ class BasePanopticHead(nn.Module):
     def forward(  # TODO restructure
         self,
         inputs: InputSample,
-        predictions: LabelInstances,
-        targets: Optional[LabelInstances] = None,
-    ) -> Union[LossesType, PanopticMasks]:
+        predictions,
+        targets=None,
+    ) -> Union[Losses, PanopticMasks]:
         """Base Panoptic head forward.
 
         Args:
@@ -33,7 +27,7 @@ class BasePanopticHead(nn.Module):
             targets: Container with targets, e.g. Boxes2D / 3D, Masks, ...
 
         Returns:
-            LossesType / PanopticMasks: In train mode, return losses. In test
+            Losses / PanopticMasks: In train mode, return losses. In test
             mode, return predictions.
         """
         if targets is not None:  # pragma: no cover
@@ -44,9 +38,9 @@ class BasePanopticHead(nn.Module):
     def forward_train(
         self,
         inputs: InputSample,
-        predictions: LabelInstances,
-        targets: LabelInstances,
-    ) -> LossesType:
+        predictions,
+        targets,
+    ) -> Losses:
         """Forward pass during training stage.
 
         Args:
@@ -55,14 +49,12 @@ class BasePanopticHead(nn.Module):
             targets: Targets corresponding to InputSamples.
 
         Returns:
-            LossesType: dict of scalar loss tensors
+            Losses: dict of scalar loss tensors
         """
         raise NotImplementedError
 
     @abc.abstractmethod
-    def forward_test(
-        self, inputs: InputSample, predictions: LabelInstances
-    ) -> PanopticMasks:
+    def forward_test(self, inputs: InputSample, predictions) -> PanopticMasks:
         """Forward pass during testing stage.
 
         Args:

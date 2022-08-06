@@ -3,7 +3,9 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 
-IF DETECTRON2_AVAILABLE:
+from vis4d.common.utils.imports import DETECTRON2_AVAILABLE
+
+if DETECTRON2_AVAILABLE:
     from detectron2.checkpoint import DetectionCheckpointer
     from detectron2.modeling import GeneralizedRCNN
     from detectron2.structures import Instances
@@ -19,7 +21,6 @@ IF DETECTRON2_AVAILABLE:
         target_to_instance,
     )
 
-
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from vis4d.common.bbox.samplers import SamplingResult
@@ -34,7 +35,7 @@ from vis4d.struct import (
     ModelOutput,
 )
 
-from ..utils import postprocess_predictions, predictions_to_scalabel
+from ..utils import postprocess_predictions
 from .base import BaseTwoStageDetector
 
 
@@ -230,7 +231,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
 
     def forward(
         self, batch_inputs: List[InputSample]
-    ) -> Union[LossesType, ModelOutput]:
+    ) -> Union[Losses, ModelOutput]:
         """Forward."""
         if self.training:
             return self.forward_train(batch_inputs)

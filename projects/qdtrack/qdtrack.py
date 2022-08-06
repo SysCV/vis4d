@@ -5,9 +5,13 @@ import torch
 from pytorch_lightning.utilities.cli import instantiate_class
 
 from projects.common.data_pipelines import default as default_augs
+from vis4d.common.utils.imports import MMDET_AVAILABLE
 from vis4d.model import QDTrack
 from vis4d.model.optimize import DefaultOptimizer
 from vis4d.struct import ArgsType
+
+if MMDET_AVAILABLE:
+    from mmdet.core.bbox.assigners import SimOTAAssigner
 
 
 class ClippedSimOTAAssigner(SimOTAAssigner):  # type: ignore

@@ -49,7 +49,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
         pin_memory: bool = False,
         visualize: bool = False,
         input_dir: Optional[str] = None,
-        sampler_cfg: Optional[ModuleCfg] = None,
+        sampler_cfg=None,
         video_based_inference: Optional[bool] = None,
         subcommand: Optional[str] = None,
     ) -> None:

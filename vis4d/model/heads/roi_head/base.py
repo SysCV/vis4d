@@ -4,15 +4,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from torch import nn
 
-from vis4d.struct import (
-    Boxes2D,
-    FeatureMaps,
-    InputSample,
-    LabelInstances,
-    LossesType,
-    TTestReturn,
-    TTrainReturn,
-)
+from vis4d.struct import Boxes2D, FeatureMaps, InputSample, Losses
 
 
 class BaseRoIHead(nn.Module):
@@ -30,8 +22,8 @@ class BaseRoIHead(nn.Module):
         inputs: InputSample,
         features: FeatureMaps,
         boxes: List[Boxes2D],
-        targets: Optional[LabelInstances] = None,
-    ) -> Union[Tuple[LossesType, TTrainReturn], TTestReturn]:
+        targets=None,
+    ):
         """Base RoI head forward.
 
         Args:
@@ -41,7 +33,7 @@ class BaseRoIHead(nn.Module):
             targets: Container with targets, e.g. Boxes2D / 3D, Masks, ...
 
         Returns:
-            Tuple[LossesType, TTrainReturn]
+            Tuple[Losses, TTrainReturn]
             or TTestReturn: In train mode, return losses and optionally
             intermediate returns. In test mode, return predictions.
         """
@@ -55,8 +47,8 @@ class BaseRoIHead(nn.Module):
         inputs: InputSample,
         features: FeatureMaps,
         boxes: List[Boxes2D],
-        targets: LabelInstances,
-    ) -> Tuple[LossesType, TTrainReturn]:
+        targets,
+    ):
         """Forward pass during training stage.
 
         Args:
@@ -66,7 +58,7 @@ class BaseRoIHead(nn.Module):
             targets: Targets corresponding to InputSamples.
 
         Returns:
-            LossesType: A dict of scalar loss tensors.
+            Losses: A dict of scalar loss tensors.
             TTrainReturn: Some intermediate results.
         """
         raise NotImplementedError
@@ -77,7 +69,7 @@ class BaseRoIHead(nn.Module):
         inputs: InputSample,
         features: FeatureMaps,
         boxes: List[Boxes2D],
-    ) -> TTestReturn:
+    ):
         """Forward pass during testing stage.
 
         Args:

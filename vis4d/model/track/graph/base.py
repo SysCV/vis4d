@@ -6,6 +6,9 @@ from typing import List, Optional, Union, cast, overload
 import torch
 from torch import nn
 
+from vis4d.struct import Losses
+
+
 class BaseTrackGraph(nn.Module):
     """Base class for tracking graph optimization."""
 
@@ -16,7 +19,7 @@ class BaseTrackGraph(nn.Module):
 
     def forward(
         self,
-        inputs: Union[List[InputSample], InputSample],
+        inputs,
         predictions,
         targets=None,
         **kwargs: Union[List[torch.Tensor], torch.Tensor],
@@ -30,7 +33,7 @@ class BaseTrackGraph(nn.Module):
     @abc.abstractmethod
     def forward_train(
         self,
-        inputs: List[InputSample],
+        inputs,
         predictions,
         targets,
         **kwargs: List[torch.Tensor],
@@ -41,7 +44,7 @@ class BaseTrackGraph(nn.Module):
     @abc.abstractmethod
     def forward_test(
         self,
-        inputs: InputSample,
+        inputs,
         predictions,
         **kwargs: torch.Tensor,
     ):

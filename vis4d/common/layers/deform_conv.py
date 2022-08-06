@@ -2,8 +2,10 @@
 import torch
 from torch import nn
 
-from vis4d.common import Vis4DModule
+from vis4d.common.utils.imports import MMCV_AVAILABLE
 
+if MMCV_AVAILABLE:
+    from mmcv.ops.modulated_deform_conv import ModulatedDeformConv2dPack
 BN_MOMENTUM = 0.1
 
 

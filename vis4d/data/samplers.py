@@ -15,9 +15,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils import get_world_size
-from vis4d.struct import ArgsType, ModuleCfg
-
-from .dataset import ScalabelDataset
+from vis4d.struct import ArgsType
 
 
 class BaseSampler(Sampler[List[int]], metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
@@ -297,7 +295,7 @@ class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
 
 
 def build_data_sampler(
-    cfg: ModuleCfg,
+    cfg,
     dataset: ConcatDataset,
     batch_size: int,
     generator: Optional[torch.Generator] = None,
@@ -342,7 +340,7 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
 
     def __init__(
         self,
-        dataset: ScalabelDataset,
+        dataset,
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
         shuffle: bool = True,
