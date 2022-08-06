@@ -66,7 +66,7 @@ class MultiScaleRoIPooler(BaseRoIPooler):
         self.max_level = int(max_level)
         assert (
             len(self.scales) == self.max_level - self.min_level + 1
-        ), "[ROIPooler] Sizes of input featuremaps do not form a pyramid!"
+        ), "[ROIPooler] Sizes of input NamedTensors do not form a pyramid!"
         assert self.min_level >= 0 and self.min_level <= self.max_level
         assert self.canonical_box_size > 0
 

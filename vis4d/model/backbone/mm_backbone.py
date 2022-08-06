@@ -25,7 +25,13 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
-from vis4d.struct import ArgsType, DictStrAny, FeatureMaps, Images, InputSample
+from vis4d.struct import (
+    ArgsType,
+    DictStrAny,
+    NamedTensors,
+    Images,
+    InputSample,
+)
 
 from ..utils import load_config, load_model_checkpoint
 from .base import BaseBackbone
@@ -64,14 +70,14 @@ class MMDetBackbone(BaseBackbone):
         """Build MM backbone with config."""
         return build_mmdet_backbone(cfg)
 
-    def forward(self, inputs: torch.Tensor) -> FeatureMaps:
+    def forward(self, inputs: torch.Tensor) -> NamedTensors:
         """Backbone forward.
 
         Args:
             inputs: Model Inputs, batched.
 
         Returns:
-            FeatureMaps: Dictionary of output feature maps.
+            NamedTensors: Dictionary of output feature maps.
         """
         outs = self.mm_backbone(self.preprocess_inputs(inputs))
         backbone_outs = self.get_outputs(outs)

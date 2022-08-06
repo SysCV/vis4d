@@ -6,7 +6,7 @@ from vis4d.struct import (
     ArgsType,
     Boxes2D,
     DictStrAny,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     InstanceMasks,
     LabelInstances,
@@ -189,7 +189,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
         postprocess_predictions(inputs, outputs, self.clip_bboxes_to_image)
         return predictions_to_scalabel(outputs, self.cat_mapping)
 
-    def extract_features(self, inputs: InputSample) -> FeatureMaps:
+    def extract_features(self, inputs: InputSample) -> NamedTensors:
         """Detector feature extraction stage.
 
         Return backbone output features.
@@ -201,14 +201,14 @@ class MMTwoStageDetector(BaseTwoStageDetector):
     def _proposals_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: LabelInstances,
     ) -> Tuple[LossesType, List[Boxes2D]]:
         """Train stage proposal generation."""
         return self.rpn_head(inputs, features, targets)
 
     def _proposals_test(
-        self, inputs: InputSample, features: FeatureMaps
+        self, inputs: InputSample, features: NamedTensors
     ) -> List[Boxes2D]:
         """Test stage proposal generation."""
         return self.rpn_head(inputs, features)
@@ -216,7 +216,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
     def _detections_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         proposals: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
@@ -226,7 +226,7 @@ class MMTwoStageDetector(BaseTwoStageDetector):
     def _detections_test(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         proposals: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Test stage detections generation."""
@@ -330,7 +330,7 @@ class MMOneStageDetector(BaseOneStageDetector):
         postprocess_predictions(inputs, outputs, self.clip_bboxes_to_image)
         return predictions_to_scalabel(outputs, self.cat_mapping)
 
-    def extract_features(self, inputs: InputSample) -> FeatureMaps:
+    def extract_features(self, inputs: InputSample) -> NamedTensors:
         """Detector feature extraction stage.
 
         Return backbone output features.
@@ -342,14 +342,14 @@ class MMOneStageDetector(BaseOneStageDetector):
     def _detections_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[List[Boxes2D]]]:
         """Train stage detections generation."""
         return self.bbox_head(inputs, features, targets)
 
     def _detections_test(
-        self, inputs: InputSample, features: FeatureMaps
+        self, inputs: InputSample, features: NamedTensors
     ) -> List[Boxes2D]:
         """Test stage detections generation."""
         return self.bbox_head(inputs, features)

@@ -17,7 +17,7 @@ from vis4d.common.layers import add_conv_branch
 from vis4d.model.losses import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
 from vis4d.struct import (
     Boxes2D,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
@@ -140,7 +140,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         return convs, fcs, last_layer_dim
 
     def _head_forward(
-        self, features: FeatureMaps, boxes: List[Boxes2D]
+        self, features: NamedTensors, boxes: List[Boxes2D]
     ) -> List[torch.Tensor]:
         """Similarity head forward pass."""
         assert self.in_features is not None
@@ -167,7 +167,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         self,
         inputs: List[InputSample],
         boxes: List[List[Boxes2D]],
-        features: Optional[List[FeatureMaps]],
+        features: Optional[List[NamedTensors]],
         targets: List[LabelInstances],
     ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
@@ -226,7 +226,7 @@ class QDSimilarityHead(BaseSimilarityHead):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[FeatureMaps],
+        features: Optional[NamedTensors],
     ) -> List[torch.Tensor]:
         """Forward pass during testing stage.
 

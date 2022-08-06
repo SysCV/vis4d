@@ -30,7 +30,7 @@ from vis4d.struct import (
     ArgsType,
     Boxes2D,
     DictStrAny,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     InstanceMasks,
     LabelInstances,
@@ -147,7 +147,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
     def _proposals_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: LabelInstances,
     ) -> Tuple[LossesType, List[Boxes2D]]:
         """Train stage proposal generation."""
@@ -166,7 +166,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
     def _proposals_test(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
     ) -> List[Boxes2D]:
         """Test stage proposal generation."""
         images_d2 = images_to_imagelist(inputs.images)
@@ -182,7 +182,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
     def _detections_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         proposals: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
@@ -208,7 +208,7 @@ class D2TwoStageDetector(BaseTwoStageDetector):
     def _detections_test(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         proposals: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Test stage detections generation."""

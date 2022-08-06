@@ -19,7 +19,7 @@ from vis4d.model.losses import Box3DUncertaintyLoss
 from vis4d.struct import (
     Boxes2D,
     Boxes3D,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     Intrinsics,
     LabelInstances,
@@ -349,7 +349,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
     def forward_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         boxes: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, SamplingResult]:
@@ -398,7 +398,7 @@ class QD3DTBBox3DHead(BaseRoIHead):
     def forward_test(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         boxes: List[Boxes2D],
     ) -> List[Boxes3D]:
         """Forward pass during testing stage.

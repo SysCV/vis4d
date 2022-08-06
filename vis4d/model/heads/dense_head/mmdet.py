@@ -11,7 +11,7 @@ from vis4d.model.utils import (
 from vis4d.struct import (
     Boxes2D,
     DictStrAny,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
@@ -65,9 +65,9 @@ class MMDetDenseHead(BaseDenseBox2DHead):
 
     def forward(
         self,
-        features: Optional[FeatureMaps],
+        features: Optional[NamedTensors],
         targets: List[Boxes2D],
-    ) -> Tuple[FeatureMaps, FeatureMaps]:
+    ) -> Tuple[NamedTensors, NamedTensors]:
         """Forward pass during training stage."""
         cls_outs, box_outs = self.mm_dense_head(list(features.values()))
         return {k: v for k, v in zip(feat_list.keys(), cls_outs)}, {
@@ -76,8 +76,8 @@ class MMDetDenseHead(BaseDenseBox2DHead):
 
     def postprocess(
         self,
-        class_outs: FeatureMaps,
-        regression_outs: FeatureMaps,
+        class_outs: NamedTensors,
+        regression_outs: NamedTensors,
         images_shape: Tuple[int, int, int, int],
     ) -> List[Boxes2D]:
         """MMDet head postprocessing wrapper.
@@ -103,8 +103,8 @@ class MMDetDenseHead(BaseDenseBox2DHead):
 
     def loss(
         self,
-        class_outs: FeatureMaps,
-        regression_outs: FeatureMaps,
+        class_outs: NamedTensors,
+        regression_outs: NamedTensors,
         targets: List[Boxes2D],
         images_shape: Tuple[int, int, int, int],
     ) -> LossesType:

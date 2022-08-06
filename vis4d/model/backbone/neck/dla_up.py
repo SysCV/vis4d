@@ -7,7 +7,7 @@ import torch
 from torch import nn
 
 from vis4d.common.layers import Conv2d, DeformConv
-from vis4d.struct import FeatureMaps, NDArrayI64
+from vis4d.struct import NamedTensors, NDArrayI64
 
 from .base import BaseNeck
 
@@ -146,8 +146,8 @@ class DLAUp(BaseNeck):
 
     def forward(
         self,
-        inputs: FeatureMaps,
-    ) -> FeatureMaps:
+        inputs: NamedTensors,
+    ) -> NamedTensors:
         """Forward."""
         layers = list(inputs.values())
         outs = [layers[self.end_level - 1]]

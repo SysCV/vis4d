@@ -8,7 +8,7 @@ from torch import nn
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
     Boxes2D,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     InstanceMasks,
     LabelInstances,
@@ -34,7 +34,7 @@ class BaseOneStageDetector(nn.Module):
         self.image_channel_mode = image_channel_mode
 
     @abc.abstractmethod
-    def extract_features(self, inputs: InputSample) -> FeatureMaps:
+    def extract_features(self, inputs: InputSample) -> NamedTensors:
         """Detector feature extraction stage.
 
         Return backbone output features
@@ -43,7 +43,7 @@ class BaseOneStageDetector(nn.Module):
 
     @overload
     def generate_detections(
-        self, inputs: InputSample, features: FeatureMaps
+        self, inputs: InputSample, features: NamedTensors
     ) -> List[Boxes2D]:  # noqa: D102
         ...
 
@@ -51,7 +51,7 @@ class BaseOneStageDetector(nn.Module):
     def generate_detections(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[List[Boxes2D]]]:
         ...
@@ -60,7 +60,7 @@ class BaseOneStageDetector(nn.Module):
     def generate_detections(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: Optional[LabelInstances] = None,
     ) -> Union[
         Tuple[LossesType, Optional[List[Boxes2D]]], List[Boxes2D]
@@ -79,7 +79,7 @@ class BaseOneStageDetector(nn.Module):
     def _detections_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[List[Boxes2D]]]:
         """Train stage detections generation."""
@@ -87,7 +87,7 @@ class BaseOneStageDetector(nn.Module):
 
     @abc.abstractmethod
     def _detections_test(
-        self, inputs: InputSample, features: FeatureMaps
+        self, inputs: InputSample, features: NamedTensors
     ) -> List[Boxes2D]:
         """Test stage detections generation."""
         raise NotImplementedError
@@ -111,7 +111,7 @@ class BaseTwoStageDetector(nn.Module):
         self.image_channel_mode = image_channel_mode
 
     @abc.abstractmethod
-    def extract_features(self, inputs: InputSample) -> FeatureMaps:
+    def extract_features(self, inputs: InputSample) -> NamedTensors:
         """Detector feature extraction stage.
 
         Return backbone output features
@@ -120,7 +120,7 @@ class BaseTwoStageDetector(nn.Module):
 
     @overload
     def generate_proposals(
-        self, inputs: InputSample, features: FeatureMaps
+        self, inputs: InputSample, features: NamedTensors
     ) -> List[Boxes2D]:  # noqa: D102
         ...
 
@@ -128,7 +128,7 @@ class BaseTwoStageDetector(nn.Module):
     def generate_proposals(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: LabelInstances,
     ) -> Tuple[LossesType, List[Boxes2D]]:
         ...
@@ -136,7 +136,7 @@ class BaseTwoStageDetector(nn.Module):
     def generate_proposals(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: Optional[LabelInstances] = None,
     ) -> Union[Tuple[LossesType, List[Boxes2D]], List[Boxes2D]]:
         """Detector RPN stage.
@@ -151,7 +151,7 @@ class BaseTwoStageDetector(nn.Module):
     def _proposals_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: LabelInstances,
     ) -> Tuple[LossesType, List[Boxes2D]]:
         """Train stage proposal generation."""
@@ -159,7 +159,7 @@ class BaseTwoStageDetector(nn.Module):
 
     @abc.abstractmethod
     def _proposals_test(
-        self, inputs: InputSample, features: FeatureMaps
+        self, inputs: InputSample, features: NamedTensors
     ) -> List[Boxes2D]:
         """Test stage proposal generation."""
         raise NotImplementedError
@@ -168,7 +168,7 @@ class BaseTwoStageDetector(nn.Module):
     def generate_detections(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         proposals: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:  # noqa: D102
         ...
@@ -177,7 +177,7 @@ class BaseTwoStageDetector(nn.Module):
     def generate_detections(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         proposals: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
@@ -186,7 +186,7 @@ class BaseTwoStageDetector(nn.Module):
     def generate_detections(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         proposals: List[Boxes2D],
         targets: Optional[LabelInstances] = None,
     ) -> Union[
@@ -205,7 +205,7 @@ class BaseTwoStageDetector(nn.Module):
     def _detections_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         proposals: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
@@ -216,7 +216,7 @@ class BaseTwoStageDetector(nn.Module):
     def _detections_test(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         proposals: List[Boxes2D],
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Test stage detections generation."""

@@ -28,7 +28,7 @@ from vis4d.model.utils import (
 )
 from vis4d.struct import (
     DictStrAny,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
@@ -66,7 +66,7 @@ class MMSegDecodeHead(BaseSegmentationHead):
     def forward_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[torch.Tensor]]:
         """Forward pass during training stage."""
@@ -82,7 +82,7 @@ class MMSegDecodeHead(BaseSegmentationHead):
         return _parse_losses(losses), None
 
     def forward_test(
-        self, inputs: InputSample, features: FeatureMaps
+        self, inputs: InputSample, features: NamedTensors
     ) -> List[SemanticMasks]:
         """Forward pass during testing stage."""
         image_metas = get_img_metas(inputs.images)
