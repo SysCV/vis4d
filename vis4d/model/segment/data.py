@@ -1,8 +1,8 @@
 """Segment data module."""
 from typing import List, Optional, Tuple
 
-from projects.common.data_pipelines import CommonDataModule, add_colorjitter
-from projects.common.datasets import bdd100k_sem_seg_train, bdd100k_sem_seg_val
+from vis4d.common.data_pipelines import CommonDataModule, add_colorjitter
+from vis4d.common.datasets import bdd100k_sem_seg_train, bdd100k_sem_seg_val
 from vis4d.data import BaseDatasetHandler, BaseSampleMapper, ScalabelDataset
 from vis4d.data.transforms import (
     BaseAugmentation,

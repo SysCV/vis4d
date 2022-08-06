@@ -1,15 +1,15 @@
 """QDTrack runtime configuration."""
-from projects.common.datasets import bdd100k_track_map, mot_map
-from projects.common.models import build_faster_rcnn, build_yolox
-from projects.common.optimizers import sgd, step_schedule
-from projects.qdtrack.data import QDTrackDataModule
-from projects.qdtrack.qdtrack import QDTrackYOLOX
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
+from vis4d.common.datasets import bdd100k_track_map, mot_map
+from vis4d.common.models import build_faster_rcnn, build_yolox
+from vis4d.common.optimizers import sgd, step_schedule
 from vis4d.engine.trainer import BaseCLI
 from vis4d.model import QDTrack
 from vis4d.model.track.graph import QDTrackGraph
 from vis4d.model.track.similarity import QDSimilarityHead
+from vis4d.qdtrack.data import QDTrackDataModule
+from vis4d.qdtrack.qdtrack import QDTrackYOLOX
 
 
 def setup_model(

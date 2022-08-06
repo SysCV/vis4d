@@ -1,9 +1,9 @@
 """One-stage detector runtime configuration."""
-from projects.common.datasets import bdd100k_det_map, coco_det_map
-from projects.common.models import build_retinanet, build_yolox
-from projects.common.optimizers import sgd, step_schedule
-from projects.detect.data import DetectDataModule
-from projects.detect.two_stage import DetectCLI
+from vis4d.common.datasets import bdd100k_det_map, coco_det_map
+from vis4d.common.models import build_retinanet, build_yolox
+from vis4d.common.optimizers import sgd, step_schedule
+from vis4d.detect.data import DetectDataModule
+from vis4d.detect.two_stage import DetectCLI
 from vis4d.model.detect.mmdet import MMOneStageDetector
 
 

@@ -1,8 +1,8 @@
 """QD-3DT data module."""
 from typing import Callable, List, Optional
 
-from projects.common.data_pipelines import CommonDataModule, default
-from projects.common.datasets import (
+from vis4d.common.data_pipelines import CommonDataModule, default
+from vis4d.common.datasets import (
     kitti_det_train,
     kitti_track_map,
     kitti_track_train,
