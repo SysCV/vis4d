@@ -161,6 +161,7 @@ class Boxes(LabelInstance):
         raise NotImplementedError
 
 
+
 class Boxes2D(Boxes):
     """Container class for 2D boxes.
 
@@ -298,6 +299,22 @@ class Boxes2D(Boxes):
         self.scale(scale_factor)
         if clip:
             self.clip(original_wh)
+
+
+def tensor_to_boxes2d(boxes: torch.Tensor, scores: Optional[torch.Tensor] = None,
+                      class_ids: Optional[torch.Tensor] = None, track_ids: Optional[torch.Tensor] = None) -> Boxes2D:
+    """Convert Tensors to Boxes2D."""
+    if scores is not None:
+        boxes_ = torch.cat([boxes, scores], -1)
+    else:
+        boxes_ = boxes
+    return Boxes2D(boxes_, class_ids, track_ids)
+
+
+def boxes2d_to_tensor(boxes2d: Boxes2D) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
+    """Convert Tensors to Boxes2D."""
+    scores = boxes2d.score
+    return boxes2d.boxes[:, :4], scores, boxes2d.class_ids, boxes2d.track_ids
 
 
 class Boxes3D(Boxes):
