@@ -14,7 +14,7 @@ from vis4d.model.utils import (
 from vis4d.struct import (
     Boxes2D,
     DictStrAny,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     InstanceMasks,
     LabelInstances,
@@ -65,7 +65,7 @@ class MMDetRoIHead(BaseRoIHead):
     def forward_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         boxes: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[SamplingResult]]:
@@ -90,7 +90,7 @@ class MMDetRoIHead(BaseRoIHead):
         return _parse_losses(detect_losses), None
 
     def forward_test(
-        self, inputs: InputSample, features: FeatureMaps, boxes: List[Boxes2D]
+        self, inputs: InputSample, features: NamedTensors, boxes: List[Boxes2D]
     ) -> Tuple[List[Boxes2D], Optional[List[InstanceMasks]]]:
         """Forward pass during testing stage."""
         assert (

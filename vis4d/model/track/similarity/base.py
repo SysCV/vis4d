@@ -9,7 +9,7 @@ from torch import nn
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
     Boxes2D,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
@@ -61,7 +61,7 @@ class BaseSimilarityHead(nn.Module):
         self,
         inputs: List[InputSample],
         boxes: List[List[Boxes2D]],
-        features: Optional[List[FeatureMaps]],
+        features: Optional[List[NamedTensors]],
         targets: List[LabelInstances],
     ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
         """Forward pass during training stage.
@@ -86,7 +86,7 @@ class BaseSimilarityHead(nn.Module):
         self,
         inputs: InputSample,
         boxes: List[Boxes2D],
-        features: Optional[FeatureMaps],
+        features: Optional[NamedTensors],
     ) -> List[torch.Tensor]:
         """Forward pass during testing stage.
 

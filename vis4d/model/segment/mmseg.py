@@ -6,7 +6,7 @@ import torch
 from vis4d.struct import (
     ArgsType,
     DictStrAny,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
@@ -167,7 +167,7 @@ class MMEncDecSegmentor(BaseSegmentor):
         postprocess_predictions(inputs, outputs)
         return predictions_to_scalabel(outputs, self.cat_mapping)
 
-    def extract_features(self, inputs: InputSample) -> FeatureMaps:
+    def extract_features(self, inputs: InputSample) -> NamedTensors:
         """Segmentor feature extraction stage.
 
         Return backbone output features.
@@ -177,7 +177,7 @@ class MMEncDecSegmentor(BaseSegmentor):
     def _segmentations_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
         """Train stage segmentations generation."""
@@ -192,14 +192,14 @@ class MMEncDecSegmentor(BaseSegmentor):
     def _segmentations_test(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
     ) -> List[SemanticMasks]:
         """Test stage segmentations generation."""
         assert not isinstance(self.decode_head, torch.nn.ModuleList)
         return self.decode_head(inputs, features)
 
     def generate_auxiliaries(
-        self, inputs: InputSample, features: FeatureMaps
+        self, inputs: InputSample, features: NamedTensors
     ) -> LossesType:
         """Segmentor auxiliary head stage.
 

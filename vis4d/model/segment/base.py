@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union, overload
 from torch import nn
 
 from vis4d.struct import (
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
@@ -28,7 +28,7 @@ class BaseSegmentor(nn.Module):
         self.image_channel_mode = image_channel_mode
 
     @abc.abstractmethod
-    def extract_features(self, inputs: InputSample) -> FeatureMaps:
+    def extract_features(self, inputs: InputSample) -> NamedTensors:
         """Segmentor feature extraction stage.
 
         Return backbone output features.
@@ -37,7 +37,7 @@ class BaseSegmentor(nn.Module):
 
     @overload
     def generate_segmentations(
-        self, inputs: InputSample, features: FeatureMaps
+        self, inputs: InputSample, features: NamedTensors
     ) -> List[SemanticMasks]:
         ...
 
@@ -45,7 +45,7 @@ class BaseSegmentor(nn.Module):
     def generate_segmentations(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
         ...
@@ -53,7 +53,7 @@ class BaseSegmentor(nn.Module):
     def generate_segmentations(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: Optional[LabelInstances] = None,
     ) -> Union[
         Tuple[
@@ -75,7 +75,7 @@ class BaseSegmentor(nn.Module):
     def _segmentations_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         targets: LabelInstances,
     ) -> Tuple[LossesType, Optional[List[SemanticMasks]]]:
         """Train stage segmentations generation."""
@@ -83,7 +83,7 @@ class BaseSegmentor(nn.Module):
 
     @abc.abstractmethod
     def _segmentations_test(
-        self, inputs: InputSample, features: FeatureMaps
+        self, inputs: InputSample, features: NamedTensors
     ) -> List[SemanticMasks]:
         """Test stage segmentations generation."""
         raise NotImplementedError

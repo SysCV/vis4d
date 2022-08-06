@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 from torch import nn
 
-from vis4d.struct import Boxes2D, FeatureMaps, LossesType
+from vis4d.struct import Boxes2D, NamedTensors, LossesType
 
 
 class BaseDenseBox2DHead(nn.Module, abc.ABC):
@@ -21,22 +21,22 @@ class BaseDenseBox2DHead(nn.Module, abc.ABC):
     @abc.abstractmethod
     def forward(
         self,
-        features: FeatureMaps,
-    ) -> Tuple[FeatureMaps, FeatureMaps]:
+        features: NamedTensors,
+    ) -> Tuple[NamedTensors, NamedTensors]:
         """Base Box2D head forward.
 
         Args:
             features (Dict[Tensor]): Input feature maps.
 
         Returns:
-            Tuple[FeatureMaps, FeatureMaps]: Class scores and box
+            Tuple[NamedTensors, NamedTensors]: Class scores and box
                 regression parameters per image.
         """
         pass
 
     @abc.abstractmethod
     def postprocess(
-        self, class_outs: FeatureMaps, regression_outs: FeatureMaps
+        self, class_outs: NamedTensors, regression_outs: NamedTensors
     ) -> List[Boxes2D]:
         """Box2D head postprocessing.
 
@@ -52,8 +52,8 @@ class BaseDenseBox2DHead(nn.Module, abc.ABC):
     @abc.abstractmethod
     def loss(
         self,
-        class_outs: FeatureMaps,
-        regression_outs: FeatureMaps,
+        class_outs: NamedTensors,
+        regression_outs: NamedTensors,
         targets: List[Boxes2D],
         images_shape: Tuple[int, int, int, int],
     ) -> LossesType:

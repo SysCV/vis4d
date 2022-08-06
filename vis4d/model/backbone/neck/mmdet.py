@@ -17,7 +17,7 @@ except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
 from vis4d.model.utils import load_config
-from vis4d.struct import DictStrAny, FeatureMaps
+from vis4d.struct import DictStrAny, NamedTensors
 
 from .base import BaseNeck
 
@@ -48,8 +48,8 @@ class MMDetNeck(BaseNeck):
 
     def forward(
         self,
-        inputs: FeatureMaps,
-    ) -> FeatureMaps:
+        inputs: NamedTensors,
+    ) -> NamedTensors:
         """Neck forward."""
         outs = self.mm_neck(list(inputs.values()))
         if self.output_names is None:  # pragma: no cover

@@ -17,7 +17,7 @@ from vis4d.model.track.utils import split_key_ref_inputs
 from vis4d.model.utils import postprocess_predictions, predictions_to_scalabel
 from vis4d.struct import (
     Boxes2D,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
@@ -60,8 +60,8 @@ class QDTrack(nn.Module):
         self,
         key_images: torch.Tensor,
         ref_images: List[torch.Tensor],
-        key_x: FeatureMaps,
-        ref_x: List[FeatureMaps],
+        key_x: NamedTensors,
+        ref_x: List[NamedTensors],
     ) -> Tuple[LossesType, List[Boxes2D], List[List[Boxes2D]]]:
         """Get detection and tracking losses."""
         key_targets, ref_targets = key_images.targets, [
@@ -120,7 +120,7 @@ class QDTrack(nn.Module):
         #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
 
     def _run_heads_test(
-        self, inputs: InputSample, feat: FeatureMaps
+        self, inputs: InputSample, feat: NamedTensors
     ) -> Tuple[ModelOutput, LabelInstances, List[torch.Tensor]]:
         """Get detections and tracks."""
         if isinstance(self.detector, BaseTwoStageDetector):

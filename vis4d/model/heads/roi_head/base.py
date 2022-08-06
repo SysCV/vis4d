@@ -6,7 +6,7 @@ from torch import nn
 
 from vis4d.struct import (
     Boxes2D,
-    FeatureMaps,
+    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
@@ -28,7 +28,7 @@ class BaseRoIHead(nn.Module):
     def forward(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         boxes: List[Boxes2D],
         targets: Optional[LabelInstances] = None,
     ) -> Union[Tuple[LossesType, TTrainReturn], TTestReturn]:
@@ -53,7 +53,7 @@ class BaseRoIHead(nn.Module):
     def forward_train(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         boxes: List[Boxes2D],
         targets: LabelInstances,
     ) -> Tuple[LossesType, TTrainReturn]:
@@ -75,7 +75,7 @@ class BaseRoIHead(nn.Module):
     def forward_test(
         self,
         inputs: InputSample,
-        features: FeatureMaps,
+        features: NamedTensors,
         boxes: List[Boxes2D],
     ) -> TTestReturn:
         """Forward pass during testing stage.

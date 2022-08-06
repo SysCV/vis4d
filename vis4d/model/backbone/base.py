@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 import torch
 from torch import nn
 
-from vis4d.struct import FeatureMaps, InputSample
+from vis4d.struct import NamedTensors, InputSample
 
 from .neck import BaseNeck
 
@@ -39,7 +39,7 @@ class BaseBackbone(nn.Module):
         """Normalize the input images."""
         return (inputs - self.pixel_mean) / self.pixel_std
 
-    def get_outputs(self, outs: List[torch.Tensor]) -> FeatureMaps:
+    def get_outputs(self, outs: List[torch.Tensor]) -> NamedTensors:
         """Get feature map dict."""
         if self.out_indices is not None:
             outs = [outs[ind] for ind in self.out_indices]
@@ -54,7 +54,7 @@ class BaseBackbone(nn.Module):
     def forward(
         self,
         inputs: torch.Tensor,
-    ) -> FeatureMaps:
+    ) -> NamedTensors:
         """Base Backbone forward.
 
         Args:
@@ -62,6 +62,6 @@ class BaseBackbone(nn.Module):
                 type float32 with vlaues ranging 0..255.
 
         Returns:
-            FeatureMaps (Dict[Tensor]): output feature maps.
+            NamedTensors (Dict[Tensor]): output feature maps.
         """
         raise NotImplementedError

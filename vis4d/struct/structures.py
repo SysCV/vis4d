@@ -138,6 +138,6 @@ LossesType = Dict[str, torch.Tensor]
 ModelOutput = Dict[str, List[List[Label]]]
 DictStrAny = Dict[str, Any]  # type: ignore
 MetricLogs = Dict[str, Union[float, int]]
-FeatureMaps = Dict[str, torch.Tensor]
+NamedTensors = Dict[str, torch.Tensor]
 ModuleCfg = DictStrAny
 ArgsType = Any  # type: ignore
