@@ -1,12 +1,8 @@
 """QDTrack data module."""
 from typing import List, Optional
 
-from projects.common.data_pipelines import (
-    CommonDataModule,
-    default,
-    mosaic_mixup,
-)
-from projects.common.datasets import (
+from vis4d.common.data_pipelines import CommonDataModule, default, mosaic_mixup
+from vis4d.common.datasets import (
     bdd100k_det_train,
     bdd100k_track_map,
     bdd100k_track_train,

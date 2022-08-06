@@ -4,7 +4,7 @@ from typing import Tuple
 import torch
 from pytorch_lightning.utilities.cli import instantiate_class
 
-from projects.common.data_pipelines import default as default_augs
+from vis4d.common.data_pipelines import default as default_augs
 from vis4d.model import QDTrack
 from vis4d.struct import ArgsType
 

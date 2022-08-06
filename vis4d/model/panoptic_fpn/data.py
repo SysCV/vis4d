@@ -1,8 +1,8 @@
 """PanopticFPN data module."""
 from typing import List, Optional
 
-from projects.common.data_pipelines import CommonDataModule, default
-from projects.common.datasets import (
+from vis4d.common.data_pipelines import CommonDataModule, default
+from vis4d.common.datasets import (
     bdd100k_pan_seg_train,
     bdd100k_pan_seg_val,
     bdd100k_seg_map,

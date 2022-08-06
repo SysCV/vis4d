@@ -1,1 +1,1 @@
-"""Common components for Vis4D projects."""
+"""Common components for Vis4D vis4d."""
