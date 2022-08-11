@@ -1,20 +1,19 @@
 """QD-3DT runtime configuration."""
 from typing import Optional
 
-from projects.common.datasets import kitti_track_map, nuscenes_track_map
-from projects.common.models import build_faster_rcnn
-from projects.common.optimizers import sgd, step_schedule
-from projects.qd_3dt.data import QD3DTDataModule
-from projects.qd_3dt.qd_3dt import QD3DTOptimizer
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.samplers import CombinedSampler
+from vis4d.common.datasets import kitti_track_map, nuscenes_track_map
+from vis4d.common.models import build_faster_rcnn
+from vis4d.common.optimizers import sgd, step_schedule
 from vis4d.engine.trainer import BaseCLI
 from vis4d.model import QD3DT
 from vis4d.model.heads.roi_head import QD3DTBBox3DHead
 from vis4d.model.optimize.warmup import LinearLRWarmup
 from vis4d.model.track.graph import QD3DTrackGraph
 from vis4d.model.track.similarity import QDSimilarityHead
+from vis4d.qd_3dt.data import QD3DTDataModule
 
 
 def setup_model(

@@ -6,9 +6,9 @@ To use this file in combination with a yaml config, run e.g.:
 python static_example.py fit --config cfg.yaml
 The file cfg.yaml contains an example configuration for bdd100k training.
 """
-from projects.qdtrack.data import QDTrackDataModule
 from vis4d.engine.trainer import BaseCLI
 from vis4d.model import QDTrack
+from vis4d.qdtrack.data import QDTrackDataModule
 
 if __name__ == "__main__":
     BaseCLI(
