@@ -52,6 +52,8 @@ class FRCNNReturn(NamedTuple):
     roi_reg_out: torch.Tensor
     proposal_boxes: List[torch.Tensor]
     proposal_scores: List[torch.Tensor]
+    proposal_targets: Optional[List[Boxes2D]]
+    proposal_labels: Optional[List[torch.Tensor]]
 
 
 class FasterRCNN(nn.Module):
@@ -59,6 +61,7 @@ class FasterRCNN(nn.Module):
 
     def __init__(
         self,
+        num_classes: int = 80,
         weights: Optional[str] = None,
     ):
         """Init."""
@@ -82,7 +85,7 @@ class FasterRCNN(nn.Module):
             batch_size_per_image=512, positive_fraction=0.25
         )
 
-        self.roi_head = Box2DRoIHead()
+        self.roi_head = Box2DRoIHead(num_classes=num_classes)
 
         if weights is not None:
             load_model_checkpoint(self, weights, REV_KEYS)
@@ -90,8 +93,8 @@ class FasterRCNN(nn.Module):
     def forward(
         self,
         images: torch.Tensor,
-        target_boxes: Optional[torch.Tensor] = None,
-        target_classes=None,
+        target_boxes: Optional[List[torch.Tensor]] = None,
+        target_classes: Optional[List[torch.Tensor]] = None,
     ) -> FRCNNReturn:
         """Forward pass during training stage.
 
@@ -117,10 +120,15 @@ class FasterRCNN(nn.Module):
                 self.bbox_matcher,
                 self.bbox_sampler,
                 proposals,
-                targets,
+                [Boxes2D(b, c) for b, c in zip(target_boxes, target_classes)],
                 proposal_append_gt=True,
             )
             proposals = sampling_result.sampled_boxes
+            sampled_targets = sampling_result.sampled_targets
+            sampled_labels = sampling_result.sampled_labels
+        else:
+            sampled_targets, sampled_labels = None, None
+
         roi_cls_out, roi_reg_out = self.roi_head(
             features[:-1], [p.boxes for p in proposals]
         )
@@ -132,6 +140,8 @@ class FasterRCNN(nn.Module):
             roi_cls_out=roi_cls_out,
             proposal_boxes=[p.boxes for p in proposals],
             proposal_scores=[p.score for p in proposals],
+            proposal_targets=sampled_targets,
+            proposal_labels=sampled_labels,
         )
 
 
@@ -139,10 +149,10 @@ class FasterRCNNLoss(nn.Module):
     def __init__(self, rpn_head, roi_head):
         super().__init__()
         from vis4d.model.heads.dense_head.rpn import MMDetDenseHeadLoss
-        from vis4d.model.heads.roi_head.rcnn import MMDetFRCNNRoIHeadLoss
+        from vis4d.model.heads.roi_head.rcnn import RCNNLoss
 
         self.rpn_head_loss = MMDetDenseHeadLoss(rpn_head)
-        self.roi_head_loss = MMDetFRCNNRoIHeadLoss(roi_head)
+        self.roi_head_loss = RCNNLoss(roi_head)
 
     def forward(self, frcnn_returns: FRCNNReturn, targets) -> LossesType:
         losses = self.rpn_head_loss(

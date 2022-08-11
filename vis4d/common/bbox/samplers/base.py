@@ -21,7 +21,9 @@ class SamplingResult(NamedTuple):
     sampled box.
     """
 
-    sampled_boxes: List[torch.Tensor]
+    sampled_boxes: List[
+        torch.Tensor
+    ]  # TODO implementation needs to be updated
     sampled_targets: List[torch.Tensor]
     sampled_labels: List[torch.Tensor]
     sampled_indices: List[torch.Tensor]

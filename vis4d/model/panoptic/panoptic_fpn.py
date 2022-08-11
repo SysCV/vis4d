@@ -14,7 +14,6 @@ from vis4d.struct import (
 )
 
 from ..detect import BaseTwoStageDetector
-from ..heads.dense_head import BaseSegmentationHead
 from ..heads.panoptic_head import BasePanopticHead
 from ..utils import postprocess_predictions, predictions_to_scalabel
 
@@ -26,7 +25,7 @@ class PanopticFPN(nn.Module):
         self,
         category_mapping: Dict[str, int],
         detection: BaseTwoStageDetector,
-        seg_head: BaseSegmentationHead,
+        seg_head,
         pan_head: BasePanopticHead,
         *args: ArgsType,
         **kwargs: ArgsType

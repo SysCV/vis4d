@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
+from torch import nn
 
 try:
     from mmcv.utils import ConfigDict
@@ -35,10 +36,8 @@ from vis4d.struct import (
     SemanticMasks,
 )
 
-from .base import BaseSegmentationHead
 
-
-class MMSegDecodeHead(BaseSegmentationHead):
+class MMSegDecodeHead(nn.Module):
     """mmsegmentation decode head wrapper."""
 
     def __init__(

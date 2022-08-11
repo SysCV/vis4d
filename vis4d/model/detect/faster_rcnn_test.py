@@ -1,10 +1,18 @@
 import unittest
-from typing import List, NamedTuple
+from typing import List, NamedTuple, Optional, Tuple
 
 import skimage
 import torch
+import torch.optim as optim
+from torch.utils.data import DataLoader, Dataset
 
-from vis4d.model.heads.roi_head.rcnn import TransformMMDetFRCNNRoIHeadOutputs
+from vis4d.common.datasets import bdd100k_track_map, bdd100k_track_sample
+from vis4d.data.utils import transform_bbox
+from vis4d.model.heads.dense_head.rpn import RPNLoss
+from vis4d.model.heads.roi_head.rcnn import (
+    RCNNLoss,
+    TransformMMDetFRCNNRoIHeadOutputs,
+)
 from vis4d.struct import Boxes2D
 from vis4d.vis.image import imshow_bboxes
 
@@ -20,15 +28,14 @@ def normalize(img: torch.Tensor) -> torch.Tensor:
     return img
 
 
-def url_to_tensor(url: str) -> torch.Tensor:
+def url_to_tensor(
+    url: str, size: Optional[Tuple[int, int]] = None
+) -> torch.Tensor:
     image = skimage.io.imread(url)
-    image_resized = skimage.transform.resize(image, (512, 512)) * 255
+    if size is not None:
+        image = skimage.transform.resize(image, size) * 255
     return normalize(
-        torch.tensor(image_resized)
-        .float()
-        .permute(2, 0, 1)
-        .unsqueeze(0)
-        .contiguous()
+        torch.tensor(image).float().permute(2, 0, 1).unsqueeze(0).contiguous()
     )
 
 
@@ -50,13 +57,37 @@ class Track2D(NamedTuple):
     track_ids: torch.Tensor
 
 
+class SampleDataset(Dataset):
+    def __init__(self):
+        self.scalabel_data = bdd100k_track_sample()
+
+    def __len__(self):
+        return len(self.scalabel_data.frames)
+
+    def __getitem__(self, item):
+        frame = self.scalabel_data.frames[item]
+        img = url_to_tensor(frame.url, size=(512, 512))
+        labels = Boxes2D.from_scalabel(frame.labels, bdd100k_track_map)
+        trans_mat = torch.eye(3)
+        trans_mat[0, 0] = 512 / 1280
+        trans_mat[1, 1] = 512 / 720
+        labels.boxes[:, :4] = transform_bbox(trans_mat, labels.boxes[:, :4])
+        return img, labels.boxes, labels.class_ids
+
+
+def identity_collate(batch):
+    return tuple(zip(*batch))
+
+
 class FasterRCNNTest(unittest.TestCase):
     def test_inference(self):
         image1 = url_to_tensor(
-            "https://farm1.staticflickr.com/106/311161252_33d75830fd_z.jpg"
+            "https://farm1.staticflickr.com/106/311161252_33d75830fd_z.jpg",
+            (512, 512),
         )
         image2 = url_to_tensor(
-            "https://farm4.staticflickr.com/3217/2980271186_9ec726e0fa_z.jpg"
+            "https://farm4.staticflickr.com/3217/2980271186_9ec726e0fa_z.jpg",
+            (512, 512),
         )
         sample_images = torch.cat([image1, image2])
         faster_rcnn = FasterRCNN(
@@ -79,6 +110,73 @@ class FasterRCNNTest(unittest.TestCase):
         imshow_bboxes(image1[0], Boxes2D(outs.proposal_boxes[0][topk]))
         imshow_bboxes(image1[0], dets[0])
         imshow_bboxes(image2[0], dets[1])
+
+    def test_train(self):
+        faster_rcnn = FasterRCNN(num_classes=8)
+        rpn_loss = RPNLoss(
+            faster_rcnn.rpn_head_transform.anchor_generator,
+            faster_rcnn.rpn_head_transform.bbox_coder,
+        )
+        transform_rcnn_outs = TransformMMDetFRCNNRoIHeadOutputs(
+            score_threshold=0.5
+        )
+        rcnn_loss = RCNNLoss(transform_rcnn_outs.bbox_coder, num_classes=8)
+        optimizer = optim.SGD(faster_rcnn.parameters(), lr=0.001, momentum=0.9)
+
+        train_data = SampleDataset()
+        train_loader = DataLoader(
+            train_data, batch_size=2, shuffle=True, collate_fn=identity_collate
+        )
+
+        running_losses = {}
+        faster_rcnn.train()
+        log_step = 1
+        for epoch in range(2):
+            for i, data in enumerate(train_loader):
+                inputs, gt_boxes, gt_class_ids = data
+                inputs = torch.cat(inputs)
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
+
+                # forward + backward + optimize
+                outputs = faster_rcnn(inputs, gt_boxes, gt_class_ids)
+                losses = {}
+                losses.update(
+                    rpn_loss(
+                        outputs.rpn_cls_out,
+                        outputs.rpn_reg_out,
+                        gt_boxes,
+                        gt_class_ids,
+                        inputs.shape,
+                    )
+                )
+                losses.update(
+                    rcnn_loss(
+                        outputs.roi_cls_out,
+                        outputs.roi_reg_out,
+                        outputs.proposal_boxes,
+                        outputs.proposal_labels,
+                        [p.boxes for p in outputs.proposal_targets],
+                        [p.class_ids for p in outputs.proposal_targets],
+                    )
+                )
+                losses["loss"] = sum(losses.values())
+                losses["loss"].backward()
+                optimizer.step()
+
+                # print statistics
+                for k, v in losses.items():
+                    if k in running_losses:
+                        running_losses[k] += v
+                    else:
+                        running_losses[k] = v
+                if i % log_step == (log_step - 1):
+                    log_str = f"[{epoch + 1}, {i + 1:5d}] "
+                    for k, v in running_losses.items():
+                        log_str += f"{k}: {v / log_step:.3f}, "
+                    print(log_str.rstrip(", "))
+                    running_losses = {}
 
     def test_torchscript(self):
         sample_images = torch.rand((2, 3, 512, 512))
