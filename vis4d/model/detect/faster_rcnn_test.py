@@ -4,7 +4,11 @@ from typing import List, NamedTuple, Optional, Tuple
 import skimage
 import torch
 import torch.optim as optim
+from torch import nn
 from torch.utils.data import DataLoader, Dataset
+
+# TODO how to handle category IDs?
+from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 
 from vis4d.common.datasets import bdd100k_track_map, bdd100k_track_sample
 from vis4d.data.utils import transform_bbox
@@ -57,6 +61,23 @@ class Track2D(NamedTuple):
     track_ids: torch.Tensor
 
 
+class TorchResNetBackbone(nn.Module):
+    """
+    @fyu Leave it here for now. We will move it to a separate file later.
+    """
+
+    def __init__(
+        self, name: str, pretrained: bool = True, trainable_layers: int = 3
+    ):
+        super().__init__()
+        self.backbone = resnet_fpn_backbone(
+            name, pretrained=pretrained, trainable_layers=trainable_layers
+        )
+
+    def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
+        return list(self.backbonebackbone(images).values())
+
+
 class SampleDataset(Dataset):
     def __init__(self):
         self.scalabel_data = bdd100k_track_sample()
@@ -79,6 +100,23 @@ def identity_collate(batch):
     return tuple(zip(*batch))
 
 
+class TorchResNetBackbone(nn.Module):
+    """
+    @fyu Leave it here for now. We will move it to a separate file later.
+    """
+
+    def __init__(
+        self, name: str, pretrained: bool = True, trainable_layers: int = 3
+    ):
+        super().__init__()
+        self.backbone = resnet_fpn_backbone(
+            name, pretrained=pretrained, trainable_layers=trainable_layers
+        )
+
+    def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
+        return list(self.backbone(images).values())
+
+
 class FasterRCNNTest(unittest.TestCase):
     def test_inference(self):
         image1 = url_to_tensor(
@@ -90,8 +128,12 @@ class FasterRCNNTest(unittest.TestCase):
             (512, 512),
         )
         sample_images = torch.cat([image1, image2])
+
         faster_rcnn = FasterRCNN(
-            weights="mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_20200504_210434-a5d8aa15.pth"
+            backbone=TorchResNetBackbone(
+                "resnet50", pretrained=True, trainable_layers=3
+            ),
+            weights="mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_20200504_210434-a5d8aa15.pth",
         )
         faster_rcnn.eval()
         with torch.no_grad():
@@ -112,7 +154,13 @@ class FasterRCNNTest(unittest.TestCase):
         imshow_bboxes(image2[0], dets[1])
 
     def test_train(self):
-        faster_rcnn = FasterRCNN(num_classes=8)
+        # TODO should bn be frozen during training?
+        faster_rcnn = FasterRCNN(
+            backbone=TorchResNetBackbone(
+                "resnet50", pretrained=True, trainable_layers=3
+            ),
+            num_classes=8,
+        )
         rpn_loss = RPNLoss(
             faster_rcnn.rpn_head_transform.anchor_generator,
             faster_rcnn.rpn_head_transform.bbox_coder,

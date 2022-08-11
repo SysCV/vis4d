@@ -21,6 +21,7 @@ from vis4d.struct import (
     ModelOutput,
     NamedTensors,
 )
+from vis4d.struct.labels.boxes import tensor_to_boxes2d
 
 from ..backbone import BaseBackbone, MMDetBackbone
 from ..backbone.neck import MMDetNeck
@@ -37,9 +38,9 @@ from ..utils import (
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
     (r"^roi_head.bbox_head\.", "roi_head."),
-    (r"^backbone\.", "backbone.body."),
-    (r"^neck.lateral_convs\.", "backbone.fpn.inner_blocks."),
-    (r"^neck.fpn_convs\.", "backbone.fpn.layer_blocks."),
+    (r"^backbone\.", "backbone.backbone.body."),
+    (r"^neck.lateral_convs\.", "backbone.backbone.fpn.inner_blocks."),
+    (r"^neck.fpn_convs\.", "backbone.backbone.fpn.layer_blocks."),
     ("\.conv.weight", ".weight"),
     ("\.conv.bias", ".bias"),
 ]
@@ -61,19 +62,13 @@ class FasterRCNN(nn.Module):
 
     def __init__(
         self,
+        backbone: nn.Module,
         num_classes: int = 80,
         weights: Optional[str] = None,
     ):
         """Init."""
         super().__init__()
-        # TODO how to handle category IDs?
-        from torchvision.models.detection.backbone_utils import (
-            resnet_fpn_backbone,
-        )
-
-        self.backbone = resnet_fpn_backbone(
-            "resnet50", pretrained=True, trainable_layers=3
-        )
+        self.backbone = backbone
 
         self.rpn_head = RPNHead()
         self.rpn_head_transform = TransformRPNOutputs()
@@ -108,7 +103,7 @@ class FasterRCNN(nn.Module):
         if target_boxes is not None:
             assert target_classes is not None
 
-        features = list(self.backbone(images).values())
+        features = self.backbone(images)
 
         rpn_cls_out, rpn_reg_out = self.rpn_head(features)
         proposals = self.rpn_head_transform(
