@@ -21,6 +21,7 @@ from vis4d.struct import (
     ModelOutput,
     NamedTensors,
 )
+from vis4d.struct.labels.boxes import tensor_to_boxes2d
 
 from ..backbone import BaseBackbone, MMDetBackbone
 from ..backbone.neck import MMDetNeck
@@ -59,18 +60,12 @@ class FasterRCNN(nn.Module):
 
     def __init__(
         self,
+        backbone: nn.Module,
         weights: Optional[str] = None,
     ):
         """Init."""
         super().__init__()
-        # TODO how to handle category IDs?
-        from torchvision.models.detection.backbone_utils import (
-            resnet_fpn_backbone,
-        )
-
-        self.backbone = resnet_fpn_backbone(
-            "resnet50", pretrained=True, trainable_layers=3
-        )
+        self.backbone = backbone
 
         self.rpn_head = RPNHead()
         self.rpn_head_transform = TransformRPNOutputs()
@@ -105,7 +100,7 @@ class FasterRCNN(nn.Module):
         if target_boxes is not None:
             assert target_classes is not None
 
-        features = list(self.backbone(images).values())
+        features = self.backbone(images)
 
         rpn_cls_out, rpn_reg_out = self.rpn_head(features)
         proposals = self.rpn_head_transform(
@@ -117,7 +112,7 @@ class FasterRCNN(nn.Module):
                 self.bbox_matcher,
                 self.bbox_sampler,
                 proposals,
-                targets,
+                tensor_to_boxes2d(target_boxes),
                 proposal_append_gt=True,
             )
             proposals = sampling_result.sampled_boxes

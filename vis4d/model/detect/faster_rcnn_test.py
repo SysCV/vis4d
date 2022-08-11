@@ -3,12 +3,18 @@ from typing import List, NamedTuple
 
 import skimage
 import torch
+from torch import nn
 
 from vis4d.model.heads.roi_head.rcnn import TransformMMDetFRCNNRoIHeadOutputs
 from vis4d.struct import Boxes2D
 from vis4d.vis.image import imshow_bboxes
 
 from .faster_rcnn import FasterRCNN
+
+# TODO how to handle category IDs?
+from torchvision.models.detection.backbone_utils import (
+    resnet_fpn_backbone,
+)
 
 
 def normalize(img: torch.Tensor) -> torch.Tensor:
@@ -50,6 +56,23 @@ class Track2D(NamedTuple):
     track_ids: torch.Tensor
 
 
+class TorchResNetBackbone(nn.Module):
+    """
+    @fyu Leave it here for now. We will move it to a separate file later.
+    """
+
+    def __init__(
+        self, name: str, pretrained: bool = True, trainable_layers: int = 3
+    ):
+        super().__init__()
+        self.backbone = resnet_fpn_backbone(
+            name, pretrained=pretrained, trainable_layers=trainable_layers
+        )
+
+    def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
+        return list(self.backbonebackbone(images).values())
+
+
 class FasterRCNNTest(unittest.TestCase):
     def test_inference(self):
         image1 = url_to_tensor(
@@ -59,8 +82,12 @@ class FasterRCNNTest(unittest.TestCase):
             "https://farm4.staticflickr.com/3217/2980271186_9ec726e0fa_z.jpg"
         )
         sample_images = torch.cat([image1, image2])
+
         faster_rcnn = FasterRCNN(
-            weights="mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_20200504_210434-a5d8aa15.pth"
+            backbone=TorchResNetBackbone(
+                "resnet50", pretrained=True, trainable_layers=3
+            ),
+            weights="mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_20200504_210434-a5d8aa15.pth",
         )
         faster_rcnn.eval()
         with torch.no_grad():
