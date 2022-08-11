@@ -1,5 +1,5 @@
 """mmdetection backbone wrapper."""
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import torch
 
@@ -28,9 +28,9 @@ except (ImportError, NameError):  # pragma: no cover
 from vis4d.struct import (
     ArgsType,
     DictStrAny,
-    NamedTensors,
     Images,
     InputSample,
+    NamedTensors,
 )
 
 from ..utils import load_config, load_model_checkpoint
@@ -70,7 +70,7 @@ class MMDetBackbone(BaseBackbone):
         """Build MM backbone with config."""
         return build_mmdet_backbone(cfg)
 
-    def forward(self, inputs: torch.Tensor) -> NamedTensors:
+    def forward(self, inputs: torch.Tensor) -> List[torch.Tensor]:
         """Backbone forward.
 
         Args:

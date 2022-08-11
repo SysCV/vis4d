@@ -5,7 +5,9 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 from torch import nn
 
-from vis4d.struct import Boxes2D, NamedTensors, LossesType
+from vis4d.struct import Boxes2D, LossesType, NamedTensors
+
+# TODO Tobias: remove
 
 
 class BaseDenseBox2DHead(nn.Module, abc.ABC):
@@ -21,53 +23,49 @@ class BaseDenseBox2DHead(nn.Module, abc.ABC):
     @abc.abstractmethod
     def forward(
         self,
-        features: NamedTensors,
-    ) -> Tuple[NamedTensors, NamedTensors]:
+        features: List[torch.Tensor],
+    ) -> Tuple[List[torch.Tensor], List[torch.Tensor],]:
         """Base Box2D head forward.
 
         Args:
-            features (Dict[Tensor]): Input feature maps.
+            features (List[Tensor]): Input feature maps (N, C, H/s, W/s) at
+                different strides.
 
         Returns:
-            Tuple[NamedTensors, NamedTensors]: Class scores and box
-                regression parameters per image.
+            boxes (after postprocessing), scores, class_ids,
+            classication_outputs, regression_outputs  # TODO revisit
+
         """
-        pass
+        raise NotImplementedError
 
-    @abc.abstractmethod
-    def postprocess(
-        self, class_outs: NamedTensors, regression_outs: NamedTensors
-    ) -> List[Boxes2D]:
-        """Box2D head postprocessing.
 
-        Args:
-            class_outs (Dict[Tensor]): Class scores TODO finish
-            class_outs (Dict[Tensor]): Regression parameters per
+# TODO make abstract
 
-        Returns:
-            List[Boxes2D]: Output boxes after postprocessing.
-        """
-        pass
 
-    @abc.abstractmethod
+class BaseDenseBox2DHeadLoss(nn.Module):
+    """mmdet dense head loss wrapper."""
+
     def loss(
         self,
         class_outs: NamedTensors,
         regression_outs: NamedTensors,
-        targets: List[Boxes2D],
+        target_boxes: List[torch.Tensor],
+        target_classes: List[torch.Tensor],
         images_shape: Tuple[int, int, int, int],
     ) -> LossesType:
-        """Loss computation.
+        raise NotImplementedError
 
-        Args:
-            outputs: Network outputs.
-            targets (List[Boxes2D]): Target 2D boxes.
-            metadata (Dict): Dictionary of metadata needed for loss, e.g.
-                image size, feature map strides, etc.
-        Returns:
-            LossesType: Dictionary of scalar loss tensors.
-        """
-        pass
+
+class TransformDenseHeadOutputs(nn.Module):
+    """Convert classification output, regression output into Boxes of form x1y1x2y2 score, [class id]."""
+
+    def forward(
+        self,
+        class_outs: List[torch.Tensor],
+        regression_outs: List[torch.Tensor],
+        images_shape: Tuple[int, int, int, int],
+    ) -> List[Boxes2D]:
+        raise NotImplementedError
 
 
 class BaseSegmentationHead(nn.Module):

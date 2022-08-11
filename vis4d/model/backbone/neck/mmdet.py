@@ -1,6 +1,8 @@
 """mmdetection neck wrapper."""
 from typing import List, Optional, Union
 
+import torch
+
 try:
     from mmcv.runner import BaseModule
     from mmcv.utils import ConfigDict
@@ -48,10 +50,8 @@ class MMDetNeck(BaseNeck):
 
     def forward(
         self,
-        inputs: NamedTensors,
-    ) -> NamedTensors:
+        inputs: List[torch.Tensor],
+    ) -> List[torch.Tensor]:
         """Neck forward."""
-        outs = self.mm_neck(list(inputs.values()))
-        if self.output_names is None:  # pragma: no cover
-            return {f"out{i}": v for i, v in enumerate(outs)}
-        return dict(zip(self.output_names, outs))
+        outs = self.mm_neck(inputs)
+        return outs

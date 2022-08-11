@@ -17,8 +17,8 @@ from vis4d.model.backbone import MMDetBackbone
 from vis4d.model.backbone.neck import MMDetNeck
 from vis4d.model.detect import (
     D2TwoStageDetector,
+    FasterRCNN,
     MMOneStageDetector,
-    MMTwoStageDetector,
 )
 from vis4d.model.heads.dense_head import (
     MMDetDenseHead,
@@ -231,7 +231,7 @@ class TestDetectMMFasterRCNN(BaseModelTests.TestDetect):
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
-        cls.model = MMTwoStageDetector(
+        cls.model = FasterRCNN(
             "extra_args_test",
             model_base="vis4d/model/testcases/mmdet_cfg_frcnn_r18fpn.py",
             pixel_mean=PIXEL_MEAN,
@@ -251,7 +251,7 @@ class TestDetectMMMaskRCNN(BaseModelTests.TestDetect):
     @classmethod
     def setUpClass(cls) -> None:
         """Set up class."""
-        cls.model = MMTwoStageDetector(
+        cls.model = FasterRCNN(
             model_base="mmdet://_base_/models/mask_rcnn_r50_fpn.py",
             pixel_mean=PIXEL_MEAN,
             pixel_std=PIXEL_STD,
@@ -297,7 +297,7 @@ class TestQDTrackMaskRCNN(BaseModelTests.TestTrack):
     def setUpClass(cls) -> None:
         """Set up class."""
         cls.model = QDTrack(
-            detection=MMTwoStageDetector(
+            detection=FasterRCNN(
                 model_base="vis4d/model/testcases/mmdet_cfg_maskrcnn_r18fpn.py",  # pylint: disable=line-too-long
                 pixel_mean=PIXEL_MEAN,
                 pixel_std=PIXEL_STD,
@@ -317,7 +317,7 @@ class TestQDTrackInferenceResults(BaseModelTests.TestTrackInference):
         """Set up class."""
         os.makedirs("./unittests/", exist_ok=True)
         cls.model = QDTrack(
-            detection=MMTwoStageDetector(
+            detection=FasterRCNN(
                 model_base="vis4d/model/testcases/mmdet_cfg_frcnn_r18fpn.py",
                 pixel_mean=PIXEL_MEAN,
                 pixel_std=PIXEL_STD,
@@ -372,7 +372,7 @@ class TestQD3DT(BaseModelTests.TestTrack3D):
     def setUpClass(cls) -> None:
         """Set up class."""
         cls.model = QD3DT(
-            detection=MMTwoStageDetector(
+            detection=FasterRCNN(
                 model_base="vis4d/model/testcases/mmdet_cfg_frcnn_r18fpn.py",
                 pixel_mean=PIXEL_MEAN,
                 pixel_std=PIXEL_STD,
@@ -472,7 +472,7 @@ class TestPanopticFPN(BaseModelTests.TestPanoptic):
     def setUpClass(cls) -> None:
         """Set up class."""
         cls.model = PanopticFPN(
-            detection=MMTwoStageDetector(
+            detection=FasterRCNN(
                 model_base="vis4d/model/testcases/mmdet_cfg_maskrcnn_r18fpn.py",  # pylint: disable=line-too-long
                 pixel_mean=PIXEL_MEAN,
                 pixel_std=PIXEL_STD,
@@ -522,7 +522,7 @@ class TestModelConstruction(unittest.TestCase):
 
     def test_two_stage_detector(self) -> None:
         """Two stage detector test case."""
-        model = MMTwoStageDetector(
+        model = FasterRCNN(
             backbone=MMDetBackbone(
                 mm_cfg=dict(
                     type="ResNet",
@@ -636,7 +636,7 @@ class TestModelConstruction(unittest.TestCase):
             ),
             category_mapping=TEST_MAPPING,
         )
-        self.assertTrue(isinstance(model, MMTwoStageDetector))
+        self.assertTrue(isinstance(model, FasterRCNN))
         inputs = [generate_input_sample(32, 32, 2, 3, use_score=False)]
         outs = model(inputs)
         self.assertTrue(isinstance(outs, dict))

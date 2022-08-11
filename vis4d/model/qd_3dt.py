@@ -15,7 +15,6 @@ from vis4d.struct import (
 )
 
 from .detect import BaseTwoStageDetector
-from .heads.roi_head import BaseRoIHead
 from .qdtrack import QDTrack
 from .track.utils import split_key_ref_inputs
 
@@ -24,7 +23,7 @@ class QD3DT(QDTrack):
     """QD-3DT model class."""
 
     def __init__(
-        self, bbox_3d_head: BaseRoIHead, *args: ArgsType, **kwargs: ArgsType
+        self, bbox_3d_head, *args: ArgsType, **kwargs: ArgsType
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)

@@ -28,10 +28,10 @@ from vis4d.model.utils import (
 )
 from vis4d.struct import (
     DictStrAny,
-    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
+    NamedTensors,
     SemanticMasks,
 )
 

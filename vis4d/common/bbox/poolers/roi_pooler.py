@@ -71,7 +71,7 @@ class MultiScaleRoIPooler(BaseRoIPooler):
         assert self.canonical_box_size > 0
 
     def forward(
-        self, features: List[torch.Tensor], boxes: List[Boxes2D]
+        self, features: List[torch.Tensor], boxes: List[torch.Tensor]
     ) -> torch.Tensor:
         """Torchvision based roi pooling operation.
 

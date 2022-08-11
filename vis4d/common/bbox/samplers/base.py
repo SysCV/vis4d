@@ -21,8 +21,8 @@ class SamplingResult(NamedTuple):
     sampled box.
     """
 
-    sampled_boxes: List[Boxes2D]
-    sampled_targets: List[Boxes2D]
+    sampled_boxes: List[torch.Tensor]
+    sampled_targets: List[torch.Tensor]
     sampled_labels: List[torch.Tensor]
     sampled_indices: List[torch.Tensor]
     sampled_target_indices: List[torch.Tensor]

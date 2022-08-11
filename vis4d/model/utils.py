@@ -70,7 +70,7 @@ def get_img_metas(
 ) -> List[MMDetMetaData]:
     """Create image metadata in mmdetection format."""
     img_metas = []
-    n, c, h, w = images.shape  # type: Tuple[int, int, int, int]
+    n, c, h, w = images_shape  # type: Tuple[int, int, int, int]
     for _ in range(n):
         meta: MMDetMetaData = {}
         meta["img_shape"] = meta["ori_shape"] = meta["pad_shape"] = (h, w, c)
@@ -206,7 +206,7 @@ def load_model_checkpoint(
     if re.compile(r"^mm(det|seg)://").search(weights):
         pre = weights[:8]
         weights = MM_MODEL_MAP[pre] + weights.split(pre)[-1]
-        load_checkpoint(model, weights, revise_keys=rev_keys)
+        load_checkpoint(model, weights, revise_keys=rev_keys, strict=True)
     elif weights.startswith("bdd100k://"):
         weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
         load_checkpoint(model, weights, revise_keys=rev_keys)

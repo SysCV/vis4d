@@ -5,7 +5,7 @@ import torch
 from torch import nn
 from torch.utils import model_zoo
 
-from vis4d.struct import ArgsType, NamedTensors, InputSample
+from vis4d.struct import ArgsType, InputSample, NamedTensors
 
 from .base import BaseBackbone
 

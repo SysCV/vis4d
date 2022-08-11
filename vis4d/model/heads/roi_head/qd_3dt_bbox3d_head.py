@@ -19,17 +19,15 @@ from vis4d.model.losses import Box3DUncertaintyLoss
 from vis4d.struct import (
     Boxes2D,
     Boxes3D,
-    NamedTensors,
     InputSample,
     Intrinsics,
     LabelInstances,
     LossesType,
+    NamedTensors,
 )
 
-from .base import BaseRoIHead
 
-
-class QD3DTBBox3DHead(BaseRoIHead):
+class QD3DTBBox3DHead(nn.Module):
     """QD-3DT 3D Bounding Box Head."""
 
     def __init__(

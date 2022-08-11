@@ -4,10 +4,11 @@ from typing import List
 import torch
 
 from vis4d.struct import Boxes2D
+from vis4d.struct.labels.boxes import bbox_area
 
 
 def assign_boxes_to_levels(
-    box_lists: List[Boxes2D],
+    box_lists: List[torch.Tensor],
     min_level: int,
     max_level: int,
     canonical_box_size: int,
@@ -29,7 +30,9 @@ def assign_boxes_to_levels(
         element is the feature map index, as an offset from min_level, for the
         corresponding box (so value i means the box is at self.min_level + i).
     """
-    box_sizes = torch.sqrt(torch.cat([boxes.area for boxes in box_lists]))
+    box_sizes = torch.sqrt(
+        torch.cat([bbox_area(boxes) for boxes in box_lists])
+    )
     # Eqn.(1) in FPN paper
     level_assignments = torch.floor(
         canonical_level + torch.log2(box_sizes / canonical_box_size + 1e-8)
@@ -42,7 +45,7 @@ def assign_boxes_to_levels(
     return level_assignments.to(torch.int64) - min_level
 
 
-def boxes_to_tensor(boxes: List[Boxes2D]) -> torch.Tensor:
+def boxes_to_tensor(boxes: List[torch.Tensor]) -> torch.Tensor:
     """Convert all boxes into the tensor format used by ROI pooling ops.
 
     Args:
@@ -64,7 +67,7 @@ def boxes_to_tensor(boxes: List[Boxes2D]) -> torch.Tensor:
         return torch.cat((repeated_index, box_tensor), dim=1)
 
     pooler_fmt_boxes = torch.cat(
-        [_fmt_box_list(boxs.boxes[:, :4], i) for i, boxs in enumerate(boxes)],
+        [_fmt_box_list(boxs[:, :4], i) for i, boxs in enumerate(boxes)],
         dim=0,
     )
     return pooler_fmt_boxes

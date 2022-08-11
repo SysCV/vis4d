@@ -6,10 +6,10 @@ from typing import Dict, List, Optional, Tuple, Union, overload
 from torch import nn
 
 from vis4d.struct import (
-    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
+    NamedTensors,
     SemanticMasks,
 )
 

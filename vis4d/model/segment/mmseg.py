@@ -6,11 +6,11 @@ import torch
 from vis4d.struct import (
     ArgsType,
     DictStrAny,
-    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
     ModelOutput,
+    NamedTensors,
     SemanticMasks,
 )
 

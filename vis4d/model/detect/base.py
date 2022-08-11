@@ -8,11 +8,11 @@ from torch import nn
 from vis4d.common.bbox.samplers import SamplingResult
 from vis4d.struct import (
     Boxes2D,
-    NamedTensors,
     InputSample,
     InstanceMasks,
     LabelInstances,
     LossesType,
+    NamedTensors,
 )
 
 

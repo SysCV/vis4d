@@ -17,10 +17,10 @@ from vis4d.common.layers import add_conv_branch
 from vis4d.model.losses import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
 from vis4d.struct import (
     Boxes2D,
-    NamedTensors,
     InputSample,
     LabelInstances,
     LossesType,
+    NamedTensors,
 )
 
 from ..utils import cosine_similarity

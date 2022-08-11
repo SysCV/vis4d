@@ -74,16 +74,6 @@ bdd100k_track_map = {
     "motorcycle": 6,
     "bicycle": 7,
 }
-bdd100k_track_map = {
-    "pedestrian": 0,
-    "rider": 1,
-    "car": 2,
-    "truck": 3,
-    "bus": 4,
-    "train": 5,
-    "motorcycle": 6,
-    "bicycle": 7,
-}
 bdd100k_seg_map = {
     "road": 0,
     "sidewalk": 1,

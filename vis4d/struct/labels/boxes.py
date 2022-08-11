@@ -161,7 +161,6 @@ class Boxes(LabelInstance):
         raise NotImplementedError
 
 
-
 class Boxes2D(Boxes):
     """Container class for 2D boxes.
 
@@ -301,8 +300,12 @@ class Boxes2D(Boxes):
             self.clip(original_wh)
 
 
-def tensor_to_boxes2d(boxes: torch.Tensor, scores: Optional[torch.Tensor] = None,
-                      class_ids: Optional[torch.Tensor] = None, track_ids: Optional[torch.Tensor] = None) -> Boxes2D:
+def tensor_to_boxes2d(
+    boxes: torch.Tensor,
+    scores: Optional[torch.Tensor] = None,
+    class_ids: Optional[torch.Tensor] = None,
+    track_ids: Optional[torch.Tensor] = None,
+) -> Boxes2D:
     """Convert Tensors to Boxes2D."""
     if scores is not None:
         boxes_ = torch.cat([boxes, scores], -1)
@@ -311,10 +314,89 @@ def tensor_to_boxes2d(boxes: torch.Tensor, scores: Optional[torch.Tensor] = None
     return Boxes2D(boxes_, class_ids, track_ids)
 
 
-def boxes2d_to_tensor(boxes2d: Boxes2D) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
+def boxes2d_to_tensor(
+    boxes2d: Boxes2D,
+) -> Tuple[
+    torch.Tensor,
+    Optional[torch.Tensor],
+    Optional[torch.Tensor],
+    Optional[torch.Tensor],
+]:
     """Convert Tensors to Boxes2D."""
     scores = boxes2d.score
     return boxes2d.boxes[:, :4], scores, boxes2d.class_ids, boxes2d.track_ids
+
+
+def tensor_list_to_boxes2d_list(
+    boxes: List[torch.Tensor],
+    scores: Optional[List[torch.Tensor]] = None,
+    class_ids: Optional[List[torch.Tensor]] = None,
+    track_ids: Optional[List[torch.Tensor]] = None,
+) -> List[Boxes2D]:
+    boxes2d_list = []
+    for i in range(len(boxes)):
+        score = scores[i] if scores is not None else None
+        cls_ids = class_ids[i] if class_ids is not None else None
+        tr_ids = track_ids[i] if track_ids is not None else None
+        boxes2d_list.append(
+            tensor_to_boxes2d(boxes[i], score, cls_ids, tr_ids)
+        )
+    return boxes2d_list
+
+
+def boxes2d_list_to_tensor_list(
+    boxes2d: List[Boxes2D],
+) -> Tuple[
+    List[torch.Tensor],
+    Optional[List[torch.Tensor]],
+    Optional[List[torch.Tensor]],
+    Optional[List[torch.Tensor]],
+]:
+    boxes_list, scores_list, cls_list, tr_list = [], [], [], []
+    for boxs2d in boxes2d:
+        boxes, scores, cls_ids, tr_ids = boxes2d_to_tensor(boxs2d)
+        boxes_list.append(boxes)
+        if scores is not None:
+            scores_list.append(scores)
+        if cls_ids is not None:
+            cls_list.append(cls_ids)
+        if tr_ids is not None:
+            tr_list.append(tr_ids)
+
+        assert len(scores_list) == 0 or len(scores_list) == len(boxes_list)
+        assert len(cls_list) == 0 or len(cls_list) == len(boxes_list)
+        assert len(tr_list) == 0 or len(tr_list) == len(boxes_list)
+        if len(scores_list) == 0:
+            scores_list = None
+        if len(cls_list) == 0:
+            cls_list = None
+        if len(tr_list) == 0:
+            tr_list = None
+        return boxes_list, scores_list, cls_list, tr_list
+
+
+def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
+    return (boxes[:, 2] - boxes[:, 0]).clamp(0) * (
+        boxes[:, 3] - boxes[:, 1]
+    ).clamp(0)
+
+
+def filter_boxes(
+    boxes: torch.Tensor, min_area: float = 0.0
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Filter a set of 2D bounding boxes given a minimum area.
+    Args:
+
+    Returns:
+        Tuple[Tensor, Tensor]: filtered boxes, boolean mask
+    """
+    if min_area > 0.0:
+        w = boxes[:, 2] - boxes[:, 0]
+        h = boxes[:, 3] - boxes[:, 1]
+        valid_mask = w * h >= min_area
+        if not valid_mask.all():
+            return boxes[valid_mask], valid_mask
+    return boxes, boxes.new_ones((len(boxes),), dtype=torch.bool)
 
 
 class Boxes3D(Boxes):

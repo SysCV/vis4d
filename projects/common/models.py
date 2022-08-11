@@ -1,7 +1,7 @@
 """Common models."""
 from typing import Optional
 
-from vis4d.model.detect.mmdet import MMOneStageDetector, MMTwoStageDetector
+from vis4d.model.detect.faster_rcnn import FasterRCNN, MMOneStageDetector
 from vis4d.model.segment import MMEncDecSegmentor
 from vis4d.struct import ArgsType, CategoryMap, DictStrAny
 
@@ -11,7 +11,7 @@ def build_faster_rcnn(
     backbone: str = "r50_fpn",
     model_kwargs: Optional[DictStrAny] = None,
     **kwargs: ArgsType,
-) -> MMTwoStageDetector:
+) -> FasterRCNN:
     """Build a default Faster-RCNN detector."""
     if model_kwargs is None:
         model_kwargs = {
@@ -27,7 +27,7 @@ def build_faster_rcnn(
         mean = (123.675, 116.28, 103.53)
         std = (58.395, 57.12, 57.375)
         mode = "RGB"
-    faster_rcnn = MMTwoStageDetector(
+    faster_rcnn = FasterRCNN(
         image_channel_mode=mode,
         category_mapping=category_mapping,
         model_base=f"mmdet://faster_rcnn/faster_rcnn_{backbone}_1x_coco.py",
@@ -42,9 +42,9 @@ def build_faster_rcnn(
 
 def build_mask_rcnn(
     category_mapping: CategoryMap, backbone: str = "r50_fpn"
-) -> MMTwoStageDetector:
+) -> FasterRCNN:
     """Build a default Mask-RCNN network."""
-    faster_rcnn = MMTwoStageDetector(
+    faster_rcnn = FasterRCNN(
         category_mapping=category_mapping,
         model_base=f"mmdet://mask_rcnn/mask_rcnn_{backbone}_1x_coco.py",
         pixel_mean=(123.675, 116.28, 103.53),

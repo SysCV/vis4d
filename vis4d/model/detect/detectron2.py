@@ -30,12 +30,12 @@ from vis4d.struct import (
     ArgsType,
     Boxes2D,
     DictStrAny,
-    NamedTensors,
     InputSample,
     InstanceMasks,
     LabelInstances,
     LossesType,
     ModelOutput,
+    NamedTensors,
     TLabelInstance,
 )
 
