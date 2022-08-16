@@ -4,11 +4,10 @@ from typing import Dict, List, Tuple, Union
 
 import torch
 
-from vis4d.struct import Boxes2D
+from vis4d.struct import ArgsType
 
 from ..matchers.base import MatchResult
 from .base import BaseSampler, SamplingResult
-from .utils import add_to_result
 
 
 class RandomSampler(BaseSampler):
@@ -16,30 +15,36 @@ class RandomSampler(BaseSampler):
 
     def __init__(
         self,
-        batch_size_per_image: int,
-        positive_fraction: float,
+        *args: ArgsType,
         bg_label: int = 0,
+        **kwargs: ArgsType,
     ):
         """Init."""
-        super().__init__(batch_size_per_image, positive_fraction)
+        super().__init__(*args, **kwargs)
         self.bg_label = bg_label
 
     def forward(
         self,
-        matching: List[MatchResult],
-        boxes: List[Boxes2D],
-        targets: List[Boxes2D],
+        matching: MatchResult,
+        boxes: torch.Tensor,
+        target_boxes: torch.Tensor,
+        target_classes: torch.Tensor,
     ) -> SamplingResult:
         """Sample boxes randomly."""
-        result: Dict[
-            str, Union[List[Boxes2D], List[torch.Tensor]]
-        ] = defaultdict(list)
-        for match, box, target in zip(matching, boxes, targets):
-            pos_idx, neg_idx = self._sample_labels(match.assigned_labels)
-            sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
-            add_to_result(result, sampled_idcs, box, target, match)
-
-        return SamplingResult(**result)
+        pos_idx, neg_idx = self._sample_labels(matching.assigned_labels)
+        sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
+        return SamplingResult(
+            sampled_boxes=boxes[sampled_idcs],
+            sampled_target_boxes=target_boxes[
+                matching.assigned_gt_indices.long()[sampled_idcs]
+            ],  # TODO why .long(), should already be long
+            sampled_target_classes=target_classes[
+                matching.assigned_gt_indices.long()[sampled_idcs]
+            ],
+            sampled_labels=matching.assigned_labels[sampled_idcs],
+            sampled_indices=sampled_idcs,
+            sampled_target_indices=matching.assigned_gt_indices[sampled_idcs],
+        )
 
     def _sample_labels(
         self, labels: torch.Tensor
@@ -48,10 +53,10 @@ class RandomSampler(BaseSampler):
         positive = ((labels != -1) & (labels != self.bg_label)).nonzero()[:, 0]
         negative = (labels == self.bg_label).nonzero()[:, 0]
 
-        num_pos = int(self.batch_size_per_image * self.positive_fraction)
+        num_pos = int(self.batch_size * self.positive_fraction)
         # protect against not enough positive examples
         num_pos = min(positive.numel(), num_pos)
-        num_neg = self.batch_size_per_image - num_pos
+        num_neg = self.batch_size - num_pos
         # protect against not enough negative examples
         num_neg = min(negative.numel(), num_neg)
 

@@ -3,8 +3,8 @@ from typing import List
 
 import torch
 
+from vis4d.common.bbox.utils import bbox_area
 from vis4d.struct import Boxes2D
-from vis4d.struct.labels.boxes import bbox_area
 
 
 def assign_boxes_to_levels(

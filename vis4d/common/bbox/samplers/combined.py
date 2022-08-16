@@ -12,7 +12,7 @@ from .base import BaseSampler, SamplingResult
 from .utils import add_to_result
 
 
-class CombinedSampler(BaseSampler):
+class CombinedSampler(BaseSampler):  # TODO align with baseSampler
     """Combined sampler. Can have different strategies for pos/neg samples."""
 
     def __init__(

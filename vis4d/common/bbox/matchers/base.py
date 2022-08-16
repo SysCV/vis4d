@@ -26,7 +26,7 @@ class BaseMatcher(nn.Module):
 
     @abc.abstractmethod
     def forward(
-        self, boxes: List[Boxes2D], targets: List[Boxes2D]
-    ) -> List[MatchResult]:
+        self, boxes: torch.Tensor, targets: torch.Tensor
+    ) -> MatchResult:
         """Match bounding boxes according to their struct."""
         raise NotImplementedError

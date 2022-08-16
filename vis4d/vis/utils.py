@@ -1,14 +1,14 @@
 """Utilities for visualization."""
 import colorsys
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 from PIL import Image
 from scipy.spatial.transform import Rotation as R
+from torch import Tensor
 
 from vis4d.struct import (
-    Boxes2D,
     Boxes3D,
     InstanceMasks,
     Intrinsics,
@@ -19,7 +19,6 @@ from vis4d.struct import (
 
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
-BoxType = Union[Boxes2D, List[Boxes2D]]
 Box3DType = Union[Boxes3D, List[Boxes3D]]
 InsMaskType = Union[InstanceMasks, List[InstanceMasks]]
 SemMaskType = Union[SemanticMasks, List[SemanticMasks]]
@@ -49,7 +48,11 @@ COLOR_PALETTE = generate_colors(NUM_COLORS)
 
 
 def preprocess_boxes(
-    boxes: Union[BoxType, Box3DType], color_idx: int = 0
+    boxes: Tensor,
+    scores: Optional[Tensor] = None,
+    class_ids: Optional[Tensor] = None,
+    track_ids: Optional[Tensor] = None,
+    color_idx: int = 0,
 ) -> Tuple[List[List[float]], List[Tuple[int]], List[str]]:
     """Preprocess BoxType to boxes / colors / labels for drawing."""
     if isinstance(boxes, list):
@@ -61,24 +64,22 @@ def preprocess_boxes(
             result_labels.extend(labels)
         return result_box, result_color, result_labels
 
-    assert isinstance(boxes, (Boxes2D, Boxes3D))
+    boxes_list = boxes.cpu().numpy().tolist()
 
-    if boxes.score is not None:
-        boxes_list = boxes.boxes[:, :-1].cpu().numpy().tolist()
-        scores = boxes.score.cpu().numpy().tolist()
+    if scores is not None:
+        scores = scores.cpu().numpy().tolist()
     else:
-        boxes_list = boxes.boxes.cpu().numpy().tolist()
         scores = [None for _ in range(len(boxes_list))]
 
-    if boxes.track_ids is not None:
-        track_ids = boxes.track_ids.cpu().numpy()
+    if track_ids is not None:
+        track_ids = track_ids.cpu().numpy()
         if len(track_ids.shape) > 1:
             track_ids = track_ids.squeeze(-1)
     else:
         track_ids = [None for _ in range(len(boxes_list))]
 
-    if boxes.class_ids is not None:
-        class_ids = boxes.class_ids.cpu().numpy()
+    if class_ids is not None:
+        class_ids = class_ids.cpu().numpy()
     else:
         class_ids = [None for _ in range(len(boxes_list))]
 

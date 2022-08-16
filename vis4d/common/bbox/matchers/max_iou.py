@@ -45,36 +45,29 @@ class MaxIoUMatcher(BaseMatcher):
         self.labels = labels
 
     def forward(
-        self, boxes: List[Boxes2D], targets: List[Boxes2D]
-    ) -> List[MatchResult]:
+        self, boxes: torch.Tensor, targets: torch.Tensor
+    ) -> MatchResult:
         """Match all boxes to targets based on maximum IoU."""
-        result = []
-        for b, t in zip(boxes, targets):
-            if len(t) == 0:
-                matches = torch.zeros(len(b), device=b.device)
-                match_labels = torch.zeros(len(b), device=b.device)
-                match_iou = torch.zeros(len(b), device=b.device)
-            else:
-                # M x N matrix, where M = num gt, N = num proposals
-                match_quality_matrix = bbox_iou(t, b)
+        if len(targets) == 0:
+            matches = boxes.new_zeros((len(boxes),))
+            match_labels = boxes.new_zeros((len(boxes),))
+            match_iou = boxes.new_zeros((len(boxes),))
+        else:
+            # M x N matrix, where M = num gt, N = num proposals
+            match_quality_matrix = bbox_iou(targets, boxes)
 
-                # matches N x 1 = index of assigned gt i.e.  range [0, M)
-                # match_labels N x 1, 0 = negative, -1 = ignore, 1 = positive
-                matches, match_labels = self._compute_matches(
-                    match_quality_matrix
-                )
-                match_iou = match_quality_matrix[
-                    matches, torch.arange(0, len(b), device=b.device)
-                ]
+            # matches N x 1 = index of assigned gt i.e.  range [0, M)
+            # match_labels N x 1, 0 = negative, -1 = ignore, 1 = positive
+            matches, match_labels = self._compute_matches(match_quality_matrix)
+            match_iou = match_quality_matrix[
+                matches, torch.arange(0, len(boxes), device=boxes.device)
+            ]
 
-            result.append(
-                MatchResult(
-                    assigned_gt_indices=matches,
-                    assigned_labels=match_labels,
-                    assigned_gt_iou=match_iou,
-                )
-            )
-        return result
+        return MatchResult(
+            assigned_gt_indices=matches,
+            assigned_labels=match_labels,
+            assigned_gt_iou=match_iou,
+        )
 
     def _compute_matches(
         self, match_quality_matrix: torch.Tensor

@@ -15,6 +15,7 @@ from .structures import (
     ArgsType,
     CategoryMap,
     DataInstance,
+    Detections,
     DictStrAny,
     LabelInstance,
     LossesType,
@@ -26,13 +27,18 @@ from .structures import (
     NDArrayF64,
     NDArrayI64,
     NDArrayUI8,
+    Proposals,
     TLabelInstance,
     TorchCheckpoint,
+    Tracks,
     TTestReturn,
     TTrainReturn,
 )
 
 __all__ = [
+    "Detections",
+    "Tracks",
+    "Proposals",
     "Boxes2D",
     "Boxes3D",
     "Masks",

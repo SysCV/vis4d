@@ -1,39 +1,22 @@
 """Faster RCNN detector."""
-from typing import Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import List, NamedTuple, Optional
 
 import torch
 from torch import nn
 
+from vis4d.common.bbox.anchor_generator import AnchorGenerator
+from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxCoder
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.samplers import (
     RandomSampler,
-    SamplingResult,
     match_and_sample_proposals,
 )
 from vis4d.model.heads.dense_head.rpn import TransformRPNOutputs
-from vis4d.struct import (
-    ArgsType,
-    Boxes2D,
-    DictStrAny,
-    InputSample,
-    LabelInstances,
-    LossesType,
-    ModelOutput,
-    NamedTensors,
-)
-from vis4d.struct.labels.boxes import tensor_to_boxes2d
+from vis4d.struct import Boxes2D, LossesType
 
-from ..backbone import BaseBackbone, MMDetBackbone
-from ..backbone.neck import MMDetNeck
 from ..heads.dense_head import RPNHead
-from ..heads.roi_head.rcnn import Box2DRoIHead
-from ..utils import (
-    add_keyword_args,
-    load_config,
-    load_model_checkpoint,
-    postprocess_predictions,
-    predictions_to_scalabel,
-)
+from ..heads.roi_head.rcnn import RCNNHead
+from ..utils import load_model_checkpoint
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
@@ -53,7 +36,8 @@ class FRCNNReturn(NamedTuple):
     roi_reg_out: torch.Tensor
     proposal_boxes: List[torch.Tensor]
     proposal_scores: List[torch.Tensor]
-    proposal_targets: Optional[List[Boxes2D]]
+    proposal_target_boxes: Optional[List[torch.Tensor]]
+    proposal_target_classes: Optional[List[torch.Tensor]]
     proposal_labels: Optional[List[torch.Tensor]]
 
 
@@ -64,23 +48,52 @@ class FasterRCNN(nn.Module):
         self,
         backbone: nn.Module,
         num_classes: int = 80,
+        anchor_generator: Optional[AnchorGenerator] = None,
+        rpn_bbox_coder: Optional[DeltaXYWHBBoxCoder] = None,
+        rcnn_bbox_coder: Optional[DeltaXYWHBBoxCoder] = None,
         weights: Optional[str] = None,
     ):
         """Init."""
         super().__init__()
         self.backbone = backbone
 
-        self.rpn_head = RPNHead()
-        self.rpn_head_transform = TransformRPNOutputs()
+        if anchor_generator is None:
+            self.anchor_generator = AnchorGenerator(
+                scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]
+            )
+        else:
+            self.anchor_generator = anchor_generator
+
+        if rpn_bbox_coder is None:
+            self.rpn_bbox_coder = DeltaXYWHBBoxCoder(
+                target_means=(0.0, 0.0, 0.0, 0.0),
+                target_stds=(1.0, 1.0, 1.0, 1.0),
+            )
+        else:
+            self.rpn_bbox_coder = rpn_bbox_coder
+
+        if rcnn_bbox_coder is None:
+            self.rcnn_bbox_coder = DeltaXYWHBBoxCoder(
+                clip_border=True,
+                target_means=(0.0, 0.0, 0.0, 0.0),
+                target_stds=(0.1, 0.1, 0.2, 0.2),
+            )
+        else:
+            self.rcnn_bbox_coder = rcnn_bbox_coder
+
+        self.rpn_head = RPNHead(self.anchor_generator.num_base_priors[0])
+        self.rpn_head_transform = TransformRPNOutputs(
+            self.anchor_generator, self.rpn_bbox_coder
+        )
 
         self.bbox_matcher = MaxIoUMatcher(
             thresholds=[0.5], labels=[0, 1], allow_low_quality_matches=False
         )
         self.bbox_sampler = RandomSampler(
-            batch_size_per_image=512, positive_fraction=0.25
+            batch_size=512, positive_fraction=0.25
         )
-
-        self.roi_head = Box2DRoIHead(num_classes=num_classes)
+        self.proposal_append_gt = True  # TODO where to put this
+        self.roi_head = RCNNHead(num_classes=num_classes)
 
         if weights is not None:
             load_model_checkpoint(self, weights, REV_KEYS)
@@ -106,36 +119,57 @@ class FasterRCNN(nn.Module):
         features = self.backbone(images)
 
         rpn_cls_out, rpn_reg_out = self.rpn_head(features)
-        proposals = self.rpn_head_transform(
+        proposals, scores = self.rpn_head_transform(
             rpn_cls_out, rpn_reg_out, images.shape
         )
 
         if target_boxes is not None:
-            sampling_result = match_and_sample_proposals(
-                self.bbox_matcher,
-                self.bbox_sampler,
-                proposals,
-                [Boxes2D(b, c) for b, c in zip(target_boxes, target_classes)],
-                proposal_append_gt=True,
-            )
-            proposals = sampling_result.sampled_boxes
-            sampled_targets = sampling_result.sampled_targets
-            sampled_labels = sampling_result.sampled_labels
+            with torch.no_grad():
+                sampling_results = []
+                for i, (p, s, tb, tc) in enumerate(
+                    zip(proposals, scores, target_boxes, target_classes)
+                ):
+                    if self.proposal_append_gt:
+                        proposals[i] = torch.cat((p, tb), 0)
+                        scores[i] = torch.cat(
+                            (
+                                s,
+                                s.new_ones(
+                                    (len(tb)),
+                                ),
+                            ),
+                            0,
+                        )
+                    sampling_results.append(
+                        self.bbox_sampler(self.bbox_matcher(p, tb), p, tb, tc)
+                    )
+
+                proposals = [r.sampled_boxes for r in sampling_results]
+                scores = [
+                    s[r.sampled_indices]
+                    for s, r in zip(scores, sampling_results)
+                ]
+                sampled_target_boxes = [
+                    r.sampled_target_boxes for r in sampling_results
+                ]
+                sampled_target_classes = [
+                    r.sampled_target_classes for r in sampling_results
+                ]
+                sampled_labels = [r.sampled_labels for r in sampling_results]
         else:
             sampled_targets, sampled_labels = None, None
 
-        roi_cls_out, roi_reg_out = self.roi_head(
-            features[:-1], [p.boxes for p in proposals]
-        )
+        roi_cls_out, roi_reg_out = self.roi_head(features[:-1], proposals)
 
         return FRCNNReturn(
             rpn_cls_out=rpn_cls_out,
             rpn_reg_out=rpn_reg_out,
             roi_reg_out=roi_reg_out,
             roi_cls_out=roi_cls_out,
-            proposal_boxes=[p.boxes for p in proposals],
-            proposal_scores=[p.score for p in proposals],
-            proposal_targets=sampled_targets,
+            proposal_boxes=proposals,
+            proposal_scores=scores,
+            proposal_target_boxes=sampled_target_boxes,
+            proposal_target_classes=sampled_target_classes,
             proposal_labels=sampled_labels,
         )
 

@@ -7,7 +7,9 @@ from torchvision.ops import batched_nms
 from vis4d.struct import Boxes2D, Boxes3D
 
 
-def bbox_intersection(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
+def bbox_intersection(
+    boxes1: torch.Tensor, boxes2: torch.Tensor
+) -> torch.Tensor:
     """Given two lists of boxes of size N and M, compute N x M intersection.
 
     Args:
@@ -17,28 +19,26 @@ def bbox_intersection(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
     Returns:
         Tensor: intersection (N, M).
     """
-    boxes1, boxes2 = boxes1.boxes[:, :4], boxes2.boxes[:, :4]
     width_height = torch.min(boxes1[:, None, 2:], boxes2[:, 2:]) - torch.max(
         boxes1[:, None, :2], boxes2[:, :2]
     )
-
     width_height.clamp_(min=0)
     intersection = width_height.prod(dim=2)
     return intersection
 
 
-def bbox_iou(boxes1: Boxes2D, boxes2: Boxes2D) -> torch.Tensor:
+def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     """Compute IoU between all pairs of boxes.
 
     Args:
-        boxes1: N 2D boxes in format (x1, y1, x2, y2, Optional[score])
-        boxes2: M 2D boxes in format (x1, y1, x2, y2, Optional[score])
+        boxes1: N 2D boxes in format (x1, y1, x2, y2)
+        boxes2: M 2D boxes in format (x1, y1, x2, y2)
 
     Returns:
         Tensor: IoU (N, M).
     """
-    area1 = boxes1.area
-    area2 = boxes2.area
+    area1 = bbox_area(boxes1)
+    area2 = bbox_area(boxes2)
     inter = bbox_intersection(boxes1, boxes2)
 
     iou = torch.where(
@@ -137,23 +137,24 @@ def multiclass_nms(
                 "[ONNX Error] Can not record NMS "
                 "as it has not been executed this time"
             )
-        dets = torch.cat([bboxes, scores[:, None]], -1)
         if return_inds:
-            return dets, labels, inds
+            return bboxes, scores, labels, inds
         else:
-            return dets, labels
+            return bboxes, scores, labels
 
     keep = batched_nms(bboxes, scores, labels, iou_thr)
-    dets = bboxes[keep]
 
     if max_num > 0:
-        dets = dets[:max_num]
         keep = keep[:max_num]
 
+    bboxes = bboxes[keep]
+    scores = scores[keep]
+    labels = labels[keep]
+
     if return_inds:
-        return dets, labels[keep], inds[keep]
+        return bboxes, scores, labels, inds[keep]
     else:
-        return dets, labels[keep]
+        return bboxes, scores, labels
 
 
 def distance_3d_nms(
@@ -196,3 +197,9 @@ def distance_3d_nms(
             keep_indices[i] = False
 
     return keep_indices
+
+
+def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
+    return (boxes[:, 2] - boxes[:, 0]).clamp(0) * (
+        boxes[:, 3] - boxes[:, 1]
+    ).clamp(0)

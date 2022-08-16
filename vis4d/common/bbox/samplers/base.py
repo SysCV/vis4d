@@ -11,7 +11,7 @@ from ..matchers.base import BaseMatcher, MatchResult
 
 
 class SamplingResult(NamedTuple):
-    """Match result class. Stores expected result tensors.
+    """Match result class. Stores expected result tensors. TODO update doc
 
     sampled_boxes: List[Boxes2D] Sampled Boxes.
     sampled_targets: List[Boxes2D] Assigned target for each sampled box.
@@ -21,47 +21,42 @@ class SamplingResult(NamedTuple):
     sampled box.
     """
 
-    sampled_boxes: List[
-        torch.Tensor
-    ]  # TODO implementation needs to be updated
-    sampled_targets: List[torch.Tensor]
-    sampled_labels: List[torch.Tensor]
-    sampled_indices: List[torch.Tensor]
-    sampled_target_indices: List[torch.Tensor]
+    sampled_boxes: torch.Tensor
+    sampled_target_boxes: torch.Tensor
+    sampled_target_classes: torch.Tensor
+    sampled_labels: torch.Tensor
+    sampled_indices: torch.Tensor
+    sampled_target_indices: torch.Tensor
 
 
 class BaseSampler(nn.Module):
     """Sampler base class."""
 
-    def __init__(
-        self, batch_size_per_image: int, positive_fraction: float
-    ) -> None:
+    def __init__(self, batch_size: int, positive_fraction: float) -> None:
         """Init."""
         super().__init__()
-        self.batch_size_per_image = batch_size_per_image
+        self.batch_size = batch_size
         self.positive_fraction = positive_fraction
 
     @abc.abstractmethod
     def forward(
         self,
-        matching: List[MatchResult],
-        boxes: List[Boxes2D],
-        targets: List[Boxes2D],
+        matching: MatchResult,
+        boxes: torch.Tensor,
+        targets: torch.Tensor,
     ) -> SamplingResult:
         """Sample bounding boxes according to their struct."""
         raise NotImplementedError
 
 
 @torch.no_grad()  # type: ignore
-def match_and_sample_proposals(
+def match_and_sample_proposals(  # TODO update
     matcher: BaseMatcher,
     sampler: BaseSampler,
-    proposals: List[Boxes2D],
-    targets: List[Boxes2D],
+    proposals: List[torch.Tensor],
+    targets: List[torch.Tensor],
     proposal_append_gt: bool,
-) -> SamplingResult:
+) -> List[SamplingResult]:
     """Match proposals to targets and subsample."""
-    if proposal_append_gt:
-        proposals = [Boxes2D.merge([p, t]) for p, t in zip(proposals, targets)]
-    matching = matcher(proposals, targets)
-    return sampler(matching, proposals, targets)
+
+    return result

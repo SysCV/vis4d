@@ -1,6 +1,6 @@
 """Faster RCNN RPN Head."""
 from math import prod
-from typing import Dict, List, NamedTuple, Optional, Tuple
+from typing import Dict, List, NamedTuple, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -16,7 +16,7 @@ from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.samplers import RandomSampler, SamplingResult
 from vis4d.common.layers import Conv2d
 from vis4d.model.losses.utils import smooth_l1_loss, weight_reduce_loss
-from vis4d.struct import Boxes2D, LossesType
+from vis4d.struct import Proposals
 
 
 class RPNHead(nn.Module):
@@ -24,14 +24,13 @@ class RPNHead(nn.Module):
 
     def __init__(
         self,
+        num_anchors: int,
         num_convs: int = 1,
         in_channels: int = 256,
         feat_channels: int = 256,
-        num_anchors: int = 3,
     ) -> None:
         """Init."""
         super().__init__()
-        # TODO align num_anchors with anchor generator
         if num_convs > 1:
             rpn_convs = []
             for i in range(num_convs):
@@ -83,24 +82,20 @@ class RPNHead(nn.Module):
 class TransformRPNOutputs(nn.Module):
     def __init__(
         self,
+        anchor_generator: AnchorGenerator,
+        bbox_coder: DeltaXYWHBBoxCoder,
         num_proposals_pre_nms: int = 2000,
         max_per_img: int = 1000,
         proposal_nms_threshold: float = 0.7,
         min_proposal_size: Tuple[int, int] = (0, 0),
     ) -> None:
         super().__init__()
+        self.anchor_generator = anchor_generator
+        self.bbox_coder = bbox_coder
         self.max_per_img = max_per_img
         self.min_proposal_size = min_proposal_size
         self.num_proposals_pre_nms = num_proposals_pre_nms
         self.proposal_nms_threshold = proposal_nms_threshold
-
-        self.anchor_generator = AnchorGenerator(
-            scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]
-        )
-
-        self.bbox_coder = DeltaXYWHBBoxCoder(
-            target_means=(0.0, 0.0, 0.0, 0.0), target_stds=(1.0, 1.0, 1.0, 1.0)
-        )
 
     def _get_params_per_level(
         self,
@@ -125,7 +120,7 @@ class TransformRPNOutputs(nn.Module):
 
     def _decode_multi_level_outputs(
         self, cls_out_all, reg_out_all, anchors_all, level_all
-    ) -> Boxes2D:
+    ) -> Proposals:
         scores = torch.cat(cls_out_all)
         levels = torch.cat(level_all)
         proposals = self.bbox_coder.decode(
@@ -152,8 +147,13 @@ class TransformRPNOutputs(nn.Module):
             proposals = proposals[keep]
             scores = scores[keep]
         else:
-            return Boxes2D(proposals.new_zeros(0, 5))
-        return Boxes2D(torch.cat([proposals, scores.unsqueeze(-1)], -1))
+            return Proposals(
+                proposals.new_zeros(0, 4),
+                scores.new_zeros(
+                    0,
+                ),
+            )
+        return Proposals(proposals, scores)
 
     def forward(
         self,
@@ -177,7 +177,7 @@ class TransformRPNOutputs(nn.Module):
         anchor_grids = self.anchor_generator.grid_priors(
             featmap_sizes, device=device
         )
-        proposals_all = []
+        proposals, scores = [], []
         for img_id in range(images_shape[0]):
             cls_out_all, reg_out_all, anchors_all, level_all = [], [], [], []
             for level in range(len(class_outs)):
@@ -193,12 +193,12 @@ class TransformRPNOutputs(nn.Module):
                     cls_out.new_full((len(cls_out),), level, dtype=torch.long)
                 ]
 
-            proposals_all += [
-                self._decode_multi_level_outputs(
-                    cls_out_all, reg_out_all, anchors_all, level_all
-                )
-            ]
-        return proposals_all
+            result = self._decode_multi_level_outputs(
+                cls_out_all, reg_out_all, anchors_all, level_all
+            )
+            proposals.append(result.boxes)
+            scores.append(result.scores)
+        return proposals, scores
 
 
 class RPNTargets(NamedTuple):
@@ -221,6 +221,11 @@ def unmap(data, count, inds, fill=0):  # TODO needed? if so revise
     return ret
 
 
+class RPNLosses(NamedTuple):
+    rpn_loss_cls: torch.Tensor
+    rpn_loss_bbox: torch.Tensor
+
+
 class RPNLoss(nn.Module):
     def __init__(
         self,
@@ -236,9 +241,7 @@ class RPNLoss(nn.Module):
             labels=[0, -1, 1],
             allow_low_quality_matches=True,
         )
-        self.sampler = RandomSampler(
-            batch_size_per_image=256, positive_fraction=0.5
-        )
+        self.sampler = RandomSampler(batch_size=256, positive_fraction=0.5)
 
     def _loss_single_scale(
         self,
@@ -290,9 +293,9 @@ class RPNLoss(nn.Module):
         # assign gt and sample anchors
         anchors = anchors[inside_flags, :]
 
-        matching = self.matcher([Boxes2D(anchors)], [Boxes2D(target_boxes)])
+        matching = self.matcher(anchors, target_boxes)
         sampling_result = self.sampler(
-            matching, [Boxes2D(anchors)], [Boxes2D(target_boxes)]
+            matching, anchors, target_boxes, target_classes
         )
 
         num_valid_anchors = anchors.shape[0]
@@ -301,14 +304,14 @@ class RPNLoss(nn.Module):
         labels = anchors.new_zeros((num_valid_anchors,), dtype=torch.float)
         label_weights = anchors.new_zeros(num_valid_anchors, dtype=torch.float)
 
-        positives = sampling_result.sampled_labels[0] == 1
-        negatives = sampling_result.sampled_labels[0] == 0
-        pos_inds = sampling_result.sampled_indices[0][positives]
-        neg_inds = sampling_result.sampled_indices[0][negatives]
+        positives = sampling_result.sampled_labels == 1
+        negatives = sampling_result.sampled_labels == 0
+        pos_inds = sampling_result.sampled_indices[positives]
+        neg_inds = sampling_result.sampled_indices[negatives]
         if len(pos_inds) > 0:
             pos_bbox_targets = self.bbox_coder.encode(
-                sampling_result.sampled_boxes[0][positives].boxes,
-                sampling_result.sampled_targets[0][positives].boxes,
+                sampling_result.sampled_boxes[positives],
+                sampling_result.sampled_target_boxes[positives],
             )
             bbox_targets[pos_inds, :] = pos_bbox_targets
             bbox_weights[pos_inds, :] = 1.0
@@ -336,7 +339,7 @@ class RPNLoss(nn.Module):
         target_boxes: List[torch.Tensor],
         target_classes: List[torch.Tensor],
         images_shape: Tuple[int, int, int, int],
-    ) -> LossesType:
+    ) -> RPNLosses:
         """RPN loss of faster rcnn.
 
         Args:
@@ -345,7 +348,7 @@ class RPNLoss(nn.Module):
             metadata (Dict): Dictionary of metadata needed for loss, e.g.
                 image size, feature map strides, etc.
         Returns:
-            LossesType: Dictionary of scalar loss tensors.
+             scalar loss tensors.
         """
 
         featmap_sizes = [featmap.size()[-2:] for featmap in class_outs]
@@ -369,10 +372,10 @@ class RPNLoss(nn.Module):
                 tgt_box, tgt_cls, anchors_all_levels, valids_all_levels
             )
             num_total_pos += max(
-                (sampling_result.sampled_labels[0] == 1).sum(), 1
+                (sampling_result.sampled_labels == 1).sum(), 1
             )
             num_total_neg += max(
-                (sampling_result.sampled_labels[0] == 0).sum(), 1
+                (sampling_result.sampled_labels == 0).sum(), 1
             )
             bbox_targets_per_level = target.bbox_targets.split(
                 num_level_anchors
@@ -404,7 +407,9 @@ class RPNLoss(nn.Module):
             )
             loss_cls_all += loss_cls
             loss_bbox_all += loss_bbox
-        return dict(rpn_loss_cls=loss_cls_all, rpn_loss_bbox=loss_bbox_all)
+        return RPNLosses(
+            rpn_loss_cls=loss_cls_all, rpn_loss_bbox=loss_bbox_all
+        )
 
 
 def images_to_levels(targets):

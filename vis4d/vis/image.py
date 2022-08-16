@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont
+from torch import Tensor
 
 from vis4d.common.geometry.projection import (
     generate_depth_map,
@@ -25,7 +26,6 @@ except (ImportError, NameError):
 
 from .utils import (
     Box3DType,
-    BoxType,
     ImageType,
     InsMaskType,
     SemMaskType,
@@ -54,11 +54,18 @@ def imshow(
 
 
 def imshow_bboxes(
-    image: ImageType, boxes: BoxType, mode: str = "RGB"
+    image: ImageType,
+    boxes: Tensor,
+    scores: Optional[Tensor] = None,
+    class_ids: Optional[Tensor] = None,
+    track_ids: Optional[Tensor] = None,
+    mode: str = "RGB",
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode)
-    box_list, color_list, label_list = preprocess_boxes(boxes)
+    box_list, color_list, label_list = preprocess_boxes(
+        boxes, scores, class_ids, track_ids
+    )
     for box, col, label in zip(box_list, color_list, label_list):
         draw_bbox(image, box, col, label)
 
@@ -67,7 +74,7 @@ def imshow_bboxes(
 
 def imshow_bboxes3d(
     image: ImageType,
-    boxes: Box3DType,
+    boxes: Box3DType,  # TODO rewrite
     intrinsics: Union[NDArrayF64, Intrinsics],
     mode: str = "RGB",
 ) -> None:  # pragma: no cover
@@ -96,7 +103,7 @@ def imshow_masks(
 
 def draw_image(
     frame: Union[ImageType, Image.Image],
-    boxes2d: Optional[BoxType] = None,
+    boxes2d=None,  # TODO update
     boxes3d: Optional[Box3DType] = None,
     intrinsics: Optional[Union[NDArrayF64, Intrinsics]] = None,
     mode: str = "RGB",

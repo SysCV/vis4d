@@ -375,12 +375,6 @@ def boxes2d_list_to_tensor_list(
         return boxes_list, scores_list, cls_list, tr_list
 
 
-def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
-    return (boxes[:, 2] - boxes[:, 0]).clamp(0) * (
-        boxes[:, 3] - boxes[:, 1]
-    ).clamp(0)
-
-
 def filter_boxes(
     boxes: torch.Tensor, min_area: float = 0.0
 ) -> Tuple[torch.Tensor, torch.Tensor]:

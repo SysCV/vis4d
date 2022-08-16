@@ -12,7 +12,7 @@ def prepare_target(
     sampled_idcs: torch.Tensor,
     target: Boxes2D,
     assigned_gt_indices: torch.Tensor,
-) -> Boxes2D:
+) -> Boxes2D:  # TODO remove after revise
     """Prepare target from sampled indices."""
     if len(target):
         sampled_target = target[assigned_gt_indices.long()[sampled_idcs]]
@@ -37,7 +37,7 @@ def add_to_result(
     boxes: Boxes2D,
     targets: Boxes2D,
     match: MatchResult,
-) -> None:
+) -> None:  # TODO remove after revise
     """Add fields required in SamplingResult to input dict."""
     result["sampled_boxes"] += [boxes[sampled_idcs]]
     result["sampled_targets"] += [

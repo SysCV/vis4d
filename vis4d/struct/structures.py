@@ -5,6 +5,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    NamedTuple,
     Optional,
     Tuple,
     Type,
@@ -134,10 +135,28 @@ NDArrayF32 = npt.NDArray[np.float32]
 NDArrayI64 = npt.NDArray[np.int64]
 NDArrayUI8 = npt.NDArray[np.uint8]
 TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
-LossesType = Dict[str, torch.Tensor]
+LossesType = Dict[str, torch.Tensor]  # TODO remove
 ModelOutput = Dict[str, List[List[Label]]]
 DictStrAny = Dict[str, Any]  # type: ignore
 MetricLogs = Dict[str, Union[float, int]]
 NamedTensors = Dict[str, torch.Tensor]
 ModuleCfg = DictStrAny
 ArgsType = Any  # type: ignore
+
+
+class Proposals(NamedTuple):
+    boxes: torch.Tensor  # N, 4
+    scores: torch.Tensor
+
+
+class Detections(NamedTuple):
+    boxes: torch.Tensor  # N, 4
+    scores: torch.Tensor
+    class_ids: torch.Tensor
+
+
+class Tracks(NamedTuple):
+    boxes: torch.Tensor  # N, 4
+    scores: torch.Tensor
+    class_ids: torch.Tensor
+    track_ids: torch.Tensor

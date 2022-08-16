@@ -1,6 +1,6 @@
 """Faster RCNN roi head."""
 from math import prod
-from typing import Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import List, NamedTuple, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -11,7 +11,7 @@ from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.utils import multiclass_nms
 from vis4d.model.losses.utils import l1_loss, weight_reduce_loss
 from vis4d.model.utils import segmentations_from_mmdet
-from vis4d.struct import Boxes2D
+from vis4d.struct import Detections
 
 
 class FRCNNRoIHeadOutput(NamedTuple):
@@ -19,7 +19,7 @@ class FRCNNRoIHeadOutput(NamedTuple):
     bbox_pred: torch.Tensor
 
 
-class Box2DRoIHead(nn.Module):  # TODO rename faster rcnn
+class RCNNHead(nn.Module):
     """faster rcnn box2d roi head."""
 
     def __init__(
@@ -63,32 +63,29 @@ class Box2DRoIHead(nn.Module):  # TODO rename faster rcnn
         self,
         features: List[torch.Tensor],
         boxes: List[torch.Tensor],
-    ) -> FRCNNRoIHeadOutput:  # TODO Tobias revisit, do we need list here or can work with tensors
+    ) -> FRCNNRoIHeadOutput:
         """Forward pass during training stage."""
         bbox_feats = self.roi_pooler(features, boxes).flatten(start_dim=1)
         for fc in self.shared_fcs:
             bbox_feats = self.relu(fc(bbox_feats))
         cls_score = self.fc_cls(bbox_feats)
         bbox_pred = self.fc_reg(bbox_feats)
-        return cls_score, bbox_pred
+        return FRCNNRoIHeadOutput(cls_score, bbox_pred)
 
 
-class TransformMMDetFRCNNRoIHeadOutputs(nn.Module):
+class TransformRCNNOutputs(nn.Module):
     def __init__(
         self,
+        bbox_coder: DeltaXYWHBBoxCoder,
         score_threshold: float = 0.05,
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
     ) -> None:
         super().__init__()
+        self.bbox_coder = bbox_coder
         self.score_threshold = score_threshold
         self.max_per_img = max_per_img
         self.iou_threshold = iou_threshold
-        self.bbox_coder = DeltaXYWHBBoxCoder(
-            clip_border=True,
-            target_means=(0.0, 0.0, 0.0, 0.0),
-            target_stds=(0.1, 0.1, 0.2, 0.2),
-        )
 
     def forward(
         self,
@@ -96,14 +93,12 @@ class TransformMMDetFRCNNRoIHeadOutputs(nn.Module):
         regression_outs: torch.Tensor,
         boxes: List[torch.Tensor],
         images_shape: Tuple[int, int, int, int],
-    ) -> List[Boxes2D]:
+    ) -> List[Detections]:
         """
         Args:
 
         Returns:
-            boxes
-            scores
-            class_ids
+            Detections
         """
         result_boxes = []
 
@@ -115,15 +110,14 @@ class TransformMMDetFRCNNRoIHeadOutputs(nn.Module):
             bboxes = self.bbox_coder.decode(
                 boxs[:, :4], reg_out, max_shape=images_shape[2:]
             )
-            det_bbox, det_label = multiclass_nms(
+            det_bbox, det_scores, det_label = multiclass_nms(
                 bboxes,
                 scores,
                 self.score_threshold,
                 self.iou_threshold,
                 self.max_per_img,
             )
-
-            result_boxes.append(Boxes2D(det_bbox, det_label))
+            result_boxes.append(Detections(det_bbox, det_scores, det_label))
 
         return result_boxes
 
@@ -133,6 +127,11 @@ class RCNNTargets(NamedTuple):
     label_weights: Tensor
     bbox_targets: Tensor
     bbox_weights: Tensor
+
+
+class RCNNLosses(NamedTuple):
+    rcnn_loss_cls: torch.Tensor
+    rcnn_loss_bbox: torch.Tensor
 
 
 class RCNNLoss(nn.Module):
@@ -241,7 +240,7 @@ class RCNNLoss(nn.Module):
         else:
             loss_bbox = regression_outs[pos_inds].sum()
 
-        return dict(rcnn_loss_cls=loss_cls, rcnn_loss_bbox=loss_bbox)
+        return RCNNLosses(rcnn_loss_cls=loss_cls, rcnn_loss_bbox=loss_bbox)
 
 
 class MMDetMaskHead(nn.Module):  # TODO convert into Mask Head implementation
