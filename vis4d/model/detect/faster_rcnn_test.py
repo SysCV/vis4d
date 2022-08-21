@@ -123,6 +123,8 @@ class FasterRCNNTest(unittest.TestCase):
             ),
             num_classes=8,
         )
+        # TODO singleton pattern is not suitable here since e.g. tracking
+        #  heads could also have a box coder, pooler etc.
         rpn_loss = RPNLoss(
             faster_rcnn.anchor_generator, faster_rcnn.rpn_bbox_coder
         )

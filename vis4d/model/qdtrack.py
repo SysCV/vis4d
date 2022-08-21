@@ -6,13 +6,9 @@ import torch
 from torch import nn
 
 from vis4d.common.io.hdf5 import HDF5Backend
-from vis4d.model.detect import (
-    BaseDetector,
-    BaseOneStageDetector,
-    BaseTwoStageDetector,
-)
-from vis4d.model.track.graph import BaseTrackGraph
-from vis4d.model.track.similarity import BaseSimilarityHead
+from vis4d.model.detect import FasterRCNN
+from vis4d.model.track.graph import QDTrackGraph
+from vis4d.model.track.similarity import QDSimilarityHead
 from vis4d.model.track.utils import split_key_ref_inputs
 from vis4d.model.utils import postprocess_predictions, predictions_to_scalabel
 from vis4d.struct import (
@@ -31,85 +27,11 @@ class QDTrack(nn.Module):
 
     def __init__(
         self,
-        detection: BaseDetector,
-        similarity: BaseSimilarityHead,
-        track_graph: BaseTrackGraph,
-        inference_result_path: Optional[str] = None,
     ) -> None:
         """Init."""
         super().__init__()
-        self.detector = detection
-        assert isinstance(
-            self.detector, (BaseTwoStageDetector, BaseOneStageDetector)
-        )
-        self.similarity_head = similarity
-        self.track_graph = track_graph
-        assert (
-            self.detector.category_mapping is not None
-        ), "Need category mapping for qdtrack!"
-        self.cat_mapping = {
-            v: k for k, v in self.detector.category_mapping.items()
-        }
-        self.with_mask = getattr(self.detector, "with_mask", False)
-
-        self.inference_result_path = inference_result_path
-        if self.inference_result_path is not None:
-            self.data_backend = HDF5Backend()
-
-    def _run_heads_train(
-        self,
-        key_images: torch.Tensor,
-        ref_images: List[torch.Tensor],
-        key_x: NamedTensors,
-        ref_x: List[NamedTensors],
-    ) -> Tuple[LossesType, List[Boxes2D], List[List[Boxes2D]]]:
-        """Get detection and tracking losses."""
-        key_targets, ref_targets = key_images.targets, [
-            x.targets for x in ref_inputs
-        ]
-
-        key_proposals: Optional[List[Boxes2D]]
-        if isinstance(self.detector, BaseTwoStageDetector):
-            # proposal generation
-            rpn_losses, key_proposals = self.detector.generate_proposals(
-                key_images, key_x, key_targets
-            )
-            with torch.no_grad():
-                ref_proposals = [
-                    self.detector.generate_proposals(inp, x, tgt)[1]
-                    for inp, x, tgt in zip(ref_images, ref_x, ref_targets)
-                ]
-
-            # roi head
-            assert isinstance(self.detector, BaseTwoStageDetector)
-            roi_losses, _ = self.detector.generate_detections(
-                key_images,
-                key_x,
-                key_proposals,
-                key_targets,
-            )
-            det_losses = {**rpn_losses, **roi_losses}
-        else:
-            # one-stage detector
-            det_losses, key_proposals = self.detector.generate_detections(
-                key_images, key_x, key_targets
-            )
-            assert key_proposals is not None
-            ref_proposals = []
-            with torch.no_grad():
-                for inp, x, tgt in zip(ref_images, ref_x, ref_targets):
-                    ref_p = self.detector.generate_detections(inp, x, tgt)[1]
-                    assert ref_p is not None
-                    ref_proposals.append(ref_p)
-
-        # track head
-        track_losses, _ = self.similarity_head(
-            [key_inputs, *ref_images],
-            [key_proposals, *ref_proposals],
-            [key_x, *ref_x],
-            [key_targets, *ref_targets],
-        )
-        return {**det_losses, **track_losses}, key_proposals, ref_proposals
+        self.similarity_head = QDTrackGraph()
+        self.track_graph = QDSimilarityHead()
 
     def debug_logging(self, logger) -> Dict[str, torch.Tensor]:
         """Logging for debugging"""

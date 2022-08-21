@@ -1,40 +1,23 @@
 """Similarity Head for quasi-dense instance similarity learning."""
-from typing import List, Optional, Tuple
+from typing import List, NamedTuple, Optional, Tuple
 
 import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common.bbox.matchers import BaseMatcher, MaxIoUMatcher
 from vis4d.common.bbox.poolers import BaseRoIPooler, MultiScaleRoIAlign
-from vis4d.common.bbox.samplers import (
-    BaseSampler,
-    CombinedSampler,
-    SamplingResult,
-    match_and_sample_proposals,
-)
 from vis4d.common.layers import add_conv_branch
 from vis4d.model.losses import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
-from vis4d.struct import (
-    Boxes2D,
-    InputSample,
-    LabelInstances,
-    LossesType,
-    NamedTensors,
-)
 
 from ..utils import cosine_similarity
-from .base import BaseSimilarityHead
 
 
-class QDSimilarityHead(BaseSimilarityHead):
+class QDSimilarityHead(nn.Module):
     """Instance embedding head for quasi-dense similarity learning."""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         proposal_pooler: Optional[BaseRoIPooler] = None,
-        proposal_sampler: Optional[BaseSampler] = None,
-        proposal_matcher: Optional[BaseMatcher] = None,
         in_dim: int = 256,
         num_convs: int = 4,
         conv_out_dim: int = 256,
@@ -44,9 +27,6 @@ class QDSimilarityHead(BaseSimilarityHead):
         embedding_dim: int = 256,
         norm: str = "GroupNorm",
         num_groups: int = 32,
-        proposal_append_gt: bool = True,
-        softmax_temp: float = -1.0,
-        in_features: Optional[List[str]] = None,
     ) -> None:
         """Init."""
         super().__init__()
@@ -58,30 +38,6 @@ class QDSimilarityHead(BaseSimilarityHead):
         self.fc_out_dim = fc_out_dim
         self.norm = norm
         self.num_groups = num_groups
-        self.proposal_append_gt = proposal_append_gt
-        self.softmax_temp = softmax_temp
-        self.in_features = in_features
-        if in_features is None:
-            self.in_features = ["p2", "p3", "p4", "p5"]
-
-        if proposal_sampler is not None:
-            self.sampler = proposal_sampler
-        else:
-            self.sampler = CombinedSampler(
-                batch_size_per_image=256,
-                positive_fraction=0.5,
-                pos_strategy="instance_balanced",
-                neg_strategy="iou_balanced",
-            )
-
-        if proposal_matcher is not None:
-            self.matcher = proposal_matcher
-        else:
-            self.matcher = MaxIoUMatcher(
-                thresholds=[0.3, 0.7],
-                labels=[0, -1, 1],
-                allow_low_quality_matches=False,
-            )
 
         if proposal_pooler is not None:
             self.roi_pooler = proposal_pooler
@@ -92,9 +48,6 @@ class QDSimilarityHead(BaseSimilarityHead):
 
         self.convs, self.fcs, last_layer_dim = self._init_embedding_head()
         self.fc_embed = nn.Linear(last_layer_dim, embedding_dim)
-
-        self.track_loss = MultiPosCrossEntropyLoss(loss_weight=0.25)
-        self.track_loss_aux = EmbeddingDistanceLoss()
         self._init_weights()
 
     def _init_weights(self) -> None:
@@ -139,13 +92,11 @@ class QDSimilarityHead(BaseSimilarityHead):
             last_layer_dim = self.fc_out_dim
         return convs, fcs, last_layer_dim
 
-    def _head_forward(
-        self, features: NamedTensors, boxes: List[Boxes2D]
+    def forward(
+        self, features: List[torch.Tensor], boxes: List[torch.Tensor]
     ) -> List[torch.Tensor]:
         """Similarity head forward pass."""
-        assert self.in_features is not None
-        features_list = [features[f] for f in self.in_features]
-        x = self.roi_pooler(features_list, boxes)
+        x = self.roi_pooler(features, boxes)
 
         # convs
         if self.num_convs > 0:
@@ -163,106 +114,98 @@ class QDSimilarityHead(BaseSimilarityHead):
         )
         return embeddings
 
-    def forward_train(
+
+class QDTrackInstanceSimilarityLosses(NamedTuple):  # TODO name
+    track_loss: torch.Tensor
+    track_loss_aux: torch.Tensor
+
+
+class QDTrackInstanceSimilarityLoss(nn.Module):
+    def __init__(self, softmax_temp: float = -1):
+        super().__init__()
+        self.softmax_temp = softmax_temp
+        self.track_loss = MultiPosCrossEntropyLoss(loss_weight=0.25)
+        self.track_loss_aux = EmbeddingDistanceLoss()
+
+    def forward(
         self,
-        inputs: List[InputSample],
-        boxes: List[List[Boxes2D]],
-        features: Optional[List[NamedTensors]],
-        targets: List[LabelInstances],
-    ) -> Tuple[LossesType, Optional[List[SamplingResult]]]:
-        """Forward pass during training stage.
+        key_embeddings: List[torch.Tensor],
+        ref_embeddings: List[List[torch.Tensor]],
+        key_track_ids: List[torch.Tensor],
+        ref_track_ids: List[List[torch.Tensor]],
+    ) -> QDTrackInstanceSimilarityLosses:
+        """QDTrack instance similarity loss.
+
+        Key inputs are of type List[Tensor/Boxes2D] (Lists are length N)
+        Ref inputs are of type List[List[Tensor/Boxes2D]] where the lists
+        are of length MxN.
+        Where M is the number of reference views and N is the
+        number of batch elements.
+
+        NOTE: this only works if key only contains positives and all
+        negatives in ref have track_id -1
 
         Args:
-            inputs: InputSamples (images, metadata, etc). Batched, including
-                possible reference views. The keyframe is at index 0.
-            boxes: Detected boxes to apply similarity learning on.
-            features: Input feature maps. Batched, including possible
-                reference views. The keyframe is at index 0.
-            targets: Corresponding targets to each InputSample.
 
         Returns:
-            LossesType: A dict of scalar loss tensors.
-            Optional[List[SamplingResult]]: Sampling results. Key first, then
-                reference views.
         """
-        assert features is not None, "QDSimilarityHead requires features!"
-        sampling_results, sampled_boxes, sampled_targets = [], [], []
-        for i, (box, tgt) in enumerate(zip(boxes, targets)):
-            sampling_result = match_and_sample_proposals(
-                self.matcher,
-                self.sampler,
-                box,
-                tgt.boxes2d,
-                self.proposal_append_gt,
-            )
-            sampling_results.append(sampling_result)
+        losses = {}
+        if sum(len(e) for e in key_embeddings) == 0:  # pragma: no cover
+            losses["track_loss"] = sum([e.sum() for e in key_embeddings])
+            losses["track_loss_aux"] = losses["track_loss"]
+            return losses
 
-            sampled_box = sampling_result.sampled_boxes
-            sampled_tgt = sampling_result.sampled_targets
-            positives = [l == 1 for l in sampling_result.sampled_labels]
-            if i == 0:  # take only positives for keyframe (assumed at i=0)
-                sampled_box = [b[p] for b, p in zip(sampled_box, positives)]
-                sampled_tgt = [t[p] for t, p in zip(sampled_tgt, positives)]
-            else:  # set track_ids to -1 for all negatives
-                for pos, samp_tgt in zip(positives, sampled_tgt):
-                    samp_tgt.track_ids[~pos] = -1
-
-            sampled_boxes.append(sampled_box)
-            sampled_targets.append(sampled_tgt)
-
-        embeddings = []
-        for feat, box in zip(features, sampled_boxes):
-            embeddings.append(self._head_forward(feat, box))
-
-        track_losses = self.loss(
-            embeddings[0],
-            sampled_targets[0],
-            embeddings[1:],
-            sampled_targets[1:],
+        loss_track = torch.tensor(0.0, device=key_embeddings[0].device)
+        loss_track_aux = torch.tensor(0.0, device=key_embeddings[0].device)
+        dists, cos_dists = self._match(key_embeddings, ref_embeddings)
+        track_targets, track_weights = self._get_targets(
+            key_track_ids, ref_track_ids
         )
-        return track_losses, sampling_results
+        # for each reference view
+        for curr_dists, curr_cos_dists, curr_targets, curr_weights in zip(
+            dists, cos_dists, track_targets, track_weights
+        ):
+            # for each batch element
+            for _dists, _cos_dists, _targets, _weights in zip(
+                curr_dists, curr_cos_dists, curr_targets, curr_weights
+            ):
+                if all(_dists.shape):
+                    loss_track += self.track_loss(
+                        _dists,
+                        _targets,
+                        _weights,
+                        avg_factor=_weights.sum() + 1e-5,
+                    )
+                    if self.track_loss_aux is not None:
+                        loss_track_aux += self.track_loss_aux(
+                            _cos_dists, _targets
+                        )
 
-    def forward_test(
-        self,
-        inputs: InputSample,
-        boxes: List[Boxes2D],
-        features: Optional[NamedTensors],
-    ) -> List[torch.Tensor]:
-        """Forward pass during testing stage.
+        num_pairs = len(dists) * len(dists[0])
+        loss_track = loss_track / num_pairs
+        loss_track_aux = loss_track_aux / num_pairs
 
-        Args:
-            inputs: InputSamples (images, metadata, etc). Batched.
-            boxes: Input boxes to compute similarity embedding for.
-            features: Input feature maps. Batched.
-
-        Returns:
-            List[torch.Tensor]: Similarity embeddings (one vector per box, one
-            tensor per batch element).
-        """
-        assert features is not None, "QDSimilarityHead requires features!"
-        return self._head_forward(features, boxes)
+        return QDTrackInstanceSimilarityLosses(
+            track_loss=loss_track, track_loss_aux=loss_track_aux
+        )
 
     @staticmethod
-    def get_targets(
-        key_targets: List[Boxes2D], ref_targets: List[List[Boxes2D]]
+    def _get_targets(
+        key_track_ids: List[torch.Tensor],
+        ref_track_ids: List[List[torch.Tensor]],
     ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
         """Create tracking target tensors."""
         # for each reference view
         track_targets, track_weights = [], []
-        for ref_target in ref_targets:
+        for ref_target in ref_track_ids:
             # for each batch element
             curr_targets, curr_weights = [], []
-            for key_target, ref_target_ in zip(key_targets, ref_target):
-                assert (
-                    key_target.track_ids is not None
-                    and ref_target_.track_ids is not None
-                )
+            for key_target, ref_target_ in zip(key_track_ids, ref_target):
                 # target shape: len(key_target) x len(ref_target_)
                 # NOTE: this only works if key only contains positives and all
-                # negatives in ref have track_id -1 (see forward_train)
+                # negatives in ref have track_id -1
                 target = (
-                    key_target.track_ids.view(-1, 1)
-                    == ref_target_.track_ids.view(1, -1)
+                    key_target.view(-1, 1) == ref_target_.view(1, -1)
                 ).int()
                 weight = (target.sum(dim=1) > 0).float()
                 curr_targets.append(target)
@@ -271,7 +214,7 @@ class QDSimilarityHead(BaseSimilarityHead):
             track_weights.append(curr_weights)
         return track_targets, track_weights
 
-    def match(
+    def _match(
         self,
         key_embeds: List[torch.Tensor],
         ref_embeds: List[List[torch.Tensor]],
@@ -297,57 +240,3 @@ class QDSimilarityHead(BaseSimilarityHead):
             dists.append(dists_curr)
             cos_dists.append(cos_dists_curr)
         return dists, cos_dists
-
-    def loss(
-        self,
-        key_embeddings: List[torch.Tensor],
-        key_targets: List[Boxes2D],
-        ref_embeddings: List[List[torch.Tensor]],
-        ref_targets: List[List[Boxes2D]],
-    ) -> LossesType:
-        """Calculate losses for tracking.
-
-        Key inputs are of type List[Tensor/Boxes2D] (Lists are length N)
-        Ref inputs are of type List[List[Tensor/Boxes2D]] where the lists
-        are of length MxN.
-        Where M is the number of reference views and N is the
-        number of batch elements.
-        """
-        losses = {}
-        if sum(len(e) for e in key_embeddings) == 0:  # pragma: no cover
-            losses["track_loss"] = sum([e.sum() for e in key_embeddings])
-            losses["track_loss_aux"] = losses["track_loss"]
-            return losses
-
-        loss_track = torch.tensor(0.0, device=key_embeddings[0].device)
-        loss_track_aux = torch.tensor(0.0, device=key_embeddings[0].device)
-        dists, cos_dists = self.match(key_embeddings, ref_embeddings)
-        track_targets, track_weights = self.get_targets(
-            key_targets, ref_targets
-        )
-        # for each reference view
-        for curr_dists, curr_cos_dists, curr_targets, curr_weights in zip(
-            dists, cos_dists, track_targets, track_weights
-        ):
-            # for each batch element
-            for _dists, _cos_dists, _targets, _weights in zip(
-                curr_dists, curr_cos_dists, curr_targets, curr_weights
-            ):
-                if all(_dists.shape):
-                    loss_track += self.track_loss(
-                        _dists,
-                        _targets,
-                        _weights,
-                        avg_factor=_weights.sum() + 1e-5,
-                    )
-                    if self.track_loss_aux is not None:
-                        loss_track_aux += self.track_loss_aux(
-                            _cos_dists, _targets
-                        )
-
-        num_pairs = len(dists) * len(dists[0])
-        losses["track_loss"] = loss_track / num_pairs
-        if self.track_loss_aux is not None:
-            losses["track_loss_aux"] = loss_track_aux / num_pairs
-
-        return losses

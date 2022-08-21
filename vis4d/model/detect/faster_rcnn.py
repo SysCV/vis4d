@@ -92,7 +92,6 @@ class FasterRCNN(nn.Module):
         self.bbox_sampler = RandomSampler(
             batch_size=512, positive_fraction=0.25
         )
-        self.proposal_append_gt = True  # TODO where to put this
         self.roi_head = RCNNHead(num_classes=num_classes)
 
         if weights is not None:
@@ -124,40 +123,28 @@ class FasterRCNN(nn.Module):
         )
 
         if target_boxes is not None:
-            with torch.no_grad():
-                sampling_results = []
-                for i, (p, s, tb, tc) in enumerate(
-                    zip(proposals, scores, target_boxes, target_classes)
-                ):
-                    if self.proposal_append_gt:
-                        proposals[i] = torch.cat((p, tb), 0)
-                        scores[i] = torch.cat(
-                            (
-                                s,
-                                s.new_ones(
-                                    (len(tb)),
-                                ),
-                            ),
-                            0,
-                        )
-                    sampling_results.append(
-                        self.bbox_sampler(self.bbox_matcher(p, tb), p, tb, tc)
-                    )
+            (
+                proposals,
+                scores,
+                sampled_target_boxes,
+                sampled_target_classes,
+                sampled_labels,
+            ) = match_and_sample_proposals(
+                self.bbox_matcher,
+                self.bbox_sampler,
+                proposals,
+                scores,
+                target_boxes,
+                target_classes,
+                proposal_append_gt=True,
+            )
 
-                proposals = [r.sampled_boxes for r in sampling_results]
-                scores = [
-                    s[r.sampled_indices]
-                    for s, r in zip(scores, sampling_results)
-                ]
-                sampled_target_boxes = [
-                    r.sampled_target_boxes for r in sampling_results
-                ]
-                sampled_target_classes = [
-                    r.sampled_target_classes for r in sampling_results
-                ]
-                sampled_labels = [r.sampled_labels for r in sampling_results]
         else:
-            sampled_targets, sampled_labels = None, None
+            sampled_target_boxes, sampled_target_classes, sampled_labels = (
+                None,
+                None,
+                None,
+            )
 
         roi_cls_out, roi_reg_out = self.roi_head(features[:-1], proposals)
 

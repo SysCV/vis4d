@@ -1,11 +1,9 @@
 """Interface for Vis4D bounding box samplers."""
 import abc
-from typing import List, NamedTuple
+from typing import List, NamedTuple, Tuple
 
 import torch
-from torch import nn
-
-from vis4d.struct import Boxes2D
+from torch import Tensor, nn
 
 from ..matchers.base import BaseMatcher, MatchResult
 
@@ -43,20 +41,57 @@ class BaseSampler(nn.Module):
         self,
         matching: MatchResult,
         boxes: torch.Tensor,
-        targets: torch.Tensor,
+        target_boxes: torch.Tensor,
+        target_classes: torch.Tensor,
     ) -> SamplingResult:
         """Sample bounding boxes according to their struct."""
         raise NotImplementedError
 
 
 @torch.no_grad()  # type: ignore
-def match_and_sample_proposals(  # TODO update
+def match_and_sample_proposals(
     matcher: BaseMatcher,
     sampler: BaseSampler,
     proposals: List[torch.Tensor],
-    targets: List[torch.Tensor],
+    scores: List[torch.Tensor],
+    target_boxes: List[torch.Tensor],
+    target_classes: List[torch.Tensor],
     proposal_append_gt: bool,
-) -> List[SamplingResult]:
+) -> Tuple[
+    List[Tensor], List[Tensor], List[Tensor], List[Tensor], List[Tensor]
+]:
     """Match proposals to targets and subsample."""
 
-    return result
+    with torch.no_grad():
+        sampling_results = []
+        for i, (p, s, tb, tc) in enumerate(
+            zip(proposals, scores, target_boxes, target_classes)
+        ):
+            if proposal_append_gt:
+                proposals[i] = torch.cat((p, tb), 0)
+                scores[i] = torch.cat(
+                    (
+                        s,
+                        s.new_ones(
+                            (len(tb)),
+                        ),
+                    ),
+                    0,
+                )
+            sampling_results.append(sampler(matcher(p, tb), p, tb, tc))
+
+    proposals = [r.sampled_boxes for r in sampling_results]
+    scores = [s[r.sampled_indices] for s, r in zip(scores, sampling_results)]
+    sampled_target_boxes = [r.sampled_target_boxes for r in sampling_results]
+    sampled_target_classes = [
+        r.sampled_target_classes for r in sampling_results
+    ]
+    sampled_labels = [r.sampled_labels for r in sampling_results]
+
+    return (
+        proposals,
+        scores,
+        sampled_target_boxes,
+        sampled_target_classes,
+        sampled_labels,
+    )

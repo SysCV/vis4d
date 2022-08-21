@@ -4,7 +4,7 @@ from typing import Dict, List, Union
 
 import torch
 
-from vis4d.struct import Boxes2D
+from vis4d.struct import ArgsType
 
 from ..matchers.base import MatchResult
 from ..utils import non_intersection, random_choice
@@ -12,13 +12,12 @@ from .base import BaseSampler, SamplingResult
 from .utils import add_to_result
 
 
-class CombinedSampler(BaseSampler):  # TODO align with baseSampler
+class CombinedSampler(BaseSampler):
     """Combined sampler. Can have different strategies for pos/neg samples."""
 
     def __init__(
         self,
-        batch_size_per_image: int,
-        positive_fraction: float,
+        *args: ArgsType,
         pos_strategy: str,
         neg_strategy: str,
         neg_pos_ub: float = 3.0,
@@ -26,9 +25,10 @@ class CombinedSampler(BaseSampler):  # TODO align with baseSampler
         floor_fraction: float = 0.0,
         num_bins: int = 3,
         bg_label: int = 0,
+        **kwargs: ArgsType
     ):
         """Init."""
-        super().__init__(batch_size_per_image, positive_fraction)
+        super().__init__(*args, **kwargs)
         self.neg_pos_ub = neg_pos_ub
         self.floor_thr = floor_thr
         self.floor_fraction = floor_fraction
@@ -134,50 +134,58 @@ class CombinedSampler(BaseSampler):  # TODO align with baseSampler
 
     def forward(
         self,
-        matching: List[MatchResult],
-        boxes: List[Boxes2D],
-        targets: List[Boxes2D],
+        matching: MatchResult,
+        boxes: torch.Tensor,
+        target_boxes: torch.Tensor,
+        target_classes: torch.Tensor,
     ) -> SamplingResult:
         """Sample boxes according to strategies defined in cfg."""
         pos_sample_size = int(
             self.batch_size_per_image * self.positive_fraction
         )
-        result: Dict[
-            str, Union[List[Boxes2D], List[torch.Tensor]]
-        ] = defaultdict(list)
-        for match, box, target in zip(matching, boxes, targets):
-            positive_mask = (match.assigned_labels != -1) & (
-                match.assigned_labels != self.bg_label
-            )
-            negative_mask = match.assigned_labels == self.bg_label
 
-            positive = positive_mask.nonzero()[:, 0]
-            negative = negative_mask.nonzero()[:, 0]
+        positive_mask = (matching.assigned_labels != -1) & (
+            matching.assigned_labels != self.bg_label
+        )
+        negative_mask = matching.assigned_labels == self.bg_label
 
-            num_pos = min(positive.numel(), pos_sample_size)
-            num_neg = self.batch_size_per_image - num_pos
+        positive = positive_mask.nonzero()[:, 0]
+        negative = negative_mask.nonzero()[:, 0]
 
-            if self.neg_pos_ub >= 0:
-                neg_upper_bound = int(self.neg_pos_ub * num_pos)
-                num_neg = min(num_neg, neg_upper_bound)
+        num_pos = min(positive.numel(), pos_sample_size)
+        num_neg = self.batch_size_per_image - num_pos
 
-            pos_idx = self.pos_strategy(
-                idx_tensor=positive,
-                assigned_gts=match.assigned_gt_indices.long()[positive_mask],
-                assigned_gt_ious=match.assigned_gt_iou[positive_mask],
-                sample_size=num_pos,
-            )
+        if self.neg_pos_ub >= 0:
+            neg_upper_bound = int(self.neg_pos_ub * num_pos)
+            num_neg = min(num_neg, neg_upper_bound)
 
-            neg_idx = self.neg_strategy(
-                idx_tensor=negative,
-                assigned_gts=match.assigned_gt_indices.long()[negative_mask],
-                assigned_gt_ious=match.assigned_gt_iou[negative_mask],
-                sample_size=num_neg,
-            )
-            sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
-            add_to_result(result, sampled_idcs, box, target, match)
+        pos_idx = self.pos_strategy(
+            idx_tensor=positive,
+            assigned_gts=matching.assigned_gt_indices.long()[positive_mask],
+            assigned_gt_ious=matching.assigned_gt_iou[positive_mask],
+            sample_size=num_pos,
+        )
 
-        return SamplingResult(**result)
+        neg_idx = self.neg_strategy(
+            idx_tensor=negative,
+            assigned_gts=matching.assigned_gt_indices.long()[negative_mask],
+            assigned_gt_ious=matching.assigned_gt_iou[negative_mask],
+            sample_size=num_neg,
+        )
+        sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
+
+        return SamplingResult(
+            sampled_boxes=boxes[sampled_idcs],
+            sampled_target_boxes=target_boxes[
+                matching.assigned_gt_indices.long()[sampled_idcs]
+            ],  # TODO why .long(), should already be long
+            sampled_target_classes=target_classes[
+                matching.assigned_gt_indices.long()[sampled_idcs]
+            ],
+            sampled_labels=matching.assigned_labels[sampled_idcs],
+            sampled_indices=sampled_idcs,
+            sampled_target_indices=matching.assigned_gt_indices[sampled_idcs],
+        )
 
     def sample_within_intervals(
         self,
