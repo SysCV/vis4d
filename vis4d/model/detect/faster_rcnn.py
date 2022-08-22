@@ -163,7 +163,14 @@ class FasterRCNN(nn.Module):
             proposal_labels=sampled_labels,
         )
 
-    # __call__: Callable[..., FRCNNReturn] = super()._call_impl
+    def __call__(
+        self,
+        images: torch.Tensor,
+        target_boxes: Optional[List[torch.Tensor]] = None,
+        target_classes: Optional[List[torch.Tensor]] = None,
+    ) -> FRCNNReturn:
+        """Type definition for call implementation."""
+        return self._call_impl(images, target_boxes, target_classes)
 
 
 class FasterRCNNLoss(nn.Module):  # TODO needs to be updated / removed
