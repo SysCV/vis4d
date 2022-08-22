@@ -11,7 +11,7 @@ from vis4d.common.bbox.anchor_generator import (
     AnchorGenerator,
     anchor_inside_flags,
 )
-from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxCoder
+from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.samplers import RandomSampler, SamplingResult
 from vis4d.common.layers import Conv2d
@@ -83,7 +83,7 @@ class TransformRPNOutputs(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        bbox_coder: DeltaXYWHBBoxCoder,
+        bbox_coder: DeltaXYWHBBoxEncoder,
         num_proposals_pre_nms: int = 2000,
         max_per_img: int = 1000,
         proposal_nms_threshold: float = 0.7,
@@ -230,7 +230,7 @@ class RPNLoss(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        bbox_coder: DeltaXYWHBBoxCoder,
+        bbox_coder: DeltaXYWHBBoxEncoder,
     ):
         super().__init__()
         self.anchor_generator = anchor_generator

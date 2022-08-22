@@ -1,5 +1,4 @@
-"""RoI heads."""
-from .base import BaseSimilarityHead
+"""Similarity heads."""
 from .qdtrack import QDSimilarityHead
 
-__all__ = ["BaseSimilarityHead", "QDSimilarityHead"]
+__all__ = ["QDSimilarityHead"]

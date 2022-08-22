@@ -7,7 +7,7 @@ import torch
 from vis4d.struct import Boxes2D, Boxes3D, Intrinsics
 
 
-class BaseBoxCoder2D:
+class BaseBoxEncoder2D:
     """Base class for 2D box coders."""
 
     @abc.abstractmethod

@@ -2,9 +2,12 @@
 import numpy as np
 import torch
 
+from .base import BaseBoxEncoder2D
 
-class DeltaXYWHBBoxCoder:  # TODO adapt
-    """Delta XYWH BBox coder.
+
+# TOOD add mmdet reference
+class DeltaXYWHBBoxEncoder(BaseBoxEncoder2D):
+    """Delta XYWH BBox encoder.
 
     Following the practice in `R-CNN <https://arxiv.org/abs/1311.2524>`_,
     this coder encodes bbox (x1, y1, x2, y2) into delta (dx, dy, dw, dh) and
@@ -38,7 +41,9 @@ class DeltaXYWHBBoxCoder:  # TODO adapt
         self.add_ctr_clamp = add_ctr_clamp
         self.ctr_clamp = ctr_clamp
 
-    def encode(self, bboxes, gt_bboxes):
+    def encode(
+        self, bboxes: torch.Tensor, gt_bboxes: torch.Tensor
+    ) -> torch.Tensor:
         """Get box regression transformation deltas that can be used to
         transform the ``bboxes`` into the ``gt_bboxes``.
 
@@ -57,7 +62,11 @@ class DeltaXYWHBBoxCoder:  # TODO adapt
         return encoded_bboxes
 
     def decode(
-        self, bboxes, pred_bboxes, max_shape=None, wh_ratio_clip=16 / 1000
+        self,
+        bboxes: torch.Tensor,
+        pred_bboxes: torch.Tensor,
+        max_shape=None,
+        wh_ratio_clip=16 / 1000,
     ):
         """Apply transformation `pred_bboxes` to `boxes`.
 

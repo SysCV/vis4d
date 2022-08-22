@@ -1,11 +1,11 @@
 """Faster RCNN detector."""
-from typing import List, NamedTuple, Optional
+from typing import Callable, List, NamedTuple, Optional
 
 import torch
 from torch import nn
 
 from vis4d.common.bbox.anchor_generator import AnchorGenerator
-from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxCoder
+from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.samplers import (
     RandomSampler,
@@ -30,8 +30,10 @@ REV_KEYS = [
 
 
 class FRCNNReturn(NamedTuple):
+    backbone_out: List[torch.Tensor]
     rpn_cls_out: torch.Tensor
     rpn_reg_out: torch.Tensor
+    # rpn: Optional[NamedTuple]  # TODO define
     roi_cls_out: torch.Tensor
     roi_reg_out: torch.Tensor
     proposal_boxes: List[torch.Tensor]
@@ -49,8 +51,8 @@ class FasterRCNN(nn.Module):
         backbone: nn.Module,
         num_classes: int = 80,
         anchor_generator: Optional[AnchorGenerator] = None,
-        rpn_bbox_coder: Optional[DeltaXYWHBBoxCoder] = None,
-        rcnn_bbox_coder: Optional[DeltaXYWHBBoxCoder] = None,
+        rpn_bbox_coder: Optional[DeltaXYWHBBoxEncoder] = None,
+        rcnn_bbox_coder: Optional[DeltaXYWHBBoxEncoder] = None,
         weights: Optional[str] = None,
     ):
         """Init."""
@@ -65,7 +67,7 @@ class FasterRCNN(nn.Module):
             self.anchor_generator = anchor_generator
 
         if rpn_bbox_coder is None:
-            self.rpn_bbox_coder = DeltaXYWHBBoxCoder(
+            self.rpn_bbox_coder = DeltaXYWHBBoxEncoder(
                 target_means=(0.0, 0.0, 0.0, 0.0),
                 target_stds=(1.0, 1.0, 1.0, 1.0),
             )
@@ -73,7 +75,7 @@ class FasterRCNN(nn.Module):
             self.rpn_bbox_coder = rpn_bbox_coder
 
         if rcnn_bbox_coder is None:
-            self.rcnn_bbox_coder = DeltaXYWHBBoxCoder(
+            self.rcnn_bbox_coder = DeltaXYWHBBoxEncoder(
                 clip_border=True,
                 target_means=(0.0, 0.0, 0.0, 0.0),
                 target_stds=(0.1, 0.1, 0.2, 0.2),
@@ -149,6 +151,7 @@ class FasterRCNN(nn.Module):
         roi_cls_out, roi_reg_out = self.roi_head(features[:-1], proposals)
 
         return FRCNNReturn(
+            backbone_out=features,
             rpn_cls_out=rpn_cls_out,
             rpn_reg_out=rpn_reg_out,
             roi_reg_out=roi_reg_out,
@@ -160,8 +163,10 @@ class FasterRCNN(nn.Module):
             proposal_labels=sampled_labels,
         )
 
+    # __call__: Callable[..., FRCNNReturn] = super()._call_impl
 
-class FasterRCNNLoss(nn.Module):
+
+class FasterRCNNLoss(nn.Module):  # TODO needs to be updated / removed
     def __init__(self, rpn_head, roi_head):
         super().__init__()
         from vis4d.model.heads.dense_head.rpn import MMDetDenseHeadLoss

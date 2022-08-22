@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxCoder
+from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.utils import multiclass_nms
 from vis4d.model.losses.utils import l1_loss, weight_reduce_loss
@@ -76,7 +76,7 @@ class RCNNHead(nn.Module):
 class TransformRCNNOutputs(nn.Module):
     def __init__(
         self,
-        bbox_coder: DeltaXYWHBBoxCoder,
+        bbox_coder: DeltaXYWHBBoxEncoder,
         score_threshold: float = 0.05,
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
@@ -135,7 +135,9 @@ class RCNNLosses(NamedTuple):
 
 
 class RCNNLoss(nn.Module):
-    def __init__(self, bbox_coder: DeltaXYWHBBoxCoder, num_classes: int = 80):
+    def __init__(
+        self, bbox_coder: DeltaXYWHBBoxEncoder, num_classes: int = 80
+    ):
         super().__init__()
         self.num_classes = num_classes
         self.bbox_coder = bbox_coder

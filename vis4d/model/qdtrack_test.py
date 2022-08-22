@@ -5,39 +5,74 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.common.datasets import bdd100k_track_map, bdd100k_track_sample
-from vis4d.data.utils import transform_bbox
-from vis4d.struct import Boxes2D
+from vis4d.model.detect.faster_rcnn_test import (
+    FasterRCNN,
+    SampleDataset,
+    TorchResNetBackbone,
+    TransformRCNNOutputs,
+    identity_collate,
+)
+from vis4d.model.qdtrack.qdtrack import QDTrack
 
+from .utils import load_model_checkpoint
 
-class SampleDataset(Dataset):
-    def __init__(self):
-        self.scalabel_data = bdd100k_track_sample()
-
-    def __len__(self):
-        return len(self.scalabel_data.frames)
-
-    def __getitem__(self, item):
-        frame = self.scalabel_data.frames[item]
-        img = url_to_tensor(frame.url, size=(512, 512))
-        labels = Boxes2D.from_scalabel(frame.labels, bdd100k_track_map)
-        trans_mat = torch.eye(3)
-        trans_mat[0, 0] = 512 / 1280
-        trans_mat[1, 1] = 512 / 720
-        labels.boxes[:, :4] = transform_bbox(trans_mat, labels.boxes[:, :4])
-        return img, labels.boxes, labels.class_ids
-
-
-def identity_collate(batch):
-    return tuple(zip(*batch))
+REV_KEYS = [
+    (r"^detector.rpn_head.mm_dense_head\.", "detector.rpn_head."),
+    ("\.rpn_reg\.", ".rpn_box."),
+    (r"^detector.roi_head.mm_roi_head.bbox_head\.", "detector.roi_head."),
+    (r"^detector.backbone.mm_backbone\.", "detector.backbone.backbone.body."),
+    (
+        r"^detector.backbone.neck.mm_neck.lateral_convs\.",
+        "detector.backbone.backbone.fpn.inner_blocks.",
+    ),
+    (
+        r"^detector.backbone.neck.mm_neck.fpn_convs\.",
+        "detector.backbone.backbone.fpn.layer_blocks.",
+    ),
+    ("\.conv.weight", ".weight"),
+    ("\.conv.bias", ".bias"),
+]
 
 
 class QDTrackTest(unittest.TestCase):
     def test_inference(self):
-        qdtrack = QDTrack()
+        faster_rcnn = FasterRCNN(
+            backbone=TorchResNetBackbone(
+                "resnet50", pretrained=True, trainable_layers=3
+            ),
+            num_classes=8,
+        )
+        transform_outs = TransformRCNNOutputs(
+            faster_rcnn.rcnn_bbox_coder, score_threshold=0.5
+        )
+        qdtrack = QDTrack(faster_rcnn, transform_outs)
+
+        from mmcv.runner.checkpoint import load_checkpoint
+
+        load_checkpoint(
+            qdtrack,
+            "./qdtrack_r50_65point7.ckpt",
+            map_location=torch.device("cpu"),
+            revise_keys=REV_KEYS,
+            strict=True,
+        )
+
         qdtrack.eval()
-        with torch.no_grad():
-            outs = qdtrack(sample_images)
+        test_data = SampleDataset()
+
+        batch_size = 2
+        test_loader = DataLoader(
+            test_data,
+            batch_size=batch_size,
+            shuffle=True,
+            collate_fn=identity_collate,
+        )
+        for i, data in enumerate(test_loader):
+            inputs, _, _ = data
+            outs = qdtrack(
+                torch.cat(inputs),
+                (i * batch_size + j for j in range(batch_size)),
+            )
 
     def test_train(self):
         qdtrack = QDTrack()
@@ -91,46 +126,47 @@ class QDTrackTest(unittest.TestCase):
         qdtrack_scripted(sample_images)
 
 
-if proposal_sampler is not None:
-    self.sampler = proposal_sampler
-else:
-    self.sampler = CombinedSampler(
-        batch_size=256,
-        positive_fraction=0.5,
-        pos_strategy="instance_balanced",
-        neg_strategy="iou_balanced",
-    )
-
-if proposal_matcher is not None:
-    self.matcher = proposal_matcher
-else:
-    self.matcher = MaxIoUMatcher(
-        thresholds=[0.3, 0.7],
-        labels=[0, -1, 1],
-        allow_low_quality_matches=False,
-    )
-
-# TODO will be part of training loop
-sampling_results, sampled_boxes, sampled_targets = [], [], []
-for i, (box, tgt) in enumerate(zip(boxes, targets)):
-    sampling_result = match_and_sample_proposals(
-        self.matcher,
-        self.sampler,
-        box,
-        tgt.boxes2d,
-        self.proposal_append_gt,
-    )
-    sampling_results.append(sampling_result)
-
-    sampled_box = sampling_result.sampled_boxes
-    sampled_tgt = sampling_result.sampled_targets
-    positives = [l == 1 for l in sampling_result.sampled_labels]
-    if i == 0:  # take only positives for keyframe (assumed at i=0)
-        sampled_box = [b[p] for b, p in zip(sampled_box, positives)]
-        sampled_tgt = [t[p] for t, p in zip(sampled_tgt, positives)]
-    else:  # set track_ids to -1 for all negatives
-        for pos, samp_tgt in zip(positives, sampled_tgt):
-            samp_tgt.track_ids[~pos] = -1
-
-    sampled_boxes.append(sampled_box)
-    sampled_targets.append(sampled_tgt)
+#
+# if proposal_sampler is not None:
+#     self.sampler = proposal_sampler
+# else:
+#     self.sampler = CombinedSampler(
+#         batch_size=256,
+#         positive_fraction=0.5,
+#         pos_strategy="instance_balanced",
+#         neg_strategy="iou_balanced",
+#     )
+#
+# if proposal_matcher is not None:
+#     self.matcher = proposal_matcher
+# else:
+#     self.matcher = MaxIoUMatcher(
+#         thresholds=[0.3, 0.7],
+#         labels=[0, -1, 1],
+#         allow_low_quality_matches=False,
+#     )
+#
+# # TODO will be part of training loop
+# sampling_results, sampled_boxes, sampled_targets = [], [], []
+# for i, (box, tgt) in enumerate(zip(boxes, targets)):
+#     sampling_result = match_and_sample_proposals(
+#         self.matcher,
+#         self.sampler,
+#         box,
+#         tgt.boxes2d,
+#         self.proposal_append_gt,
+#     )
+#     sampling_results.append(sampling_result)
+#
+#     sampled_box = sampling_result.sampled_boxes
+#     sampled_tgt = sampling_result.sampled_targets
+#     positives = [l == 1 for l in sampling_result.sampled_labels]
+#     if i == 0:  # take only positives for keyframe (assumed at i=0)
+#         sampled_box = [b[p] for b, p in zip(sampled_box, positives)]
+#         sampled_tgt = [t[p] for t, p in zip(sampled_tgt, positives)]
+#     else:  # set track_ids to -1 for all negatives
+#         for pos, samp_tgt in zip(positives, sampled_tgt):
+#             samp_tgt.track_ids[~pos] = -1
+#
+#     sampled_boxes.append(sampled_box)
+#     sampled_targets.append(sampled_tgt)

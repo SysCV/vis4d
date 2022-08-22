@@ -117,18 +117,21 @@ class FasterRCNNTest(unittest.TestCase):
 
     def test_train(self):
         # TODO should bn be frozen during training?
+        anchor_gen = get_default_faster_rcnn_anchor_generator()
+        rpn_bbox_coder = get_default_rpn_box_coder()
+        rcnn_bbox_coder = get_default_rcnn_box_coder()
         faster_rcnn = FasterRCNN(
-            backbone=TorchResNetBackbone(
+            TorchResNetBackbone(
                 "resnet50", pretrained=True, trainable_layers=3
             ),
+            anchor_generator=anchor_gen,
+            rpn_bbox_coder=rpn_bbox_coder,
+            rcnn_bbox_coder=rcnn_bbox_coder,
             num_classes=8,
         )
-        # TODO singleton pattern is not suitable here since e.g. tracking
-        #  heads could also have a box coder, pooler etc.
-        rpn_loss = RPNLoss(
-            faster_rcnn.anchor_generator, faster_rcnn.rpn_bbox_coder
-        )
-        rcnn_loss = RCNNLoss(faster_rcnn.rcnn_bbox_coder, num_classes=8)
+        rpn_loss = RPNLoss(anchor_gen, rpn_bbox_coder)
+        rcnn_loss = RCNNLoss(rcnn_bbox_coder, num_classes=8)
+
         optimizer = optim.SGD(faster_rcnn.parameters(), lr=0.001, momentum=0.9)
 
         train_data = SampleDataset()

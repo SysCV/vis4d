@@ -1,13 +1,18 @@
 """Quasi-dense instance similarity learning model."""
-from typing import Tuple
+import pickle
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from pytorch_lightning.utilities.cli import instantiate_class
+from torch import nn
 
 from vis4d.common.data_pipelines import default as default_augs
-from vis4d.model import QDTrack
+from vis4d.model.detect import FasterRCNN
+from vis4d.model.heads.roi_head.rcnn import TransformRCNNOutputs
 from vis4d.model.optimize import DefaultOptimizer
-from vis4d.struct import ArgsType
+from vis4d.model.track.graph import QDTrackGraph
+from vis4d.model.track.similarity import QDSimilarityHead
+from vis4d.struct import ArgsType, Tracks
 
 try:
     from mmdet.core.bbox.assigners import SimOTAAssigner
@@ -15,6 +20,67 @@ try:
     MMDET_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
+
+
+class QDTrack(nn.Module):
+    """QDTrack model - quasi-dense instance similarity learning."""
+
+    def __init__(
+        self, detector: FasterRCNN, detector_transform: TransformRCNNOutputs
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.detector = detector
+        self.detector_transform = detector_transform
+        self.similarity_head = QDSimilarityHead()
+        self.track_graph = QDTrackGraph()
+
+    def debug_logging(self, logger) -> Dict[str, torch.Tensor]:
+        """Logging for debugging"""
+        # from vis4d.vis.track import imshow_bboxes
+        # for ref_inp, ref_props in zip(ref_inputs, ref_proposals):
+        #     for ref_img, ref_prop in zip(ref_inp.images, ref_props):
+        #         _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
+        #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
+        # for batch_i, key_inp in enumerate(key_inputs):
+        #    imshow_bboxes(
+        #        key_inp.images.tensor[0], key_inp.targets.boxes2d[0]
+        #    )
+        #    for ref_i, ref_inp in enumerate(ref_inputs):
+        #        imshow_bboxes(
+        #            ref_inp[batch_i].images.tensor[0],
+        #            ref_inp[batch_i].targets.boxes2d[0],
+        #        )
+
+    def forward(
+        self, images: torch.Tensor, frame_ids: Tuple[int, ...]
+    ) -> List[Tracks]:
+        """Forward function for training."""
+        # detection
+        detector_out = self.detector(images)
+        detections = self.detector_transform(
+            detector_out.roi_cls_out,
+            detector_out.roi_reg_out,
+            detector_out.proposal_boxes,
+            images.shape,
+        )
+        boxes, scores, class_ids = (
+            [d.boxes for d in detections],
+            [d.scores for d in detections],
+            [d.class_ids for d in detections],
+        )
+
+        # similarity head
+        embeddings = self.similarity_head(detector_out.backbone_out[:4], boxes)
+
+        # track graph
+        batched_tracks = []
+        for frame_id, box, score, cls_id, embeds in zip(
+            frame_ids, boxes, scores, class_ids, embeddings
+        ):
+            tracks = self.track_graph(box, score, cls_id, embeds, frame_id)
+            batched_tracks.append(tracks)
+        return batched_tracks
 
 
 class ClippedSimOTAAssigner(SimOTAAssigner):  # type: ignore
