@@ -17,7 +17,12 @@ from vis4d.model.heads.roi_head.rcnn import RCNNLoss, TransformRCNNOutputs
 from vis4d.struct import Boxes2D
 from vis4d.vis.image import imshow_bboxes
 
-from .faster_rcnn import FasterRCNN
+from .faster_rcnn import (
+    FasterRCNN,
+    get_default_anchor_generator,
+    get_default_rcnn_box_encoder,
+    get_default_rpn_box_encoder,
+)
 
 
 def normalize(img: torch.Tensor) -> torch.Tensor:
@@ -95,13 +100,18 @@ class FasterRCNNTest(unittest.TestCase):
             backbone=TorchResNetBackbone(
                 "resnet50", pretrained=True, trainable_layers=3
             ),
-            weights="mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_20200504_210434-a5d8aa15.pth",
+            num_classes=80,
+            weights=(
+                "mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/"
+                "faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_"
+                "20200504_210434-a5d8aa15.pth"
+            ),
         )
         faster_rcnn.eval()
         with torch.no_grad():
             outs = faster_rcnn(sample_images)
             transform_outs = TransformRCNNOutputs(
-                faster_rcnn.rcnn_bbox_coder, score_threshold=0.5
+                faster_rcnn.rcnn_box_encoder, score_threshold=0.5
             )
             dets = transform_outs(
                 class_outs=outs.roi_cls_out,
@@ -117,20 +127,20 @@ class FasterRCNNTest(unittest.TestCase):
 
     def test_train(self):
         # TODO should bn be frozen during training?
-        anchor_gen = get_default_faster_rcnn_anchor_generator()
-        rpn_bbox_coder = get_default_rpn_box_coder()
-        rcnn_bbox_coder = get_default_rcnn_box_coder()
+        anchor_gen = get_default_anchor_generator()
+        rpn_bbox_encoder = get_default_rpn_box_encoder()
+        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         faster_rcnn = FasterRCNN(
             TorchResNetBackbone(
                 "resnet50", pretrained=True, trainable_layers=3
             ),
             anchor_generator=anchor_gen,
-            rpn_bbox_coder=rpn_bbox_coder,
-            rcnn_bbox_coder=rcnn_bbox_coder,
+            rpn_box_encoder=rpn_bbox_encoder,
+            rcnn_box_encoder=rcnn_bbox_encoder,
             num_classes=8,
         )
-        rpn_loss = RPNLoss(anchor_gen, rpn_bbox_coder)
-        rcnn_loss = RCNNLoss(rcnn_bbox_coder, num_classes=8)
+        rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
+        rcnn_loss = RCNNLoss(rcnn_bbox_encoder, num_classes=8)
 
         optimizer = optim.SGD(faster_rcnn.parameters(), lr=0.001, momentum=0.9)
 
@@ -195,7 +205,11 @@ class FasterRCNNTest(unittest.TestCase):
             backbone=TorchResNetBackbone(
                 "resnet50", pretrained=True, trainable_layers=3
             ),
-            weights="mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_20200504_210434-a5d8aa15.pth",
+            weights=(
+                "mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/"
+                "faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_"
+                "20200504_210434-a5d8aa15.pth"
+            ),
         )
         frcnn_scripted = torch.jit.script(faster_rcnn)
         frcnn_scripted(sample_images)
