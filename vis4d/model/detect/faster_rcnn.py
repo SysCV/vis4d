@@ -43,6 +43,42 @@ class FRCNNReturn(NamedTuple):
     proposal_labels: Optional[List[torch.Tensor]]
 
 
+def get_default_anchor_generator() -> AnchorGenerator:
+    """Get default anchor generator."""
+    return AnchorGenerator(
+        scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]
+    )
+
+
+def get_default_rpn_box_encoder() -> DeltaXYWHBBoxEncoder:
+    """Get the default bounding box encoder for RPN."""
+    return DeltaXYWHBBoxEncoder(
+        target_means=(0.0, 0.0, 0.0, 0.0),
+        target_stds=(1.0, 1.0, 1.0, 1.0),
+    )
+
+
+def get_default_rcnn_box_encoder() -> DeltaXYWHBBoxEncoder:
+    """Get the default bounding box encoder for RCNN."""
+    return DeltaXYWHBBoxEncoder(
+        clip_border=True,
+        target_means=(0.0, 0.0, 0.0, 0.0),
+        target_stds=(0.1, 0.1, 0.2, 0.2),
+    )
+
+
+def get_default_box_matcher() -> MaxIoUMatcher:
+    """Get default bounding box matcher."""
+    return MaxIoUMatcher(
+        thresholds=[0.5], labels=[0, 1], allow_low_quality_matches=False
+    )
+
+
+def get_default_box_sampler() -> RandomSampler:
+    """Get default bounding box sampler."""
+    return RandomSampler(batch_size=512, positive_fraction=0.25)
+
+
 class FasterRCNN(nn.Module):
     """mmdetection two-stage detector wrapper."""
 
@@ -51,48 +87,45 @@ class FasterRCNN(nn.Module):
         backbone: nn.Module,
         num_classes: int = 80,
         anchor_generator: Optional[AnchorGenerator] = None,
-        rpn_bbox_coder: Optional[DeltaXYWHBBoxEncoder] = None,
-        rcnn_bbox_coder: Optional[DeltaXYWHBBoxEncoder] = None,
+        rpn_box_encoder: Optional[DeltaXYWHBBoxEncoder] = None,
+        rcnn_box_encoder: Optional[DeltaXYWHBBoxEncoder] = None,
+        box_matcher: Optional[MaxIoUMatcher] = None,
+        box_sampler: Optional[RandomSampler] = None,
         weights: Optional[str] = None,
     ):
         """Init."""
         super().__init__()
         self.backbone = backbone
 
-        if anchor_generator is None:
-            self.anchor_generator = AnchorGenerator(
-                scales=[8], ratios=[0.5, 1.0, 2.0], strides=[4, 8, 16, 32, 64]
-            )
-        else:
-            self.anchor_generator = anchor_generator
-
-        if rpn_bbox_coder is None:
-            self.rpn_bbox_coder = DeltaXYWHBBoxEncoder(
-                target_means=(0.0, 0.0, 0.0, 0.0),
-                target_stds=(1.0, 1.0, 1.0, 1.0),
-            )
-        else:
-            self.rpn_bbox_coder = rpn_bbox_coder
-
-        if rcnn_bbox_coder is None:
-            self.rcnn_bbox_coder = DeltaXYWHBBoxEncoder(
-                clip_border=True,
-                target_means=(0.0, 0.0, 0.0, 0.0),
-                target_stds=(0.1, 0.1, 0.2, 0.2),
-            )
-        else:
-            self.rcnn_bbox_coder = rcnn_bbox_coder
+        self.anchor_generator = (
+            anchor_generator
+            if anchor_generator is not None
+            else get_default_anchor_generator()
+        )
+        self.rpn_box_encoder = (
+            rpn_box_encoder
+            if rpn_box_encoder is not None
+            else get_default_rpn_box_encoder()
+        )
+        self.rcnn_box_encoder = (
+            rcnn_box_encoder
+            if rcnn_box_encoder is not None
+            else get_default_rcnn_box_encoder()
+        )
+        self.box_matcher = (
+            box_matcher
+            if box_matcher is not None
+            else get_default_box_matcher()
+        )
+        self.box_sampler = (
+            box_sampler
+            if box_sampler is not None
+            else get_default_box_sampler()
+        )
 
         self.rpn_head = RPNHead(self.anchor_generator.num_base_priors[0])
         self.rpn_head_transform = TransformRPNOutputs(
-            self.anchor_generator, self.rpn_bbox_coder
-        )
-
-        self.bbox_matcher = MaxIoUMatcher(
-            thresholds=[0.5], labels=[0, 1], allow_low_quality_matches=False
-        )
-        self.bbox_sampler = RandomSampler(
-            batch_size=512, positive_fraction=0.25
+            self.anchor_generator, self.rpn_box_encoder
         )
         self.roi_head = RCNNHead(num_classes=num_classes)
 
@@ -113,7 +146,6 @@ class FasterRCNN(nn.Module):
             proposals
 
         """
-
         if target_boxes is not None:
             assert target_classes is not None
 
@@ -132,8 +164,8 @@ class FasterRCNN(nn.Module):
                 sampled_target_classes,
                 sampled_labels,
             ) = match_and_sample_proposals(
-                self.bbox_matcher,
-                self.bbox_sampler,
+                self.box_matcher,
+                self.box_sampler,
                 proposals,
                 scores,
                 target_boxes,

@@ -47,7 +47,7 @@ class QDTrackTest(unittest.TestCase):
             num_classes=8,
         )
         transform_outs = TransformRCNNOutputs(
-            faster_rcnn.rcnn_bbox_coder, score_threshold=0.5
+            faster_rcnn.rcnn_box_encoder, score_threshold=0.5
         )
         qdtrack = QDTrack(faster_rcnn, transform_outs)
 
