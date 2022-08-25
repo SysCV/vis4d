@@ -3,163 +3,89 @@ import copy
 from typing import Dict, List, NamedTuple, Optional, Tuple, Union
 
 import torch
-from torch import nn
 
 from vis4d.common.bbox.utils import bbox_iou
-from vis4d.struct import Boxes2D, LabelInstances
+
+from .assignment import greedy_assign, random_ids
+from .matching import calc_bisoftmax_affinity
+
+# def filter_tracks(tracks: Tracks, keep_mask: torch.Tensor) -> Tracks:
+#     new_values = []
+#     for v in tracks:
+#         new_values.append(v[keep_mask])
+#     return Tracks(*new_values)
 
 
-class Tracks(NamedTuple):
-    """Efficient tensor storage for QDTrack tracks."""
+class Tracks:
+    """Tracks class.
 
+    Holds track representation across timesteps represented as:
+    List[Tuple[torch.Tensor, ...]]
+    where each list element is tracks at time t and tracks at time t are
+    represented as Tuple[Tensor], where first element is a LongTensor of ids,
+    and other N elements are boxes, scores, class_ids, etc.
+    """
 
-
-class Backdrops(NamedTuple):
-    boxes: torch.Tensor
-    scores: torch.Tensor
-    embeddings: torch.Tensor
-    class_ids: torch.Tensor
-
-
-
-def bisoftmax_match(detection_class_ids: torch.Tensor, detection_embeddings: torch.Tensor, track_class_ids: torch.Tensor, track_embeddings: torch.Tensor, with_categories: bool = True) -> torch.Tensor:
-        """match using bisoftmax metric"""
-        feats = torch.mm(detection_embeddings, track_embeddings.t())
-        d2t_scores = feats.softmax(dim=1)
-        t2d_scores = feats.softmax(dim=0)
-        similarity_scores = (d2t_scores + t2d_scores) / 2
-
-        if with_categories:
-            cat_same = detection_class_ids.view(
-                -1, 1
-            ) == track_class_ids.view(1, -1)
-            similarity_scores *= cat_same.float()
-        return similarity_scores
-
-
-def greedy_assign(detection_scores: torch.Tensor, tracklet_ids: torch.Tensor, affinity_scores: torch.Tensor, num_existing_tracks: int) -> Tuple[torch.Tensor, int]:
-    """Greedy assignment of detections to tracks given affinities."""
-    ids = torch.full(
-        (len(detection_scores),), -1, dtype=torch.long, device=detection_scores.device
-    )
-
-    for i in range(len(detection_scores)):
-        breakpoint()
-        conf, memo_ind = torch.max(affinity_scores[i, :], dim=0)
-        cur_id = tracklet_ids[memo_ind]
-        if conf > self.match_score_thr:
-            if cur_id > -1:
-                if detection_scores[i] > self.obj_score_thr:
-                    ids[i] = cur_id
-                    affinity_scores[:i, memo_ind] = 0
-                    affinity_scores[(i + 1) :, memo_ind] = 0
-                elif conf > self.nms_conf_thr:  # pragma: no cover
-                    ids[i] = -2
-    new_inds = (ids == -1) & (detection_scores > self.init_score_thr)
-    num_new_tracks = new_inds.sum()
-    ids[new_inds] = torch.arange(
-        num_existing_tracks,
-        num_existing_tracks + num_new_tracks,
-        dtype=torch.long,
-        device=ids.device,
-    )
-    return ids, num_existing_tracks + num_new_tracks
-
-
-def filter_tracks(tracks: Tracks, keep_mask: torch.Tensor) -> Tracks:
-    new_values = []
-    for v in tracks:
-         new_values.append(v[keep_mask])
-    return Tracks(*new_values)
-
-
-class BoxTracks:
-    def __init__(self, device: torch.device):
-        self.track_ids = []#torch.empty((0,), dtype=torch.long, device=device)
-        self.boxes =
-        self.scores =  #torch.empty((0,), dtype=torch.float, device=device)
-        self.class_ids =  #torch.empty((0,), dtype=torch.long, device=device)
-
-    def get(self, start_frame_index: int, end_frame_index: int) -> List[Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]]:
-        result = []
-        for i in range(start_frame_index, end_frame_index):
-            result.append((self.track_ids[i], self.boxes, self.scores, self.class_ids))
-        return result
+    def __init__(self, memory_limit: int = -1):
+        self.memory_limit = memory_limit
+        self.frames: List[Tuple[torch.Tensor, ...]] = []
 
     @property
-    def empty(self) -> bool:
-        """Whether track memory is empty."""
-        return len(self.tracks.track_ids) == 0
+    def last_frame(self) -> Tuple[torch.Tensor, ...]:
+        """Return last frame stored in memory.
+
+        Returns:
+            Tuple[torch.Tensor, ...]: Last frame representation.
+        """
+        return self.frames[-1]
+
+    def get_frame(self, index: int) -> Tuple[torch.Tensor, ...]:
+        return self.frames[index]
+
+    def get_frames(
+        self, start_index: int, end_index: int
+    ) -> List[Tuple[torch.Tensor, ...]]:
+        """_summary_
+
+        Args:
+            start_index (int): _description_
+            end_index (int): _description_
+
+        Returns:
+            List[Tuple[torch.Tensor, ...]]: _description_
+        """
+        return self.frames[start_index:end_index]
+
+    def get_track(self, track_id: int) -> List[Tuple[torch.Tensor, ...]]:
+        """_summary_
+
+        Args:
+            track_id (int): _description_
+
+        Returns:
+            List[Tuple[torch.Tensor, ...]]: _description_
+        """
+        track = []
+        for frame in self.frames:
+            ids = frame[0]
+            idx = (ids == track_id).nonzero(as_tuple=True)[0]
+            if len(idx) > 0:
+                assert (
+                    len(idx) == 1
+                ), f"Collision in track ids: {ids}, duplicated id: {track_id}, indices: {idx}"
+                track.append(tuple(element[idx] for element in frame[1:]))
+        return track
 
     def update(
-        self,
-        track_id: int,
-        detections: torch.Tensor,
-        class_ids: torch.Tensor,
-        embeddings: torch.Tensor,
-        frame_id: int,
+        self, ids: torch.Tensor, data: Tuple[torch.Tensor, ...]
     ) -> None:
-        """Update a specific track with a new models."""
-
-        velocity = (detections - self.tracks.boxes[tracklet_inds]) / (
-            frame_id - self.tracks.last_frames[tracklet_inds]
-        )
-        self.tracks.boxes[tracklet_inds] = detection
-        self.tracks[tracklet_inds].embed = (1 - self.memo_momentum) * self.tracks[
-            track_id
-        ].embed + self.memo_momentum * embedding
-        self.tracks[track_id].last_frame = frame_id
-        self.tracks[track_id].class_id = class_id
-        self.tracks[track_id].velocity = (
-            self.tracks[track_id].velocity * self.tracks[track_id].acc_frame
-            + velocity
-        ) / (self.tracks[track_id].acc_frame + 1)
-        self.tracks[track_id].acc_frame += 1
-
-    def create_tracks(
-        self,
-        track_id: int,
-        detection: torch.Tensor,
-        class_id: torch.Tensor,
-        embedding: torch.Tensor,
-        frame_id: int,
-    ) -> None:
-        """Create a new track from a models."""
-        self.tracks[track_id] = Track(
-            bbox=detection,
-            embed=embedding,
-            class_id=class_id,
-            last_frame=frame_id,
-            velocity=torch.zeros_like(detection),
-            acc_frame=0,
-        )
+        """Store valid tracks (id != -1) in memory."""
+        self.frames.append((ids, *data))
 
 
-class Backdrop:
-
-    def add_backdrops(self, ids, boxes, scores, class_ids) -> None:
-        backdrop_inds = torch.nonzero(ids == -1, as_tuple=False).squeeze(1)
-        ious = bbox_iou(boxes[backdrop_inds], boxes)  # TODO additional nms needed here?
-        for i, ind in enumerate(backdrop_inds):
-            if (ious[i, :ind] > self.nms_backdrop_iou_thr).any():
-                backdrop_inds[i] = -1
-        backdrop_inds = backdrop_inds[backdrop_inds > -1]
-
-        self.backdrops.insert(
-            0,
-            Backdrops(
-                detections=detections[backdrop_inds],
-                embeddings=embeddings[backdrop_inds],
-            ),
-        )
-        if len(self.backdrops) > self.memo_backdrop_frames:
-            self.backdrops.pop()
-
-
-
-@torch.jit.script
+# @torch.jit.script TODO
 class QDTrackGraph:
-    """Tracking graph for quasi-dense instance similarity.
+    """ "Tracking graph for quasi-dense instance similarity.
 
     Attributes:
         keep_in_memory: threshold for keeping occluded objects in memory
@@ -213,17 +139,30 @@ class QDTrackGraph:
         assert keep_in_memory >= 0
         assert memo_backdrop_frames >= 0
 
-    def remove_duplicates(
+    def _filter_detections(
         self,
         detections: torch.Tensor,
         scores: torch.Tensor,
+        class_ids: torch.Tensor,
         embeddings: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Remove overlapping objects across classes via nms."""
+    ) -> Tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor
+    ]:
+        """Remove overlapping objects across classes via nms.
+
+        Args:
+            detections (torch.Tensor): _description_
+            scores (torch.Tensor): _description_
+            class_ids (torch.Tensor): _description_
+            embeddings (torch.Tensor): _description_
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: _description_
+        """
         # duplicate removal for potential backdrops and cross classes
         scores, inds = scores.sort(descending=True)
         detections, embeddings = detections[inds], embeddings[inds]
-        valids = embeddings.new_ones((len(detections),))
+        valids = scores > self.obj_score_thr
         ious = bbox_iou(detections, detections)
         for i in range(1, len(detections)):
             if scores[i] < self.obj_score_thr:
@@ -232,81 +171,142 @@ class QDTrackGraph:
                 thr = self.nms_class_iou_thr
 
             if (ious[i, :i] > thr).any():
-                valids[i] = 0
-        valids = valids == 1
-        detections = detections[valids, :]
-        embeddings = embeddings[valids, :]
-        return detections, embeddings, valids, inds
+                valids[i] = False
+        detections = detections[valids]
+        scores = scores[valids]
+        class_ids = class_ids[valids]
+        embeddings = embeddings[valids]
+        return detections, scores, class_ids, embeddings, inds[valids]
+
+    def _get_candidates_from_memory(
+        self,
+        track_memory: List[Tuple[torch.Tensor, ...]],
+        backdrop_memory: List[Tuple[torch.Tensor, ...]],
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """_summary_
+
+        Args:
+            track_memory (List[Tuple[torch.Tensor, ...]]): _description_
+            backdrop_memory (List[Tuple[torch.Tensor, ...]]): _description_
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: _description_
+        """
+        assert (
+            len(track_memory) > 0 or len(backdrop_memory) > 0
+        ), "Memory empty, cannot generate matching candidates"
+        if len(track_memory) > 0:
+            memory_track_ids = torch.cat(
+                [mem_entry[0] for mem_entry in track_memory]
+            )
+            memory_class_ids = torch.cat(
+                [mem_entry[3] for mem_entry in track_memory]
+            )
+            memory_embeddings = torch.cat(
+                [mem_entry[4] for mem_entry in track_memory]
+            )
+
+            all_track_ids = memory_track_ids.unique()
+            all_class_ids = torch.zeros_like(all_track_ids)
+            all_embeddings = torch.zeros(
+                (len(all_track_ids), memory_embeddings.size(1)),
+                device=all_track_ids.device,
+            )
+
+            # calculate exponential moving average of embedding across memory
+            for i, track_id in enumerate(all_track_ids):
+                track_mask = (memory_track_ids == track_id).nonzero()[0]
+                all_class_ids[i] = memory_class_ids[track_mask][0]
+                embeddings = memory_embeddings[track_mask]
+                embedding = embeddings[0]
+                for mem_embed in embeddings[1:]:
+                    embedding = (
+                        1 - self.memo_momentum
+                    ) * embedding + self.memo_momentum * mem_embed
+                all_embeddings[i] = embedding
+        else:
+            all_track_ids, all_class_ids, all_embeddings = None, None, None
+
+        if len(backdrop_memory) > 0:
+            for backdrop in backdrop_memory:
+                backdrop_ids, _, _, class_ids, embeds = backdrop
+                if (
+                    all_track_ids is None
+                    or all_class_ids is None
+                    or all_embeddings is None
+                ):
+                    all_track_ids = backdrop_ids
+                    all_class_ids = class_ids
+                    all_embeddings = embeds
+                else:
+                    all_track_ids = torch.cat([all_track_ids, backdrop_ids])
+                    all_class_ids = torch.cat([all_class_ids, class_ids])
+                    all_embeddings = torch.cat([all_embeddings, embeds])
+
+        return all_track_ids, all_class_ids, all_embeddings
 
     def __call__(
         self,
         detections: torch.Tensor,
         detection_scores: torch.Tensor,
         detection_class_ids: torch.Tensor,
-        embeddings: torch.Tensor,
-        frame_id: int,
-    ) -> Tracks:
+        detection_embeddings: torch.Tensor,
+        track_memory: List[Tuple[torch.Tensor, ...]],
+        backdrop_memory: List[Tuple[torch.Tensor, ...]],
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Process inputs, match detections with existing tracks."""
-        # reset graph at begin of sequence
-        if frame_id == 0:
-            self.reset()
-
-        detections, embeddings, valids, permute_inds = self.remove_duplicates(
-            detections, detection_scores, embeddings
+        (
+            detections,
+            detection_scores,
+            detection_class_ids,
+            detection_embeddings,
+            permute_inds,
+        ) = self._filter_detections(
+            detections,
+            detection_scores,
+            detection_class_ids,
+            detection_embeddings,
         )
-        detection_scores = detection_scores[permute_inds][valids]
-        detection_class_ids = detection_class_ids[permute_inds][valids]  # TODO move into remove_duplicates
+        if len(detections) == 0:
+            return torch.empty(
+                (0,), dtype=torch.long, device=detections.device
+            ), torch.empty((0,), dtype=torch.long, device=detections.device)
 
         # match if buffer is not empty
-        if len(detections) > 0 and not self.empty:
-            memo_class_ids = torch.cat(
-                [
-                    self.tracks.class_ids,
-                    *[bd.class_ids for bd in self.backdrops],
-                ]
+        if len(track_memory) > 0 or len(backdrop_memory) > 0:
+            (
+                memory_track_ids,
+                memory_class_ids,
+                memory_embeddings,
+            ) = self._get_candidates_from_memory(track_memory, backdrop_memory)
+            affinity_scores = calc_bisoftmax_affinity(
+                detection_class_ids,
+                detection_embeddings,
+                memory_class_ids,
+                memory_embeddings,
             )
-            memo_embeds = torch.cat(
-                [
-                    self.tracks.embeddings,
-                    *[bd.embeddings for bd in self.backdrops],
-                ]
+            print(affinity_scores)
+            ids = greedy_assign(
+                detection_scores, memory_track_ids, affinity_scores
             )
-            memo_track_ids = torch.cat([
-                self.tracks.track_ids,
-                self.tracks.track_ids.new_full((len(memo_embeds) - len(self.tracks.track_ids),), -1)
-            ])
-
-            # calculate affinities
-            affinity_scores = bisoftmax_match(detection_class_ids, embeddings, memo_class_ids, memo_embeds)
-
-            ids, self.num_tracks = greedy_assign(detection_scores, memo_track_ids, affinity_scores, self.num_tracks)
         else:
             ids = torch.full(
-                (len(detection_scores),), -1, dtype=torch.long,
-                device=detection_scores.device
+                (len(detections),),
+                -1,
+                dtype=torch.long,
+                device=detections.device,
             )
 
-        self.update(ids, detections, embeddings, frame_id)
-        return self.tracks
-
-    def update(
-        self,
-        ids: torch.Tensor,
-        detections: torch.Tensor,
-        embeddings: torch.Tensor,
-        frame_id: int,
-    ) -> None:
-        """Update track memory using matched detections."""
-        # update existing tracks and add new ones
-        update_track_ids = torch.nonzero(ids != -1, as_tuple=False).squeeze(1) # and in existing tracks
-        new_track_ids = torch.nonzero(ids != -1, as_tuple=False).squeeze(1) # and not in existing tracks
-
-        if cur_id in self.tracks:
-            self.update_tracks(cur_id, det, embed, frame_id)
-        else:
-            self.create_tracks(cur_id, det, embed, frame_id)
-
-        # delete invalid tracks from memory
-        keep_mask = frame_id - self.tracks.last_frames < self.keep_in_memory
-        self.tracks = filter_tracks(self.tracks, keep_mask)
-
+        # backdrop_inds = torch.nonzero(ids == -1, as_tuple=False).squeeze(1)
+        # ious = bbox_iou(
+        #     boxes[backdrop_inds], boxes
+        # )  # TODO additional nms needed here?
+        # for i, ind in enumerate(backdrop_inds):
+        #     if (ious[i, :ind] > self.nms_backdrop_iou_thr).any():
+        #         backdrop_inds[i] = -1
+        # backdrop_inds = backdrop_inds[backdrop_inds > -1]
+        print(ids)
+        new_inds = (ids == -1) & (detection_scores > self.init_score_thr)
+        ids[new_inds] = random_ids(new_inds.sum(), device=ids.device)
+        print(ids)
+        return ids[permute_inds], permute_inds

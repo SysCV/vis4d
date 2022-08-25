@@ -11,8 +11,9 @@ from vis4d.model.detect import FasterRCNN
 from vis4d.model.heads.roi_head.rcnn import TransformRCNNOutputs
 from vis4d.model.optimize import DefaultOptimizer
 from vis4d.model.track.graph import QDTrackGraph
+from vis4d.model.track.graph.qdtrack import Tracks
 from vis4d.model.track.similarity import QDSimilarityHead
-from vis4d.struct import ArgsType, Tracks
+from vis4d.struct import ArgsType
 
 try:
     from mmdet.core.bbox.assigners import SimOTAAssigner
@@ -34,6 +35,8 @@ class QDTrack(nn.Module):
         self.detector_transform = detector_transform
         self.similarity_head = QDSimilarityHead()
         self.track_graph = QDTrackGraph()
+        self.track_memory = Tracks(memory_limit=10)
+        self.backdrop_memory = Tracks(memory_limit=10)
 
     def debug_logging(self, logger) -> Dict[str, torch.Tensor]:
         """Logging for debugging"""
@@ -54,8 +57,9 @@ class QDTrack(nn.Module):
 
     def forward(
         self, images: torch.Tensor, frame_ids: Tuple[int, ...]
-    ) -> List[Tracks]:
+    ) -> List[Tuple[torch.Tensor, ...]]:  # TODO define return type
         """Forward function for training."""
+
         # detection
         detector_out = self.detector(images)
         detections = self.detector_transform(
@@ -73,13 +77,46 @@ class QDTrack(nn.Module):
         # similarity head
         embeddings = self.similarity_head(detector_out.backbone_out[:4], boxes)
 
-        # track graph
         batched_tracks = []
         for frame_id, box, score, cls_id, embeds in zip(
             frame_ids, boxes, scores, class_ids, embeddings
         ):
-            tracks = self.track_graph(box, score, cls_id, embeds, frame_id)
-            batched_tracks.append(tracks)
+            # reset graph at begin of sequence
+            if frame_id == 0:
+                self.track_memory = Tracks(memory_limit=10)
+                self.backdrop_memory = Tracks(memory_limit=10)
+
+            tracks = self.track_memory.get_frames(
+                max(0, frame_id - 10), frame_id
+            )
+            backdrops = self.backdrop_memory.get_frames(
+                max(0, frame_id - 1), frame_id
+            )
+
+            track_ids, filter_indcs = self.track_graph(
+                box, score, cls_id, embeds, tracks, backdrops
+            )
+
+            data = (
+                box[filter_indcs],
+                score[filter_indcs],
+                cls_id[filter_indcs],
+                embeds[filter_indcs],
+            )
+            valid_tracks = track_ids != -1
+            new_tracks = (
+                track_ids[valid_tracks],
+                tuple(entry[valid_tracks] for entry in data),
+            )
+            new_backdrops = (
+                track_ids[~valid_tracks],
+                tuple(entry[~valid_tracks] for entry in data),
+            )
+
+            self.track_memory.update(*new_tracks)
+            self.backdrop_memory.update(*new_backdrops)
+            batched_tracks.append(self.track_memory.last_frame)
+
         return batched_tracks
 
 

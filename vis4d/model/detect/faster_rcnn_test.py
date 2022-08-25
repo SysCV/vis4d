@@ -1,3 +1,4 @@
+"""Faster RCNN tests."""
 import unittest
 from typing import List, NamedTuple, Optional, Tuple
 
@@ -30,11 +31,11 @@ def normalize(img: torch.Tensor) -> torch.Tensor:
 
 
 def url_to_tensor(
-    url: str, size: Optional[Tuple[int, int]] = None
+    url: str, im_wh: Optional[Tuple[int, int]] = None
 ) -> torch.Tensor:
     image = skimage.io.imread(url)
-    if size is not None:
-        image = skimage.transform.resize(image, size) * 255
+    if im_wh is not None:
+        image = skimage.transform.resize(image, im_wh) * 255
     return normalize(
         torch.tensor(image).float().permute(2, 0, 1).unsqueeze(0).contiguous()
     )
@@ -58,7 +59,13 @@ class TorchResNetBackbone(nn.Module):
 
 
 class SampleDataset(Dataset):
-    def __init__(self):
+    def __init__(
+        self,
+        return_frame_id: bool = False,
+        im_wh: Optional[Tuple[int, int]] = None,
+    ):
+        self.return_frame_id = return_frame_id
+        self.im_wh = im_wh
         self.scalabel_data = bdd100k_track_sample()
 
     def __len__(self):
@@ -66,13 +73,17 @@ class SampleDataset(Dataset):
 
     def __getitem__(self, item):
         frame = self.scalabel_data.frames[item]
-        img = url_to_tensor(frame.url, size=(512, 512))
+        img = url_to_tensor(frame.url, im_wh=self.im_wh)
         labels = Boxes2D.from_scalabel(frame.labels, bdd100k_track_map)
-        trans_mat = torch.eye(3)
-        trans_mat[0, 0] = 512 / 1280
-        trans_mat[1, 1] = 512 / 720
+        if self.im_wh is not None:
+            trans_mat = torch.eye(3)
+            trans_mat[0, 0] = self.im_wh[0] / img.size(3)
+            trans_mat[1, 1] = self.im_wh[1] / img.size(2)
         labels.boxes[:, :4] = transform_bbox(trans_mat, labels.boxes[:, :4])
-        return img, labels.boxes, labels.class_ids
+        if self.return_frame_id:
+            return img, labels.boxes, labels.class_ids, frame.frameIndex
+        else:
+            return img, labels.boxes, labels.class_ids
 
 
 def identity_collate(batch):
@@ -80,6 +91,8 @@ def identity_collate(batch):
 
 
 class FasterRCNNTest(unittest.TestCase):
+    """Faster RCNN test class."""
+
     def test_inference(self):
         image1 = url_to_tensor(
             "https://farm1.staticflickr.com/106/311161252_33d75830fd_z.jpg",

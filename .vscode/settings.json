@@ -32,5 +32,15 @@
   "files.watcherExclude": {
     "node_modules": true
   },
-  "esbonio.sphinx.confDir": "${workspaceFolder}/doc/source"
+"esbonio.sphinx.confDir": "${workspaceFolder}/doc/source",
+"python.testing.pytestArgs": [],
+"python.testing.unittestEnabled": true,
+"python.testing.pytestEnabled": false,
+"python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "./vis4d",
+    "-p",
+    "*_test.py"
+]
 }

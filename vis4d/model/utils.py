@@ -29,7 +29,7 @@ from vis4d.struct import (
 
 try:
     from mmcv import Config as MMConfig
-    from mmcv.runner.checkpoint import load_checkpoint
+    from mmcv.runner import load_checkpoint
 
     MMCV_INSTALLED = True
 except (ImportError, NameError):  # pragma: no cover

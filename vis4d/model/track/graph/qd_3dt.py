@@ -172,7 +172,7 @@ class QD3DTrackGraph(QDTrackGraph):
             velocities,
         )
 
-    def remove_duplicates(  # type: ignore
+    def _filter_detections(  # type: ignore
         self,
         detections: Boxes2D,
         detections_3d: Boxes3D,
@@ -287,7 +287,7 @@ class QD3DTrackGraph(QDTrackGraph):
             embeddings,
             valids,
             permute_inds,
-        ) = self.remove_duplicates(detections, detections_3d, embeddings)
+        ) = self._filter_detections(detections, detections_3d, embeddings)
 
         # init ids container
         ids = torch.full(

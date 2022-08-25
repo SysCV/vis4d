@@ -1,5 +1,6 @@
 """QDTrack test file."""
 import unittest
+from re import T
 
 import torch
 import torch.optim as optim
@@ -35,7 +36,10 @@ REV_KEYS = [
 
 
 class QDTrackTest(unittest.TestCase):
+    """QDTrack class tests."""
+
     def test_inference(self):
+        """Inference test."""
         faster_rcnn = FasterRCNN(
             backbone=TorchResNetBackbone(
                 "resnet50", pretrained=True, trainable_layers=3
@@ -58,21 +62,28 @@ class QDTrackTest(unittest.TestCase):
         )
 
         qdtrack.eval()
-        test_data = SampleDataset()
+        test_data = SampleDataset(return_frame_id=True)
 
         batch_size = 2
         test_loader = DataLoader(
             test_data,
             batch_size=batch_size,
-            shuffle=True,
+            shuffle=False,
             collate_fn=identity_collate,
         )
-        for i, data in enumerate(test_loader):
-            inputs, _, _ = data
-            outs = qdtrack(
-                torch.cat(inputs),
-                (i * batch_size + j for j in range(batch_size)),
-            )
+
+        with torch.no_grad():
+            for data in test_loader:
+                inputs, _, _, frame_ids = data
+                outs = qdtrack(
+                    torch.cat(inputs),
+                    frame_ids,
+                )
+                from vis4d.vis.image import imshow_bboxes
+
+                for img, out in zip(inputs, outs):
+                    track_ids, boxes, scores, class_ids, _ = out
+                    imshow_bboxes(img[0], boxes, scores, class_ids, track_ids)
 
     def test_train(self):
         qdtrack = QDTrack()
