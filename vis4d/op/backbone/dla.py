@@ -5,7 +5,7 @@ import torch
 from torch import nn
 from torch.utils import model_zoo
 
-from vis4d.struct import ArgsType, InputSample, NamedTensors
+from vis4d.struct import ArgsType
 
 from .base import BaseBackbone
 
@@ -526,15 +526,12 @@ class DLA(BaseBackbone):
             model_weights = torch.load(weights)
         self.load_state_dict(model_weights, strict=False)
 
-    def forward(self, inputs: torch.Tensor) -> NamedTensors:
+    def forward(self, inputs: torch.Tensor) -> List[torch.Tensor]:
         """Backbone forward."""
         inputs = self.preprocess_inputs(inputs)
-        outs = []
-        input_x = self.base_layer(inputs.images.tensor)
+        input_x = self.base_layer(inputs)
+        outs: List[torch.Tensor] = []
         for i in range(6):
             input_x = getattr(self, f"level{i}")(input_x)
             outs.append(input_x)
-        backbone_outs = self.get_outputs(outs)
-        if self.neck is not None:
-            return self.neck(backbone_outs)
-        return backbone_outs
+        return outs
