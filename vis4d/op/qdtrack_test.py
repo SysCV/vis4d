@@ -4,15 +4,14 @@ from re import T
 
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from vis4d.op.detect.faster_rcnn_test import (
     FasterRCNN,
     ResNet,
+    RoI2Det,
     SampleDataset,
-    TransformRCNNOutputs,
     identity_collate,
-    normalize,
 )
 from vis4d.op.qdtrack.qdtrack import QDTrack
 
@@ -54,7 +53,7 @@ class QDTrackTest(unittest.TestCase):
         """Inference test."""
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
         faster_rcnn = FasterRCNN(num_classes=8)
-        transform_detections = TransformRCNNOutputs(
+        transform_detections = RoI2Det(
             faster_rcnn.rcnn_box_encoder, score_threshold=0.05
         )
         qdtrack = QDTrack()
@@ -100,18 +99,11 @@ class QDTrackTest(unittest.TestCase):
 
                 features = backbone(images)
                 detector_out = faster_rcnn(features)
-                detections = transform_detections(
-                    detector_out.roi_cls_out,
-                    detector_out.roi_reg_out,
-                    detector_out.proposal_boxes,
+                boxes, scores, class_ids = transform_detections(
+                    *detector_out.roi,
+                    detector_out.proposals.boxes,
                     images.shape,
                 )
-                boxes, scores, class_ids = (
-                    [d.boxes for d in detections],
-                    [d.scores for d in detections],
-                    [d.class_ids for d in detections],
-                )
-
                 from vis4d.vis.image import imshow_bboxes
 
                 for img, boxs, score, cls_id in zip(
@@ -129,7 +121,7 @@ class QDTrackTest(unittest.TestCase):
         """Training test."""
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
         faster_rcnn = FasterRCNN(num_classes=8)
-        transform_outs = TransformRCNNOutputs(
+        transform_outs = RoI2Det(
             faster_rcnn.rcnn_box_encoder, score_threshold=0.05
         )
         qdtrack = QDTrack()

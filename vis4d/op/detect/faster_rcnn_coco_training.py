@@ -21,11 +21,7 @@ from vis4d.op.detect.faster_rcnn import (
 )
 from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
 from vis4d.op.heads.dense_head.rpn import RPNLoss, RPNLosses
-from vis4d.op.heads.roi_head.rcnn import (
-    RCNNLoss,
-    RCNNLosses,
-    TransformRCNNOutputs,
-)
+from vis4d.op.heads.roi_head.rcnn import RCNNLoss, RCNNLosses, RoI2Det
 from vis4d.struct import Boxes2D, Detections, InputSample
 
 log_step = 100
@@ -54,9 +50,7 @@ class FasterRCNNModel(nn.Module):
         )
         self.rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
         self.rcnn_loss = RCNNLoss(rcnn_bbox_encoder)
-        self.transform_outs = TransformRCNNOutputs(
-            rcnn_bbox_encoder, score_threshold=0.05
-        )
+        self.transform_outs = RoI2Det(rcnn_bbox_encoder, score_threshold=0.05)
 
     def forward(
         self,

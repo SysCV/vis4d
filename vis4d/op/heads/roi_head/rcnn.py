@@ -14,8 +14,14 @@ from vis4d.op.utils import segmentations_from_mmdet
 from vis4d.struct import Detections
 
 
-class FRCNNRoIHeadOutput(NamedTuple):
+class RCNNOut(NamedTuple):
+    """RoI head outputs."""
+
+    # logits for the box classication. The logit dimention is number of classes
+    # plus 1 for the background.
     cls_score: torch.Tensor
+    # Each box has regression for all classes. So the tensor dimention is
+    # [batch_size, number of boxes, number of classes x 4]
     bbox_pred: torch.Tensor
 
 
@@ -29,7 +35,14 @@ class RCNNHead(nn.Module):
         in_channels: int = 256,
         fc_out_channels: int = 1024,
     ) -> None:
-        """Init."""
+        """_summary_
+        # TODO(tobiasfshr)
+        Args:
+            num_classes (int, optional): _description_. Defaults to 80.
+            roi_size (Tuple[int, int], optional): _description_. Defaults to (7, 7).
+            in_channels (int, optional): _description_. Defaults to 256.
+            fc_out_channels (int, optional): _description_. Defaults to 1024.
+        """
         super().__init__()
         in_channels *= prod(roi_size)
         self.shared_fcs = nn.Sequential(
@@ -63,17 +76,44 @@ class RCNNHead(nn.Module):
         self,
         features: List[torch.Tensor],
         boxes: List[torch.Tensor],
-    ) -> FRCNNRoIHeadOutput:
+    ) -> RCNNOut:
         """Forward pass during training stage."""
         bbox_feats = self.roi_pooler(features, boxes).flatten(start_dim=1)
         for fc in self.shared_fcs:
             bbox_feats = self.relu(fc(bbox_feats))
         cls_score = self.fc_cls(bbox_feats)
         bbox_pred = self.fc_reg(bbox_feats)
-        return FRCNNRoIHeadOutput(cls_score, bbox_pred)
+        return RCNNOut(cls_score, bbox_pred)
+
+    def __call__(
+        self,
+        features: List[torch.Tensor],
+        boxes: List[torch.Tensor],
+    ) -> RCNNOut:
+        """Type definition for function call."""
+        return self._call_impl(features, boxes)
 
 
-class TransformRCNNOutputs(nn.Module):
+class DetOut(NamedTuple):
+    """Output of the final detections from RCNN."""
+
+    boxes: List[torch.Tensor]  # N, 4
+    scores: List[torch.Tensor]
+    class_ids: List[torch.Tensor]
+
+
+class RoI2Det(nn.Module):
+    """Post processing of RCNN results and detection generation.
+
+    It does the following:
+    1. Take the classification and regression outputs from the RCNN heads.
+    2. Take the proposal boxes that are RCNN inputs.
+    3. Determine the final box classes and take the according box regression
+       parameters.
+    4. Adjust the box sizes and offsets according the regression parameters.
+    5. Return the final boxes.
+    """
+
     def __init__(
         self,
         bbox_coder: DeltaXYWHBBoxEncoder,
@@ -81,6 +121,16 @@ class TransformRCNNOutputs(nn.Module):
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
     ) -> None:
+        """_summary_
+
+        # TODO(tobiasfshr)
+
+        Args:
+            bbox_coder (DeltaXYWHBBoxEncoder): _description_
+            score_threshold (float, optional): _description_. Defaults to 0.05.
+            iou_threshold (float, optional): _description_. Defaults to 0.5.
+            max_per_img (int, optional): _description_. Defaults to 100.
+        """
         super().__init__()
         self.bbox_coder = bbox_coder
         self.score_threshold = score_threshold
@@ -93,18 +143,24 @@ class TransformRCNNOutputs(nn.Module):
         regression_outs: torch.Tensor,
         boxes: List[torch.Tensor],
         images_shape: Tuple[int, int, int, int],
-    ) -> List[Detections]:
-        """
+    ) -> DetOut:
+        """_summary_
+        # TODO(tobiasfshr)
         Args:
+            class_outs (torch.Tensor): _description_
+            regression_outs (torch.Tensor): _description_
+            boxes (List[torch.Tensor]): _description_
+            images_shape (Tuple[int, int, int, int]): _description_
 
         Returns:
-            Detections
+            List[Detections]: _description_
         """
-        result_boxes = []
-
         num_proposals_per_img = tuple(len(p) for p in boxes)
         regression_outs = regression_outs.split(num_proposals_per_img, 0)
         class_outs = class_outs.split(num_proposals_per_img, 0)
+        all_det_boxes = []
+        all_det_scores = []
+        all_det_class_ids = []
         for cls_out, reg_out, boxs in zip(class_outs, regression_outs, boxes):
             scores = F.softmax(cls_out, dim=-1)
             bboxes = self.bbox_coder.decode(
@@ -117,9 +173,27 @@ class TransformRCNNOutputs(nn.Module):
                 self.iou_threshold,
                 self.max_per_img,
             )
-            result_boxes.append(Detections(det_bbox, det_scores, det_label))
+            all_det_boxes.append(det_bbox)
+            all_det_scores.append(det_scores)
+            all_det_class_ids.append(det_label)
 
-        return result_boxes
+        return DetOut(
+            boxes=all_det_boxes,
+            scores=all_det_scores,
+            class_ids=all_det_class_ids,
+        )
+
+    def __call__(
+        self,
+        class_outs: torch.Tensor,
+        regression_outs: torch.Tensor,
+        boxes: List[torch.Tensor],
+        images_shape: Tuple[int, int, int, int],
+    ) -> DetOut:
+        """Type definition for function call."""
+        return self._call_impl(
+            class_outs, regression_outs, boxes, images_shape
+        )
 
 
 class RCNNTargets(NamedTuple):

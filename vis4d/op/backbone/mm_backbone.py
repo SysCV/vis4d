@@ -1,4 +1,7 @@
-"""mmdetection backbone wrapper."""
+"""mmdetection backbone wrapper.
+
+TODO(fyu) delete this when cleaning up segmentation.
+"""
 from typing import List, Optional, Union
 
 import torch

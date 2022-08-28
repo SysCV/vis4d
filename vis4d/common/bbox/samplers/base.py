@@ -60,9 +60,16 @@ def match_and_sample_proposals(
 ) -> Tuple[
     List[Tensor], List[Tensor], List[Tensor], List[Tensor], List[Tensor]
 ]:
-    """Match proposals to targets and subsample."""
+    """Match proposals to targets and subsample.
 
+    First, match the proposals to targets (ground truth labels) using the
+    matcher. It is usually IoU matcher. The matching labels the proposals with
+    positive or negitive to show whether they are matched to a object.
+    Second, the sampler will choose proposals based on certain criteria such as
+    total proposal number and ratios of postives and negatives.
+    """
     with torch.no_grad():
+        # no grad to spped up since no gradient is needed here.
         sampling_results = []
         for i, (p, s, tb, tc) in enumerate(
             zip(proposals, scores, target_boxes, target_classes)

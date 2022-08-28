@@ -11,12 +11,12 @@ from torch.utils.data import DataLoader, Dataset
 from vis4d.common.datasets import bdd100k_track_map, bdd100k_track_sample
 from vis4d.data.utils import transform_bbox
 from vis4d.op.heads.dense_head.rpn import RPNLoss
-from vis4d.op.heads.roi_head.rcnn import RCNNLoss, TransformRCNNOutputs
+from vis4d.op.heads.roi_head.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D
 from vis4d.vis.image import imshow_bboxes
 
-from ..backbone.torchvision import ResNet
+from ..backbone.resnet import ResNet
 from .faster_rcnn import (
     FasterRCNN,
     get_default_anchor_generator,
@@ -121,9 +121,7 @@ class FasterRCNNTest(unittest.TestCase):
 
         faster_rcnn = FasterRCNN(num_classes=80)
 
-        transform_outs = TransformRCNNOutputs(
-            faster_rcnn.rcnn_box_encoder, score_threshold=0.5
-        )
+        roi2det = RoI2Det(faster_rcnn.rcnn_box_encoder, score_threshold=0.5)
 
         weights = (
             "mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/"
@@ -137,31 +135,31 @@ class FasterRCNNTest(unittest.TestCase):
         with torch.no_grad():
             features = backbone(sample_images)
             outs = faster_rcnn(features)
-            dets = transform_outs(
-                class_outs=outs.roi_cls_out,
-                regression_outs=outs.roi_reg_out,
-                boxes=outs.proposal_boxes,
+            dets = roi2det(
+                class_outs=outs.roi.cls_score,
+                regression_outs=outs.roi.bbox_pred,
+                boxes=outs.proposals.boxes,
                 images_shape=sample_images.shape,
             )
 
-        _, topk = torch.topk(outs.proposal_scores[0], 100)
-        assert outs.proposal_boxes[0][topk].shape[0] == 100
-        assert outs.proposal_boxes[0][topk].shape.numel() == 400
+        _, topk = torch.topk(outs.proposals.scores[0], 100)
+        assert outs.proposals.boxes[0][topk].shape[0] == 100
+        assert outs.proposals.boxes[0][topk].shape.numel() == 400
         assert (
-            torch.isclose(outs.proposal_boxes[0][topk], TOPK_PROPOSAL_BOXES)
+            torch.isclose(outs.proposals.boxes[0][topk], TOPK_PROPOSAL_BOXES)
             .all()
             .item()
         )
-        assert torch.isclose(dets[0].boxes, DET0_BOXES).all().item()
+        assert torch.isclose(dets.boxes[0], DET0_BOXES).all().item()
         assert (
-            torch.isclose(dets[0].scores, DET0_SCORES, atol=1e-4).all().item()
+            torch.isclose(dets.scores[0], DET0_SCORES, atol=1e-4).all().item()
         )
-        assert torch.equal(dets[0].class_ids, DET0_CLASS_IDS)
-        assert torch.isclose(dets[1].boxes, DET1_BOXES).all().item()
+        assert torch.equal(dets.class_ids[0], DET0_CLASS_IDS)
+        assert torch.isclose(dets.boxes[1], DET1_BOXES).all().item()
         assert (
-            torch.isclose(dets[1].scores, DET1_SCORES, atol=1e-4).all().item()
+            torch.isclose(dets.scores[1], DET1_SCORES, atol=1e-4).all().item()
         )
-        assert torch.equal(dets[1].class_ids, DET1_CLASS_IDS)
+        assert torch.equal(dets.class_ids[1], DET1_CLASS_IDS)
 
         # imshow_bboxes(image1[0], *dets[0])
         # imshow_bboxes(image2[0], *dets[1])
@@ -208,19 +206,19 @@ class FasterRCNNTest(unittest.TestCase):
                 features = backbone(inputs)
                 outputs = faster_rcnn(features, gt_boxes, gt_class_ids)
                 rpn_losses = rpn_loss(
-                    outputs.rpn_cls_out,
-                    outputs.rpn_reg_out,
+                    outputs.rpn.cls,
+                    outputs.rpn.box,
                     gt_boxes,
                     gt_class_ids,
                     inputs.shape,
                 )
                 rcnn_losses = rcnn_loss(
-                    outputs.roi_cls_out,
-                    outputs.roi_reg_out,
-                    outputs.proposal_boxes,
-                    outputs.proposal_labels,
-                    outputs.proposal_target_boxes,
-                    outputs.proposal_target_classes,
+                    outputs.roi.cls_score,
+                    outputs.roi.bbox_pred,
+                    outputs.proposals.boxes,
+                    outputs.proposals.labels,
+                    outputs.proposals.target_boxes,
+                    outputs.proposals.target_classes,
                 )
                 total_loss = sum((*rpn_losses, *rcnn_losses))
                 total_loss.backward()

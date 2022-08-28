@@ -1,4 +1,4 @@
-"""Wrappers for torch vision backbones."""
+"""Residual networks for classification."""
 
 from typing import List
 
@@ -29,6 +29,8 @@ class ResNet(Backbone):
     def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
         """Torchvision ResNet forward.
 
+        # TODO(tobiasfshr) Add tests
+
         Args:
             images (Tensor[N, C, H, W]): Image input to process. Expected to
                 type float32 with values ranging 0..255.
@@ -37,7 +39,8 @@ class ResNet(Backbone):
             fp (List[torch.Tensor]): The output feature pyramid. The list index
             represents the level, which has a downsampling raio of 2^index.
             fp[0] and fp[1] is a reference to the input images and torchvision
-            resnet downsamples the feature maps by 4 directly.
+            resnet downsamples the feature maps by 4 directly. The last feature
+            map downsamples the input image by 64 with a pooling layer on the
+            second last map.
         """
-        outs = [images, images, *self.backbone(images).values()]
-        return outs  # remove the last pooled layer
+        return [images, images, *self.backbone(images).values()]
