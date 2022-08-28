@@ -29,8 +29,8 @@ from .faster_rcnn import (
 def normalize(img: torch.Tensor) -> torch.Tensor:
     pixel_mean = (123.675, 116.28, 103.53)
     pixel_std = (58.395, 57.12, 57.375)
-    pixel_mean = torch.tensor(pixel_mean).view(-1, 1, 1)
-    pixel_std = torch.tensor(pixel_std).view(-1, 1, 1)
+    pixel_mean = torch.tensor(pixel_mean, device=img.device).view(-1, 1, 1)
+    pixel_std = torch.tensor(pixel_std, device=img.device).view(-1, 1, 1)
     img = (img - pixel_mean) / pixel_std
     return img
 
@@ -84,9 +84,11 @@ class SampleDataset(Dataset):
             trans_mat = torch.eye(3)
             trans_mat[0, 0] = self.im_wh[0] / img.size(3)
             trans_mat[1, 1] = self.im_wh[1] / img.size(2)
-        labels.boxes[:, :4] = transform_bbox(trans_mat, labels.boxes[:, :4])
+            labels.boxes[:, :4] = transform_bbox(
+                trans_mat, labels.boxes[:, :4]
+            )
         if self.return_frame_id:
-            return img, labels.boxes, labels.class_ids, frame.frameIndex
+            return img, labels.boxes, labels.class_ids, frame.frameIndex - 165
         else:
             return img, labels.boxes, labels.class_ids
 

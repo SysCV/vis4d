@@ -119,14 +119,14 @@ class TransformRPNOutputs(nn.Module):
         return cls_out, reg_out, anchors
 
     def _decode_multi_level_outputs(
-        self, cls_out_all, reg_out_all, anchors_all, level_all
+        self, cls_out_all, reg_out_all, anchors_all, level_all, images_shape
     ) -> Proposals:
         scores = torch.cat(cls_out_all)
         levels = torch.cat(level_all)
         proposals = self.bbox_coder.decode(
             torch.cat(anchors_all),
             torch.cat(reg_out_all),
-            max_shape=(512, 512),
+            max_shape=images_shape[2:],
         )  # TODO replace max_shape
 
         from vis4d.struct.labels.boxes import filter_boxes
@@ -194,7 +194,7 @@ class TransformRPNOutputs(nn.Module):
                 ]
 
             result = self._decode_multi_level_outputs(
-                cls_out_all, reg_out_all, anchors_all, level_all
+                cls_out_all, reg_out_all, anchors_all, level_all, images_shape
             )
             proposals.append(result.boxes)
             scores.append(result.scores)
@@ -281,11 +281,12 @@ class RPNLoss(nn.Module):
         target_classes: torch.Tensor,
         anchors: torch.Tensor,
         valids: torch.Tensor,
+        images_shape,
     ) -> Tuple[RPNTargets, SamplingResult]:
         inside_flags = anchor_inside_flags(
             anchors,
             valids,
-            (512, 512),  # TODO this is real im shape without padding
+            images_shape[2:],  # TODO this is real im shape without padding
             allowed_border=self.allowed_border,
         )
         if not inside_flags.any():
@@ -340,15 +341,17 @@ class RPNLoss(nn.Module):
         target_classes: List[torch.Tensor],
         images_shape: Tuple[int, int, int, int],
     ) -> RPNLosses:
-        """RPN loss of faster rcnn.
+        """_summary_
 
         Args:
-            outputs: Network outputs.
-            targets (List[Boxes2D]): Target 2D boxes.
-            metadata (Dict): Dictionary of metadata needed for loss, e.g.
-                image size, feature map strides, etc.
+            class_outs (List[torch.Tensor]): _description_
+            regression_outs (List[torch.Tensor]): _description_
+            target_boxes (List[torch.Tensor]): _description_
+            target_classes (List[torch.Tensor]): _description_
+            images_shape (Tuple[int, int, int, int]): _description_
+
         Returns:
-             scalar loss tensors.
+            RPNLosses: _description_
         """
 
         featmap_sizes = [featmap.size()[-2:] for featmap in class_outs]
@@ -361,7 +364,7 @@ class RPNLoss(nn.Module):
         )
         num_level_anchors = [anchors.size(0) for anchors in anchor_grids]
         valid_flags = self.anchor_generator.valid_flags(
-            featmap_sizes, (512, 512), device  # TODO size
+            featmap_sizes, images_shape[2:], device  # TODO size
         )
         anchors_all_levels = torch.cat(anchor_grids)
         valids_all_levels = torch.cat(valid_flags)
@@ -369,7 +372,11 @@ class RPNLoss(nn.Module):
         targets, num_total_pos, num_total_neg = [], 0, 0
         for tgt_box, tgt_cls in zip(target_boxes, target_classes):
             target, sampling_result = self._get_targets_per_image(
-                tgt_box, tgt_cls, anchors_all_levels, valids_all_levels
+                tgt_box,
+                tgt_cls,
+                anchors_all_levels,
+                valids_all_levels,
+                images_shape,
             )
             num_total_pos += max(
                 (sampling_result.sampled_labels == 1).sum(), 1
@@ -398,7 +405,9 @@ class RPNLoss(nn.Module):
         targets_per_level = images_to_levels(targets)
         num_samples = num_total_pos + num_total_neg
 
-        loss_cls_all, loss_bbox_all = torch.tensor(0.0), torch.tensor(0.0)
+        loss_cls_all, loss_bbox_all = torch.tensor(
+            0.0, device=device
+        ), torch.tensor(0.0, device=device)
         for level_id, (cls_out, reg_out) in enumerate(
             zip(class_outs, regression_outs)
         ):

@@ -54,7 +54,7 @@ class DetectDataModule(CommonDataModule):
                 train_transforms = default((800, 1333))
 
             test_sample_mapper.setup_categories(coco_det_map)
-            test_transforms = [Resize(shape=(800, 133))]
+            test_transforms = [Resize(shape=(800, 1333))]
             test_datasets = [
                 ScalabelDataset(coco_val(), False, test_sample_mapper)
             ]

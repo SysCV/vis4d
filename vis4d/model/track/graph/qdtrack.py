@@ -85,7 +85,9 @@ class Tracks:
 
 # @torch.jit.script TODO
 class QDTrackGraph:
-    """ "Tracking graph for quasi-dense instance similarity.
+    """Tracking component relying on quasi-dense instance similarity.
+    This class assigns detection candidates to a given memory of existing
+    tracks.
 
     Attributes:
         keep_in_memory: threshold for keeping occluded objects in memory
@@ -182,7 +184,9 @@ class QDTrackGraph:
         self,
         track_memory: List[Tuple[torch.Tensor, ...]],
         backdrop_memory: List[Tuple[torch.Tensor, ...]],
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor
+    ]:  # TODO move to tracks class
         """_summary_
 
         Args:
@@ -285,7 +289,6 @@ class QDTrackGraph:
                 memory_class_ids,
                 memory_embeddings,
             )
-            print(affinity_scores)
             ids = greedy_assign(
                 detection_scores, memory_track_ids, affinity_scores
             )
@@ -297,16 +300,6 @@ class QDTrackGraph:
                 device=detections.device,
             )
 
-        # backdrop_inds = torch.nonzero(ids == -1, as_tuple=False).squeeze(1)
-        # ious = bbox_iou(
-        #     boxes[backdrop_inds], boxes
-        # )  # TODO additional nms needed here?
-        # for i, ind in enumerate(backdrop_inds):
-        #     if (ious[i, :ind] > self.nms_backdrop_iou_thr).any():
-        #         backdrop_inds[i] = -1
-        # backdrop_inds = backdrop_inds[backdrop_inds > -1]
-        print(ids)
         new_inds = (ids == -1) & (detection_scores > self.init_score_thr)
         ids[new_inds] = random_ids(new_inds.sum(), device=ids.device)
-        print(ids)
         return ids[permute_inds], permute_inds

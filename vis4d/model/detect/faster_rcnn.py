@@ -149,7 +149,7 @@ class FasterRCNN(nn.Module):
         if target_boxes is not None:
             assert target_classes is not None
 
-        features = self.backbone(images)
+        features = self.backbone(images)  # TODO move out of class
 
         rpn_cls_out, rpn_reg_out = self.rpn_head(features)
         proposals, scores = self.rpn_head_transform(

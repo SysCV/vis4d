@@ -1,11 +1,12 @@
 """Quasi-dense instance similarity learning model."""
-import pickle
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from pytorch_lightning.utilities.cli import instantiate_class
 from torch import nn
 
+from vis4d.common.bbox.matchers import MaxIoUMatcher
+from vis4d.common.bbox.samplers import CombinedSampler
 from vis4d.common.data_pipelines import default as default_augs
 from vis4d.model.detect import FasterRCNN
 from vis4d.model.heads.roi_head.rcnn import TransformRCNNOutputs
@@ -38,6 +39,19 @@ class QDTrack(nn.Module):
         self.track_memory = Tracks(memory_limit=10)
         self.backdrop_memory = Tracks(memory_limit=10)
 
+        self.sampler = CombinedSampler(
+            batch_size=256,
+            positive_fraction=0.5,
+            pos_strategy="instance_balanced",
+            neg_strategy="iou_balanced",
+        )
+
+        self.matcher = MaxIoUMatcher(
+            thresholds=[0.3, 0.7],
+            labels=[0, -1, 1],
+            allow_low_quality_matches=False,
+        )
+
     def debug_logging(self, logger) -> Dict[str, torch.Tensor]:
         """Logging for debugging"""
         # from vis4d.vis.track import imshow_bboxes
@@ -56,23 +70,76 @@ class QDTrack(nn.Module):
         #        )
 
     def forward(
-        self, images: torch.Tensor, frame_ids: Tuple[int, ...]
+        self,
+        images: torch.Tensor,
+        frame_ids: Optional[Tuple[int, ...]] = None,
+        target_boxes: Optional[List[torch.Tensor]] = None,
+        target_classes: Optional[List[torch.Tensor]] = None,
+        target_track_ids: Optional[List[torch.Tensor]] = None,
     ) -> List[Tuple[torch.Tensor, ...]]:  # TODO define return type
-        """Forward function for training."""
+        """Forward function."""
+        if self.training:  # TODO change to targets existing
+            assert (
+                target_boxes is not None
+                and target_classes is not None
+                and target_track_ids is not None
+            ), "Need targets during training!"
+            return self._forward_train(
+                images, target_boxes, target_classes, target_track_ids
+            )
+        assert frame_ids is not None, "Need frame ids during inference!"
+        return self._forward_test(images, frame_ids)
 
+    def _forward_train(
+        images: torch.Tensor,
+        target_boxes: List[torch.Tensor],
+        target_classes: List[torch.Tensor],
+        target_track_ids: List[torch.Tensor],
+    ):
+        """TODO define return type."""
+
+        # # TODO will be part of training loop
+        # sampling_results, sampled_boxes, sampled_targets = [], [], []
+        # for i, (box, tgt) in enumerate(zip(boxes, targets)):
+        #     sampling_result = match_and_sample_proposals(
+        #         self.matcher,
+        #         self.sampler,
+        #         box,
+        #         tgt.boxes2d,
+        #         self.proposal_append_gt,
+        #     )
+        #     sampling_results.append(sampling_result)
+        #
+        #     sampled_box = sampling_result.sampled_boxes
+        #     sampled_tgt = sampling_result.sampled_targets
+        #     positives = [l == 1 for l in sampling_result.sampled_labels]
+        #     if i == 0:  # take only positives for keyframe (assumed at i=0)
+        #         sampled_box = [b[p] for b, p in zip(sampled_box, positives)]
+        #         sampled_tgt = [t[p] for t, p in zip(sampled_tgt, positives)]
+        #     else:  # set track_ids to -1 for all negatives
+        #         for pos, samp_tgt in zip(positives, sampled_tgt):
+        #             samp_tgt.track_ids[~pos] = -1
+        #
+        #     sampled_boxes.append(sampled_box)
+        #     sampled_targets.append(sampled_tgt)
+
+    def _forward_test(
+        self, images: torch.Tensor, frame_ids: Tuple[int, ...]
+    ):  # TODO input detections, backbone outs, tracks [inference], no images
+        """Forward during test."""
         # detection
-        detector_out = self.detector(images)
-        detections = self.detector_transform(
-            detector_out.roi_cls_out,
-            detector_out.roi_reg_out,
-            detector_out.proposal_boxes,
-            images.shape,
-        )
-        boxes, scores, class_ids = (
-            [d.boxes for d in detections],
-            [d.scores for d in detections],
-            [d.class_ids for d in detections],
-        )
+        # detector_out = self.detector(images)
+        # detections = self.detector_transform(
+        #     detector_out.roi_cls_out,
+        #     detector_out.roi_reg_out,
+        #     detector_out.proposal_boxes,
+        #     images.shape,
+        # )
+        # boxes, scores, class_ids = (
+        #     [d.boxes for d in detections],
+        #     [d.scores for d in detections],
+        #     [d.class_ids for d in detections],
+        # )
 
         # similarity head
         embeddings = self.similarity_head(detector_out.backbone_out[:4], boxes)
@@ -81,40 +148,40 @@ class QDTrack(nn.Module):
         for frame_id, box, score, cls_id, embeds in zip(
             frame_ids, boxes, scores, class_ids, embeddings
         ):
-            # reset graph at begin of sequence
-            if frame_id == 0:
-                self.track_memory = Tracks(memory_limit=10)
-                self.backdrop_memory = Tracks(memory_limit=10)
+            # # reset graph at begin of sequence
+            # if frame_id == 0:
+            #     self.track_memory = Tracks(memory_limit=10)
+            #     self.backdrop_memory = Tracks(memory_limit=10)
 
-            tracks = self.track_memory.get_frames(
-                max(0, frame_id - 10), frame_id
-            )
-            backdrops = self.backdrop_memory.get_frames(
-                max(0, frame_id - 1), frame_id
-            )
+            # tracks = self.track_memory.get_frames(
+            #     max(0, frame_id - 10), frame_id
+            # )
+            # backdrops = self.backdrop_memory.get_frames(
+            #     max(0, frame_id - 1), frame_id
+            # )
 
             track_ids, filter_indcs = self.track_graph(
                 box, score, cls_id, embeds, tracks, backdrops
             )
 
-            data = (
-                box[filter_indcs],
-                score[filter_indcs],
-                cls_id[filter_indcs],
-                embeds[filter_indcs],
-            )
-            valid_tracks = track_ids != -1
-            new_tracks = (
-                track_ids[valid_tracks],
-                tuple(entry[valid_tracks] for entry in data),
-            )
-            new_backdrops = (
-                track_ids[~valid_tracks],
-                tuple(entry[~valid_tracks] for entry in data),
-            )
+            # data = (
+            #     box[filter_indcs],
+            #     score[filter_indcs],
+            #     cls_id[filter_indcs],
+            #     embeds[filter_indcs],
+            # )
+            # valid_tracks = track_ids != -1
+            # new_tracks = (
+            #     track_ids[valid_tracks],
+            #     tuple(entry[valid_tracks] for entry in data),
+            # )
+            # new_backdrops = (
+            #     track_ids[~valid_tracks],
+            #     tuple(entry[~valid_tracks] for entry in data),
+            # )
 
-            self.track_memory.update(*new_tracks)
-            self.backdrop_memory.update(*new_backdrops)
+            # self.track_memory.update(*new_tracks)
+            # self.backdrop_memory.update(*new_backdrops)
             batched_tracks.append(self.track_memory.last_frame)
 
         return batched_tracks

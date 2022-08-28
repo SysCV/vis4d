@@ -86,7 +86,17 @@ class QDTrackTest(unittest.TestCase):
                     imshow_bboxes(img[0], boxes, scores, class_ids, track_ids)
 
     def test_train(self):
-        qdtrack = QDTrack()
+        """Training test."""
+        faster_rcnn = FasterRCNN(
+            backbone=TorchResNetBackbone(
+                "resnet50", pretrained=True, trainable_layers=3
+            ),
+            num_classes=8,
+        )
+        transform_outs = TransformRCNNOutputs(
+            faster_rcnn.rcnn_box_encoder, score_threshold=0.5
+        )
+        qdtrack = QDTrack(faster_rcnn, transform_outs)
 
         optimizer = optim.SGD(qdtrack.parameters(), lr=0.001, momentum=0.9)
 
@@ -131,53 +141,8 @@ class QDTrackTest(unittest.TestCase):
                     running_losses = {}
 
     def test_torchscript(self):
+        """Test torchscipt export."""
         sample_images = torch.rand((2, 3, 512, 512))
         qdtrack = QDTrack()
         qdtrack_scripted = torch.jit.script(qdtrack)
         qdtrack_scripted(sample_images)
-
-
-#
-# if proposal_sampler is not None:
-#     self.sampler = proposal_sampler
-# else:
-#     self.sampler = CombinedSampler(
-#         batch_size=256,
-#         positive_fraction=0.5,
-#         pos_strategy="instance_balanced",
-#         neg_strategy="iou_balanced",
-#     )
-#
-# if proposal_matcher is not None:
-#     self.matcher = proposal_matcher
-# else:
-#     self.matcher = MaxIoUMatcher(
-#         thresholds=[0.3, 0.7],
-#         labels=[0, -1, 1],
-#         allow_low_quality_matches=False,
-#     )
-#
-# # TODO will be part of training loop
-# sampling_results, sampled_boxes, sampled_targets = [], [], []
-# for i, (box, tgt) in enumerate(zip(boxes, targets)):
-#     sampling_result = match_and_sample_proposals(
-#         self.matcher,
-#         self.sampler,
-#         box,
-#         tgt.boxes2d,
-#         self.proposal_append_gt,
-#     )
-#     sampling_results.append(sampling_result)
-#
-#     sampled_box = sampling_result.sampled_boxes
-#     sampled_tgt = sampling_result.sampled_targets
-#     positives = [l == 1 for l in sampling_result.sampled_labels]
-#     if i == 0:  # take only positives for keyframe (assumed at i=0)
-#         sampled_box = [b[p] for b, p in zip(sampled_box, positives)]
-#         sampled_tgt = [t[p] for t, p in zip(sampled_tgt, positives)]
-#     else:  # set track_ids to -1 for all negatives
-#         for pos, samp_tgt in zip(positives, sampled_tgt):
-#             samp_tgt.track_ids[~pos] = -1
-#
-#     sampled_boxes.append(sampled_box)
-#     sampled_targets.append(sampled_tgt)
