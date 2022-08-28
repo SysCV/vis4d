@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, Dataset
 from vis4d.common.datasets import bdd100k_track_map, bdd100k_track_sample
 from vis4d.data.utils import transform_bbox
 from vis4d.op.heads.dense_head.rpn import RPNLoss
-from vis4d.op.heads.roi_head.rcnn import RCNNLoss, TransformRCNNOutputs
+from vis4d.op.heads.roi_head.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D
 from vis4d.vis.image import imshow_bboxes
@@ -122,9 +122,7 @@ class FasterRCNNTest(unittest.TestCase):
 
         faster_rcnn = FasterRCNN(num_classes=80)
 
-        transform_outs = TransformRCNNOutputs(
-            faster_rcnn.rcnn_box_encoder, score_threshold=0.5
-        )
+        roi2det = RoI2Det(faster_rcnn.rcnn_box_encoder, score_threshold=0.5)
 
         weights = (
             "mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/"
@@ -138,7 +136,7 @@ class FasterRCNNTest(unittest.TestCase):
         with torch.no_grad():
             features = backbone(sample_images)
             outs = faster_rcnn(features)
-            dets = transform_outs(
+            dets = roi2det(
                 class_outs=outs.roi.cls_score,
                 regression_outs=outs.roi.bbox_pred,
                 boxes=outs.proposals.boxes,
@@ -153,16 +151,16 @@ class FasterRCNNTest(unittest.TestCase):
             .all()
             .item()
         )
-        assert torch.isclose(dets[0].boxes, DET0_BOXES).all().item()
+        assert torch.isclose(dets.boxes[0], DET0_BOXES).all().item()
         assert (
-            torch.isclose(dets[0].scores, DET0_SCORES, atol=1e-4).all().item()
+            torch.isclose(dets.scores[0], DET0_SCORES, atol=1e-4).all().item()
         )
-        assert torch.equal(dets[0].class_ids, DET0_CLASS_IDS)
-        assert torch.isclose(dets[1].boxes, DET1_BOXES).all().item()
+        assert torch.equal(dets.class_ids[0], DET0_CLASS_IDS)
+        assert torch.isclose(dets.boxes[1], DET1_BOXES).all().item()
         assert (
-            torch.isclose(dets[1].scores, DET1_SCORES, atol=1e-4).all().item()
+            torch.isclose(dets.scores[1], DET1_SCORES, atol=1e-4).all().item()
         )
-        assert torch.equal(dets[1].class_ids, DET1_CLASS_IDS)
+        assert torch.equal(dets.class_ids[1], DET1_CLASS_IDS)
 
         # imshow_bboxes(image1[0], *dets[0])
         # imshow_bboxes(image2[0], *dets[1])

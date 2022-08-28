@@ -10,7 +10,7 @@ from vis4d.op.detect.faster_rcnn_test import (
     FasterRCNN,
     ResNet,
     SampleDataset,
-    TransformRCNNOutputs,
+    RoI2Det,
     identity_collate,
 )
 from vis4d.op.qdtrack.qdtrack import QDTrack
@@ -44,7 +44,7 @@ class QDTrackTest(unittest.TestCase):
             backbone=ResNet("resnet50", pretrained=True, trainable_layers=3),
             num_classes=8,
         )
-        transform_outs = TransformRCNNOutputs(
+        transform_outs = RoI2Det(
             faster_rcnn.rcnn_box_encoder, score_threshold=0.5
         )
         qdtrack = QDTrack(faster_rcnn, transform_outs)
@@ -89,7 +89,7 @@ class QDTrackTest(unittest.TestCase):
             backbone=ResNet("resnet50", pretrained=True, trainable_layers=3),
             num_classes=8,
         )
-        transform_outs = TransformRCNNOutputs(
+        transform_outs = RoI2Det(
             faster_rcnn.rcnn_box_encoder, score_threshold=0.5
         )
         qdtrack = QDTrack(faster_rcnn, transform_outs)
