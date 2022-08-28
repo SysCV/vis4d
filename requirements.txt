@@ -18,11 +18,11 @@ setuptools
 tqdm
 wheel
 h5py
-git+https://github.com/scalabel/scalabel.git
+scalabel
 termcolor
 torch
 torchvision
-git+https://github.com/bdd100k/bdd100k.git
+bdd100k
 devtools
 utm
 kornia==0.6.1
