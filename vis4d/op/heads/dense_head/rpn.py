@@ -75,7 +75,7 @@ class RPNHead(nn.Module):
     def forward(
         self,
         features: List[torch.Tensor],
-    ) -> Tuple[List[torch.Tensor], List[torch.Tensor],]:
+    ) -> RPNOut:
         """Forward pass during training stage."""
         cls_outs, box_outs = [], []
         for feat in features:
@@ -83,6 +83,13 @@ class RPNHead(nn.Module):
             cls_outs += [self.rpn_cls(feat)]
             box_outs += [self.rpn_box(feat)]
         return RPNOut(cls=cls_outs, box=box_outs)
+
+    def __call__(
+        self,
+        features: List[torch.Tensor],
+    ) -> RPNOut:
+        """Type definition"""
+        return self._call_impl(features)
 
 
 class TransformRPNOutputs(nn.Module):

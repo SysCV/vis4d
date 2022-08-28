@@ -14,7 +14,7 @@ from vis4d.op.utils import segmentations_from_mmdet
 from vis4d.struct import Detections
 
 
-class FRCNNRoIHeadOutput(NamedTuple):
+class RCNNOut(NamedTuple):
     cls_score: torch.Tensor
     bbox_pred: torch.Tensor
 
@@ -63,14 +63,22 @@ class RCNNHead(nn.Module):
         self,
         features: List[torch.Tensor],
         boxes: List[torch.Tensor],
-    ) -> FRCNNRoIHeadOutput:
+    ) -> RCNNOut:
         """Forward pass during training stage."""
         bbox_feats = self.roi_pooler(features, boxes).flatten(start_dim=1)
         for fc in self.shared_fcs:
             bbox_feats = self.relu(fc(bbox_feats))
         cls_score = self.fc_cls(bbox_feats)
         bbox_pred = self.fc_reg(bbox_feats)
-        return FRCNNRoIHeadOutput(cls_score, bbox_pred)
+        return RCNNOut(cls_score, bbox_pred)
+
+    def __call__(
+        self,
+        features: List[torch.Tensor],
+        boxes: List[torch.Tensor],
+    ) -> RCNNOut:
+        """Type definition for function call."""
+        return self._call_impl(features, boxes)
 
 
 class TransformRCNNOutputs(nn.Module):
@@ -120,6 +128,18 @@ class TransformRCNNOutputs(nn.Module):
             result_boxes.append(Detections(det_bbox, det_scores, det_label))
 
         return result_boxes
+
+    def __call__(
+        self,
+        class_outs: torch.Tensor,
+        regression_outs: torch.Tensor,
+        boxes: List[torch.Tensor],
+        images_shape: Tuple[int, int, int, int],
+    ) -> List[Detections]:
+        """Type definition for function call."""
+        return self._call_impl(
+            class_outs, regression_outs, boxes, images_shape
+        )
 
 
 class RCNNTargets(NamedTuple):

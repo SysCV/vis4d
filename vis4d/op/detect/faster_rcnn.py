@@ -13,21 +13,26 @@ from vis4d.common.bbox.samplers import (
 )
 from vis4d.op.heads.dense_head.rpn import TransformRPNOutputs
 
-from ..heads.dense_head import RPNHead
-from ..heads.roi_head.rcnn import RCNNHead
+from ..heads.dense_head.rpn import RPNHead, RPNOut
+from ..heads.roi_head.rcnn import RCNNHead, RCNNOut
 
 
-class FRCNNReturn(NamedTuple):
-    rpn_cls_out: torch.Tensor
-    rpn_reg_out: torch.Tensor
-    # rpn: Optional[NamedTuple]  # TODO define
-    roi_cls_out: torch.Tensor
-    roi_reg_out: torch.Tensor
-    proposal_boxes: List[torch.Tensor]
-    proposal_scores: List[torch.Tensor]
-    proposal_target_boxes: Optional[List[torch.Tensor]]
-    proposal_target_classes: Optional[List[torch.Tensor]]
-    proposal_labels: Optional[List[torch.Tensor]]
+class Proposals(NamedTuple):
+    """Output structure for object proposals."""
+
+    boxes: List[torch.Tensor]
+    scores: List[torch.Tensor]
+    target_boxes: Optional[List[torch.Tensor]]
+    target_classes: Optional[List[torch.Tensor]]
+    labels: Optional[List[torch.Tensor]]
+
+
+class FRCNNOut(NamedTuple):
+    """Faster RCNN function call outputs."""
+
+    rpn: RPNOut
+    roi: RCNNOut
+    proposals: Proposals
 
 
 def get_default_anchor_generator() -> AnchorGenerator:
@@ -117,7 +122,7 @@ class FasterRCNN(nn.Module):
         features: List[torch.Tensor],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
-    ) -> FRCNNReturn:
+    ) -> FRCNNOut:
         """Faster RCNN forward.
 
         TODO(tobiasfshr) consider indiviual image sizes and paddings to
@@ -137,14 +142,15 @@ class FasterRCNN(nn.Module):
             assert target_classes is not None
 
         # TODO(tobiasfshr) RPN and RoI handle the whole feature pyramid
-        rpn_cls_out, rpn_reg_out = self.rpn_head(features[2:])
-        proposals, scores = self.rpn_head_transform(
-            rpn_cls_out, rpn_reg_out, features[0].shape
+        rpn_out = self.rpn_head(features[2:])
+        proposal_boxes, scores = self.rpn_head_transform(
+            rpn_out.cls, rpn_out.box, features[0].shape
         )
 
         if target_boxes is not None:
+            assert target_classes is not None
             (
-                proposals,
+                proposal_boxes,
                 scores,
                 sampled_target_boxes,
                 sampled_target_classes,
@@ -152,7 +158,7 @@ class FasterRCNN(nn.Module):
             ) = match_and_sample_proposals(
                 self.box_matcher,
                 self.box_sampler,
-                proposals,
+                proposal_boxes,
                 scores,
                 target_boxes,
                 target_classes,
@@ -166,18 +172,18 @@ class FasterRCNN(nn.Module):
                 None,
             )
 
-        roi_cls_out, roi_reg_out = self.roi_head(features[2:-1], proposals)
+        roi_out = self.roi_head(features[2:-1], proposal_boxes)
 
-        return FRCNNReturn(
-            rpn_cls_out=rpn_cls_out,
-            rpn_reg_out=rpn_reg_out,
-            roi_reg_out=roi_reg_out,
-            roi_cls_out=roi_cls_out,
-            proposal_boxes=proposals,
-            proposal_scores=scores,
-            proposal_target_boxes=sampled_target_boxes,
-            proposal_target_classes=sampled_target_classes,
-            proposal_labels=sampled_labels,
+        return FRCNNOut(
+            roi=roi_out,
+            rpn=rpn_out,
+            proposals=Proposals(
+                boxes=proposal_boxes,
+                scores=scores,
+                target_boxes=sampled_target_boxes,
+                target_classes=sampled_target_classes,
+                labels=sampled_labels,
+            ),
         )
 
     def __call__(
@@ -185,6 +191,6 @@ class FasterRCNN(nn.Module):
         features: List[torch.Tensor],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
-    ) -> FRCNNReturn:
+    ) -> FRCNNOut:
         """Type definition for call implementation."""
         return self._call_impl(features, target_boxes, target_classes)
