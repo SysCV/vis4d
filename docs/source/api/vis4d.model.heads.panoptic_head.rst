@@ -1,23 +1,23 @@
-vis4d.model.heads.panoptic\_head
+vis4d.op.heads.panoptic\_head
 ========================================
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.model.heads.panoptic_head.base
+.. automodule:: vis4d.op.heads.panoptic_head.base
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.heads.panoptic_head.simple
+.. automodule:: vis4d.op.heads.panoptic_head.simple
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.heads.panoptic_head.simple_test
+.. automodule:: vis4d.op.heads.panoptic_head.simple_test
    :members:
    :undoc-members:
    :show-inheritance:
@@ -25,7 +25,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.model.heads.panoptic_head
+.. automodule:: vis4d.op.heads.panoptic_head
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,17 +1,17 @@
-vis4d.model.segment
+vis4d.op.segment
 ===========================
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.model.segment.base
+.. automodule:: vis4d.op.segment.base
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.segment.mmseg
+.. automodule:: vis4d.op.segment.mmseg
    :members:
    :undoc-members:
    :show-inheritance:
@@ -19,7 +19,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.model.segment
+.. automodule:: vis4d.op.segment
    :members:
    :undoc-members:
    :show-inheritance:

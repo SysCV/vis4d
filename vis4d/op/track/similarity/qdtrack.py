@@ -7,7 +7,7 @@ from torch import nn
 
 from vis4d.common.bbox.poolers import BaseRoIPooler, MultiScaleRoIAlign
 from vis4d.common.layers import add_conv_branch
-from vis4d.model.losses import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
+from vis4d.op.losses import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
 
 from ..utils import cosine_similarity
 

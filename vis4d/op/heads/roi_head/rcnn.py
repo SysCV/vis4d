@@ -9,8 +9,8 @@ from torch import Tensor, nn
 from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.utils import multiclass_nms
-from vis4d.model.losses.utils import l1_loss, weight_reduce_loss
-from vis4d.model.utils import segmentations_from_mmdet
+from vis4d.op.losses.utils import l1_loss, weight_reduce_loss
+from vis4d.op.utils import segmentations_from_mmdet
 from vis4d.struct import Detections
 
 

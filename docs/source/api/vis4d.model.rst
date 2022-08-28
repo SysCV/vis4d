@@ -1,4 +1,4 @@
-vis4d.model
+vis4d.op
 ===================
 
 Subpackages
@@ -7,50 +7,50 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   vis4d.model.backbone
-   vis4d.model.detect
-   vis4d.model.heads
-   vis4d.model.losses
-   vis4d.model.optimize
-   vis4d.model.panoptic
-   vis4d.model.segment
-   vis4d.model.track
+   vis4d.op.backbone
+   vis4d.op.detect
+   vis4d.op.heads
+   vis4d.op.losses
+   vis4d.op.optimize
+   vis4d.op.panoptic
+   vis4d.op.segment
+   vis4d.op.track
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.model.base
+.. automodule:: vis4d.op.base
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.mm_utils
+.. automodule:: vis4d.op.mm_utils
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.qd_3dt
+.. automodule:: vis4d.op.qd_3dt
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.qdtrack
+.. automodule:: vis4d.op.qdtrack
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.qdtrackseg
+.. automodule:: vis4d.op.qdtrackseg
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.utils
+.. automodule:: vis4d.op.utils
    :members:
    :undoc-members:
    :show-inheritance:
@@ -58,7 +58,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.model
+.. automodule:: vis4d.op
    :members:
    :undoc-members:
    :show-inheritance:

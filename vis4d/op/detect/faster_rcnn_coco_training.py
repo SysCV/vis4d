@@ -10,19 +10,19 @@ from vis4d.common.data_pipelines import default
 from vis4d.common.datasets import coco_det_map, coco_train, coco_val
 from vis4d.data import BaseDatasetHandler, BaseSampleMapper, ScalabelDataset
 from vis4d.data.transforms import Resize
-from vis4d.model.detect.faster_rcnn import (
+from vis4d.op.detect.faster_rcnn import (
     FasterRCNN,
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
-from vis4d.model.detect.faster_rcnn_test import (
+from vis4d.op.detect.faster_rcnn_test import (
     TorchResNetBackbone,
     identity_collate,
     normalize,
 )
-from vis4d.model.heads.dense_head.rpn import RPNLoss
-from vis4d.model.heads.roi_head.rcnn import RCNNLoss, TransformRCNNOutputs
+from vis4d.op.heads.dense_head.rpn import RPNLoss
+from vis4d.op.heads.roi_head.rcnn import RCNNLoss, TransformRCNNOutputs
 from vis4d.struct import Boxes2D, InputSample
 
 log_step = 50

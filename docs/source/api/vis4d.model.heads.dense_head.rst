@@ -1,29 +1,29 @@
-vis4d.model.heads.dense\_head
+vis4d.op.heads.dense\_head
 =====================================
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.model.heads.dense_head.base
+.. automodule:: vis4d.op.heads.dense_head.base
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.heads.dense_head.mmdet
+.. automodule:: vis4d.op.heads.dense_head.mmdet
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.heads.dense_head.mmseg
+.. automodule:: vis4d.op.heads.dense_head.mmseg
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.heads.dense_head.qdtrack
+.. automodule:: vis4d.op.heads.dense_head.qdtrack
    :members:
    :undoc-members:
    :show-inheritance:
@@ -31,7 +31,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.model.heads.dense_head
+.. automodule:: vis4d.op.heads.dense_head
    :members:
    :undoc-members:
    :show-inheritance:

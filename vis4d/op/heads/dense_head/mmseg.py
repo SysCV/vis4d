@@ -20,7 +20,7 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMSEG_INSTALLED = False
 
-from vis4d.model.utils import (
+from vis4d.op.utils import (
     _parse_losses,
     get_img_metas,
     load_config,

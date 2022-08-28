@@ -4,7 +4,7 @@ from vis4d.common.models import build_faster_rcnn
 from vis4d.common.optimizers import sgd, step_schedule
 from vis4d.detect.data import DetectDataModule
 from vis4d.engine.trainer import BaseCLI
-from vis4d.model.optimize import DefaultOptimizer
+from vis4d.op.optimize import DefaultOptimizer
 
 
 def setup_model(

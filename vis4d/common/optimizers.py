@@ -54,7 +54,7 @@ def poly_schedule(
 ) -> DictStrAny:
     """Create poly schedule cfg."""
     lr_scheduler_cfg = {
-        "class_path": "vis4d.model.optimize.scheduler.PolyLRScheduler",
+        "class_path": "vis4d.op.optimize.scheduler.PolyLRScheduler",
         "init_args": {
             "max_steps": max_steps,
             "power": power,

@@ -8,12 +8,12 @@ from torch import nn
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.samplers import CombinedSampler
 from vis4d.common.data_pipelines import default as default_augs
-from vis4d.model.detect import FasterRCNN
-from vis4d.model.heads.roi_head.rcnn import TransformRCNNOutputs
-from vis4d.model.optimize import DefaultOptimizer
-from vis4d.model.track.graph import QDTrackGraph
-from vis4d.model.track.graph.qdtrack import Tracks
-from vis4d.model.track.similarity import QDSimilarityHead
+from vis4d.op.detect import FasterRCNN
+from vis4d.op.heads.roi_head.rcnn import TransformRCNNOutputs
+from vis4d.op.optimize import DefaultOptimizer
+from vis4d.op.track.graph import QDTrackGraph
+from vis4d.op.track.graph.qdtrack import Tracks
+from vis4d.op.track.similarity import QDSimilarityHead
 from vis4d.struct import ArgsType
 
 try:

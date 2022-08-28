@@ -18,7 +18,7 @@ try:
 except (ImportError, NameError):  # pragma: no cover
     MMDET_INSTALLED = False
 
-from vis4d.model.utils import load_config
+from vis4d.op.utils import load_config
 from vis4d.struct import DictStrAny, NamedTensors
 
 from .base import BaseNeck

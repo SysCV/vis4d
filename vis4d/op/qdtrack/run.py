@@ -5,10 +5,10 @@ from vis4d.common.datasets import bdd100k_track_map, mot_map
 from vis4d.common.models import build_faster_rcnn, build_yolox
 from vis4d.common.optimizers import sgd, step_schedule
 from vis4d.engine.trainer import BaseCLI
-from vis4d.model import QDTrack
-from vis4d.model.optimize.optimizer import DefaultOptimizer
-from vis4d.model.track.graph import QDTrackGraph
-from vis4d.model.track.similarity import QDSimilarityHead
+from vis4d.op import QDTrack
+from vis4d.op.optimize.optimizer import DefaultOptimizer
+from vis4d.op.track.graph import QDTrackGraph
+from vis4d.op.track.similarity import QDSimilarityHead
 from vis4d.qdtrack.data import QDTrackDataModule
 from vis4d.qdtrack.qdtrack import QDTrackYOLOX
 

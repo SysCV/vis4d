@@ -6,14 +6,14 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.model.detect.faster_rcnn_test import (
+from vis4d.op.detect.faster_rcnn_test import (
     FasterRCNN,
     SampleDataset,
     TorchResNetBackbone,
     TransformRCNNOutputs,
     identity_collate,
 )
-from vis4d.model.qdtrack.qdtrack import QDTrack
+from vis4d.op.qdtrack.qdtrack import QDTrack
 
 from .utils import load_model_checkpoint
 

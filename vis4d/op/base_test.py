@@ -13,25 +13,25 @@ from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.samplers import CombinedSampler
 from vis4d.data import BaseDataModule, BaseDatasetHandler, ScalabelDataset
 from vis4d.data.datasets import BaseDatasetLoader, Scalabel
-from vis4d.model.backbone import MMDetBackbone
-from vis4d.model.backbone.neck import MMDetNeck
-from vis4d.model.detect import (
+from vis4d.op.backbone import MMDetBackbone
+from vis4d.op.backbone.neck import MMDetNeck
+from vis4d.op.detect import (
     D2TwoStageDetector,
     FasterRCNN,
     MMOneStageDetector,
 )
-from vis4d.model.heads.dense_head import (
+from vis4d.op.heads.dense_head import (
     MMDetDenseHead,
     MMDetRPNHead,
     MMSegDecodeHead,
 )
-from vis4d.model.heads.panoptic_head import SimplePanopticHead
-from vis4d.model.heads.roi_head import MMDetRoIHead, QD3DTBBox3DHead
-from vis4d.model.optimize import DefaultOptimizer, LinearLRWarmup
-from vis4d.model.panoptic import PanopticFPN
-from vis4d.model.segment import MMEncDecSegmentor
-from vis4d.model.track.graph import QDTrackGraph
-from vis4d.model.track.similarity import QDSimilarityHead
+from vis4d.op.heads.panoptic_head import SimplePanopticHead
+from vis4d.op.heads.roi_head import MMDetRoIHead, QD3DTBBox3DHead
+from vis4d.op.optimize import DefaultOptimizer, LinearLRWarmup
+from vis4d.op.panoptic import PanopticFPN
+from vis4d.op.segment import MMEncDecSegmentor
+from vis4d.op.track.graph import QDTrackGraph
+from vis4d.op.track.similarity import QDSimilarityHead
 from vis4d.struct import ArgsType
 from vis4d.unittest.utils import (
     MockModel,
@@ -754,7 +754,7 @@ def test_optimize() -> None:
     model = DefaultOptimizer(
         MockModel(model_param=7),
         lr_scheduler_init={
-            "class_path": "vis4d.model.optimize.PolyLRScheduler",
+            "class_path": "vis4d.op.optimize.PolyLRScheduler",
             "mode": "step",
             "init_args": {"max_steps": 10},
         },

@@ -15,7 +15,7 @@ from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.samplers import RandomSampler, SamplingResult
 from vis4d.common.layers import Conv2d
-from vis4d.model.losses.utils import smooth_l1_loss, weight_reduce_loss
+from vis4d.op.losses.utils import smooth_l1_loss, weight_reduce_loss
 from vis4d.struct import Proposals
 
 

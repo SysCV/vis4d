@@ -1,8 +1,8 @@
 """Common models."""
 from typing import Optional
 
-from vis4d.model.detect.faster_rcnn import FasterRCNN, MMOneStageDetector
-from vis4d.model.segment import MMEncDecSegmentor
+from vis4d.op.detect.faster_rcnn import FasterRCNN, MMOneStageDetector
+from vis4d.op.segment import MMEncDecSegmentor
 from vis4d.struct import ArgsType, CategoryMap, DictStrAny
 
 

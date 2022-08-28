@@ -15,7 +15,7 @@ from vis4d.common.bbox.samplers import (
 )
 from vis4d.common.geometry.rotation import generate_rotation_output
 from vis4d.common.layers import add_conv_branch
-from vis4d.model.losses import Box3DUncertaintyLoss
+from vis4d.op.losses import Box3DUncertaintyLoss
 from vis4d.struct import (
     Boxes2D,
     Boxes3D,

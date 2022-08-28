@@ -2,7 +2,7 @@
 from pytorch_lightning.utilities.cli import instantiate_class
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
 
-from vis4d.model.optimize import DefaultOptimizer
+from vis4d.op.optimize import DefaultOptimizer
 
 
 class QD3DTOptimizer(DefaultOptimizer):  # type: ignore

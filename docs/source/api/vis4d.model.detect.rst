@@ -1,35 +1,35 @@
-vis4d.model.detect
+vis4d.op.detect
 ==========================
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.model.detect.base
+.. automodule:: vis4d.op.detect.base
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.detect.d2_utils
+.. automodule:: vis4d.op.detect.d2_utils
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.detect.d2_utils_test
+.. automodule:: vis4d.op.detect.d2_utils_test
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.detect.detectron2
+.. automodule:: vis4d.op.detect.detectron2
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.detect.mmdet
+.. automodule:: vis4d.op.detect.mmdet
    :members:
    :undoc-members:
    :show-inheritance:
@@ -37,7 +37,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.model.detect
+.. automodule:: vis4d.op.detect
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,4 +1,4 @@
-vis4d.model.track
+vis4d.op.track
 =========================
 
 Subpackages
@@ -7,14 +7,14 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   vis4d.model.track.graph
-   vis4d.model.track.similarity
+   vis4d.op.track.graph
+   vis4d.op.track.similarity
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.model.track.utils
+.. automodule:: vis4d.op.track.utils
    :members:
    :undoc-members:
    :show-inheritance:
@@ -22,7 +22,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.model.track
+.. automodule:: vis4d.op.track
    :members:
    :undoc-members:
    :show-inheritance:

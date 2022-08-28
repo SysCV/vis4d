@@ -5,7 +5,7 @@ model:
   category_mapping:
     pedestrian: 0
   detection:
-    class_path: vis4d.model.detect.MMTwoStageDetector
+    class_path: vis4d.op.detect.MMTwoStageDetector
     init_args:
       category_mapping:
         pedestrian: 0
@@ -14,9 +14,9 @@ model:
       pixel_std: [58.395, 57.12, 57.375]
       backbone_output_names: ["p2", "p3", "p4", "p5", "p6"]
   similarity:
-    class_path: vis4d.model.track.similarity.QDSimilarityHead
+    class_path: vis4d.op.track.similarity.QDSimilarityHead
   track_graph:
-    class_path: vis4d.model.track.graph.QDTrackGraph
+    class_path: vis4d.op.track.graph.QDTrackGraph
     init_args:
       keep_in_memory: 10
 

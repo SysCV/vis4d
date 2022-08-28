@@ -11,7 +11,7 @@ from vis4d.common.bbox.samplers import (
     RandomSampler,
     match_and_sample_proposals,
 )
-from vis4d.model.heads.dense_head.rpn import TransformRPNOutputs
+from vis4d.op.heads.dense_head.rpn import TransformRPNOutputs
 from vis4d.struct import Boxes2D, LossesType
 
 from ..heads.dense_head import RPNHead
@@ -208,8 +208,8 @@ class FasterRCNN(nn.Module):
 class FasterRCNNLoss(nn.Module):  # TODO needs to be updated / removed
     def __init__(self, rpn_head, roi_head):
         super().__init__()
-        from vis4d.model.heads.dense_head.rpn import MMDetDenseHeadLoss
-        from vis4d.model.heads.roi_head.rcnn import RCNNLoss
+        from vis4d.op.heads.dense_head.rpn import MMDetDenseHeadLoss
+        from vis4d.op.heads.roi_head.rcnn import RCNNLoss
 
         self.rpn_head_loss = MMDetDenseHeadLoss(rpn_head)
         self.roi_head_loss = RCNNLoss(roi_head)

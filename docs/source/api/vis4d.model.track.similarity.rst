@@ -1,17 +1,17 @@
-vis4d.model.track.similarity
+vis4d.op.track.similarity
 ====================================
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.model.track.similarity.base
+.. automodule:: vis4d.op.track.similarity.base
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.track.similarity.qdtrack
+.. automodule:: vis4d.op.track.similarity.qdtrack
    :members:
    :undoc-members:
    :show-inheritance:
@@ -19,7 +19,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.model.track.similarity
+.. automodule:: vis4d.op.track.similarity
    :members:
    :undoc-members:
    :show-inheritance:

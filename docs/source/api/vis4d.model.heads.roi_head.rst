@@ -1,35 +1,35 @@
-vis4d.model.heads.roi\_head
+vis4d.op.heads.roi\_head
 ===================================
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.model.heads.roi_head.base
+.. automodule:: vis4d.op.heads.roi_head.base
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.heads.roi_head.mmdet
+.. automodule:: vis4d.op.heads.roi_head.mmdet
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.heads.roi_head.qd_3dt_bbox3d_head
+.. automodule:: vis4d.op.heads.roi_head.qd_3dt_bbox3d_head
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.heads.roi_head.qd_3dt_bbox3d_head_test
+.. automodule:: vis4d.op.heads.roi_head.qd_3dt_bbox3d_head_test
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.heads.roi_head.qdtrack
+.. automodule:: vis4d.op.heads.roi_head.qdtrack
    :members:
    :undoc-members:
    :show-inheritance:
@@ -37,7 +37,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.model.heads.roi_head
+.. automodule:: vis4d.op.heads.roi_head
    :members:
    :undoc-members:
    :show-inheritance:
