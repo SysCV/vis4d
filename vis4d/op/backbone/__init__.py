@@ -1,6 +1,6 @@
 """Vis4D Backbone module."""
-from .base import BaseBackbone
+from .base import Backbone
 from .dla import DLA
 from .mm_backbone import MMDetBackbone, MMSegBackbone
 
-__all__ = ["BaseBackbone", "MMDetBackbone", "MMSegBackbone", "DLA"]
+__all__ = ["Backbone", "MMDetBackbone", "MMSegBackbone", "DLA"]

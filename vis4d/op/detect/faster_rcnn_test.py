@@ -9,7 +9,6 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 # TODO how to handle category IDs?
-from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 
 from vis4d.common.datasets import bdd100k_track_map, bdd100k_track_sample
 from vis4d.data.utils import transform_bbox
@@ -18,6 +17,8 @@ from vis4d.op.heads.roi_head.rcnn import RCNNLoss, TransformRCNNOutputs
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D
 from vis4d.vis.image import imshow_bboxes
+
+from ..backbone.torchvision import ResNet
 
 from .faster_rcnn import (
     FasterRCNN,
@@ -65,23 +66,6 @@ def url_to_tensor(
     return normalize(
         torch.tensor(image).float().permute(2, 0, 1).unsqueeze(0).contiguous()
     )
-
-
-class TorchResNetBackbone(nn.Module):
-    """
-    @fyu Leave it here for now. We will move it to a separate file later.
-    """
-
-    def __init__(
-        self, name: str, pretrained: bool = True, trainable_layers: int = 3
-    ):
-        super().__init__()
-        self.backbone = resnet_fpn_backbone(
-            name, pretrained=pretrained, trainable_layers=trainable_layers
-        )
-
-    def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
-        return list(self.backbone(images).values())
 
 
 class SampleDataset(Dataset):
@@ -133,11 +117,13 @@ class FasterRCNNTest(unittest.TestCase):
         )
         sample_images = torch.cat([image1, image2])
 
-        backbone = TorchResNetBackbone(
-            "resnet50", pretrained=True, trainable_layers=3
-        )
+        backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
 
         faster_rcnn = FasterRCNN(num_classes=80)
+
+        transform_outs = TransformRCNNOutputs(
+            faster_rcnn.rcnn_box_encoder, score_threshold=0.5
+        )
 
         weights = (
             "mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/"
@@ -150,10 +136,7 @@ class FasterRCNNTest(unittest.TestCase):
         faster_rcnn.eval()
         with torch.no_grad():
             features = backbone(sample_images)
-            outs = faster_rcnn(features, sample_images.shape)
-            transform_outs = TransformRCNNOutputs(
-                faster_rcnn.rcnn_box_encoder, score_threshold=0.5
-            )
+            outs = faster_rcnn(features)
             dets = transform_outs(
                 class_outs=outs.roi_cls_out,
                 regression_outs=outs.roi_reg_out,
@@ -189,9 +172,7 @@ class FasterRCNNTest(unittest.TestCase):
         anchor_gen = get_default_anchor_generator()
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        backbone = TorchResNetBackbone(
-            "resnet50", pretrained=True, trainable_layers=3
-        )
+        backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
         faster_rcnn = FasterRCNN(
             num_classes=8,
             anchor_generator=anchor_gen,
@@ -264,11 +245,7 @@ class FasterRCNNTest(unittest.TestCase):
     def test_torchscript(self):
         """Test torchscript export of Faster RCNN."""
         sample_images = torch.rand((2, 3, 512, 512))
-        backbone = (
-            TorchResNetBackbone(
-                "resnet50", pretrained=True, trainable_layers=3
-            ),
-        )
+        backbone = (ResNet("resnet50", pretrained=True, trainable_layers=3),)
         faster_rcnn = FasterRCNN()
         backbone_scripted = torch.jit.script(backbone)
         frcnn_scripted = torch.jit.script(faster_rcnn)

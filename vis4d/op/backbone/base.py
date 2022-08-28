@@ -6,36 +6,22 @@ import torch
 from torch import nn
 
 
-class BaseBackbone(nn.Module):
+class Backbone(nn.Module):
     """Base Backbone class."""
 
-    def __init__(
-        self,
-        pixel_mean: Tuple[float, float, float],
-        pixel_std: Tuple[float, float, float],
-    ) -> None:
+    def __init__(self) -> None:
         """Init BaseBackbone."""
         super().__init__()
-        self.register_buffer(
-            "pixel_mean", torch.tensor(pixel_mean).view(-1, 1, 1), False
-        )
-        self.register_buffer(
-            "pixel_std", torch.tensor(pixel_std).view(-1, 1, 1), False
-        )
-
-    def preprocess_inputs(self, inputs: torch.Tensor) -> torch.Tensor:
-        """Normalize the input images."""
-        return (inputs - self.pixel_mean) / self.pixel_std
 
     @abc.abstractmethod
     def forward(
         self,
-        inputs: torch.Tensor,
+        images: torch.Tensor,
     ) -> List[torch.Tensor]:
         """Base Backbone forward.
 
         Args:
-            inputs (Tensor[N, C, H, W]): Image input to process. Expected to
+            images (Tensor[N, C, H, W]): Image input to process. Expected to
                 type float32 with values ranging 0..255.
 
         Returns:
@@ -48,3 +34,10 @@ class BaseBackbone(nn.Module):
             the resolution.
         """
         raise NotImplementedError
+
+    def __call__(
+        self,
+        images: torch.Tensor,
+    ) -> List[torch.Tensor]:
+        """Type definition for call implementation."""
+        return self._call_impl(images)

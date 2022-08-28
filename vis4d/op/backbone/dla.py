@@ -5,9 +5,7 @@ import torch
 from torch import nn
 from torch.utils import model_zoo
 
-from vis4d.struct import ArgsType
-
-from .base import BaseBackbone
+from .base import Backbone
 
 BN_MOMENTUM = 0.1
 DLA_MODEL_PREFIX = "http://dl.yf.io/dla/models/"
@@ -396,12 +394,11 @@ class Tree(nn.Module):
         return input_x
 
 
-class DLA(BaseBackbone):
+class DLA(Backbone):
     """DLA backbone."""
 
     def __init__(
         self,
-        *args: ArgsType,
         name: Optional[str] = None,
         levels: Tuple[int, int, int, int, int, int] = (1, 1, 1, 2, 2, 1),
         channels: Tuple[int, int, int, int, int, int] = (
@@ -417,7 +414,6 @@ class DLA(BaseBackbone):
         cardinality: int = 32,
         weights: Optional[str] = None,
         style: str = "imagenet",
-        **kwargs: ArgsType,
     ) -> None:
         """Init."""
         super().__init__(*args, **kwargs)
@@ -526,10 +522,20 @@ class DLA(BaseBackbone):
             model_weights = torch.load(weights)
         self.load_state_dict(model_weights, strict=False)
 
-    def forward(self, inputs: torch.Tensor) -> List[torch.Tensor]:
-        """Backbone forward."""
-        inputs = self.preprocess_inputs(inputs)
-        input_x = self.base_layer(inputs)
+    def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
+        """DLA forward.
+
+        Args:
+            images (Tensor[N, C, H, W]): Image input to process. Expected to
+                type float32 with values ranging 0..255.
+
+        Returns:
+            fp (List[torch.Tensor]): The output feature pyramid. The list index
+            represents the level, which has a downsampling raio of 2^index.
+            fp[0] is a feature map with the image resolution instead of the
+            original image.
+        """
+        input_x = self.base_layer(images)
         outs: List[torch.Tensor] = []
         for i in range(6):
             input_x = getattr(self, f"level{i}")(input_x)

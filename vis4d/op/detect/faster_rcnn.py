@@ -116,11 +116,13 @@ class FasterRCNN(nn.Module):
     def forward(
         self,
         features: List[torch.Tensor],
-        images_shape: Tuple[int, int, int, int],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
     ) -> FRCNNReturn:
         """Forward pass during training stage.
+
+        TODO(tobiasfshr) consider indiviual image sizes and paddings to
+        remove invalid proposals.
 
         Returns:
             rpn_class_out
@@ -131,9 +133,9 @@ class FasterRCNN(nn.Module):
         if target_boxes is not None:
             assert target_classes is not None
 
-        rpn_cls_out, rpn_reg_out = self.rpn_head(features)
+        rpn_cls_out, rpn_reg_out = self.rpn_head(features[2:])
         proposals, scores = self.rpn_head_transform(
-            rpn_cls_out, rpn_reg_out, images_shape
+            rpn_cls_out, rpn_reg_out, features[0].shape
         )
 
         if target_boxes is not None:
@@ -160,7 +162,7 @@ class FasterRCNN(nn.Module):
                 None,
             )
 
-        roi_cls_out, roi_reg_out = self.roi_head(features[:-1], proposals)
+        roi_cls_out, roi_reg_out = self.roi_head(features[2:], proposals)
 
         return FRCNNReturn(
             rpn_cls_out=rpn_cls_out,
@@ -176,15 +178,12 @@ class FasterRCNN(nn.Module):
 
     def __call__(
         self,
-        images: torch.Tensor,
-        images_shape: Tuple[int, int, int, int],
+        features: torch.Tensor,
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
     ) -> FRCNNReturn:
         """Type definition for call implementation."""
-        return self._call_impl(
-            images, images_shape, target_boxes, target_classes
-        )
+        return self._call_impl(features, target_boxes, target_classes)
 
 
 class FasterRCNNLoss(nn.Module):  # TODO needs to be updated / removed

@@ -17,7 +17,7 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rpn_box_encoder,
 )
 from vis4d.op.detect.faster_rcnn_test import (
-    TorchResNetBackbone,
+    ResNet,
     identity_collate,
     normalize,
 )
@@ -37,7 +37,7 @@ anchor_gen = get_default_anchor_generator()
 rpn_bbox_encoder = get_default_rpn_box_encoder()
 rcnn_bbox_encoder = get_default_rcnn_box_encoder()
 faster_rcnn = FasterRCNN(
-    TorchResNetBackbone("resnet50", pretrained=True, trainable_layers=3),
+    ResNet("resnet50", pretrained=True, trainable_layers=3),
     anchor_generator=anchor_gen,
     rpn_box_encoder=rpn_bbox_encoder,
     rcnn_box_encoder=rcnn_bbox_encoder,
