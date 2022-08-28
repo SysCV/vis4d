@@ -1,11 +1,11 @@
-vis4d.model.panoptic
+vis4d.op.panoptic
 ============================
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.model.panoptic.panoptic_fpn
+.. automodule:: vis4d.op.panoptic.panoptic_fpn
    :members:
    :undoc-members:
    :show-inheritance:
@@ -13,7 +13,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.model.panoptic
+.. automodule:: vis4d.op.panoptic
    :members:
    :undoc-members:
    :show-inheritance:

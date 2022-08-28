@@ -1,35 +1,35 @@
-vis4d.model.track.graph
+vis4d.op.track.graph
 ===============================
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.model.track.graph.base
+.. automodule:: vis4d.op.track.graph.base
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.track.graph.bytetrack
+.. automodule:: vis4d.op.track.graph.bytetrack
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.track.graph.bytetrack_utils
+.. automodule:: vis4d.op.track.graph.bytetrack_utils
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.track.graph.qdtrack
+.. automodule:: vis4d.op.track.graph.qdtrack
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.track.graph.qdtrack_test
+.. automodule:: vis4d.op.track.graph.qdtrack_test
    :members:
    :undoc-members:
    :show-inheritance:
@@ -37,7 +37,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.model.track.graph
+.. automodule:: vis4d.op.track.graph
    :members:
    :undoc-members:
    :show-inheritance:

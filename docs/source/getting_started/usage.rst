@@ -126,7 +126,7 @@ Config structure
 In the config, you define the important parts of your pipeline. The config is managed as pydantic BaseModel, and can be loaded from .toml or .yaml files.
 The important options are:
 
-- model: Defines the parameters for your model. The parameters are dependent on your model implementation. Each model config can specify its own attributes. Each model config inherits from `vis4d.model.BaseModel`.
+- model: Defines the parameters for your model. The parameters are dependent on your model implementation. Each model config can specify its own attributes. Each model config inherits from `vis4d.op.BaseModel`.
 - train: List of Datasets used for training, e.g. Scalabel, BDD100K, COCO, MOTChallenge, etc. Defined in `vis4d.data.datasets.BaseDatasetLoader`
 - train_handler: DatasetHandler for training. Defines behavior of the training data loader if one global configuration of all datasets is desired. Includes augmentations and data postprocessing. Defined in `vis4d.data.Vis4DDatasetHandler`.
 - test: List of Datasets used for testing

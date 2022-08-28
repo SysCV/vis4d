@@ -1,23 +1,23 @@
-vis4d.model.backbone.neck
+vis4d.op.backbone.neck
 =================================
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.model.backbone.neck.base
+.. automodule:: vis4d.op.backbone.neck.base
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.backbone.neck.dla_up
+.. automodule:: vis4d.op.backbone.neck.dla_up
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.model.backbone.neck.mmdet
+.. automodule:: vis4d.op.backbone.neck.mmdet
    :members:
    :undoc-members:
    :show-inheritance:
@@ -25,7 +25,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.model.backbone.neck
+.. automodule:: vis4d.op.backbone.neck
    :members:
    :undoc-members:
    :show-inheritance:

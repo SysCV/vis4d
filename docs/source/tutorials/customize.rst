@@ -37,18 +37,18 @@ You can define additional arguments by overwriting the `__init__` function of `B
 Implement a custom model
 +++++++++++++++++++++++++++++
 
-To define a new model, just define a model class that inherits from `vis4d.model.BaseModel`.
+To define a new model, just define a model class that inherits from `vis4d.op.BaseModel`.
 The model usually should implement the following two functions:
 
 - `forward_train`: execute the model on the inputs, compute losses, return losses
 - `forward_test`: run model inference on given inputs, return predictions
 
-Note that while we define the standard behavior via `forward_train` and `forward_test`, since `vis4d.model.BaseModel` inherits from `pytorch_lightning.LightningModule`, all standard behavior can be modified by overwriting the respective function of `LightningModule`, such as `training_step`, `test_step`, `optimizer_step`, etc.
+Note that while we define the standard behavior via `forward_train` and `forward_test`, since `vis4d.op.BaseModel` inherits from `pytorch_lightning.LightningModule`, all standard behavior can be modified by overwriting the respective function of `LightningModule`, such as `training_step`, `test_step`, `optimizer_step`, etc.
 Furthermore, a variety of callbacks can be added to define additional functionality at certain points during execution. For further information, see the documentation of `LightningModule <https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html>`_ and `Callbacks <https://pytorch-lightning.readthedocs.io/en/stable/extensions/callbacks.html>`_
 
 .. code:: python
 
-    from vis4d.model import BaseModel
+    from vis4d.op import BaseModel
 
     class MyModel(BaseModel):
 
