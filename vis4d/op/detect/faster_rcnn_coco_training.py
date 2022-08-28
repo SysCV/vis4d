@@ -1,8 +1,10 @@
 """Faster RCNN coco training example."""
 import copy
+from typing import List, Optional, Tuple, Union
 
 import torch
 import torch.optim as optim
+from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -21,29 +23,102 @@ from vis4d.op.detect.faster_rcnn_test import (
     identity_collate,
     normalize,
 )
-from vis4d.op.heads.dense_head.rpn import RPNLoss
-from vis4d.op.heads.roi_head.rcnn import RCNNLoss, TransformRCNNOutputs
-from vis4d.struct import Boxes2D, InputSample
+from vis4d.op.heads.dense_head.rpn import RPNLoss, RPNLosses
+from vis4d.op.heads.roi_head.rcnn import (
+    RCNNLoss,
+    RCNNLosses,
+    TransformRCNNOutputs,
+)
+from vis4d.struct import Boxes2D, Detections, InputSample
 
-log_step = 50
+log_step = 100
 num_epochs = 12
-learning_rate = 0.001
+learning_rate = 0.02 / 4
 batch_size = 4
 train_resolution = (800, 1333)
+test_resolution = (800, 1333)
 device = torch.device("cuda")
 
+
+class FasterRCNNModel(nn.Module):
+    """Faster RCNN wrapper class for checkpointing etc."""
+
+    def __init__(self) -> None:
+        """Init."""
+        super().__init__()
+        anchor_gen = get_default_anchor_generator()
+        rpn_bbox_encoder = get_default_rpn_box_encoder()
+        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
+        self.backbone = TorchResNetBackbone(
+            "resnet50", pretrained=True, trainable_layers=3
+        )
+        self.faster_rcnn_heads = FasterRCNN(
+            anchor_generator=anchor_gen,
+            rpn_box_encoder=rpn_bbox_encoder,
+            rcnn_box_encoder=rcnn_bbox_encoder,
+        )
+        self.rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
+        self.rcnn_loss = RCNNLoss(rcnn_bbox_encoder)
+        self.transform_outs = TransformRCNNOutputs(
+            rcnn_bbox_encoder, score_threshold=0.05
+        )
+
+    def forward(
+        self,
+        images: torch.Tensor,
+        target_boxes: Optional[List[torch.Tensor]] = None,
+        target_classes: Optional[List[torch.Tensor]] = None,
+    ) -> Union[Tuple[RPNLosses, RCNNLosses], List[Detections]]:
+        """Forward."""
+        if target_boxes is not None:
+            assert target_classes is not None
+            return self._forward_train(images, target_boxes, target_classes)
+        return self._forward_test(images)
+
+    def _forward_train(
+        self,
+        images: torch.Tensor,
+        target_boxes: Optional[List[torch.Tensor]] = None,
+        target_classes: Optional[List[torch.Tensor]] = None,
+    ) -> Tuple[RPNLosses, RCNNLosses]:
+        """Forward training stage."""
+        features = self.backbone(images)
+        outputs = self.faster_rcnn_heads(
+            features, images.shape, target_boxes, target_classes
+        )
+
+        rpn_losses = self.rpn_loss(
+            outputs.rpn_cls_out,
+            outputs.rpn_reg_out,
+            gt_boxes,
+            gt_class_ids,
+            inputs.shape,
+        )
+        rcnn_losses = self.rcnn_loss(
+            outputs.roi_cls_out,
+            outputs.roi_reg_out,
+            outputs.proposal_boxes,
+            outputs.proposal_labels,
+            outputs.proposal_target_boxes,
+            outputs.proposal_target_classes,
+        )
+        return rpn_losses, rcnn_losses
+
+    def _forward_test(self, images: torch.Tensor) -> List[Detections]:
+        """Forward testing stage."""
+        features = self.backbone(images)
+        outs = self.faster_rcnn_heads(features, images.shape)
+        dets = self.transform_outs(
+            class_outs=outs.roi_cls_out,
+            regression_outs=outs.roi_reg_out,
+            boxes=outs.proposal_boxes,
+            images_shape=images.shape,
+        )
+        return dets
+
+
 ## setup model
-anchor_gen = get_default_anchor_generator()
-rpn_bbox_encoder = get_default_rpn_box_encoder()
-rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-faster_rcnn = FasterRCNN(
-    TorchResNetBackbone("resnet50", pretrained=True, trainable_layers=3),
-    anchor_generator=anchor_gen,
-    rpn_box_encoder=rpn_bbox_encoder,
-    rcnn_box_encoder=rcnn_bbox_encoder,
-)
-rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
-rcnn_loss = RCNNLoss(rcnn_bbox_encoder)
+faster_rcnn = FasterRCNNModel()
 
 optimizer = optim.SGD(faster_rcnn.parameters(), lr=learning_rate, momentum=0.9)
 scheduler = optim.lr_scheduler.MultiStepLR(
@@ -71,9 +146,9 @@ train_loader = DataLoader(
 coco_val_loader = coco_val()
 test_sample_mapper = BaseSampleMapper()
 test_sample_mapper.setup_categories(coco_det_map)
-test_transforms = [Resize(shape=(800, 1333))]
+test_transforms = [Resize(shape=test_resolution, keep_ratio=True)]
 test_data = BaseDatasetHandler(
-    [ScalabelDataset(coco_val_loader, True, test_sample_mapper)],
+    [ScalabelDataset(coco_val_loader, False, test_sample_mapper)],
     transformations=test_transforms,
 )
 test_loader = DataLoader(
@@ -96,23 +171,22 @@ def validation_loop(model):
     for data in tqdm(test_loader):
         data = data[0][0]
         image = data.images.tensor.cuda()
-
-        outs = faster_rcnn(normalize(image))
-        transform_outs = TransformRCNNOutputs(
-            faster_rcnn.rcnn_box_encoder, score_threshold=0.05
+        original_wh = (
+            data.metadata[0].size.width,
+            data.metadata[0].size.height,
         )
-        dets = transform_outs(
-            class_outs=outs.roi_cls_out,
-            regression_outs=outs.roi_reg_out,
-            boxes=outs.proposal_boxes,
-            images_shape=image.shape,
-        )[0]
+        output_wh = (image.size(3), image.size(2))
 
-        prediction = copy.deepcopy(data.metadata[0])
-        prediction.labels = Boxes2D(
+        dets = faster_rcnn(normalize(image))[0]
+        dets = Boxes2D(
             torch.cat([dets.boxes, dets.scores.unsqueeze(-1)], -1),
             dets.class_ids,
-        ).to_scalabel(class_ids_to_coco)
+        )
+        dets.postprocess(original_wh, output_wh)
+
+        prediction = copy.deepcopy(data.metadata[0])
+        prediction.labels = dets.to_scalabel(class_ids_to_coco)
+
         preds.append(prediction)
         gts.append(copy.deepcopy(data.metadata[0]))
     _, log_str = coco_val_loader.evaluate("detect", preds, gts)
@@ -136,21 +210,8 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
 
         # forward + backward + optimize
-        outputs = faster_rcnn(normalize(inputs), gt_boxes, gt_class_ids)
-        rpn_losses = rpn_loss(
-            outputs.rpn_cls_out,
-            outputs.rpn_reg_out,
-            gt_boxes,
-            gt_class_ids,
-            inputs.shape,
-        )
-        rcnn_losses = rcnn_loss(
-            outputs.roi_cls_out,
-            outputs.roi_reg_out,
-            outputs.proposal_boxes,
-            outputs.proposal_labels,
-            outputs.proposal_target_boxes,
-            outputs.proposal_target_classes,
+        rpn_losses, rcnn_losses = faster_rcnn(
+            normalize(inputs), gt_boxes, gt_class_ids
         )
         total_loss = sum((*rpn_losses, *rcnn_losses))
         total_loss.backward()
@@ -173,8 +234,6 @@ for epoch in range(num_epochs):
                 log_str += f"{k}: {v / log_step:.3f}, "
             print(log_str.rstrip(", "))
             running_losses = {}
-        if i > 500:
-            break
 
     scheduler.step()
     torch.save(faster_rcnn.state_dict(), f"frcnn_coco_epoch_{epoch}.pt")
