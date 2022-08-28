@@ -12,17 +12,14 @@ from vis4d.common.data_pipelines import default
 from vis4d.common.datasets import coco_det_map, coco_train, coco_val
 from vis4d.data import BaseDatasetHandler, BaseSampleMapper, ScalabelDataset
 from vis4d.data.transforms import Resize
+from vis4d.op.backbone.torchvision import ResNet
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNN,
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
-from vis4d.op.detect.faster_rcnn_test import (
-    TorchResNetBackbone,
-    identity_collate,
-    normalize,
-)
+from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
 from vis4d.op.heads.dense_head.rpn import RPNLoss, RPNLosses
 from vis4d.op.heads.roi_head.rcnn import (
     RCNNLoss,
@@ -49,9 +46,7 @@ class FasterRCNNModel(nn.Module):
         anchor_gen = get_default_anchor_generator()
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        self.backbone = TorchResNetBackbone(
-            "resnet50", pretrained=True, trainable_layers=3
-        )
+        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
         self.faster_rcnn_heads = FasterRCNN(
             anchor_generator=anchor_gen,
             rpn_box_encoder=rpn_bbox_encoder,
@@ -84,7 +79,7 @@ class FasterRCNNModel(nn.Module):
         """Forward training stage."""
         features = self.backbone(images)
         outputs = self.faster_rcnn_heads(
-            features, images.shape, target_boxes, target_classes
+            features, target_boxes, target_classes
         )
 
         rpn_losses = self.rpn_loss(
@@ -107,7 +102,7 @@ class FasterRCNNModel(nn.Module):
     def _forward_test(self, images: torch.Tensor) -> List[Detections]:
         """Forward testing stage."""
         features = self.backbone(images)
-        outs = self.faster_rcnn_heads(features, images.shape)
+        outs = self.faster_rcnn_heads(features)
         dets = self.transform_outs(
             class_outs=outs.roi_cls_out,
             regression_outs=outs.roi_reg_out,

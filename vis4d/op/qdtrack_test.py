@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader, Dataset
 
 from vis4d.op.detect.faster_rcnn_test import (
     FasterRCNN,
+    ResNet,
     SampleDataset,
-    TorchResNetBackbone,
     TransformRCNNOutputs,
     identity_collate,
 )
@@ -41,9 +41,7 @@ class QDTrackTest(unittest.TestCase):
     def test_inference(self):
         """Inference test."""
         faster_rcnn = FasterRCNN(
-            backbone=TorchResNetBackbone(
-                "resnet50", pretrained=True, trainable_layers=3
-            ),
+            backbone=ResNet("resnet50", pretrained=True, trainable_layers=3),
             num_classes=8,
         )
         transform_outs = TransformRCNNOutputs(
@@ -88,9 +86,7 @@ class QDTrackTest(unittest.TestCase):
     def test_train(self):
         """Training test."""
         faster_rcnn = FasterRCNN(
-            backbone=TorchResNetBackbone(
-                "resnet50", pretrained=True, trainable_layers=3
-            ),
+            backbone=ResNet("resnet50", pretrained=True, trainable_layers=3),
             num_classes=8,
         )
         transform_outs = TransformRCNNOutputs(

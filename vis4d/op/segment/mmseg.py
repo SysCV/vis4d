@@ -15,7 +15,6 @@ from vis4d.struct import (
 )
 
 from ..backbone import MMSegBackbone
-from ..backbone.neck import MMDetNeck
 from ..heads.dense_head import MMSegDecodeHead
 from ..utils import (
     _parse_losses,
