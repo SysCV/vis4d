@@ -33,6 +33,9 @@ class RandomSampler(BaseSampler):
         """Sample boxes randomly."""
         pos_idx, neg_idx = self._sample_labels(matching.assigned_labels)
         sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
+        if len(target_boxes) == 0:
+            target_boxes = target_boxes.new_zeros((1, 4))
+            target_classes = target_classes.new_zeros((1,))
         return SamplingResult(
             sampled_boxes=boxes[sampled_idcs],
             sampled_target_boxes=target_boxes[

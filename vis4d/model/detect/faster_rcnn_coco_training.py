@@ -173,6 +173,8 @@ for epoch in range(num_epochs):
                 log_str += f"{k}: {v / log_step:.3f}, "
             print(log_str.rstrip(", "))
             running_losses = {}
+        if i > 500:
+            break
 
     scheduler.step()
     torch.save(faster_rcnn.state_dict(), f"frcnn_coco_epoch_{epoch}.pt")

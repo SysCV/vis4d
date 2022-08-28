@@ -1,5 +1,5 @@
 """Faster RCNN detector."""
-from typing import Callable, List, NamedTuple, Optional
+from typing import List, NamedTuple, Optional, Tuple
 
 import torch
 from torch import nn
@@ -16,21 +16,9 @@ from vis4d.struct import Boxes2D, LossesType
 
 from ..heads.dense_head import RPNHead
 from ..heads.roi_head.rcnn import RCNNHead
-from ..utils import load_model_checkpoint
-
-REV_KEYS = [
-    (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
-    (r"^roi_head.bbox_head\.", "roi_head."),
-    (r"^backbone\.", "backbone.backbone.body."),
-    (r"^neck.lateral_convs\.", "backbone.backbone.fpn.inner_blocks."),
-    (r"^neck.fpn_convs\.", "backbone.backbone.fpn.layer_blocks."),
-    ("\.conv.weight", ".weight"),
-    ("\.conv.bias", ".bias"),
-]
 
 
 class FRCNNReturn(NamedTuple):
-    backbone_out: List[torch.Tensor]
     rpn_cls_out: torch.Tensor
     rpn_reg_out: torch.Tensor
     # rpn: Optional[NamedTuple]  # TODO define
@@ -84,19 +72,15 @@ class FasterRCNN(nn.Module):
 
     def __init__(
         self,
-        backbone: nn.Module,
         num_classes: int = 80,
         anchor_generator: Optional[AnchorGenerator] = None,
         rpn_box_encoder: Optional[DeltaXYWHBBoxEncoder] = None,
         rcnn_box_encoder: Optional[DeltaXYWHBBoxEncoder] = None,
         box_matcher: Optional[MaxIoUMatcher] = None,
         box_sampler: Optional[RandomSampler] = None,
-        weights: Optional[str] = None,
     ):
         """Init."""
         super().__init__()
-        self.backbone = backbone
-
         self.anchor_generator = (
             anchor_generator
             if anchor_generator is not None
@@ -129,12 +113,10 @@ class FasterRCNN(nn.Module):
         )
         self.roi_head = RCNNHead(num_classes=num_classes)
 
-        if weights is not None:
-            load_model_checkpoint(self, weights, REV_KEYS)
-
     def forward(
         self,
-        images: torch.Tensor,
+        features: List[torch.Tensor],
+        images_shape: Tuple[int, int, int, int],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
     ) -> FRCNNReturn:
@@ -149,11 +131,9 @@ class FasterRCNN(nn.Module):
         if target_boxes is not None:
             assert target_classes is not None
 
-        features = self.backbone(images)  # TODO move out of class
-
         rpn_cls_out, rpn_reg_out = self.rpn_head(features)
         proposals, scores = self.rpn_head_transform(
-            rpn_cls_out, rpn_reg_out, images.shape
+            rpn_cls_out, rpn_reg_out, images_shape
         )
 
         if target_boxes is not None:
@@ -183,7 +163,6 @@ class FasterRCNN(nn.Module):
         roi_cls_out, roi_reg_out = self.roi_head(features[:-1], proposals)
 
         return FRCNNReturn(
-            backbone_out=features,
             rpn_cls_out=rpn_cls_out,
             rpn_reg_out=rpn_reg_out,
             roi_reg_out=roi_reg_out,
@@ -198,11 +177,14 @@ class FasterRCNN(nn.Module):
     def __call__(
         self,
         images: torch.Tensor,
+        images_shape: Tuple[int, int, int, int],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
     ) -> FRCNNReturn:
         """Type definition for call implementation."""
-        return self._call_impl(images, target_boxes, target_classes)
+        return self._call_impl(
+            images, images_shape, target_boxes, target_classes
+        )
 
 
 class FasterRCNNLoss(nn.Module):  # TODO needs to be updated / removed

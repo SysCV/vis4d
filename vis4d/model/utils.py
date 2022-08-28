@@ -206,7 +206,7 @@ def load_model_checkpoint(
     if re.compile(r"^mm(det|seg)://").search(weights):
         pre = weights[:8]
         weights = MM_MODEL_MAP[pre] + weights.split(pre)[-1]
-        load_checkpoint(model, weights, revise_keys=rev_keys, strict=True)
+        load_checkpoint(model, weights, revise_keys=rev_keys)
     elif weights.startswith("bdd100k://"):
         weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
         load_checkpoint(model, weights, revise_keys=rev_keys)
