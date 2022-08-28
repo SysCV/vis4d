@@ -30,8 +30,8 @@ from vis4d.struct import Boxes2D, Detections, InputSample
 
 log_step = 100
 num_epochs = 12
-learning_rate = 0.02 / 4
-batch_size = 4
+batch_size = 8
+learning_rate = 0.02 / 16 * batch_size
 train_resolution = (800, 1333)
 test_resolution = (800, 1333)
 device = torch.device("cuda")

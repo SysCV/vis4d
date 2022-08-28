@@ -27,17 +27,13 @@ except (ImportError, NameError):  # pragma: no cover
 class QDTrack(nn.Module):
     """QDTrack model - quasi-dense instance similarity learning."""
 
-    def __init__(
-        self, detector: FasterRCNN, detector_transform: TransformRCNNOutputs
-    ) -> None:
+    def __init__(self, memory_size: int = 10) -> None:
         """Init."""
         super().__init__()
-        self.detector = detector
-        self.detector_transform = detector_transform
         self.similarity_head = QDSimilarityHead()
         self.track_graph = QDTrackGraph()
-        self.track_memory = Tracks(memory_limit=10)
-        self.backdrop_memory = Tracks(memory_limit=10)
+        self.track_memory = Tracks(memory_limit=memory_size)
+        self.backdrop_memory = Tracks(memory_limit=memory_size)
 
         self.sampler = CombinedSampler(
             batch_size=256,
@@ -71,27 +67,35 @@ class QDTrack(nn.Module):
 
     def forward(
         self,
-        images: torch.Tensor,
+        features: List[torch.Tensor],
+        det_boxes: List[torch.Tensor],
+        det_scores: List[torch.Tensor],
+        det_class_ids: List[torch.Tensor],
         frame_ids: Optional[Tuple[int, ...]] = None,
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
         target_track_ids: Optional[List[torch.Tensor]] = None,
     ) -> List[Tuple[torch.Tensor, ...]]:  # TODO define return type
         """Forward function."""
-        if self.training:  # TODO change to targets existing
+        if target_boxes is not None:
             assert (
-                target_boxes is not None
-                and target_classes is not None
-                and target_track_ids is not None
+                target_classes is not None and target_track_ids is not None
             ), "Need targets during training!"
             return self._forward_train(
-                images, target_boxes, target_classes, target_track_ids
+                features,
+                det_boxes,
+                target_boxes,
+                target_classes,
+                target_track_ids,
             )
         assert frame_ids is not None, "Need frame ids during inference!"
-        return self._forward_test(images, frame_ids)
+        return self._forward_test(
+            features, det_boxes, det_scores, det_class_ids, frame_ids
+        )
 
     def _forward_train(
-        images: torch.Tensor,
+        features: List[torch.Tensor],
+        det_boxes: List[torch.Tensor],
         target_boxes: List[torch.Tensor],
         target_classes: List[torch.Tensor],
         target_track_ids: List[torch.Tensor],
@@ -124,64 +128,58 @@ class QDTrack(nn.Module):
         #     sampled_targets.append(sampled_tgt)
 
     def _forward_test(
-        self, images: torch.Tensor, frame_ids: Tuple[int, ...]
-    ):  # TODO input detections, backbone outs, tracks [inference], no images
+        self,
+        features: List[torch.Tensor],
+        det_boxes: List[torch.Tensor],
+        det_scores: List[torch.Tensor],
+        det_class_ids: List[torch.Tensor],
+        frame_ids: Tuple[int, ...],
+    ):  # TODO input tracks [inference]
         """Forward during test."""
-        # detection
-        # detector_out = self.detector(images)
-        # detections = self.detector_transform(
-        #     detector_out.roi_cls_out,
-        #     detector_out.roi_reg_out,
-        #     detector_out.proposal_boxes,
-        #     images.shape,
-        # )
-        # boxes, scores, class_ids = (
-        #     [d.boxes for d in detections],
-        #     [d.scores for d in detections],
-        #     [d.class_ids for d in detections],
-        # )
 
         # similarity head
-        embeddings = self.similarity_head(detector_out.backbone_out[:4], boxes)
+        embeddings = self.similarity_head(features[2:6], det_boxes)
 
         batched_tracks = []
         for frame_id, box, score, cls_id, embeds in zip(
-            frame_ids, boxes, scores, class_ids, embeddings
+            frame_ids, det_boxes, det_scores, det_class_ids, embeddings
         ):
-            # # reset graph at begin of sequence
-            # if frame_id == 0:
-            #     self.track_memory = Tracks(memory_limit=10)
-            #     self.backdrop_memory = Tracks(memory_limit=10)
+            # reset graph at begin of sequence TODO move outside
+            if frame_id == 0:
+                self.track_memory = Tracks(memory_limit=10)
+                self.backdrop_memory = Tracks(memory_limit=10)
 
-            # tracks = self.track_memory.get_frames(
-            #     max(0, frame_id - 10), frame_id
-            # )
-            # backdrops = self.backdrop_memory.get_frames(
-            #     max(0, frame_id - 1), frame_id
-            # )
+            tracks = self.track_memory.get_frames(
+                max(0, frame_id - 10), frame_id
+            )
+            backdrops = self.backdrop_memory.get_frames(
+                max(0, frame_id - 1), frame_id
+            )
 
             track_ids, filter_indcs = self.track_graph(
                 box, score, cls_id, embeds, tracks, backdrops
             )
 
-            # data = (
-            #     box[filter_indcs],
-            #     score[filter_indcs],
-            #     cls_id[filter_indcs],
-            #     embeds[filter_indcs],
-            # )
-            # valid_tracks = track_ids != -1
-            # new_tracks = (
-            #     track_ids[valid_tracks],
-            #     tuple(entry[valid_tracks] for entry in data),
-            # )
-            # new_backdrops = (
-            #     track_ids[~valid_tracks],
-            #     tuple(entry[~valid_tracks] for entry in data),
-            # )
+            ### TODO move outside
+            data = (
+                box[filter_indcs],
+                score[filter_indcs],
+                cls_id[filter_indcs],
+                embeds[filter_indcs],
+            )
+            valid_tracks = track_ids != -1
+            new_tracks = (
+                track_ids[valid_tracks],
+                tuple(entry[valid_tracks] for entry in data),
+            )
+            new_backdrops = (
+                track_ids[~valid_tracks],
+                tuple(entry[~valid_tracks] for entry in data),
+            )
 
-            # self.track_memory.update(*new_tracks)
-            # self.backdrop_memory.update(*new_backdrops)
+            self.track_memory.update(*new_tracks)
+            self.backdrop_memory.update(*new_backdrops)
+            ###
             batched_tracks.append(self.track_memory.last_frame)
 
         return batched_tracks

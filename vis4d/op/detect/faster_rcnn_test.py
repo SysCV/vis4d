@@ -53,7 +53,7 @@ def normalize(img: torch.Tensor) -> torch.Tensor:
     pixel_std = (58.395, 57.12, 57.375)
     pixel_mean = torch.tensor(pixel_mean, device=img.device).view(-1, 1, 1)
     pixel_std = torch.tensor(pixel_std, device=img.device).view(-1, 1, 1)
-    img = (img - pixel_mean) / pixel_std
+    img = (img.float() - pixel_mean) / pixel_std
     return img
 
 
