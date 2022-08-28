@@ -18,7 +18,7 @@ from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D
 from vis4d.vis.image import imshow_bboxes
 
-from ..backbone.torchvision import ResNet
+from ..backbone.resnet import ResNet
 
 from .faster_rcnn import (
     FasterRCNN,

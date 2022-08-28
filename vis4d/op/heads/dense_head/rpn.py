@@ -19,8 +19,23 @@ from vis4d.op.losses.utils import smooth_l1_loss, weight_reduce_loss
 from vis4d.struct import Proposals
 
 
+class RPNOut(NamedTuple):
+    """Output of RPN head."""
+
+    # Sigmoid input for binary classification of the anchor
+    # Positive means there is an object in that anchor.
+    # Each list item is for on feature pyramid level.
+    cls: List[torch.Tensor]
+    # 4 x number of anchors for center offets and sizes (width, height) of the
+    # boxes under the anchor.
+    # Each list item is for on feature pyramid level.
+    box: List[torch.Tensor]
+
+
 class RPNHead(nn.Module):
     """Faster RCNN RPN Head."""
+
+    rpn_conv: nn.Module
 
     def __init__(
         self,
@@ -57,15 +72,6 @@ class RPNHead(nn.Module):
         self.rpn_cls = Conv2d(feat_channels, num_anchors, 1)
         self.rpn_box = Conv2d(feat_channels, num_anchors * 4, 1)
 
-    #     #  TODO weight init
-    #     self.apply(self._init_weights)
-    #
-    # def _init_weights(self, module):
-    #     if isinstance(module, nn.Conv2d):
-    #         module.weight.data.normal_(mean=0.0, std=0.01)
-    #         if module.bias is not None:
-    #             module.bias.data.zero_()
-
     def forward(
         self,
         features: List[torch.Tensor],
@@ -76,7 +82,7 @@ class RPNHead(nn.Module):
             feat = self.rpn_conv(feat)
             cls_outs += [self.rpn_cls(feat)]
             box_outs += [self.rpn_box(feat)]
-        return cls_outs, box_outs
+        return RPNOut(cls=cls_outs, box=box_outs)
 
 
 class TransformRPNOutputs(nn.Module):

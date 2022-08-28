@@ -1,5 +1,5 @@
 """Faster RCNN detector."""
-from typing import List, NamedTuple, Optional, Tuple
+from typing import List, NamedTuple, Optional
 
 import torch
 from torch import nn
@@ -12,7 +12,6 @@ from vis4d.common.bbox.samplers import (
     match_and_sample_proposals,
 )
 from vis4d.op.heads.dense_head.rpn import TransformRPNOutputs
-from vis4d.struct import Boxes2D, LossesType
 
 from ..heads.dense_head import RPNHead
 from ..heads.roi_head.rcnn import RCNNHead
@@ -119,16 +118,20 @@ class FasterRCNN(nn.Module):
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
     ) -> FRCNNReturn:
-        """Forward pass during training stage.
+        """Faster RCNN forward.
 
         TODO(tobiasfshr) consider indiviual image sizes and paddings to
         remove invalid proposals.
 
-        Returns:
-            rpn_class_out
-            rpn_box_out
-            proposals
+        Args:
+            features (List[torch.Tensor]): Feature pyramid
+            target_boxes (Optional[List[torch.Tensor]], optional): Ground
+            truth bounding box locations. Defaults to None.
+            target_classes (Optional[List[torch.Tensor]], optional): Ground
+            truth bounding box classes. Defaults to None.
 
+        Returns:
+            FRCNNReturn: proposal and roi outputs.
         """
         if target_boxes is not None:
             assert target_classes is not None
@@ -185,167 +188,3 @@ class FasterRCNN(nn.Module):
     ) -> FRCNNReturn:
         """Type definition for call implementation."""
         return self._call_impl(features, target_boxes, target_classes)
-
-
-class FasterRCNNLoss(nn.Module):  # TODO needs to be updated / removed
-    def __init__(self, rpn_head, roi_head):
-        super().__init__()
-        from vis4d.op.heads.dense_head.rpn import MMDetDenseHeadLoss
-        from vis4d.op.heads.roi_head.rcnn import RCNNLoss
-
-        self.rpn_head_loss = MMDetDenseHeadLoss(rpn_head)
-        self.roi_head_loss = RCNNLoss(roi_head)
-
-    def forward(self, frcnn_returns: FRCNNReturn, targets) -> LossesType:
-        losses = self.rpn_head_loss(
-            frcnn_returns.rpn_cls_out,
-            frcnn_returns.rpn_reg_out,
-            target_classes,
-            images_shape,
-        )
-
-
-# class MMOneStageDetector(BaseOneStageDetector):
-#     """mmdetection one-stage detector wrapper."""
-#
-#     def __init__(
-#         self,
-#         *args: ArgsType,
-#         pixel_mean: Optional[Tuple[float, float, float]] = None,
-#         pixel_std: Optional[Tuple[float, float, float]] = None,
-#         model_base: Optional[str] = None,
-#         model_kwargs: Optional[DictStrAny] = None,
-#         backbone_output_names: Optional[List[str]] = None,
-#         weights: Optional[str] = None,
-#         backbone: Optional[BaseBackbone] = None,
-#         bbox_head = None,
-#         **kwargs: ArgsType,
-#     ):
-#         """Init."""
-#         assert (
-#             MMDET_INSTALLED and MMCV_INSTALLED
-#         ), "MMTwoStageDetector requires both mmcv and mmdet to be installed!"
-#         super().__init__(*args, **kwargs)
-#         assert self.category_mapping is not None
-#         self.cat_mapping = {v: k for k, v in self.category_mapping.items()}
-#         if backbone is None or bbox_head is None:
-#             assert model_base is not None
-#             self.mm_cfg = get_mmdet_config(
-#                 model_base, model_kwargs, self.category_mapping
-#             )
-#         if pixel_mean is None or pixel_std is None:
-#             assert backbone is not None, (
-#                 "If no custom backbone is defined, image "
-#                 "normalization parameters must be specified!"
-#             )
-#
-#         if backbone is None:
-#             self.backbone: BaseBackbone = MMDetBackbone(
-#                 mm_cfg=self.mm_cfg["backbone"],
-#                 pixel_mean=pixel_mean,
-#                 pixel_std=pixel_std,
-#                 neck=MMDetNeck(
-#                     mm_cfg=self.mm_cfg["neck"],
-#                     output_names=backbone_output_names,
-#                 ),
-#             )
-#         else:
-#             self.backbone = backbone
-#
-#         if bbox_head is None:
-#             bbox_cfg = self.mm_cfg["bbox_head"]
-#             if "train_cfg" in self.mm_cfg:
-#                 bbox_train_cfg = self.mm_cfg["train_cfg"]
-#             else:  # pragma: no cover
-#                 bbox_train_cfg = None
-#             bbox_cfg.update(
-#                 train_cfg=bbox_train_cfg,
-#                 test_cfg=self.mm_cfg["test_cfg"],
-#             )
-#             self.bbox_head = MMDetDenseHead(
-#                 mm_cfg=bbox_cfg, category_mapping=self.category_mapping
-#             )
-#         else:
-#             self.bbox_head = bbox_head
-#
-#         if weights is not None:
-#             load_model_checkpoint(self, weights, REV_KEYS)
-#
-#     def forward(
-#         self, batch_inputs: List[InputSample]
-#     ) -> Union[LossesType, ModelOutput]:
-#         """Forward."""
-#         if self.training:
-#             return self.forward_train(batch_inputs)
-#         return self.forward_test(batch_inputs)
-#
-#     def forward_train(self, batch_inputs: List[InputSample]) -> LossesType:
-#         """Forward pass during training stage."""
-#         assert (
-#             len(batch_inputs) == 1
-#         ), "No reference views allowed in MMOneStageDetector training!"
-#         inputs, targets = batch_inputs[0], batch_inputs[0].targets
-#         assert targets is not None, "Training requires targets."
-#         features = self.backbone(inputs)
-#         bbox_losses, _ = self.bbox_head(inputs, features, targets)
-#         return {**bbox_losses}
-#
-#     def forward_test(self, batch_inputs: List[InputSample]) -> ModelOutput:
-#         """Forward pass during testing stage."""
-#         assert (
-#             len(batch_inputs) == 1
-#         ), "No reference views allowed in MMOneStageDetector testing!"
-#         inputs = batch_inputs[0]
-#         features = self.backbone(inputs)
-#         detections = self.bbox_head(inputs, features)
-#         outputs = dict(detect=detections)
-#         postprocess_predictions(inputs, outputs, self.clip_bboxes_to_image)
-#         return predictions_to_scalabel(outputs, self.cat_mapping)
-#
-#     def extract_features(self, inputs: InputSample) -> NamedTensors:
-#         """Detector feature extraction stage.
-#
-#         Return backbone output features.
-#         """
-#         feats = self.backbone(inputs)
-#         assert isinstance(feats, dict)
-#         return feats
-#
-#     def _detections_train(
-#         self,
-#         inputs: InputSample,
-#         features: NamedTensors,
-#         targets: LabelInstances,
-#     ) -> Tuple[LossesType, Optional[List[Boxes2D]]]:
-#         """Train stage detections generation."""
-#         return self.bbox_head(inputs, features, targets)
-#
-#     def _detections_test(
-#         self, inputs: InputSample, features: NamedTensors
-#     ) -> List[Boxes2D]:
-#         """Test stage detections generation."""
-#         return self.bbox_head(inputs, features)
-
-#
-# def get_mmdet_config(
-#     model_base: str,
-#     model_kwargs: Optional[DictStrAny] = None,
-#     category_mapping: Optional[Dict[str, int]] = None,
-# ) -> MMConfig:
-#     """Convert a Detector config to a mmdet readable config."""
-#     cfg = load_config(model_base)
-#
-#     # convert detect attributes
-#     if category_mapping is not None:
-#         if "bbox_head" in cfg:  # pragma: no cover
-#             cfg["bbox_head"]["num_classes"] = len(category_mapping)
-#         if "roi_head" in cfg:
-#             cfg["roi_head"]["bbox_head"]["num_classes"] = len(category_mapping)
-#             if "mask_head" in cfg["roi_head"]:
-#                 cfg["roi_head"]["mask_head"]["num_classes"] = len(
-#                     category_mapping
-#                 )
-#
-#     if model_kwargs is not None:
-#         add_keyword_args(model_kwargs, cfg)
-#     return cfg
