@@ -133,6 +133,7 @@ class FasterRCNN(nn.Module):
         if target_boxes is not None:
             assert target_classes is not None
 
+        # TODO(tobiasfshr) RPN and RoI handle the whole feature pyramid
         rpn_cls_out, rpn_reg_out = self.rpn_head(features[2:])
         proposals, scores = self.rpn_head_transform(
             rpn_cls_out, rpn_reg_out, features[0].shape
@@ -162,7 +163,7 @@ class FasterRCNN(nn.Module):
                 None,
             )
 
-        roi_cls_out, roi_reg_out = self.roi_head(features[2:], proposals)
+        roi_cls_out, roi_reg_out = self.roi_head(features[2:-1], proposals)
 
         return FRCNNReturn(
             rpn_cls_out=rpn_cls_out,

@@ -40,4 +40,4 @@ class ResNet(Backbone):
             resnet downsamples the feature maps by 4 directly.
         """
         outs = [images, images, *self.backbone(images).values()]
-        return outs[:-1]  # remove the last pooled layer
+        return outs  # remove the last pooled layer
