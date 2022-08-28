@@ -182,7 +182,7 @@ class FasterRCNN(nn.Module):
 
     def __call__(
         self,
-        features: torch.Tensor,
+        features: List[torch.Tensor],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
     ) -> FRCNNReturn:

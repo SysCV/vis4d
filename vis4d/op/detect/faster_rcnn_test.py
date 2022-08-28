@@ -8,8 +8,6 @@ import torch.optim as optim
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
-# TODO how to handle category IDs?
-
 from vis4d.common.datasets import bdd100k_track_map, bdd100k_track_sample
 from vis4d.data.utils import transform_bbox
 from vis4d.op.heads.dense_head.rpn import RPNLoss
@@ -26,6 +24,9 @@ from .faster_rcnn import (
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
+
+# TODO how to handle category IDs?
+
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
@@ -182,7 +183,11 @@ class FasterRCNNTest(unittest.TestCase):
         rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
         rcnn_loss = RCNNLoss(rcnn_bbox_encoder, num_classes=8)
 
-        optimizer = optim.SGD(faster_rcnn.parameters(), lr=0.001, momentum=0.9)
+        optimizer = optim.SGD(
+            [*backbone.parameters(), *faster_rcnn.parameters()],
+            lr=0.001,
+            momentum=0.9,
+        )
 
         train_data = SampleDataset()
         train_loader = DataLoader(
@@ -202,9 +207,7 @@ class FasterRCNNTest(unittest.TestCase):
 
                 # forward + backward + optimize
                 features = backbone(inputs)
-                outputs = faster_rcnn(
-                    features, inputs.shape, gt_boxes, gt_class_ids
-                )
+                outputs = faster_rcnn(features, gt_boxes, gt_class_ids)
                 rpn_losses = rpn_loss(
                     outputs.rpn_cls_out,
                     outputs.rpn_reg_out,
@@ -250,4 +253,4 @@ class FasterRCNNTest(unittest.TestCase):
         backbone_scripted = torch.jit.script(backbone)
         frcnn_scripted = torch.jit.script(faster_rcnn)
         features = backbone_scripted(sample_images)
-        frcnn_scripted(features, sample_images.shape)
+        frcnn_scripted(features)

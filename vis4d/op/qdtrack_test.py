@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader, Dataset
 
 from vis4d.op.detect.faster_rcnn_test import (
     FasterRCNN,
-    SampleDataset,
     ResNet,
+    SampleDataset,
     TransformRCNNOutputs,
     identity_collate,
 )
