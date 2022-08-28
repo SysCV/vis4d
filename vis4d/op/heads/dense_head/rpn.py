@@ -33,7 +33,9 @@ class RPNOut(NamedTuple):
 
 
 class RPNHead(nn.Module):
-    """Faster RCNN RPN Head."""
+    """Faster RCNN RPN Head.
+    TODO(tobiasfshr) add doc.
+    """
 
     rpn_conv: nn.Module
 
