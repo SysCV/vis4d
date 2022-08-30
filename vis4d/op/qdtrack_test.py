@@ -4,31 +4,42 @@ from re import T
 
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from vis4d.op.detect.faster_rcnn_test import (
     FasterRCNN,
     ResNet,
-    SampleDataset,
     RoI2Det,
+    SampleDataset,
     identity_collate,
 )
 from vis4d.op.qdtrack.qdtrack import QDTrack
 
 from .utils import load_model_checkpoint
 
+
+def pad(images: torch.Tensor, stride=32) -> torch.Tensor:
+    """Pad image tensor to be compatible with stride."""
+    N, C, H, W = images.shape
+    pad = lambda x: (x + (stride - 1)) // stride * stride
+    pad_hw = pad(H), pad(W)
+    padded_imgs = images.new_zeros((N, C, *pad_hw))
+    padded_imgs[:, :, :H, :W] = images
+    return padded_imgs
+
+
 REV_KEYS = [
-    (r"^detector.rpn_head.mm_dense_head\.", "detector.rpn_head."),
+    (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),
     ("\.rpn_reg\.", ".rpn_box."),
-    (r"^detector.roi_head.mm_roi_head.bbox_head\.", "detector.roi_head."),
-    (r"^detector.backbone.mm_backbone\.", "detector.backbone.backbone.body."),
+    (r"^detector.roi_head.mm_roi_head.bbox_head\.", "roi_head."),
+    (r"^detector.backbone.mm_backbone\.", "backbone.body."),
     (
         r"^detector.backbone.neck.mm_neck.lateral_convs\.",
-        "detector.backbone.backbone.fpn.inner_blocks.",
+        "backbone.fpn.inner_blocks.",
     ),
     (
         r"^detector.backbone.neck.mm_neck.fpn_convs\.",
-        "detector.backbone.backbone.fpn.layer_blocks.",
+        "backbone.fpn.layer_blocks.",
     ),
     ("\.conv.weight", ".weight"),
     ("\.conv.bias", ".bias"),
@@ -40,23 +51,34 @@ class QDTrackTest(unittest.TestCase):
 
     def test_inference(self):
         """Inference test."""
-        faster_rcnn = FasterRCNN(
-            backbone=ResNet("resnet50", pretrained=True, trainable_layers=3),
-            num_classes=8,
+        backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        faster_rcnn = FasterRCNN(num_classes=8)
+        transform_detections = RoI2Det(
+            faster_rcnn.rcnn_box_encoder, score_threshold=0.05
         )
-        transform_outs = RoI2Det(
-            faster_rcnn.rcnn_box_encoder, score_threshold=0.5
-        )
-        qdtrack = QDTrack(faster_rcnn, transform_outs)
+        qdtrack = QDTrack()
 
         from mmcv.runner.checkpoint import load_checkpoint
+
+        load_checkpoint(
+            backbone,
+            "./qdtrack_r50_65point7.ckpt",
+            map_location=torch.device("cpu"),
+            revise_keys=REV_KEYS,
+        )
+
+        load_checkpoint(
+            faster_rcnn,
+            "./qdtrack_r50_65point7.ckpt",
+            map_location=torch.device("cpu"),
+            revise_keys=REV_KEYS,
+        )
 
         load_checkpoint(
             qdtrack,
             "./qdtrack_r50_65point7.ckpt",
             map_location=torch.device("cpu"),
             revise_keys=REV_KEYS,
-            strict=True,
         )
 
         qdtrack.eval()
@@ -73,26 +95,36 @@ class QDTrackTest(unittest.TestCase):
         with torch.no_grad():
             for data in test_loader:
                 inputs, _, _, frame_ids = data
-                outs = qdtrack(
-                    torch.cat(inputs),
-                    frame_ids,
+                images = pad(torch.cat(inputs))
+
+                features = backbone(images)
+                detector_out = faster_rcnn(features)
+                boxes, scores, class_ids = transform_detections(
+                    *detector_out.roi,
+                    detector_out.proposals.boxes,
+                    images.shape,
                 )
                 from vis4d.vis.image import imshow_bboxes
 
-                for img, out in zip(inputs, outs):
+                for img, boxs, score, cls_id in zip(
+                    images, boxes, scores, class_ids
+                ):
+                    imshow_bboxes(img, boxs, score, cls_id)
+
+                outs = qdtrack(features, boxes, scores, class_ids, frame_ids)
+
+                for img, out in zip(images, outs):
                     track_ids, boxes, scores, class_ids, _ = out
-                    imshow_bboxes(img[0], boxes, scores, class_ids, track_ids)
+                    imshow_bboxes(img, boxes, scores, class_ids, track_ids)
 
     def test_train(self):
         """Training test."""
-        faster_rcnn = FasterRCNN(
-            backbone=ResNet("resnet50", pretrained=True, trainable_layers=3),
-            num_classes=8,
-        )
+        backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        faster_rcnn = FasterRCNN(num_classes=8)
         transform_outs = RoI2Det(
-            faster_rcnn.rcnn_box_encoder, score_threshold=0.5
+            faster_rcnn.rcnn_box_encoder, score_threshold=0.05
         )
-        qdtrack = QDTrack(faster_rcnn, transform_outs)
+        qdtrack = QDTrack()
 
         optimizer = optim.SGD(qdtrack.parameters(), lr=0.001, momentum=0.9)
 

@@ -21,17 +21,13 @@ from vis4d.op.detect.faster_rcnn import (
 )
 from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
 from vis4d.op.heads.dense_head.rpn import RPNLoss, RPNLosses
-from vis4d.op.heads.roi_head.rcnn import (
-    RCNNLoss,
-    RCNNLosses,
-    RoI2Det,
-)
+from vis4d.op.heads.roi_head.rcnn import RCNNLoss, RCNNLosses, RoI2Det
 from vis4d.struct import Boxes2D, Detections, InputSample
 
 log_step = 100
 num_epochs = 12
-learning_rate = 0.02 / 4
-batch_size = 4
+batch_size = 8
+learning_rate = 0.02 / 16 * batch_size
 train_resolution = (800, 1333)
 test_resolution = (800, 1333)
 device = torch.device("cuda")

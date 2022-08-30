@@ -26,7 +26,7 @@ class FPN(FeaturePyramidNetwork):
         """Process the input features with FPN.
 
         Because by default, FPN doesn't upsample the first two feature maps in
-        the pyramid.
+        the pyramid, we keep the first two feature maps intact.
 
         TODO(tobiasfshr) Add tests and use it in faster rcnn operation demo
 
