@@ -58,7 +58,12 @@ def match_and_sample_proposals(
     target_classes: List[torch.Tensor],
     proposal_append_gt: bool,
 ) -> Tuple[
-    List[Tensor], List[Tensor], List[Tensor], List[Tensor], List[Tensor]
+    List[Tensor],
+    List[Tensor],
+    List[Tensor],
+    List[Tensor],
+    List[Tensor],
+    List[Tensor],
 ]:
     """Match proposals to targets and subsample.
 
@@ -94,6 +99,9 @@ def match_and_sample_proposals(
         r.sampled_target_classes for r in sampling_results
     ]
     sampled_labels = [r.sampled_labels for r in sampling_results]
+    sampled_target_indices = [
+        r.sampled_target_indices for r in sampling_results
+    ]
 
     return (
         proposals,
@@ -101,4 +109,5 @@ def match_and_sample_proposals(
         sampled_target_boxes,
         sampled_target_classes,
         sampled_labels,
+        sampled_target_indices,
     )

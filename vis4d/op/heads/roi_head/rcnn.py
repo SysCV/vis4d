@@ -5,13 +5,15 @@ from typing import List, NamedTuple, Tuple
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
+from torchvision.ops import roi_align
 
 from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.utils import multiclass_nms
+from vis4d.common.mask.mask_ops import paste_masks_in_image
 from vis4d.op.losses.utils import l1_loss, weight_reduce_loss
 from vis4d.op.utils import segmentations_from_mmdet
-from vis4d.struct import Detections
+from vis4d.struct import Detections, Masks
 
 
 class RCNNOut(NamedTuple):
@@ -100,6 +102,7 @@ class DetOut(NamedTuple):
     boxes: List[torch.Tensor]  # N, 4
     scores: List[torch.Tensor]
     class_ids: List[torch.Tensor]
+    indices: List[torch.Tensor]
 
 
 class RoI2Det(nn.Module):
@@ -161,26 +164,30 @@ class RoI2Det(nn.Module):
         all_det_boxes = []
         all_det_scores = []
         all_det_class_ids = []
+        all_det_inds = []
         for cls_out, reg_out, boxs in zip(class_outs, regression_outs, boxes):
             scores = F.softmax(cls_out, dim=-1)
             bboxes = self.bbox_coder.decode(
                 boxs[:, :4], reg_out, max_shape=images_shape[2:]
             )
-            det_bbox, det_scores, det_label = multiclass_nms(
+            det_bbox, det_scores, det_label, indices = multiclass_nms(
                 bboxes,
                 scores,
                 self.score_threshold,
                 self.iou_threshold,
                 self.max_per_img,
+                return_inds=True,
             )
             all_det_boxes.append(det_bbox)
             all_det_scores.append(det_scores)
             all_det_class_ids.append(det_label)
+            all_det_inds.append(indices)
 
         return DetOut(
             boxes=all_det_boxes,
             scores=all_det_scores,
             class_ids=all_det_class_ids,
+            indices=all_det_inds,
         )
 
     def __call__(
@@ -319,11 +326,215 @@ class RCNNLoss(nn.Module):
         return RCNNLosses(rcnn_loss_cls=loss_cls, rcnn_loss_bbox=loss_bbox)
 
 
-class MMDetMaskHead(nn.Module):  # TODO convert into Mask Head implementation
-    def forward(self):
-        masks = self.mm_roi_head.simple_test_mask(
-            feat_list, img_metas, bboxes, labels
+class MaskRCNNHead(nn.Module):
+    """mask rcnn roi head."""
+
+    def __init__(
+        self,
+        num_classes: int = 80,
+        num_convs: int = 4,
+        roi_size: Tuple[int, int] = (14, 14),
+        in_channels: int = 256,
+        conv_kernel_size: int = 3,
+        conv_out_channels: int = 256,
+        scale_factor: int = 2,
+        class_agnostic: bool = False,
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.roi_pooler = MultiScaleRoIAlign(
+            sampling_ratio=0, resolution=roi_size, strides=[4, 8, 16, 32]
         )
-        segmentations = segmentations_from_mmdet(
-            masks, detections, inputs.device
+
+        self.convs = nn.ModuleList()
+        for i in range(num_convs):
+            in_channels = in_channels if i == 0 else conv_out_channels
+            padding = (conv_kernel_size - 1) // 2
+            self.convs.append(
+                nn.Conv2d(
+                    in_channels,
+                    conv_out_channels,
+                    conv_kernel_size,
+                    padding=padding,
+                )
+            )
+
+        upsample_in_channels = (
+            conv_out_channels if num_convs > 0 else in_channels
         )
+        self.upsample = nn.ConvTranspose2d(
+            upsample_in_channels,
+            conv_out_channels,
+            scale_factor,
+            stride=scale_factor,
+        )
+
+        out_channels = 1 if class_agnostic else num_classes
+        self.conv_logits = nn.Conv2d(conv_out_channels, out_channels, 1)
+        self.relu = nn.ReLU(inplace=True)
+
+        self._init_weights(self.convs)
+        self._init_weights(self.upsample, mode="fan_out")
+        self._init_weights(self.conv_logits, mode="fan_out")
+
+    def _init_weights(self, module, mode="fan_in"):
+        if hasattr(module, "weight") and hasattr(module, "bias"):
+            nn.init.kaiming_normal_(
+                module.weight, mode=mode, nonlinearity="relu"
+            )
+            nn.init.constant_(module.bias, 0)
+
+    def forward(
+        self,
+        features: List[torch.Tensor],
+        boxes: List[torch.Tensor],
+    ) -> torch.Tensor:
+        """Forward pass during training stage."""
+        mask_feats = self.roi_pooler(features, boxes)
+        for conv in self.convs:
+            mask_feats = self.relu(conv(mask_feats))
+        mask_feats = self.relu(self.upsample(mask_feats))
+        mask_pred = self.conv_logits(mask_feats)
+        return mask_pred
+
+
+class MaskOut(NamedTuple):
+    """Output of the final detections from Mask RCNN."""
+
+    masks: List[torch.Tensor]  # N, H, W
+    scores: List[torch.Tensor]
+    class_ids: List[torch.Tensor]
+
+
+class Det2Mask(nn.Module):
+    """Post processing of mask predictions."""
+
+    def __init__(self, mask_threshold: float = 0.5) -> None:
+        """Init.
+
+        Args:
+            mask_threshold (float, optional): _description_. Defaults to 0.5.
+        """
+        super().__init__()
+        self.mask_threshold = mask_threshold
+
+    def forward(
+        self,
+        mask_outs: torch.Tensor,
+        dets: DetOut,
+        images_shape: Tuple[int, int, int, int],
+    ) -> MaskOut:
+        """_summary_
+        # TODO (thomaseh)
+
+        Args:
+            mask_outs (torch.Tensor): _description_
+            dets (DetOut): _description_
+            images_shape (Tuple[int, int, int, int]): _description_
+
+        Returns:
+            MaskOut: _description_
+        """
+        all_masks = []
+        all_scores = []
+        all_class_ids = []
+        for indices, boxes, scores, class_ids in zip(
+            dets.indices, dets.boxes, dets.scores, dets.class_ids
+        ):
+            pasted_masks = paste_masks_in_image(
+                mask_outs[indices // 80, indices % 80],
+                boxes,
+                images_shape[2:],
+                self.mask_threshold,
+            )
+            all_masks.append(pasted_masks)
+            all_scores.append(scores)
+            all_class_ids.append(class_ids)
+        return MaskOut(
+            masks=all_masks, scores=all_scores, class_ids=all_class_ids
+        )
+
+    def __call__(
+        self,
+        mask_outs: torch.Tensor,
+        dets: DetOut,
+        images_shape: Tuple[int, int, int, int],
+    ) -> MaskOut:
+        """Type definition for function call."""
+        return self._call_impl(mask_outs, dets, images_shape)
+
+
+class MaskRCNNLosses(NamedTuple):
+    rcnn_loss_mask: torch.Tensor
+
+
+class MaskRCNNLoss(nn.Module):
+    """Mask RCNN loss function."""
+
+    def _get_targets_per_image(
+        self,
+        boxes: Tensor,
+        tgt_masks: Tensor,
+        out_shape: Tuple[int, int],
+        binarize: bool = True,
+    ) -> Tensor:
+        """_summary_
+        # TODO (thomaseh)
+
+        Args:
+            boxes (Tensor): _description_
+            tgt_masks (Tensor): _description_
+            out_shape (Tuple[int, int]): _description_
+            binarize (bool, optional): _description_. Defaults to True.
+
+        Returns:
+            Tensor: _description_
+        """
+        fake_inds = torch.arange(len(boxes), device=boxes.device)[:, None]
+        rois = torch.cat([fake_inds, boxes], dim=1)  # Nx5
+        gt_masks_th = tgt_masks[:, None, :, :].type(rois.dtype)
+        targets = roi_align(
+            gt_masks_th, rois, out_shape, 1.0, 0, True
+        ).squeeze(1)
+        resized_masks = targets >= 0.5 if binarize else targets
+        return resized_masks
+
+    def forward(
+        self,
+        mask_outs: torch.Tensor,
+        proposal_boxes: List[torch.Tensor],
+        proposal_labels: List[torch.Tensor],
+        target_masks: List[torch.Tensor],
+    ) -> MaskRCNNLosses:
+        """_summary_
+        # TODO (thomaseh)
+
+        Args:
+            mask_outs (torch.Tensor): _description_
+            proposal_boxes (List[torch.Tensor]): _description_
+            proposal_labels (List[torch.Tensor]): _description_
+            target_masks (List[torch.Tensor]): _description_
+
+        Returns:
+            MaskRCNNLosses: _description_
+        """
+        mask_size = tuple(mask_outs.shape[2:])
+        # get targets
+        targets = []
+        for boxes, tgt_masks in zip(proposal_boxes, target_masks):
+            targets.append(
+                self._get_targets_per_image(boxes, tgt_masks, mask_size)
+            )
+        mask_targets = torch.cat(targets)
+        mask_labels = torch.cat(proposal_labels)
+
+        num_rois = mask_outs.shape[0]
+        inds = torch.arange(
+            0, num_rois, dtype=torch.long, device=mask_outs.device
+        )
+        pred_slice = mask_outs[inds, mask_labels.long()].squeeze(1)
+        loss_mask = F.binary_cross_entropy_with_logits(
+            pred_slice, mask_targets.float(), reduction="mean"
+        )
+
+        return MaskRCNNLosses(rcnn_loss_mask=loss_mask)

@@ -25,6 +25,7 @@ class Proposals(NamedTuple):
     target_boxes: Optional[List[torch.Tensor]]
     target_classes: Optional[List[torch.Tensor]]
     labels: Optional[List[torch.Tensor]]
+    target_indices: Optional[List[torch.Tensor]]
 
 
 class FRCNNOut(NamedTuple):
@@ -155,6 +156,7 @@ class FasterRCNN(nn.Module):
                 sampled_target_boxes,
                 sampled_target_classes,
                 sampled_labels,
+                sampled_target_indices,
             ) = match_and_sample_proposals(
                 self.box_matcher,
                 self.box_sampler,
@@ -166,7 +168,13 @@ class FasterRCNN(nn.Module):
             )
 
         else:
-            sampled_target_boxes, sampled_target_classes, sampled_labels = (
+            (
+                sampled_target_boxes,
+                sampled_target_classes,
+                sampled_labels,
+                sampled_target_indices,
+            ) = (
+                None,
                 None,
                 None,
                 None,
@@ -183,6 +191,7 @@ class FasterRCNN(nn.Module):
                 target_boxes=sampled_target_boxes,
                 target_classes=sampled_target_classes,
                 labels=sampled_labels,
+                target_indices=sampled_target_indices,
             ),
         )
 

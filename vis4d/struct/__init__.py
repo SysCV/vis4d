@@ -4,7 +4,6 @@ from .labels import (
     Boxes2D,
     Boxes3D,
     InstanceMasks,
-    Masks,
     SemanticMasks,
     TMasks,
 )
@@ -19,6 +18,7 @@ from .structures import (
     DictStrAny,
     LabelInstance,
     LossesType,
+    Masks,
     MetricLogs,
     ModelOutput,
     ModuleCfg,
