@@ -1,20 +1,15 @@
 """Mask RCNN tests."""
 import unittest
-from typing import List, NamedTuple, Optional, Tuple
+from typing import Optional, Tuple
 
 import skimage
 import torch
-import torch.optim as optim
-from torch import nn
+from torch import optim
 from torch.utils.data import DataLoader, Dataset
-
-# TODO how to handle category IDs?
-from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 
 from scalabel.label.typing import ImageSize
 
 from vis4d.common.datasets import bdd100k_track_map, bdd100k_segtrack_sample
-from vis4d.data.utils import transform_bbox
 from vis4d.op.heads.dense_head.rpn import RPNLoss
 from vis4d.op.heads.roi_head.rcnn import (
     MaskRCNNLoss,
@@ -34,18 +29,25 @@ from .faster_rcnn import (
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
+    get_sampled_targets,
 )
-from .mask_rcnn import MaskRCNN
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
     (r"^roi_head.bbox_head\.", "roi_head."),
-    (r"^roi_head.mask_head\.", "mask_head."),
     (r"^backbone\.", "backbone.body."),
     (r"^neck.lateral_convs\.", "backbone.fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "backbone.fpn.layer_blocks."),
-    ("\.conv.weight", ".weight"),
-    ("\.conv.bias", ".bias"),
+    (r"\.conv.weight", ".weight"),
+    (r"\.conv.bias", ".bias"),
+]
+MASK_REV_KEYS = [
+    (r"^roi_head.mask_head\.", "mask_head."),
+    (r"^mask_head.convs\.", "convs."),
+    (r"^mask_head.upsample\.", "upsample."),
+    (r"^mask_head.conv_logits\.", "conv_logits."),
+    (r"\.conv.weight", ".weight"),
+    (r"\.conv.bias", ".bias"),
 ]
 
 from .testcases.faster_rcnn import (
@@ -120,7 +122,11 @@ class MaskRCNNTest(unittest.TestCase):
 
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
 
-        mask_rcnn = MaskRCNN(num_classes=80)
+        faster_rcnn = FasterRCNN(num_classes=80)
+        mask_head = MaskRCNNHead(num_classes=80)
+
+        roi2det = RoI2Det(faster_rcnn.rcnn_box_encoder, score_threshold=0.5)
+        det2mask = Det2Mask(mask_threshold=0.5)
 
         weights = (
             "mmdet://mask_rcnn/mask_rcnn_r50_fpn_2x_coco/"
@@ -129,26 +135,24 @@ class MaskRCNNTest(unittest.TestCase):
         )
 
         load_model_checkpoint(backbone, weights, REV_KEYS)
-        load_model_checkpoint(mask_rcnn.faster_rcnn, weights, REV_KEYS)
-        load_model_checkpoint(mask_rcnn, weights, REV_KEYS)
+        load_model_checkpoint(faster_rcnn, weights, REV_KEYS)
+        load_model_checkpoint(mask_head, weights, MASK_REV_KEYS)
 
-        mask_rcnn.eval()
+        backbone.eval()
+        faster_rcnn.eval()
+        mask_head.eval()
         with torch.no_grad():
             features = backbone(sample_images)
-            # features = fpn(features)
-            outs = mask_rcnn(features)
-            roi2det = RoI2Det(
-                mask_rcnn.faster_rcnn.rcnn_box_encoder, score_threshold=0.5
-            )
-            det2mask = Det2Mask(mask_threshold=0.5)
+            outs = faster_rcnn(features)
+            mask_pred = mask_head(features[2:-1], outs.proposals.boxes)
             dets = roi2det(
-                class_outs=outs.frcnn_out.roi.cls_score,
-                regression_outs=outs.frcnn_out.roi.bbox_pred,
-                boxes=outs.frcnn_out.proposals.boxes,
+                class_outs=outs.roi.cls_score,
+                regression_outs=outs.roi.bbox_pred,
+                boxes=outs.proposals.boxes,
                 images_shape=sample_images.shape,
             )
             masks = det2mask(
-                mask_outs=outs.roi_mask_out,
+                mask_outs=mask_pred,
                 dets=dets,
                 images_shape=sample_images.shape,
             )
@@ -185,29 +189,42 @@ class MaskRCNNTest(unittest.TestCase):
     def test_train(self):
         """Test Mask RCNN training."""
         # TODO should bn be frozen during training?
+        num_classes = 8
         anchor_gen = get_default_anchor_generator()
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        mask_rcnn = MaskRCNN(
-            num_classes=8,
+        faster_rcnn = FasterRCNN(
+            num_classes=num_classes,
             anchor_generator=anchor_gen,
             rpn_box_encoder=rpn_bbox_encoder,
             rcnn_box_encoder=rcnn_bbox_encoder,
         )
+        mask_head = MaskRCNNHead(num_classes=num_classes)
         rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
-        rcnn_loss = RCNNLoss(rcnn_bbox_encoder, num_classes=8)
+        rcnn_loss = RCNNLoss(rcnn_bbox_encoder, num_classes=num_classes)
         mask_rcnn_loss = MaskRCNNLoss()
 
-        optimizer = optim.SGD(mask_rcnn.parameters(), lr=0.001, momentum=0.9)
+        optimizer = optim.SGD(
+            [
+                *backbone.parameters(),
+                *faster_rcnn.parameters(),
+                *mask_head.parameters(),
+            ],
+            lr=0.001,
+            momentum=0.9,
+        )
 
         train_data = SampleDataset()
         train_loader = DataLoader(
             train_data, batch_size=2, shuffle=True, collate_fn=identity_collate
         )
 
+        backbone.train()
+        faster_rcnn.train()
+        mask_head.train()
+
         running_losses = {}
-        mask_rcnn.train()
         log_step = 1
         for epoch in range(2):
             for i, data in enumerate(train_loader):
@@ -219,29 +236,32 @@ class MaskRCNNTest(unittest.TestCase):
 
                 # forward + backward + optimize
                 features = backbone(inputs)
-                outputs = mask_rcnn(
-                    features, inputs.shape, gt_boxes, gt_class_ids, gt_masks
-                )
+                outputs = faster_rcnn(features, gt_boxes, gt_class_ids)
+                mask_pred = mask_head(features[2:-1], outputs.proposals.boxes)
                 rpn_losses = rpn_loss(
-                    outputs.rpn_cls_out,
-                    outputs.rpn_reg_out,
+                    outputs.rpn.cls,
+                    outputs.rpn.box,
                     gt_boxes,
                     gt_class_ids,
                     inputs.shape,
                 )
                 rcnn_losses = rcnn_loss(
-                    outputs.roi_cls_out,
-                    outputs.roi_reg_out,
-                    outputs.proposal_boxes,
-                    outputs.proposal_labels,
-                    outputs.proposal_target_boxes,
-                    outputs.proposal_target_classes,
+                    outputs.roi.cls_score,
+                    outputs.roi.bbox_pred,
+                    outputs.proposals.boxes,
+                    outputs.proposals.labels,
+                    outputs.proposals.target_boxes,
+                    outputs.proposals.target_classes,
+                )
+                assert outputs.proposals.target_indices is not None
+                prop_masks = get_sampled_targets(
+                    gt_masks, outputs.proposals.target_indices
                 )
                 mask_losses = mask_rcnn_loss(
-                    outputs.roi_mask_out,
-                    outputs.proposal_boxes,
-                    outputs.proposal_labels,
-                    outputs.proposal_masks,
+                    mask_pred,
+                    outputs.proposals.boxes,
+                    outputs.proposals.labels,
+                    prop_masks,
                 )
                 total_loss = sum((*rpn_losses, *rcnn_losses, *mask_losses))
                 total_loss.backward()
@@ -265,20 +285,6 @@ class MaskRCNNTest(unittest.TestCase):
                         log_str += f"{k}: {v / log_step:.3f}, "
                     print(log_str.rstrip(", "))
                     running_losses = {}
-
-    def test_torchscript(self):
-        """Test torchscript export of Faster RCNN."""
-        sample_images = torch.rand((2, 3, 512, 512))
-        backbone = (
-            TorchResNetBackbone(
-                "resnet50", pretrained=True, trainable_layers=3
-            ),
-        )
-        faster_rcnn = FasterRCNN()
-        backbone_scripted = torch.jit.script(backbone)
-        frcnn_scripted = torch.jit.script(faster_rcnn)
-        features = backbone_scripted(sample_images)
-        frcnn_scripted(features, sample_images.shape)
 
 
 if __name__ == "__main__":

@@ -203,3 +203,9 @@ class FasterRCNN(nn.Module):
     ) -> FRCNNOut:
         """Type definition for call implementation."""
         return self._call_impl(features, target_boxes, target_classes)
+
+
+def get_sampled_targets(
+    targets: List[torch.Tensor], target_indices: List[torch.Tensor]
+) -> List[torch.Tensor]:
+    return [tgt[tind] for tgt, tind in zip(targets, target_indices)]

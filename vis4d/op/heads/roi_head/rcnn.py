@@ -378,6 +378,7 @@ class MaskRCNNHead(nn.Module):
         self._init_weights(self.conv_logits, mode="fan_out")
 
     def _init_weights(self, module, mode="fan_in"):
+        """Initialize weights."""
         if hasattr(module, "weight") and hasattr(module, "bias"):
             nn.init.kaiming_normal_(
                 module.weight, mode=mode, nonlinearity="relu"
@@ -385,9 +386,7 @@ class MaskRCNNHead(nn.Module):
             nn.init.constant_(module.bias, 0)
 
     def forward(
-        self,
-        features: List[torch.Tensor],
-        boxes: List[torch.Tensor],
+        self, features: List[torch.Tensor], boxes: List[torch.Tensor]
     ) -> torch.Tensor:
         """Forward pass during training stage."""
         mask_feats = self.roi_pooler(features, boxes)
@@ -444,7 +443,7 @@ class Det2Mask(nn.Module):
             pasted_masks = paste_masks_in_image(
                 mask_outs[indices // 80, indices % 80],
                 boxes,
-                images_shape[2:],
+                images_shape[2:][::-1],
                 self.mask_threshold,
             )
             all_masks.append(pasted_masks)
