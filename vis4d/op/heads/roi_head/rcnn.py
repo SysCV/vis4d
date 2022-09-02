@@ -102,7 +102,6 @@ class DetOut(NamedTuple):
     boxes: List[torch.Tensor]  # N, 4
     scores: List[torch.Tensor]
     class_ids: List[torch.Tensor]
-    indices: List[torch.Tensor]
 
 
 class RoI2Det(nn.Module):
@@ -162,7 +161,6 @@ class RoI2Det(nn.Module):
         all_det_boxes = []
         all_det_scores = []
         all_det_class_ids = []
-        all_det_inds = []
         for cls_out, reg_out, boxs, image_hw in zip(
             class_outs, regression_outs, boxes, images_hw
         ):
@@ -170,24 +168,21 @@ class RoI2Det(nn.Module):
             bboxes = self.bbox_coder.decode(
                 boxs[:, :4], reg_out, max_shape=image_hw
             )
-            det_bbox, det_scores, det_label, indices = multiclass_nms(
+            det_bbox, det_scores, det_label = multiclass_nms(
                 bboxes,
                 scores,
                 self.score_threshold,
                 self.iou_threshold,
                 self.max_per_img,
-                return_inds=True,
             )
             all_det_boxes.append(det_bbox)
             all_det_scores.append(det_scores)
             all_det_class_ids.append(det_label)
-            all_det_inds.append(indices)
 
         return DetOut(
             boxes=all_det_boxes,
             scores=all_det_scores,
             class_ids=all_det_class_ids,
-            indices=all_det_inds,
         )
 
     def __call__(
@@ -345,6 +340,14 @@ class RCNNLoss(nn.Module):
         return RCNNLosses(rcnn_loss_cls=loss_cls, rcnn_loss_bbox=loss_bbox)
 
 
+class MaskRCNNOut(NamedTuple):
+    """Mask RoI head outputs."""
+
+    # logits for mask prediction. The dimension is number of masks x number of
+    # classes x H_mask x W_mask
+    mask_pred: torch.Tensor
+
+
 class MaskRCNNHead(nn.Module):
     """mask rcnn roi head."""
 
@@ -406,14 +409,14 @@ class MaskRCNNHead(nn.Module):
 
     def forward(
         self, features: List[torch.Tensor], boxes: List[torch.Tensor]
-    ) -> torch.Tensor:
+    ) -> MaskRCNNOut:
         """Forward pass during training stage."""
         mask_feats = self.roi_pooler(features, boxes)
         for conv in self.convs:
             mask_feats = self.relu(conv(mask_feats))
         mask_feats = self.relu(self.upsample(mask_feats))
         mask_pred = self.conv_logits(mask_feats)
-        return mask_pred
+        return MaskRCNNOut(mask_pred=mask_pred)
 
 
 class MaskOut(NamedTuple):
@@ -440,7 +443,7 @@ class Det2Mask(nn.Module):
         self,
         mask_outs: torch.Tensor,
         dets: DetOut,
-        images_shape: Tuple[int, int, int, int],
+        images_hw: List[Tuple[int, int]],
     ) -> MaskOut:
         """_summary_
         # TODO (thomaseh)
@@ -448,21 +451,23 @@ class Det2Mask(nn.Module):
         Args:
             mask_outs (torch.Tensor): _description_
             dets (DetOut): _description_
-            images_shape (Tuple[int, int, int, int]): _description_
+            images_hw (List[Tuple[int, int]]): _description_
 
         Returns:
             MaskOut: _description_
         """
+        num_dets_per_img = tuple(len(d) for d in dets.boxes)
+        mask_outs = mask_outs.split(num_dets_per_img, 0)
         all_masks = []
         all_scores = []
         all_class_ids = []
-        for indices, boxes, scores, class_ids in zip(
-            dets.indices, dets.boxes, dets.scores, dets.class_ids
+        for mask_out, boxes, scores, class_ids, image_hw in zip(
+            mask_outs, dets.boxes, dets.scores, dets.class_ids, images_hw
         ):
             pasted_masks = paste_masks_in_image(
-                mask_outs[indices // 80, indices % 80],
+                mask_out[torch.arange(len(mask_out)), class_ids],
                 boxes,
-                images_shape[2:][::-1],
+                image_hw[::-1],
                 self.mask_threshold,
             )
             all_masks.append(pasted_masks)
@@ -476,10 +481,10 @@ class Det2Mask(nn.Module):
         self,
         mask_outs: torch.Tensor,
         dets: DetOut,
-        images_shape: Tuple[int, int, int, int],
+        images_hw: List[Tuple[int, int]],
     ) -> MaskOut:
         """Type definition for function call."""
-        return self._call_impl(mask_outs, dets, images_shape)
+        return self._call_impl(mask_outs, dets, images_hw)
 
 
 class MaskRCNNLosses(NamedTuple):
@@ -519,7 +524,7 @@ class MaskRCNNLoss(nn.Module):
 
     def forward(
         self,
-        mask_outs: torch.Tensor,
+        mask_pred: torch.Tensor,
         proposal_boxes: List[torch.Tensor],
         proposal_labels: List[torch.Tensor],
         target_masks: List[torch.Tensor],
@@ -528,7 +533,7 @@ class MaskRCNNLoss(nn.Module):
         # TODO (thomaseh)
 
         Args:
-            mask_outs (torch.Tensor): _description_
+            mask_pred (torch.Tensor): _description_
             proposal_boxes (List[torch.Tensor]): _description_
             proposal_labels (List[torch.Tensor]): _description_
             target_masks (List[torch.Tensor]): _description_
@@ -536,7 +541,7 @@ class MaskRCNNLoss(nn.Module):
         Returns:
             MaskRCNNLosses: _description_
         """
-        mask_size = tuple(mask_outs.shape[2:])
+        mask_size = tuple(mask_pred.shape[2:])
         # get targets
         targets = []
         for boxes, tgt_masks in zip(proposal_boxes, target_masks):
@@ -546,11 +551,11 @@ class MaskRCNNLoss(nn.Module):
         mask_targets = torch.cat(targets)
         mask_labels = torch.cat(proposal_labels)
 
-        num_rois = mask_outs.shape[0]
+        num_rois = mask_pred.shape[0]
         inds = torch.arange(
-            0, num_rois, dtype=torch.long, device=mask_outs.device
+            0, num_rois, dtype=torch.long, device=mask_pred.device
         )
-        pred_slice = mask_outs[inds, mask_labels.long()].squeeze(1)
+        pred_slice = mask_pred[inds, mask_labels.long()].squeeze(1)
         loss_mask = F.binary_cross_entropy_with_logits(
             pred_slice, mask_targets.float(), reduction="mean"
         )

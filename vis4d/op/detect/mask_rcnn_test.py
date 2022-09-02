@@ -8,6 +8,7 @@ from scalabel.label.typing import ImageSize
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
+from vis4d.common.bbox.utils import apply_mask
 from vis4d.common.datasets import bdd100k_segtrack_sample, bdd100k_track_map
 from vis4d.op.heads.dense_head.rpn import RPNLoss
 from vis4d.op.heads.roi_head.rcnn import (
@@ -28,7 +29,6 @@ from .faster_rcnn import (
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
-    get_sampled_targets,
 )
 
 REV_KEYS = [
@@ -97,7 +97,13 @@ class SampleDataset(Dataset):
             bdd100k_track_map,
             image_size=ImageSize(width=1280, height=720),
         )
-        return img, labels.boxes, labels.class_ids, masks.masks
+        return (
+            img,
+            (img.shape[2], img.shape[3]),
+            labels.boxes,
+            labels.class_ids,
+            masks.masks,
+        )
 
 
 def identity_collate(batch):
@@ -118,6 +124,7 @@ class MaskRCNNTest(unittest.TestCase):
             (512, 512),
         )
         sample_images = torch.cat([image1, image2])
+        images_hw = [(512, 512) for _ in range(2)]
 
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
 
@@ -142,18 +149,16 @@ class MaskRCNNTest(unittest.TestCase):
         mask_head.eval()
         with torch.no_grad():
             features = backbone(sample_images)
-            outs = faster_rcnn(features)
-            mask_pred = mask_head(features[2:-1], outs.proposals.boxes)
+            outs = faster_rcnn(features, images_hw)
             dets = roi2det(
                 class_outs=outs.roi.cls_score,
                 regression_outs=outs.roi.bbox_pred,
                 boxes=outs.proposals.boxes,
-                images_shape=sample_images.shape,
+                images_hw=images_hw,
             )
+            mask_outs = mask_head(features[2:-1], dets.boxes)
             masks = det2mask(
-                mask_outs=mask_pred,
-                dets=dets,
-                images_shape=sample_images.shape,
+                mask_outs=mask_outs.mask_pred, dets=dets, images_hw=images_hw
             )
 
         imshow_masks(
@@ -227,7 +232,7 @@ class MaskRCNNTest(unittest.TestCase):
         log_step = 1
         for epoch in range(2):
             for i, data in enumerate(train_loader):
-                inputs, gt_boxes, gt_class_ids, gt_masks = data
+                inputs, images_hw, gt_boxes, gt_class_ids, gt_masks = data
                 inputs = torch.cat(inputs)
 
                 # zero the parameter gradients
@@ -235,32 +240,36 @@ class MaskRCNNTest(unittest.TestCase):
 
                 # forward + backward + optimize
                 features = backbone(inputs)
-                outputs = faster_rcnn(features, gt_boxes, gt_class_ids)
-                mask_pred = mask_head(features[2:-1], outputs.proposals.boxes)
+                outputs = faster_rcnn(
+                    features, images_hw, gt_boxes, gt_class_ids
+                )
+                mask_outs = mask_head(
+                    features[2:-1], outputs.sampled_proposals.boxes
+                )
                 rpn_losses = rpn_loss(
                     outputs.rpn.cls,
                     outputs.rpn.box,
                     gt_boxes,
                     gt_class_ids,
-                    inputs.shape,
+                    images_hw,
                 )
                 rcnn_losses = rcnn_loss(
                     outputs.roi.cls_score,
                     outputs.roi.bbox_pred,
-                    outputs.proposals.boxes,
-                    outputs.proposals.labels,
-                    outputs.proposals.target_boxes,
-                    outputs.proposals.target_classes,
+                    outputs.sampled_proposals.boxes,
+                    outputs.sampled_targets.labels,
+                    outputs.sampled_targets.boxes,
+                    outputs.sampled_targets.classes,
                 )
-                assert outputs.proposals.target_indices is not None
-                prop_masks = get_sampled_targets(
-                    gt_masks, outputs.proposals.target_indices
-                )
+                assert outputs.sampled_target_indices is not None
+                sampled_masks = apply_mask(
+                    outputs.sampled_target_indices, gt_masks
+                )[0]
                 mask_losses = mask_rcnn_loss(
-                    mask_pred,
-                    outputs.proposals.boxes,
-                    outputs.proposals.labels,
-                    prop_masks,
+                    mask_outs.mask_pred,
+                    outputs.sampled_proposals.boxes,
+                    outputs.sampled_targets.classes,
+                    sampled_masks,
                 )
                 total_loss = sum((*rpn_losses, *rcnn_losses, *mask_losses))
                 total_loss.backward()
@@ -284,8 +293,3 @@ class MaskRCNNTest(unittest.TestCase):
                         log_str += f"{k}: {v / log_step:.3f}, "
                     print(log_str.rstrip(", "))
                     running_losses = {}
-
-
-if __name__ == "__main__":
-    test = MaskRCNNTest()
-    test.test_inference()

@@ -35,6 +35,7 @@ class FRCNNOut(NamedTuple):
     proposals: Proposals
     sampled_proposals: Optional[Proposals]
     sampled_targets: Optional[Targets]
+    sampled_target_indices: Optional[List[torch.Tensor]]
 
 
 def get_default_anchor_generator() -> AnchorGenerator:
@@ -125,7 +126,7 @@ class FasterRCNN(nn.Module):
         scores: List[torch.Tensor],
         target_boxes: List[torch.Tensor],
         target_classes: List[torch.Tensor],
-    ) -> Tuple[Proposals, Targets]:
+    ) -> Tuple[Proposals, Targets, List[torch.Tensor]]:
         """Sample proposals for training of Faster RCNN.
 
         Args:
@@ -181,7 +182,7 @@ class FasterRCNN(nn.Module):
             classes=sampled_target_classes,
             labels=sampled_labels,
         )
-        return sampled_proposals, sampled_targets
+        return sampled_proposals, sampled_targets, sampled_target_indices
 
     def forward(
         self,
@@ -218,7 +219,11 @@ class FasterRCNN(nn.Module):
                 rpn_out.cls, rpn_out.box, images_hw
             )
 
-            sampled_proposals, sampled_targets = self._sample_proposals(
+            (
+                sampled_proposals,
+                sampled_targets,
+                sampled_target_indices,
+            ) = self._sample_proposals(
                 proposal_boxes, scores, target_boxes, target_classes
             )
             roi_out = self.roi_head(features, sampled_proposals.boxes)
@@ -227,7 +232,11 @@ class FasterRCNN(nn.Module):
             proposal_boxes, scores = self.rpn_head_transform(
                 rpn_out.cls, rpn_out.box, images_hw
             )
-            sampled_proposals, sampled_targets = None, None
+            sampled_proposals, sampled_targets, sampled_target_indices = (
+                None,
+                None,
+                None,
+            )
             roi_out = self.roi_head(features, proposal_boxes)
 
         return FRCNNOut(
@@ -236,6 +245,7 @@ class FasterRCNN(nn.Module):
             proposals=Proposals(proposal_boxes, scores),
             sampled_proposals=sampled_proposals,
             sampled_targets=sampled_targets,
+            sampled_target_indices=sampled_target_indices,
         )
 
     def __call__(

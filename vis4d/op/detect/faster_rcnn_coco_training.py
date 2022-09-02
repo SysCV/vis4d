@@ -90,10 +90,7 @@ class FasterRCNNModel(nn.Module):
         )
 
         rpn_losses = self.rpn_loss(
-            *outputs.rpn,
-            target_boxes,
-            target_classes,
-            images_hw,
+            *outputs.rpn, target_boxes, target_classes, images_hw
         )
         rcnn_losses = self.rcnn_loss(
             *outputs.roi,
@@ -110,11 +107,7 @@ class FasterRCNNModel(nn.Module):
         """Forward testing stage."""
         features = self.backbone(images)
         outs = self.faster_rcnn_heads(features, images_hw)
-        dets = self.transform_outs(
-            *outs.roi,
-            outs.proposals.boxes,
-            images_hw,
-        )
+        dets = self.transform_outs(*outs.roi, outs.proposals.boxes, images_hw)
         return dets
 
 
