@@ -5,26 +5,21 @@ from typing import List, NamedTuple, Tuple
 import torch
 from torch import Tensor, nn
 
-from ..matchers.base import BaseMatcher, MatchResult
+from ..matchers import BaseMatcher, MatchResult
 
 
 class SamplingResult(NamedTuple):
-    """Match result class. Stores expected result tensors. TODO update doc
+    """Sampling result class. Stores expected result tensors.
 
-    sampled_boxes: List[Boxes2D] Sampled Boxes.
-    sampled_targets: List[Boxes2D] Assigned target for each sampled box.
-    sampled_labels: List[Tensor] of {0, -1, 1} = {neg, ignore, pos}.
-    sampled_indices: List[Tensor] Index of input Boxes2D.
-    sampled_label_indices: List[Tensor] Index of assigned target for each
-    sampled box.
+    sampled_box_indices (Tensor): Index of sampled boxes from input.
+    sampled_target_indices (Tensor): Index of assigned target for each
+        positive sampled box.
+    sampled_labels (Tensor): {0, -1, 1} = {neg, ignore, pos}.
     """
 
-    sampled_boxes: torch.Tensor
-    sampled_target_boxes: torch.Tensor
-    sampled_target_classes: torch.Tensor
-    sampled_labels: torch.Tensor
-    sampled_indices: torch.Tensor
-    sampled_target_indices: torch.Tensor
+    sampled_box_indices: Tensor
+    sampled_target_indices: Tensor
+    sampled_labels: Tensor
 
 
 class BaseSampler(nn.Module):
@@ -40,65 +35,37 @@ class BaseSampler(nn.Module):
     def forward(
         self,
         matching: MatchResult,
-        boxes: torch.Tensor,
-        target_boxes: torch.Tensor,
-        target_classes: torch.Tensor,
     ) -> SamplingResult:
         """Sample bounding boxes according to their struct."""
         raise NotImplementedError
 
+    def __call__(
+        self,
+        matching: MatchResult,
+    ) -> SamplingResult:
+        """Type declaration."""
+        return self._call_impl(matching)
 
-@torch.no_grad()  # type: ignore
+
+@torch.no_grad()
 def match_and_sample_proposals(
     matcher: BaseMatcher,
     sampler: BaseSampler,
-    proposals: List[torch.Tensor],
-    scores: List[torch.Tensor],
+    proposal_boxes: List[torch.Tensor],
     target_boxes: List[torch.Tensor],
-    target_classes: List[torch.Tensor],
-    proposal_append_gt: bool,
-) -> Tuple[
-    List[Tensor], List[Tensor], List[Tensor], List[Tensor], List[Tensor]
-]:
+) -> Tuple[List[torch.Tensor], List[torch.Tensor], List[torch.Tensor]]:
     """Match proposals to targets and subsample.
 
     First, match the proposals to targets (ground truth labels) using the
     matcher. It is usually IoU matcher. The matching labels the proposals with
-    positive or negitive to show whether they are matched to a object.
+    positive or negative to show whether they are matched to an object.
     Second, the sampler will choose proposals based on certain criteria such as
-    total proposal number and ratios of postives and negatives.
+    total proposal number and ratio of postives and negatives.
     """
-    with torch.no_grad():
-        # no grad to spped up since no gradient is needed here.
-        sampling_results = []
-        for i, (p, s, tb, tc) in enumerate(
-            zip(proposals, scores, target_boxes, target_classes)
-        ):
-            if proposal_append_gt:
-                proposals[i] = torch.cat((p, tb), 0)
-                scores[i] = torch.cat(
-                    (
-                        s,
-                        s.new_ones(
-                            (len(tb)),
-                        ),
-                    ),
-                    0,
-                )
-            sampling_results.append(sampler(matcher(p, tb), p, tb, tc))
-
-    proposals = [r.sampled_boxes for r in sampling_results]
-    scores = [s[r.sampled_indices] for s, r in zip(scores, sampling_results)]
-    sampled_target_boxes = [r.sampled_target_boxes for r in sampling_results]
-    sampled_target_classes = [
-        r.sampled_target_classes for r in sampling_results
-    ]
-    sampled_labels = [r.sampled_labels for r in sampling_results]
-
+    matchings = tuple(map(matcher, proposal_boxes, target_boxes))
+    sampling_results = tuple(map(sampler, matchings))
     return (
-        proposals,
-        scores,
-        sampled_target_boxes,
-        sampled_target_classes,
-        sampled_labels,
+        [s.sampled_box_indices for s in sampling_results],
+        [s.sampled_target_indices for s in sampling_results],
+        [s.sampled_labels for s in sampling_results],
     )

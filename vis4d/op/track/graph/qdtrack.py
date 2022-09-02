@@ -1,6 +1,6 @@
 """Quasi-dense embedding similarity based graph."""
 import copy
-from typing import Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Generic, List, NamedTuple, Tuple, TypeVar
 
 import torch
 
@@ -9,15 +9,18 @@ from vis4d.common.bbox.utils import bbox_iou
 from .assignment import greedy_assign, random_ids
 from .matching import calc_bisoftmax_affinity
 
-# def filter_tracks(tracks: Tracks, keep_mask: torch.Tensor) -> Tracks:
-#     new_values = []
-#     for v in tracks:
-#         new_values.append(v[keep_mask])
-#     return Tracks(*new_values)
+
+class BaseTrackState(NamedTuple):
+    """Basic Track state."""
+
+    track_ids: torch.Tensor
 
 
-class Tracks:
-    """Tracks class.
+TTrackState = TypeVar("TTrackState", bound=NamedTuple)
+
+
+class BaseTrackMemory(Generic[TTrackState]):
+    """Basic Track Memory class.
 
     Holds track representation across timesteps represented as:
     List[Tuple[torch.Tensor, ...]]
@@ -27,11 +30,16 @@ class Tracks:
     """
 
     def __init__(self, memory_limit: int = -1):
+        assert memory_limit >= -1
         self.memory_limit = memory_limit
-        self.frames: List[Tuple[torch.Tensor, ...]] = []
+        self.frames: List[TTrackState] = []
+
+    def reset(self) -> None:
+        """Empty the memory."""
+        self.frames: List[TTrackState] = []
 
     @property
-    def last_frame(self) -> Tuple[torch.Tensor, ...]:
+    def last_frame(self) -> TTrackState:
         """Return last frame stored in memory.
 
         Returns:
@@ -39,12 +47,13 @@ class Tracks:
         """
         return self.frames[-1]
 
-    def get_frame(self, index: int) -> Tuple[torch.Tensor, ...]:
+    def get_frame(self, index: int) -> TTrackState:
+        """Get TrackState at frame with given index."""
         return self.frames[index]
 
     def get_frames(
         self, start_index: int, end_index: int
-    ) -> List[Tuple[torch.Tensor, ...]]:
+    ) -> List[TTrackState]:
         """_summary_
 
         Args:
@@ -55,6 +64,10 @@ class Tracks:
             List[Tuple[torch.Tensor, ...]]: _description_
         """
         return self.frames[start_index:end_index]
+
+    def get_current_tracks(self) -> TTrackState:
+        """Return active tracks."""
+        return self.frames[-1]
 
     def get_track(self, track_id: int) -> List[Tuple[torch.Tensor, ...]]:
         """_summary_
@@ -67,20 +80,114 @@ class Tracks:
         """
         track = []
         for frame in self.frames:
-            ids = frame[0]
-            idx = (ids == track_id).nonzero(as_tuple=True)[0]
+            idx = (frame.track_ids == track_id).nonzero(as_tuple=True)[0]
             if len(idx) > 0:
-                assert (
-                    len(idx) == 1
-                ), f"Collision in track ids: {ids}, duplicated id: {track_id}, indices: {idx}"
-                track.append(tuple(element[idx] for element in frame[1:]))
+                track.append(tuple(element[idx] for element in frame))
         return track
 
-    def update(
-        self, ids: torch.Tensor, data: Tuple[torch.Tensor, ...]
-    ) -> None:
+    def update(self, data: TTrackState) -> None:
         """Store valid tracks (id != -1) in memory."""
-        self.frames.append((ids, *data))
+        self.frames.append(data)
+
+
+class QDTrackState(NamedTuple):
+    """QDTrack Track state."""
+
+    track_ids: torch.Tensor
+    boxes: torch.Tensor
+    scores: torch.Tensor
+    class_ids: torch.Tensor
+    embeddings: torch.Tensor
+
+
+class QDTrackMemory(BaseTrackMemory[QDTrackState]):
+    """QDTrack track memory."""
+
+    def __init__(
+        self,
+        memory_limit: int = -1,
+        backdrop_memory_limit: int = 1,
+        memory_momentum: float = 0.8,
+    ):
+        super().__init__(memory_limit)
+        self.backdrop_frames: List[QDTrackState] = []
+        self.memo_momentum = memory_momentum
+        self.backdrop_memory_limit = backdrop_memory_limit
+        assert backdrop_memory_limit >= 0
+        assert 0 <= memory_momentum <= 1.0
+
+    def reset(self) -> None:
+        """Empty the memory."""
+        super().reset()
+        self.backdrop_frames: List[QDTrackState] = []
+
+    def update(self, data: QDTrackState) -> None:
+        valid_tracks = data.track_ids != -1
+        new_tracks = QDTrackState(*(entry[valid_tracks] for entry in data))
+        new_backdrops = QDTrackState(*(entry[~valid_tracks] for entry in data))
+        super().update(new_tracks)
+        self.backdrop_frames.append(new_backdrops)
+
+    def get_current_tracks(self, device: torch.device) -> QDTrackState:
+        """Get active tracks and backdrops."""
+        if len(self.frames) > 0:
+            memory_track_ids = torch.cat(
+                [mem_entry.track_ids for mem_entry in self.frames]
+            )
+            memory_boxes = torch.cat(
+                [mem_entry.boxes for mem_entry in self.frames]
+            )
+            memory_scores = torch.cat(
+                [mem_entry.scores for mem_entry in self.frames]
+            )
+            memory_class_ids = torch.cat(
+                [mem_entry.class_ids for mem_entry in self.frames]
+            )
+            memory_embeddings = torch.cat(
+                [mem_entry.embeddings for mem_entry in self.frames]
+            )
+
+            all_track_ids = memory_track_ids.unique()
+            all_class_ids = torch.zeros_like(all_track_ids)
+            all_scores = torch.zeros(
+                (
+                    len(
+                        all_track_ids,
+                    )
+                ),
+                device=all_track_ids.device,
+            )
+            all_boxes = torch.zeros(
+                (len(all_track_ids), 4), device=all_track_ids.device
+            )
+            all_embeddings = torch.zeros(
+                (len(all_track_ids), memory_embeddings.size(1)),
+                device=all_track_ids.device,
+            )
+
+            # calculate exponential moving average of embedding across memory
+            for i, track_id in enumerate(all_track_ids):
+                track_mask = (memory_track_ids == track_id).nonzero()[0]
+                all_boxes[i] = memory_boxes[track_mask][0]
+                all_scores[i] = memory_scores[track_mask][0]
+                all_class_ids[i] = memory_class_ids[track_mask][0]
+                embeddings = memory_embeddings[track_mask]
+                embedding = embeddings[0]
+                for mem_embed in embeddings[1:]:
+                    embedding = (
+                        1 - self.memo_momentum
+                    ) * embedding + self.memo_momentum * mem_embed
+                all_embeddings[i] = embedding
+        else:
+            all_track_ids = torch.empty((0,), dtype=torch.int64, device=device)
+            all_class_ids = torch.empty((0,), dtype=torch.int64, device=device)
+            all_scores = torch.empty((0,), device=device)
+            all_boxes = torch.empty((0, 4), device=device)
+            all_embeddings = torch.empty((0, 1), device=device)
+
+        return QDTrackState(
+            all_track_ids, all_boxes, all_scores, all_class_ids, all_embeddings
+        )
 
 
 # @torch.jit.script TODO
@@ -115,8 +222,6 @@ class QDTrackGraph:
         init_score_thr: float = 0.7,
         obj_score_thr: float = 0.3,
         match_score_thr: float = 0.5,
-        memo_backdrop_frames: int = 1,
-        memo_momentum: float = 0.8,
         nms_conf_thr: float = 0.5,
         nms_backdrop_iou_thr: float = 0.3,
         nms_class_iou_thr: float = 0.7,
@@ -128,18 +233,11 @@ class QDTrackGraph:
         self.init_score_thr = init_score_thr
         self.obj_score_thr = obj_score_thr
         self.match_score_thr = match_score_thr
-        self.memo_backdrop_frames = memo_backdrop_frames
-        self.memo_momentum = memo_momentum
         self.nms_conf_thr = nms_conf_thr
         self.nms_backdrop_iou_thr = nms_backdrop_iou_thr
         self.nms_class_iou_thr = nms_class_iou_thr
         self.with_cats = with_cats
         self.embed_dim = 256  # TODO
-
-        # validate arguments
-        assert 0 <= memo_momentum <= 1.0
-        assert keep_in_memory >= 0
-        assert memo_backdrop_frames >= 0
 
     def _filter_detections(
         self,
@@ -180,83 +278,15 @@ class QDTrackGraph:
         embeddings = embeddings[valids]
         return detections, scores, class_ids, embeddings, inds[valids]
 
-    def _get_candidates_from_memory(
-        self,
-        track_memory: List[Tuple[torch.Tensor, ...]],
-        backdrop_memory: List[Tuple[torch.Tensor, ...]],
-    ) -> Tuple[
-        torch.Tensor, torch.Tensor, torch.Tensor
-    ]:  # TODO move to tracks class
-        """_summary_
-
-        Args:
-            track_memory (List[Tuple[torch.Tensor, ...]]): _description_
-            backdrop_memory (List[Tuple[torch.Tensor, ...]]): _description_
-
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: _description_
-        """
-        assert (
-            len(track_memory) > 0 or len(backdrop_memory) > 0
-        ), "Memory empty, cannot generate matching candidates"
-        if len(track_memory) > 0:
-            memory_track_ids = torch.cat(
-                [mem_entry[0] for mem_entry in track_memory]
-            )
-            memory_class_ids = torch.cat(
-                [mem_entry[3] for mem_entry in track_memory]
-            )
-            memory_embeddings = torch.cat(
-                [mem_entry[4] for mem_entry in track_memory]
-            )
-
-            all_track_ids = memory_track_ids.unique()
-            all_class_ids = torch.zeros_like(all_track_ids)
-            all_embeddings = torch.zeros(
-                (len(all_track_ids), memory_embeddings.size(1)),
-                device=all_track_ids.device,
-            )
-
-            # calculate exponential moving average of embedding across memory
-            for i, track_id in enumerate(all_track_ids):
-                track_mask = (memory_track_ids == track_id).nonzero()[0]
-                all_class_ids[i] = memory_class_ids[track_mask][0]
-                embeddings = memory_embeddings[track_mask]
-                embedding = embeddings[0]
-                for mem_embed in embeddings[1:]:
-                    embedding = (
-                        1 - self.memo_momentum
-                    ) * embedding + self.memo_momentum * mem_embed
-                all_embeddings[i] = embedding
-        else:
-            all_track_ids, all_class_ids, all_embeddings = None, None, None
-
-        if len(backdrop_memory) > 0:
-            for backdrop in backdrop_memory:
-                backdrop_ids, _, _, class_ids, embeds = backdrop
-                if (
-                    all_track_ids is None
-                    or all_class_ids is None
-                    or all_embeddings is None
-                ):
-                    all_track_ids = backdrop_ids
-                    all_class_ids = class_ids
-                    all_embeddings = embeds
-                else:
-                    all_track_ids = torch.cat([all_track_ids, backdrop_ids])
-                    all_class_ids = torch.cat([all_class_ids, class_ids])
-                    all_embeddings = torch.cat([all_embeddings, embeds])
-
-        return all_track_ids, all_class_ids, all_embeddings
-
     def __call__(
         self,
         detections: torch.Tensor,
         detection_scores: torch.Tensor,
         detection_class_ids: torch.Tensor,
         detection_embeddings: torch.Tensor,
-        track_memory: List[Tuple[torch.Tensor, ...]],
-        backdrop_memory: List[Tuple[torch.Tensor, ...]],
+        memory_track_ids: torch.Tensor,
+        memory_class_ids: torch.Tensor,
+        memory_embeddings: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Process inputs, match detections with existing tracks."""
         (
@@ -277,12 +307,7 @@ class QDTrackGraph:
             ), torch.empty((0,), dtype=torch.long, device=detections.device)
 
         # match if buffer is not empty
-        if len(track_memory) > 0 or len(backdrop_memory) > 0:
-            (
-                memory_track_ids,
-                memory_class_ids,
-                memory_embeddings,
-            ) = self._get_candidates_from_memory(track_memory, backdrop_memory)
+        if len(memory_track_ids) > 0:
             affinity_scores = calc_bisoftmax_affinity(
                 detection_class_ids,
                 detection_embeddings,

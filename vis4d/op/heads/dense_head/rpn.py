@@ -1,6 +1,6 @@
 """Faster RCNN RPN Head."""
 from math import prod
-from typing import Dict, List, NamedTuple, Tuple
+from typing import List, NamedTuple, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -9,7 +9,7 @@ from torchvision.ops import batched_nms
 
 from vis4d.common.bbox.anchor_generator import (
     AnchorGenerator,
-    anchor_inside_flags,
+    anchor_inside_image,
 )
 from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
 from vis4d.common.bbox.matchers import MaxIoUMatcher
@@ -17,6 +17,7 @@ from vis4d.common.bbox.samplers import RandomSampler, SamplingResult
 from vis4d.common.layers import Conv2d
 from vis4d.op.losses.utils import smooth_l1_loss, weight_reduce_loss
 from vis4d.struct import Proposals
+from vis4d.struct.labels.boxes import filter_boxes
 
 
 class RPNOut(NamedTuple):
@@ -34,7 +35,8 @@ class RPNOut(NamedTuple):
 
 class RPNHead(nn.Module):
     """Faster RCNN RPN Head.
-    TODO(tobiasfshr) add doc.
+
+    Creates RPN network output from a multi-scale feature map input.
     """
 
     rpn_conv: nn.Module
@@ -46,7 +48,14 @@ class RPNHead(nn.Module):
         in_channels: int = 256,
         feat_channels: int = 256,
     ) -> None:
-        """Init."""
+        """Init.
+
+        Args:
+            num_anchors (int): Number of anchors per cell.
+            num_convs (int, optional): Number of conv layers before RPN heads. Defaults to 1.
+            in_channels (int, optional): Feature channel size of input feature maps. Defaults to 256.
+            feat_channels (int, optional): Feature channel size of conv layers. Defaults to 256.
+        """
         super().__init__()
         if num_convs > 1:
             rpn_convs = []
@@ -73,14 +82,22 @@ class RPNHead(nn.Module):
             )
         self.rpn_cls = Conv2d(feat_channels, num_anchors, 1)
         self.rpn_box = Conv2d(feat_channels, num_anchors * 4, 1)
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        """Init RPN weights."""
+        if isinstance(module, nn.Conv2d):
+            module.weight.data.normal_(mean=0.0, std=0.01)
+            if module.bias is not None:
+                module.bias.data.zero_()
 
     def forward(
         self,
         features: List[torch.Tensor],
     ) -> RPNOut:
-        """Forward pass during training stage."""
+        """Forward pass of RPN."""
         cls_outs, box_outs = [], []
-        for feat in features:
+        for feat in features[2:]:  # Take stride 4 onwards
             feat = self.rpn_conv(feat)
             cls_outs += [self.rpn_cls(feat)]
             box_outs += [self.rpn_box(feat)]
@@ -95,10 +112,12 @@ class RPNHead(nn.Module):
 
 
 class TransformRPNOutputs(nn.Module):
+    """Generate Proposals (RoIs) from RPN network output."""
+
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        bbox_coder: DeltaXYWHBBoxEncoder,
+        box_encoder: DeltaXYWHBBoxEncoder,
         num_proposals_pre_nms: int = 2000,
         max_per_img: int = 1000,
         proposal_nms_threshold: float = 0.7,
@@ -106,7 +125,7 @@ class TransformRPNOutputs(nn.Module):
     ) -> None:
         super().__init__()
         self.anchor_generator = anchor_generator
-        self.bbox_coder = bbox_coder
+        self.box_encoder = box_encoder
         self.max_per_img = max_per_img
         self.min_proposal_size = min_proposal_size
         self.num_proposals_pre_nms = num_proposals_pre_nms
@@ -117,7 +136,19 @@ class TransformRPNOutputs(nn.Module):
         cls_out: torch.Tensor,
         reg_out: torch.Tensor,
         anchors: torch.Tensor,
-    ):
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Get a topk pre-selection of flattened classification scores and box
+        energies from feature output per level per image before nms.
+
+        Args:
+            cls_out (torch.Tensor): [C, H, W] output at a particular scale.
+            reg_out (torch.Tensor): [C, H, W] output at a particular scale.
+            anchors (torch.Tensor): [H*W, 4] anchor boxes per cell.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: topk flattened
+                classification, regression outputs and corresponding anchors.
+        """
         assert cls_out.size()[-2:] == reg_out.size()[-2:], (
             f"Shape mismatch: cls_out({cls_out.size()[-2:]}), reg_out("
             f"{reg_out.size()[-2:]})."
@@ -134,21 +165,37 @@ class TransformRPNOutputs(nn.Module):
         return cls_out, reg_out, anchors
 
     def _decode_multi_level_outputs(
-        self, cls_out_all, reg_out_all, anchors_all, level_all, images_shape
-    ) -> Proposals:
+        self,
+        cls_out_all: List[torch.Tensor],
+        reg_out_all: List[torch.Tensor],
+        anchors_all: List[torch.Tensor],
+        level_all: List[torch.Tensor],
+        image_hw: Tuple[int, int],
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Decode box energies into proposals for a single image, post-process
+        via NMS. NMS is performed per level. Afterwards, select topk proposals.
+
+        Args:
+            cls_out_all (List[torch.Tensor]): topk class scores per level.
+            reg_out_all (List[torch.Tensor]): topk regression params per level.
+            anchors_all (List[torch.Tensor]): topk anchor boxes per level.
+            level_all (List[torch.Tensor]): tensors indicating level per entry.
+            image_hw (Tuple[int, int]): image size.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: decoded proposal boxes & scores.
+        """
         scores = torch.cat(cls_out_all)
         levels = torch.cat(level_all)
-        proposals = self.bbox_coder.decode(
+        proposals = self.box_encoder.decode(
             torch.cat(anchors_all),
             torch.cat(reg_out_all),
-            max_shape=images_shape[2:],
-        )  # TODO replace max_shape
-
-        from vis4d.struct.labels.boxes import filter_boxes
+            max_shape=image_hw,
+        )
 
         proposals, mask = filter_boxes(
             proposals, min_area=prod(self.min_proposal_size)
-        )  # TODO area doesnt constrain size
+        )
         scores = scores[mask]
         levels = levels[mask]
 
@@ -162,27 +209,26 @@ class TransformRPNOutputs(nn.Module):
             proposals = proposals[keep]
             scores = scores[keep]
         else:
-            return Proposals(
-                proposals.new_zeros(0, 4),
-                scores.new_zeros(
-                    0,
-                ),
+            return proposals.new_zeros(0, 4), scores.new_zeros(
+                0,
             )
-        return Proposals(proposals, scores)
+        return proposals, scores
 
     def forward(
         self,
         class_outs: List[torch.Tensor],
         regression_outs: List[torch.Tensor],
-        images_shape: Tuple[int, int, int, int],
-    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
-        """
+        images_hw: List[Tuple[int, int]],
+    ) -> Proposals:
+        """Compute proposals from RPN network outputs.
 
         Args:
-            class_outs (N, 1 * A, H, W)
+            class_outs (List[torch.Tensor]): [N, 1 * A, H, W] per scale.
+            regression_outs (List[torch.Tensor]): [N, 4 * A, H, W] per scale.
+            images_hw (List[Tuple[int, int]]): list of image sizes.
+
         Returns:
-            boxes
-            scores
+            Proposals: proposal boxes and scores.
         """
         # since feature map sizes of all images are the same, we only compute
         # anchors for one time
@@ -193,13 +239,15 @@ class TransformRPNOutputs(nn.Module):
             featmap_sizes, device=device
         )
         proposals, scores = [], []
-        for img_id in range(images_shape[0]):
+        for img_id, image_hw in enumerate(images_hw):
             cls_out_all, reg_out_all, anchors_all, level_all = [], [], [], []
-            for level in range(len(class_outs)):
+            for level, (cls_outs, reg_outs, anchor_grid) in enumerate(
+                zip(class_outs, regression_outs, anchor_grids)
+            ):
                 cls_out, reg_out, anchors = self._get_params_per_level(
-                    class_outs[level][img_id],
-                    regression_outs[level][img_id],
-                    anchor_grids[level],
+                    cls_outs[img_id],
+                    reg_outs[img_id],
+                    anchor_grid,
                 )
                 cls_out_all += [cls_out]
                 reg_out_all += [reg_out]
@@ -208,15 +256,17 @@ class TransformRPNOutputs(nn.Module):
                     cls_out.new_full((len(cls_out),), level, dtype=torch.long)
                 ]
 
-            result = self._decode_multi_level_outputs(
-                cls_out_all, reg_out_all, anchors_all, level_all, images_shape
+            box, score = self._decode_multi_level_outputs(
+                cls_out_all, reg_out_all, anchors_all, level_all, image_hw
             )
-            proposals.append(result.boxes)
-            scores.append(result.scores)
-        return proposals, scores
+            proposals.append(box)
+            scores.append(score)
+        return Proposals(proposals, scores)
 
 
 class RPNTargets(NamedTuple):
+    """Targets for RPNLoss."""
+
     labels: torch.Tensor
     label_weights: torch.Tensor
     bbox_targets: torch.Tensor
@@ -237,20 +287,31 @@ def unmap(data, count, inds, fill=0):  # TODO needed? if so revise
 
 
 class RPNLosses(NamedTuple):
+    """RPN loss container."""
+
     rpn_loss_cls: torch.Tensor
     rpn_loss_bbox: torch.Tensor
 
 
 class RPNLoss(nn.Module):
+    """Loss of region proposal network."""
+
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        bbox_coder: DeltaXYWHBBoxEncoder,
+        box_encoder: DeltaXYWHBBoxEncoder,
     ):
+        """Init.
+
+        Args:
+            anchor_generator (AnchorGenerator): Generates anchor grid priors.
+            box_encoder (DeltaXYWHBBoxEncoder): Encodes bounding boxes to
+                the desired network output.
+        """
         super().__init__()
         self.anchor_generator = anchor_generator
-        self.bbox_coder = bbox_coder
-        self.allowed_border = -1  # TODO should this be -1?
+        self.box_encoder = box_encoder
+        self.allowed_border = 0
         self.matcher = MaxIoUMatcher(
             thresholds=[0.3, 0.7],
             labels=[0, -1, 1],
@@ -262,12 +323,27 @@ class RPNLoss(nn.Module):
         self,
         cls_out: torch.Tensor,
         reg_out: torch.Tensor,
-        bbox_targets,
-        bbox_weights,
-        labels,
-        label_weights,
+        bbox_targets: torch.Tensor,
+        bbox_weights: torch.Tensor,
+        labels: torch.Tensor,
+        label_weights: torch.Tensor,
         num_total_samples: int,
-    ):
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Compute losses per scale, all batch elements.
+
+        Args:
+            cls_out (torch.Tensor): [N, C, H, W] tensor of class logits.
+            reg_out (torch.Tensor): [N, C, H, W] tensor of regression params.
+            bbox_targets (torch.Tensor): [H*W, 4] bounding box targets
+            bbox_weights (torch.Tensor): [H*W] per-sample weighting for loss.
+            labels (torch.Tensor): [H*W] classification targets.
+            label_weights (torch.Tensor): [H*W] per-sample weighting for loss.
+            num_total_samples (int): average factor of loss.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: classification and regression
+                losses.
+        """
         # classification loss
         labels = labels.reshape(-1)
         label_weights = label_weights.reshape(-1)
@@ -295,49 +371,45 @@ class RPNLoss(nn.Module):
         target_boxes: torch.Tensor,
         target_classes: torch.Tensor,
         anchors: torch.Tensor,
-        valids: torch.Tensor,
-        images_shape,
+        image_hw: Tuple[int, int],
     ) -> Tuple[RPNTargets, SamplingResult]:
-        inside_flags = anchor_inside_flags(
+        """Get targets per batch element, all scales."""
+        inside_flags = anchor_inside_image(
             anchors,
-            valids,
-            images_shape[2:],  # TODO this is real im shape without padding
+            image_hw,
             allowed_border=self.allowed_border,
         )
-        if not inside_flags.any():
-            return RPNTargets()  # TODO implement
         # assign gt and sample anchors
         anchors = anchors[inside_flags, :]
 
         matching = self.matcher(anchors, target_boxes)
-        sampling_result = self.sampler(
-            matching, anchors, target_boxes, target_classes
-        )
+        sampling_result = self.sampler(matching)
 
         num_valid_anchors = anchors.shape[0]
         bbox_targets = torch.zeros_like(anchors)
         bbox_weights = torch.zeros_like(anchors)
-        labels = anchors.new_zeros((num_valid_anchors,), dtype=torch.float)
-        label_weights = anchors.new_zeros(num_valid_anchors, dtype=torch.float)
+        labels = anchors.new_zeros((num_valid_anchors,))
+        label_weights = anchors.new_zeros(num_valid_anchors)
 
         positives = sampling_result.sampled_labels == 1
         negatives = sampling_result.sampled_labels == 0
-        pos_inds = sampling_result.sampled_indices[positives]
-        neg_inds = sampling_result.sampled_indices[negatives]
+        pos_inds = sampling_result.sampled_box_indices[positives]
+        pos_target_inds = sampling_result.sampled_target_indices[positives]
+        neg_inds = sampling_result.sampled_box_indices[negatives]
         if len(pos_inds) > 0:
-            pos_bbox_targets = self.bbox_coder.encode(
-                sampling_result.sampled_boxes[positives],
-                sampling_result.sampled_target_boxes[positives],
+            pos_bbox_targets = self.box_encoder.encode(
+                anchors[pos_inds],
+                target_boxes[pos_target_inds],
             )
             bbox_targets[pos_inds, :] = pos_bbox_targets
             bbox_weights[pos_inds, :] = 1.0
-            labels[pos_inds] = 1
+            labels[pos_inds] = 1.0
             label_weights[pos_inds] = 1.0
         if len(neg_inds) > 0:
             label_weights[neg_inds] = 1.0
 
         # map up to original set of anchors
-        num_total_anchors = anchors.size(0)
+        num_total_anchors = inside_flags.size(0)
         labels = unmap(labels, num_total_anchors, inside_flags)
         label_weights = unmap(label_weights, num_total_anchors, inside_flags)
         bbox_targets = unmap(bbox_targets, num_total_anchors, inside_flags)
@@ -354,21 +426,20 @@ class RPNLoss(nn.Module):
         regression_outs: List[torch.Tensor],
         target_boxes: List[torch.Tensor],
         target_classes: List[torch.Tensor],
-        images_shape: Tuple[int, int, int, int],
+        images_hw: List[Tuple[int, int]],
     ) -> RPNLosses:
-        """_summary_
+        """Compute RPN classification and regression losses.
 
         Args:
             class_outs (List[torch.Tensor]): _description_
             regression_outs (List[torch.Tensor]): _description_
             target_boxes (List[torch.Tensor]): _description_
             target_classes (List[torch.Tensor]): _description_
-            images_shape (Tuple[int, int, int, int]): _description_
+            images_hw (List[Tuple[int, int]]): _description_
 
         Returns:
-            RPNLosses: _description_
+            RPNLosses: classification and regression losses.
         """
-
         featmap_sizes = [featmap.size()[-2:] for featmap in class_outs]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
 
@@ -378,20 +449,17 @@ class RPNLoss(nn.Module):
             featmap_sizes, device=device
         )
         num_level_anchors = [anchors.size(0) for anchors in anchor_grids]
-        valid_flags = self.anchor_generator.valid_flags(
-            featmap_sizes, images_shape[2:], device  # TODO size
-        )
         anchors_all_levels = torch.cat(anchor_grids)
-        valids_all_levels = torch.cat(valid_flags)
 
         targets, num_total_pos, num_total_neg = [], 0, 0
-        for tgt_box, tgt_cls in zip(target_boxes, target_classes):
+        for tgt_box, tgt_cls, image_hw in zip(
+            target_boxes, target_classes, images_hw
+        ):
             target, sampling_result = self._get_targets_per_image(
                 tgt_box,
                 tgt_cls,
                 anchors_all_levels,
-                valids_all_levels,
-                images_shape,
+                image_hw,
             )
             num_total_pos += max(
                 (sampling_result.sampled_labels == 1).sum(), 1

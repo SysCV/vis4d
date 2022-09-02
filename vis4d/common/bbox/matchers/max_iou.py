@@ -4,7 +4,6 @@ from typing import List, Tuple
 import torch
 
 from vis4d.common.bbox.utils import bbox_iou
-from vis4d.struct import Boxes2D
 
 from .base import BaseMatcher, MatchResult
 
@@ -49,8 +48,8 @@ class MaxIoUMatcher(BaseMatcher):
     ) -> MatchResult:
         """Match all boxes to targets based on maximum IoU."""
         if len(targets) == 0:
-            matches = boxes.new_zeros((len(boxes),))
-            match_labels = boxes.new_zeros((len(boxes),))
+            matches = boxes.new_zeros((len(boxes),), dtype=torch.int64)
+            match_labels = boxes.new_zeros((len(boxes),), dtype=torch.int8)
             match_iou = boxes.new_zeros((len(boxes),))
         else:
             # M x N matrix, where M = num gt, N = num proposals

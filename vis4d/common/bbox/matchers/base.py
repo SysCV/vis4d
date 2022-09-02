@@ -1,11 +1,9 @@
 """Matchers."""
 import abc
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 import torch
 from torch import nn
-
-from vis4d.struct import Boxes2D
 
 
 class MatchResult(NamedTuple):
@@ -30,3 +28,9 @@ class BaseMatcher(nn.Module):
     ) -> MatchResult:
         """Match bounding boxes according to their struct."""
         raise NotImplementedError
+
+    def __call__(
+        self, boxes: torch.Tensor, targets: torch.Tensor
+    ) -> MatchResult:
+        """Type declaration for forward."""
+        return self._call_impl(boxes, targets)

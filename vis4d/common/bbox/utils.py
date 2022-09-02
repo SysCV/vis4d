@@ -1,5 +1,5 @@
 """Utility functions for bounding boxes."""
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from torchvision.ops import batched_nms
@@ -27,6 +27,7 @@ def bbox_intersection(
     return intersection
 
 
+# @torch.jit.script TODO test timing
 def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     """Compute IoU between all pairs of boxes.
 
@@ -61,6 +62,23 @@ def non_intersection(t1: torch.Tensor, t2: torch.Tensor) -> torch.Tensor:
     return t1[(compareview != t1).T.prod(1) == 1]
 
 
+def apply_mask(
+    masks: List[torch.Tensor], *args: List[torch.Tensor]
+) -> Tuple[List[torch.Tensor], ...]:
+    """Apply given masks (either bool or indices) to given list of tensors.
+
+    Args:
+        masks (List[torch.Tensor]): Masks to apply on tensors.
+        *args (List[torch.Tensor]): List of tensors to apply the masks on.
+    Returns:
+        Tuple[List[torch.Tensor], ...]: Masked tensor lists.
+    """
+    return tuple(
+        [t[m] if len(t) > 0 else t for t, m in zip(t_list, masks)]
+        for t_list in args
+    )
+
+
 def multiclass_nms(
     multi_bboxes,
     multi_scores,
@@ -69,7 +87,7 @@ def multiclass_nms(
     max_num=-1,
     score_factors=None,
     return_inds=False,
-):  # TODO revise
+):  # TODO copied from mmdet, revise
     """NMS for multi-class bboxes.
     Args:
         multi_bboxes (Tensor): shape (n, #class*4) or (n, 4)

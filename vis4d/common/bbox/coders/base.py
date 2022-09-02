@@ -12,15 +12,15 @@ class BaseBoxEncoder2D:
 
     @abc.abstractmethod
     def encode(
-        self, boxes: List[Boxes2D], targets: List[Boxes2D]
-    ) -> List[torch.Tensor]:
+        self, boxes: torch.Tensor, targets: torch.Tensor
+    ) -> torch.Tensor:
         """Encode deltas between boxes and targets."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def decode(
-        self, boxes: List[Boxes2D], box_deltas: List[torch.Tensor]
-    ) -> List[Boxes2D]:
+        self, boxes: torch.Tensor, box_deltas: torch.Tensor
+    ) -> torch.Tensor:
         """Decode the predicted box_deltas according to given base boxes."""
         raise NotImplementedError
 

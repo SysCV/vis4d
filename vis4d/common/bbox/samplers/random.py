@@ -26,27 +26,14 @@ class RandomSampler(BaseSampler):
     def forward(
         self,
         matching: MatchResult,
-        boxes: torch.Tensor,
-        target_boxes: torch.Tensor,
-        target_classes: torch.Tensor,
     ) -> SamplingResult:
         """Sample boxes randomly."""
         pos_idx, neg_idx = self._sample_labels(matching.assigned_labels)
         sampled_idcs = torch.cat([pos_idx, neg_idx], dim=0)
-        if len(target_boxes) == 0:
-            target_boxes = target_boxes.new_zeros((1, 4))
-            target_classes = target_classes.new_zeros((1,))
         return SamplingResult(
-            sampled_boxes=boxes[sampled_idcs],
-            sampled_target_boxes=target_boxes[
-                matching.assigned_gt_indices.long()[sampled_idcs]
-            ],  # TODO why .long(), should already be long
-            sampled_target_classes=target_classes[
-                matching.assigned_gt_indices.long()[sampled_idcs]
-            ],
-            sampled_labels=matching.assigned_labels[sampled_idcs],
-            sampled_indices=sampled_idcs,
+            sampled_box_indices=sampled_idcs,
             sampled_target_indices=matching.assigned_gt_indices[sampled_idcs],
+            sampled_labels=matching.assigned_labels[sampled_idcs],
         )
 
     def _sample_labels(

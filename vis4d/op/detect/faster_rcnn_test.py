@@ -1,11 +1,10 @@
 """Faster RCNN tests."""
 import unittest
-from typing import List, NamedTuple, Optional, Tuple
+from typing import Optional, Tuple
 
 import skimage
 import torch
 import torch.optim as optim
-from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 from vis4d.common.datasets import bdd100k_track_map, bdd100k_track_sample
@@ -14,7 +13,6 @@ from vis4d.op.heads.dense_head.rpn import RPNLoss
 from vis4d.op.heads.roi_head.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D
-from vis4d.vis.image import imshow_bboxes
 
 from ..backbone.resnet import ResNet
 from .faster_rcnn import (
@@ -23,9 +21,15 @@ from .faster_rcnn import (
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
-
-# TODO how to handle category IDs?
-
+from .testcases.faster_rcnn import (
+    DET0_BOXES,
+    DET0_CLASS_IDS,
+    DET0_SCORES,
+    DET1_BOXES,
+    DET1_CLASS_IDS,
+    DET1_SCORES,
+    TOPK_PROPOSAL_BOXES,
+)
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
@@ -36,16 +40,6 @@ REV_KEYS = [
     ("\.conv.weight", ".weight"),
     ("\.conv.bias", ".bias"),
 ]
-
-from .testcases.faster_rcnn import (
-    DET0_BOXES,
-    DET0_CLASS_IDS,
-    DET0_SCORES,
-    DET1_BOXES,
-    DET1_CLASS_IDS,
-    DET1_SCORES,
-    TOPK_PROPOSAL_BOXES,
-)
 
 
 def normalize(img: torch.Tensor) -> torch.Tensor:
@@ -69,19 +63,22 @@ def url_to_tensor(
 
 
 class SampleDataset(Dataset):
+    """Sample dataset for debugging."""
+
     def __init__(
         self,
-        return_frame_id: bool = False,
         im_wh: Optional[Tuple[int, int]] = None,
     ):
-        self.return_frame_id = return_frame_id
+        """Init."""
         self.im_wh = im_wh
         self.scalabel_data = bdd100k_track_sample()
 
     def __len__(self):
+        """Length."""
         return len(self.scalabel_data.frames)
 
     def __getitem__(self, item):
+        """Get data sample at given index."""
         frame = self.scalabel_data.frames[item]
         img = url_to_tensor(frame.url, im_wh=self.im_wh)
         labels = Boxes2D.from_scalabel(frame.labels, bdd100k_track_map)
@@ -92,10 +89,14 @@ class SampleDataset(Dataset):
             labels.boxes[:, :4] = transform_bbox(
                 trans_mat, labels.boxes[:, :4]
             )
-        if self.return_frame_id:
-            return img, labels.boxes, labels.class_ids, frame.frameIndex - 165
-        else:
-            return img, labels.boxes, labels.class_ids
+        return (
+            img,
+            (img.shape[2], img.shape[3]),
+            labels.boxes,
+            labels.class_ids,
+            labels.track_ids,
+            frame.frameIndex - 165,
+        )
 
 
 def identity_collate(batch):
@@ -116,6 +117,7 @@ class FasterRCNNTest(unittest.TestCase):
             (512, 512),
         )
         sample_images = torch.cat([image1, image2])
+        images_hw = [(512, 512) for _ in range(2)]
 
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
 
@@ -134,12 +136,12 @@ class FasterRCNNTest(unittest.TestCase):
         faster_rcnn.eval()
         with torch.no_grad():
             features = backbone(sample_images)
-            outs = faster_rcnn(features)
+            outs = faster_rcnn(features, images_hw)
             dets = roi2det(
                 class_outs=outs.roi.cls_score,
                 regression_outs=outs.roi.bbox_pred,
                 boxes=outs.proposals.boxes,
-                images_shape=sample_images.shape,
+                images_hw=images_hw,
             )
 
         _, topk = torch.topk(outs.proposals.scores[0], 100)
@@ -161,8 +163,13 @@ class FasterRCNNTest(unittest.TestCase):
         )
         assert torch.equal(dets.class_ids[1], DET1_CLASS_IDS)
 
-        # imshow_bboxes(image1[0], *dets[0])
-        # imshow_bboxes(image2[0], *dets[1])
+        # from vis4d.vis.image import imshow_bboxes
+        # imshow_bboxes(
+        #     image1[0], dets.boxes[0], dets.scores[0], dets.class_ids[0]
+        # )
+        # imshow_bboxes(
+        #     image2[0], dets.boxes[1], dets.scores[1], dets.class_ids[1]
+        # )
 
     def test_train(self):
         """Test Faster RCNN training."""
@@ -196,7 +203,7 @@ class FasterRCNNTest(unittest.TestCase):
         log_step = 1
         for epoch in range(2):
             for i, data in enumerate(train_loader):
-                inputs, gt_boxes, gt_class_ids = data
+                inputs, images_hw, gt_boxes, gt_class_ids, _, _ = data
                 inputs = torch.cat(inputs)
 
                 # zero the parameter gradients
@@ -204,21 +211,23 @@ class FasterRCNNTest(unittest.TestCase):
 
                 # forward + backward + optimize
                 features = backbone(inputs)
-                outputs = faster_rcnn(features, gt_boxes, gt_class_ids)
+                outputs = faster_rcnn(
+                    features, images_hw, gt_boxes, gt_class_ids
+                )
                 rpn_losses = rpn_loss(
                     outputs.rpn.cls,
                     outputs.rpn.box,
                     gt_boxes,
                     gt_class_ids,
-                    inputs.shape,
+                    images_hw,
                 )
                 rcnn_losses = rcnn_loss(
                     outputs.roi.cls_score,
                     outputs.roi.bbox_pred,
-                    outputs.proposals.boxes,
-                    outputs.proposals.labels,
-                    outputs.proposals.target_boxes,
-                    outputs.proposals.target_classes,
+                    outputs.sampled_proposals.boxes,
+                    outputs.sampled_targets.labels,
+                    outputs.sampled_targets.boxes,
+                    outputs.sampled_targets.classes,
                 )
                 total_loss = sum((*rpn_losses, *rcnn_losses))
                 total_loss.backward()

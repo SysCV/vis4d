@@ -145,8 +145,10 @@ ArgsType = Any  # type: ignore
 
 
 class Proposals(NamedTuple):
-    boxes: torch.Tensor  # N, 4
-    scores: torch.Tensor
+    """Output structure for object proposals."""
+
+    boxes: List[torch.Tensor]
+    scores: List[torch.Tensor]
 
 
 class Detections(NamedTuple):

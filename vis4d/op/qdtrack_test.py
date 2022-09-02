@@ -1,9 +1,9 @@
 """QDTrack test file."""
 import unittest
-from re import T
 
 import torch
 import torch.optim as optim
+from mmcv.runner.checkpoint import load_checkpoint
 from torch.utils.data import DataLoader
 
 from vis4d.op.detect.faster_rcnn_test import (
@@ -11,11 +11,14 @@ from vis4d.op.detect.faster_rcnn_test import (
     ResNet,
     RoI2Det,
     SampleDataset,
+    get_default_anchor_generator,
+    get_default_rcnn_box_encoder,
+    get_default_rpn_box_encoder,
     identity_collate,
 )
+from vis4d.op.heads.dense_head.rpn import RPNLoss
+from vis4d.op.heads.roi_head.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.qdtrack.qdtrack import QDTrack
-
-from .utils import load_model_checkpoint
 
 
 def pad(images: torch.Tensor, stride=32) -> torch.Tensor:
@@ -58,8 +61,6 @@ class QDTrackTest(unittest.TestCase):
         )
         qdtrack = QDTrack()
 
-        from mmcv.runner.checkpoint import load_checkpoint
-
         load_checkpoint(
             backbone,
             "./qdtrack_r50_65point7.ckpt",
@@ -82,7 +83,7 @@ class QDTrackTest(unittest.TestCase):
         )
 
         qdtrack.eval()
-        test_data = SampleDataset(return_frame_id=True)
+        test_data = SampleDataset()
 
         batch_size = 2
         test_loader = DataLoader(
@@ -94,7 +95,7 @@ class QDTrackTest(unittest.TestCase):
 
         with torch.no_grad():
             for data in test_loader:
-                inputs, _, _, frame_ids = data
+                inputs, _, _, _, frame_ids = data
                 images = pad(torch.cat(inputs))
 
                 features = backbone(images)
@@ -112,6 +113,7 @@ class QDTrackTest(unittest.TestCase):
                     imshow_bboxes(img, boxs, score, cls_id)
 
                 outs = qdtrack(features, boxes, scores, class_ids, frame_ids)
+                # TODO copy _forward_test code here
 
                 for img, out in zip(images, outs):
                     track_ids, boxes, scores, class_ids, _ = out
@@ -119,11 +121,18 @@ class QDTrackTest(unittest.TestCase):
 
     def test_train(self):
         """Training test."""
+        anchor_gen = get_default_anchor_generator()
+        rpn_bbox_encoder = get_default_rpn_box_encoder()
+        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        faster_rcnn = FasterRCNN(num_classes=8)
-        transform_outs = RoI2Det(
-            faster_rcnn.rcnn_box_encoder, score_threshold=0.05
+        faster_rcnn = FasterRCNN(
+            num_classes=8,
+            anchor_generator=anchor_gen,
+            rpn_box_encoder=rpn_bbox_encoder,
+            rcnn_box_encoder=rcnn_bbox_encoder,
         )
+        rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
+        rcnn_loss = RCNNLoss(rcnn_bbox_encoder, num_classes=8)
         qdtrack = QDTrack()
 
         optimizer = optim.SGD(qdtrack.parameters(), lr=0.001, momentum=0.9)
@@ -138,15 +147,43 @@ class QDTrackTest(unittest.TestCase):
         log_step = 1
         for epoch in range(2):
             for i, data in enumerate(train_loader):
-                inputs, gt_boxes, gt_class_ids = data
+                inputs, gt_boxes, gt_class_ids, gt_track_ids, _ = data
                 inputs = torch.cat(inputs)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
                 # forward + backward + optimize
-                outputs = qdtrack(inputs, gt_boxes, gt_class_ids)
-                total_loss = sum((*rpn_losses, *rcnn_losses))
+                features = backbone(inputs)
+                detector_out = faster_rcnn(features, gt_boxes, gt_class_ids)
+
+                # TODO detector losses only on keyframes
+                rpn_losses = rpn_loss(
+                    detector_out.rpn.cls,
+                    detector_out.rpn.box,
+                    gt_boxes,
+                    gt_class_ids,
+                    inputs.shape,
+                )
+                rcnn_losses = rcnn_loss(
+                    detector_out.roi.cls_score,
+                    detector_out.roi.bbox_pred,
+                    detector_out.sampled_proposals.boxes,
+                    detector_out.sampled_targets.labels,
+                    detector_out.sampled_targets.boxes,
+                    detector_out.sampled_targets.classes,
+                )
+
+                track_losses = qdtrack(
+                    features,
+                    detector_out.proposals.boxes,
+                    detector_out.proposals.scores,
+                    None,
+                    None,
+                    gt_boxes,
+                    gt_track_ids,
+                )
+                total_loss = sum((*rpn_losses, *rcnn_losses, *track_losses))
                 total_loss.backward()
                 optimizer.step()
 
@@ -155,6 +192,7 @@ class QDTrackTest(unittest.TestCase):
                     loss=total_loss,
                     **rpn_losses._asdict(),
                     **rcnn_losses._asdict(),
+                    **track_losses._asdict(),
                 )
                 for k, v in losses.items():
                     if k in running_losses:

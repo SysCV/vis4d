@@ -96,7 +96,8 @@ class QDSimilarityHead(nn.Module):
         self, features: List[torch.Tensor], boxes: List[torch.Tensor]
     ) -> List[torch.Tensor]:
         """Similarity head forward pass."""
-        x = self.roi_pooler(features, boxes)
+        # take features of strides 4, 8, 16, 32
+        x = self.roi_pooler(features[2:6], boxes)
 
         # convs
         if self.num_convs > 0:
@@ -149,11 +150,9 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
 
         Returns:
         """
-        losses = {}
         if sum(len(e) for e in key_embeddings) == 0:  # pragma: no cover
-            losses["track_loss"] = sum([e.sum() for e in key_embeddings])
-            losses["track_loss_aux"] = losses["track_loss"]
-            return losses
+            dummy_loss = torch.sum([e.sum() for e in key_embeddings])
+            return QDTrackInstanceSimilarityLosses(dummy_loss, dummy_loss)
 
         loss_track = torch.tensor(0.0, device=key_embeddings[0].device)
         loss_track_aux = torch.tensor(0.0, device=key_embeddings[0].device)

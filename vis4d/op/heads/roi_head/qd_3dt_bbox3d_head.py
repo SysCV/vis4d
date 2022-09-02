@@ -8,11 +8,7 @@ from torch import nn
 from vis4d.common.bbox.coders import QD3DTBox3DCoder
 from vis4d.common.bbox.matchers import BaseMatcher
 from vis4d.common.bbox.poolers import BaseRoIPooler
-from vis4d.common.bbox.samplers import (
-    BaseSampler,
-    SamplingResult,
-    match_and_sample_proposals,
-)
+from vis4d.common.bbox.samplers import BaseSampler, SamplingResult
 from vis4d.common.geometry.rotation import generate_rotation_output
 from vis4d.common.layers import add_conv_branch
 from vis4d.op.losses import Box3DUncertaintyLoss

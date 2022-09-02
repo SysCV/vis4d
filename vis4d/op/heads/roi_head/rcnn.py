@@ -11,7 +11,6 @@ from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.utils import multiclass_nms
 from vis4d.op.losses.utils import l1_loss, weight_reduce_loss
 from vis4d.op.utils import segmentations_from_mmdet
-from vis4d.struct import Detections
 
 
 class RCNNOut(NamedTuple):
@@ -26,7 +25,7 @@ class RCNNOut(NamedTuple):
 
 
 class RCNNHead(nn.Module):
-    """faster rcnn box2d roi head."""
+    """FasterRCNN RoI head."""
 
     def __init__(
         self,
@@ -35,13 +34,13 @@ class RCNNHead(nn.Module):
         in_channels: int = 256,
         fc_out_channels: int = 1024,
     ) -> None:
-        """_summary_
-        # TODO(tobiasfshr)
+        """Init.
+
         Args:
-            num_classes (int, optional): _description_. Defaults to 80.
-            roi_size (Tuple[int, int], optional): _description_. Defaults to (7, 7).
-            in_channels (int, optional): _description_. Defaults to 256.
-            fc_out_channels (int, optional): _description_. Defaults to 1024.
+            num_classes (int, optional): number of categories. Defaults to 80.
+            roi_size (Tuple[int, int], optional): size of pooled RoIs. Defaults to (7, 7).
+            in_channels (int, optional): Number of channels in input feature maps. Defaults to 256.
+            fc_out_channels (int, optional): Output channels of shared linear layers. Defaults to 1024.
         """
         super().__init__()
         in_channels *= prod(roi_size)
@@ -64,9 +63,8 @@ class RCNNHead(nn.Module):
         self._init_weights(self.fc_cls)
         self._init_weights(self.fc_reg, std=0.001)
 
-    def _init_weights(
-        self, module, std: float = 0.01
-    ):  # TODO make this a common function?
+    def _init_weights(self, module, std: float = 0.01):
+        """Init weights."""
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=std)
             if module.bias is not None:
@@ -78,7 +76,8 @@ class RCNNHead(nn.Module):
         boxes: List[torch.Tensor],
     ) -> RCNNOut:
         """Forward pass during training stage."""
-        bbox_feats = self.roi_pooler(features, boxes).flatten(start_dim=1)
+        # Take stride 4, 8, 16, 32 features
+        bbox_feats = self.roi_pooler(features[2:6], boxes).flatten(start_dim=1)
         for fc in self.shared_fcs:
             bbox_feats = self.relu(fc(bbox_feats))
         cls_score = self.fc_cls(bbox_feats)
@@ -116,23 +115,21 @@ class RoI2Det(nn.Module):
 
     def __init__(
         self,
-        bbox_coder: DeltaXYWHBBoxEncoder,
+        box_encoder: DeltaXYWHBBoxEncoder,
         score_threshold: float = 0.05,
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
     ) -> None:
-        """_summary_
-
-        # TODO(tobiasfshr)
+        """Init.
 
         Args:
-            bbox_coder (DeltaXYWHBBoxEncoder): _description_
-            score_threshold (float, optional): _description_. Defaults to 0.05.
-            iou_threshold (float, optional): _description_. Defaults to 0.5.
-            max_per_img (int, optional): _description_. Defaults to 100.
+            box_encoder (DeltaXYWHBBoxEncoder): Decodes regression parameters to detected boxes.
+            score_threshold (float, optional): Minimum score of a detection. Defaults to 0.05.
+            iou_threshold (float, optional): IoU threshold of NMS post-processing step. Defaults to 0.5.
+            max_per_img (int, optional): Maximum number of detections per image. Defaults to 100.
         """
         super().__init__()
-        self.bbox_coder = bbox_coder
+        self.bbox_coder = box_encoder
         self.score_threshold = score_threshold
         self.max_per_img = max_per_img
         self.iou_threshold = iou_threshold
@@ -142,18 +139,18 @@ class RoI2Det(nn.Module):
         class_outs: torch.Tensor,
         regression_outs: torch.Tensor,
         boxes: List[torch.Tensor],
-        images_shape: Tuple[int, int, int, int],
+        images_hw: List[Tuple[int, int]],
     ) -> DetOut:
-        """_summary_
-        # TODO(tobiasfshr)
+        """Convert RCNN network outputs to detections.
+
         Args:
-            class_outs (torch.Tensor): _description_
-            regression_outs (torch.Tensor): _description_
-            boxes (List[torch.Tensor]): _description_
-            images_shape (Tuple[int, int, int, int]): _description_
+            class_outs (torch.Tensor): [B, N, num_classes] batched tensor of classifiation scores.
+            regression_outs (torch.Tensor): [B, N, num_classes * 4] predicted box offsets.
+            boxes (List[torch.Tensor]): Initial boxes (RoIs).
+            images_hw (List[Tuple[int, int]]): Image sizes.
 
         Returns:
-            List[Detections]: _description_
+            DetOut: boxes, scores and class ids of detections per image.
         """
         num_proposals_per_img = tuple(len(p) for p in boxes)
         regression_outs = regression_outs.split(num_proposals_per_img, 0)
@@ -161,10 +158,12 @@ class RoI2Det(nn.Module):
         all_det_boxes = []
         all_det_scores = []
         all_det_class_ids = []
-        for cls_out, reg_out, boxs in zip(class_outs, regression_outs, boxes):
+        for cls_out, reg_out, boxs, image_hw in zip(
+            class_outs, regression_outs, boxes, images_hw
+        ):
             scores = F.softmax(cls_out, dim=-1)
             bboxes = self.bbox_coder.decode(
-                boxs[:, :4], reg_out, max_shape=images_shape[2:]
+                boxs[:, :4], reg_out, max_shape=image_hw
             )
             det_bbox, det_scores, det_label = multiclass_nms(
                 bboxes,
@@ -188,15 +187,15 @@ class RoI2Det(nn.Module):
         class_outs: torch.Tensor,
         regression_outs: torch.Tensor,
         boxes: List[torch.Tensor],
-        images_shape: Tuple[int, int, int, int],
+        images_hw: List[Tuple[int, int]],
     ) -> DetOut:
         """Type definition for function call."""
-        return self._call_impl(
-            class_outs, regression_outs, boxes, images_shape
-        )
+        return self._call_impl(class_outs, regression_outs, boxes, images_hw)
 
 
 class RCNNTargets(NamedTuple):
+    """Target container."""
+
     labels: Tensor
     label_weights: Tensor
     bbox_targets: Tensor
@@ -204,70 +203,94 @@ class RCNNTargets(NamedTuple):
 
 
 class RCNNLosses(NamedTuple):
+    """RCNN loss container."""
+
     rcnn_loss_cls: torch.Tensor
     rcnn_loss_bbox: torch.Tensor
 
 
 class RCNNLoss(nn.Module):
+    """RCNN loss in FasterRCNN."""
+
     def __init__(
-        self, bbox_coder: DeltaXYWHBBoxEncoder, num_classes: int = 80
+        self, box_encoder: DeltaXYWHBBoxEncoder, num_classes: int = 80
     ):
+        """Init.
+
+        Args:
+            box_encoder (DeltaXYWHBBoxEncoder): Decodes box regression parameters into detected boxes.
+            num_classes (int, optional): number of object categories. Defaults to 80.
+        """
         super().__init__()
         self.num_classes = num_classes
-        self.bbox_coder = bbox_coder
+        self.box_encoder = box_encoder
 
     def _get_targets_per_image(
         self,
-        pos_bboxes: Tensor,
-        neg_bboxes: Tensor,
-        pos_gt_bboxes: Tensor,
-        pos_gt_labels: Tensor,
-    ):
-        num_pos = pos_bboxes.size(0)
-        num_neg = neg_bboxes.size(0)
+        boxes: Tensor,
+        labels: Tensor,
+        target_boxes: Tensor,
+        target_classes: Tensor,
+    ) -> RCNNTargets:
+        """Generate targets per image.
+
+        Args:
+            boxes (Tensor): _description_
+            labels (Tensor): _description_
+            target_boxes (Tensor): _description_
+            target_classes (Tensor): _description_
+
+        Returns:
+            RCNNTargets: _description_
+        """
+        pos_mask, neg_mask = labels == 1, labels == 0
+        num_pos, num_neg = int(pos_mask.sum()), int(neg_mask.sum())
         num_samples = num_pos + num_neg
 
         # original implementation uses new_zeros since BG are set to be 0
         # now use empty & fill because BG cat_id = num_classes,
         # FG cat_id = [0, num_classes-1]
-        labels = pos_bboxes.new_full(
+        labels = boxes.new_full(
             (num_samples,), self.num_classes, dtype=torch.long
         )
-        label_weights = pos_bboxes.new_zeros(num_samples)
-        bbox_targets = pos_bboxes.new_zeros(num_samples, 4)
-        bbox_weights = pos_bboxes.new_zeros(num_samples, 4)
+        label_weights = boxes.new_zeros(num_samples)
+        box_targets = boxes.new_zeros(num_samples, 4)
+        box_weights = boxes.new_zeros(num_samples, 4)
         if num_pos > 0:
-            labels[:num_pos] = pos_gt_labels
+            pos_target_boxes = target_boxes[pos_mask]
+            pos_target_classes = target_classes[pos_mask]
+            labels[:num_pos] = pos_target_classes
             label_weights[:num_pos] = 1.0
-            pos_bbox_targets = self.bbox_coder.encode(
-                pos_bboxes, pos_gt_bboxes
+            pos_box_targets = self.box_encoder.encode(
+                boxes[pos_mask], pos_target_boxes
             )
-            bbox_targets[:num_pos, :] = pos_bbox_targets
-            bbox_weights[:num_pos, :] = 1
+            box_targets[:num_pos, :] = pos_box_targets
+            box_weights[:num_pos, :] = 1
         if num_neg > 0:
             label_weights[-num_neg:] = 1.0
-        return RCNNTargets(labels, label_weights, bbox_targets, bbox_weights)
+        return RCNNTargets(labels, label_weights, box_targets, box_weights)
 
     def forward(
         self,
         class_outs: torch.Tensor,
         regression_outs: torch.Tensor,
         boxes: List[torch.Tensor],
-        boxes_mask,
+        boxes_mask: List[torch.Tensor],
         target_boxes: List[torch.Tensor],
         target_classes: List[torch.Tensor],
-    ):
-        """
-        M =
+    ) -> RCNNLosses:
+        """Calculate losses of RCNN head.
+
         Args:
-            class_outs Tensor[M*B, num_classes]
-            regression_outs Tensor[M*B, regression_params]
-            boxes: List[Tensor[M, 4]] len B
-            boxes_mask List[Tensor[M,]] - positive (1), ignore (-1), negative (0)
-            target_boxes: List[Tensor[M, 4]]
-            target_classes: List[Tensor[M,]]
+            class_outs (torch.Tensor): [M*B, num_classes]
+            regression_outs (torch.Tensor): Tensor[M*B, regression_params]
+            boxes (List[torch.Tensor]): [M, 4] len B
+            boxes_mask (List[torch.Tensor]): positive (1), ignore (-1), negative (0)
+            target_boxes (List[torch.Tensor]): [M, 4] len B
+            target_classes (List[torch.Tensor]): [M,] len B
 
-
+        Returns:
+            RCNNLosses: classification and regression losses.
         """
         # get targets
         targets = []
@@ -275,12 +298,7 @@ class RCNNLoss(nn.Module):
             boxes, boxes_mask, target_boxes, target_classes
         ):
             targets.append(
-                self._get_targets_per_image(
-                    boxs[boxs_mask == 1],
-                    boxs[boxs_mask == 0],
-                    tgt_boxs[boxs_mask == 1],
-                    tgt_cls[boxs_mask == 1],
-                )
+                self._get_targets_per_image(boxs, boxs_mask, tgt_boxs, tgt_cls)
             )
 
         labels = torch.cat([tgt.labels for tgt in targets], 0)

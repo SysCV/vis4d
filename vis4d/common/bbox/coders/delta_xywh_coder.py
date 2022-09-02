@@ -1,5 +1,7 @@
 """XYWH Delta coder for 2D boxes."""
-import numpy as np
+import math
+from typing import Optional, Tuple
+
 import torch
 
 from .base import BaseBoxEncoder2D
@@ -42,23 +44,23 @@ class DeltaXYWHBBoxEncoder(BaseBoxEncoder2D):
         self.ctr_clamp = ctr_clamp
 
     def encode(
-        self, bboxes: torch.Tensor, gt_bboxes: torch.Tensor
+        self, boxes: torch.Tensor, targets: torch.Tensor
     ) -> torch.Tensor:
         """Get box regression transformation deltas that can be used to
         transform the ``bboxes`` into the ``gt_bboxes``.
 
         Args:
-            bboxes (torch.Tensor): Source boxes, e.g., object proposals.
-            gt_bboxes (torch.Tensor): Target of the transformation, e.g.,
+            boxes (torch.Tensor): Source boxes, e.g., object proposals.
+            targets (torch.Tensor): Target of the transformation, e.g.,
                 ground-truth boxes.
 
         Returns:
             torch.Tensor: Box transformation deltas
         """
 
-        assert bboxes.size(0) == gt_bboxes.size(0)
-        assert bboxes.size(-1) == gt_bboxes.size(-1) == 4
-        encoded_bboxes = bbox2delta(bboxes, gt_bboxes, self.means, self.stds)
+        assert boxes.size(0) == targets.size(0)
+        assert boxes.size(-1) == targets.size(-1) == 4
+        encoded_bboxes = bbox2delta(boxes, targets, self.means, self.stds)
         return encoded_bboxes
 
     def decode(
@@ -103,9 +105,12 @@ class DeltaXYWHBBoxEncoder(BaseBoxEncoder2D):
         return decoded_bboxes
 
 
-# TODO add jit
+@torch.jit.script
 def bbox2delta(
-    proposals, gt, means=(0.0, 0.0, 0.0, 0.0), stds=(1.0, 1.0, 1.0, 1.0)
+    proposals: torch.Tensor,
+    gt: torch.Tensor,
+    means: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    stds: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
 ):
     """Compute deltas of proposals w.r.t. gt.
 
@@ -144,23 +149,24 @@ def bbox2delta(
     dh = torch.log(gh / ph)
     deltas = torch.stack([dx, dy, dw, dh], dim=-1)
 
-    means = deltas.new_tensor(means).unsqueeze(0)
-    stds = deltas.new_tensor(stds).unsqueeze(0)
-    deltas = deltas.sub_(means).div_(stds)
+    means = torch.tensor(means, dtype=deltas.dtype, device=deltas.device)
+    stds = torch.tensor(stds, dtype=deltas.dtype, device=deltas.device)
+    deltas = deltas.sub_(means.view(1, -1)).div_(stds.view(1, -1))
 
     return deltas
 
 
+@torch.jit.script
 def delta2bbox(
-    rois,
-    deltas,
-    means=(0.0, 0.0, 0.0, 0.0),
-    stds=(1.0, 1.0, 1.0, 1.0),
-    max_shape=None,
-    wh_ratio_clip=16 / 1000,
-    clip_border=True,
-    add_ctr_clamp=False,
-    ctr_clamp=32,
+    rois: torch.Tensor,
+    deltas: torch.Tensor,
+    means: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    stds: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
+    max_shape: Optional[Tuple[int, int]] = None,
+    wh_ratio_clip: float = 16 / 1000,
+    clip_border: bool = True,
+    add_ctr_clamp: bool = False,
+    ctr_clamp: int = 32,
 ):
     """Apply deltas to shift/scale base boxes.
 
@@ -219,9 +225,9 @@ def delta2bbox(
 
     deltas = deltas.reshape(-1, 4)
 
-    means = deltas.new_tensor(means).view(1, -1)
-    stds = deltas.new_tensor(stds).view(1, -1)
-    denorm_deltas = deltas * stds + means
+    means = torch.tensor(means, dtype=deltas.dtype, device=deltas.device)
+    stds = torch.tensor(stds, dtype=deltas.dtype, device=deltas.device)
+    denorm_deltas = deltas * stds.view(1, -1) + means.view(1, -1)
 
     dxy = denorm_deltas[:, :2]
     dwh = denorm_deltas[:, 2:]
@@ -233,7 +239,7 @@ def delta2bbox(
 
     dxy_wh = pwh * dxy
 
-    max_ratio = np.abs(np.log(wh_ratio_clip))
+    max_ratio = abs(math.log(wh_ratio_clip))
     if add_ctr_clamp:
         dxy_wh = torch.clamp(dxy_wh, max=ctr_clamp, min=-ctr_clamp)
         dwh = torch.clamp(dwh, max=max_ratio)

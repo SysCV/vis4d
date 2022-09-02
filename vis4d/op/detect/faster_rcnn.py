@@ -1,5 +1,5 @@
 """Faster RCNN detector."""
-from typing import List, NamedTuple, Optional
+from typing import List, NamedTuple, Optional, Tuple
 
 import torch
 from torch import nn
@@ -11,20 +11,20 @@ from vis4d.common.bbox.samplers import (
     RandomSampler,
     match_and_sample_proposals,
 )
+from vis4d.common.bbox.utils import apply_mask
 from vis4d.op.heads.dense_head.rpn import TransformRPNOutputs
+from vis4d.struct import Proposals
 
 from ..heads.dense_head.rpn import RPNHead, RPNOut
 from ..heads.roi_head.rcnn import RCNNHead, RCNNOut
 
 
-class Proposals(NamedTuple):
-    """Output structure for object proposals."""
+class Targets(NamedTuple):
+    """Output structure for targets."""
 
     boxes: List[torch.Tensor]
-    scores: List[torch.Tensor]
-    target_boxes: Optional[List[torch.Tensor]]
-    target_classes: Optional[List[torch.Tensor]]
-    labels: Optional[List[torch.Tensor]]
+    classes: List[torch.Tensor]
+    labels: List[torch.Tensor]
 
 
 class FRCNNOut(NamedTuple):
@@ -33,6 +33,8 @@ class FRCNNOut(NamedTuple):
     rpn: RPNOut
     roi: RCNNOut
     proposals: Proposals
+    sampled_proposals: Optional[Proposals]
+    sampled_targets: Optional[Targets]
 
 
 def get_default_anchor_generator() -> AnchorGenerator:
@@ -110,26 +112,89 @@ class FasterRCNN(nn.Module):
             if box_sampler is not None
             else get_default_box_sampler()
         )
-
+        self.proposal_append_gt = True  # TODO make option
         self.rpn_head = RPNHead(self.anchor_generator.num_base_priors[0])
         self.rpn_head_transform = TransformRPNOutputs(
             self.anchor_generator, self.rpn_box_encoder
         )
         self.roi_head = RCNNHead(num_classes=num_classes)
 
+    def _sample_proposals(
+        self,
+        proposal_boxes: List[torch.Tensor],
+        scores: List[torch.Tensor],
+        target_boxes: List[torch.Tensor],
+        target_classes: List[torch.Tensor],
+    ) -> Tuple[Proposals, Targets]:
+        """Sample proposals for training of Faster RCNN.
+
+        Args:
+            proposal_boxes (List[torch.Tensor]): proposals decoded from RPN.
+            scores (List[torch.Tensor]): scores decoded from RPN.
+            target_boxes (List[torch.Tensor]): all target boxes.
+            target_classes (List[torch.Tensor]): according class labels.
+
+        Returns:
+            Tuple[Proposals, Targets]: Sampled proposals, associated targets.
+        """
+        if self.proposal_append_gt:
+            proposal_boxes = [
+                torch.cat([p, t]) for p, t in zip(proposal_boxes, target_boxes)
+            ]
+            scores = [
+                torch.cat(
+                    [
+                        s,
+                        s.new_ones(
+                            len(t),
+                        ),
+                    ]
+                )
+                for s, t in zip(scores, target_boxes)
+            ]
+
+        (
+            sampled_box_indices,
+            sampled_target_indices,
+            sampled_labels,
+        ) = match_and_sample_proposals(
+            self.box_matcher,
+            self.box_sampler,
+            proposal_boxes,
+            target_boxes,
+        )
+
+        sampled_boxes, sampled_scores = apply_mask(
+            sampled_box_indices, proposal_boxes, scores
+        )
+
+        sampled_target_boxes, sampled_target_classes = apply_mask(
+            sampled_target_indices, target_boxes, target_classes
+        )
+
+        sampled_proposals = Proposals(
+            boxes=sampled_boxes,
+            scores=sampled_scores,
+        )
+        sampled_targets = Targets(
+            boxes=sampled_target_boxes,
+            classes=sampled_target_classes,
+            labels=sampled_labels,
+        )
+        return sampled_proposals, sampled_targets
+
     def forward(
         self,
         features: List[torch.Tensor],
+        images_hw: List[Tuple[int, int]],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
     ) -> FRCNNOut:
         """Faster RCNN forward.
 
-        TODO(tobiasfshr) consider indiviual image sizes and paddings to
-        remove invalid proposals.
-
         Args:
             features (List[torch.Tensor]): Feature pyramid
+            images_hw (List[Tuple[int, int]]): Image sizes without padding.
             target_boxes (Optional[List[torch.Tensor]], optional): Ground
             truth bounding box locations. Defaults to None.
             target_classes (Optional[List[torch.Tensor]], optional): Ground
@@ -141,56 +206,46 @@ class FasterRCNN(nn.Module):
         if target_boxes is not None:
             assert target_classes is not None
 
-        # TODO(tobiasfshr) RPN and RoI handle the whole feature pyramid
-        rpn_out = self.rpn_head(features[2:])
-        proposal_boxes, scores = self.rpn_head_transform(
-            rpn_out.cls, rpn_out.box, features[0].shape
-        )
+        rpn_out = self.rpn_head(features)
 
         if target_boxes is not None:
-            assert target_classes is not None
-            (
-                proposal_boxes,
-                scores,
-                sampled_target_boxes,
-                sampled_target_classes,
-                sampled_labels,
-            ) = match_and_sample_proposals(
-                self.box_matcher,
-                self.box_sampler,
-                proposal_boxes,
-                scores,
-                target_boxes,
-                target_classes,
-                proposal_append_gt=True,
+            assert (
+                target_classes is not None
+            ), "Need target classes for target boxes!"
+
+            self.rpn_head_transform.num_proposals_pre_nms = 2000
+            proposal_boxes, scores = self.rpn_head_transform(
+                rpn_out.cls, rpn_out.box, images_hw
             )
 
+            sampled_proposals, sampled_targets = self._sample_proposals(
+                proposal_boxes, scores, target_boxes, target_classes
+            )
+            roi_out = self.roi_head(features, sampled_proposals.boxes)
         else:
-            sampled_target_boxes, sampled_target_classes, sampled_labels = (
-                None,
-                None,
-                None,
+            self.rpn_head_transform.num_proposals_pre_nms = 1000
+            proposal_boxes, scores = self.rpn_head_transform(
+                rpn_out.cls, rpn_out.box, images_hw
             )
-
-        roi_out = self.roi_head(features[2:-1], proposal_boxes)
+            sampled_proposals, sampled_targets = None, None
+            roi_out = self.roi_head(features, proposal_boxes)
 
         return FRCNNOut(
             roi=roi_out,
             rpn=rpn_out,
-            proposals=Proposals(
-                boxes=proposal_boxes,
-                scores=scores,
-                target_boxes=sampled_target_boxes,
-                target_classes=sampled_target_classes,
-                labels=sampled_labels,
-            ),
+            proposals=Proposals(proposal_boxes, scores),
+            sampled_proposals=sampled_proposals,
+            sampled_targets=sampled_targets,
         )
 
     def __call__(
         self,
         features: List[torch.Tensor],
+        images_hw: List[Tuple[int, int]],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
     ) -> FRCNNOut:
         """Type definition for call implementation."""
-        return self._call_impl(features, target_boxes, target_classes)
+        return self._call_impl(
+            features, images_hw, target_boxes, target_classes
+        )
