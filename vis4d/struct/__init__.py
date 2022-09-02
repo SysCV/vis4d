@@ -1,13 +1,6 @@
 """Vis4D struct module."""
 from .data import Extrinsics, Images, Intrinsics, PointCloud
-from .labels import (
-    Boxes2D,
-    Boxes3D,
-    InstanceMasks,
-    Masks,
-    SemanticMasks,
-    TMasks,
-)
+from .labels import Boxes2D, Boxes3D, InstanceMasks, SemanticMasks, TMasks
 from .sample import InputSample, LabelInstances
 from .structures import (
     ALLOWED_INPUTS,
@@ -19,6 +12,7 @@ from .structures import (
     DictStrAny,
     LabelInstance,
     LossesType,
+    Masks,
     MetricLogs,
     ModelOutput,
     ModuleCfg,
