@@ -175,7 +175,9 @@ scheduler = optim.lr_scheduler.MultiStepLR(
 coco_val_loader = coco_val()
 test_sample_mapper = BaseSampleMapper(data_backend=HDF5Backend())
 test_sample_mapper.setup_categories(coco_det_map)
-test_transforms = [Resize(shape=test_resolution, keep_ratio=True)]
+test_transforms = [
+    Resize(shape=test_resolution, keep_ratio=True, align_long_edge=True)
+]
 test_data = BaseDatasetHandler(
     [ScalabelDataset(coco_val_loader, False, test_sample_mapper)],
     transformations=test_transforms,

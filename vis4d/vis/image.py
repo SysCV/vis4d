@@ -27,8 +27,6 @@ except (ImportError, NameError):
 from .utils import (
     Box3DType,
     ImageType,
-    InsMaskType,
-    SemMaskType,
     box3d_to_corners,
     preprocess_boxes,
     preprocess_image,
@@ -90,11 +88,18 @@ def imshow_bboxes3d(
 
 
 def imshow_masks(
-    image: ImageType, masks: Union[InsMaskType, SemMaskType], mode: str = "RGB"
+    image: ImageType,
+    masks: Tensor,
+    scores: Optional[Tensor] = None,
+    class_ids: Optional[Tensor] = None,
+    track_ids: Optional[Tensor] = None,
+    mode: str = "RGB",
 ) -> None:  # pragma: no cover
     """Show image with masks."""
     image = preprocess_image(image, mode)
-    mask_list, color_list = preprocess_masks(masks)
+    mask_list, color_list = preprocess_masks(
+        masks, scores, class_ids, track_ids
+    )
     for mask, col in zip(mask_list, color_list):
         draw_mask(image, mask, col)
 

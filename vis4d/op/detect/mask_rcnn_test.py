@@ -21,7 +21,6 @@ from vis4d.op.heads.roi_head.rcnn import (
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D, InstanceMasks
 from vis4d.struct.labels import Masks
-from vis4d.vis.image import imshow_bboxes, imshow_masks
 
 from ..backbone.resnet import ResNet
 from .faster_rcnn import (
@@ -29,6 +28,16 @@ from .faster_rcnn import (
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
+)
+from .testcases.mask_rcnn import (
+    INSSEG0_MASKS,
+    INSSEG0_INDICES,
+    INSSEG0_CLASS_IDS,
+    INSSEG0_SCORES,
+    INSSEG1_MASKS,
+    INSSEG1_INDICES,
+    INSSEG1_CLASS_IDS,
+    INSSEG1_SCORES,
 )
 
 REV_KEYS = [
@@ -48,16 +57,6 @@ MASK_REV_KEYS = [
     (r"\.conv.weight", ".weight"),
     (r"\.conv.bias", ".bias"),
 ]
-
-from .testcases.faster_rcnn import (
-    DET0_BOXES,
-    DET0_CLASS_IDS,
-    DET0_SCORES,
-    DET1_BOXES,
-    DET1_CLASS_IDS,
-    DET1_SCORES,
-    TOPK_PROPOSAL_BOXES,
-)
 
 
 def normalize(img: torch.Tensor) -> torch.Tensor:
@@ -161,34 +160,37 @@ class MaskRCNNTest(unittest.TestCase):
                 mask_outs=mask_outs.mask_pred, dets=dets, images_hw=images_hw
             )
 
-        imshow_masks(
-            image1[0],
-            InstanceMasks(
-                masks.masks[0], masks.class_ids[0], score=masks.scores[0]
-            ),
+        assert (
+            torch.isclose(masks.masks[0][INSSEG0_INDICES], INSSEG0_MASKS)
+            .all()
+            .item()
         )
+        assert (
+            torch.isclose(masks.scores[0], INSSEG0_SCORES, atol=1e-4)
+            .all()
+            .item()
+        )
+        assert torch.equal(masks.class_ids[0], INSSEG0_CLASS_IDS)
+        assert (
+            torch.isclose(masks.masks[1][INSSEG1_INDICES], INSSEG1_MASKS)
+            .all()
+            .item()
+        )
+        assert (
+            torch.isclose(masks.scores[1], INSSEG1_SCORES, atol=1e-4)
+            .all()
+            .item()
+        )
+        assert torch.equal(masks.class_ids[1], INSSEG1_CLASS_IDS)
 
-        # _, topk = torch.topk(outs.proposal_scores[0], 100)
-        # assert outs.proposal_boxes[0][topk].shape[0] == 100
-        # assert outs.proposal_boxes[0][topk].shape.numel() == 400
-        # assert (
-        #     torch.isclose(outs.proposal_boxes[0][topk], TOPK_PROPOSAL_BOXES)
-        #     .all()
-        #     .item()
-        # )
-        # assert torch.isclose(dets[0].boxes, DET0_BOXES).all().item()
-        # assert (
-        #     torch.isclose(dets[0].scores, DET0_SCORES, atol=1e-4).all().item()
-        # )
-        # assert torch.equal(dets[0].class_ids, DET0_CLASS_IDS)
-        # assert torch.isclose(dets[1].boxes, DET1_BOXES).all().item()
-        # assert (
-        #     torch.isclose(dets[1].scores, DET1_SCORES, atol=1e-4).all().item()
-        # )
-        # assert torch.equal(dets[1].class_ids, DET1_CLASS_IDS)
+        # from vis4d.vis.image import imshow_masks
 
-        # imshow_bboxes(image1[0], *dets[0])
-        # imshow_bboxes(image2[0], *dets[1])
+        # imshow_masks(
+        #     image1[0], masks.masks[0], masks.scores[0], masks.class_ids[0]
+        # )
+        # imshow_masks(
+        #     image2[0], masks.masks[1], masks.scores[1], masks.class_ids[1]
+        # )
 
     def test_train(self):
         """Test Mask RCNN training."""

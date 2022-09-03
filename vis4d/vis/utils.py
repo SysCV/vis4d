@@ -8,20 +8,10 @@ from PIL import Image
 from scipy.spatial.transform import Rotation as R
 from torch import Tensor
 
-from vis4d.struct import (
-    Boxes3D,
-    InstanceMasks,
-    Intrinsics,
-    NDArrayF64,
-    NDArrayUI8,
-    SemanticMasks,
-)
+from vis4d.struct import Boxes3D, Intrinsics, NDArrayF64, NDArrayUI8
 
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
-
 Box3DType = Union[Boxes3D, List[Boxes3D]]
-InsMaskType = Union[InstanceMasks, List[InstanceMasks]]
-SemMaskType = Union[SemanticMasks, List[SemanticMasks]]
 
 ColorType = Union[
     Union[Tuple[int], str],
@@ -107,7 +97,11 @@ def preprocess_boxes(
 
 
 def preprocess_masks(
-    masks: Union[InsMaskType, SemMaskType], color_idx: int = 0
+    masks: Tensor,
+    scores: Optional[Tensor] = None,
+    class_ids: Optional[Tensor] = None,
+    track_ids: Optional[Tensor] = None,
+    color_idx: int = 0,
 ) -> Tuple[List[NDArrayUI8], List[Tuple[int]]]:
     """Preprocess BitmaskType to masks / colors / labels for drawing."""
     if isinstance(masks, list):
@@ -118,19 +112,17 @@ def preprocess_masks(
             result_color.extend(color)
         return result_mask, result_color
 
-    assert isinstance(masks, (InstanceMasks, SemanticMasks))
+    masks_list = (masks.cpu().numpy() * 255).astype(np.uint8)
 
-    masks_list = (masks.masks.cpu().numpy() * 255).astype(np.uint8)
-
-    if masks.track_ids is not None:
-        track_ids = masks.track_ids.cpu().numpy()
+    if track_ids is not None:
+        track_ids = track_ids.cpu().numpy()
         if len(track_ids.shape) > 1:
             track_ids = track_ids.squeeze(-1)
     else:
         track_ids = [None for _ in range(len(masks_list))]
 
-    if masks.class_ids is not None:
-        class_ids = masks.class_ids.cpu().numpy()
+    if class_ids is not None:
+        class_ids = class_ids.cpu().numpy()
     else:
         class_ids = [None for _ in range(len(masks_list))]
 
