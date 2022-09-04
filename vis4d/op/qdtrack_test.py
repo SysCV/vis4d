@@ -36,7 +36,7 @@ REV_KEYS = [
     (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),
     ("\.rpn_reg\.", ".rpn_box."),
     (r"^detector.roi_head.mm_roi_head.bbox_head\.", "roi_head."),
-    (r"^detector.backbone.mm_backbone\.", "backbone.body."),
+    (r"^detector.backbone.mm_backbone\.", "body."),
     (
         r"^detector.backbone.neck.mm_neck.lateral_convs\.",
         "inner_blocks.",
