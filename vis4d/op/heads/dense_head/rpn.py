@@ -142,8 +142,8 @@ class TransformRPNOutputs(nn.Module):
         energies from feature output per level per image before nms.
 
         Args:
-            cls_out (torch.Tensor): [C, H, W] output at a particular scale.
-            reg_out (torch.Tensor): [C, H, W] output at a particular scale.
+            cls_out (torch.Tensor): [C, H, W] classification scores at a particular scale.
+            reg_out (torch.Tensor): [C, H, W] regression parameters at a particular scale.
             anchors (torch.Tensor): [H*W, 4] anchor boxes per cell.
 
         Returns:
@@ -222,6 +222,11 @@ class TransformRPNOutputs(nn.Module):
         images_hw: List[Tuple[int, int]],
     ) -> Proposals:
         """Compute proposals from RPN network outputs.
+
+        Generate anchor grid for all scales.
+        For each batch element:
+            Compute classification, regression and anchor pairs for all scales.
+            Decode those pairs into proposals, post-process with NMS.
 
         Args:
             class_outs (List[torch.Tensor]): [N, 1 * A, H, W] per scale.

@@ -88,8 +88,8 @@ class FasterRCNN(nn.Module):
         from vis4d.vis.image import imshow_bboxes
 
         for im, boxes, scores in zip(images, *outs.proposals):
-            _, topk = torch.topk(scores, 100)
-            imshow_bboxes(im, boxes[topk])
+            _, topk_indices = torch.topk(scores, topk)
+            imshow_bboxes(im, boxes[topk_indices])
 
     def _forward_train(
         self,
