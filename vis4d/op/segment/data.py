@@ -1,4 +1,7 @@
-"""Segment data module."""
+"""Segment data module.
+
+TODO(fyu) to find a proper place for this code.
+"""
 from typing import List, Optional, Tuple
 
 from vis4d.common.data_pipelines import CommonDataModule, add_colorjitter

@@ -9,11 +9,13 @@ from collections import OrderedDict
 from typing import List
 
 import torch
-from torchvision.ops import FeaturePyramidNetwork
+from torchvision.ops import FeaturePyramidNetwork as _FPN
 from torchvision.ops.feature_pyramid_network import LastLevelMaxPool
 
+from .base import FeaturePyramidProcessing
 
-class FPN(FeaturePyramidNetwork):
+
+class FPN(_FPN, FeaturePyramidProcessing):
     """Feature Pyramid Network.
 
     This is a wrapper of the torchvision implementation.
@@ -34,7 +36,8 @@ class FPN(FeaturePyramidNetwork):
         TODO(tobiasfshr) Add tests and use it in faster rcnn operation demo
 
         Args:
-            x (List[torch.Tensor]): Feature pyramid as outputs of Backbone.
+            x (List[torch.Tensor]): Feature pyramid as outputs of the
+            base model.
 
         Returns:
             List[torch.Tensor]: Feature pyramid after FPN processing.
