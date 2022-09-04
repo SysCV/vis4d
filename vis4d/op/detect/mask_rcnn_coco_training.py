@@ -38,6 +38,7 @@ from vis4d.op.heads.roi_head.rcnn import (
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D, Detections, InputSample, InstanceMasks, Masks
 from vis4d.vis.image import imshow_bboxes, imshow_masks
+from vis4d.op.fpp.fpn import FPN
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
@@ -77,7 +78,10 @@ class MaskRCNNModel(nn.Module):
         anchor_gen = get_default_anchor_generator()
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        self.basemodel = ResNet(
+            "resnet50", pretrained=True, trainable_layers=3
+        )
+        self.fpn = FPN(self.basemodel.out_channels, 256)
         self.faster_rcnn_heads = FasterRCNNHead(
             anchor_generator=anchor_gen,
             rpn_box_encoder=rpn_bbox_encoder,
@@ -117,7 +121,7 @@ class MaskRCNNModel(nn.Module):
         target_masks: Optional[List[torch.Tensor]] = None,
     ) -> Tuple[RPNLosses, RCNNLosses, MaskRCNNLosses]:
         """Forward training stage."""
-        features = self.backbone(images)
+        features = self.fpn(self.basemodel(images))
         outputs = self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
         )
@@ -151,7 +155,7 @@ class MaskRCNNModel(nn.Module):
         self, images: torch.Tensor, images_hw: List[Tuple[int, int]]
     ) -> Union[DetOut, MaskOut]:
         """Forward testing stage."""
-        features = self.backbone(images)
+        features = self.fpn(self.basemodel(images))
         outs = self.faster_rcnn_heads(features, images_hw)
         dets = self.transform_outs(
             *outs.roi, boxes=outs.proposals.boxes, images_hw=images_hw

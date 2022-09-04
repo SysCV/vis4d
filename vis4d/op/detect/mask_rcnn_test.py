@@ -23,6 +23,7 @@ from vis4d.struct import Boxes2D, InstanceMasks
 from vis4d.struct.labels import Masks
 
 from ..base.resnet import ResNet
+from ..fpp.fpn import FPN
 from .faster_rcnn import (
     FasterRCNNHead,
     get_default_anchor_generator,
@@ -125,8 +126,8 @@ class MaskRCNNTest(unittest.TestCase):
         sample_images = torch.cat([image1, image2])
         images_hw = [(512, 512) for _ in range(2)]
 
-        backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-
+        basemodel = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        fpn = FPN(basemodel.out_channels, 256)
         faster_rcnn = FasterRCNNHead(num_classes=80)
         mask_head = MaskRCNNHead(num_classes=80)
 
@@ -139,15 +140,15 @@ class MaskRCNNTest(unittest.TestCase):
             "20200505_003907-3e542a40.pth"
         )
 
-        load_model_checkpoint(backbone, weights, REV_KEYS)
+        load_model_checkpoint(basemodel, weights, REV_KEYS)
         load_model_checkpoint(faster_rcnn, weights, REV_KEYS)
         load_model_checkpoint(mask_head, weights, MASK_REV_KEYS)
 
-        backbone.eval()
+        basemodel.eval()
         faster_rcnn.eval()
         mask_head.eval()
         with torch.no_grad():
-            features = backbone(sample_images)
+            features = fpn(basemodel(sample_images))
             outs = faster_rcnn(features, images_hw)
             dets = roi2det(
                 class_outs=outs.roi.cls_score,
@@ -199,7 +200,8 @@ class MaskRCNNTest(unittest.TestCase):
         anchor_gen = get_default_anchor_generator()
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        basemodel = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        fpn = FPN(basemodel.out_channels, 256)
         faster_rcnn = FasterRCNNHead(
             num_classes=num_classes,
             anchor_generator=anchor_gen,
@@ -213,7 +215,7 @@ class MaskRCNNTest(unittest.TestCase):
 
         optimizer = optim.SGD(
             [
-                *backbone.parameters(),
+                *basemodel.parameters(),
                 *faster_rcnn.parameters(),
                 *mask_head.parameters(),
             ],
@@ -226,7 +228,7 @@ class MaskRCNNTest(unittest.TestCase):
             train_data, batch_size=2, shuffle=True, collate_fn=identity_collate
         )
 
-        backbone.train()
+        basemodel.train()
         faster_rcnn.train()
         mask_head.train()
 
@@ -241,7 +243,7 @@ class MaskRCNNTest(unittest.TestCase):
                 optimizer.zero_grad()
 
                 # forward + backward + optimize
-                features = backbone(inputs)
+                features = fpn(basemodel(inputs))
                 outputs = faster_rcnn(
                     features, images_hw, gt_boxes, gt_class_ids
                 )

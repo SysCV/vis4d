@@ -120,9 +120,9 @@ class FasterRCNNTest(unittest.TestCase):
         sample_images = torch.cat([image1, image2])
         images_hw = [(512, 512) for _ in range(2)]
 
-        base = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        basemodel = ResNet("resnet50", pretrained=True, trainable_layers=3)
 
-        fpn = FPN(base.out_channels[2:], 256)
+        fpn = FPN(basemodel.out_channels[2:], 256)
 
         faster_rcnn = FasterRCNNHead(num_classes=80)
 
@@ -133,14 +133,13 @@ class FasterRCNNTest(unittest.TestCase):
             "faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_"
             "20200504_210434-a5d8aa15.pth"
         )
-        load_model_checkpoint(base, weights, REV_KEYS)
+        load_model_checkpoint(basemodel, weights, REV_KEYS)
         load_model_checkpoint(fpn, weights, REV_KEYS)
         load_model_checkpoint(faster_rcnn, weights, REV_KEYS)
 
         faster_rcnn.eval()
         with torch.no_grad():
-            features = base(sample_images)
-            features = fpn(features)
+            features = fpn(basemodel(sample_images))
             outs = faster_rcnn(features, images_hw)
             dets = roi2det(
                 class_outs=outs.roi.cls_score,

@@ -196,6 +196,8 @@ class FasterRCNNHead(nn.Module):
         Args:
             features (List[torch.Tensor]): Feature pyramid
             images_hw (List[Tuple[int, int]]): Image sizes without padding.
+            This is necessary for removing the erronous boxes on the padded
+            regsions.
             target_boxes (Optional[List[torch.Tensor]], optional): Ground
             truth bounding box locations. Defaults to None.
             target_classes (Optional[List[torch.Tensor]], optional): Ground
