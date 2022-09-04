@@ -36,8 +36,8 @@ REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
     (r"^roi_head.bbox_head\.", "roi_head."),
     (r"^backbone\.", "backbone.body."),
-    (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
-    (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
+    (r"^neck.lateral_convs\.", "inner_blocks."),
+    (r"^neck.fpn_convs\.", "layer_blocks."),
     ("\.conv.weight", ".weight"),
     ("\.conv.bias", ".bias"),
 ]
