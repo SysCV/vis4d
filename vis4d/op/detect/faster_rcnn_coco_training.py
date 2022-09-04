@@ -17,13 +17,14 @@ from vis4d.data import BaseDatasetHandler, BaseSampleMapper, ScalabelDataset
 from vis4d.data.transforms import Resize
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.detect.faster_rcnn import (
-    FRCNNOut,
     FasterRCNNHead,
+    FRCNNOut,
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
 from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
+from vis4d.op.fpp.fpn import FPN
 from vis4d.op.heads.dense_head.rpn import RPNLoss, RPNLosses
 from vis4d.op.heads.roi_head.rcnn import DetOut, RCNNLoss, RCNNLosses, RoI2Det
 from vis4d.op.utils import load_model_checkpoint
@@ -50,6 +51,7 @@ class FasterRCNN(nn.Module):
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        self.fpn = FPN(self.backbone.out_channels[2:], 256)
         self.faster_rcnn_heads = FasterRCNNHead(
             anchor_generator=anchor_gen,
             rpn_box_encoder=rpn_bbox_encoder,
@@ -65,7 +67,9 @@ class FasterRCNN(nn.Module):
         images_hw: List[Tuple[int, int]],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
-    ) -> Union[Tuple[RPNLosses, RCNNLosses, FRCNNOut], DetOut]:
+    ) -> Union[
+        Tuple[RPNLosses, RCNNLosses, FRCNNOut], Tuple[DetOut, FRCNNOut]
+    ]:
         """Forward."""
         if target_boxes is not None:
             assert target_classes is not None
@@ -77,9 +81,12 @@ class FasterRCNN(nn.Module):
             )
         return self._forward_test(images, images_hw)
 
-    def visualize_proposals(self, images: torch.Tensor, outs: FRCNNOut, topk: int = 100) -> None:
+    def visualize_proposals(
+        self, images: torch.Tensor, outs: FRCNNOut, topk: int = 100
+    ) -> None:
         """Visualize topk proposals."""
         from vis4d.vis.image import imshow_bboxes
+
         for im, boxes, scores in zip(images, *outs.proposals):
             _, topk = torch.topk(scores, 100)
             imshow_bboxes(im, boxes[topk])
@@ -93,13 +100,12 @@ class FasterRCNN(nn.Module):
     ) -> Tuple[RPNLosses, RCNNLosses, FRCNNOut]:
         """Forward training stage."""
         features = self.backbone(images)
+        features = self.fpn(features)
         outputs = self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
         )
 
-        rpn_losses = self.rpn_loss(
-            *outputs.rpn, target_boxes, target_classes, images_hw
-        )
+        rpn_losses = self.rpn_loss(*outputs.rpn, target_boxes, images_hw)
         rcnn_losses = self.rcnn_loss(
             *outputs.roi,
             outputs.sampled_proposals.boxes,
@@ -111,12 +117,13 @@ class FasterRCNN(nn.Module):
 
     def _forward_test(
         self, images: torch.Tensor, images_hw: List[Tuple[int, int]]
-    ) -> DetOut:
+    ) -> Tuple[DetOut, FRCNNOut]:
         """Forward testing stage."""
         features = self.backbone(images)
+        features = self.fpn(features)
         outs = self.faster_rcnn_heads(features, images_hw)
         dets = self.transform_outs(*outs.roi, outs.proposals.boxes, images_hw)
-        return dets
+        return dets, outs
 
 
 ## setup model
@@ -167,7 +174,7 @@ test_loader = DataLoader(
 ## validation loop
 @torch.no_grad()
 def validation_loop(model):
-    """validate current model with test dataset"""
+    """Validate current model with test dataset."""
     model.eval()
     gts = []
     preds = []
@@ -182,9 +189,11 @@ def validation_loop(model):
         )
         output_wh = data.images.image_sizes[0]
 
-        boxes, scores, class_ids = faster_rcnn(
+        (boxes, scores, class_ids), outputs = faster_rcnn(
             normalize(image), [(output_wh[1], output_wh[0])]
         )
+
+        # postprocess for eval
         dets = Boxes2D(
             torch.cat([boxes[0], scores[0].unsqueeze(-1)], -1),
             class_ids[0],
@@ -243,7 +252,7 @@ def training_loop(model):
                 else:
                     running_losses[k] = v
             if i % log_step == (log_step - 1):
-                #model.visualize_proposals(inputs, outputs)
+                # model.visualize_proposals(image, outputs)
                 log_str = f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] "
                 for k, v in running_losses.items():
                     log_str += f"{k}: {v / log_step:.3f}, "
@@ -278,6 +287,7 @@ if __name__ == "__main__":
 
             weights = "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
             load_model_checkpoint(faster_rcnn.backbone, weights, REV_KEYS)
+            load_model_checkpoint(faster_rcnn.fpn, weights, REV_KEYS)
             load_model_checkpoint(
                 faster_rcnn.faster_rcnn_heads, weights, REV_KEYS
             )

@@ -252,7 +252,6 @@ class MaskRCNNTest(unittest.TestCase):
                     outputs.rpn.cls,
                     outputs.rpn.box,
                     gt_boxes,
-                    gt_class_ids,
                     images_hw,
                 )
                 rcnn_losses = rcnn_loss(

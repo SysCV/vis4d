@@ -1,6 +1,7 @@
 black
 click==8.0.4
 coverage[toml]
+docformatter[tomli]
 isort
 jsonargparse[signatures]
 mypy

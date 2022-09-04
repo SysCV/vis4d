@@ -82,14 +82,15 @@ class RPNHead(nn.Module):
             )
         self.rpn_cls = Conv2d(feat_channels, num_anchors, 1)
         self.rpn_box = Conv2d(feat_channels, num_anchors * 4, 1)
-        self.apply(self._init_weights)
 
-    def _init_weights(self, module):
-        """Init RPN weights."""
-        if isinstance(module, nn.Conv2d):
-            module.weight.data.normal_(mean=0.0, std=0.01)
-            if module.bias is not None:
-                module.bias.data.zero_()
+    #     self.apply(self._init_weights)
+
+    # def _init_weights(self, module):
+    #     """Init RPN weights."""
+    #     if isinstance(module, nn.Conv2d):
+    #         module.weight.data.normal_(mean=0.0, std=0.01)
+    #         if module.bias is not None:
+    #             module.bias.data.zero_()
 
     def forward(
         self,
@@ -369,7 +370,6 @@ class RPNLoss(nn.Module):
     def _get_targets_per_image(
         self,
         target_boxes: torch.Tensor,
-        target_classes: torch.Tensor,
         anchors: torch.Tensor,
         image_hw: Tuple[int, int],
     ) -> Tuple[RPNTargets, SamplingResult]:
@@ -425,7 +425,6 @@ class RPNLoss(nn.Module):
         class_outs: List[torch.Tensor],
         regression_outs: List[torch.Tensor],
         target_boxes: List[torch.Tensor],
-        target_classes: List[torch.Tensor],
         images_hw: List[Tuple[int, int]],
     ) -> RPNLosses:
         """Compute RPN classification and regression losses.
@@ -434,7 +433,6 @@ class RPNLoss(nn.Module):
             class_outs (List[torch.Tensor]): _description_
             regression_outs (List[torch.Tensor]): _description_
             target_boxes (List[torch.Tensor]): _description_
-            target_classes (List[torch.Tensor]): _description_
             images_hw (List[Tuple[int, int]]): _description_
 
         Returns:
@@ -452,12 +450,9 @@ class RPNLoss(nn.Module):
         anchors_all_levels = torch.cat(anchor_grids)
 
         targets, num_total_pos, num_total_neg = [], 0, 0
-        for tgt_box, tgt_cls, image_hw in zip(
-            target_boxes, target_classes, images_hw
-        ):
+        for tgt_box, image_hw in zip(target_boxes, images_hw):
             target, sampling_result = self._get_targets_per_image(
                 tgt_box,
-                tgt_cls,
                 anchors_all_levels,
                 image_hw,
             )
@@ -501,6 +496,18 @@ class RPNLoss(nn.Module):
             loss_bbox_all += loss_bbox
         return RPNLosses(
             rpn_loss_cls=loss_cls_all, rpn_loss_bbox=loss_bbox_all
+        )
+
+    def __call__(
+        self,
+        class_outs: List[torch.Tensor],
+        regression_outs: List[torch.Tensor],
+        target_boxes: List[torch.Tensor],
+        images_hw: List[Tuple[int, int]],
+    ) -> RPNLosses:
+        """Type definition."""
+        return self._call_impl(
+            class_outs, regression_outs, target_boxes, images_hw
         )
 
 

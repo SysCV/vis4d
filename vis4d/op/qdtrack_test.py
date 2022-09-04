@@ -7,6 +7,7 @@ from mmcv.runner.checkpoint import load_checkpoint
 from torch.utils.data import DataLoader
 
 from vis4d.op.detect.faster_rcnn_test import (
+    FPN,
     FasterRCNNHead,
     ResNet,
     RoI2Det,
@@ -38,11 +39,11 @@ REV_KEYS = [
     (r"^detector.backbone.mm_backbone\.", "backbone.body."),
     (
         r"^detector.backbone.neck.mm_neck.lateral_convs\.",
-        "backbone.fpn.inner_blocks.",
+        "inner_blocks.",
     ),
     (
         r"^detector.backbone.neck.mm_neck.fpn_convs\.",
-        "backbone.fpn.layer_blocks.",
+        "layer_blocks.",
     ),
     ("\.conv.weight", ".weight"),
     ("\.conv.bias", ".bias"),
@@ -54,7 +55,8 @@ class QDTrackTest(unittest.TestCase):
 
     def test_inference(self):
         """Inference test."""
-        backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        base = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        fpn = FPN(base.out_channels[2:], 256)
         faster_rcnn = FasterRCNNHead(num_classes=8)
         transform_detections = RoI2Det(
             faster_rcnn.rcnn_box_encoder, score_threshold=0.05
@@ -62,7 +64,14 @@ class QDTrackTest(unittest.TestCase):
         qdtrack = QDTrack()
 
         load_checkpoint(
-            backbone,
+            base,
+            "./qdtrack_r50_65point7.ckpt",
+            map_location=torch.device("cpu"),
+            revise_keys=REV_KEYS,
+        )
+
+        load_checkpoint(
+            fpn,
             "./qdtrack_r50_65point7.ckpt",
             map_location=torch.device("cpu"),
             revise_keys=REV_KEYS,
@@ -95,15 +104,14 @@ class QDTrackTest(unittest.TestCase):
 
         with torch.no_grad():
             for data in test_loader:
-                inputs, _, _, _, frame_ids = data
+                inputs, inputs_hw, _, _, _, frame_ids = data
                 images = pad(torch.cat(inputs))
 
-                features = backbone(images)
-                detector_out = faster_rcnn(features)
+                features = base(images)
+                features = fpn(features)
+                detector_out = faster_rcnn(features, inputs_hw)
                 boxes, scores, class_ids = transform_detections(
-                    *detector_out.roi,
-                    detector_out.proposals.boxes,
-                    images.shape,
+                    *detector_out.roi, detector_out.proposals.boxes, inputs_hw
                 )
                 from vis4d.vis.image import imshow_bboxes
 
@@ -124,7 +132,8 @@ class QDTrackTest(unittest.TestCase):
         anchor_gen = get_default_anchor_generator()
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        base = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        fpn = FPN(base.out_channels[2:], 256)
         faster_rcnn = FasterRCNNHead(
             num_classes=8,
             anchor_generator=anchor_gen,
@@ -147,23 +156,32 @@ class QDTrackTest(unittest.TestCase):
         log_step = 1
         for epoch in range(2):
             for i, data in enumerate(train_loader):
-                inputs, gt_boxes, gt_class_ids, gt_track_ids, _ = data
+                (
+                    inputs,
+                    inputs_hw,
+                    gt_boxes,
+                    gt_class_ids,
+                    gt_track_ids,
+                    _,
+                ) = data
                 inputs = torch.cat(inputs)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
                 # forward + backward + optimize
-                features = backbone(inputs)
-                detector_out = faster_rcnn(features, gt_boxes, gt_class_ids)
+                features = base(inputs)
+                features = fpn(features)
+                detector_out = faster_rcnn(
+                    features, inputs_hw, gt_boxes, gt_class_ids
+                )
 
                 # TODO detector losses only on keyframes
                 rpn_losses = rpn_loss(
                     detector_out.rpn.cls,
                     detector_out.rpn.box,
                     gt_boxes,
-                    gt_class_ids,
-                    inputs.shape,
+                    inputs_hw,
                 )
                 rcnn_losses = rcnn_loss(
                     detector_out.roi.cls_score,

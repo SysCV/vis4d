@@ -125,9 +125,7 @@ class MaskRCNNModel(nn.Module):
             features[2:-1], outputs.sampled_proposals.boxes
         )
 
-        rpn_losses = self.rpn_loss(
-            *outputs.rpn, target_boxes, target_classes, images_hw
-        )
+        rpn_losses = self.rpn_loss(*outputs.rpn, target_boxes, images_hw)
         rcnn_losses = self.rcnn_loss(
             *outputs.roi,
             outputs.sampled_proposals.boxes,
