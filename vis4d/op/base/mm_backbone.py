@@ -37,10 +37,10 @@ from vis4d.struct import (
 )
 
 from ..utils import load_config, load_model_checkpoint
-from .base import Backbone
+from .base import BaseModel
 
 
-class MMDetBackbone(Backbone):
+class MMDetBackbone(BaseModel):
     """mmdetection backbone wrapper."""
 
     def __init__(

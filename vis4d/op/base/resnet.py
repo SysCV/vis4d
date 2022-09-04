@@ -5,10 +5,10 @@ from typing import List
 import torch
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 
-from .base import Backbone
+from .base import BaseModel
 
 
-class ResNet(Backbone):
+class ResNet(BaseModel):
     """
     Wrapper for torch vision resnet backbones.
     """

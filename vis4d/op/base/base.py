@@ -6,7 +6,7 @@ import torch
 from torch import nn
 
 
-class Backbone(nn.Module):
+class BaseModel(nn.Module):
     """Base Backbone class."""
 
     def __init__(self) -> None:

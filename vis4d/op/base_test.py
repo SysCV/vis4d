@@ -13,8 +13,8 @@ from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.samplers import CombinedSampler
 from vis4d.data import BaseDataModule, BaseDatasetHandler, ScalabelDataset
 from vis4d.data.datasets import BaseDatasetLoader, Scalabel
-from vis4d.op.backbone import MMDetBackbone
-from vis4d.op.backbone.neck import MMDetNeck
+from vis4d.op.base import MMDetBackbone
+from vis4d.op.base.neck import MMDetNeck
 from vis4d.op.detect import D2TwoStageDetector, FasterRCNN, MMOneStageDetector
 from vis4d.op.heads.dense_head import (
     MMDetDenseHead,
