@@ -7,7 +7,7 @@ from vis4d.common.optimizers import sgd, step_schedule
 from vis4d.engine.trainer import BaseCLI
 from vis4d.op import QDTrack
 from vis4d.op.optimize.optimizer import DefaultOptimizer
-from vis4d.op.track.graph import QDTrackGraph
+from vis4d.op.track.graph import AssociateQDTrack
 from vis4d.op.track.similarity import QDSimilarityHead
 from vis4d.qdtrack.data import QDTrackDataModule
 from vis4d.qdtrack.qdtrack import QDTrackYOLOX
@@ -22,26 +22,26 @@ def setup_model(
     """Setup model with experiment specific hyperparameters."""
     if experiment == "mot17":
         if detector == "YOLOX":
-            track_graph = QDTrackGraph(
+            track_graph = AssociateQDTrack(
                 keep_in_memory=30, init_score_thr=0.7, obj_score_thr=0.15
             )
         else:
-            track_graph = QDTrackGraph(
+            track_graph = AssociateQDTrack(
                 keep_in_memory=30, init_score_thr=0.9, obj_score_thr=0.5
             )
         category_mapping = mot_map
     elif experiment == "mot20":
         if detector == "YOLOX":
-            track_graph = QDTrackGraph(
+            track_graph = AssociateQDTrack(
                 keep_in_memory=30, init_score_thr=0.8, obj_score_thr=0.2
             )
         else:
-            track_graph = QDTrackGraph(
+            track_graph = AssociateQDTrack(
                 keep_in_memory=30, init_score_thr=0.9, obj_score_thr=0.5
             )
         category_mapping = mot_map
     elif experiment in ["bdd100k", "sample"]:
-        track_graph = QDTrackGraph(keep_in_memory=10)
+        track_graph = AssociateQDTrack(keep_in_memory=10)
         category_mapping = bdd100k_track_map
     else:
         raise NotImplementedError(f"Experiment {experiment} not known!")

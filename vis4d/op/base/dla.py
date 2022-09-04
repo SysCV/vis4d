@@ -395,7 +395,7 @@ class Tree(nn.Module):
 
 
 class DLA(BaseModel):
-    """DLA backbone."""
+    """DLA base model."""
 
     def __init__(
         self,
@@ -416,7 +416,7 @@ class DLA(BaseModel):
         style: str = "imagenet",
     ) -> None:
         """Init."""
-        super().__init__(*args, **kwargs)
+        super().__init__()
         if name is not None:
             assert name in DLA_ARCH_SETTINGS
             arch_setting = DLA_ARCH_SETTINGS[name]
@@ -474,6 +474,8 @@ class DLA(BaseModel):
             level_root=True,
             root_residual=residual_root,
         )
+
+        self._out_channels = list(channels)
 
         if weights is not None:  # pragma: no cover
             if weights.startswith("dla://"):
@@ -541,3 +543,12 @@ class DLA(BaseModel):
             input_x = getattr(self, f"level{i}")(input_x)
             outs.append(input_x)
         return outs
+
+    @property
+    def out_channels(self) -> List[int]:
+        """Get the numbers of channels for each level of feature pyramid.
+
+        Returns:
+            List[int]: number of channels
+        """
+        return self._out_channels

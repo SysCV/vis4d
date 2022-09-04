@@ -1,8 +1,8 @@
 """Track graph optimization module."""
 from .qd_3dt import QD3DTrackGraph
-from .qdtrack import QDTrackGraph
+from .qdtrack import AssociateQDTrack
 
 __all__ = [
-    "QDTrackGraph",
+    "AssociateQDTrack",
     "QD3DTrackGraph",
 ]
