@@ -55,7 +55,7 @@ class QDTrackTest(unittest.TestCase):
 
     def test_inference(self):
         """Inference test."""
-        base = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        base = ResNet("resnet50", trainable_layers=3)
         fpn = FPN(base.out_channels[2:], 256)
         faster_rcnn = FasterRCNNHead(num_classes=8)
         transform_detections = RoI2Det(

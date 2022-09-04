@@ -37,7 +37,7 @@ class BaseModel(nn.Module):
         """Get the number of channels for each level of feature pyramid.
 
         Raises:
-            NotImplementedError: _description_
+            NotImplementedError: This is an abstract class method
 
         Returns:
             List[int]: number of channels
