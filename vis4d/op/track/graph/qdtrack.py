@@ -3,11 +3,35 @@ import copy
 from typing import Generic, List, NamedTuple, Tuple, TypeVar
 
 import torch
+from vis4d.common.bbox.matchers.max_iou import MaxIoUMatcher
+from vis4d.common.bbox.samplers.combined import CombinedSampler
 
 from vis4d.common.bbox.utils import bbox_iou
 
 from .assignment import greedy_assign, random_ids
 from .matching import calc_bisoftmax_affinity
+
+
+def get_default_box_sampler() -> CombinedSampler:
+    """Get default box sampler of qdtrack."""
+    box_sampler = CombinedSampler(
+        batch_size=256,
+        positive_fraction=0.5,
+        pos_strategy="instance_balanced",
+        neg_strategy="iou_balanced",
+    )
+    return box_sampler
+
+
+def get_default_box_matcher() -> MaxIoUMatcher:
+    """Get default box matcher of qdtrack."""
+    box_matcher = MaxIoUMatcher(
+        thresholds=[0.3, 0.7],
+        labels=[0, -1, 1],
+        allow_low_quality_matches=False,
+    )
+    return box_matcher
+
 
 
 class BaseTrackState(NamedTuple):
