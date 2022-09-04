@@ -12,7 +12,7 @@ from vis4d.common.bbox.samplers import (
 )
 from vis4d.common.data_pipelines import default as default_augs
 from vis4d.op.optimize import DefaultOptimizer
-from vis4d.op.track.graph import AssociateQDTrack
+from vis4d.op.track.graph import QDTrackAssociation
 from vis4d.op.track.graph.qdtrack import QDTrackMemory, QDTrackState
 from vis4d.op.track.similarity.qdtrack import (
     QDSimilarityHead,
@@ -43,7 +43,7 @@ class QDTrack(nn.Module):  # TODO remove from op
         self.similarity_head = QDSimilarityHead()
 
         # only in inference
-        self.track_graph = AssociateQDTrack()
+        self.track_graph = QDTrackAssociation()
         self.track_memory = QDTrackMemory(memory_limit=memory_size)
 
         self.box_sampler = CombinedSampler(

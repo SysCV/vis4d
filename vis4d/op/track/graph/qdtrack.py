@@ -191,7 +191,7 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
 
 
 # @torch.jit.script TODO
-class AssociateQDTrack:
+class QDTrackAssociation:
     """Tracking component relying on quasi-dense instance similarity.
 
     This class assigns detection candidates to a given memory of existing
