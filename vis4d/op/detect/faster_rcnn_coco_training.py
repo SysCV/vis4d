@@ -263,13 +263,16 @@ if __name__ == "__main__":
                 faster_rcnn, device_ids=[device, torch.device("cuda:5")]
             )
         training_loop(faster_rcnn)
-    if args.ckpt == "mmdet":
-        from vis4d.op.detect.faster_rcnn_test import REV_KEYS
-
-        weights = "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
-        load_model_checkpoint(faster_rcnn.backbone, weights, REV_KEYS)
-        load_model_checkpoint(faster_rcnn.faster_rcnn_heads, weights, REV_KEYS)
     else:
-        ckpt = torch.load(args.ckpt)
-        faster_rcnn.load_state_dict(ckpt)
-    validation_loop(faster_rcnn)
+        if args.ckpt == "mmdet":
+            from vis4d.op.detect.faster_rcnn_test import REV_KEYS
+
+            weights = "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
+            load_model_checkpoint(faster_rcnn.backbone, weights, REV_KEYS)
+            load_model_checkpoint(
+                faster_rcnn.faster_rcnn_heads, weights, REV_KEYS
+            )
+        else:
+            ckpt = torch.load(args.ckpt)
+            faster_rcnn.load_state_dict(ckpt)
+        validation_loop(faster_rcnn)

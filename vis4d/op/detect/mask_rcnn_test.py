@@ -30,13 +30,13 @@ from .faster_rcnn import (
     get_default_rpn_box_encoder,
 )
 from .testcases.mask_rcnn import (
-    INSSEG0_MASKS,
-    INSSEG0_INDICES,
     INSSEG0_CLASS_IDS,
+    INSSEG0_INDICES,
+    INSSEG0_MASKS,
     INSSEG0_SCORES,
-    INSSEG1_MASKS,
-    INSSEG1_INDICES,
     INSSEG1_CLASS_IDS,
+    INSSEG1_INDICES,
+    INSSEG1_MASKS,
     INSSEG1_SCORES,
 )
 
