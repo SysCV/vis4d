@@ -141,7 +141,7 @@ class FasterRCNNTest(unittest.TestCase):
         with torch.no_grad():
             features = base(sample_images)
             features = fpn(features)
-            outs = faster_rcnn(features)
+            outs = faster_rcnn(features, images_hw)
             dets = roi2det(
                 class_outs=outs.roi.cls_score,
                 regression_outs=outs.roi.bbox_pred,
