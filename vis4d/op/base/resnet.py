@@ -17,7 +17,8 @@ class ResNet(BaseModel):
         self,
         resnet_name: str,
         trainable_layers: int = 5,
-        freeze_norm: bool = True,
+        norm_freezed: bool = True,
+        pretrained: bool = False,
     ):
         """Initiazlie the ResNet base model from torch vision.
 
@@ -26,15 +27,17 @@ class ResNet(BaseModel):
             trainable_layers (int, optional): Number layers for training or
             fine-tuning. 5 means all the layers can be fine-tuned.
             Defaults to 5.
-            freeze_norm (bool, optional): Whether to freeze batch norm.
+            norm_freezed (bool, optional): Whether to freeze batch norm.
             Defaults to True.
-
+            load_pretrained (bool, optional): Whether to load ImageNet
+            pre-trained weights. Defaults to False.
         Raises:
             ValueError: trainable_layers should be between 0 and 5
         """
         super().__init__()
         resnet = _resnet.__dict__[resnet_name](
-            norm_layer=misc_nn_ops.FrozenBatchNorm2d if freeze_norm else None,
+            pretrained=pretrained,
+            norm_layer=misc_nn_ops.FrozenBatchNorm2d if norm_freezed else None,
         )
 
         # The code for setting up parametor frozen and layer getter is from
@@ -74,8 +77,8 @@ class ResNet(BaseModel):
             List[int]: number of channels
         """
         if self.name in ["resnet18", "resnet34"]:
-            return [3, 3] + [64 * 2 ** i for i in range(4)]
-        return [3, 3] + [256 * 2 ** i for i in range(4)]
+            return [3, 3] + [64 * 2**i for i in range(4)]
+        return [3, 3] + [256 * 2**i for i in range(4)]
 
     def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
         """Torchvision ResNet forward.
