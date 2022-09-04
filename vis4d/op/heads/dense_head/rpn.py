@@ -112,7 +112,7 @@ class RPNHead(nn.Module):
         return self._call_impl(features)
 
 
-class TransformRPNOutputs(nn.Module):
+class RPN2RoI(nn.Module):
     """Generate Proposals (RoIs) from RPN network output."""
 
     def __init__(
