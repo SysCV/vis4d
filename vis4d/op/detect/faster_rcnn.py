@@ -12,7 +12,7 @@ from vis4d.common.bbox.samplers import (
     match_and_sample_proposals,
 )
 from vis4d.common.bbox.utils import apply_mask
-from vis4d.op.heads.dense_head.rpn import TransformRPNOutputs
+from vis4d.op.heads.dense_head.rpn import RPN2RoI
 from vis4d.struct import Proposals
 
 from ..heads.dense_head.rpn import RPNHead, RPNOut
@@ -115,9 +115,7 @@ class FasterRCNNHead(nn.Module):
         )
         self.proposal_append_gt = True  # TODO make option
         self.rpn_head = RPNHead(self.anchor_generator.num_base_priors[0])
-        self.rpn_head_transform = TransformRPNOutputs(
-            self.anchor_generator, self.rpn_box_encoder
-        )
+        self.rpn2roi = RPN2RoI(self.anchor_generator, self.rpn_box_encoder)
         self.roi_head = RCNNHead(num_classes=num_classes)
 
     def _sample_proposals(
@@ -216,8 +214,8 @@ class FasterRCNNHead(nn.Module):
                 target_classes is not None
             ), "Need target classes for target boxes!"
 
-            self.rpn_head_transform.num_proposals_pre_nms = 2000
-            proposal_boxes, scores = self.rpn_head_transform(
+            self.rpn2roi.num_proposals_pre_nms = 2000
+            proposal_boxes, scores = self.rpn2roi(
                 rpn_out.cls, rpn_out.box, images_hw
             )
 
@@ -230,8 +228,8 @@ class FasterRCNNHead(nn.Module):
             )
             roi_out = self.roi_head(features, sampled_proposals.boxes)
         else:
-            self.rpn_head_transform.num_proposals_pre_nms = 1000
-            proposal_boxes, scores = self.rpn_head_transform(
+            self.rpn2roi.num_proposals_pre_nms = 1000
+            proposal_boxes, scores = self.rpn2roi(
                 rpn_out.cls, rpn_out.box, images_hw
             )
             sampled_proposals, sampled_targets, sampled_target_indices = (
