@@ -24,7 +24,7 @@ from vis4d.struct.labels import Masks
 
 from ..base.resnet import ResNet
 from .faster_rcnn import (
-    FasterRCNN,
+    FasterRCNNHead,
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
@@ -127,7 +127,7 @@ class MaskRCNNTest(unittest.TestCase):
 
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
 
-        faster_rcnn = FasterRCNN(num_classes=80)
+        faster_rcnn = FasterRCNNHead(num_classes=80)
         mask_head = MaskRCNNHead(num_classes=80)
 
         roi2det = RoI2Det(faster_rcnn.rcnn_box_encoder, score_threshold=0.5)
@@ -200,7 +200,7 @@ class MaskRCNNTest(unittest.TestCase):
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        faster_rcnn = FasterRCNN(
+        faster_rcnn = FasterRCNNHead(
             num_classes=num_classes,
             anchor_generator=anchor_gen,
             rpn_box_encoder=rpn_bbox_encoder,

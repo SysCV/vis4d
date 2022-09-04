@@ -6,11 +6,3 @@ forward member for functoin invoktions. We follow the princeiple of functional
 programming. The operators don't keep internal states besides the operator
 weights. The operator computation and call has no side effects.
 """
-from .panoptic import PanopticFPN
-from .segment import BaseSegmentor, MMEncDecSegmentor
-
-__all__ = [
-    "BaseSegmentor",
-    "MMEncDecSegmentor",
-    "PanopticFPN",
-]

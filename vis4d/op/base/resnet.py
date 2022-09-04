@@ -9,9 +9,7 @@ from .base import BaseModel
 
 
 class ResNet(BaseModel):
-    """
-    Wrapper for torch vision resnet backbones.
-    """
+    """Wrapper for torch vision resnet backbones."""
 
     def __init__(
         self, name: str, pretrained: bool = True, trainable_layers: int = 5
@@ -25,6 +23,21 @@ class ResNet(BaseModel):
         self.backbone = resnet_fpn_backbone(
             name, pretrained=pretrained, trainable_layers=trainable_layers
         )
+        self.name = name
+
+    @property
+    def out_channels(self) -> List[int]:
+        """Get the number of channels for each level of feature pyramid.
+
+        Raises:
+            NotImplementedError: _description_
+
+        Returns:
+            List[int]: number of channels
+        """
+        if self.name in ["resnet18", "resnet34"]:
+            return [3, 3] + [64 * 2**i for i in range(4)]
+        return [3, 3] + [256 * 2**i for i in range(4)]
 
     def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
         """Torchvision ResNet forward.
@@ -43,4 +56,4 @@ class ResNet(BaseModel):
             map downsamples the input image by 64 with a pooling layer on the
             second last map.
         """
-        return [images, images, *self.backbone(images).values()]
+        return [images, images, *self.backbone.body(images).values()]

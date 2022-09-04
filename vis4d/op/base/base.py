@@ -1,17 +1,13 @@
 """Backbone interface for Vis4D."""
 import abc
-from typing import List, Tuple
+from typing import List
 
 import torch
 from torch import nn
 
 
 class BaseModel(nn.Module):
-    """Base Backbone class."""
-
-    def __init__(self) -> None:
-        """Init BaseBackbone."""
-        super().__init__()
+    """Abstract base model for feature extraction."""
 
     @abc.abstractmethod
     def forward(
@@ -32,6 +28,19 @@ class BaseModel(nn.Module):
             the feature map with the same resolution. fp[1] may be the copy of
             the input image if the network doesn't generate the feature map of
             the resolution.
+        """
+        raise NotImplementedError
+
+    @property
+    @abc.abstractmethod
+    def out_channels(self) -> List[int]:
+        """Get the number of channels for each level of feature pyramid.
+
+        Raises:
+            NotImplementedError: _description_
+
+        Returns:
+            List[int]: number of channels
         """
         raise NotImplementedError
 

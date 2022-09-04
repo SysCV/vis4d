@@ -15,8 +15,9 @@ from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D
 
 from ..base.resnet import ResNet
+from ..fpp.fpn import FPN
 from .faster_rcnn import (
-    FasterRCNN,
+    FasterRCNNHead,
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
@@ -35,8 +36,8 @@ REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
     (r"^roi_head.bbox_head\.", "roi_head."),
     (r"^backbone\.", "backbone.body."),
-    (r"^neck.lateral_convs\.", "backbone.fpn.inner_blocks."),
-    (r"^neck.fpn_convs\.", "backbone.fpn.layer_blocks."),
+    (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
+    (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     ("\.conv.weight", ".weight"),
     ("\.conv.bias", ".bias"),
 ]
@@ -119,9 +120,11 @@ class FasterRCNNTest(unittest.TestCase):
         sample_images = torch.cat([image1, image2])
         images_hw = [(512, 512) for _ in range(2)]
 
-        backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        base = ResNet("resnet50", pretrained=True, trainable_layers=3)
 
-        faster_rcnn = FasterRCNN(num_classes=80)
+        fpn = FPN(base.out_channels[2:], 256)
+
+        faster_rcnn = FasterRCNNHead(num_classes=80)
 
         roi2det = RoI2Det(faster_rcnn.rcnn_box_encoder, score_threshold=0.5)
 
@@ -130,13 +133,15 @@ class FasterRCNNTest(unittest.TestCase):
             "faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_"
             "20200504_210434-a5d8aa15.pth"
         )
-        load_model_checkpoint(backbone, weights, REV_KEYS)
+        load_model_checkpoint(base, weights, REV_KEYS)
+        load_model_checkpoint(fpn, weights, REV_KEYS)
         load_model_checkpoint(faster_rcnn, weights, REV_KEYS)
 
         faster_rcnn.eval()
         with torch.no_grad():
-            features = backbone(sample_images)
-            outs = faster_rcnn(features, images_hw)
+            features = base(sample_images)
+            features = fpn(features)
+            outs = faster_rcnn(features)
             dets = roi2det(
                 class_outs=outs.roi.cls_score,
                 regression_outs=outs.roi.bbox_pred,
@@ -178,7 +183,7 @@ class FasterRCNNTest(unittest.TestCase):
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        faster_rcnn = FasterRCNN(
+        faster_rcnn = FasterRCNNHead(
             num_classes=8,
             anchor_generator=anchor_gen,
             rpn_box_encoder=rpn_bbox_encoder,
@@ -255,7 +260,7 @@ class FasterRCNNTest(unittest.TestCase):
         """Test torchscript export of Faster RCNN."""
         sample_images = torch.rand((2, 3, 512, 512))
         backbone = (ResNet("resnet50", pretrained=True, trainable_layers=3),)
-        faster_rcnn = FasterRCNN()
+        faster_rcnn = FasterRCNNHead()
         backbone_scripted = torch.jit.script(backbone)
         frcnn_scripted = torch.jit.script(faster_rcnn)
         features = backbone_scripted(sample_images)

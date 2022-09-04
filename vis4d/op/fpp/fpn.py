@@ -10,6 +10,7 @@ from typing import List
 
 import torch
 from torchvision.ops import FeaturePyramidNetwork
+from torchvision.ops.feature_pyramid_network import LastLevelMaxPool
 
 
 class FPN(FeaturePyramidNetwork):
@@ -20,7 +21,9 @@ class FPN(FeaturePyramidNetwork):
 
     def __init__(self, in_channels_list: List[int], out_channels: int):
         """Init without additional components."""
-        super().__init__(in_channels_list, out_channels)
+        super().__init__(
+            in_channels_list, out_channels, extra_blocks=LastLevelMaxPool()
+        )
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """Process the input features with FPN.
