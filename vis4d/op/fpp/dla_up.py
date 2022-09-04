@@ -1,4 +1,7 @@
-"""DLA-UP."""
+"""DLA-UP.
+
+TODO(fyu) need clean up and update to the latest interface.
+"""
 import math
 from typing import List, Optional
 
@@ -9,7 +12,7 @@ from torch import nn
 from vis4d.common.layers import Conv2d, DeformConv
 from vis4d.struct import NamedTensors, NDArrayI64
 
-from .base import BaseNeck
+from .base import FeaturePyramidProcessing
 
 
 def fill_up_weights(up: nn.ConvTranspose2d) -> None:
@@ -97,7 +100,7 @@ class IDAUp(nn.Module):
             layers[i] = node(layers[i] + layers[i - 1])
 
 
-class DLAUp(BaseNeck):
+class DLAUp(FeaturePyramidProcessing):
     """DLAUp."""
 
     def __init__(
@@ -119,7 +122,7 @@ class DLAUp(BaseNeck):
         in_channels = in_channels[self.start_level : self.end_level]
         channels = list(in_channels)
         scales: NDArrayI64 = np.array(
-            [2 ** i for i, _ in enumerate(in_channels)], dtype=np.int64
+            [2**i for i, _ in enumerate(in_channels)], dtype=np.int64
         )
         for i in range(len(channels) - 1):
             j = -i - 2
@@ -141,7 +144,7 @@ class DLAUp(BaseNeck):
             use_deformable_convs,
             out_channels,
             channels,
-            [2 ** i for i in range(self.end_level - self.start_level)],
+            [2**i for i in range(self.end_level - self.start_level)],
         )
 
     def forward(
