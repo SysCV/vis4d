@@ -30,7 +30,7 @@ from vis4d.op.heads.roi_head import MMDetRoIHead, QD3DTBBox3DHead
 from vis4d.op.optimize import DefaultOptimizer, LinearLRWarmup
 from vis4d.op.panoptic import PanopticFPN
 from vis4d.op.segment import MMEncDecSegmentor
-from vis4d.op.track.graph import AssociateQDTrack
+from vis4d.op.track.graph import QDTrackAssociation
 from vis4d.op.track.similarity import QDSimilarityHead
 from vis4d.struct import ArgsType
 from vis4d.unittest.utils import (
@@ -305,7 +305,7 @@ class TestQDTrackMaskRCNN(BaseModelTests.TestTrack):
                 category_mapping=TEST_MAPPING,
             ),
             similarity=QDSimilarityHead(in_dim=64),
-            track_graph=AssociateQDTrack(10),
+            track_graph=QDTrackAssociation(10),
         )
 
 
@@ -341,7 +341,7 @@ class TestQDTrackInferenceResults(BaseModelTests.TestTrackInference):
                     allow_low_quality_matches=False,
                 ),
             ),
-            track_graph=AssociateQDTrack(10),
+            track_graph=QDTrackAssociation(10),
             inference_result_path="./unittests/results.hdf5",
         )
 
@@ -361,7 +361,7 @@ class TestQDTrackRetinaNet(BaseModelTests.TestTrack):
                 category_mapping=TEST_MAPPING,
             ),
             similarity=QDSimilarityHead(in_dim=64),
-            track_graph=AssociateQDTrack(10),
+            track_graph=QDTrackAssociation(10),
         )
 
 
@@ -421,7 +421,7 @@ class TestQD3DT(BaseModelTests.TestTrack3D):
                 proposal_append_gt=True,
             ),
             similarity=QDSimilarityHead(in_dim=64),
-            track_graph=AssociateQDTrack(10),
+            track_graph=QDTrackAssociation(10),
         )
 
 

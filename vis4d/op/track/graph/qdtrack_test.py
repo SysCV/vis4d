@@ -8,7 +8,7 @@ from vis4d.common.bbox.utils import bbox_iou
 from vis4d.struct import Boxes2D, Images, InputSample, LabelInstances
 from vis4d.unittest.utils import generate_dets
 
-from .qdtrack import AssociateQDTrack
+from .qdtrack import QDTrackAssociation
 
 
 class TestQDTrackGraph(unittest.TestCase):
@@ -16,7 +16,7 @@ class TestQDTrackGraph(unittest.TestCase):
 
     def test_get_tracks(self) -> None:
         """Testcase for get tracks method."""
-        tracker = AssociateQDTrack(keep_in_memory=3)
+        tracker = QDTrackAssociation(keep_in_memory=3)
 
         h, w, num_dets = 128, 128, 64
         detections = generate_dets(h, w, num_dets)
@@ -39,7 +39,7 @@ class TestQDTrackGraph(unittest.TestCase):
 
     def test_track(self) -> None:
         """Testcase for tracking function."""
-        tracker = AssociateQDTrack(keep_in_memory=3)
+        tracker = QDTrackAssociation(keep_in_memory=3)
 
         h, w, num_dets = 128, 128, 64
         sample = InputSample(
