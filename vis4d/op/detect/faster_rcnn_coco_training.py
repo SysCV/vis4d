@@ -18,7 +18,7 @@ from vis4d.data.transforms import Resize
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.detect.faster_rcnn import (
     FRCNNOut,
-    FasterRCNN,
+    FasterRCNNHead,
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
@@ -40,7 +40,7 @@ test_resolution = (800, 1333)
 device = torch.device("cuda:4")
 
 
-class FasterRCNNModel(nn.Module):
+class FasterRCNN(nn.Module):
     """Faster RCNN wrapper class for checkpointing etc."""
 
     def __init__(self) -> None:
@@ -50,7 +50,7 @@ class FasterRCNNModel(nn.Module):
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        self.faster_rcnn_heads = FasterRCNN(
+        self.faster_rcnn_heads = FasterRCNNHead(
             anchor_generator=anchor_gen,
             rpn_box_encoder=rpn_bbox_encoder,
             rcnn_box_encoder=rcnn_bbox_encoder,
@@ -120,7 +120,7 @@ class FasterRCNNModel(nn.Module):
 
 
 ## setup model
-faster_rcnn = FasterRCNNModel()
+faster_rcnn = FasterRCNN()
 faster_rcnn.to(device)
 
 optimizer = optim.SGD(faster_rcnn.parameters(), lr=learning_rate, momentum=0.9)
@@ -202,7 +202,7 @@ def validation_loop(model):
 
 
 ## training loop
-def training_loop(model: FasterRCNNModel):
+def training_loop(model):
     """Training loop."""
     running_losses = {}
     for epoch in range(num_epochs):

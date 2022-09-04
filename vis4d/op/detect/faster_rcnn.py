@@ -74,7 +74,7 @@ def get_default_box_sampler() -> RandomSampler:
     return RandomSampler(batch_size=512, positive_fraction=0.25)
 
 
-class FasterRCNN(nn.Module):
+class FasterRCNNHead(nn.Module):
     """mmdetection two-stage detector wrapper."""
 
     def __init__(
@@ -187,7 +187,6 @@ class FasterRCNN(nn.Module):
     def forward(
         self,
         features: List[torch.Tensor],
-        images_hw: List[Tuple[int, int]],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
     ) -> FRCNNOut:
@@ -195,7 +194,6 @@ class FasterRCNN(nn.Module):
 
         Args:
             features (List[torch.Tensor]): Feature pyramid
-            images_hw (List[Tuple[int, int]]): Image sizes without padding.
             target_boxes (Optional[List[torch.Tensor]], optional): Ground
             truth bounding box locations. Defaults to None.
             target_classes (Optional[List[torch.Tensor]], optional): Ground
@@ -208,6 +206,7 @@ class FasterRCNN(nn.Module):
             assert target_classes is not None
 
         rpn_out = self.rpn_head(features)
+        image_hw = features[0].shape[2:]
 
         if target_boxes is not None:
             assert (
@@ -216,7 +215,7 @@ class FasterRCNN(nn.Module):
 
             self.rpn_head_transform.num_proposals_pre_nms = 2000
             proposal_boxes, scores = self.rpn_head_transform(
-                rpn_out.cls, rpn_out.box, images_hw
+                rpn_out.cls, rpn_out.box, image_hw
             )
 
             (
@@ -230,7 +229,7 @@ class FasterRCNN(nn.Module):
         else:
             self.rpn_head_transform.num_proposals_pre_nms = 1000
             proposal_boxes, scores = self.rpn_head_transform(
-                rpn_out.cls, rpn_out.box, images_hw
+                rpn_out.cls, rpn_out.box, image_hw
             )
             sampled_proposals, sampled_targets, sampled_target_indices = (
                 None,

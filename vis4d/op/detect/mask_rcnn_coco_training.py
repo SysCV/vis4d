@@ -17,7 +17,7 @@ from vis4d.data import BaseDatasetHandler, BaseSampleMapper, ScalabelDataset
 from vis4d.data.transforms import Resize
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.detect.faster_rcnn import (
-    FasterRCNN,
+    FasterRCNNHead,
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
@@ -78,7 +78,7 @@ class MaskRCNNModel(nn.Module):
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        self.faster_rcnn_heads = FasterRCNN(
+        self.faster_rcnn_heads = FasterRCNNHead(
             anchor_generator=anchor_gen,
             rpn_box_encoder=rpn_bbox_encoder,
             rcnn_box_encoder=rcnn_bbox_encoder,

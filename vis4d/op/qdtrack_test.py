@@ -7,7 +7,7 @@ from mmcv.runner.checkpoint import load_checkpoint
 from torch.utils.data import DataLoader
 
 from vis4d.op.detect.faster_rcnn_test import (
-    FasterRCNN,
+    FasterRCNNHead,
     ResNet,
     RoI2Det,
     SampleDataset,
@@ -55,7 +55,7 @@ class QDTrackTest(unittest.TestCase):
     def test_inference(self):
         """Inference test."""
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        faster_rcnn = FasterRCNN(num_classes=8)
+        faster_rcnn = FasterRCNNHead(num_classes=8)
         transform_detections = RoI2Det(
             faster_rcnn.rcnn_box_encoder, score_threshold=0.05
         )
@@ -125,7 +125,7 @@ class QDTrackTest(unittest.TestCase):
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        faster_rcnn = FasterRCNN(
+        faster_rcnn = FasterRCNNHead(
             num_classes=8,
             anchor_generator=anchor_gen,
             rpn_box_encoder=rpn_bbox_encoder,
