@@ -12,11 +12,10 @@ from vis4d.common.bbox.samplers import (
     match_and_sample_proposals,
 )
 from vis4d.common.bbox.utils import apply_mask
-from vis4d.op.heads.dense_head.rpn import RPN2RoI
 from vis4d.struct import Proposals
 
-from ..heads.dense_head.rpn import RPNHead, RPNOut
-from ..heads.roi_head.rcnn import RCNNHead, RCNNOut
+from .rpn import RPNHead, RPNOut, RPN2RoI
+from .rcnn import RCNNHead, RCNNOut
 
 
 class Targets(NamedTuple):

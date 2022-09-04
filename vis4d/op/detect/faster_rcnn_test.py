@@ -9,8 +9,8 @@ from torch.utils.data import DataLoader, Dataset
 
 from vis4d.common.datasets import bdd100k_track_map, bdd100k_track_sample
 from vis4d.data.utils import transform_bbox
-from vis4d.op.heads.dense_head.rpn import RPNLoss
-from vis4d.op.heads.roi_head.rcnn import RCNNLoss, RoI2Det
+from vis4d.op.detect.rpn import RPNLoss
+from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D
 

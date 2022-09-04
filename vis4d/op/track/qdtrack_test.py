@@ -10,15 +10,14 @@ from vis4d.op.detect.faster_rcnn_test import (
     FPN,
     FasterRCNNHead,
     ResNet,
-    RoI2Det,
     SampleDataset,
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
     identity_collate,
 )
-from vis4d.op.heads.dense_head.rpn import RPNLoss
-from vis4d.op.heads.roi_head.rcnn import RCNNLoss, RoI2Det
+from vis4d.op.detect.rpn import RPNLoss
+from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
 from vis4d.model.qdtrack.qdtrack import QDTrack
 
 
