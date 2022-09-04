@@ -54,22 +54,22 @@ def preprocess_boxes(
             result_labels.extend(labels)
         return result_box, result_color, result_labels
 
-    boxes_list = boxes.cpu().numpy().tolist()
+    boxes_list = boxes.detach().cpu().numpy().tolist()
 
     if scores is not None:
-        scores = scores.cpu().numpy().tolist()
+        scores = scores.detach().cpu().numpy().tolist()
     else:
         scores = [None for _ in range(len(boxes_list))]
 
     if track_ids is not None:
-        track_ids = track_ids.cpu().numpy()
+        track_ids = track_ids.detach().cpu().numpy()
         if len(track_ids.shape) > 1:
             track_ids = track_ids.squeeze(-1)
     else:
         track_ids = [None for _ in range(len(boxes_list))]
 
     if class_ids is not None:
-        class_ids = class_ids.cpu().numpy()
+        class_ids = class_ids.detach().cpu().numpy()
     else:
         class_ids = [None for _ in range(len(boxes_list))]
 
