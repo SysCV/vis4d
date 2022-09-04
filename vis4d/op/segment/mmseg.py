@@ -14,7 +14,7 @@ from vis4d.struct import (
     SemanticMasks,
 )
 
-from ..backbone import MMSegBackbone
+from ..base import MMSegBackbone
 from ..heads.dense_head import MMSegDecodeHead
 from ..utils import (
     _parse_losses,

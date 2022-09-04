@@ -22,7 +22,7 @@ from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D, InstanceMasks
 from vis4d.struct.labels import Masks
 
-from ..backbone.resnet import ResNet
+from ..base.resnet import ResNet
 from .faster_rcnn import (
     FasterRCNN,
     get_default_anchor_generator,

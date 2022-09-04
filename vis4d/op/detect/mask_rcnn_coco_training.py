@@ -15,7 +15,7 @@ from vis4d.common.datasets import coco_det_map, coco_train, coco_val
 from vis4d.common.io import HDF5Backend
 from vis4d.data import BaseDatasetHandler, BaseSampleMapper, ScalabelDataset
 from vis4d.data.transforms import Resize
-from vis4d.op.backbone.resnet import ResNet
+from vis4d.op.base.resnet import ResNet
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNN,
     get_default_anchor_generator,

@@ -5,7 +5,7 @@ import torch
 from torch import nn
 from torch.utils import model_zoo
 
-from .base import Backbone
+from .base import BaseModel
 
 BN_MOMENTUM = 0.1
 DLA_MODEL_PREFIX = "http://dl.yf.io/dla/models/"
@@ -394,7 +394,7 @@ class Tree(nn.Module):
         return input_x
 
 
-class DLA(Backbone):
+class DLA(BaseModel):
     """DLA backbone."""
 
     def __init__(
