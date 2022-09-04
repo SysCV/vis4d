@@ -9,11 +9,11 @@ from collections import OrderedDict
 from typing import List
 
 import torch
-from torchvision.ops import FeaturePyramidNetwork
+from torchvision.ops import FeaturePyramidNetwork as _FPN
 from torchvision.ops.feature_pyramid_network import LastLevelMaxPool
 
 
-class FPN(FeaturePyramidNetwork):
+class FPN(_FPN):
     """Feature Pyramid Network.
 
     This is a wrapper of the torchvision implementation.
