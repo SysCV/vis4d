@@ -19,7 +19,7 @@ from vis4d.op.detect.faster_rcnn_test import (
 )
 from vis4d.op.heads.dense_head.rpn import RPNLoss
 from vis4d.op.heads.roi_head.rcnn import RCNNLoss, RoI2Det
-from vis4d.op.qdtrack.qdtrack import QDTrack
+from vis4d.model.qdtrack.qdtrack import QDTrack
 
 
 def pad(images: torch.Tensor, stride=32) -> torch.Tensor:
