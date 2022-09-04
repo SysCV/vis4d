@@ -8,7 +8,7 @@ from vis4d.common.bbox.utils import bbox_iou
 from vis4d.struct import Boxes2D, Images, InputSample, LabelInstances
 from vis4d.unittest.utils import generate_dets
 
-from .qdtrack import QDTrackAssociation
+from ..qdtrack import QDTrackAssociation
 
 
 class TestQDTrackGraph(unittest.TestCase):

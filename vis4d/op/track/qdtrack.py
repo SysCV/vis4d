@@ -6,8 +6,8 @@ import torch
 
 from vis4d.common.bbox.utils import bbox_iou
 
-from .assignment import greedy_assign, random_ids
-from .matching import calc_bisoftmax_affinity
+from .graph.assignment import greedy_assign, random_ids
+from .graph.matching import calc_bisoftmax_affinity
 
 
 class BaseTrackState(NamedTuple):

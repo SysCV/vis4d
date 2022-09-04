@@ -6,7 +6,7 @@ import skimage
 import torch
 
 from ...base.resnet import ResNet
-from ...fpp.fpn_seg import FPNSeg
+from ...fpp.fcn import FCN
 from .fcn_head import FCNHead
 
 
@@ -45,15 +45,12 @@ class FCNTest(unittest.TestCase):
         )
         sample_images = torch.cat([image1, image2])
         basemodel = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        fpn = FPNSeg()
-        fcn = FCNHead(
-            in_channels=basemodel.out_channels[3:], channels=256, num_classes=5
-        )
+        fcn = FCN()
 
         fcn.eval()
         with torch.no_grad():
             features = basemodel(sample_images)
-            features = fpn(features[3:])
-            outs = fcn(features)
+            features = fcn(features)
+            out = features[0]
 
         assert outs.shape == (2, 5, 64, 64)

@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from .base import FeaturePyramidProcessing
 
 
-class FPNSeg(FeaturePyramidProcessing):
+class FCN(FeaturePyramidProcessing):
     """FPP for segmentation head."""
 
     def __init__(self, align_corners: bool = True) -> None:
@@ -47,7 +47,7 @@ class FPNSeg(FeaturePyramidProcessing):
         ]
         return upsampled_feats
 
-    def forward(self, x: List[torch.Tensor]) -> torch.Tensor:
+    def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """Forward function for transforming feature maps and obtain
         segmentation prediction.
 
