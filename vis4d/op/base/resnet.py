@@ -29,7 +29,7 @@ class ResNet(BaseModel):
             Defaults to 5.
             norm_freezed (bool, optional): Whether to freeze batch norm.
             Defaults to True.
-            load_pretrained (bool, optional): Whether to load ImageNet
+            pretrained (bool, optional): Whether to load ImageNet
             pre-trained weights. Defaults to False.
         Raises:
             ValueError: trainable_layers should be between 0 and 5

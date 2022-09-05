@@ -10,8 +10,8 @@ from torch.utils.data import DataLoader, Dataset
 
 from vis4d.common.bbox.utils import apply_mask
 from vis4d.common.datasets import bdd100k_segtrack_sample, bdd100k_track_map
-from vis4d.op.heads.dense_head.rpn import RPNLoss
-from vis4d.op.heads.roi_head.rcnn import (
+from vis4d.op.detect.rpn import RPNLoss
+from vis4d.op.detect.rcnn import (
     Det2Mask,
     MaskRCNNHead,
     MaskRCNNLoss,

@@ -19,7 +19,7 @@ from vis4d.struct import (
     LossesType,
 )
 
-from .qdtrack import QDTrackAssociation
+from ..qdtrack import QDTrackAssociation
 
 
 class Track(TypedDict):

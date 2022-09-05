@@ -8,8 +8,8 @@ from vis4d.common.bbox.samplers.combined import CombinedSampler
 
 from vis4d.common.bbox.utils import bbox_iou
 
-from .assignment import greedy_assign, random_ids
-from .matching import calc_bisoftmax_affinity
+from .graph.assignment import greedy_assign, random_ids
+from .graph.matching import calc_bisoftmax_affinity
 
 
 def get_default_box_sampler() -> CombinedSampler:

@@ -23,8 +23,8 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rpn_box_encoder,
 )
 from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
-from vis4d.op.heads.dense_head.rpn import RPNLoss, RPNLosses
-from vis4d.op.heads.roi_head.rcnn import (
+from vis4d.op.detect.rpn import RPNLoss, RPNLosses
+from vis4d.op.detect.rcnn import (
     Det2Mask,
     DetOut,
     MaskOut,

@@ -25,8 +25,8 @@ from vis4d.op.detect.faster_rcnn import (
 )
 from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
 from vis4d.op.fpp.fpn import FPN
-from vis4d.op.heads.dense_head.rpn import RPNLoss, RPNLosses
-from vis4d.op.heads.roi_head.rcnn import DetOut, RCNNLoss, RCNNLosses, RoI2Det
+from vis4d.op.detect.rpn import RPNLoss, RPNLosses
+from vis4d.op.detect.rcnn import DetOut, RCNNLoss, RCNNLosses, RoI2Det
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D, InputSample
 
