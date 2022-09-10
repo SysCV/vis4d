@@ -7,14 +7,30 @@ from torchvision.ops import batched_nms
 from vis4d.struct import Boxes2D, Boxes3D
 
 
+@torch.jit.script
+def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
+    """Compute bounding box areas.
+
+    Args:
+        boxes (torch.Tensor): [N, 4] tensor of 2D boxes in format (x1, y1, x2, y2).
+
+    Returns:
+        torch.Tensor: [N,] tensor of box areas.
+    """
+    return (boxes[:, 2] - boxes[:, 0]).clamp(0) * (
+        boxes[:, 3] - boxes[:, 1]
+    ).clamp(0)
+
+
+@torch.jit.script
 def bbox_intersection(
     boxes1: torch.Tensor, boxes2: torch.Tensor
 ) -> torch.Tensor:
     """Given two lists of boxes of size N and M, compute N x M intersection.
 
     Args:
-        boxes1: N 2D boxes in format (x1, y1, x2, y2, Optional[score])
-        boxes2: M 2D boxes in format (x1, y1, x2, y2, Optional[score])
+        boxes1: N 2D boxes in format (x1, y1, x2, y2)
+        boxes2: M 2D boxes in format (x1, y1, x2, y2)
 
     Returns:
         Tensor: intersection (N, M).
@@ -27,7 +43,7 @@ def bbox_intersection(
     return intersection
 
 
-# @torch.jit.script TODO test timing
+@torch.jit.script
 def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     """Compute IoU between all pairs of boxes.
 
@@ -215,9 +231,3 @@ def distance_3d_nms(
             keep_indices[i] = False
 
     return keep_indices
-
-
-def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
-    return (boxes[:, 2] - boxes[:, 0]).clamp(0) * (
-        boxes[:, 3] - boxes[:, 1]
-    ).clamp(0)

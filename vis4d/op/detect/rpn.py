@@ -83,14 +83,14 @@ class RPNHead(nn.Module):
         self.rpn_cls = Conv2d(feat_channels, num_anchors, 1)
         self.rpn_box = Conv2d(feat_channels, num_anchors * 4, 1)
 
-    #     self.apply(self._init_weights)
+        self.apply(self._init_weights)
 
-    # def _init_weights(self, module):
-    #     """Init RPN weights."""
-    #     if isinstance(module, nn.Conv2d):
-    #         module.weight.data.normal_(mean=0.0, std=0.01)
-    #         if module.bias is not None:
-    #             module.bias.data.zero_()
+    def _init_weights(self, module):
+        """Init RPN weights."""
+        if isinstance(module, nn.Conv2d):
+            module.weight.data.normal_(mean=0.0, std=0.01)
+            if module.bias is not None:
+                module.bias.data.zero_()
 
     def forward(
         self,
@@ -114,7 +114,14 @@ class RPNHead(nn.Module):
 
 class RPN2RoI(nn.Module):
     """Generate Proposals (RoIs) from RPN network output.
-    TODO (tobiasfshr) full documentation soon
+
+    This class acts as a stateless functor that does the following:
+    1. Create anchor grid for feature grids (classification and regression outputs) at all scales.
+    For each image
+        For each level
+            2. Get a topk pre-selection of flattened classification scores and box energies from feature output before NMS.
+        3. Decode class scores and box energies into proposal boxes, apply NMS.
+    Return proposal boxes for all images.
     """
 
     def __init__(
@@ -302,7 +309,13 @@ class RPNLosses(NamedTuple):
 
 
 class RPNLoss(nn.Module):
-    """Loss of region proposal network."""
+    """Loss of region proposal network.
+
+    For a given set of multi-scale RPN outputs, compute the desired target
+    outputs and apply classification and regression losses.
+    The targets are computed with the given target bounding boxes, the
+    anchor grid defined by the anchor generator and the given box encoder.
+    """
 
     def __init__(
         self,
@@ -379,7 +392,7 @@ class RPNLoss(nn.Module):
         target_boxes: torch.Tensor,
         anchors: torch.Tensor,
         image_hw: Tuple[int, int],
-    ) -> Tuple[RPNTargets, SamplingResult]:
+    ) -> Tuple[RPNTargets, int, int]:
         """Get targets per batch element, all scales."""
         inside_flags = anchor_inside_image(
             anchors,
@@ -392,7 +405,7 @@ class RPNLoss(nn.Module):
         matching = self.matcher(anchors, target_boxes)
         sampling_result = self.sampler(matching)
 
-        num_valid_anchors = anchors.shape[0]
+        num_valid_anchors = anchors.size(0)
         bbox_targets = torch.zeros_like(anchors)
         bbox_weights = torch.zeros_like(anchors)
         labels = anchors.new_zeros((num_valid_anchors,))
@@ -408,8 +421,8 @@ class RPNLoss(nn.Module):
                 anchors[pos_inds],
                 target_boxes[pos_target_inds],
             )
-            bbox_targets[pos_inds, :] = pos_bbox_targets
-            bbox_weights[pos_inds, :] = 1.0
+            bbox_targets[pos_inds] = pos_bbox_targets
+            bbox_weights[pos_inds] = 1.0
             labels[pos_inds] = 1.0
             label_weights[pos_inds] = 1.0
         if len(neg_inds) > 0:
@@ -424,7 +437,8 @@ class RPNLoss(nn.Module):
 
         return (
             RPNTargets(labels, label_weights, bbox_targets, bbox_weights),
-            sampling_result,
+            positives.sum(),
+            negatives.sum(),
         )
 
     def forward(
@@ -437,10 +451,10 @@ class RPNLoss(nn.Module):
         """Compute RPN classification and regression losses.
 
         Args:
-            class_outs (List[torch.Tensor]): _description_
-            regression_outs (List[torch.Tensor]): _description_
-            target_boxes (List[torch.Tensor]): _description_
-            images_hw (List[Tuple[int, int]]): _description_
+            class_outs (List[torch.Tensor]): Network classification outputs at all scales.
+            regression_outs (List[torch.Tensor]): Network regression outputs at all scales.
+            target_boxes (List[torch.Tensor]): Target bounding boxes.
+            images_hw (List[Tuple[int, int]]): Image dimensions without padding.
 
         Returns:
             RPNLosses: classification and regression losses.
@@ -458,17 +472,13 @@ class RPNLoss(nn.Module):
 
         targets, num_total_pos, num_total_neg = [], 0, 0
         for tgt_box, image_hw in zip(target_boxes, images_hw):
-            target, sampling_result = self._get_targets_per_image(
+            target, num_pos, num_neg = self._get_targets_per_image(
                 tgt_box,
                 anchors_all_levels,
                 image_hw,
             )
-            num_total_pos += max(
-                (sampling_result.sampled_labels == 1).sum(), 1
-            )
-            num_total_neg += max(
-                (sampling_result.sampled_labels == 0).sum(), 1
-            )
+            num_total_pos += num_pos
+            num_total_neg += num_neg
             bbox_targets_per_level = target.bbox_targets.split(
                 num_level_anchors
             )
@@ -490,9 +500,8 @@ class RPNLoss(nn.Module):
         targets_per_level = images_to_levels(targets)
         num_samples = num_total_pos + num_total_neg
 
-        loss_cls_all, loss_bbox_all = torch.tensor(
-            0.0, device=device
-        ), torch.tensor(0.0, device=device)
+        loss_cls_all = torch.tensor(0.0, device=device)
+        loss_bbox_all = torch.tensor(0.0, device=device)
         for level_id, (cls_out, reg_out) in enumerate(
             zip(class_outs, regression_outs)
         ):

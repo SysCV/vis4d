@@ -20,7 +20,7 @@ class ResNet(BaseModel):
         norm_freezed: bool = True,
         pretrained: bool = False,
     ):
-        """Initiazlie the ResNet base model from torch vision.
+        """Initialize the ResNet base model from torch vision.
 
         Args:
             resnet_name (str): name of the resnet variant
@@ -70,15 +70,12 @@ class ResNet(BaseModel):
     def out_channels(self) -> List[int]:
         """Get the number of channels for each level of feature pyramid.
 
-        Raises:
-            NotImplementedError: _description_
-
         Returns:
             List[int]: number of channels
         """
         if self.name in ["resnet18", "resnet34"]:
-            return [3, 3] + [64 * 2**i for i in range(4)]
-        return [3, 3] + [256 * 2**i for i in range(4)]
+            return [3, 3] + [64 * 2 ** i for i in range(4)]
+        return [3, 3] + [256 * 2 ** i for i in range(4)]
 
     def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
         """Torchvision ResNet forward.

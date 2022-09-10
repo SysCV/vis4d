@@ -1,6 +1,5 @@
 """Feature pyramid processing base class."""
 import abc
-
 from typing import List
 
 import torch

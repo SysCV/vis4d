@@ -5,17 +5,18 @@ import torch
 from torch import nn
 
 from vis4d.common.bbox.anchor_generator import AnchorGenerator
-from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
-from vis4d.common.bbox.matchers import MaxIoUMatcher
+from vis4d.common.bbox.coders import BaseBoxEncoder2D, DeltaXYWHBBoxEncoder
+from vis4d.common.bbox.matchers import BaseMatcher, MaxIoUMatcher
 from vis4d.common.bbox.samplers import (
+    BaseSampler,
     RandomSampler,
     match_and_sample_proposals,
 )
 from vis4d.common.bbox.utils import apply_mask
 from vis4d.struct import Proposals
 
-from .rpn import RPNHead, RPNOut, RPN2RoI
 from .rcnn import RCNNHead, RCNNOut
+from .rpn import RPN2RoI, RPNHead, RPNOut
 
 
 class Targets(NamedTuple):
@@ -74,18 +75,35 @@ def get_default_box_sampler() -> RandomSampler:
 
 
 class FasterRCNNHead(nn.Module):
-    """mmdetection two-stage detector wrapper."""
+    """This class composes RPN and RCNN head components.
+
+    It generates proposals via RPN and samples those, and runs the RCNN head
+    on the sampled proposals. During training, the sampling process is based
+    on the GT bounding boxes, during inference it is based on objectness score
+    of the proposals.
+    """
 
     def __init__(
         self,
         num_classes: int = 80,
         anchor_generator: Optional[AnchorGenerator] = None,
-        rpn_box_encoder: Optional[DeltaXYWHBBoxEncoder] = None,
-        rcnn_box_encoder: Optional[DeltaXYWHBBoxEncoder] = None,
-        box_matcher: Optional[MaxIoUMatcher] = None,
-        box_sampler: Optional[RandomSampler] = None,
+        rpn_box_encoder: Optional[BaseBoxEncoder2D] = None,
+        rcnn_box_encoder: Optional[BaseBoxEncoder2D] = None,
+        box_matcher: Optional[BaseMatcher] = None,
+        box_sampler: Optional[BaseSampler] = None,
+        proposal_append_gt: bool = True,
     ):
-        """Init."""
+        """Init.
+
+        Args:
+            num_classes (int, optional): Number of object categories. Defaults to 80.
+            anchor_generator (Optional[AnchorGenerator], optional): Custom anchor generator for RPN. Defaults to None.
+            rpn_box_encoder (Optional[DeltaXYWHBBoxEncoder], optional): Custom rpn box encoder. Defaults to None.
+            rcnn_box_encoder (Optional[DeltaXYWHBBoxEncoder], optional): Custom rcnn box encoder. Defaults to None.
+            box_matcher (Optional[MaxIoUMatcher], optional): Custom box matcher for RCNN stage. Defaults to None.
+            box_sampler (Optional[RandomSampler], optional): Custom box sampler for RCNN stage. Defaults to None.
+            proposal_append_gt (bool): If to append the ground truth boxes for proposal sampling during training. Defaults to True.
+        """
         super().__init__()
         self.anchor_generator = (
             anchor_generator
@@ -112,11 +130,12 @@ class FasterRCNNHead(nn.Module):
             if box_sampler is not None
             else get_default_box_sampler()
         )
-        self.proposal_append_gt = True  # TODO make option
+        self.proposal_append_gt = proposal_append_gt
         self.rpn_head = RPNHead(self.anchor_generator.num_base_priors[0])
         self.rpn2roi = RPN2RoI(self.anchor_generator, self.rpn_box_encoder)
         self.roi_head = RCNNHead(num_classes=num_classes)
 
+    @torch.no_grad()
     def _sample_proposals(
         self,
         proposal_boxes: List[torch.Tensor],

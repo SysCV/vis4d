@@ -3,12 +3,12 @@ import copy
 from typing import Generic, List, NamedTuple, Tuple, TypeVar
 
 import torch
+
 from vis4d.common.bbox.matchers.max_iou import MaxIoUMatcher
 from vis4d.common.bbox.samplers.combined import CombinedSampler
-
 from vis4d.common.bbox.utils import bbox_iou
 
-from .graph.assignment import greedy_assign, random_ids
+from .graph.assignment import TrackIDCounter, greedy_assign
 from .graph.matching import calc_bisoftmax_affinity
 
 
@@ -33,24 +33,17 @@ def get_default_box_matcher() -> MaxIoUMatcher:
     return box_matcher
 
 
-
-class BaseTrackState(NamedTuple):
-    """Basic Track state."""
-
-    track_ids: torch.Tensor
-
-
 TTrackState = TypeVar("TTrackState", bound=NamedTuple)
 
 
 class BaseTrackMemory(Generic[TTrackState]):
     """Basic Track Memory class.
 
-    Holds track representation across timesteps represented as:
-    List[Tuple[torch.Tensor, ...]]
-    where each list element is tracks at time t and tracks at time t are
-    represented as Tuple[Tensor], where first element is a LongTensor of ids,
-    and other N elements are boxes, scores, class_ids, etc.
+    Holds track representation across timesteps as List[NamedTuple].
+    Each list element is tracks at time t and tracks at time t are
+    represented as NamedTuple, where the first element is a LongTensor of track
+    ids, and the other N elements are, e.g., boxes, scores, class_ids, etc.
+    We assume the memory works on frames with contiguous indices [0..N].
     """
 
     def __init__(self, memory_limit: int = -1):
@@ -67,40 +60,44 @@ class BaseTrackMemory(Generic[TTrackState]):
         """Return last frame stored in memory.
 
         Returns:
-            Tuple[torch.Tensor, ...]: Last frame representation.
+            TTrackState: Last frame representation.
         """
         return self.frames[-1]
 
     def get_frame(self, index: int) -> TTrackState:
-        """Get TrackState at frame with given index."""
+        """Get TrackState at frame with given index.
+
+        Returns:
+            TTrackState: frame representation at index.
+        """
         return self.frames[index]
 
     def get_frames(
         self, start_index: int, end_index: int
     ) -> List[TTrackState]:
-        """_summary_
+        """Get list of frames at certain time interval.
 
         Args:
-            start_index (int): _description_
-            end_index (int): _description_
+            start_index (int): start index of interval (incl).
+            end_index (int): end index of interval (excl).
 
         Returns:
-            List[Tuple[torch.Tensor, ...]]: _description_
+            List[TTrackState]: frame representations inside interval.
         """
         return self.frames[start_index:end_index]
 
-    def get_current_tracks(self) -> TTrackState:
+    def get_current_tracks(self, device: torch.device) -> TTrackState:
         """Return active tracks."""
         return self.frames[-1]
 
-    def get_track(self, track_id: int) -> List[Tuple[torch.Tensor, ...]]:
-        """_summary_
+    def get_track(self, track_id: int) -> List[TTrackState]:
+        """Get representation of a single track across memory frames.
 
         Args:
-            track_id (int): _description_
+            track_id (int): track id of query track.
 
         Returns:
-            List[Tuple[torch.Tensor, ...]]: _description_
+            List[TTrackState]: List of track states for given query track.
         """
         track = []
         for frame in self.frames:
@@ -110,8 +107,10 @@ class BaseTrackMemory(Generic[TTrackState]):
         return track
 
     def update(self, data: TTrackState) -> None:
-        """Store valid tracks (id != -1) in memory."""
+        """Store tracks in memory."""
         self.frames.append(data)
+        if self.memory_limit >= 0 and len(self.frames) > self.memory_limit:
+            self.frames.pop(0)
 
 
 class QDTrackState(NamedTuple):
@@ -125,7 +124,11 @@ class QDTrackState(NamedTuple):
 
 
 class QDTrackMemory(BaseTrackMemory[QDTrackState]):
-    """QDTrack track memory."""
+    """QDTrack track memory.
+
+    We store both tracks and backdrops here. The current active tracks are all
+    tracks within the memory limit.
+    """
 
     def __init__(
         self,
@@ -151,78 +154,107 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
         new_backdrops = QDTrackState(*(entry[~valid_tracks] for entry in data))
         super().update(new_tracks)
         self.backdrop_frames.append(new_backdrops)
+        if (
+            self.backdrop_memory_limit >= 0
+            and len(self.backdrop_frames) > self.backdrop_memory_limit
+        ):
+            self.backdrop_frames.pop(0)
+
+    @staticmethod
+    def _concat_states(states: List[QDTrackState]) -> QDTrackState:
+        """Concatenate multiple states into a single one."""
+        memory_track_ids = torch.cat(
+            [mem_entry.track_ids for mem_entry in states]
+        )
+        memory_boxes = torch.cat([mem_entry.boxes for mem_entry in states])
+        memory_scores = torch.cat([mem_entry.scores for mem_entry in states])
+        memory_class_ids = torch.cat(
+            [mem_entry.class_ids for mem_entry in states]
+        )
+        memory_embeddings = torch.cat(
+            [mem_entry.embeddings for mem_entry in states]
+        )
+        return QDTrackState(
+            memory_track_ids,
+            memory_boxes,
+            memory_scores,
+            memory_class_ids,
+            memory_embeddings,
+        )
 
     def get_current_tracks(self, device: torch.device) -> QDTrackState:
-        """Get active tracks and backdrops."""
+        """Get all active tracks and backdrops in memory."""
+        # get last states of all tracks
         if len(self.frames) > 0:
-            memory_track_ids = torch.cat(
-                [mem_entry.track_ids for mem_entry in self.frames]
-            )
-            memory_boxes = torch.cat(
-                [mem_entry.boxes for mem_entry in self.frames]
-            )
-            memory_scores = torch.cat(
-                [mem_entry.scores for mem_entry in self.frames]
-            )
-            memory_class_ids = torch.cat(
-                [mem_entry.class_ids for mem_entry in self.frames]
-            )
-            memory_embeddings = torch.cat(
-                [mem_entry.embeddings for mem_entry in self.frames]
-            )
+            memory = self._concat_states(self.frames)
 
-            all_track_ids = memory_track_ids.unique()
-            all_class_ids = torch.zeros_like(all_track_ids)
-            all_scores = torch.zeros(
+            track_ids = memory.track_ids.unique()
+            class_ids = torch.zeros_like(track_ids)
+            scores = torch.zeros(
                 (
                     len(
-                        all_track_ids,
+                        track_ids,
                     )
                 ),
-                device=all_track_ids.device,
+                device=track_ids.device,
             )
-            all_boxes = torch.zeros(
-                (len(all_track_ids), 4), device=all_track_ids.device
-            )
-            all_embeddings = torch.zeros(
-                (len(all_track_ids), memory_embeddings.size(1)),
-                device=all_track_ids.device,
+            boxes = torch.zeros((len(track_ids), 4), device=track_ids.device)
+            embeddings = torch.zeros(
+                (len(track_ids), memory.embeddings.size(1)),
+                device=track_ids.device,
             )
 
             # calculate exponential moving average of embedding across memory
-            for i, track_id in enumerate(all_track_ids):
-                track_mask = (memory_track_ids == track_id).nonzero()[0]
-                all_boxes[i] = memory_boxes[track_mask][0]
-                all_scores[i] = memory_scores[track_mask][0]
-                all_class_ids[i] = memory_class_ids[track_mask][0]
-                embeddings = memory_embeddings[track_mask]
-                embedding = embeddings[0]
-                for mem_embed in embeddings[1:]:
-                    embedding = (
+            for i, track_id in enumerate(track_ids):
+                track_mask = (memory.track_ids == track_id).nonzero(
+                    as_tuple=True
+                )[0]
+                boxes[i] = memory.boxes[track_mask][-1]
+                scores[i] = memory.scores[track_mask][-1]
+                class_ids[i] = memory.class_ids[track_mask][-1]
+                embeds = memory.embeddings[track_mask]
+                embed = embeds[0]
+                for mem_embed in embeds[1:]:
+                    embed = (
                         1 - self.memo_momentum
-                    ) * embedding + self.memo_momentum * mem_embed
-                all_embeddings[i] = embedding
+                    ) * embed + self.memo_momentum * mem_embed
+                embeddings[i] = memory.embeddings[track_mask][-1]
         else:
-            all_track_ids = torch.empty((0,), dtype=torch.int64, device=device)
-            all_class_ids = torch.empty((0,), dtype=torch.int64, device=device)
-            all_scores = torch.empty((0,), device=device)
-            all_boxes = torch.empty((0, 4), device=device)
-            all_embeddings = torch.empty((0, 1), device=device)
+            track_ids = torch.empty((0,), dtype=torch.int64, device=device)
+            class_ids = torch.empty((0,), dtype=torch.int64, device=device)
+            scores = torch.empty((0,), device=device)
+            boxes = torch.empty((0, 4), device=device)
+            embeddings = torch.empty((0, 1), device=device)
 
-        return QDTrackState(
-            all_track_ids, all_boxes, all_scores, all_class_ids, all_embeddings
-        )
+        # add backdrops
+        if len(self.backdrop_frames) > 0:
+            backdrops = self._concat_states(self.backdrop_frames)
+            track_ids = torch.cat([track_ids, backdrops.track_ids])
+            boxes = torch.cat([boxes, backdrops.boxes])
+            scores = torch.cat([scores, backdrops.scores])
+            class_ids = torch.cat([class_ids, backdrops.class_ids])
+            if backdrops.embeddings.size(1) != embeddings.size(1):
+                assert (
+                    len(embeddings) == 0
+                ), "Unequal shape of backdrop embeddings and track embeddings!"
+                embeddings = torch.empty(
+                    (0, backdrops.embeddings.size(1)), device=device
+                )
+            embeddings = torch.cat([embeddings, backdrops.embeddings])
+
+        return QDTrackState(track_ids, boxes, scores, class_ids, embeddings)
 
 
 # @torch.jit.script TODO
 class QDTrackAssociation:
-    """Tracking component relying on quasi-dense instance similarity.
+    """Data association relying on quasi-dense instance similarity.
 
     This class assigns detection candidates to a given memory of existing
-    tracks.
+    tracks and backdrops.
+    Backdrops are low-score detections kept in case they have high
+    similarity with a high-score detection in succeeding frames.
 
     Attributes:
-        keep_in_memory: threshold for keeping occluded objects in memory
         init_score_thr: Confidence threshold for initializing a new track
         obj_score_thr: Confidence treshold s.t. a detection is considered in
         the track / det matching process.
@@ -230,39 +262,30 @@ class QDTrackAssociation:
         an existing track.
         memo_backdrop_frames: Number of timesteps to keep backdrops.
         memo_momentum: Momentum of embedding memory for smoothing embeddings.
-        nms_conf_thr:
         nms_backdrop_iou_thr: Maximum IoU of a backdrop with another detection.
         nms_class_iou_thr: Maximum IoU of a high score detection with another
         of a different class.
         with_cats: If to consider category information for tracking (i.e. all
         detections within a track must have consistent category labels).
-
-        Note: Backdrops are low-score detections kept in case they have high
-        similarity with a high-score detection in succeeding frames.
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
-        keep_in_memory: int = 10,
         init_score_thr: float = 0.7,
         obj_score_thr: float = 0.3,
         match_score_thr: float = 0.5,
-        nms_conf_thr: float = 0.5,
         nms_backdrop_iou_thr: float = 0.3,
         nms_class_iou_thr: float = 0.7,
         with_cats: bool = True,
     ) -> None:
         """Init."""
         super().__init__()
-        self.keep_in_memory = keep_in_memory
         self.init_score_thr = init_score_thr
         self.obj_score_thr = obj_score_thr
         self.match_score_thr = match_score_thr
-        self.nms_conf_thr = nms_conf_thr
         self.nms_backdrop_iou_thr = nms_backdrop_iou_thr
         self.nms_class_iou_thr = nms_class_iou_thr
         self.with_cats = with_cats
-        self.embed_dim = 256  # TODO
 
     def _filter_detections(
         self,
@@ -276,18 +299,21 @@ class QDTrackAssociation:
         """Remove overlapping objects across classes via nms.
 
         Args:
-            detections (torch.Tensor): _description_
-            scores (torch.Tensor): _description_
-            class_ids (torch.Tensor): _description_
-            embeddings (torch.Tensor): _description_
+            detections (torch.Tensor): [N, 4] Tensor of boxes.
+            scores (torch.Tensor): [N,] Tensor of confidence scores.
+            class_ids (torch.Tensor): [N,] Tensor of class ids.
+            embeddings (torch.Tensor): [N, C] tensor of appearance embeddings.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: _description_
+            Tuple[torch.Tensor]: filtered detections, scores, class_ids, embeddings, and filtered indices.
         """
-        # duplicate removal for potential backdrops and cross classes
         scores, inds = scores.sort(descending=True)
-        detections, embeddings = detections[inds], embeddings[inds]
-        valids = scores > self.obj_score_thr
+        detections, embeddings, class_ids = (
+            detections[inds],
+            embeddings[inds],
+            class_ids[inds],
+        )
+        valids = embeddings.new_ones((len(detections),), dtype=torch.bool)
         ious = bbox_iou(detections, detections)
         for i in range(1, len(detections)):
             if scores[i] < self.obj_score_thr:
@@ -313,7 +339,20 @@ class QDTrackAssociation:
         memory_class_ids: torch.Tensor,
         memory_embeddings: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Process inputs, match detections with existing tracks."""
+        """Process inputs, match detections with existing tracks.
+
+        Args:
+            detections (torch.Tensor): [N, 4] detected boxes.
+            detection_scores (torch.Tensor): [N,] confidence scores.
+            detection_class_ids (torch.Tensor): [N,] class indices.
+            detection_embeddings (torch.Tensor): [N, C] appearance embeddings.
+            memory_track_ids (torch.Tensor): [M,] track ids in memory.
+            memory_class_ids (torch.Tensor): [M,] class indices in memory.
+            memory_embeddings (torch.Tensor): [M, C] appearance embeddings in memory.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: track ids of active tracks, selected detection indices corresponding to tracks.
+        """
         (
             detections,
             detection_scores,
@@ -334,13 +373,18 @@ class QDTrackAssociation:
         # match if buffer is not empty
         if len(memory_track_ids) > 0:
             affinity_scores = calc_bisoftmax_affinity(
-                detection_class_ids,
                 detection_embeddings,
-                memory_class_ids,
                 memory_embeddings,
+                detection_class_ids,
+                memory_class_ids,
+                self.with_cats,
             )
             ids = greedy_assign(
-                detection_scores, memory_track_ids, affinity_scores
+                detection_scores,
+                memory_track_ids,
+                affinity_scores,
+                self.match_score_thr,
+                self.obj_score_thr,
             )
         else:
             ids = torch.full(
@@ -351,5 +395,7 @@ class QDTrackAssociation:
             )
 
         new_inds = (ids == -1) & (detection_scores > self.init_score_thr)
-        ids[new_inds] = random_ids(new_inds.sum(), device=ids.device)
-        return ids[permute_inds], permute_inds
+        ids[new_inds] = TrackIDCounter.get_ids(
+            new_inds.sum(), device=ids.device
+        )
+        return ids, permute_inds

@@ -1,4 +1,5 @@
 """Faster RCNN tests."""
+import random
 import unittest
 from typing import Optional, Tuple
 
@@ -9,8 +10,8 @@ from torch.utils.data import DataLoader, Dataset
 
 from vis4d.common.datasets import bdd100k_track_map, bdd100k_track_sample
 from vis4d.data.utils import transform_bbox
-from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
+from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D
 
@@ -69,17 +70,19 @@ class SampleDataset(Dataset):
     def __init__(
         self,
         im_wh: Optional[Tuple[int, int]] = None,
+        sample_reference_view: bool = False,
     ):
         """Init."""
         self.im_wh = im_wh
         self.scalabel_data = bdd100k_track_sample()
+        self.sample_reference_view = sample_reference_view
 
     def __len__(self):
         """Length."""
         return len(self.scalabel_data.frames)
 
-    def __getitem__(self, item):
-        """Get data sample at given index."""
+    def _prepare_sample(self, item):
+        """Prepare single frame into data."""
         frame = self.scalabel_data.frames[item]
         img = url_to_tensor(frame.url, im_wh=self.im_wh)
         labels = Boxes2D.from_scalabel(frame.labels, bdd100k_track_map)
@@ -99,8 +102,28 @@ class SampleDataset(Dataset):
             frame.frameIndex - 165,
         )
 
+    def _get_ref_item(self, item):
+        """Get dataset index of a possible reference view."""
+        key_frame = self.scalabel_data.frames[item]
+        video_name = key_frame.videoName
+        video_indices = [
+            i
+            for i, frame in enumerate(self.scalabel_data.frames)
+            if frame.videoName == video_name
+        ]
+        return video_indices[random.randint(0, len(video_indices) - 1)]
+
+    def __getitem__(self, item):
+        """Get data sample at given index."""
+        key_data = self._prepare_sample(item)
+        if self.sample_reference_view:
+            ref_data = self._prepare_sample(self._get_ref_item(item))
+            return key_data, ref_data
+        return key_data
+
 
 def identity_collate(batch):
+    """Identity function for batch collate."""
     return tuple(zip(*batch))
 
 

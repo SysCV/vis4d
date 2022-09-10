@@ -95,7 +95,6 @@ class DefaultWriterCallback(BaseWriterCallback):
         self._visualize = visualize
         self.viewer: Optional[LabelViewer] = None
         self.save_func = dataset_loader.save_predictions
-
         if self._output_dir is not None:
             os.makedirs(self._output_dir, exist_ok=True)
 
@@ -108,13 +107,42 @@ class DefaultWriterCallback(BaseWriterCallback):
                 metadata = inp[0].metadata[0]
                 prediction = copy.deepcopy(metadata)
                 prediction.labels = out
-                self._predictions[key].append(prediction)
+                if not "group" in key:
+                    self._predictions[key].append(prediction)
                 if self._visualize:
                     reset_viewer = metadata.frameIndex in [None, 0]
                     if isinstance(prediction, FrameGroup):
-                        rank_zero_warn(  # pragma: no cover
-                            "Visualization don't support multi-sensor dataset."
-                        )
+                        if "group" in key:
+                            for cam, boxes3d in out.items():
+                                if not bool(boxes3d):
+                                    prediction = copy.deepcopy(
+                                        inp[0].metadata[0]
+                                    )
+                                    prediction.name = f"{prediction.name}.jpg"
+                                    images = inp[0].images
+                                    prediction.labels = None
+                                else:
+                                    metadata = boxes3d["input"].metadata[0]
+                                    prediction = copy.deepcopy(metadata)
+                                    prediction.labels = boxes3d["out"]
+                                    images = boxes3d["input"].images
+                                save_dir = os.path.join(
+                                    self._output_dir,
+                                    f"{key}_visualization",
+                                    prediction.videoName,
+                                )
+                                prediction.videoName = (
+                                    f"{prediction.videoName}_{cam}"
+                                )
+                                self.do_visualization(
+                                    metadata,
+                                    prediction,
+                                    save_dir,
+                                    images,
+                                    reset_viewer=reset_viewer,
+                                )
+                                if reset_viewer:
+                                    reset_viewer = False
                     else:
                         save_dir = os.path.join(
                             self._output_dir, f"{key}_visualization"

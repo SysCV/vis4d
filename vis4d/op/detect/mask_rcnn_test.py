@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader, Dataset
 
 from vis4d.common.bbox.utils import apply_mask
 from vis4d.common.datasets import bdd100k_segtrack_sample, bdd100k_track_map
-from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.detect.rcnn import (
     Det2Mask,
     MaskRCNNHead,
@@ -18,6 +17,7 @@ from vis4d.op.detect.rcnn import (
     RCNNLoss,
     RoI2Det,
 )
+from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D, InstanceMasks
 from vis4d.struct.labels import Masks

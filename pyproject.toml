@@ -11,6 +11,9 @@ python_files = "*_test.py"
 profile = "black"
 line_length = 79
 
+[tool.pyright]
+include = ["vis4d"]
+
 [tool.coverage]
     [tool.coverage.report]
         exclude_lines = [

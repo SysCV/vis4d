@@ -13,7 +13,11 @@ from ..utils import cosine_similarity
 
 
 class QDSimilarityHead(nn.Module):
-    """Instance embedding head for quasi-dense similarity learning."""
+    """Instance embedding head for quasi-dense similarity learning.
+
+    Given a set of input feature maps and RoIs, pool RoI representations from
+    feature maps and process them to a per-RoI embeddings vector.
+    """
 
     def __init__(
         self,
@@ -116,13 +120,28 @@ class QDSimilarityHead(nn.Module):
         return embeddings
 
 
-class QDTrackInstanceSimilarityLosses(NamedTuple):  # TODO name
+class QDTrackInstanceSimilarityLosses(NamedTuple):
+    """QDTrack losses return type. Consists of two scalar loss tensors."""
+
     track_loss: torch.Tensor
     track_loss_aux: torch.Tensor
 
 
 class QDTrackInstanceSimilarityLoss(nn.Module):
+    """Instance similarity loss as in QDTrack.
+
+    Given a number of key frame embeddings and a number of reference frame
+    embeddings along with their track identities, compute two losses:
+    1. Multi-positive cross-entropy loss.
+    2. Cosine similarity loss (auxiliary).
+    """
+
     def __init__(self, softmax_temp: float = -1):
+        """Init.
+
+        Args:
+            softmax_temp (float, optional): Temperature parameter for multi-positive cross-entropy loss. Defaults to -1.
+        """
         super().__init__()
         self.softmax_temp = softmax_temp
         self.track_loss = MultiPosCrossEntropyLoss(loss_weight=0.25)
@@ -147,8 +166,13 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
         negatives in ref have track_id -1
 
         Args:
+            key_embeddings (List[torch.Tensor]): key frame embeddings.
+            ref_embeddings (List[List[torch.Tensor]]): reference frame embeddings.
+            key_track_ids (List[torch.Tensor]): associated track ids per embedding in key frame.
+            ref_track_ids (List[List[torch.Tensor]]):  associated track ids per embedding in reference frame(s).
 
         Returns:
+            QDTrackInstanceSimilarityLosses: Scalar loss tensors.
         """
         if sum(len(e) for e in key_embeddings) == 0:  # pragma: no cover
             dummy_loss = torch.sum([e.sum() for e in key_embeddings])
@@ -218,7 +242,7 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
         key_embeds: List[torch.Tensor],
         ref_embeds: List[List[torch.Tensor]],
     ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
-        """Match key / ref embeddings based on cosine similarity."""
+        """Calculate distances for all pairs of key / ref embeddings."""
         # for each reference view
         dists, cos_dists = [], []
         for ref_embed in ref_embeds:

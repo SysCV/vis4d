@@ -4,7 +4,10 @@ from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import torch
+from matplotlib import patches as mpatches
+from matplotlib.ticker import MultipleLocator
 from PIL import Image, ImageDraw, ImageFont
 from torch import Tensor
 
@@ -67,7 +70,8 @@ def imshow_bboxes(
     for box, col, label in zip(box_list, color_list, label_list):
         draw_bbox(image, box, col, label)
 
-    imshow(image)
+    return np.asarray(image)
+    # imshow(image)
 
 
 def imshow_bboxes3d(
@@ -104,6 +108,242 @@ def imshow_masks(
         draw_mask(image, mask, col)
 
     imshow(image)
+
+
+def draw_bev_canvas(
+    x_min: int = -55,
+    x_max: int = 55,
+    y_min: int = -55,
+    y_max: int = 55,
+    fig_size: int = 10,
+    dpi: int = 100,
+    interval: int = 10,
+):
+    # Create canvas
+    # sns.set(style="darkgrid")
+    fig, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=dpi)
+    ax.axis("off")
+    # for key, spine in ax.spines.items():
+    #    spine.set_visible(False)
+
+    # Set x, y limit and mark border
+    ax.set_aspect("equal", adjustable="datalim")
+    ax.set_xlim(x_min - 1, x_max + 1)
+    ax.set_ylim(y_min - 1, y_max + 1)
+    ax.tick_params(axis="both", labelbottom=False, labelleft=False)
+    ax.xaxis.set_minor_locator(MultipleLocator(interval))
+    ax.yaxis.set_minor_locator(MultipleLocator(interval))
+
+    for radius in range(y_max, -1, -interval):
+        # Mark all around sector
+        ax.add_patch(
+            mpatches.Wedge(
+                center=[0, 0],
+                alpha=0.1,
+                aa=True,
+                r=radius,
+                theta1=-180,
+                theta2=180,
+                fc="black",
+            )
+        )
+
+        # Mark range
+        if radius / np.sqrt(2) + 8 < x_max:
+            ax.text(
+                radius / np.sqrt(2) + 3,
+                radius / np.sqrt(2) - 5,
+                f"{radius}m",
+                rotation=-45,
+                color="darkblue",
+                fontsize="xx-large",
+            )
+
+    # Mark camera FOVs
+    # front
+    ax.add_patch(
+        mpatches.Wedge(
+            center=[0, 0],
+            alpha=0.1,
+            aa=True,
+            r=y_max,
+            theta1=115,
+            theta2=185,
+            fc="cyan",
+        )
+    )
+
+    # front left
+    ax.add_patch(
+        mpatches.Wedge(
+            center=[0, 0],
+            alpha=0.1,
+            aa=True,
+            r=y_max,
+            theta1=25,
+            theta2=125,
+            fc="cyan",
+        )
+    )
+    # front right
+    ax.add_patch(
+        mpatches.Wedge(
+            center=[0, 0],
+            alpha=0.1,
+            aa=True,
+            r=y_max,
+            theta1=35,
+            theta2=125,
+            fc="cyan",
+        )
+    )
+    # back
+    ax.add_patch(
+        mpatches.Wedge(
+            center=[0, 0],
+            alpha=0.1,
+            aa=True,
+            r=y_max,
+            theta1=35,
+            theta2=125,
+            fc="cyan",
+        )
+    )
+    # back left
+    ax.add_patch(
+        mpatches.Wedge(
+            center=[0, 0],
+            alpha=0.1,
+            aa=True,
+            r=y_max,
+            theta1=35,
+            theta2=125,
+            fc="cyan",
+        )
+    )
+    # back right
+    ax.add_patch(
+        mpatches.Wedge(
+            center=[0, 0],
+            alpha=0.1,
+            aa=True,
+            r=y_max,
+            theta1=35,
+            theta2=125,
+            fc="cyan",
+        )
+    )
+
+    # Mark ego-vehicle
+    ax.arrow(0, 0, 0, 3, color="black", width=0.5, overhang=0.3)
+    return fig, ax
+
+
+def draw_bev_box(ax, box, color, label, hist, line_width: int = 2):
+    center = np.array(box[:2])
+    yaw = box[8]
+    l = box[5]
+    w = box[4]
+    color = tuple((np.array(color) / 255).tolist())
+
+    # Calculate length, width of object
+    vec_l = [l * np.cos(yaw), -l * np.sin(yaw)]
+    vec_w = [-w * np.cos(yaw - np.pi / 2), w * np.sin(yaw - np.pi / 2)]
+    vec_l = np.array(vec_l)
+    vec_w = np.array(vec_w)
+
+    # Make 4 points
+    p1 = center + 0.5 * vec_l - 0.5 * vec_w
+    p2 = center + 0.5 * vec_l + 0.5 * vec_w
+    p3 = center - 0.5 * vec_l + 0.5 * vec_w
+    p4 = center - 0.5 * vec_l - 0.5 * vec_w
+
+    # Plot object
+    line_style = "-"
+    ax.plot(
+        [p1[0], p2[0]],
+        [p1[1], p2[1]],
+        line_style,
+        c=color,
+        linewidth=3 * line_width,
+    )
+    ax.plot(
+        [p1[0], p4[0]],
+        [p1[1], p4[1]],
+        line_style,
+        c=color,
+        linewidth=line_width,
+    )
+    ax.plot(
+        [p3[0], p2[0]],
+        [p3[1], p2[1]],
+        line_style,
+        c=color,
+        linewidth=line_width,
+    )
+    ax.plot(
+        [p3[0], p4[0]],
+        [p3[1], p4[1]],
+        line_style,
+        c=color,
+        linewidth=line_width,
+    )
+
+    # Plot center history
+    if len(hist) > 0:
+        yaw_hist = hist[:, 8]
+        center_hist = hist[:, :2]
+        for index, ct in enumerate(center_hist):
+            yaw = yaw_hist[index].item()
+            vec_l = np.array([l * np.cos(yaw), -l * np.sin(yaw)])
+            ct_dir = ct + 0.5 * vec_l
+            alpha = max(float(index) / len(center_hist), 0.5)
+            ax.plot(
+                [ct[0], ct_dir[0]],
+                [ct[1], ct_dir[1]],
+                line_style,
+                alpha=alpha,
+                c=color,
+                linewidth=line_width,
+            )
+            ax.scatter(
+                ct[0],
+                ct[1],
+                alpha=alpha,
+                c=np.array([color]),
+                linewidth=line_width,
+            )
+
+
+def draw_bev(boxes3d: Box3DType, history: List[Box3DType]) -> np.ndarray:
+    fig, ax = draw_bev_canvas()
+
+    box_list, col_list, label_list = preprocess_boxes(boxes3d)
+    for box, col, label in zip(box_list, col_list, label_list):
+        track_id = int(label.split(",")[0])
+        hist = []
+        for hist_boxes3d in history:
+            for box3d in hist_boxes3d:
+                if box3d.track_ids[0] == track_id:
+                    hist.append(box3d.boxes[0])
+        if len(hist) > 0:
+            hist = torch.stack(hist, 0)
+        draw_bev_box(ax, box, col, label, hist)
+
+    fig.canvas.figure.tight_layout()
+    fig.canvas.draw()
+
+    w, h = fig.canvas.get_width_height()
+
+    # canvas.tostring_argb give pixmap in ARGB mode.
+    buf = np.frombuffer(fig.canvas.tostring_argb(), dtype=np.uint8)
+    plt.close(fig)
+
+    buf.shape = (h, w, 4)  # last dim: (alpha, r, g, b)
+
+    # Take only RGB
+    buf = buf[:, :, 1:]
+    return buf
 
 
 def draw_image(

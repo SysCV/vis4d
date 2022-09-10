@@ -12,8 +12,6 @@ from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.utils import multiclass_nms
 from vis4d.common.mask.mask_ops import paste_masks_in_image
 from vis4d.op.losses.utils import l1_loss, weight_reduce_loss
-from vis4d.op.utils import segmentations_from_mmdet
-from vis4d.struct import Masks
 
 
 class RCNNOut(NamedTuple):
@@ -28,7 +26,11 @@ class RCNNOut(NamedTuple):
 
 
 class RCNNHead(nn.Module):
-    """FasterRCNN RoI head."""
+    """FasterRCNN RoI head.
+
+    This head pools the RoIs from a set of feature maps and processes them
+    into classification / regression outputs.
+    """
 
     def __init__(
         self,
@@ -213,7 +215,11 @@ class RCNNLosses(NamedTuple):
 
 
 class RCNNLoss(nn.Module):
-    """RCNN loss in FasterRCNN."""
+    """RCNN loss in FasterRCNN.
+
+    This class computes the loss of RCNN given proposal boxes and their
+    corresponding target boxes with the given box encoder.
+    """
 
     def __init__(
         self, box_encoder: DeltaXYWHBBoxEncoder, num_classes: int = 80
@@ -238,13 +244,13 @@ class RCNNLoss(nn.Module):
         """Generate targets per image.
 
         Args:
-            boxes (Tensor): _description_
-            labels (Tensor): _description_
-            target_boxes (Tensor): _description_
-            target_classes (Tensor): _description_
+            boxes (Tensor): [N, 4] tensor of proposal boxes
+            labels (Tensor): [N,] tensor of positive / negative / ignore labels
+            target_boxes (Tensor): [N, 4] Assigned target boxes.
+            target_classes (Tensor): [N,] Assigned target class labels.
 
         Returns:
-            RCNNTargets: _description_
+            RCNNTargets: Box / class label tensors and weights.
         """
         pos_mask, neg_mask = labels == 1, labels == 0
         num_pos, num_neg = int(pos_mask.sum()), int(neg_mask.sum())
@@ -285,12 +291,12 @@ class RCNNLoss(nn.Module):
         """Calculate losses of RCNN head.
 
         Args:
-            class_outs (torch.Tensor): [M*B, num_classes]
-            regression_outs (torch.Tensor): Tensor[M*B, regression_params]
-            boxes (List[torch.Tensor]): [M, 4] len B
+            class_outs (torch.Tensor): [M*B, num_classes] classification outputs.
+            regression_outs (torch.Tensor): Tensor[M*B, regression_params] regression outputs.
+            boxes (List[torch.Tensor]): [M, 4] proposal boxes per batch element.
             boxes_mask (List[torch.Tensor]): positive (1), ignore (-1), negative (0)
-            target_boxes (List[torch.Tensor]): [M, 4] len B
-            target_classes (List[torch.Tensor]): [M,] len B
+            target_boxes (List[torch.Tensor]): list of [M, 4] assigned target boxes for each proposal.
+            target_classes (List[torch.Tensor]): list of [M,] assigned target classes for each proposal.
 
         Returns:
             RCNNLosses: classification and regression losses.

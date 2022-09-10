@@ -1,31 +1,85 @@
 """Quasi-dense instance similarity learning model."""
+import argparse
+import copy
+import warnings
+from time import perf_counter
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from pytorch_lightning.utilities.cli import instantiate_class
+import torch.optim as optim
 from torch import nn
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.samplers import (
     CombinedSampler,
     match_and_sample_proposals,
 )
-from vis4d.common.data_pipelines import default as default_augs
-from vis4d.op.optimize import DefaultOptimizer
-from vis4d.op.track.graph import QDTrackAssociation
-from vis4d.op.track.qdtrack import QDTrackMemory, QDTrackState
+from vis4d.common.data_pipelines import default
+from vis4d.common.datasets import (
+    bdd100k_det_train,
+    bdd100k_track_map,
+    bdd100k_track_train,
+    bdd100k_track_val,
+)
+from vis4d.data import (
+    BaseDatasetHandler,
+    BaseReferenceSampler,
+    BaseSampleMapper,
+    ScalabelDataset,
+)
+from vis4d.data.transforms import Resize
+from vis4d.op.base.resnet import ResNet
+from vis4d.op.detect.faster_rcnn import (
+    FasterRCNNHead,
+    FRCNNOut,
+    get_default_anchor_generator,
+    get_default_rcnn_box_encoder,
+    get_default_rpn_box_encoder,
+)
+from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
+from vis4d.op.detect.rcnn import DetOut, RCNNLoss, RCNNLosses, RoI2Det
+from vis4d.op.detect.rpn import RPNLoss, RPNLosses
+from vis4d.op.fpp.fpn import FPN
+from vis4d.op.track.graph.assignment import TrackIDCounter
+from vis4d.op.track.qdtrack import (
+    QDTrackAssociation,
+    QDTrackMemory,
+    QDTrackState,
+)
 from vis4d.op.track.similarity.qdtrack import (
     QDSimilarityHead,
     QDTrackInstanceSimilarityLoss,
 )
-from vis4d.struct import ArgsType
+from vis4d.struct import Boxes2D, InputSample
 
-try:
-    from mmdet.core.bbox.assigners import SimOTAAssigner
+REV_KEYS = [
+    (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),
+    ("\.rpn_reg\.", ".rpn_box."),
+    (r"^detector.roi_head.mm_roi_head.bbox_head\.", "roi_head."),
+    (r"^detector.backbone.mm_backbone\.", "body."),
+    (
+        r"^detector.backbone.neck.mm_neck.lateral_convs\.",
+        "inner_blocks.",
+    ),
+    (
+        r"^detector.backbone.neck.mm_neck.fpn_convs\.",
+        "layer_blocks.",
+    ),
+    ("\.conv.weight", ".weight"),
+    ("\.conv.bias", ".bias"),
+]
 
-    MMDET_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMDET_INSTALLED = False
+warnings.filterwarnings("ignore")
+
+log_step = 100
+num_epochs = 12
+batch_size = 8
+learning_rate = 0.02 / 16 * batch_size
+train_resolution = (720, 1280)
+test_resolution = (720, 1280)
+device = torch.device("cuda:7")
 
 
 class QDTrack(nn.Module):
@@ -128,6 +182,7 @@ class QDTrack(nn.Module):
             ref_track_ids.append(current_track_ids)
         return key_embeddings, ref_embeddings, key_track_ids, ref_track_ids
 
+    @torch.no_grad()
     def _sample_proposals(
         self,
         det_boxes: List[torch.Tensor],
@@ -200,12 +255,13 @@ class QDTrack(nn.Module):
         for frame_id, box, score, cls_id, embeds in zip(
             frame_ids, det_boxes, det_scores, det_class_ids, embeddings
         ):
-            # reset graph at begin of sequence TODO move outside
+            # reset graph at begin of sequence
             if frame_id == 0:
                 self.track_memory.reset()
+                TrackIDCounter.reset()
 
             cur_memory = self.track_memory.get_current_tracks(box.device)
-            track_ids, filter_indcs = self.track_graph(
+            track_ids, filter_indices = self.track_graph(
                 box,
                 score,
                 cls_id,
@@ -217,10 +273,10 @@ class QDTrack(nn.Module):
 
             data = QDTrackState(
                 track_ids,
-                box[filter_indcs],
-                score[filter_indcs],
-                cls_id[filter_indcs],
-                embeds[filter_indcs],
+                box[filter_indices],
+                score[filter_indices],
+                cls_id[filter_indices],
+                embeds[filter_indices],
             )
             self.track_memory.update(data)
             batched_tracks.append(self.track_memory.last_frame)
@@ -228,122 +284,228 @@ class QDTrack(nn.Module):
         return batched_tracks
 
 
-class ClippedSimOTAAssigner(SimOTAAssigner):  # type: ignore
-    """Modified SimOTAAssigner to support boxes with center outside of img."""
+class QDTrackModel(nn.Module):
+    """Wrap qdtrack with detector."""
 
-    def __init__(self, h: int, w: int, *args, **kwargs) -> None:
+    def __init__(self) -> None:
         """Init."""
-        super().__init__(*args, **kwargs)
-        self.im_h, self.im_w = h, w
-
-    def get_in_gt_and_in_center_info(self, priors, gt_bboxes):
-        """Compute labels for classification branch."""
-        num_gt = gt_bboxes.size(0)
-
-        repeated_x = priors[:, 0].unsqueeze(1).repeat(1, num_gt)
-        repeated_y = priors[:, 1].unsqueeze(1).repeat(1, num_gt)
-        repeated_stride_x = priors[:, 2].unsqueeze(1).repeat(1, num_gt)
-        repeated_stride_y = priors[:, 3].unsqueeze(1).repeat(1, num_gt)
-
-        # is prior centers in gt bboxes, shape: [n_prior, n_gt]
-        l_ = repeated_x - gt_bboxes[:, 0]
-        t_ = repeated_y - gt_bboxes[:, 1]
-        r_ = gt_bboxes[:, 2] - repeated_x
-        b_ = gt_bboxes[:, 3] - repeated_y
-
-        deltas = torch.stack([l_, t_, r_, b_], dim=1)
-        is_in_gts = deltas.min(dim=1).values > 0
-        is_in_gts_all = is_in_gts.sum(dim=1) > 0
-
-        gt_cxs = torch.clamp(
-            (gt_bboxes[:, 0] + gt_bboxes[:, 2]) / 2.0, min=0, max=self.im_w
+        super().__init__()
+        anchor_gen = get_default_anchor_generator()
+        rpn_bbox_encoder = get_default_rpn_box_encoder()
+        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
+        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        self.fpn = FPN(self.backbone.out_channels[2:], 256)
+        self.faster_rcnn_heads = FasterRCNNHead(
+            num_classes=8,
+            anchor_generator=anchor_gen,
+            rpn_box_encoder=rpn_bbox_encoder,
+            rcnn_box_encoder=rcnn_bbox_encoder,
         )
-        gt_cys = torch.clamp(
-            (gt_bboxes[:, 1] + gt_bboxes[:, 3]) / 2.0, min=0, max=self.im_h
-        )
+        self.transform_detections = RoI2Det(rcnn_bbox_encoder)
+        self.qdtracker = QDTrack()
 
-        ct_box_l = gt_cxs - self.center_radius * repeated_stride_x
-        ct_box_t = gt_cys - self.center_radius * repeated_stride_y
-        ct_box_r = gt_cxs + self.center_radius * repeated_stride_x
-        ct_box_b = gt_cys + self.center_radius * repeated_stride_y
-
-        cl_ = repeated_x - ct_box_l
-        ct_ = repeated_y - ct_box_t
-        cr_ = ct_box_r - repeated_x
-        cb_ = ct_box_b - repeated_y
-
-        ct_deltas = torch.stack([cl_, ct_, cr_, cb_], dim=1)
-        is_in_cts = ct_deltas.min(dim=1).values > 0
-        is_in_cts_all = is_in_cts.sum(dim=1) > 0
-
-        # in boxes or in centers, shape: [num_priors]
-        is_in_gts_or_centers = is_in_gts_all | is_in_cts_all
-
-        # both in boxes and centers, shape: [num_fg, num_gt]
-        is_in_boxes_and_centers = (
-            is_in_gts[is_in_gts_or_centers, :]
-            & is_in_cts[is_in_gts_or_centers, :]
-        )
-        return is_in_gts_or_centers, is_in_boxes_and_centers
-
-
-class QDTrackYOLOX(QDTrack):
-    """QDTrack + YOLOX detector."""
-
-    def __init__(
+    def forward(
         self,
-        *args: ArgsType,
-        im_hw: Tuple[int, int] = (800, 1440),
-        **kwargs: ArgsType,
-    ) -> None:
-        """Init."""
-        super().__init__(*args, **kwargs)
-        assert MMDET_INSTALLED, "QDTrackYOLOX needs mmdet installed!"
-        self.im_hw = im_hw
-        if self.detector.bbox_head.mm_dense_head.train_cfg:
-            assign_args = (
-                self.detector.bbox_head.mm_dense_head.train_cfg.assigner
-            )
-            assign_args.pop("type")
-            self.detector.bbox_head.mm_dense_head.assigner = (
-                ClippedSimOTAAssigner(*im_hw, **assign_args)
-            )
+        images: torch.Tensor,
+        images_hw: List[Tuple[int, int]],
+        frame_ids: List[int],
+    ) -> List[QDTrackState]:
+        """Forward."""
+        return self._forward_test(images, images_hw, frame_ids)
 
-
-class YOLOXOptimize(DefaultOptimizer):
-    """QDTrack + YOLOX detector optimization routine."""
-
-    def __init__(
+    def _forward_test(
         self,
-        *args: ArgsType,
-        no_aug_epochs: int = 10,
-        **kwargs: ArgsType,
-    ) -> None:
-        """Init."""
-        super().__init__(*args, **kwargs)
-        self.no_aug_epochs = no_aug_epochs
-        assert hasattr(
-            self.model, "im_hw"
-        ), "Need image hw to reset augmentations"
-        self.im_hw = self.model.im_hw
+        images: torch.Tensor,
+        images_hw: List[Tuple[int, int]],
+        frame_ids: List[int],
+    ) -> List[QDTrackState]:
+        """Forward inference stage."""
+        features = self.backbone(images)
+        features = self.fpn(features)
+        detector_out = self.faster_rcnn_heads(features, images_hw)
 
-    def on_train_epoch_start(self):
-        """In the last training epochs: add L1 loss, turn off augmentations."""
-        if self.current_epoch >= self.trainer.max_epochs - self.no_aug_epochs:
-            self.detector.bbox_head.mm_dense_head.use_l1 = True
-            self.trainer.datamodule.train_datasets.transformations = (
-                default_augs(self.im_hw)
+        boxes, scores, class_ids = self.transform_detections(
+            *detector_out.roi, detector_out.proposals.boxes, images_hw
+        )
+        outs = self.qdtracker(features, boxes, scores, class_ids, frame_ids)
+        return outs
+
+
+## setup model
+qdtrack = QDTrackModel()
+qdtrack.to(device)
+
+optimizer = optim.SGD(qdtrack.parameters(), lr=learning_rate, momentum=0.9)
+scheduler = optim.lr_scheduler.MultiStepLR(
+    optimizer, milestones=[8, 11], gamma=0.1
+)
+
+## setup datasets
+train_sample_mapper = BaseSampleMapper(skip_empty_samples=True)
+train_sample_mapper.setup_categories(bdd100k_track_map)
+train_transforms = default(train_resolution)
+ref_sampler = BaseReferenceSampler(
+    scope=3, num_ref_imgs=1, skip_nomatch_samples=True
+)
+
+train_data = BaseDatasetHandler(
+    [
+        ScalabelDataset(bdd100k_det_train(), True, train_sample_mapper),
+        ScalabelDataset(
+            bdd100k_track_train(), True, train_sample_mapper, ref_sampler
+        ),
+    ],
+    clip_bboxes_to_image=True,
+    transformations=train_transforms,
+)
+train_loader = DataLoader(
+    train_data,
+    batch_size=batch_size,
+    shuffle=True,
+    collate_fn=identity_collate,
+    num_workers=batch_size // 2,
+)
+
+val_loader = bdd100k_track_val()
+test_sample_mapper = BaseSampleMapper()
+test_sample_mapper.setup_categories(bdd100k_track_map)
+test_transforms = [Resize(shape=test_resolution, keep_ratio=True)]
+test_data = BaseDatasetHandler(
+    [ScalabelDataset(val_loader, False, test_sample_mapper)],
+    transformations=test_transforms,
+)
+test_loader = DataLoader(
+    test_data,
+    batch_size=1,
+    shuffle=False,
+    collate_fn=identity_collate,
+    num_workers=2,
+)
+
+## validation loop
+@torch.no_grad()
+def validation_loop(model):
+    """Validate current model with test dataset."""
+    model.eval()
+    gts = []
+    preds = []
+    class_ids_to_name = {i: s for s, i in bdd100k_track_map.items()}
+    print("Running validation...")
+    for data in tqdm(test_loader):
+        data = InputSample.cat(data[0], device)
+        images = data.images.tensor
+        output_wh = data.images.image_sizes
+        frame_ids = [metadata.frameIndex for metadata in data.metadata]
+
+        outs = model(
+            normalize(images), [(h, w) for w, h in output_wh], frame_ids
+        )
+
+        for i, (metadata, out, wh) in enumerate(
+            zip(data.metadata, outs, output_wh)
+        ):
+            track_ids, boxes, scores, class_ids, _ = out
+            # from vis4d.vis.image import imshow_bboxes
+            # import matplotlib.pyplot as plt
+            # img = imshow_bboxes(images[i], boxes, scores, class_ids, track_ids)
+            # import os
+            # os.makedirs(f"example/{metadata.videoName}/", exist_ok=True)
+            # plt.imsave(f"example/{metadata.videoName}/{str(metadata.frameIndex).zfill(5)}.jpg", img)
+            # postprocess for eval
+            dets = Boxes2D(
+                torch.cat([boxes, scores.unsqueeze(-1)], -1),
+                class_ids=class_ids,
+                track_ids=track_ids,
             )
-            self.trainer.reset_train_dataloader(self)
+            dets.postprocess((metadata.size.width, metadata.size.height), wh)
 
-    def configure_optimizers(self):
-        """Configure optimizers and schedulers of model."""
-        params = []
-        for name, param in self.named_parameters():
-            param_group = {"params": [param]}
-            if "bias" in name or "norm" in name:
-                param_group["weight_decay"] = 0.0
-            params.append(param_group)
-        optimizer = instantiate_class(params, self.optimizer_init)
-        scheduler = instantiate_class(optimizer, self.lr_scheduler_init)
-        return [optimizer], [scheduler]
+            prediction = copy.deepcopy(metadata)
+            prediction.labels = dets.to_scalabel(class_ids_to_name)
+            preds.append(prediction)
+            gts.append(copy.deepcopy(metadata))
+
+    _, log_str = val_loader.evaluate("track", preds, gts)
+    print(log_str)
+
+
+## training loop
+def training_loop(model):
+    """Training loop."""
+    running_losses = {}
+    for epoch in range(num_epochs):
+        model.train()
+        for i, data in enumerate(train_loader):
+            data = InputSample.cat(data[0], device)
+
+            tic = perf_counter()
+            inputs, inputs_hw, gt_boxes, gt_class_ids = (
+                data.images.tensor,
+                [(wh[1], wh[0]) for wh in data.images.image_sizes],
+                [x.boxes for x in data.targets.boxes2d],
+                [x.class_ids for x in data.targets.boxes2d],
+            )
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward + backward + optimize
+            rpn_losses, rcnn_losses, outputs = model(
+                normalize(inputs), inputs_hw, gt_boxes, gt_class_ids
+            )
+            total_loss = sum((*rpn_losses, *rcnn_losses))
+            total_loss.backward()
+            optimizer.step()
+            toc = perf_counter()
+
+            # print statistics
+            losses = dict(
+                time=toc - tic,
+                loss=total_loss,
+                **rpn_losses._asdict(),
+                **rcnn_losses._asdict(),
+            )
+            for k, v in losses.items():
+                if k in running_losses:
+                    running_losses[k] += v
+                else:
+                    running_losses[k] = v
+            if i % log_step == (log_step - 1):
+                # model.visualize_proposals(inputs, outputs)
+                log_str = f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] "
+                for k, v in running_losses.items():
+                    log_str += f"{k}: {v / log_step:.3f}, "
+                print(log_str.rstrip(", "))
+                running_losses = {}
+
+        scheduler.step()
+        torch.save(
+            model.state_dict(),
+            f"vis4d-workspace/qdtrack_epoch_{epoch + 1}.pt",
+        )
+        validation_loop(model)
+    print("training done.")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="qdtrack bdd train/eval.")
+    parser.add_argument(
+        "-c", "--ckpt", default=None, help="path of model to eval"
+    )
+    args = parser.parse_args()
+    if args.ckpt is None:
+        training_loop(qdtrack)
+    else:
+        if args.ckpt == "pretrained":
+            from mmcv.runner.checkpoint import load_checkpoint
+
+            weights = "./qdtrack_r50_65point7.ckpt"
+            load_checkpoint(qdtrack.backbone, weights, revise_keys=REV_KEYS)
+            load_checkpoint(qdtrack.fpn, weights, revise_keys=REV_KEYS)
+            load_checkpoint(
+                qdtrack.faster_rcnn_heads, weights, revise_keys=REV_KEYS
+            )
+            load_checkpoint(qdtrack.qdtracker, weights, revise_keys=REV_KEYS)
+        else:
+            ckpt = torch.load(args.ckpt)
+            qdtrack.load_state_dict(ckpt)
+        validation_loop(qdtrack)

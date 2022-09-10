@@ -24,9 +24,9 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rpn_box_encoder,
 )
 from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
-from vis4d.op.fpp.fpn import FPN
-from vis4d.op.detect.rpn import RPNLoss, RPNLosses
 from vis4d.op.detect.rcnn import DetOut, RCNNLoss, RCNNLosses, RoI2Det
+from vis4d.op.detect.rpn import RPNLoss, RPNLosses
+from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D, InputSample
 
@@ -128,7 +128,6 @@ class FasterRCNN(nn.Module):
 
 ## setup model
 faster_rcnn = FasterRCNN()
-faster_rcnn.to(device)
 
 optimizer = optim.SGD(faster_rcnn.parameters(), lr=learning_rate, momentum=0.9)
 scheduler = optim.lr_scheduler.MultiStepLR(
@@ -189,10 +188,11 @@ def validation_loop(model):
         )
         output_wh = data.images.image_sizes[0]
 
-        (boxes, scores, class_ids), outputs = faster_rcnn(
+        (boxes, scores, class_ids), outputs = model(
             normalize(image), [(output_wh[1], output_wh[0])]
         )
 
+        # model.visualize_proposals(image, outputs, topk=10)
         # postprocess for eval
         dets = Boxes2D(
             torch.cat([boxes[0], scores[0].unsqueeze(-1)], -1),
@@ -252,7 +252,7 @@ def training_loop(model):
                 else:
                     running_losses[k] = v
             if i % log_step == (log_step - 1):
-                # model.visualize_proposals(image, outputs)
+                # model.visualize_proposals(inputs, outputs)
                 log_str = f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] "
                 for k, v in running_losses.items():
                     log_str += f"{k}: {v / log_step:.3f}, "
@@ -273,15 +273,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "-c", "--ckpt", default=None, help="path of model to eval"
     )
-    parser.add_argument("-n", "--num_gpus", default=1, help="number of gpus")
     args = parser.parse_args()
     if args.ckpt is None:
-        if args.num_gpus > 1:
-            faster_rcnn = nn.DataParallel(
-                faster_rcnn, device_ids=[device, torch.device("cuda:5")]
-            )
+        faster_rcnn.to(device)
         training_loop(faster_rcnn)
     else:
+        faster_rcnn.to(device)
         if args.ckpt == "mmdet":
             from vis4d.op.detect.faster_rcnn_test import REV_KEYS
 

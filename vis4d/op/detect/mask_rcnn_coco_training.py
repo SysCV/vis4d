@@ -23,7 +23,6 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rpn_box_encoder,
 )
 from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
-from vis4d.op.detect.rpn import RPNLoss, RPNLosses
 from vis4d.op.detect.rcnn import (
     Det2Mask,
     DetOut,
@@ -35,10 +34,11 @@ from vis4d.op.detect.rcnn import (
     RCNNLosses,
     RoI2Det,
 )
+from vis4d.op.detect.rpn import RPNLoss, RPNLosses
+from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D, Detections, InputSample, InstanceMasks, Masks
 from vis4d.vis.image import imshow_bboxes, imshow_masks
-from vis4d.op.fpp.fpn import FPN
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),

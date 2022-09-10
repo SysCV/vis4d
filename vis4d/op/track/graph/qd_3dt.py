@@ -19,7 +19,7 @@ from vis4d.struct import (
     LossesType,
 )
 
-from ..qdtrack import QDTrackAssociation
+# from ..qdtrack import QDTrackAssociation
 
 
 class Track(TypedDict):
@@ -35,7 +35,7 @@ class Track(TypedDict):
     acc_frame: int
 
 
-class QD3DTrackGraph(QDTrackAssociation):
+class QD3DTrackGraph(torch.nn.Module):
     """Tracking graph construction for QD-3DT."""
 
     def __init__(

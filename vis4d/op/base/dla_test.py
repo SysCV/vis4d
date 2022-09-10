@@ -28,8 +28,8 @@ class TestDLA(unittest.TestCase):
             feat = out[f"out{i}"]
             self.assertEqual(feat.shape[0], 2)
             self.assertEqual(feat.shape[1], channels[i])
-            self.assertEqual(feat.shape[2], 32 / (2**i))
-            self.assertEqual(feat.shape[3], 32 / (2**i))
+            self.assertEqual(feat.shape[2], 32 / (2 ** i))
+            self.assertEqual(feat.shape[3], 32 / (2 ** i))
 
     def test_dla46x_c(self) -> None:
         """Testcase for DLA46-X-C."""
@@ -45,8 +45,8 @@ class TestDLA(unittest.TestCase):
             feat = out[f"out{i}"]
             self.assertEqual(feat.shape[0], 2)
             self.assertEqual(feat.shape[1], channels[i])
-            self.assertEqual(feat.shape[2], 32 / (2**i))
-            self.assertEqual(feat.shape[3], 32 / (2**i))
+            self.assertEqual(feat.shape[2], 32 / (2 ** i))
+            self.assertEqual(feat.shape[3], 32 / (2 ** i))
 
     def test_dla_custom(self) -> None:
         """Testcase for custom DLA + DLAUp Neck."""
@@ -85,6 +85,6 @@ class TestDLA(unittest.TestCase):
         for i in range(6):
             feat = out[f"out{i}"]
             self.assertEqual(feat.shape[0], 2)
-            self.assertEqual(feat.shape[1], 16 * (2**i))
-            self.assertEqual(feat.shape[2], 32 / (2**i))
-            self.assertEqual(feat.shape[3], 32 / (2**i))
+            self.assertEqual(feat.shape[1], 16 * (2 ** i))
+            self.assertEqual(feat.shape[2], 32 / (2 ** i))
+            self.assertEqual(feat.shape[3], 32 / (2 ** i))

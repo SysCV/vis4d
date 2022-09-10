@@ -1,12 +1,15 @@
+"""Matching calculation utils."""
+from typing import Optional
+
 import torch
 
 
 def calc_bisoftmax_affinity(
-    detection_class_ids: torch.Tensor,
     detection_embeddings: torch.Tensor,
-    track_class_ids: torch.Tensor,
     track_embeddings: torch.Tensor,
-    with_categories: bool = True,
+    detection_class_ids: Optional[torch.Tensor] = None,
+    track_class_ids: Optional[torch.Tensor] = None,
+    with_categories: bool = False,
 ) -> torch.Tensor:
     """Calculate affinity matrix using bisoftmax metric."""
     feats = torch.mm(detection_embeddings, track_embeddings.t())
@@ -15,6 +18,9 @@ def calc_bisoftmax_affinity(
     similarity_scores = (d2t_scores + t2d_scores) / 2
 
     if with_categories:
+        assert (
+            detection_class_ids is not None and track_class_ids is not None
+        ), "Please provide class ids if with_categories=True!"
         cat_same = detection_class_ids.view(-1, 1) == track_class_ids.view(
             1, -1
         )

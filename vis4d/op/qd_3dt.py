@@ -121,6 +121,18 @@ class QD3DT(QDTrack):
         tracks.boxes3d[0].boxes[:, -1] = (
             tracks.boxes3d[0].score * tracks.boxes2d[0].score
         )
+
+        if group[0].metadata[0].frameIndex == 0:
+            self.track_buffer = []
+
+        import copy
+
+        self.track_buffer.insert(
+            0, copy.deepcopy(tracks.boxes3d[0].to(torch.device("cpu")))
+        )
+        if len(self.track_buffer) > 11:
+            self.track_buffer.pop(-1)
+
         tracks.boxes3d[0].transform(group.extrinsics.inverse())
 
         tracks_2d = (
@@ -139,3 +151,16 @@ class QD3DT(QDTrack):
             detect_3d=[tracks_3d],
             track_3d=[tracks_3d],
         )
+
+    def filer_distance(self, boxes3d: Boxes3D) -> torch.Tensor:
+        """Filter boxes3d on distance."""
+        if self.class_range_map is None or self.pure_det:
+            return torch.ones_like(boxes3d.score, dtype=torch.bool)
+        det_range = torch.tensor(
+            [
+                self.class_range_map[self.cat_mapping[int(class_id)]] + 2
+                for class_id in boxes3d.class_ids
+            ]
+        ).to(self.device)
+        radius = torch.linalg.norm(boxes3d.center[:, [0, 2]], dim=1)
+        return radius <= det_range

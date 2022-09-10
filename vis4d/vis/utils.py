@@ -83,8 +83,8 @@ def preprocess_boxes(
             draw_color = COLOR_PALETTE[color_idx % NUM_COLORS]
 
         label = ""
-        # if t is not None:
-        #     label += str(int(t))
+        if t is not None:
+            label += str(int(t))
         if c is not None:
             label += "," + str(int(c))
 
