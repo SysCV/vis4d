@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union, overload
 
 from torch import nn
 
-from vis4d.common.bbox.samplers import SamplingResult
+from vis4d.common_to_clean.bbox.samplers import SamplingResult
 from vis4d.struct import (
     Boxes2D,
     InputSample,

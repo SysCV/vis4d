@@ -7,10 +7,12 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.ops import roi_align
 
-from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
-from vis4d.common.bbox.poolers import MultiScaleRoIAlign
-from vis4d.common.bbox.utils import multiclass_nms
-from vis4d.common.mask.mask_ops import paste_masks_in_image
+from vis4d.common_to_clean.bbox.coders.delta_xywh_coder import (
+    DeltaXYWHBBoxEncoder,
+)
+from vis4d.common_to_clean.bbox.poolers import MultiScaleRoIAlign
+from vis4d.common_to_clean.bbox.utils import multiclass_nms
+from vis4d.common_to_clean.mask.mask_ops import paste_masks_in_image
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 

@@ -1,10 +1,13 @@
 """Segmentor runtime configuration."""
 from typing import List, Optional, Union
 
-from vis4d.common.datasets import bdd100k_seg_map
-from vis4d.common.models import build_deeplabv3plus, build_semantic_fpn
-from vis4d.common.optimizers import poly_schedule, sgd
-from vis4d.engine.trainer import BaseCLI
+from vis4d.common_to_clean.datasets import bdd100k_seg_map
+from vis4d.common_to_clean.models import (
+    build_deeplabv3plus,
+    build_semantic_fpn,
+)
+from vis4d.common_to_clean.optimizers import poly_schedule, sgd
+from vis4d.engine_to_clean.trainer import BaseCLI
 from vis4d.op.segment import MMEncDecSegmentor
 from vis4d.segment.data import SegmentDataModule
 

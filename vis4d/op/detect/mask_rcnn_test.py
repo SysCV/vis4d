@@ -7,8 +7,11 @@ from scalabel.label.typing import ImageSize
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.common.bbox.utils import apply_mask
-from vis4d.common.datasets import bdd100k_segtrack_sample, bdd100k_track_map
+from vis4d.common_to_clean.bbox.utils import apply_mask
+from vis4d.common_to_clean.datasets import (
+    bdd100k_segtrack_sample,
+    bdd100k_track_map,
+)
 from vis4d.op.detect.rcnn import (
     Det2Mask,
     MaskRCNNHead,

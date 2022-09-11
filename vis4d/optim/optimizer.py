@@ -14,8 +14,8 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.model_zoo import load_url
 from torchmetrics import MeanMetric
 
-from vis4d.common.registry import RegistryHolder
-from vis4d.common.utils.distributed import get_rank, get_world_size
+from vis4d.common_to_clean.registry import RegistryHolder
+from vis4d.common_to_clean.utils.distributed import get_rank, get_world_size
 from vis4d.struct import (
     DictStrAny,
     InputSample,

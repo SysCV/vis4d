@@ -8,11 +8,15 @@ import pytest
 import torch
 from _pytest.fixtures import FixtureRequest
 
-from vis4d.common.bbox.matchers import MaxIoUMatcher
-from vis4d.common.bbox.poolers import MultiScaleRoIAlign
-from vis4d.common.bbox.samplers import CombinedSampler
-from vis4d.data import BaseDataModule, BaseDatasetHandler, ScalabelDataset
-from vis4d.data.datasets import BaseDatasetLoader, Scalabel
+from vis4d.common_to_clean.bbox.matchers import MaxIoUMatcher
+from vis4d.common_to_clean.bbox.poolers import MultiScaleRoIAlign
+from vis4d.common_to_clean.bbox.samplers import CombinedSampler
+from vis4d.data_to_clean import (
+    BaseDataModule,
+    BaseDatasetHandler,
+    ScalabelDataset,
+)
+from vis4d.data_to_clean.datasets import BaseDatasetLoader, Scalabel
 from vis4d.op.base import MMDetBackbone
 from vis4d.op.base.neck import MMDetNeck
 from vis4d.op.detect import (

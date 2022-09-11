@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 
 import torch
 
-from vis4d.common.bbox.utils import random_choice
+from vis4d.common_to_clean.bbox.utils import random_choice
 
 from .base import Loss
 from .common import l2_loss

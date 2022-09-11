@@ -1,8 +1,12 @@
 """QDTrack data module."""
 from typing import List, Optional
 
-from vis4d.common.data_pipelines import CommonDataModule, default, mosaic_mixup
-from vis4d.common.datasets import (
+from vis4d.common_to_clean.data_pipelines import (
+    CommonDataModule,
+    default,
+    mosaic_mixup,
+)
+from vis4d.common_to_clean.datasets import (
     bdd100k_det_train,
     bdd100k_detect_sample,
     bdd100k_track_map,
@@ -16,13 +20,13 @@ from vis4d.common.datasets import (
     mot20_val,
     mot_map,
 )
-from vis4d.data import (
+from vis4d.data_to_clean import (
     BaseDatasetHandler,
     BaseReferenceSampler,
     BaseSampleMapper,
     ScalabelDataset,
 )
-from vis4d.data.transforms import BaseAugmentation, Resize
+from vis4d.data_to_clean.transforms import BaseAugmentation, Resize
 
 
 class QDTrackDataModule(CommonDataModule):

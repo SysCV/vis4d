@@ -11,25 +11,25 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from vis4d.common.bbox.matchers import MaxIoUMatcher
-from vis4d.common.bbox.samplers import (
+from vis4d.common_to_clean.bbox.matchers import MaxIoUMatcher
+from vis4d.common_to_clean.bbox.samplers import (
     CombinedSampler,
     match_and_sample_proposals,
 )
-from vis4d.common.data_pipelines import default
-from vis4d.common.datasets import (
+from vis4d.common_to_clean.data_pipelines import default
+from vis4d.common_to_clean.datasets import (
     bdd100k_det_train,
     bdd100k_track_map,
     bdd100k_track_train,
     bdd100k_track_val,
 )
-from vis4d.data import (
+from vis4d.data_to_clean import (
     BaseDatasetHandler,
     BaseReferenceSampler,
     BaseSampleMapper,
     ScalabelDataset,
 )
-from vis4d.data.transforms import Resize
+from vis4d.data_to_clean.transforms import Resize
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,

@@ -4,9 +4,9 @@ import unittest
 import torch
 from scalabel.label.typing import Frame
 
-from vis4d.common.bbox.matchers import MaxIoUMatcher
-from vis4d.common.bbox.poolers import MultiScaleRoIAlign
-from vis4d.common.bbox.samplers import CombinedSampler
+from vis4d.common_to_clean.bbox.matchers import MaxIoUMatcher
+from vis4d.common_to_clean.bbox.poolers import MultiScaleRoIAlign
+from vis4d.common_to_clean.bbox.samplers import CombinedSampler
 from vis4d.struct import Images, InputSample
 from vis4d.unittest.utils import generate_dets, generate_feature_list
 

@@ -11,7 +11,7 @@ from matplotlib.ticker import MultipleLocator
 from PIL import Image, ImageDraw, ImageFont
 from torch import Tensor
 
-from vis4d.common.geometry.projection import (
+from vis4d.common_to_clean.geometry.projection import (
     generate_depth_map,
     generate_projected_point_mask,
     project_points,

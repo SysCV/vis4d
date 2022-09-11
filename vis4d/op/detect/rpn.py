@@ -7,14 +7,16 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops import batched_nms
 
-from vis4d.common.bbox.anchor_generator import (
+from vis4d.common_to_clean.bbox.anchor_generator import (
     AnchorGenerator,
     anchor_inside_image,
 )
-from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
-from vis4d.common.bbox.matchers import MaxIoUMatcher
-from vis4d.common.bbox.samplers import RandomSampler, SamplingResult
-from vis4d.common.layers import Conv2d
+from vis4d.common_to_clean.bbox.coders.delta_xywh_coder import (
+    DeltaXYWHBBoxEncoder,
+)
+from vis4d.common_to_clean.bbox.matchers import MaxIoUMatcher
+from vis4d.common_to_clean.bbox.samplers import RandomSampler, SamplingResult
+from vis4d.common_to_clean.layers import Conv2d
 from vis4d.op.loss.common import smooth_l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.struct import Proposals

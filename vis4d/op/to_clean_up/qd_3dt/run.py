@@ -1,13 +1,13 @@
 """QD-3DT runtime configuration."""
 from typing import Optional
 
-from vis4d.common.bbox.matchers import MaxIoUMatcher
-from vis4d.common.bbox.poolers import MultiScaleRoIAlign
-from vis4d.common.bbox.samplers import CombinedSampler
-from vis4d.common.datasets import kitti_track_map, nuscenes_track_map
-from vis4d.common.models import build_faster_rcnn
-from vis4d.common.optimizers import sgd, step_schedule
-from vis4d.engine.trainer import BaseCLI
+from vis4d.common_to_clean.bbox.matchers import MaxIoUMatcher
+from vis4d.common_to_clean.bbox.poolers import MultiScaleRoIAlign
+from vis4d.common_to_clean.bbox.samplers import CombinedSampler
+from vis4d.common_to_clean.datasets import kitti_track_map, nuscenes_track_map
+from vis4d.common_to_clean.models import build_faster_rcnn
+from vis4d.common_to_clean.optimizers import sgd, step_schedule
+from vis4d.engine_to_clean.trainer import BaseCLI
 from vis4d.op import QD3DT
 from vis4d.op.heads.roi_head import QD3DTBBox3DHead
 from vis4d.op.optimize.warmup import LinearLRWarmup

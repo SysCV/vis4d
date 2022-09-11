@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common.layers import Conv2d, DeformConv
+from vis4d.common_to_clean.layers import Conv2d, DeformConv
 from vis4d.struct import NamedTensors, NDArrayI64
 
 from .base import FeaturePyramidProcessing
