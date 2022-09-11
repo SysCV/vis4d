@@ -10,7 +10,7 @@ from typing import List
 import torch
 import torch.nn.functional as F
 
-from .base import FeaturePyramidProcessing
+from ..fpp.base import FeaturePyramidProcessing
 
 
 class FCN(FeaturePyramidProcessing):

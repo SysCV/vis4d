@@ -3,8 +3,8 @@ import unittest
 from typing import List, Tuple, Union
 
 import torch
-import torch.optim as optim
 from mmcv.runner.checkpoint import load_checkpoint
+from torch import optim
 from torch.utils.data import DataLoader
 
 from vis4d.common.bbox.samplers import match_and_sample_proposals
@@ -21,17 +21,14 @@ from vis4d.op.detect.faster_rcnn_test import (
 from vis4d.op.detect.rcnn import RCNNLoss, RCNNLosses, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss, RPNLosses
 from vis4d.op.track.qdtrack import (
+    QDSimilarityHead,
     QDTrackAssociation,
-    QDTrackMemory,
-    QDTrackState,
+    QDTrackInstanceSimilarityLoss,
+    QDTrackInstanceSimilarityLosses,
     get_default_box_matcher,
     get_default_box_sampler,
 )
-from vis4d.op.track.similarity import (
-    QDSimilarityHead,
-    QDTrackInstanceSimilarityLoss,
-    QDTrackInstanceSimilarityLosses,
-)
+from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
 
 
 def pad(images: torch.Tensor, stride=32) -> torch.Tensor:
@@ -133,7 +130,11 @@ class QDTrackTest(unittest.TestCase):
     """QDTrack class tests."""
 
     def test_inference(self):
-        """Inference test."""
+        """Inference test.
+
+        Run::
+            >>> pytest vis4d/op/track/qdtrack_test.py::QDTrackTest::test_inference
+        """  # pylint: disable=line-too-long # Disable the line length requirement becase of the cmd line prompts
         base = ResNet("resnet50")
         fpn = FPN(base.out_channels[2:], 256)
         faster_rcnn = FasterRCNNHead(num_classes=8)
