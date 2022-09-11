@@ -346,6 +346,25 @@ class RCNNLoss(nn.Module):
         return RCNNLosses(rcnn_loss_cls=loss_cls, rcnn_loss_bbox=loss_bbox)
 
 
+def postprocess_dets(
+    boxes: List[torch.Tensor],
+    images_hw: List[Tuple[int, int]],
+    original_hw: List[Tuple[int, int]],
+    clip: bool = True,
+) -> List[torch.Tensor]:
+    """Postprocess detection boxes."""
+    post_boxes = []
+    for box, image_hw, orig_hw in zip(boxes, images_hw, original_hw):
+        scale_h, scale_w = orig_hw[0] / image_hw[0], orig_hw[1] / image_hw[1]
+        box[:, [0, 2]] *= scale_w
+        box[:, [1, 3]] *= scale_h
+        if clip:
+            box[:, [0, 2]] = box[:, [0, 2]].clamp(0, orig_hw[1] - 1)
+            box[:, [1, 3]] = box[:, [1, 3]].clamp(0, orig_hw[0] - 1)
+        post_boxes.append(box)
+    return post_boxes
+
+
 class MaskRCNNOut(NamedTuple):
     """Mask RoI head outputs."""
 
