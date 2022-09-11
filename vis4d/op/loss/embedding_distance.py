@@ -93,5 +93,5 @@ class EmbeddingDistanceLoss(Loss):
             invalid_neg_inds = torch.logical_xor(neg_inds, new_neg_inds)
             weight[invalid_neg_inds] = 0
 
-        avg_factor = (weight > 0).sum()
+        avg_factor = (weight > 0).sum().item()
         return pred, weight, avg_factor
