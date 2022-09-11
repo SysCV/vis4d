@@ -211,7 +211,7 @@ def load_model_checkpoint(
         weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
         load_checkpoint(model, weights, revise_keys=rev_keys)
     else:  # pragma: no cover
-        load_checkpoint(model, weights)
+        load_checkpoint(model, weights, revise_keys=rev_keys)
 
 
 def load_config_from_mm(url: str, mm_base: str) -> str:

@@ -1,6 +1,6 @@
 """Residual networks for classification."""
 
-from typing import List
+from typing import List, Optional
 
 import torch
 import torchvision.models.resnet as _resnet
@@ -19,6 +19,7 @@ class ResNet(BaseModel):
         trainable_layers: int = 5,
         norm_freezed: bool = True,
         pretrained: bool = False,
+        replace_stride_with_dilation: Optional[List[bool]] = None,
     ):
         """Initialize the ResNet base model from torch vision.
 
@@ -38,6 +39,7 @@ class ResNet(BaseModel):
         resnet = _resnet.__dict__[resnet_name](
             pretrained=pretrained,
             norm_layer=misc_nn_ops.FrozenBatchNorm2d if norm_freezed else None,
+            replace_stride_with_dilation=replace_stride_with_dilation,
         )
 
         # The code for setting up parametor frozen and layer getter is from
@@ -74,8 +76,8 @@ class ResNet(BaseModel):
             List[int]: number of channels
         """
         if self.name in ["resnet18", "resnet34"]:
-            return [3, 3] + [64 * 2 ** i for i in range(4)]
-        return [3, 3] + [256 * 2 ** i for i in range(4)]
+            return [3, 3] + [64 * 2**i for i in range(4)]
+        return [3, 3] + [256 * 2**i for i in range(4)]
 
     def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
         """Torchvision ResNet forward.
