@@ -10,11 +10,11 @@ from vis4d.common.bbox.poolers import BaseRoIPooler, MultiScaleRoIAlign
 from vis4d.common.bbox.samplers.combined import CombinedSampler
 from vis4d.common.bbox.utils import bbox_iou
 from vis4d.common.layers import add_conv_branch
-from vis4d.op.losses import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
+from vis4d.op.loss import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
 
 from .graph.assignment import TrackIDCounter, greedy_assign
 from .graph.matching import calc_bisoftmax_affinity
-from .utils import cosine_similarity
+from .util import cosine_similarity
 
 
 def get_default_box_sampler() -> CombinedSampler:
@@ -326,8 +326,9 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
         """
         super().__init__()
         self.softmax_temp = softmax_temp
-        self.track_loss = MultiPosCrossEntropyLoss(loss_weight=0.25)
+        self.track_loss = MultiPosCrossEntropyLoss()
         self.track_loss_aux = EmbeddingDistanceLoss()
+        self.track_loss_weight = 0.25
 
     def forward(
         self,
@@ -375,11 +376,14 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
                 curr_dists, curr_cos_dists, curr_targets, curr_weights
             ):
                 if all(_dists.shape):
-                    loss_track += self.track_loss(
-                        _dists,
-                        _targets,
-                        _weights,
-                        avg_factor=_weights.sum() + 1e-5,
+                    loss_track += (
+                        self.track_loss(
+                            _dists,
+                            _targets,
+                            _weights,
+                            avg_factor=_weights.sum() + 1e-5,
+                        )
+                        * self.track_loss_weight
                     )
                     if self.track_loss_aux is not None:
                         loss_track_aux += self.track_loss_aux(

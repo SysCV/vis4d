@@ -11,7 +11,8 @@ from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.utils import multiclass_nms
 from vis4d.common.mask.mask_ops import paste_masks_in_image
-from vis4d.op.losses.utils import l1_loss, weight_reduce_loss
+from vis4d.op.loss.common import l1_loss
+from vis4d.op.loss.reducer import SumWeightedLoss
 
 
 class RCNNOut(NamedTuple):
@@ -318,10 +319,8 @@ class RCNNLoss(nn.Module):
         # compute losses
         avg_factor = max(torch.sum(label_weights > 0).float().item(), 1.0)
         if class_outs.numel() > 0:
-            loss_cls = weight_reduce_loss(
-                F.cross_entropy(class_outs, labels, reduction="none"),
-                label_weights,
-                avg_factor=avg_factor,
+            loss_cls = SumWeightedLoss(label_weights, avg_factor)(
+                F.cross_entropy(class_outs, labels, reduction="none")
             )
         else:
             loss_cls = class_outs.sum()
@@ -337,8 +336,10 @@ class RCNNLoss(nn.Module):
             loss_bbox = l1_loss(
                 pos_reg_outs,
                 bbox_targets[pos_inds.type(torch.bool)],
-                bbox_weights[pos_inds.type(torch.bool)],
-                avg_factor=bbox_targets.size(0),
+                SumWeightedLoss(
+                    bbox_weights[pos_inds.type(torch.bool)],
+                    bbox_targets.size(0),
+                ),
             )
         else:
             loss_bbox = regression_outs[pos_inds].sum()

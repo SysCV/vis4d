@@ -15,7 +15,8 @@ from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
 from vis4d.common.bbox.matchers import MaxIoUMatcher
 from vis4d.common.bbox.samplers import RandomSampler, SamplingResult
 from vis4d.common.layers import Conv2d
-from vis4d.op.losses.utils import smooth_l1_loss, weight_reduce_loss
+from vis4d.op.loss.common import smooth_l1_loss
+from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.struct import Proposals
 from vis4d.struct.labels.boxes import filter_boxes
 
@@ -372,18 +373,15 @@ class RPNLoss(nn.Module):
         loss_cls = F.binary_cross_entropy_with_logits(
             cls_score, labels, reduction="none"
         )
-        loss_cls = weight_reduce_loss(
-            loss_cls,
-            label_weights,
-            reduction="mean",
-            avg_factor=num_total_samples,
-        )
+        loss_cls = SumWeightedLoss(label_weights, num_total_samples)(loss_cls)
         # regression loss
         bbox_targets = bbox_targets.reshape(-1, 4)
         bbox_weights = bbox_weights.reshape(-1, 4)
         bbox_pred = reg_out.permute(0, 2, 3, 1).reshape(-1, 4)
         loss_bbox = smooth_l1_loss(
-            bbox_pred, bbox_targets, bbox_weights, avg_factor=num_total_samples
+            bbox_pred,
+            bbox_targets,
+            SumWeightedLoss(bbox_weights, num_total_samples),
         )
         return loss_cls, loss_bbox
 

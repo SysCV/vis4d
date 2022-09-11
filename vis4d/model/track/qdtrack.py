@@ -48,10 +48,7 @@ from vis4d.op.track.qdtrack import (
     QDTrackAssociation,
     QDTrackInstanceSimilarityLoss,
 )
-from vis4d.state.track.qdtrack import (
-    QDTrackMemory,
-    QDTrackState,
-)
+from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
 from vis4d.struct import Boxes2D, InputSample
 
 REV_KEYS = [
