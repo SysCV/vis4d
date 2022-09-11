@@ -24,6 +24,7 @@ from vis4d.op.detect.faster_rcnn import (
 )
 from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
 from vis4d.op.detect.rcnn import (
+    postprocess_dets,
     Det2Mask,
     DetOut,
     MaskOut,
@@ -38,7 +39,6 @@ from vis4d.op.detect.rpn import RPNLoss, RPNLosses
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct import Boxes2D, Detections, InputSample, InstanceMasks, Masks
-from vis4d.vis.image import imshow_bboxes, imshow_masks
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
@@ -49,9 +49,9 @@ REV_KEYS = [
     (r"^conv_logits\.", "mask_head.conv_logits."),
     (r"^roi_head\.", "faster_rcnn_heads.roi_head."),
     (r"^rpn_head\.", "faster_rcnn_heads.rpn_head."),
-    (r"^backbone\.", "backbone.backbone.body."),
-    (r"^neck.lateral_convs\.", "backbone.backbone.fpn.inner_blocks."),
-    (r"^neck.fpn_convs\.", "backbone.backbone.fpn.layer_blocks."),
+    (r"^backbone\.", "backbone.body."),
+    (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
+    (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     (r"\.conv.weight", ".weight"),
     (r"\.conv.bias", ".bias"),
 ]
@@ -78,10 +78,8 @@ class MaskRCNNModel(nn.Module):
         anchor_gen = get_default_anchor_generator()
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        self.basemodel = ResNet(
-            "resnet50", pretrained=True, trainable_layers=3
-        )
-        self.fpn = FPN(self.basemodel.out_channels, 256)
+        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        self.fpn = FPN(self.backbone.out_channels[2:], 256)
         self.faster_rcnn_heads = FasterRCNNHead(
             anchor_generator=anchor_gen,
             rpn_box_encoder=rpn_bbox_encoder,
@@ -98,6 +96,7 @@ class MaskRCNNModel(nn.Module):
         self,
         images: torch.Tensor,
         images_hw: List[Tuple[int, int]],
+        original_hw: List[Tuple[int, int]],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
         target_masks: Optional[List[torch.Tensor]] = None,
@@ -110,7 +109,7 @@ class MaskRCNNModel(nn.Module):
             return self._forward_train(
                 images, images_hw, target_boxes, target_classes, target_masks
             )
-        return self._forward_test(images, images_hw)
+        return self._forward_test(images, images_hw, original_hw)
 
     def _forward_train(
         self,
@@ -121,7 +120,7 @@ class MaskRCNNModel(nn.Module):
         target_masks: Optional[List[torch.Tensor]] = None,
     ) -> Tuple[RPNLosses, RCNNLosses, MaskRCNNLosses]:
         """Forward training stage."""
-        features = self.fpn(self.basemodel(images))
+        features = self.fpn(self.backbone(images))
         outputs = self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
         )
@@ -150,28 +149,33 @@ class MaskRCNNModel(nn.Module):
         return rpn_losses, rcnn_losses, mask_losses
 
     def _forward_test(
-        self, images: torch.Tensor, images_hw: List[Tuple[int, int]]
-    ) -> Union[DetOut, MaskOut]:
+        self,
+        images: torch.Tensor,
+        images_hw: List[Tuple[int, int]],
+        original_hw: List[Tuple[int, int]],
+    ) -> Tuple[DetOut, MaskOut]:
         """Forward testing stage."""
-        features = self.fpn(self.basemodel(images))
+        features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
         dets = self.transform_outs(
             *outs.roi, boxes=outs.proposals.boxes, images_hw=images_hw
         )
         mask_outs = self.mask_head(features[2:-1], dets.boxes)
-        masks = self.det2mask(
-            mask_outs=mask_outs.mask_pred, dets=dets, images_hw=images_hw
+        post_dets = DetOut(
+            boxes=postprocess_dets(dets.boxes, images_hw, original_hw),
+            scores=dets.scores,
+            class_ids=dets.class_ids,
         )
-        return dets, masks
+        masks = self.det2mask(
+            mask_outs=mask_outs.mask_pred.sigmoid(),
+            dets=post_dets,
+            images_hw=original_hw,
+        )
+        return post_dets, masks
 
 
 ## setup model
 mask_rcnn = MaskRCNNModel().to(device)
-
-optimizer = optim.SGD(mask_rcnn.parameters(), lr=learning_rate, momentum=0.9)
-scheduler = optim.lr_scheduler.MultiStepLR(
-    optimizer, milestones=[8, 11], gamma=0.1
-)
 
 ## setup test dataset
 coco_val_loader = coco_val()
@@ -210,44 +214,46 @@ def validation_loop(model):
         )
         output_wh = (image.size(3), image.size(2))
 
+        # padding to size_divisble = 32
+        # pad_h = 32 - image.shape[2] % 32 if image.shape[2] % 32 != 0 else 0
+        # pad_w = 32 - image.shape[3] % 32 if image.shape[3] % 32 != 0 else 0
+        # pad_image = nn.functional.pad(normalize(image), (0, pad_w, 0, pad_h))
+        pad_image = normalize(image)
+
         dets, masks = mask_rcnn(
-            normalize(image), [(output_wh[1], output_wh[0])]
+            pad_image,
+            [(output_wh[1], output_wh[0])],
+            [(original_wh[1], original_wh[0])],
         )
         boxes, scores, class_ids = dets.boxes, dets.scores, dets.class_ids
 
-        # imshow_bboxes(
-        #     image[0],
-        #     dets.boxes[0],
-        #     dets.scores[0],
-        #     dets.class_ids[0],
-        # )
-        # imshow_masks(
-        #     image[0],
-        #     InstanceMasks(
-        #         masks.masks[0], masks.class_ids[0], score=masks.scores[0]
-        #     ),
-        # )
-        # breakpoint()
-
         box_pred = Boxes2D(
-            torch.cat([boxes[0], scores[0].unsqueeze(-1)], -1),
-            class_ids[0],
+            torch.cat([boxes[0], scores[0].unsqueeze(-1)], -1), class_ids[0]
         )
-        box_pred.postprocess(original_wh, output_wh)
-
-        mask_pred = InstanceMasks(
-            masks.masks[0], class_ids[0], score=scores[0], detections=box_pred
-        )
-        mask_pred.postprocess(original_wh, output_wh, resolve_overlap=False)
-
         det_pred = copy.deepcopy(data.metadata[0])
         det_pred.labels = box_pred.to_scalabel(class_ids_to_coco)
         det_preds.append(det_pred)
+        mask_pred = InstanceMasks(
+            masks.masks[0], class_ids[0], score=scores[0], detections=box_pred
+        )
         ins_pred = copy.deepcopy(data.metadata[0])
         ins_pred.labels = mask_pred.to_scalabel(class_ids_to_coco)
         ins_preds.append(ins_pred)
 
         gts.append(copy.deepcopy(data.metadata[0]))
+
+        # from vis4d.vis.image import imshow_bboxes, imshow_masks
+        # imshow_masks(
+        #     torch.nn.functional.interpolate(
+        #         image[0].unsqueeze(0),
+        #         size=(original_wh[1], original_wh[0]),
+        #         mode="bilinear",
+        #     )[0],
+        #     masks.masks[0],
+        #     scores[0],
+        #     class_ids[0],
+        # )
+        # breakpoint()
 
         # if i == 10:
         #     break
@@ -278,6 +284,13 @@ def training_loop(model):
         shuffle=True,
         collate_fn=identity_collate,
         num_workers=batch_size // 2,
+    )
+
+    optimizer = optim.SGD(
+        mask_rcnn.parameters(), lr=learning_rate, momentum=0.9
+    )
+    scheduler = optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[8, 11], gamma=0.1
     )
 
     running_losses = {}
