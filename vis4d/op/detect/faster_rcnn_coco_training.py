@@ -74,10 +74,7 @@ class FasterRCNN(nn.Module):
         if target_boxes is not None:
             assert target_classes is not None
             return self._forward_train(
-                images,
-                images_hw,
-                target_boxes,
-                target_classes,
+                images, images_hw, target_boxes, target_classes
             )
         return self._forward_test(images, images_hw)
 
@@ -99,8 +96,7 @@ class FasterRCNN(nn.Module):
         target_classes: List[torch.Tensor],
     ) -> Tuple[RPNLosses, RCNNLosses, FRCNNOut]:
         """Forward training stage."""
-        features = self.backbone(images)
-        features = self.fpn(features)
+        features = self.fpn(self.backbone(images))
         outputs = self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
         )
@@ -119,8 +115,7 @@ class FasterRCNN(nn.Module):
         self, images: torch.Tensor, images_hw: List[Tuple[int, int]]
     ) -> Tuple[DetOut, FRCNNOut]:
         """Forward testing stage."""
-        features = self.backbone(images)
-        features = self.fpn(features)
+        features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
         dets = self.transform_outs(*outs.roi, outs.proposals.boxes, images_hw)
         return dets, outs

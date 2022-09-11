@@ -1,47 +1,32 @@
 """Multi-positive cross entropy loss."""
-from typing import Optional
-
 import torch
 
-from .base import BaseLoss
-from .utils import weight_reduce_loss
+from .base import Loss
+from .reducer import LossReducer, SumWeightedLoss
 
 
-class MultiPosCrossEntropyLoss(BaseLoss):
+class MultiPosCrossEntropyLoss(Loss):
     """Multi-positive cross entropy loss class."""
 
     def forward(
         self,
         pred: torch.Tensor,
         target: torch.Tensor,
-        weight: Optional[torch.Tensor] = None,
-        reduction_override: Optional[str] = None,
-        avg_factor: Optional[float] = None,
+        weight: torch.Tensor,
+        avg_factor: float,
     ) -> torch.Tensor:
         """Multi-positive cross entropy loss forward."""
-        assert pred.size() == target.size()
-        assert reduction_override in (None, "none", "mean", "sum")
-        reduction = (
-            reduction_override
-            if reduction_override is not None
-            else self.reduction
-        )
-        loss_cls = self.loss_weight * multi_pos_cross_entropy(
+        return multi_pos_cross_entropy(
             pred,
             target,
-            weight,
-            reduction=reduction,
-            avg_factor=avg_factor,
+            reducer=SumWeightedLoss(weight, avg_factor),
         )
-        return loss_cls
 
 
 def multi_pos_cross_entropy(
     pred: torch.Tensor,
     target: torch.Tensor,
-    weight: Optional[torch.Tensor] = None,
-    reduction: str = "mean",
-    avg_factor: Optional[float] = None,
+    reducer: LossReducer,
 ) -> torch.Tensor:
     """Calculate multi-positive cross-entropy loss."""
     pos_inds = target == 1
@@ -60,11 +45,4 @@ def multi_pos_cross_entropy(
     )
     loss = torch.logsumexp(x, dim=1)
 
-    # apply weights and do the reduction
-    if weight is not None:
-        weight = weight.float()
-    loss = weight_reduce_loss(
-        loss, weight=weight, reduction=reduction, avg_factor=avg_factor
-    )
-
-    return loss
+    return reducer(loss)

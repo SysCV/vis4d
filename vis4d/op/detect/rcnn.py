@@ -11,7 +11,8 @@ from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
 from vis4d.common.bbox.poolers import MultiScaleRoIAlign
 from vis4d.common.bbox.utils import multiclass_nms
 from vis4d.common.mask.mask_ops import paste_masks_in_image
-from vis4d.op.losses.utils import l1_loss, weight_reduce_loss
+from vis4d.op.loss.common import l1_loss
+from vis4d.op.loss.reducer import SumWeightedLoss
 
 
 class RCNNOut(NamedTuple):
@@ -318,10 +319,8 @@ class RCNNLoss(nn.Module):
         # compute losses
         avg_factor = max(torch.sum(label_weights > 0).float().item(), 1.0)
         if class_outs.numel() > 0:
-            loss_cls = weight_reduce_loss(
-                F.cross_entropy(class_outs, labels, reduction="none"),
-                label_weights,
-                avg_factor=avg_factor,
+            loss_cls = SumWeightedLoss(label_weights, avg_factor)(
+                F.cross_entropy(class_outs, labels, reduction="none")
             )
         else:
             loss_cls = class_outs.sum()
@@ -337,13 +336,34 @@ class RCNNLoss(nn.Module):
             loss_bbox = l1_loss(
                 pos_reg_outs,
                 bbox_targets[pos_inds.type(torch.bool)],
-                bbox_weights[pos_inds.type(torch.bool)],
-                avg_factor=bbox_targets.size(0),
+                SumWeightedLoss(
+                    bbox_weights[pos_inds.type(torch.bool)],
+                    bbox_targets.size(0),
+                ),
             )
         else:
             loss_bbox = regression_outs[pos_inds].sum()
 
         return RCNNLosses(rcnn_loss_cls=loss_cls, rcnn_loss_bbox=loss_bbox)
+
+
+def postprocess_dets(
+    boxes: List[torch.Tensor],
+    images_hw: List[Tuple[int, int]],
+    original_hw: List[Tuple[int, int]],
+    clip: bool = True,
+) -> List[torch.Tensor]:
+    """Postprocess detection boxes."""
+    post_boxes = []
+    for box, image_hw, orig_hw in zip(boxes, images_hw, original_hw):
+        scale_h, scale_w = orig_hw[0] / image_hw[0], orig_hw[1] / image_hw[1]
+        box[:, [0, 2]] *= scale_w
+        box[:, [1, 3]] *= scale_h
+        if clip:
+            box[:, [0, 2]] = box[:, [0, 2]].clamp(0, orig_hw[1] - 1)
+            box[:, [1, 3]] = box[:, [1, 3]].clamp(0, orig_hw[0] - 1)
+        post_boxes.append(box)
+    return post_boxes
 
 
 class MaskRCNNOut(NamedTuple):
@@ -451,13 +471,12 @@ class Det2Mask(nn.Module):
         dets: DetOut,
         images_hw: List[Tuple[int, int]],
     ) -> MaskOut:
-        """_summary_
-        # TODO (thomaseh)
+        """Paste mask predictions back into original image resolution.
 
         Args:
-            mask_outs (torch.Tensor): _description_
-            dets (DetOut): _description_
-            images_hw (List[Tuple[int, int]]): _description_
+            mask_outs (torch.Tensor): mask outputs.
+            dets (DetOut): detection outputs.
+            images_hw (List[Tuple[int, int]]): original image resolution.
 
         Returns:
             MaskOut: _description_
@@ -494,6 +513,8 @@ class Det2Mask(nn.Module):
 
 
 class MaskRCNNLosses(NamedTuple):
+    """Mask RCNN loss container."""
+
     rcnn_loss_mask: torch.Tensor
 
 
@@ -507,17 +528,17 @@ class MaskRCNNLoss(nn.Module):
         out_shape: Tuple[int, int],
         binarize: bool = True,
     ) -> Tensor:
-        """_summary_
-        # TODO (thomaseh)
+        """Get aligned mask targets for each proposal.
 
         Args:
-            boxes (Tensor): _description_
-            tgt_masks (Tensor): _description_
-            out_shape (Tuple[int, int]): _description_
-            binarize (bool, optional): _description_. Defaults to True.
+            boxes (Tensor): proposal boxes.
+            tgt_masks (Tensor): target masks.
+            out_shape (Tuple[int, int]): output shape.
+            binarize (bool, optional): whether to convert target mask to
+            binary. Defaults to True.
 
         Returns:
-            Tensor: _description_
+            Tensor: aligned mask targets.
         """
         fake_inds = torch.arange(len(boxes), device=boxes.device)[:, None]
         rois = torch.cat([fake_inds, boxes], dim=1)  # Nx5
@@ -532,22 +553,23 @@ class MaskRCNNLoss(nn.Module):
         self,
         mask_pred: torch.Tensor,
         proposal_boxes: List[torch.Tensor],
-        proposal_labels: List[torch.Tensor],
+        target_classes: List[torch.Tensor],
         target_masks: List[torch.Tensor],
     ) -> MaskRCNNLosses:
-        """_summary_
-        # TODO (thomaseh)
-
+        """Calculate losses of Mask RCNN head.
         Args:
-            mask_pred (torch.Tensor): _description_
-            proposal_boxes (List[torch.Tensor]): _description_
-            proposal_labels (List[torch.Tensor]): _description_
-            target_masks (List[torch.Tensor]): _description_
+            mask_pred (torch.Tensor): mask outputs.
+            proposal_boxes (List[torch.Tensor]): [M, 4] proposal boxes per
+            batch element.
+            target_classes (List[torch.Tensor]): list of [M, 4] assigned
+            target boxes for each proposal.
+            target_masks (List[torch.Tensor]): list of [M, N, W] assigned
+            target masks for each proposal.
 
         Returns:
-            MaskRCNNLosses: _description_
+            MaskRCNNLosses: mask loss.
         """
-        mask_size = tuple(mask_pred.shape[2:])
+        mask_size = tuple([mask_pred.shape[2], mask_pred.shape[3]])
         # get targets
         targets = []
         for boxes, tgt_masks in zip(proposal_boxes, target_masks):
@@ -555,7 +577,7 @@ class MaskRCNNLoss(nn.Module):
                 self._get_targets_per_image(boxes, tgt_masks, mask_size)
             )
         mask_targets = torch.cat(targets)
-        mask_labels = torch.cat(proposal_labels)
+        mask_labels = torch.cat(target_classes)
 
         num_rois = mask_pred.shape[0]
         inds = torch.arange(

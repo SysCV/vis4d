@@ -1,4 +1,7 @@
-"""Box3d loss with uncertainty for QD-3DT."""
+"""Box3d loss with uncertainty for QD-3DT.
+
+TODO (tobiasfshr) convert to the operator structure.
+"""
 from typing import Tuple
 
 import torch
@@ -6,11 +9,11 @@ import torch.nn.functional as F
 
 from vis4d.struct import LossesType
 
-from .base import BaseLoss
-from .utils import smooth_l1_loss
+from .base import Loss
+from .common import smooth_l1_loss
 
 
-class Box3DUncertaintyLoss(BaseLoss):
+class Box3DUncertaintyLoss(Loss):
     """Box3d loss for QD-3DT."""
 
     def __init__(

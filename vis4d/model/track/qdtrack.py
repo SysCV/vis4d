@@ -44,14 +44,11 @@ from vis4d.op.detect.rpn import RPNLoss, RPNLosses
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.track.graph.assignment import TrackIDCounter
 from vis4d.op.track.qdtrack import (
-    QDTrackAssociation,
-    QDTrackMemory,
-    QDTrackState,
-)
-from vis4d.op.track.similarity.qdtrack import (
     QDSimilarityHead,
+    QDTrackAssociation,
     QDTrackInstanceSimilarityLoss,
 )
+from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
 from vis4d.struct import Boxes2D, InputSample
 
 REV_KEYS = [

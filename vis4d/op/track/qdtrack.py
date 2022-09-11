@@ -1,15 +1,20 @@
 """Quasi-dense embedding similarity based graph."""
-import copy
-from typing import Generic, List, NamedTuple, Tuple, TypeVar
+from typing import List, NamedTuple, Optional, Tuple
 
+import numpy as np
 import torch
+from torch import nn
 
 from vis4d.common.bbox.matchers.max_iou import MaxIoUMatcher
+from vis4d.common.bbox.poolers import BaseRoIPooler, MultiScaleRoIAlign
 from vis4d.common.bbox.samplers.combined import CombinedSampler
 from vis4d.common.bbox.utils import bbox_iou
+from vis4d.common.layers import add_conv_branch
+from vis4d.op.loss import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
 
 from .graph.assignment import TrackIDCounter, greedy_assign
 from .graph.matching import calc_bisoftmax_affinity
+from .util import cosine_similarity
 
 
 def get_default_box_sampler() -> CombinedSampler:
@@ -31,218 +36,6 @@ def get_default_box_matcher() -> MaxIoUMatcher:
         allow_low_quality_matches=False,
     )
     return box_matcher
-
-
-TTrackState = TypeVar("TTrackState", bound=NamedTuple)
-
-
-class BaseTrackMemory(Generic[TTrackState]):
-    """Basic Track Memory class.
-
-    Holds track representation across timesteps as List[NamedTuple].
-    Each list element is tracks at time t and tracks at time t are
-    represented as NamedTuple, where the first element is a LongTensor of track
-    ids, and the other N elements are, e.g., boxes, scores, class_ids, etc.
-    We assume the memory works on frames with contiguous indices [0..N].
-    """
-
-    def __init__(self, memory_limit: int = -1):
-        assert memory_limit >= -1
-        self.memory_limit = memory_limit
-        self.frames: List[TTrackState] = []
-
-    def reset(self) -> None:
-        """Empty the memory."""
-        self.frames: List[TTrackState] = []
-
-    @property
-    def last_frame(self) -> TTrackState:
-        """Return last frame stored in memory.
-
-        Returns:
-            TTrackState: Last frame representation.
-        """
-        return self.frames[-1]
-
-    def get_frame(self, index: int) -> TTrackState:
-        """Get TrackState at frame with given index.
-
-        Returns:
-            TTrackState: frame representation at index.
-        """
-        return self.frames[index]
-
-    def get_frames(
-        self, start_index: int, end_index: int
-    ) -> List[TTrackState]:
-        """Get list of frames at certain time interval.
-
-        Args:
-            start_index (int): start index of interval (incl).
-            end_index (int): end index of interval (excl).
-
-        Returns:
-            List[TTrackState]: frame representations inside interval.
-        """
-        return self.frames[start_index:end_index]
-
-    def get_current_tracks(self, device: torch.device) -> TTrackState:
-        """Return active tracks."""
-        return self.frames[-1]
-
-    def get_track(self, track_id: int) -> List[TTrackState]:
-        """Get representation of a single track across memory frames.
-
-        Args:
-            track_id (int): track id of query track.
-
-        Returns:
-            List[TTrackState]: List of track states for given query track.
-        """
-        track = []
-        for frame in self.frames:
-            idx = (frame.track_ids == track_id).nonzero(as_tuple=True)[0]
-            if len(idx) > 0:
-                track.append(tuple(element[idx] for element in frame))
-        return track
-
-    def update(self, data: TTrackState) -> None:
-        """Store tracks in memory."""
-        self.frames.append(data)
-        if self.memory_limit >= 0 and len(self.frames) > self.memory_limit:
-            self.frames.pop(0)
-
-
-class QDTrackState(NamedTuple):
-    """QDTrack Track state."""
-
-    track_ids: torch.Tensor
-    boxes: torch.Tensor
-    scores: torch.Tensor
-    class_ids: torch.Tensor
-    embeddings: torch.Tensor
-
-
-class QDTrackMemory(BaseTrackMemory[QDTrackState]):
-    """QDTrack track memory.
-
-    We store both tracks and backdrops here. The current active tracks are all
-    tracks within the memory limit.
-    """
-
-    def __init__(
-        self,
-        memory_limit: int = -1,
-        backdrop_memory_limit: int = 1,
-        memory_momentum: float = 0.8,
-    ):
-        super().__init__(memory_limit)
-        self.backdrop_frames: List[QDTrackState] = []
-        self.memo_momentum = memory_momentum
-        self.backdrop_memory_limit = backdrop_memory_limit
-        assert backdrop_memory_limit >= 0
-        assert 0 <= memory_momentum <= 1.0
-
-    def reset(self) -> None:
-        """Empty the memory."""
-        super().reset()
-        self.backdrop_frames: List[QDTrackState] = []
-
-    def update(self, data: QDTrackState) -> None:
-        valid_tracks = data.track_ids != -1
-        new_tracks = QDTrackState(*(entry[valid_tracks] for entry in data))
-        new_backdrops = QDTrackState(*(entry[~valid_tracks] for entry in data))
-        super().update(new_tracks)
-        self.backdrop_frames.append(new_backdrops)
-        if (
-            self.backdrop_memory_limit >= 0
-            and len(self.backdrop_frames) > self.backdrop_memory_limit
-        ):
-            self.backdrop_frames.pop(0)
-
-    @staticmethod
-    def _concat_states(states: List[QDTrackState]) -> QDTrackState:
-        """Concatenate multiple states into a single one."""
-        memory_track_ids = torch.cat(
-            [mem_entry.track_ids for mem_entry in states]
-        )
-        memory_boxes = torch.cat([mem_entry.boxes for mem_entry in states])
-        memory_scores = torch.cat([mem_entry.scores for mem_entry in states])
-        memory_class_ids = torch.cat(
-            [mem_entry.class_ids for mem_entry in states]
-        )
-        memory_embeddings = torch.cat(
-            [mem_entry.embeddings for mem_entry in states]
-        )
-        return QDTrackState(
-            memory_track_ids,
-            memory_boxes,
-            memory_scores,
-            memory_class_ids,
-            memory_embeddings,
-        )
-
-    def get_current_tracks(self, device: torch.device) -> QDTrackState:
-        """Get all active tracks and backdrops in memory."""
-        # get last states of all tracks
-        if len(self.frames) > 0:
-            memory = self._concat_states(self.frames)
-
-            track_ids = memory.track_ids.unique()
-            class_ids = torch.zeros_like(track_ids)
-            scores = torch.zeros(
-                (
-                    len(
-                        track_ids,
-                    )
-                ),
-                device=track_ids.device,
-            )
-            boxes = torch.zeros((len(track_ids), 4), device=track_ids.device)
-            embeddings = torch.zeros(
-                (len(track_ids), memory.embeddings.size(1)),
-                device=track_ids.device,
-            )
-
-            # calculate exponential moving average of embedding across memory
-            for i, track_id in enumerate(track_ids):
-                track_mask = (memory.track_ids == track_id).nonzero(
-                    as_tuple=True
-                )[0]
-                boxes[i] = memory.boxes[track_mask][-1]
-                scores[i] = memory.scores[track_mask][-1]
-                class_ids[i] = memory.class_ids[track_mask][-1]
-                embeds = memory.embeddings[track_mask]
-                embed = embeds[0]
-                for mem_embed in embeds[1:]:
-                    embed = (
-                        1 - self.memo_momentum
-                    ) * embed + self.memo_momentum * mem_embed
-                embeddings[i] = memory.embeddings[track_mask][-1]
-        else:
-            track_ids = torch.empty((0,), dtype=torch.int64, device=device)
-            class_ids = torch.empty((0,), dtype=torch.int64, device=device)
-            scores = torch.empty((0,), device=device)
-            boxes = torch.empty((0, 4), device=device)
-            embeddings = torch.empty((0, 1), device=device)
-
-        # add backdrops
-        if len(self.backdrop_frames) > 0:
-            backdrops = self._concat_states(self.backdrop_frames)
-            track_ids = torch.cat([track_ids, backdrops.track_ids])
-            boxes = torch.cat([boxes, backdrops.boxes])
-            scores = torch.cat([scores, backdrops.scores])
-            class_ids = torch.cat([class_ids, backdrops.class_ids])
-            if backdrops.embeddings.size(1) != embeddings.size(1):
-                assert (
-                    len(embeddings) == 0
-                ), "Unequal shape of backdrop embeddings and track embeddings!"
-                embeddings = torch.empty(
-                    (0, backdrops.embeddings.size(1)), device=device
-                )
-            embeddings = torch.cat([embeddings, backdrops.embeddings])
-
-        return QDTrackState(track_ids, boxes, scores, class_ids, embeddings)
 
 
 # @torch.jit.script TODO
@@ -399,3 +192,260 @@ class QDTrackAssociation:
             new_inds.sum(), device=ids.device
         )
         return ids, permute_inds
+
+
+class QDSimilarityHead(nn.Module):
+    """Instance embedding head for quasi-dense similarity learning.
+
+    Given a set of input feature maps and RoIs, pool RoI representations from
+    feature maps and process them to a per-RoI embeddings vector.
+    """
+
+    def __init__(
+        self,
+        proposal_pooler: Optional[BaseRoIPooler] = None,
+        in_dim: int = 256,
+        num_convs: int = 4,
+        conv_out_dim: int = 256,
+        conv_has_bias: bool = False,
+        num_fcs: int = 1,
+        fc_out_dim: int = 1024,
+        embedding_dim: int = 256,
+        norm: str = "GroupNorm",
+        num_groups: int = 32,
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.in_dim = in_dim
+        self.num_convs = num_convs
+        self.conv_out_dim = conv_out_dim
+        self.conv_has_bias = conv_has_bias
+        self.num_fcs = num_fcs
+        self.fc_out_dim = fc_out_dim
+        self.norm = norm
+        self.num_groups = num_groups
+
+        if proposal_pooler is not None:
+            self.roi_pooler = proposal_pooler
+        else:
+            self.roi_pooler = MultiScaleRoIAlign(
+                resolution=[7, 7], strides=[4, 8, 16, 32], sampling_ratio=0
+            )
+
+        self.convs, self.fcs, last_layer_dim = self._init_embedding_head()
+        self.fc_embed = nn.Linear(last_layer_dim, embedding_dim)
+        self._init_weights()
+
+    def _init_weights(self) -> None:
+        """Init weights of modules in head."""
+        for m in self.convs:
+            nn.init.kaiming_uniform_(m.weight, a=1)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)  # pragma: no cover
+
+        for m in self.fcs:
+            if isinstance(m[0], nn.Linear):
+                nn.init.xavier_uniform_(m[0].weight)
+                nn.init.constant_(m[0].bias, 0)
+
+        nn.init.normal_(self.fc_embed.weight, 0, 0.01)
+        nn.init.constant_(self.fc_embed.bias, 0)
+
+    def _init_embedding_head(
+        self,
+    ) -> Tuple[torch.nn.ModuleList, torch.nn.ModuleList, int]:
+        """Init modules of head."""
+        convs, last_layer_dim = add_conv_branch(
+            self.num_convs,
+            self.in_dim,
+            self.conv_out_dim,
+            self.conv_has_bias,
+            self.norm,
+            self.num_groups,
+        )
+
+        fcs = nn.ModuleList()
+        if self.num_fcs > 0:
+            last_layer_dim *= np.prod(self.roi_pooler.resolution)
+            for i in range(self.num_fcs):
+                fc_in_dim = last_layer_dim if i == 0 else self.fc_out_dim
+                fcs.append(
+                    nn.Sequential(
+                        nn.Linear(fc_in_dim, self.fc_out_dim),
+                        nn.ReLU(inplace=True),
+                    )
+                )
+            last_layer_dim = self.fc_out_dim
+        return convs, fcs, last_layer_dim
+
+    def forward(
+        self, features: List[torch.Tensor], boxes: List[torch.Tensor]
+    ) -> List[torch.Tensor]:
+        """Similarity head forward pass."""
+        # take features of strides 4, 8, 16, 32
+        x = self.roi_pooler(features[2:6], boxes)
+
+        # convs
+        if self.num_convs > 0:
+            for conv in self.convs:
+                x = conv(x)
+
+        # fcs
+        x = torch.flatten(x, start_dim=1)
+        if self.num_fcs > 0:
+            for fc in self.fcs:
+                x = fc(x)
+
+        embeddings: List[torch.Tensor] = self.fc_embed(x).split(
+            [len(b) for b in boxes]
+        )
+        return embeddings
+
+
+class QDTrackInstanceSimilarityLosses(NamedTuple):
+    """QDTrack losses return type. Consists of two scalar loss tensors."""
+
+    track_loss: torch.Tensor
+    track_loss_aux: torch.Tensor
+
+
+class QDTrackInstanceSimilarityLoss(nn.Module):
+    """Instance similarity loss as in QDTrack.
+
+    Given a number of key frame embeddings and a number of reference frame
+    embeddings along with their track identities, compute two losses:
+    1. Multi-positive cross-entropy loss.
+    2. Cosine similarity loss (auxiliary).
+    """
+
+    def __init__(self, softmax_temp: float = -1):
+        """Init.
+
+        Args:
+            softmax_temp (float, optional): Temperature parameter for multi-positive cross-entropy loss. Defaults to -1.
+        """
+        super().__init__()
+        self.softmax_temp = softmax_temp
+        self.track_loss = MultiPosCrossEntropyLoss()
+        self.track_loss_aux = EmbeddingDistanceLoss()
+        self.track_loss_weight = 0.25
+
+    def forward(
+        self,
+        key_embeddings: List[torch.Tensor],
+        ref_embeddings: List[List[torch.Tensor]],
+        key_track_ids: List[torch.Tensor],
+        ref_track_ids: List[List[torch.Tensor]],
+    ) -> QDTrackInstanceSimilarityLosses:
+        """QDTrack instance similarity loss.
+
+        Key inputs are of type List[Tensor/Boxes2D] (Lists are length N)
+        Ref inputs are of type List[List[Tensor/Boxes2D]] where the lists
+        are of length MxN.
+        Where M is the number of reference views and N is the
+        number of batch elements.
+
+        NOTE: this only works if key only contains positives and all
+        negatives in ref have track_id -1
+
+        Args:
+            key_embeddings (List[torch.Tensor]): key frame embeddings.
+            ref_embeddings (List[List[torch.Tensor]]): reference frame embeddings.
+            key_track_ids (List[torch.Tensor]): associated track ids per embedding in key frame.
+            ref_track_ids (List[List[torch.Tensor]]):  associated track ids per embedding in reference frame(s).
+
+        Returns:
+            QDTrackInstanceSimilarityLosses: Scalar loss tensors.
+        """
+        if sum(len(e) for e in key_embeddings) == 0:  # pragma: no cover
+            dummy_loss = torch.sum([e.sum() for e in key_embeddings])
+            return QDTrackInstanceSimilarityLosses(dummy_loss, dummy_loss)
+
+        loss_track = torch.tensor(0.0, device=key_embeddings[0].device)
+        loss_track_aux = torch.tensor(0.0, device=key_embeddings[0].device)
+        dists, cos_dists = self._match(key_embeddings, ref_embeddings)
+        track_targets, track_weights = self._get_targets(
+            key_track_ids, ref_track_ids
+        )
+        # for each reference view
+        for curr_dists, curr_cos_dists, curr_targets, curr_weights in zip(
+            dists, cos_dists, track_targets, track_weights
+        ):
+            # for each batch element
+            for _dists, _cos_dists, _targets, _weights in zip(
+                curr_dists, curr_cos_dists, curr_targets, curr_weights
+            ):
+                if all(_dists.shape):
+                    loss_track += (
+                        self.track_loss(
+                            _dists,
+                            _targets,
+                            _weights,
+                            avg_factor=_weights.sum() + 1e-5,
+                        )
+                        * self.track_loss_weight
+                    )
+                    if self.track_loss_aux is not None:
+                        loss_track_aux += self.track_loss_aux(
+                            _cos_dists, _targets
+                        )
+
+        num_pairs = len(dists) * len(dists[0])
+        loss_track = loss_track / num_pairs
+        loss_track_aux = loss_track_aux / num_pairs
+
+        return QDTrackInstanceSimilarityLosses(
+            track_loss=loss_track, track_loss_aux=loss_track_aux
+        )
+
+    @staticmethod
+    def _get_targets(
+        key_track_ids: List[torch.Tensor],
+        ref_track_ids: List[List[torch.Tensor]],
+    ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
+        """Create tracking target tensors."""
+        # for each reference view
+        track_targets, track_weights = [], []
+        for ref_target in ref_track_ids:
+            # for each batch element
+            curr_targets, curr_weights = [], []
+            for key_target, ref_target_ in zip(key_track_ids, ref_target):
+                # target shape: len(key_target) x len(ref_target_)
+                # NOTE: this only works if key only contains positives and all
+                # negatives in ref have track_id -1
+                target = (
+                    key_target.view(-1, 1) == ref_target_.view(1, -1)
+                ).int()
+                weight = (target.sum(dim=1) > 0).float()
+                curr_targets.append(target)
+                curr_weights.append(weight)
+            track_targets.append(curr_targets)
+            track_weights.append(curr_weights)
+        return track_targets, track_weights
+
+    def _match(
+        self,
+        key_embeds: List[torch.Tensor],
+        ref_embeds: List[List[torch.Tensor]],
+    ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
+        """Calculate distances for all pairs of key / ref embeddings."""
+        # for each reference view
+        dists, cos_dists = [], []
+        for ref_embed in ref_embeds:
+            # for each batch element
+            dists_curr, cos_dists_curr = [], []
+            for key_embed, ref_embed_ in zip(key_embeds, ref_embed):
+                dist = cosine_similarity(
+                    key_embed,
+                    ref_embed_,
+                    normalize=False,
+                    temperature=self.softmax_temp,
+                )
+                dists_curr.append(dist)
+                if self.track_loss_aux is not None:
+                    cos_dist = cosine_similarity(key_embed, ref_embed_)
+                    cos_dists_curr.append(cos_dist)
+
+            dists.append(dists_curr)
+            cos_dists.append(cos_dists_curr)
+        return dists, cos_dists

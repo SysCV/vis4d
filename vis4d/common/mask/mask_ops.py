@@ -55,13 +55,10 @@ def _do_paste_mask(
 
     if not masks.dtype.is_floating_point:
         masks = masks.float()
-    img_masks = F.grid_sample(masks, grid.to(masks.dtype), align_corners=False)
+    img_masks = F.grid_sample(masks, grid, align_corners=False)
 
     if skip_empty:
-        return img_masks[:, 0], (
-            slice(y0_int, y1_int),
-            slice(x0_int, x1_int),
-        )
+        return img_masks[:, 0], (slice(y0_int, y1_int), slice(x0_int, x1_int))
     return img_masks[:, 0], ()  # pragma: no cover
 
 
@@ -71,7 +68,7 @@ def paste_masks_in_image(
     image_shape: Tuple[int, int],
     threshold: float = 0.5,
     bytes_per_float: int = 4,
-    gpu_mem_limit: int = 1024 ** 3,
+    gpu_mem_limit: int = 1024**3,
 ) -> torch.Tensor:
     """Paste masks that are of a fixed resolution into an image.
 
