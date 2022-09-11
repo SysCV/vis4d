@@ -471,13 +471,12 @@ class Det2Mask(nn.Module):
         dets: DetOut,
         images_hw: List[Tuple[int, int]],
     ) -> MaskOut:
-        """_summary_
-        # TODO (thomaseh)
+        """Paste mask predictions back into original image resolution.
 
         Args:
-            mask_outs (torch.Tensor): _description_
-            dets (DetOut): _description_
-            images_hw (List[Tuple[int, int]]): _description_
+            mask_outs (torch.Tensor): mask outputs.
+            dets (DetOut): detection outputs.
+            images_hw (List[Tuple[int, int]]): original image resolution.
 
         Returns:
             MaskOut: _description_
@@ -514,6 +513,8 @@ class Det2Mask(nn.Module):
 
 
 class MaskRCNNLosses(NamedTuple):
+    """Mask RCNN loss container."""
+
     rcnn_loss_mask: torch.Tensor
 
 
@@ -527,17 +528,17 @@ class MaskRCNNLoss(nn.Module):
         out_shape: Tuple[int, int],
         binarize: bool = True,
     ) -> Tensor:
-        """_summary_
-        # TODO (thomaseh)
+        """Get aligned mask targets for each proposal.
 
         Args:
-            boxes (Tensor): _description_
-            tgt_masks (Tensor): _description_
-            out_shape (Tuple[int, int]): _description_
-            binarize (bool, optional): _description_. Defaults to True.
+            boxes (Tensor): proposal boxes.
+            tgt_masks (Tensor): target masks.
+            out_shape (Tuple[int, int]): output shape.
+            binarize (bool, optional): whether to convert target mask to
+            binary. Defaults to True.
 
         Returns:
-            Tensor: _description_
+            Tensor: aligned mask targets.
         """
         fake_inds = torch.arange(len(boxes), device=boxes.device)[:, None]
         rois = torch.cat([fake_inds, boxes], dim=1)  # Nx5
@@ -552,22 +553,23 @@ class MaskRCNNLoss(nn.Module):
         self,
         mask_pred: torch.Tensor,
         proposal_boxes: List[torch.Tensor],
-        proposal_labels: List[torch.Tensor],
+        target_classes: List[torch.Tensor],
         target_masks: List[torch.Tensor],
     ) -> MaskRCNNLosses:
-        """_summary_
-        # TODO (thomaseh)
-
+        """Calculate losses of Mask RCNN head.
         Args:
-            mask_pred (torch.Tensor): _description_
-            proposal_boxes (List[torch.Tensor]): _description_
-            proposal_labels (List[torch.Tensor]): _description_
-            target_masks (List[torch.Tensor]): _description_
+            mask_pred (torch.Tensor): mask outputs.
+            proposal_boxes (List[torch.Tensor]): [M, 4] proposal boxes per
+            batch element.
+            target_classes (List[torch.Tensor]): list of [M, 4] assigned
+            target boxes for each proposal.
+            target_masks (List[torch.Tensor]): list of [M, N, W] assigned
+            target masks for each proposal.
 
         Returns:
-            MaskRCNNLosses: _description_
+            MaskRCNNLosses: mask loss.
         """
-        mask_size = tuple(mask_pred.shape[2:])
+        mask_size = tuple([mask_pred.shape[2], mask_pred.shape[3]])
         # get targets
         targets = []
         for boxes, tgt_masks in zip(proposal_boxes, target_masks):
@@ -575,7 +577,7 @@ class MaskRCNNLoss(nn.Module):
                 self._get_targets_per_image(boxes, tgt_masks, mask_size)
             )
         mask_targets = torch.cat(targets)
-        mask_labels = torch.cat(proposal_labels)
+        mask_labels = torch.cat(target_classes)
 
         num_rois = mask_pred.shape[0]
         inds = torch.arange(

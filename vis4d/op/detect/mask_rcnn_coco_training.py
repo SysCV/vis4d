@@ -2,6 +2,7 @@
 import argparse
 import copy
 import warnings
+from time import perf_counter
 from typing import List, Optional, Tuple, Union
 
 import torch
@@ -66,8 +67,6 @@ train_resolution = (800, 1333)
 test_resolution = (800, 1333)
 device = torch.device("cuda")
 
-training = False
-
 
 class MaskRCNNModel(nn.Module):
     """Mask RCNN wrapper class for checkpointing etc."""
@@ -96,10 +95,10 @@ class MaskRCNNModel(nn.Module):
         self,
         images: torch.Tensor,
         images_hw: List[Tuple[int, int]],
-        original_hw: List[Tuple[int, int]],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
         target_masks: Optional[List[torch.Tensor]] = None,
+        original_hw: Optional[List[Tuple[int, int]]] = None,
     ) -> Union[
         Tuple[RPNLosses, RCNNLosses, MaskRCNNLosses], Union[DetOut, MaskOut]
     ]:
@@ -109,6 +108,7 @@ class MaskRCNNModel(nn.Module):
             return self._forward_train(
                 images, images_hw, target_boxes, target_classes, target_masks
             )
+        assert original_hw is not None
         return self._forward_test(images, images_hw, original_hw)
 
     def _forward_train(
@@ -175,7 +175,12 @@ class MaskRCNNModel(nn.Module):
 
 
 ## setup model
-mask_rcnn = MaskRCNNModel().to(device)
+mask_rcnn = MaskRCNNModel()
+
+optimizer = optim.SGD(mask_rcnn.parameters(), lr=learning_rate, momentum=0.9)
+scheduler = optim.lr_scheduler.MultiStepLR(
+    optimizer, milestones=[8, 11], gamma=0.1
+)
 
 ## setup test dataset
 coco_val_loader = coco_val()
@@ -223,7 +228,7 @@ def validation_loop(model):
         dets, masks = mask_rcnn(
             pad_image,
             [(output_wh[1], output_wh[0])],
-            [(original_wh[1], original_wh[0])],
+            original_hw=[(original_wh[1], original_wh[0])],
         )
         boxes, scores, class_ids = dets.boxes, dets.scores, dets.class_ids
 
@@ -286,19 +291,13 @@ def training_loop(model):
         num_workers=batch_size // 2,
     )
 
-    optimizer = optim.SGD(
-        mask_rcnn.parameters(), lr=learning_rate, momentum=0.9
-    )
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[8, 11], gamma=0.1
-    )
-
     running_losses = {}
     for epoch in range(num_epochs):
-        mask_rcnn.train()
+        model.train()
         for i, data in enumerate(train_loader):
             data = InputSample.cat(data[0], device)
 
+            tic = perf_counter()
             inputs, inputs_hw, gt_boxes, gt_class_ids, gt_masks = (
                 data.images.tensor,
                 [(wh[1], wh[0]) for wh in data.images.image_sizes],
@@ -310,15 +309,17 @@ def training_loop(model):
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            rpn_losses, rcnn_losses, mask_losses = mask_rcnn(
+            rpn_losses, rcnn_losses, mask_losses = model(
                 normalize(inputs), inputs_hw, gt_boxes, gt_class_ids, gt_masks
             )
             total_loss = sum((*rpn_losses, *rcnn_losses, *mask_losses))
             total_loss.backward()
             optimizer.step()
+            toc = perf_counter()
 
             # print statistics
             losses = dict(
+                time=toc - tic,
                 loss=total_loss,
                 **rpn_losses._asdict(),
                 **rcnn_losses._asdict(),
@@ -338,9 +339,10 @@ def training_loop(model):
 
         scheduler.step()
         torch.save(
-            mask_rcnn.state_dict(), f"maskrcnn_coco_epoch_{epoch + 1}.pt"
+            model.state_dict(),
+            f"vis4d-workspace/test/maskrcnn_coco_epoch_{epoch + 1}.pt",
         )
-        validation_loop(mask_rcnn)
+        validation_loop(model)
     print("training done.")
 
 
@@ -351,20 +353,22 @@ if __name__ == "__main__":
     )
     parser.add_argument("-n", "--num_gpus", default=1, help="number of gpus")
     args = parser.parse_args()
+    mask_rcnn.to(device)
     if args.ckpt is None:
         if args.num_gpus > 1:
             mask_rcnn = nn.DataParallel(
                 mask_rcnn, device_ids=[device, torch.device("cuda:5")]
             )
         training_loop(mask_rcnn)
-    if args.ckpt == "mmdet":
-        weights = (
-            "mmdet://mask_rcnn/mask_rcnn_r50_fpn_2x_coco/"
-            "mask_rcnn_r50_fpn_2x_coco_bbox_mAP-0.392__segm_mAP-0.354_"
-            "20200505_003907-3e542a40.pth"
-        )
-        load_model_checkpoint(mask_rcnn, weights, REV_KEYS)
     else:
-        ckpt = torch.load(args.ckpt)
-        mask_rcnn.load_state_dict(ckpt)
-    validation_loop(mask_rcnn)
+        if args.ckpt == "mmdet":
+            weights = (
+                "mmdet://mask_rcnn/mask_rcnn_r50_fpn_2x_coco/"
+                "mask_rcnn_r50_fpn_2x_coco_bbox_mAP-0.392__segm_mAP-0.354_"
+                "20200505_003907-3e542a40.pth"
+            )
+            load_model_checkpoint(mask_rcnn, weights, REV_KEYS)
+        else:
+            ckpt = torch.load(args.ckpt)
+            mask_rcnn.load_state_dict(ckpt)
+        validation_loop(mask_rcnn)

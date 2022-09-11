@@ -183,8 +183,8 @@ class MaskRCNNTest(unittest.TestCase):
         anchor_gen = get_default_anchor_generator()
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        basemodel = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        fpn = FPN(basemodel.out_channels, 256)
+        backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        fpn = FPN(backbone.out_channels[2:], 256)
         faster_rcnn = FasterRCNNHead(
             num_classes=num_classes,
             anchor_generator=anchor_gen,
@@ -198,7 +198,7 @@ class MaskRCNNTest(unittest.TestCase):
 
         optimizer = optim.SGD(
             [
-                *basemodel.parameters(),
+                *backbone.parameters(),
                 *faster_rcnn.parameters(),
                 *mask_head.parameters(),
             ],
@@ -211,7 +211,7 @@ class MaskRCNNTest(unittest.TestCase):
             train_data, batch_size=2, shuffle=True, collate_fn=identity_collate
         )
 
-        basemodel.train()
+        backbone.train()
         faster_rcnn.train()
         mask_head.train()
 
@@ -226,7 +226,7 @@ class MaskRCNNTest(unittest.TestCase):
                 optimizer.zero_grad()
 
                 # forward + backward + optimize
-                features = fpn(basemodel(inputs))
+                features = fpn(backbone(inputs))
                 outputs = faster_rcnn(
                     features, images_hw, gt_boxes, gt_class_ids
                 )
@@ -234,10 +234,7 @@ class MaskRCNNTest(unittest.TestCase):
                     features[2:-1], outputs.sampled_proposals.boxes
                 )
                 rpn_losses = rpn_loss(
-                    outputs.rpn.cls,
-                    outputs.rpn.box,
-                    gt_boxes,
-                    images_hw,
+                    outputs.rpn.cls, outputs.rpn.box, gt_boxes, images_hw
                 )
                 rcnn_losses = rcnn_loss(
                     outputs.roi.cls_score,
