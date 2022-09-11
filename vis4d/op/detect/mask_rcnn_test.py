@@ -92,7 +92,11 @@ class MaskRCNNTest(unittest.TestCase):
     """Mask RCNN test class."""
 
     def test_inference(self):
-        """Test inference of Mask RCNN."""
+        """Test inference of Mask RCNN.
+
+        Run::
+            >>> pytest vis4d/op/detect/mask_rcnn_test.py::MaskRCNNTest::test_inference
+        """  # pylint: disable=line-too-long # Disable the line length requirement becase of the cmd line prompts
         image1 = url_to_tensor(
             "https://farm1.staticflickr.com/106/311161252_33d75830fd_z.jpg",
             (512, 512),
