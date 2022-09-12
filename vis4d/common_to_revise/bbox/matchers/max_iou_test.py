@@ -1,7 +1,7 @@
 """Test cases for max iou matcher."""
 import unittest
 
-from vis4d.struct import Boxes2D
+from vis4d.struct_to_revise import Boxes2D
 from vis4d.unittest.utils import generate_dets
 
 from .max_iou import MaxIoUMatcher

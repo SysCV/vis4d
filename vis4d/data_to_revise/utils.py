@@ -17,10 +17,10 @@ from scalabel.label.utils import check_crowd, check_ignored
 from tabulate import tabulate
 from termcolor import colored
 
-from vis4d.struct import InputSample, NDArrayI64, NDArrayUI8
+from vis4d.struct_to_revise import InputSample, NDArrayI64, NDArrayUI8
 
-from ..common_to_clean.geometry.transform import transform_points
-from ..common_to_clean.utils.distributed import (
+from ..common_to_revise.geometry.transform import transform_points
+from ..common_to_revise.utils.distributed import (
     all_gather_object_cpu,
     all_gather_object_gpu,
 )

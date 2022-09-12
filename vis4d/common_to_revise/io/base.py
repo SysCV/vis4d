@@ -1,7 +1,7 @@
 """Backends for the data types a dataset of interest is saved in."""
 from abc import abstractmethod
 
-from vis4d.common_to_clean.registry import RegistryHolder
+from vis4d.common_to_revise.registry import RegistryHolder
 
 
 class BaseDataBackend(metaclass=RegistryHolder):

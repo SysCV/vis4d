@@ -7,9 +7,9 @@ import torch
 import torch.nn.functional as F
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 
-from vis4d.common_to_clean.bbox.utils import bbox_intersection
-from vis4d.data_to_clean.utils import transform_bbox
-from vis4d.struct import (
+from vis4d.common_to_revise.bbox.utils import bbox_intersection
+from vis4d.data_to_revise.utils import transform_bbox
+from vis4d.struct_to_revise import (
     ArgsType,
     Boxes2D,
     Boxes3D,

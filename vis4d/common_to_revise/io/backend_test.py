@@ -3,7 +3,7 @@ import os
 import sys
 import unittest
 
-from vis4d.data_to_clean.utils import str_decode
+from vis4d.data_to_revise.utils import str_decode
 
 from ..utils import timeit
 from .file import FileBackend

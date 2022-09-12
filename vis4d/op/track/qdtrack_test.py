@@ -7,7 +7,7 @@ from mmcv.runner.checkpoint import load_checkpoint
 from torch import optim
 from torch.utils.data import DataLoader
 
-from vis4d.common_to_clean.bbox.samplers import match_and_sample_proposals
+from vis4d.common_to_revise.bbox.samplers import match_and_sample_proposals
 from vis4d.op.detect.faster_rcnn_test import (
     FPN,
     FasterRCNNHead,

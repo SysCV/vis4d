@@ -7,5 +7,5 @@
    vis4d.data
    vis4d.engine
    vis4d.op
-   vis4d.struct
+   vis4d.struct_to_revise
    vis4d.vis

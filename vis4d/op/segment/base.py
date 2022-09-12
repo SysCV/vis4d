@@ -1,11 +1,11 @@
 """Base class for Vis4D segmentation models."""
 
 import abc
-from typing import List, Union, Tuple
+from typing import List, Tuple, Union
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 
 class BaseSegmentor(nn.Module):

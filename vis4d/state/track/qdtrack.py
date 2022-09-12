@@ -189,7 +189,7 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
                     embed = (
                         1 - self.memo_momentum
                     ) * embed + self.memo_momentum * mem_embed
-                embeddings[i] = memory.embeddings[track_mask][-1]
+                embeddings[i] = embed
         else:
             track_ids = torch.empty((0,), dtype=torch.int64, device=device)
             class_ids = torch.empty((0,), dtype=torch.int64, device=device)

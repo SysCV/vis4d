@@ -9,8 +9,8 @@ from pytorch_lightning.utilities.rank_zero import (
 from scalabel.label.utils import get_leaf_categories
 from torch.utils.data import Dataset
 
-from ..common_to_clean.utils.time import Timer
-from ..struct import InputSample
+from ..common_to_revise.utils.time import Timer
+from ..struct_to_revise import InputSample
 from .datasets import BaseDatasetLoader
 from .mapper import BaseSampleMapper
 from .reference import BaseReferenceSampler

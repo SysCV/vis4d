@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from vis4d.struct import InputSample
+from vis4d.struct_to_revise import InputSample
 from vis4d.unittest.utils import generate_input_sample
 
 from .augmentations import MixUp, Mosaic, RandomCrop, Resize

@@ -5,8 +5,8 @@ from typing import Optional, Tuple
 import skimage
 import torch
 
-from ..utils import load_model_checkpoint
 from ..base.resnet import ResNet
+from ..utils import load_model_checkpoint
 from .fcn import FCN, FCNResNet
 
 

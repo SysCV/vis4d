@@ -1,4 +1,4 @@
-vis4d.struct
+vis4d.struct_to_revise
 ====================
 
 Subpackages
@@ -7,25 +7,25 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   vis4d.struct.labels
+   vis4d.struct_to_revise.labels
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.struct.data
+.. automodule:: vis4d.struct_to_revise.data
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.struct.sample
+.. automodule:: vis4d.struct_to_revise.sample
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.struct.structures
+.. automodule:: vis4d.struct_to_revise
    :members:
    :undoc-members:
    :show-inheritance:
@@ -33,7 +33,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.struct
+.. automodule:: vis4d.struct_to_revise
    :members:
    :undoc-members:
    :show-inheritance:

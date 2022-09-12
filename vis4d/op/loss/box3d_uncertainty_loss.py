@@ -7,7 +7,7 @@ from typing import Tuple
 import torch
 import torch.nn.functional as F
 
-from vis4d.struct import LossesType
+from vis4d.struct_to_revise import LossesType
 
 from .base import Loss
 from .common import smooth_l1_loss

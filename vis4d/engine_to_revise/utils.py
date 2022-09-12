@@ -16,8 +16,8 @@ from pytorch_lightning.utilities.rank_zero import (
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from termcolor import colored
 
-from ..common_to_clean.utils.time import Timer
-from ..struct import ArgsType
+from ..common_to_revise.utils.time import Timer
+from ..struct_to_revise import ArgsType
 
 try:
     from mmcv.utils import get_logger

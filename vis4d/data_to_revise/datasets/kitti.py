@@ -7,7 +7,7 @@ from scalabel.label.from_kitti import from_kitti
 from scalabel.label.io import load, save
 from scalabel.label.typing import Dataset
 
-from vis4d.struct import ArgsType
+from vis4d.struct_to_revise import ArgsType
 
 from .base import BaseDatasetLoader
 

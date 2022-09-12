@@ -6,7 +6,7 @@ from typing import List, Tuple
 import torch
 from torchvision.ops import roi_align, roi_pool
 
-from vis4d.struct import ArgsType, Boxes2D
+from vis4d.struct_to_revise import ArgsType, Boxes2D
 
 from .base import BaseRoIPooler
 from .utils import assign_boxes_to_levels, boxes_to_tensor

@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from vis4d.struct import Boxes2D, Intrinsics
+from vis4d.struct_to_revise import Boxes2D, Intrinsics
 
 from .box3d_coder import QD3DTBox3DCoder
 

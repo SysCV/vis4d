@@ -4,7 +4,7 @@ from typing import Dict, List, Union
 
 import torch
 
-from vis4d.struct import ArgsType
+from vis4d.struct_to_revise import ArgsType
 
 from ..matchers.base import MatchResult
 from ..utils import non_intersection, random_choice
@@ -34,10 +34,14 @@ class CombinedSampler(BaseSampler):
         self.num_bins = num_bins
         self.bg_label = bg_label
 
-        if not pos_strategy in [
-            "instance_balanced",
-            "iou_balanced",
-        ] or not neg_strategy in ["instance_balanced", "iou_balanced"]:
+        if (
+            not pos_strategy
+            in [
+                "instance_balanced",
+                "iou_balanced",
+            ]
+            or not neg_strategy in ["instance_balanced", "iou_balanced"]
+        ):
             raise ValueError(
                 "strategies must be in [instance_balanced, iou_balanced]"
             )

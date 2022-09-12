@@ -15,9 +15,9 @@ from scalabel.label.utils import (
     get_matrix_from_intrinsics,
 )
 
-from ..common_to_clean.io import BaseDataBackend, FileBackend
-from ..common_to_clean.registry import RegistryHolder
-from ..struct import (
+from ..common_to_revise.io import BaseDataBackend, FileBackend
+from ..common_to_revise.registry import RegistryHolder
+from ..struct_to_revise import (
     ALLOWED_INPUTS,
     ALLOWED_TARGETS,
     Boxes2D,

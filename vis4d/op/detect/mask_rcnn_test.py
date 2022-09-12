@@ -7,24 +7,24 @@ from scalabel.label.typing import ImageSize
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.common_to_clean.bbox.utils import apply_mask
-from vis4d.common_to_clean.datasets import (
+from vis4d.common_to_revise.bbox.utils import apply_mask
+from vis4d.common_to_revise.datasets import (
     bdd100k_segtrack_sample,
     bdd100k_track_map,
 )
 from vis4d.op.detect.rcnn import (
     Det2Mask,
+    DetOut,
     MaskRCNNHead,
     MaskRCNNLoss,
     RCNNLoss,
     RoI2Det,
-    DetOut,
     postprocess_dets,
 )
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.utils import load_model_checkpoint
-from vis4d.struct import Boxes2D
-from vis4d.struct.labels import Masks
+from vis4d.struct_to_revise import Boxes2D
+from vis4d.struct_to_revise.labels import Masks
 
 from ..base.resnet import ResNet
 from ..fpp.fpn import FPN
@@ -34,7 +34,7 @@ from .faster_rcnn import (
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
-from .faster_rcnn_test import normalize, url_to_tensor, identity_collate
+from .faster_rcnn_test import identity_collate, normalize, url_to_tensor
 from .testcases.mask_rcnn import (
     INSSEG0_CLASS_IDS,
     INSSEG0_INDICES,

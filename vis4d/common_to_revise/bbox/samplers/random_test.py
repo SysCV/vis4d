@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from vis4d.struct import Boxes2D
+from vis4d.struct_to_revise import Boxes2D
 
 from ..matchers.base import MatchResult
 from .random import RandomSampler

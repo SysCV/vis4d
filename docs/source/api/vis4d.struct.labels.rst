@@ -1,23 +1,23 @@
-vis4d.struct.labels
+vis4d.struct_to_revise.labels
 ===========================
 
 Submodules
 ----------
 
 
-.. automodule:: vis4d.struct.labels.boxes
+.. automodule:: vis4d.struct_to_revise.labels.boxes
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.struct.labels.labels_test
+.. automodule:: vis4d.struct_to_revise.labels.labels_test
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-.. automodule:: vis4d.struct.labels.masks
+.. automodule:: vis4d.struct_to_revise.labels.masks
    :members:
    :undoc-members:
    :show-inheritance:
@@ -25,7 +25,7 @@ Submodules
 Module contents
 ---------------
 
-.. automodule:: vis4d.struct.labels
+.. automodule:: vis4d.struct_to_revise.labels
    :members:
    :undoc-members:
    :show-inheritance:

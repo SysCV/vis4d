@@ -4,7 +4,7 @@ from typing import List
 
 import torch
 
-from vis4d.struct import Boxes2D, Boxes3D, Intrinsics
+from vis4d.struct_to_revise import Boxes2D, Boxes3D, Intrinsics
 
 
 class BaseBoxEncoder2D:

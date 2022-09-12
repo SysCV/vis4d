@@ -8,15 +8,15 @@ import pytest
 import torch
 from _pytest.fixtures import FixtureRequest
 
-from vis4d.common_to_clean.bbox.matchers import MaxIoUMatcher
-from vis4d.common_to_clean.bbox.poolers import MultiScaleRoIAlign
-from vis4d.common_to_clean.bbox.samplers import CombinedSampler
-from vis4d.data_to_clean import (
+from vis4d.common_to_revise.bbox.matchers import MaxIoUMatcher
+from vis4d.common_to_revise.bbox.poolers import MultiScaleRoIAlign
+from vis4d.common_to_revise.bbox.samplers import CombinedSampler
+from vis4d.data_to_revise import (
     BaseDataModule,
     BaseDatasetHandler,
     ScalabelDataset,
 )
-from vis4d.data_to_clean.datasets import BaseDatasetLoader, Scalabel
+from vis4d.data_to_revise.datasets import BaseDatasetLoader, Scalabel
 from vis4d.op.base import MMDetBackbone
 from vis4d.op.base.neck import MMDetNeck
 from vis4d.op.detect import (
@@ -36,7 +36,7 @@ from vis4d.op.panoptic import PanopticFPN
 from vis4d.op.segment import MMEncDecSegmentor
 from vis4d.op.track.graph import QDTrackAssociation
 from vis4d.op.track.similarity import QDSimilarityHead
-from vis4d.struct import ArgsType
+from vis4d.struct_to_revise import ArgsType
 from vis4d.unittest.utils import (
     MockModel,
     _trainer_builder,

@@ -13,7 +13,7 @@ from scalabel.label.io import load, load_label_config, save
 from scalabel.label.to_nuscenes import to_nuscenes
 from scalabel.label.typing import Dataset, Frame
 
-from vis4d.struct import ArgsType, MetricLogs
+from vis4d.struct_to_revise import ArgsType, MetricLogs
 
 from .base import BaseDatasetLoader, _eval_mapping
 

@@ -4,7 +4,7 @@ from typing import List
 
 from scalabel.label.typing import Category, Config, Dataset, Frame
 
-from ..struct import ArgsType
+from ..struct_to_revise import ArgsType
 from .dataset import ScalabelDataset
 from .datasets import Scalabel
 from .mapper import BaseSampleMapper

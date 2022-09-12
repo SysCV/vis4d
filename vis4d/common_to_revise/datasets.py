@@ -1,5 +1,5 @@
 """Datasets used for projects in Vis4D."""
-from vis4d.data_to_clean.datasets import (
+from vis4d.data_to_revise.datasets import (
     BDD100K,
     COCO,
     KITTI,
@@ -111,7 +111,7 @@ bdd100k_insseg_sample = lambda: Scalabel(
     config_path=f"{bdd100k_detect_sample_path}/bdd100k-samples/insseg_config.toml",
 )
 
-bdd100k_track_sample_path = "vis4d/engine/testcases/track"
+bdd100k_track_sample_path = "vis4d/engine_to_revise/testcases/track"
 bdd100k_track_sample = lambda: Scalabel(
     name="bdd100k_track_sample",
     data_root=f"{bdd100k_track_sample_path}/bdd100k-samples/images",

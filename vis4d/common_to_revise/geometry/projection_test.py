@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from vis4d.struct import Intrinsics
+from vis4d.struct_to_revise import Intrinsics
 
 from .projection import (
     generate_depth_map,

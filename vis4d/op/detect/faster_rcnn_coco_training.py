@@ -11,14 +11,14 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from vis4d.common_to_clean.data_pipelines import default
-from vis4d.common_to_clean.datasets import coco_det_map, coco_train, coco_val
-from vis4d.data_to_clean import (
+from vis4d.common_to_revise.data_pipelines import default
+from vis4d.common_to_revise.datasets import coco_det_map, coco_train, coco_val
+from vis4d.data_to_revise import (
     BaseDatasetHandler,
     BaseSampleMapper,
     ScalabelDataset,
 )
-from vis4d.data_to_clean.transforms import Resize
+from vis4d.data_to_revise.transforms import Resize
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
@@ -32,17 +32,18 @@ from vis4d.op.detect.rcnn import DetOut, RCNNLoss, RCNNLosses, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss, RPNLosses
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
-from vis4d.struct import Boxes2D, InputSample
+from vis4d.optim.warmup import LinearLRWarmup
+from vis4d.struct_to_revise import Boxes2D, InputSample
 
 warnings.filterwarnings("ignore")
 
 log_step = 100
 num_epochs = 12
-batch_size = 8
+batch_size = 16
 learning_rate = 0.02 / 16 * batch_size
 train_resolution = (800, 1333)
 test_resolution = (800, 1333)
-device = torch.device("cuda:4")
+device = torch.device("cuda:7")
 
 
 class FasterRCNN(nn.Module):
@@ -132,6 +133,7 @@ optimizer = optim.SGD(faster_rcnn.parameters(), lr=learning_rate, momentum=0.9)
 scheduler = optim.lr_scheduler.MultiStepLR(
     optimizer, milestones=[8, 11], gamma=0.1
 )
+warmup = LinearLRWarmup(0.001, 500)
 
 ## setup datasets
 train_sample_mapper = BaseSampleMapper(skip_empty_samples=True)
@@ -235,6 +237,14 @@ def training_loop(model):
             )
             total_loss = sum((*rpn_losses, *rcnn_losses))
             total_loss.backward()
+
+            if epoch == 0 and i < 500:
+                for g in optimizer.param_groups:
+                    g["lr"] = warmup(i, learning_rate)
+            elif epoch == 0 and i == 500:
+                for g in optimizer.param_groups:
+                    g["lr"] = learning_rate
+
             optimizer.step()
             toc = perf_counter()
 

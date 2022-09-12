@@ -3,7 +3,7 @@ from typing import List, Tuple, Union
 
 import torch
 
-from vis4d.struct import (
+from vis4d.struct_to_revise import (
     InputSample,
     InstanceMasks,
     LabelInstances,

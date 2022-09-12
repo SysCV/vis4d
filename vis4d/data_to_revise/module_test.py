@@ -7,7 +7,7 @@ from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
 
 from vis4d.op.optimize import DefaultOptimizer
-from vis4d.struct import ArgsType, Images, InputSample
+from vis4d.struct_to_revise import ArgsType, Images, InputSample
 from vis4d.unittest.utils import MockModel, _trainer_builder
 
 from .dataset import ScalabelDataset

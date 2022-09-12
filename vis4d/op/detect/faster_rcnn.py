@@ -4,19 +4,19 @@ from typing import List, NamedTuple, Optional, Tuple
 import torch
 from torch import nn
 
-from vis4d.common_to_clean.bbox.anchor_generator import AnchorGenerator
-from vis4d.common_to_clean.bbox.coders import (
+from vis4d.common_to_revise.bbox.anchor_generator import AnchorGenerator
+from vis4d.common_to_revise.bbox.coders import (
     BaseBoxEncoder2D,
     DeltaXYWHBBoxEncoder,
 )
-from vis4d.common_to_clean.bbox.matchers import BaseMatcher, MaxIoUMatcher
-from vis4d.common_to_clean.bbox.samplers import (
+from vis4d.common_to_revise.bbox.matchers import BaseMatcher, MaxIoUMatcher
+from vis4d.common_to_revise.bbox.samplers import (
     BaseSampler,
     RandomSampler,
     match_and_sample_proposals,
 )
-from vis4d.common_to_clean.bbox.utils import apply_mask
-from vis4d.struct import Proposals
+from vis4d.common_to_revise.bbox.utils import apply_mask
+from vis4d.struct_to_revise import Proposals
 
 from .rcnn import RCNNHead, RCNNOut
 from .rpn import RPN2RoI, RPNHead, RPNOut

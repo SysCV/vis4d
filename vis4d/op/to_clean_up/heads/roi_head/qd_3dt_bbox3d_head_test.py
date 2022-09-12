@@ -4,10 +4,10 @@ import unittest
 import torch
 from scalabel.label.typing import Frame
 
-from vis4d.common_to_clean.bbox.matchers import MaxIoUMatcher
-from vis4d.common_to_clean.bbox.poolers import MultiScaleRoIAlign
-from vis4d.common_to_clean.bbox.samplers import CombinedSampler
-from vis4d.struct import Images, InputSample
+from vis4d.common_to_revise.bbox.matchers import MaxIoUMatcher
+from vis4d.common_to_revise.bbox.poolers import MultiScaleRoIAlign
+from vis4d.common_to_revise.bbox.samplers import CombinedSampler
+from vis4d.struct_to_revise import Images, InputSample
 from vis4d.unittest.utils import generate_dets, generate_feature_list
 
 from .qd_3dt_bbox3d_head import QD3DTBBox3DHead

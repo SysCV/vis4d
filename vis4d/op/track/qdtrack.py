@@ -5,14 +5,14 @@ import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common_to_clean.bbox.matchers.max_iou import MaxIoUMatcher
-from vis4d.common_to_clean.bbox.poolers import (
+from vis4d.common_to_revise.bbox.matchers.max_iou import MaxIoUMatcher
+from vis4d.common_to_revise.bbox.poolers import (
     BaseRoIPooler,
     MultiScaleRoIAlign,
 )
-from vis4d.common_to_clean.bbox.samplers.combined import CombinedSampler
-from vis4d.common_to_clean.bbox.utils import bbox_iou
-from vis4d.common_to_clean.layers import add_conv_branch
+from vis4d.common_to_revise.bbox.samplers.combined import CombinedSampler
+from vis4d.common_to_revise.bbox.utils import bbox_iou
+from vis4d.common_to_revise.layers import add_conv_branch
 from vis4d.op.loss import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
 
 from .graph.assignment import TrackIDCounter, greedy_assign

@@ -3,9 +3,9 @@ from typing import List, Optional, Tuple
 
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
 
-from vis4d.common_to_clean.io import BaseDataBackend, FileBackend, HDF5Backend
-from vis4d.data_to_clean.module import BaseDataModule
-from vis4d.data_to_clean.transforms import (
+from vis4d.common_to_revise.io import BaseDataBackend, FileBackend, HDF5Backend
+from vis4d.data_to_revise.module import BaseDataModule
+from vis4d.data_to_revise.transforms import (
     BaseAugmentation,
     KorniaAugmentationWrapper,
     KorniaColorJitter,
@@ -15,7 +15,7 @@ from vis4d.data_to_clean.transforms import (
     RandomCrop,
     Resize,
 )
-from vis4d.struct import ArgsType
+from vis4d.struct_to_revise import ArgsType
 
 
 class CommonDataModule(BaseDataModule):

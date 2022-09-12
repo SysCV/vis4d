@@ -13,9 +13,9 @@ from torch.utils.data import (
 )
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.common_to_clean.registry import RegistryHolder
-from vis4d.common_to_clean.utils import get_world_size
-from vis4d.struct import ArgsType, ModuleCfg
+from vis4d.common_to_revise.registry import RegistryHolder
+from vis4d.common_to_revise.utils import get_world_size
+from vis4d.struct_to_revise import ArgsType, ModuleCfg
 
 from .dataset import ScalabelDataset
 

@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 
 import torch
 
-from vis4d.struct import Intrinsics
+from vis4d.struct_to_revise import Intrinsics
 
 
 def project_points(

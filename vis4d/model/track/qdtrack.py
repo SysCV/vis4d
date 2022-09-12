@@ -11,25 +11,25 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from vis4d.common_to_clean.bbox.matchers import MaxIoUMatcher
-from vis4d.common_to_clean.bbox.samplers import (
+from vis4d.common_to_revise.bbox.matchers import MaxIoUMatcher
+from vis4d.common_to_revise.bbox.samplers import (
     CombinedSampler,
     match_and_sample_proposals,
 )
-from vis4d.common_to_clean.data_pipelines import default
-from vis4d.common_to_clean.datasets import (
+from vis4d.common_to_revise.data_pipelines import default
+from vis4d.common_to_revise.datasets import (
     bdd100k_det_train,
     bdd100k_track_map,
     bdd100k_track_train,
     bdd100k_track_val,
 )
-from vis4d.data_to_clean import (
+from vis4d.data_to_revise import (
     BaseDatasetHandler,
     BaseReferenceSampler,
     BaseSampleMapper,
     ScalabelDataset,
 )
-from vis4d.data_to_clean.transforms import Resize
+from vis4d.data_to_revise.transforms import Resize
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
@@ -49,7 +49,7 @@ from vis4d.op.track.qdtrack import (
     QDTrackInstanceSimilarityLoss,
 )
 from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
-from vis4d.struct import Boxes2D, InputSample
+from vis4d.struct_to_revise import Boxes2D, InputSample
 
 REV_KEYS = [
     (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),

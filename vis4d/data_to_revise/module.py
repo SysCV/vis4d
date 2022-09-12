@@ -9,12 +9,12 @@ from pytorch_lightning.callbacks import Callback
 from torch.utils import data
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.data_to_clean.callbacks.evaluator import DefaultEvaluatorCallback
-from vis4d.data_to_clean.callbacks.writer import DefaultWriterCallback
+from vis4d.data_to_revise.callbacks.evaluator import DefaultEvaluatorCallback
+from vis4d.data_to_revise.callbacks.writer import DefaultWriterCallback
 
-from ..common_to_clean.registry import RegistryHolder
-from ..common_to_clean.utils import get_world_size
-from ..struct import CategoryMap, InputSample, ModuleCfg
+from ..common_to_revise.registry import RegistryHolder
+from ..common_to_revise.utils import get_world_size
+from ..struct_to_revise import CategoryMap, InputSample, ModuleCfg
 from .dataset import ScalabelDataset
 from .datasets import Custom
 from .handler import BaseDatasetHandler

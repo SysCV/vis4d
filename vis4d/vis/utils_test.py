@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from vis4d.struct import Intrinsics
+from vis4d.struct_to_revise import Intrinsics
 from vis4d.unittest.utils import generate_dets, generate_instance_masks
 
 from .utils import (

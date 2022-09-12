@@ -11,9 +11,9 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 from scalabel.common import mute
 from scalabel.label.typing import Frame
 
-from vis4d.data_to_clean.datasets import BaseDatasetLoader
-from vis4d.data_to_clean.utils import all_gather_gts, all_gather_predictions
-from vis4d.struct import InputSample, MetricLogs, ModelOutput
+from vis4d.data_to_revise.datasets import BaseDatasetLoader
+from vis4d.data_to_revise.utils import all_gather_gts, all_gather_predictions
+from vis4d.struct_to_revise import InputSample, MetricLogs, ModelOutput
 
 mute(True)  # turn off undesired logs during eval
 logger = logging.getLogger("pytorch_lightning")

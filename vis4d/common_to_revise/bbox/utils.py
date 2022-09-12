@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from torchvision.ops import batched_nms
 
-from vis4d.struct import Boxes2D, Boxes3D
+from vis4d.struct_to_revise import Boxes2D, Boxes3D
 
 
 @torch.jit.script

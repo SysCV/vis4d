@@ -5,7 +5,7 @@ from typing import List, Tuple
 import torch
 from torch import nn
 
-from vis4d.struct import Boxes2D
+from vis4d.struct_to_revise import Boxes2D
 
 
 class BaseRoIPooler(nn.Module):

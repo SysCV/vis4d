@@ -9,8 +9,8 @@ from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
 from pytorch_lightning.utilities.cli import SaveConfigCallback
 
-from vis4d.data_to_clean.module_test import SampleDataModule
-from vis4d.struct import ArgsType
+from vis4d.data_to_revise.module_test import SampleDataModule
+from vis4d.struct_to_revise import ArgsType
 
 from ..model.optimize import DefaultOptimizer
 from ..unittest.utils import MockModel

@@ -5,8 +5,8 @@ import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common_to_clean.geometry.rotation import normalize_angle
-from vis4d.struct import ArgsType
+from vis4d.common_to_revise.geometry.rotation import normalize_angle
+from vis4d.struct_to_revise import ArgsType
 
 from .base import BaseMotionModel
 

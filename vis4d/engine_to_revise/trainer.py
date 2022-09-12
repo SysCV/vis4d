@@ -25,8 +25,8 @@ from pytorch_lightning.utilities.types import (
 )
 from torch.utils.collect_env import get_pretty_env_info
 
-from ..data_to_clean.module import BaseDataModule
-from ..struct import ArgsType, DictStrAny
+from ..data_to_revise.module import BaseDataModule
+from .struct_to_revice import ArgsType, DictStrAny
 from .utils import DefaultProgressBar, is_torch_tf32_available, setup_logger
 
 

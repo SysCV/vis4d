@@ -4,7 +4,7 @@ from typing import List, Tuple
 import torch
 from torch.nn import functional as F
 
-from vis4d.struct import InputSample
+from vis4d.struct_to_revise import InputSample
 
 
 def split_key_ref_inputs(

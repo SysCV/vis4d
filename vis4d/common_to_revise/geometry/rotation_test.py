@@ -7,7 +7,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import torch
 
-from vis4d.struct import NDArrayF64
+from vis4d.struct_to_revise import NDArrayF64
 
 from .rotation import (
     euler_angles_to_matrix,

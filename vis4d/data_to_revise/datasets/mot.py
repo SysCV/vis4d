@@ -12,7 +12,7 @@ from scalabel.label.io import load, load_label_config
 from scalabel.label.transforms import box2d_to_xyxy
 from scalabel.label.typing import Dataset, Frame
 
-from vis4d.struct import ArgsType, MetricLogs
+from vis4d.struct_to_revise import ArgsType, MetricLogs
 
 from .base import BaseDatasetLoader
 

@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 import torch
 
-from vis4d.common_to_clean.bbox.utils import bbox_iou
+from vis4d.common_to_revise.bbox.utils import bbox_iou
 
 from .base import BaseMatcher, MatchResult
 
@@ -18,10 +18,12 @@ class MaxIoUMatcher(BaseMatcher):
         thresholds: List[float],
         labels: List[int],
         allow_low_quality_matches: bool,
+        min_positive_iou: float = 0.0,
     ):
         """Init."""
         super().__init__()
         self.allow_low_quality_matches = allow_low_quality_matches
+        self.min_positive_iou = min_positive_iou
         if not thresholds[0] > 0:
             raise ValueError(
                 f"Lowest threshold {thresholds[0]} must be greater than 0!"
@@ -98,19 +100,27 @@ class MaxIoUMatcher(BaseMatcher):
             match_labels[low_high] = l
 
         if self.allow_low_quality_matches:
-            _set_low_quality_matches(match_labels, match_quality_matrix)
+            _set_low_quality_matches(
+                match_labels, match_quality_matrix, self.min_positive_iou
+            )
 
         return matches, match_labels
 
 
 def _set_low_quality_matches(
-    match_labels: torch.Tensor, match_quality_matrix: torch.Tensor
+    match_labels: torch.Tensor,
+    match_quality_matrix: torch.Tensor,
+    min_positive_iou: float = 0.0,
 ) -> None:
     """Set matches for predictions that have only low-quality matches.
 
     See Sec. 3.1.2 of Faster R-CNN: https://arxiv.org/abs/1506.01497
     """
     highest_quality_foreach_gt, _ = match_quality_matrix.max(dim=1)
+    if min_positive_iou > 0:
+        highest_quality_foreach_gt = highest_quality_foreach_gt.clamp(
+            min_positive_iou
+        )
     pred_inds_with_highest_quality = (
         match_quality_matrix == highest_quality_foreach_gt[:, None]
     ).nonzero()[:, 1]

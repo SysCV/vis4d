@@ -3,8 +3,8 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 
-from vis4d.common_to_clean.registry import RegistryHolder
-from vis4d.struct import (
+from vis4d.common_to_revise.registry import RegistryHolder
+from vis4d.struct_to_revise import (
     Boxes2D,
     Boxes3D,
     DictStrAny,

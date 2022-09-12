@@ -7,9 +7,9 @@ import torch
 from scalabel.label.typing import FrameGroup
 from torch.utils import data
 
-from vis4d.common_to_clean.registry import RegistryHolder
-from vis4d.data_to_clean.transforms import BaseAugmentation
-from vis4d.struct import InputSample, LabelInstances
+from vis4d.common_to_revise.registry import RegistryHolder
+from vis4d.data_to_revise.transforms import BaseAugmentation
+from vis4d.struct_to_revise import InputSample, LabelInstances
 
 
 def sort_by_frame_index(samples: List[InputSample]) -> List[InputSample]:
