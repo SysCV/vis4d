@@ -319,7 +319,7 @@ class RCNNLoss(nn.Module):
         bbox_weights = torch.cat([tgt.bbox_weights for tgt in targets], 0)
 
         # compute losses
-        avg_factor = max(torch.sum(label_weights > 0).float().item(), 1.0)
+        avg_factor = torch.sum(label_weights > 0).clamp(1.0)
         if class_outs.numel() > 0:
             loss_cls = SumWeightedLoss(label_weights, avg_factor)(
                 F.cross_entropy(class_outs, labels, reduction="none")

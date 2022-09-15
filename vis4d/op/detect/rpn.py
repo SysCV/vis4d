@@ -15,7 +15,7 @@ from vis4d.common_to_revise.bbox.coders.delta_xywh_coder import (
     DeltaXYWHBBoxEncoder,
 )
 from vis4d.common_to_revise.bbox.matchers import MaxIoUMatcher
-from vis4d.common_to_revise.bbox.samplers import RandomSampler, SamplingResult
+from vis4d.common_to_revise.bbox.samplers import RandomSampler
 from vis4d.common_to_revise.layers import Conv2d
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss

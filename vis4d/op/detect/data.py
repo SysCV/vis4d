@@ -44,7 +44,7 @@ class DetectDataModule(CommonDataModule):
 
             test_sample_mapper.setup_categories(bdd100k_det_map)
             test_transforms: List[BaseAugmentation] = [
-                Resize(shape=(720, 1280))
+                Resize(shape=(720, 1280), keep_ratio=True)
             ]
             test_datasets = [
                 ScalabelDataset(bdd100k_det_val(), False, test_sample_mapper)
@@ -58,7 +58,11 @@ class DetectDataModule(CommonDataModule):
                 train_transforms = default((800, 1333))
 
             test_sample_mapper.setup_categories(coco_det_map)
-            test_transforms = [Resize(shape=(800, 1333))]
+            test_transforms = [
+                Resize(
+                    shape=(800, 1333), keep_ratio=True, align_long_edge=True
+                )
+            ]
             test_datasets = [
                 ScalabelDataset(coco_val(), False, test_sample_mapper)
             ]

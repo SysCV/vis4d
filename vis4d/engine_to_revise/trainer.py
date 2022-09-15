@@ -26,7 +26,7 @@ from pytorch_lightning.utilities.types import (
 from torch.utils.collect_env import get_pretty_env_info
 
 from ..data_to_revise.module import BaseDataModule
-from .struct_to_revice import ArgsType, DictStrAny
+from ..struct_to_revise import ArgsType, DictStrAny
 from .utils import DefaultProgressBar, is_torch_tf32_available, setup_logger
 
 
@@ -63,7 +63,7 @@ class DefaultTrainer(pl.Trainer):
         resume: bool = False,
         wandb: bool = False,
         tqdm: bool = False,
-        use_tf32: bool = True,
+        use_tf32: bool = False,
         progress_bar_refresh_rate: int = 50,
         tuner_params: Optional[DictStrAny] = None,
         tuner_metrics: Optional[List[str]] = None,

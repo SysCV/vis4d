@@ -59,7 +59,6 @@ def get_default_rpn_box_encoder() -> DeltaXYWHBBoxEncoder:
 def get_default_rcnn_box_encoder() -> DeltaXYWHBBoxEncoder:
     """Get the default bounding box encoder for RCNN."""
     return DeltaXYWHBBoxEncoder(
-        clip_border=True,
         target_means=(0.0, 0.0, 0.0, 0.0),
         target_stds=(0.1, 0.1, 0.2, 0.2),
     )

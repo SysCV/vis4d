@@ -19,7 +19,7 @@ from vis4d.data_to_revise import (
     ScalabelDataset,
 )
 from vis4d.data_to_revise.transforms import Resize
-from vis4d.op.base.resnet import ResNet
+from vis4d.op.base.resnet import BaseModel, ResNet
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     FRCNNOut,
@@ -43,7 +43,51 @@ batch_size = 16
 learning_rate = 0.02 / 16 * batch_size
 train_resolution = (800, 1333)
 test_resolution = (800, 1333)
-device = torch.device("cuda:7")
+device = torch.device("cuda:6")
+
+
+class MMResNet(BaseModel):
+    def __init__(self) -> None:
+        super().__init__()
+        from mmdet.models.backbones.resnet import ResNet as MMRes
+
+        self.mm_resnet = MMRes(
+            depth=50,
+            num_stages=4,
+            out_indices=(0, 1, 2, 3),
+            frozen_stages=1,
+            norm_cfg=dict(type="BN", requires_grad=True),
+            norm_eval=True,
+            style="pytorch",
+            init_cfg=dict(
+                type="Pretrained", checkpoint="torchvision://resnet50"
+            ),
+        )
+
+    def forward(
+        self,
+        images: torch.Tensor,
+    ) -> List[torch.Tensor]:
+        feats = self.mm_resnet(images)
+        return [images, images, *feats]
+
+    @property
+    def out_channels(self) -> List[int]:
+        return [3, 3] + [256 * 2 ** i for i in range(4)]
+
+
+class MMFPN(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        from mmdet.models.necks.fpn import FPN as MFPN
+
+        self.mm_fpn = MFPN(
+            in_channels=[256, 512, 1024, 2048], out_channels=256, num_outs=5
+        )
+
+    def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
+        feats = self.mm_fpn(x[2:])
+        return [x[0], x[1], *feats]
 
 
 class FasterRCNN(nn.Module):
@@ -129,7 +173,12 @@ class FasterRCNN(nn.Module):
 ## setup model
 faster_rcnn = FasterRCNN()
 
-optimizer = optim.SGD(faster_rcnn.parameters(), lr=learning_rate, momentum=0.9)
+optimizer = optim.SGD(
+    faster_rcnn.parameters(),
+    lr=learning_rate,
+    momentum=0.9,
+    weight_decay=0.0001,
+)
 scheduler = optim.lr_scheduler.MultiStepLR(
     optimizer, milestones=[8, 11], gamma=0.1
 )
@@ -218,6 +267,8 @@ def training_loop(model):
     for epoch in range(num_epochs):
         model.train()
         for i, data in enumerate(train_loader):
+            for d in data[0]:
+                d.images.tensor = normalize(d.images.tensor)
             data = InputSample.cat(data[0], device)
 
             tic = perf_counter()
@@ -233,7 +284,7 @@ def training_loop(model):
 
             # forward + backward + optimize
             rpn_losses, rcnn_losses, outputs = model(
-                normalize(inputs), inputs_hw, gt_boxes, gt_class_ids
+                inputs, inputs_hw, gt_boxes, gt_class_ids
             )
             total_loss = sum((*rpn_losses, *rcnn_losses))
             total_loss.backward()
@@ -262,7 +313,7 @@ def training_loop(model):
                     running_losses[k] = v
             if i % log_step == (log_step - 1):
                 # model.visualize_proposals(inputs, outputs)
-                log_str = f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] "
+                log_str = f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] lr: {optimizer.param_groups[0]['lr']}, "
                 for k, v in running_losses.items():
                     log_str += f"{k}: {v / log_step:.3f}, "
                 print(log_str.rstrip(", "))
