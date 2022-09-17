@@ -1,6 +1,6 @@
 """FCN Head for semantic segmentation."""
 
-from typing import List
+from typing import List, Optional, Tuple
 
 import torch
 from torch import nn
@@ -21,6 +21,8 @@ class FCN(BaseSegmentor):
         *args,
         kernel_sizes: List[int] = [4, 4, 16],
         strides: List[int] = [2, 2, 8],
+        resize: Optional[Tuple[int, int]] = None,
+        align_corners: bool = False,
         **kwargs,
     ) -> None:
         """Init.
@@ -154,6 +156,8 @@ class FCNResNet(BaseSegmentor):
         outputs = []
         for i, feat in enumerate(x):
             output = self.heads[i](feat)
-            outputs.append(self._upsample_feat(output, self.resize))
+            if self.resize:
+                outputs = self._upsample_feat(output, self.resize)
+            outputs.append(outputs)
         outputs.reverse()
         return outputs

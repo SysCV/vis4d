@@ -1,7 +1,7 @@
 """Base class for Vis4D segmentation models."""
 
 import abc
-from typing import List, Union, Tuple
+from typing import List, Tuple, Optional
 
 import torch
 from torch import nn
@@ -15,9 +15,7 @@ class BaseSegmentor(nn.Module):
         self,
         in_channels: List[int],
         channels: int,
-        *,
-        resize: Union[None, Tuple[int, int]] = None,
-        align_corners: bool = False
+        *
     ) -> None:
         """Init.
 
@@ -34,11 +32,11 @@ class BaseSegmentor(nn.Module):
         super().__init__()
         self.in_channels = in_channels
         self.channels = channels
-        self.resize = resize
-        self.align_corners = align_corners
+        # self.resize = resize
+        # self.align_corners = align_corners
 
     def _upsample_feat(
-        self, feat: torch.Tensor, resize: Union[None, Tuple[int, int]]
+        self, feat: torch.Tensor, resize: Optional[Tuple[int, int]]
     ) -> torch.Tensor:
         """Resize and concat the features.
 
@@ -74,4 +72,4 @@ class BaseSegmentor(nn.Module):
         raise NotImplementedError
 
     def __call__(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
-        return super().__call__(x)
+        return super()._call_impl(x)
