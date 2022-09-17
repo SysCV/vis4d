@@ -4,7 +4,7 @@ from typing import Dict, List, Union
 from scalabel.label.typing import Label
 from torch import nn
 
-from vis4d.struct import (
+from vis4d.struct_to_revise import (
     ArgsType,
     InputSample,
     LabelInstances,

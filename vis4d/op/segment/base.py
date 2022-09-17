@@ -3,9 +3,10 @@
 import abc
 from typing import List, Tuple, Optional
 
+
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 
 class BaseSegmentor(nn.Module):

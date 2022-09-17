@@ -11,12 +11,17 @@ from matplotlib.ticker import MultipleLocator
 from PIL import Image, ImageDraw, ImageFont
 from torch import Tensor
 
-from vis4d.common.geometry.projection import (
+from vis4d.common_to_revise.geometry.projection import (
     generate_depth_map,
     generate_projected_point_mask,
     project_points,
 )
-from vis4d.struct import Extrinsics, Intrinsics, NDArrayF64, NDArrayUI8
+from vis4d.struct_to_revise import (
+    Extrinsics,
+    Intrinsics,
+    NDArrayF64,
+    NDArrayUI8,
+)
 
 try:  # pragma: no cover
     import dash

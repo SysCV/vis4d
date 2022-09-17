@@ -1,8 +1,8 @@
 """Detect data module."""
 from typing import List, Optional
 
-from vis4d.common.data_pipelines import CommonDataModule, default
-from vis4d.common.datasets import (
+from vis4d.common_to_revise.data_pipelines import CommonDataModule, default
+from vis4d.common_to_revise.datasets import (
     bdd100k_det_map,
     bdd100k_det_train,
     bdd100k_det_val,
@@ -10,8 +10,12 @@ from vis4d.common.datasets import (
     coco_train,
     coco_val,
 )
-from vis4d.data import BaseDatasetHandler, BaseSampleMapper, ScalabelDataset
-from vis4d.data.transforms import BaseAugmentation, Resize
+from vis4d.data_to_revise import (
+    BaseDatasetHandler,
+    BaseSampleMapper,
+    ScalabelDataset,
+)
+from vis4d.data_to_revise.transforms import BaseAugmentation, Resize
 
 
 class DetectDataModule(CommonDataModule):
@@ -40,7 +44,7 @@ class DetectDataModule(CommonDataModule):
 
             test_sample_mapper.setup_categories(bdd100k_det_map)
             test_transforms: List[BaseAugmentation] = [
-                Resize(shape=(720, 1280))
+                Resize(shape=(720, 1280), keep_ratio=True)
             ]
             test_datasets = [
                 ScalabelDataset(bdd100k_det_val(), False, test_sample_mapper)
@@ -54,7 +58,11 @@ class DetectDataModule(CommonDataModule):
                 train_transforms = default((800, 1333))
 
             test_sample_mapper.setup_categories(coco_det_map)
-            test_transforms = [Resize(shape=(800, 1333))]
+            test_transforms = [
+                Resize(
+                    shape=(800, 1333), keep_ratio=True, align_long_edge=True
+                )
+            ]
             test_datasets = [
                 ScalabelDataset(coco_val(), False, test_sample_mapper)
             ]

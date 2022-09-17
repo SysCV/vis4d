@@ -10,12 +10,16 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from vis4d.common.bbox.utils import apply_mask
-from vis4d.common.data_pipelines import default
-from vis4d.common.datasets import coco_det_map, coco_train, coco_val
-from vis4d.common.io import HDF5Backend
-from vis4d.data import BaseDatasetHandler, BaseSampleMapper, ScalabelDataset
-from vis4d.data.transforms import Resize
+from vis4d.common_to_revise.bbox.utils import apply_mask
+from vis4d.common_to_revise.data_pipelines import default
+from vis4d.common_to_revise.datasets import coco_det_map, coco_train, coco_val
+from vis4d.common_to_revise.io import HDF5Backend
+from vis4d.data_to_revise import (
+    BaseDatasetHandler,
+    BaseSampleMapper,
+    ScalabelDataset,
+)
+from vis4d.data_to_revise.transforms import Resize
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
@@ -25,7 +29,6 @@ from vis4d.op.detect.faster_rcnn import (
 )
 from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
 from vis4d.op.detect.rcnn import (
-    postprocess_dets,
     Det2Mask,
     DetOut,
     MaskOut,
@@ -35,11 +38,18 @@ from vis4d.op.detect.rcnn import (
     RCNNLoss,
     RCNNLosses,
     RoI2Det,
+    postprocess_dets,
 )
 from vis4d.op.detect.rpn import RPNLoss, RPNLosses
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
-from vis4d.struct import Boxes2D, Detections, InputSample, InstanceMasks, Masks
+from vis4d.struct_to_revise import (
+    Boxes2D,
+    Detections,
+    InputSample,
+    InstanceMasks,
+    Masks,
+)
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),

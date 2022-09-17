@@ -8,12 +8,15 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.common.datasets import bdd100k_track_map, bdd100k_track_sample
-from vis4d.data.utils import transform_bbox
+from vis4d.common_to_revise.datasets import (
+    bdd100k_track_map,
+    bdd100k_track_sample,
+)
+from vis4d.data_to_revise.utils import transform_bbox
 from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.utils import load_model_checkpoint
-from vis4d.struct import Boxes2D
+from vis4d.struct_to_revise import Boxes2D
 
 from ..base.resnet import ResNet
 from ..fpp.fpn import FPN
@@ -204,11 +207,11 @@ class FasterRCNNTest(unittest.TestCase):
 
     def test_train(self):
         """Test Faster RCNN training."""
-        # TODO should bn be frozen during training?
         anchor_gen = get_default_anchor_generator()
         rpn_bbox_encoder = get_default_rpn_box_encoder()
         rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        fpn = FPN(backbone.out_channels[2:], 256)
         faster_rcnn = FasterRCNNHead(
             num_classes=8,
             anchor_generator=anchor_gen,
@@ -219,7 +222,11 @@ class FasterRCNNTest(unittest.TestCase):
         rcnn_loss = RCNNLoss(rcnn_bbox_encoder, num_classes=8)
 
         optimizer = optim.SGD(
-            [*backbone.parameters(), *faster_rcnn.parameters()],
+            [
+                *backbone.parameters(),
+                *fpn.parameters(),
+                *faster_rcnn.parameters(),
+            ],
             lr=0.001,
             momentum=0.9,
         )
@@ -242,6 +249,7 @@ class FasterRCNNTest(unittest.TestCase):
 
                 # forward + backward + optimize
                 features = backbone(inputs)
+                features = fpn(features)
                 outputs = faster_rcnn(
                     features, images_hw, gt_boxes, gt_class_ids
                 )

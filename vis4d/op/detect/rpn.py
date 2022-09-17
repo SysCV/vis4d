@@ -7,18 +7,20 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops import batched_nms
 
-from vis4d.common.bbox.anchor_generator import (
+from vis4d.common_to_revise.bbox.anchor_generator import (
     AnchorGenerator,
     anchor_inside_image,
 )
-from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
-from vis4d.common.bbox.matchers import MaxIoUMatcher
-from vis4d.common.bbox.samplers import RandomSampler, SamplingResult
-from vis4d.common.layers import Conv2d
-from vis4d.op.loss.common import smooth_l1_loss
+from vis4d.common_to_revise.bbox.coders.delta_xywh_coder import (
+    DeltaXYWHBBoxEncoder,
+)
+from vis4d.common_to_revise.bbox.matchers import MaxIoUMatcher
+from vis4d.common_to_revise.bbox.samplers import RandomSampler
+from vis4d.common_to_revise.layers import Conv2d
+from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
-from vis4d.struct import Proposals
-from vis4d.struct.labels.boxes import filter_boxes
+from vis4d.struct_to_revise import Proposals
+from vis4d.struct_to_revise.labels.boxes import filter_boxes
 
 
 class RPNOut(NamedTuple):
@@ -338,6 +340,7 @@ class RPNLoss(nn.Module):
             thresholds=[0.3, 0.7],
             labels=[0, -1, 1],
             allow_low_quality_matches=True,
+            min_positive_iou=0.3,
         )
         self.sampler = RandomSampler(batch_size=256, positive_fraction=0.5)
 
@@ -378,7 +381,7 @@ class RPNLoss(nn.Module):
         bbox_targets = bbox_targets.reshape(-1, 4)
         bbox_weights = bbox_weights.reshape(-1, 4)
         bbox_pred = reg_out.permute(0, 2, 3, 1).reshape(-1, 4)
-        loss_bbox = smooth_l1_loss(
+        loss_bbox = l1_loss(
             bbox_pred,
             bbox_targets,
             SumWeightedLoss(bbox_weights, num_total_samples),

@@ -4,10 +4,20 @@ TODO(fyu) to find a proper place for this code.
 """
 from typing import List, Optional, Tuple
 
-from vis4d.common.data_pipelines import CommonDataModule, add_colorjitter
-from vis4d.common.datasets import bdd100k_sem_seg_train, bdd100k_sem_seg_val
-from vis4d.data import BaseDatasetHandler, BaseSampleMapper, ScalabelDataset
-from vis4d.data.transforms import (
+from vis4d.common_to_revise.data_pipelines import (
+    CommonDataModule,
+    add_colorjitter,
+)
+from vis4d.common_to_revise.datasets import (
+    bdd100k_sem_seg_train,
+    bdd100k_sem_seg_val,
+)
+from vis4d.data_to_revise import (
+    BaseDatasetHandler,
+    BaseSampleMapper,
+    ScalabelDataset,
+)
+from vis4d.data_to_revise.transforms import (
     BaseAugmentation,
     KorniaRandomHorizontalFlip,
     RandomCrop,

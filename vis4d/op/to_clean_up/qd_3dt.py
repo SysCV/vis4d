@@ -3,8 +3,8 @@ from typing import List
 
 import torch
 
-from vis4d.common.bbox.utils import distance_3d_nms
-from vis4d.struct import (
+from vis4d.common_to_revise.bbox.utils import distance_3d_nms
+from vis4d.struct_to_revise import (
     ArgsType,
     Boxes2D,
     Boxes3D,

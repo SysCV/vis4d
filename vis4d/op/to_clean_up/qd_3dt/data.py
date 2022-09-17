@@ -1,8 +1,8 @@
 """QD-3DT data module."""
 from typing import Callable, List, Optional
 
-from vis4d.common.data_pipelines import CommonDataModule, default
-from vis4d.common.datasets import (
+from vis4d.common_to_revise.data_pipelines import CommonDataModule, default
+from vis4d.common_to_revise.datasets import (
     kitti_det_train,
     kitti_track_map,
     kitti_track_train,
@@ -13,14 +13,14 @@ from vis4d.common.datasets import (
     nuscenes_train,
     nuscenes_val,
 )
-from vis4d.data import (
+from vis4d.data_to_revise import (
     BaseDatasetHandler,
     BaseReferenceSampler,
     BaseSampleMapper,
     ScalabelDataset,
 )
-from vis4d.data.datasets import BaseDatasetLoader
-from vis4d.data.transforms import BaseAugmentation, Resize
+from vis4d.data_to_revise.datasets import BaseDatasetLoader
+from vis4d.data_to_revise.transforms import BaseAugmentation, Resize
 
 
 class QD3DTDataModule(CommonDataModule):

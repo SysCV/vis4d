@@ -12,7 +12,7 @@ import requests
 import torch
 from torch import nn
 
-from vis4d.struct import (
+from vis4d.struct_to_revise import (
     Boxes2D,
     DictStrAny,
     Images,

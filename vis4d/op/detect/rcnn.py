@@ -7,10 +7,12 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.ops import roi_align
 
-from vis4d.common.bbox.coders.delta_xywh_coder import DeltaXYWHBBoxEncoder
-from vis4d.common.bbox.poolers import MultiScaleRoIAlign
-from vis4d.common.bbox.utils import multiclass_nms
-from vis4d.common.mask.mask_ops import paste_masks_in_image
+from vis4d.common_to_revise.bbox.coders.delta_xywh_coder import (
+    DeltaXYWHBBoxEncoder,
+)
+from vis4d.common_to_revise.bbox.poolers import MultiScaleRoIAlign
+from vis4d.common_to_revise.bbox.utils import multiclass_nms
+from vis4d.common_to_revise.mask.mask_ops import paste_masks_in_image
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 
@@ -317,7 +319,7 @@ class RCNNLoss(nn.Module):
         bbox_weights = torch.cat([tgt.bbox_weights for tgt in targets], 0)
 
         # compute losses
-        avg_factor = max(torch.sum(label_weights > 0).float().item(), 1.0)
+        avg_factor = torch.sum(label_weights > 0).clamp(1.0)
         if class_outs.numel() > 0:
             loss_cls = SumWeightedLoss(label_weights, avg_factor)(
                 F.cross_entropy(class_outs, labels, reduction="none")

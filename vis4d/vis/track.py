@@ -4,7 +4,7 @@ from typing import List, Optional, Sequence, Union
 import torch
 from PIL import Image
 
-from vis4d.struct import Boxes2D, Intrinsics, NDArrayF64
+from vis4d.struct_to_revise import Boxes2D, Intrinsics, NDArrayF64
 
 from .image import draw_image, imshow_bboxes
 from .utils import Box3DType, BoxType, ImageType

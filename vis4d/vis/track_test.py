@@ -6,7 +6,7 @@ import torch
 
 from vis4d.unittest.utils import generate_dets, generate_dets3d
 
-from ..struct import Intrinsics
+from ..struct_to_revise import Intrinsics
 from .track import draw_sequence
 from .utils import preprocess_image
 

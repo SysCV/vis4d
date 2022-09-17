@@ -8,7 +8,7 @@ from PIL import Image
 from scipy.spatial.transform import Rotation as R
 from torch import Tensor
 
-from vis4d.struct import Boxes3D, Intrinsics, NDArrayF64, NDArrayUI8
+from vis4d.struct_to_revise import Boxes3D, Intrinsics, NDArrayF64, NDArrayUI8
 
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 Box3DType = Union[Boxes3D, List[Boxes3D]]

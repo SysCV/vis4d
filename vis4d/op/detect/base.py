@@ -5,8 +5,8 @@ from typing import Dict, List, Optional, Tuple, Union, overload
 
 from torch import nn
 
-from vis4d.common.bbox.samplers import SamplingResult
-from vis4d.struct import (
+from vis4d.common_to_revise.bbox.samplers import SamplingResult
+from vis4d.struct_to_revise import (
     Boxes2D,
     InputSample,
     InstanceMasks,
