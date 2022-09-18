@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
 
-from vis4d.common_to_revise.io import BaseDataBackend, FileBackend, HDF5Backend
+from vis4d.data.io import BaseDataBackend, FileBackend, HDF5Backend
 from vis4d.data_to_revise.module import BaseDataModule
 from vis4d.data_to_revise.transforms import (
     BaseAugmentation,

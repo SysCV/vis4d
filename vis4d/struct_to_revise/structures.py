@@ -166,5 +166,5 @@ class Tracks(NamedTuple):
 
 class Masks(NamedTuple):
     masks: torch.Tensor  # N, H, W
-    scores: torch.Tensor
+    scores: Optional[torch.Tensor]
     class_ids: torch.Tensor
