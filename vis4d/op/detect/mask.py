@@ -8,6 +8,7 @@ import torch.nn.functional as F
 
 # implementation modified from:
 # https://github.com/facebookresearch/detectron2/
+# TODO (Thomas) describe the changes
 def _do_paste_mask(
     masks: torch.Tensor,
     boxes: torch.Tensor,
@@ -68,7 +69,7 @@ def paste_masks_in_image(
     image_shape: Tuple[int, int],
     threshold: float = 0.5,
     bytes_per_float: int = 4,
-    gpu_mem_limit: int = 1024 ** 3,
+    gpu_mem_limit: int = 1024**3,
 ) -> torch.Tensor:
     """Paste masks that are of a fixed resolution into an image.
 

@@ -7,7 +7,7 @@ from PIL import Image
 from vis4d.struct_to_revise import Boxes2D, Intrinsics, NDArrayF64
 
 from .image import draw_image, imshow_bboxes
-from .utils import Box3DType, BoxType, ImageType
+from .util import Box3DType, BoxType, ImageType
 
 
 def draw_sequence(

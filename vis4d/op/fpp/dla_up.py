@@ -9,9 +9,9 @@ import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common_to_revise.layers import Conv2d, DeformConv
 from vis4d.struct_to_revise import NamedTensors, NDArrayI64
 
+from ..layer import Conv2d, DeformConv
 from .base import FeaturePyramidProcessing
 
 
@@ -122,7 +122,7 @@ class DLAUp(FeaturePyramidProcessing):
         in_channels = in_channels[self.start_level : self.end_level]
         channels = list(in_channels)
         scales: NDArrayI64 = np.array(
-            [2 ** i for i, _ in enumerate(in_channels)], dtype=np.int64
+            [2**i for i, _ in enumerate(in_channels)], dtype=np.int64
         )
         for i in range(len(channels) - 1):
             j = -i - 2
@@ -144,7 +144,7 @@ class DLAUp(FeaturePyramidProcessing):
             use_deformable_convs,
             out_channels,
             channels,
-            [2 ** i for i in range(self.end_level - self.start_level)],
+            [2**i for i in range(self.end_level - self.start_level)],
         )
 
     def forward(

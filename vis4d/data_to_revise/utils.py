@@ -19,11 +19,11 @@ from termcolor import colored
 
 from vis4d.struct_to_revise import InputSample, NDArrayI64, NDArrayUI8
 
-from ..common_to_revise.geometry.transform import transform_points
 from ..common_to_revise.utils.distributed import (
     all_gather_object_cpu,
     all_gather_object_gpu,
 )
+from ..op.geometry.transform import transform_points
 
 try:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module

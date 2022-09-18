@@ -5,7 +5,7 @@ import torch
 
 from vis4d.struct_to_revise import Boxes2D, Intrinsics
 
-from .box3d_coder import QD3DTBox3DCoder
+from .box3d import QD3DTBox3DCoder
 
 
 class TestBox3DCoder(unittest.TestCase):

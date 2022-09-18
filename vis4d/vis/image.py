@@ -32,7 +32,7 @@ try:  # pragma: no cover
 except (ImportError, NameError):
     DASH_INSTALLED = False
 
-from .utils import (
+from .util import (
     Box3DType,
     ImageType,
     box3d_to_corners,

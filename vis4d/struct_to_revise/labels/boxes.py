@@ -6,7 +6,7 @@ import torch
 from scalabel.label.transforms import box2d_to_xyxy, xyxy_to_box2d
 from scalabel.label.typing import Box3D, ImageSize, Label
 
-from vis4d.common_to_revise.geometry.rotation import (
+from vis4d.op.geometry.rotation import (
     euler_angles_to_matrix,
     matrix_to_euler_angles,
 )
