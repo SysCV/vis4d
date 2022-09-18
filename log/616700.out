@@ -1,4 +1,0 @@
-[1,     5 / 92] time: 0.0000, loss: 6.3868
-[1,    10 / 92] time: 0.0000, loss: 5.9632
-[1,    15 / 92] time: 0.0000, loss: 5.3260
-slurmstepd: error: *** JOB 616700 ON biwirender13 CANCELLED AT 2022-09-18T02:09:10 ***

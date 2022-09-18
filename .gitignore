@@ -71,3 +71,5 @@ vis4d-workspace
 vis4d.egg-info
 
 *.tmp
+
+log/
