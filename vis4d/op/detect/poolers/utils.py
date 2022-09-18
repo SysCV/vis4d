@@ -3,8 +3,9 @@ from typing import List
 
 import torch
 
-from vis4d.common_to_revise.bbox.utils import bbox_area
 from vis4d.struct_to_revise import Boxes2D
+
+from ..util import bbox_area
 
 
 def assign_boxes_to_levels(

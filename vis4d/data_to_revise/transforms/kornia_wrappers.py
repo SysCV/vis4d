@@ -16,7 +16,6 @@ import numpy as np
 import torch
 from kornia import augmentation as kornia_augmentation
 
-from vis4d.common_to_revise.geometry.rotation import normalize_angle
 from vis4d.struct_to_revise import (
     Boxes2D,
     Boxes3D,
@@ -28,6 +27,7 @@ from vis4d.struct_to_revise import (
     TMasks,
 )
 
+from ...op.geometry.rotation import normalize_angle
 from ..utils import transform_bbox
 from .base import AugParams, BaseAugmentation
 

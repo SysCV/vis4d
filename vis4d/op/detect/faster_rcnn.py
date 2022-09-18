@@ -4,22 +4,15 @@ from typing import List, NamedTuple, Optional, Tuple
 import torch
 from torch import nn
 
-from vis4d.common_to_revise.bbox.anchor_generator import AnchorGenerator
-from vis4d.common_to_revise.bbox.coders import (
-    BaseBoxEncoder2D,
-    DeltaXYWHBBoxEncoder,
-)
-from vis4d.common_to_revise.bbox.matchers import BaseMatcher, MaxIoUMatcher
-from vis4d.common_to_revise.bbox.samplers import (
-    BaseSampler,
-    RandomSampler,
-    match_and_sample_proposals,
-)
-from vis4d.common_to_revise.bbox.utils import apply_mask
 from vis4d.struct_to_revise import Proposals
 
+from .anchor_generator import AnchorGenerator
+from .encoder import BaseBoxEncoder2D, DeltaXYWHBBoxEncoder
+from .matchers import BaseMatcher, MaxIoUMatcher
 from .rcnn import RCNNHead, RCNNOut
 from .rpn import RPN2RoI, RPNHead, RPNOut
+from .samplers import BaseSampler, RandomSampler, match_and_sample_proposals
+from .util import apply_mask
 
 
 class Targets(NamedTuple):

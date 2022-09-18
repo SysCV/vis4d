@@ -3,8 +3,7 @@ from typing import List, Tuple
 
 import torch
 
-from vis4d.common_to_revise.bbox.utils import bbox_iou
-
+from ..util import bbox_iou
 from .base import BaseMatcher, MatchResult
 
 

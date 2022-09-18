@@ -5,7 +5,7 @@ import torch
 
 from vis4d.unittest.utils import generate_dets
 
-from .mask_ops import paste_masks_in_image
+from .mask import paste_masks_in_image
 
 
 class TestMaskOps(unittest.TestCase):

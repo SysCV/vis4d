@@ -13,7 +13,7 @@ from scalabel.vis.label import LabelViewer, UIConfig
 
 from vis4d.struct_to_revise import InputSample, ModelOutput
 from vis4d.struct_to_revise.data import Images
-from vis4d.vis.utils import preprocess_image
+from vis4d.vis.util import preprocess_image
 
 from ..datasets import BaseDatasetLoader
 from ..utils import all_gather_predictions

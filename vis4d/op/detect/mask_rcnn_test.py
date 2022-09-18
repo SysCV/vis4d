@@ -7,7 +7,6 @@ from scalabel.label.typing import ImageSize
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.common_to_revise.bbox.utils import apply_mask
 from vis4d.common_to_revise.datasets import (
     bdd100k_segtrack_sample,
     bdd100k_track_map,
@@ -45,6 +44,7 @@ from .testcases.mask_rcnn import (
     INSSEG1_MASKS,
     INSSEG1_SCORES,
 )
+from .util import apply_mask
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),

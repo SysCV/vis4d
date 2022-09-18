@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Tuple, Union, overload
 
 from torch import nn
 
-from vis4d.common_to_revise.bbox.samplers import SamplingResult
 from vis4d.struct_to_revise import (
     Boxes2D,
     InputSample,
@@ -14,6 +13,8 @@ from vis4d.struct_to_revise import (
     LossesType,
     NamedTensors,
 )
+
+from .samplers import SamplingResult
 
 
 class BaseOneStageDetector(nn.Module):
