@@ -126,6 +126,13 @@ bdd100k_segtrack_sample = lambda: Scalabel(
     config_path=f"{bdd100k_track_sample_path}/bdd100k-samples/config.toml",
 )
 
+bdd100k_panseg_sample = lambda: BDD100K(
+    name="bdd100k_panseg_sample",
+    data_root=f"{bdd100k_detect_sample_path}/bdd100k-samples/images",
+    annotations=f"vis4d/engine/testcases/panoptic/bdd100k-samples/labels/",
+    config_path="pan_seg",
+)
+
 
 bdd100k_track_train = lambda: BDD100K(
     name="bdd100k_track_train",
@@ -299,6 +306,13 @@ coco_val = lambda: COCO(
     annotations="data/COCO/annotations/instances_val2017.json",
     data_root="data/COCO/val2017",
     eval_metrics=["detect"],
+)
+
+coco_insseg_val = lambda: COCO(
+    name="coco_insseg_val",
+    annotations="data/COCO/annotations/instances_val2017.json",
+    data_root="data/COCO/val2017",
+    eval_metrics=["detect", "ins_seg"],
 )
 
 # KITTI

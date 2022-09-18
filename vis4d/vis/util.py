@@ -103,7 +103,7 @@ def preprocess_masks(
     track_ids: Optional[Tensor] = None,
     color_idx: int = 0,
 ) -> Tuple[List[NDArrayUI8], List[Tuple[int]]]:
-    """Preprocess BitmaskType to masks / colors / labels for drawing."""
+    """Preprocess masks for drawing."""
     if isinstance(masks, list):
         result_mask, result_color = [], []
         for i, m in enumerate(masks):
@@ -112,7 +112,16 @@ def preprocess_masks(
             result_color.extend(color)
         return result_mask, result_color
 
-    masks_list = (masks.cpu().numpy() * 255).astype(np.uint8)
+    if masks.dim() == 2:
+        class_ids = torch.unique(masks)
+        masks_list = np.stack(
+            [
+                ((masks == i).cpu().numpy() * 255).astype(np.uint8)
+                for i in class_ids
+            ]
+        )
+    else:
+        masks_list = (masks.cpu().numpy() * 255).astype(np.uint8)
 
     if track_ids is not None:
         track_ids = track_ids.cpu().numpy()

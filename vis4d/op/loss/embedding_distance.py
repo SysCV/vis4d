@@ -5,7 +5,8 @@ from typing import Optional, Tuple
 
 import torch
 
-from ..detect.util import random_choice
+from vis4d.op.box.util import random_choice
+
 from .base import Loss
 from .common import l2_loss
 from .reducer import LossReducer, SumWeightedLoss, identity_loss

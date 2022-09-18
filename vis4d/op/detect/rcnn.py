@@ -7,13 +7,13 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.ops import roi_align
 
+from vis4d.op.box.encoder.delta_xywh import DeltaXYWHBBoxEncoder
+from vis4d.op.box.poolers import MultiScaleRoIAlign
+from vis4d.op.box.util import multiclass_nms
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 
-from .encoder.delta_xywh import DeltaXYWHBBoxEncoder
 from .mask import paste_masks_in_image
-from .poolers import MultiScaleRoIAlign
-from .util import multiclass_nms
 
 
 class RCNNOut(NamedTuple):
