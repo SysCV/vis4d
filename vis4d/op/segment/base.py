@@ -1,63 +1,15 @@
 """Base class for Vis4D segmentation models."""
 
 import abc
-from typing import List, Tuple, Optional
+from typing import List
 
 
 import torch
-import torch.nn.functional as F
 from torch import nn
 
 
 class BaseSegmentor(nn.Module):
     """Base segmentation head class."""
-
-    def __init__(
-        self,
-        in_channels: List[int],
-        channels: int,
-        *
-    ) -> None:
-        """Init.
-
-        Args:
-            in_channels (List[int]): Number of channels in multi-level image
-                feature.
-            channels (int): Number of output channels. Usually the number of
-                classes.
-            resize (Tuple[int, int]], optional): If set, the prediction maps
-                will be resized to the specified size. Defaults to None.
-            align_corners (bool, optional): Wether to align corners during
-                interpolation. Defaults to False.
-        """
-        super().__init__()
-        self.in_channels = in_channels
-        self.channels = channels
-        # self.resize = resize
-        # self.align_corners = align_corners
-
-    def _upsample_feat(
-        self, feat: torch.Tensor, resize: Optional[Tuple[int, int]]
-    ) -> torch.Tensor:
-        """Resize and concat the features.
-
-        Args:
-            feats (List[torch.Tensor]): List of multi-level image features.
-            resize (Union[None, Tuple[int, int]]): If set, the prediction maps
-                will be resized to the specified size. Defaults to None.
-
-        Returns:
-            upsampled_feats (torch.Tensor): List of upsampled features.
-        """
-        if resize is None:
-            return feat
-        upsampled_feat = F.interpolate(
-            input=feat,
-            size=resize,
-            mode="bilinear",
-            align_corners=self.align_corners,
-        )
-        return upsampled_feat
 
     @abc.abstractmethod
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:

@@ -7,7 +7,7 @@ import torch
 
 from ..base.resnet import ResNet
 from ..utils import load_model_checkpoint
-from .fcn import FCN, FCNResNet
+from .fcn import FCN, FCNForResNet
 
 
 def normalize(img: torch.Tensor) -> torch.Tensor:
@@ -52,15 +52,14 @@ class FCNTest(unittest.TestCase):
         )
         sample_images = torch.cat([image1, image2])
         basemodel = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        fcn = FCN(basemodel.out_channels[3:], 21, resize=(512, 512))
+        fcn = FCN(basemodel.out_channels, 21, resize=(512, 512))
 
         fcn.eval()
         with torch.no_grad():
             features = basemodel(sample_images)
-            features = fcn(features[3:])
-            out = features[0]
+            outputs = fcn(features)
 
-        assert out.shape == (2, 21, 512, 512)
+        assert outputs.pred.shape == (2, 21, 512, 512)
 
 
 class FCNResNetTest(unittest.TestCase):
@@ -82,19 +81,26 @@ class FCNResNetTest(unittest.TestCase):
             pretrained=True,
             replace_stride_with_dilation=[False, True, True],
         )
-        fcn = FCNResNet(basemodel.out_channels[4:], 21, resize=(512, 512))
+        fcn = FCNForResNet(
+            basemodel.out_channels,
+            21,
+            seg_channel_idx=[4, 5],
+            resize=(512, 512),
+        )
 
         weights = (
             "https://download.pytorch.org/models/"
             "fcn_resnet50_coco-1167a1af.pth"
         )
-        load_model_checkpoint(basemodel, weights, REV_KEYS)
-        load_model_checkpoint(fcn, weights, REV_KEYS)
+        # load_model_checkpoint(basemodel, weights, REV_KEYS)
+        # load_model_checkpoint(fcn, weights, REV_KEYS)
 
         fcn.eval()
         with torch.no_grad():
             features = basemodel(sample_images)
-            features = fcn(features[4:])
-            out = features[0]
+            for feat in features:
+                print(feat.shape, end=" ")
+            print()
+            outputs = fcn(features)
 
-        assert out.shape == (2, 21, 512, 512)
+        assert outputs.pred.shape == (2, 21, 512, 512)
