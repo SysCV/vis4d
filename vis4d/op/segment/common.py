@@ -158,7 +158,7 @@ def evaluate_sem_seg(
                     num_classes=num_classes,
                     ignore_label=ignore_label,
                 ),
-                tqdm.tqdm(zip(ann_frames, pred_frames), total=len(ann_frames)),
+                zip(ann_frames, pred_frames),
             )
     else:
         hist_and_gt_id_sets = [
@@ -168,9 +168,7 @@ def evaluate_sem_seg(
                 num_classes=num_classes,
                 ignore_label=ignore_label,
             )
-            for ann_frame, pred_frame in tqdm(
-                zip(ann_frames, pred_frames), total=len(ann_frames)
-            )
+            for ann_frame, pred_frame in zip(ann_frames, pred_frames)
         ]
 
     # num_classes = num_classes + 1
@@ -187,5 +185,7 @@ def evaluate_sem_seg(
         Acc=np.multiply(np.mean(accs[list(gt_id_set)]), 100),
         fIoU=np.multiply(freq_iou(hist), 100),
         pAcc=np.multiply(whole_acc(hist), 100),
+        IoUs=np.multiply(ious, 100),
+        Accs=np.multiply(accs, 100),
     )
     return res_dict, gt_id_set

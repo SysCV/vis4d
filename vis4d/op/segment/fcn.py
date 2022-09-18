@@ -1,10 +1,10 @@
 """FCN Head for semantic segmentation."""
 
-from typing import List, Optional, Tuple, NamedTuple, Callable
+from typing import Callable, List, NamedTuple, Optional, Tuple
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 from .base import BaseSegmentor
 from .common import resize_feat

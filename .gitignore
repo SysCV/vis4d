@@ -72,4 +72,6 @@ vis4d.egg-info
 
 *.tmp
 
+# local test logs and scripts
 log/
+/*.sh

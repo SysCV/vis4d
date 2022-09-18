@@ -5,22 +5,46 @@ from typing import Optional, Union
 
 import numpy as np
 import torch
+import torchvision
 import tqdm
 from torch import nn, optim
 from torch.utils.data import DataLoader
-from torchvision import transforms
-from torchvision.datasets import VOCSegmentation
 
 from ..base.resnet import ResNet
 from ..utils import load_model_checkpoint
-from .common import ResizeWithPadding, evaluate_sem_seg
+from .common import evaluate_sem_seg
 from .fcn import FCNForResNet, FCNLoss, FCNOut
+from .testcase import presets
+from .testcase.utils import collate_fn, get_coco
 
 REV_KEYS = [
     (r"^backbone\.", "body."),
     (r"^aux_classifier\.", "heads.0."),
     (r"^classifier\.", "heads.1."),
 ]
+
+
+def get_dataset(dir_path, name, image_set, transform):
+    def sbd(*args, **kwargs):
+        return torchvision.datasets.SBDataset(
+            *args, mode="segmentation", **kwargs
+        )
+
+    paths = {
+        "voc": (dir_path, torchvision.datasets.VOCSegmentation, 21),
+        "voc_aug": (dir_path, sbd, 21),
+        "coco": (dir_path, get_coco, 21),
+    }
+    p, ds_fn, _ = paths[name]
+    ds = ds_fn(p, image_set=image_set, transforms=transform)
+    return ds
+
+
+def get_transform(train):
+    if train:
+        return presets.SegmentationPresetTrain(base_size=520, crop_size=520)
+    else:
+        return presets.SegmentationPresetEval(base_size=520)
 
 
 class FCNResNetModel(nn.Module):
@@ -35,7 +59,7 @@ class FCNResNetModel(nn.Module):
         self.fcn = FCNForResNet(
             self.basemodel.out_channels[4:],
             21,
-            resize=(500, 500),
+            resize=(520, 520),
         )
         self.loss = FCNLoss(feature_idx=[4, 5])
 
@@ -74,17 +98,9 @@ def validation_loop(model, val_dataloader):
             ]
         )
     metrics, _ = evaluate_sem_seg(preds, targets, num_classes=21)
-    metrics["mIoU (ignored BG)"] = float(np.nanmean(metrics["IoUs"][1:]))
-    metrics["Acc (ignored BG)"] = float(np.nanmean(metrics["Accs"][1:]))
     log_str = "[Validation] "
     for k, v in metrics.items():
-        if isinstance(v, float):
-            log_str += f"{k}: {v:.4f}, "
-        elif isinstance(v, np.ndarray):
-            log_str += f"{k}: "
-            for vv in v:
-                log_str += f"{vv:.1f} "
-            log_str += ", "
+        log_str += f"{k}: {v:.4f}, "
     print(log_str.rstrip(", "), flush=True)
     return metrics
 
@@ -144,43 +160,32 @@ def training_loop(
 def setup(args):
     # setup model and dataloader
     fcn_resnet = FCNResNetModel(resnet_model=args.resnet_model)
-    optimizer = optim.SGD(fcn_resnet.parameters(), lr=args.lr, momentum=0.9)
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[20, 40, 60], gamma=0.1
+    optimizer = optim.SGD(
+        fcn_resnet.parameters(), lr=args.lr, momentum=0.9, weight_decay=1e-4
     )
-
-    # setup test dataset
-    transform = transforms.Compose(
-        [
-            ResizeWithPadding((500, 500)),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ]
-    )
-    target_transform = transforms.Compose(
-        [ResizeWithPadding((500, 500)), transforms.ToTensor()]
-    )
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     train_loader = DataLoader(
-        VOCSegmentation(
-            root="vis4d-workspace/data/voc2012",
-            year="2012",
-            image_set="train",
-            transform=transform,
-            target_transform=target_transform,
+        get_dataset(
+            "vis4d-workspace/data/coco",
+            "coco",
+            "train",
+            get_transform(train=True),
         ),
-        batch_size=16,
+        batch_size=4,
         shuffle=True,
+        collate_fn=collate_fn,
+        drop_last=True,
     )
     val_loader = DataLoader(
-        VOCSegmentation(
-            root="vis4d-workspace/data/voc2012",
-            year="2012",
-            image_set="val",
-            transform=transform,
-            target_transform=target_transform,
+        get_dataset(
+            "vis4d-workspace/data/coco",
+            "coco",
+            "val",
+            get_transform(train=False),
         ),
-        batch_size=16,
+        batch_size=4,
         shuffle=False,
+        collate_fn=collate_fn,
     )
     return fcn_resnet, optimizer, scheduler, train_loader, val_loader
 
@@ -189,6 +194,13 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="VOC train/eval.")
+    parser.add_argument(
+        "--epochs",
+        default=30,
+        type=int,
+        metavar="N",
+        help="number of total epochs to run",
+    )
     parser.add_argument("--lr", default=1e-2, help="learning rate.")
     parser.add_argument(
         "-c", "--ckpt", default=None, help="path of model to eval."
@@ -216,11 +228,12 @@ if __name__ == "__main__":
                 fcn_resnet, device_ids=[device, torch.device("cuda:1")]
             )
         ckpt_dir = f"vis4d-workspace/test/{args.save_name}"
+        validation_loop(fcn_resnet, val_loader)
         training_loop(
             fcn_resnet,
             train_loader,
             val_loader,
-            num_epochs=100,
+            num_epochs=args.epochs,
             ckpt_dir=ckpt_dir,
         )
     else:
