@@ -95,41 +95,82 @@ bdd100k_seg_map = {
     "motorcycle": 17,
     "bicycle": 18,
 }
+bdd100k_panseg_map = {
+    "dynamic": 0,
+    "ego vehicle": 1,
+    "ground": 2,
+    "static": 3,
+    "parking": 4,
+    "rail track": 5,
+    "road": 6,
+    "sidewalk": 7,
+    "bridge": 8,
+    "building": 9,
+    "fence": 10,
+    "garage": 11,
+    "guard rail": 12,
+    "tunnel": 13,
+    "wall": 14,
+    "banner": 15,
+    "billboard": 16,
+    "lane divider": 17,
+    "parking sign": 18,
+    "pole": 19,
+    "polegroup": 20,
+    "street light": 21,
+    "traffic cone": 22,
+    "traffic device": 23,
+    "traffic light": 24,
+    "traffic sign": 25,
+    "traffic sign frame": 26,
+    "terrain": 27,
+    "vegetation": 28,
+    "sky": 29,
+    "person": 30,
+    "rider": 31,
+    "bicycle": 32,
+    "bus": 33,
+    "car": 34,
+    "caravan": 35,
+    "motorcycle": 36,
+    "trailer": 37,
+    "train": 38,
+    "truck": 39,
+}
 
-bdd100k_detect_sample_path = "vis4d/engine/testcases/detect"
+bdd100k_base_path = "vis4d/engine_to_revise/testcases"
 bdd100k_detect_sample = lambda: Scalabel(
     name="bdd100k_detect_sample",
-    data_root=f"{bdd100k_detect_sample_path}/bdd100k-samples/images",
-    annotations=f"{bdd100k_detect_sample_path}/bdd100k-samples/labels/",
-    config_path=f"{bdd100k_detect_sample_path}/bdd100k-samples/config.toml",
+    data_root=f"{bdd100k_base_path}/detect/bdd100k-samples/images",
+    annotations=f"{bdd100k_base_path}/detect/bdd100k-samples/labels/",
+    config_path=f"{bdd100k_base_path}/detect/bdd100k-samples/config.toml",
 )
 
 bdd100k_insseg_sample = lambda: Scalabel(
     name="bdd100k_insseg_sample",
-    data_root=f"{bdd100k_detect_sample_path}/bdd100k-samples/images",
-    annotations=f"{bdd100k_detect_sample_path}/bdd100k-samples/labels/",
-    config_path=f"{bdd100k_detect_sample_path}/bdd100k-samples/insseg_config.toml",
+    data_root=f"{bdd100k_base_path}/detect/bdd100k-samples/images",
+    annotations=f"{bdd100k_base_path}/detect/bdd100k-samples/labels/",
+    config_path=f"{bdd100k_base_path}/detect/bdd100k-samples/insseg_config.toml",
 )
 
-bdd100k_track_sample_path = "vis4d/engine_to_revise/testcases/track"
 bdd100k_track_sample = lambda: Scalabel(
     name="bdd100k_track_sample",
-    data_root=f"{bdd100k_track_sample_path}/bdd100k-samples/images",
-    annotations=f"{bdd100k_track_sample_path}/bdd100k-samples/labels/",
-    config_path=f"{bdd100k_track_sample_path}/bdd100k-samples/config.toml",
+    data_root=f"{bdd100k_base_path}/track/bdd100k-samples/images",
+    annotations=f"{bdd100k_base_path}/track/bdd100k-samples/labels/",
+    config_path=f"{bdd100k_base_path}/track/bdd100k-samples/config.toml",
 )
 
 bdd100k_segtrack_sample = lambda: Scalabel(
     name="bdd100k_segtrack_sample",
-    data_root=f"{bdd100k_track_sample_path}/bdd100k-samples/images",
-    annotations=f"{bdd100k_track_sample_path}/bdd100k-samples/labels/",
-    config_path=f"{bdd100k_track_sample_path}/bdd100k-samples/config.toml",
+    data_root=f"{bdd100k_base_path}/track/bdd100k-samples/images",
+    annotations=f"{bdd100k_base_path}/track/bdd100k-samples/labels/",
+    config_path=f"{bdd100k_base_path}/track/bdd100k-samples/config.toml",
 )
 
 bdd100k_panseg_sample = lambda: BDD100K(
     name="bdd100k_panseg_sample",
-    data_root=f"{bdd100k_detect_sample_path}/bdd100k-samples/images",
-    annotations=f"vis4d/engine/testcases/panoptic/bdd100k-samples/labels/",
+    data_root=f"{bdd100k_base_path}/detect/bdd100k-samples/images",
+    annotations=f"{bdd100k_base_path}/panoptic/bdd100k-samples/labels/",
     config_path="pan_seg",
 )
 
