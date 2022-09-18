@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from vis4d.unittest.utils import generate_dets
+from vis4d.unittest.util import generate_dets
 
 from .mask import paste_masks_in_image
 

@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from torch import nn
 
-from vis4d.common_to_revise.bbox.utils import bbox_iou
+from vis4d.op.box.util import bbox_iou
 from vis4d.op.track.motion import LSTM3DMotionModel, VeloLSTM
 from vis4d.struct_to_revise import (
     ArgsType,

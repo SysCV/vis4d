@@ -11,14 +11,13 @@ from vis4d.common_to_revise.datasets import (
     bdd100k_segtrack_sample,
     bdd100k_track_map,
 )
+from vis4d.op.box.util import apply_mask
 from vis4d.op.detect.rcnn import (
     Det2Mask,
-    DetOut,
     MaskRCNNHead,
     MaskRCNNLoss,
     RCNNLoss,
     RoI2Det,
-    postprocess_dets,
 )
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.utils import load_model_checkpoint
@@ -44,7 +43,6 @@ from .testcases.mask_rcnn import (
     INSSEG1_MASKS,
     INSSEG1_SCORES,
 )
-from .util import apply_mask
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
