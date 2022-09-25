@@ -1,6 +1,6 @@
 """Residual networks for classification."""
 
-from typing import List
+from typing import List, Optional
 
 import torch
 import torchvision.models.vgg as _vgg
@@ -15,6 +15,7 @@ class VGG(BaseModel):
     def __init__(
         self,
         vgg_name: str,
+        trainable_layers: Optional[int] = None,
         pretrained: bool = False,
     ):
         """Initialize the VGG base model from torchvision.
@@ -23,6 +24,8 @@ class VGG(BaseModel):
             vgg_name (str): name of the VGG variant. Choices in ["vgg11",
                 "vgg13", "vgg16", "vgg19", "vgg11_bn", "vgg13_bn", "vgg16_bn",
                 "vgg19_bn"].
+            trainable_layers (int, optional): Number layers for training or
+                fine-tuning. None means all the layers can be fine-tuned.
             pretrained (bool, optional): Whether to load ImageNet
                 pre-trained weights. Defaults to False.
         Raises:
@@ -65,6 +68,12 @@ class VGG(BaseModel):
                     layer_counter += 2
                 last_channel = channel
 
+        if trainable_layers is not None:
+            for name, parameter in vgg.features.named_parameters():
+                layer_ind = int(name.split(".")[0])
+                if layer_ind < layer_counter - trainable_layers:
+                    parameter.requires_grad_(False)
+
         return_layers = {str(v): str(i) for i, v in enumerate(returned_layers)}
         self.body = IntermediateLayerGetter(
             vgg.features, return_layers=return_layers
@@ -78,7 +87,7 @@ class VGG(BaseModel):
         Returns:
             List[int]: number of channels
         """
-        return self._out_channels
+        return [3, 3, *self._out_channels]
 
     def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
         """VGG feature forward without classification head.
