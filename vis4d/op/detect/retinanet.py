@@ -236,8 +236,7 @@ class Dense2Det(nn.Module):
             keep = batched_nms(
                 boxes, scores, labels, iou_threshold=self.nms_threshold
             )[: self.max_per_img]
-            boxes = boxes[keep]
-            scores = scores[keep]
+            boxes, scores, labels = boxes[keep], scores[keep], labels[keep]
         else:
             return (
                 boxes.new_zeros(0, 4),

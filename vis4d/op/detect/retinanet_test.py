@@ -68,7 +68,7 @@ class RetinaNetTest(unittest.TestCase):
         )
         retina_net = RetinaNetHead(num_classes=80, in_channels=256)
 
-        rpn2roi = Dense2Det(
+        dense2det = Dense2Det(
             retina_net.anchor_generator,
             retina_net.box_encoder,
             num_pre_nms=1000,
@@ -89,7 +89,7 @@ class RetinaNetTest(unittest.TestCase):
         with torch.no_grad():
             features = fpn(basemodel(sample_images))
             outs = retina_net(features[-5:])
-            dets = rpn2roi(
+            dets = dense2det(
                 class_outs=outs.cls_score,
                 regression_outs=outs.bbox_pred,
                 images_hw=images_hw,
@@ -99,6 +99,6 @@ class RetinaNetTest(unittest.TestCase):
         imshow_bboxes(
             image1[0], dets.boxes[0], dets.scores[0], dets.class_ids[0]
         )
-        # imshow_bboxes(
-        #     image2[0], dets.boxes[1], dets.scores[1], dets.class_ids[1]
-        # )
+        imshow_bboxes(
+            image2[0], dets.boxes[1], dets.scores[1], dets.class_ids[1]
+        )
