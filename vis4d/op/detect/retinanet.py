@@ -142,6 +142,97 @@ class RetinaNetHead(nn.Module):
         return self._call_impl(features)
 
 
+def get_params_per_level(
+    cls_out: torch.Tensor,
+    reg_out: torch.Tensor,
+    anchors: torch.Tensor,
+    num_pre_nms: int = 2000,
+    score_thr: float = 0.0,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Get a topk pre-selection of flattened classification scores and box
+    energies from feature output per level per image before nms.
+
+    Args:
+        cls_out (torch.Tensor): [C, H, W] classification scores at a particular scale.
+        reg_out (torch.Tensor): [C, H, W] regression parameters at a particular scale.
+        anchors (torch.Tensor): [H*W, 4] anchor boxes per cell.
+        num_pre_nms (int): number of predictions before nms.
+        score_thr (float): score threshold for filtering predictions.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: topk
+            flattened classification, regression outputs, and corresponding anchors.
+    """
+    assert cls_out.size()[-2:] == reg_out.size()[-2:], (
+        f"Shape mismatch: cls_out({cls_out.size()[-2:]}), reg_out("
+        f"{reg_out.size()[-2:]})."
+    )
+    reg_out = reg_out.permute(1, 2, 0).reshape(-1, 4)
+    cls_out = cls_out.permute(1, 2, 0).reshape(reg_out.size(0), -1).sigmoid()
+    valid_mask = cls_out > score_thr
+    valid_idxs = torch.nonzero(valid_mask)
+    num_topk = min(num_pre_nms, valid_idxs.size(0))
+    cls_out_filt = cls_out[valid_mask]
+    cls_out_ranked, rank_inds = cls_out_filt.sort(descending=True)
+    topk_inds = valid_idxs[rank_inds[:num_topk]]
+    keep_inds, labels = topk_inds.unbind(dim=1)
+    cls_out = cls_out_ranked[:num_topk]
+    reg_out = reg_out[keep_inds, :]
+    anchors = anchors[keep_inds, :]
+
+    return cls_out, labels, reg_out, anchors
+
+
+def decode_multi_level_outputs(
+    cls_out_all: List[torch.Tensor],
+    lbl_out_all: List[torch.Tensor],
+    reg_out_all: List[torch.Tensor],
+    anchors_all: List[torch.Tensor],
+    image_hw: Tuple[int, int],
+    box_encoder: DeltaXYWHBBoxEncoder,
+    max_per_img: int = 1000,
+    nms_threshold: float = 0.7,
+    min_box_size: Tuple[int, int] = (0, 0),
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Decode box energies into detections for a single image, post-process
+    via NMS. NMS is performed per level. Afterwards, select topk detections.
+
+    Args:
+        cls_out_all (List[torch.Tensor]): topk class scores per level.
+        lbl_out_all (List[torch.Tensor]): topk class labels per level.
+        reg_out_all (List[torch.Tensor]): topk regression params per level.
+        anchors_all (List[torch.Tensor]): topk anchor boxes per level.
+        image_hw (Tuple[int, int]): image size.
+        box_encoder (DeltaXYWHBBoxEncoder): bounding box encoder.
+        max_per_img (int, optional): maximum predictions per image. Defaults to 1000.
+        nms_threshold (float, optional): iou threshold for NMS. Defaults to 0.7.
+        min_box_size (Tuple[int, int], optional): minimum box size. Defaults to (0, 0).
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: decoded proposal boxes & scores.
+    """
+    scores, labels = torch.cat(cls_out_all), torch.cat(lbl_out_all)
+    boxes = box_encoder.decode(
+        torch.cat(anchors_all), torch.cat(reg_out_all), max_shape=image_hw
+    )
+
+    boxes, mask = filter_boxes(boxes, min_area=prod(min_box_size))
+    scores, labels = scores[mask], labels[mask]
+
+    if boxes.numel() > 0:
+        keep = batched_nms(boxes, scores, labels, iou_threshold=nms_threshold)[
+            :max_per_img
+        ]
+        boxes, scores, labels = boxes[keep], scores[keep], labels[keep]
+    else:
+        return (
+            boxes.new_zeros(0, 4),
+            scores.new_zeros(0),
+            labels.new_zeros(0),
+        )
+    return boxes, scores, labels
+
+
 class Dense2Det(nn.Module):
     """Compute detections from dense network outputs.
 
@@ -173,87 +264,6 @@ class Dense2Det(nn.Module):
         self.nms_threshold = nms_threshold
         self.min_box_size = min_box_size
         self.score_thr = score_thr
-
-    def _get_params_per_level(
-        self,
-        cls_out: torch.Tensor,
-        reg_out: torch.Tensor,
-        anchors: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Get a topk pre-selection of flattened classification scores and box
-        energies from feature output per level per image before nms.
-
-        Args:
-            cls_out (torch.Tensor): [C, H, W] classification scores at a particular scale.
-            reg_out (torch.Tensor): [C, H, W] regression parameters at a particular scale.
-            anchors (torch.Tensor): [H*W, 4] anchor boxes per cell.
-
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: topk
-                flattened classification, regression outputs, and corresponding anchors.
-        """
-        assert cls_out.size()[-2:] == reg_out.size()[-2:], (
-            f"Shape mismatch: cls_out({cls_out.size()[-2:]}), reg_out("
-            f"{reg_out.size()[-2:]})."
-        )
-        reg_out = reg_out.permute(1, 2, 0).reshape(-1, 4)
-        cls_out = (
-            cls_out.permute(1, 2, 0).reshape(reg_out.size(0), -1).sigmoid()
-        )
-        valid_mask = cls_out > self.score_thr
-        valid_idxs = torch.nonzero(valid_mask)
-        num_topk = min(self.num_pre_nms, valid_idxs.size(0))
-        cls_out_filt = cls_out[valid_mask]
-        cls_out_ranked, rank_inds = cls_out_filt.sort(descending=True)
-        topk_inds = valid_idxs[rank_inds[:num_topk]]
-        keep_inds, labels = topk_inds.unbind(dim=1)
-        cls_out = cls_out_ranked[:num_topk]
-        reg_out = reg_out[keep_inds, :]
-        anchors = anchors[keep_inds, :]
-
-        return cls_out, labels, reg_out, anchors
-
-    def _decode_multi_level_outputs(
-        self,
-        cls_out_all: List[torch.Tensor],
-        lbl_out_all: List[torch.Tensor],
-        reg_out_all: List[torch.Tensor],
-        anchors_all: List[torch.Tensor],
-        image_hw: Tuple[int, int],
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Decode box energies into detections for a single image, post-process
-        via NMS. NMS is performed per level. Afterwards, select topk detections.
-
-        Args:
-            cls_out_all (List[torch.Tensor]): topk class scores per level.
-            lbl_out_all (List[torch.Tensor]): topk class labels per level.
-            reg_out_all (List[torch.Tensor]): topk regression params per level.
-            anchors_all (List[torch.Tensor]): topk anchor boxes per level.
-            image_hw (Tuple[int, int]): image size.
-
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor]: decoded proposal boxes & scores.
-        """
-        scores, labels = torch.cat(cls_out_all), torch.cat(lbl_out_all)
-        boxes = self.box_encoder.decode(
-            torch.cat(anchors_all), torch.cat(reg_out_all), max_shape=image_hw
-        )
-
-        boxes, mask = filter_boxes(boxes, min_area=prod(self.min_box_size))
-        scores, labels = scores[mask], labels[mask]
-
-        if boxes.numel() > 0:
-            keep = batched_nms(
-                boxes, scores, labels, iou_threshold=self.nms_threshold
-            )[: self.max_per_img]
-            boxes, scores, labels = boxes[keep], scores[keep], labels[keep]
-        else:
-            return (
-                boxes.new_zeros(0, 4),
-                scores.new_zeros(0),
-                labels.new_zeros(0),
-            )
-        return boxes, scores, labels
 
     def forward(
         self,
@@ -290,26 +300,42 @@ class Dense2Det(nn.Module):
             for cls_outs, reg_outs, anchor_grid in zip(
                 class_outs, regression_outs, anchor_grids
             ):
-                (
-                    cls_out,
-                    lbl_out,
-                    reg_out,
-                    anchors,
-                ) = self._get_params_per_level(
-                    cls_outs[img_id], reg_outs[img_id], anchor_grid
+                (cls_out, lbl_out, reg_out, anchors,) = get_params_per_level(
+                    cls_outs[img_id],
+                    reg_outs[img_id],
+                    anchor_grid,
+                    self.num_pre_nms,
+                    self.score_thr,
                 )
                 cls_out_all += [cls_out]
                 lbl_out_all += [lbl_out]
                 reg_out_all += [reg_out]
                 anchors_all += [anchors]
 
-            box, score, label = self._decode_multi_level_outputs(
-                cls_out_all, lbl_out_all, reg_out_all, anchors_all, image_hw
+            box, score, label = decode_multi_level_outputs(
+                cls_out_all,
+                lbl_out_all,
+                reg_out_all,
+                anchors_all,
+                image_hw,
+                self.box_encoder,
+                self.max_per_img,
+                self.nms_threshold,
+                self.min_box_size,
             )
             proposals.append(box)
             scores.append(score)
             labels.append(label)
         return DetOut(proposals, scores, labels)
+
+    def __call__(
+        self,
+        class_outs: List[torch.Tensor],
+        regression_outs: List[torch.Tensor],
+        images_hw: List[Tuple[int, int]],
+    ) -> DetOut:
+        """Type definition for function call."""
+        return self._call_impl(class_outs, regression_outs, images_hw)
 
 
 class RetinaNetTargets(NamedTuple):
