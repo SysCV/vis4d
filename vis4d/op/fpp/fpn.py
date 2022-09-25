@@ -10,7 +10,10 @@ from typing import List
 
 import torch
 from torchvision.ops import FeaturePyramidNetwork as _FPN
-from torchvision.ops.feature_pyramid_network import LastLevelMaxPool
+from torchvision.ops.feature_pyramid_network import (
+    ExtraFPNBlock,
+    LastLevelMaxPool,
+)
 
 from .base import FeaturePyramidProcessing
 
@@ -21,11 +24,18 @@ class FPN(_FPN, FeaturePyramidProcessing):
     This is a wrapper of the torchvision implementation.
     """
 
-    def __init__(self, in_channels_list: List[int], out_channels: int):
+    def __init__(
+        self,
+        in_channels_list: List[int],
+        out_channels: int,
+        extra_blocks: ExtraFPNBlock = LastLevelMaxPool(),
+        start_index: int = 2,
+    ):
         """Init without additional components."""
         super().__init__(
-            in_channels_list, out_channels, extra_blocks=LastLevelMaxPool()
+            in_channels_list, out_channels, extra_blocks=extra_blocks
         )
+        self.start_index = start_index
 
     def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """Process the input features with FPN.
@@ -43,10 +53,14 @@ class FPN(_FPN, FeaturePyramidProcessing):
             List[torch.Tensor]: Feature pyramid after FPN processing.
         """
         feat_dict = OrderedDict(
-            (k, v) for k, v in zip([str(i) for i in range(len(x) - 2)], x[2:])
+            (k, v)
+            for k, v in zip(
+                [str(i) for i in range(len(x) - self.start_index)],
+                x[self.start_index :],
+            )
         )
         outs = super().forward(feat_dict)
-        return [*x[:2], *outs.values()]
+        return [*x[: self.start_index], *outs.values()]
 
     def __call__(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """Type definition for call implementation."""
