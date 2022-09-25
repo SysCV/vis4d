@@ -1,18 +1,12 @@
 """RetinaNet tests."""
-import random
 import unittest
-from typing import Optional, Tuple
 
-import skimage
 import torch
+import torchvision
 from torch import optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from torchvision.ops.feature_pyramid_network import LastLevelP6P7
 
-from vis4d.common_to_revise.datasets import (
-    bdd100k_track_map,
-    bdd100k_track_sample,
-)
 from vis4d.data_to_revise.utils import transform_bbox
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct_to_revise import Boxes2D
@@ -25,7 +19,13 @@ from .faster_rcnn_test import (
     url_to_tensor,
     SampleDataset,
 )
-from .retinanet import Dense2Det, RetinaNetHead
+from .retinanet import (
+    Dense2Det,
+    RetinaNetHead,
+    RetinaNetLoss,
+    get_default_box_matcher,
+    get_default_box_sampler,
+)
 
 REV_KEYS = [
     (r"^bbox_head\.", ""),
@@ -95,10 +95,87 @@ class RetinaNetTest(unittest.TestCase):
                 images_hw=images_hw,
             )
 
-        from vis4d.vis.image import imshow_bboxes
-        imshow_bboxes(
-            image1[0], dets.boxes[0], dets.scores[0], dets.class_ids[0]
+        # from vis4d.vis.image import imshow_bboxes
+        # imshow_bboxes(
+        #     image1[0], dets.boxes[0], dets.scores[0], dets.class_ids[0]
+        # )
+        # imshow_bboxes(
+        #     image2[0], dets.boxes[1], dets.scores[1], dets.class_ids[1]
+        # )
+
+    def test_train(self):
+        """Test RetinaNet training."""
+        # TODO should bn be frozen during training?
+        num_classes = 8
+        basemodel = ResNet("resnet50", trainable_layers=3)
+        fpn = FPN(
+            basemodel.out_channels[3:],
+            256,
+            LastLevelP6P7(2048, 256),
+            start_index=3,
         )
-        imshow_bboxes(
-            image2[0], dets.boxes[1], dets.scores[1], dets.class_ids[1]
+        retina_net = RetinaNetHead(num_classes=num_classes, in_channels=256)
+        retinanet_loss = RetinaNetLoss(
+            retina_net.anchor_generator,
+            retina_net.box_encoder,
+            get_default_box_matcher(),
+            get_default_box_sampler(),
+            torchvision.ops.sigmoid_focal_loss,
         )
+
+        optimizer = optim.SGD(
+            [
+                *basemodel.parameters(),
+                *fpn.parameters(),
+                *retina_net.parameters(),
+            ],
+            lr=0.001,
+            momentum=0.9,
+        )
+
+        train_data = SampleDataset()
+        train_loader = DataLoader(
+            train_data, batch_size=2, shuffle=True, collate_fn=identity_collate
+        )
+
+        basemodel.train()
+        fpn.train()
+        retina_net.train()
+
+        running_losses = {}
+        log_step = 1
+        for epoch in range(2):
+            for i, data in enumerate(train_loader):
+                inputs, images_hw, gt_boxes, gt_class_ids, _, _ = data
+                inputs = torch.cat(inputs)
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
+
+                # forward + backward + optimize
+                features = fpn(basemodel(inputs))
+                outputs = retina_net(features[-5:])
+                retinanet_losses = retinanet_loss(
+                    outputs.cls_score,
+                    outputs.bbox_pred,
+                    gt_boxes,
+                    images_hw,
+                    gt_class_ids,
+                )
+                total_loss = sum(retinanet_losses)
+                total_loss.backward()
+                optimizer.step()
+
+                # print statistics
+                losses = dict(loss=total_loss, **retinanet_losses._asdict())
+                for k, v in losses.items():
+                    if k in running_losses:
+                        running_losses[k] += v
+                    else:
+                        running_losses[k] = v
+                if i % log_step == (log_step - 1):
+                    log_str = f"[{epoch + 1}, {i + 1:5d}] "
+                    for k, v in running_losses.items():
+                        log_str += f"{k}: {v / log_step:.3f}, "
+                    print(log_str.rstrip(", "))
+                    running_losses = {}
