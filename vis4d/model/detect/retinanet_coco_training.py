@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple, Union
 
 import torch
 import torch.optim as optim
+import torchvision
 from torch import nn
 from torch.utils.data import DataLoader
 from torchvision.ops.feature_pyramid_network import LastLevelP6P7
@@ -22,10 +23,17 @@ from vis4d.data_to_revise import (
 )
 from vis4d.data_to_revise.transforms import Resize
 from vis4d.op.base.resnet import ResNet
-from vis4d.op.detect.retinanet import Dense2Det, RetinaNetHead, RetinaNetOut
+from vis4d.op.detect.retinanet import (
+    Dense2Det,
+    RetinaNetHead,
+    RetinaNetOut,
+    RetinaNetLoss,
+    RetinaNetLosses,
+    get_default_box_matcher,
+    get_default_box_sampler,
+)
 from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
-from vis4d.op.detect.rcnn import DetOut, RCNNLoss, RCNNLosses, RoI2Det
-from vis4d.op.detect.rpn import RPNLoss, RPNLosses
+from vis4d.op.detect.rcnn import DetOut
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim.warmup import LinearLRWarmup
@@ -35,7 +43,7 @@ warnings.filterwarnings("ignore")
 
 log_step = 100
 num_epochs = 12
-batch_size = 16
+batch_size = 2  # 16
 learning_rate = 0.02 / 16 * batch_size
 train_resolution = (800, 1333)
 test_resolution = (800, 1333)
@@ -56,8 +64,13 @@ class RetinaNet(nn.Module):
             start_index=3,
         )
         self.retinanet_head = RetinaNetHead(num_classes=80, in_channels=256)
-        # self.rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
-        # self.rcnn_loss = RCNNLoss(rcnn_bbox_encoder)
+        self.retinanet_loss = RetinaNetLoss(
+            self.retinanet_head.anchor_generator,
+            self.retinanet_head.box_encoder,
+            get_default_box_matcher(),
+            get_default_box_sampler(),
+            torchvision.ops.sigmoid_focal_loss,
+        )
         self.transform_outs = Dense2Det(
             self.retinanet_head.anchor_generator,
             self.retinanet_head.box_encoder,
@@ -74,7 +87,7 @@ class RetinaNet(nn.Module):
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
     ) -> Union[
-        Tuple[RPNLosses, RCNNLosses, RetinaNetOut], Tuple[DetOut, RetinaNetOut]
+        Tuple[RetinaNetLosses, RetinaNetOut], Tuple[DetOut, RetinaNetOut]
     ]:
         """Forward."""
         if target_boxes is not None:
@@ -90,9 +103,18 @@ class RetinaNet(nn.Module):
         images_hw: List[Tuple[int, int]],
         target_boxes: List[torch.Tensor],
         target_classes: List[torch.Tensor],
-    ) -> Tuple[RPNLosses, RCNNLosses, RetinaNetOut]:
+    ) -> Tuple[RetinaNetLosses, RetinaNetOut]:
         """Forward training stage."""
-        raise NotImplementedError
+        features = self.fpn(self.backbone(images))
+        outputs = self.retinanet_head(features[-5:])
+        losses = self.retinanet_loss(
+            outputs.cls_score,
+            outputs.bbox_pred,
+            target_boxes,
+            images_hw,
+            target_classes,
+        )
+        return losses, outputs
 
     def _forward_test(
         self, images: torch.Tensor, images_hw: List[Tuple[int, int]]
@@ -150,7 +172,7 @@ def validation_loop(model):
     preds = []
     class_ids_to_coco = {i: s for s, i in coco_det_map.items()}
     print("Running validation...")
-    for data in tqdm(test_loader):
+    for i, data in enumerate(tqdm(test_loader)):
         data = data[0][0]
         image = data.images.tensor.to(device)
         original_wh = (
@@ -177,13 +199,17 @@ def validation_loop(model):
         preds.append(prediction)
         gts.append(copy.deepcopy(data.metadata[0]))
 
+        # if i == 99:
+        #     break
     _, log_str = coco_val_loader.evaluate("detect", preds, gts)
     print(log_str)
 
 
 def training_loop(model):
     """Training loop."""
-    train_sample_mapper = BaseSampleMapper(skip_empty_samples=True)
+    train_sample_mapper = BaseSampleMapper(
+        data_backend=HDF5Backend(), skip_empty_samples=True
+    )
     train_sample_mapper.setup_categories(coco_det_map)
     train_transforms = default(train_resolution)
 
@@ -220,10 +246,8 @@ def training_loop(model):
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            rpn_losses, rcnn_losses, outputs = model(
-                inputs, inputs_hw, gt_boxes, gt_class_ids
-            )
-            total_loss = sum((*rpn_losses, *rcnn_losses))
+            losses, outputs = model(inputs, inputs_hw, gt_boxes, gt_class_ids)
+            total_loss = sum(losses)
             total_loss.backward()
 
             if epoch == 0 and i < 500:
@@ -237,12 +261,7 @@ def training_loop(model):
             toc = perf_counter()
 
             # print statistics
-            losses = dict(
-                time=toc - tic,
-                loss=total_loss,
-                **rpn_losses._asdict(),
-                **rcnn_losses._asdict(),
-            )
+            losses = dict(time=toc - tic, loss=total_loss, **losses._asdict())
             for k, v in losses.items():
                 if k in running_losses:
                     running_losses[k] += v
@@ -250,7 +269,10 @@ def training_loop(model):
                     running_losses[k] = v
             if i % log_step == (log_step - 1):
                 # model.visualize_proposals(inputs, outputs)
-                log_str = f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] lr: {optimizer.param_groups[0]['lr']}, "
+                log_str = (
+                    f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] "
+                    f"lr: {optimizer.param_groups[0]['lr']}, "
+                )
                 for k, v in running_losses.items():
                     log_str += f"{k}: {v / log_step:.3f}, "
                 print(log_str.rstrip(", "))

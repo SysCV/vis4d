@@ -223,14 +223,8 @@ def decode_multi_level_outputs(
         keep = batched_nms(boxes, scores, labels, iou_threshold=nms_threshold)[
             :max_per_img
         ]
-        boxes, scores, labels = boxes[keep], scores[keep], labels[keep]
-    else:
-        return (
-            boxes.new_zeros(0, 4),
-            scores.new_zeros(0),
-            labels.new_zeros(0),
-        )
-    return boxes, scores, labels
+        return boxes[keep], scores[keep], labels[keep]
+    return (boxes.new_zeros(0, 4), scores.new_zeros(0), labels.new_zeros(0))
 
 
 class Dense2Det(nn.Module):
@@ -300,7 +294,7 @@ class Dense2Det(nn.Module):
             for cls_outs, reg_outs, anchor_grid in zip(
                 class_outs, regression_outs, anchor_grids
             ):
-                (cls_out, lbl_out, reg_out, anchors,) = get_params_per_level(
+                cls_out, lbl_out, reg_out, anchors = get_params_per_level(
                     cls_outs[img_id],
                     reg_outs[img_id],
                     anchor_grid,
@@ -434,7 +428,7 @@ class RetinaNetLoss(nn.Module):
             labels = F.one_hot(
                 labels.long(), num_classes=cls_score.size(1) + 1
             )[:, : cls_score.size(1)].float()
-            label_weights = label_weights.repeat(8).reshape(
+            label_weights = label_weights.repeat(cls_score.size(1)).reshape(
                 -1, cls_score.size(1)
             )
         loss_cls = self.loss_cls(cls_score, labels, reduction="none")

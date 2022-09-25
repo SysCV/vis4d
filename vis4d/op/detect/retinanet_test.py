@@ -85,6 +85,8 @@ class RetinaNetTest(unittest.TestCase):
         load_model_checkpoint(fpn, weights, REV_KEYS)
         load_model_checkpoint(retina_net, weights, REV_KEYS)
 
+        basemodel.eval()
+        fpn.eval()
         retina_net.eval()
         with torch.no_grad():
             features = fpn(basemodel(sample_images))
