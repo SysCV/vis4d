@@ -34,6 +34,20 @@ class LinearTransform(nn.Module):
         norm_cls: Optional[str] = "BatchNorm1d",
         activation_cls: str = "ReLU",
     ) -> None:
+        """Creates a new LinearTransform, which learns a transformation matrix
+        from data
+
+        Args:
+            in_dimensions (int): input dimension
+            upsampling_dims (List[int]): list of intermediate feature shapes
+                                         for upsampling
+            downsampling_dims (List[int]):list of intermediate feature shapes
+                                          for downsampling. Make sure this
+                                          matches with the last upsampling_dims
+            norm_cls (Optional(str)): class for norm (nn.'norm_cls') or None
+            activation_cls (str): class for activation (nn.'activation_cls')
+        """
+
         super().__init__()
         assert len(upsampling_dims) != 0 and len(downsampling_dims) != 0
         assert upsampling_dims[-1] == downsampling_dims[0]
@@ -131,7 +145,7 @@ class LinearTransform(nn.Module):
 
 class PointNetEncoder(nn.Module):
     """PointNetEncoder.
-    Encodes a pointcloud and additional features into one feature dscription
+    Encodes a pointcloud and additional features into one feature description
 
     Code taken from
     https://github.com/timothylimyl/PointNet-Pytorch/blob/master/pointnet/model.py
