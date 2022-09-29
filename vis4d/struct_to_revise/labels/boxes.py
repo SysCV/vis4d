@@ -285,19 +285,19 @@ class Boxes2D(Boxes):
 
     def postprocess(
         self,
-        original_wh: Tuple[int, int],
-        output_wh: Tuple[int, int],
+        original_hw: Tuple[int, int],
+        output_hw: Tuple[int, int],
         clip: bool = True,
         resolve_overlap: bool = True,
     ) -> None:
         """Postprocess boxes."""
         scale_factor = (
-            original_wh[0] / output_wh[0],
-            original_wh[1] / output_wh[1],
+            original_hw[1] / output_hw[1],
+            original_hw[0] / output_hw[0],
         )
         self.scale(scale_factor)
         if clip:
-            self.clip(original_wh)
+            self.clip(original_hw)
 
 
 def tensor_to_boxes2d(

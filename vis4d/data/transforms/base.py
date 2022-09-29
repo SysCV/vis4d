@@ -1,6 +1,8 @@
 """Basic data augmentation class."""
 from typing import Callable, List, Tuple
 
+import torch
+
 from vis4d.struct_to_revise import DictStrAny
 
 from ..datasets.base import DataKeys, DictData
@@ -61,6 +63,33 @@ class BaseBatchTransform(PrettyRepMixin):
         raise NotImplementedError
 
 
+class RandomApply(BaseTransform):
+    """Apply given transform at random with given probability."""
+
+    def __init__(
+        self,
+        transform: BaseTransform,
+        p: float = 0.5,
+        in_keys: Tuple[str, ...] = (DataKeys.images,),
+    ):
+        """Init."""
+        super().__init__(in_keys)
+        self.transform = transform
+        self.p = p
+
+    def generate_parameters(self, data: DictData) -> DictStrAny:
+        """Get parameters."""
+        params = self.transform.generate_parameters(data)
+        params["apply"] = torch.rand(1) < self.p
+        return params
+
+    def __call__(self, data: DictData, parameters: DictStrAny) -> DictData:
+        """Random apply augmentation."""
+        if parameters["apply"]:
+            data = self.transform(data, parameters)
+        return data
+
+
 def transform_pipeline(
     augmentations: List[BaseTransform],
 ) -> Callable[[DictData], Tuple[DictData, List[DictStrAny]]]:
@@ -78,7 +107,7 @@ def transform_pipeline(
 
 
 def batch_transform_pipeline(
-    augmentations: List[BaseTransform],
+    augmentations: List[BaseBatchTransform],
 ) -> Callable[[List[DictData]], List[DictData]]:
     """Compose batch transforms into single function."""
 

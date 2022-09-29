@@ -4,9 +4,11 @@ from typing import List, Optional, Union
 import torch
 from torch import nn
 
-from vis4d.common_to_revise.datasets import bdd100k_det_map, coco_det_map
+from vis4d.common_to_revise.datasets import bdd100k_det_map
 from vis4d.common_to_revise.detect_data import DetectDataModule
 from vis4d.common_to_revise.optimizers import sgd, step_schedule
+from vis4d.data.datasets.base import DataKeys, DictData
+from vis4d.data.datasets.coco import coco_det_map
 from vis4d.engine import BaseCLI
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.detect.faster_rcnn import (
@@ -81,17 +83,14 @@ class FasterRCNN(nn.Module):
             return self._forward_train(data)
         return self._forward_test(data)
 
-    def _forward_train(self, data: List[InputSample]) -> LossesType:
+    def _forward_train(self, data: DictData) -> LossesType:
         """Forward training stage."""
-        ### boilerplate interfacing code
-        data = data[0]
         images, images_hw, target_boxes, target_classes = (
-            normalize(data.images.tensor),
-            [(wh[1], wh[0]) for wh in data.images.image_sizes],
-            [x.boxes for x in data.targets.boxes2d],
-            [x.class_ids for x in data.targets.boxes2d],
+            data[DataKeys.images],
+            data[DataKeys.metadata]["input_hw"],
+            data[DataKeys.boxes2d],
+            data[DataKeys.boxes2d_classes],
         )
-        ######
 
         features = self.fpn(self.backbone(images))
         outputs = self.faster_rcnn_heads(
@@ -106,24 +105,13 @@ class FasterRCNN(nn.Module):
             outputs.sampled_targets.boxes,
             outputs.sampled_targets.classes,
         )
+        return dict(**rpn_losses._asdict(), **rcnn_losses._asdict())
 
-        ### boilerplate interfacing code
-        losses = dict(**rpn_losses._asdict(), **rcnn_losses._asdict())
-        ######
-        return losses
-
-    def _forward_test(self, data: List[InputSample]) -> ModelOutput:
+    def _forward_test(self, data: DictData) -> ModelOutput:
         """Forward testing stage."""
-        ### boilerplate interfacing code
-        data = data[0]
-        images = normalize(data.images.tensor)
-        original_wh = (
-            data.metadata[0].size.width,
-            data.metadata[0].size.height,
-        )
-        output_wh = data.images.image_sizes[0]
-        images_hw = [(output_wh[1], output_wh[0])]
-        ######
+        images = data[DataKeys.images]
+        original_hw = data[DataKeys.metadata]["original_hw"]
+        images_hw = data[DataKeys.metadata]["input_hw"]
 
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
@@ -136,7 +124,7 @@ class FasterRCNN(nn.Module):
             torch.cat([boxes[0], scores[0].unsqueeze(-1)], -1),
             class_ids[0],
         )
-        dets.postprocess(original_wh, output_wh)
+        dets.postprocess(original_hw[0], images_hw[0])
         output = {
             "detect": [
                 dets.to_scalabel({i: s for s, i in coco_det_map.items()})

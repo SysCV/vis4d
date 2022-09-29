@@ -23,17 +23,17 @@ from vis4d.data_to_revise import (
 )
 from vis4d.data_to_revise.transforms import Resize
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
+from vis4d.op.detect.rcnn import DetOut
 from vis4d.op.detect.retinanet import (
     Dense2Det,
     RetinaNetHead,
-    RetinaNetOut,
     RetinaNetLoss,
     RetinaNetLosses,
+    RetinaNetOut,
     get_default_box_matcher,
     get_default_box_sampler,
 )
-from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
-from vis4d.op.detect.rcnn import DetOut
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim.warmup import LinearLRWarmup

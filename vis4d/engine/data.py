@@ -60,7 +60,6 @@ class BaseDataModule(pl.LightningDataModule):
         visualize: bool = False,
         input_dir: Optional[str] = None,
         video_based_inference: Optional[bool] = None,
-        subcommand: Optional[str] = None,
     ) -> None:
         """Init."""
         super().__init__()  # type: ignore
@@ -71,56 +70,56 @@ class BaseDataModule(pl.LightningDataModule):
         self.input_dir = input_dir
         self.video_based_inference = video_based_inference
 
-    @no_type_check
-    def setup(self, stage: Optional[str] = None) -> None:
-        """Data preparation operations to perform on every GPU.
+    # @no_type_check
+    # def setup(self, stage: Optional[str] = None) -> None:
+    #     """Data preparation operations to perform on every GPU.
 
-        - Setup data callbacks
-        - Set sampler for DDP
-        """
-        self.trainer.callbacks += self.setup_data_callbacks(
-            stage, self.trainer.log_dir
-        )
-        # pylint: disable=protected-access
-        self.trainer._callback_connector._attach_model_logging_functions()
-        self.trainer.callbacks = (
-            self.trainer._callback_connector._reorder_callbacks(
-                self.trainer.callbacks
-            )
-        )
-        if self._sampler_cfg is not None:
-            self.trainer._accelerator_connector.replace_sampler_ddp = False
+    #     - Setup data callbacks
+    #     - Set sampler for DDP
+    #     """
+    #     self.trainer.callbacks += self.setup_data_callbacks(
+    #         stage, self.trainer.log_dir
+    #     )
+    #     # pylint: disable=protected-access
+    #     self.trainer._callback_connector._attach_model_logging_functions()
+    #     self.trainer.callbacks = (
+    #         self.trainer._callback_connector._reorder_callbacks(
+    #             self.trainer.callbacks
+    #         )
+    #     )
+    #     if self._sampler_cfg is not None:
+    #         self.trainer._accelerator_connector.replace_sampler_ddp = False
 
-    def setup_data_callbacks(self, stage: str, log_dir: str) -> List[Callback]:
-        """Setup callbacks for evaluation and prediction writing."""
-        if stage == "fit":
-            if self.test_datasets is not None and len(self.test_datasets) > 0:
-                test_datasets = list(
-                    itertools.chain(*[h.datasets for h in self.test_datasets])
-                )
-                return build_callbacks(test_datasets)
-            return []  # pragma: no cover
-        if stage in ["test", "tune"]:
-            assert self.test_datasets is not None and len(
-                self.test_datasets
-            ), "No test datasets specified!"
-            test_datasets = list(
-                itertools.chain(*[h.datasets for h in self.test_datasets])
-            )
-            return build_callbacks(test_datasets, log_dir)
-        if stage == "predict":
-            self.convert_input_dir_to_dataset()
-            assert (
-                self.predict_datasets is not None
-                and len(self.predict_datasets) > 0
-            ), "No predict datasets specified!"
-            predict_datasets = list(
-                itertools.chain(*[h.datasets for h in self.predict_datasets])
-            )
-            return build_callbacks(
-                predict_datasets, log_dir, True, self.visualize
-            )
-        raise NotImplementedError(f"Action {stage} not known!")
+    # def setup_data_callbacks(self, stage: str, log_dir: str) -> List[Callback]:
+    #     """Setup callbacks for evaluation and prediction writing."""
+    #     if stage == "fit":
+    #         if self.test_datasets is not None and len(self.test_datasets) > 0:
+    #             test_datasets = list(
+    #                 itertools.chain(*[h.datasets for h in self.test_datasets])
+    #             )
+    #             return build_callbacks(test_datasets)
+    #         return []  # pragma: no cover
+    #     if stage in ["test", "tune"]:
+    #         assert self.test_datasets is not None and len(
+    #             self.test_datasets
+    #         ), "No test datasets specified!"
+    #         test_datasets = list(
+    #             itertools.chain(*[h.datasets for h in self.test_datasets])
+    #         )
+    #         return build_callbacks(test_datasets, log_dir)
+    #     if stage == "predict":
+    #         self.convert_input_dir_to_dataset()
+    #         assert (
+    #             self.predict_datasets is not None
+    #             and len(self.predict_datasets) > 0
+    #         ), "No predict datasets specified!"
+    #         predict_datasets = list(
+    #             itertools.chain(*[h.datasets for h in self.predict_datasets])
+    #         )
+    #         return build_callbacks(
+    #             predict_datasets, log_dir, True, self.visualize
+    #         )
+    #     raise NotImplementedError(f"Action {stage} not known!")
 
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""

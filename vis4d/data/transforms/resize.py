@@ -200,6 +200,7 @@ class Resize(BaseTransform):
             parameters["input_shape"],
             parameters["target_shape"],
         )
+        data[DataKeys.metadata]["input_hw"] = target_shape
         for in_key in self.in_keys:
             if not in_key in data:
                 continue

@@ -1,6 +1,8 @@
 """Testcases for pointnet."""
 import unittest
+
 import torch
+
 from .pointnet import LinearTransform, PointNetEncoder, PointNetEncoderOut
 
 

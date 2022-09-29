@@ -10,33 +10,17 @@ from ..common_to_revise.utils import get_world_size
 from .datasets import BaseVideoDataset
 from .datasets.base import DataKeys, DictData
 
-# # pipeline
-# def get_entry(idx, params):
-#     entry: Data = Dataset(idx)
-#     if ref_sampling:
-#         entry_with_ref: List[Data] = Ref_sampling(Data)
-#         if same_on_ref:
-#             if params is None:
-#                 params = Transformations.get_params()
-#             entry_with_ref = [Transformations(entry, params) for entry in entry_with_ref]
-#         else:
-#             for entry in entry_with_ref:
-#                 params = Transformations.get_params()
-#                 entry = Transformations(entry, params)
-
-# if same_on_batch:
-#     params = Transformations.get_params()
-# else:
-#     params = None
-
-# batched_entries = [get_entry(idx, params) for _ in range(batch_size)]
-
 
 def default_collate(batch: List[DictData]) -> DictData:
     """Default batch collate."""
     data = {}
-    data[DataKeys.images] = torch.cat([b[DataKeys.images] for b in batch])
-    data[DataKeys.boxes2d] = [b[DataKeys.boxes2d] for b in batch]
+    for key in batch[0]:
+        if key == DataKeys.images:
+            data[key] = torch.cat([b[key] for b in batch])
+        elif key == DataKeys.metadata:
+            data[key] = {k: [b[key][k] for b in batch] for k in batch[0][key]}
+        else:
+            data[key] = [b[key] for b in batch]
     return data
 
 

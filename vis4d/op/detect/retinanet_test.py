@@ -14,10 +14,10 @@ from vis4d.struct_to_revise import Boxes2D
 from ..base.resnet import ResNet
 from ..fpp.fpn import FPN
 from .faster_rcnn_test import (
+    SampleDataset,
     identity_collate,
     normalize,
     url_to_tensor,
-    SampleDataset,
 )
 from .retinanet import (
     Dense2Det,

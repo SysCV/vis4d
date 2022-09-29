@@ -15,4 +15,9 @@ class COCOTest(unittest.TestCase):
 
     def test_sample(self):
         """Test if sample loaded correctly."""
-        assert tuple(self.coco[0].keys()) == ("images", "boxes2d")
+        assert tuple(self.coco[0].keys()) == (
+            "metadata",
+            "images",
+            "boxes2d",
+            "boxes2d_classes",
+        )

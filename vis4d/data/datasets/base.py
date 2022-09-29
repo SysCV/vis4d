@@ -1,7 +1,7 @@
 """Base dataset in Vis4D."""
 
 from dataclasses import dataclass
-from typing import Dict, Union
+from typing import Dict, Tuple, TypedDict, Union
 
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -11,10 +11,17 @@ DictStrArrayNested = Dict[str, Union[Tensor, DictStrArray]]
 DictData = Dict[str, Union[Tensor, DictStrArrayNested]]
 
 
+class MetaData(TypedDict):
+    original_hw: Tuple[int, int]
+    input_hw: Tuple[int, int]
+
+
 @dataclass
 class DataKeys:
+    metadata = "metadata"
     images = "images"
     boxes2d = "boxes2d"
+    boxes2d_classes = "boxes2d_classes"
     intrinsics = "intrinsics"
     masks = "masks"
 
@@ -23,8 +30,10 @@ class DataKeys:
 
 This container can hold arbitrary keys of data, where data of the keys defined
 in DataKeys should be in the following format:
+metadata: MetaData - container for meta-information about data.
 images: Tensor of shape [1, C, H, W]
 boxes2d: Tensor of shape [N, 4]
+boxes2d_classes: Tensor of shape [N,]
 
 """
 
