@@ -7,7 +7,7 @@ import torch
 
 from ..base.resnet import ResNet
 from ..utils import load_model_checkpoint
-from .fcn import FCN, FCNForResNet
+from .fcn import FCNHead
 
 
 def normalize(img: torch.Tensor) -> torch.Tensor:
@@ -37,32 +37,7 @@ REV_KEYS = [
 ]
 
 
-class FCNTest(unittest.TestCase):
-    """FCN test class."""
-
-    def test_inference(self):
-        """Test inference of FCN."""
-        image1 = url_to_tensor(
-            "https://farm1.staticflickr.com/106/311161252_33d75830fd_z.jpg",
-            (512, 512),
-        )
-        image2 = url_to_tensor(
-            "https://farm4.staticflickr.com/3217/2980271186_9ec726e0fa_z.jpg",
-            (512, 512),
-        )
-        sample_images = torch.cat([image1, image2])
-        basemodel = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        fcn = FCN(basemodel.out_channels, 21, resize=(512, 512))
-
-        fcn.eval()
-        with torch.no_grad():
-            features = basemodel(sample_images)
-            outputs = fcn(features)
-
-        assert outputs.pred.shape == (2, 21, 512, 512)
-
-
-class FCNResNetTest(unittest.TestCase):
+class FCNHeadTest(unittest.TestCase):
     """FCNResNet test class."""
 
     def test_inference(self):
@@ -81,7 +56,7 @@ class FCNResNetTest(unittest.TestCase):
             pretrained=True,
             replace_stride_with_dilation=[False, True, True],
         )
-        fcn = FCNForResNet(
+        fcn = FCNHead(
             basemodel.out_channels,
             21,
             seg_channel_idx=[4, 5],

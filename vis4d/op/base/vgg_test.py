@@ -29,7 +29,7 @@ def url_to_tensor(
 
 
 class TestVGG(unittest.TestCase):
-    """Testcases for DLA backbone."""
+    """Testcases for VGG backbone."""
 
     def test_vgg(self) -> None:
         image1 = url_to_tensor(
@@ -47,12 +47,13 @@ class TestVGG(unittest.TestCase):
             self._test_vgg(vgg_name + "_bn", sample_images)
 
     def _test_vgg(self, vgg_name: str, sample_images: torch.Tensor) -> None:
-        """Testcase for VGG16."""
+        """Testcase for VGG."""
 
-        vgg = VGG(vgg_name=vgg_name, pretrained=True)
+        vgg = VGG(vgg_name, pretrained=False)
         out = vgg(sample_images)
 
         channels = [3, 3, 64, 128, 256, 512, 512]
+        self.assertEqual(vgg.out_channels, channels)
         self.assertEqual(len(out), 7)
 
         self.assertEqual(out[0].shape[0], 2)

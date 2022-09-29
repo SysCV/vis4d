@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 from . import transforms as T
@@ -47,6 +48,19 @@ class SegmentationPresetEval:
                 T.PILToTensor(),
                 T.ConvertImageDtype(torch.float),
                 T.Normalize(mean=mean, std=std),
+            ]
+        )
+
+    def __call__(self, img, target):
+        return self.transforms(img, target)
+
+
+class SegmentationPresetRaw:
+    def __init__(self):
+        self.transforms = T.Compose(
+            [
+                T.PILToTensor(),
+                T.ConvertImageDtype(torch.float),
             ]
         )
 
