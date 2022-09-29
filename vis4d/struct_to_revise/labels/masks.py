@@ -8,10 +8,11 @@ from scalabel.label.transforms import mask_to_rle, poly2ds_to_mask, rle_to_mask
 from scalabel.label.typing import ImageSize, Label
 from torchvision.ops import roi_align
 
-# from vis4d.op.detect.mask import paste_masks_in_image
-
 from ..structures import LabelInstance, NDArrayUI8
 from .boxes import Boxes2D
+
+# from vis4d.op.detect.mask import paste_masks_in_image
+
 
 TMasks = TypeVar("TMasks", bound="Masks")
 
@@ -80,7 +81,7 @@ def paste_masks_in_image(
     image_shape: Tuple[int, int],
     threshold: float = 0.5,
     bytes_per_float: int = 4,
-    gpu_mem_limit: int = 1024**3,
+    gpu_mem_limit: int = 1024 ** 3,
 ) -> torch.Tensor:
     """Paste masks that are of a fixed resolution into an image.
 

@@ -4,7 +4,6 @@ from typing import List, Optional, Tuple
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
 
 from vis4d.data.io import BaseDataBackend, FileBackend, HDF5Backend
-from vis4d.data_to_revise.module import BaseDataModule
 from vis4d.data_to_revise.transforms import (
     BaseAugmentation,
     KorniaAugmentationWrapper,
@@ -15,6 +14,7 @@ from vis4d.data_to_revise.transforms import (
     RandomCrop,
     Resize,
 )
+from vis4d.engine.data import BaseDataModule
 from vis4d.struct_to_revise import ArgsType
 
 
@@ -33,15 +33,17 @@ class CommonDataModule(BaseDataModule):
         self.use_hdf5 = use_hdf5
         super().__init__(*args, **kwargs)
 
-    def create_datasets(self, stage: Optional[str] = None) -> None:
-        """Create Train / Test / Predict Datasets."""
-        raise NotImplementedError
-
     def _setup_backend(self) -> BaseDataBackend:
         """Setup data backend."""
         backend = FileBackend() if not self.use_hdf5 else HDF5Backend()
         rank_zero_info("Using data backend: %s", backend.__class__.__name__)
         return backend
+
+    def train_dataloader(self) -> data.DataLoader:
+        return super().train_dataloader()
+
+    def test_dataloader(self) -> List[data.DataLoader]:
+        return super().test_dataloader()
 
 
 def default(im_hw: Tuple[int, int]) -> List[BaseAugmentation]:

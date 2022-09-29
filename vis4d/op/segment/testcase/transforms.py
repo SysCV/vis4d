@@ -1,7 +1,7 @@
 import random
 
-import PIL
 import numpy as np
+import PIL
 import torch
 from torchvision import transforms as T
 from torchvision.transforms import functional as F

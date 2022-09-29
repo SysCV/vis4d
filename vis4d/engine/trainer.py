@@ -25,8 +25,8 @@ from pytorch_lightning.utilities.types import (
 )
 from torch.utils.collect_env import get_pretty_env_info
 
-from ..data_to_revise.module import BaseDataModule
 from ..struct_to_revise import ArgsType, DictStrAny
+from .data import BaseDataModule
 from .utils import DefaultProgressBar, is_torch_tf32_available, setup_logger
 
 
@@ -185,61 +185,6 @@ class DefaultTrainer(pl.Trainer):
         """Get current logging directory."""
         dirpath = self.strategy.broadcast(self.output_dir)
         return dirpath  # type: ignore
-
-    def tune(
-        self,
-        model: pl.LightningModule,
-        train_dataloaders: Optional[
-            Union[TRAIN_DATALOADERS, pl.LightningDataModule]
-        ] = None,
-        val_dataloaders: Optional[EVAL_DATALOADERS] = None,
-        datamodule: Optional[pl.LightningDataModule] = None,
-        scale_batch_size_kwargs: Optional[DictStrAny] = None,
-        lr_find_kwargs: Optional[DictStrAny] = None,
-    ) -> Dict[str, Optional[Union[int, _LRFinder]]]:
-        """Tune function."""
-        rank_zero_info("Starting hyperparameter search...")
-        if self.tuner_params is None:
-            raise ValueError(
-                "Tuner parameters not defined! Please specify "
-                "tuner_params in Trainer arguments."
-            )
-        if self.tuner_metrics is None:
-            raise ValueError(
-                "Tuner metrics not defined! Please specify "
-                "tuner_metrics in Trainer arguments."
-            )
-        search_params = self.tuner_params
-        search_metrics = self.tuner_metrics
-        param_names = list(search_params.keys())
-        param_groups = list(product(*search_params.values()))
-        metrics_all = {}
-        for param_group in param_groups:
-            for key, value in zip(param_names, param_group):
-                obj = model
-                for name in key.split(".")[:-1]:  # pragma: no cover
-                    obj = getattr(obj, name, None)  # type: ignore
-                    if obj is None:
-                        raise ValueError(
-                            f"Attribute {name} not found in {key}!"
-                        )
-                setattr(obj, key.split(".")[-1], value)
-
-            metrics = self.test(verbose=False)
-            if len(metrics) > 0:
-                rank_zero_warn(
-                    "More than one dataloader found, but tuning "
-                    "requires a single dataset to tune parameters on!"
-                )
-            metrics_all[str(param_group)] = {
-                k: v for k, v in metrics[0].items() if k in search_metrics
-            }
-        rank_zero_info("Done!")
-        rank_zero_info("The following parameters have been considered:")
-        rank_zero_info("\n" + str(list(search_params.keys())))
-        rank_zero_info("Hyperparameter search result:")
-        rank_zero_info("\n" + str(pandas.DataFrame.from_dict(metrics_all)))
-        return {}
 
 
 class BaseCLI(LightningCLI):

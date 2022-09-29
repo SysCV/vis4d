@@ -1,18 +1,17 @@
-from typing import Tuple, Set, Dict, List
-import tqdm
 from functools import partial
 from multiprocessing import Pool
+from typing import Dict, List, Set, Tuple
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 import torchvision.transforms.functional as T
-
+import tqdm
 from scalabel.eval.sem_seg import (
     fast_hist,
-    per_class_iou,
-    per_class_acc,
     freq_iou,
+    per_class_acc,
+    per_class_iou,
     whole_acc,
 )
 

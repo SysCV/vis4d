@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from torchvision.ops import batched_nms
 
+from vis4d.op.geometry.transform import transform_points
 from vis4d.struct_to_revise import Boxes2D, Boxes3D
 
 
@@ -64,6 +65,44 @@ def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
         torch.zeros(1, dtype=inter.dtype, device=inter.device),
     )
     return iou
+
+
+def transform_bbox(
+    trans_mat: torch.Tensor, boxes: torch.Tensor
+) -> torch.Tensor:
+    """Apply trans_mat (3, 3) / (B, 3, 3)  to (N, 4) / (B, N, 4) xyxy boxes."""
+    assert len(trans_mat.shape) == len(
+        boxes.shape
+    ), "trans_mat and boxes must have same number of dimensions!"
+    x1y1 = boxes[..., :2]
+    x2y1 = torch.stack((boxes[..., 2], boxes[..., 1]), -1)
+    x2y2 = boxes[..., 2:]
+    x1y2 = torch.stack((boxes[..., 0], boxes[..., 3]), -1)
+
+    x1y1 = transform_points(x1y1, trans_mat)
+    x2y1 = transform_points(x2y1, trans_mat)
+    x2y2 = transform_points(x2y2, trans_mat)
+    x1y2 = transform_points(x1y2, trans_mat)
+
+    x_all = torch.stack(
+        (x1y1[..., 0], x2y2[..., 0], x2y1[..., 0], x1y2[..., 0]), -1
+    )
+    y_all = torch.stack(
+        (x1y1[..., 1], x2y2[..., 1], x2y1[..., 1], x1y2[..., 1]), -1
+    )
+    transformed_boxes = torch.stack(
+        (
+            x_all.min(dim=-1)[0],
+            y_all.min(dim=-1)[0],
+            x_all.max(dim=-1)[0],
+            y_all.max(dim=-1)[0],
+        ),
+        -1,
+    )
+
+    if len(boxes.shape) == 2:
+        transformed_boxes.squeeze(0)
+    return transformed_boxes
 
 
 def random_choice(tensor: torch.Tensor, sample_size: int) -> torch.Tensor:

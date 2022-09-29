@@ -8,18 +8,17 @@ from scalabel.label.typing import ImageSize
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.common_to_revise.datasets import (
+from vis4d.common_to_revise.datasets import (  # bdd100k_panseg_map,
     bdd100k_panseg_sample,
-    # bdd100k_panseg_map,
 )
 from vis4d.op.box.util import apply_mask
 from vis4d.op.detect.rcnn import (
     Det2Mask,
+    DetOut,
     MaskRCNNHead,
     MaskRCNNLoss,
     RCNNLoss,
     RoI2Det,
-    DetOut,
     postprocess_dets,
 )
 from vis4d.op.detect.rpn import RPNLoss
@@ -36,16 +35,16 @@ from ..detect.faster_rcnn import (
     get_default_rpn_box_encoder,
 )
 from ..detect.faster_rcnn_test import (
+    identity_collate,
     normalize,
     url_to_tensor,
-    identity_collate,
 )
-from ..detect.mask_rcnn_test import REV_KEYS, MASK_REV_KEYS
+from ..detect.mask_rcnn_test import MASK_REV_KEYS, REV_KEYS
 from ..fpp.fpn import FPN
 from .panoptic_fpn_head import (
     PanopticFPNHead,
-    postprocess_segms,
     PanopticFPNLoss,
+    postprocess_segms,
 )
 from .simple_fusion_head import SimplePanopticFusionHead
 

@@ -1,16 +1,17 @@
+import copy
 import datetime
 import errno
 import os
 import time
 from collections import defaultdict, deque
-import copy
 
 import torch
-import torch.utils.data
 import torch.distributed as dist
+import torch.utils.data
 import torchvision
 from PIL import Image
 from pycocotools import mask as coco_mask
+
 from .transforms import Compose
 
 
@@ -220,7 +221,7 @@ class ConfusionMatrix:
         with torch.inference_mode():
             k = (a >= 0) & (a < n)
             inds = n * a[k].to(torch.int64) + b[k]
-            self.mat += torch.bincount(inds, minlength=n**2).reshape(n, n)
+            self.mat += torch.bincount(inds, minlength=n ** 2).reshape(n, n)
 
     def reset(self):
         self.mat.zero_()

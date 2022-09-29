@@ -19,16 +19,6 @@ from termcolor import colored
 from ..common_to_revise.utils.time import Timer
 from ..struct_to_revise import ArgsType
 
-try:
-    from mmcv.utils import get_logger
-
-    mm_logger = get_logger("mmdet")
-    mm_logger.setLevel(logging.WARNING)
-
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
-
 logger = logging.getLogger("pytorch_lightning")
 # ignore DeprecationWarning by default (e.g. numpy)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
