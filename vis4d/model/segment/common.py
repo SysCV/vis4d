@@ -196,10 +196,11 @@ def save_output_images(predictions, output_dir, colorize=True):
     """
     os.makedirs(output_dir, exist_ok=True)
     for i, prediction in enumerate(predictions):
-        if colorize:
-            prediction = pascal_label_decode(prediction)
         if len(prediction.shape) == 3:
             prediction = prediction.transpose((1, 2, 0))
+        elif len(prediction.shape) == 2:
+            if colorize:
+                prediction = pascal_label_decode(prediction)
         im = Image.fromarray(prediction.astype(np.uint8))
         fn = os.path.join(output_dir, f"{i}.png")
         im.save(fn)

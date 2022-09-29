@@ -9,7 +9,12 @@ from vis4d.op.segment.fcn import FCNHead, FCNLoss, FCNOut
 
 
 class FCN_ResNet(nn.Module):
-    def __init__(self, base_model: str = "res", num_classes: int = 21) -> None:
+    def __init__(
+        self,
+        base_model: str = "res",
+        num_classes: int = 21,
+        resize: Tuple[int, int] = (512, 512),
+    ) -> None:
         """Init."""
         super().__init__()
         if base_model.startswith("resnet"):
@@ -21,7 +26,7 @@ class FCN_ResNet(nn.Module):
         else:
             raise ValueError("base model not supported!")
         self.fcn = FCNHead(
-            self.basemodel.out_channels[4:], num_classes, resize=(512, 512)
+            self.basemodel.out_channels[4:], num_classes, resize=resize
         )
         self.loss = FCNLoss([4, 5], nn.CrossEntropyLoss(ignore_index=255))
 
