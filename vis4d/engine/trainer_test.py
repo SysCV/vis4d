@@ -30,30 +30,6 @@ def test_custom_init() -> None:
     trainer.fit(model, [None])
 
 
-def test_tune(monkeypatch: MonkeyPatch) -> None:
-    """Test tune function."""
-    model_params = [0, 1, 2, 3]
-    trainer = DefaultTrainer(
-        work_dir="./unittests/",
-        exp_name="test_tune",
-        tuner_params={"model_param": model_params},
-        tuner_metrics=["my_metric"],
-    )
-    model = MockModel(model_param=7)
-
-    model_param_vals = []
-
-    def dummy_test(  # pylint: disable=unused-argument
-        *args: ArgsType, **kwargs: ArgsType
-    ) -> List[Dict[str, float]]:
-        model_param_vals.append(model.model_param)
-        return [{"my_metric": 0}]
-
-    monkeypatch.setattr(DefaultTrainer, "test", dummy_test)
-    trainer.tune(model)
-    assert set(model_param_vals) == set(model_params)
-
-
 def test_base_cli(monkeypatch: MonkeyPatch) -> None:
     """Test that CLI correctly instantiates model/trainer and calls fit."""
     expected_model = dict(model_param=7)

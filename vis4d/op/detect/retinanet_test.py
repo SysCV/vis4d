@@ -14,10 +14,10 @@ from vis4d.struct_to_revise import Boxes2D
 from ..base.resnet import ResNet
 from ..fpp.fpn import FPN
 from .faster_rcnn_test import (
+    SampleDataset,
     identity_collate,
     normalize,
     url_to_tensor,
-    SampleDataset,
 )
 from .retinanet import (
     Dense2Det,
@@ -85,6 +85,8 @@ class RetinaNetTest(unittest.TestCase):
         load_model_checkpoint(fpn, weights, REV_KEYS)
         load_model_checkpoint(retina_net, weights, REV_KEYS)
 
+        basemodel.eval()
+        fpn.eval()
         retina_net.eval()
         with torch.no_grad():
             features = fpn(basemodel(sample_images))

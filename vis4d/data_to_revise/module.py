@@ -9,16 +9,16 @@ from pytorch_lightning.callbacks import Callback
 from torch.utils import data
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.data_to_revise.callbacks.evaluator import DefaultEvaluatorCallback
-from vis4d.data_to_revise.callbacks.writer import DefaultWriterCallback
+from vis4d.engine.callbacks.evaluator import DefaultEvaluatorCallback
+from vis4d.engine.callbacks.writer import DefaultWriterCallback
 
 from ..common_to_revise.registry import RegistryHolder
 from ..common_to_revise.utils import get_world_size
+from ..data.samplers import VideoInferenceSampler, build_data_sampler
 from ..struct_to_revise import CategoryMap, InputSample, ModuleCfg
 from .dataset import ScalabelDataset
 from .datasets import Custom
 from .handler import BaseDatasetHandler
-from .samplers import TrackingInferenceSampler, build_data_sampler
 from .utils import identity_batch_collator
 
 
@@ -253,7 +253,7 @@ class BaseDataModule(pl.LightningDataModule, metaclass=RegistryHolder):
                     "Need type ScalabelDataset for TrackingInferenceSampler"
                     " to split dataset by sequences!"
                 )
-                sampler = TrackingInferenceSampler(current_dataset)
+                sampler = VideoInferenceSampler(current_dataset)
             elif (
                 get_world_size() > 1 and self._sampler_cfg is not None
             ):  # pragma: no cover

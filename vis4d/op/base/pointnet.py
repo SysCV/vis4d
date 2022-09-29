@@ -1,12 +1,21 @@
-"""Operations for PointNet"""
-from typing import Callable, List, Optional
+"""Operations for PointNet."""
+from typing import Callable, List, NamedTuple, Optional, Tuple
 
 import torch
-import torch.nn.functional as F
 from torch import nn
+from torch.nn import functional as F
 
 
-class LinearTransformStn(nn.Module):
+class PointNetEncoderOut(NamedTuple):
+    """Output of the PointNetEncoder."""
+
+    features: torch.Tensor  # Feature Description [B, feature_dim]
+    transformations: List[  # List with all transformation matrices [[B, d, d]]
+        torch.Tensor
+    ]
+
+
+class LinearTransform(nn.Module):
     """Module that learns a linear transformation for a input pointcloud.
 
     Code taken from
@@ -25,6 +34,20 @@ class LinearTransformStn(nn.Module):
         norm_cls: Optional[str] = "BatchNorm1d",
         activation_cls: str = "ReLU",
     ) -> None:
+        """Creates a new LinearTransform, which learns a transformation matrix
+        from data
+
+        Args:
+            in_dimensions (int): input dimension
+            upsampling_dims (List[int]): list of intermediate feature shapes
+                                         for upsampling
+            downsampling_dims (List[int]):list of intermediate feature shapes
+                                          for downsampling. Make sure this
+                                          matches with the last upsampling_dims
+            norm_cls (Optional(str)): class for norm (nn.'norm_cls') or None
+            activation_cls (str): class for activation (nn.'activation_cls')
+        """
+
         super().__init__()
         assert len(upsampling_dims) != 0 and len(downsampling_dims) != 0
         assert upsampling_dims[-1] == downsampling_dims[0]
@@ -32,7 +55,7 @@ class LinearTransformStn(nn.Module):
         self.upsampling_dims_ = upsampling_dims
         self.downsampling_dims_ = downsampling_dims
         self.in_dimension_ = in_dimension
-        self.identity_ = torch.eye(in_dimension).reshape(1, in_dimension**2)
+        self.identity_ = torch.eye(in_dimension).reshape(1, in_dimension ** 2)
 
         # Create activation
         self.activation_ = getattr(nn, activation_cls)()
@@ -65,7 +88,7 @@ class LinearTransformStn(nn.Module):
             ]
         )
         self.downsampling_layers.append(
-            nn.Linear(downsampling_dims[-1], in_dimension**2)
+            nn.Linear(downsampling_dims[-1], in_dimension ** 2)
         )
 
     def __call__(
@@ -79,10 +102,10 @@ class LinearTransformStn(nn.Module):
         self,
         features: torch.Tensor,
     ) -> torch.Tensor:
-        """LinearTransformStn forward
+        """Linear Transform forward
 
         Args:
-            features (Tensor[N, C]): Input features (e.g. points)
+            features (Tensor[B, C, N]): Input features (e.g. points)
 
         Returns:
             Learned Canonical Transfomation Matrix for this input.
@@ -96,7 +119,6 @@ class LinearTransformStn(nn.Module):
             if self.norms_ is not None:
                 features = self.norms_[idx](features)
             features = self.activation_(features)
-            print(features.shape)
 
         features = torch.max(features, 2, keepdim=True)[0]
         features = features.view(-1, self.upsampling_dims_[-1])
@@ -118,4 +140,122 @@ class LinearTransformStn(nn.Module):
 
         return transformations.view(
             batchsize, self.in_dimension_, self.in_dimension_
+        )
+
+
+class PointNetEncoder(nn.Module):
+    """PointNetEncoder.
+    Encodes a pointcloud and additional features into one feature description
+
+    Code taken from
+    https://github.com/timothylimyl/PointNet-Pytorch/blob/master/pointnet/model.py
+    and modified to allow for modular configuration.
+
+    See pointnet publication for more information (https://arxiv.org/pdf/1612.00593.pdf)
+    """
+
+    def __init__(
+        self,
+        in_dimensions: int = 3,
+        out_dimensions: int = 1024,
+        mlp_dimensions: List[List[int]] = [[64, 64], [64, 128]],
+        norm_cls: Optional[str] = "BatchNorm1d",
+        activation_cls: str = "ReLU",
+        **kwargs  # TODO, type
+    ):
+        """Creates a new PointNetEncoder.
+
+        Args:
+            in_dimensions (int): input dimension (e.g. 3 for xzy, 6 for xzyrgb)
+            out_dimensions (int): output dimensions
+            mlp_dimensions (List[List[int]]): (Dimensions of MLP layers)
+            norm_cls (Optional(str)): class for norm (nn.'norm_cls') or None
+            activation_cls (str): class for activation (nn.'activation_cls')
+            kwargs (TODO): See arguments of @LinearTransformStn
+        """
+        super().__init__()
+
+        self.out_dimension_ = out_dimensions
+
+        # Extend dimensions to upscale from input dimension
+        mlp_dimensions[0].insert(0, in_dimensions)
+        mlp_dimensions[-1].append(out_dimensions)
+
+        # Learnable transformation layers.
+        self.trans_layers_ = nn.ModuleList(
+            [
+                LinearTransform(
+                    in_dimension=dims[0],
+                    norm_cls=norm_cls,
+                    activation_cls=activation_cls,
+                    **kwargs,
+                )
+                for dims in mlp_dimensions
+            ]
+        )
+
+        # MLP layers
+        self.mlp_layers_ = nn.ModuleList()
+
+        # Create activation
+        activation = getattr(nn, activation_cls)()
+
+        # Create norms
+        norm_fn: Callable[[int], nn.Module] = (
+            getattr(nn, norm_cls) if norm_cls is not None else None
+        )
+
+        for mlp_idx, mlp_dims in enumerate(mlp_dimensions):
+            layers = []
+
+            for idx, (in_dim, out_dim) in enumerate(
+                zip(mlp_dims[:-1], mlp_dims[1:])
+            ):
+                # Create MLP
+                layers.append(torch.nn.Conv1d(in_dim, out_dim, 1))
+                # Create BN if needed
+                if norm_fn is not None:
+                    layers.append(norm_fn(out_dim))
+
+                # Only add activation if not last layer
+                if (
+                    mlp_idx != len(mlp_dimensions) - 1
+                    and idx != len(mlp_dims) - 2
+                ):
+                    layers.append(activation)
+
+            self.mlp_layers_.append(nn.Sequential(*layers))
+
+    def __call__(self, features: torch.Tensor) -> torch.Tensor:
+        """Type definition for call implementation."""
+        return self._call_impl(features)
+
+    def forward(self, features: torch.Tensor):
+        """PointNetEncoder forward
+
+        Args:
+            features (Tensor[B, C, N]): Input features stacked in channels.
+            e.g. raw point inputs: [B, 3, N] , w color : [B, 3+3, N], ...
+        Returns:
+            Extracted feature representation for input and all
+            applied transformations.
+        """
+
+        transforms: List[torch.Tensor] = []
+
+        for block_idx, trans_layer in enumerate(self.trans_layers_):
+            # Apply transformation
+            trans = trans_layer(features)
+            transforms.append(trans)
+            features = features.transpose(2, 1)
+            features = torch.bmm(features, trans)
+            features = features.transpose(2, 1)
+            # Apply MLP
+            features = self.mlp_layers_[block_idx](features)
+
+        features = torch.max(features, 2, keepdim=True)[0]
+        features = features.view(-1, self.out_dimension_)
+
+        return PointNetEncoderOut(
+            features=features, transformations=transforms
         )

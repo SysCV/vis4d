@@ -17,7 +17,7 @@ from vis4d.common_to_revise.registry import RegistryHolder
 from vis4d.common_to_revise.utils import get_world_size
 from vis4d.struct_to_revise import ArgsType, ModuleCfg
 
-from .dataset import ScalabelDataset
+from .datasets import BaseVideoDataset
 
 
 class BaseSampler(Sampler[List[int]], metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
@@ -331,7 +331,7 @@ def build_data_sampler(
 
 
 # no coverage for this class, since we don't unittest distributed setting
-class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+class VideoInferenceSampler(DistributedSampler):  # type: ignore # pragma: no cover # pylint: disable=line-too-long
     """Produce sequence ordered indices for inference across all workers.
 
     Inference needs to run on the __exact__ set of sequences and their
@@ -342,7 +342,7 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
 
     def __init__(
         self,
-        dataset: ScalabelDataset,
+        dataset: BaseVideoDataset,
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
         shuffle: bool = True,
@@ -351,7 +351,7 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
     ) -> None:
         """Init."""
         super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
-        self.sequences = list(dataset.ref_sampler.video_to_indices.keys())
+        self.sequences = list(dataset.video_to_indices)
         self.num_seqs = len(self.sequences)
         assert self.num_seqs >= self.num_replicas, (
             f"Number of sequences ({self.num_seqs}) must be greater or "
@@ -361,7 +361,7 @@ class TrackingInferenceSampler(DistributedSampler):  # type: ignore # pragma: no
         self._local_seqs = chunks[self.rank]
         self._local_idcs = []
         for seq in self._local_seqs:
-            self._local_idcs.extend(dataset.ref_sampler.video_to_indices[seq])
+            self._local_idcs.extend(dataset.video_to_indices[seq])
 
     def __iter__(self) -> Generator[int, None, None]:
         """Iteration method."""

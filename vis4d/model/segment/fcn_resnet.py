@@ -1,5 +1,5 @@
 """FCN tests."""
-from typing import Optional, Union, Tuple
+from typing import Optional, Tuple, Union
 
 import torch
 from torch import nn
