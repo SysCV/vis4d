@@ -18,6 +18,7 @@ from vis4d.common_to_revise.datasets import (
     coco_val,
 )
 from vis4d.data.datasets import COCO
+from vis4d.eval import BaseEvaluator, COCOEvaluator
 
 
 class DetectDataModule(CommonDataModule):
@@ -56,6 +57,18 @@ class DetectDataModule(CommonDataModule):
                 f"Experiment {self.experiment} not known!"
             )
         return dataloaders
+
+    def evaluators(self) -> List[BaseEvaluator]:
+        """Define evaluators associated with test datasets."""
+        if self.experiment == "bdd100k":
+            raise NotImplementedError
+        elif self.experiment == "coco":
+            evaluators = [COCOEvaluator("data/COCO/", split="val2017")]
+        else:
+            raise NotImplementedError(
+                f"Experiment {self.experiment} not known!"
+            )
+        return evaluators
 
 
 # TODO revise

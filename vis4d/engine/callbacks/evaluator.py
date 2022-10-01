@@ -2,82 +2,64 @@
 import copy
 import logging
 import os
-from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-from scalabel.common import mute
-from scalabel.label.typing import Frame
 
-from vis4d.data_to_revise.datasets import BaseDatasetLoader
-from vis4d.data_to_revise.utils import all_gather_gts, all_gather_predictions
-from vis4d.struct_to_revise import InputSample, MetricLogs, ModelOutput
+from vis4d.common_to_revise.utils.distributed import all_gather_object_cpu
+from vis4d.data.datasets.base import DictData
+from vis4d.eval.base import BaseEvaluator
+from vis4d.struct_to_revise import MetricLogs, ModelOutput
 
-mute(True)  # turn off undesired logs during eval
 logger = logging.getLogger("pytorch_lightning")
 
 
-class BaseEvaluatorCallback(Callback):
+class DefaultEvaluatorCallback(Callback):
     """Base class for Vis4D Evaluators.
 
     This class will accumulate the inputs/outputs in 'process', and produce
     evaluation results in 'evaluate'.
     """
 
-    def __init__(self, dataloader_idx: int, collect: str = "cpu") -> None:
+    def __init__(
+        self,
+        dataloader_idx: int,
+        evaluator: BaseEvaluator,
+        output_dir: Optional[str] = None,
+        collect: str = "cpu",
+    ) -> None:
         """Init class."""
         assert collect in ["cpu", "gpu"], f"Collect arg {collect} unknown."
-        self._predictions: Dict[str, List[Frame]] = defaultdict(list)
-        self._gts: List[Frame] = []
         self.logging_disabled = False
         self.collect = collect
         self.dataloader_idx = dataloader_idx
+        self.output_dir = output_dir
+        self.evaluator = evaluator
 
-    def reset(self) -> None:
-        """Preparation for a new round of evaluation."""
-        self._predictions = defaultdict(list)
-        self._gts = []
-
-    def gather(self, pl_module: pl.LightningModule) -> None:
-        """Gather accumulated data."""
-        preds = all_gather_predictions(
-            self._predictions, pl_module, self.collect
-        )
-        if preds is not None:
-            self._predictions = preds
-        gts = all_gather_gts(self._gts, pl_module, self.collect)
-        if gts is not None:
-            self._gts = gts
-
-    def process(
-        self, inputs: List[List[InputSample]], outputs: ModelOutput
-    ) -> None:
-        """Process the pair of inputs and outputs."""
-        raise NotImplementedError
-
-    def evaluate(self, epoch: int) -> Dict[str, MetricLogs]:
-        """Evaluate the performance after processing all input/output pairs."""
-        raise NotImplementedError
+        if self.output_dir is not None:
+            os.makedirs(self.output_dir, exist_ok=True)
 
     def on_test_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_test_epoch_end PL hook to call 'evaluate'."""
-        self.gather(pl_module)
+        gather_func = lambda x: all_gather_object_cpu(x, pl_module)
+        self.evaluator.gather(gather_func)
         if trainer.is_global_zero:
-            self.evaluate(trainer.current_epoch)
-        self.reset()
+            self.evaluate()
+        self.evaluator.reset()
 
     def on_validation_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
-        self.gather(pl_module)
+        gather_func = lambda x: all_gather_object_cpu(x, pl_module)
+        self.evaluator.gather(gather_func)
         if trainer.is_global_zero:
-            self.evaluate(trainer.current_epoch)
-        self.reset()
+            self.evaluate()
+        self.evaluator.reset()
 
     def on_test_batch_end(  # type: ignore
         self,
@@ -110,65 +92,39 @@ class BaseEvaluatorCallback(Callback):
     ) -> None:
         """Disable logging of results on sanity check."""
         self.logging_disabled = True
+        self.run_eval = False
 
     def on_sanity_check_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Enable logging of results after sanity check."""
         self.logging_disabled = False
+        self.run_eval = True
 
-
-class DefaultEvaluatorCallback(BaseEvaluatorCallback):
-    """Evaluate model using metrics supported by the dataset."""
-
-    def __init__(
-        self,
-        dataloader_idx: int,
-        dataset_loader: BaseDatasetLoader,
-        output_dir: Optional[str] = None,
-    ) -> None:
-        """Init."""
-        super().__init__(dataloader_idx, dataset_loader.collect_device)
-        self.output_dir = output_dir
-        self.name = dataset_loader.name
-        self.metrics = dataset_loader.eval_metrics
-        self.eval_func = dataset_loader.evaluate
-        self.save_func = dataset_loader.save_predictions
-
-        if self.output_dir is not None:
-            os.makedirs(self.output_dir, exist_ok=True)
-
-    def process(
-        self, inputs: List[List[InputSample]], outputs: ModelOutput
-    ) -> None:
+    def process(self, inputs: DictData, outputs: ModelOutput) -> None:
         """Process the pair of inputs and outputs."""
-        for inp in inputs:
-            self._gts.append(copy.deepcopy(inp[0].metadata[0]))
+        self.evaluator.process(inputs, outputs)
 
-        for key, output in outputs.items():
-            for inp, out in zip(inputs, output):
-                prediction = copy.deepcopy(inp[0].metadata[0])
-                prediction.labels = out
-                self._predictions[key].append(prediction)
-
-    def evaluate(self, epoch: int) -> Dict[str, MetricLogs]:
+    def evaluate(self) -> Dict[str, MetricLogs]:
         """Evaluate the performance after processing all input/output pairs."""
-        results = {}
-        assert self.metrics is not None
-        if not self.logging_disabled and len(self.metrics) > 0:
-            logger.info("Running evaluation on dataset %s...", self.name)
-        for key, predictions in self._predictions.items():
-            if self.output_dir is not None:
-                output_dir = os.path.join(self.output_dir, key)
-                os.makedirs(output_dir, exist_ok=True)
-                self.save_func(output_dir, key, predictions)
+        if not self.run_eval:
+            return "", {}
 
-            if key in self.metrics:
-                log_dict, log_str = self.eval_func(key, predictions, self._gts)
-                results[key] = log_dict
-                if not self.logging_disabled:
-                    for k, v in log_dict.items():
-                        self.log(k, v, rank_zero_only=True)  # type: ignore # pylint: disable=no-member,line-too-long
-                    logger.info("Showing results for %s", key)
-                    logger.info(log_str)
+        results = {}
+        if not self.logging_disabled:
+            logger.info(f"Running evaluator {str(self.evaluator)}...")
+
+        for metric in self.evaluator.metrics:
+            if self.output_dir is not None:
+                output_dir = os.path.join(self.output_dir, metric)
+                os.makedirs(output_dir, exist_ok=True)
+                self.evaluator.save(output_dir, metric)  # TODO
+
+            log_dict, log_str = self.evaluator.evaluate(metric)
+            results[metric] = log_dict
+            if not self.logging_disabled:
+                for k, v in log_dict.items():
+                    self.log(k, v, rank_zero_only=True)  # type: ignore # pylint: disable=no-member,line-too-long
+                logger.info("Showing results for %s", metric)
+                logger.info(log_str)
         return results

@@ -1,10 +1,8 @@
 """Callbacks handling data related stuff (evaluation, visualization, etc)."""
-from .evaluator import BaseEvaluatorCallback, DefaultEvaluatorCallback
-from .writer import BaseWriterCallback, DefaultWriterCallback
+from .evaluator import DefaultEvaluatorCallback
+from .writer import DefaultWriterCallback
 
 __all__ = [
-    "BaseWriterCallback",
     "DefaultEvaluatorCallback",
-    "BaseEvaluatorCallback",
     "DefaultWriterCallback",
 ]

@@ -8,6 +8,41 @@ from vis4d.op.geometry.transform import transform_points
 from vis4d.struct_to_revise import Boxes2D, Boxes3D
 
 
+def bbox_scale(
+    boxes: torch.Tensor, scale_factor_xy: Tuple[float, float]
+) -> torch.Tensor:
+    """Scale bounding box tensor."""
+    boxes[:, [0, 2]] *= scale_factor_xy[0]
+    boxes[:, [1, 3]] *= scale_factor_xy[1]
+    return boxes
+
+
+def bbox_clip(
+    boxes: torch.Tensor, image_hw: Tuple[float, float]
+) -> torch.Tensor:
+    """Clip bounding boxes to image dims."""
+    boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, image_hw[1] - 1)
+    boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(0, image_hw[0] - 1)
+    return boxes
+
+
+def bbox_postprocess(
+    boxes: torch.Tensor,
+    original_hw: Tuple[int, int],
+    output_hw: Tuple[int, int],
+    clip: bool = True,
+) -> torch.Tensor:
+    """Postprocess boxes by scaling and clipping to given image dims."""
+    scale_factor = (
+        original_hw[1] / output_hw[1],
+        original_hw[0] / output_hw[0],
+    )
+    boxes = bbox_scale(boxes, scale_factor)
+    if clip:
+        boxes = bbox_clip(boxes, original_hw)
+    return boxes
+
+
 @torch.jit.script
 def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
     """Compute bounding box areas.
