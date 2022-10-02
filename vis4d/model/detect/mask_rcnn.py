@@ -8,7 +8,6 @@ from vis4d.common_to_revise.datasets import bdd100k_track_map, coco_det_map
 from vis4d.common_to_revise.detect_data import InsSegDataModule
 from vis4d.common_to_revise.optimizers import sgd, step_schedule
 from vis4d.data.datasets.base import DataKeys, DictData
-from vis4d.engine import BaseCLI
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.util import bbox_postprocess
 from vis4d.op.detect.faster_rcnn import (
@@ -32,6 +31,7 @@ from vis4d.op.detect.util import apply_mask
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim import DefaultOptimizer
+from vis4d.pl import BaseCLI
 from vis4d.struct_to_revise import (
     Boxes2D,
     InputSample,

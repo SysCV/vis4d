@@ -21,7 +21,7 @@ from vis4d.data.transforms.base import (
     batch_transform_pipeline,
     transform_pipeline,
 )
-from vis4d.engine.data import BaseDataModule
+from vis4d.pl.data import BaseDataModule
 from vis4d.struct_to_revise import ArgsType
 
 
