@@ -40,9 +40,12 @@ class COCOevalV2(COCOeval):
 class COCOEvaluator(Evaluator):
     """COCO detection evaluation class."""
 
-    def __init__(self, data_root: str, split: str = "val2017"):
+    def __init__(
+        self, data_root: str, iou_type: str = "bbox", split: str = "val2017"
+    ):
         """Init."""
         super().__init__()
+        self.iou_type = iou_type
         self.coco_id2name = {v: k for k, v in coco_det_map.items()}
         with contextlib.redirect_stdout(io.StringIO()):
             self._coco_gt = COCO(
@@ -106,13 +109,11 @@ class COCOEvaluator(Evaluator):
 
             self._predictions.extend(annotations)
 
-    def evaluate(
-        self, metric: str, iou_type: str = "bbox"
-    ) -> Tuple[MetricLogs, str]:
+    def evaluate(self, metric: str) -> Tuple[MetricLogs, str]:
         """Evaluate predictions."""
         if metric == "COCO_AP":
             with contextlib.redirect_stdout(io.StringIO()):
-                if iou_type == "segm":
+                if self.iou_type == "segm":
                     # remove bbox for segm evaluation so cocoapi will use mask
                     # area instead of box area
                     _predictions = copy.deepcopy(self._predictions)
@@ -122,7 +123,7 @@ class COCOEvaluator(Evaluator):
                     _predictions = self._predictions
                 coco_dt = self._coco_gt.loadRes(_predictions)
                 evaluator = COCOevalV2(
-                    self._coco_gt, coco_dt, iouType=iou_type
+                    self._coco_gt, coco_dt, iouType=self.iou_type
                 )
                 evaluator.evaluate()
                 evaluator.accumulate()

@@ -1,6 +1,5 @@
 """RetinaNet coco training example."""
 import argparse
-import copy
 import warnings
 from time import perf_counter
 from typing import List, Optional, Tuple, Union
@@ -9,21 +8,16 @@ import torch
 import torch.optim as optim
 import torchvision
 from torch import nn
-from torch.utils.data import DataLoader
 from torchvision.ops.feature_pyramid_network import LastLevelP6P7
 from tqdm import tqdm
 
-from vis4d.common_to_revise.data_pipelines import default
-from vis4d.common_to_revise.datasets import coco_det_map, coco_train, coco_val
+from vis4d.common_to_revise.data_pipelines import default_test, default_train
+from vis4d.data.datasets.base import DataKeys
+from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
-from vis4d.data_to_revise import (
-    BaseDatasetHandler,
-    BaseSampleMapper,
-    ScalabelDataset,
-)
-from vis4d.data_to_revise.transforms import Resize
+from vis4d.eval.coco import COCOEvaluator
 from vis4d.op.base.resnet import ResNet
-from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
+from vis4d.op.box.util import bbox_postprocess
 from vis4d.op.detect.rcnn import DetOut
 from vis4d.op.detect.retinanet import (
     Dense2Det,
@@ -37,7 +31,17 @@ from vis4d.op.detect.retinanet import (
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim.warmup import LinearLRWarmup
-from vis4d.struct_to_revise import Boxes2D, InputSample
+
+REV_KEYS = [
+    (r"^bbox_head\.", "retinanet_head."),
+    (r"^backbone\.", "backbone.body."),
+    (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
+    (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
+    (r"^fpn.layer_blocks.3\.", "fpn.extra_blocks.p6."),
+    (r"^fpn.layer_blocks.4\.", "fpn.extra_blocks.p7."),
+    (r"\.conv.weight", ".weight"),
+    (r"\.conv.bias", ".bias"),
+]
 
 warnings.filterwarnings("ignore")
 
@@ -86,16 +90,15 @@ class RetinaNet(nn.Module):
         images_hw: List[Tuple[int, int]],
         target_boxes: Optional[List[torch.Tensor]] = None,
         target_classes: Optional[List[torch.Tensor]] = None,
-    ) -> Union[
-        Tuple[RetinaNetLosses, RetinaNetOut], Tuple[DetOut, RetinaNetOut]
-    ]:
+        original_hw: Optional[List[Tuple[int, int]]] = None,
+    ) -> Union[RetinaNetLosses, DetOut]:
         """Forward."""
         if target_boxes is not None:
             assert target_classes is not None
             return self._forward_train(
                 images, images_hw, target_boxes, target_classes
             )
-        return self._forward_test(images, images_hw)
+        return self._forward_test(images, images_hw, original_hw)
 
     def _forward_train(
         self,
@@ -103,7 +106,7 @@ class RetinaNet(nn.Module):
         images_hw: List[Tuple[int, int]],
         target_boxes: List[torch.Tensor],
         target_classes: List[torch.Tensor],
-    ) -> Tuple[RetinaNetLosses, RetinaNetOut]:
+    ) -> RetinaNetLosses:
         """Forward training stage."""
         features = self.fpn(self.backbone(images))
         outputs = self.retinanet_head(features[-5:])
@@ -114,20 +117,26 @@ class RetinaNet(nn.Module):
             images_hw,
             target_classes,
         )
-        return losses, outputs
+        return losses
 
     def _forward_test(
-        self, images: torch.Tensor, images_hw: List[Tuple[int, int]]
-    ) -> Tuple[DetOut, RetinaNetOut]:
+        self,
+        images: torch.Tensor,
+        images_hw: List[Tuple[int, int]],
+        original_hw: List[Tuple[int, int]],
+    ) -> DetOut:
         """Forward testing stage."""
         features = self.fpn(self.backbone(images))
         outs = self.retinanet_head(features[-5:])
-        dets = self.transform_outs(
+        dets, scores, class_ids = self.transform_outs(
             class_outs=outs.cls_score,
             regression_outs=outs.bbox_pred,
             images_hw=images_hw,
         )
-        return dets, outs
+        for i, boxs in enumerate(dets):
+            dets[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
+        post_dets = DetOut(boxes=dets, scores=scores, class_ids=class_ids)
+        return post_dets
 
 
 ## setup model
@@ -145,108 +154,65 @@ scheduler = optim.lr_scheduler.MultiStepLR(
 warmup = LinearLRWarmup(0.001, 500)
 
 ## setup test dataset
-coco_val_loader = coco_val()
-test_sample_mapper = BaseSampleMapper(data_backend=HDF5Backend())
-test_sample_mapper.setup_categories(coco_det_map)
-test_transforms = [
-    Resize(shape=test_resolution, keep_ratio=True, align_long_edge=True)
-]
-test_data = BaseDatasetHandler(
-    [ScalabelDataset(coco_val_loader, False, test_sample_mapper)],
-    transformations=test_transforms,
+data_root = "data/COCO"
+test_loader = default_test(
+    COCO(data_root, "val2017", HDF5Backend()), 1, test_resolution
 )
-test_loader = DataLoader(
-    test_data,
-    batch_size=1,
-    shuffle=False,
-    collate_fn=identity_collate,
-    num_workers=2,
-)
+test_eval = COCOEvaluator(data_root)
 
 
 @torch.no_grad()
 def validation_loop(model):
     """Validate current model with test dataset."""
     model.eval()
-    gts = []
-    preds = []
-    class_ids_to_coco = {i: s for s, i in coco_det_map.items()}
     print("Running validation...")
-    for i, data in enumerate(tqdm(test_loader)):
-        data = data[0][0]
-        image = data.images.tensor.to(device)
-        original_wh = (
-            data.metadata[0].size.width,
-            data.metadata[0].size.height,
-        )
-        output_wh = data.images.image_sizes[0]
+    for _, data in enumerate(tqdm(test_loader[0])):
+        images = data[DataKeys.images].to(device)
+        original_hw = data[DataKeys.metadata]["original_hw"]
+        images_hw = data[DataKeys.metadata]["input_hw"]
 
-        (boxes, scores, class_ids), outputs = model(
-            normalize(image), [(output_wh[1], output_wh[0])]
+        boxes, scores, class_ids = model(
+            images, images_hw, original_hw=original_hw
         )
 
-        # model.visualize_proposals(image, outputs, topk=10)
-        # postprocess for eval
-        dets = Boxes2D(
-            torch.cat([boxes[0], scores[0].unsqueeze(-1)], -1),
-            class_ids[0],
+        test_eval.process(
+            data,
+            {
+                "boxes2d": boxes,
+                "boxes2d_scores": scores,
+                "boxes2d_classes": class_ids,
+            },
         )
-        dets.postprocess(original_wh, output_wh)
 
-        prediction = copy.deepcopy(data.metadata[0])
-        prediction.labels = dets.to_scalabel(class_ids_to_coco)
-
-        preds.append(prediction)
-        gts.append(copy.deepcopy(data.metadata[0]))
-
-        # if i == 99:
-        #     break
-    _, log_str = coco_val_loader.evaluate("detect", preds, gts)
+    _, log_str = test_eval.evaluate("COCO_AP")
     print(log_str)
 
 
 def training_loop(model):
     """Training loop."""
-    train_sample_mapper = BaseSampleMapper(
-        data_backend=HDF5Backend(), skip_empty_samples=True
-    )
-    train_sample_mapper.setup_categories(coco_det_map)
-    train_transforms = default(train_resolution)
-
-    train_data = BaseDatasetHandler(
-        [ScalabelDataset(coco_train(), True, train_sample_mapper)],
-        clip_bboxes_to_image=True,
-        transformations=train_transforms,
-    )
-    train_loader = DataLoader(
-        train_data,
-        batch_size=batch_size,
-        shuffle=True,
-        collate_fn=identity_collate,
-        num_workers=batch_size // 2,
+    train_loader = default_train(
+        COCO(data_root, "train2017", HDF5Backend()),
+        batch_size,
+        train_resolution,
     )
 
     running_losses = {}
     for epoch in range(num_epochs):
         model.train()
         for i, data in enumerate(train_loader):
-            for d in data[0]:
-                d.images.tensor = normalize(d.images.tensor)
-            data = InputSample.cat(data[0], device)
-
             tic = perf_counter()
             inputs, inputs_hw, gt_boxes, gt_class_ids = (
-                data.images.tensor,
-                [(wh[1], wh[0]) for wh in data.images.image_sizes],
-                [x.boxes for x in data.targets.boxes2d],
-                [x.class_ids for x in data.targets.boxes2d],
+                data[DataKeys.images].to(device),
+                data[DataKeys.metadata]["input_hw"],
+                [b.to(device) for b in data[DataKeys.boxes2d]],
+                [b.to(device) for b in data[DataKeys.boxes2d_classes]],
             )
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            losses, outputs = model(inputs, inputs_hw, gt_boxes, gt_class_ids)
+            losses = model(inputs, inputs_hw, gt_boxes, gt_class_ids)
             total_loss = sum(losses)
             total_loss.backward()
 
@@ -268,7 +234,6 @@ def training_loop(model):
                 else:
                     running_losses[k] = v
             if i % log_step == (log_step - 1):
-                # model.visualize_proposals(inputs, outputs)
                 log_str = (
                     f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] "
                     f"lr: {optimizer.param_groups[0]['lr']}, "
@@ -299,15 +264,11 @@ if __name__ == "__main__":
     else:
         retinanet.to(device)
         if args.ckpt == "mmdet":
-            from vis4d.op.detect.retinanet_test import REV_KEYS
-
             weights = (
                 "mmdet://retinanet/retinanet_r50_fpn_2x_coco/"
                 "retinanet_r50_fpn_2x_coco_20200131-fdb43119.pth"
             )
-            load_model_checkpoint(retinanet.backbone, weights, REV_KEYS)
-            load_model_checkpoint(retinanet.fpn, weights, REV_KEYS)
-            load_model_checkpoint(retinanet.retinanet_head, weights, REV_KEYS)
+            load_model_checkpoint(retinanet, weights, rev_keys=REV_KEYS)
         else:
             ckpt = torch.load(args.ckpt)
             retinanet.load_state_dict(ckpt)

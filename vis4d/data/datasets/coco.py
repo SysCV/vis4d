@@ -107,12 +107,14 @@ class COCO(Dataset, CacheMappingMixin):
     def __init__(
         self,
         data_root: str,
+        with_mask: bool = False,
         split: str = "train2017",
         data_backend: Optional[BaseDataBackend] = None,
     ) -> None:
         super().__init__()
 
         self.data_root = data_root
+        self.with_mask = with_mask
         self.split = split
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
@@ -182,7 +184,7 @@ class COCO(Dataset, CacheMappingMixin):
             boxes.append((x1, y1, x2, y2))
             classes.append(ann["category_id"])
             mask_ann = ann.get("segmentation", None)
-            if mask_ann is not None:
+            if mask_ann is not None and self.with_mask:
                 if isinstance(mask_ann, list):
                     rles = maskUtils.frPyObjects(mask_ann, img_h, img_w)
                     rle = maskUtils.merge(rles)
@@ -204,7 +206,7 @@ class COCO(Dataset, CacheMappingMixin):
             mask_tensor = torch.as_tensor(
                 np.ascontiguousarray(masks), dtype=torch.uint8
             )
-        return {
+        dict_data = {
             DataKeys.metadata: {
                 "original_hw": img.shape[-2:],
                 "input_hw": None,
@@ -213,5 +215,7 @@ class COCO(Dataset, CacheMappingMixin):
             DataKeys.images: img,
             DataKeys.boxes2d: box_tensor,
             DataKeys.boxes2d_classes: torch.tensor(classes, dtype=torch.long),
-            DataKeys.masks: mask_tensor,
         }
+        if self.with_mask:
+            dict_data[DataKeys.masks] = mask_tensor
+        return dict_data

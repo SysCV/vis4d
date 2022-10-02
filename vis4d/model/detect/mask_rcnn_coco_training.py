@@ -37,21 +37,7 @@ from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim.warmup import LinearLRWarmup
 
-REV_KEYS = [
-    (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
-    (r"^roi_head.bbox_head\.", "roi_head."),
-    (r"^roi_head.mask_head\.", "mask_head."),
-    (r"^convs\.", "mask_head.convs."),
-    (r"^upsample\.", "mask_head.upsample."),
-    (r"^conv_logits\.", "mask_head.conv_logits."),
-    (r"^roi_head\.", "faster_rcnn_heads.roi_head."),
-    (r"^rpn_head\.", "faster_rcnn_heads.rpn_head."),
-    (r"^backbone\.", "backbone.body."),
-    (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
-    (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
-    (r"\.conv.weight", ".weight"),
-    (r"\.conv.bias", ".bias"),
-]
+from .mask_rcnn import REV_KEYS
 
 warnings.filterwarnings("ignore")
 
@@ -185,9 +171,13 @@ warmup = LinearLRWarmup(0.001, 500)
 ## setup test dataset
 data_root = "data/COCO"
 test_loader = default_test(
-    COCO(data_root, "val2017", HDF5Backend()), 1, test_resolution
+    COCO(
+        data_root, with_mask=True, split="val2017", data_backend=HDF5Backend()
+    ),
+    1,
+    test_resolution,
 )
-test_eval = COCOEvaluator(data_root)
+test_evals = [COCOEvaluator(data_root), COCOEvaluator(data_root, "segm")]
 
 
 @torch.no_grad()
@@ -203,26 +193,31 @@ def validation_loop(model):
         dets, masks = mask_rcnn(images, images_hw, original_hw=original_hw)
         boxes, scores, class_ids = dets.boxes, dets.scores, dets.class_ids
 
-        test_eval.process(
-            data,
-            {
-                "boxes2d": boxes,
-                "boxes2d_scores": scores,
-                "boxes2d_classes": class_ids,
-                "masks": masks.masks,
-            },
-        )
+        for test_eval in test_evals:
+            test_eval.process(
+                data,
+                {
+                    "boxes2d": boxes,
+                    "boxes2d_scores": scores,
+                    "boxes2d_classes": class_ids,
+                    "masks": masks.masks,
+                },
+            )
 
-    _, log_str = test_eval.evaluate("COCO_AP")
-    print(log_str)
-    _, log_str = test_eval.evaluate("COCO_AP", iou_type="segm")
-    print(log_str)
+    for test_eval in test_evals:
+        _, log_str = test_eval.evaluate("COCO_AP")
+        print(log_str)
 
 
 def training_loop(model):
     """Training loop."""
     train_loader = default_train(
-        COCO(data_root, "train2017", HDF5Backend()),
+        COCO(
+            data_root,
+            with_mask=True,
+            split="train2017",
+            data_backend=HDF5Backend(),
+        ),
         batch_size,
         train_resolution,
     )
