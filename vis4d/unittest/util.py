@@ -9,7 +9,7 @@ from pytorch_lightning import Callback
 from scalabel.label.typing import Frame, ImageSize
 from torch import nn
 
-from vis4d.engine import DefaultTrainer
+from vis4d.pl import DefaultTrainer
 from vis4d.struct_to_revise import (
     ArgsType,
     Boxes2D,
@@ -147,7 +147,7 @@ def generate_feature_list(
     for i in range(list_len):
         features_list.append(
             torch.rand(
-                1, channels, init_height // (2 ** i), init_width // (2 ** i)
+                1, channels, init_height // (2**i), init_width // (2**i)
             )
         )
 

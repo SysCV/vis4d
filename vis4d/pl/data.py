@@ -7,8 +7,8 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from torch.utils import data
 
-from vis4d.engine.callbacks.evaluator import DefaultEvaluatorCallback
-from vis4d.engine.callbacks.writer import DefaultWriterCallback
+from vis4d.pl.callbacks.evaluator import DefaultEvaluatorCallback
+from vis4d.pl.callbacks.writer import DefaultWriterCallback
 from vis4d.eval.base import BaseEvaluator
 
 
