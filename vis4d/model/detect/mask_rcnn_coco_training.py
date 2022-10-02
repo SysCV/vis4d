@@ -10,16 +10,19 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from vis4d.common_to_revise.data_pipelines import default
-from vis4d.common_to_revise.datasets import coco_det_map, coco_train, coco_val
+from vis4d.common_to_revise.data_pipelines import default_test, default_train
+from vis4d.common_to_revise.datasets import coco_train, coco_val
+from vis4d.data.datasets.base import DataKeys
+from vis4d.data.datasets.coco import COCO, coco_det_map
 from vis4d.data.io import HDF5Backend
 from vis4d.data_to_revise import (
     BaseDatasetHandler,
     BaseSampleMapper,
     ScalabelDataset,
 )
-from vis4d.data_to_revise.transforms import Resize
+from vis4d.eval.coco import COCOEvaluator
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.box.util import apply_mask, bbox_postprocess
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     get_default_anchor_generator,
@@ -37,10 +40,8 @@ from vis4d.op.detect.rcnn import (
     RCNNLoss,
     RCNNLosses,
     RoI2Det,
-    postprocess_dets,
 )
 from vis4d.op.detect.rpn import RPNLoss, RPNLosses
-from vis4d.op.detect.util import apply_mask
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim.warmup import LinearLRWarmup
@@ -162,15 +163,13 @@ class MaskRCNNModel(nn.Module):
         """Forward testing stage."""
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
-        dets = self.transform_outs(
+        dets, scores, class_ids = self.transform_outs(
             *outs.roi, boxes=outs.proposals.boxes, images_hw=images_hw
         )
-        mask_outs = self.mask_head(features[2:-1], dets.boxes)
-        post_dets = DetOut(
-            boxes=postprocess_dets(dets.boxes, images_hw, original_hw),
-            scores=dets.scores,
-            class_ids=dets.class_ids,
-        )
+        mask_outs = self.mask_head(features[2:-1], dets)
+        for i, boxs in enumerate(dets):
+            dets[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
+        post_dets = DetOut(boxes=dets, scores=scores, class_ids=class_ids)
         masks = self.det2mask(
             mask_outs=mask_outs.mask_pred.sigmoid(),
             dets=post_dets,
@@ -194,106 +193,58 @@ scheduler = optim.lr_scheduler.MultiStepLR(
 warmup = LinearLRWarmup(0.001, 500)
 
 ## setup test dataset
-coco_val_loader = coco_val()
-test_sample_mapper = BaseSampleMapper(data_backend=HDF5Backend())
-test_sample_mapper.setup_categories(coco_det_map)
-test_transforms = [
-    Resize(shape=test_resolution, keep_ratio=True, align_long_edge=True)
-]
-test_data = BaseDatasetHandler(
-    [ScalabelDataset(coco_val_loader, False, test_sample_mapper)],
-    transformations=test_transforms,
+data_root = "data/COCO"
+test_loader = default_test(
+    COCO(data_root, "val2017", HDF5Backend()), 1, test_resolution
 )
-test_loader = DataLoader(
-    test_data,
-    batch_size=1,
-    shuffle=False,
-    collate_fn=identity_collate,
-    num_workers=2,
-)
+test_eval = COCOEvaluator(data_root)
 
 
 @torch.no_grad()
 def validation_loop(model):
     """Validate current model with test dataset."""
     model.eval()
-    gts = []
-    det_preds, ins_preds = [], []
-    class_ids_to_coco = {i: s for s, i in coco_det_map.items()}
     print("Running validation...")
-    for _, data in enumerate(tqdm(test_loader)):
-        data = data[0][0]
-        image = data.images.tensor.to(device)
-        original_wh = (
-            data.metadata[0].size.width,
-            data.metadata[0].size.height,
-        )
-        output_wh = (image.size(3), image.size(2))
+    for _, data in enumerate(tqdm(test_loader[0])):
+        images = data[DataKeys.images].to(device)
+        original_hw = data[DataKeys.metadata]["original_hw"]
+        images_hw = data[DataKeys.metadata]["input_hw"]
 
-        dets, masks = mask_rcnn(
-            normalize(image),
-            [(output_wh[1], output_wh[0])],
-            original_hw=[(original_wh[1], original_wh[0])],
-        )
+        dets, masks = mask_rcnn(images, images_hw, original_hw=original_hw)
         boxes, scores, class_ids = dets.boxes, dets.scores, dets.class_ids
 
-        box_pred = Boxes2D(
-            torch.cat([boxes[0], scores[0].unsqueeze(-1)], -1), class_ids[0]
+        test_eval.process(
+            data,
+            {
+                "boxes2d": boxes,
+                "boxes2d_scores": scores,
+                "boxes2d_classes": class_ids,
+            },
         )
-        det_pred = copy.deepcopy(data.metadata[0])
-        det_pred.labels = box_pred.to_scalabel(class_ids_to_coco)
-        det_preds.append(det_pred)
-        mask_pred = InstanceMasks(
-            masks.masks[0], class_ids[0], score=scores[0], detections=box_pred
-        )
-        ins_pred = copy.deepcopy(data.metadata[0])
-        ins_pred.labels = mask_pred.to_scalabel(class_ids_to_coco)
-        ins_preds.append(ins_pred)
 
-        gts.append(copy.deepcopy(data.metadata[0]))
-
-    _, log_str = coco_val_loader.evaluate("detect", det_preds, gts)
-    print(log_str)
-    _, log_str = coco_val_loader.evaluate("ins_seg", ins_preds, gts)
+    _, log_str = test_eval.evaluate("COCO_AP")
     print(log_str)
 
 
 def training_loop(model):
     """Training loop."""
-    train_sample_mapper = BaseSampleMapper(
-        data_backend=HDF5Backend(),
-        skip_empty_samples=True,
-        targets_to_load=("boxes2d", "instance_masks"),
-    )
-    train_sample_mapper.setup_categories(coco_det_map)
-    train_transforms = default(train_resolution)
-
-    train_data = BaseDatasetHandler(
-        [ScalabelDataset(coco_train(), True, train_sample_mapper)],
-        clip_bboxes_to_image=True,
-        transformations=train_transforms,
-    )
-    train_loader = DataLoader(
-        train_data,
-        batch_size=batch_size,
-        shuffle=True,
-        collate_fn=identity_collate,
-        num_workers=batch_size // 2,
+    train_loader = default_train(
+        COCO(data_root, "train2017", HDF5Backend()),
+        batch_size,
+        train_resolution,
     )
 
     running_losses = {}
     for epoch in range(num_epochs):
         model.train()
         for i, data in enumerate(train_loader):
-            data = InputSample.cat(data[0], device)
-
             tic = perf_counter()
             inputs, inputs_hw, gt_boxes, gt_class_ids, gt_masks = (
-                data.images.tensor,
-                [(wh[1], wh[0]) for wh in data.images.image_sizes],
-                [x.boxes for x in data.targets.boxes2d],
-                [x.class_ids for x in data.targets.boxes2d],
-                [x.masks for x in data.targets.instance_masks],
+                data[DataKeys.images].to(device),
+                data[DataKeys.metadata]["input_hw"],
+                [b.to(device) for b in data[DataKeys.boxes2d]],
+                [b.to(device) for b in data[DataKeys.boxes2d_classes]],
+                [m.to(device) for m in data[DataKeys.masks]],
             )
             # zero the parameter gradients
             optimizer.zero_grad()

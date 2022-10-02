@@ -34,6 +34,7 @@ metadata: MetaData - container for meta-information about data.
 images: Tensor of shape [1, C, H, W]
 boxes2d: Tensor of shape [N, 4]
 boxes2d_classes: Tensor of shape [N,]
+masks: Tensor of shape [N, H, W]
 
 """
 

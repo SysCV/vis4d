@@ -58,7 +58,7 @@ class DataPipe(ConcatDataset):
 def build_train_dataloader(
     dataset: Dataset,
     samples_per_gpu: int = 1,
-    workers_per_gpu: int = 1,
+    workers_per_gpu: int = 0,
     batchprocess_fn: Callable[[List[DictData]], List[DictData]] = lambda x: x,
     collate_fn: Callable[[List[DictData]], DictData] = default_collate,
     sampler: Optional[BaseSampler] = None,

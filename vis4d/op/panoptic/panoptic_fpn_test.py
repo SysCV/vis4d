@@ -19,7 +19,6 @@ from vis4d.op.detect.rcnn import (
     MaskRCNNLoss,
     RCNNLoss,
     RoI2Det,
-    postprocess_dets,
 )
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.mask.util import nhw_to_hwc_mask

@@ -1,17 +1,31 @@
-"""Dataset utilities"""
+"""Utility functions for datasets."""
 import copy
 import os
 import pickle
+from io import BytesIO
 from typing import Any, Callable, List, Optional
 
 import numpy as np
 import torch
+from PIL import Image, ImageOps
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from torch.utils.data import Dataset
 
 from vis4d.common_to_revise.utils.time import Timer
 from vis4d.struct_to_revise import NDArrayI64, NDArrayUI8
 from vis4d.struct_to_revise.structures import DictStrAny
+
+try:
+    from cv2 import (  # pylint: disable=no-member,no-name-in-module
+        COLOR_BGR2RGB,
+        IMREAD_COLOR,
+        cvtColor,
+        imdecode,
+    )
+
+    CV2_INSTALLED = True
+except (ImportError, NameError):  # pragma: no cover
+    CV2_INSTALLED = False
 
 
 def convert_input_dir_to_dataset(input_dir: str) -> None:  # TODO revise
@@ -27,6 +41,35 @@ def convert_input_dir_to_dataset(input_dir: str) -> None:  # TODO revise
         dataset_name = os.path.basename(input_dir)
         dataset = ScalabelDataset(Custom(dataset_name, input_dir), False)
     return dataset
+
+
+def im_decode(
+    im_bytes: bytes, mode: str = "RGB", backend: str = "PIL"
+) -> NDArrayUI8:
+    """Decode to image (numpy array, RGB) from bytes."""
+    assert mode in ["BGR", "RGB"], f"{mode} not supported for image decoding!"
+    if backend == "PIL":
+        pil_img = Image.open(BytesIO(bytearray(im_bytes)))
+        pil_img = ImageOps.exif_transpose(pil_img)
+        if pil_img.mode == "L":  # pragma: no cover
+            # convert grayscale image to RGB
+            pil_img = pil_img.convert("RGB")
+        if mode == "BGR":  # pragma: no cover
+            img: NDArrayUI8 = np.array(pil_img)[..., [2, 1, 0]]
+        elif mode == "RGB":
+            img = np.array(pil_img)
+    elif backend == "cv2":  # pragma: no cover
+        if not CV2_INSTALLED:
+            raise ImportError(
+                "Please install opencv-python to use cv2 backend!"
+            )
+        img_np: NDArrayUI8 = np.frombuffer(im_bytes, np.uint8)
+        img = imdecode(img_np, IMREAD_COLOR)
+        if mode == "RGB":
+            cvtColor(img, COLOR_BGR2RGB, img)
+    else:
+        raise NotImplementedError(f"Image backend {backend} not known!")
+    return img
 
 
 class CacheMappingMixin:

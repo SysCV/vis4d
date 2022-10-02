@@ -119,7 +119,7 @@ class FCNHead(_FCNBase):
                     mode="bilinear",
                     align_corners=False,
                 )
-            outputs[idx] = F.softmax(output, dim=1)
+            outputs[idx] = F.log_softmax(output, dim=1)
         return FCNOut(pred=outputs[-1], outputs=outputs)
 
 

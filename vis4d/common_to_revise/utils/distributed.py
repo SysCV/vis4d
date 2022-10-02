@@ -53,12 +53,12 @@ def _serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: d
     device = torch.device("cpu" if backend == "gloo" else "cuda")
 
     buffer = pickle.dumps(data)
-    if len(buffer) > 1024 ** 3:
+    if len(buffer) > 1024**3:
         logger = logging.getLogger(__name__)
         logger.warning(
             "Rank %s tries all-gather %.2f GB of data on device %s",
             get_rank(),
-            len(buffer) / (1024 ** 3),
+            len(buffer) / (1024**3),
             device,
         )
     storage = torch.ByteStorage.from_buffer(buffer)
