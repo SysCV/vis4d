@@ -2,20 +2,19 @@
 import contextlib
 import io
 import os
-from tarfile import SUPPORTED_TYPES
 from typing import List, Optional
 
 import numpy as np
+import pycocotools.mask as maskUtils
 import torch
 from pycocotools.coco import COCO as COCOAPI
 
 from vis4d.data.io.base import BaseDataBackend
 from vis4d.data.io.file import FileBackend
-from vis4d.data_to_revise.utils import im_decode
 from vis4d.struct_to_revise import DictStrAny
 
-from .base import BaseDataset, MultitaskMixin, DataKeys, DictData
-from .utils import CacheMappingMixin
+from .base import BaseDataset, DataKeys, DictData
+from .utils import CacheMappingMixin, im_decode
 
 # COCO detection category mapping
 coco_det_map = {
@@ -127,26 +126,24 @@ coco_seg_set = [
 ]
 
 
-class COCO(BaseDataset, MultitaskMixin, CacheMappingMixin):
+class COCO(BaseDataset, CacheMappingMixin):
     """COCO dataset class."""
 
     _DESCRIPTION = """COCO is a large-scale object detection, segmentation, and
     captioning dataset."""
-    _TASKS = ["detect", "sem_seg"]
+    _TASKS = ["detect", "sem_seg", "ins_seg"]
     _URL = "http://cocodataset.org/#home"
 
     def __init__(
         self,
         data_root: str,
         split: str = "train2017",
-        tasks_to_load: List[str] = ["detect"],
         data_backend: Optional[BaseDataBackend] = None,
     ) -> None:
         super().__init__()
 
         self.data_root = data_root
         self.split = split
-        self.tasks_to_load = self.validated_tasks(tasks_to_load)
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
         )
@@ -192,7 +189,7 @@ class COCO(BaseDataset, MultitaskMixin, CacheMappingMixin):
     def __len__(self) -> int:
         return len(self.data)
 
-    def _get_detect_item(self, idx) -> DictData:
+    def __getitem__(self, idx: int) -> DictData:
         """Transform coco sample to vis4d input format.
 
         Returns:
@@ -209,18 +206,38 @@ class COCO(BaseDataset, MultitaskMixin, CacheMappingMixin):
             np.ascontiguousarray(img.transpose(2, 0, 1)),
             dtype=torch.float32,
         ).unsqueeze(0)
+        img_h, img_w = img.shape[2:]
         boxes = []
         classes = []
+        masks = []
         for ann in data["anns"]:
             x1, y1, width, height = ann["bbox"]
             x2, y2 = x1 + width, y1 + height
             boxes.append((x1, y1, x2, y2))
             classes.append(ann["category_id"])
+            mask_ann = ann.get("segmentation", None)
+            if mask_ann is not None:
+                if isinstance(mask_ann, list):
+                    rles = maskUtils.frPyObjects(mask_ann, img_h, img_w)
+                    rle = maskUtils.merge(rles)
+                elif isinstance(mask_ann["counts"], list):
+                    # uncompressed RLE
+                    rle = maskUtils.frPyObjects(mask_ann, img_h, img_w)
+                else:
+                    # rle
+                    rle = mask_ann
+                masks.append(maskUtils.decode(rle))
+            else:
+                masks.append(None)
 
         if not len(boxes):
             box_tensor = torch.empty((0, 4), dtype=torch.float32)
+            mask_tensor = torch.empty((0, img_h, img_w), dtype=torch.uint8)
         else:
             box_tensor = torch.tensor(boxes, dtype=torch.float32)
+            mask_tensor = torch.as_tensor(
+                np.ascontiguousarray(masks), dtype=torch.uint8
+            )
         return {
             DataKeys.metadata: {
                 "original_hw": img.shape[-2:],
@@ -230,15 +247,5 @@ class COCO(BaseDataset, MultitaskMixin, CacheMappingMixin):
             DataKeys.images: img,
             DataKeys.boxes2d: box_tensor,
             DataKeys.boxes2d_classes: torch.tensor(classes, dtype=torch.long),
+            DataKeys.masks: mask_tensor,
         }
-
-    def __getitem__(self, idx: int) -> DictData:
-        """Transform coco sample to vis4d input format."""
-        input_sample = {}
-        for task in self.tasks_to_load:
-            if task == "detect":
-                sample = self._get_detect_item(idx)
-            elif task == "sem_seg":
-                sample = self._get_sem_seg_item(idx)
-            input_sample.update(sample)
-        return input_sample

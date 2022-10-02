@@ -17,7 +17,7 @@ from vis4d.common_to_revise.registry import RegistryHolder
 from vis4d.common_to_revise.utils import get_world_size
 from vis4d.struct_to_revise import ArgsType, ModuleCfg
 
-from .datasets import BaseVideoDataset
+from .datasets import VideoDataset
 
 
 class BaseSampler(Sampler[List[int]], metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
@@ -342,7 +342,7 @@ class VideoInferenceSampler(DistributedSampler):  # type: ignore # pragma: no co
 
     def __init__(
         self,
-        dataset: BaseVideoDataset,
+        dataset: VideoDataset,
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
         shuffle: bool = True,

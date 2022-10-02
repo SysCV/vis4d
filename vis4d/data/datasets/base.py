@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from typing import Dict, Tuple, TypedDict, Union, List
 
 from torch import Tensor
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset as TorchDataset
 
-DictStrArray = Dict[str, Tensor]
-DictStrArrayNested = Dict[str, Union[Tensor, DictStrArray]]
-DictData = Dict[str, Union[Tensor, DictStrArrayNested]]
+_DictStrArray = Dict[str, Tensor]
+_DictStrArrayNested = Dict[str, Union[Tensor, _DictStrArray]]
+DictData = Dict[str, Union[Tensor, _DictStrArrayNested]]
 
 
 class MetaData(TypedDict):
@@ -24,6 +24,7 @@ class DataKeys:
     boxes2d_classes = "boxes2d_classes"
     intrinsics = "intrinsics"
     masks = "masks"
+    segmentation_mask = "segmentation_mask"
 
 
 """DictData
@@ -34,11 +35,12 @@ metadata: MetaData - container for meta-information about data.
 images: Tensor of shape [1, C, H, W]
 boxes2d: Tensor of shape [N, 4]
 boxes2d_classes: Tensor of shape [N,]
+masks: Tensor of shape [N, H, W]
 
 """
 
 
-class BaseDataset(Dataset):
+class Dataset(TorchDataset[DictData]):
     """Basic pytorch dataset with defined return type."""
 
     def __len__(self) -> int:
@@ -50,7 +52,7 @@ class BaseDataset(Dataset):
         raise NotImplementedError
 
 
-class BaseVideoDataset(BaseDataset):
+class VideoDataset(Dataset):
     """Basic pytorch video dataset."""
 
     @property
@@ -73,4 +75,3 @@ class MultitaskMixin:
                 raise ValueError(f"task '{task}' is not supported!")
         return task_to_load
         
-    

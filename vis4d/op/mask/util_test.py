@@ -1,11 +1,11 @@
-"""Test cases for Vis4D mask ops."""
+"""Test cases for mask ops."""
 import unittest
 
 import torch
 
 from vis4d.unittest.util import generate_dets
 
-from .mask import paste_masks_in_image
+from .util import paste_masks_in_image
 
 
 class TestMaskOps(unittest.TestCase):

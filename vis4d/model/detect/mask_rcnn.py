@@ -7,8 +7,9 @@ from torch import nn
 from vis4d.common_to_revise.datasets import bdd100k_track_map, coco_det_map
 from vis4d.common_to_revise.detect_data import InsSegDataModule
 from vis4d.common_to_revise.optimizers import sgd, step_schedule
-from vis4d.pl import BaseCLI
+from vis4d.data.datasets.base import DataKeys, DictData
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.box.util import bbox_postprocess
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     FRCNNOut,
@@ -24,13 +25,13 @@ from vis4d.op.detect.rcnn import (
     MaskRCNNLoss,
     RCNNLoss,
     RoI2Det,
-    postprocess_dets,
 )
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.detect.util import apply_mask
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim import DefaultOptimizer
+from vis4d.pl import BaseCLI
 from vis4d.struct_to_revise import (
     Boxes2D,
     InputSample,
@@ -89,18 +90,15 @@ class MaskRCNN(nn.Module):
             return self._forward_train(data)
         return self._forward_test(data)
 
-    def _forward_train(self, data: List[InputSample]) -> LossesType:
+    def _forward_train(self, data: DictData) -> LossesType:
         """Forward training stage."""
-        ### boilerplate interfacing code
-        data = data[0]
         images, images_hw, target_boxes, target_classes, target_masks = (
-            normalize(data.images.tensor),
-            [(wh[1], wh[0]) for wh in data.images.image_sizes],
-            [x.boxes for x in data.targets.boxes2d],
-            [x.class_ids for x in data.targets.boxes2d],
-            [x.masks for x in data.targets.instance_masks],
+            data[DataKeys.images],
+            data[DataKeys.metadata]["input_hw"],
+            data[DataKeys.boxes2d],
+            data[DataKeys.boxes2d_classes],
+            data[DataKeys.instance_masks],
         )
-        ######
 
         features = self.fpn(self.backbone(images))
         outputs = self.faster_rcnn_heads(
@@ -129,16 +127,13 @@ class MaskRCNN(nn.Module):
             sampled_masks,
         )
 
-        ### boilerplate interfacing code
-        losses = dict(
+        return dict(
             **rpn_losses._asdict(),
             **rcnn_losses._asdict(),
             **mask_losses._asdict(),
         )
-        ######
-        return losses
 
-    def _forward_test(self, data: List[InputSample]) -> ModelOutput:
+    def _forward_test(self, data: DictData) -> ModelOutput:
         """Forward testing stage."""
         ### boilerplate interfacing code
         data = data[0]
@@ -159,7 +154,7 @@ class MaskRCNN(nn.Module):
         )
         mask_outs = self.mask_head(features[2:-1], boxes)
         post_dets = DetOut(
-            boxes=postprocess_dets(boxes, images_hw, orig_wh),
+            boxes=bbox_postprocess(boxes, orig_wh, images_hw),
             scores=scores,
             class_ids=class_ids,
         )
