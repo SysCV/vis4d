@@ -15,7 +15,7 @@ from vis4d.common_to_revise.datasets import (
     bdd100k_track_map,
 )
 from vis4d.data.datasets import COCO
-from vis4d.eval import Evaluator, COCOEvaluator
+from vis4d.eval import COCOEvaluator, Evaluator
 
 
 class DetectDataModule(CommonDataModule):
