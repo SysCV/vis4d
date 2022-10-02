@@ -11,7 +11,7 @@ from vis4d.op.segment.fcn import FCNHead, FCNLoss, FCNOut
 class FCN_ResNet(nn.Module):
     def __init__(
         self,
-        base_model: str = "res",
+        base_model: str = "resnet50",
         num_classes: int = 21,
         resize: Optional[Tuple[int, int]] = (520, 520),
         weights: Optional[torch.Tensor] = None,

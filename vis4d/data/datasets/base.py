@@ -1,7 +1,13 @@
 """Base dataset in Vis4D."""
 
+import sys
 from dataclasses import dataclass
-from typing import Dict, Tuple, TypedDict, Union
+from typing import Dict, List, Tuple, Union
+
+if sys.version_info >= (3, 8):
+    from typing import TypedDict  # pylint: disable=no-name-in-module
+else:
+    from typing_extensions import TypedDict
 
 from torch import Tensor
 from torch.utils.data import Dataset as TorchDataset
@@ -24,6 +30,7 @@ class DataKeys:
     boxes2d_classes = "boxes2d_classes"
     intrinsics = "intrinsics"
     masks = "masks"
+    segmentation_mask = "segmentation_mask"
 
 
 """DictData
@@ -63,10 +70,14 @@ class VideoDataset(Dataset):
             Dict[str, int]: Mapping video to index.
         """
 
-    def __len__(self) -> int:
-        """Return length of dataset."""
-        raise NotImplementedError
-
-    def __getitem__(self, idx: int) -> DictData:
-        """Convert single element at given index into Vis4D data format."""
-        raise NotImplementedError
+class MultitaskMixin:
+    """Multitask dataset interface."""
+    
+    _TASKS: List[str] = []
+    
+    def validated_tasks(self, task_to_load: List[str]) -> List[str]:
+        for task in task_to_load:
+            if task not in MultitaskMixin._TASKS:
+                raise ValueError(f"task '{task}' is not supported!")
+        return task_to_load
+        

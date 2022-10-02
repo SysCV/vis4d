@@ -168,7 +168,7 @@ def visualize_loop(
     # setup model and dataloader
     val_loader = DataLoader(
         get_coco(
-            root="vis4d-workspace/data/coco",
+            root="data/COCO",
             image_set="val",
             transforms=SegmentationPresetRaw(),
         ),
@@ -230,7 +230,7 @@ def setup(args):
 
     train_loader = DataLoader(
         get_coco(
-            root="vis4d-workspace/data/coco",
+            root="data/COCO",
             image_set="train",
             transforms=SegmentationPresetTrain(base_size=520, crop_size=520),
         ),
@@ -240,7 +240,7 @@ def setup(args):
     )
     val_loader = DataLoader(
         get_coco(
-            root="vis4d-workspace/data/coco",
+            root="data/COCO",
             image_set="val",
             transforms=SegmentationPresetEval(base_size=520),
         ),

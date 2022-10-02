@@ -100,9 +100,39 @@ coco_det_map = {
     "toothbrush": 79,
 }
 
+# COCO segmentation categories
+coco_seg_cats = [
+    0,
+    5,
+    2,
+    16,
+    9,
+    44,
+    6,
+    3,
+    17,
+    62,
+    21,
+    67,
+    18,
+    19,
+    4,
+    1,
+    64,
+    20,
+    63,
+    7,
+    72,
+]
+
 
 class COCO(Dataset, CacheMappingMixin):
     """COCO dataset class."""
+
+    _DESCRIPTION = """COCO is a large-scale object detection, segmentation, and
+    captioning dataset."""
+    _TASKS = ["detect", "sem_seg", "ins_seg"]
+    _URL = "http://cocodataset.org/#home"
 
     def __init__(
         self,
@@ -196,7 +226,8 @@ class COCO(Dataset, CacheMappingMixin):
                     rle = mask_ann
                 masks.append(maskUtils.decode(rle))
             else:
-                masks.append(None)
+                # masks.append(None)
+                masks.append(np.empty((img_h, img_w)))
 
         if not len(boxes):
             box_tensor = torch.empty((0, 4), dtype=torch.float32)

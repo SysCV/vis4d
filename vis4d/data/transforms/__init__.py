@@ -10,6 +10,8 @@ from .flip import HorizontalFlip
 from .normalize import Normalize
 from .pad import Pad
 from .resize import Resize
+from .filter import FilterByCategory, RemapCategory
+from .mask import ConvertInsMasksToSegMask
 
 __all__ = [
     "BaseBatchTransform",
@@ -21,4 +23,7 @@ __all__ = [
     "Resize",
     "Normalize",
     "HorizontalFlip",
+    "FilterByCategory",
+    "ConvertInsMasksToSegMask",
+    "RemapCategory",
 ]
