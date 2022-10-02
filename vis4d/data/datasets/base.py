@@ -70,14 +70,14 @@ class VideoDataset(Dataset):
             Dict[str, int]: Mapping video to index.
         """
 
+
 class MultitaskMixin:
     """Multitask dataset interface."""
-    
+
     _TASKS: List[str] = []
-    
+
     def validated_tasks(self, task_to_load: List[str]) -> List[str]:
         for task in task_to_load:
             if task not in MultitaskMixin._TASKS:
                 raise ValueError(f"task '{task}' is not supported!")
         return task_to_load
-        

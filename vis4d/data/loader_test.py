@@ -10,12 +10,12 @@ from .loader import (
     build_train_dataloader,
 )
 from .transforms import (
+    ConvertInsMasksToSegMask,
+    FilterByCategory,
     Normalize,
     Pad,
-    Resize,
     RemapCategory,
-    FilterByCategory,
-    ConvertInsMasksToSegMask,
+    Resize,
 )
 from .transforms.base import batch_transform_pipeline, transform_pipeline
 

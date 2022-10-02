@@ -80,7 +80,7 @@ class MaskRCNN(nn.Module):
                 "mask_rcnn_r50_fpn_2x_coco_bbox_mAP-0.392__segm_mAP-0.354_"
                 "20200505_003907-3e542a40.pth"
             )
-            load_model_checkpoint(self, weights, REV_KEYS)
+            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
         elif weights is not None:
             load_model_checkpoint(self, weights)
 
@@ -92,12 +92,13 @@ class MaskRCNN(nn.Module):
 
     def _forward_train(self, data: DictData) -> LossesType:
         """Forward training stage."""
+        device = next(self.parameters()).device  # TODO hack for now
         images, images_hw, target_boxes, target_classes, target_masks = (
-            data[DataKeys.images],
+            data[DataKeys.images].to(device),
             data[DataKeys.metadata]["input_hw"],
-            data[DataKeys.boxes2d],
-            data[DataKeys.boxes2d_classes],
-            data[DataKeys.masks],
+            [b.to(device) for b in data[DataKeys.boxes2d]],
+            [b.to(device) for b in data[DataKeys.boxes2d_classes]],
+            [m.to(device) for m in data[DataKeys.masks]],
         )
 
         features = self.fpn(self.backbone(images))
@@ -135,7 +136,8 @@ class MaskRCNN(nn.Module):
 
     def _forward_test(self, data: DictData) -> ModelOutput:
         """Forward testing stage."""
-        images = data[DataKeys.images]
+        device = next(self.parameters()).device  # TODO hack for now
+        images = data[DataKeys.images].to(device)
         original_hw = data[DataKeys.metadata]["original_hw"]
         images_hw = data[DataKeys.metadata]["input_hw"]
 
@@ -158,7 +160,7 @@ class MaskRCNN(nn.Module):
             boxes2d=boxes,
             boxes2d_scores=scores,
             boxes2d_classes=class_ids,
-            masks=masks,
+            masks=masks.masks,
         )
         return output
 

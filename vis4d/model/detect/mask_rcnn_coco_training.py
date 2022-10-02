@@ -1,286 +1,126 @@
-"""Mask RCNN coco training example."""
+"""Mask RCNN COCO training example."""
 import argparse
 import warnings
-from time import perf_counter
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import torch
 from torch import nn, optim
-from tqdm import tqdm
+from torch.utils.data import DataLoader
 
 from vis4d.common_to_revise.data_pipelines import default_test, default_train
-from vis4d.data.datasets.base import DataKeys
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
-from vis4d.eval.coco import COCOEvaluator
-from vis4d.op.base.resnet import ResNet
-from vis4d.op.box.util import apply_mask, bbox_postprocess
-from vis4d.op.detect.faster_rcnn import (
-    FasterRCNNHead,
-    get_default_anchor_generator,
-    get_default_rcnn_box_encoder,
-    get_default_rpn_box_encoder,
-)
-from vis4d.op.detect.rcnn import (
-    Det2Mask,
-    DetOut,
-    MaskOut,
-    MaskRCNNHead,
-    MaskRCNNLoss,
-    MaskRCNNLosses,
-    RCNNLoss,
-    RCNNLosses,
-    RoI2Det,
-)
-from vis4d.op.detect.rpn import RPNLoss, RPNLosses
-from vis4d.op.fpp.fpn import FPN
-from vis4d.op.utils import load_model_checkpoint
+from vis4d.engine.test import testing_loop
+from vis4d.engine.train import training_loop
+from vis4d.eval import COCOEvaluator, Evaluator
 from vis4d.optim.warmup import LinearLRWarmup
 
-from .mask_rcnn import REV_KEYS
+from .mask_rcnn import MaskRCNN
 
 warnings.filterwarnings("ignore")
 
-log_step = 100
-num_epochs = 12
-batch_size = 2  # 8
-learning_rate = 0.02 / 16 * batch_size
-train_resolution = (800, 1333)
-test_resolution = (800, 1333)
-device = torch.device("cuda")
 
-
-class MaskRCNNModel(nn.Module):
-    """Mask RCNN wrapper class for checkpointing etc."""
-
-    def __init__(self) -> None:
-        """Init."""
-        super().__init__()
-        anchor_gen = get_default_anchor_generator()
-        rpn_bbox_encoder = get_default_rpn_box_encoder()
-        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        self.fpn = FPN(self.backbone.out_channels[2:], 256)
-        self.faster_rcnn_heads = FasterRCNNHead(
-            anchor_generator=anchor_gen,
-            rpn_box_encoder=rpn_bbox_encoder,
-            rcnn_box_encoder=rcnn_bbox_encoder,
+def get_dataloaders(
+    is_training: bool = False, batch_size: int = 1
+) -> Tuple[Optional[DataLoader], List[DataLoader], List[Evaluator], str]:
+    """Return dataloaders and evaluators."""
+    data_root = "data/COCO"
+    train_resolution = (800, 1333)
+    test_resolution = (800, 1333)
+    if is_training:
+        train_loader = default_train(
+            COCO(
+                data_root,
+                with_mask=True,
+                split="train2017",
+                data_backend=HDF5Backend(),
+            ),
+            batch_size,
+            train_resolution,
         )
-        self.mask_head = MaskRCNNHead()
-        self.rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
-        self.rcnn_loss = RCNNLoss(rcnn_bbox_encoder)
-        self.mask_rcnn_loss = MaskRCNNLoss()
-        self.transform_outs = RoI2Det(rcnn_bbox_encoder)
-        self.det2mask = Det2Mask()
-
-    def forward(
-        self,
-        images: torch.Tensor,
-        images_hw: List[Tuple[int, int]],
-        target_boxes: Optional[List[torch.Tensor]] = None,
-        target_classes: Optional[List[torch.Tensor]] = None,
-        target_masks: Optional[List[torch.Tensor]] = None,
-        original_hw: Optional[List[Tuple[int, int]]] = None,
-    ) -> Union[
-        Tuple[RPNLosses, RCNNLosses, MaskRCNNLosses], Union[DetOut, MaskOut]
-    ]:
-        """Forward."""
-        if target_boxes is not None:
-            assert target_classes is not None
-            return self._forward_train(
-                images, images_hw, target_boxes, target_classes, target_masks
-            )
-        assert original_hw is not None
-        return self._forward_test(images, images_hw, original_hw)
-
-    def _forward_train(
-        self,
-        images: torch.Tensor,
-        images_hw: List[Tuple[int, int]],
-        target_boxes: Optional[List[torch.Tensor]] = None,
-        target_classes: Optional[List[torch.Tensor]] = None,
-        target_masks: Optional[List[torch.Tensor]] = None,
-    ) -> Tuple[RPNLosses, RCNNLosses, MaskRCNNLosses]:
-        """Forward training stage."""
-        features = self.fpn(self.backbone(images))
-        outputs = self.faster_rcnn_heads(
-            features, images_hw, target_boxes, target_classes
-        )
-        mask_outs = self.mask_head(
-            features[2:-1], outputs.sampled_proposals.boxes
-        )
-
-        rpn_losses = self.rpn_loss(*outputs.rpn, target_boxes, images_hw)
-        rcnn_losses = self.rcnn_loss(
-            *outputs.roi,
-            outputs.sampled_proposals.boxes,
-            outputs.sampled_targets.labels,
-            outputs.sampled_targets.boxes,
-            outputs.sampled_targets.classes,
-        )
-        assert outputs.sampled_target_indices is not None
-        sampled_masks = apply_mask(
-            outputs.sampled_target_indices, target_masks
-        )[0]
-        mask_losses = self.mask_rcnn_loss(
-            mask_outs.mask_pred,
-            outputs.sampled_proposals.boxes,
-            outputs.sampled_targets.classes,
-            sampled_masks,
-        )
-        return rpn_losses, rcnn_losses, mask_losses
-
-    def _forward_test(
-        self,
-        images: torch.Tensor,
-        images_hw: List[Tuple[int, int]],
-        original_hw: List[Tuple[int, int]],
-    ) -> Tuple[DetOut, MaskOut]:
-        """Forward testing stage."""
-        features = self.fpn(self.backbone(images))
-        outs = self.faster_rcnn_heads(features, images_hw)
-        dets, scores, class_ids = self.transform_outs(
-            *outs.roi, boxes=outs.proposals.boxes, images_hw=images_hw
-        )
-        mask_outs = self.mask_head(features[2:-1], dets)
-        for i, boxs in enumerate(dets):
-            dets[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
-        post_dets = DetOut(boxes=dets, scores=scores, class_ids=class_ids)
-        masks = self.det2mask(
-            mask_outs=mask_outs.mask_pred.sigmoid(),
-            dets=post_dets,
-            images_hw=original_hw,
-        )
-        return post_dets, masks
-
-
-## setup model
-mask_rcnn = MaskRCNNModel()
-
-optimizer = optim.SGD(
-    mask_rcnn.parameters(),
-    lr=learning_rate,
-    momentum=0.9,
-    weight_decay=0.0001,
-)
-scheduler = optim.lr_scheduler.MultiStepLR(
-    optimizer, milestones=[8, 11], gamma=0.1
-)
-warmup = LinearLRWarmup(0.001, 500)
-
-## setup test dataset
-data_root = "data/COCO"
-test_loader = default_test(
-    COCO(
-        data_root, with_mask=True, split="val2017", data_backend=HDF5Backend()
-    ),
-    1,
-    test_resolution,
-)
-test_evals = [COCOEvaluator(data_root), COCOEvaluator(data_root, "segm")]
-
-
-@torch.no_grad()
-def validation_loop(model):
-    """Validate current model with test dataset."""
-    model.eval()
-    print("Running validation...")
-    for _, data in enumerate(tqdm(test_loader[0])):
-        images = data[DataKeys.images].to(device)
-        original_hw = data[DataKeys.metadata]["original_hw"]
-        images_hw = data[DataKeys.metadata]["input_hw"]
-
-        dets, masks = mask_rcnn(images, images_hw, original_hw=original_hw)
-        boxes, scores, class_ids = dets.boxes, dets.scores, dets.class_ids
-
-        for test_eval in test_evals:
-            test_eval.process(
-                data,
-                {
-                    "boxes2d": boxes,
-                    "boxes2d_scores": scores,
-                    "boxes2d_classes": class_ids,
-                    "masks": masks.masks,
-                },
-            )
-
-    for test_eval in test_evals:
-        _, log_str = test_eval.evaluate("COCO_AP")
-        print(log_str)
-
-
-def training_loop(model):
-    """Training loop."""
-    train_loader = default_train(
+    else:
+        train_loader = None
+    test_loader = default_test(
         COCO(
             data_root,
             with_mask=True,
-            split="train2017",
+            split="val2017",
             data_backend=HDF5Backend(),
         ),
-        batch_size,
-        train_resolution,
+        1,
+        test_resolution,
+    )
+    test_evals = [COCOEvaluator(data_root), COCOEvaluator(data_root, "segm")]
+    test_metric = "COCO_AP"
+    return train_loader, test_loader, test_evals, test_metric
+
+
+def train(args: argparse.Namespace) -> None:
+    """Training."""
+    # parameters
+    log_step = 100
+    num_epochs = 12
+    batch_size = 2  # 8
+    learning_rate = 0.02 / 16 * batch_size
+    device = torch.device("cuda")
+    save_prefix = "vis4d-workspace/test/maskrcnn_coco_epoch"
+
+    # data loaders and evaluators
+    train_loader, test_loader, test_evals, test_metric = get_dataloaders(
+        True, batch_size
     )
 
-    running_losses = {}
-    for epoch in range(num_epochs):
-        model.train()
-        for i, data in enumerate(train_loader):
-            tic = perf_counter()
-            inputs, inputs_hw, gt_boxes, gt_class_ids, gt_masks = (
-                data[DataKeys.images].to(device),
-                data[DataKeys.metadata]["input_hw"],
-                [b.to(device) for b in data[DataKeys.boxes2d]],
-                [b.to(device) for b in data[DataKeys.boxes2d_classes]],
-                [m.to(device) for m in data[DataKeys.masks]],
-            )
-            # zero the parameter gradients
-            optimizer.zero_grad()
-
-            # forward + backward + optimize
-            rpn_losses, rcnn_losses, mask_losses = model(
-                inputs, inputs_hw, gt_boxes, gt_class_ids, gt_masks
-            )
-            total_loss = sum((*rpn_losses, *rcnn_losses, *mask_losses))
-            total_loss.backward()
-
-            if epoch == 0 and i < 500:
-                for g in optimizer.param_groups:
-                    g["lr"] = warmup(i, learning_rate)
-            elif epoch == 0 and i == 500:
-                for g in optimizer.param_groups:
-                    g["lr"] = learning_rate
-
-            optimizer.step()
-            toc = perf_counter()
-
-            # print statistics
-            losses = dict(
-                time=toc - tic,
-                loss=total_loss,
-                **rpn_losses._asdict(),
-                **rcnn_losses._asdict(),
-                **mask_losses._asdict(),
-            )
-            for k, v in losses.items():
-                if k in running_losses:
-                    running_losses[k] += v
-                else:
-                    running_losses[k] = v
-            if i % log_step == (log_step - 1):
-                log_str = f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] "
-                for k, v in running_losses.items():
-                    log_str += f"{k}: {v / log_step:.3f}, "
-                print(log_str.rstrip(", "))
-                running_losses = {}
-
-        scheduler.step()
-        torch.save(
-            model.state_dict(),
-            f"vis4d-workspace/test/maskrcnn_coco_epoch_{epoch + 1}.pt",
+    # model
+    mask_rcnn = MaskRCNN(num_classes=80)
+    mask_rcnn.to(device)
+    if args.num_gpus > 1:
+        mask_rcnn = nn.DataParallel(
+            mask_rcnn, device_ids=[device, torch.device("cuda:1")]
         )
-        validation_loop(model)
-    print("training done.")
+
+    # optimization
+    optimizer = optim.SGD(
+        mask_rcnn.parameters(),
+        lr=learning_rate,
+        momentum=0.9,
+        weight_decay=0.0001,
+    )
+    scheduler = optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[8, 11], gamma=0.1
+    )
+    warmup = LinearLRWarmup(0.001, 500)
+
+    # run training
+    training_loop(
+        train_loader,
+        test_loader,
+        test_evals,
+        test_metric,
+        mask_rcnn,
+        optimizer,
+        scheduler,
+        num_epochs,
+        log_step,
+        learning_rate,
+        save_prefix,
+        warmup,
+    )
+
+
+def test(args: argparse.Namespace) -> None:
+    """Testing."""
+    # parameters
+    device = torch.device("cuda")
+
+    # data loaders and evaluators
+    _, test_loader, test_evals, test_metric = get_dataloaders()
+
+    # model
+    mask_rcnn = MaskRCNN(num_classes=80, weights=args.ckpt)
+    mask_rcnn.to(device)
+
+    # run testing
+    testing_loop(test_loader, test_evals, test_metric, mask_rcnn)
 
 
 if __name__ == "__main__":
@@ -290,22 +130,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("-n", "--num_gpus", default=1, help="number of gpus")
     args = parser.parse_args()
-    mask_rcnn.to(device)
     if args.ckpt is None:
-        if args.num_gpus > 1:
-            mask_rcnn = nn.DataParallel(
-                mask_rcnn, device_ids=[device, torch.device("cuda:5")]
-            )
-        training_loop(mask_rcnn)
+        train(args)
     else:
-        if args.ckpt == "mmdet":
-            weights = (
-                "mmdet://mask_rcnn/mask_rcnn_r50_fpn_2x_coco/"
-                "mask_rcnn_r50_fpn_2x_coco_bbox_mAP-0.392__segm_mAP-0.354_"
-                "20200505_003907-3e542a40.pth"
-            )
-            load_model_checkpoint(mask_rcnn, weights, rev_keys=REV_KEYS)
-        else:
-            ckpt = torch.load(args.ckpt)
-            mask_rcnn.load_state_dict(ckpt)
-        validation_loop(mask_rcnn)
+        test(args)

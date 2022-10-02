@@ -6,12 +6,12 @@ from .base import (
     batch_transform_pipeline,
     transform_pipeline,
 )
+from .filter import FilterByCategory, RemapCategory
 from .flip import HorizontalFlip
+from .mask import ConvertInsMasksToSegMask
 from .normalize import Normalize
 from .pad import Pad
 from .resize import Resize
-from .filter import FilterByCategory, RemapCategory
-from .mask import ConvertInsMasksToSegMask
 
 __all__ = [
     "BaseBatchTransform",
