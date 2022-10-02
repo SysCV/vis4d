@@ -16,6 +16,7 @@ app/dist/
 
 # potential integration testing data directory
 test_data/
+/data
 
 #python
 .pyc

@@ -101,7 +101,7 @@ coco_det_map = {
 }
 
 # COCO segmentation categories
-coco_seg_set = [
+coco_seg_cats = [
     0,
     5,
     2,
@@ -171,10 +171,6 @@ class COCO(Dataset, CacheMappingMixin):
         with contextlib.redirect_stdout(io.StringIO()):
             coco_api = COCOAPI(annotation_file)
 
-        filtering_sem_seg = False
-        if "sem_seg" in self.tasks_to_load:
-            filtering_sem_seg = True
-
         cat_ids = sorted(coco_api.getCatIds())
         cats_map = {c["id"]: c["name"] for c in coco_api.loadCats(cat_ids)}
 
@@ -230,13 +226,15 @@ class COCO(Dataset, CacheMappingMixin):
                     rle = mask_ann
                 masks.append(maskUtils.decode(rle))
             else:
-                masks.append(None)
+                # masks.append(None)
+                masks.append(np.empty((img_h, img_w)))
 
         if not len(boxes):
             box_tensor = torch.empty((0, 4), dtype=torch.float32)
             mask_tensor = torch.empty((0, img_h, img_w), dtype=torch.uint8)
         else:
             box_tensor = torch.tensor(boxes, dtype=torch.float32)
+            # print(masks[0].shape, masks[1].shape)
             mask_tensor = torch.as_tensor(
                 np.ascontiguousarray(masks), dtype=torch.uint8
             )

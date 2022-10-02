@@ -1,7 +1,13 @@
 """Base dataset in Vis4D."""
 
+import sys
 from dataclasses import dataclass
-from typing import Dict, Tuple, TypedDict, Union, List
+from typing import Dict, List, Tuple, Union
+
+if sys.version_info >= (3, 8):
+    from typing import TypedDict  # pylint: disable=no-name-in-module
+else:
+    from typing_extensions import TypedDict
 
 from torch import Tensor
 from torch.utils.data import Dataset as TorchDataset
