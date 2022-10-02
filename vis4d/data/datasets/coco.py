@@ -13,9 +13,8 @@ from vis4d.data.io.base import BaseDataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.struct_to_revise import DictStrAny
 
-from .base import Dataset, DataKeys, DictData
-from .utils import CacheMappingMixin
-
+from .base import DataKeys, Dataset, DictData
+from .utils import CacheMappingMixin, im_decode
 
 # COCO
 coco_det_map = {

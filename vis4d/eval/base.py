@@ -10,8 +10,8 @@ from vis4d.data.io import BaseDataBackend, HDF5Backend
 from vis4d.struct_to_revise.structures import MetricLogs, ModelOutput
 
 
-class BaseEvaluator:
-    """Base evaluator class"""
+class Evaluator:
+    """Base evaluator class."""
 
     @property
     def metrics(self) -> List[str]:

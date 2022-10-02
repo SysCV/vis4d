@@ -1,9 +1,12 @@
 """COCO evaluator."""
 import contextlib
+import copy
 import io
 import itertools
 from typing import Any, Callable, List, Tuple
 
+import numpy as np
+import pycocotools.mask as maskUtils
 import torch
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
@@ -12,11 +15,11 @@ from vis4d.data.datasets.base import DataKeys, DictData
 from vis4d.data.datasets.coco import coco_det_map
 from vis4d.struct_to_revise import MetricLogs, ModelOutput
 
-from .base import BaseEvaluator
+from .base import Evaluator
 
 
 def xyxy_to_xywh(boxes: torch.Tensor) -> torch.Tensor:
-    """Convert Tensor [N, 4] in xyxy format into xywh"""
+    """Convert Tensor [N, 4] in xyxy format into xywh."""
     boxes[:, 2] = boxes[:, 2] - boxes[:, 0]
     boxes[:, 3] = boxes[:, 3] - boxes[:, 1]
     return boxes
@@ -34,15 +37,12 @@ class COCOevalV2(COCOeval):
         return {}, summary_str  # TODO summarize in metric logs
 
 
-class COCOEvaluator(BaseEvaluator):
+class COCOEvaluator(Evaluator):
     """COCO detection evaluation class."""
 
-    def __init__(
-        self, data_root: str, iou_type: str = "bbox", split: str = "val2017"
-    ):
+    def __init__(self, data_root: str, split: str = "val2017"):
         """Init."""
         super().__init__()
-        self.iou_type = iou_type
         self.coco_id2name = {v: k for k, v in coco_det_map.items()}
         with contextlib.redirect_stdout(io.StringIO()):
             self._coco_gt = COCO(
@@ -69,15 +69,22 @@ class COCOEvaluator(BaseEvaluator):
 
     def process(self, inputs: DictData, outputs: ModelOutput) -> None:
         """Process sample and convert detections to coco format."""
-        for image_id, boxes, scores, classes in zip(
-            inputs[DataKeys.metadata]["coco_image_id"],
-            outputs["boxes2d"],
-            outputs["boxes2d_scores"],
-            outputs["boxes2d_classes"],
+        for i, (image_id, boxes, scores, classes) in enumerate(
+            zip(
+                inputs[DataKeys.metadata]["coco_image_id"],
+                outputs["boxes2d"],
+                outputs["boxes2d_scores"],
+                outputs["boxes2d_classes"],
+            )
         ):
+            masks = (
+                outputs["masks"][i]
+                if "masks" in outputs
+                else [None for _ in range(len(boxes))]
+            )
             annotations = []
             boxes = xyxy_to_xywh(boxes)
-            for box, score, cls in zip(boxes, scores, classes):
+            for box, score, cls, mask in zip(boxes, scores, classes, masks):
                 xywh = box.cpu().numpy().tolist()
                 area = float(xywh[2] * xywh[3])
                 annotation = dict(
@@ -88,17 +95,34 @@ class COCOEvaluator(BaseEvaluator):
                     category_id=self.cat_map[self.coco_id2name[int(cls)]],
                     iscrowd=0,
                 )
+                if mask is not None:
+                    annotation["segmentation"] = maskUtils.encode(
+                        np.array(mask.cpu(), order="F", dtype="uint8")
+                    )
+                    annotation["segmentation"]["counts"] = annotation[
+                        "segmentation"
+                    ]["counts"].decode()
                 annotations.append(annotation)
 
             self._predictions.extend(annotations)
 
-    def evaluate(self, metric: str) -> Tuple[MetricLogs, str]:
+    def evaluate(
+        self, metric: str, iou_type: str = "bbox"
+    ) -> Tuple[MetricLogs, str]:
         """Evaluate predictions."""
         if metric == "COCO_AP":
             with contextlib.redirect_stdout(io.StringIO()):
-                coco_dt = self._coco_gt.loadRes(self._predictions)
+                if iou_type == "segm":
+                    # remove bbox for segm evaluation so cocoapi will use mask
+                    # area instead of box area
+                    _predictions = copy.deepcopy(self._predictions)
+                    for pred in _predictions:
+                        pred.pop("bbox")
+                else:
+                    _predictions = self._predictions
+                coco_dt = self._coco_gt.loadRes(_predictions)
                 evaluator = COCOevalV2(
-                    self._coco_gt, coco_dt, iouType=self.iou_type
+                    self._coco_gt, coco_dt, iouType=iou_type
                 )
                 evaluator.evaluate()
                 evaluator.accumulate()
