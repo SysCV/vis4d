@@ -58,10 +58,7 @@ def resize_tensor(
     assert interpolation in ["nearest", "bilinear", "bicubic"]
     align_corners = None if interpolation == "nearest" else False
     output = F.interpolate(
-        inputs,
-        resize_hw,
-        mode=interpolation,
-        align_corners=align_corners,
+        inputs, resize_hw, mode=interpolation, align_corners=align_corners
     )
     return output
 
@@ -70,10 +67,7 @@ def resize_boxes(
     boxes: torch.Tensor, input_shape: Tuple[int, int], shape: Tuple[int, int]
 ) -> torch.Tensor:
     """Resize 2D bounding boxes."""
-    return transform_bbox(
-        transform_from_shapes(input_shape, shape),
-        boxes,
-    )
+    return transform_bbox(transform_from_shapes(input_shape, shape), boxes)
 
 
 def resize_intrinsics(
@@ -87,8 +81,14 @@ def resize_intrinsics(
 
 def resize_masks(masks: torch.Tensor, shape: Tuple[int, int]) -> torch.Tensor:
     """Resize masks."""
-    return resize_tensor(masks.float(), shape, interpolation="nearest").type(
-        masks.dtype
+    if len(masks) == 0:  # handle empty masks
+        return masks
+    return (
+        resize_tensor(
+            masks.float().unsqueeze(0), shape, interpolation="nearest"
+        )
+        .type(masks.dtype)
+        .squeeze(0)
     )
 
 
