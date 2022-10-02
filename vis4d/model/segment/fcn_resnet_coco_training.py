@@ -8,7 +8,6 @@ import torch
 import tqdm
 from torch import nn, optim
 from torch.utils.data import DataLoader
-from torchvision.datasets import VOCSegmentation
 
 from vis4d.model.segment.common import (
     blend_images,
@@ -26,9 +25,9 @@ from vis4d.op.segment.testcase.utils import collate_fn, get_coco
 from vis4d.op.utils import load_model_checkpoint
 
 REV_KEYS = [
-    (r"^backbone\.", "body."),
-    (r"^aux_classifier\.", "heads.0."),
-    (r"^classifier\.", "heads.1."),
+    (r"^backbone\.", "basemodel.body."),
+    (r"^aux_classifier\.", "fcn.heads.0."),
+    (r"^classifier\.", "fcn.heads.1."),
 ]
 
 
@@ -37,8 +36,8 @@ def validation_loop(
     model: nn.Module,
     val_dataloader: torch.utils.data.DataLoader,
     cur_iter: int,
-    visualization_idx: List[int] = [0],
-    visualization_outdir: str = "",
+    visualization_idx: List[int] = list(range(8)),
+    output_dir: str = "",
 ) -> Dict[str, Any]:
     """validate current model with test dataset."""
     model.eval()
@@ -61,14 +60,18 @@ def validation_loop(
         targets.extend(target_list)
         if idx in visualization_idx:
             save_output_images(
-                pred_list, f"{visualization_outdir}/iter={cur_iter}"
+                pred_list,
+                f"{output_dir}/iter={cur_iter}",
+                offset=idx * len(pred_list),
             )
             if cur_iter == 0:
-                save_output_images(target_list, f"{visualization_outdir}/gt")
+                save_output_images(
+                    target_list,
+                    f"{output_dir}/gt",
+                    offset=idx * len(pred_list),
+                )
 
     metrics, _ = evaluate_sem_seg(preds, targets, num_classes=21)
-    metrics["mIoU (ignored BG)"] = float(np.nanmean(metrics["IoUs"][1:]))
-    metrics["Acc (ignored BG)"] = float(np.nanmean(metrics["Accs"][1:]))
     log_str = f"[{cur_iter}, Validation] "
     for k, v in metrics.items():
         if isinstance(v, float):
@@ -86,10 +89,10 @@ def training_loop(
     model: nn.Module,
     train_loader: torch.utils.data.DataLoader,
     val_loader: torch.utils.data.DataLoader,
-    total_iters: int = 80000,
+    total_iters: int,
     log_step: int = 5,
-    val_step: int = 5000,
-    ckpt_dir: str = "vis4d-workspace/test/fcnresnet50_voc2012",
+    val_step: int = 2000,
+    ckpt_dir: str = "vis4d-workspace/test/fcn_resnet50_coco2017",
 ):
     """Training loop."""
     print("Start training...", flush=True)
@@ -141,11 +144,11 @@ def training_loop(
                     model,
                     val_loader,
                     cur_iter,
-                    visualization_outdir=f"{ckpt_dir}/pred",
+                    output_dir=f"{ckpt_dir}/pred",
                 )
                 torch.save(
                     model.state_dict(),
-                    f"{ckpt_dir}/iter_{cur_iter + 1}_mIoU_{metrics['mIoU']:.2f}.pt",
+                    f"{ckpt_dir}/iter_{cur_iter + 1}_mIoU_{metrics['mIoU']:.2f}_Acc_{metrics['Acc']:.2f}.pt",
                 )
                 model.train()
 
@@ -156,9 +159,13 @@ def training_loop(
     print("training done.")
 
 
-def visualize_prediction(args):
+def visualize_loop(
+    pred_dir: str,
+    output_dir: str,
+    visualization_idx: List[int] = list(range(64)),
+) -> None:
+    """Visualization via blending predictions with images."""
     # setup model and dataloader
-    pred_dir = f"vis4d-workspace/test/{args.save_name}/pred"
     val_loader = DataLoader(
         get_coco(
             root="vis4d-workspace/data/coco",
@@ -168,7 +175,6 @@ def visualize_prediction(args):
         batch_size=1,
         shuffle=False,
     )
-    visualization_idx = list(range(8))
     img_list = []
     for idx, data in enumerate(tqdm.tqdm(val_loader)):
         if idx in visualization_idx:
@@ -182,14 +188,10 @@ def visualize_prediction(args):
         if idx > max(visualization_idx):
             break
 
-    pred_list = read_output_images(f"{pred_dir}/iter={args.total_iters}")
+    pred_list = read_output_images(pred_dir)
     assert len(pred_list) == len(img_list)
     img_list = blend_images(img_list, pred_list)
-    save_output_images(
-        img_list,
-        f"{pred_dir}/iter={args.total_iters}_with_img",
-        colorize=False,
-    )
+    save_output_images(img_list, output_dir, colorize=False)
 
 
 def setup(args):
@@ -207,9 +209,24 @@ def setup(args):
         optimizer = optim.Adam(
             fcn_resnet.parameters(), lr=args.lr, weight_decay=1e-4
         )
-    scheduler = optim.lr_scheduler.PolynomialLR(
+    lr_scheduler = optim.lr_scheduler.PolynomialLR(
         optimizer, args.total_iters, power=0.9
     )
+
+    if args.lr_warmup_iters > 0:
+        warmup_iters = args.lr_warmup_iters
+        warmup_lr_scheduler = optim.lr_scheduler.LinearLR(
+            optimizer,
+            start_factor=0.01,
+            total_iters=warmup_iters,
+        )
+        scheduler = optim.lr_scheduler.SequentialLR(
+            optimizer,
+            schedulers=[warmup_lr_scheduler, lr_scheduler],
+            milestones=[warmup_iters],
+        )
+    else:
+        scheduler = lr_scheduler
 
     train_loader = DataLoader(
         get_coco(
@@ -247,7 +264,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--total_iters",
         type=int,
-        default=40000,
+        default=50000,
         help="number of epochs to train.",
     )
     parser.add_argument("--optim", default="SGD", help="optimizer")
@@ -263,10 +280,14 @@ if __name__ == "__main__":
         help="select the ResNet model used for base model.",
     )
     parser.add_argument(
+        "--lr_warmup_iters", default=1000, type=int, help="LR warmup iters."
+    )
+    parser.add_argument(
         "-n", "--num_gpus", default=1, type=int, help="number of gpus"
     )
     args = parser.parse_args()
 
+    ckpt_dir = f"vis4d-workspace/test/{args.save_name}"
     device = torch.device("cuda")
     fcn_resnet, optimizer, scheduler, train_loader, val_loader = setup(args)
     fcn_resnet.to(device)
@@ -274,7 +295,6 @@ if __name__ == "__main__":
         if args.num_gpus > 1:
             print("GPUs:", torch.cuda.device_count())
             fcn_resnet = nn.DataParallel(fcn_resnet)
-        ckpt_dir = f"vis4d-workspace/test/{args.save_name}"
         training_loop(
             fcn_resnet,
             train_loader,
@@ -290,7 +310,17 @@ if __name__ == "__main__":
             )
             load_model_checkpoint(fcn_resnet, weights, REV_KEYS)
         else:
-            ckpt = torch.load(args.ckpt)
+            ckpt_path = f"{ckpt_dir}/{args.ckpt}"
+            ckpt = torch.load(ckpt_path)
+            print(f"Loaded checkpoint from {ckpt_path}.")
             fcn_resnet.load_state_dict(ckpt)
-        validation_loop(fcn_resnet, val_loader, cur_iter=0)
-        visualize_prediction(args)
+        validation_loop(
+            fcn_resnet,
+            val_loader,
+            cur_iter=0,
+            output_dir=f"{ckpt_dir}/pred_{args.ckpt}",
+        )
+        visualize_loop(
+            f"{ckpt_dir}/pred_{args.ckpt}/iter=0",
+            f"{ckpt_dir}/pred_{args.ckpt}/iter=0_with_gt",
+        )

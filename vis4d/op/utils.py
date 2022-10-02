@@ -198,6 +198,7 @@ def targets_to_mmseg(images: Images, targets: LabelInstances) -> torch.Tensor:
 def load_model_checkpoint(
     model: nn.Module,
     weights: str,
+    strict: bool = False,
     rev_keys: Optional[List[Tuple[str, str]]] = None,
 ) -> None:
     """Load MM model checkpoint."""
@@ -206,12 +207,12 @@ def load_model_checkpoint(
     if re.compile(r"^mm(det|seg)://").search(weights):
         pre = weights[:8]
         weights = MM_MODEL_MAP[pre] + weights.split(pre)[-1]
-        load_checkpoint(model, weights, revise_keys=rev_keys)
+        load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
     elif weights.startswith("bdd100k://"):
         weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
-        load_checkpoint(model, weights, revise_keys=rev_keys)
+        load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
     else:  # pragma: no cover
-        load_checkpoint(model, weights, revise_keys=rev_keys)
+        load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
 
 
 def load_config_from_mm(url: str, mm_base: str) -> str:

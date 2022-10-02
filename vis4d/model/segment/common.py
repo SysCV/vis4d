@@ -112,8 +112,9 @@ def per_image_hist(
     ignore_label: int = 255,
 ) -> Tuple[np.ndarray, Set[int]]:
     """Calculate per image hist."""
+    num_classes = num_classes + 1
     assert num_classes >= 2
-    # assert num_classes <= ignore_label
+    assert num_classes <= ignore_label
     gt = gt.copy()
     gt[gt == ignore_label] = num_classes - 1
     gt_id_set = set(np.unique(gt).tolist())
@@ -168,13 +169,13 @@ def evaluate_sem_seg(
             )
             for ann_frame, pred_frame in zip(ann_frames, pred_frames)
         ]
-
-    # num_classes = num_classes + 1
+    num_classes = num_classes + 1
     hist = np.zeros((num_classes, num_classes), dtype=np.int32)
     gt_id_set = set()
     for (hist_, gt_id_set_) in hist_and_gt_id_sets:
         hist += hist_
         gt_id_set.update(gt_id_set_)
+    # print(gt_id_set)
 
     ious = per_class_iou(hist)
     accs = per_class_acc(hist)
@@ -189,7 +190,7 @@ def evaluate_sem_seg(
     return res_dict, gt_id_set
 
 
-def save_output_images(predictions, output_dir, colorize=True):
+def save_output_images(predictions, output_dir, colorize=True, offset=0):
     """
     Saves a given tensor (B x C x H x W) into an image file.
     If given a mini-batch tensor, will save the tensor as a grid of images.
@@ -202,7 +203,7 @@ def save_output_images(predictions, output_dir, colorize=True):
             if colorize:
                 prediction = pascal_label_decode(prediction)
         im = Image.fromarray(prediction.astype(np.uint8))
-        fn = os.path.join(output_dir, f"{i}.png")
+        fn = os.path.join(output_dir, f"{offset + i:04d}.png")
         im.save(fn)
 
 

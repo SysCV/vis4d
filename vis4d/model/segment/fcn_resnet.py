@@ -13,9 +13,20 @@ class FCN_ResNet(nn.Module):
         self,
         base_model: str = "res",
         num_classes: int = 21,
-        resize: Tuple[int, int] = (512, 512),
+        resize: Optional[Tuple[int, int]] = (520, 520),
+        weights: Optional[torch.Tensor] = None,
     ) -> None:
-        """Init."""
+        """FCN with ResNet, following `torchvision implementation
+        <https://github.com/pytorch/vision/blob/torchvision/models/segmentation/
+        fcn.py>`_.
+
+        model: FCN_ResNet(base_model="resnet50")
+            - dataset: Coco2017
+            - recipe: vis4d/model/segment/fcn_resnet_coco_training.py
+            - metrics:
+                - mIoU: 62.52
+                - Acc: 90.50
+        """
         super().__init__()
         if base_model.startswith("resnet"):
             self.basemodel = ResNet(
@@ -28,7 +39,12 @@ class FCN_ResNet(nn.Module):
         self.fcn = FCNHead(
             self.basemodel.out_channels[4:], num_classes, resize=resize
         )
-        self.loss = FCNLoss([4, 5], nn.CrossEntropyLoss(ignore_index=255))
+        print(self.basemodel.out_channels[4:])
+        self.loss = FCNLoss(
+            [4, 5],
+            nn.CrossEntropyLoss(weights, ignore_index=255),
+            weights=[0.5, 1],
+        )
 
     def forward(
         self, images: torch.Tensor, targets: Optional[torch.Tensor] = None
