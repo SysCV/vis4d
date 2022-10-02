@@ -203,9 +203,10 @@ class COCO(Dataset, CacheMappingMixin):
             mask_tensor = torch.empty((0, img_h, img_w), dtype=torch.uint8)
         else:
             box_tensor = torch.tensor(boxes, dtype=torch.float32)
-            mask_tensor = torch.as_tensor(
-                np.ascontiguousarray(masks), dtype=torch.uint8
-            )
+            if self.with_mask:
+                mask_tensor = torch.as_tensor(
+                    np.ascontiguousarray(masks), dtype=torch.uint8
+                )
         dict_data = {
             DataKeys.metadata: {
                 "original_hw": img.shape[-2:],

@@ -8,7 +8,6 @@ import torch
 import torch.optim as optim
 import torchvision
 from torch import nn
-from torchvision.ops.feature_pyramid_network import LastLevelP6P7
 from tqdm import tqdm
 
 from vis4d.common_to_revise.data_pipelines import default_test, default_train
@@ -24,11 +23,10 @@ from vis4d.op.detect.retinanet import (
     RetinaNetHead,
     RetinaNetLoss,
     RetinaNetLosses,
-    RetinaNetOut,
     get_default_box_matcher,
     get_default_box_sampler,
 )
-from vis4d.op.fpp.fpn import FPN
+from vis4d.op.fpp.fpn import FPN, LastLevelP6P7
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim.warmup import LinearLRWarmup
 
@@ -135,8 +133,7 @@ class RetinaNet(nn.Module):
         )
         for i, boxs in enumerate(dets):
             dets[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
-        post_dets = DetOut(boxes=dets, scores=scores, class_ids=class_ids)
-        return post_dets
+        return DetOut(boxes=dets, scores=scores, class_ids=class_ids)
 
 
 ## setup model
@@ -156,7 +153,9 @@ warmup = LinearLRWarmup(0.001, 500)
 ## setup test dataset
 data_root = "data/COCO"
 test_loader = default_test(
-    COCO(data_root, "val2017", HDF5Backend()), 1, test_resolution
+    COCO(data_root, split="val2017", data_backend=HDF5Backend()),
+    1,
+    test_resolution,
 )
 test_eval = COCOEvaluator(data_root)
 
@@ -191,7 +190,7 @@ def validation_loop(model):
 def training_loop(model):
     """Training loop."""
     train_loader = default_train(
-        COCO(data_root, "train2017", HDF5Backend()),
+        COCO(data_root, split="train2017", data_backend=HDF5Backend()),
         batch_size,
         train_resolution,
     )
