@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from typing import Dict, Tuple, TypedDict, Union
 
 from torch import Tensor
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset as TorchDataset
 
-DictStrArray = Dict[str, Tensor]
-DictStrArrayNested = Dict[str, Union[Tensor, DictStrArray]]
-DictData = Dict[str, Union[Tensor, DictStrArrayNested]]
+_DictStrArray = Dict[str, Tensor]
+_DictStrArrayNested = Dict[str, Union[Tensor, _DictStrArray]]
+DictData = Dict[str, Union[Tensor, _DictStrArrayNested]]
 
 
 class MetaData(TypedDict):
@@ -38,7 +38,7 @@ boxes2d_classes: Tensor of shape [N,]
 """
 
 
-class BaseDataset(Dataset):
+class Dataset(TorchDataset[DictData]):
     """Basic pytorch dataset with defined return type."""
 
     def __len__(self) -> int:
@@ -50,7 +50,7 @@ class BaseDataset(Dataset):
         raise NotImplementedError
 
 
-class BaseVideoDataset(BaseDataset):
+class VideoDataset(Dataset):
     """Basic pytorch video dataset."""
 
     @property
@@ -61,3 +61,11 @@ class BaseVideoDataset(BaseDataset):
         Returns:
             Dict[str, int]: Mapping video to index.
         """
+
+    def __len__(self) -> int:
+        """Return length of dataset."""
+        raise NotImplementedError
+
+    def __getitem__(self, idx: int) -> DictData:
+        """Convert single element at given index into Vis4D data format."""
+        raise NotImplementedError

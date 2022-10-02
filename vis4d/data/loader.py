@@ -7,7 +7,7 @@ from torch.utils.data import ConcatDataset, DataLoader, Dataset
 from vis4d.data.samplers import BaseSampler, VideoInferenceSampler
 
 from ..common_to_revise.utils import get_world_size
-from .datasets import BaseVideoDataset
+from .datasets import VideoDataset
 from .datasets.base import DataKeys, DictData
 
 
@@ -102,7 +102,7 @@ def build_inference_dataloaders(
     for dataset in datasets:
         if (
             get_world_size() > 1
-            and isinstance(dataset, BaseVideoDataset)
+            and isinstance(dataset, VideoDataset)
             and video_based_inference
         ):
             sampler = VideoInferenceSampler(dataset)

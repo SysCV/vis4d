@@ -1,9 +1,9 @@
 """Datasets module."""
-from .base import BaseDataset, BaseVideoDataset
+from .base import Dataset, VideoDataset
 from .coco import COCO
 
 __all__ = [
-    "BaseDataset",
-    "BaseVideoDataset",
+    "Dataset",
+    "VideoDataset",
     "COCO",
 ]

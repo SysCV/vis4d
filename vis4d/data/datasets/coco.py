@@ -13,7 +13,7 @@ from vis4d.data.io.file import FileBackend
 from vis4d.data_to_revise.utils import im_decode
 from vis4d.struct_to_revise import DictStrAny
 
-from .base import BaseDataset, DataKeys, DictData
+from .base import Dataset, DataKeys, DictData
 from .utils import CacheMappingMixin
 
 # COCO
@@ -101,7 +101,7 @@ coco_det_map = {
 }
 
 
-class COCO(BaseDataset, CacheMappingMixin):
+class COCO(Dataset, CacheMappingMixin):
     """COCO dataset class."""
 
     def __init__(
