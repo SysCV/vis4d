@@ -297,46 +297,6 @@ def filter_attributes(
     return frames
 
 
-def all_gather_predictions(
-    predictions: Dict[str, List[Frame]],
-    pl_module: pl.LightningModule,
-    collect_device: str,
-) -> Optional[Dict[str, List[Frame]]]:  # pragma: no cover
-    """Gather prediction dict in distributed setting."""
-    if collect_device == "gpu":
-        predictions_list = all_gather_object_gpu(predictions, pl_module)
-    elif collect_device == "cpu":
-        predictions_list = all_gather_object_cpu(predictions, pl_module)
-    else:
-        raise ValueError(f"Collect device {collect_device} unknown.")
-
-    if predictions_list is None:
-        return None
-
-    result = {}
-    for key in predictions:
-        prediction_list = [p[key] for p in predictions_list]
-        result[key] = list(itertools.chain(*prediction_list))
-    return result
-
-
-def all_gather_gts(
-    gts: List[Frame], pl_module: pl.LightningModule, collect_device: str
-) -> Optional[List[Frame]]:  # pragma: no cover
-    """Gather gts list in distributed setting."""
-    if collect_device == "gpu":
-        gts_list = all_gather_object_gpu(gts, pl_module)
-    elif collect_device == "cpu":
-        gts_list = all_gather_object_cpu(gts, pl_module)
-    else:
-        raise ValueError(f"Collect device {collect_device} unknown.")
-
-    if gts_list is None:
-        return None
-
-    return list(itertools.chain(*gts_list))
-
-
 # reference:
 # https://github.com/facebookresearch/detectron2/blob/7f8f29deae278b75625872c8a0b00b74129446ac/detectron2/data/common.py#L109
 class DatasetFromList(torch.utils.data.Dataset):  # type: ignore

@@ -9,8 +9,8 @@ from pytorch_lightning.callbacks import Callback
 from torch.utils import data
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.engine.callbacks.evaluator import DefaultEvaluatorCallback
-from vis4d.engine.callbacks.writer import DefaultWriterCallback
+from vis4d.pl.callbacks.evaluator import DefaultEvaluatorCallback
+from vis4d.pl.callbacks.writer import DefaultWriterCallback
 
 from ..common_to_revise.registry import RegistryHolder
 from ..common_to_revise.utils import get_world_size

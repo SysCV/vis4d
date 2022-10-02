@@ -188,6 +188,7 @@ class COCO(BaseDataset, CacheMappingMixin):
             DataKeys.metadata: {
                 "original_hw": img.shape[-2:],
                 "input_hw": None,
+                "coco_image_id": data["img"]["id"],
             },
             DataKeys.images: img,
             DataKeys.boxes2d: box_tensor,

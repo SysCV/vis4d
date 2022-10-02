@@ -55,7 +55,7 @@ class BaseVideoDataset(BaseDataset):
 
     @property
     def video_to_indices(self) -> Dict[str, int]:
-        """This function should group all dataset sampled indices by their
+        """This function should group all dataset sample indices (int) by their
         associated video ID (str).
 
         Returns:

@@ -9,8 +9,9 @@ from vis4d.common_to_revise.detect_data import DetectDataModule
 from vis4d.common_to_revise.optimizers import sgd, step_schedule
 from vis4d.data.datasets.base import DataKeys, DictData
 from vis4d.data.datasets.coco import coco_det_map
-from vis4d.engine import BaseCLI
+from vis4d.pl import BaseCLI
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.box.util import bbox_postprocess
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     FRCNNOut,
@@ -18,18 +19,12 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
-from vis4d.op.detect.faster_rcnn_test import normalize
 from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim import DefaultOptimizer
-from vis4d.struct_to_revise import (
-    Boxes2D,
-    InputSample,
-    LossesType,
-    ModelOutput,
-)
+from vis4d.struct_to_revise import InputSample, LossesType, ModelOutput
 
 
 class FasterRCNN(nn.Module):
@@ -119,18 +114,11 @@ class FasterRCNN(nn.Module):
             *outs.roi, outs.proposals.boxes, images_hw
         )
 
-        ### boilerplate interfacing code
-        dets = Boxes2D(
-            torch.cat([boxes[0], scores[0].unsqueeze(-1)], -1),
-            class_ids[0],
+        for i, boxs in enumerate(boxes):
+            boxes[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
+        output = dict(
+            boxes2d=boxes, boxes2d_scores=scores, boxes2d_classes=class_ids
         )
-        dets.postprocess(original_hw[0], images_hw[0])
-        output = {
-            "detect": [
-                dets.to_scalabel({i: s for s, i in coco_det_map.items()})
-            ]
-        }
-        ######
         return output
 
 

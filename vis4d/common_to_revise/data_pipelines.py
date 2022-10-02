@@ -21,7 +21,7 @@ from vis4d.data.transforms.base import (
     batch_transform_pipeline,
     transform_pipeline,
 )
-from vis4d.engine.data import BaseDataModule
+from vis4d.pl.data import BaseDataModule
 from vis4d.struct_to_revise import ArgsType
 
 
@@ -79,18 +79,18 @@ def default_test(
     datasets: Union[Dataset, List[Dataset]],
     batch_size: int,
     im_hw: Tuple[int, int],
-) -> DataLoader:
+) -> List[DataLoader]:
     """Generate default train data pipeline."""
     preprocess_fn = transform_pipeline(
-        [Resize(im_hw, keep_ratio=True), Normalize()]
+        [Resize(im_hw, keep_ratio=True, align_long_edge=True), Normalize()]
     )
     batchprocess_fn = batch_transform_pipeline([Pad()])
 
     datapipe = DataPipe(datasets, preprocess_fn)
-    test_loader = build_inference_dataloaders(
+    test_loaders = build_inference_dataloaders(
         datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
     )
-    return test_loader
+    return test_loaders
 
 
 # TODO revise

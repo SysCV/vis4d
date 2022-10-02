@@ -7,7 +7,7 @@ from torch import nn
 from vis4d.common_to_revise.datasets import bdd100k_track_map, coco_det_map
 from vis4d.common_to_revise.detect_data import InsSegDataModule
 from vis4d.common_to_revise.optimizers import sgd, step_schedule
-from vis4d.engine import BaseCLI
+from vis4d.pl import BaseCLI
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
