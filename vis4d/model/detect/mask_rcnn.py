@@ -1,23 +1,21 @@
 """Mask RCNN model implementation and runtime."""
-from typing import List, Optional, Union
+from typing import Optional, Union
 
-import torch
 from torch import nn
 
-from vis4d.common_to_revise.datasets import bdd100k_track_map, coco_det_map
+from vis4d.common_to_revise.datasets import bdd100k_track_map
 from vis4d.common_to_revise.detect_data import InsSegDataModule
 from vis4d.common_to_revise.optimizers import sgd, step_schedule
 from vis4d.data.datasets.base import DataKeys, DictData
+from vis4d.data.datasets.coco import coco_det_map
 from vis4d.op.base.resnet import ResNet
-from vis4d.op.box.util import bbox_postprocess
+from vis4d.op.box.util import apply_mask, bbox_postprocess
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
-    FRCNNOut,
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
-from vis4d.op.detect.faster_rcnn_test import normalize
 from vis4d.op.detect.rcnn import (
     Det2Mask,
     DetOut,
@@ -27,18 +25,27 @@ from vis4d.op.detect.rcnn import (
     RoI2Det,
 )
 from vis4d.op.detect.rpn import RPNLoss
-from vis4d.op.detect.util import apply_mask
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim import DefaultOptimizer
 from vis4d.pl import BaseCLI
-from vis4d.struct_to_revise import (
-    Boxes2D,
-    InputSample,
-    InstanceMasks,
-    LossesType,
-    ModelOutput,
-)
+from vis4d.struct_to_revise import LossesType, ModelOutput
+
+REV_KEYS = [
+    (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
+    (r"^roi_head.bbox_head\.", "roi_head."),
+    (r"^roi_head.mask_head\.", "mask_head."),
+    (r"^convs\.", "mask_head.convs."),
+    (r"^upsample\.", "mask_head.upsample."),
+    (r"^conv_logits\.", "mask_head.conv_logits."),
+    (r"^roi_head\.", "faster_rcnn_heads.roi_head."),
+    (r"^rpn_head\.", "faster_rcnn_heads.rpn_head."),
+    (r"^backbone\.", "backbone.body."),
+    (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
+    (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
+    (r"\.conv.weight", ".weight"),
+    (r"\.conv.bias", ".bias"),
+]
 
 
 class MaskRCNN(nn.Module):
@@ -68,23 +75,16 @@ class MaskRCNN(nn.Module):
         self.det2mask = Det2Mask()
 
         if weights == "mmdet":
-            from vis4d.op.detect.mask_rcnn_test import MASK_REV_KEYS, REV_KEYS
-
             weights = (
                 "mmdet://mask_rcnn/mask_rcnn_r50_fpn_2x_coco/"
                 "mask_rcnn_r50_fpn_2x_coco_bbox_mAP-0.392__segm_mAP-0.354_"
                 "20200505_003907-3e542a40.pth"
             )
-            load_model_checkpoint(self.backbone, weights, REV_KEYS)
-            load_model_checkpoint(self.fpn, weights, REV_KEYS)
-            load_model_checkpoint(self.faster_rcnn_heads, weights, REV_KEYS)
-            load_model_checkpoint(self.mask_head, weights, MASK_REV_KEYS)
+            load_model_checkpoint(self, weights, REV_KEYS)
         elif weights is not None:
             load_model_checkpoint(self, weights)
 
-    def forward(
-        self, data: List[InputSample]
-    ) -> Union[LossesType, ModelOutput]:
+    def forward(self, data: DictData) -> Union[LossesType, ModelOutput]:
         """Forward."""
         if self.training:
             return self._forward_train(data)
@@ -97,7 +97,7 @@ class MaskRCNN(nn.Module):
             data[DataKeys.metadata]["input_hw"],
             data[DataKeys.boxes2d],
             data[DataKeys.boxes2d_classes],
-            data[DataKeys.instance_masks],
+            data[DataKeys.masks],
         )
 
         features = self.fpn(self.backbone(images))
@@ -135,17 +135,9 @@ class MaskRCNN(nn.Module):
 
     def _forward_test(self, data: DictData) -> ModelOutput:
         """Forward testing stage."""
-        ### boilerplate interfacing code
-        data = data[0]
-        images = normalize(data.images.tensor)
-        original_wh = (
-            data.metadata[0].size.width,
-            data.metadata[0].size.height,
-        )
-        output_wh = data.images.image_sizes[0]
-        images_hw = [(output_wh[1], output_wh[0])]
-        orig_wh = [(original_wh[1], original_wh[0])]
-        ######
+        images = data[DataKeys.images]
+        original_hw = data[DataKeys.metadata]["original_hw"]
+        images_hw = data[DataKeys.metadata]["input_hw"]
 
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
@@ -153,34 +145,21 @@ class MaskRCNN(nn.Module):
             *outs.roi, outs.proposals.boxes, images_hw
         )
         mask_outs = self.mask_head(features[2:-1], boxes)
-        post_dets = DetOut(
-            boxes=bbox_postprocess(boxes, orig_wh, images_hw),
-            scores=scores,
-            class_ids=class_ids,
-        )
+        for i, boxs in enumerate(boxes):
+            boxes[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
+        post_dets = DetOut(boxes=boxes, scores=scores, class_ids=class_ids)
         masks = self.det2mask(
             mask_outs=mask_outs.mask_pred.sigmoid(),
             dets=post_dets,
-            images_hw=orig_wh,
+            images_hw=original_hw,
         )
 
-        ### boilerplate interfacing code
-        dets = Boxes2D(
-            torch.cat([boxes[0], scores[0].unsqueeze(-1)], -1),
-            class_ids[0],
+        output = dict(
+            boxes2d=boxes,
+            boxes2d_scores=scores,
+            boxes2d_classes=class_ids,
+            masks=masks,
         )
-        mask_pred = InstanceMasks(
-            masks.masks[0], class_ids[0], score=scores[0], detections=dets
-        )
-        output = {
-            "detect": [
-                dets.to_scalabel({i: s for s, i in coco_det_map.items()})
-            ],
-            "ins_seg": [
-                mask_pred.to_scalabel({i: s for s, i in coco_det_map.items()})
-            ],
-        }
-        ######
         return output
 
 

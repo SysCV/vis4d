@@ -94,7 +94,7 @@ class CacheMappingMixin:
             data_list = generate_map_func()
 
         dataset = DatasetFromList(data_list)
-        print(f"Loading {self.__repr__} takes {timer.time():.2f} seconds.")
+        print(f"Loading {self.__repr__()} takes {timer.time():.2f} seconds.")
         return dataset
 
 

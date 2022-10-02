@@ -10,7 +10,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 from vis4d.common_to_revise.utils.distributed import all_gather_object_cpu
 from vis4d.data.datasets.base import DictData
-from vis4d.eval.base import BaseEvaluator
+from vis4d.eval.base import Evaluator
 from vis4d.struct_to_revise import MetricLogs, ModelOutput
 
 logger = logging.getLogger("pytorch_lightning")
@@ -26,7 +26,7 @@ class DefaultEvaluatorCallback(Callback):
     def __init__(
         self,
         dataloader_idx: int,
-        evaluator: BaseEvaluator,
+        evaluator: Evaluator,
         output_dir: Optional[str] = None,
         collect: str = "cpu",
     ) -> None:

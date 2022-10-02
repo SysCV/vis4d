@@ -1,25 +1,17 @@
 """Mask RCNN coco training example."""
 import argparse
-import copy
 import warnings
 from time import perf_counter
 from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import nn, optim
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from vis4d.common_to_revise.data_pipelines import default_test, default_train
-from vis4d.common_to_revise.datasets import coco_train, coco_val
 from vis4d.data.datasets.base import DataKeys
-from vis4d.data.datasets.coco import COCO, coco_det_map
+from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
-from vis4d.data_to_revise import (
-    BaseDatasetHandler,
-    BaseSampleMapper,
-    ScalabelDataset,
-)
 from vis4d.eval.coco import COCOEvaluator
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.util import apply_mask, bbox_postprocess
@@ -29,7 +21,6 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
-from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
 from vis4d.op.detect.rcnn import (
     Det2Mask,
     DetOut,
@@ -45,23 +36,8 @@ from vis4d.op.detect.rpn import RPNLoss, RPNLosses
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim.warmup import LinearLRWarmup
-from vis4d.struct_to_revise import Boxes2D, InputSample, InstanceMasks
 
-REV_KEYS = [
-    (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
-    (r"^roi_head.bbox_head\.", "roi_head."),
-    (r"^roi_head.mask_head\.", "mask_head."),
-    (r"^convs\.", "mask_head.convs."),
-    (r"^upsample\.", "mask_head.upsample."),
-    (r"^conv_logits\.", "mask_head.conv_logits."),
-    (r"^roi_head\.", "faster_rcnn_heads.roi_head."),
-    (r"^rpn_head\.", "faster_rcnn_heads.rpn_head."),
-    (r"^backbone\.", "backbone.body."),
-    (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
-    (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
-    (r"\.conv.weight", ".weight"),
-    (r"\.conv.bias", ".bias"),
-]
+from .mask_rcnn import REV_KEYS
 
 warnings.filterwarnings("ignore")
 
@@ -195,9 +171,13 @@ warmup = LinearLRWarmup(0.001, 500)
 ## setup test dataset
 data_root = "data/COCO"
 test_loader = default_test(
-    COCO(data_root, "val2017", HDF5Backend()), 1, test_resolution
+    COCO(
+        data_root, with_mask=True, split="val2017", data_backend=HDF5Backend()
+    ),
+    1,
+    test_resolution,
 )
-test_eval = COCOEvaluator(data_root)
+test_evals = [COCOEvaluator(data_root), COCOEvaluator(data_root, "segm")]
 
 
 @torch.no_grad()
@@ -213,23 +193,31 @@ def validation_loop(model):
         dets, masks = mask_rcnn(images, images_hw, original_hw=original_hw)
         boxes, scores, class_ids = dets.boxes, dets.scores, dets.class_ids
 
-        test_eval.process(
-            data,
-            {
-                "boxes2d": boxes,
-                "boxes2d_scores": scores,
-                "boxes2d_classes": class_ids,
-            },
-        )
+        for test_eval in test_evals:
+            test_eval.process(
+                data,
+                {
+                    "boxes2d": boxes,
+                    "boxes2d_scores": scores,
+                    "boxes2d_classes": class_ids,
+                    "masks": masks.masks,
+                },
+            )
 
-    _, log_str = test_eval.evaluate("COCO_AP")
-    print(log_str)
+    for test_eval in test_evals:
+        _, log_str = test_eval.evaluate("COCO_AP")
+        print(log_str)
 
 
 def training_loop(model):
     """Training loop."""
     train_loader = default_train(
-        COCO(data_root, "train2017", HDF5Backend()),
+        COCO(
+            data_root,
+            with_mask=True,
+            split="train2017",
+            data_backend=HDF5Backend(),
+        ),
         batch_size,
         train_resolution,
     )
@@ -251,7 +239,7 @@ def training_loop(model):
 
             # forward + backward + optimize
             rpn_losses, rcnn_losses, mask_losses = model(
-                normalize(inputs), inputs_hw, gt_boxes, gt_class_ids, gt_masks
+                inputs, inputs_hw, gt_boxes, gt_class_ids, gt_masks
             )
             total_loss = sum((*rpn_losses, *rcnn_losses, *mask_losses))
             total_loss.backward()
@@ -316,7 +304,7 @@ if __name__ == "__main__":
                 "mask_rcnn_r50_fpn_2x_coco_bbox_mAP-0.392__segm_mAP-0.354_"
                 "20200505_003907-3e542a40.pth"
             )
-            load_model_checkpoint(mask_rcnn, weights, REV_KEYS)
+            load_model_checkpoint(mask_rcnn, weights, rev_keys=REV_KEYS)
         else:
             ckpt = torch.load(args.ckpt)
             mask_rcnn.load_state_dict(ckpt)

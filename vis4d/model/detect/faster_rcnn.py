@@ -24,7 +24,7 @@ from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim import DefaultOptimizer
 from vis4d.pl import BaseCLI
-from vis4d.struct_to_revise import InputSample, LossesType, ModelOutput
+from vis4d.struct_to_revise import LossesType, ModelOutput
 
 
 class FasterRCNN(nn.Module):
@@ -70,9 +70,7 @@ class FasterRCNN(nn.Module):
             _, topk_indices = torch.topk(scores, topk)
             imshow_bboxes(im, boxes[topk_indices])
 
-    def forward(
-        self, data: List[InputSample]
-    ) -> Union[LossesType, ModelOutput]:
+    def forward(self, data: DictData) -> Union[LossesType, ModelOutput]:
         """Forward."""
         if self.training:
             return self._forward_train(data)
@@ -157,7 +155,4 @@ if __name__ == "__main__":
     """Example:
 
     python -m vis4d.model.detect.faster_rcnn fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8"""
-    DetectCLI(
-        model_class=setup_model,
-        datamodule_class=DetectDataModule,
-    )
+    DetectCLI(model_class=setup_model, datamodule_class=DetectDataModule)

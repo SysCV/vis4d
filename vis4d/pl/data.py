@@ -7,7 +7,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from torch.utils import data
 
-from vis4d.eval.base import BaseEvaluator
+from vis4d.eval.base import Evaluator
 from vis4d.pl.callbacks.evaluator import DefaultEvaluatorCallback
 from vis4d.pl.callbacks.writer import DefaultWriterCallback
 
@@ -85,7 +85,7 @@ class BaseDataModule(pl.LightningDataModule):
         """Return dataloader for training."""
         raise NotImplementedError
 
-    def evaluators(self) -> List[BaseEvaluator]:
+    def evaluators(self) -> List[Evaluator]:
         """Define Evaluators used in test stage."""
         return []
 

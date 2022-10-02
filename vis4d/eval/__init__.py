@@ -1,6 +1,6 @@
 """Evaluation package."""
 
-from .base import BaseEvaluator
+from .base import Evaluator
 from .coco import COCOEvaluator
 
-__all__ = ["BaseEvaluator", "COCOEvaluator"]
+__all__ = ["Evaluator", "COCOEvaluator"]
