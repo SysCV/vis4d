@@ -2,6 +2,7 @@
 import contextlib
 import io
 import os
+from tarfile import SUPPORTED_TYPES
 from typing import List, Optional
 
 import numpy as np
@@ -13,10 +14,10 @@ from vis4d.data.io.file import FileBackend
 from vis4d.data_to_revise.utils import im_decode
 from vis4d.struct_to_revise import DictStrAny
 
-from .base import BaseDataset, DataKeys, DictData
+from .base import BaseDataset, MultitaskMixin, DataKeys, DictData
 from .utils import CacheMappingMixin
 
-# COCO
+# COCO detection category mapping
 coco_det_map = {
     "person": 0,
     "bicycle": 1,
@@ -100,20 +101,52 @@ coco_det_map = {
     "toothbrush": 79,
 }
 
+# COCO segmentation categories
+coco_seg_set = [
+    0,
+    5,
+    2,
+    16,
+    9,
+    44,
+    6,
+    3,
+    17,
+    62,
+    21,
+    67,
+    18,
+    19,
+    4,
+    1,
+    64,
+    20,
+    63,
+    7,
+    72,
+]
 
-class COCO(BaseDataset, CacheMappingMixin):
+
+class COCO(BaseDataset, MultitaskMixin, CacheMappingMixin):
     """COCO dataset class."""
+
+    _DESCRIPTION = """COCO is a large-scale object detection, segmentation, and
+    captioning dataset."""
+    _TASKS = ["detect", "sem_seg"]
+    _URL = "http://cocodataset.org/#home"
 
     def __init__(
         self,
         data_root: str,
         split: str = "train2017",
+        tasks_to_load: List[str] = ["detect"],
         data_backend: Optional[BaseDataBackend] = None,
     ) -> None:
         super().__init__()
 
         self.data_root = data_root
         self.split = split
+        self.tasks_to_load = self.validated_tasks(tasks_to_load)
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
         )
@@ -139,6 +172,10 @@ class COCO(BaseDataset, CacheMappingMixin):
         with contextlib.redirect_stdout(io.StringIO()):
             coco_api = COCOAPI(annotation_file)
 
+        filtering_sem_seg = False
+        if "sem_seg" in self.tasks_to_load:
+            filtering_sem_seg = True
+
         cat_ids = sorted(coco_api.getCatIds())
         cats_map = {c["id"]: c["name"] for c in coco_api.loadCats(cat_ids)}
 
@@ -155,7 +192,7 @@ class COCO(BaseDataset, CacheMappingMixin):
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, idx: int) -> DictData:
+    def _get_detect_item(self, idx) -> DictData:
         """Transform coco sample to vis4d input format.
 
         Returns:
@@ -194,3 +231,14 @@ class COCO(BaseDataset, CacheMappingMixin):
             DataKeys.boxes2d: box_tensor,
             DataKeys.boxes2d_classes: torch.tensor(classes, dtype=torch.long),
         }
+
+    def __getitem__(self, idx: int) -> DictData:
+        """Transform coco sample to vis4d input format."""
+        input_sample = {}
+        for task in self.tasks_to_load:
+            if task == "detect":
+                sample = self._get_detect_item(idx)
+            elif task == "sem_seg":
+                sample = self._get_sem_seg_item(idx)
+            input_sample.update(sample)
+        return input_sample
