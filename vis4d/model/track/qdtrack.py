@@ -1,34 +1,9 @@
 """Quasi-dense instance similarity learning model."""
-import argparse
-import copy
-import warnings
-from time import perf_counter
 from typing import Dict, List, Optional, Tuple
 
 import torch
-import torch.optim as optim
 from torch import nn
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
-from vis4d.common_to_revise.bbox.matchers import MaxIoUMatcher
-from vis4d.common_to_revise.bbox.samplers import (
-    CombinedSampler,
-    match_and_sample_proposals,
-)
-from vis4d.common_to_revise.data_pipelines import default
-from vis4d.common_to_revise.datasets import (
-    bdd100k_det_train,
-    bdd100k_track_map,
-    bdd100k_track_train,
-    bdd100k_track_val,
-)
-from vis4d.data_to_revise import (
-    BaseDatasetHandler,
-    BaseReferenceSampler,
-    BaseSampleMapper,
-    ScalabelDataset,
-)
 from vis4d.data_to_revise.transforms import Resize
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.detect.faster_rcnn import (
@@ -49,7 +24,6 @@ from vis4d.op.track.qdtrack import (
     QDTrackInstanceSimilarityLoss,
 )
 from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
-from vis4d.struct_to_revise import Boxes2D, InputSample
 
 REV_KEYS = [
     (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),
@@ -67,16 +41,6 @@ REV_KEYS = [
     ("\.conv.weight", ".weight"),
     ("\.conv.bias", ".bias"),
 ]
-
-warnings.filterwarnings("ignore")
-
-log_step = 100
-num_epochs = 12
-batch_size = 8
-learning_rate = 0.02 / 16 * batch_size
-train_resolution = (720, 1280)
-test_resolution = (720, 1280)
-device = torch.device("cuda:7")
 
 
 class QDTrack(nn.Module):
@@ -328,181 +292,200 @@ class QDTrackModel(nn.Module):
         return outs
 
 
-## setup model
-qdtrack = QDTrackModel()
-qdtrack.to(device)
-
-optimizer = optim.SGD(qdtrack.parameters(), lr=learning_rate, momentum=0.9)
-scheduler = optim.lr_scheduler.MultiStepLR(
-    optimizer, milestones=[8, 11], gamma=0.1
-)
-
-## setup datasets
-train_sample_mapper = BaseSampleMapper(skip_empty_samples=True)
-train_sample_mapper.setup_categories(bdd100k_track_map)
-train_transforms = default(train_resolution)
-ref_sampler = BaseReferenceSampler(
-    scope=3, num_ref_imgs=1, skip_nomatch_samples=True
-)
-
-train_data = BaseDatasetHandler(
-    [
-        ScalabelDataset(bdd100k_det_train(), True, train_sample_mapper),
-        ScalabelDataset(
-            bdd100k_track_train(), True, train_sample_mapper, ref_sampler
-        ),
-    ],
-    clip_bboxes_to_image=True,
-    transformations=train_transforms,
-)
-train_loader = DataLoader(
-    train_data,
-    batch_size=batch_size,
-    shuffle=True,
-    collate_fn=identity_collate,
-    num_workers=batch_size // 2,
-)
-
-val_loader = bdd100k_track_val()
-test_sample_mapper = BaseSampleMapper()
-test_sample_mapper.setup_categories(bdd100k_track_map)
-test_transforms = [Resize(shape=test_resolution, keep_ratio=True)]
-test_data = BaseDatasetHandler(
-    [ScalabelDataset(val_loader, False, test_sample_mapper)],
-    transformations=test_transforms,
-)
-test_loader = DataLoader(
-    test_data,
-    batch_size=1,
-    shuffle=False,
-    collate_fn=identity_collate,
-    num_workers=2,
-)
-
-## validation loop
-@torch.no_grad()
-def validation_loop(model):
-    """Validate current model with test dataset."""
-    model.eval()
-    gts = []
-    preds = []
-    class_ids_to_name = {i: s for s, i in bdd100k_track_map.items()}
-    print("Running validation...")
-    for data in tqdm(test_loader):
-        data = InputSample.cat(data[0], device)
-        images = data.images.tensor
-        output_wh = data.images.image_sizes
-        frame_ids = [metadata.frameIndex for metadata in data.metadata]
-
-        outs = model(
-            normalize(images), [(h, w) for w, h in output_wh], frame_ids
-        )
-
-        for i, (metadata, out, wh) in enumerate(
-            zip(data.metadata, outs, output_wh)
-        ):
-            track_ids, boxes, scores, class_ids, _ = out
-            # from vis4d.vis.image import imshow_bboxes
-            # import matplotlib.pyplot as plt
-            # img = imshow_bboxes(images[i], boxes, scores, class_ids, track_ids)
-            # import os
-            # os.makedirs(f"example/{metadata.videoName}/", exist_ok=True)
-            # plt.imsave(f"example/{metadata.videoName}/{str(metadata.frameIndex).zfill(5)}.jpg", img)
-            # postprocess for eval
-            dets = Boxes2D(
-                torch.cat([boxes, scores.unsqueeze(-1)], -1),
-                class_ids=class_ids,
-                track_ids=track_ids,
-            )
-            dets.postprocess((metadata.size.width, metadata.size.height), wh)
-
-            prediction = copy.deepcopy(metadata)
-            prediction.labels = dets.to_scalabel(class_ids_to_name)
-            preds.append(prediction)
-            gts.append(copy.deepcopy(metadata))
-
-    _, log_str = val_loader.evaluate("track", preds, gts)
-    print(log_str)
 
 
-## training loop
-def training_loop(model):
-    """Training loop."""
-    running_losses = {}
-    for epoch in range(num_epochs):
-        model.train()
-        for i, data in enumerate(train_loader):
-            data = InputSample.cat(data[0], device)
+class QDTrackCLI(BaseCLI):
+    """Detect CLI."""
 
-            tic = perf_counter()
-            inputs, inputs_hw, gt_boxes, gt_class_ids = (
-                data.images.tensor,
-                [(wh[1], wh[0]) for wh in data.images.image_sizes],
-                [x.boxes for x in data.targets.boxes2d],
-                [x.class_ids for x in data.targets.boxes2d],
-            )
-
-            # zero the parameter gradients
-            optimizer.zero_grad()
-
-            # forward + backward + optimize
-            rpn_losses, rcnn_losses, outputs = model(
-                normalize(inputs), inputs_hw, gt_boxes, gt_class_ids
-            )
-            total_loss = sum((*rpn_losses, *rcnn_losses))
-            total_loss.backward()
-            optimizer.step()
-            toc = perf_counter()
-
-            # print statistics
-            losses = dict(
-                time=toc - tic,
-                loss=total_loss,
-                **rpn_losses._asdict(),
-                **rcnn_losses._asdict(),
-            )
-            for k, v in losses.items():
-                if k in running_losses:
-                    running_losses[k] += v
-                else:
-                    running_losses[k] = v
-            if i % log_step == (log_step - 1):
-                # model.visualize_proposals(inputs, outputs)
-                log_str = f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] "
-                for k, v in running_losses.items():
-                    log_str += f"{k}: {v / log_step:.3f}, "
-                print(log_str.rstrip(", "))
-                running_losses = {}
-
-        scheduler.step()
-        torch.save(
-            model.state_dict(),
-            f"vis4d-workspace/qdtrack_epoch_{epoch + 1}.pt",
-        )
-        validation_loop(model)
-    print("training done.")
+    def add_arguments_to_parser(self, parser):
+        """Link data and model experiment argument."""
+        parser.link_arguments("data.experiment", "model.experiment")
+        parser.link_arguments("model.max_epochs", "trainer.max_epochs")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="qdtrack bdd train/eval.")
-    parser.add_argument(
-        "-c", "--ckpt", default=None, help="path of model to eval"
-    )
-    args = parser.parse_args()
-    if args.ckpt is None:
-        training_loop(qdtrack)
-    else:
-        if args.ckpt == "pretrained":
-            from mmcv.runner.checkpoint import load_checkpoint
+    """Example:
 
-            weights = "./qdtrack_r50_65point7.ckpt"
-            load_checkpoint(qdtrack.backbone, weights, revise_keys=REV_KEYS)
-            load_checkpoint(qdtrack.fpn, weights, revise_keys=REV_KEYS)
-            load_checkpoint(
-                qdtrack.faster_rcnn_heads, weights, revise_keys=REV_KEYS
-            )
-            load_checkpoint(qdtrack.qdtracker, weights, revise_keys=REV_KEYS)
-        else:
-            ckpt = torch.load(args.ckpt)
-            qdtrack.load_state_dict(ckpt)
-        validation_loop(qdtrack)
+    python -m vis4d.model.detect.faster_rcnn fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8"""
+    DetectCLI(model_class=setup_model, datamodule_class=DetectDataModule)
+
+
+
+# ## setup model
+# qdtrack = QDTrackModel()
+# qdtrack.to(device)
+
+# optimizer = optim.SGD(qdtrack.parameters(), lr=learning_rate, momentum=0.9)
+# scheduler = optim.lr_scheduler.MultiStepLR(
+#     optimizer, milestones=[8, 11], gamma=0.1
+# )
+
+# ## setup datasets
+# train_sample_mapper = BaseSampleMapper(skip_empty_samples=True)
+# train_sample_mapper.setup_categories(bdd100k_track_map)
+# train_transforms = default(train_resolution)
+# ref_sampler = BaseReferenceSampler(
+#     scope=3, num_ref_imgs=1, skip_nomatch_samples=True
+# )
+
+# train_data = BaseDatasetHandler(
+#     [
+#         ScalabelDataset(bdd100k_det_train(), True, train_sample_mapper),
+#         ScalabelDataset(
+#             bdd100k_track_train(), True, train_sample_mapper, ref_sampler
+#         ),
+#     ],
+#     clip_bboxes_to_image=True,
+#     transformations=train_transforms,
+# )
+# train_loader = DataLoader(
+#     train_data,
+#     batch_size=batch_size,
+#     shuffle=True,
+#     collate_fn=identity_collate,
+#     num_workers=batch_size // 2,
+# )
+
+# val_loader = bdd100k_track_val()
+# test_sample_mapper = BaseSampleMapper()
+# test_sample_mapper.setup_categories(bdd100k_track_map)
+# test_transforms = [Resize(shape=test_resolution, keep_ratio=True)]
+# test_data = BaseDatasetHandler(
+#     [ScalabelDataset(val_loader, False, test_sample_mapper)],
+#     transformations=test_transforms,
+# )
+# test_loader = DataLoader(
+#     test_data,
+#     batch_size=1,
+#     shuffle=False,
+#     collate_fn=identity_collate,
+#     num_workers=2,
+# )
+
+# ## validation loop
+# @torch.no_grad()
+# def validation_loop(model):
+#     """Validate current model with test dataset."""
+#     model.eval()
+#     gts = []
+#     preds = []
+#     class_ids_to_name = {i: s for s, i in bdd100k_track_map.items()}
+#     print("Running validation...")
+#     for data in tqdm(test_loader):
+#         data = InputSample.cat(data[0], device)
+#         images = data.images.tensor
+#         output_wh = data.images.image_sizes
+#         frame_ids = [metadata.frameIndex for metadata in data.metadata]
+
+#         outs = model(
+#             normalize(images), [(h, w) for w, h in output_wh], frame_ids
+#         )
+
+#         for i, (metadata, out, wh) in enumerate(
+#             zip(data.metadata, outs, output_wh)
+#         ):
+#             track_ids, boxes, scores, class_ids, _ = out
+#             # from vis4d.vis.image import imshow_bboxes
+#             # import matplotlib.pyplot as plt
+#             # img = imshow_bboxes(images[i], boxes, scores, class_ids, track_ids)
+#             # import os
+#             # os.makedirs(f"example/{metadata.videoName}/", exist_ok=True)
+#             # plt.imsave(f"example/{metadata.videoName}/{str(metadata.frameIndex).zfill(5)}.jpg", img)
+#             # postprocess for eval
+#             dets = Boxes2D(
+#                 torch.cat([boxes, scores.unsqueeze(-1)], -1),
+#                 class_ids=class_ids,
+#                 track_ids=track_ids,
+#             )
+#             dets.postprocess((metadata.size.width, metadata.size.height), wh)
+
+#             prediction = copy.deepcopy(metadata)
+#             prediction.labels = dets.to_scalabel(class_ids_to_name)
+#             preds.append(prediction)
+#             gts.append(copy.deepcopy(metadata))
+
+#     _, log_str = val_loader.evaluate("track", preds, gts)
+#     print(log_str)
+
+
+# ## training loop
+# def training_loop(model):
+#     """Training loop."""
+#     running_losses = {}
+#     for epoch in range(num_epochs):
+#         model.train()
+#         for i, data in enumerate(train_loader):
+#             data = InputSample.cat(data[0], device)
+
+#             tic = perf_counter()
+#             inputs, inputs_hw, gt_boxes, gt_class_ids = (
+#                 data.images.tensor,
+#                 [(wh[1], wh[0]) for wh in data.images.image_sizes],
+#                 [x.boxes for x in data.targets.boxes2d],
+#                 [x.class_ids for x in data.targets.boxes2d],
+#             )
+
+#             # zero the parameter gradients
+#             optimizer.zero_grad()
+
+#             # forward + backward + optimize
+#             rpn_losses, rcnn_losses, outputs = model(
+#                 normalize(inputs), inputs_hw, gt_boxes, gt_class_ids
+#             )
+#             total_loss = sum((*rpn_losses, *rcnn_losses))
+#             total_loss.backward()
+#             optimizer.step()
+#             toc = perf_counter()
+
+#             # print statistics
+#             losses = dict(
+#                 time=toc - tic,
+#                 loss=total_loss,
+#                 **rpn_losses._asdict(),
+#                 **rcnn_losses._asdict(),
+#             )
+#             for k, v in losses.items():
+#                 if k in running_losses:
+#                     running_losses[k] += v
+#                 else:
+#                     running_losses[k] = v
+#             if i % log_step == (log_step - 1):
+#                 # model.visualize_proposals(inputs, outputs)
+#                 log_str = f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] "
+#                 for k, v in running_losses.items():
+#                     log_str += f"{k}: {v / log_step:.3f}, "
+#                 print(log_str.rstrip(", "))
+#                 running_losses = {}
+
+#         scheduler.step()
+#         torch.save(
+#             model.state_dict(),
+#             f"vis4d-workspace/qdtrack_epoch_{epoch + 1}.pt",
+#         )
+#         validation_loop(model)
+#     print("training done.")
+
+
+# if __name__ == "__main__":
+#     parser = argparse.ArgumentParser(description="qdtrack bdd train/eval.")
+#     parser.add_argument(
+#         "-c", "--ckpt", default=None, help="path of model to eval"
+#     )
+#     args = parser.parse_args()
+#     if args.ckpt is None:
+#         training_loop(qdtrack)
+#     else:
+#         if args.ckpt == "pretrained":
+#             from mmcv.runner.checkpoint import load_checkpoint
+
+#             weights = "./qdtrack_r50_65point7.ckpt"
+#             load_checkpoint(qdtrack.backbone, weights, revise_keys=REV_KEYS)
+#             load_checkpoint(qdtrack.fpn, weights, revise_keys=REV_KEYS)
+#             load_checkpoint(
+#                 qdtrack.faster_rcnn_heads, weights, revise_keys=REV_KEYS
+#             )
+#             load_checkpoint(qdtrack.qdtracker, weights, revise_keys=REV_KEYS)
+#         else:
+#             ckpt = torch.load(args.ckpt)
+#             qdtrack.load_state_dict(ckpt)
+#         validation_loop(qdtrack)
