@@ -107,7 +107,7 @@ def transform_pipeline(
     """Compose transforms into single function."""
 
     def transform(data: DictData) -> DictData:
-        params = []
+        params, param = [], {}
         for aug in augmentations:
             param = aug.generate_parameters(data)
             params.append(param)
