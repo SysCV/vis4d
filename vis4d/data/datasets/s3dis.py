@@ -32,6 +32,7 @@ S3DIS_LABELS = {
     "clutter": 12,
 }
 
+
 class S3DIS(Dataset, CacheMappingMixin):
     """S3DIS dataset class."""
 

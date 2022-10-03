@@ -2,7 +2,6 @@
 from typing import Callable, List, Tuple
 
 import torch
-
 from torch import Tensor
 
 from vis4d.struct_to_revise import DictStrAny

@@ -1,4 +1,4 @@
-"""Mask RCNN COCO training example."""
+"""RetinaNet COCO training example."""
 import argparse
 import warnings
 from typing import List, Optional, Tuple
@@ -10,12 +10,11 @@ from torch.utils.data import DataLoader
 from vis4d.common_to_revise.data_pipelines import default_test, default_train
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
+from vis4d.eval import COCOEvaluator, Evaluator
+from vis4d.model.detect.retinanet import RetinaNet
+from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.run.test import testing_loop
 from vis4d.run.train import training_loop
-from vis4d.eval import COCOEvaluator, Evaluator
-from vis4d.optim.warmup import LinearLRWarmup
-
-from .mask_rcnn import MaskRCNN
 
 warnings.filterwarnings("ignore")
 
@@ -29,28 +28,18 @@ def get_dataloaders(
     test_resolution = (800, 1333)
     if is_training:
         train_loader = default_train(
-            COCO(
-                data_root,
-                with_mask=True,
-                split="train2017",
-                data_backend=HDF5Backend(),
-            ),
+            COCO(data_root, split="train2017", data_backend=HDF5Backend()),
             batch_size,
             train_resolution,
         )
     else:
         train_loader = None
     test_loader = default_test(
-        COCO(
-            data_root,
-            with_mask=True,
-            split="val2017",
-            data_backend=HDF5Backend(),
-        ),
+        COCO(data_root, split="val2017", data_backend=HDF5Backend()),
         1,
         test_resolution,
     )
-    test_evals = [COCOEvaluator(data_root), COCOEvaluator(data_root, "segm")]
+    test_evals = [COCOEvaluator(data_root)]
     test_metric = "COCO_AP"
     return train_loader, test_loader, test_evals, test_metric
 
@@ -60,10 +49,10 @@ def train(args: argparse.Namespace) -> None:
     # parameters
     log_step = 100
     num_epochs = 12
-    batch_size = 2  # 8
-    learning_rate = 0.02 / 16 * batch_size
+    batch_size = 16 * (args.num_gpus // 8)
+    learning_rate = 0.01 / 16 * batch_size
     device = torch.device("cuda")
-    save_prefix = "vis4d-workspace/test/maskrcnn_coco_epoch"
+    save_prefix = "vis4d-workspace/test/retinanet_coco_epoch"
 
     # data loaders and evaluators
     train_loader, test_loader, test_evals, test_metric = get_dataloaders(
@@ -71,16 +60,16 @@ def train(args: argparse.Namespace) -> None:
     )
 
     # model
-    mask_rcnn = MaskRCNN(num_classes=80)
-    mask_rcnn.to(device)
+    retinanet = RetinaNet(num_classes=80, weights=args.ckpt)
+    retinanet.to(device)
     if args.num_gpus > 1:
-        mask_rcnn = nn.DataParallel(
-            mask_rcnn, device_ids=[device, torch.device("cuda:1")]
+        retinanet = nn.DataParallel(
+            retinanet, device_ids=[device, torch.device("cuda:1")]
         )
 
     # optimization
     optimizer = optim.SGD(
-        mask_rcnn.parameters(),
+        retinanet.parameters(),
         lr=learning_rate,
         momentum=0.9,
         weight_decay=0.0001,
@@ -96,7 +85,7 @@ def train(args: argparse.Namespace) -> None:
         test_loader,
         test_evals,
         test_metric,
-        mask_rcnn,
+        retinanet,
         optimizer,
         scheduler,
         num_epochs,
@@ -116,11 +105,11 @@ def test(args: argparse.Namespace) -> None:
     _, test_loader, test_evals, test_metric = get_dataloaders()
 
     # model
-    mask_rcnn = MaskRCNN(num_classes=80, weights=args.ckpt)
-    mask_rcnn.to(device)
+    retinanet = RetinaNet(num_classes=80, weights=args.ckpt)
+    retinanet.to(device)
 
     # run testing
-    testing_loop(test_loader, test_evals, test_metric, mask_rcnn)
+    testing_loop(test_loader, test_evals, test_metric, retinanet)
 
 
 if __name__ == "__main__":

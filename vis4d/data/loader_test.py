@@ -15,9 +15,9 @@ from .transforms import (
     FilterByCategory,
     Normalize,
     Pad,
+    RandomPointSampler,
     RemapCategory,
     Resize,
-    RandomPointSampler
 )
 from .transforms.base import batch_transform_pipeline, transform_pipeline
 
