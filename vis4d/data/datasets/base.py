@@ -31,7 +31,11 @@ class DataKeys:
     intrinsics = "intrinsics"
     masks = "masks"
     segmentation_mask = "segmentation_mask"
-
+    # 3D Data
+    points3d = "points3d"
+    points3dCenter = "points3d_centerd"
+    colors3d = "colors3d"
+    semantics3d = "semantics3d"
 
 """DictData
 
