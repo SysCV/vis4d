@@ -1,0 +1,1 @@
+python -m vis4d.run.model.fasterrcnn
