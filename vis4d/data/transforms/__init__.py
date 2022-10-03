@@ -12,6 +12,7 @@ from .mask import ConvertInsMasksToSegMask
 from .normalize import Normalize
 from .pad import Pad
 from .resize import Resize
+from .point_sampling import RandomPointSampler, RandomBlockPointSampler, FullCoverageBlockSampler
 
 __all__ = [
     "BaseBatchTransform",
