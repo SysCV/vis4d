@@ -9,7 +9,7 @@ from vis4d.op.box.util import transform_bbox
 from vis4d.struct_to_revise.structures import DictStrAny
 
 from ..datasets.base import DataKeys, DictData
-from .base import BaseTransform
+from .base import Transform
 
 
 def get_resize_shape(
@@ -156,7 +156,7 @@ def get_target_shape(
     return shape
 
 
-class Resize(BaseTransform):
+class Resize(Transform):
     """Resize Augmentation."""
 
     def __init__(

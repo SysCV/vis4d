@@ -1,7 +1,7 @@
 """Transforms."""
 from .base import (
     BaseBatchTransform,
-    BaseTransform,
+    Transform,
     RandomApply,
     batch_transform_pipeline,
     transform_pipeline,
@@ -15,7 +15,7 @@ from .resize import Resize
 
 __all__ = [
     "BaseBatchTransform",
-    "BaseTransform",
+    "Transform",
     "transform_pipeline",
     "batch_transform_pipeline",
     "RandomApply",

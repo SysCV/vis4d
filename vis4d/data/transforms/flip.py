@@ -4,8 +4,9 @@ from typing import Tuple
 import torch
 import numpy as np
 from vis4d.data.datasets.base import DataKeys, DictData
-from vis4d.data.transforms.base import BaseTransform
+from vis4d.data.transforms.base import Transform
 from vis4d.op.geometry.rotation import normalize_angle
+from vis4d.data.transforms.base import Transform
 from vis4d.struct_to_revise import DictStrAny
 
 
@@ -42,7 +43,7 @@ def hflip_intrinsics(intrinsics: torch.Tensor, im_width: int) -> torch.Tensor:
     return intrinsics
 
 
-class HorizontalFlip(BaseTransform):
+class HorizontalFlip(Transform):
     """Horizontal flip augmentation class."""
 
     def __init__(
@@ -63,5 +64,5 @@ class HorizontalFlip(BaseTransform):
         data[DataKeys.boxes2d] = hflip_boxes2d(
             data[DataKeys.boxes2d], im_shape[1]
         )
-        
+
         return data
