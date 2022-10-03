@@ -3,6 +3,8 @@ from typing import Callable, List, Tuple
 
 import torch
 
+from torch import Tensor
+
 from vis4d.struct_to_revise import DictStrAny
 
 from ..datasets.base import DataKeys, DictData
@@ -21,24 +23,33 @@ class PrettyRepMixin:
         return f"{self.__class__.__name__}({attr_str})"
 
 
-class BaseTransform(PrettyRepMixin):
+class Transform(PrettyRepMixin):
     """Base transformation class."""
 
     def __init__(
         self,
         in_keys: Tuple[str, ...] = (DataKeys.images,),
+        out_key: str = DataKeys.images,
     ):
         """Initialize transformation."""
         super().__init__()
         self.in_keys = in_keys
+        self.out_key = out_key
 
-    def generate_parameters(self, data: DictData) -> DictStrAny:
-        """Generate current parameters."""
+    def call(self, *args: Tensor) -> Tensor:
         raise NotImplementedError
 
-    def __call__(self, data: DictData, parameters: DictStrAny) -> DictData:
-        """Apply transformation to given keys"""
-        raise NotImplementedError
+    def __call__(self, data: DictData) -> DictData:
+        """Apply transformation to given keys."""
+        args = []
+        for key in self.in_keys:
+            key_parts = key.split("/")
+            arg = data
+            for p in key_parts:
+                arg = arg[p]
+            args.append(arg)
+        data[self.out_key] = self.call(*args)
+        return data
 
 
 class BaseBatchTransform(PrettyRepMixin):
@@ -63,12 +74,12 @@ class BaseBatchTransform(PrettyRepMixin):
         raise NotImplementedError
 
 
-class RandomApply(BaseTransform):
+class RandomApply(Transform):
     """Apply given transform at random with given probability."""
 
     def __init__(
         self,
-        transform: BaseTransform,
+        transform: Transform,
         p: float = 0.5,
         in_keys: Tuple[str, ...] = (DataKeys.images,),
     ):
@@ -91,7 +102,7 @@ class RandomApply(BaseTransform):
 
 
 def transform_pipeline(
-    augmentations: List[BaseTransform],
+    augmentations: List[Transform],
 ) -> Callable[[DictData], Tuple[DictData, List[DictStrAny]]]:
     """Compose transforms into single function."""
 

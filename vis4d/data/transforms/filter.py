@@ -6,7 +6,7 @@ import torch
 from vis4d.data.datasets.base import DataKeys, DictData
 from vis4d.struct_to_revise import DictStrAny
 
-from .base import BaseTransform
+from .base import Transform
 
 
 def filter_by_category(
@@ -29,7 +29,7 @@ def remap_categories(classes: torch.Tensor, mapping: List[int]):
     return classes
 
 
-class FilterByCategory(BaseTransform):
+class FilterByCategory(Transform):
     """Filter by categories."""
 
     def __init__(
@@ -64,7 +64,7 @@ class FilterByCategory(BaseTransform):
         return data
 
 
-class RemapCategory(BaseTransform):
+class RemapCategory(Transform):
     """Remap indices of categories."""
 
     def __init__(
