@@ -111,9 +111,13 @@ class S3DIS(Dataset, CacheMappingMixin):
         coords = np.zeros((0, 3), dtype=np.float32)
         color = np.zeros((0, 3), dtype=np.float32)
         semantic_ids = np.zeros((0, 1), dtype=int)
+        instance_ids = np.zeros((0, 1), dtype=int)
 
         for values in data.values():
             data_path = values["path"]
+            instance_id = int(
+                values["path"].split("_")[-1].replace(".txt", "")
+            )
             np_data = pd.read_csv(
                 BytesIO(self.data_backend.get(data_path)),
                 header=None,
@@ -130,8 +134,16 @@ class S3DIS(Dataset, CacheMappingMixin):
                 ]
             )
 
+            instance_ids = np.vstack(
+                [
+                    instance_ids,
+                    np.ones((np_data.shape[0], 1), dtype=int) * instance_id,
+                ]
+            )
+
         return {
             DataKeys.colors3d: torch.from_numpy(color / 255),
             DataKeys.points3d: torch.from_numpy(coords),
             DataKeys.semantics3d: torch.from_numpy(semantic_ids),
+            DataKeys.instances3d: torch.from_numpy(instance_ids),
         }

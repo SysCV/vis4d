@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from vis4d.struct_to_revise.structures import DictStrAny
 
 from ..datasets.base import DataKeys, DictData
-from .base import BaseBatchTransform, BaseTransform
+from .base import Transform
 
 
 def sample_indices(n_pts: int, data: torch.tensor):
@@ -32,7 +32,7 @@ def sample_indices(n_pts: int, data: torch.tensor):
     return selected_idxs
 
 
-class PointSampler(BaseTransform):
+class PointSampler(Transform):
     """Base class for 3D point sampling operations."""
 
     def __init__(
@@ -42,6 +42,7 @@ class PointSampler(BaseTransform):
             DataKeys.colors3d,
             DataKeys.points3d,
             DataKeys.semantics3d,
+            DataKeys.instances3d,
         ),
     ):
         """Creates a new BasePointSampler transform.
@@ -71,7 +72,6 @@ class RandomPointSampler(PointSampler):
 
             if selected_idxs is None:
                 selected_idxs = sample_indices(self.n_pts, data[in_key])
-
             data_out[in_key] = data[in_key][selected_idxs, ...]
 
         return data_out

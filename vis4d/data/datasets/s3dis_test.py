@@ -1,6 +1,7 @@
 """S3DIS dataset testing class."""
 import unittest
 
+from .base import DataKeys
 from .s3dis import S3DIS
 
 
@@ -16,7 +17,8 @@ class S3DISTest(unittest.TestCase):
     def test_sample(self):
         """Test if sample loaded correctly."""
         assert tuple(self.ds[0].keys()) == (
-            "colors3d",
-            "points3d",
-            "semantics3d",
+            DataKeys.colors3d,
+            DataKeys.points3d,
+            DataKeys.semantics3d,
+            DataKeys.instances3d,
         )

@@ -36,6 +36,8 @@ class DataKeys:
     points3dCenter = "points3d_centerd"
     colors3d = "colors3d"
     semantics3d = "semantics3d"
+    instances3d = "instances3d"
+    index = "index"
 
 
 """DictData

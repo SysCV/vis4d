@@ -31,4 +31,7 @@ __all__ = [
     "FilterByCategory",
     "ConvertInsMasksToSegMask",
     "RemapCategory",
+    "FullCoverageBlockSampler",
+    "RandomBlockPointSampler",
+    "RandomPointSampler",
 ]
