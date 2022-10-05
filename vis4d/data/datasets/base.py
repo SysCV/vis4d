@@ -2,7 +2,7 @@
 
 import sys
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Sequence, Tuple, Union
 
 from vis4d.struct_to_revise.structures import DictStrAny
 
@@ -47,9 +47,15 @@ class DataKeys:
     intrinsics = "intrinsics"
     masks = "masks"
     segmentation_mask = "segmentation_mask"
+    # 3D Data
     boxes3d = "boxes3d"
     boxes3d_classes = "boxes3d_classes"
-    points = "points"
+    points3d = "points3d"
+    points3dCenter = "points3d_centerd"
+    colors3d = "colors3d"
+    semantics3d = "semantics3d"
+    instances3d = "instances3d"
+    index = "index"
 
 
 class Dataset(TorchDataset[DictData]):
@@ -80,10 +86,31 @@ class VideoDataset(Dataset):
 class MultitaskMixin:
     """Multitask dataset interface."""
 
-    _TASKS: List[str] = []
+    _KEYS: List[str] = []
 
-    def validated_tasks(self, task_to_load: List[str]) -> List[str]:
-        for task in task_to_load:
-            if task not in MultitaskMixin._TASKS:
-                raise ValueError(f"task '{task}' is not supported!")
-        return task_to_load
+    def validate_keys(self, keys_to_load: List[str]) -> bool:
+        for k in keys_to_load:
+            if k not in self._KEYS:
+                raise ValueError(f"Key '{k}' is not supported!")
+        return True
+
+
+class Subset(Dataset):
+    """Subset of a dataset at specified indices.
+
+    Args:
+        dataset (Dataset): The whole Dataset
+        indices (sequence): Indices in the whole set selected for subset
+    """
+
+    def __init__(self, dataset: Dataset, indices: Sequence[int]) -> None:
+        self.dataset = dataset
+        self.indices = indices
+
+    def __getitem__(self, idx: Union[int, List[int]]) -> DictData:
+        if isinstance(idx, list):
+            return self.dataset[[self.indices[i] for i in idx]]
+        return self.dataset[self.indices[idx]]
+
+    def __len__(self) -> int:
+        return len(self.indices)

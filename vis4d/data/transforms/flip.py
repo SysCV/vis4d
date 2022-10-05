@@ -63,17 +63,17 @@ def boxes3d_flip(direction: str = "horizontal"):
     return _flip
 
 
-@Transform(in_keys=(DataKeys.points,), out_keys=(DataKeys.points,))
-def points_flip(direction: str = "horizontal"):
+@Transform(in_keys=(DataKeys.points3d,), out_keys=(DataKeys.points3d,))
+def points3d_flip(direction: str = "horizontal"):
     """Flip pointcloud tensor."""
 
-    def _flip(points: torch.Tensor) -> torch.Tensor:
+    def _flip(points3d: torch.Tensor) -> torch.Tensor:
         if direction == "horizontal":
-            points[:, 0] *= -1.0
+            points3d[:, 0] *= -1.0
             return points
         elif direction == "vertical":
-            points[:, 1] *= -1.0
-            return points
+            points3d[:, 1] *= -1.0
+            return points3d
         raise NotImplementedError(f"Direction {direction} not known!")
 
     return _flip

@@ -5,7 +5,7 @@ import torch
 
 from vis4d.struct_to_revise import DictStrAny
 
-from ..datasets.base import DataKeys, DictData, MetaData
+from ..datasets.base import DataKeys, DictData
 
 
 def get_dict_nested(dictionary: DictStrAny, keys: List[str]) -> Any:

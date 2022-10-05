@@ -20,6 +20,16 @@ from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct_to_revise import LossesType, ModelOutput
 
+REV_KEYS = [
+    (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
+    (r"^roi_head.bbox_head\.", "roi_head."),
+    (r"^backbone\.", "body."),
+    (r"^neck.lateral_convs\.", "inner_blocks."),
+    (r"^neck.fpn_convs\.", "layer_blocks."),
+    (r"\.conv.weight", ".weight"),
+    (r"\.conv.bias", ".bias"),
+]
+
 
 class FasterRCNN(nn.Module):
     """Faster RCNN model."""
@@ -45,12 +55,11 @@ class FasterRCNN(nn.Module):
         self.transform_outs = RoI2Det(rcnn_bbox_encoder)
 
         if weights == "mmdet":
-            from vis4d.op.detect.faster_rcnn_test import REV_KEYS
-
-            weights = "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
-            load_model_checkpoint(self.backbone, weights, REV_KEYS)
-            load_model_checkpoint(self.fpn, weights, REV_KEYS)
-            load_model_checkpoint(self.faster_rcnn_heads, weights, REV_KEYS)
+            weights = (
+                "mmdet://faster_rcnn/faster_rcnn_r50_fpn_1x_coco/"
+                "faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth"
+            )
+            load_model_checkpoint(self, weights, rev_keys=REV_KEYS)
         elif weights is not None:
             load_model_checkpoint(self, weights)
 

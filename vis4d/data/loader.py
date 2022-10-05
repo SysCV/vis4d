@@ -1,14 +1,31 @@
 """Dataloader utility functions."""
-from typing import Callable, Iterable, List, Optional, Union
+import math
+from typing import Callable, Iterable, Iterator, List, Optional, Union
 
 import torch
-from torch.utils.data import ConcatDataset, DataLoader, Dataset
+from torch.utils.data import (
+    ConcatDataset,
+    DataLoader,
+    Dataset,
+    IterableDataset,
+    get_worker_info,
+)
 
 from vis4d.data.samplers import BaseSampler, VideoInferenceSampler
 
 from ..common_to_revise.utils import get_world_size
 from .datasets import VideoDataset
 from .datasets.base import DataKeys, DictData
+
+"""Keys that contain pointcloud based data and can be stacked using torch.stack."""
+POINT_KEYS = [
+    DataKeys.colors3d,
+    DataKeys.points3d,
+    DataKeys.points3dCenter,
+    DataKeys.semantics3d,
+    DataKeys.instances3d,
+    DataKeys.index,
+]
 
 
 def default_collate(batch: List[DictData]) -> DictData:
@@ -19,6 +36,8 @@ def default_collate(batch: List[DictData]) -> DictData:
             data[key] = torch.cat([b[key] for b in batch])
         elif key == DataKeys.metadata:
             data[key] = {k: [b[key][k] for b in batch] for k in batch[0][key]}
+        elif key in POINT_KEYS:
+            data[key] = torch.stack([b[key] for b in batch], 0)
         else:
             data[key] = [b[key] for b in batch]
     return data
@@ -53,6 +72,68 @@ class DataPipe(ConcatDataset):
         sample = getitem(idx)
         data = self.preprocess_fn(sample)
         return data
+
+
+class SubdividingIterableDataset(IterableDataset):
+    """Subdivides a given dataset into smaller chunks.
+    This also adds a field called 'index' (DataKeys.index) to the data
+    struct in order to relate the data to the source index.
+
+
+    Example: Given a dataset (ds) that outputs tensors of the shape (10, 3):
+    sub_ds = SubdividingIterableDataset(ds, n_samples_per_batch = 5)
+
+    next(iter(sub_ds))['key'].shape
+    >> torch.Size([5, 3])
+
+    next(DataLoader(sub_ds, batch_size = 4))['key'].shape
+    >> torch.size([4,5,3])
+
+    Assuming the dataset returns two entries with shape (10,3):
+    [e['index'].item() for e in sub_ds]
+    >> [0,0,1,1]
+    """
+
+    def __init__(
+        self, dataset: Dataset[DictData], n_samples_per_batch: int
+    ) -> None:
+        """Creates a new Dataset
+        Args:
+            dataset (Dataset): The dataset which should be subdivided
+            n_samples_per_batch: How many samples each batch should contain.
+                                 The first dimension of dataset[0].shape must
+                                 be divisible by this number
+        """
+        super().__init__()
+
+        self.dataset = dataset
+        self.n_samples_per_batch = n_samples_per_batch
+
+    def __iter__(self) -> Iterator[DictData]:
+        """Iterates over the dataset, supporting distributed sampling."""
+        worker_info = get_worker_info()
+        if worker_info is None:
+            # not distributed
+            num_workers = 1
+            worker_id = 0
+        else:
+            num_workers = worker_info.num_workers
+            worker_id = worker_info.id
+
+        for i in range(math.ceil(len(self.dataset) / num_workers)):
+            data_idx = i * num_workers + worker_id
+            if data_idx < len(self.dataset):
+                data_sample = self.dataset[data_idx]
+                n_elements = next(iter(data_sample.values())).size(0)
+                for idx in range(int(n_elements / self.n_samples_per_batch)):
+                    out_data = {DataKeys.index: torch.tensor([data_idx])}
+                    for key in data_sample:
+                        start_idx = idx * self.n_samples_per_batch
+                        end_idx = (idx + 1) * self.n_samples_per_batch
+                        out_data[key] = data_sample[key][
+                            start_idx:end_idx, ...
+                        ]
+                    yield out_data
 
 
 def build_train_dataloader(
