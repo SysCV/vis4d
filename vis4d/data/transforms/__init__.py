@@ -1,21 +1,26 @@
 """Transforms."""
 from .base import (
     BaseBatchTransform,
-    BaseTransform,
     RandomApply,
+    Transform,
     batch_transform_pipeline,
     transform_pipeline,
 )
+from .filter import FilterByCategory, RemapCategory
 from .flip import HorizontalFlip
+from .mask import ConvertInsMasksToSegMask
 from .normalize import Normalize
 from .pad import Pad
+from .point_sampling import (
+    FullCoverageBlockSampler,
+    RandomBlockPointSampler,
+    RandomPointSampler,
+)
 from .resize import Resize
-from .filter import FilterByCategory, RemapCategory
-from .mask import ConvertInsMasksToSegMask
 
 __all__ = [
     "BaseBatchTransform",
-    "BaseTransform",
+    "Transform",
     "transform_pipeline",
     "batch_transform_pipeline",
     "RandomApply",
@@ -26,4 +31,7 @@ __all__ = [
     "FilterByCategory",
     "ConvertInsMasksToSegMask",
     "RemapCategory",
+    "FullCoverageBlockSampler",
+    "RandomBlockPointSampler",
+    "RandomPointSampler",
 ]

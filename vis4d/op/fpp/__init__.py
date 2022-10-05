@@ -5,6 +5,4 @@ maps and/or upsampling the feature maps.
 """
 from .dla_up import DLAUp
 
-__all__ = [
-    "DLAUp",
-]
+__all__ = ["DLAUp"]

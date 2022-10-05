@@ -10,6 +10,7 @@ import pycocotools.mask as maskUtils
 import torch
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
+from terminaltables import AsciiTable
 
 from vis4d.data.datasets.base import DataKeys, DictData
 from vis4d.data.datasets.coco import coco_det_map
@@ -127,5 +128,38 @@ class COCOEvaluator(Evaluator):
                 )
                 evaluator.evaluate()
                 evaluator.accumulate()
+
+            # TODO putting code here, need to organize
+            # Compute per-category AP
+            # from https://github.com/facebookresearch/detectron2/
+            precisions = evaluator.eval["precision"]
+            # precision: (iou, recall, cls, area range, max dets)
+            assert len(self._coco_gt.getCatIds()) == precisions.shape[2]
+
+            results_per_category = []
+            for idx, catId in enumerate(self._coco_gt.getCatIds()):
+                # area range index 0: all area ranges
+                # max dets index -1: typically 100 per image
+                nm = self._coco_gt.loadCats(catId)[0]
+                precision = precisions[:, :, idx, 0, -1]
+                precision = precision[precision > -1]
+                if precision.size:
+                    ap = np.mean(precision)
+                else:
+                    ap = float("nan")
+                results_per_category.append(
+                    (f'{nm["name"]}', f"{float(ap):0.3f}")
+                )
+
+            num_columns = min(6, len(results_per_category) * 2)
+            results_flatten = list(itertools.chain(*results_per_category))
+            headers = ["category", "AP"] * (num_columns // 2)
+            results_2d = itertools.zip_longest(
+                *[results_flatten[i::num_columns] for i in range(num_columns)]
+            )
+            table_data = [headers]
+            table_data += [result for result in results_2d]
+            table = AsciiTable(table_data)
+            print("\n" + table.table)
             return evaluator.summarize()
         raise NotImplementedError(f"Metric {metric} not known!")

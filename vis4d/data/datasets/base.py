@@ -31,6 +31,13 @@ class DataKeys:
     intrinsics = "intrinsics"
     masks = "masks"
     segmentation_mask = "segmentation_mask"
+    # 3D Data
+    points3d = "points3d"
+    points3dCenter = "points3d_centerd"
+    colors3d = "colors3d"
+    semantics3d = "semantics3d"
+    instances3d = "instances3d"
+    index = "index"
 
 
 """DictData
@@ -76,11 +83,11 @@ class MultitaskMixin:
 
     _KEYS: List[str] = []
 
-    def validated_tasks(self, task_to_load: List[str]) -> List[str]:
-        for task in task_to_load:
-            if task not in MultitaskMixin._KEYS:
-                raise ValueError(f"task '{task}' is not supported!")
-        return task_to_load
+    def validate_keys(self, keys_to_load: List[str]) -> bool:
+        for k in keys_to_load:
+            if k not in MultitaskMixin._KEYS:
+                raise ValueError(f"Key '{k}' is not supported!")
+        return True
 
 
 class Subset(Dataset):

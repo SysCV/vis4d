@@ -13,7 +13,7 @@ from vis4d.data.io.base import BaseDataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.struct_to_revise import DictStrAny
 
-from .base import DataKeys, Dataset, DictData
+from .base import DataKeys, Dataset, MultitaskMixin, DictData
 from .utils import CacheMappingMixin, im_decode
 
 # COCO
@@ -126,12 +126,12 @@ coco_seg_cats = [
 ]
 
 
-class COCO(Dataset, CacheMappingMixin):
+class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
     """COCO dataset class."""
 
     _DESCRIPTION = """COCO is a large-scale object detection, segmentation, and
     captioning dataset."""
-    _TASKS = ["detect", "sem_seg", "ins_seg"]
+    _KEYS = ["images", "boxes2d", "boxes2d_classes", "masks"]
     _URL = "http://cocodataset.org/#home"
 
     def __init__(
@@ -140,9 +140,9 @@ class COCO(Dataset, CacheMappingMixin):
         keys_to_load: List[str] = [
             DataKeys.images,
             DataKeys.boxes2d,
+            DataKeys.boxes2d_classes,
             DataKeys.masks,
         ],
-        with_mask: bool = False,
         split: str = "train2017",
         data_backend: Optional[BaseDataBackend] = None,
     ) -> None:
@@ -155,6 +155,14 @@ class COCO(Dataset, CacheMappingMixin):
             data_backend if data_backend is not None else FileBackend()
         )
 
+        # handling keys to load
+        self.validate(keys_to_load)
+        self.with_images = DataKeys.images in keys_to_load
+        self.with_boxes = (DataKeys.boxes2d in keys_to_load) or (
+            DataKeys.boxes2d_classes in keys_to_load
+        )
+        self.with_masks = DataKeys.masks in keys_to_load
+
         self.data = self._load_mapping(
             self._generate_data_mapping,
             os.path.join(
@@ -163,11 +171,6 @@ class COCO(Dataset, CacheMappingMixin):
                 "instances_" + self.split + ".pkl",
             ),
         )
-
-        self.with_boxes = (DataKeys.boxes2d in keys_to_load) or (
-            DataKeys.boxes2d_classes in keys_to_load
-        )
-        self.with_masks = DataKeys.masks in keys_to_load
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
@@ -201,8 +204,7 @@ class COCO(Dataset, CacheMappingMixin):
         """Transform coco sample to vis4d input format.
 
         Returns:
-            image
-            boxes2d
+            DataDict[DataKeys, Union[torch.Tensor, Dict[Any]]]
         """
         data = self.data[idx]
         img_h, img_w = data["img"]["height"], data["img"]["width"]
@@ -214,7 +216,7 @@ class COCO(Dataset, CacheMappingMixin):
             },
         }
 
-        if DataKeys.images in self.keys_to_load:
+        if self.with_images:
             img_path = os.path.join(
                 self.data_root, self.split, data["img"]["file_name"]
             )
@@ -224,8 +226,10 @@ class COCO(Dataset, CacheMappingMixin):
                 np.ascontiguousarray(img.transpose(2, 0, 1)),
                 dtype=torch.float32,
             ).unsqueeze(0)
+            assert (img_h, img_w) == img.shape[
+                2:
+            ], "Image's shape doesn't match annotation."
             dict_data[DataKeys.images] = img
-            assert img_w == img.shape[-1] and img_h == img.shape[-2]
 
         if self.with_boxes or self.with_masks:
             boxes = []
@@ -245,19 +249,16 @@ class COCO(Dataset, CacheMappingMixin):
                         # uncompressed RLE
                         rle = maskUtils.frPyObjects(mask_ann, img_h, img_w)
                     else:
-                        # rle
+                        # RLE
                         rle = mask_ann
                     masks.append(maskUtils.decode(rle))
                 else:
-                    # masks.append(None)
                     masks.append(np.empty((img_h, img_w)))
-
             if not len(boxes):
                 box_tensor = torch.empty((0, 4), dtype=torch.float32)
                 mask_tensor = torch.empty((0, img_h, img_w), dtype=torch.uint8)
             else:
                 box_tensor = torch.tensor(boxes, dtype=torch.float32)
-                # print(masks[0].shape, masks[1].shape)
                 mask_tensor = torch.as_tensor(
                     np.ascontiguousarray(masks), dtype=torch.uint8
                 )
@@ -270,4 +271,5 @@ class COCO(Dataset, CacheMappingMixin):
                 )
             if self.with_masks:
                 dict_data[DataKeys.masks] = mask_tensor
+
         return dict_data

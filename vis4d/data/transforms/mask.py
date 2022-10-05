@@ -6,7 +6,7 @@ import torch
 from vis4d.data.datasets.base import DataKeys, DictData
 from vis4d.struct_to_revise import DictStrAny
 
-from .base import BaseTransform
+from .base import Transform
 
 
 def convert_ins_masks_to_seg_mask(classes, masks):
@@ -19,7 +19,7 @@ def convert_ins_masks_to_seg_mask(classes, masks):
     return target
 
 
-class ConvertInsMasksToSegMask(BaseTransform):
+class ConvertInsMasksToSegMask(Transform):
     """Convert instance masks to one segmentation map."""
 
     def __init__(

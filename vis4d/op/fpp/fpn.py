@@ -6,9 +6,11 @@ This is based on
 """
 
 from collections import OrderedDict
-from typing import List
+from typing import List, Tuple
 
 import torch
+import torch.nn.functional as F
+from torch import nn
 from torchvision.ops import FeaturePyramidNetwork as _FPN
 from torchvision.ops.feature_pyramid_network import (
     ExtraFPNBlock,
@@ -65,3 +67,39 @@ class FPN(_FPN, FeaturePyramidProcessing):
     def __call__(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """Type definition for call implementation."""
         return self._call_impl(x)
+
+
+class LastLevelP6P7(ExtraFPNBlock):
+    """This module is used in RetinaNet to generate extra layers, P6 and P7.
+
+    Implementation modified from torchvision:
+    https://github.com/pytorch/vision.
+    Modified to add option for whether to use ReLU between additional layers.
+    """
+
+    def __init__(
+        self, in_channels: int, out_channels: int, extra_relu: bool = False
+    ):
+        """Init."""
+        super().__init__()
+        self.extra_relu = extra_relu
+        self.p6 = nn.Conv2d(in_channels, out_channels, 3, 2, 1)
+        self.p7 = nn.Conv2d(out_channels, out_channels, 3, 2, 1)
+        for module in [self.p6, self.p7]:
+            nn.init.kaiming_uniform_(module.weight, a=1)
+            nn.init.constant_(module.bias, 0)
+        self.use_P5 = in_channels == out_channels
+
+    def forward(
+        self, p: List[torch.Tensor], c: List[torch.Tensor], names: List[str]
+    ) -> Tuple[List[torch.Tensor], List[str]]:
+        """Forward."""
+        p5, c5 = p[-1], c[-1]
+        x = p5 if self.use_P5 else c5
+        p6 = self.p6(x)
+        if self.extra_relu:
+            p6 = F.relu(p6)
+        p7 = self.p7(p6)
+        p.extend([p6, p7])
+        names.extend(["p6", "p7"])
+        return p, names

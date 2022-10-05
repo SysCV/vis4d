@@ -36,7 +36,7 @@ def get_default_anchor_generator() -> AnchorGenerator:
         octave_base_scale=4,
         scales_per_octave=3,
         ratios=[0.5, 1.0, 2.0],
-        strides=[8, 16, 32, 64, 128],
+        strides=(8, 16, 32, 64, 128),
     )
 
 
