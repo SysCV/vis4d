@@ -158,14 +158,7 @@ class FasterRCNNHead(nn.Module):
                 torch.cat([p, t]) for p, t in zip(proposal_boxes, target_boxes)
             ]
             scores = [
-                torch.cat(
-                    [
-                        s,
-                        s.new_ones(
-                            len(t),
-                        ),
-                    ]
-                )
+                torch.cat([s, s.new_ones(len(t))])
                 for s, t in zip(scores, target_boxes)
             ]
 
@@ -174,10 +167,7 @@ class FasterRCNNHead(nn.Module):
             sampled_target_indices,
             sampled_labels,
         ) = match_and_sample_proposals(
-            self.box_matcher,
-            self.box_sampler,
-            proposal_boxes,
-            target_boxes,
+            self.box_matcher, self.box_sampler, proposal_boxes, target_boxes
         )
 
         sampled_boxes, sampled_scores = apply_mask(
@@ -189,8 +179,7 @@ class FasterRCNNHead(nn.Module):
         )
 
         sampled_proposals = Proposals(
-            boxes=sampled_boxes,
-            scores=sampled_scores,
+            boxes=sampled_boxes, scores=sampled_scores
         )
         sampled_targets = Targets(
             boxes=sampled_target_boxes,

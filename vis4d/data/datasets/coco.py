@@ -268,8 +268,8 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             if DataKeys.boxes2d in self.keys_to_load:
                 dict_data[DataKeys.boxes2d] = box_tensor
             if DataKeys.boxes2d_classes in self.keys_to_load:
-                dict_data[DataKeys.boxes2d_classes] = (
-                    torch.tensor(classes, dtype=torch.long),
+                dict_data[DataKeys.boxes2d_classes] = torch.tensor(
+                    classes, dtype=torch.long
                 )
             if self.with_masks:
                 dict_data[DataKeys.masks] = mask_tensor
