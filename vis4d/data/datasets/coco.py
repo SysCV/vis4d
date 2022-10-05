@@ -156,7 +156,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         )
 
         # handling keys to load
-        self.validate(keys_to_load)
+        self.validate_keys(keys_to_load)
         self.with_images = DataKeys.images in keys_to_load
         self.with_boxes = (DataKeys.boxes2d in keys_to_load) or (
             DataKeys.boxes2d_classes in keys_to_load
