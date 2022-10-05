@@ -1,131 +1,159 @@
 """Basic data augmentation class."""
-from typing import Callable, List, Tuple
+from typing import Any, Callable, List, TypeVar
 
 import torch
 
-from torch import Tensor
-
 from vis4d.struct_to_revise import DictStrAny
 
-from ..datasets.base import DataKeys, DictData
+from ..datasets.base import DataKeys, DictData, MetaData
 
 
-class PrettyRepMixin:
-    """Creates a pretty string representation of a class with parameters."""
-
-    def __repr__(self) -> str:
-        """Print class & params, s.t. user can inspect easily via cmd line."""
-        attr_str = ""
-        for k, v in vars(self).items():
-            if k != "type" and not k.startswith("_"):
-                attr_str += f"{k}={str(v)}, "
-        attr_str = attr_str.rstrip(", ")
-        return f"{self.__class__.__name__}({attr_str})"
+def get_dict_nested(dictionary: DictStrAny, keys: List[str]) -> Any:
+    """Get value in nested dict."""
+    for key in keys:
+        if key not in dictionary:
+            raise ValueError(f"Key {key} not in dictionary!")
+        dictionary = dictionary[key]
+    return dictionary
 
 
-class Transform(PrettyRepMixin):
-    """Base transformation class."""
+def set_dict_nested(
+    dictionary: DictStrAny, keys: List[str], value: Any
+) -> None:
+    """Set value in nested dict."""
+    for key in keys[:-1]:
+        dictionary = dictionary.setdefault(key, {})
+    dictionary[keys[-1]] = value
+
+
+class Transform:
+    """Decorator for transforms, which adds `in_keys` and `out_keys`."""
 
     def __init__(
         self,
-        in_keys: Tuple[str, ...] = (DataKeys.images,),
-        out_key: str = DataKeys.images,
+        in_keys=(DataKeys.images,),
+        out_keys=(DataKeys.images,),
+        with_data: bool = False,
     ):
-        """Initialize transformation."""
-        super().__init__()
+        """Init.
+
+        Args:
+            in_keys (List[str]): Input keys in the data dictionary. Nested keys are separated by '.', e.g. metadata.image_size.
+            out_keys (List[str]): Output keys (possibly nested).
+            with_data (bool, optional): Pass the full data dict as auxiliary input. Defaults to False.
+        """
         self.in_keys = in_keys
-        self.out_key = out_key
+        self.out_keys = out_keys
+        self.with_data = with_data
 
-    def call(self, *args: Tensor) -> Tensor:
-        raise NotImplementedError
+    def __call__(self, orig_get_transform_fn):
+        """Wrap function with a handler for input / output keys."""
 
-    def __call__(self, data: DictData) -> DictData:
-        """Apply transformation to given keys."""
-        args = []
-        for key in self.in_keys:
-            key_parts = key.split("/")
-            arg = data
-            for p in key_parts:
-                arg = arg[p]
-            args.append(arg)
-        data[self.out_key] = self.call(*args)
-        return data
+        def get_transform_fn(
+            *args, in_keys=self.in_keys, out_keys=self.out_keys, **kwargs
+        ):
+            orig_transform_fn = orig_get_transform_fn(*args, **kwargs)
+
+            def _transform_fn(data):
+                in_data = [
+                    get_dict_nested(data, key.split(".")) for key in in_keys
+                ]
+                # Optionally allow the function to get the full data dict as aux input.
+                if self.with_data:
+                    result = orig_transform_fn(*in_data, data=data)
+                else:
+                    result = orig_transform_fn(*in_data)
+                if len(self.out_keys) == 1:
+                    result = [result]
+                for key, value in zip(out_keys, result):
+                    set_dict_nested(data, key.split("."), value)
+                return data
+
+            return _transform_fn
+
+        return get_transform_fn
 
 
-class BaseBatchTransform(PrettyRepMixin):
-    """Base class for transformation applied on a batch of samples."""
+class BatchTransform:
+    """Decorator for batch transforms, which adds `in_keys` and `out_keys`."""
 
     def __init__(
         self,
-        in_keys: Tuple[str, ...] = (DataKeys.images,),
+        in_keys=(DataKeys.images,),
+        out_keys=(DataKeys.images,),
+        with_data: bool = False,
     ):
-        """Initialize transformation."""
-        super().__init__()
+        """Init.
+
+        Args:
+            in_keys (List[str]): Input keys in the data dictionary. Nested keys are separated by '.', e.g. metadata.image_size.
+            out_keys (List[str]): Output keys (possibly nested).
+            with_data (bool, optional): Pass the full data dict as auxiliary input. Defaults to False.
+        """
         self.in_keys = in_keys
+        self.out_keys = out_keys
+        self.with_data = with_data
 
-    def generate_parameters(self, data: List[DictData]) -> DictStrAny:
-        """Generate current parameters."""
-        raise NotImplementedError
+    def __call__(self, orig_get_transform_fn):
+        """Wrap function with a handler for input / output keys."""
 
-    def __call__(
-        self, data: List[DictData], parameters: DictStrAny
-    ) -> List[DictData]:
-        """Apply transformation to given keys"""
-        raise NotImplementedError
+        def get_transform_fn(
+            *args, in_keys=self.in_keys, out_keys=self.out_keys, **kwargs
+        ):
+            orig_transform_fn = orig_get_transform_fn(*args, **kwargs)
+
+            def _transform_fn(batch):
+                in_batch = []
+                for key in in_keys:
+                    key_data = []
+                    for data in batch:
+                        key_data.append(get_dict_nested(data, key.split(".")))
+                    in_batch.append(key_data)
+                # Optionally allow the function to get the full data dict as aux input.
+                if self.with_data:
+                    result = orig_transform_fn(*in_batch, data=batch)
+                else:
+                    result = orig_transform_fn(*in_batch)
+
+                if len(self.out_keys) == 1:
+                    result = [result]
+                for key, values in zip(out_keys, result):
+                    for data, value in zip(batch, values):
+                        set_dict_nested(data, key.split("."), value)
+                return batch
+
+            return _transform_fn
+
+        return get_transform_fn
 
 
-class RandomApply(Transform):
-    """Apply given transform at random with given probability."""
+TInput = TypeVar("TInput")
 
-    def __init__(
-        self,
-        transform: Transform,
-        p: float = 0.5,
-        in_keys: Tuple[str, ...] = (DataKeys.images,),
-    ):
-        """Init."""
-        super().__init__(in_keys)
-        self.transform = transform
-        self.p = p
 
-    def generate_parameters(self, data: DictData) -> DictStrAny:
-        """Get parameters."""
-        params = self.transform.generate_parameters(data)
-        params["apply"] = torch.rand(1) < self.p
-        return params
+def compose(
+    transforms: List[Callable[[TInput], TInput]]
+) -> Callable[[TInput], TInput]:
+    """Compose transformations."""
 
-    def __call__(self, data: DictData, parameters: DictStrAny) -> DictData:
-        """Random apply augmentation."""
-        if parameters["apply"]:
-            data = self.transform(data, parameters)
+    def _preprocess_func(data: TInput) -> TInput:
+        for op in transforms:
+            data = op(data)
         return data
 
-
-def transform_pipeline(
-    augmentations: List[Transform],
-) -> Callable[[DictData], Tuple[DictData, List[DictStrAny]]]:
-    """Compose transforms into single function."""
-
-    def transform(data: DictData) -> DictData:
-        params = []
-        for aug in augmentations:
-            param = aug.generate_parameters(data)
-            params.append(param)
-            data = aug(data, param)
-        return data, param
-
-    return transform
+    return _preprocess_func
 
 
-def batch_transform_pipeline(
-    augmentations: List[BaseBatchTransform],
-) -> Callable[[List[DictData]], List[DictData]]:
-    """Compose batch transforms into single function."""
+def random_apply(
+    transforms: List[Callable[[DictData], DictData]], p: float = 0.5
+):
+    """Apply given transforms at random with given probability."""
 
-    def transform(data: List[DictData]) -> List[DictData]:
-        for aug in augmentations:
-            param = aug.generate_parameters(data)
-            data = aug(data, param)
+    def _apply(data: DictData) -> DictData:
+        data[DataKeys.metadata]["transform_params"]["random_apply"] = False
+        if torch.rand(1) < p:
+            data[DataKeys.metadata]["transform_params"]["random_apply"] = True
+            for op in transforms:
+                data = op(data)
         return data
 
-    return transform
+    return _apply

@@ -26,7 +26,7 @@ from pytorch_lightning.utilities.types import (
 from torch.utils.collect_env import get_pretty_env_info
 
 from ..struct_to_revise import ArgsType, DictStrAny
-from .data import BaseDataModule
+from .data import DataModule
 from .utils import DefaultProgressBar, is_torch_tf32_available, setup_logger
 
 
@@ -187,8 +187,8 @@ class DefaultTrainer(pl.Trainer):
         return dirpath  # type: ignore
 
 
-class BaseCLI(LightningCLI):
-    """Default CLI for Vis4D."""
+class CLI(LightningCLI):
+    """Basic pytorch lightning CLI in Vis4D."""
 
     def __init__(  # type: ignore
         self,
@@ -196,7 +196,7 @@ class BaseCLI(LightningCLI):
             Union[Type[LightningModule], Callable[..., LightningModule]]
         ] = None,
         datamodule_class: Optional[
-            Union[Type[BaseDataModule], Callable[..., BaseDataModule]]
+            Union[Type[DataModule], Callable[..., DataModule]]
         ] = None,
         save_config_callback: Optional[
             Type[SaveConfigCallback]

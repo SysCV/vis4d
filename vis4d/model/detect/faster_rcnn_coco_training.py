@@ -73,7 +73,7 @@ class MMResNet(BaseModel):
 
     @property
     def out_channels(self) -> List[int]:
-        return [3, 3] + [256 * 2**i for i in range(4)]
+        return [3, 3] + [256 * 2 ** i for i in range(4)]
 
 
 class MMFPN(nn.Module):

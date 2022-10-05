@@ -51,7 +51,7 @@ class DataPipe(ConcatDataset):
         """Wrap getitem to apply augmentations."""
         getitem = super().__getitem__
         sample = getitem(idx)
-        data, params = self.preprocess_fn(sample)
+        data = self.preprocess_fn(sample)
         return data
 
 

@@ -1,9 +1,6 @@
 """QDTrack data module."""
 from typing import List, Optional
 
-from .data_pipelines import default_train, default_test
-
-
 from vis4d.common_to_revise.datasets import (
     bdd100k_det_train,
     bdd100k_detect_sample,
@@ -25,6 +22,8 @@ from vis4d.data_to_revise import (
     ScalabelDataset,
 )
 from vis4d.data_to_revise.transforms import BaseAugmentation, Resize
+
+from .data_pipelines import default_test, default_train
 
 
 class TrackDataModule(CommonDataModule):

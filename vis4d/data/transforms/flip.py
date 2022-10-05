@@ -1,68 +1,97 @@
 """Horizontal flip augmentation."""
-from typing import Tuple
-
-import torch
 import numpy as np
-from vis4d.data.datasets.base import DataKeys, DictData
-from vis4d.data.transforms.base import Transform
+import torch
+
+from vis4d.data.datasets.base import DataKeys
 from vis4d.op.geometry.rotation import normalize_angle
-from vis4d.data.transforms.base import Transform
-from vis4d.struct_to_revise import DictStrAny
+
+from .base import Transform
 
 
-def hflip(tensor: torch.Tensor) -> torch.Tensor:
+@Transform()
+def image_flip(direction: str = "horizontal"):
     """Flip a tensor of shape [N, C, H, W] horizontally."""
-    return tensor.flip(-1)
+
+    def _flip(tensor: torch.Tensor) -> torch.Tensor:
+        if direction == "horizontal":
+            return tensor.flip(-1)
+        elif direction == "vertical":
+            return tensor.flip(-2)
+        raise NotImplementedError(f"Direction {direction} not known!")
+
+    return _flip
 
 
-def hflip_boxes2d(boxes: torch.Tensor, im_width: float) -> torch.Tensor:
+@Transform(
+    in_keys=(DataKeys.boxes2d, DataKeys.images), out_keys=(DataKeys.boxes2d,)
+)
+def boxes2d_flip(direction: str = "horizontal"):
     """Flip 2D bounding box tensor."""
-    tmp = im_width - boxes[..., 2::4]
-    boxes[..., 2::4] = im_width - boxes[..., 0::4]
-    boxes[..., 0::4] = tmp
-    return boxes
+
+    def _flip(boxes: torch.Tensor, image: torch.Tensor) -> torch.Tensor:
+        if direction == "horizontal":
+            im_width = image.size(3)
+            tmp = im_width - boxes[..., 2::4]
+            boxes[..., 2::4] = im_width - boxes[..., 0::4]
+            boxes[..., 0::4] = tmp
+            return boxes
+        elif direction == "vertical":
+            im_height = image.size(2)
+            tmp = im_height - boxes[..., 3::4]
+            boxes[..., 3::4] = im_height - boxes[..., 1::4]
+            boxes[..., 1::4] = tmp
+            return boxes
+        raise NotImplementedError(f"Direction {direction} not known!")
+
+    return _flip
 
 
-def hflip_boxes3d(boxes: torch.Tensor) -> torch.Tensor:
+@Transform(in_keys=(DataKeys.boxes3d,), out_keys=(DataKeys.boxes3d,))
+def boxes3d_flip(direction: str = "horizontal"):
     """Flip 3D bounding box tensor."""
-    boxes[:, 0] *= -1.0
-    boxes[:, 7] = normalize_angle(np.pi - boxes[:, 7])
-    return boxes
+
+    def _flip(boxes: torch.Tensor) -> torch.Tensor:
+        if direction == "horizontal":
+            boxes[:, 0] *= -1.0
+            boxes[:, 7] = normalize_angle(np.pi - boxes[:, 7])
+            return boxes
+        elif direction == "vertical":
+            boxes[:, 1] *= -1.0
+            return boxes
+        raise NotImplementedError(f"Direction {direction} not known!")
+
+    return _flip
 
 
-def hflip_points(points: torch.Tensor) -> torch.Tensor:
+@Transform(in_keys=(DataKeys.points,), out_keys=(DataKeys.points,))
+def points_flip(direction: str = "horizontal"):
     """Flip pointcloud tensor."""
-    points[:, 0] *= -1.0
-    return points
+
+    def _flip(points: torch.Tensor) -> torch.Tensor:
+        if direction == "horizontal":
+            points[:, 0] *= -1.0
+            return points
+        elif direction == "vertical":
+            points[:, 1] *= -1.0
+            return points
+        raise NotImplementedError(f"Direction {direction} not known!")
+
+    return _flip
 
 
-def hflip_intrinsics(intrinsics: torch.Tensor, im_width: int) -> torch.Tensor:
+@Transform(in_keys=(DataKeys.intrinsics,), out_keys=(DataKeys.intrinsics,))
+def intrinsics_flip(direction: str = "horizontal"):
     """Modify intrinsics for image flip."""
-    center = im_width / 2
-    intrinsics[0, 2] = center - intrinsics[0, 2] - center
-    return intrinsics
 
+    def _flip(intrinsics: torch.Tensor, image: torch.Tensor) -> torch.Tensor:
+        if direction == "horizontal":
+            center = image.size(3) / 2
+            intrinsics[0, 2] = center - intrinsics[0, 2] - center
+            return intrinsics
+        elif direction == "vertical":
+            center = image.size(2) / 2
+            intrinsics[1, 2] = center - intrinsics[1, 2] - center
+            return intrinsics
+        raise NotImplementedError(f"Direction {direction} not known!")
 
-class HorizontalFlip(Transform):
-    """Horizontal flip augmentation class."""
-
-    def __init__(
-        self, in_keys: Tuple[str, ...] = (DataKeys.images, DataKeys.boxes2d)
-    ):
-        """Init."""
-        super().__init__(in_keys)
-
-    def generate_parameters(self, data: DictData) -> DictStrAny:
-        """Generate flip parameters (empty)."""
-        im_shape = data[DataKeys.images].shape[-2:]
-        return dict(im_shape=im_shape)
-
-    def __call__(self, data: DictData, parameters: DictStrAny) -> DictData:
-        """Apply horizontal flip."""
-        im_shape = parameters["im_shape"]
-        data[DataKeys.images] = hflip(data[DataKeys.images])
-        data[DataKeys.boxes2d] = hflip_boxes2d(
-            data[DataKeys.boxes2d], im_shape[1]
-        )
-
-        return data
+    return _flip

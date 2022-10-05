@@ -242,6 +242,8 @@ class COCO(Dataset, CacheMappingMixin):
             DataKeys.metadata: {
                 "original_hw": img.shape[-2:],
                 "input_hw": None,
+                "transform_params": {},
+                "batch_transform_params": {},
                 "coco_image_id": data["img"]["id"],
             },
             DataKeys.images: img,

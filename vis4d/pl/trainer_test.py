@@ -14,7 +14,7 @@ from vis4d.struct_to_revise import ArgsType
 
 from ..model.optimize import DefaultOptimizer
 from ..unittest.utils import MockModel
-from .trainer import BaseCLI, DefaultTrainer
+from .trainer import CLI, DefaultTrainer
 
 
 def test_custom_init() -> None:
@@ -81,7 +81,7 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
             "--seed_everything=0",
         ],
     ):
-        cli = BaseCLI(model_setup, datamodule_class=SampleDataModule)
+        cli = CLI(model_setup, datamodule_class=SampleDataModule)
         assert hasattr(cli.trainer, "ran_asserts") and cli.trainer.ran_asserts
 
 

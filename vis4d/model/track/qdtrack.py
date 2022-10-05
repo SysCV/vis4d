@@ -292,8 +292,6 @@ class QDTrackModel(nn.Module):
         return outs
 
 
-
-
 class QDTrackCLI(BaseCLI):
     """Detect CLI."""
 
@@ -308,7 +306,6 @@ if __name__ == "__main__":
 
     python -m vis4d.model.detect.faster_rcnn fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8"""
     DetectCLI(model_class=setup_model, datamodule_class=DetectDataModule)
-
 
 
 # ## setup model

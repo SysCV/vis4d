@@ -1,4 +1,4 @@
 """Run vis4d model training and evaluation in pytorch lightening."""
-from .trainer import BaseCLI, DefaultTrainer
+from .trainer import CLI, DefaultTrainer
 
-__all__ = ["BaseCLI", "DefaultTrainer"]
+__all__ = ["CLI", "DefaultTrainer"]

@@ -1,5 +1,6 @@
 """Vis4D Backbone module."""
 from .base import BaseModel
 from .dla import DLA
+from .resnet import ResNet
 
-__all__ = ["BaseModel", "DLA"]
+__all__ = ["BaseModel", "DLA", "ResNet"]

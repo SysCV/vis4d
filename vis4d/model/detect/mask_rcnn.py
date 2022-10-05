@@ -28,7 +28,7 @@ from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim import DefaultOptimizer
-from vis4d.pl import BaseCLI
+from vis4d.pl import CLI
 from vis4d.struct_to_revise import LossesType, ModelOutput
 
 REV_KEYS = [
@@ -187,7 +187,7 @@ def setup_model(
     )
 
 
-class DetectCLI(BaseCLI):
+class DetectCLI(CLI):
     """Detect CLI."""
 
     def add_arguments_to_parser(self, parser):
