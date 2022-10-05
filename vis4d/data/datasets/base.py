@@ -2,7 +2,7 @@
 
 import sys
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Sequence
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict  # pylint: disable=no-name-in-module
@@ -70,14 +70,35 @@ class VideoDataset(Dataset):
             Dict[str, int]: Mapping video to index.
         """
 
+
 class MultitaskMixin:
     """Multitask dataset interface."""
-    
-    _TASKS: List[str] = []
-    
+
+    _KEYS: List[str] = []
+
     def validated_tasks(self, task_to_load: List[str]) -> List[str]:
         for task in task_to_load:
-            if task not in MultitaskMixin._TASKS:
+            if task not in MultitaskMixin._KEYS:
                 raise ValueError(f"task '{task}' is not supported!")
         return task_to_load
-        
+
+
+class Subset(Dataset):
+    """Subset of a dataset at specified indices.
+
+    Args:
+        dataset (Dataset): The whole Dataset
+        indices (sequence): Indices in the whole set selected for subset
+    """
+
+    def __init__(self, dataset: Dataset, indices: Sequence[int]) -> None:
+        self.dataset = dataset
+        self.indices = indices
+
+    def __getitem__(self, idx: Union[int, List[int]]) -> DictData:
+        if isinstance(idx, list):
+            return self.dataset[[self.indices[i] for i in idx]]
+        return self.dataset[self.indices[idx]]
+
+    def __len__(self) -> int:
+        return len(self.indices)
