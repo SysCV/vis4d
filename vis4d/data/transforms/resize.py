@@ -5,7 +5,7 @@ from typing import Callable, List, Tuple, Union
 import torch
 import torch.nn.functional as F
 
-from vis4d.data.datasets.base import DataKeys, MetaData
+from vis4d.data.datasets.base import COMMON_KEYS, MetaData
 from vis4d.op.box.util import transform_bbox
 
 from .base import Transform
@@ -57,7 +57,7 @@ def _resize_tensor(
     return output
 
 
-@Transform(in_keys=[DataKeys.images, DataKeys.metadata])
+@Transform(in_keys=[COMMON_KEYS.images, COMMON_KEYS.metadata])
 def resize_image(
     shape: Union[Tuple[int, int], List[Tuple[int, int]]],
     keep_ratio: bool = False,
@@ -94,7 +94,8 @@ def resize_image(
 
 
 @Transform(
-    in_keys=[DataKeys.boxes2d, DataKeys.metadata], out_keys=[DataKeys.boxes2d]
+    in_keys=[COMMON_KEYS.boxes2d, COMMON_KEYS.metadata],
+    out_keys=[COMMON_KEYS.boxes2d],
 )
 def resize_boxes2d():
     """Resize 2D bounding boxes."""
@@ -109,8 +110,8 @@ def resize_boxes2d():
 
 
 @Transform(
-    in_keys=[DataKeys.intrinsics, DataKeys.metadata],
-    out_keys=[DataKeys.intrinsics],
+    in_keys=[COMMON_KEYS.intrinsics, COMMON_KEYS.metadata],
+    out_keys=[COMMON_KEYS.intrinsics],
 )
 def resize_intrinsics():
     """Scale camera intrinsics when resizing."""
@@ -125,7 +126,8 @@ def resize_intrinsics():
 
 
 @Transform(
-    in_keys=[DataKeys.masks, DataKeys.metadata], out_keys=[DataKeys.masks]
+    in_keys=[COMMON_KEYS.masks, COMMON_KEYS.metadata],
+    out_keys=[COMMON_KEYS.masks],
 )
 def resize_masks():
     """Resize masks."""

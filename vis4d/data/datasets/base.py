@@ -27,7 +27,7 @@ class MetaData(TypedDict):
 
 
 @dataclass
-class DataKeys:
+class COMMON_KEYS:
     """DataKeys defines the supported keys for DictData.
 
     This container can hold arbitrary keys of data, where data of the keys defined

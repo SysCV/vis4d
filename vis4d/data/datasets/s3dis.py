@@ -12,7 +12,7 @@ from vis4d.data.io.base import BaseDataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.struct_to_revise import DictStrAny
 
-from .base import DataKeys, Dataset, DictData
+from .base import COMMON_KEYS, Dataset, DictData
 from .utils import CacheMappingMixin
 
 # s3dis semantic mappings
@@ -142,8 +142,8 @@ class S3DIS(Dataset, CacheMappingMixin):
             )
 
         return {
-            DataKeys.colors3d: torch.from_numpy(color / 255),
-            DataKeys.points3d: torch.from_numpy(coords),
-            DataKeys.semantics3d: torch.from_numpy(semantic_ids),
-            DataKeys.instances3d: torch.from_numpy(instance_ids),
+            COMMON_KEYS.colors3d: torch.from_numpy(color / 255),
+            COMMON_KEYS.points3d: torch.from_numpy(coords),
+            COMMON_KEYS.semantics3d: torch.from_numpy(semantic_ids),
+            COMMON_KEYS.instances3d: torch.from_numpy(instance_ids),
         }

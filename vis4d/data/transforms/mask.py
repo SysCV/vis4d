@@ -3,7 +3,7 @@ from typing import Tuple
 
 import torch
 
-from vis4d.data.datasets.base import DataKeys, DictData
+from vis4d.data.datasets.base import COMMON_KEYS, DictData
 from vis4d.struct_to_revise import DictStrAny
 
 from .base import Transform
@@ -24,7 +24,10 @@ class ConvertInsMasksToSegMask(Transform):
 
     def __init__(
         self,
-        in_keys: Tuple[str, ...] = (DataKeys.boxes2d_classes, DataKeys.masks),
+        in_keys: Tuple[str, ...] = (
+            COMMON_KEYS.boxes2d_classes,
+            COMMON_KEYS.masks,
+        ),
     ):
         """Init."""
         super().__init__(in_keys)
@@ -35,7 +38,7 @@ class ConvertInsMasksToSegMask(Transform):
 
     def __call__(self, data: DictData, parameters: DictStrAny) -> DictData:
         """Convert masks."""
-        data[DataKeys.segmentation_mask] = convert_ins_masks_to_seg_mask(
+        data[COMMON_KEYS.segmentation_mask] = convert_ins_masks_to_seg_mask(
             data[self.in_keys[0]], data[self.in_keys[1]]
         )
         return data
