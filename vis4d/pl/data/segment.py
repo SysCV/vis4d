@@ -1,17 +1,7 @@
-"""Segment data module.
-
-TODO(fyu) to find a proper place for this code.
-"""
+"""Segment data module."""
 from typing import List, Optional, Tuple
 
-from vis4d.common_to_revise.data_pipelines import (
-    CommonDataModule,
-    add_colorjitter,
-)
-from vis4d.common_to_revise.datasets import (
-    bdd100k_sem_seg_train,
-    bdd100k_sem_seg_val,
-)
+from vis4d.common.data_pipelines import CommonDataModule, add_colorjitter
 from vis4d.data_to_revise import (
     BaseDatasetHandler,
     BaseSampleMapper,
@@ -23,6 +13,9 @@ from vis4d.data_to_revise.transforms import (
     RandomCrop,
     Resize,
 )
+from vis4d.run.data.datasets import bdd100k_sem_seg_train, bdd100k_sem_seg_val
+
+# TODO(tao) update
 
 
 def multi_scale(

@@ -13,8 +13,8 @@ from torch.utils.data import (
 )
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.common_to_revise.registry import RegistryHolder
-from vis4d.common_to_revise.utils import get_world_size
+from vis4d.common.registry import RegistryHolder
+from vis4d.common.utils import get_world_size
 from vis4d.struct_to_revise import ArgsType, ModuleCfg
 
 from .datasets import VideoDataset

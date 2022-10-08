@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import numpy as np
 from scalabel.label.typing import Frame, FrameGroup
 
-from ..common_to_revise.registry import RegistryHolder
+from ..common.registry import RegistryHolder
 from ..struct_to_revise import InputSample
 from .mapper import BaseSampleMapper
 

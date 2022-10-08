@@ -13,7 +13,7 @@ from torch.utils.data import (
 
 from vis4d.data.samplers import BaseSampler, VideoInferenceSampler
 
-from ..common_to_revise.utils import get_world_size
+from ..common.utils import get_world_size
 from .datasets import VideoDataset
 from .datasets.base import COMMON_KEYS, DictData
 
@@ -21,10 +21,10 @@ from .datasets.base import COMMON_KEYS, DictData
 POINT_KEYS = [
     COMMON_KEYS.colors3d,
     COMMON_KEYS.points3d,
-    COMMON_KEYS.points3dCenter,
+    # COMMON_KEYS.points3dCenter,  # TODO these keys dont exist anymore
     COMMON_KEYS.semantics3d,
     COMMON_KEYS.instances3d,
-    COMMON_KEYS.index,
+    # COMMON_KEYS.index,
 ]
 
 
@@ -34,8 +34,8 @@ def default_collate(batch: List[DictData]) -> DictData:
     for key in batch[0]:
         if key == COMMON_KEYS.images:
             data[key] = torch.cat([b[key] for b in batch])
-        elif key == COMMON_KEYS.metadata:
-            data[key] = {k: [b[key][k] for b in batch] for k in batch[0][key]}
+        # elif key == COMMON_KEYS.metadata:
+        #     data[key] = {k: [b[key][k] for b in batch] for k in batch[0][key]}
         elif key in POINT_KEYS:
             data[key] = torch.stack([b[key] for b in batch], 0)
         else:

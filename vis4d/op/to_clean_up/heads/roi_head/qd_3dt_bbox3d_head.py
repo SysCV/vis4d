@@ -5,12 +5,12 @@ import numpy as np
 import torch
 from torch import nn
 
-from vis4d.common_to_revise.bbox.coders import QD3DTBox3DCoder
-from vis4d.common_to_revise.bbox.matchers import BaseMatcher
-from vis4d.common_to_revise.bbox.poolers import BaseRoIPooler
-from vis4d.common_to_revise.bbox.samplers import BaseSampler, SamplingResult
-from vis4d.common_to_revise.geometry.rotation import generate_rotation_output
-from vis4d.common_to_revise.layers import add_conv_branch
+from vis4d.common.bbox.coders import QD3DTBox3DCoder
+from vis4d.common.bbox.matchers import BaseMatcher
+from vis4d.common.bbox.poolers import BaseRoIPooler
+from vis4d.common.bbox.samplers import BaseSampler, SamplingResult
+from vis4d.common.geometry.rotation import generate_rotation_output
+from vis4d.common.layers import add_conv_branch
 from vis4d.op.loss import Box3DUncertaintyLoss
 from vis4d.struct_to_revise import (
     Boxes2D,

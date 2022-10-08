@@ -17,7 +17,7 @@ class DataModule(pl.LightningDataModule):
 
     Attributes:
         experiment: Experiment string to ensemble multiple configurations in
-        single data module
+        single data module.
         samples_per_gpu: batch size per GPU.
         workers_per_gpu: dataloader workers per GPU.
         pin_memory: Whether to allocate specific GPU memory for the dataloader

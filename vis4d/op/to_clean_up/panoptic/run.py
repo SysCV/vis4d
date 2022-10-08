@@ -1,13 +1,13 @@
 """PanopticFPN runtime configuration."""
-from vis4d.common_to_revise.datasets import bdd100k_seg_map, bdd100k_track_map
-from vis4d.common_to_revise.models import build_mask_rcnn
-from vis4d.common_to_revise.optimizers import sgd, step_schedule
+from vis4d.common.models import build_mask_rcnn
 from vis4d.engine_to_clean.trainer import BaseCLI
 from vis4d.op.heads.dense_head import MMSegDecodeHead
 from vis4d.op.heads.panoptic_head import SimplePanopticHead
 from vis4d.op.optimize import DefaultOptimizer
 from vis4d.op.panoptic import PanopticFPN
 from vis4d.op.panoptic.data import PanopticFPNDataModule
+from vis4d.pl.defaults import sgd, step_schedule
+from vis4d.run.data.datasets import bdd100k_seg_map, bdd100k_track_map
 
 
 def setup_model(

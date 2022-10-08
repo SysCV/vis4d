@@ -1,7 +1,15 @@
 """QDTrack data module."""
 from typing import List, Optional
 
-from vis4d.common_to_revise.datasets import (
+from vis4d.data_to_revise import (
+    BaseDatasetHandler,
+    BaseReferenceSampler,
+    BaseSampleMapper,
+    ScalabelDataset,
+)
+from vis4d.data_to_revise.transforms import BaseAugmentation, Resize
+from vis4d.pl.data.base import DataModule
+from vis4d.run.data.datasets import (
     bdd100k_det_train,
     bdd100k_detect_sample,
     bdd100k_track_map,
@@ -15,18 +23,11 @@ from vis4d.common_to_revise.datasets import (
     mot20_val,
     mot_map,
 )
-from vis4d.data_to_revise import (
-    BaseDatasetHandler,
-    BaseReferenceSampler,
-    BaseSampleMapper,
-    ScalabelDataset,
-)
-from vis4d.data_to_revise.transforms import BaseAugmentation, Resize
 
-from .data_pipelines import default_test, default_train
+# TODO update
 
 
-class TrackDataModule(CommonDataModule):
+class TrackDataModule(DataModule):
     """Tracking data module."""
 
     def create_datasets(self, stage: Optional[str] = None) -> None:
