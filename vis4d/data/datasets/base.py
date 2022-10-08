@@ -2,7 +2,9 @@
 
 import sys
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Union, Sequence
+from typing import Dict, List, Sequence, Tuple, Union
+
+from vis4d.struct_to_revise.structures import DictStrAny
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict  # pylint: disable=no-name-in-module
@@ -20,10 +22,24 @@ DictData = Dict[str, Union[Tensor, _DictStrArrayNested]]
 class MetaData(TypedDict):
     original_hw: Tuple[int, int]
     input_hw: Tuple[int, int]
+    transform_params: DictStrAny
+    batch_transform_params: DictStrAny
 
 
 @dataclass
-class DataKeys:
+class COMMON_KEYS:
+    """DataKeys defines the supported keys for DictData.
+
+    This container can hold arbitrary keys of data, where data of the keys defined
+    in DataKeys should be in the following format:
+    metadata: MetaData - container for meta-information about data.
+    images: Tensor of shape [1, C, H, W]
+    boxes2d: Tensor of shape [N, 4]
+    boxes2d_classes: Tensor of shape [N,]
+    masks: Tensor of shape [N, H, W]
+
+    """
+
     metadata = "metadata"
     images = "images"
     boxes2d = "boxes2d"
@@ -32,25 +48,14 @@ class DataKeys:
     masks = "masks"
     segmentation_mask = "segmentation_mask"
     # 3D Data
+    boxes3d = "boxes3d"
+    boxes3d_classes = "boxes3d_classes"
     points3d = "points3d"
     points3dCenter = "points3d_centerd"
     colors3d = "colors3d"
     semantics3d = "semantics3d"
     instances3d = "instances3d"
     index = "index"
-
-
-"""DictData
-
-This container can hold arbitrary keys of data, where data of the keys defined
-in DataKeys should be in the following format:
-metadata: MetaData - container for meta-information about data.
-images: Tensor of shape [1, C, H, W]
-boxes2d: Tensor of shape [N, 4]
-boxes2d_classes: Tensor of shape [N,]
-masks: Tensor of shape [N, H, W]
-
-"""
 
 
 class Dataset(TorchDataset[DictData]):
@@ -93,7 +98,7 @@ class MultitaskMixin:
             ValueError: If any key in keys_to_load is not supported.
         """
         for k in keys_to_load:
-            if k not in MultitaskMixin._KEYS:
+            if k not in self._KEYS:
                 raise ValueError(f"Key '{k}' is not supported!")
 
 

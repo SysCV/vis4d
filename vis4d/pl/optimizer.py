@@ -24,7 +24,7 @@ from vis4d.struct_to_revise import (
     ModuleCfg,
 )
 
-from .warmup import BaseLRWarmup, LinearLRWarmup
+from ..optim.warmup import BaseLRWarmup, LinearLRWarmup
 
 try:
     from mmcv.runner.fp16_utils import wrap_fp16_model

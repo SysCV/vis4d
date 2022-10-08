@@ -1,25 +1,28 @@
 """Data module composing the data loading pipeline."""
-import itertools
-import os.path as osp
 from typing import List, Optional, Union, no_type_check
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.utilities.distributed import rank_zero_info
 from torch.utils import data
 
+from vis4d.data.io import BaseDataBackend, FileBackend, HDF5Backend
 from vis4d.eval.base import Evaluator
 from vis4d.pl.callbacks.evaluator import DefaultEvaluatorCallback
 from vis4d.pl.callbacks.writer import DefaultWriterCallback
 
 
-class BaseDataModule(pl.LightningDataModule):
+class DataModule(pl.LightningDataModule):
     """Default data module for Vis4D.
 
     Attributes:
+        experiment: Experiment string to ensemble multiple configurations in
+        single data module
         samples_per_gpu: batch size per GPU.
         workers_per_gpu: dataloader workers per GPU.
         pin_memory: Whether to allocate specific GPU memory for the dataloader
         workers.
+        use_hdf5: Whether to use hdf5 data backend.
         visualize: If you're running in predict mode, this option lets you
         visualize the model predictions in the output_dir.
         input_dir: Directory in case you want to run inference on a folder
@@ -33,21 +36,31 @@ class BaseDataModule(pl.LightningDataModule):
 
     def __init__(
         self,
+        experiment: Optional[str] = None,
         samples_per_gpu: int = 1,
         workers_per_gpu: int = 1,
         pin_memory: bool = False,
+        use_hdf5: bool = False,
         visualize: bool = False,
         input_dir: Optional[str] = None,
         video_based_inference: Optional[bool] = None,
     ) -> None:
         """Init."""
         super().__init__()  # type: ignore
+        self.experiment = experiment
         self.visualize = visualize
         self.samples_per_gpu = samples_per_gpu
         self.workers_per_gpu = workers_per_gpu
         self.pin_memory = pin_memory
+        self.use_hdf5 = use_hdf5
         self.input_dir = input_dir
         self.video_based_inference = video_based_inference
+
+    def _setup_backend(self) -> BaseDataBackend:
+        """Setup data backend."""
+        backend = FileBackend() if not self.use_hdf5 else HDF5Backend()
+        rank_zero_info("Using data backend: %s", backend.__class__.__name__)
+        return backend
 
     @no_type_check
     def setup(self, stage: Optional[str] = None) -> None:

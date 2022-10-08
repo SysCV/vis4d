@@ -158,14 +158,7 @@ class FasterRCNNHead(nn.Module):
                 torch.cat([p, t]) for p, t in zip(proposal_boxes, target_boxes)
             ]
             scores = [
-                torch.cat(
-                    [
-                        s,
-                        s.new_ones(
-                            len(t),
-                        ),
-                    ]
-                )
+                torch.cat([s, s.new_ones(len(t))])
                 for s, t in zip(scores, target_boxes)
             ]
 
@@ -174,10 +167,7 @@ class FasterRCNNHead(nn.Module):
             sampled_target_indices,
             sampled_labels,
         ) = match_and_sample_proposals(
-            self.box_matcher,
-            self.box_sampler,
-            proposal_boxes,
-            target_boxes,
+            self.box_matcher, self.box_sampler, proposal_boxes, target_boxes
         )
 
         sampled_boxes, sampled_scores = apply_mask(
@@ -189,8 +179,7 @@ class FasterRCNNHead(nn.Module):
         )
 
         sampled_proposals = Proposals(
-            boxes=sampled_boxes,
-            scores=sampled_scores,
+            boxes=sampled_boxes, scores=sampled_scores
         )
         sampled_targets = Targets(
             boxes=sampled_target_boxes,
@@ -231,7 +220,7 @@ class FasterRCNNHead(nn.Module):
                 target_classes is not None
             ), "Need target classes for target boxes!"
 
-            self.rpn2roi.num_proposals_pre_nms = 2000
+            self.rpn2roi.num_proposals_pre_nms = 2000  # TODO needs cleanup
             proposal_boxes, scores = self.rpn2roi(
                 rpn_out.cls, rpn_out.box, images_hw
             )
@@ -245,7 +234,7 @@ class FasterRCNNHead(nn.Module):
             )
             roi_out = self.roi_head(features, sampled_proposals.boxes)
         else:
-            self.rpn2roi.num_proposals_pre_nms = 1000
+            self.rpn2roi.num_proposals_pre_nms = 1000  # TODO needs cleanup
             proposal_boxes, scores = self.rpn2roi(
                 rpn_out.cls, rpn_out.box, images_hw
             )

@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from vis4d.struct_to_revise.structures import DictStrAny
 
-from ..datasets.base import DataKeys, DictData
+from ..datasets.base import COMMON_KEYS, DictData
 from .base import Transform
 
 
@@ -39,10 +39,10 @@ class PointSampler(Transform):
         self,
         n_pts: int,
         in_keys: Tuple[str, ...] = (
-            DataKeys.colors3d,
-            DataKeys.points3d,
-            DataKeys.semantics3d,
-            DataKeys.instances3d,
+            COMMON_KEYS.colors3d,
+            COMMON_KEYS.points3d,
+            COMMON_KEYS.semantics3d,
+            COMMON_KEYS.instances3d,
         ),
     ):
         """Creates a new BasePointSampler transform.
@@ -116,11 +116,11 @@ class RandomBlockPointSampler(PointSampler):
         n_pts: int,
         min_pts: 1024,
         block_size: List[float] = [1.0, 1.0, 1.0],
-        coord_key: str = DataKeys.points3d,
+        coord_key: str = COMMON_KEYS.points3d,
         in_keys: Tuple[str, ...] = (
-            DataKeys.colors3d,
-            DataKeys.points3d,
-            DataKeys.semantics3d,
+            COMMON_KEYS.colors3d,
+            COMMON_KEYS.points3d,
+            COMMON_KEYS.semantics3d,
         ),
         max_tries=100,
     ):
@@ -171,16 +171,16 @@ class FullCoverageBlockSampler(PointSampler):
 
     def __init__(
         self,
-        coordinate_key=DataKeys.points3d,
+        coordinate_key=COMMON_KEYS.points3d,
         min_pts_per_block=8,
         block_size=[1.0, 1.0, 1.0],
         n_pts_per_block: int = 4096,
         stride: int = 1,
         center_blocks=True,
         in_keys: Tuple[str, ...] = (
-            DataKeys.colors3d,
-            DataKeys.points3d,
-            DataKeys.semantics3d,
+            COMMON_KEYS.colors3d,
+            COMMON_KEYS.points3d,
+            COMMON_KEYS.semantics3d,
         ),
     ) -> None:
         super().__init__(n_pts_per_block, sorted(in_keys))

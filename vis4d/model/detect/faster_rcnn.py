@@ -4,11 +4,7 @@ from typing import List, Optional, Union
 import torch
 from torch import nn
 
-from vis4d.common_to_revise.datasets import bdd100k_det_map
-from vis4d.common_to_revise.detect_data import DetectDataModule
-from vis4d.common_to_revise.optimizers import sgd, step_schedule
-from vis4d.data.datasets.base import DataKeys, DictData
-from vis4d.data.datasets.coco import coco_det_map
+from vis4d.data.datasets.base import COMMON_KEYS, DictData
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.util import bbox_postprocess
 from vis4d.op.detect.faster_rcnn import (
@@ -22,8 +18,6 @@ from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
-from vis4d.optim import DefaultOptimizer
-from vis4d.pl import BaseCLI
 from vis4d.struct_to_revise import LossesType, ModelOutput
 
 REV_KEYS = [
@@ -88,10 +82,10 @@ class FasterRCNN(nn.Module):
     def _forward_train(self, data: DictData) -> LossesType:
         """Forward training stage."""
         images, images_hw, target_boxes, target_classes = (
-            data[DataKeys.images],
-            data[DataKeys.metadata]["input_hw"],
-            data[DataKeys.boxes2d],
-            data[DataKeys.boxes2d_classes],
+            data[COMMON_KEYS.images],
+            data[COMMON_KEYS.metadata]["input_hw"],
+            data[COMMON_KEYS.boxes2d],
+            data[COMMON_KEYS.boxes2d_classes],
         )
 
         features = self.fpn(self.backbone(images))
@@ -111,9 +105,9 @@ class FasterRCNN(nn.Module):
 
     def _forward_test(self, data: DictData) -> ModelOutput:
         """Forward testing stage."""
-        images = data[DataKeys.images]
-        original_hw = data[DataKeys.metadata]["original_hw"]
-        images_hw = data[DataKeys.metadata]["input_hw"]
+        images = data[COMMON_KEYS.images]
+        original_hw = data[COMMON_KEYS.metadata]["original_hw"]
+        images_hw = data[COMMON_KEYS.metadata]["input_hw"]
 
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
@@ -127,41 +121,3 @@ class FasterRCNN(nn.Module):
             boxes2d=boxes, boxes2d_scores=scores, boxes2d_classes=class_ids
         )
         return output
-
-
-def setup_model(
-    experiment: str,
-    lr: float = 0.02,
-    max_epochs: int = 12,
-    weights: Optional[str] = None,
-) -> DefaultOptimizer:
-    """Setup model with experiment specific hyperparameters."""
-    if experiment == "bdd100k":
-        num_classes = len(bdd100k_det_map)
-    elif experiment == "coco":
-        num_classes = len(coco_det_map)
-    else:
-        raise NotImplementedError(f"Experiment {experiment} not known!")
-
-    model = FasterRCNN(num_classes=num_classes, weights=weights)
-    return DefaultOptimizer(
-        model,
-        optimizer_init=sgd(lr),
-        lr_scheduler_init=step_schedule(max_epochs),
-    )
-
-
-class DetectCLI(BaseCLI):
-    """Detect CLI."""
-
-    def add_arguments_to_parser(self, parser):
-        """Link data and model experiment argument."""
-        parser.link_arguments("data.experiment", "model.experiment")
-        parser.link_arguments("model.max_epochs", "trainer.max_epochs")
-
-
-if __name__ == "__main__":
-    """Example:
-
-    python -m vis4d.model.detect.faster_rcnn fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8"""
-    DetectCLI(model_class=setup_model, datamodule_class=DetectDataModule)

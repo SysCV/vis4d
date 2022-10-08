@@ -31,7 +31,6 @@ setuptools.setup(
         "Pillow",
         "plyfile",
         "psutil",
-        "pycocotools",
         "pydantic",
         "pytoml",
         "PyYAML",
@@ -44,9 +43,6 @@ setuptools.setup(
     ],
     package_data={
         "vis4d": [
-            "data/datasets/motchallenge.toml",
-            "data/datasets/waymo.toml",
-            "data/datasets/kitti.toml",
             "py.typed",
         ]
     },

@@ -6,7 +6,7 @@ from torch import nn
 from vis4d.common_to_revise.datasets import bdd100k_track_map
 from vis4d.common_to_revise.detect_data import InsSegDataModule
 from vis4d.common_to_revise.optimizers import sgd, step_schedule
-from vis4d.data.datasets.base import DataKeys, DictData
+from vis4d.data.datasets.base import COMMON_KEYS, DictData
 from vis4d.data.datasets.coco import coco_det_map
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.util import apply_mask, bbox_postprocess
@@ -28,7 +28,7 @@ from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim import DefaultOptimizer
-from vis4d.pl import BaseCLI
+from vis4d.pl import CLI
 from vis4d.struct_to_revise import LossesType, ModelOutput
 
 REV_KEYS = [
@@ -94,11 +94,11 @@ class MaskRCNN(nn.Module):
         """Forward training stage."""
         device = next(self.parameters()).device  # TODO hack for now
         images, images_hw, target_boxes, target_classes, target_masks = (
-            data[DataKeys.images].to(device),
-            data[DataKeys.metadata]["input_hw"],
-            [b.to(device) for b in data[DataKeys.boxes2d]],
-            [b.to(device) for b in data[DataKeys.boxes2d_classes]],
-            [m.to(device) for m in data[DataKeys.masks]],
+            data[COMMON_KEYS.images].to(device),
+            data[COMMON_KEYS.metadata]["input_hw"],
+            [b.to(device) for b in data[COMMON_KEYS.boxes2d]],
+            [b.to(device) for b in data[COMMON_KEYS.boxes2d_classes]],
+            [m.to(device) for m in data[COMMON_KEYS.masks]],
         )
 
         features = self.fpn(self.backbone(images))
@@ -137,9 +137,9 @@ class MaskRCNN(nn.Module):
     def _forward_test(self, data: DictData) -> ModelOutput:
         """Forward testing stage."""
         device = next(self.parameters()).device  # TODO hack for now
-        images = data[DataKeys.images].to(device)
-        original_hw = data[DataKeys.metadata]["original_hw"]
-        images_hw = data[DataKeys.metadata]["input_hw"]
+        images = data[COMMON_KEYS.images].to(device)
+        original_hw = data[COMMON_KEYS.metadata]["original_hw"]
+        images_hw = data[COMMON_KEYS.metadata]["input_hw"]
 
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
@@ -187,7 +187,7 @@ def setup_model(
     )
 
 
-class DetectCLI(BaseCLI):
+class DetectCLI(CLI):
     """Detect CLI."""
 
     def add_arguments_to_parser(self, parser):

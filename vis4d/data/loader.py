@@ -1,6 +1,6 @@
 """Dataloader utility functions."""
 import math
-from typing import Callable, Iterable, List, Optional, Union
+from typing import Callable, Iterable, Iterator, List, Optional, Union
 
 import torch
 from torch.utils.data import (
@@ -15,16 +15,16 @@ from vis4d.data.samplers import BaseSampler, VideoInferenceSampler
 
 from ..common_to_revise.utils import get_world_size
 from .datasets import VideoDataset
-from .datasets.base import DataKeys, DictData
+from .datasets.base import COMMON_KEYS, DictData
 
 """Keys that contain pointcloud based data and can be stacked using torch.stack."""
 POINT_KEYS = [
-    DataKeys.colors3d,
-    DataKeys.points3d,
-    DataKeys.points3dCenter,
-    DataKeys.semantics3d,
-    DataKeys.instances3d,
-    DataKeys.index,
+    COMMON_KEYS.colors3d,
+    COMMON_KEYS.points3d,
+    COMMON_KEYS.points3dCenter,
+    COMMON_KEYS.semantics3d,
+    COMMON_KEYS.instances3d,
+    COMMON_KEYS.index,
 ]
 
 
@@ -32,9 +32,9 @@ def default_collate(batch: List[DictData]) -> DictData:
     """Default batch collate."""
     data = {}
     for key in batch[0]:
-        if key == DataKeys.images:
+        if key == COMMON_KEYS.images:
             data[key] = torch.cat([b[key] for b in batch])
-        elif key == DataKeys.metadata:
+        elif key == COMMON_KEYS.metadata:
             data[key] = {k: [b[key][k] for b in batch] for k in batch[0][key]}
         elif key in POINT_KEYS:
             data[key] = torch.stack([b[key] for b in batch], 0)
@@ -70,7 +70,7 @@ class DataPipe(ConcatDataset):
         """Wrap getitem to apply augmentations."""
         getitem = super().__getitem__
         sample = getitem(idx)
-        data, params = self.preprocess_fn(sample)
+        data = self.preprocess_fn(sample)
         return data
 
 
@@ -109,7 +109,7 @@ class SubdividingIterableDataset(IterableDataset):
         self.dataset = dataset
         self.n_samples_per_batch = n_samples_per_batch
 
-    def __iter__(self) -> DictData:
+    def __iter__(self) -> Iterator[DictData]:
         """Iterates over the dataset, supporting distributed sampling."""
         worker_info = get_worker_info()
         if worker_info is None:
@@ -126,7 +126,7 @@ class SubdividingIterableDataset(IterableDataset):
                 data_sample = self.dataset[data_idx]
                 n_elements = next(iter(data_sample.values())).size(0)
                 for idx in range(int(n_elements / self.n_samples_per_batch)):
-                    out_data = {DataKeys.index: torch.tensor([data_idx])}
+                    out_data = {COMMON_KEYS.index: torch.tensor([data_idx])}
                     for key in data_sample:
                         start_idx = idx * self.n_samples_per_batch
                         end_idx = (idx + 1) * self.n_samples_per_batch
