@@ -14,9 +14,9 @@ from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 
 from .base import Dataset, MultitaskMixin
-from .utils import CacheMappingMixin, im_decode
+from .utils import CacheMappingMixin, DatasetFromList, im_decode
 
-# COCO
+# COCO detection
 coco_det_map = {
     "person": 0,
     "bicycle": 1,
@@ -101,29 +101,29 @@ coco_det_map = {
 }
 
 # COCO segmentation categories
-coco_seg_cats = [
-    0,
-    5,
-    2,
-    16,
-    9,
-    44,
-    6,
-    3,
-    17,
-    62,
-    21,
-    67,
-    18,
-    19,
-    4,
-    1,
-    64,
-    20,
-    63,
-    7,
-    72,
-]
+coco_seg_map = {
+    "background": 0,
+    "airplane": 1,
+    "bicycle": 2,
+    "bird": 3,
+    "boat": 4,
+    "bottle": 5,
+    "bus": 6,
+    "car": 7,
+    "cat": 8,
+    "chair": 9,
+    "cow": 10,
+    "dining table": 11,
+    "dog": 12,
+    "horse": 13,
+    "motorcycle": 14,
+    "person": 15,
+    "potted plant": 16,
+    "sheep": 17,
+    "couch": 18,
+    "train": 19,
+    "tv": 20,
+}
 
 
 class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
@@ -144,6 +144,9 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             COMMON_KEYS.masks,
         ],
         split: str = "train2017",
+        remove_empty: bool = False,
+        minimum_box_area: float = 0,
+        use_pascal_voc_cats: bool = False,
         data_backend: Optional[DataBackend] = None,
     ) -> None:
         super().__init__()
@@ -151,6 +154,9 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         self.data_root = data_root
         self.keys = keys
         self.split = split
+        self.remove_empty = remove_empty
+        self.minimum_box_area = minimum_box_area
+        self.use_pascal_voc_cats = use_pascal_voc_cats
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
         )
@@ -163,7 +169,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         )
         self.with_masks = COMMON_KEYS.masks in keys
 
-        self.data = self._load_mapping(
+        data_mapping = self._load_mapping(
             self._generate_data_mapping,
             os.path.join(
                 self.data_root,
@@ -171,10 +177,17 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
                 "instances_" + self.split + ".pkl",
             ),
         )
+        self.data = DatasetFromList(self._edit_data_mapping(data_mapping))
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
         return f"COCODataset(root={self.data_root}, split={self.split})"
+
+    def _has_valid_annotation(self, anns):
+        """Filter empty or low occupied samples."""
+        if self.remove_empty and len(anns) == 0:
+            return False
+        return sum(ann["area"] for ann in anns) >= self.minimum_box_area
 
     def _generate_data_mapping(self) -> List[DictStrAny]:
         """Generate coco dataset mapping."""
@@ -183,19 +196,39 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         )
         with contextlib.redirect_stdout(io.StringIO()):
             coco_api = COCOAPI(annotation_file)
-
         cat_ids = sorted(coco_api.getCatIds())
         cats_map = {c["id"]: c["name"] for c in coco_api.loadCats(cat_ids)}
-
         img_ids = sorted(coco_api.imgs.keys())
         imgs = coco_api.loadImgs(img_ids)
-        data = []
+        samples = []
         for img_id, img in zip(img_ids, imgs):
             anns = coco_api.imgToAnns[img_id]
+            samples.append(dict(img_id=img_id, img=img, anns=anns))
+        return dict(samples=samples, cats_map=cats_map)
+
+    def _edit_data_mapping(self, input_data):
+        cats_map = input_data["cats_map"]
+        samples = []
+        for sample in input_data["samples"]:
+            anns = sample["anns"]
+            if self.use_pascal_voc_cats:
+                voc_cats = set(coco_seg_map.keys())
+                anns = [
+                    ann
+                    for ann in anns
+                    if cats_map[ann["category_id"]] in voc_cats
+                ]
             for ann in anns:
-                ann["category_id"] = coco_det_map[cats_map[ann["category_id"]]]
-            data.append(dict(img_id=img_id, img=img, anns=anns))
-        return data
+                cat_name = cats_map[ann["category_id"]]
+                if self.use_pascal_voc_cats:
+                    ann["category_id"] = coco_seg_map[cat_name]
+                else:
+                    ann["category_id"] = coco_det_map[cat_name]
+            if self._has_valid_annotation(anns):
+                samples.append(
+                    dict(img_id=sample["img_id"], img=sample["img"], anns=anns)
+                )
+        return samples
 
     def __len__(self) -> int:
         return len(self.data)
@@ -209,10 +242,10 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         data = self.data[idx]
         img_h, img_w = data["img"]["height"], data["img"]["width"]
         dict_data = {
-            "original_hw": [img_h, img_w],
-            "input_hw": None,
-            "transform_params": {},
-            "batch_transform_params": {},
+            COMMON_KEYS.original_hw: [img_h, img_w],
+            COMMON_KEYS.input_hw: None,
+            COMMON_KEYS.transform_params: {},
+            COMMON_KEYS.batch_transform_params: {},
             "coco_image_id": data["img"]["id"],
         }
 
