@@ -6,7 +6,7 @@ from torch import nn
 
 from vis4d.common import LossesType, ModelOutput
 from vis4d.op.base.resnet import ResNet
-from vis4d.op.box.encoder import BaseBoxEncoder2D
+from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.util import bbox_postprocess
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
@@ -76,9 +76,9 @@ class FasterRCNN(nn.Module):
         self,
         images: torch.Tensor,
         images_hw: List[Tuple[int, int]],
-        target_boxes: Optional[List[torch.Tensor]],
-        target_classes: Optional[List[torch.Tensor]],
-        original_hw: Optional[List[Tuple[int, int]]],
+        target_boxes: Optional[List[torch.Tensor]] = None,
+        target_classes: Optional[List[torch.Tensor]] = None,
+        original_hw: Optional[List[Tuple[int, int]]] = None,
     ) -> Union[FRCNNOut, ModelOutput]:
         """Forward."""
         if self.training:
@@ -128,8 +128,8 @@ class FasterRCNNLoss(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        rpn_box_encoder: BaseBoxEncoder2D,
-        rcnn_box_encoder: BaseBoxEncoder2D,
+        rpn_box_encoder: BoxEncoder2D,
+        rcnn_box_encoder: BoxEncoder2D,
     ) -> None:
         """Init."""
         super().__init__()

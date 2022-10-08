@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops import batched_nms
 
-from vis4d.op.box.encoder.delta_xywh import DeltaXYWHBBoxEncoder
+from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
 from vis4d.op.loss.common import l1_loss
@@ -126,7 +126,7 @@ class RPN2RoI(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        box_encoder: DeltaXYWHBBoxEncoder,
+        box_encoder: BoxEncoder2D,
         num_proposals_pre_nms: int = 2000,
         max_per_img: int = 1000,
         proposal_nms_threshold: float = 0.7,
@@ -317,15 +317,13 @@ class RPNLoss(nn.Module):
     """
 
     def __init__(
-        self,
-        anchor_generator: AnchorGenerator,
-        box_encoder: DeltaXYWHBBoxEncoder,
+        self, anchor_generator: AnchorGenerator, box_encoder: BoxEncoder2D
     ):
         """Init.
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
-            box_encoder (DeltaXYWHBBoxEncoder): Encodes bounding boxes to
+            box_encoder (BoxEncoder2D): Encodes bounding boxes to
                 the desired network output.
         """
         super().__init__()

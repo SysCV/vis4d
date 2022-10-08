@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.ops import roi_align
 
-from vis4d.op.box.encoder.delta_xywh import DeltaXYWHBBoxEncoder
+from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.poolers import MultiScaleRoIAlign
 from vis4d.op.box.util import multiclass_nms
 from vis4d.op.loss.common import l1_loss
@@ -121,7 +121,7 @@ class RoI2Det(nn.Module):
 
     def __init__(
         self,
-        box_encoder: DeltaXYWHBBoxEncoder,
+        box_encoder: BoxEncoder2D,
         score_threshold: float = 0.05,
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
@@ -129,7 +129,7 @@ class RoI2Det(nn.Module):
         """Init.
 
         Args:
-            box_encoder (DeltaXYWHBBoxEncoder): Decodes regression parameters to detected boxes.
+            box_encoder (BoxEncoder2D): Decodes regression parameters to detected boxes.
             score_threshold (float, optional): Minimum score of a detection. Defaults to 0.05.
             iou_threshold (float, optional): IoU threshold of NMS post-processing step. Defaults to 0.5.
             max_per_img (int, optional): Maximum number of detections per image. Defaults to 100.
@@ -222,13 +222,11 @@ class RCNNLoss(nn.Module):
     corresponding target boxes with the given box encoder.
     """
 
-    def __init__(
-        self, box_encoder: DeltaXYWHBBoxEncoder, num_classes: int = 80
-    ):
+    def __init__(self, box_encoder: BoxEncoder2D, num_classes: int = 80):
         """Init.
 
         Args:
-            box_encoder (DeltaXYWHBBoxEncoder): Decodes box regression parameters into detected boxes.
+            box_encoder (BoxEncoder2D): Decodes box regression parameters into detected boxes.
             num_classes (int, optional): number of object categories. Defaults to 80.
         """
         super().__init__()
@@ -347,8 +345,8 @@ class RCNNLoss(nn.Module):
         return RCNNLosses(rcnn_loss_cls=loss_cls, rcnn_loss_bbox=loss_bbox)
 
 
-class MaskRCNNOut(NamedTuple):
-    """Mask RoI head outputs."""
+class MaskRCNNHeadOut(NamedTuple):
+    """Mask RCNN RoI head outputs."""
 
     # logits for mask prediction. The dimension is number of masks x number of
     # classes x H_mask x W_mask
@@ -416,14 +414,14 @@ class MaskRCNNHead(nn.Module):
 
     def forward(
         self, features: List[torch.Tensor], boxes: List[torch.Tensor]
-    ) -> MaskRCNNOut:
+    ) -> MaskRCNNHeadOut:
         """Forward pass during training stage."""
         mask_feats = self.roi_pooler(features, boxes)
         for conv in self.convs:
             mask_feats = self.relu(conv(mask_feats))
         mask_feats = self.relu(self.upsample(mask_feats))
         mask_pred = self.conv_logits(mask_feats)
-        return MaskRCNNOut(mask_pred=mask_pred)
+        return MaskRCNNHeadOut(mask_pred=mask_pred)
 
 
 class MaskOut(NamedTuple):
@@ -493,14 +491,23 @@ class Det2Mask(nn.Module):
         return self._call_impl(mask_outs, dets, images_hw)
 
 
-class MaskRCNNLosses(NamedTuple):
-    """Mask RCNN loss container."""
+class MaskRCNNHeadLosses(NamedTuple):
+    """Mask RoI head loss container."""
 
     rcnn_loss_mask: torch.Tensor
 
 
-class MaskRCNNLoss(nn.Module):
-    """Mask RCNN loss function."""
+class MaskRCNNHeadLoss(nn.Module):
+    """Mask RoI head loss function."""
+
+    def __init__(self, num_classes: int = 80):
+        """Init.
+
+        Args:
+            num_classes (int, optional): number of object categories. Defaults to 80.
+        """
+        super().__init__()
+        self.num_classes = num_classes
 
     def _get_targets_per_image(
         self,
@@ -536,8 +543,9 @@ class MaskRCNNLoss(nn.Module):
         proposal_boxes: List[torch.Tensor],
         target_classes: List[torch.Tensor],
         target_masks: List[torch.Tensor],
-    ) -> MaskRCNNLosses:
+    ) -> MaskRCNNHeadLosses:
         """Calculate losses of Mask RCNN head.
+
         Args:
             mask_pred (torch.Tensor): mask outputs.
             proposal_boxes (List[torch.Tensor]): [M, 4] proposal boxes per
@@ -548,25 +556,33 @@ class MaskRCNNLoss(nn.Module):
             target masks for each proposal.
 
         Returns:
-            MaskRCNNLosses: mask loss.
+            MaskRCNNHeadLosses: mask loss.
         """
         mask_size = tuple([mask_pred.shape[2], mask_pred.shape[3]])
         # get targets
         targets = []
         for boxes, tgt_masks in zip(proposal_boxes, target_masks):
-            targets.append(
-                self._get_targets_per_image(boxes, tgt_masks, mask_size)
-            )
+            if len(tgt_masks) == 0:
+                targets.append(
+                    torch.empty((0, *mask_size), device=tgt_masks.device)
+                )
+            else:
+                targets.append(
+                    self._get_targets_per_image(boxes, tgt_masks, mask_size)
+                )
         mask_targets = torch.cat(targets)
         mask_labels = torch.cat(target_classes)
 
-        num_rois = mask_pred.shape[0]
-        inds = torch.arange(
-            0, num_rois, dtype=torch.long, device=mask_pred.device
-        )
-        pred_slice = mask_pred[inds, mask_labels.long()].squeeze(1)
-        loss_mask = F.binary_cross_entropy_with_logits(
-            pred_slice, mask_targets.float(), reduction="mean"
-        )
+        if len(mask_targets) > 0:
+            num_rois = mask_pred.shape[0]
+            inds = torch.arange(
+                0, num_rois, dtype=torch.long, device=mask_pred.device
+            )
+            pred_slice = mask_pred[inds, mask_labels[inds].long()].squeeze(1)
+            loss_mask = F.binary_cross_entropy_with_logits(
+                pred_slice, mask_targets.float(), reduction="mean"
+            )
+        else:
+            loss_mask = mask_targets.sum()
 
-        return MaskRCNNLosses(rcnn_loss_mask=loss_mask)
+        return MaskRCNNHeadLosses(rcnn_loss_mask=loss_mask)

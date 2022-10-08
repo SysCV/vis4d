@@ -1,34 +1,32 @@
 """Mask RCNN model implementation and runtime."""
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
+import torch
 from torch import nn
 
-from vis4d.common import COMMON_KEYS, DictData
-from vis4d.common.detect_data import InsSegDataModule
-from vis4d.data.datasets.coco import coco_det_map
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.util import apply_mask, bbox_postprocess
+from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
+    FRCNNOut,
 )
 from vis4d.op.detect.rcnn import (
     Det2Mask,
     DetOut,
+    MaskOut,
     MaskRCNNHead,
-    MaskRCNNLoss,
+    MaskRCNNHeadLoss,
     RCNNLoss,
     RoI2Det,
 )
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
-from vis4d.optim import DefaultOptimizer
-from vis4d.pl import CLI
-from vis4d.pl.defaults import sgd, step_schedule
-from vis4d.run.data.datasets import bdd100k_track_map
 from vis4d.struct_to_revise import LossesType, ModelOutput
 
 REV_KEYS = [
@@ -56,22 +54,22 @@ class MaskRCNN(nn.Module):
     ) -> None:
         """Init."""
         super().__init__()
-        anchor_gen = get_default_anchor_generator()
-        rpn_bbox_encoder = get_default_rpn_box_encoder()
-        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
+        self.anchor_gen = get_default_anchor_generator()
+        self.rpn_bbox_encoder = get_default_rpn_box_encoder()
+        self.rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
         self.faster_rcnn_heads = FasterRCNNHead(
             num_classes=num_classes,
-            anchor_generator=anchor_gen,
-            rpn_box_encoder=rpn_bbox_encoder,
-            rcnn_box_encoder=rcnn_bbox_encoder,
+            anchor_generator=self.anchor_gen,
+            rpn_box_encoder=self.rpn_bbox_encoder,
+            rcnn_box_encoder=self.rcnn_bbox_encoder,
         )
         self.mask_head = MaskRCNNHead()
-        self.rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
-        self.rcnn_loss = RCNNLoss(rcnn_bbox_encoder)
-        self.mask_rcnn_loss = MaskRCNNLoss()
-        self.transform_outs = RoI2Det(rcnn_bbox_encoder)
+        self.rpn_loss = RPNLoss(self.anchor_gen, self.rpn_bbox_encoder)
+        self.rcnn_loss = RCNNLoss(self.rcnn_bbox_encoder)
+        self.mask_rcnn_loss = MaskRCNNHeadLoss()
+        self.transform_outs = RoI2Det(self.rcnn_bbox_encoder)
         self.det2mask = Det2Mask()
 
         if weights == "mmdet":
@@ -84,63 +82,49 @@ class MaskRCNN(nn.Module):
         elif weights is not None:
             load_model_checkpoint(self, weights)
 
-    def forward(self, data: DictData) -> Union[LossesType, ModelOutput]:
+    def forward(
+        self,
+        images: torch.Tensor,
+        images_hw: List[Tuple[int, int]],
+        target_boxes: Optional[List[torch.Tensor]] = None,
+        target_classes: Optional[List[torch.Tensor]] = None,
+        original_hw: Optional[List[Tuple[int, int]]] = None,
+    ) -> Union[Tuple[FRCNNOut, MaskOut], ModelOutput]:
         """Forward."""
         if self.training:
-            return self._forward_train(data)
-        return self._forward_test(data)
+            assert target_boxes is not None and target_classes is not None
+            return self.forward_train(
+                images, images_hw, target_boxes, target_classes
+            )
+        assert original_hw is not None
+        return self.forward_test(images, images_hw, original_hw)
 
-    def _forward_train(self, data: DictData) -> LossesType:
+    def forward_train(
+        self,
+        images: torch.Tensor,
+        images_hw: List[Tuple[int, int]],
+        target_boxes: List[torch.Tensor],
+        target_classes: List[torch.Tensor],
+    ) -> Tuple[FRCNNOut, MaskOut]:
         """Forward training stage."""
-        device = next(self.parameters()).device  # TODO hack for now
-        images, images_hw, target_boxes, target_classes, target_masks = (
-            data[COMMON_KEYS.images].to(device),
-            data[COMMON_KEYS.metadata]["input_hw"],
-            [b.to(device) for b in data[COMMON_KEYS.boxes2d]],
-            [b.to(device) for b in data[COMMON_KEYS.boxes2d_classes]],
-            [m.to(device) for m in data[COMMON_KEYS.masks]],
-        )
-
         features = self.fpn(self.backbone(images))
         outputs = self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
         )
-        mask_outs = self.mask_head(
-            features[2:-1], outputs.sampled_proposals.boxes
-        )
-
-        rpn_losses = self.rpn_loss(*outputs.rpn, target_boxes, images_hw)
-        rcnn_losses = self.rcnn_loss(
-            *outputs.roi,
+        pos_proposals = apply_mask(
+            [label == 1 for label in outputs.sampled_targets.labels],
             outputs.sampled_proposals.boxes,
-            outputs.sampled_targets.labels,
-            outputs.sampled_targets.boxes,
-            outputs.sampled_targets.classes,
-        )
-        assert outputs.sampled_target_indices is not None
-        sampled_masks = apply_mask(
-            outputs.sampled_target_indices, target_masks
         )[0]
-        mask_losses = self.mask_rcnn_loss(
-            mask_outs.mask_pred,
-            outputs.sampled_proposals.boxes,
-            outputs.sampled_targets.classes,
-            sampled_masks,
-        )
+        mask_outs = self.mask_head(features[2:-1], pos_proposals)
+        return outputs, mask_outs
 
-        return dict(
-            **rpn_losses._asdict(),
-            **rcnn_losses._asdict(),
-            **mask_losses._asdict(),
-        )
-
-    def _forward_test(self, data: DictData) -> ModelOutput:
+    def forward_test(
+        self,
+        images: torch.Tensor,
+        images_hw: List[Tuple[int, int]],
+        original_hw: List[Tuple[int, int]],
+    ) -> ModelOutput:
         """Forward testing stage."""
-        device = next(self.parameters()).device  # TODO hack for now
-        images = data[COMMON_KEYS.images].to(device)
-        original_hw = data[COMMON_KEYS.metadata]["original_hw"]
-        images_hw = data[COMMON_KEYS.metadata]["input_hw"]
-
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
         boxes, scores, class_ids = self.transform_outs(
@@ -155,49 +139,61 @@ class MaskRCNN(nn.Module):
             dets=post_dets,
             images_hw=original_hw,
         )
-
-        output = dict(
+        return dict(
             boxes2d=boxes,
             boxes2d_scores=scores,
             boxes2d_classes=class_ids,
             masks=masks.masks,
         )
-        return output
 
 
-def setup_model(
-    experiment: str,
-    lr: float = 0.02,
-    max_epochs: int = 12,
-    weights: Optional[str] = None,
-) -> DefaultOptimizer:
-    """Setup model with experiment specific hyperparameters."""
-    if experiment == "bdd100k":
-        num_classes = len(bdd100k_track_map)
-    elif experiment == "coco":
-        num_classes = len(coco_det_map)
-    else:
-        raise NotImplementedError(f"Experiment {experiment} not known!")
+class MaskRCNNLoss(nn.Module):
+    """Mask RCNN Loss."""
 
-    model = MaskRCNN(num_classes=num_classes, weights=weights)
-    return DefaultOptimizer(
-        model,
-        optimizer_init=sgd(lr),
-        lr_scheduler_init=step_schedule(max_epochs),
-    )
+    def __init__(
+        self,
+        anchor_generator: AnchorGenerator,
+        rpn_box_encoder: BoxEncoder2D,
+        rcnn_box_encoder: BoxEncoder2D,
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.rpn_loss = RPNLoss(anchor_generator, rpn_box_encoder)
+        self.rcnn_loss = RCNNLoss(rcnn_box_encoder)
+        self.mask_loss = MaskRCNNHeadLoss()
 
-
-class DetectCLI(CLI):
-    """Detect CLI."""
-
-    def add_arguments_to_parser(self, parser):
-        """Link data and model experiment argument."""
-        parser.link_arguments("data.experiment", "model.experiment")
-        parser.link_arguments("model.max_epochs", "trainer.max_epochs")
-
-
-if __name__ == "__main__":
-    """Example:
-
-    python -m vis4d.model.detect.mask_rcnn fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8"""
-    DetectCLI(model_class=setup_model, datamodule_class=InsSegDataModule)
+    def forward(
+        self,
+        outputs: Tuple[FRCNNOut, MaskOut],
+        images_hw: List[Tuple[int, int]],
+        target_boxes: List[torch.Tensor],
+        target_masks: List[torch.Tensor],
+    ) -> LossesType:
+        """Forward."""
+        frcnn_outs, mask_outs = outputs
+        rpn_losses = self.rpn_loss(*frcnn_outs.rpn, target_boxes, images_hw)
+        rcnn_losses = self.rcnn_loss(
+            *frcnn_outs.roi,
+            frcnn_outs.sampled_proposals.boxes,
+            frcnn_outs.sampled_targets.labels,
+            frcnn_outs.sampled_targets.boxes,
+            frcnn_outs.sampled_targets.classes,
+        )
+        assert frcnn_outs.sampled_target_indices is not None
+        sampled_masks = apply_mask(
+            frcnn_outs.sampled_target_indices, target_masks
+        )[0]
+        pos_proposals, pos_classes, pos_mask_targets = apply_mask(
+            [label == 1 for label in frcnn_outs.sampled_targets.labels],
+            frcnn_outs.sampled_proposals.boxes,
+            frcnn_outs.sampled_targets.classes,
+            sampled_masks,
+        )
+        mask_losses = self.mask_loss(
+            mask_outs.mask_pred, pos_proposals, pos_classes, pos_mask_targets
+        )
+        return dict(
+            **rpn_losses._asdict(),
+            **rcnn_losses._asdict(),
+            **mask_losses._asdict(),
+        )

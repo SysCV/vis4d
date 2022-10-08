@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops import batched_nms
 
-from vis4d.op.box.encoder import BaseBoxEncoder2D, DeltaXYWHBBoxEncoder
+from vis4d.op.box.encoder import BoxEncoder2D, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import BaseMatcher, MaxIoUMatcher
 from vis4d.op.box.samplers import BaseSampler, PseudoSampler
 from vis4d.op.detect.rpn import images_to_levels, unmap
@@ -72,7 +72,7 @@ class RetinaNetHead(nn.Module):
         stacked_convs: int = 4,
         use_sigmoid_cls: bool = True,
         anchor_generator: Optional[AnchorGenerator] = None,
-        box_encoder: Optional[BaseBoxEncoder2D] = None,
+        box_encoder: Optional[BoxEncoder2D] = None,
         box_matcher: Optional[BaseMatcher] = None,
     ):
         """Init."""
@@ -189,7 +189,7 @@ def decode_multi_level_outputs(
     reg_out_all: List[torch.Tensor],
     anchors_all: List[torch.Tensor],
     image_hw: Tuple[int, int],
-    box_encoder: DeltaXYWHBBoxEncoder,
+    box_encoder: BoxEncoder2D,
     max_per_img: int = 1000,
     nms_threshold: float = 0.7,
     min_box_size: Tuple[int, int] = (0, 0),
@@ -203,7 +203,7 @@ def decode_multi_level_outputs(
         reg_out_all (List[torch.Tensor]): topk regression params per level.
         anchors_all (List[torch.Tensor]): topk anchor boxes per level.
         image_hw (Tuple[int, int]): image size.
-        box_encoder (DeltaXYWHBBoxEncoder): bounding box encoder.
+        box_encoder (BoxEncoder2D): bounding box encoder.
         max_per_img (int, optional): maximum predictions per image. Defaults to 1000.
         nms_threshold (float, optional): iou threshold for NMS. Defaults to 0.7.
         min_box_size (Tuple[int, int], optional): minimum box size. Defaults to (0, 0).
@@ -242,7 +242,7 @@ class Dense2Det(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        box_encoder: DeltaXYWHBBoxEncoder,
+        box_encoder: BoxEncoder2D,
         num_pre_nms: int = 2000,
         max_per_img: int = 1000,
         nms_threshold: float = 0.7,
@@ -348,8 +348,8 @@ class RetinaNetLosses(NamedTuple):
     loss_bbox: torch.Tensor
 
 
-class RetinaNetLoss(nn.Module):
-    """Loss of RetinaNet.
+class RetinaNetHeadLoss(nn.Module):
+    """Loss of RetinaNet head.
 
     For a given set of multi-scale dense outputs, compute the desired target
     outputs and apply classification and regression losses.
@@ -360,7 +360,7 @@ class RetinaNetLoss(nn.Module):
     def __init__(
         self,
         anchor_generator: AnchorGenerator,
-        box_encoder: DeltaXYWHBBoxEncoder,
+        box_encoder: BoxEncoder2D,
         box_matcher: Optional[BaseMatcher] = None,
         box_sampler: Optional[BaseSampler] = None,
         loss_cls=None,
@@ -369,7 +369,7 @@ class RetinaNetLoss(nn.Module):
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
-            box_encoder (DeltaXYWHBBoxEncoder): Encodes bounding boxes to
+            box_encoder (BoxEncoder2D): Encodes bounding boxes to
                 the desired network output.
             box_matcher (Optional[BaseMatcher], optional): Box matcher.
             box_sampler (Optional[BaseSampler], optional): Box sampler.

@@ -7,12 +7,16 @@ import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 
-from vis4d.common.data_pipelines import default_test, default_train
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
 from vis4d.eval import COCOEvaluator, Evaluator
-from vis4d.model.detect.retinanet import RetinaNet
+from vis4d.model.detect.retinanet import RetinaNet, RetinaNetLoss
+from vis4d.op.detect.retinanet import (
+    get_default_box_matcher,
+    get_default_box_sampler,
+)
 from vis4d.optim.warmup import LinearLRWarmup
+from vis4d.run.data.detect import default_test_pipeline, default_train_pipeline
 from vis4d.run.test import testing_loop
 from vis4d.run.train import training_loop
 
@@ -27,14 +31,14 @@ def get_dataloaders(
     train_resolution = (800, 1333)
     test_resolution = (800, 1333)
     if is_training:
-        train_loader = default_train(
+        train_loader = default_train_pipeline(
             COCO(data_root, split="train2017", data_backend=HDF5Backend()),
             batch_size,
             train_resolution,
         )
     else:
         train_loader = None
-    test_loader = default_test(
+    test_loader = default_test_pipeline(
         COCO(data_root, split="val2017", data_backend=HDF5Backend()),
         1,
         test_resolution,
@@ -49,7 +53,7 @@ def train(args: argparse.Namespace) -> None:
     # parameters
     log_step = 100
     num_epochs = 12
-    batch_size = 16 * (args.num_gpus // 8)
+    batch_size = int(16 * (args.num_gpus / 8))
     learning_rate = 0.01 / 16 * batch_size
     device = torch.device("cuda")
     save_prefix = "vis4d-workspace/test/retinanet_coco_epoch"
@@ -62,10 +66,19 @@ def train(args: argparse.Namespace) -> None:
     # model
     retinanet = RetinaNet(num_classes=80, weights=args.ckpt)
     retinanet.to(device)
+    retinanet_loss = RetinaNetLoss(
+        retinanet.retinanet_head.anchor_generator,
+        retinanet.retinanet_head.box_encoder,
+        get_default_box_matcher(),
+        get_default_box_sampler(),
+    )
     if args.num_gpus > 1:
         retinanet = nn.DataParallel(
             retinanet, device_ids=[device, torch.device("cuda:1")]
         )
+    model_train_keys = ["images"]
+    model_test_keys = ["images", "input_hw", "original_hw"]
+    loss_keys = ["input_hw", "boxes2d", "boxes2d_classes"]
 
     # optimization
     optimizer = optim.SGD(
@@ -86,6 +99,10 @@ def train(args: argparse.Namespace) -> None:
         test_evals,
         test_metric,
         retinanet,
+        retinanet_loss,
+        model_train_keys,
+        model_test_keys,
+        loss_keys,
         optimizer,
         scheduler,
         num_epochs,
@@ -107,9 +124,12 @@ def test(args: argparse.Namespace) -> None:
     # model
     retinanet = RetinaNet(num_classes=80, weights=args.ckpt)
     retinanet.to(device)
+    model_test_keys = ["images", "input_hw", "original_hw"]
 
     # run testing
-    testing_loop(test_loader, test_evals, test_metric, retinanet)
+    testing_loop(
+        test_loader, test_evals, test_metric, retinanet, model_test_keys
+    )
 
 
 if __name__ == "__main__":
