@@ -1,7 +1,7 @@
 """Run utilities."""
 import dataclasses
 from abc import ABC
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict, defaultdict
 from copy import deepcopy
 from typing import Any, Callable, Mapping, Optional, Sequence, Tuple, Union
 

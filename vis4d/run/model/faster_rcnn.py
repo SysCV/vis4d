@@ -9,12 +9,6 @@ from torch.utils.data import DataLoader, Dataset
 
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
-from vis4d.eval import COCOEvaluator, Evaluator
-from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
-from vis4d.optim.warmup import LinearLRWarmup
-from vis4d.run.test import testing_loop
-from vis4d.run.train import training_loop
-
 from vis4d.data.loader import (
     DataPipe,
     build_inference_dataloaders,
@@ -25,6 +19,11 @@ from vis4d.data.transforms.flip import flip_boxes2d, flip_image
 from vis4d.data.transforms.normalize import normalize_image
 from vis4d.data.transforms.pad import pad_image
 from vis4d.data.transforms.resize import resize_boxes2d, resize_image
+from vis4d.eval import COCOEvaluator, Evaluator
+from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
+from vis4d.optim.warmup import LinearLRWarmup
+from vis4d.run.test import testing_loop
+from vis4d.run.train import training_loop
 
 warnings.filterwarnings("ignore")
 
