@@ -169,15 +169,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         )
         self.with_masks = COMMON_KEYS.masks in keys
 
-        data_mapping = self._load_mapping(
-            self._generate_data_mapping,
-            os.path.join(
-                self.data_root,
-                "annotations",
-                "instances_" + self.split + ".pkl",
-            ),
-        )
-        self.data = DatasetFromList(self._edit_data_mapping(data_mapping))
+        self.data = self._load_mapping(self._generate_data_mapping)
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
@@ -198,21 +190,15 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             coco_api = COCOAPI(annotation_file)
         cat_ids = sorted(coco_api.getCatIds())
         cats_map = {c["id"]: c["name"] for c in coco_api.loadCats(cat_ids)}
+        if self.use_pascal_voc_cats:
+            voc_cats = set(coco_seg_map.keys())
+
         img_ids = sorted(coco_api.imgs.keys())
         imgs = coco_api.loadImgs(img_ids)
         samples = []
         for img_id, img in zip(img_ids, imgs):
             anns = coco_api.imgToAnns[img_id]
-            samples.append(dict(img_id=img_id, img=img, anns=anns))
-        return dict(samples=samples, cats_map=cats_map)
-
-    def _edit_data_mapping(self, input_data):
-        cats_map = input_data["cats_map"]
-        samples = []
-        for sample in input_data["samples"]:
-            anns = sample["anns"]
             if self.use_pascal_voc_cats:
-                voc_cats = set(coco_seg_map.keys())
                 anns = [
                     ann
                     for ann in anns
@@ -225,9 +211,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
                 else:
                     ann["category_id"] = coco_det_map[cat_name]
             if self._has_valid_annotation(anns):
-                samples.append(
-                    dict(img_id=sample["img_id"], img=sample["img"], anns=anns)
-                )
+                samples.append(dict(img_id=img_id, img=img, anns=anns))
         return samples
 
     def __len__(self) -> int:

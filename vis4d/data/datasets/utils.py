@@ -4,6 +4,8 @@ import os
 import pickle
 from io import BytesIO
 from typing import Any, Callable, List
+import appdirs
+import hashlib
 
 import numpy as np
 from PIL import Image, ImageOps
@@ -74,11 +76,21 @@ class CacheMappingMixin:
     def _load_mapping(
         self,
         generate_map_func: Callable[[], List[DictStrAny]],
-        cache_path: str,
+        use_cache: bool = True,
     ) -> Dataset:
         """Load cached mapping or generate if not exists."""
         timer = Timer()
-        if cache_path is not None:
+        if use_cache:
+            cache_dir = os.path.join(
+                appdirs.user_cache_dir(appname="vis4d"),
+                "data_mapping",
+                self.__class__.__name__,
+            )
+            os.makedirs(cache_dir, exist_ok=True)
+            cache_path = os.path.join(
+                cache_dir,
+                str(self._get_hash()) + ".pkl",
+            )
             if not os.path.exists(cache_path):
                 data = generate_map_func()
                 with open(cache_path, "wb") as file:
@@ -89,11 +101,16 @@ class CacheMappingMixin:
         else:
             data = generate_map_func()
 
-        # dataset = DatasetFromList(data)
+        dataset = DatasetFromList(data)
         rank_zero_info(
             f"Loading {self.__repr__()} takes {timer.time():.2f} seconds."
         )
-        return data
+        return dataset
+
+    def _get_hash(self):
+        hasher = hashlib.sha256()
+        hasher.update(str(self.__dict__).encode("utf8"))
+        return hasher.hexdigest()
 
 
 # reference:
