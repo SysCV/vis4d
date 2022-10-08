@@ -1,12 +1,13 @@
 """Faster RCNN model implementation and runtime."""
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import nn
 
-from vis4d.data.datasets.base import COMMON_KEYS, DictData
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.box.encoder import BaseBoxEncoder2D
 from vis4d.op.box.util import bbox_postprocess
+from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     FRCNNOut,
@@ -19,6 +20,7 @@ from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.struct_to_revise import LossesType, ModelOutput
+from vis4d.vis.image import imshow_bboxes
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
@@ -31,6 +33,15 @@ REV_KEYS = [
 ]
 
 
+def visualize_proposals(
+    images: torch.Tensor, outs: FRCNNOut, topk: int = 100
+) -> None:
+    """Visualize topk proposals."""
+    for im, boxes, scores in zip(images, *outs.proposals):
+        _, topk_indices = torch.topk(scores, topk)
+        imshow_bboxes(im, boxes[topk_indices])
+
+
 class FasterRCNN(nn.Module):
     """Faster RCNN model."""
 
@@ -39,20 +50,18 @@ class FasterRCNN(nn.Module):
     ) -> None:
         """Init."""
         super().__init__()
-        anchor_gen = get_default_anchor_generator()
-        rpn_bbox_encoder = get_default_rpn_box_encoder()
-        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
+        self.anchor_gen = get_default_anchor_generator()
+        self.rpn_bbox_encoder = get_default_rpn_box_encoder()
+        self.rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
         self.faster_rcnn_heads = FasterRCNNHead(
             num_classes=num_classes,
-            anchor_generator=anchor_gen,
-            rpn_box_encoder=rpn_bbox_encoder,
-            rcnn_box_encoder=rcnn_bbox_encoder,
+            anchor_generator=self.anchor_gen,
+            rpn_box_encoder=self.rpn_bbox_encoder,
+            rcnn_box_encoder=self.rcnn_bbox_encoder,
         )
-        self.rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
-        self.rcnn_loss = RCNNLoss(rcnn_bbox_encoder)
-        self.transform_outs = RoI2Det(rcnn_bbox_encoder)
+        self.transform_outs = RoI2Det(self.rcnn_bbox_encoder)
 
         if weights == "mmdet":
             weights = (
@@ -63,36 +72,77 @@ class FasterRCNN(nn.Module):
         elif weights is not None:
             load_model_checkpoint(self, weights)
 
-    def visualize_proposals(
-        self, images: torch.Tensor, outs: FRCNNOut, topk: int = 100
-    ) -> None:
-        """Visualize topk proposals."""
-        from vis4d.vis.image import imshow_bboxes
-
-        for im, boxes, scores in zip(images, *outs.proposals):
-            _, topk_indices = torch.topk(scores, topk)
-            imshow_bboxes(im, boxes[topk_indices])
-
-    def forward(self, data: DictData) -> Union[LossesType, ModelOutput]:
+    def forward(
+        self,
+        images: torch.Tensor,
+        images_hw: List[Tuple[int, int]],
+        target_boxes: Optional[List[torch.Tensor]],
+        target_classes: Optional[List[torch.Tensor]],
+        original_hw: Optional[List[Tuple[int, int]]],
+    ) -> Union[FRCNNOut, ModelOutput]:
         """Forward."""
         if self.training:
-            return self._forward_train(data)
-        return self._forward_test(data)
+            assert target_boxes is not None and target_classes is not None
+            return self.forward_train(
+                images, images_hw, target_boxes, target_classes
+            )
+        assert original_hw is not None
+        return self.forward_test(images, images_hw, original_hw)
 
-    def _forward_train(self, data: DictData) -> LossesType:
+    def forward_train(
+        self,
+        images: torch.Tensor,
+        images_hw: List[Tuple[int, int]],
+        target_boxes: List[torch.Tensor],
+        target_classes: List[torch.Tensor],
+    ) -> FRCNNOut:
         """Forward training stage."""
-        images, images_hw, target_boxes, target_classes = (
-            data[COMMON_KEYS.images],
-            data[COMMON_KEYS.metadata]["input_hw"],
-            data[COMMON_KEYS.boxes2d],
-            data[COMMON_KEYS.boxes2d_classes],
-        )
-
         features = self.fpn(self.backbone(images))
-        outputs = self.faster_rcnn_heads(
+        return self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
         )
 
+    def forward_test(
+        self,
+        images: torch.Tensor,
+        images_hw: List[Tuple[int, int]],
+        original_hw: List[Tuple[int, int]],
+    ) -> ModelOutput:
+        """Forward testing stage."""
+        features = self.fpn(self.backbone(images))
+        outs = self.faster_rcnn_heads(features, images_hw)
+        boxes, scores, class_ids = self.transform_outs(
+            *outs.roi, outs.proposals.boxes, images_hw
+        )
+
+        for i, boxs in enumerate(boxes):
+            boxes[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
+        return dict(
+            boxes2d=boxes, boxes2d_scores=scores, boxes2d_classes=class_ids
+        )
+
+
+class FasterRCNNLoss(nn.Module):
+    """Faster RCNN Loss."""
+
+    def __init__(
+        self,
+        anchor_generator: AnchorGenerator,
+        rpn_box_encoder: BaseBoxEncoder2D,
+        rcnn_box_encoder: BaseBoxEncoder2D,
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.rpn_loss = RPNLoss(anchor_generator, rpn_box_encoder)
+        self.rcnn_loss = RCNNLoss(rcnn_box_encoder)
+
+    def forward(
+        self,
+        outputs: FRCNNOut,
+        images_hw: List[Tuple[int, int]],
+        target_boxes: List[torch.Tensor],
+    ) -> LossesType:
+        """Forward."""
         rpn_losses = self.rpn_loss(*outputs.rpn, target_boxes, images_hw)
         rcnn_losses = self.rcnn_loss(
             *outputs.roi,
@@ -102,22 +152,3 @@ class FasterRCNN(nn.Module):
             outputs.sampled_targets.classes,
         )
         return dict(**rpn_losses._asdict(), **rcnn_losses._asdict())
-
-    def _forward_test(self, data: DictData) -> ModelOutput:
-        """Forward testing stage."""
-        images = data[COMMON_KEYS.images]
-        original_hw = data[COMMON_KEYS.metadata]["original_hw"]
-        images_hw = data[COMMON_KEYS.metadata]["input_hw"]
-
-        features = self.fpn(self.backbone(images))
-        outs = self.faster_rcnn_heads(features, images_hw)
-        boxes, scores, class_ids = self.transform_outs(
-            *outs.roi, outs.proposals.boxes, images_hw
-        )
-
-        for i, boxs in enumerate(boxes):
-            boxes[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
-        output = dict(
-            boxes2d=boxes, boxes2d_scores=scores, boxes2d_classes=class_ids
-        )
-        return output

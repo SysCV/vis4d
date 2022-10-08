@@ -12,7 +12,7 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from terminaltables import AsciiTable
 
-from vis4d.data.datasets.base import COMMON_KEYS, DictData
+from vis4d.data.datasets.base import DictData
 from vis4d.data.datasets.coco import coco_det_map
 from vis4d.struct_to_revise import MetricLogs, ModelOutput
 
@@ -75,7 +75,7 @@ class COCOEvaluator(Evaluator):
         """Process sample and convert detections to coco format."""
         for i, (image_id, boxes, scores, classes) in enumerate(
             zip(
-                inputs[COMMON_KEYS.metadata]["coco_image_id"],
+                inputs["coco_image_id"],
                 outputs["boxes2d"],
                 outputs["boxes2d_scores"],
                 outputs["boxes2d_classes"],

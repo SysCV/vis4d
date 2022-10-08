@@ -10,6 +10,7 @@ from vis4d.eval import Evaluator
 from vis4d.optim.warmup import BaseLRWarmup
 
 from .test import testing_loop
+from .util import move_data_to_device
 
 
 def training_loop(
@@ -18,6 +19,10 @@ def training_loop(
     evaluators: List[Evaluator],
     metric: str,
     model: nn.Module,
+    loss: nn.Module,
+    model_train_keys: List[str],
+    model_test_keys: List[str],
+    loss_keys: List[str],
     optimizer: optim.Optimizer,
     scheduler: optim.lr_scheduler._LRScheduler,
     num_epochs: int,
@@ -36,8 +41,15 @@ def training_loop(
             # zero the parameter gradients
             optimizer.zero_grad()
 
+            # input data
+            device = next(model.parameters()).device  # model device
+            data = move_data_to_device(data, device)
+            train_input = (data[key] for key in model_train_keys)
+            loss_input = (data[key] for key in loss_keys)
+
             # forward + backward + optimize
-            losses = model(data)
+            output = model.forward_train(*train_input)
+            losses = loss(output, *loss_input)
             total_loss = sum(losses.values())
             total_loss.backward()
 
@@ -70,5 +82,7 @@ def training_loop(
 
         scheduler.step()
         torch.save(model.state_dict(), f"{save_prefix}_{epoch + 1}.pt")
-        testing_loop(test_dataloader, evaluators, metric, model)
+        testing_loop(
+            test_dataloader, evaluators, metric, model, model_test_keys
+        )
     print("training done.")

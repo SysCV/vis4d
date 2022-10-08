@@ -33,7 +33,7 @@ class COMMON_KEYS:
     input_hw = "input_hw"
     transform_params = "transform_params"
     batch_transform_params = "batch_transform_params"
-    image = "image"
+    images = "images"
     boxes2d = "boxes2d"
     boxes2d_classes = "boxes2d_classes"
     intrinsics = "intrinsics"
@@ -82,11 +82,18 @@ class MultitaskMixin:
 
     _KEYS: List[str] = []
 
-    def validate_keys(self, keys_to_load: List[str]) -> bool:
-        for k in keys_to_load:
+    def validate_keys(self, keys: List[str]) -> None:
+        """Validation the keys are defined in _KEYS.
+
+        Args:
+            keys (List[str]): User input of keys to load.
+
+        Raises:
+            ValueError: Raise if any key is not defined in _KEYS.
+        """
+        for k in keys:
             if k not in self._KEYS:
                 raise ValueError(f"Key '{k}' is not supported!")
-        return True
 
 
 class Subset(Dataset):
