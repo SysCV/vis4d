@@ -8,6 +8,7 @@ from vis4d.struct_to_revise import DictStrAny
 from ..datasets.base import DataKeys, DictData
 
 
+# TODO move to commen
 def get_dict_nested(dictionary: DictStrAny, keys: List[str]) -> Any:
     """Get value in nested dict."""
     for key in keys:
@@ -27,7 +28,20 @@ def set_dict_nested(
 
 
 class Transform:
-    """Decorator for transforms, which adds `in_keys` and `out_keys`."""
+    """Decorator for transforms, which adds `in_keys` and `out_keys`.
+    
+    This decorator defines which keys are input to the transformation function
+    and which keys are overwritten in the data dictionary by the output of 
+    the transformation.
+    Nested keys in the data dictionary can be accessed via key.subkey1.subkey2
+
+    Example:
+        @Transform(in_keys=["image"], out_keys=["image"])
+        def my_transform(option_a, option_b):
+            def _transform(image):
+                return do_transform(image)
+            return _transform
+    """
 
     def __init__(
         self,

@@ -4,7 +4,7 @@ from abc import abstractmethod
 from vis4d.common_to_revise.registry import RegistryHolder
 
 
-class BaseDataBackend(metaclass=RegistryHolder):
+class DataBackend(metaclass=RegistryHolder):
     """Abstract class of storage backends.
 
     All backends need to implement two apis: ``get()`` and ``get_text()``.

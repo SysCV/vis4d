@@ -57,7 +57,7 @@ def _resize_tensor(
     return output
 
 
-@Transform(in_keys=[DataKeys.images, DataKeys.metadata])
+@Transform(out_keys=[DataKeys.images, DataKeys.input_hw])
 def resize_image(
     shape: Union[Tuple[int, int], List[Tuple[int, int]]],
     keep_ratio: bool = False,
@@ -77,7 +77,7 @@ def resize_image(
         interpolation (str, optional): Interpolation method. One of ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
     """
 
-    def _resize(image: torch.Tensor, metadata: MetaData) -> torch.Tensor:
+    def _resize(image: torch.Tensor) -> torch.Tensor:
         im_shape = (image.size(2), image.size(3))
         tgt_shape = _get_target_shape(
             im_shape,
@@ -87,8 +87,7 @@ def resize_image(
             scale_range,
             align_long_edge,
         )
-        metadata["input_hw"] = tgt_shape
-        return _resize_tensor(image, tgt_shape, interpolation=interpolation)
+        return _resize_tensor(image, tgt_shape, interpolation=interpolation), tgt_shape
 
     return _resize
 

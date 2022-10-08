@@ -16,7 +16,7 @@ from scalabel.label.utils import (
 )
 
 from ..common_to_revise.registry import RegistryHolder
-from ..data.io import BaseDataBackend, FileBackend
+from ..data.io import DataBackend, FileBackend
 from ..struct_to_revise import (
     ALLOWED_INPUTS,
     ALLOWED_TARGETS,
@@ -39,7 +39,7 @@ class BaseSampleMapper(metaclass=RegistryHolder):
 
     def __init__(
         self,
-        data_backend: BaseDataBackend = FileBackend(),
+        data_backend: DataBackend = FileBackend(),
         inputs_to_load: Tuple[str, ...] = ("images",),
         targets_to_load: Tuple[str, ...] = ("boxes2d",),
         skip_empty_samples: bool = False,

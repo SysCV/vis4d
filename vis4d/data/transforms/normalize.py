@@ -7,7 +7,7 @@ from .base import Transform
 
 
 @Transform()
-def image_normalize(
+def normalize_image(
     mean: Tuple[float, float, float] = (123.675, 116.28, 103.53),
     std: Tuple[float, float, float] = (58.395, 57.12, 57.375),
 ):
@@ -20,14 +20,3 @@ def image_normalize(
         return img
 
     return _normalize
-
-
-def test_normalize():
-    transform = image_normalize()
-    x = torch.zeros((1, 3, 12, 12))
-    x = transform({"images": x})
-    assert torch.isclose(
-        x["images"].view(3, -1).mean(dim=-1),
-        torch.tensor([-2.1179, -2.0357, -1.8044]),
-        rtol=0.0001,
-    ).all()

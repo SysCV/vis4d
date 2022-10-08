@@ -6,7 +6,7 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.distributed import rank_zero_info
 from torch.utils import data
 
-from vis4d.data.io import BaseDataBackend, FileBackend, HDF5Backend
+from vis4d.data.io import DataBackend, FileBackend, HDF5Backend
 from vis4d.eval.base import Evaluator
 from vis4d.pl.callbacks.evaluator import DefaultEvaluatorCallback
 from vis4d.pl.callbacks.writer import DefaultWriterCallback
@@ -56,7 +56,7 @@ class DataModule(pl.LightningDataModule):
         self.input_dir = input_dir
         self.video_based_inference = video_based_inference
 
-    def _setup_backend(self) -> BaseDataBackend:
+    def _setup_backend(self) -> DataBackend:
         """Setup data backend."""
         backend = FileBackend() if not self.use_hdf5 else HDF5Backend()
         rank_zero_info("Using data backend: %s", backend.__class__.__name__)

@@ -16,9 +16,9 @@ from vis4d.data.loader import (
     build_train_dataloader,
 )
 from vis4d.data.transforms.base import compose, random_apply
-from vis4d.data.transforms.flip import boxes2d_flip, image_flip
-from vis4d.data.transforms.normalize import image_normalize
-from vis4d.data.transforms.pad import image_pad
+from vis4d.data.transforms.flip import flip_boxes2d, flip_image
+from vis4d.data.transforms.normalize import normalize_image
+from vis4d.data.transforms.pad import pad_image
 from vis4d.data.transforms.resize import resize_boxes2d, resize_image
 from vis4d.eval import COCOEvaluator, Evaluator
 from vis4d.pl.data import DataModule
@@ -40,14 +40,14 @@ class DetectDataModule(DataModule):
                 resize_boxes2d(),
                 random_apply(
                     [
-                        image_flip(),
-                        boxes2d_flip(),
+                        flip_image(),
+                        flip_boxes2d(),
                     ]
                 ),
-                image_normalize(),
+                normalize_image(),
             ]
         )
-        batchprocess_fn = image_pad()
+        batchprocess_fn = pad_image()
 
         datapipe = DataPipe(datasets, preprocess_fn)
         train_loader = build_train_dataloader(
@@ -83,10 +83,10 @@ class DetectDataModule(DataModule):
         preprocess_fn = compose(
             [
                 resize_image(im_hw, keep_ratio=True, align_long_edge=True),
-                image_normalize(),
+                normalize_image(),
             ]
         )
-        batchprocess_fn = image_pad()
+        batchprocess_fn = pad_image()
 
         datapipe = DataPipe(datasets, preprocess_fn)
         test_loaders = build_inference_dataloaders(
