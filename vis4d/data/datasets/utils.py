@@ -80,20 +80,20 @@ class CacheMappingMixin:
         timer = Timer()
         if cache_path is not None:
             if not os.path.exists(cache_path):
-                data_list = generate_map_func()
+                data = generate_map_func()
                 with open(cache_path, "wb") as file:
-                    file.write(pickle.dumps(data_list))
+                    file.write(pickle.dumps(data))
             else:
                 with open(cache_path, "rb") as file:
-                    data_list = pickle.loads(file.read())
+                    data = pickle.loads(file.read())
         else:
-            data_list = generate_map_func()
+            data = generate_map_func()
 
-        dataset = DatasetFromList(data_list)
+        # dataset = DatasetFromList(data)
         rank_zero_info(
             f"Loading {self.__repr__()} takes {timer.time():.2f} seconds."
         )
-        return dataset
+        return data
 
 
 # reference:

@@ -33,7 +33,7 @@ class COMMON_KEYS:
     input_hw = "input_hw"
     transform_params = "transform_params"
     batch_transform_params = "batch_transform_params"
-    image = "image"
+    images = "images"
     boxes2d = "boxes2d"
     boxes2d_classes = "boxes2d_classes"
     intrinsics = "intrinsics"
