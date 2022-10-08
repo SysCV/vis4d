@@ -83,11 +83,18 @@ class MultitaskMixin:
 
     _KEYS: List[str] = []
 
-    def validate_keys(self, keys_to_load: List[str]) -> bool:
+    def validate_keys(self, keys_to_load: List[str]) -> None:
+        """Validation keys to load.
+
+        Args:
+            keys_to_load (List[str]): User input of keys_to_load.
+
+        Raises:
+            ValueError: If any key in keys_to_load is not supported.
+        """
         for k in keys_to_load:
             if k not in MultitaskMixin._KEYS:
                 raise ValueError(f"Key '{k}' is not supported!")
-        return True
 
 
 class Subset(Dataset):
