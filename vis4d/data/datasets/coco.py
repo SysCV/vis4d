@@ -9,11 +9,11 @@ import pycocotools.mask as maskUtils
 import torch
 from pycocotools.coco import COCO as COCOAPI
 
+from vis4d.common import COMMON_KEYS, DictData, DictStrAny
 from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
-from vis4d.struct_to_revise import DictStrAny
 
-from .base import COMMON_KEYS, Dataset, DictData, MultitaskMixin
+from .base import Dataset, MultitaskMixin
 from .utils import CacheMappingMixin, DatasetFromList, im_decode
 
 # COCO detection

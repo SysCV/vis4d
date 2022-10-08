@@ -1,27 +1,24 @@
 """RetinaNet model implementation and runtime."""
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
+import torch
 import torchvision
 from torch import nn
 
-from vis4d.common.detect_data import DetectDataModule
-from vis4d.data.datasets.base import COMMON_KEYS, DictData
-from vis4d.data.datasets.coco import coco_det_map
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.box.matchers import BaseMatcher
+from vis4d.op.box.samplers import BaseSampler
+from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.util import bbox_postprocess
+from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.retinanet import (
     Dense2Det,
     RetinaNetHead,
-    RetinaNetLoss,
-    get_default_box_matcher,
-    get_default_box_sampler,
+    RetinaNetHeadLoss,
+    RetinaNetOut,
 )
 from vis4d.op.fpp.fpn import FPN, LastLevelP6P7
 from vis4d.op.utils import load_model_checkpoint
-from vis4d.optim import DefaultOptimizer
-from vis4d.pl import BaseCLI
-from vis4d.pl.defaults import sgd, step_schedule
-from vis4d.run.data.datasets import bdd100k_det_map
 from vis4d.struct_to_revise import LossesType, ModelOutput
 
 REV_KEYS = [
@@ -54,13 +51,6 @@ class RetinaNet(nn.Module):
         self.retinanet_head = RetinaNetHead(
             num_classes=num_classes, in_channels=256
         )
-        self.retinanet_loss = RetinaNetLoss(
-            self.retinanet_head.anchor_generator,
-            self.retinanet_head.box_encoder,
-            get_default_box_matcher(),
-            get_default_box_sampler(),
-            torchvision.ops.sigmoid_focal_loss,
-        )
         self.transform_outs = Dense2Det(
             self.retinanet_head.anchor_generator,
             self.retinanet_head.box_encoder,
@@ -79,38 +69,30 @@ class RetinaNet(nn.Module):
         elif weights is not None:
             load_model_checkpoint(self, weights)
 
-    def forward(self, data: DictData) -> Union[LossesType, ModelOutput]:
+    def forward(
+        self,
+        images: torch.Tensor,
+        images_hw: Optional[List[Tuple[int, int]]] = None,
+        original_hw: Optional[List[Tuple[int, int]]] = None,
+    ) -> Union[RetinaNetOut, ModelOutput]:
         """Forward."""
         if self.training:
-            return self._forward_train(data)
-        return self._forward_test(data)
+            return self.forward_train(images)
+        assert images_hw is not None and original_hw is not None
+        return self.forward_test(images, images_hw, original_hw)
 
-    def _forward_train(self, data: DictData) -> LossesType:
+    def forward_train(self, images: torch.Tensor) -> RetinaNetOut:
         """Forward training stage."""
-        images, images_hw, target_boxes, target_classes = (
-            data[COMMON_KEYS.images],
-            data[COMMON_KEYS.metadata]["input_hw"],
-            data[COMMON_KEYS.boxes2d],
-            data[COMMON_KEYS.boxes2d_classes],
-        )
-
         features = self.fpn(self.backbone(images))
-        outputs = self.retinanet_head(features[-5:])
-        losses = self.retinanet_loss(
-            outputs.cls_score,
-            outputs.bbox_pred,
-            target_boxes,
-            images_hw,
-            target_classes,
-        )
-        return dict(**losses._asdict())
+        return self.retinanet_head(features[-5:])
 
-    def _forward_test(self, data: DictData) -> ModelOutput:
+    def forward_test(
+        self,
+        images: torch.Tensor,
+        images_hw: List[Tuple[int, int]],
+        original_hw: List[Tuple[int, int]],
+    ) -> ModelOutput:
         """Forward testing stage."""
-        images = data[COMMON_KEYS.images]
-        original_hw = data[COMMON_KEYS.metadata]["original_hw"]
-        images_hw = data[COMMON_KEYS.metadata]["input_hw"]
-
         features = self.fpn(self.backbone(images))
         outs = self.retinanet_head(features[-5:])
         boxes, scores, class_ids = self.transform_outs(
@@ -120,45 +102,44 @@ class RetinaNet(nn.Module):
         )
         for i, boxs in enumerate(boxes):
             boxes[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
-        output = dict(
+        return dict(
             boxes2d=boxes, boxes2d_scores=scores, boxes2d_classes=class_ids
         )
-        return output
 
 
-def setup_model(
-    experiment: str,
-    lr: float = 0.01,
-    max_epochs: int = 12,
-    weights: Optional[str] = None,
-) -> DefaultOptimizer:
-    """Setup model with experiment specific hyperparameters."""
-    if experiment == "bdd100k":
-        num_classes = len(bdd100k_det_map)
-    elif experiment == "coco":
-        num_classes = len(coco_det_map)
-    else:
-        raise NotImplementedError(f"Experiment {experiment} not known!")
+class RetinaNetLoss(nn.Module):
+    """RetinaNet Loss."""
 
-    model = RetinaNet(num_classes=num_classes, weights=weights)
-    return DefaultOptimizer(
-        model,
-        optimizer_init=sgd(lr),
-        lr_scheduler_init=step_schedule(max_epochs),
-    )
+    def __init__(
+        self,
+        anchor_generator: AnchorGenerator,
+        box_encoder: BoxEncoder2D,
+        box_matcher: BaseMatcher,
+        box_sampler: BaseSampler,
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.retinanet_loss = RetinaNetHeadLoss(
+            anchor_generator,
+            box_encoder,
+            box_matcher,
+            box_sampler,
+            torchvision.ops.sigmoid_focal_loss,
+        )
 
-
-class DetectCLI(BaseCLI):
-    """Detect CLI."""
-
-    def add_arguments_to_parser(self, parser):
-        """Link data and model experiment argument."""
-        parser.link_arguments("data.experiment", "model.experiment")
-        parser.link_arguments("model.max_epochs", "trainer.max_epochs")
-
-
-if __name__ == "__main__":
-    """Example:
-
-    python -m vis4d.model.detect.retinanet fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8"""
-    DetectCLI(model_class=setup_model, datamodule_class=DetectDataModule)
+    def forward(
+        self,
+        outputs: RetinaNetOut,
+        images_hw: List[Tuple[int, int]],
+        target_boxes: List[torch.Tensor],
+        target_classes: List[torch.Tensor],
+    ) -> LossesType:
+        """Forward."""
+        losses = self.retinanet_loss(
+            outputs.cls_score,
+            outputs.bbox_pred,
+            target_boxes,
+            images_hw,
+            target_classes,
+        )
+        return losses._asdict()

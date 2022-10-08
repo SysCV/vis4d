@@ -1,7 +1,7 @@
 """Common optimizers."""
 from typing import List, Optional
 
-from vis4d.struct_to_revise import DictStrAny
+from vis4d.common import DictStrAny
 
 
 def sgd(

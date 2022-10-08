@@ -1,76 +1,22 @@
 """Faster RCNN COCO training example."""
 import argparse
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import torch
 from torch import nn, optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
-from vis4d.data.loader import (
-    DataPipe,
-    build_inference_dataloaders,
-    build_train_dataloader,
-)
-from vis4d.data.transforms.base import compose, random_apply
-from vis4d.data.transforms.flip import flip_boxes2d, flip_image
-from vis4d.data.transforms.normalize import normalize_image
-from vis4d.data.transforms.pad import pad_image
-from vis4d.data.transforms.resize import resize_boxes2d, resize_image
 from vis4d.eval import COCOEvaluator, Evaluator
 from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
 from vis4d.optim.warmup import LinearLRWarmup
+from vis4d.run.data.detect import default_test_pipeline, default_train_pipeline
 from vis4d.run.test import testing_loop
 from vis4d.run.train import training_loop
 
 warnings.filterwarnings("ignore")
-
-
-def default_train(
-    datasets: Union[Dataset, List[Dataset]],
-    batch_size: int,
-    im_hw: Tuple[int, int],
-) -> DataLoader:
-    """Generate default train data pipeline."""
-    preprocess_fn = compose(
-        [
-            resize_image(im_hw, keep_ratio=True),
-            resize_boxes2d(),
-            random_apply([flip_image(), flip_boxes2d()]),
-            normalize_image(),
-        ]
-    )
-    batchprocess_fn = compose([pad_image()])
-
-    datapipe = DataPipe(datasets, preprocess_fn)
-    train_loader = build_train_dataloader(
-        datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
-    )
-    return train_loader
-
-
-def default_test(
-    datasets: Union[Dataset, List[Dataset]],
-    batch_size: int,
-    im_hw: Tuple[int, int],
-) -> List[DataLoader]:
-    """Generate default train data pipeline."""
-    preprocess_fn = compose(
-        [
-            resize_image(im_hw, keep_ratio=True, align_long_edge=True),
-            resize_boxes2d(),
-            normalize_image(),
-        ]
-    )
-    batchprocess_fn = compose([pad_image()])
-
-    datapipe = DataPipe(datasets, preprocess_fn)
-    test_loaders = build_inference_dataloaders(
-        datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
-    )
-    return test_loaders
 
 
 def get_dataloaders(
@@ -81,14 +27,14 @@ def get_dataloaders(
     train_resolution = (800, 1333)
     test_resolution = (800, 1333)
     if is_training:
-        train_loader = default_train(
+        train_loader = default_train_pipeline(
             COCO(data_root, split="train2017", data_backend=HDF5Backend()),
             batch_size,
             train_resolution,
         )
     else:
         train_loader = None
-    test_loader = default_test(
+    test_loader = default_test_pipeline(
         COCO(data_root, split="val2017", data_backend=HDF5Backend()),
         1,
         test_resolution,

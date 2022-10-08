@@ -5,9 +5,9 @@ import shutil
 import tempfile
 from typing import Any, Callable, List, Optional, Tuple
 
+from vis4d.common import MetricLogs, ModelOutput
 from vis4d.data.datasets.base import DictData
 from vis4d.data.io import DataBackend, HDF5Backend
-from vis4d.struct_to_revise.structures import MetricLogs, ModelOutput
 
 
 class Evaluator:

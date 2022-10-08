@@ -14,15 +14,10 @@ from torch.optim import Optimizer, lr_scheduler
 from torch.utils.model_zoo import load_url
 from torchmetrics import MeanMetric
 
+from vis4d.common import DictStrAny, LossesType, ModelOutput
 from vis4d.common.registry import RegistryHolder
+from vis4d.common.typing import DictData
 from vis4d.common.utils.distributed import get_rank, get_world_size
-from vis4d.struct_to_revise import (
-    DictStrAny,
-    InputSample,
-    LossesType,
-    ModelOutput,
-    ModuleCfg,
-)
 
 from ..optim.warmup import BaseLRWarmup, LinearLRWarmup
 
@@ -55,8 +50,8 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
     def __init__(
         self,
         model: nn.Module,
-        optimizer_init: Optional[ModuleCfg] = None,
-        lr_scheduler_init: Optional[ModuleCfg] = None,
+        optimizer_init: Optional[DictStrAny] = None,
+        lr_scheduler_init: Optional[DictStrAny] = None,
         freeze: bool = False,
         freeze_parameters: Optional[List[str]] = None,
         weights: Optional[str] = None,
@@ -103,7 +98,7 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
             wrap_fp16_model(self)  # pragma: no cover
 
     def __call__(
-        self, batch_inputs: List[InputSample]
+        self, batch_inputs: DictData
     ) -> Union[LossesType, ModelOutput]:  # pragma: no cover
         """Forward."""
         if self.training:
@@ -159,7 +154,7 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
                 lr_schedulers.step()
 
     def training_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[InputSample], *args, **kwargs
+        self, batch: DictData, *args, **kwargs
     ) -> LossesType:
         """Wrap training step of LightningModule. Add overall loss."""
         losses = self.model(batch)
@@ -191,20 +186,20 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
         return losses
 
     def test_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[InputSample], *args, **kwargs
+        self, batch: DictData, *args, **kwargs
     ) -> ModelOutput:
         """Wrap test step of LightningModule."""
         return self.model(batch)
 
     def validation_step(  # type: ignore # pylint: disable=arguments-differ
-        self, batch: List[InputSample], *args, **kwargs
+        self, batch: DictData, *args, **kwargs
     ) -> ModelOutput:
         """Wrap validation step of LightningModule."""
         return self.model(batch)
 
     def predict_step(
         self,
-        batch: List[InputSample],
+        batch: DictData,
         batch_idx: int,
         dataloader_idx: Optional[int] = None,
     ) -> ModelOutput:

@@ -11,7 +11,7 @@ from vis4d.op.box.util import apply_mask
 from vis4d.op.detect.rcnn import (
     Det2Mask,
     MaskRCNNHead,
-    MaskRCNNLoss,
+    MaskRCNNHeadLoss,
     RCNNLoss,
     RoI2Det,
 )
@@ -192,7 +192,7 @@ class MaskRCNNTest(unittest.TestCase):
         mask_head = MaskRCNNHead(num_classes=num_classes)
         rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
         rcnn_loss = RCNNLoss(rcnn_bbox_encoder, num_classes=num_classes)
-        mask_rcnn_loss = MaskRCNNLoss()
+        mask_rcnn_loss = MaskRCNNHeadLoss()
 
         optimizer = optim.SGD(
             [

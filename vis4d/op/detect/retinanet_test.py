@@ -22,7 +22,7 @@ from .faster_rcnn_test import (
 from .retinanet import (
     Dense2Det,
     RetinaNetHead,
-    RetinaNetLoss,
+    RetinaNetHeadLoss,
     get_default_box_matcher,
     get_default_box_sampler,
 )
@@ -117,7 +117,7 @@ class RetinaNetTest(unittest.TestCase):
             start_index=3,
         )
         retina_net = RetinaNetHead(num_classes=num_classes, in_channels=256)
-        retinanet_loss = RetinaNetLoss(
+        retinanet_loss = RetinaNetHeadLoss(
             retina_net.anchor_generator,
             retina_net.box_encoder,
             get_default_box_matcher(),

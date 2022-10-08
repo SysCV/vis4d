@@ -9,37 +9,35 @@ from vis4d.data.loader import (
     build_train_dataloader,
 )
 from vis4d.data.transforms.base import compose, random_apply
-from vis4d.data.transforms.flip import flip_boxes2d, flip_image
+from vis4d.data.transforms.flip import flip_boxes2d, flip_image, flip_masks
 from vis4d.data.transforms.normalize import normalize_image
 from vis4d.data.transforms.pad import pad_image
-from vis4d.data.transforms.resize import resize_boxes2d, resize_image
+from vis4d.data.transforms.resize import (
+    resize_boxes2d,
+    resize_image,
+    resize_masks,
+)
 
 
 def default_train_pipeline(
     datasets: Union[Dataset, List[Dataset]],
     batch_size: int,
     im_hw: Tuple[int, int],
+    with_mask: bool = False,
 ) -> DataLoader:
     """Default train preprocessing pipeline for detectors."""
+    resize_trans = [resize_image(im_hw, keep_ratio=True), resize_boxes2d()]
+    flip_trans = [flip_image(), flip_boxes2d()]
+    if with_mask:
+        resize_trans += [resize_masks()]
+        flip_trans += [flip_masks()]
     preprocess_fn = compose(
-        [
-            resize_image(im_hw, keep_ratio=True),
-            resize_boxes2d(),
-            random_apply(
-                [
-                    flip_image(),
-                    flip_boxes2d(),
-                ]
-            ),
-            normalize_image(),
-        ]
+        [*resize_trans, random_apply(flip_trans), normalize_image()]
     )
     batchprocess_fn = pad_image()
     datapipe = DataPipe(datasets, preprocess_fn)
     train_loader = build_train_dataloader(
-        datapipe,
-        samples_per_gpu=batch_size,
-        batchprocess_fn=batchprocess_fn,
+        datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
     )
     return train_loader
 
@@ -59,8 +57,6 @@ def default_test_pipeline(
     batchprocess_fn = pad_image()
     datapipe = DataPipe(datasets, preprocess_fn)
     test_loaders = build_inference_dataloaders(
-        datapipe,
-        samples_per_gpu=batch_size,
-        batchprocess_fn=batchprocess_fn,
+        datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
     )
     return test_loaders

@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 if TYPE_CHECKING:  # pragma: no cover
-    from vis4d.struct_to_revise import DictStrAny
+    from vis4d.common import DictStrAny
 
 
 class RegistryHolder(type):

@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from vis4d.struct_to_revise import NamedTensors, NDArrayI64
+from vis4d.common import NDArrayI64
 
 from ..layer import Conv2d, DeformConv
 from .base import FeaturePyramidProcessing
@@ -109,12 +109,10 @@ class DLAUp(FeaturePyramidProcessing):
         out_channels: Optional[int] = None,
         start_level: int = 0,
         end_level: int = -1,
-        output_names: Optional[List[str]] = None,
         use_deformable_convs: bool = True,
     ) -> None:
         """Init."""
         super().__init__()
-        self.output_names = output_names
         self.start_level = start_level
         self.end_level = end_level
         if self.end_level == -1:
@@ -149,8 +147,8 @@ class DLAUp(FeaturePyramidProcessing):
 
     def forward(
         self,
-        inputs: NamedTensors,
-    ) -> NamedTensors:
+        inputs: List[torch.Tensor],
+    ) -> List[torch.Tensor]:
         """Forward."""
         layers = list(inputs.values())
         outs = [layers[self.end_level - 1]]
@@ -160,6 +158,4 @@ class DLAUp(FeaturePyramidProcessing):
             outs.insert(0, layers[self.end_level - 1])
         self.ida_final(outs, 0, len(outs))
         outs = [outs[-1]]
-        if self.output_names is None:
-            return {f"out{i}": v for i, v in enumerate(outs)}
-        return dict(zip(self.output_names, outs))  # pragma: no cover
+        return outs

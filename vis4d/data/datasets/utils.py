@@ -12,10 +12,9 @@ from PIL import Image, ImageOps
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from torch.utils.data import Dataset
 
+from vis4d.common import DictStrAny, NDArrayI64, NDArrayUI8
 from vis4d.common.utils.imports import OPENCV_AVAILABLE
 from vis4d.common.utils.time import Timer
-from vis4d.struct_to_revise import NDArrayI64, NDArrayUI8
-from vis4d.struct_to_revise.structures import DictStrAny
 
 if OPENCV_AVAILABLE:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module

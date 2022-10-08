@@ -8,7 +8,7 @@ from scalabel.label.transforms import mask_to_rle, poly2ds_to_mask, rle_to_mask
 from scalabel.label.typing import ImageSize, Label
 from torchvision.ops import roi_align
 
-from ..structures import LabelInstance, NDArrayUI8
+from ..structures import LabelInstance
 from .boxes import Boxes2D
 
 # from vis4d.op.detect.mask import paste_masks_in_image
@@ -339,7 +339,7 @@ class Masks(LabelInstance):
 
         return type(self)(masks, class_ids, track_ids, score)
 
-    def to_ndarray(self) -> NDArrayUI8:
+    def to_ndarray(self):
         """Convert masks to ndarray."""
         return self.masks.cpu().numpy()  # type: ignore
 

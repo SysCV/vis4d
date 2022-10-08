@@ -13,8 +13,6 @@ from typing import (
     Union,
 )
 
-import numpy as np
-import numpy.typing as npt
 import torch
 from scalabel.label.typing import ImageSize, Label
 
@@ -128,20 +126,7 @@ ALLOWED_TARGETS = (
 )
 
 CategoryMap = Union[Dict[str, int], Dict[str, Dict[str, int]]]
-
-
-NDArrayF64 = npt.NDArray[np.float64]
-NDArrayF32 = npt.NDArray[np.float32]
-NDArrayI64 = npt.NDArray[np.int64]
-NDArrayUI8 = npt.NDArray[np.uint8]
-TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
-LossesType = Dict[str, torch.Tensor]  # TODO remove
-ModelOutput = Dict[str, List[List[Label]]]
-DictStrAny = Dict[str, Any]  # type: ignore
-MetricLogs = Dict[str, Union[float, int]]
 NamedTensors = Dict[str, torch.Tensor]
-ModuleCfg = DictStrAny
-ArgsType = Any  # type: ignore
 
 
 class Proposals(NamedTuple):

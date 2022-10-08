@@ -16,8 +16,8 @@ from pytorch_lightning.utilities.rank_zero import (
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from termcolor import colored
 
+from ..common import ArgsType
 from ..common.utils.time import Timer
-from ..struct_to_revise import ArgsType
 
 logger = logging.getLogger("pytorch_lightning")
 # ignore DeprecationWarning by default (e.g. numpy)

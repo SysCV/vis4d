@@ -1,10 +1,8 @@
 """Vis4D Trainer."""
 import os.path as osp
 from datetime import datetime
-from itertools import product
-from typing import Callable, Dict, List, Optional, Type, Union
+from typing import Callable, List, Optional, Type, Union
 
-import pandas
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
@@ -12,20 +10,15 @@ from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from pytorch_lightning.core import LightningModule
 from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
 from pytorch_lightning.strategies.strategy import Strategy
-from pytorch_lightning.tuner.lr_finder import _LRFinder
 from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 from pytorch_lightning.utilities.rank_zero import (
     rank_zero_info,
     rank_zero_warn,
 )
-from pytorch_lightning.utilities.types import (
-    EVAL_DATALOADERS,
-    TRAIN_DATALOADERS,
-)
 from torch.utils.collect_env import get_pretty_env_info
 
-from ..struct_to_revise import ArgsType, DictStrAny
+from ..common import ArgsType, DictStrAny
 from .data import DataModule
 from .utils import DefaultProgressBar, is_torch_tf32_available, setup_logger
 

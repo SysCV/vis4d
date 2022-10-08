@@ -7,10 +7,10 @@ from typing import Optional, Tuple
 
 import torch
 
-from .base import BaseBoxEncoder2D
+from .base import BoxEncoder2D
 
 
-class DeltaXYWHBBoxEncoder(BaseBoxEncoder2D):
+class DeltaXYWHBBoxEncoder(BoxEncoder2D):
     """Delta XYWH BBox encoder.
 
     Following the practice in `R-CNN <https://arxiv.org/abs/1311.2524>`_,

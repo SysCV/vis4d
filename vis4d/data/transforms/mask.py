@@ -1,7 +1,8 @@
 """Segmentation/Instance Mask Transform."""
 
-import torch
 from typing import List
+
+import torch
 
 from vis4d.data.datasets.base import COMMON_KEYS
 

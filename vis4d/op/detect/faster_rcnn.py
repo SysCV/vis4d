@@ -4,7 +4,7 @@ from typing import List, NamedTuple, Optional, Tuple
 import torch
 from torch import nn
 
-from vis4d.op.box.encoder import BaseBoxEncoder2D, DeltaXYWHBBoxEncoder
+from vis4d.op.box.encoder import BoxEncoder2D, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import BaseMatcher, MaxIoUMatcher
 from vis4d.op.box.samplers import (
     BaseSampler,
@@ -86,8 +86,8 @@ class FasterRCNNHead(nn.Module):
         self,
         num_classes: int = 80,
         anchor_generator: Optional[AnchorGenerator] = None,
-        rpn_box_encoder: Optional[BaseBoxEncoder2D] = None,
-        rcnn_box_encoder: Optional[BaseBoxEncoder2D] = None,
+        rpn_box_encoder: Optional[BoxEncoder2D] = None,
+        rcnn_box_encoder: Optional[BoxEncoder2D] = None,
         box_matcher: Optional[BaseMatcher] = None,
         box_sampler: Optional[BaseSampler] = None,
         proposal_append_gt: bool = True,
@@ -97,8 +97,8 @@ class FasterRCNNHead(nn.Module):
         Args:
             num_classes (int, optional): Number of object categories. Defaults to 80.
             anchor_generator (Optional[AnchorGenerator], optional): Custom anchor generator for RPN. Defaults to None.
-            rpn_box_encoder (Optional[DeltaXYWHBBoxEncoder], optional): Custom rpn box encoder. Defaults to None.
-            rcnn_box_encoder (Optional[DeltaXYWHBBoxEncoder], optional): Custom rcnn box encoder. Defaults to None.
+            rpn_box_encoder (Optional[BoxEncoder2D], optional): Custom rpn box encoder. Defaults to None.
+            rcnn_box_encoder (Optional[BoxEncoder2D], optional): Custom rcnn box encoder. Defaults to None.
             box_matcher (Optional[MaxIoUMatcher], optional): Custom box matcher for RCNN stage. Defaults to None.
             box_sampler (Optional[RandomSampler], optional): Custom box sampler for RCNN stage. Defaults to None.
             proposal_append_gt (bool): If to append the ground truth boxes for proposal sampling during training. Defaults to True.
