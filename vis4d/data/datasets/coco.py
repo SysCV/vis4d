@@ -137,7 +137,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
     def __init__(
         self,
         data_root: str,
-        keys_to_load: List[str] = [
+        keys: List[str] = [
             COMMON_KEYS.images,
             COMMON_KEYS.boxes2d,
             COMMON_KEYS.boxes2d_classes,
@@ -149,19 +149,19 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         super().__init__()
 
         self.data_root = data_root
-        self.keys_to_load = keys_to_load
+        self.keys = keys
         self.split = split
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
         )
 
         # handling keys to load
-        self.validate_keys(keys_to_load)
-        self.with_images = COMMON_KEYS.images in keys_to_load
-        self.with_boxes = (COMMON_KEYS.boxes2d in keys_to_load) or (
-            COMMON_KEYS.boxes2d_classes in keys_to_load
+        self.validate_keys(keys)
+        self.with_images = COMMON_KEYS.images in keys
+        self.with_boxes = (COMMON_KEYS.boxes2d in keys) or (
+            COMMON_KEYS.boxes2d_classes in keys
         )
-        self.with_masks = COMMON_KEYS.masks in keys_to_load
+        self.with_masks = COMMON_KEYS.masks in keys
 
         self.data = self._load_mapping(
             self._generate_data_mapping,
@@ -263,9 +263,9 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
                     np.ascontiguousarray(masks), dtype=torch.uint8
                 )
 
-            if COMMON_KEYS.boxes2d in self.keys_to_load:
+            if COMMON_KEYS.boxes2d in self.keys:
                 dict_data[COMMON_KEYS.boxes2d] = box_tensor
-            if COMMON_KEYS.boxes2d_classes in self.keys_to_load:
+            if COMMON_KEYS.boxes2d_classes in self.keys:
                 dict_data[COMMON_KEYS.boxes2d_classes] = torch.tensor(
                     classes, dtype=torch.long
                 )
