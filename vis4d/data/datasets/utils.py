@@ -86,10 +86,7 @@ class CacheMappingMixin:
                 self.__class__.__name__,
             )
             os.makedirs(cache_dir, exist_ok=True)
-            cache_path = os.path.join(
-                cache_dir,
-                str(self._get_hash()) + ".pkl",
-            )
+            cache_path = os.path.join(cache_dir, self._get_hash() + ".pkl")
             if not os.path.exists(cache_path):
                 data = generate_map_func()
                 with open(cache_path, "wb") as file:
@@ -106,10 +103,10 @@ class CacheMappingMixin:
         )
         return dataset
 
-    def _get_hash(self) -> str:
+    def _get_hash(self, length: int = 16) -> str:
         hasher = hashlib.sha256()
         hasher.update(str(self.__dict__).encode("utf8"))
-        return hasher.hexdigest()[:16]
+        return hasher.hexdigest()[:length]
 
 
 # reference:
