@@ -88,16 +88,16 @@ class MultitaskMixin:
 
     _KEYS: List[str] = []
 
-    def validate_keys(self, keys_to_load: List[str]) -> None:
-        """Validation keys to load.
+    def validate_keys(self, keys: List[str]) -> None:
+        """Validation the keys are defined in _KEYS.
 
         Args:
-            keys_to_load (List[str]): User input of keys_to_load.
+            keys (List[str]): User input of keys to load.
 
         Raises:
-            ValueError: If any key in keys_to_load is not supported.
+            ValueError: Raise if any key is not defined in _KEYS.
         """
-        for k in keys_to_load:
+        for k in keys:
             if k not in self._KEYS:
                 raise ValueError(f"Key '{k}' is not supported!")
 
