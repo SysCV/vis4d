@@ -1,16 +1,7 @@
 """Base dataset in Vis4D."""
 
-import sys
 from dataclasses import dataclass
-from tkinter import image_names
-from typing import Dict, List, Sequence, Tuple, Union
-
-from vis4d.struct_to_revise.structures import DictStrAny
-
-if sys.version_info >= (3, 8):
-    from typing import TypedDict  # pylint: disable=no-name-in-module
-else:
-    from typing_extensions import TypedDict
+from typing import Dict, List, Sequence, Union
 
 from torch import Tensor
 from torch.utils.data import Dataset as TorchDataset
@@ -20,10 +11,8 @@ _DictStrArrayNested = Dict[str, Union[Tensor, _DictStrArray]]
 DictData = Dict[str, Union[Tensor, _DictStrArrayNested]]
 
 
-
-
 @dataclass
-class DataKeys:
+class COMMON_KEYS:
     """DataKeys defines the supported keys for DictData.
 
     This container can hold arbitrary keys of data, where data of the keys defined
@@ -72,7 +61,7 @@ class Dataset(TorchDataset[DictData]):
         raise NotImplementedError
 
 
-#class MultiViewDataset(TorchDataset[MultiViewDataDict]): TODO
+# class MultiViewDataset(TorchDataset[MultiViewDataDict]): TODO
 
 
 class VideoDataset(Dataset):
@@ -86,22 +75,6 @@ class VideoDataset(Dataset):
         Returns:
             Dict[str, int]: Mapping video to index.
         """
-
-
-class NuScenes(Dataset, MultitaskMixin):
-    _KEYS = ["FRONT_CAM"]
-
-    -> front cam iamge
-
-
-datasets = [
-    NuScenes(keys = ["FRONT_CAM", "BACK_CAM"]),
-    NuScenes(keys = "BACK_CAM"),
-    ...
-]
-
-faster_rcnn
-
 
 
 class MultitaskMixin:

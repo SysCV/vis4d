@@ -1,11 +1,11 @@
 """Basic data augmentation class."""
-from typing import Any, Callable, List, TypeVar
+from typing import Any, Callable, List, Tuple, TypeVar
 
 import torch
 
 from vis4d.struct_to_revise import DictStrAny
 
-from ..datasets.base import DataKeys, DictData
+from ..datasets.base import COMMON_KEYS, DictData
 
 
 # TODO move to commen
@@ -29,9 +29,9 @@ def set_dict_nested(
 
 class Transform:
     """Decorator for transforms, which adds `in_keys` and `out_keys`.
-    
+
     This decorator defines which keys are input to the transformation function
-    and which keys are overwritten in the data dictionary by the output of 
+    and which keys are overwritten in the data dictionary by the output of
     the transformation.
     Nested keys in the data dictionary can be accessed via key.subkey1.subkey2
 
@@ -45,8 +45,8 @@ class Transform:
 
     def __init__(
         self,
-        in_keys=(DataKeys.images,),
-        out_keys=(DataKeys.images,),
+        in_keys: Tuple[str, ...] = (COMMON_KEYS.images,),
+        out_keys: Tuple[str, ...] = (COMMON_KEYS.images,),
         with_data: bool = False,
     ):
         """Init.
@@ -93,8 +93,8 @@ class BatchTransform:
 
     def __init__(
         self,
-        in_keys=(DataKeys.images,),
-        out_keys=(DataKeys.images,),
+        in_keys=(COMMON_KEYS.images,),
+        out_keys=(COMMON_KEYS.images,),
         with_data: bool = False,
     ):
         """Init.
@@ -163,9 +163,11 @@ def random_apply(
     """Apply given transforms at random with given probability."""
 
     def _apply(data: DictData) -> DictData:
-        data[DataKeys.metadata]["transform_params"]["random_apply"] = False
+        data[COMMON_KEYS.metadata]["transform_params"]["random_apply"] = False
         if torch.rand(1) < p:
-            data[DataKeys.metadata]["transform_params"]["random_apply"] = True
+            data[COMMON_KEYS.metadata]["transform_params"][
+                "random_apply"
+            ] = True
             for op in transforms:
                 data = op(data)
         return data

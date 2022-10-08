@@ -1,7 +1,7 @@
 """Test loader components."""
 import torch
 
-from vis4d.data.datasets.base import DataKeys
+from vis4d.data.datasets.base import COMMON_KEYS
 
 from .datasets.coco import COCO, coco_seg_cats
 from .datasets.s3dis import S3DIS
@@ -39,9 +39,9 @@ def test_train_loader():
     )
 
     for sample in train_loader:
-        assert isinstance(sample[DataKeys.images], torch.Tensor)
-        assert batch_size == sample[DataKeys.images].size(0)
-        assert batch_size == len(sample[DataKeys.boxes2d])
+        assert isinstance(sample[COMMON_KEYS.images], torch.Tensor)
+        assert batch_size == sample[COMMON_KEYS.images].size(0)
+        assert batch_size == len(sample[COMMON_KEYS.boxes2d])
         break
 
 
@@ -66,12 +66,12 @@ def test_segment_train_loader():
     )
 
     for sample in train_loader:
-        assert isinstance(sample[DataKeys.images], torch.Tensor)
-        assert batch_size == sample[DataKeys.images].size(0)
-        assert batch_size == len(sample[DataKeys.boxes2d])
+        assert isinstance(sample[COMMON_KEYS.images], torch.Tensor)
+        assert batch_size == sample[COMMON_KEYS.images].size(0)
+        assert batch_size == len(sample[COMMON_KEYS.boxes2d])
         assert (
-            sample[DataKeys.segmentation_mask].shape[-2:]
-            == sample[DataKeys.images].shape[-2:]
+            sample[COMMON_KEYS.segmentation_mask].shape[-2:]
+            == sample[COMMON_KEYS.images].shape[-2:]
         )
         break
 
@@ -90,9 +90,9 @@ def test_inference_loader():
     )
 
     for sample in test_loaders[0]:
-        assert isinstance(sample[DataKeys.images], torch.Tensor)
-        assert 1 == sample[DataKeys.images].size(0)
-        assert 1 == len(sample[DataKeys.boxes2d])
+        assert isinstance(sample[COMMON_KEYS.images], torch.Tensor)
+        assert 1 == sample[COMMON_KEYS.images].size(0)
+        assert 1 == len(sample[COMMON_KEYS.boxes2d])
         break
 
 
@@ -107,13 +107,13 @@ def test_train_loader_3D():
     train_loader = build_train_dataloader(datapipe, samples_per_gpu=batch_size)
 
     for sample in train_loader:
-        assert isinstance(sample[DataKeys.colors3d], torch.Tensor)
-        assert isinstance(sample[DataKeys.points3d], torch.Tensor)
-        assert isinstance(sample[DataKeys.semantics3d], torch.Tensor)
-        assert isinstance(sample[DataKeys.instances3d], torch.Tensor)
-        assert batch_size == sample[DataKeys.colors3d].size(0)
-        assert batch_size == sample[DataKeys.points3d].size(0)
-        assert batch_size == sample[DataKeys.semantics3d].size(0)
+        assert isinstance(sample[COMMON_KEYS.colors3d], torch.Tensor)
+        assert isinstance(sample[COMMON_KEYS.points3d], torch.Tensor)
+        assert isinstance(sample[COMMON_KEYS.semantics3d], torch.Tensor)
+        assert isinstance(sample[COMMON_KEYS.instances3d], torch.Tensor)
+        assert batch_size == sample[COMMON_KEYS.colors3d].size(0)
+        assert batch_size == sample[COMMON_KEYS.points3d].size(0)
+        assert batch_size == sample[COMMON_KEYS.semantics3d].size(0)
         break
 
 
@@ -133,15 +133,15 @@ def test_train_loader_3D_full_scene_batched():
     )
 
     for sample in inference_loader[0]:
-        assert isinstance(sample[DataKeys.colors3d], torch.Tensor)
-        assert isinstance(sample[DataKeys.points3d], torch.Tensor)
-        assert isinstance(sample[DataKeys.semantics3d], torch.Tensor)
-        assert isinstance(sample[DataKeys.instances3d], torch.Tensor)
-        assert isinstance(sample[DataKeys.index], torch.Tensor)
+        assert isinstance(sample[COMMON_KEYS.colors3d], torch.Tensor)
+        assert isinstance(sample[COMMON_KEYS.points3d], torch.Tensor)
+        assert isinstance(sample[COMMON_KEYS.semantics3d], torch.Tensor)
+        assert isinstance(sample[COMMON_KEYS.instances3d], torch.Tensor)
+        assert isinstance(sample[COMMON_KEYS.index], torch.Tensor)
 
-        assert batch_size == sample[DataKeys.colors3d].size(0)
-        assert batch_size == sample[DataKeys.points3d].size(0)
-        assert batch_size == sample[DataKeys.semantics3d].size(0)
-        assert batch_size == sample[DataKeys.instances3d].size(0)
-        assert batch_size == sample[DataKeys.index].size(0)
+        assert batch_size == sample[COMMON_KEYS.colors3d].size(0)
+        assert batch_size == sample[COMMON_KEYS.points3d].size(0)
+        assert batch_size == sample[COMMON_KEYS.semantics3d].size(0)
+        assert batch_size == sample[COMMON_KEYS.instances3d].size(0)
+        assert batch_size == sample[COMMON_KEYS.index].size(0)
         break

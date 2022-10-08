@@ -6,7 +6,7 @@ import pytest
 import torch
 from numpy import block
 
-from ..datasets.base import DataKeys
+from ..datasets.base import COMMON_KEYS
 from .point_sampling import (
     FullCoverageBlockSampler,
     RandomBlockPointSampler,
@@ -26,11 +26,11 @@ class TestSampleFromBlock(unittest.TestCase):
     def initdata(self):
         """Loads dummy data."""
         self.data = {
-            DataKeys.points3d: torch.cat(
+            COMMON_KEYS.points3d: torch.cat(
                 [self.data_in_unit_square, self.data_outside_unit_square]
             ),
-            DataKeys.colors3d: torch.rand(200, 3),
-            DataKeys.semantics3d: torch.randint(10, (200, 1)),
+            COMMON_KEYS.colors3d: torch.rand(200, 3),
+            COMMON_KEYS.semantics3d: torch.randint(10, (200, 1)),
         }
         self.original_data = copy.deepcopy(self.data)
 
@@ -90,17 +90,17 @@ class TestSampleFromBlock(unittest.TestCase):
         sampler = RandomBlockPointSampler(
             n_pts=500,
             min_pts=10,
-            coord_key=DataKeys.points3d,
+            coord_key=COMMON_KEYS.points3d,
             in_keys=(
-                DataKeys.points3d,
-                DataKeys.semantics3d,
-                DataKeys.colors3d,
+                COMMON_KEYS.points3d,
+                COMMON_KEYS.semantics3d,
+                COMMON_KEYS.colors3d,
             ),
         )
         data_sampled = sampler(self.data, None)
-        self.assertEqual(data_sampled[DataKeys.points3d].size(0), 500)
-        self.assertEqual(data_sampled[DataKeys.semantics3d].size(0), 500)
-        self.assertEqual(data_sampled[DataKeys.colors3d].size(0), 500)
+        self.assertEqual(data_sampled[COMMON_KEYS.points3d].size(0), 500)
+        self.assertEqual(data_sampled[COMMON_KEYS.semantics3d].size(0), 500)
+        self.assertEqual(data_sampled[COMMON_KEYS.colors3d].size(0), 500)
 
     def test_full_scale_block_sampling(self):
         """Tests if all points are sampled when using full coverage and enough points"""
@@ -108,9 +108,9 @@ class TestSampleFromBlock(unittest.TestCase):
             min_pts_per_block=1,
             n_pts_per_block=200,
             in_keys=(
-                DataKeys.points3d,
-                DataKeys.colors3d,
-                DataKeys.semantics3d,
+                COMMON_KEYS.points3d,
+                COMMON_KEYS.colors3d,
+                COMMON_KEYS.semantics3d,
             ),
         )
 
@@ -118,9 +118,9 @@ class TestSampleFromBlock(unittest.TestCase):
             self.data, sampler.generate_parameters(self.data)
         )
         for key in (
-            DataKeys.points3d,
-            DataKeys.semantics3d,
-            DataKeys.colors3d,
+            COMMON_KEYS.points3d,
+            COMMON_KEYS.semantics3d,
+            COMMON_KEYS.colors3d,
         ):
             self.assertTrue(
                 torch.all(
@@ -139,22 +139,22 @@ class RandomPointSamplingTest(unittest.TestCase):
     def initdata(self):
         """Loads dummy data."""
         self.data = {
-            DataKeys.points3d: torch.rand(self.n_scene_pts, 3),
-            DataKeys.colors3d: torch.rand(self.n_scene_pts, 3),
-            DataKeys.semantics3d: torch.rand(self.n_scene_pts, 1),
+            COMMON_KEYS.points3d: torch.rand(self.n_scene_pts, 3),
+            COMMON_KEYS.colors3d: torch.rand(self.n_scene_pts, 3),
+            COMMON_KEYS.semantics3d: torch.rand(self.n_scene_pts, 1),
         }
 
     def test_sample_less_pts(self):
         """Test if sampling works when sampling less points than given in
         the scene."""
         sampler = RandomPointSampler(
-            n_pts=100, in_keys=(DataKeys.points3d, DataKeys.semantics3d)
+            n_pts=100, in_keys=(COMMON_KEYS.points3d, COMMON_KEYS.semantics3d)
         )
         data_sampled = sampler(self.data, None)
-        self.assertEqual(data_sampled[DataKeys.points3d].size(0), 100)
-        self.assertEqual(data_sampled[DataKeys.semantics3d].size(0), 100)
+        self.assertEqual(data_sampled[COMMON_KEYS.points3d].size(0), 100)
+        self.assertEqual(data_sampled[COMMON_KEYS.semantics3d].size(0), 100)
         self.assertEqual(
-            data_sampled[DataKeys.colors3d].size(0), self.n_scene_pts
+            data_sampled[COMMON_KEYS.colors3d].size(0), self.n_scene_pts
         )
 
     def test_sample_more_pts(self):
@@ -164,12 +164,12 @@ class RandomPointSamplingTest(unittest.TestCase):
         sampler = RandomPointSampler(
             n_pts=10000,
             in_keys=(
-                DataKeys.points3d,
-                DataKeys.semantics3d,
-                DataKeys.colors3d,
+                COMMON_KEYS.points3d,
+                COMMON_KEYS.semantics3d,
+                COMMON_KEYS.colors3d,
             ),
         )
         data_sampled = sampler(self.data, None)
-        self.assertEqual(data_sampled[DataKeys.points3d].size(0), 10000)
-        self.assertEqual(data_sampled[DataKeys.semantics3d].size(0), 10000)
-        self.assertEqual(data_sampled[DataKeys.colors3d].size(0), 10000)
+        self.assertEqual(data_sampled[COMMON_KEYS.points3d].size(0), 10000)
+        self.assertEqual(data_sampled[COMMON_KEYS.semantics3d].size(0), 10000)
+        self.assertEqual(data_sampled[COMMON_KEYS.colors3d].size(0), 10000)

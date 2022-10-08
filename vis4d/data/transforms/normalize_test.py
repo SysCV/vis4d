@@ -1,5 +1,6 @@
 """Test cases for normalize transform."""
 import torch
+
 from .normalize import normalize_image
 
 

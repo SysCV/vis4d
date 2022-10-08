@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 
-from vis4d.data.datasets.base import DataKeys
+from vis4d.data.datasets.base import COMMON_KEYS
 from vis4d.op.geometry.rotation import normalize_angle
 
 from .base import Transform
@@ -23,7 +23,8 @@ def flip_image(direction: str = "horizontal"):
 
 
 @Transform(
-    in_keys=(DataKeys.boxes2d, DataKeys.images), out_keys=(DataKeys.boxes2d,)
+    in_keys=(COMMON_KEYS.boxes2d, COMMON_KEYS.images),
+    out_keys=(COMMON_KEYS.boxes2d,),
 )
 def flip_boxes2d(direction: str = "horizontal"):
     """Flip 2D bounding box tensor."""
@@ -46,7 +47,7 @@ def flip_boxes2d(direction: str = "horizontal"):
     return _flip
 
 
-@Transform(in_keys=(DataKeys.boxes3d,), out_keys=(DataKeys.boxes3d,))
+@Transform(in_keys=(COMMON_KEYS.boxes3d,), out_keys=(COMMON_KEYS.boxes3d,))
 def flip_boxes3d(direction: str = "horizontal"):
     """Flip 3D bounding box tensor."""
 
@@ -63,7 +64,7 @@ def flip_boxes3d(direction: str = "horizontal"):
     return _flip
 
 
-@Transform(in_keys=(DataKeys.points3d,), out_keys=(DataKeys.points3d,))
+@Transform(in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,))
 def flip_points3d(direction: str = "horizontal"):
     """Flip pointcloud tensor."""
 
@@ -79,7 +80,9 @@ def flip_points3d(direction: str = "horizontal"):
     return _flip
 
 
-@Transform(in_keys=(DataKeys.intrinsics,), out_keys=(DataKeys.intrinsics,))
+@Transform(
+    in_keys=(COMMON_KEYS.intrinsics,), out_keys=(COMMON_KEYS.intrinsics,)
+)
 def flip_intrinsics(direction: str = "horizontal"):
     """Modify intrinsics for image flip."""
 

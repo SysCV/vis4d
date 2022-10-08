@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 import torch
 
-from vis4d.data.datasets.base import DataKeys, DictData
+from vis4d.data.datasets.base import COMMON_KEYS, DictData
 from vis4d.struct_to_revise import DictStrAny
 
 from .base import Transform
@@ -35,11 +35,11 @@ class FilterByCategory(Transform):
     def __init__(
         self,
         in_keys: Tuple[str, ...] = (
-            DataKeys.boxes2d_classes,
-            DataKeys.boxes2d,
-            DataKeys.masks,
+            COMMON_KEYS.boxes2d_classes,
+            COMMON_KEYS.boxes2d,
+            COMMON_KEYS.masks,
         ),
-        category_key: str = DataKeys.boxes2d_classes,
+        category_key: str = COMMON_KEYS.boxes2d_classes,
         keep: List[int] = [],
     ):
         """Init."""
@@ -69,7 +69,7 @@ class RemapCategory(Transform):
 
     def __init__(
         self,
-        in_keys: Tuple[str, ...] = (DataKeys.boxes2d_classes,),
+        in_keys: Tuple[str, ...] = (COMMON_KEYS.boxes2d_classes,),
         mapping: List[int] = [],
     ):
         """Init."""

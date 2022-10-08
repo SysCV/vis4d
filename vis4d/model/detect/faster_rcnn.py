@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 import torch
 from torch import nn
 
-from vis4d.data.datasets.base import DataKeys, DictData
+from vis4d.data.datasets.base import COMMON_KEYS, DictData
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.util import bbox_postprocess
 from vis4d.op.detect.faster_rcnn import (
@@ -82,10 +82,10 @@ class FasterRCNN(nn.Module):
     def _forward_train(self, data: DictData) -> LossesType:
         """Forward training stage."""
         images, images_hw, target_boxes, target_classes = (
-            data[DataKeys.images],
-            data[DataKeys.metadata]["input_hw"],
-            data[DataKeys.boxes2d],
-            data[DataKeys.boxes2d_classes],
+            data[COMMON_KEYS.images],
+            data[COMMON_KEYS.metadata]["input_hw"],
+            data[COMMON_KEYS.boxes2d],
+            data[COMMON_KEYS.boxes2d_classes],
         )
 
         features = self.fpn(self.backbone(images))
@@ -105,9 +105,9 @@ class FasterRCNN(nn.Module):
 
     def _forward_test(self, data: DictData) -> ModelOutput:
         """Forward testing stage."""
-        images = data[DataKeys.images]
-        original_hw = data[DataKeys.metadata]["original_hw"]
-        images_hw = data[DataKeys.metadata]["input_hw"]
+        images = data[COMMON_KEYS.images]
+        original_hw = data[COMMON_KEYS.metadata]["original_hw"]
+        images_hw = data[COMMON_KEYS.metadata]["input_hw"]
 
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
