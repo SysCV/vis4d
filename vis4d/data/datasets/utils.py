@@ -3,29 +3,25 @@ import copy
 import os
 import pickle
 from io import BytesIO
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List
 
 import numpy as np
-import torch
 from PIL import Image, ImageOps
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from torch.utils.data import Dataset
 
+from vis4d.common_to_revise.utils.imports import OPENCV_AVAILABLE
 from vis4d.common_to_revise.utils.time import Timer
 from vis4d.struct_to_revise import NDArrayI64, NDArrayUI8
 from vis4d.struct_to_revise.structures import DictStrAny
 
-try:
+if OPENCV_AVAILABLE:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module
         COLOR_BGR2RGB,
         IMREAD_COLOR,
         cvtColor,
         imdecode,
     )
-
-    CV2_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    CV2_INSTALLED = False
 
 
 def convert_input_dir_to_dataset(input_dir: str) -> None:  # TODO revise
@@ -59,7 +55,7 @@ def im_decode(
         elif mode == "RGB":
             img = np.array(pil_img)
     elif backend == "cv2":  # pragma: no cover
-        if not CV2_INSTALLED:
+        if not OPENCV_AVAILABLE:
             raise ImportError(
                 "Please install opencv-python to use cv2 backend!"
             )

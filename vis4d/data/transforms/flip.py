@@ -9,7 +9,7 @@ from .base import Transform
 
 
 @Transform()
-def image_flip(direction: str = "horizontal"):
+def flip_image(direction: str = "horizontal"):
     """Flip a tensor of shape [N, C, H, W] horizontally."""
 
     def _flip(tensor: torch.Tensor) -> torch.Tensor:
@@ -26,7 +26,7 @@ def image_flip(direction: str = "horizontal"):
     in_keys=(COMMON_KEYS.boxes2d, COMMON_KEYS.images),
     out_keys=(COMMON_KEYS.boxes2d,),
 )
-def boxes2d_flip(direction: str = "horizontal"):
+def flip_boxes2d(direction: str = "horizontal"):
     """Flip 2D bounding box tensor."""
 
     def _flip(boxes: torch.Tensor, image: torch.Tensor) -> torch.Tensor:
@@ -48,7 +48,7 @@ def boxes2d_flip(direction: str = "horizontal"):
 
 
 @Transform(in_keys=(COMMON_KEYS.boxes3d,), out_keys=(COMMON_KEYS.boxes3d,))
-def boxes3d_flip(direction: str = "horizontal"):
+def flip_boxes3d(direction: str = "horizontal"):
     """Flip 3D bounding box tensor."""
 
     def _flip(boxes: torch.Tensor) -> torch.Tensor:
@@ -65,13 +65,13 @@ def boxes3d_flip(direction: str = "horizontal"):
 
 
 @Transform(in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,))
-def points3d_flip(direction: str = "horizontal"):
+def flip_points3d(direction: str = "horizontal"):
     """Flip pointcloud tensor."""
 
     def _flip(points3d: torch.Tensor) -> torch.Tensor:
         if direction == "horizontal":
             points3d[:, 0] *= -1.0
-            return points
+            return points3d
         elif direction == "vertical":
             points3d[:, 1] *= -1.0
             return points3d
@@ -83,7 +83,7 @@ def points3d_flip(direction: str = "horizontal"):
 @Transform(
     in_keys=(COMMON_KEYS.intrinsics,), out_keys=(COMMON_KEYS.intrinsics,)
 )
-def intrinsics_flip(direction: str = "horizontal"):
+def flip_intrinsics(direction: str = "horizontal"):
     """Modify intrinsics for image flip."""
 
     def _flip(intrinsics: torch.Tensor, image: torch.Tensor) -> torch.Tensor:

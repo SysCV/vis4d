@@ -9,7 +9,7 @@ import pycocotools.mask as maskUtils
 import torch
 from pycocotools.coco import COCO as COCOAPI
 
-from vis4d.data.io.base import BaseDataBackend
+from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.struct_to_revise import DictStrAny
 
@@ -144,7 +144,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             COMMON_KEYS.masks,
         ],
         split: str = "train2017",
-        data_backend: Optional[BaseDataBackend] = None,
+        data_backend: Optional[DataBackend] = None,
     ) -> None:
         super().__init__()
 

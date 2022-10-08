@@ -8,7 +8,7 @@ from .base import BatchTransform
 
 
 @BatchTransform()
-def image_pad(stride: int = 32, mode: str = "constant", value: float = 0.0):
+def pad_image(stride: int = 32, mode: str = "constant", value: float = 0.0):
     """Pad batch of images."""
 
     def _pad(images: List[torch.Tensor]) -> List[torch.Tensor]:

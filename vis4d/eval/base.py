@@ -6,7 +6,7 @@ import tempfile
 from typing import Any, Callable, List, Optional, Tuple
 
 from vis4d.data.datasets.base import DictData
-from vis4d.data.io import BaseDataBackend, HDF5Backend
+from vis4d.data.io import DataBackend, HDF5Backend
 from vis4d.struct_to_revise.structures import MetricLogs, ModelOutput
 
 
@@ -44,7 +44,7 @@ class SaveDataMixin:
     def __init__(
         self,
         save_dir: Optional[str] = None,
-        data_backend: Optional[BaseDataBackend] = None,
+        data_backend: Optional[DataBackend] = None,
     ):
         """Init."""
         self.data_backend = HDF5Backend()

@@ -1,11 +1,11 @@
 """Resize augmentation."""
 import random
-from typing import Callable, List, Tuple, Union
+from typing import List, Tuple, Union
 
 import torch
 import torch.nn.functional as F
 
-from vis4d.data.datasets.base import COMMON_KEYS, MetaData
+from vis4d.data.datasets.base import COMMON_KEYS
 from vis4d.op.box.util import transform_bbox
 
 from .base import Transform
@@ -57,7 +57,7 @@ def _resize_tensor(
     return output
 
 
-@Transform(in_keys=[COMMON_KEYS.images, COMMON_KEYS.metadata])
+@Transform(out_keys=(COMMON_KEYS.images, COMMON_KEYS.input_hw))
 def resize_image(
     shape: Union[Tuple[int, int], List[Tuple[int, int]]],
     keep_ratio: bool = False,
@@ -77,7 +77,7 @@ def resize_image(
         interpolation (str, optional): Interpolation method. One of ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
     """
 
-    def _resize(image: torch.Tensor, metadata: MetaData) -> torch.Tensor:
+    def _resize(image: torch.Tensor) -> torch.Tensor:
         im_shape = (image.size(2), image.size(3))
         tgt_shape = _get_target_shape(
             im_shape,
@@ -87,58 +87,75 @@ def resize_image(
             scale_range,
             align_long_edge,
         )
-        metadata["input_hw"] = tgt_shape
-        return _resize_tensor(image, tgt_shape, interpolation=interpolation)
+        return (
+            _resize_tensor(image, tgt_shape, interpolation=interpolation),
+            tgt_shape,
+        )
 
     return _resize
 
 
 @Transform(
-    in_keys=[COMMON_KEYS.boxes2d, COMMON_KEYS.metadata],
-    out_keys=[COMMON_KEYS.boxes2d],
+    in_keys=(
+        COMMON_KEYS.boxes2d,
+        COMMON_KEYS.original_hw,
+        COMMON_KEYS.input_hw,
+    ),
+    out_keys=(COMMON_KEYS.boxes2d,),
 )
 def resize_boxes2d():
     """Resize 2D bounding boxes."""
 
-    def _resize(boxes: torch.Tensor, metadata: MetaData) -> torch.Tensor:
-        input_shape, shape = metadata["original_hw"], metadata["input_hw"]
+    def _resize(
+        boxes: torch.Tensor,
+        original_hw: Tuple[int, int],
+        input_hw: Tuple[int, int],
+    ) -> torch.Tensor:
         return transform_bbox(
-            _transform_from_shapes(input_shape, shape), boxes
+            _transform_from_shapes(original_hw, input_hw), boxes
         )
 
     return _resize
 
 
 @Transform(
-    in_keys=[COMMON_KEYS.intrinsics, COMMON_KEYS.metadata],
-    out_keys=[COMMON_KEYS.intrinsics],
+    in_keys=(
+        COMMON_KEYS.intrinsics,
+        COMMON_KEYS.original_hw,
+        COMMON_KEYS.input_hw,
+    ),
+    out_keys=(COMMON_KEYS.intrinsics),
 )
 def resize_intrinsics():
     """Scale camera intrinsics when resizing."""
 
-    def _resize(intrinsics: torch.Tensor, metadata: MetaData) -> torch.Tensor:
-        input_shape, shape = metadata["original_hw"], metadata["input_hw"]
+    def _resize(
+        intrinsics: torch.Tensor,
+        original_hw: Tuple[int, int],
+        input_hw: Tuple[int, int],
+    ) -> torch.Tensor:
         return torch.matmul(
-            _transform_from_shapes(input_shape, shape), intrinsics
+            _transform_from_shapes(original_hw, input_hw), intrinsics
         )
 
     return _resize
 
 
 @Transform(
-    in_keys=[COMMON_KEYS.masks, COMMON_KEYS.metadata],
-    out_keys=[COMMON_KEYS.masks],
+    in_keys=(COMMON_KEYS.masks, COMMON_KEYS.input_hw),
+    out_keys=(COMMON_KEYS.masks,),
 )
 def resize_masks():
     """Resize masks."""
 
-    def _resize(masks: torch.Tensor, metadata: MetaData) -> torch.Tensor:
-        shape = metadata["input_hw"]
+    def _resize(
+        masks: torch.Tensor, input_hw: Tuple[int, int]
+    ) -> torch.Tensor:
         if len(masks) == 0:  # handle empty masks
             return masks
         return (
             _resize_tensor(
-                masks.float().unsqueeze(0), shape, interpolation="nearest"
+                masks.float().unsqueeze(0), input_hw, interpolation="nearest"
             )
             .type(masks.dtype)
             .squeeze(0)

@@ -9,10 +9,10 @@ try:
 except ImportError as e:  # pragma: no cover
     raise ImportError("Please install h5py to enable HDF5Backend.") from e
 
-from .base import BaseDataBackend
+from .base import DataBackend
 
 
-class HDF5Backend(BaseDataBackend):
+class HDF5Backend(DataBackend):
     """Backend for loading data from HDF5 files.
 
     This backend works with filepaths pointing to valid HDF5 files. We assume

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from vis4d.data.io.base import BaseDataBackend
+from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.struct_to_revise import DictStrAny
 
@@ -44,7 +44,7 @@ class S3DIS(Dataset, CacheMappingMixin):
         self,
         data_root: str,
         split: str = "trainNoArea5",
-        data_backend: Optional[BaseDataBackend] = None,
+        data_backend: Optional[DataBackend] = None,
     ) -> None:
         super().__init__()
 

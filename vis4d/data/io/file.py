@@ -1,10 +1,10 @@
 """Standard backend for local files on a hard drive."""
 import os
 
-from .base import BaseDataBackend
+from .base import DataBackend
 
 
-class FileBackend(BaseDataBackend):
+class FileBackend(DataBackend):
     """Raw file from hard disk data backend."""
 
     def exists(self, filepath: str) -> bool:
