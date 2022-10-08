@@ -7,7 +7,7 @@ import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 
-from vis4d.common_to_revise.data_pipelines import default_test, default_train
+from vis4d.common.data_pipelines import default_test, default_train
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
 from vis4d.eval import COCOEvaluator, Evaluator

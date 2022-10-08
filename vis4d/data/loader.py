@@ -13,7 +13,7 @@ from torch.utils.data import (
 
 from vis4d.data.samplers import BaseSampler, VideoInferenceSampler
 
-from ..common_to_revise.utils import get_world_size
+from ..common.utils import get_world_size
 from .datasets import VideoDataset
 from .datasets.base import COMMON_KEYS, DictData
 

@@ -3,7 +3,7 @@ import abc
 
 import torch
 
-from vis4d.common_to_revise.registry import RegistryHolder
+from vis4d.common.registry import RegistryHolder
 
 
 class BaseMotionModel(metaclass=RegistryHolder):

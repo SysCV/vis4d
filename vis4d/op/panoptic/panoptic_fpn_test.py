@@ -8,9 +8,6 @@ from scalabel.label.typing import ImageSize
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.common_to_revise.datasets import (  # bdd100k_panseg_map,
-    bdd100k_panseg_sample,
-)
 from vis4d.op.box.util import apply_mask
 from vis4d.op.detect.rcnn import (
     Det2Mask,
@@ -23,6 +20,9 @@ from vis4d.op.detect.rcnn import (
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.mask.util import nhw_to_hwc_mask
 from vis4d.op.utils import load_model_checkpoint
+from vis4d.run.data.datasets import (  # bdd100k_panseg_map,
+    bdd100k_panseg_sample,
+)
 from vis4d.struct_to_revise import Boxes2D
 from vis4d.struct_to_revise.labels import Masks
 

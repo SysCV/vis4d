@@ -8,14 +8,11 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.common_to_revise.datasets import (
-    bdd100k_track_map,
-    bdd100k_track_sample,
-)
 from vis4d.data_to_revise.utils import transform_bbox
 from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.utils import load_model_checkpoint
+from vis4d.run.data.datasets import bdd100k_track_map, bdd100k_track_sample
 from vis4d.struct_to_revise import Boxes2D
 
 from ..base.resnet import ResNet

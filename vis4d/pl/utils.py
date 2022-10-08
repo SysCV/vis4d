@@ -16,7 +16,7 @@ from pytorch_lightning.utilities.rank_zero import (
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from termcolor import colored
 
-from ..common_to_revise.utils.time import Timer
+from ..common.utils.time import Timer
 from ..struct_to_revise import ArgsType
 
 logger = logging.getLogger("pytorch_lightning")

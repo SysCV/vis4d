@@ -3,9 +3,7 @@ from typing import Optional, Union
 
 from torch import nn
 
-from vis4d.common_to_revise.datasets import bdd100k_track_map
-from vis4d.common_to_revise.detect_data import InsSegDataModule
-from vis4d.common_to_revise.optimizers import sgd, step_schedule
+from vis4d.common.detect_data import InsSegDataModule
 from vis4d.data.datasets.base import COMMON_KEYS, DictData
 from vis4d.data.datasets.coco import coco_det_map
 from vis4d.op.base.resnet import ResNet
@@ -29,6 +27,8 @@ from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
 from vis4d.optim import DefaultOptimizer
 from vis4d.pl import CLI
+from vis4d.pl.defaults import sgd, step_schedule
+from vis4d.run.data.datasets import bdd100k_track_map
 from vis4d.struct_to_revise import LossesType, ModelOutput
 
 REV_KEYS = [

@@ -4,7 +4,7 @@ import unittest
 import torch
 from scalabel.label.typing import Frame
 
-from vis4d.common_to_revise.bbox.utils import bbox_iou
+from vis4d.common.bbox.utils import bbox_iou
 from vis4d.struct_to_revise import Boxes2D, Images, InputSample, LabelInstances
 from vis4d.unittest.utils import generate_dets
 

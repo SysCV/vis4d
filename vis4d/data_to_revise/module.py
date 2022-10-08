@@ -12,8 +12,8 @@ from torch.utils.data.distributed import DistributedSampler
 from vis4d.pl.callbacks.evaluator import DefaultEvaluatorCallback
 from vis4d.pl.callbacks.writer import DefaultWriterCallback
 
-from ..common_to_revise.registry import RegistryHolder
-from ..common_to_revise.utils import get_world_size
+from ..common.registry import RegistryHolder
+from ..common.utils import get_world_size
 from ..data.samplers import VideoInferenceSampler, build_data_sampler
 from ..struct_to_revise import CategoryMap, InputSample, ModuleCfg
 from .dataset import ScalabelDataset

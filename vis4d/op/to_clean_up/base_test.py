@@ -8,9 +8,9 @@ import pytest
 import torch
 from _pytest.fixtures import FixtureRequest
 
-from vis4d.common_to_revise.bbox.matchers import MaxIoUMatcher
-from vis4d.common_to_revise.bbox.poolers import MultiScaleRoIAlign
-from vis4d.common_to_revise.bbox.samplers import CombinedSampler
+from vis4d.common.bbox.matchers import MaxIoUMatcher
+from vis4d.common.bbox.poolers import MultiScaleRoIAlign
+from vis4d.common.bbox.samplers import CombinedSampler
 from vis4d.data_to_revise import (
     BaseDataModule,
     BaseDatasetHandler,

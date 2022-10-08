@@ -18,8 +18,8 @@ from scalabel.eval.sem_seg import evaluate_sem_seg
 from scalabel.label.io import group_and_sort, save
 from scalabel.label.typing import Config, Dataset, Frame, FrameGroup
 
-from vis4d.common_to_revise.registry import RegistryHolder
-from vis4d.common_to_revise.utils.time import Timer
+from vis4d.common.registry import RegistryHolder
+from vis4d.common.utils.time import Timer
 from vis4d.struct_to_revise import MetricLogs
 
 

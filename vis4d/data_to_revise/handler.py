@@ -7,7 +7,7 @@ import torch
 from scalabel.label.typing import FrameGroup
 from torch.utils import data
 
-from vis4d.common_to_revise.registry import RegistryHolder
+from vis4d.common.registry import RegistryHolder
 from vis4d.data_to_revise.transforms import BaseAugmentation
 from vis4d.struct_to_revise import InputSample, LabelInstances
 
