@@ -3,9 +3,7 @@ from typing import Any, Callable, List, Tuple, TypeVar
 
 import torch
 
-from vis4d.struct_to_revise import DictStrAny
-
-from ..datasets.base import COMMON_KEYS, DictData
+from vis4d.common import COMMON_KEYS, DictData, DictStrAny
 
 
 # TODO move to commen

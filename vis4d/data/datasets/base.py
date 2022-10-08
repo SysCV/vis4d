@@ -1,52 +1,10 @@
 """Base dataset in Vis4D."""
 
-from dataclasses import dataclass
 from typing import Dict, List, Sequence, Union
 
-from torch import Tensor
 from torch.utils.data import Dataset as TorchDataset
 
-_DictStrArray = Dict[str, Tensor]
-_DictStrArrayNested = Dict[str, Union[Tensor, _DictStrArray]]
-DictData = Dict[str, Union[Tensor, _DictStrArrayNested]]
-
-
-@dataclass
-class COMMON_KEYS:
-    """DataKeys defines the supported keys for DictData.
-
-    This container can hold arbitrary keys of data, where data of the keys defined
-    in DataKeys should be in the following format:
-    metadata: MetaData - container for meta-information about data.
-
-    original_hw: Tuple[int, int]
-    input_hw: Tuple[int, int]
-    transform_params: DictStrAny
-    batch_transform_params: DictStrAny
-    images: Tensor of shape [1, C, H, W]
-    boxes2d: Tensor of shape [N, 4]
-    boxes2d_classes: Tensor of shape [N,]
-    masks: Tensor of shape [N, H, W]
-    """
-
-    original_hw = "original_hw"
-    input_hw = "input_hw"
-    transform_params = "transform_params"
-    batch_transform_params = "batch_transform_params"
-    images = "images"
-    boxes2d = "boxes2d"
-    boxes2d_classes = "boxes2d_classes"
-    intrinsics = "intrinsics"
-    extrinsics = "extrinsiscs"
-    timestamp = "timestamp"
-    masks = "masks"
-    segmentation_mask = "segmentation_mask"
-    points3d = "points3d"
-    colors3d = "colors3d"
-    semantics3d = "semantics3d"
-    instances3d = "instances3d"
-    boxes3d = "boxes3d"
-    boxes3d_classes = "boxes3d_classes"
+from vis4d.common import DictData
 
 
 class Dataset(TorchDataset[DictData]):

@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple, Union
 import torch
 from torch import nn
 
+from vis4d.common import LossesType, ModelOutput
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.encoder import BaseBoxEncoder2D
 from vis4d.op.box.util import bbox_postprocess
@@ -19,7 +20,6 @@ from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.utils import load_model_checkpoint
-from vis4d.struct_to_revise import LossesType, ModelOutput
 from vis4d.vis.image import imshow_bboxes
 
 REV_KEYS = [

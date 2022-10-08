@@ -12,17 +12,19 @@ import requests
 import torch
 from torch import nn
 
-from vis4d.struct_to_revise import (
-    Boxes2D,
+from vis4d.common import (
     DictStrAny,
-    Images,
-    InputSample,
-    InstanceMasks,
-    LabelInstances,
     LossesType,
     ModelOutput,
     NDArrayF64,
     NDArrayUI8,
+)
+from vis4d.struct_to_revise import (
+    Boxes2D,
+    Images,
+    InputSample,
+    InstanceMasks,
+    LabelInstances,
     SemanticMasks,
     TLabelInstance,
 )

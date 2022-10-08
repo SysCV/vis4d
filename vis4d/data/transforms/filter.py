@@ -3,8 +3,7 @@ from typing import List, Tuple
 
 import torch
 
-from vis4d.data.datasets.base import COMMON_KEYS, DictData
-from vis4d.struct_to_revise import DictStrAny
+from vis4d.common import COMMON_KEYS, DictData, DictStrAny
 
 from .base import Transform
 

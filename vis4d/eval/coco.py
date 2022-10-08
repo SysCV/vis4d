@@ -12,9 +12,9 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from terminaltables import AsciiTable
 
+from vis4d.common import MetricLogs, ModelOutput
 from vis4d.data.datasets.base import DictData
 from vis4d.data.datasets.coco import coco_det_map
-from vis4d.struct_to_revise import MetricLogs, ModelOutput
 
 from .base import Evaluator
 

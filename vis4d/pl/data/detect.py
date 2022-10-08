@@ -2,8 +2,9 @@ from typing import List
 
 from torch.utils.data import DataLoader
 
-from vis4d.data.datasets import COCO
-from vis4d.run.data.detect import default_train_pipeline, default_test_pipeline
+from vis4d.eval import Evaluator
+from vis4d.run.data.datasets import coco_train, coco_val, coco_val_eval
+from vis4d.run.data.detect import default_test_pipeline, default_train_pipeline
 
 from .base import DataModule
 
@@ -17,9 +18,8 @@ class DetectDataModule(DataModule):
         if self.experiment == "bdd100k":
             raise NotImplementedError
         elif self.experiment == "coco":
-            dataset = COCO("data/COCO/", data_backend=data_backend)
             dataloader = default_train_pipeline(
-                dataset, self.samples_per_gpu, (800, 1333)
+                coco_train(data_backend), self.samples_per_gpu, (800, 1333)
             )
         else:
             raise NotImplementedError(
@@ -33,11 +33,8 @@ class DetectDataModule(DataModule):
         if self.experiment == "bdd100k":
             raise NotImplementedError
         elif self.experiment == "coco":
-            dataset = COCO(
-                "data/COCO/", data_backend=data_backend, split="val2017"
-            )
             dataloaders = default_test_pipeline(
-                dataset, self.samples_per_gpu, (800, 1333)
+                coco_val(data_backend), self.samples_per_gpu, (800, 1333)
             )
         else:
             raise NotImplementedError(
@@ -50,7 +47,7 @@ class DetectDataModule(DataModule):
         if self.experiment == "bdd100k":
             raise NotImplementedError
         elif self.experiment == "coco":
-            evaluators = [COCOEvaluator("data/COCO/", split="val2017")]
+            evaluators = [coco_val_eval()]
         else:
             raise NotImplementedError(
                 f"Experiment {self.experiment} not known!"

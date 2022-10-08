@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple, Union
 import torch
 import torch.nn.functional as F
 
-from vis4d.struct_to_revise.structures import DictStrAny
+from vis4d.common import DictStrAny
 
 from ..datasets.base import COMMON_KEYS, DictData
 from .base import Transform

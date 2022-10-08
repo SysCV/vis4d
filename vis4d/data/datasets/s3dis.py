@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 import torch
 
+from vis4d.common import DictStrAny
 from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
-from vis4d.struct_to_revise import DictStrAny
 
 from .base import COMMON_KEYS, Dataset, DictData
 from .utils import CacheMappingMixin

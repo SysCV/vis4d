@@ -8,10 +8,10 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
+from vis4d.common import MetricLogs, ModelOutput
 from vis4d.common.utils.distributed import all_gather_object_cpu
 from vis4d.data.datasets.base import DictData
 from vis4d.eval.base import Evaluator
-from vis4d.struct_to_revise import MetricLogs, ModelOutput
 
 logger = logging.getLogger("pytorch_lightning")
 

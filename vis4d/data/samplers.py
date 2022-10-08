@@ -13,9 +13,9 @@ from torch.utils.data import (
 )
 from torch.utils.data.distributed import DistributedSampler
 
+from vis4d.common import ArgsType
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils import get_world_size
-from vis4d.struct_to_revise import ArgsType, ModuleCfg
 
 from .datasets import VideoDataset
 
@@ -297,7 +297,7 @@ class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
 
 
 def build_data_sampler(
-    cfg: ModuleCfg,
+    cfg,
     dataset: ConcatDataset,
     batch_size: int,
     generator: Optional[torch.Generator] = None,

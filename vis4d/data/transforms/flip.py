@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 
-from vis4d.data.datasets.base import COMMON_KEYS
+from vis4d.common import COMMON_KEYS
 from vis4d.op.geometry.rotation import normalize_angle
 
 from .base import Transform

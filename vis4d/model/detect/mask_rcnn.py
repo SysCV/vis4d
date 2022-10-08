@@ -3,8 +3,8 @@ from typing import Optional, Union
 
 from torch import nn
 
+from vis4d.common import COMMON_KEYS, DictData
 from vis4d.common.detect_data import InsSegDataModule
-from vis4d.data.datasets.base import COMMON_KEYS, DictData
 from vis4d.data.datasets.coco import coco_det_map
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.util import apply_mask, bbox_postprocess

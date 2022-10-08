@@ -11,11 +11,11 @@ from torch.utils.data import (
     get_worker_info,
 )
 
+from vis4d.common import COMMON_KEYS, DictData
 from vis4d.data.samplers import BaseSampler, VideoInferenceSampler
 
 from ..common.utils import get_world_size
 from .datasets import VideoDataset
-from .datasets.base import COMMON_KEYS, DictData
 
 """Keys that contain pointcloud based data and can be stacked using torch.stack."""
 POINT_KEYS = [

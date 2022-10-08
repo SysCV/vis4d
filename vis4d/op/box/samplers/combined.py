@@ -4,7 +4,7 @@ from typing import Dict, List, Union
 
 import torch
 
-from vis4d.struct_to_revise import ArgsType
+from vis4d.common import ArgsType
 
 from ..matchers.base import MatchResult
 from ..util import non_intersection, random_choice

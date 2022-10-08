@@ -11,7 +11,8 @@ from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from scalabel.label.typing import Frame, FrameGroup
 from scalabel.vis.label import LabelViewer, UIConfig
 
-from vis4d.struct_to_revise import InputSample, ModelOutput
+from vis4d.common import ModelOutput
+from vis4d.struct_to_revise import InputSample
 from vis4d.struct_to_revise.data import Images
 from vis4d.vis.util import preprocess_image
 
