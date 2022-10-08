@@ -1,12 +1,12 @@
 """Utility functions for datasets."""
 import copy
+import hashlib
 import os
 import pickle
 from io import BytesIO
 from typing import Any, Callable, List
-import appdirs
-import hashlib
 
+import appdirs
 import numpy as np
 from PIL import Image, ImageOps
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
@@ -106,10 +106,10 @@ class CacheMappingMixin:
         )
         return dataset
 
-    def _get_hash(self):
+    def _get_hash(self) -> str:
         hasher = hashlib.sha256()
         hasher.update(str(self.__dict__).encode("utf8"))
-        return hasher.hexdigest()
+        return hasher.hexdigest()[:16]
 
 
 # reference:
