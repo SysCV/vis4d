@@ -1,9 +1,10 @@
 """Testcases for pointnet."""
+import math
 import unittest
 
 import torch
 
-from .pointnet import LinearTransform, PointNetEncoder, PointNetEncoderOut
+from .pointnet import LinearTransform, PointNetEncoder, PointNetSegmentation
 
 
 class TestPointnet(unittest.TestCase):
@@ -40,3 +41,18 @@ class TestPointnet(unittest.TestCase):
                 self.assertEqual(out.features.shape[1], out_dim)
 
                 self.assertEqual(len(out.transformations), len(mlp_dimensions))
+
+    def test_segmentation_shape(self) -> None:
+        """Tests the shapes of the segmentation output using pointnet."""
+        n_feats = 3
+        n_classes = 12
+        segmenter = PointNetSegmentation(
+            n_classes=n_classes, in_dimensions=n_feats
+        )
+        pts = torch.rand(self.batch_size_, n_feats, self.n_pts_)
+        out = segmenter(pts)
+        predict_logits = out.class_logits
+        self.assertEqual(
+            tuple(predict_logits.shape),
+            (self.batch_size_, n_classes, self.n_pts_),
+        )
