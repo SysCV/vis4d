@@ -5,9 +5,8 @@ from typing import List, Optional, Tuple, Union
 import torch
 import torch.nn.functional as F
 
-from vis4d.common import DictStrAny
+from vis4d.common import COMMON_KEYS
 
-from ..datasets.base import COMMON_KEYS, DictData
 from .base import Transform
 
 
@@ -30,51 +29,6 @@ def sample_indices(n_pts: int, data: torch.tensor):
         )
 
     return selected_idxs
-
-
-class PointSampler(Transform):
-    """Base class for 3D point sampling operations."""
-
-    def __init__(
-        self,
-        n_pts: int,
-        in_keys: Tuple[str, ...] = (
-            COMMON_KEYS.colors3d,
-            COMMON_KEYS.points3d,
-            COMMON_KEYS.semantics3d,
-            COMMON_KEYS.instances3d,
-        ),
-    ):
-        """Creates a new BasePointSampler transform.
-        Args:
-            n_pts (int): Number of points to sample
-            in_keys tuple(str): Tuple of keys on which the operation should be
-            applied
-        """
-        super().__init__(in_keys)
-        self.n_pts = n_pts
-
-    def generate_parameters(self, data: DictData) -> DictStrAny:
-        """Generate current parameters."""
-        return dict()
-
-
-class RandomPointSampler(PointSampler):
-    """Samples points unifromly random."""
-
-    def __call__(self, data: DictData, parameters: DictStrAny) -> DictData:
-        """Apply point sampling."""
-        data_out = data
-        selected_idxs = None
-        for in_key in self.in_keys:
-            if not in_key in data:
-                continue
-
-            if selected_idxs is None:
-                selected_idxs = sample_indices(self.n_pts, data[in_key])
-            data_out[in_key] = data[in_key][selected_idxs, ...]
-
-        return data_out
 
 
 def sample_from_block(
@@ -108,163 +62,127 @@ def sample_from_block(
     return torch.sum(box_mask).item(), selected_idxs_global
 
 
-class RandomBlockPointSampler(PointSampler):
-    """Samples points uniformly random inside a block around a point."""
-
-    def __init__(
-        self,
-        n_pts: int,
-        min_pts: 1024,
-        block_size: List[float] = [1.0, 1.0, 1.0],
-        coord_key: str = COMMON_KEYS.points3d,
-        in_keys: Tuple[str, ...] = (
-            COMMON_KEYS.colors3d,
-            COMMON_KEYS.points3d,
-            COMMON_KEYS.semantics3d,
-        ),
-        max_tries=100,
+@Transform(
+    in_keys=[COMMON_KEYS.points3d],
+    out_keys=[COMMON_KEYS.points3d],
+)
+def sample_points_random(num_pts: int = 1024):
+    def _sample_points_random(
+        coordinates: torch.Tensor, *args: List[torch.Tensor]
     ):
-        """Selectes a block of size [block_size[0], block_size[1], +inf] at a random point and up/downsamples the points inside it.
-        TODO explain more"""
-        super().__init__(n_pts, in_keys)
-        self.coord_key = coord_key
-        self.block_size = torch.tensor(block_size)
-        self.min_pts = min_pts
-        self._max_tries = max_tries
+        selected_idxs = sample_indices(num_pts, coordinates)
+        sampled_coords = coordinates[selected_idxs, ...]
+        if len(args) == 0:
+            return sampled_coords
+        return [sampled_coords] + [d[selected_idxs, ...] for d in args]
 
-    def generate_parameters(self, data: DictData) -> DictStrAny:
-        """Generate current parameters. TODO"""
-        coords = data[self.coordinate_key]
-        coord_min, coord_max = (
-            torch.min(coords, dim=0).values,
-            torch.max(coords, axis=0).values,
-        )
-        return dict(coord_max=coord_max, coord_min=coord_min)
+    return _sample_points_random
 
-    def __call__(self, data: DictData, parameters: DictStrAny) -> DictData:
+
+@Transform(
+    in_keys=[COMMON_KEYS.points3d],
+    out_keys=[COMMON_KEYS.points3d],
+)
+def sample_points_block_random(
+    num_pts: int = 1024,
+    min_pts: int = 32,
+    block_size: List[float] = [1.0, 1.0, 1.0],
+    max_tries=100,
+    center=True,
+):
+    """Assumes first key is the coordiante key!"""
+
+    def _sample_points_block_random(coordinates, *args):
         """Apply point sampling."""
-        data_out = data
-        selected_idxs = None
-        for in_key in self.in_keys:
-            if not in_key in data:
-                continue
+        for _ in range(max_tries):
+            center_pt_idx = torch.randperm(coordinates.shape[0])[0]
+            center_pt = coordinates[center_pt_idx, ...]
+            n_pts, selected_idxs = sample_from_block(
+                num_pts, coordinates, center_pt, torch.tensor(block_size)
+            )
+            # Found enough points
+            if n_pts >= min_pts:
+                break
+        sampled_coords = coordinates[selected_idxs, ...]
+        if center:
+            sampled_coords -= torch.mean(sampled_coords, dim=0)
 
-            if selected_idxs is None:
-                coords = data[self.coord_key]
-                for _ in range(self._max_tries):
-                    center_pt_idx = torch.randperm(coords.shape[0])[0]
-                    center_pt = coords[center_pt_idx, ...]
-                    n_pts, selected_idxs = sample_from_block(
-                        self.n_pts, coords, center_pt, self.block_size
-                    )
-                    # Found enough points
-                    if n_pts >= self.min_pts:
-                        break
+        if len(args) == 0:
+            return sampled_coords
+        return [sampled_coords] + [d[selected_idxs, ...] for d in args]
 
-            data_out[in_key] = data[in_key][selected_idxs, ...]
-
-        return data_out
+    return _sample_points_block_random
 
 
-class FullCoverageBlockSampler(PointSampler):
-    """Samples all points in the environment using a sliding box."""
+@Transform(
+    in_keys=[COMMON_KEYS.points3d],
+    out_keys=[COMMON_KEYS.points3d],
+)
+def sample_points_block_full_coverage(
+    n_pts_per_block: int = 1024,
+    min_pts_per_block: int = 1,
+    block_size: List[float] = [1.0, 1.0, 1.0],
+    stride: int = 1,
+):
+    """Assumes first key is the coordiante key!"""
 
-    def __init__(
-        self,
-        coordinate_key=COMMON_KEYS.points3d,
-        min_pts_per_block=8,
-        block_size=[1.0, 1.0, 1.0],
-        n_pts_per_block: int = 4096,
-        stride: int = 1,
-        center_blocks=True,
-        in_keys: Tuple[str, ...] = (
-            COMMON_KEYS.colors3d,
-            COMMON_KEYS.points3d,
-            COMMON_KEYS.semantics3d,
-        ),
-    ) -> None:
-        super().__init__(n_pts_per_block, sorted(in_keys))
-        self.n_pts_per_block = n_pts_per_block
-        self.center_blocks = center_blocks
-        self.stride = stride
-        self.coordinate_key = coordinate_key
-        self.block_size = torch.tensor(block_size)
-        self.min_pts_per_block = min_pts_per_block
-
-    def generate_parameters(self, data: DictData) -> DictStrAny:
-        """Generate current parameters."""
-        coords = data[self.coordinate_key]
-        coord_min, coord_max = (
-            torch.min(coords, dim=0).values,
-            torch.max(coords, axis=0).values,
-        )
-        return dict(coord_max=coord_max, coord_min=coord_min)
-
-    def __call__(
-        self, data: List[DictData], parameters: DictStrAny
-    ) -> DictData:
-        """Exectues the sampling."""
-        data_out = data
-
+    def _sample_points_block_full_coverage(coordinates, *args):
+        """Apply point sampling."""
         # Get bounding box for sampling
-        coords = data[self.coordinate_key]
-        coord_min, coord_max = parameters["coord_min"], parameters["coord_max"]
+        coord_min, coord_max = (
+            torch.min(coordinates, dim=0).values,
+            torch.max(coordinates, axis=0).values,
+        )
         hwl = coord_max - coord_min
+
+        block_size_torch = torch.tensor(block_size)
+
         grid_idxs = (
-            torch.ceil((hwl - self.block_size / 2.0) / self.stride) + 1
+            torch.ceil((hwl - torch.tensor(block_size) / 2.0) / stride) + 1
         ).int()
 
-        sampled_coords = torch.zeros((0, coords.shape[1]), dtype=coords.dtype)
+        sampled_coords = torch.zeros(
+            (0, coordinates.shape[1]), dtype=coordinates.dtype
+        )
 
-        other_sampled_pts = {}
-        for key in self.in_keys:
-            if key == self.coordinate_key:
-                continue
-            t = data[key]
-            other_sampled_pts[key] = torch.zeros(
-                (0, t.shape[1]), dtype=t.dtype
+        other_sampled_pts = []
+        for d in args:
+            other_sampled_pts.append(
+                torch.zeros((0, d.shape[1]), dtype=d.dtype)
             )
 
-        ns = 0
         for idx_x in range(grid_idxs[0].item()):
             for idx_y in range(grid_idxs[1].item()):
                 center_pt = torch.tensor(
                     [
-                        coord_min[0] + idx_x * self.stride,
-                        coord_min[1] + idx_y * self.stride,
+                        coord_min[0] + idx_x * stride,
+                        coord_min[1] + idx_y * stride,
                         0,
                     ],
-                    dtype=coords.dtype,
+                    dtype=coordinates.dtype,
                 )
 
                 n_pts, sampled_idxs = sample_from_block(
-                    self.n_pts_per_block,
-                    coords,
+                    n_pts_per_block,
+                    coordinates,
                     center_pt,
-                    block_size=self.block_size,
+                    block_size=block_size_torch,
                 )
                 if (
-                    n_pts < self.min_pts_per_block
+                    n_pts < min_pts_per_block
                 ):  # Not enough points in this block
                     continue
                 sampled_coords = torch.vstack(
-                    [sampled_coords, coords[sampled_idxs, ...]]
+                    [sampled_coords, coordinates[sampled_idxs, ...]]
                 )
 
-                for key in self.in_keys:
-                    if key == self.coordinate_key:
-                        continue
-                    t = data[key]
-                    other_sampled_pts[key] = torch.vstack(
-                        [other_sampled_pts[key], t[sampled_idxs, ...]]
+                for idx, data in enumerate(other_sampled_pts):
+                    other_sampled_pts[idx] = torch.vstack(
+                        [data, args[idx][sampled_idxs, ...]]
                     )
 
-                ns += n_pts
+        if len(args) == 0:
+            return sampled_coords
+        return [sampled_coords] + other_sampled_pts
 
-        for key in self.in_keys:
-            if key == self.coordinate_key:
-                data_out[key] = sampled_coords
-            else:
-                data_out[key] = other_sampled_pts[key]
-
-        return data
+    return _sample_points_block_full_coverage

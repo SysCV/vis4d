@@ -4,14 +4,13 @@ import unittest
 
 import pytest
 import torch
-from numpy import block
 
-from ..datasets.base import COMMON_KEYS
+from vis4d.common import COMMON_KEYS
+
 from .point_sampling import (
-    FullCoverageBlockSampler,
-    RandomBlockPointSampler,
-    RandomPointSampler,
     sample_from_block,
+    sample_points_block_full_coverage,
+    sample_points_random,
 )
 
 
@@ -87,36 +86,42 @@ class TestSampleFromBlock(unittest.TestCase):
 
     def test_sampler(self):
         """Test the Class implementation of the sampling functional."""
-        sampler = RandomBlockPointSampler(
-            n_pts=500,
-            min_pts=10,
-            coord_key=COMMON_KEYS.points3d,
+        sampler = sample_points_random(
+            num_pts=500,
             in_keys=(
                 COMMON_KEYS.points3d,
                 COMMON_KEYS.semantics3d,
                 COMMON_KEYS.colors3d,
             ),
+            out_keys=(
+                COMMON_KEYS.points3d,
+                COMMON_KEYS.semantics3d,
+                COMMON_KEYS.colors3d,
+            ),
         )
-        data_sampled = sampler(self.data, None)
+        data_sampled = sampler(self.data)
         self.assertEqual(data_sampled[COMMON_KEYS.points3d].size(0), 500)
         self.assertEqual(data_sampled[COMMON_KEYS.semantics3d].size(0), 500)
         self.assertEqual(data_sampled[COMMON_KEYS.colors3d].size(0), 500)
 
     def test_full_scale_block_sampling(self):
         """Tests if all points are sampled when using full coverage and enough points"""
-        sampler = FullCoverageBlockSampler(
+        sampler = sample_points_block_full_coverage(
             min_pts_per_block=1,
             n_pts_per_block=200,
             in_keys=(
                 COMMON_KEYS.points3d,
-                COMMON_KEYS.colors3d,
                 COMMON_KEYS.semantics3d,
+                COMMON_KEYS.colors3d,
+            ),
+            out_keys=(
+                COMMON_KEYS.points3d,
+                COMMON_KEYS.semantics3d,
+                COMMON_KEYS.colors3d,
             ),
         )
 
-        data_sampled = sampler(
-            self.data, sampler.generate_parameters(self.data)
-        )
+        data_sampled = sampler(self.data)
         for key in (
             COMMON_KEYS.points3d,
             COMMON_KEYS.semantics3d,
@@ -147,10 +152,15 @@ class RandomPointSamplingTest(unittest.TestCase):
     def test_sample_less_pts(self):
         """Test if sampling works when sampling less points than given in
         the scene."""
-        sampler = RandomPointSampler(
-            n_pts=100, in_keys=(COMMON_KEYS.points3d, COMMON_KEYS.semantics3d)
+        sampler = sample_points_random(
+            num_pts=100,
+            in_keys=(COMMON_KEYS.points3d, COMMON_KEYS.semantics3d),
+            out_keys=(
+                COMMON_KEYS.points3d,
+                COMMON_KEYS.semantics3d,
+            ),
         )
-        data_sampled = sampler(self.data, None)
+        data_sampled = sampler(self.data)
         self.assertEqual(data_sampled[COMMON_KEYS.points3d].size(0), 100)
         self.assertEqual(data_sampled[COMMON_KEYS.semantics3d].size(0), 100)
         self.assertEqual(
@@ -161,15 +171,20 @@ class RandomPointSamplingTest(unittest.TestCase):
         """Tests if sampling works when sampling more points tha given in
         the scene"""
 
-        sampler = RandomPointSampler(
-            n_pts=10000,
+        sampler = sample_points_random(
+            num_pts=10000,
             in_keys=(
                 COMMON_KEYS.points3d,
                 COMMON_KEYS.semantics3d,
                 COMMON_KEYS.colors3d,
             ),
+            out_keys=(
+                COMMON_KEYS.points3d,
+                COMMON_KEYS.semantics3d,
+                COMMON_KEYS.colors3d,
+            ),
         )
-        data_sampled = sampler(self.data, None)
+        data_sampled = sampler(self.data)
         self.assertEqual(data_sampled[COMMON_KEYS.points3d].size(0), 10000)
         self.assertEqual(data_sampled[COMMON_KEYS.semantics3d].size(0), 10000)
         self.assertEqual(data_sampled[COMMON_KEYS.colors3d].size(0), 10000)
