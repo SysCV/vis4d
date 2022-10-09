@@ -12,6 +12,7 @@ from vis4d.data.loader import (
 from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.point_sampling import sample_points_block_random
 from vis4d.data.transforms.points import (
+    center_and_normalize,
     concatenate_point_features,
     move_pts_to_last_channel,
 )
@@ -38,8 +39,13 @@ def default_train_pipeline(
         out_keys=data_keys + labels_keys,
         num_pts=num_pts,
     )
+    norm = center_and_normalize(
+        in_keys=[COMMON_KEYS.points3d], out_keys=["points3d_normalized"]
+    )
+    data_keys += ["points3d_normalized"]
     move_pts = move_pts_to_last_channel(in_keys=data_keys, out_keys=data_keys)
-    pipeline = [sample, move_pts]
+
+    pipeline = [sample, norm, move_pts]
 
     if len(data_keys) > 1:
         pipeline.append(
@@ -75,8 +81,12 @@ def default_test_pipeline(
         out_keys=data_keys + labels_keys,
         num_pts=num_pts,
     )
+    norm = center_and_normalize(
+        in_keys=[COMMON_KEYS.points3d], out_keys=["points3d_normalized"]
+    )
     move_pts = move_pts_to_last_channel(in_keys=data_keys, out_keys=data_keys)
-    pipeline = [sample, move_pts]
+    pipeline = [sample, norm, move_pts]
+    data_keys += ["points3d_normalized"]
 
     if len(data_keys) > 1:
         pipeline.append(

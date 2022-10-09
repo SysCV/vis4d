@@ -67,7 +67,7 @@ def train(args: argparse.Namespace) -> None:
     log_step = 1
     num_epochs = 40
     batch_size = 16
-    learning_rate = 1e-4
+    learning_rate = 1e-3
     device = torch.device("cuda")
     save_prefix = "vis4d-workspace/test/pointnet_s3dis_epoch"
 
@@ -78,7 +78,7 @@ def train(args: argparse.Namespace) -> None:
     assert train_loader is not None
 
     # model
-    in_dimension = 3  # xyz
+    in_dimension = 6  # xyz, xyz_normalized
     if args.load_color:
         in_dimension += 3  # rgb
 
@@ -93,11 +93,9 @@ def train(args: argparse.Namespace) -> None:
     loss_keys = [COMMON_KEYS.semantics3d]
 
     # optimization
-    optimizer = optim.SGD(
+    optimizer = optim.Adam(
         segmenter.parameters(),
         lr=learning_rate,
-        momentum=0.9,
-        weight_decay=0.0001,
     )
     scheduler = optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[8, 11], gamma=0.1

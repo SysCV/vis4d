@@ -39,3 +39,21 @@ def concatenate_point_features():
         return torch.cat(args)
 
     return _concatenate_point_features
+
+
+@Transform(
+    in_keys=[COMMON_KEYS.points3d, COMMON_KEYS.colors3d],
+    out_keys=[COMMON_KEYS.points3d],
+)
+def center_and_normalize():
+    """TODO"""
+
+    def _center_and_normalize(coordinates: torch.Tensor):
+        hwl = (
+            torch.max(coordinates, dim=0).values
+            - torch.min(coordinates, dim=0).values
+        )
+        center = torch.mean(coordinates, dim=0)
+        return (coordinates - center) / (hwl / 2)
+
+    return _center_and_normalize

@@ -88,7 +88,7 @@ def sample_points_block_random(
     min_pts: int = 32,
     block_size: List[float] = [1.0, 1.0, 1.0],
     max_tries=100,
-    center=True,
+    center=False,
 ):
     """Assumes first key is the coordiante key!"""
 
