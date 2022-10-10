@@ -63,11 +63,7 @@ def train(args: argparse.Namespace) -> None:
     # model
     faster_rcnn = FasterRCNN(num_classes=80, weights=args.ckpt)
     faster_rcnn.to(device)
-    faster_rcnn_loss = FasterRCNNLoss(
-        faster_rcnn.anchor_gen,
-        faster_rcnn.rpn_bbox_encoder,
-        faster_rcnn.rcnn_bbox_encoder,
-    )
+    faster_rcnn_loss = FasterRCNNLoss()
     if args.num_gpus > 1:
         faster_rcnn = nn.DataParallel(
             faster_rcnn, device_ids=[device, torch.device("cuda:1")]

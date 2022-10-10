@@ -10,10 +10,10 @@ from vis4d.op.box.util import apply_mask, bbox_postprocess
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
+    FRCNNOut,
     get_default_anchor_generator,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
-    FRCNNOut,
 )
 from vis4d.op.detect.rcnn import (
     Det2Mask,

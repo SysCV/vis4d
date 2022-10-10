@@ -2,7 +2,7 @@
 import contextlib
 import io
 import os
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pycocotools.mask as maskUtils
@@ -14,7 +14,7 @@ from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 
 from .base import Dataset, MultitaskMixin
-from .utils import CacheMappingMixin, DatasetFromList, im_decode
+from .util import CacheMappingMixin, DatasetFromList, im_decode
 
 # COCO detection
 coco_det_map = {
@@ -137,18 +137,19 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
     def __init__(
         self,
         data_root: str,
-        keys: List[str] = [
+        keys: Tuple[str, ...] = (
             COMMON_KEYS.images,
             COMMON_KEYS.boxes2d,
             COMMON_KEYS.boxes2d_classes,
             COMMON_KEYS.masks,
-        ],
+        ),
         split: str = "train2017",
         remove_empty: bool = False,
         minimum_box_area: float = 0,
         use_pascal_voc_cats: bool = False,
         data_backend: Optional[DataBackend] = None,
     ) -> None:
+        """Init."""
         super().__init__()
 
         self.data_root = data_root
@@ -173,7 +174,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
-        return f"COCODataset(root={self.data_root}, split={self.split})"
+        return f"COCODataset(root={self.data_root}, split={self.split}, use_pascal_voc_cats={self.use_pascal_voc_cats})"
 
     def _has_valid_annotation(self, anns):
         """Filter empty or low occupied samples."""

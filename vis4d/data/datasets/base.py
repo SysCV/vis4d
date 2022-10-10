@@ -1,6 +1,6 @@
 """Base dataset in Vis4D."""
 
-from typing import Dict, List, Sequence, Union
+from typing import Dict, List, Sequence, Tuple, Union
 
 from torch.utils.data import Dataset as TorchDataset
 
@@ -40,7 +40,7 @@ class MultitaskMixin:
 
     _KEYS: List[str] = []
 
-    def validate_keys(self, keys: List[str]) -> None:
+    def validate_keys(self, keys: Tuple[str, ...]) -> None:
         """Validation the keys are defined in _KEYS.
 
         Args:

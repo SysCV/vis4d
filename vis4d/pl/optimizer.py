@@ -3,7 +3,7 @@ import os.path as osp
 import re
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import Callable, List, Optional, Tuple, Union, no_type_check
+from typing import Callable, List, Optional, Tuple, no_type_check
 
 import pytorch_lightning as pl
 import torch
@@ -20,13 +20,6 @@ from vis4d.common.typing import DictData
 from vis4d.common.utils.distributed import get_rank, get_world_size
 
 from ..optim.warmup import BaseLRWarmup, LinearLRWarmup
-
-try:
-    from mmcv.runner.fp16_utils import wrap_fp16_model
-
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
 
 DEFAULT_OPTIM = {
     "class_path": "torch.optim.SGD",
@@ -51,9 +44,9 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
         self,
         model: nn.Module,
         loss: nn.Module,
-        model_train_in_keys: Tuple[str, ...],
-        model_test_in_keys: Tuple[str, ...],
-        loss_in_keys: Tuple[str, ...],
+        model_train_in_keys: List[str],
+        model_test_in_keys: List[str],
+        loss_in_keys: List[str],
         optimizer_init: Optional[DictStrAny] = None,
         lr_scheduler_init: Optional[DictStrAny] = None,
         freeze: bool = False,
@@ -83,6 +76,7 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
                 f"found {self.lr_scheduler_init['mode']}"
             )
         self.model = model
+        self.model_loss = loss
         self.model_train_in_keys = model_train_in_keys
         self.model_test_in_keys = model_test_in_keys
         self.loss_in_keys = loss_in_keys
@@ -95,23 +89,6 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
         self.lr_warmup = (
             lr_warmup if lr_warmup is not None else LinearLRWarmup(0.001, 500)
         )
-
-    def setup(self, stage: Optional[str] = None) -> None:
-        """Setup model according to trainer parameters, stage, etc."""
-        if (
-            self.trainer is not None
-            and self.trainer.precision == 16
-            and MMCV_INSTALLED
-        ):
-            wrap_fp16_model(self)  # pragma: no cover
-
-    def __call__(
-        self, batch_inputs: DictData
-    ) -> Union[LossesType, ModelOutput]:  # pragma: no cover
-        """Forward."""
-        if self.training:
-            return self.forward_train(batch_inputs)
-        return self.forward_test(batch_inputs)
 
     def configure_optimizers(
         self,
@@ -165,17 +142,14 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
         self, batch: DictData, *args, **kwargs
     ) -> LossesType:
         """Wrap training step of LightningModule. Add overall loss."""
-        train_input = (batch[key] for key in self.model_train_keys)
-        loss_input = (batch[key] for key in self.loss_keys)
+        train_input = {key: batch[key] for key in self.model_train_in_keys}
+        loss_input = {key: batch[key] for key in self.loss_in_keys}
 
         # forward + backward + optimize
-        output = self.model.forward_train(*train_input)
-        losses = self.loss(output, *loss_input)
-        losses = self.model(batch)
+        output = self.model(**train_input)
+        losses = self.model_loss(output, *loss_input.values())
         losses["loss"] = sum(list(losses.values()))
 
-        log_dict = {}
-        metric_attributes = []
         for k, v in losses.items():
             if not hasattr(self, k):
                 metric = MeanMetric()
@@ -184,18 +158,14 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
 
             metric = getattr(self, k)
             metric(v.detach())
-            log_dict["train/" + k] = metric
-            metric_attributes += [k]
-
-        for (k, v), k_name in zip(log_dict.items(), metric_attributes):
             self.log(
-                k,
-                v,
+                "train/" + k,
+                metric,
                 logger=True,
                 prog_bar=True,
                 on_step=True,
                 on_epoch=False,
-                metric_attribute=k_name,
+                metric_attribute=k,
             )
         return losses
 
@@ -203,32 +173,20 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
         self, batch: DictData, *args, **kwargs
     ) -> ModelOutput:
         """Wrap test step of LightningModule."""
-        return self.model(batch)
+        test_input = {key: batch[key] for key in self.model_test_in_keys}
+        return self.model(**test_input)
 
     def validation_step(  # type: ignore # pylint: disable=arguments-differ
         self, batch: DictData, *args, **kwargs
     ) -> ModelOutput:
         """Wrap validation step of LightningModule."""
-        return self.model(batch)
+        return self.test_step(batch, *args, **kwargs)
 
-    def predict_step(
-        self,
-        batch: DictData,
-        batch_idx: int,
-        dataloader_idx: Optional[int] = None,
+    def predict_step(  # type: ignore # pylint: disable=arguments-differ
+        self, batch: DictData, *args, **kwargs
     ) -> ModelOutput:
-        """Forward pass during prediction stage.
-
-        Args:
-            batch: Model input (batched).
-            batch_idx: batch index within dataset.
-            dataloader_idx: index of dataloader if there are multiple.
-
-        Returns:
-            ModelOutput: Dict of Scalabel results (List[Label]), e.g. tracking
-            and separate detection result.
-        """
-        return self.model(batch)
+        """Forward pass during prediction stage."""
+        return self.test_step(batch, *args, **kwargs)
 
     def on_fit_start(self) -> None:
         """Called at the beginning of fit."""

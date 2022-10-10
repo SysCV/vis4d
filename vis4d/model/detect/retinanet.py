@@ -6,9 +6,9 @@ import torchvision
 from torch import nn
 
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.matchers import BaseMatcher
 from vis4d.op.box.samplers import BaseSampler
-from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.util import bbox_postprocess
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.retinanet import (

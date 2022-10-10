@@ -15,7 +15,7 @@ from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 
 from .base import Dataset, DictData
-from .utils import CacheMappingMixin
+from .util import CacheMappingMixin
 
 # s3dis semantic mappings
 S3DIS_LABELS = {

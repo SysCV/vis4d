@@ -75,19 +75,19 @@ class FasterRCNN(nn.Module):
     def forward(
         self,
         images: torch.Tensor,
-        images_hw: List[Tuple[int, int]],
-        target_boxes: Optional[List[torch.Tensor]] = None,
-        target_classes: Optional[List[torch.Tensor]] = None,
+        input_hw: List[Tuple[int, int]],
+        boxes2d: Optional[List[torch.Tensor]] = None,
+        boxes2d_classes: Optional[List[torch.Tensor]] = None,
         original_hw: Optional[List[Tuple[int, int]]] = None,
     ) -> Union[FRCNNOut, ModelOutput]:
         """Forward."""
         if self.training:
-            assert target_boxes is not None and target_classes is not None
+            assert boxes2d is not None and boxes2d_classes is not None
             return self.forward_train(
-                images, images_hw, target_boxes, target_classes
+                images, input_hw, boxes2d, boxes2d_classes
             )
         assert original_hw is not None
-        return self.forward_test(images, images_hw, original_hw)
+        return self.forward_test(images, input_hw, original_hw)
 
     def forward_train(
         self,
@@ -125,25 +125,23 @@ class FasterRCNN(nn.Module):
 class FasterRCNNLoss(nn.Module):
     """Faster RCNN Loss."""
 
-    def __init__(
-        self,
-        anchor_generator: AnchorGenerator,
-        rpn_box_encoder: BoxEncoder2D,
-        rcnn_box_encoder: BoxEncoder2D,
-    ) -> None:
+    def __init__(self) -> None:
         """Init."""
         super().__init__()
+        anchor_generator = get_default_anchor_generator()
+        rpn_box_encoder = get_default_rpn_box_encoder()
+        rcnn_box_encoder = get_default_rcnn_box_encoder()
         self.rpn_loss = RPNLoss(anchor_generator, rpn_box_encoder)
         self.rcnn_loss = RCNNLoss(rcnn_box_encoder)
 
     def forward(
         self,
         outputs: FRCNNOut,
-        images_hw: List[Tuple[int, int]],
-        target_boxes: List[torch.Tensor],
+        input_hw: List[Tuple[int, int]],
+        boxes2d: List[torch.Tensor],
     ) -> LossesType:
         """Forward."""
-        rpn_losses = self.rpn_loss(*outputs.rpn, target_boxes, images_hw)
+        rpn_losses = self.rpn_loss(*outputs.rpn, boxes2d, input_hw)
         rcnn_losses = self.rcnn_loss(
             *outputs.roi,
             outputs.sampled_proposals.boxes,

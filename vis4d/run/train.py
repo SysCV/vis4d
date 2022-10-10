@@ -44,12 +44,12 @@ def training_loop(
             # input data
             device = next(model.parameters()).device  # model device
             data = move_data_to_device(data, device)
-            train_input = (data[key] for key in model_train_keys)
-            loss_input = (data[key] for key in loss_keys)
+            train_input = {key: data[key] for key in model_train_keys}
+            loss_input = {key: data[key] for key in loss_keys}
 
             # forward + backward + optimize
-            output = model.forward_train(*train_input)
-            losses = loss(output, *loss_input)
+            output = model(**train_input)
+            losses = loss(output, **loss_input)
             total_loss = sum(losses.values())
             total_loss.backward()
 
