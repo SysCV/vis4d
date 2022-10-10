@@ -75,7 +75,7 @@ class Transform:
                     result = orig_transform_fn(*in_data, data=data)
                 else:
                     result = orig_transform_fn(*in_data)
-                if len(self.out_keys) == 1:
+                if len(out_keys) == 1:
                     result = [result]
                 for key, value in zip(out_keys, result):
                     set_dict_nested(data, key.split("."), value)

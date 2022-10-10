@@ -126,7 +126,7 @@ class SubdividingIterableDataset(IterableDataset):
                 data_sample = self.dataset[data_idx]
                 n_elements = next(iter(data_sample.values())).size(0)
                 for idx in range(int(n_elements / self.n_samples_per_batch)):
-                    out_data = {COMMON_KEYS.index: torch.tensor([data_idx])}
+                    out_data = {"batch_index": torch.tensor([data_idx])}
                     for key in data_sample:
                         start_idx = idx * self.n_samples_per_batch
                         end_idx = (idx + 1) * self.n_samples_per_batch

@@ -1,12 +1,12 @@
 """Utility functions for datasets."""
 import copy
+import hashlib
 import os
 import pickle
 from io import BytesIO
 from typing import Any, Callable, List
-import appdirs
-import hashlib
 
+import appdirs
 import numpy as np
 from PIL import Image, ImageOps
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
@@ -86,10 +86,7 @@ class CacheMappingMixin:
                 self.__class__.__name__,
             )
             os.makedirs(cache_dir, exist_ok=True)
-            cache_path = os.path.join(
-                cache_dir,
-                str(self._get_hash()) + ".pkl",
-            )
+            cache_path = os.path.join(cache_dir, self._get_hash() + ".pkl")
             if not os.path.exists(cache_path):
                 data = generate_map_func()
                 with open(cache_path, "wb") as file:
@@ -106,10 +103,10 @@ class CacheMappingMixin:
         )
         return dataset
 
-    def _get_hash(self):
+    def _get_hash(self, length: int = 16) -> str:
         hasher = hashlib.sha256()
         hasher.update(str(self.__dict__).encode("utf8"))
-        return hasher.hexdigest()
+        return hasher.hexdigest()[:length]
 
 
 # reference:

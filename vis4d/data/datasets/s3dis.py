@@ -2,17 +2,19 @@
 import glob
 import os
 from io import BytesIO
+from multiprocessing.sharedctypes import Value
 from typing import List, Optional
 
 import numpy as np
 import pandas as pd
 import torch
+from tomlkit import key
 
-from vis4d.common import DictStrAny
+from vis4d.common import COMMON_KEYS, DictStrAny
 from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 
-from .base import COMMON_KEYS, Dataset, DictData
+from .base import Dataset, DictData
 from .utils import CacheMappingMixin
 
 # s3dis semantic mappings
@@ -45,6 +47,12 @@ class S3DIS(Dataset, CacheMappingMixin):
         data_root: str,
         split: str = "trainNoArea5",
         data_backend: Optional[DataBackend] = None,
+        keys_to_load: List[str] = [
+            COMMON_KEYS.points3d,
+            COMMON_KEYS.colors3d,
+            COMMON_KEYS.semantics3d,
+            COMMON_KEYS.instances3d,
+        ],
     ) -> None:
         super().__init__()
 
@@ -66,6 +74,7 @@ class S3DIS(Dataset, CacheMappingMixin):
             self._generate_data_mapping,
             os.path.join(self.data_root, self.split + ".json"),
         )
+        self.keys_to_load = keys_to_load
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
@@ -124,26 +133,37 @@ class S3DIS(Dataset, CacheMappingMixin):
                 delimiter=" ",
             ).values.astype(np.float32)
 
-            coords = np.vstack([coords, np_data[:, :3]])
-            color = np.vstack([color, np_data[:, 3:]])
-            semantic_ids = np.vstack(
-                [
-                    semantic_ids,
-                    np.ones((np_data.shape[0], 1), dtype=int)
-                    * values["class_label"],
-                ]
-            )
+            if COMMON_KEYS.colors3d in self.keys_to_load:
+                coords = np.vstack([coords, np_data[:, :3]])
+            if COMMON_KEYS.points3d in self.keys_to_load:
+                color = np.vstack([color, np_data[:, 3:]])
+            if COMMON_KEYS.semantics3d in self.keys_to_load:
+                semantic_ids = np.vstack(
+                    [
+                        semantic_ids,
+                        np.ones((np_data.shape[0], 1), dtype=int)
+                        * values["class_label"],
+                    ]
+                )
+            if COMMON_KEYS.instances3d in self.keys_to_load:
+                instance_ids = np.vstack(
+                    [
+                        instance_ids,
+                        np.ones((np_data.shape[0], 1), dtype=int)
+                        * instance_id,
+                    ]
+                )
 
-            instance_ids = np.vstack(
-                [
-                    instance_ids,
-                    np.ones((np_data.shape[0], 1), dtype=int) * instance_id,
-                ]
-            )
-
-        return {
-            COMMON_KEYS.colors3d: torch.from_numpy(color / 255),
-            COMMON_KEYS.points3d: torch.from_numpy(coords),
-            COMMON_KEYS.semantics3d: torch.from_numpy(semantic_ids),
-            COMMON_KEYS.instances3d: torch.from_numpy(instance_ids),
-        }
+        data = dict()
+        for key in self.keys_to_load:
+            if key == COMMON_KEYS.colors3d:
+                data[key] = torch.from_numpy(coords)
+            elif key == COMMON_KEYS.points3d:
+                data[key] = torch.from_numpy(color / 255)
+            elif key == COMMON_KEYS.semantics3d:
+                data[key] = torch.from_numpy(semantic_ids).squeeze(-1)
+            elif key == COMMON_KEYS.instances3d:
+                data[key] = torch.from_numpy(instance_ids).squeeze(-1)
+            else:
+                raise ValueError(f"Can not load data for key: {key}")
+        return data
