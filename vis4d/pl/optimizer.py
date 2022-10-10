@@ -50,6 +50,10 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
     def __init__(
         self,
         model: nn.Module,
+        loss: nn.Module,
+        model_train_in_keys: Tuple[str, ...],
+        model_test_in_keys: Tuple[str, ...],
+        loss_in_keys: Tuple[str, ...],
         optimizer_init: Optional[DictStrAny] = None,
         lr_scheduler_init: Optional[DictStrAny] = None,
         freeze: bool = False,
@@ -79,6 +83,10 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
                 f"found {self.lr_scheduler_init['mode']}"
             )
         self.model = model
+        self.model_train_in_keys = model_train_in_keys
+        self.model_test_in_keys = model_test_in_keys
+        self.loss_in_keys = loss_in_keys
+
         self._freeze = freeze
         self._freeze_parameters = freeze_parameters
         self._weights = weights
@@ -157,6 +165,12 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
         self, batch: DictData, *args, **kwargs
     ) -> LossesType:
         """Wrap training step of LightningModule. Add overall loss."""
+        train_input = (batch[key] for key in self.model_train_keys)
+        loss_input = (batch[key] for key in self.loss_keys)
+
+        # forward + backward + optimize
+        output = self.model.forward_train(*train_input)
+        losses = self.loss(output, *loss_input)
         losses = self.model(batch)
         losses["loss"] = sum(list(losses.values()))
 
