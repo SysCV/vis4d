@@ -32,7 +32,7 @@ class PointnetSegmentationModel(nn.Module):
             n_classes=num_classes, in_dimensions=in_dimensions
         )
         if weights is not None:
-            load_model_checkpoint(weights)
+            load_model_checkpoint(self, weights)
 
     def forward(
         self, data: torch.Tensor, target: Optional[torch.Tensor] = None
@@ -71,10 +71,13 @@ class PointnetSegmentationLoss(nn.Module):
         regularize_transform=True,
         ignore_index=255,
         transform_weight: float = 1e-3,
+        semantic_weights: Optional[torch.Tensor] = None,
     ) -> None:
         """Init."""
         super().__init__()
-        self.segmentation_loss = nn.CrossEntropyLoss(ignore_index=ignore_index)
+        self.segmentation_loss = nn.CrossEntropyLoss(
+            weight=semantic_weights, ignore_index=ignore_index
+        )
         self.transformation_loss = OrthogonalTransformRegularizationLoss()
         self.regularize_transform = regularize_transform
         self.transform_weight = transform_weight

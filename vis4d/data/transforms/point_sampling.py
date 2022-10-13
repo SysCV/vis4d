@@ -149,6 +149,8 @@ def sample_points_block_full_coverage(
         for d in args:
             other_sampled_pts.append(
                 torch.zeros((0, d.shape[1]), dtype=d.dtype)
+                if len(d.shape) > 1
+                else torch.zeros((0), dtype=d.dtype)
             )
 
         for idx_x in range(grid_idxs[0].item()):
@@ -177,8 +179,8 @@ def sample_points_block_full_coverage(
                 )
 
                 for idx, data in enumerate(other_sampled_pts):
-                    other_sampled_pts[idx] = torch.vstack(
-                        [data, args[idx][sampled_idxs, ...]]
+                    other_sampled_pts[idx] = torch.cat(
+                        [data, args[idx][sampled_idxs, ...]], dim=0
                     )
 
         if len(args) == 0:
