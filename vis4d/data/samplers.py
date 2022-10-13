@@ -17,7 +17,7 @@ from vis4d.common import ArgsType
 from vis4d.common.registry import RegistryHolder
 from vis4d.common.utils import get_world_size
 
-from .datasets import VideoDataset
+from .datasets import Dataset, VideoMixin
 
 
 class BaseSampler(Sampler[List[int]], metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
@@ -342,7 +342,7 @@ class VideoInferenceSampler(DistributedSampler):  # type: ignore # pragma: no co
 
     def __init__(
         self,
-        dataset: VideoDataset,
+        dataset: Dataset,
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
         shuffle: bool = True,
@@ -351,6 +351,9 @@ class VideoInferenceSampler(DistributedSampler):  # type: ignore # pragma: no co
     ) -> None:
         """Init."""
         super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
+        assert isinstance(
+            dataset, VideoMixin
+        ), "Dataset needs to inherit the VideoMixin functionality!"
         self.sequences = list(dataset.video_to_indices)
         self.num_seqs = len(self.sequences)
         assert self.num_seqs >= self.num_replicas, (

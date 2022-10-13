@@ -29,3 +29,4 @@ NUSCENES_AVAILABLE = package_available("nuscenes")
 # visualization
 OPENCV_AVAILABLE = package_available("cv2")
 DASH_AVAILABLE = package_available("dash")
+PLOTLY_AVAILABLE = package_available("plotly")

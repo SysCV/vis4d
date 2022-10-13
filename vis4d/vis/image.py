@@ -4,37 +4,30 @@ from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import torch
 from matplotlib import patches as mpatches
 from matplotlib.ticker import MultipleLocator
 from PIL import Image, ImageDraw, ImageFont
 from torch import Tensor
 
-from vis4d.common import NDArrayF64, NDArrayUI8
+from vis4d.common import AxisMode, NDArrayF64, NDArrayUI8
+from vis4d.common.utils.imports import DASH_AVAILABLE, PLOTLY_AVAILABLE
+from vis4d.op.box.box3d import boxes3d_to_corners
 from vis4d.op.geometry.projection import (
     generate_depth_map,
     generate_projected_point_mask,
     project_points,
 )
-from vis4d.struct_to_revise import Extrinsics, Intrinsics
 
-try:  # pragma: no cover
+if DASH_AVAILABLE and PLOTLY_AVAILABLE:
     import dash
     import plotly.graph_objects as go
     from dash import dcc, html
 
-    DASH_INSTALLED = True
-except (ImportError, NameError):
-    DASH_INSTALLED = False
-
 from .util import (
-    Box3DType,
     ImageType,
-    box3d_to_corners,
     preprocess_boxes,
     preprocess_image,
-    preprocess_intrinsics,
     preprocess_masks,
 )
 
@@ -71,23 +64,24 @@ def imshow_bboxes(
     for box, col, label in zip(box_list, color_list, label_list):
         draw_bbox(image, box, col, label)
 
-    return np.asarray(image)
-    # imshow(image)
+    # return np.asarray(image)
+    imshow(image)
 
 
 def imshow_bboxes3d(
     image: ImageType,
-    boxes: Box3DType,  # TODO rewrite
-    intrinsics: Union[NDArrayF64, Intrinsics],
+    boxes: Tensor,
+    intrinsics: Tensor,
     mode: str = "RGB",
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode)
-    box_list, color_list, label_list = preprocess_boxes(boxes)
-    intrinsic_matrix = preprocess_intrinsics(intrinsics)
+    boxes_corners = boxes3d_to_corners(boxes, AxisMode.OpenCV)
+    box_list, color_list, label_list = preprocess_boxes(boxes_corners)
+    intrinsics = intrinsics.detach().cpu().numpy()
 
     for box, col, label in zip(box_list, color_list, label_list):
-        draw_bbox3d(image, box, intrinsic_matrix, col, label)
+        draw_bbox3d(image, np.array(box), intrinsics, col, label)
 
     imshow(image)
 
@@ -316,7 +310,7 @@ def draw_bev_box(ax, box, color, label, hist, line_width: int = 2):
             )
 
 
-def draw_bev(boxes3d: Box3DType, history: List[Box3DType]) -> np.ndarray:
+def draw_bev(boxes3d: Tensor, history: List[Tensor]) -> np.ndarray:
     fig, ax = draw_bev_canvas()
 
     box_list, col_list, label_list = preprocess_boxes(boxes3d)
@@ -350,8 +344,8 @@ def draw_bev(boxes3d: Box3DType, history: List[Box3DType]) -> np.ndarray:
 def draw_image(
     frame: Union[ImageType, Image.Image],
     boxes2d=None,  # TODO update
-    boxes3d: Optional[Box3DType] = None,
-    intrinsics: Optional[Union[NDArrayF64, Intrinsics]] = None,
+    boxes3d: Optional[Tensor] = None,
+    intrinsics: Optional[Tensor] = None,
     mode: str = "RGB",
 ) -> Image.Image:
     """Draw boxes2d on an image."""
@@ -369,7 +363,7 @@ def draw_image(
         intr_matrix = preprocess_intrinsics(intrinsics)
         box_list, col_list, label_list = preprocess_boxes(boxes3d)
         for box, col, label in zip(box_list, col_list, label_list):
-            draw_bbox3d(image, box, intr_matrix, col, label)
+            draw_bbox3d(image, np.array(box), intr_matrix, col, label)
     return image
 
 
@@ -389,7 +383,7 @@ def draw_bbox(
 
 def draw_bbox3d(
     image: Image.Image,
-    box3d: List[float],
+    box3d_corners: NDArrayF64,
     intrinsics: NDArrayF64,
     color: Tuple[int],
     label: Optional[str] = None,
@@ -397,8 +391,7 @@ def draw_bbox3d(
 ) -> None:  # pragma: no cover
     """Draw 3D box onto image."""
     draw = ImageDraw.Draw(image)
-    corners = box3d_to_corners(box3d)
-    corners_proj = corners / corners[:, 2:3]
+    corners_proj = box3d_corners / box3d_corners[:, 2:3]
     corners_proj = np.dot(corners_proj, intrinsics.T)
 
     def draw_line(
@@ -519,11 +512,11 @@ def draw_lines_match(
 
 def imshow_correspondence(
     key_image: ImageType,
-    key_extrinsics: Extrinsics,
-    key_intrinsics: Intrinsics,
+    key_extrinsics: Tensor,
+    key_intrinsics: Tensor,
     ref_image: ImageType,
-    ref_extrinsics: Extrinsics,
-    ref_intrinsics: Intrinsics,
+    ref_extrinsics: Tensor,
+    ref_intrinsics: Tensor,
     key_points: torch.Tensor,
 ) -> None:  # pragma: no cover
     """Draw corresponded pointcloud points."""
@@ -560,8 +553,8 @@ def imshow_correspondence(
 def imshow_pointcloud(
     points: torch.Tensor,
     image: ImageType,
-    camera_intrinsics: Intrinsics,
-    boxes3d: Optional[Box3DType] = None,
+    camera_intrinsics: Tensor,
+    boxes3d: Optional[Tensor] = None,
     dot_size: int = 3,
     mode: str = "RGB",
 ) -> None:  # pragma: no cover
@@ -582,18 +575,17 @@ def imshow_pointcloud(
 
 
 def plotly_draw_bbox3d(
-    box: List[float],
+    box3d_corners: NDArrayF64,
 ) -> Tuple[
     List[NDArrayF64], List[NDArrayF64], List[NDArrayF64]
 ]:  # pragma: no cover
     """Plot 3D boxes in 3D space."""
     ixs_box_0 = [0, 1, 2, 3, 0]
     ixs_box_1 = [4, 5, 6, 7, 4]
-    corners = box3d_to_corners(box)
 
-    x_lines = [corners[ixs_box_0, 0]]
-    y_lines = [corners[ixs_box_0, 1]]
-    z_lines = [corners[ixs_box_0, 2]]
+    x_lines = [box3d_corners[ixs_box_0, 0]]
+    y_lines = [box3d_corners[ixs_box_0, 1]]
+    z_lines = [box3d_corners[ixs_box_0, 2]]
 
     def f_lines_add_nones() -> None:
         """Add nones for lines."""
@@ -603,37 +595,41 @@ def plotly_draw_bbox3d(
 
     f_lines_add_nones()
 
-    x_lines.extend(corners[ixs_box_1, 0])
-    y_lines.extend(corners[ixs_box_1, 1])
-    z_lines.extend(corners[ixs_box_1, 2])
+    x_lines.extend(box3d_corners[ixs_box_1, 0])
+    y_lines.extend(box3d_corners[ixs_box_1, 1])
+    z_lines.extend(box3d_corners[ixs_box_1, 2])
     f_lines_add_nones()
 
     for i in range(4):
-        x_lines.extend(corners[[ixs_box_0[i], ixs_box_1[i]], 0])
-        y_lines.extend(corners[[ixs_box_0[i], ixs_box_1[i]], 1])
-        z_lines.extend(corners[[ixs_box_0[i], ixs_box_1[i]], 2])
+        x_lines.extend(box3d_corners[[ixs_box_0[i], ixs_box_1[i]], 0])
+        y_lines.extend(box3d_corners[[ixs_box_0[i], ixs_box_1[i]], 1])
+        z_lines.extend(box3d_corners[[ixs_box_0[i], ixs_box_1[i]], 2])
         f_lines_add_nones()
 
     # heading
-    x_lines.extend(corners[[0, 5], 0])
-    y_lines.extend(corners[[0, 5], 1])
-    z_lines.extend(corners[[0, 5], 2])
+    x_lines.extend(box3d_corners[[0, 5], 0])
+    y_lines.extend(box3d_corners[[0, 5], 1])
+    z_lines.extend(box3d_corners[[0, 5], 2])
     f_lines_add_nones()
 
-    x_lines.extend(corners[[1, 4], 0])
-    y_lines.extend(corners[[1, 4], 1])
-    z_lines.extend(corners[[1, 4], 2])
+    x_lines.extend(box3d_corners[[1, 4], 0])
+    y_lines.extend(box3d_corners[[1, 4], 1])
+    z_lines.extend(box3d_corners[[1, 4], 2])
     f_lines_add_nones()
     return x_lines, y_lines, z_lines
 
 
 def show_pointcloud(
     points: torch.Tensor,
-    boxes3d: Optional[Box3DType] = None,
+    axis_mode: AxisMode = AxisMode.OpenCV,
+    boxes3d: Optional[Tensor] = None,
     thickness: int = 2,
 ) -> None:  # pragma: no cover
     """Show pointcloud points."""
-    assert DASH_INSTALLED, "Visualize pointcloud in 3D needs Dash installed!."
+    assert (
+        PLOTLY_AVAILABLE
+    ), "Visualize pointcloud in 3D needs Plotly installed!."
+    assert DASH_AVAILABLE, "Visualize pointcloud in 3D needs Dash installed!."
     points = points[:, :3].cpu()
 
     scatter = go.Scatter3d(
@@ -641,14 +637,19 @@ def show_pointcloud(
         y=points[:, 1],
         z=points[:, 2],
         mode="markers",
-        marker=dict(size=thickness),
+        marker=dict(
+            color=np.linalg.norm(points, axis=1),
+            colorscale="Viridis",
+            size=thickness,
+        ),
     )
 
     data = [scatter]
     if boxes3d is not None:
-        box_list, col_list, label_list = preprocess_boxes(boxes3d)
+        boxes_corners = boxes3d_to_corners(boxes3d, axis_mode)
+        box_list, col_list, label_list = preprocess_boxes(boxes_corners)
         for box, color, _ in zip(box_list, col_list, label_list):
-            x_lines, y_lines, z_lines = plotly_draw_bbox3d(box)
+            x_lines, y_lines, z_lines = plotly_draw_bbox3d(np.array(box))
             lines = go.Scatter3d(
                 x=x_lines,
                 y=y_lines,
@@ -661,12 +662,22 @@ def show_pointcloud(
 
     fig = go.Figure(data=data)
 
-    # set to OpenCV based camera system
-    camera = dict(
-        up=dict(x=0, y=-1, z=0),
-        center=dict(x=0, y=0, z=0),
-        eye=dict(x=0.0, y=0.0, z=-1.25),
-    )
+    # set to camera appropriate to coordinate system
+    if axis_mode == AxisMode.OpenCV:
+        camera = dict(
+            up=dict(x=0, y=-1, z=0),
+            center=dict(x=0, y=0, z=0),
+            eye=dict(x=0.0, y=0.0, z=-1.25),
+        )
+    elif axis_mode == AxisMode.ROS:
+        camera = dict(
+            up=dict(x=0, y=0, z=1),
+            center=dict(x=0, y=0, z=0),
+            eye=dict(x=0.0, y=1.25, z=0),
+        )
+    else:
+        raise ValueError(f"Axis mode {axis_mode} not known.")
+
     fig.update_layout(scene_camera=camera, scene_aspectmode="data")
 
     def dash_app() -> None:

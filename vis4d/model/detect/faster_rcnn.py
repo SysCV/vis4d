@@ -6,8 +6,8 @@ from torch import nn
 
 from vis4d.common import LossesType, ModelOutput
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.box.box2d import bbox_postprocess
 from vis4d.op.box.encoder import BoxEncoder2D
-from vis4d.op.box.util import bbox_postprocess
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,

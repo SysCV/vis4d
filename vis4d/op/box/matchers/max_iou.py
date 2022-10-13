@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 import torch
 
-from ..util import bbox_iou
+from ..box2d import bbox_iou
 from .base import BaseMatcher, MatchResult
 
 

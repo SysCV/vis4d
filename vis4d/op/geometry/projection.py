@@ -7,13 +7,13 @@ from vis4d.struct_to_revise import Intrinsics
 
 
 def project_points(
-    points: torch.Tensor, intrinsics: Intrinsics
+    points: torch.Tensor, intrinsics: torch.Tensor
 ) -> torch.Tensor:
     """Project points to pixel coordinates with given intrinsics.
 
     Args:
         points: (N, 3) or (B, N, 3) 3D coordinates.
-        intrinsics: Intrinsics class with 1 entry or B entries.
+        intrinsics: (3, 3) or (B, 3, 3) intrinsic camera matrices.
 
     Returns:
         torch.Tensor: (N, 2) or (B, N, 2) 2D pixel coordinates.
@@ -25,14 +25,16 @@ def project_points(
     hom_coords = points / points[..., 2:3]
     if len(hom_coords.shape) == 2:
         assert (
-            len(intrinsics) == 1
+            len(intrinsics.shape) == 2
         ), "Got multiple intrinsics for single point set!"
-        intrinsic_matrix = intrinsics.transpose().tensor.squeeze(0)
+        intrinsics = intrinsics.T
     elif len(hom_coords.shape) == 3:
-        intrinsic_matrix = intrinsics.transpose().tensor
+        if len(intrinsics.shape) == 2:
+            intrinsics = intrinsics.unsqueeze(0)
+        intrinsics = intrinsics.permute(0, 2, 1)
     else:
         raise ValueError(f"Shape of input points not valid: {points.shape}")
-    pts_2d = hom_coords @ intrinsic_matrix
+    pts_2d = hom_coords @ intrinsics
     return pts_2d[..., :2]
 
 

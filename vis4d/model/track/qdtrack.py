@@ -4,16 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 from torch import nn
 
-from vis4d.data_to_revise.transforms import Resize
-from vis4d.op.base.resnet import ResNet
-from vis4d.op.detect.faster_rcnn import (
-    FasterRCNNHead,
-    FRCNNOut,
-    get_default_anchor_generator,
-    get_default_rcnn_box_encoder,
-    get_default_rpn_box_encoder,
-)
-from vis4d.op.detect.faster_rcnn_test import identity_collate, normalize
+from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
 from vis4d.op.detect.rcnn import DetOut, RCNNLoss, RCNNLosses, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss, RPNLosses
 from vis4d.op.fpp.fpn import FPN
@@ -43,8 +34,24 @@ REV_KEYS = [
 ]
 
 
+def _debug_visualization(key_inputs, ref_inputs, ref_proposals):  # TODO revise
+    from vis4d.vis.track import imshow_bboxes
+
+    for ref_inp, ref_props in zip(ref_inputs, ref_proposals):
+        for ref_img, ref_prop in zip(ref_inp.images, ref_props):
+            _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
+            imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
+    for batch_i, key_inp in enumerate(key_inputs):
+        imshow_bboxes(key_inp.images.tensor[0], key_inp.targets.boxes2d[0])
+        for ref_i, ref_inp in enumerate(ref_inputs):
+            imshow_bboxes(
+                ref_inp[batch_i].images.tensor[0],
+                ref_inp[batch_i].targets.boxes2d[0],
+            )
+
+
 class QDTrack(nn.Module):
-    """QDTrack model - quasi-dense instance similarity learning."""
+    """QDTrack - quasi-dense instance similarity learning."""
 
     def __init__(
         self,
@@ -75,23 +82,6 @@ class QDTrack(nn.Module):
         )
         self.proposal_append_gt = proposal_append_gt
         self.track_loss = QDTrackInstanceSimilarityLoss()
-
-    def debug_logging(self, logger) -> Dict[str, torch.Tensor]:
-        """Logging for debugging"""
-        # from vis4d.vis.track import imshow_bboxes
-        # for ref_inp, ref_props in zip(ref_inputs, ref_proposals):
-        #     for ref_img, ref_prop in zip(ref_inp.images, ref_props):
-        #         _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
-        #         imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
-        # for batch_i, key_inp in enumerate(key_inputs):
-        #    imshow_bboxes(
-        #        key_inp.images.tensor[0], key_inp.targets.boxes2d[0]
-        #    )
-        #    for ref_i, ref_inp in enumerate(ref_inputs):
-        #        imshow_bboxes(
-        #            ref_inp[batch_i].images.tensor[0],
-        #            ref_inp[batch_i].targets.boxes2d[0],
-        #        )
 
     def forward(
         self,
@@ -245,25 +235,14 @@ class QDTrack(nn.Module):
         return batched_tracks
 
 
-class QDTrackModel(nn.Module):
+class FasterRCNNQDTrack(nn.Module):
     """Wrap qdtrack with detector."""
 
-    def __init__(self) -> None:
+    def __init__(self, num_classes: int) -> None:
         """Init."""
         super().__init__()
-        anchor_gen = get_default_anchor_generator()
-        rpn_bbox_encoder = get_default_rpn_box_encoder()
-        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        self.fpn = FPN(self.backbone.out_channels[2:], 256)
-        self.faster_rcnn_heads = FasterRCNNHead(
-            num_classes=8,
-            anchor_generator=anchor_gen,
-            rpn_box_encoder=rpn_bbox_encoder,
-            rcnn_box_encoder=rcnn_bbox_encoder,
-        )
-        self.transform_detections = RoI2Det(rcnn_bbox_encoder)
-        self.qdtracker = QDTrack()
+        self.faster_rcnn = FasterRCNN(num_classes=num_classes)
+        self.qdtrack = QDTrack()
 
     def forward(
         self,
@@ -285,204 +264,8 @@ class QDTrackModel(nn.Module):
         features = self.fpn(features)
         detector_out = self.faster_rcnn_heads(features, images_hw)
 
-        boxes, scores, class_ids = self.transform_detections(
+        boxes, scores, class_ids = self.faster_rcnn.transform_outs(
             *detector_out.roi, detector_out.proposals.boxes, images_hw
         )
-        outs = self.qdtracker(features, boxes, scores, class_ids, frame_ids)
+        outs = self.qdtrack(features, boxes, scores, class_ids, frame_ids)
         return outs
-
-
-class QDTrackCLI(BaseCLI):
-    """Detect CLI."""
-
-    def add_arguments_to_parser(self, parser):
-        """Link data and model experiment argument."""
-        parser.link_arguments("data.experiment", "model.experiment")
-        parser.link_arguments("model.max_epochs", "trainer.max_epochs")
-
-
-if __name__ == "__main__":
-    """Example:
-
-    python -m vis4d.model.detect.faster_rcnn fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8"""
-    DetectCLI(model_class=setup_model, datamodule_class=DetectDataModule)
-
-
-# ## setup model
-# qdtrack = QDTrackModel()
-# qdtrack.to(device)
-
-# optimizer = optim.SGD(qdtrack.parameters(), lr=learning_rate, momentum=0.9)
-# scheduler = optim.lr_scheduler.MultiStepLR(
-#     optimizer, milestones=[8, 11], gamma=0.1
-# )
-
-# ## setup datasets
-# train_sample_mapper = BaseSampleMapper(skip_empty_samples=True)
-# train_sample_mapper.setup_categories(bdd100k_track_map)
-# train_transforms = default(train_resolution)
-# ref_sampler = BaseReferenceSampler(
-#     scope=3, num_ref_imgs=1, skip_nomatch_samples=True
-# )
-
-# train_data = BaseDatasetHandler(
-#     [
-#         ScalabelDataset(bdd100k_det_train(), True, train_sample_mapper),
-#         ScalabelDataset(
-#             bdd100k_track_train(), True, train_sample_mapper, ref_sampler
-#         ),
-#     ],
-#     clip_bboxes_to_image=True,
-#     transformations=train_transforms,
-# )
-# train_loader = DataLoader(
-#     train_data,
-#     batch_size=batch_size,
-#     shuffle=True,
-#     collate_fn=identity_collate,
-#     num_workers=batch_size // 2,
-# )
-
-# val_loader = bdd100k_track_val()
-# test_sample_mapper = BaseSampleMapper()
-# test_sample_mapper.setup_categories(bdd100k_track_map)
-# test_transforms = [Resize(shape=test_resolution, keep_ratio=True)]
-# test_data = BaseDatasetHandler(
-#     [ScalabelDataset(val_loader, False, test_sample_mapper)],
-#     transformations=test_transforms,
-# )
-# test_loader = DataLoader(
-#     test_data,
-#     batch_size=1,
-#     shuffle=False,
-#     collate_fn=identity_collate,
-#     num_workers=2,
-# )
-
-# ## validation loop
-# @torch.no_grad()
-# def validation_loop(model):
-#     """Validate current model with test dataset."""
-#     model.eval()
-#     gts = []
-#     preds = []
-#     class_ids_to_name = {i: s for s, i in bdd100k_track_map.items()}
-#     print("Running validation...")
-#     for data in tqdm(test_loader):
-#         data = InputSample.cat(data[0], device)
-#         images = data.images.tensor
-#         output_wh = data.images.image_sizes
-#         frame_ids = [metadata.frameIndex for metadata in data.metadata]
-
-#         outs = model(
-#             normalize(images), [(h, w) for w, h in output_wh], frame_ids
-#         )
-
-#         for i, (metadata, out, wh) in enumerate(
-#             zip(data.metadata, outs, output_wh)
-#         ):
-#             track_ids, boxes, scores, class_ids, _ = out
-#             # from vis4d.vis.image import imshow_bboxes
-#             # import matplotlib.pyplot as plt
-#             # img = imshow_bboxes(images[i], boxes, scores, class_ids, track_ids)
-#             # import os
-#             # os.makedirs(f"example/{metadata.videoName}/", exist_ok=True)
-#             # plt.imsave(f"example/{metadata.videoName}/{str(metadata.frameIndex).zfill(5)}.jpg", img)
-#             # postprocess for eval
-#             dets = Boxes2D(
-#                 torch.cat([boxes, scores.unsqueeze(-1)], -1),
-#                 class_ids=class_ids,
-#                 track_ids=track_ids,
-#             )
-#             dets.postprocess((metadata.size.width, metadata.size.height), wh)
-
-#             prediction = copy.deepcopy(metadata)
-#             prediction.labels = dets.to_scalabel(class_ids_to_name)
-#             preds.append(prediction)
-#             gts.append(copy.deepcopy(metadata))
-
-#     _, log_str = val_loader.evaluate("track", preds, gts)
-#     print(log_str)
-
-
-# ## training loop
-# def training_loop(model):
-#     """Training loop."""
-#     running_losses = {}
-#     for epoch in range(num_epochs):
-#         model.train()
-#         for i, data in enumerate(train_loader):
-#             data = InputSample.cat(data[0], device)
-
-#             tic = perf_counter()
-#             inputs, inputs_hw, gt_boxes, gt_class_ids = (
-#                 data.images.tensor,
-#                 [(wh[1], wh[0]) for wh in data.images.image_sizes],
-#                 [x.boxes for x in data.targets.boxes2d],
-#                 [x.class_ids for x in data.targets.boxes2d],
-#             )
-
-#             # zero the parameter gradients
-#             optimizer.zero_grad()
-
-#             # forward + backward + optimize
-#             rpn_losses, rcnn_losses, outputs = model(
-#                 normalize(inputs), inputs_hw, gt_boxes, gt_class_ids
-#             )
-#             total_loss = sum((*rpn_losses, *rcnn_losses))
-#             total_loss.backward()
-#             optimizer.step()
-#             toc = perf_counter()
-
-#             # print statistics
-#             losses = dict(
-#                 time=toc - tic,
-#                 loss=total_loss,
-#                 **rpn_losses._asdict(),
-#                 **rcnn_losses._asdict(),
-#             )
-#             for k, v in losses.items():
-#                 if k in running_losses:
-#                     running_losses[k] += v
-#                 else:
-#                     running_losses[k] = v
-#             if i % log_step == (log_step - 1):
-#                 # model.visualize_proposals(inputs, outputs)
-#                 log_str = f"[{epoch + 1}, {i + 1:5d} / {len(train_loader)}] "
-#                 for k, v in running_losses.items():
-#                     log_str += f"{k}: {v / log_step:.3f}, "
-#                 print(log_str.rstrip(", "))
-#                 running_losses = {}
-
-#         scheduler.step()
-#         torch.save(
-#             model.state_dict(),
-#             f"vis4d-workspace/qdtrack_epoch_{epoch + 1}.pt",
-#         )
-#         validation_loop(model)
-#     print("training done.")
-
-
-# if __name__ == "__main__":
-#     parser = argparse.ArgumentParser(description="qdtrack bdd train/eval.")
-#     parser.add_argument(
-#         "-c", "--ckpt", default=None, help="path of model to eval"
-#     )
-#     args = parser.parse_args()
-#     if args.ckpt is None:
-#         training_loop(qdtrack)
-#     else:
-#         if args.ckpt == "pretrained":
-#             from mmcv.runner.checkpoint import load_checkpoint
-
-#             weights = "./qdtrack_r50_65point7.ckpt"
-#             load_checkpoint(qdtrack.backbone, weights, revise_keys=REV_KEYS)
-#             load_checkpoint(qdtrack.fpn, weights, revise_keys=REV_KEYS)
-#             load_checkpoint(
-#                 qdtrack.faster_rcnn_heads, weights, revise_keys=REV_KEYS
-#             )
-#             load_checkpoint(qdtrack.qdtracker, weights, revise_keys=REV_KEYS)
-#         else:
-#             ckpt = torch.load(args.ckpt)
-#             qdtrack.load_state_dict(ckpt)
-#         validation_loop(qdtrack)

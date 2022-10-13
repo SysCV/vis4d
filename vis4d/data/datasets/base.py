@@ -1,10 +1,11 @@
 """Base dataset in Vis4D."""
 
 from typing import Dict, List, Sequence, Tuple, Union
+from unittest.loader import VALID_MODULE_NAME
 
 from torch.utils.data import Dataset as TorchDataset
 
-from vis4d.common import DictData
+from vis4d.common import DictData, MultiSensorData
 
 
 class Dataset(TorchDataset[DictData]):
@@ -19,11 +20,23 @@ class Dataset(TorchDataset[DictData]):
         raise NotImplementedError
 
 
-# class MultiViewDataset(TorchDataset[MultiViewDataDict]): TODO
+class MultiSensorDataset(TorchDataset[MultiSensorData]):
+    """Basic Multi-Sensor Dataset."""
+
+    def __len__(self) -> int:
+        """Return length of dataset."""
+        raise NotImplementedError
+
+    def __getitem__(self, idx: int) -> MultiSensorData:
+        """Prepare and return multi sensor input data given an index."""
+        raise NotImplementedError
 
 
-class VideoDataset(Dataset):
-    """Basic pytorch video dataset."""
+class VideoMixin:
+    """Mixin for video datasets.
+
+    Provides interface for video based data and reference view samplers.
+    """
 
     @property
     def video_to_indices(self) -> Dict[str, List[int]]:
@@ -33,6 +46,14 @@ class VideoDataset(Dataset):
         Returns:
             Dict[str, int]: Mapping video to index.
         """
+        raise NotImplementedError
+
+    def get_video_indices(self, idx: int) -> List[int]:
+        """Get all dataset indices in a video given a single dataset index."""
+        for indices in self.video_to_indices.values():
+            if idx in indices:
+                return indices
+        raise ValueError(f"Dataset index {idx} not found in video_to_indices!")
 
 
 class MultitaskMixin:

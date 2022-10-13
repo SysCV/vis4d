@@ -7,9 +7,9 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.ops import roi_align
 
+from vis4d.op.box.box2d import multiclass_nms
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.poolers import MultiScaleRoIAlign
-from vis4d.op.box.util import multiclass_nms
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.op.mask.util import paste_masks_in_image

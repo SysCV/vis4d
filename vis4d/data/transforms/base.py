@@ -1,5 +1,5 @@
 """Basic data augmentation class."""
-from typing import Any, Callable, List, Tuple, TypeVar
+from typing import Any, Callable, List, Optional, Tuple, TypeVar
 
 import torch
 
@@ -39,30 +39,48 @@ class Transform:
             def _transform(image):
                 return do_transform(image)
             return _transform
+
+    For the case of multi-sensor data, the sensors that the transform should be
+    applied can be set via the 'sensors' attribute. By default, we assume single
+    sensor data (DictData).
     """
 
     def __init__(
         self,
         in_keys: Tuple[str, ...] = (COMMON_KEYS.images,),
         out_keys: Tuple[str, ...] = (COMMON_KEYS.images,),
+        sensors: Optional[Tuple[str, ...]] = None,
         with_data: bool = False,
     ):
         """Init.
 
         Args:
-            in_keys (List[str]): Input keys in the data dictionary. Nested keys are separated by '.', e.g. metadata.image_size.
-            out_keys (List[str]): Output keys (possibly nested).
+            in_keys (Tuple[str, ...], optional): Input keys in the data dictionary. Nested keys are separated by '.', e.g. metadata.image_size. Defaults to (COMMON_KEYS.images,).
+            out_keys (Tuple[str, ...], optional): Output keys (possibly nested).. Defaults to (COMMON_KEYS.images,).
+            sensors (Optional[Tuple[str, ...]], optional): When applied to MultiSensorData, this field indicates which sensors the transform should be applied to. Defaults to None.
             with_data (bool, optional): Pass the full data dict as auxiliary input. Defaults to False.
         """
+        assert isinstance(in_keys, tuple) or isinstance(in_keys, list)
+        assert isinstance(out_keys, tuple) or isinstance(out_keys, list)
+        assert (
+            isinstance(sensors, tuple)
+            or isinstance(sensors, list)
+            or sensors is None
+        )
         self.in_keys = in_keys
         self.out_keys = out_keys
+        self.sensors = sensors
         self.with_data = with_data
 
     def __call__(self, orig_get_transform_fn):
         """Wrap function with a handler for input / output keys."""
 
         def get_transform_fn(
-            *args, in_keys=self.in_keys, out_keys=self.out_keys, **kwargs
+            *args,
+            in_keys=self.in_keys,
+            out_keys=self.out_keys,
+            sensors=self.sensors,
+            **kwargs,
         ):
             orig_transform_fn = orig_get_transform_fn(*args, **kwargs)
 
@@ -81,7 +99,16 @@ class Transform:
                     set_dict_nested(data, key.split("."), value)
                 return data
 
-            return _transform_fn
+            if sensors is not None:
+
+                def _multi_sensor_transform_fn(data):
+                    for sensor in sensors:
+                        data[sensor] = _transform_fn(data[sensor])
+                    return data
+
+                return _multi_sensor_transform_fn
+            else:
+                return _transform_fn
 
         return get_transform_fn
 
@@ -93,24 +120,31 @@ class BatchTransform:
         self,
         in_keys=(COMMON_KEYS.images,),
         out_keys=(COMMON_KEYS.images,),
+        sensors: Optional[Tuple[str, ...]] = None,
         with_data: bool = False,
     ):
         """Init.
 
         Args:
-            in_keys (List[str]): Input keys in the data dictionary. Nested keys are separated by '.', e.g. metadata.image_size.
-            out_keys (List[str]): Output keys (possibly nested).
+            in_keys (Tuple[str, ...], optional): Input keys in the data dictionary. Nested keys are separated by '.', e.g. metadata.image_size. Defaults to (COMMON_KEYS.images,).
+            out_keys (Tuple[str, ...], optional): Output keys (possibly nested).. Defaults to (COMMON_KEYS.images,).
+            sensors (Optional[Tuple[str, ...]], optional): When applied to MultiSensorData, this field indicates which sensors the transform should be applied to. Defaults to None.
             with_data (bool, optional): Pass the full data dict as auxiliary input. Defaults to False.
         """
         self.in_keys = in_keys
         self.out_keys = out_keys
+        self.sensors = sensors
         self.with_data = with_data
 
     def __call__(self, orig_get_transform_fn):
         """Wrap function with a handler for input / output keys."""
 
         def get_transform_fn(
-            *args, in_keys=self.in_keys, out_keys=self.out_keys, **kwargs
+            *args,
+            in_keys=self.in_keys,
+            out_keys=self.out_keys,
+            sensors=self.sensors,
+            **kwargs,
         ):
             orig_transform_fn = orig_get_transform_fn(*args, **kwargs)
 
@@ -134,7 +168,20 @@ class BatchTransform:
                         set_dict_nested(data, key.split("."), value)
                 return batch
 
-            return _transform_fn
+            if sensors is not None:
+
+                def _multi_sensor_transform_fn(batch):
+                    for sensor in sensors:
+                        batch_sensor = _transform_fn(
+                            [d[sensor] for d in batch]
+                        )
+                        for i, d in enumerate(batch_sensor):
+                            batch[i][sensor] = d
+                    return batch
+
+                return _multi_sensor_transform_fn
+            else:
+                return _transform_fn
 
         return get_transform_fn
 

@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 
 from vis4d.common import COMMON_KEYS
-from vis4d.op.box.util import transform_bbox
+from vis4d.op.box.box2d import transform_bbox
 
 from .base import Transform
 
@@ -124,7 +124,7 @@ def resize_boxes2d():
         COMMON_KEYS.original_hw,
         COMMON_KEYS.input_hw,
     ),
-    out_keys=(COMMON_KEYS.intrinsics),
+    out_keys=(COMMON_KEYS.intrinsics,),
 )
 def resize_intrinsics():
     """Scale camera intrinsics when resizing."""

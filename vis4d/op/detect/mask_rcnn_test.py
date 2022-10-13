@@ -7,7 +7,7 @@ from scalabel.label.typing import ImageSize
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.op.box.util import apply_mask
+from vis4d.op.box.box2d import apply_mask
 from vis4d.op.detect.rcnn import (
     Det2Mask,
     MaskRCNNHead,
