@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from vis4d.eval import Evaluator
+from vis4d.vis.base import Visualizer
 
 from .util import move_data_to_device
 
@@ -18,10 +19,11 @@ def testing_loop(
     metric: str,
     model: nn.Module,
     model_test_keys: List[str],
+    visualizers: List[Visualizer] = [],
 ) -> None:
     """Testing loop."""
     model.eval()
-    print("Running validation...")
+    print("Running validation...")  # FIXME move to log function
     for test_loader in test_dataloader:
         for _, data in enumerate(tqdm(test_loader)):
             # input data
@@ -35,6 +37,12 @@ def testing_loop(
             for test_eval in evaluators:
                 test_eval.process(data, output)
 
+            for vis in visualizers:
+                vis.process(data, output)
     for test_eval in evaluators:
         _, log_str = test_eval.evaluate(metric)
-        print(log_str)
+        print(log_str)  # FIXME move to log function
+
+    for test_vis in visualizers:
+        test_vis.visualize()
+        test_vis.clear()

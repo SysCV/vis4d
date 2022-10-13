@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 
 from vis4d.eval import Evaluator
 from vis4d.optim.warmup import BaseLRWarmup
+from vis4d.vis.base import Visualizer
 
 from .test import testing_loop
 from .util import move_data_to_device
@@ -30,6 +31,10 @@ def training_loop(
     learning_rate: float,
     save_prefix: str,
     warmup: Optional[BaseLRWarmup] = None,
+    visualizers: List[Visualizer] = [],
+    test_every_nth_epoch=1,
+    save_every_nth_epoch=1,
+    vis_every_nth_epoch=1,
 ) -> None:
     """Training loop."""
     running_losses = {}
@@ -77,12 +82,31 @@ def training_loop(
                 )
                 for k, v in running_losses.items():
                     log_str += f"{k}: {v / log_step:.3f}, "
-                print(log_str.rstrip(", "))
+                print(log_str.rstrip(", "))  # FIXME move to log statement
                 running_losses = {}
 
         scheduler.step()
-        torch.save(model.state_dict(), f"{save_prefix}_{epoch + 1}.pt")
-        testing_loop(
-            test_dataloader, evaluators, metric, model, model_test_keys
-        )
-    print("training done.")
+        if epoch % save_every_nth_epoch == (save_every_nth_epoch - 1):
+            torch.save(model.state_dict(), f"{save_prefix}_{epoch + 1}.pt")
+        # Make sure to test at last epoch or at desired frequency
+        if (epoch == num_epochs - 1) or epoch % test_every_nth_epoch == (
+            test_every_nth_epoch - 1
+        ):
+            # Visualize after last epoch or at requested frequency
+            visualizers_to_use = (
+                visualizers
+                if (
+                    epoch == num_epochs - 1
+                    or epoch % vis_every_nth_epoch == vis_every_nth_epoch - 1
+                )
+                else []
+            )
+            testing_loop(
+                test_dataloader,
+                evaluators,
+                metric,
+                model,
+                model_test_keys,
+                visualizers_to_use,
+            )
+    print("training done.")  # FIXME move to log statement
