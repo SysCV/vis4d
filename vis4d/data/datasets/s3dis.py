@@ -18,21 +18,6 @@ from .base import Dataset, DictData
 from .util import CacheMappingMixin
 
 # s3dis semantic mappings
-S3DIS_LABELS = {
-    "ceiling": 0,
-    "floor": 1,
-    "wall": 2,
-    "beam": 3,
-    "column": 4,
-    "window": 5,
-    "door": 6,
-    "chair": 7,
-    "table": 8,
-    "bookcase": 9,
-    "sofa": 10,
-    "board": 11,
-    "clutter": 12,
-}
 
 
 class S3DIS(Dataset, CacheMappingMixin):
@@ -42,18 +27,81 @@ class S3DIS(Dataset, CacheMappingMixin):
     _TASKS = ["3DSegment"]
     _URL = "https://openaccess.thecvf.com/content_cvpr_2016/papers/Armeni_3D_Semantic_Parsing_CVPR_2016_paper.pdf"
 
+    CLASS_NAME_TO_IDX = {
+        "ceiling": 0,
+        "floor": 1,
+        "wall": 2,
+        "beam": 3,
+        "column": 4,
+        "window": 5,
+        "door": 6,
+        "chair": 7,
+        "table": 8,
+        "bookcase": 9,
+        "sofa": 10,
+        "board": 11,
+        "clutter": 12,
+    }
+    CLASS_COUNTS = torch.Tensor(
+        [
+            37334028,
+            32206900,
+            52921324,
+            4719832,
+            4145093,
+            4127868,
+            10681455,
+            7930065,
+            6318085,
+            9209662,
+            21825992,
+            949299,
+            2457821,
+        ]
+    )
+
+    AVAILABLE_KEYS: List[str] = [
+        COMMON_KEYS.points3d,
+        COMMON_KEYS.colors3d,
+        COMMON_KEYS.semantics3d,
+        COMMON_KEYS.instances3d,
+    ]
+
+    COLOR_MAPPING = torch.tensor(
+        [
+            [152, 223, 138],
+            [31, 119, 180],
+            [188, 189, 34],
+            [140, 86, 75],
+            [255, 152, 150],
+            [214, 39, 40],
+            [197, 176, 213],
+            [23, 190, 207],
+            [178, 76, 76],
+            [247, 182, 210],
+            [66, 188, 102],
+            [219, 219, 141],
+            [140, 57, 197],
+            [202, 185, 52],
+        ]
+    )
+
     def __init__(
         self,
         data_root: str,
         split: str = "trainNoArea5",
         data_backend: Optional[DataBackend] = None,
-        keys_to_load: List[str] = [
-            COMMON_KEYS.points3d,
-            COMMON_KEYS.colors3d,
-            COMMON_KEYS.semantics3d,
-            COMMON_KEYS.instances3d,
-        ],
+        keys_to_load: List[str] = AVAILABLE_KEYS,
     ) -> None:
+        """Creates a new S3DIS dataset.
+        Args:
+        data_root (str): Path to S3DIS folder
+        split (str): which split to load. Must either be
+            trainNoArea[1-6] or testArea[1-6].
+            e.g. trainNoArea5 will load all areas except area 5 and
+            testArea5 will only load area 5
+        """
+
         super().__init__()
 
         self.data_root = data_root
@@ -62,11 +110,19 @@ class S3DIS(Dataset, CacheMappingMixin):
             data_backend if data_backend is not None else FileBackend()
         )
 
-        self.areas: List[str] = []
-        if self.split == "trainNoArea5":
-            self.areas = ["Area_1", "Area_2", "Area_3", "Area_4", "Area_6"]
-        elif self.split == "testArea5":
-            self.areas = ["Area_5"]
+        self.areas: List[str] = [
+            "Area_1",
+            "Area_2",
+            "Area_3",
+            "Area_4",
+            "Area_5",
+            "Area_6",
+        ]
+        area_number = int(self.split.split("Area")[-1])
+        if "trainNoArea" in self.split:
+            self.areas.remove(self.areas[area_number - 1])
+        elif "testArea" in self.split:
+            self.areas = [self.areas[area_number - 1]]
         else:
             raise ValueError("Unknown split: ", self.split)
 
@@ -75,6 +131,11 @@ class S3DIS(Dataset, CacheMappingMixin):
             os.path.join(self.data_root, self.split + ".json"),
         )
         self.keys_to_load = keys_to_load
+
+    @property
+    def num_classes(self):
+        """The number of classes int he datset."""
+        return len(S3DIS.CLASS_NAME_TO_IDX)
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
@@ -97,7 +158,8 @@ class S3DIS(Dataset, CacheMappingMixin):
                     instance_id = os.path.basename(anns.replace(".txt", ""))
                     sem_name = instance_id.split("_")[0]
                     room_data[instance_id] = dict(
-                        class_label=S3DIS_LABELS.get(sem_name, 12), path=anns
+                        class_label=S3DIS.CLASS_NAME_TO_IDX.get(sem_name, 12),
+                        path=anns,
                     )
                 data.append(room_data)
 
@@ -133,9 +195,9 @@ class S3DIS(Dataset, CacheMappingMixin):
                 delimiter=" ",
             ).values.astype(np.float32)
 
-            if COMMON_KEYS.colors3d in self.keys_to_load:
-                coords = np.vstack([coords, np_data[:, :3]])
             if COMMON_KEYS.points3d in self.keys_to_load:
+                coords = np.vstack([coords, np_data[:, :3]])
+            if COMMON_KEYS.colors3d in self.keys_to_load:
                 color = np.vstack([color, np_data[:, 3:]])
             if COMMON_KEYS.semantics3d in self.keys_to_load:
                 semantic_ids = np.vstack(
@@ -153,12 +215,13 @@ class S3DIS(Dataset, CacheMappingMixin):
                         * instance_id,
                     ]
                 )
+        coords -= np.amin(coords, axis=0)
 
         data = dict()
         for key in self.keys_to_load:
-            if key == COMMON_KEYS.colors3d:
+            if key == COMMON_KEYS.points3d:
                 data[key] = torch.from_numpy(coords)
-            elif key == COMMON_KEYS.points3d:
+            elif key == COMMON_KEYS.colors3d:
                 data[key] = torch.from_numpy(color / 255)
             elif key == COMMON_KEYS.semantics3d:
                 data[key] = torch.from_numpy(semantic_ids).squeeze(-1)
