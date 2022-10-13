@@ -95,7 +95,10 @@ class SubdividingIterableDataset(IterableDataset):
     """
 
     def __init__(
-        self, dataset: Dataset[DictData], n_samples_per_batch: int
+        self,
+        dataset: Dataset[DictData],
+        n_samples_per_batch: int,
+        preprocess_fn: Callable[[DictData], DictData],
     ) -> None:
         """Creates a new Dataset
         Args:
@@ -103,11 +106,13 @@ class SubdividingIterableDataset(IterableDataset):
             n_samples_per_batch: How many samples each batch should contain.
                                  The first dimension of dataset[0].shape must
                                  be divisible by this number
+            preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing function of a single sample.
         """
         super().__init__()
 
         self.dataset = dataset
         self.n_samples_per_batch = n_samples_per_batch
+        self.preprocess_fn = preprocess_fn
 
     def __iter__(self) -> Iterator[DictData]:
         """Iterates over the dataset, supporting distributed sampling."""
@@ -126,14 +131,22 @@ class SubdividingIterableDataset(IterableDataset):
                 data_sample = self.dataset[data_idx]
                 n_elements = next(iter(data_sample.values())).size(0)
                 for idx in range(int(n_elements / self.n_samples_per_batch)):
-                    out_data = {"batch_index": torch.tensor([data_idx])}
+                    # TODO, this is kind of ugly
+                    # this field defines from which source the data was loaded (first entry, second entry, ...)
+                    # this is required if we e.g. want to subdivide a room that is too big
+                    # into equal sized chunks and stick them back together
+                    # for visualizaton
+                    out_data = {"source_index": torch.tensor([data_idx])}
                     for key in data_sample:
                         start_idx = idx * self.n_samples_per_batch
                         end_idx = (idx + 1) * self.n_samples_per_batch
-                        out_data[key] = data_sample[key][
-                            start_idx:end_idx, ...
-                        ]
-                    yield out_data
+                        if (len(data_sample[key])) < self.n_samples_per_batch:
+                            out_data[key] = data_sample[key]
+                        else:
+                            out_data[key] = data_sample[key][
+                                start_idx:end_idx, ...
+                            ]
+                    yield self.preprocess_fn(out_data)
 
 
 def build_train_dataloader(
