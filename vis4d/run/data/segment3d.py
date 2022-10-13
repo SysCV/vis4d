@@ -6,15 +6,22 @@ from torch.utils.data import DataLoader, Dataset
 from vis4d.common.typing import COMMON_KEYS
 from vis4d.data.loader import (
     DataPipe,
+    SubdividingIterableDataset,
     build_inference_dataloaders,
     build_train_dataloader,
 )
 from vis4d.data.transforms.base import compose
-from vis4d.data.transforms.point_sampling import sample_points_block_random
+from vis4d.data.transforms.point_sampling import (
+    sample_points_block_full_coverage,
+    sample_points_block_random,
+)
 from vis4d.data.transforms.points import (
     center_and_normalize,
     concatenate_point_features,
+    extract_pc_bounds,
     move_pts_to_last_channel,
+    normalize_by_bounds,
+    rotate_around_axis,
 )
 
 
@@ -34,18 +41,33 @@ def default_train_pipeline(
     if load_colors:
         data_keys.append(COMMON_KEYS.colors3d)
 
+    bounds_calc = extract_pc_bounds()
     sample = sample_points_block_random(
         in_keys=data_keys + labels_keys,
         out_keys=data_keys + labels_keys,
         num_pts=num_pts,
+        min_pts=512,
     )
+
+    rand_rotate_z = rotate_around_axis(axis=2)
     norm = center_and_normalize(
-        in_keys=[COMMON_KEYS.points3d], out_keys=["points3d_normalized"]
+        in_keys=[COMMON_KEYS.points3d],
+        out_keys=["points3d_normalized"],
+        normalize=False,
     )
+    bounds_norm = normalize_by_bounds()
+
     data_keys += ["points3d_normalized"]
     move_pts = move_pts_to_last_channel(in_keys=data_keys, out_keys=data_keys)
 
-    pipeline = [sample, norm, move_pts]
+    pipeline = [
+        rand_rotate_z,
+        bounds_calc,
+        sample,
+        norm,
+        bounds_norm,
+        move_pts,
+    ]
 
     if len(data_keys) > 1:
         pipeline.append(
@@ -56,7 +78,9 @@ def default_train_pipeline(
     preprocess_fn = compose(pipeline)
 
     datapipe = DataPipe(datasets, preprocess_fn)
-    train_loader = build_train_dataloader(datapipe, samples_per_gpu=batch_size)
+    train_loader = build_train_dataloader(
+        datapipe, samples_per_gpu=batch_size, workers_per_gpu=8
+    )
     return train_loader
 
 
@@ -76,16 +100,21 @@ def default_test_pipeline(
     if load_colors:
         data_keys.append(COMMON_KEYS.colors3d)
 
-    sample = sample_points_block_random(
+    sample = sample_points_block_full_coverage(
         in_keys=data_keys + labels_keys,
         out_keys=data_keys + labels_keys,
-        num_pts=num_pts,
+        n_pts_per_block=num_pts,
+        min_pts_per_block=512,
     )
+    bounds_calc = extract_pc_bounds()
+
     norm = center_and_normalize(
         in_keys=[COMMON_KEYS.points3d], out_keys=["points3d_normalized"]
     )
+    bounds_norm = normalize_by_bounds()
+
     move_pts = move_pts_to_last_channel(in_keys=data_keys, out_keys=data_keys)
-    pipeline = [sample, norm, move_pts]
+    pipeline = [norm, bounds_norm, move_pts]
     data_keys += ["points3d_normalized"]
 
     if len(data_keys) > 1:
@@ -95,8 +124,12 @@ def default_test_pipeline(
             )
         )
     preprocess_fn = compose(pipeline)
+    datapipe = SubdividingIterableDataset(
+        DataPipe(datasets, compose([bounds_calc, sample])),
+        n_samples_per_batch=num_pts,
+        preprocess_fn=preprocess_fn,
+    )
 
-    datapipe = DataPipe(datasets, preprocess_fn)
     test_loaders = build_inference_dataloaders(
         datapipe, samples_per_gpu=batch_size
     )
