@@ -7,7 +7,7 @@ import torch
 
 from vis4d.common import COMMON_KEYS
 
-from .points import move_pts_to_last_channel
+from .points import move_pts_to_last_channel, rotate_around_axis
 
 
 class TestPoints(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestPoints(unittest.TestCase):
         }
         self.original_data = copy.deepcopy(self.data)
 
-    def test_move_pts_to_last_channel(self):
+    def test_move_pts_to_last_channel(self) -> None:
         """Tests the functional."""
         tf = move_pts_to_last_channel(
             in_keys=[COMMON_KEYS.points3d], out_keys=[COMMON_KEYS.points3d]
@@ -32,8 +32,8 @@ class TestPoints(unittest.TestCase):
         # Check that points are now at last channel
         self.assertEqual(tf(self.data)[COMMON_KEYS.points3d].shape[-1], 200)
 
-    def test_move_pts_to_last_channel_w_multi_keys(self):
-        """TODO"""
+    def test_move_pts_to_last_channel_w_multi_keys(self) -> None:
+        """Tests the move_pts_to_last_channel functional with multiple inputs."""
         # Check mutli key case
         tf = move_pts_to_last_channel(
             in_keys=[
@@ -52,3 +52,31 @@ class TestPoints(unittest.TestCase):
         out = tf(self.data)
         for data in out.values():
             self.assertEqual(data.shape[-1], 200)
+
+    def test_rotation_not_rotate_points(self) -> None:
+        """Tests rotation of pointcloud."""
+        # No rotation
+        tf = rotate_around_axis(angle_min=0, angle_max=0)
+        out = tf(self.data)
+        self.assertTrue(
+            (
+                out[COMMON_KEYS.points3d]
+                == self.original_data[COMMON_KEYS.points3d]
+            ).all()
+        )
+        self.assertEqual(1, 2)
+
+    def test_rotate_points_180_deg(self) -> None:
+        """Tests rotation of pointcloud."""
+        # 180 degree rotation
+        tf = rotate_around_axis(angle_min=torch.pi, angle_max=torch.pi, axis=2)
+        out = tf(self.data)
+
+        in_points = self.original_data[COMMON_KEYS.points3d]
+        out_points = out[COMMON_KEYS.points3d]
+        # Make sure signs are correct
+        self.assertTrue(
+            torch.isclose(in_points[:, :2], -out_points[:, :2]).all()
+        )
+        # Z component should not change
+        self.assertTrue((in_points[:, -1] == out_points[:, -1]).all())
