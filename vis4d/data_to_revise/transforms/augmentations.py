@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 
 from vis4d.data_to_revise.utils import transform_bbox
-from vis4d.op.box.util import bbox_intersection
+from vis4d.op.box.box2d import bbox_intersection
 from vis4d.struct_to_revise import (
     ArgsType,
     Boxes2D,

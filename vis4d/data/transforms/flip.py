@@ -3,6 +3,7 @@ import numpy as np
 import torch
 
 from vis4d.common import COMMON_KEYS
+from vis4d.common.typing import AxisMode
 from vis4d.op.geometry.rotation import normalize_angle
 
 from .base import Transform
@@ -47,17 +48,43 @@ def flip_boxes2d(direction: str = "horizontal"):
     return _flip
 
 
+def get_axis(direction: str, axis_mode: AxisMode) -> int:
+    """Get axis number of certain direction given axis mode.
+
+    Args:
+        direction (str): One of horizontal, vertical and lateral.
+        axis_mode (AxisMode): axis mode.
+
+    Returns:
+        int: Number of axis in certain direction.
+    """
+    assert direction in ["horizontal", "lateral", "vertical"]
+    coord_mapping = {
+        AxisMode.ROS: {
+            "horizontal": 0,
+            "lateral": 1,
+            "vertical": 2,
+        },
+        AxisMode.OpenCV: {
+            "horizontal": 0,
+            "vertical": 1,
+            "lateral": 2,
+        },
+    }
+    return coord_mapping[axis_mode][direction]
+
+
 @Transform(in_keys=(COMMON_KEYS.boxes3d,), out_keys=(COMMON_KEYS.boxes3d,))
 def flip_boxes3d(direction: str = "horizontal"):
     """Flip 3D bounding box tensor."""
 
-    def _flip(boxes: torch.Tensor) -> torch.Tensor:
+    def _flip(boxes: torch.Tensor, axis_mode: AxisMode) -> torch.Tensor:
         if direction == "horizontal":
-            boxes[:, 0] *= -1.0
-            boxes[:, 7] = normalize_angle(np.pi - boxes[:, 7])
+            boxes[:, get_axis(direction, axis_mode)] *= -1.0
+            # boxes[:, 7] = normalize_angle(np.pi - boxes[:, 7])  TODO align with Quaternion
             return boxes
         elif direction == "vertical":
-            boxes[:, 1] *= -1.0
+            boxes[:, get_axis(direction, axis_mode)] *= -1.0
             return boxes
         raise NotImplementedError(f"Direction {direction} not known!")
 

@@ -6,8 +6,8 @@ import torch
 
 from vis4d.common import ArgsType
 
+from ..box2d import non_intersection, random_choice
 from ..matchers.base import MatchResult
-from ..util import non_intersection, random_choice
 from .base import BaseSampler, SamplingResult
 
 

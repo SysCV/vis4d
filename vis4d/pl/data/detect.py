@@ -19,7 +19,10 @@ class DetectDataModule(DataModule):
             raise NotImplementedError
         elif self.experiment == "coco":
             dataloader = default_train_pipeline(
-                coco_train(data_backend), self.samples_per_gpu, (800, 1333)
+                coco_train(data_backend),
+                self.samples_per_gpu,
+                self.workers_per_gpu,
+                (800, 1333),
             )
         else:
             raise NotImplementedError(
@@ -34,7 +37,10 @@ class DetectDataModule(DataModule):
             raise NotImplementedError
         elif self.experiment == "coco":
             dataloaders = default_test_pipeline(
-                coco_val(data_backend), self.samples_per_gpu, (800, 1333)
+                coco_val(data_backend),
+                self.samples_per_gpu,
+                self.workers_per_gpu,
+                (800, 1333),
             )
         else:
             raise NotImplementedError(

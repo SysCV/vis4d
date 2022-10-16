@@ -44,9 +44,9 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
         self,
         model: nn.Module,
         loss: nn.Module,
-        model_train_in_keys: List[str],
-        model_test_in_keys: List[str],
-        loss_in_keys: List[str],
+        model_train_in_keys: Optional[List[str]] = None,
+        model_test_in_keys: Optional[List[str]] = None,
+        loss_in_keys: Optional[List[str]] = None,
         optimizer_init: Optional[DictStrAny] = None,
         lr_scheduler_init: Optional[DictStrAny] = None,
         freeze: bool = False,
@@ -142,12 +142,19 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
         self, batch: DictData, *args, **kwargs
     ) -> LossesType:
         """Wrap training step of LightningModule. Add overall loss."""
-        train_input = {key: batch[key] for key in self.model_train_in_keys}
-        loss_input = {key: batch[key] for key in self.loss_in_keys}
+        if self.model_train_in_keys is not None:
+            train_input = {key: batch[key] for key in self.model_train_in_keys}
+        else:
+            train_input = dict(data=batch)
+
+        if self.loss_in_keys:
+            loss_input = {key: batch[key] for key in self.loss_in_keys}
+        else:
+            loss_input = dict(data=batch)
 
         # forward + backward + optimize
         output = self.model(**train_input)
-        losses = self.model_loss(output, *loss_input.values())
+        losses = self.model_loss(output, **loss_input)
         losses["loss"] = sum(list(losses.values()))
 
         for k, v in losses.items():
@@ -173,7 +180,10 @@ class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
         self, batch: DictData, *args, **kwargs
     ) -> ModelOutput:
         """Wrap test step of LightningModule."""
-        test_input = {key: batch[key] for key in self.model_test_in_keys}
+        if self.model_test_in_keys:
+            test_input = {key: batch[key] for key in self.model_test_in_keys}
+        else:
+            test_input = dict(data=batch)
         return self.model(**test_input)
 
     def validation_step(  # type: ignore # pylint: disable=arguments-differ

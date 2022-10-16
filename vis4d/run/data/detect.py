@@ -22,6 +22,7 @@ from vis4d.data.transforms.resize import (
 def default_train_pipeline(
     datasets: Union[Dataset, List[Dataset]],
     batch_size: int,
+    num_workers: int,
     im_hw: Tuple[int, int],
     with_mask: bool = False,
 ) -> DataLoader:
@@ -37,7 +38,10 @@ def default_train_pipeline(
     batchprocess_fn = pad_image()
     datapipe = DataPipe(datasets, preprocess_fn)
     train_loader = build_train_dataloader(
-        datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
+        datapipe,
+        samples_per_gpu=batch_size,
+        workers_per_gpu=num_workers,
+        batchprocess_fn=batchprocess_fn,
     )
     return train_loader
 
@@ -45,6 +49,7 @@ def default_train_pipeline(
 def default_test_pipeline(
     datasets: Union[Dataset, List[Dataset]],
     batch_size: int,
+    num_workers: int,
     im_hw: Tuple[int, int],
 ) -> DataLoader:
     """Default test preprocessing pipeline for detectors."""
@@ -57,6 +62,9 @@ def default_test_pipeline(
     batchprocess_fn = pad_image()
     datapipe = DataPipe(datasets, preprocess_fn)
     test_loaders = build_inference_dataloaders(
-        datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
+        datapipe,
+        samples_per_gpu=batch_size,
+        workers_per_gpu=num_workers,
+        batchprocess_fn=batchprocess_fn,
     )
     return test_loaders

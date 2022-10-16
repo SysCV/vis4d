@@ -5,10 +5,10 @@ import numpy as np
 import torch
 from torch import nn
 
+from vis4d.op.box.box2d import bbox_iou
 from vis4d.op.box.matchers.max_iou import MaxIoUMatcher
 from vis4d.op.box.poolers import BaseRoIPooler, MultiScaleRoIAlign
 from vis4d.op.box.samplers.combined import CombinedSampler
-from vis4d.op.box.util import bbox_iou
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
 

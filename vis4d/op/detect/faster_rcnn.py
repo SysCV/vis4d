@@ -4,6 +4,7 @@ from typing import List, NamedTuple, Optional, Tuple
 import torch
 from torch import nn
 
+from vis4d.op.box.box2d import apply_mask
 from vis4d.op.box.encoder import BoxEncoder2D, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import BaseMatcher, MaxIoUMatcher
 from vis4d.op.box.samplers import (
@@ -11,7 +12,6 @@ from vis4d.op.box.samplers import (
     RandomSampler,
     match_and_sample_proposals,
 )
-from vis4d.op.box.util import apply_mask
 from vis4d.struct_to_revise import Proposals
 
 from .anchor_generator import AnchorGenerator

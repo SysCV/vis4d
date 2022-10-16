@@ -9,10 +9,8 @@ from scipy.spatial.transform import Rotation as R
 from torch import Tensor
 
 from vis4d.common import NDArrayF64, NDArrayUI8
-from vis4d.struct_to_revise import Boxes3D, Intrinsics
 
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
-Box3DType = Union[Boxes3D, List[Boxes3D]]
 
 ColorType = Union[
     Union[Tuple[int], str],
@@ -46,15 +44,6 @@ def preprocess_boxes(
     color_idx: int = 0,
 ) -> Tuple[List[List[float]], List[Tuple[int]], List[str]]:
     """Preprocess BoxType to boxes / colors / labels for drawing."""
-    if isinstance(boxes, list):
-        result_box, result_color, result_labels = [], [], []
-        for i, b in enumerate(boxes):
-            box, color, labels = preprocess_boxes(b, i)  # type: ignore
-            result_box.extend(box)
-            result_color.extend(color)
-            result_labels.extend(labels)
-        return result_box, result_color, result_labels
-
     boxes_list = boxes.detach().cpu().numpy().tolist()
 
     if scores is not None:
@@ -179,80 +168,3 @@ def preprocess_image(image: ImageType, mode: str = "RGB") -> Image.Image:
         mode = "RGB"
 
     return Image.fromarray(image.astype(np.uint8), mode=mode).convert("RGB")
-
-
-def preprocess_intrinsics(
-    intrinsics: Union[NDArrayF64, Intrinsics]
-) -> NDArrayF64:
-    """Preprocess intrinsics to a 3x3 matrix."""
-    if isinstance(intrinsics, Intrinsics):
-        assert (
-            len(intrinsics.tensor) == 1
-        ), "Please specify a batch element via intrinsics[batch_elem]"
-        intrinsic_matrix = (
-            intrinsics.tensor[0].cpu().numpy()
-        )  # type: NDArrayF64
-    elif isinstance(intrinsics, np.ndarray):
-        intrinsic_matrix = intrinsics
-    else:
-        raise ValueError(f"Invalid type for intrinsics: {type(intrinsics)}")
-
-    assert intrinsic_matrix.shape == (
-        3,
-        3,
-    ), f"Intrinsics must be of shape 3x3, got {intrinsic_matrix.shape}"
-    return intrinsic_matrix
-
-
-def box3d_to_corners(box3d: List[float]) -> NDArrayF64:
-    """Convert Boxes3D style box to its respective corner points."""
-    x_loc, y_loc, z_loc = box3d[:3]
-    h, w, l = box3d[3:6]
-    rx, ry, rz = box3d[6], box3d[7], box3d[8]
-
-    x_corners: NDArrayF64 = np.array(
-        [
-            l / 2.0,
-            l / 2.0,
-            -l / 2.0,
-            -l / 2.0,
-            l / 2.0,
-            l / 2.0,
-            -l / 2.0,
-            -l / 2.0,
-        ],
-        dtype=np.float64,
-    )
-    z_corners: NDArrayF64 = np.array(
-        [
-            w / 2.0,
-            -w / 2.0,
-            -w / 2.0,
-            w / 2.0,
-            w / 2.0,
-            -w / 2.0,
-            -w / 2.0,
-            w / 2.0,
-        ],
-        dtype=np.float64,
-    )
-    y_corners: NDArrayF64 = np.zeros((8,), dtype=np.float64)
-    y_corners[0:4] = h / 2
-    y_corners[4:8] = -h / 2
-
-    rot = R.from_euler("xyz", np.array([rx, ry, rz])).as_matrix()
-    temp_corners = np.concatenate(
-        (
-            x_corners.reshape(8, 1),
-            y_corners.reshape(8, 1),
-            z_corners.reshape(8, 1),
-        ),
-        axis=1,
-    )  # type: ignore
-    corners = np.matmul(temp_corners, rot.T)
-    corners[:, 0], corners[:, 1], corners[:, 2] = (
-        corners[:, 0] + x_loc,
-        corners[:, 1] + y_loc,
-        corners[:, 2] + z_loc,
-    )
-    return corners  # type: ignore

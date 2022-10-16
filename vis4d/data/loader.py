@@ -1,6 +1,7 @@
 """Dataloader utility functions."""
+import bisect
 import math
-from typing import Callable, Iterable, Iterator, List, Optional, Union
+from typing import Callable, Iterable, Iterator, List, Optional, Tuple, Union
 
 import torch
 from torch.utils.data import (
@@ -11,11 +12,12 @@ from torch.utils.data import (
     get_worker_info,
 )
 
-from vis4d.common import COMMON_KEYS, DictData
+from vis4d.common import COMMON_KEYS, DictData, MultiSensorData
 from vis4d.data.samplers import BaseSampler, VideoInferenceSampler
 
 from ..common.utils import get_world_size
-from .datasets import VideoDataset
+from .datasets import VideoMixin
+from .reference import ViewSamplingFunc
 
 """Keys that contain pointcloud based data and can be stacked using torch.stack."""
 POINT_KEYS = [
@@ -43,6 +45,15 @@ def default_collate(batch: List[DictData]) -> DictData:
     return data
 
 
+def multi_sensor_collate(batch: List[MultiSensorData]) -> MultiSensorData:
+    """Default multi-sensor batch collate."""
+    data = {}
+    sensors = list(batch[0].keys())
+    for sensor in sensors:
+        data[sensor] = default_collate([d[sensor] for d in batch])
+    return data
+
+
 class DataPipe(ConcatDataset):
     """DataPipe class.
 
@@ -54,6 +65,7 @@ class DataPipe(ConcatDataset):
         self,
         datasets: Union[Dataset, Iterable[Dataset]],
         preprocess_fn: Callable[[DictData], DictData],
+        reference_view_sampler: Optional[ViewSamplingFunc] = None,
     ):
         """Init.
 
@@ -65,12 +77,44 @@ class DataPipe(ConcatDataset):
             datasets = [datasets]
         super().__init__(datasets)
         self.preprocess_fn = preprocess_fn
+        self.reference_view_sampler = reference_view_sampler
 
-    def __getitem__(self, idx: int) -> DictData:
+    def get_dataset_sample_index(self, idx: int) -> Tuple[int, int]:
+        """Get dataset and sample index from global index"""
+        if idx < 0:
+            if -idx > len(self):
+                raise ValueError(
+                    "absolute value of index should not exceed dataset length"
+                )
+            idx = len(self) + idx
+        dataset_idx = bisect.bisect_right(self.cumulative_sizes, idx)
+        if dataset_idx == 0:
+            sample_idx = idx
+        else:
+            sample_idx = idx - self.cumulative_sizes[dataset_idx - 1]
+        return dataset_idx, sample_idx
+
+    def _getitem(self, idx: int) -> DictData:
+        """Modular re-implementation of getitem."""
+        dataset_idx, sample_idx = self.get_dataset_sample_index(idx)
+        return self.datasets[dataset_idx][sample_idx]
+
+    def __getitem__(self, idx: int) -> DictData:  # TODO typing update
         """Wrap getitem to apply augmentations."""
-        getitem = super().__getitem__
-        sample = getitem(idx)
-        data = self.preprocess_fn(sample)
+        if self.reference_view_sampler is not None:
+            dataset_idx, _ = self.get_dataset_sample_index(idx)
+            dataset = self.datasets[dataset_idx]
+            assert isinstance(
+                dataset, VideoMixin
+            ), f"Reference view sampling is only supported for datasets that implement the VideoMixin. Incompatible dataset: {self.datasets[dataset_idx]}"
+            video_indices = dataset.get_video_indices(idx)
+            indices = self.reference_view_sampler(idx, video_indices)
+            samples = [self._getitem(i) for i in indices]
+            # TODO re-use transform parameters across reference views.
+            data = [self.preprocess_fn(sample) for sample in samples]
+        else:
+            sample = self._getitem(idx)
+            data = self.preprocess_fn(sample)
         return data
 
 
@@ -150,7 +194,7 @@ class SubdividingIterableDataset(IterableDataset):
 
 
 def build_train_dataloader(
-    dataset: Dataset,
+    dataset: DataPipe,
     samples_per_gpu: int = 1,
     workers_per_gpu: int = 1,
     batchprocess_fn: Callable[[List[DictData]], List[DictData]] = lambda x: x,
@@ -167,12 +211,24 @@ def build_train_dataloader(
             True,
             None,
         )
+
+    if dataset.reference_view_sampler is None:
+        _collate_fn = lambda x: collate_fn(batchprocess_fn(x))
+    else:
+
+        def _collate_fn(data):
+            views = []
+            for view_idx in range(len(data[0])):
+                view = collate_fn(batchprocess_fn([d[view_idx] for d in data]))
+                views.append(view)
+            return views
+
     dataloader = DataLoader(
         dataset,
         batch_sampler=train_sampler,
         batch_size=batch_size,
         num_workers=workers_per_gpu,
-        collate_fn=lambda x: collate_fn(batchprocess_fn(x)),
+        collate_fn=_collate_fn,
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
         shuffle=shuffle,
@@ -196,7 +252,7 @@ def build_inference_dataloaders(
     for dataset in datasets:
         if (
             get_world_size() > 1
-            and isinstance(dataset, VideoDataset)
+            and isinstance(dataset, VideoMixin)
             and video_based_inference
         ):
             sampler = VideoInferenceSampler(dataset)

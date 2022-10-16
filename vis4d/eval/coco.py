@@ -3,7 +3,7 @@ import contextlib
 import copy
 import io
 import itertools
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 import numpy as np
 import pycocotools.mask as maskUtils
@@ -11,8 +11,10 @@ import torch
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from terminaltables import AsciiTable
+from torch import Tensor
 
 from vis4d.common import MetricLogs, ModelOutput
+from vis4d.common.typing import DictStrAny
 from vis4d.data.datasets.base import DictData
 from vis4d.data.datasets.coco import coco_det_map
 
@@ -36,6 +38,38 @@ class COCOevalV2(COCOeval):
             super().summarize()
         summary_str = "\n" + f.getvalue()
         return {}, summary_str  # TODO summarize in metric logs
+
+
+def predictions_to_coco(
+    image_id: str,
+    boxes: Tensor,
+    scores: Tensor,
+    classes: Tensor,
+    masks: Optional[Tensor] = None,
+) -> List[DictStrAny]:
+    """Convert Vis4D format predictions to COCO format."""
+    predictions = []
+    boxes = xyxy_to_xywh(boxes)
+    for box, score, cls, mask in zip(boxes, scores, classes, masks):
+        xywh = box.cpu().numpy().tolist()
+        area = float(xywh[2] * xywh[3])
+        annotation = dict(
+            image_id=image_id,
+            bbox=xywh,
+            area=area,
+            score=float(score),
+            category_id=self.cat_map[self.coco_id2name[int(cls)]],
+            iscrowd=0,
+        )
+        if mask is not None:
+            annotation["segmentation"] = maskUtils.encode(
+                np.array(mask.cpu(), order="F", dtype="uint8")
+            )
+            annotation["segmentation"]["counts"] = annotation["segmentation"][
+                "counts"
+            ].decode()
+        predictions.append(annotation)
+    return predictions
 
 
 class COCOEvaluator(Evaluator):
@@ -86,29 +120,9 @@ class COCOEvaluator(Evaluator):
                 if "masks" in outputs
                 else [None for _ in range(len(boxes))]
             )
-            annotations = []
-            boxes = xyxy_to_xywh(boxes)
-            for box, score, cls, mask in zip(boxes, scores, classes, masks):
-                xywh = box.cpu().numpy().tolist()
-                area = float(xywh[2] * xywh[3])
-                annotation = dict(
-                    image_id=image_id,
-                    bbox=xywh,
-                    area=area,
-                    score=float(score),
-                    category_id=self.cat_map[self.coco_id2name[int(cls)]],
-                    iscrowd=0,
-                )
-                if mask is not None:
-                    annotation["segmentation"] = maskUtils.encode(
-                        np.array(mask.cpu(), order="F", dtype="uint8")
-                    )
-                    annotation["segmentation"]["counts"] = annotation[
-                        "segmentation"
-                    ]["counts"].decode()
-                annotations.append(annotation)
+            coco_preds = predictions_to_coco()
 
-            self._predictions.extend(annotations)
+            self._predictions.extend(coco_preds)
 
     def evaluate(self, metric: str) -> Tuple[MetricLogs, str]:
         """Evaluate predictions."""

@@ -5,8 +5,8 @@ import torch
 from torch import nn
 
 from vis4d.op.base.resnet import ResNet
+from vis4d.op.box.box2d import apply_mask, bbox_postprocess
 from vis4d.op.box.encoder import BoxEncoder2D
-from vis4d.op.box.util import apply_mask, bbox_postprocess
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
