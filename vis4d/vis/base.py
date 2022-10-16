@@ -21,6 +21,6 @@ class Visualizer:
         """Visualizes the stored predictions."""
         raise NotImplementedError()
 
-    def save_to_disk(self, path_to_out_folder) -> None:
+    def save_to_disk(self, path_to_out_folder: str) -> None:
         """Saves the visualization to disk"""
         raise NotImplementedError()
