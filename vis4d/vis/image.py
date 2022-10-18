@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 from torch import Tensor
 
 from vis4d.common import AxisMode, NDArrayF64, NDArrayUI8
-from vis4d.common.utils.imports import DASH_AVAILABLE, PLOTLY_AVAILABLE
+from vis4d.common.imports import DASH_AVAILABLE, PLOTLY_AVAILABLE
 from vis4d.op.box.box3d import boxes3d_to_corners
 from vis4d.op.geometry.projection import (
     generate_depth_map,
