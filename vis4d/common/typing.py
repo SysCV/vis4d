@@ -121,3 +121,4 @@ class COMMON_KEYS:
     instances3d = "instances3d"
     boxes3d = "boxes3d"
     boxes3d_classes = "boxes3d_classes"
+    occupancy3d = "occupancy3d"
