@@ -15,7 +15,6 @@ from vis4d.model.segment3d.pointnet import (
     PointnetSegmentationLoss,
     PointnetSegmentationModel,
 )
-
 from vis4d.model.segment3d.pointnetpp import (
     Pointnet2SegmentationLoss,
     PointNet2SegmentationModel,

@@ -25,7 +25,7 @@ class PointNet2SegmentationModel(nn.Module):
         self.segmentation_model = PointNet2Segmentation(
             num_classes, in_dimensions
         )
-        
+
         if weights is not None:
             load_model_checkpoint(self, weights)
 
@@ -41,9 +41,7 @@ class PointNet2SegmentationModel(nn.Module):
         """Forward test"""
         return self.forward(xyz, None)[1]
 
-    def forward_train(
-        self, xyz, targets
-    ) -> PointNet2Segmentation:
+    def forward_train(self, xyz, targets) -> PointNet2Segmentation:
         """Forward train"""
         return self.forward(xyz, targets)[0]
 

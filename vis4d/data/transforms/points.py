@@ -178,7 +178,7 @@ def extract_pc_bounds():
     in_keys=[COMMON_KEYS.points3d, "pc_bounds"],
     out_keys=[COMMON_KEYS.points3d],
 )
-def normalize_by_bounds(axes: List[int] = [0,1]):
+def normalize_by_bounds(axes: List[int] = [0, 1]):
     """Uses the bounds stored in in_keys[1] (default 'pc_bounds')
     to normalize the data along al axes.
 

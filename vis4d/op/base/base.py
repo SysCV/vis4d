@@ -10,10 +10,7 @@ class BaseModel(nn.Module):
     """Abstract base model for feature extraction."""
 
     @abc.abstractmethod
-    def forward(
-        self,
-        images: torch.Tensor,
-    ) -> List[torch.Tensor]:
+    def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
         """Base Backbone forward.
 
         Args:

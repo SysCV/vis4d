@@ -36,8 +36,8 @@ def default_collate(batch: List[DictData]) -> DictData:
     for key in batch[0]:
         if key == COMMON_KEYS.images:
             data[key] = torch.cat([b[key] for b in batch])
-        # elif key == COMMON_KEYS.metadata:
-        #     data[key] = {k: [b[key][k] for b in batch] for k in batch[0][key]}
+        elif key in [COMMON_KEYS.extrinsics, COMMON_KEYS.intrinsics]:
+            data[key] = torch.stack([b[key] for b in batch], 0)
         elif key in POINT_KEYS:
             data[key] = torch.stack([b[key] for b in batch], 0)
         else:

@@ -15,7 +15,7 @@ from vis4d.common.utils.imports import DASH_AVAILABLE, PLOTLY_AVAILABLE
 from vis4d.op.box.box3d import boxes3d_to_corners
 from vis4d.op.geometry.projection import (
     generate_depth_map,
-    generate_projected_point_mask,
+    points_inside_image,
     project_points,
 )
 
@@ -533,8 +533,8 @@ def imshow_correspondence(
         @ ref_extrinsics.inverse().transpose().tensor[0]
     )[:, :3]
     key_pix = project_points(points_key, key_intrinsics)
-    mask = generate_projected_point_mask(
-        points_key[:, 2], key_pix, key_im.szie[0], key_im.size[1]
+    mask = points_inside_image(
+        key_pix, points_key[:, 2], (key_im.size[0], key_im.size[1])
     )
 
     _, ref_pix, _, mask = generate_depth_map(
