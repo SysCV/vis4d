@@ -171,26 +171,27 @@ class SubdividingIterableDataset(IterableDataset):
 
         for i in range(math.ceil(len(self.dataset) / num_workers)):
             data_idx = i * num_workers + worker_id
-            if data_idx < len(self.dataset):
-                data_sample = self.dataset[data_idx]
-                n_elements = next(iter(data_sample.values())).size(0)
-                for idx in range(int(n_elements / self.n_samples_per_batch)):
-                    # TODO, this is kind of ugly
-                    # this field defines from which source the data was loaded (first entry, second entry, ...)
-                    # this is required if we e.g. want to subdivide a room that is too big
-                    # into equal sized chunks and stick them back together
-                    # for visualizaton
-                    out_data = {"source_index": torch.tensor([data_idx])}
-                    for key in data_sample:
-                        start_idx = idx * self.n_samples_per_batch
-                        end_idx = (idx + 1) * self.n_samples_per_batch
-                        if (len(data_sample[key])) < self.n_samples_per_batch:
-                            out_data[key] = data_sample[key]
-                        else:
-                            out_data[key] = data_sample[key][
-                                start_idx:end_idx, ...
-                            ]
-                    yield self.preprocess_fn(out_data)
+            if data_idx >= len(self.dataset):
+                continue
+            data_sample = self.dataset[data_idx]
+            n_elements = next(iter(data_sample.values())).size(0)
+            for idx in range(int(n_elements / self.n_samples_per_batch)):
+                # TODO, this is kind of ugly
+                # this field defines from which source the data was loaded (first entry, second entry, ...)
+                # this is required if we e.g. want to subdivide a room that is too big
+                # into equal sized chunks and stick them back together
+                # for visualizaton
+                out_data = {"source_index": torch.tensor([data_idx])}
+                for key in data_sample:
+                    start_idx = idx * self.n_samples_per_batch
+                    end_idx = (idx + 1) * self.n_samples_per_batch
+                    if (len(data_sample[key])) < self.n_samples_per_batch:
+                        out_data[key] = data_sample[key]
+                    else:
+                        out_data[key] = data_sample[key][
+                            start_idx:end_idx, ...
+                        ]
+                yield self.preprocess_fn(out_data)
 
 
 def build_train_dataloader(

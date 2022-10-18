@@ -6,7 +6,7 @@ from torch import nn
 
 from vis4d.common import LossesType, ModelOutput
 from vis4d.op.base.resnet import ResNet
-from vis4d.op.box.box2d import bbox_postprocess
+from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
@@ -61,7 +61,7 @@ class FasterRCNN(nn.Module):
             rpn_box_encoder=self.rpn_bbox_encoder,
             rcnn_box_encoder=self.rcnn_bbox_encoder,
         )
-        self.transform_outs = RoI2Det(self.rcnn_bbox_encoder)
+        self.roi2det = RoI2Det(self.rcnn_bbox_encoder)
 
         if weights == "mmdet":
             weights = (
@@ -111,12 +111,12 @@ class FasterRCNN(nn.Module):
         """Forward testing stage."""
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
-        boxes, scores, class_ids = self.transform_outs(
+        boxes, scores, class_ids = self.roi2det(
             *outs.roi, outs.proposals.boxes, images_hw
         )
 
         for i, boxs in enumerate(boxes):
-            boxes[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
+            boxes[i] = scale_and_clip_boxes(boxs, original_hw[i], images_hw[i])
         return dict(
             boxes2d=boxes, boxes2d_scores=scores, boxes2d_classes=class_ids
         )

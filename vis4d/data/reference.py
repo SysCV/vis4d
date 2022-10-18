@@ -1,4 +1,7 @@
-"""Reference View Sampling functions."""
+"""Reference View Sampling functions.
+TODO (tobias) describe what the functions are about
+
+"""
 from typing import Callable, List
 
 import numpy as np

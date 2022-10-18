@@ -5,7 +5,7 @@ import torch
 from torch import nn
 
 from vis4d.op.base.resnet import ResNet
-from vis4d.op.box.box2d import apply_mask, bbox_postprocess
+from vis4d.op.box.box2d import apply_mask, scale_and_clip_boxes
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
@@ -132,7 +132,7 @@ class MaskRCNN(nn.Module):
         )
         mask_outs = self.mask_head(features[2:-1], boxes)
         for i, boxs in enumerate(boxes):
-            boxes[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
+            boxes[i] = scale_and_clip_boxes(boxs, original_hw[i], images_hw[i])
         post_dets = DetOut(boxes=boxes, scores=scores, class_ids=class_ids)
         masks = self.det2mask(
             mask_outs=mask_outs.mask_pred.sigmoid(),

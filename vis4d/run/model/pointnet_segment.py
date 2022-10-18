@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from vis4d.common.typing import COMMON_KEYS
 from vis4d.data.datasets.s3dis import S3DIS
 from vis4d.eval import Evaluator
-from vis4d.eval.mIoU_evaluator import MIouEvaluator
+from vis4d.eval.miou import MIouEvaluator
 from vis4d.model.segment3d.pointnet import (
     PointnetSegmentationLoss,
     PointnetSegmentationModel,

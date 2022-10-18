@@ -26,7 +26,7 @@ def bbox_clip(
     return boxes
 
 
-def bbox_postprocess(
+def scale_and_clip_boxes(
     boxes: torch.Tensor,
     original_hw: Tuple[int, int],
     output_hw: Tuple[int, int],
