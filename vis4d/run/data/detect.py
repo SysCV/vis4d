@@ -9,7 +9,7 @@ from vis4d.data.loader import (
     build_train_dataloader,
 )
 from vis4d.data.transforms.base import compose, random_apply
-from vis4d.data.transforms.flip import flip_boxes2d, flip_image, flip_masks
+from vis4d.data.transforms.flip import flip_boxes2d, flip_image
 from vis4d.data.transforms.normalize import normalize_image
 from vis4d.data.transforms.pad import pad_image
 from vis4d.data.transforms.resize import (

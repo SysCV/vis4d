@@ -1,12 +1,10 @@
 """Base dataset in Vis4D."""
 
 from typing import Dict, List, Sequence, Tuple, Union
-from unittest.loader import VALID_MODULE_NAME
 
 from torch.utils.data import Dataset as TorchDataset
 
-from vis4d.common import DictData, MultiSensorData
-from vis4d.common.typing import COMMON_KEYS
+from ..typing import DictData
 
 
 class Dataset(TorchDataset[DictData]):
@@ -18,18 +16,6 @@ class Dataset(TorchDataset[DictData]):
 
     def __getitem__(self, idx: int) -> DictData:
         """Convert single element at given index into Vis4D data format."""
-        raise NotImplementedError
-
-
-class MultiSensorDataset(TorchDataset[MultiSensorData]):
-    """Basic Multi-Sensor Dataset."""
-
-    def __len__(self) -> int:
-        """Return length of dataset."""
-        raise NotImplementedError
-
-    def __getitem__(self, idx: int) -> MultiSensorData:
-        """Prepare and return multi sensor input data given an index."""
         raise NotImplementedError
 
 
@@ -45,7 +31,7 @@ class VideoMixin:
         associated video ID (str).
 
         Returns:
-            Dict[str, int]: Mapping video to index.
+            Dict[str, List[int]]: Mapping video to index.
         """
         raise NotImplementedError
 
@@ -77,16 +63,48 @@ class MultitaskMixin:
 
 
 class CategoryMapMixin:
-    def __init__(
-        self,
-        categories: List[int],
-        category_fields: List[str] = [
-            COMMON_KEYS.boxes2d_classes,
-            COMMON_KEYS.boxes3d_classes,
-        ],
-    ) -> None:
-        self.categories = categories
-        self.category_fields = category_fields
+    """Mixin for category map.
+
+    Provides interface for filtering based on categories.
+    """
+
+    @property
+    def category_to_indices(self) -> Dict[str, List[int]]:
+        """This function should group all dataset sample indices (int) by their
+        category (str).
+
+        Returns:
+            Dict[str, int]: Mapping category to index.
+        """
+        raise NotImplementedError
+
+    def get_category_indices(self, idx: int) -> List[int]:
+        """Get all indices of the data samples that share the same category of
+        the given sample index.
+        """
+        for indices in self.category_to_indices.values():
+            if idx in indices:
+                return indices
+        raise ValueError(
+            f"Dataset index {idx} not found in category_to_indices!"
+        )
+
+
+class AttributeMapMixin:
+    """Mixin for attributes map.
+
+    Provides interface for filtering based on attributes.
+    """
+
+    @property
+    def attribute_to_indices(self) -> Dict[str, Dict[str, List[int]]]:
+        """This function should group all dataset sample indices (int) by their
+        category (str).
+
+        Returns:
+            Dict[str, Dict[str, List[int]]]: Mapping category to index.
+        """
+        raise NotImplementedError
 
 
 class FilteredDataset(Dataset):

@@ -12,8 +12,8 @@ from vis4d.op.box.samplers import (
     RandomSampler,
     match_and_sample_proposals,
 )
-from vis4d.struct_to_revise import Proposals
 
+from ..typing import Proposals
 from .anchor_generator import AnchorGenerator
 from .rcnn import RCNNHead, RCNNOut
 from .rpn import RPN2RoI, RPNHead, RPNOut

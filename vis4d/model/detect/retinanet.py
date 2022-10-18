@@ -6,7 +6,7 @@ import torchvision
 from torch import nn
 
 from vis4d.op.base.resnet import ResNet
-from vis4d.op.box.box2d import bbox_postprocess
+from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.matchers import BaseMatcher
 from vis4d.op.box.samplers import BaseSampler
@@ -101,7 +101,7 @@ class RetinaNet(nn.Module):
             images_hw=images_hw,
         )
         for i, boxs in enumerate(boxes):
-            boxes[i] = bbox_postprocess(boxs, original_hw[i], images_hw[i])
+            boxes[i] = scale_and_clip_boxes(boxs, original_hw[i], images_hw[i])
         return dict(
             boxes2d=boxes, boxes2d_scores=scores, boxes2d_classes=class_ids
         )

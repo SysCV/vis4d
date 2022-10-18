@@ -12,12 +12,12 @@ from torch.utils.data import (
     get_worker_info,
 )
 
-from vis4d.common import COMMON_KEYS, DictData, MultiSensorData
-from vis4d.data.samplers import BaseSampler, VideoInferenceSampler
-
-from ..common.utils import get_world_size
+from ..common.distributed import get_world_size
+from .const import COMMON_KEYS
 from .datasets import VideoMixin
-from .reference import ViewSamplingFunc
+from .reference import ReferenceViewSampler
+from .samplers import BaseSampler, VideoInferenceSampler
+from .typing import DictData
 
 """Keys that contain pointcloud based data and can be stacked using torch.stack."""
 POINT_KEYS = [
@@ -45,7 +45,7 @@ def default_collate(batch: List[DictData]) -> DictData:
     return data
 
 
-def multi_sensor_collate(batch: List[MultiSensorData]) -> MultiSensorData:
+def multi_sensor_collate(batch: List[DictData]) -> DictData:
     """Default multi-sensor batch collate."""
     data = {}
     sensors = list(batch[0].keys())
@@ -65,7 +65,7 @@ class DataPipe(ConcatDataset):
         self,
         datasets: Union[Dataset, Iterable[Dataset]],
         preprocess_fn: Callable[[DictData], DictData],
-        reference_view_sampler: Optional[ViewSamplingFunc] = None,
+        reference_view_sampler: Optional[ReferenceViewSampler] = None,
     ):
         """Init.
 
@@ -99,7 +99,7 @@ class DataPipe(ConcatDataset):
         dataset_idx, sample_idx = self.get_dataset_sample_index(idx)
         return self.datasets[dataset_idx][sample_idx]
 
-    def __getitem__(self, idx: int) -> DictData:  # TODO typing update
+    def __getitem__(self, idx: int) -> Union[DictData, List[DictData]]:
         """Wrap getitem to apply augmentations."""
         if self.reference_view_sampler is not None:
             dataset_idx, _ = self.get_dataset_sample_index(idx)
@@ -171,26 +171,27 @@ class SubdividingIterableDataset(IterableDataset):
 
         for i in range(math.ceil(len(self.dataset) / num_workers)):
             data_idx = i * num_workers + worker_id
-            if data_idx < len(self.dataset):
-                data_sample = self.dataset[data_idx]
-                n_elements = next(iter(data_sample.values())).size(0)
-                for idx in range(int(n_elements / self.n_samples_per_batch)):
-                    # TODO, this is kind of ugly
-                    # this field defines from which source the data was loaded (first entry, second entry, ...)
-                    # this is required if we e.g. want to subdivide a room that is too big
-                    # into equal sized chunks and stick them back together
-                    # for visualizaton
-                    out_data = {"source_index": torch.tensor([data_idx])}
-                    for key in data_sample:
-                        start_idx = idx * self.n_samples_per_batch
-                        end_idx = (idx + 1) * self.n_samples_per_batch
-                        if (len(data_sample[key])) < self.n_samples_per_batch:
-                            out_data[key] = data_sample[key]
-                        else:
-                            out_data[key] = data_sample[key][
-                                start_idx:end_idx, ...
-                            ]
-                    yield self.preprocess_fn(out_data)
+            if data_idx >= len(self.dataset):
+                continue
+            data_sample = self.dataset[data_idx]
+            n_elements = next(iter(data_sample.values())).size(0)
+            for idx in range(int(n_elements / self.n_samples_per_batch)):
+                # TODO, this is kind of ugly
+                # this field defines from which source the data was loaded (first entry, second entry, ...)
+                # this is required if we e.g. want to subdivide a room that is too big
+                # into equal sized chunks and stick them back together
+                # for visualizaton
+                out_data = {"source_index": torch.tensor([data_idx])}
+                for key in data_sample:
+                    start_idx = idx * self.n_samples_per_batch
+                    end_idx = (idx + 1) * self.n_samples_per_batch
+                    if (len(data_sample[key])) < self.n_samples_per_batch:
+                        out_data[key] = data_sample[key]
+                    else:
+                        out_data[key] = data_sample[key][
+                            start_idx:end_idx, ...
+                        ]
+                yield self.preprocess_fn(out_data)
 
 
 def build_train_dataloader(

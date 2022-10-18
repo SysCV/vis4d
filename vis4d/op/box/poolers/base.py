@@ -5,10 +5,8 @@ from typing import List, Tuple
 import torch
 from torch import nn
 
-from vis4d.struct_to_revise import Boxes2D
 
-
-class BaseRoIPooler(nn.Module):
+class RoIPooler(nn.Module):
     """Base class for RoI poolers."""
 
     def __init__(self, resolution: Tuple[int, int]) -> None:
@@ -18,7 +16,7 @@ class BaseRoIPooler(nn.Module):
 
     @abc.abstractmethod
     def forward(
-        self, features: List[torch.Tensor], boxes: List[Boxes2D]
+        self, features: List[torch.Tensor], boxes: List[torch.Tensor]
     ) -> torch.Tensor:
         """Pool features in input bounding boxes from given feature maps."""
         raise NotImplementedError

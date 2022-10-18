@@ -264,7 +264,7 @@ class FasterRCNNQDTrack(nn.Module):
         features = self.fpn(features)
         detector_out = self.faster_rcnn_heads(features, images_hw)
 
-        boxes, scores, class_ids = self.faster_rcnn.transform_outs(
+        boxes, scores, class_ids = self.faster_rcnn.roi2det(
             *detector_out.roi, detector_out.proposals.boxes, images_hw
         )
         outs = self.qdtrack(features, boxes, scores, class_ids, frame_ids)

@@ -5,7 +5,6 @@ import torch
 from torchvision.ops import batched_nms
 
 from vis4d.op.geometry.transform import transform_points
-from vis4d.struct_to_revise import Boxes2D, Boxes3D
 
 
 def bbox_scale(
@@ -26,7 +25,7 @@ def bbox_clip(
     return boxes
 
 
-def bbox_postprocess(
+def scale_and_clip_boxes(
     boxes: torch.Tensor,
     original_hw: Tuple[int, int],
     output_hw: Tuple[int, int],
@@ -169,6 +168,26 @@ def apply_mask(
     )
 
 
+def filter_boxes_by_area(
+    boxes: torch.Tensor, min_area: float = 0.0
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Filter a set of 2D bounding boxes given a minimum area.
+    Args:
+        boxes (Tensor): 2D bounding boxes [N, 4].
+        min_area (float, optional): Minimum area. Defaults to 0.0.
+
+    Returns:
+        Tuple[Tensor, Tensor]: filtered boxes, boolean mask
+    """
+    if min_area > 0.0:
+        w = boxes[:, 2] - boxes[:, 0]
+        h = boxes[:, 3] - boxes[:, 1]
+        valid_mask = w * h >= min_area
+        if not valid_mask.all():
+            return boxes[valid_mask], valid_mask
+    return boxes, boxes.new_ones((len(boxes),), dtype=torch.bool)
+
+
 def multiclass_nms(
     multi_bboxes,
     multi_scores,
@@ -265,10 +284,11 @@ def multiclass_nms(
         return bboxes, scores, labels
 
 
+# TODO revise
 def distance_3d_nms(
-    boxes3d: Boxes3D,
+    boxes3d,
     cat_mapping: Dict[int, str],
-    boxes2d: Optional[Boxes2D] = None,
+    boxes2d=None,
 ) -> torch.Tensor:
     """Distance based 3D NMS."""
     keep_indices = torch.ones(len(boxes3d)).bool()

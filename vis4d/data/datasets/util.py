@@ -13,8 +13,8 @@ from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from torch.utils.data import Dataset
 
 from vis4d.common import DictStrAny, NDArrayI64, NDArrayUI8
-from vis4d.common.utils.imports import OPENCV_AVAILABLE
-from vis4d.common.utils.time import Timer
+from vis4d.common.imports import OPENCV_AVAILABLE
+from vis4d.common.time import Timer
 
 if OPENCV_AVAILABLE:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module

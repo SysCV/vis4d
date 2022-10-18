@@ -15,9 +15,8 @@ from torch.utils.model_zoo import load_url
 from torchmetrics import MeanMetric
 
 from vis4d.common import DictStrAny, LossesType, ModelOutput
-from vis4d.common.registry import RegistryHolder
-from vis4d.common.typing import DictData
-from vis4d.common.utils.distributed import get_rank, get_world_size
+from vis4d.common.distributed import get_rank, get_world_size
+from vis4d.data.typing import DictData
 
 from ..optim.warmup import BaseLRWarmup, LinearLRWarmup
 
@@ -37,7 +36,7 @@ DEFAULT_SCHEDULER = {
 }
 
 
-class DefaultOptimizer(pl.LightningModule, metaclass=RegistryHolder):
+class DefaultOptimizer(pl.LightningModule):
     """Default optimization routine."""
 
     def __init__(

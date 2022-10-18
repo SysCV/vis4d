@@ -1,10 +1,7 @@
 """Horizontal flip augmentation."""
-import numpy as np
 import torch
 
-from vis4d.common import COMMON_KEYS
-from vis4d.common.typing import AxisMode
-from vis4d.op.geometry.rotation import normalize_angle
+from vis4d.data.const import COMMON_KEYS, AxisMode
 
 from .base import Transform
 
@@ -122,20 +119,6 @@ def flip_intrinsics(direction: str = "horizontal"):
             center = image.size(2) / 2
             intrinsics[1, 2] = center - intrinsics[1, 2] - center
             return intrinsics
-        raise NotImplementedError(f"Direction {direction} not known!")
-
-    return _flip
-
-
-@Transform(in_keys=(COMMON_KEYS.masks,), out_keys=(COMMON_KEYS.masks,))
-def flip_masks(direction: str = "horizontal"):
-    """Flip masks tensor."""
-
-    def _flip(tensor: torch.Tensor) -> torch.Tensor:
-        if direction == "horizontal":
-            return tensor.flip(-1)
-        elif direction == "vertical":
-            return tensor.flip(-2)
         raise NotImplementedError(f"Direction {direction} not known!")
 
     return _flip

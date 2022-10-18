@@ -7,15 +7,15 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops import batched_nms
 
+from vis4d.op.box.box2d import filter_boxes_by_area
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
-from vis4d.struct_to_revise import Proposals
-from vis4d.struct_to_revise.labels.boxes import filter_boxes
 
 from ..layer import Conv2d
+from ..typing import Proposals
 from .anchor_generator import AnchorGenerator, anchor_inside_image
 
 
@@ -202,7 +202,7 @@ class RPN2RoI(nn.Module):
             max_shape=image_hw,
         )
 
-        proposals, mask = filter_boxes(
+        proposals, mask = filter_boxes_by_area(
             proposals, min_area=prod(self.min_proposal_size)
         )
         scores = scores[mask]
