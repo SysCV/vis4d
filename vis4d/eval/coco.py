@@ -46,7 +46,7 @@ def predictions_to_coco(
     scores: Tensor,
     classes: Tensor,
     masks: Optional[Tensor] = None,
-) -> List[DictStrAny]:
+) -> List[DictStrAny]:  # TODO revise
     """Convert Vis4D format predictions to COCO format."""
     predictions = []
     boxes = xyxy_to_xywh(boxes)
@@ -115,12 +115,10 @@ class COCOEvaluator(Evaluator):
                 outputs["boxes2d_classes"],
             )
         ):
-            masks = (
-                outputs["masks"][i]
-                if "masks" in outputs
-                else [None for _ in range(len(boxes))]
+            masks = outputs["masks"][i] if "masks" in outputs else None
+            coco_preds = predictions_to_coco(
+                image_id, boxes, scores, classes, masks
             )
-            coco_preds = predictions_to_coco()
 
             self._predictions.extend(coco_preds)
 

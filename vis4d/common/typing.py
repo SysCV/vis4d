@@ -1,6 +1,4 @@
 """Type definitions in Vis4D."""
-from dataclasses import dataclass
-from enum import Enum
 from typing import Any, Dict, Union
 
 import numpy as np

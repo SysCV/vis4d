@@ -12,8 +12,6 @@ from scalabel.label.typing import Frame, FrameGroup
 from scalabel.vis.label import LabelViewer, UIConfig
 
 from vis4d.common import ModelOutput
-from vis4d.struct_to_revise import InputSample
-from vis4d.struct_to_revise.data import Images
 from vis4d.vis.util import preprocess_image
 
 
@@ -42,9 +40,7 @@ class BaseWriterCallback(Callback):
         if preds is not None:
             self._predictions = preds
 
-    def process(
-        self, inputs: List[List[InputSample]], outputs: ModelOutput
-    ) -> None:
+    def process(self, inputs, outputs: ModelOutput) -> None:
         """Process the pair of inputs and outputs."""
         raise NotImplementedError
 
@@ -96,9 +92,7 @@ class DefaultWriterCallback(BaseWriterCallback):
         if self._output_dir is not None:
             os.makedirs(self._output_dir, exist_ok=True)
 
-    def process(
-        self, inputs: List[List[InputSample]], outputs: ModelOutput
-    ) -> None:
+    def process(self, inputs, outputs: ModelOutput) -> None:
         """Process the pair of inputs and outputs."""
         for key, output in outputs.items():
             for inp, out in zip(inputs, output):
@@ -158,7 +152,7 @@ class DefaultWriterCallback(BaseWriterCallback):
         metadata: Frame,
         prediction: Frame,
         save_dir: str,
-        images: Images,
+        images,
         reset_viewer: bool,
     ) -> None:
         """Do Visualization."""

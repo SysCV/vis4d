@@ -3,7 +3,9 @@ from typing import Any, Callable, List, Optional, Tuple, TypeVar
 
 import torch
 
-from vis4d.common import COMMON_KEYS, DictData, DictStrAny
+from vis4d.common import DictStrAny
+from vis4d.data.const import COMMON_KEYS
+from vis4d.data.typing import DictData
 
 
 # TODO move to commen

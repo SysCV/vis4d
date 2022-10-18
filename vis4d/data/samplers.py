@@ -14,13 +14,12 @@ from torch.utils.data import (
 from torch.utils.data.distributed import DistributedSampler
 
 from vis4d.common import ArgsType
-from vis4d.common.registry import RegistryHolder
-from vis4d.common.utils import get_world_size
+from vis4d.common.distributed import get_world_size
 
 from .datasets import Dataset, VideoMixin
 
 
-class BaseSampler(Sampler[List[int]], metaclass=RegistryHolder):  # type: ignore # pylint: disable=line-too-long
+class BaseSampler(Sampler[List[int]]):
     """Base sampler class."""
 
     def __init__(
@@ -55,7 +54,7 @@ class BaseSampler(Sampler[List[int]], metaclass=RegistryHolder):  # type: ignore
 
 
 class BaseDistributedSampler(
-    DistributedSampler[List[int]], metaclass=RegistryHolder  # type: ignore
+    DistributedSampler[List[int]]
 ):  # pragma: no cover
     """Base distributed sampler class."""
 

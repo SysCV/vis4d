@@ -1,10 +1,8 @@
 """Backends for the data types a dataset of interest is saved in."""
 from abc import abstractmethod
 
-from vis4d.common.registry import RegistryHolder
 
-
-class DataBackend(metaclass=RegistryHolder):
+class DataBackend:
     """Abstract class of storage backends.
 
     All backends need to implement two apis: ``get()`` and ``get_text()``.

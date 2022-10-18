@@ -12,12 +12,12 @@ from torch.utils.data import (
     get_worker_info,
 )
 
-from vis4d.common import COMMON_KEYS, DictData, MultiSensorData
-from vis4d.data.samplers import BaseSampler, VideoInferenceSampler
-
-from ..common.utils import get_world_size
+from ..common.distributed import get_world_size
+from .const import COMMON_KEYS
 from .datasets import VideoMixin
-from .reference import ViewSamplingFunc
+from .reference import ReferenceViewSampler
+from .samplers import BaseSampler, VideoInferenceSampler
+from .typing import DictData
 
 """Keys that contain pointcloud based data and can be stacked using torch.stack."""
 POINT_KEYS = [
@@ -45,7 +45,7 @@ def default_collate(batch: List[DictData]) -> DictData:
     return data
 
 
-def multi_sensor_collate(batch: List[MultiSensorData]) -> MultiSensorData:
+def multi_sensor_collate(batch: List[DictData]) -> DictData:
     """Default multi-sensor batch collate."""
     data = {}
     sensors = list(batch[0].keys())
@@ -65,7 +65,7 @@ class DataPipe(ConcatDataset):
         self,
         datasets: Union[Dataset, Iterable[Dataset]],
         preprocess_fn: Callable[[DictData], DictData],
-        reference_view_sampler: Optional[ViewSamplingFunc] = None,
+        reference_view_sampler: Optional[ReferenceViewSampler] = None,
     ):
         """Init.
 
@@ -99,7 +99,7 @@ class DataPipe(ConcatDataset):
         dataset_idx, sample_idx = self.get_dataset_sample_index(idx)
         return self.datasets[dataset_idx][sample_idx]
 
-    def __getitem__(self, idx: int) -> DictData:  # TODO typing update
+    def __getitem__(self, idx: int) -> Union[DictData, List[DictData]]:
         """Wrap getitem to apply augmentations."""
         if self.reference_view_sampler is not None:
             dataset_idx, _ = self.get_dataset_sample_index(idx)

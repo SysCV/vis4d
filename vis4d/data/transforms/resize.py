@@ -5,7 +5,7 @@ from typing import List, Tuple, Union
 import torch
 import torch.nn.functional as F
 
-from vis4d.common import COMMON_KEYS
+from vis4d.data.const import COMMON_KEYS
 from vis4d.op.box.box2d import transform_bbox
 
 from .base import Transform

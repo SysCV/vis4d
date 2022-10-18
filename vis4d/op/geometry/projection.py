@@ -75,8 +75,10 @@ def unproject_points(
     return pts_3d
 
 
-def points_inside_image(points: torch.Tensor, depths: torch.Tensor, images_hw: torch.Tensor) -> torch.Tensor:
-    """Generate binary mask 
+def points_inside_image(
+    points: torch.Tensor, depths: torch.Tensor, images_hw: torch.Tensor
+) -> torch.Tensor:
+    """Generate binary mask
 
     Args:
         points (torch.Tensor): 2D pixel coordinates of shape [..., 2].

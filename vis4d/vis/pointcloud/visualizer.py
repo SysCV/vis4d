@@ -4,8 +4,8 @@ from typing import List
 
 import torch
 
-from vis4d.common.typing import COMMON_KEYS, DictData, ModelOutput
 from vis4d.common.imports import OPEN3D_AVAILABLE
+from vis4d.common.typing import COMMON_KEYS, DictData, ModelOutput
 from vis4d.vis.base import Visualizer
 
 if OPEN3D_AVAILABLE:

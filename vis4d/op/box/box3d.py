@@ -4,7 +4,7 @@ from typing import Tuple
 import torch
 from torch import Tensor
 
-from vis4d.common.typing import AxisMode
+from vis4d.data.const import AxisMode
 from vis4d.op.geometry.projection import project_points
 from vis4d.op.geometry.rotation import quaternion_to_matrix
 from vis4d.op.geometry.transform import get_transform_matrix, transform_points

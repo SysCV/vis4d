@@ -47,7 +47,7 @@ class DefaultCLI(CLI):
 
     def add_arguments_to_parser(self, parser):
         """Link data and model experiment argument."""
-        parser.link_arguments("data.experiment", "model.experiment")
+        # parser.link_arguments("data.experiment", "model.experiment")
         parser.link_arguments("model.max_epochs", "trainer.max_epochs")
 
 

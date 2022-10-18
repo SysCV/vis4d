@@ -1,3 +1,8 @@
+"""Constants used in vis4d.data."""
+from dataclasses import dataclass
+from enum import Enum
+
+
 @dataclass
 class MODEL_OUT_KEYS:
     """Container for common keys used in model outputs.

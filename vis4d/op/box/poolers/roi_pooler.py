@@ -8,13 +8,13 @@ from torchvision.ops import roi_align, roi_pool
 
 from vis4d.common import ArgsType
 
-from .base import BaseRoIPooler
+from .base import RoIPooler
 from .utils import assign_boxes_to_levels, boxes_to_tensor
 
 
 # implementation modified from:
 # https://github.com/facebookresearch/detectron2/
-class MultiScaleRoIPooler(BaseRoIPooler):
+class MultiScaleRoIPooler(RoIPooler):
     """Wrapper for  roi pooling that supports multi-scale feature maps."""
 
     def __init__(

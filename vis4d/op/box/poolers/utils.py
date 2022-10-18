@@ -3,8 +3,6 @@ from typing import List
 
 import torch
 
-from vis4d.struct_to_revise import Boxes2D
-
 from ..box2d import bbox_area
 
 

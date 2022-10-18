@@ -1,10 +1,7 @@
 """Horizontal flip augmentation."""
-import numpy as np
 import torch
 
-from vis4d.common import COMMON_KEYS
-from vis4d.common.typing import AxisMode
-from vis4d.op.geometry.rotation import normalize_angle
+from vis4d.data.const import COMMON_KEYS, AxisMode
 
 from .base import Transform
 

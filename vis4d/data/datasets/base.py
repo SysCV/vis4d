@@ -1,11 +1,10 @@
 """Base dataset in Vis4D."""
 
 from typing import Dict, List, Sequence, Tuple, Union
-from unittest.loader import VALID_MODULE_NAME
 
 from torch.utils.data import Dataset as TorchDataset
 
-from vis4d.common import DictData, MultiSensorData
+from ..typing import DictData
 
 
 class Dataset(TorchDataset[DictData]):
@@ -17,18 +16,6 @@ class Dataset(TorchDataset[DictData]):
 
     def __getitem__(self, idx: int) -> DictData:
         """Convert single element at given index into Vis4D data format."""
-        raise NotImplementedError
-
-
-class MultiSensorDataset(TorchDataset[MultiSensorData]):
-    """Basic Multi-Sensor Dataset."""
-
-    def __len__(self) -> int:
-        """Return length of dataset."""
-        raise NotImplementedError
-
-    def __getitem__(self, idx: int) -> MultiSensorData:
-        """Prepare and return multi sensor input data given an index."""
         raise NotImplementedError
 
 
