@@ -145,7 +145,7 @@ class DefaultTrainer(pl.Trainer):
 
         # add distributed plugin
         if "gpus" in kwargs:  # pragma: no cover
-            gpu_ids = parse_gpu_ids(kwargs["gpus"])
+            gpu_ids = parse_gpu_ids(kwargs["gpus"], include_cuda=True, include_mps=True)
             num_gpus = len(gpu_ids) if gpu_ids is not None else 0
             if num_gpus > 1:
                 if kwargs["strategy"] == "ddp" or kwargs["strategy"] is None:
