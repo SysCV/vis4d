@@ -125,17 +125,3 @@ def flip_intrinsics(direction: str = "horizontal"):
         raise NotImplementedError(f"Direction {direction} not known!")
 
     return _flip
-
-
-@Transform(in_keys=(COMMON_KEYS.masks,), out_keys=(COMMON_KEYS.masks,))
-def flip_masks(direction: str = "horizontal"):
-    """Flip masks tensor."""
-
-    def _flip(tensor: torch.Tensor) -> torch.Tensor:
-        if direction == "horizontal":
-            return tensor.flip(-1)
-        elif direction == "vertical":
-            return tensor.flip(-2)
-        raise NotImplementedError(f"Direction {direction} not known!")
-
-    return _flip
