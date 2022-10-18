@@ -6,6 +6,7 @@ from unittest.loader import VALID_MODULE_NAME
 from torch.utils.data import Dataset as TorchDataset
 
 from vis4d.common import DictData, MultiSensorData
+from vis4d.common.typing import COMMON_KEYS
 
 
 class Dataset(TorchDataset[DictData]):
@@ -75,22 +76,35 @@ class MultitaskMixin:
                 raise ValueError(f"Key '{k}' is not supported!")
 
 
-class Subset(Dataset):
+class CategoryMapMixin:
+    def __init__(
+        self,
+        categories: List[int],
+        category_fields: List[str] = [
+            COMMON_KEYS.boxes2d_classes,
+            COMMON_KEYS.boxes3d_classes,
+        ],
+    ) -> None:
+        self.categories = categories
+        self.category_fields = category_fields
+
+
+class FilteredDataset(Dataset):
     """Subset of a dataset at specified indices.
 
     Args:
         dataset (Dataset): The whole Dataset
-        indices (sequence): Indices in the whole set selected for subset
+        filter_fn (Dataset -> List[int]): filtering function.
     """
 
-    def __init__(self, dataset: Dataset, indices: Sequence[int]) -> None:
-        self.dataset = dataset
-        self.indices = indices
-
-    def __getitem__(self, idx: Union[int, List[int]]) -> DictData:
-        if isinstance(idx, list):
-            return self.dataset[[self.indices[i] for i in idx]]
-        return self.dataset[self.indices[idx]]
+    def __init__(self, dataset, filter_fn) -> None:
+        super().__init__()
+        assert isinstance(dataset, FilterMixin)
+        self._filtered_indices = filter_fn(dataset)
 
     def __len__(self) -> int:
-        return len(self.indices)
+        return len(self._filtered_indices)
+
+    def __getitem__(self, idx):
+        mapped_idx = self._filtered_indices[idx]
+        return self.dataset[mapped_idx]
