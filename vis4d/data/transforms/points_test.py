@@ -1,15 +1,15 @@
-"""point sampling augmentation testing class."""
+"""Point transformation testing class."""
 import copy
 import unittest
 
 import pytest
 import torch
 
-from vis4d.common import COMMON_KEYS
+from vis4d.data.const import COMMON_KEYS
 
 from .points import move_pts_to_last_channel, rotate_around_axis
 
-
+# TODO, more tests required here
 class TestPoints(unittest.TestCase):
     """Tests sampling in a block based fashion."""
 
@@ -25,8 +25,9 @@ class TestPoints(unittest.TestCase):
 
     def test_move_pts_to_last_channel(self) -> None:
         """Tests the functional."""
+        # pylint: disable=unexpected-keyword-arg
         tf = move_pts_to_last_channel(
-            in_keys=[COMMON_KEYS.points3d], out_keys=[COMMON_KEYS.points3d]
+            in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,)
         )
 
         # Check that points are now at last channel
@@ -35,17 +36,18 @@ class TestPoints(unittest.TestCase):
     def test_move_pts_to_last_channel_w_multi_keys(self) -> None:
         """Tests the move_pts_to_last_channel functional with multiple inputs."""
         # Check mutli key case
+        # pylint: disable=unexpected-keyword-arg
         tf = move_pts_to_last_channel(
-            in_keys=[
+            in_keys=(
                 COMMON_KEYS.points3d,
                 COMMON_KEYS.colors3d,
                 COMMON_KEYS.semantics3d,
-            ],
-            out_keys=[
+            ),
+            out_keys=(
                 COMMON_KEYS.points3d,
                 COMMON_KEYS.colors3d,
                 COMMON_KEYS.semantics3d,
-            ],
+            ),
         )
 
         # Check that num_points are now at last channel
