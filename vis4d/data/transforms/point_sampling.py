@@ -1,18 +1,23 @@
-"""Resize augmentation."""
-import random
-from typing import List, Optional, Tuple, Union
+"""Contains Different Sampling methods to downsample pointclouds."""
+
+from typing import List, Tuple
 
 import torch
-import torch.nn.functional as F
 
-from vis4d.common import COMMON_KEYS
+from vis4d.data.const import COMMON_KEYS
 
 from .base import Transform
 
 
-def sample_indices(n_pts: int, data: torch.tensor):
-    """Samples n_pts indices from the first dimension of the provided data
-    tensor.
+def sample_indices(n_pts: int, data: torch.Tensor) -> torch.Tensor:
+    """Samples n_pts indices from the first dim of the provided data tensor.
+
+    Args:
+        n_pts (int): Number of indices to sample
+        data (Tensor): Data from which to sample indices
+
+    Returns:
+        torch Tensor containing the sampled indices.
     """
     if len(data) == 0:
         raise ValueError("Data sample was empty!")
@@ -33,13 +38,25 @@ def sample_indices(n_pts: int, data: torch.tensor):
 
 def sample_from_block(
     n_pts: int,
-    data: torch.tensor,
-    center_xyz: torch.tensor,
-    block_size: torch.tensor,
+    data: torch.Tensor,
+    center_xyz: torch.Tensor,
+    block_size: torch.Tensor,
     ignore_axis=[2],
-) -> Tuple[int, torch.tensor]:
+) -> Tuple[int, torch.Tensor]:
     """
-    Returns the selected indices
+    Samples point indices inside a box.
+
+    Args:
+        n_pts (int): How many points to sample
+        data: (Tensor): Data containing pointwise information. Shape [n_pts, x]
+        center_xyz (Tensor): Center point around which to sample (x,y,z) [3]
+        block_size (Tensor): Block length in each direction (x,y,z) [3]
+        ignore_axis (List[int]): If specified, this axis will be ignored and
+                                 all points along this axis will be considered
+
+    Returns:
+        Tuple[int, Tensor]: Number of points that were in the box and
+                            the selected indices of shape [n_pts]
     """
     min_data = torch.min(data, dim=0).values
     max_data = torch.max(data, dim=0).values
@@ -50,23 +67,32 @@ def sample_from_block(
         min_box[axis] = min_data[axis]
 
     box_mask = torch.logical_and(
-        torch.all(data >= min_box, axis=1), torch.all(data <= max_box, axis=1)
+        torch.all(data >= min_box, dim=1), torch.all(data <= max_box, dim=1)
     )
     if box_mask.sum().item() == 0:  # No valid data sample found!
-        return 0, torch.tensor([], dtype=int)
+        return 0, torch.tensor([], dtype=torch.int)
 
     selected_idxs_masked = sample_indices(n_pts, data[box_mask, ...])
 
     masked_idxs = torch.arange(data.shape[0])[box_mask]
     selected_idxs_global = masked_idxs[selected_idxs_masked]
-    return torch.sum(box_mask).item(), selected_idxs_global
+    return int(torch.sum(box_mask).item()), selected_idxs_global
 
 
 @Transform(
-    in_keys=[COMMON_KEYS.points3d],
-    out_keys=[COMMON_KEYS.points3d],
+    in_keys=(COMMON_KEYS.points3d,),
+    out_keys=(COMMON_KEYS.points3d,),
 )
 def sample_points_random(num_pts: int = 1024):
+    """Subsamples points randomly.
+
+    Samples 'num_pts' (with repetition if needed) randomly from the
+    provided data tensors.
+
+    Args:
+        num_pts (int): How many points to sample
+    """
+
     def _sample_points_random(
         coordinates: torch.Tensor, *args: List[torch.Tensor]
     ):
@@ -79,10 +105,7 @@ def sample_points_random(num_pts: int = 1024):
     return _sample_points_random
 
 
-@Transform(
-    in_keys=[COMMON_KEYS.points3d],
-    out_keys=[COMMON_KEYS.points3d],
-)
+@Transform(in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,))
 def sample_points_block_random(
     num_pts: int = 1024,
     min_pts: int = 32,
@@ -90,7 +113,19 @@ def sample_points_block_random(
     max_tries=100,
     center=False,
 ):
-    """Assumes first key is the coordiante key!"""
+    """Subsamples points around a randomly chosen block.
+
+    Samples 'num_pts' (with repetition if needed) around a random block from
+    the provided data tensors.
+
+    Args:
+        num_pts (int): How many points to sample
+        min_pts (int): Only sample points if at least these many points
+                       are inside it
+        block_size (List[float]): Dimension of block from which to sample (xyz)
+        max_tries (bool): Maximum of tries to sample a block before giving up
+        center (bool): If true, substracts center point coordiantes
+    """
 
     def _sample_points_block_random(coordinates, *args):
         """Apply point sampling."""
@@ -105,7 +140,7 @@ def sample_points_block_random(
                 break
         sampled_coords = coordinates[selected_idxs, ...]
         if center:
-            sampled_coords -= torch.mean(sampled_coords, dim=0)
+            sampled_coords -= center_pt
 
         if len(args) == 0:
             return sampled_coords
@@ -115,16 +150,26 @@ def sample_points_block_random(
 
 
 @Transform(
-    in_keys=[COMMON_KEYS.points3d],
-    out_keys=[COMMON_KEYS.points3d],
+    in_keys=(COMMON_KEYS.points3d,),
+    out_keys=(COMMON_KEYS.points3d,),
 )
 def sample_points_block_full_coverage(
     n_pts_per_block: int = 1024,
     min_pts_per_block: int = 1,
     block_size: List[float] = [1.0, 1.0, 1.0],
-    stride: int = 1,
 ):
-    """Assumes first key is the coordiante key!"""
+    """Subsamples the full pointcloud by regularly dividing it into blocks.
+
+    Divides a room into boxes of size 'block size' and samples 'num_pts'
+    (with repetition if needed from the provided data tensors for each block.
+    Boxes are only sampled at the xy plane.
+
+    Args:
+        n_pts_per_block (int): How many points to sample per block
+        min_pts_per_block (int): Only sample points if at least these many
+                                  points are inside the block
+        block_size (List[float]): Dimension of block from which to sample (xyz)
+    """
 
     def _sample_points_block_full_coverage(coordinates, *args):
         """Apply point sampling."""
@@ -138,7 +183,7 @@ def sample_points_block_full_coverage(
         block_size_torch = torch.tensor(block_size)
 
         grid_idxs = (
-            torch.ceil((hwl - torch.tensor(block_size) / 2.0) / stride) + 1
+            torch.ceil((hwl - torch.tensor(block_size) / 2.0)) + 1
         ).int()
 
         sampled_coords = torch.zeros(
@@ -157,8 +202,8 @@ def sample_points_block_full_coverage(
             for idx_y in range(grid_idxs[1].item()):
                 center_pt = torch.tensor(
                     [
-                        coord_min[0] + idx_x * stride,
-                        coord_min[1] + idx_y * stride,
+                        coord_min[0] + idx_x,
+                        coord_min[1] + idx_y,
                         0,
                     ],
                     dtype=coordinates.dtype,
