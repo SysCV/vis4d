@@ -66,7 +66,6 @@ class TestPoints(unittest.TestCase):
                 == self.original_data[COMMON_KEYS.points3d]
             ).all()
         )
-        self.assertEqual(1, 2)
 
     def test_rotate_points_180_deg(self) -> None:
         """Tests rotation of pointcloud."""
