@@ -19,7 +19,6 @@ setuptools
 tqdm
 wheel
 h5py
-scalabel
 termcolor
 torch
 torchvision

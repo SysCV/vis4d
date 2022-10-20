@@ -18,7 +18,7 @@ from vis4d.op.detect.retinanet import (
     RetinaNetOut,
 )
 from vis4d.op.fpp.fpn import FPN, LastLevelP6P7
-from vis4d.op.utils import load_model_checkpoint
+from vis4d.op.util import load_model_checkpoint
 from vis4d.struct_to_revise import LossesType, ModelOutput
 
 REV_KEYS = [

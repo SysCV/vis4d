@@ -19,7 +19,7 @@ from vis4d.op.detect.faster_rcnn import (
 from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
-from vis4d.op.utils import load_model_checkpoint
+from vis4d.op.util import load_model_checkpoint
 from vis4d.vis.image import imshow_bboxes
 
 REV_KEYS = [

@@ -8,7 +8,7 @@ from vis4d.op.base.pointnetpp import (
     PointNet2Segmentation,
     PointNet2SegmentationOut,
 )
-from vis4d.op.utils import load_model_checkpoint
+from vis4d.op.util import load_model_checkpoint
 
 
 class PointNet2SegmentationModel(nn.Module):

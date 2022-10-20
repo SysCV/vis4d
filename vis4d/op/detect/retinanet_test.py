@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from torchvision.ops.feature_pyramid_network import LastLevelP6P7
 
 from vis4d.data_to_revise.utils import transform_bbox
-from vis4d.op.utils import load_model_checkpoint
+from vis4d.op.util import load_model_checkpoint
 from vis4d.struct_to_revise import Boxes2D
 
 from ..base.resnet import ResNet

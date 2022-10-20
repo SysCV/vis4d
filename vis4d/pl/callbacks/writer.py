@@ -8,8 +8,6 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.rank_zero import rank_zero_warn
-from scalabel.label.typing import Frame, FrameGroup
-from scalabel.vis.label import LabelViewer, UIConfig
 
 from vis4d.common import ModelOutput
 from vis4d.vis.util import preprocess_image
@@ -149,8 +147,8 @@ class DefaultWriterCallback(BaseWriterCallback):
 
     def do_visualization(
         self,
-        metadata: Frame,
-        prediction: Frame,
+        metadata,
+        prediction,
         save_dir: str,
         images,
         reset_viewer: bool,

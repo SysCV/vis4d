@@ -147,7 +147,7 @@ def generate_feature_list(
     for i in range(list_len):
         features_list.append(
             torch.rand(
-                1, channels, init_height // (2**i), init_width // (2**i)
+                1, channels, init_height // (2 ** i), init_width // (2 ** i)
             )
         )
 

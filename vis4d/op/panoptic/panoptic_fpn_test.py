@@ -19,7 +19,7 @@ from vis4d.op.detect.rcnn import (
 )
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.mask.util import nhw_to_hwc_mask
-from vis4d.op.utils import load_model_checkpoint
+from vis4d.op.util import load_model_checkpoint
 from vis4d.run.data.datasets import (  # bdd100k_panseg_map,
     bdd100k_panseg_sample,
 )

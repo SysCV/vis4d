@@ -9,13 +9,17 @@ import torch.nn.functional as F
 import torchvision.transforms.functional as T
 import tqdm
 from PIL import Image
-from scalabel.eval.sem_seg import (
-    fast_hist,
-    freq_iou,
-    per_class_acc,
-    per_class_iou,
-    whole_acc,
-)
+
+from vis4d.common.imports import SCALABEL_AVAILABLE
+
+if SCALABEL_AVAILABLE:
+    from scalabel.eval.sem_seg import (
+        fast_hist,
+        freq_iou,
+        per_class_acc,
+        per_class_iou,
+        whole_acc,
+    )
 
 
 class ResizeWithPadding:

@@ -561,13 +561,19 @@ def imshow_pointcloud(
 ) -> None:  # pragma: no cover
     """Show image with pointcloud points."""
     image_p = preprocess_image(image, mode)
-    _, pts2d, coloring, _ = generate_depth_map(
-        points[:, :3], camera_intrinsics, image_p.size[0], image_p.size[1]
-    )
-    pts2d, coloring = pts2d.cpu().numpy(), coloring.cpu().numpy()
 
-    plt.figure(figsize=(16, 9))
-    plt.scatter(pts2d[:, 0], pts2d[:, 1], c=coloring, s=dot_size)
+    pts_2d = project_points(points, camera_intrinsics).round()
+    depths = points[:, 2]
+    mask = points_inside_image(
+        pts_2d, depths, (image_p.size[1], image_p.size[0])
+    )
+    pts_2d = pts_2d[mask].int().cpu().numpy()
+    depths = depths[mask].cpu().numpy()
+
+    plt.figure(figsize=(9, 16))
+    plt.imshow(image_p)
+    plt.scatter(pts_2d[:, 0], pts_2d[:, 1], c=depths, s=dot_size)
+    plt.axis("off")
 
     if boxes3d is not None:
         imshow_bboxes3d(image, boxes3d, camera_intrinsics)
