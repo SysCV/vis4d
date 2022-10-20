@@ -1,5 +1,5 @@
 """Projection utilities."""
-from typing import Tuple
+from typing import Tuple, Union
 
 import torch
 
@@ -76,24 +76,31 @@ def unproject_points(
 
 
 def points_inside_image(
-    points: torch.Tensor, depths: torch.Tensor, images_hw: torch.Tensor
+    points: torch.Tensor,
+    depths: torch.Tensor,
+    images_hw: Union[torch.Tensor, Tuple[int, int]],
 ) -> torch.Tensor:
     """Generate binary mask
 
     Args:
         points (torch.Tensor): 2D pixel coordinates of shape [..., 2].
         depths (torch.Tensor): Associated depth of each 2D pixel coordinate.
-        images_hw (torch.Tensor): Associated tensor of image dimensions, shape [..., 2].
+        images_hw (Union[torch.Tensor, Tuple[int, int]]): Associated tensor of image dimensions, shape [..., 2] or single height, width pair.
 
     Returns:
         torch.Tensor: Binary mask of points inside an image.
     """
     mask = torch.ones_like(depths)
+    if isinstance(images_hw, tuple):
+        h, w = images_hw
+    else:
+        h, w = images_hw[..., 0], images_hw[..., 1]
+
     mask = torch.logical_and(mask, depths > 0)
     mask = torch.logical_and(mask, points[..., 0] > 0)
-    mask = torch.logical_and(mask, points[..., 0] < images_hw[..., 1] - 1)
+    mask = torch.logical_and(mask, points[..., 0] < w - 1)
     mask = torch.logical_and(mask, points[..., 1] > 0)
-    mask = torch.logical_and(mask, points[..., 1] < images_hw[..., 0] - 1)
+    mask = torch.logical_and(mask, points[..., 1] < h - 1)
     return mask
 
 

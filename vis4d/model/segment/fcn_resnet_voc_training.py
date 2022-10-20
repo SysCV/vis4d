@@ -23,7 +23,7 @@ from vis4d.op.segment.testcase.presets import (
     SegmentationPresetTrain,
 )
 from vis4d.op.segment.testcase.utils import collate_fn
-from vis4d.op.utils import load_model_checkpoint
+from vis4d.op.util import load_model_checkpoint
 
 REV_KEYS = [
     (r"^backbone\.", "body."),

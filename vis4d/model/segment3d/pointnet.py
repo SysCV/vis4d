@@ -14,7 +14,7 @@ from vis4d.op.base.pointnet import (
 from vis4d.op.loss.orthogonal_transform_loss import (
     OrthogonalTransformRegularizationLoss,
 )
-from vis4d.op.utils import load_model_checkpoint
+from vis4d.op.util import load_model_checkpoint
 
 
 class PointnetSegmentationModel(nn.Module):

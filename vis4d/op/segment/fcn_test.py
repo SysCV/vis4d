@@ -6,7 +6,7 @@ import skimage
 import torch
 
 from ..base.resnet import ResNet
-from ..utils import load_model_checkpoint
+from ..util import load_model_checkpoint
 from .fcn import FCNHead
 
 

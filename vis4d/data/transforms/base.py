@@ -59,7 +59,7 @@ class Transform:
         Args:
             in_keys (Tuple[str, ...], optional): Input keys in the data dictionary. Nested keys are separated by '.', e.g. metadata.image_size. Defaults to (COMMON_KEYS.images,).
             out_keys (Tuple[str, ...], optional): Output keys (possibly nested).. Defaults to (COMMON_KEYS.images,).
-            sensors (Optional[Tuple[str, ...]], optional): When applied to MultiSensorData, this field indicates which sensors the transform should be applied to. Defaults to None.
+            sensors (Optional[Tuple[str, ...]], optional): This field indicates which sensors the transform should be applied to. Defaults to None.
             with_data (bool, optional): Pass the full data dict as auxiliary input. Defaults to False.
         """
         assert isinstance(in_keys, tuple) or isinstance(in_keys, list)
@@ -130,7 +130,7 @@ class BatchTransform:
         Args:
             in_keys (Tuple[str, ...], optional): Input keys in the data dictionary. Nested keys are separated by '.', e.g. metadata.image_size. Defaults to (COMMON_KEYS.images,).
             out_keys (Tuple[str, ...], optional): Output keys (possibly nested).. Defaults to (COMMON_KEYS.images,).
-            sensors (Optional[Tuple[str, ...]], optional): When applied to MultiSensorData, this field indicates which sensors the transform should be applied to. Defaults to None.
+            sensors (Optional[Tuple[str, ...]], optional): This field indicates which sensors the transform should be applied to. Defaults to None.
             with_data (bool, optional): Pass the full data dict as auxiliary input. Defaults to False.
         """
         self.in_keys = in_keys
