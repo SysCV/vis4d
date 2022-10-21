@@ -51,7 +51,7 @@ def move_pts_to_last_channel():
     to [B, n_feat, n_pts].
     """
 
-    def _move_features_to_last_channel(*args: List[torch.Tensor]):
+    def _move_features_to_last_channel(*args: torch.Tensor):
         if len(args) == 1:
             return args[0].transpose(-1, -2).contiguous()
         return [d.transpose(-1, -2).contiguous() for d in args]
@@ -69,7 +69,7 @@ def move_pts_to_last_channel():
 def concatenate_point_features():
     """Concatenates all given data keys along the first axis."""
 
-    def _concatenate_point_features(*args: List[torch.Tensor]):
+    def _concatenate_point_features(*args: torch.Tensor):
         return torch.cat(args)
 
     return _concatenate_point_features
