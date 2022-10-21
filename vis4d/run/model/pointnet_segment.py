@@ -22,6 +22,7 @@ from vis4d.model.segment3d.pointnetpp import (
 from vis4d.run.data.segment3d import (
     default_test_pipeline,
     default_train_pipeline,
+    default_train_pipeline_full_room,
 )
 from vis4d.run.test import testing_loop
 from vis4d.run.train import training_loop
@@ -44,14 +45,16 @@ def get_dataloaders(
         data_in_keys += [COMMON_KEYS.colors3d]
 
     if is_training:
-        train_loader = default_train_pipeline(
-            S3DIS(
-                data_root="/data/Stanford3dDataset_v1.2",
-                keys_to_load=data_in_keys + [COMMON_KEYS.semantics3d],
-            ),
-            batch_size,
-            load_colors=load_colors,
-            num_pts=4096,
+        train_loader = (
+            default_train_pipeline_full_room(  # default_train_pipeline(
+                S3DIS(
+                    data_root="/data/Stanford3dDataset_v1.2",
+                    keys_to_load=data_in_keys + [COMMON_KEYS.semantics3d],
+                ),
+                batch_size,
+                load_colors=load_colors,
+                num_pts=4096,
+            )
         )
     else:
         train_loader = None
@@ -82,8 +85,8 @@ def train(args: argparse.Namespace) -> None:
     """Training."""
     # parameters
     log_step = 1
-    num_epochs = 200
-    batch_size = 16
+    num_epochs = 400
+    batch_size = 32
     learning_rate = 1e-3
     device = torch.device("cuda")
     balance_weights = True
@@ -150,8 +153,8 @@ def train(args: argparse.Namespace) -> None:
         save_prefix,
         warmup,
         visualizers=visualizers,
-        test_every_nth_epoch=10,
-        save_every_nth_epoch=10,
+        test_every_nth_epoch=5,
+        save_every_nth_epoch=5,
         vis_every_nth_epoch=-1,  # do not visualize
     )
 
