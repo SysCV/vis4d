@@ -1,11 +1,11 @@
-"""point sampling augmentation testing class."""
+"""Point sampling transforms testing class."""
 import copy
 import unittest
 
 import pytest
 import torch
 
-from vis4d.common import COMMON_KEYS
+from vis4d.data.const import COMMON_KEYS
 
 from .point_sampling import (
     sample_from_block,
@@ -37,7 +37,7 @@ class TestSampleFromBlock(unittest.TestCase):
         """Tests the functional."""
         # Should return the full block
         data_to_sample_from = self.data_in_unit_square
-        n_pts, sampled_idxs = sample_from_block(
+        _, sampled_idxs = sample_from_block(
             self.n_pts_to_sample,
             data_to_sample_from,
             center_xyz=torch.tensor([0.5, 0.5, 0.5]),
@@ -54,7 +54,7 @@ class TestSampleFromBlock(unittest.TestCase):
         data_to_sample_from = torch.cat(
             [self.data_in_unit_square, self.data_outside_unit_square]
         )
-        n_pts, sampled_idxs = sample_from_block(
+        _, sampled_idxs = sample_from_block(
             self.n_pts_to_sample,
             data_to_sample_from,
             center_xyz=torch.tensor([0.5, 0.5, 0.5]),
@@ -71,7 +71,7 @@ class TestSampleFromBlock(unittest.TestCase):
         data_to_sample_from = torch.cat(
             [self.data_in_unit_square, self.data_outside_unit_square]
         )
-        n_pts, sampled_idxs = sample_from_block(
+        _, sampled_idxs = sample_from_block(
             self.n_pts_to_sample,
             data_to_sample_from,
             center_xyz=torch.tensor([10.5, 10.5, 10.5]),
@@ -86,6 +86,7 @@ class TestSampleFromBlock(unittest.TestCase):
 
     def test_sampler(self):
         """Test the Class implementation of the sampling functional."""
+        # pylint: disable=unexpected-keyword-arg
         sampler = sample_points_random(
             num_pts=500,
             in_keys=(
@@ -105,7 +106,9 @@ class TestSampleFromBlock(unittest.TestCase):
         self.assertEqual(data_sampled[COMMON_KEYS.colors3d].size(0), 500)
 
     def test_full_scale_block_sampling(self):
-        """Tests if all points are sampled when using full coverage and enough points"""
+        """Tests if all points are sampled when using full coverage and enough points."""
+
+        # pylint: disable=unexpected-keyword-arg
         sampler = sample_points_block_full_coverage(
             min_pts_per_block=1,
             n_pts_per_block=200,
@@ -152,6 +155,8 @@ class RandomPointSamplingTest(unittest.TestCase):
     def test_sample_less_pts(self):
         """Test if sampling works when sampling less points than given in
         the scene."""
+
+        # pylint: disable=unexpected-keyword-arg
         sampler = sample_points_random(
             num_pts=100,
             in_keys=(COMMON_KEYS.points3d, COMMON_KEYS.semantics3d),
@@ -169,8 +174,9 @@ class RandomPointSamplingTest(unittest.TestCase):
 
     def test_sample_more_pts(self):
         """Tests if sampling works when sampling more points tha given in
-        the scene"""
+        the scene."""
 
+        # pylint: disable=unexpected-keyword-arg
         sampler = sample_points_random(
             num_pts=10000,
             in_keys=(

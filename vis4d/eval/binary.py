@@ -1,45 +1,42 @@
-"""BinaryEvaluator."""
-from typing import Dict, List, Tuple
+"""Evaluates Binary Predictions."""
+from typing import List, Tuple
 
 import torch
 
 from vis4d.common import MetricLogs, ModelOutput
-from vis4d.common.typing import COMMON_KEYS
+from vis4d.data.const import COMMON_KEYS
 from vis4d.data.datasets.base import DictData
 
 from .base import Evaluator
 
 
 class BinaryEvaluator(Evaluator):
-    """Creates an evaluation to reports mIoU score and confusion matrix."""
+    """Creates an Evaluator that evaluates binary predictions."""
 
     METRIC_IOU = "IoU"
-    # METRIC_ACCURACY = "accuracy" #TODO
-    # METRIC_F1 = "f1" #TODO
     METRIC_ALL = "all"
-
+    # TODO create accuracy, f1, ....
+    # TODO write tests
     def __init__(
         self,
         binary_prediction_key: str = COMMON_KEYS.occupancy3d,
         binary_gt_key: str = COMMON_KEYS.occupancy3d,
         threshold=0.5,
     ):
-        """Creates a new evaluator.
+        """Creates a new binary evaluator.
 
         Args:
-            num_classes (int): Number of semantic classes
-            class_mapping (int): Dict mapping each class_id to a readable name
-            binary_prediction_key (str): Key to obtain the occupancy from the model output
-            binary_gt_key (str): Key to obtain the gt occupancy from the input struct
-
+            binary_prediction_key (str): Key for the prediction data
+            binary_gt_key (str): Key for the groundtruth data
+            threshold (float): Threshold for prediction to convert
+                               to binary.
         """
         super().__init__()
         self.binary_prediction_key = binary_prediction_key
         self.binary_gt_key = binary_gt_key
         self.threshold = threshold
         self.reset()
-
-        self.iou_scores = []
+        self.iou_scores: List[float] = []
 
     def _iou(self, prediction: torch.Tensor, target: torch.Tensor) -> float:
         prediction_bin = prediction > self.threshold
@@ -60,26 +57,22 @@ class BinaryEvaluator(Evaluator):
 
         return iou.item()
 
-    # @property
+    @property
     def metrics(self) -> List[str]:
         """Supported metrics."""
         return [BinaryEvaluator.METRIC_IOU]
 
     def reset(self) -> None:
         """Reset the saved predictions to start new round of evaluation."""
-        # self._confusion_matrix.reset()
         self.iou_scores = []
 
     def process(self, inputs: DictData, outputs: ModelOutput) -> None:
-        """TODO."""
+        """Processes a new (batch) of predictions."""
         targets = inputs[self.binary_gt_key]
         predictions = outputs[self.binary_prediction_key]
 
         # Calculate miou
         self.iou_scores.append(self._iou(predictions, targets))
-
-    def _get_class_name_for_idx(self, idx: int) -> str:
-        return self.class_mapping.get(idx, f"class_{idx}")
 
     def evaluate(self, metric: str) -> Tuple[MetricLogs, str]:
         """Evaluate predictions. Returns a dict containing the raw data and a
