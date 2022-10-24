@@ -21,9 +21,7 @@ def training_loop(
     metric: str,
     model: nn.Module,
     loss: nn.Module,
-    model_train_keys: List[str],
-    model_test_keys: List[str],
-    loss_keys: List[str],
+    data_connector,
     optimizer: optim.Optimizer,
     scheduler: optim.lr_scheduler._LRScheduler,
     num_epochs: int,
@@ -49,8 +47,8 @@ def training_loop(
             # input data
             device = next(model.parameters()).device  # model device
             data = move_data_to_device(data, device)
-            train_input = {key: data[key] for key in model_train_keys}
-            loss_input = {key: data[key] for key in loss_keys}
+            train_input = data_connector("train", data)
+            loss_input = data_connector("loss", data)
 
             # forward + backward + optimize
             output = model(**train_input)
@@ -106,7 +104,7 @@ def training_loop(
                 evaluators,
                 metric,
                 model,
-                model_test_keys,
+                data_connector,
                 visualizers_to_use,
             )
     print("training done.")  # FIXME move to log statement

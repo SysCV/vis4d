@@ -31,7 +31,7 @@ def default_train_pipeline(
     flip_trans = [flip_image(), flip_boxes2d()]
     if with_mask:
         resize_trans += [resize_masks()]
-        flip_trans += [flip_masks()]
+        flip_trans += [flip_image()]
     preprocess_fn = compose(
         [*resize_trans, random_apply(flip_trans), normalize_image()]
     )

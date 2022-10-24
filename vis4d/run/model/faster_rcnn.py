@@ -7,6 +7,7 @@ import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 
+from vis4d.data import DictData
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
 from vis4d.eval import COCOEvaluator, Evaluator
@@ -20,7 +21,7 @@ warnings.filterwarnings("ignore")
 
 
 def get_dataloaders(
-    is_training: bool = False, batch_size: int = 1
+    is_training: bool = False, batch_size: int = 1, num_workers: int = 1
 ) -> Tuple[Optional[DataLoader], List[DataLoader], List[Evaluator], str]:
     """Return dataloaders and evaluators."""
     data_root = "data/COCO"
@@ -30,12 +31,14 @@ def get_dataloaders(
         train_loader = default_train_pipeline(
             COCO(data_root, split="train2017", data_backend=HDF5Backend()),
             batch_size,
+            num_workers,
             train_resolution,
         )
     else:
         train_loader = None
     test_loader = default_test_pipeline(
         COCO(data_root, split="val2017", data_backend=HDF5Backend()),
+        1,
         1,
         test_resolution,
     )
@@ -44,12 +47,32 @@ def get_dataloaders(
     return train_loader, test_loader, test_evals, test_metric
 
 
-def train(args: argparse.Namespace) -> None:
+def data_connector(mode: str, data: DictData):
+    """Data connector."""
+    if mode == "train":
+        data_keys = {
+            "images": "images",
+            "input_hw": "input_hw",
+            "boxes2d": "boxes2d",
+            "boxes2d_classes": "boxes2d_classes",
+        }
+    elif mode == "loss":
+        data_keys = {"input_hw": "input_hw", "boxes2d": "boxes2d"}
+    else:
+        data_keys = {
+            "images": "images",
+            "input_hw": "input_hw",
+            "original_hw": "original_hw",
+        }
+    return {v: data[k] for k, v in data_keys.items()}
+
+
+def train(num_gpus: int, ckpt: str) -> None:
     """Training."""
     # parameters
     log_step = 100
     num_epochs = 12
-    batch_size = int(16 * (args.num_gpus / 8))
+    batch_size = int(16 * (num_gpus / 8))
     learning_rate = 0.02 / 16 * batch_size
     device = torch.device("cuda")
     save_prefix = "vis4d-workspace/test/frcnn_coco_epoch"
@@ -61,16 +84,13 @@ def train(args: argparse.Namespace) -> None:
     assert train_loader is not None
 
     # model
-    faster_rcnn = FasterRCNN(num_classes=80, weights=args.ckpt)
+    faster_rcnn = FasterRCNN(num_classes=80, weights=ckpt)
     faster_rcnn.to(device)
     faster_rcnn_loss = FasterRCNNLoss()
-    if args.num_gpus > 1:
+    if num_gpus > 1:
         faster_rcnn = nn.DataParallel(
             faster_rcnn, device_ids=[device, torch.device("cuda:1")]
         )
-    model_train_keys = ["images", "input_hw", "boxes2d", "boxes2d_classes"]
-    model_test_keys = ["images", "input_hw", "original_hw"]
-    loss_keys = ["input_hw", "boxes2d"]
 
     # optimization
     optimizer = optim.SGD(
@@ -92,9 +112,7 @@ def train(args: argparse.Namespace) -> None:
         test_metric,
         faster_rcnn,
         faster_rcnn_loss,
-        model_train_keys,
-        model_test_keys,
-        loss_keys,
+        data_connector,
         optimizer,
         scheduler,
         num_epochs,
@@ -105,7 +123,7 @@ def train(args: argparse.Namespace) -> None:
     )
 
 
-def test(args: argparse.Namespace) -> None:
+def test(ckpt: str) -> None:
     """Testing."""
     # parameters
     device = torch.device("cuda")
@@ -114,13 +132,12 @@ def test(args: argparse.Namespace) -> None:
     _, test_loader, test_evals, test_metric = get_dataloaders()
 
     # model
-    faster_rcnn = FasterRCNN(num_classes=80, weights=args.ckpt)
+    faster_rcnn = FasterRCNN(num_classes=80, weights=ckpt)
     faster_rcnn.to(device)
-    model_test_keys = ["images", "input_hw", "original_hw"]
 
     # run testing
     testing_loop(
-        test_loader, test_evals, test_metric, faster_rcnn, model_test_keys
+        test_loader, test_evals, test_metric, faster_rcnn, data_connector
     )
 
 
@@ -132,6 +149,6 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--num_gpus", default=1, help="number of gpus")
     args = parser.parse_args()
     if args.ckpt is None:
-        train(args)
+        train(args.num_gpus, args.ckpt)
     else:
-        test(args)
+        test(args.ckpt)
