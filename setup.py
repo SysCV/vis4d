@@ -5,6 +5,9 @@ import setuptools
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+with open('requirements/base.txt') as f:
+    required = f.read().splitlines()
+
 setuptools.setup(
     name="vis4d",
     version="0.0",
@@ -26,20 +29,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.7",
-    install_requires=[
-        "numpy",
-        "Pillow",
-        "plyfile",
-        "psutil",
-        "pydantic",
-        "pytoml",
-        "PyYAML",
-        "requests",
-        "torch",
-        "torchvision",
-        "tqdm",
-        "devtools",
-    ],
+    install_requires=required,
     package_data={
         "vis4d": [
             "py.typed",

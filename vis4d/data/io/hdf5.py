@@ -4,12 +4,15 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-try:
-    import h5py
-except ImportError as e:  # pragma: no cover
-    raise ImportError("Please install h5py to enable HDF5Backend.") from e
+from vis4d.common.imports import H5PY_AVAILABLE
 
 from .base import DataBackend
+
+if H5PY_AVAILABLE:
+    import h5py
+    from h5py import File
+else:
+    File = None
 
 
 class HDF5Backend(DataBackend):
@@ -26,7 +29,9 @@ class HDF5Backend(DataBackend):
     def __init__(self) -> None:
         """Init."""
         super().__init__()
-        self.db_cache: Dict[str, h5py.File] = {}
+        if not H5PY_AVAILABLE:
+            raise ImportError("Please install h5py to enable HDF5Backend.")
+        self.db_cache: Dict[str, File] = {}
 
     @staticmethod
     def _get_hdf5_path(filepath: str) -> Tuple[str, List[str]]:
@@ -82,16 +87,16 @@ class HDF5Backend(DataBackend):
                 key, data=np.frombuffer(content, dtype="uint8")
             )
 
-    def _get_client(self, hdf5_path: str, mode: str) -> h5py.File:
+    def _get_client(self, hdf5_path: str, mode: str) -> File:
         """Get HDF5 client from path."""
         if hdf5_path not in self.db_cache:
-            client = h5py.File(hdf5_path, mode)
+            client = File(hdf5_path, mode)
             self.db_cache[hdf5_path] = [client, mode]
         else:
             client, current_mode = self.db_cache[hdf5_path]
             if current_mode != mode:
                 client.close()
-                client = h5py.File(hdf5_path, mode)
+                client = File(hdf5_path, mode)
                 self.db_cache[hdf5_path] = [client, mode]
         return client
 

@@ -17,6 +17,8 @@ from vis4d.common.imports import MMCV_AVAILABLE
 if MMCV_AVAILABLE:
     from mmcv import Config as MMConfig
     from mmcv.runner import load_checkpoint
+else:
+    MMConfig = None
 
 
 BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"

@@ -24,7 +24,7 @@ DETECTRON2_AVAILABLE = package_available("detectron2")
 
 # datasets
 WAYMO_AVAILABLE = package_available("waymo")
-NUSCENES_AVAILABLE = package_available("nuscenes")
+NUSCENES_AVAILABLE = package_available("nuscenes-devkit")
 
 # visualization
 OPENCV_AVAILABLE = package_available("cv2")
