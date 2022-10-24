@@ -8,14 +8,18 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 import torch
-from tomlkit import key
 
-from vis4d.common import COMMON_KEYS, DictStrAny
+from vis4d.common.typing import DictStrAny
+from vis4d.data.const import COMMON_KEYS
 from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 
 from .base import Dataset, DictData
 from .util import CacheMappingMixin
+
+# from tomlkit import key TODO @renezurbruegg do we need this as dependency?
+
+
 
 # s3dis semantic mappings
 
