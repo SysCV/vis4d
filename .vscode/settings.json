@@ -15,6 +15,8 @@
   "editor.formatOnSave": true,
   "[python]": {
     "editor.rulers": [79],
+    "editor.wordWrapColumn": 79,
+    "editor.wordWrap": "wordWrapColumn",
     // Python use black as formatter
     "editor.defaultFormatter": null
   },
@@ -34,7 +36,7 @@
   "files.watcherExclude": {
     "node_modules": true
   },
-  "esbonio.sphinx.confDir": "${workspaceFolder}/doc/source",
+  "esbonio.sphinx.confDir": "${workspaceFolder}/docs/source",
   "python.testing.pytestArgs": ["vis4d"],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,

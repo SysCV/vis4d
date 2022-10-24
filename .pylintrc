@@ -28,7 +28,7 @@ unsafe-load-any-extension=no
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
 # run arbitrary code
-extension-pkg-whitelist=pydantic
+extension-pkg-whitelist=
 
 
 [MESSAGES CONTROL]
@@ -54,12 +54,9 @@ enable=use-symbolic-message-instead,useless-supression,fixme
 
 # This is a bug in detecting bad continuation. Since black is handling the code
 # formatting, we can disable C0330 safely.
-# R0902: ignore errors for classes with more than 11 attributes
 # import-error: ignore this error due to optional requirements that may not
 # be installed
-# ignore arguments-differ due to variadic arguments in Vis4DModule
-# E0633: ignore due to overload not recognized in detectron2 wrapper
-disable=C0330,not-callable,too-many-ancestors,R0902,import-error,arguments-differ,E0633,too-many-arguments,invalid-name,attribute-defined-outside-init
+disable=not-callable,import-error,attribute-defined-outside-init
 
 
 [REPORTS]

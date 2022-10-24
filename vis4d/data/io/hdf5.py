@@ -101,7 +101,23 @@ class HDF5Backend(DataBackend):
         return client
 
     def get(self, filepath: str) -> bytes:
-        """Get values according to the filepath as bytes."""
+        """Get values according to the filepath as bytes.
+
+        Args:
+            filepath (str): The path to the file. It consists of an HDF5 path
+                together with the relative path inside it, e.g.: "/path/to/
+                file.hdf5/key/subkey/data". If no .hdf5 given inside filepath,
+                the function will search for the first .hdf5 file present in
+                the path, i.e. "/path/to/file/key/subkey/data" will also /key/
+                subkey/data from /path/to/file.hdf5.
+
+        Raises:
+            FileNotFoundError: If no suitable file exists.
+            ValueError: If key not found inside hdf5 file.
+
+        Returns:
+            bytes: The file content in bytes
+        """
         hdf5_path, keys = self._get_hdf5_path(filepath)
 
         if not os.path.exists(hdf5_path):

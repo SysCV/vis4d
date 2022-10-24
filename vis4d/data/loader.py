@@ -70,8 +70,10 @@ class DataPipe(ConcatDataset):
         """Init.
 
         Args:
-            datasets (Union[Dataset, Iterable[Dataset]]): Dataset(s) to be wrapped by this data pipeline.
-            preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing function of a single sample.
+            datasets (Union[Dataset, Iterable[Dataset]]): Dataset(s) to be
+                wrapped by this data pipeline.
+            preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing
+                function of a single sample.
         """
         if isinstance(datasets, Dataset):
             datasets = [datasets]

@@ -11,7 +11,8 @@ def flip_image(direction: str = "horizontal"):
     """Flip a tensor of shape [N, C, H, W] horizontally.
 
     Args:
-        direction (str, optional): Either vertical or horizontal. Defaults to "horizontal".
+        direction (str, optional): Either vertical or horizontal. Defaults to
+            "horizontal".
     """
 
     def _flip(tensor: torch.Tensor) -> torch.Tensor:
@@ -32,7 +33,8 @@ def flip_boxes2d(direction: str = "horizontal"):
     """Flip 2D bounding box tensor.
 
     Args:
-        direction (str, optional): Either vertical or horizontal. Defaults to "horizontal".
+        direction (str, optional): Either vertical or horizontal. Defaults to
+            "horizontal".
     """
 
     def _flip(boxes: torch.Tensor, image: torch.Tensor) -> torch.Tensor:
@@ -84,7 +86,8 @@ def flip_boxes3d(direction: str = "horizontal"):
     """ "Flip 3D bounding box tensor.
 
     Args:
-        direction (str, optional): Either vertical or horizontal. Defaults to "horizontal".
+        direction (str, optional): Either vertical or horizontal. Defaults to
+            "horizontal".
     """
 
     def _flip(boxes: torch.Tensor, axis_mode: AxisMode) -> torch.Tensor:
@@ -127,7 +130,8 @@ def flip_intrinsics(direction: str = "horizontal"):
     """Modify intrinsics for image flip.
 
     Args:
-        direction (str, optional): Either vertical or horizontal. Defaults to "horizontal".
+        direction (str, optional): Either vertical or horizontal. Defaults to
+            "horizontal".
     """
 
     def _flip(intrinsics: torch.Tensor, image: torch.Tensor) -> torch.Tensor:

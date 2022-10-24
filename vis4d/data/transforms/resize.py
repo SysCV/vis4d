@@ -69,12 +69,24 @@ def resize_image(
     """Resize tensor of shape [N, C, H, W].
 
     Args:
-        shape (Union[Tuple[int, int], List[Tuple[int, int]]]): Image shape to be resized to in (H, W) format. In multiscale mode 'list', shape represents the list of possible shapes for resizing.
-        keep_ratio (bool, optional): If aspect ratio of original image should be kept, the new shape will modified to fit the aspect ratio of the original image. Defaults to False.
-        multiscale_mode (str, optional): one of [range, list]. Defaults to "range".
-        scale_range (Tuple[float, float], optional): Range of sampled image scales in range mode, e.g. (0.8, 1.2), indicating minimum of 0.8 * shape and maximum of 1.2 * shape. Defaults to (1.0, 1.0).
-        align_long_edge (bool, optional): If keep_ratio is true, this option indicates if shape should be automatically aligned with the long edge of the original image, e.g. original shape=(100, 80), original shape=(100, 200) will yield (125, 100) as new shape. Defaults to False.
-        interpolation (str, optional): Interpolation method. One of ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
+        shape (Union[Tuple[int, int], List[Tuple[int, int]]]): Image shape to
+            be resized to in (H, W) format. In multiscale mode 'list', shape
+            represents the list of possible shapes for resizing.
+        keep_ratio (bool, optional): If aspect ratio of original image should
+            be kept, the new shape will modified to fit the aspect ratio of
+            the original image. Defaults to False.
+        multiscale_mode (str, optional): one of [range, list]. Defaults to
+            "range".
+        scale_range (Tuple[float, float], optional): Range of sampled image
+            scales in range mode, e.g. (0.8, 1.2), indicating minimum of 0.8 *
+            shape and maximum of 1.2 * shape. Defaults to (1.0, 1.0).
+        align_long_edge (bool, optional): If keep_ratio is true, this option
+            indicates if shape should be automatically aligned with the long
+            edge of the original image, e.g. original shape=(100, 80),original
+            shape=(100, 200) will yield (125, 100) as new shape. Defaults to
+            False.
+        interpolation (str, optional): Interpolation method. One of
+            ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
     """
 
     def _resize(image: torch.Tensor) -> torch.Tensor:
