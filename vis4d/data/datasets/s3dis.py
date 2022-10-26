@@ -17,10 +17,6 @@ from vis4d.data.io.file import FileBackend
 from .base import Dataset, DictData
 from .util import CacheMappingMixin
 
-# from tomlkit import key TODO @renezurbruegg do we need this as dependency?
-
-
-
 # s3dis semantic mappings
 
 

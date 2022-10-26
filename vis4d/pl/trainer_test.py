@@ -1,20 +1,42 @@
 """Test cases for Vis4D engine."""
 import shutil
 import unittest
-from typing import Dict, List
+from typing import List
 
 import pytest
 import pytorch_lightning as pl
+import torch
 from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
 from pytorch_lightning.utilities.cli import SaveConfigCallback
+from torch.utils.data import DataLoader, Dataset
 
-from vis4d.data_to_revise.module_test import SampleDataModule
-from vis4d.struct_to_revise import ArgsType
+from vis4d.pl.data.base import DataModule
 
-from ..model.optimize import DefaultOptimizer
-from ..unittest.utils import MockModel
+from ..unittest.util import MockModel
+from .optimizer import DefaultOptimizer
 from .trainer import CLI, DefaultTrainer
+
+
+class MockDataset(Dataset):
+    def __len__():
+        return 10
+
+    def __getitem__(self, index):
+        return torch.rand((3, 32, 32))
+
+
+class MockDataModule(DataModule):
+    def __init__(self, example: str, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.example = example
+
+    def train_dataloader(self) -> DataLoader:
+        dataset = MockDataset()
+        return DataLoader(dataset, 1, True)
+
+    def test_dataloader(self) -> List[DataLoader]:
+        return self.train_dataloader()
 
 
 def test_custom_init() -> None:
@@ -34,11 +56,13 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
     """Test that CLI correctly instantiates model/trainer and calls fit."""
     expected_model = dict(model_param=7)
     expected_trainer = dict(exp_name="cli_test")
-    expected_datamodule = {"task": "track", "im_hw": (360, 640)}
+    expected_datamodule = {"example": "attribute"}
 
     # wrap model into setup function to modify model_param via cmd line
     def model_setup(model_param: int = 7) -> DefaultOptimizer:
-        return DefaultOptimizer(MockModel(model_param=model_param))
+        return DefaultOptimizer(
+            MockModel(model_param=model_param), MockModel(model_param=3)
+        )
 
     def fit(trainer, model, datamodule):
         # do this because 'model' will be DefaultOptimizer, and we want to
@@ -73,15 +97,14 @@ def test_base_cli(monkeypatch: MonkeyPatch) -> None:
             "any.py",
             "fit",
             "--model.model_param=7",
+            "--data.example=attribute",
             "--trainer.exp_name=cli_test",
             "--trainer.work_dir=./unittests/",
             "--trainer.max_steps=10",
-            "--data.task=track",
-            "--data.im_hw=[360, 640]",
             "--seed_everything=0",
         ],
     ):
-        cli = CLI(model_setup, datamodule_class=SampleDataModule)
+        cli = CLI(model_setup, datamodule_class=MockDataModule)
         assert hasattr(cli.trainer, "ran_asserts") and cli.trainer.ran_asserts
 
 

@@ -51,7 +51,7 @@ def default_test_pipeline(
     batch_size: int,
     num_workers: int,
     im_hw: Tuple[int, int],
-) -> DataLoader:
+) -> List[DataLoader]:
     """Default test preprocessing pipeline for detectors."""
     preprocess_fn = compose(
         [

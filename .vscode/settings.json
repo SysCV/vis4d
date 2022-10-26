@@ -15,8 +15,6 @@
   "editor.formatOnSave": true,
   "[python]": {
     "editor.rulers": [79],
-    "editor.wordWrapColumn": 79,
-    "editor.wordWrap": "wordWrapColumn",
     // Python use black as formatter
     "editor.defaultFormatter": null
   },

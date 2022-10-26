@@ -210,9 +210,7 @@ def random_apply(
     """Apply given transforms at random with given probability."""
 
     def _apply(data: DictData) -> DictData:
-        data["transform_params"]["random_apply"] = False
         if torch.rand(1) < p:
-            data["transform_params"]["random_apply"] = True
             for op in transforms:
                 data = op(data)
         return data

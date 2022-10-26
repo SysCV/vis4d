@@ -57,7 +57,6 @@ class DefaultOptimizer(pl.LightningModule):
     ):
         """Init."""
         super().__init__()
-
         self.optimizer_init = (
             optimizer_init if optimizer_init is not None else DEFAULT_OPTIM
         )
@@ -137,6 +136,25 @@ class DefaultOptimizer(pl.LightningModule):
             else:
                 lr_schedulers.step()
 
+    def _log_metric(self, key: str, value: torch.Tensor) -> None:
+        """Log a scalar tensor metric with a certain key."""
+        if not hasattr(self, key):
+            metric = MeanMetric()
+            metric.to(self.device)
+            setattr(self, key, metric)
+
+        metric = getattr(self, key)
+        metric(value.detach())
+        self.log(
+            "train/" + key,
+            metric,
+            logger=True,
+            prog_bar=True,
+            on_step=True,
+            on_epoch=False,
+            metric_attribute=key,
+        )
+
     def training_step(  # type: ignore # pylint: disable=arguments-differ
         self, batch: DictData, *args, **kwargs
     ) -> LossesType:
@@ -157,22 +175,7 @@ class DefaultOptimizer(pl.LightningModule):
         losses["loss"] = sum(list(losses.values()))
 
         for k, v in losses.items():
-            if not hasattr(self, k):
-                metric = MeanMetric()
-                metric.to(self.device)
-                setattr(self, k, metric)
-
-            metric = getattr(self, k)
-            metric(v.detach())
-            self.log(
-                "train/" + k,
-                metric,
-                logger=True,
-                prog_bar=True,
-                on_step=True,
-                on_epoch=False,
-                metric_attribute=k,
-            )
+            self._log_metric(k, v)
         return losses
 
     def test_step(  # type: ignore # pylint: disable=arguments-differ

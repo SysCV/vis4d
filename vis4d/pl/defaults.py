@@ -8,7 +8,7 @@ def sgd(
     lr: float, momentum: float = 0.9, weight_decay: float = 0.0001
 ) -> DictStrAny:
     """Standard SGD optimizer cfg with given lr."""
-    lr_scheduler_cfg = {
+    optimizer_cfg = {
         "class_path": "torch.optim.SGD",
         "init_args": {
             "lr": lr,
@@ -16,14 +16,14 @@ def sgd(
             "weight_decay": weight_decay,
         },
     }
-    return lr_scheduler_cfg
+    return optimizer_cfg
 
 
 def adam(
     lr: float, amsgrad: bool = False, weight_decay: float = 0.0001
 ) -> DictStrAny:
     """Standard Adam optimizer cfg with given lr."""
-    lr_scheduler_cfg = {
+    optimizer_cfg = {
         "class_path": "torch.optim.Adam",
         "init_args": {
             "lr": lr,
@@ -31,7 +31,22 @@ def adam(
             "amsgrad": amsgrad,
         },
     }
-    return lr_scheduler_cfg
+    return optimizer_cfg
+
+
+def adamW(  # pylint: disable=invalid-name
+    lr: float, weight_decay: float = 0.0001, epsilon: float = 1e-8
+) -> DictStrAny:
+    """Standard AdamW optimizer cfg with given lr."""
+    optimizer_cfg = {
+        "class_path": "torch.optim.AdamW",
+        "init_args": {
+            "lr": lr,
+            "weight_decay": weight_decay,
+            "eps": epsilon,
+        },
+    }
+    return optimizer_cfg
 
 
 def step_schedule(
