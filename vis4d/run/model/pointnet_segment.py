@@ -25,7 +25,6 @@ from vis4d.model.segment3d.pointnetpp import (
 from vis4d.run.data.segment3d import (
     default_test_pipeline,
     default_train_pipeline,
-    default_train_pipeline_multi_blocks_room,
 )
 from vis4d.run.test import testing_loop
 from vis4d.run.train import training_loop
