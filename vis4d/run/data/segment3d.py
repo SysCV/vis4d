@@ -1,9 +1,10 @@
-"""Detect data module."""
-from typing import List, Tuple, Union
+"""Segment3D data module."""
+from typing import List, Union
 
+import torch
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.common.typing import COMMON_KEYS
+from vis4d.data.const import COMMON_KEYS
 from vis4d.data.loader import (
     DataPipe,
     SubdividingIterableDataset,
@@ -16,6 +17,7 @@ from vis4d.data.transforms.point_sampling import (
     sample_points_block_random,
 )
 from vis4d.data.transforms.points import (
+    add_norm_noise,
     center_and_normalize,
     concatenate_point_features,
     extract_pc_bounds,
@@ -23,6 +25,15 @@ from vis4d.data.transforms.points import (
     normalize_by_bounds,
     rotate_around_axis,
 )
+from vis4d.data.typing import DictData
+
+
+def default_collate(batch: List[DictData]) -> DictData:
+    """Default batch collate."""
+    data = {}
+    for key in batch[0]:
+        data[key] = torch.stack([b[key] for b in batch], 0)
+    return data
 
 
 def default_train_pipeline(
@@ -49,6 +60,7 @@ def default_train_pipeline(
         min_pts=512,
     )
 
+    noise = add_norm_noise(std=0.02)
     rand_rotate_z = rotate_around_axis(axis=2)
     norm = center_and_normalize(
         in_keys=[COMMON_KEYS.points3d],
@@ -61,7 +73,8 @@ def default_train_pipeline(
     move_pts = move_pts_to_last_channel(in_keys=data_keys, out_keys=data_keys)
 
     pipeline = [
-        rand_rotate_z,
+        # noise,
+        # rand_rotate_z,
         bounds_calc,
         sample,
         norm,
@@ -79,7 +92,10 @@ def default_train_pipeline(
 
     datapipe = DataPipe(datasets, preprocess_fn)
     train_loader = build_train_dataloader(
-        datapipe, samples_per_gpu=batch_size, workers_per_gpu=8
+        datapipe,
+        samples_per_gpu=batch_size,
+        workers_per_gpu=12,
+        collate_fn=default_collate,
     )
     return train_loader
 
@@ -109,7 +125,9 @@ def default_test_pipeline(
     bounds_calc = extract_pc_bounds()
 
     norm = center_and_normalize(
-        in_keys=[COMMON_KEYS.points3d], out_keys=["points3d_normalized"]
+        in_keys=[COMMON_KEYS.points3d],
+        out_keys=["points3d_normalized"],
+        normalize=False,
     )
     bounds_norm = normalize_by_bounds()
 
@@ -131,6 +149,9 @@ def default_test_pipeline(
     )
 
     test_loaders = build_inference_dataloaders(
-        datapipe, samples_per_gpu=batch_size
+        datapipe,
+        samples_per_gpu=batch_size,
+        workers_per_gpu=12,
+        collate_fn=default_collate,
     )
     return test_loaders
