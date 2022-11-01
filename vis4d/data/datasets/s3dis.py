@@ -1,9 +1,9 @@
 """Stanford 3D indoor dataset."""
+import copy
 import glob
 import os
 from io import BytesIO
-from multiprocessing.sharedctypes import Value
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -16,8 +16,6 @@ from vis4d.data.io.file import FileBackend
 
 from .base import Dataset, DictData
 from .util import CacheMappingMixin
-
-# s3dis semantic mappings
 
 
 class S3DIS(Dataset, CacheMappingMixin):
@@ -42,21 +40,22 @@ class S3DIS(Dataset, CacheMappingMixin):
         "board": 11,
         "clutter": 12,
     }
+
     CLASS_COUNTS = torch.Tensor(
         [
-            37334028,
-            32206900,
-            52921324,
-            4719832,
-            4145093,
-            4127868,
-            10681455,
-            7930065,
-            6318085,
-            9209662,
-            21825992,
-            949299,
-            2457821,
+            3370714,
+            2856755,
+            4919229,
+            318158,
+            375640,
+            478001,
+            974733,
+            650464,
+            791496,
+            88727,
+            1284130,
+            229758,
+            2272837,
         ]
     )
 
@@ -92,16 +91,26 @@ class S3DIS(Dataset, CacheMappingMixin):
         split: str = "trainNoArea5",
         data_backend: Optional[DataBackend] = None,
         keys_to_load: List[str] = AVAILABLE_KEYS,
+        cache_points: bool = True,
     ) -> None:
         """Creates a new S3DIS dataset.
-        Args:
-        data_root (str): Path to S3DIS folder
-        split (str): which split to load. Must either be
-            trainNoArea[1-6] or testArea[1-6].
-            e.g. trainNoArea5 will load all areas except area 5 and
-            testArea5 will only load area 5
-        """
 
+        Args:
+            data_root (str): Path to S3DIS folder
+            split (str): which split to load. Must either be
+                trainNoArea[1-6] or testArea[1-6].
+                e.g. trainNoArea5 will load all areas except area 5 and
+                testArea5 will only load area 5
+            data_backend (Optional[DataBackend]): Which data backend to use.
+                        if not specified, will use FileBackend
+            keys_to_load (List[str]): What kind of data should be loaded
+                                      (e.g. colors, xyz, semantics, ...)
+            cache_points (bool): If true caches loaded points instead of
+                                 reading them from the disk every time.
+
+        Raises:
+            ValueError: If requested split is malformed
+        """
         super().__init__()
 
         self.data_root = data_root
@@ -126,11 +135,12 @@ class S3DIS(Dataset, CacheMappingMixin):
         else:
             raise ValueError("Unknown split: ", self.split)
 
-        self.data = self._load_mapping(
-            self._generate_data_mapping,
-            os.path.join(self.data_root, self.split + ".json"),
-        )
+        self.data = self._load_mapping(self._generate_data_mapping)
         self.keys_to_load = keys_to_load
+
+        # Cache
+        self.cache_points = cache_points
+        self._cache: Dict[int, DictData] = {}
 
     @property
     def num_classes(self):
@@ -166,8 +176,8 @@ class S3DIS(Dataset, CacheMappingMixin):
         return data
 
     def __len__(self) -> int:
-        """length of the datset."""
-        return len(self.data)
+        """Length of the datset."""
+        return len(self.data)  # type: ignore
 
     def __getitem__(self, idx: int) -> DictData:
         """Transform s3dis sample to vis4d input format.
@@ -176,8 +186,15 @@ class S3DIS(Dataset, CacheMappingMixin):
             coordinates: 3D Poitns coordinate Shape(n x 3)
             colors: 3D Point colors Shape(n x 3)
             Semantic Classes: 3D Point classes Shape(n x 1)
+
+        Raises:
+            ValueError: If a requested key does not exist in this dataset.
         """
         data = self.data[idx]
+
+        # Cache data
+        if self.cache_points and idx in self._cache:
+            return copy.deepcopy(self._cache[idx])
 
         coords = np.zeros((0, 3), dtype=np.float32)
         color = np.zeros((0, 3), dtype=np.float32)
@@ -215,7 +232,6 @@ class S3DIS(Dataset, CacheMappingMixin):
                         * instance_id,
                     ]
                 )
-        coords -= np.amin(coords, axis=0)
 
         data = dict()
         for key in self.keys_to_load:
@@ -229,4 +245,7 @@ class S3DIS(Dataset, CacheMappingMixin):
                 data[key] = torch.from_numpy(instance_ids).squeeze(-1)
             else:
                 raise ValueError(f"Can not load data for key: {key}")
+
+        if self.cache_points:
+            self._cache[idx] = copy.deepcopy(data)
         return data
