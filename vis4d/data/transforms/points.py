@@ -13,6 +13,18 @@ PC_BOUND_KEY = "pc_bounds"
 
 
 def _get_rotation_matrix(angle: float, axis: int = 0) -> torch.Tensor:
+    """Creates a 3x3 Rotation Matrix.
+
+    Args:
+        angle: Rotation angle
+        axis: Rotation axis
+
+    Returns:
+        3x3 Rotation Matrix
+
+    Raises:
+        ValueError: if the axis is invalid
+    """
     if axis == 0:
         return torch.tensor(
             [
@@ -95,7 +107,7 @@ def add_norm_noise(std: float = 0.1):
 
 @Transform(in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,))
 def add_uniform_noise(min_value: float = -0.1, max_value: float = 0.1):
-    """Adds uniform distributed noise with given min and max vavlues to the data.
+    """Adds uniform distributed noise with given limits to the data.
 
     Args:
         min_value (float): min noise values
@@ -140,9 +152,10 @@ def center_and_normalize(normalize=True):
                          in each direction."""
 
     def _center_and_normalize(coordinates: torch.Tensor):
-        center = torch.mean(coordinates, dim=0)
+        center = (
+            coordinates.max(dim=0).values - coordinates.min(dim=0).values
+        ) / 2 + coordinates.min(dim=0).values
         coords = coordinates - center
-
         if normalize:
             max_val = torch.max(torch.max(torch.abs(coords), dim=0).values)
             return (coords) / (max_val)
