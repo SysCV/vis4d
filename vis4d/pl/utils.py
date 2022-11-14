@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import warnings
+from collections import defaultdict
 from typing import Dict, List, Optional, Union
 
 import pytorch_lightning as pl
@@ -15,6 +16,7 @@ from pytorch_lightning.utilities.rank_zero import (
 )
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from termcolor import colored
+from torchmetrics import Metric
 
 from ..common import ArgsType
 from ..common.time import Timer
@@ -48,6 +50,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         """Reset timer on start of epoch."""
         super().on_train_epoch_start(trainer, pl_module)
         self.timer.reset()
+        self._metrics = defaultdict(list)
 
     def on_predict_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -118,7 +121,6 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         outputs: STEP_OUTPUT,
         batch: ArgsType,
         batch_idx: int,
-        unused: int = 0,
     ) -> None:
         """Train phase logging."""
         super().on_train_batch_end(
@@ -126,15 +128,19 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         )
 
         if self._enabled:
-            # use logged metrics instead of progress_bar_metrics to avoid
-            # copying to cpu until this is fixed by PL
+            for k, v in trainer.callback_metrics.items():
+                self._metrics[k].append(v)
             if (self.train_batch_idx - 1) % self._refresh_rate == 0:
                 rank_zero_info(
                     self._compose_log_str(
                         f"Epoch {trainer.current_epoch}",
                         self.train_batch_idx,
                         self.total_train_batches,
-                        trainer.progress_bar_metrics,
+                        {
+                            k: sum(v) / len(v) if len(v) > 0 else float("NaN")
+                            for k, v in self._metrics.items()
+                            if k in trainer.progress_bar_metrics.keys()
+                        },
                     )
                 )
 

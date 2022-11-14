@@ -36,6 +36,8 @@ class DefaultEvaluatorCallback(Callback):
         self.dataloader_idx = dataloader_idx
         self.output_dir = output_dir
         self.evaluator = evaluator
+        self.logging_disabled = False
+        self.run_eval = True
 
         if self.output_dir is not None:
             os.makedirs(self.output_dir, exist_ok=True)

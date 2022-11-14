@@ -64,7 +64,7 @@ class DataPipe(ConcatDataset):
     def __init__(
         self,
         datasets: Union[Dataset, Iterable[Dataset]],
-        preprocess_fn: Callable[[DictData], DictData],
+        preprocess_fn: Callable[[DictData], DictData] = lambda x: x,
         reference_view_sampler: Optional[ReferenceViewSampler] = None,
     ):
         """Init.

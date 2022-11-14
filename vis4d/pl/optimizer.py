@@ -136,7 +136,9 @@ class DefaultOptimizer(pl.LightningModule):
             else:
                 lr_schedulers.step()
 
-    def _log_metric(self, key: str, value: torch.Tensor) -> None:
+    def _log_metric(
+        self, key: str, value: torch.Tensor, prefix: str = ""
+    ) -> None:
         """Log a scalar tensor metric with a certain key."""
         if not hasattr(self, key):
             metric = MeanMetric()
@@ -146,7 +148,7 @@ class DefaultOptimizer(pl.LightningModule):
         metric = getattr(self, key)
         metric(value.detach())
         self.log(
-            "train/" + key,
+            prefix + key,
             metric,
             logger=True,
             prog_bar=True,
@@ -175,7 +177,7 @@ class DefaultOptimizer(pl.LightningModule):
         losses["loss"] = sum(list(losses.values()))
 
         for k, v in losses.items():
-            self._log_metric(k, v)
+            self._log_metric(k, v, prefix="train/")
         return losses
 
     def test_step(  # type: ignore # pylint: disable=arguments-differ
