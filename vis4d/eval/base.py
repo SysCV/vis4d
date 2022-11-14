@@ -5,8 +5,8 @@ import shutil
 import tempfile
 from typing import Any, Callable, List, Optional, Tuple
 
-from vis4d.common import MetricLogs, ModelOutput
-from vis4d.data.datasets.base import DictData
+from vis4d.common import MetricLogs
+from vis4d.common.typing import NDArrayNumber
 from vis4d.data.io import DataBackend, HDF5Backend
 
 
@@ -26,8 +26,9 @@ class Evaluator:
         """Reset evaluator for new round of evaluation."""
         raise NotImplementedError
 
-    def process(self, inputs: DictData, outputs: ModelOutput) -> None:
-        """Process data of single sample."""
+    # FIXME, How do we want to deal with this interface for typing
+    def process(self, *args: NDArrayNumber) -> None:
+        """Process a batch of data."""
         raise NotImplementedError
 
     def evaluate(self, metric: str) -> Tuple[MetricLogs, str]:
@@ -49,7 +50,7 @@ class SaveDataMixin:
         """Init."""
         self.data_backend = HDF5Backend()
         if save_dir is None:
-            self.save_dir = tempfile.TemporaryDirectory()
+            self.save_dir = tempfile.TemporaryDirectory().name
         else:
             self.save_dir = save_dir
 

@@ -1,4 +1,6 @@
 """COCO evaluator."""
+# FIXME, rewrite to numpy based API
+
 import contextlib
 import copy
 import io

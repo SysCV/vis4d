@@ -16,6 +16,9 @@ def sample_indices(n_pts: int, data: torch.Tensor) -> torch.Tensor:
         n_pts (int): Number of indices to sample
         data (Tensor): Data from which to sample indices
 
+    Raises:
+        ValueError: If data is empty.
+
     Returns:
         torch Tensor containing the sampled indices.
     """

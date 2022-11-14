@@ -9,6 +9,10 @@ NDArrayF64 = npt.NDArray[np.float64]
 NDArrayF32 = npt.NDArray[np.float32]
 NDArrayI64 = npt.NDArray[np.int64]
 NDArrayUI8 = npt.NDArray[np.uint8]
+NDArrayBool = npt.NDArray[np.bool8]
+NDArrayNumber = Union[
+    NDArrayF32, NDArrayF64, NDArrayI64, NDArrayUI8, NDArrayBool
+]
 MetricLogs = Dict[str, Union[float, int]]
 DictStrAny = Dict[str, Any]  # type: ignore
 ArgsType = Any  # type: ignore

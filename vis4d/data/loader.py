@@ -23,10 +23,8 @@ from .typing import DictData
 POINT_KEYS = [
     COMMON_KEYS.colors3d,
     COMMON_KEYS.points3d,
-    # COMMON_KEYS.points3dCenter,  # TODO these keys dont exist anymore
     COMMON_KEYS.semantics3d,
     COMMON_KEYS.instances3d,
-    # COMMON_KEYS.index,
 ]
 
 
@@ -159,6 +157,7 @@ class SubdividingIterableDataset(IterableDataset):
         self.dataset = dataset
         self.n_samples_per_batch = n_samples_per_batch
         self.preprocess_fn = preprocess_fn
+        self.reference_view_sampler = None
 
     def __iter__(self) -> Iterator[DictData]:
         """Iterates over the dataset, supporting distributed sampling."""
@@ -211,7 +210,7 @@ def build_train_dataloader(
     else:
         batch_size, shuffle, train_sampler = (
             samples_per_gpu,
-            True,
+            False,
             None,
         )
 

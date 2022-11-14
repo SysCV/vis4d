@@ -7,10 +7,13 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader
 
-from vis4d.common.typing import COMMON_KEYS
+from vis4d.data.const import COMMON_KEYS
 from vis4d.data.datasets.s3dis import S3DIS
+from vis4d.data.typing import DictData
 from vis4d.eval import Evaluator
-from vis4d.eval.miou import MIouEvaluator
+from vis4d.eval.segmentation.segmentation_evaluator import (
+    SegmentationEvaluator,
+)
 from vis4d.model.segment3d.pointnet import (
     PointnetSegmentationLoss,
     PointnetSegmentationModel,
@@ -22,7 +25,6 @@ from vis4d.model.segment3d.pointnetpp import (
 from vis4d.run.data.segment3d import (
     default_test_pipeline,
     default_train_pipeline,
-    default_train_pipeline_full_room,
 )
 from vis4d.run.test import testing_loop
 from vis4d.run.train import training_loop
@@ -45,23 +47,21 @@ def get_dataloaders(
         data_in_keys += [COMMON_KEYS.colors3d]
 
     if is_training:
-        train_loader = (
-            default_train_pipeline_full_room(  # default_train_pipeline(
-                S3DIS(
-                    data_root="/data/Stanford3dDataset_v1.2",
-                    keys_to_load=data_in_keys + [COMMON_KEYS.semantics3d],
-                ),
-                batch_size,
-                load_colors=load_colors,
-                num_pts=4096,
-            )
+        train_loader = default_train_pipeline(
+            S3DIS(
+                data_root="/data/Stanford3dDataset_v1.2_Aligned_Version",
+                keys_to_load=data_in_keys + [COMMON_KEYS.semantics3d],
+            ),
+            batch_size,
+            load_colors=load_colors,
+            num_pts=4096,
         )
     else:
         train_loader = None
 
     test_loader = default_test_pipeline(
         S3DIS(
-            data_root="/data/Stanford3dDataset_v1.2",
+            data_root="/data/Stanford3dDataset_v1.2_Aligned_Version",
             split="testArea5",
             keys_to_load=data_in_keys + [COMMON_KEYS.semantics3d],
         ),
@@ -70,24 +70,53 @@ def get_dataloaders(
         num_pts=4096,
     )
     test_evals = [
-        MIouEvaluator(
+        SegmentationEvaluator(
             num_classes=13,
             class_mapping=dict(
                 (v, k) for k, v in S3DIS.CLASS_NAME_TO_IDX.items()
             ),
         )
     ]
-    test_metric = MIouEvaluator.METRIC_MIOU
+    test_metric = SegmentationEvaluator.METRIC_ALL
     return train_loader, test_loader, test_evals, test_metric
+
+
+def data_connector(mode: str, data: DictData):
+    """Data connector."""
+    if mode == "train":
+        data_keys = {
+            COMMON_KEYS.points3d: COMMON_KEYS.points3d,
+            COMMON_KEYS.semantics3d: COMMON_KEYS.semantics3d,
+        }
+    elif mode == "loss":
+        data_keys = {COMMON_KEYS.semantics3d: COMMON_KEYS.semantics3d}
+    else:
+        data_keys = {
+            COMMON_KEYS.points3d: COMMON_KEYS.points3d,
+            # COMMON_KEYS.semantics3d: COMMON_KEYS.semantics3d,
+        }
+    return {v: data[k] for k, v in data_keys.items()}
+
+
+def eval_connector(
+    mode: str, in_data: DictData, output_data: DictData
+):  # TODO, ugly
+    """Data connector for evaluator and visualizer."""
+    if mode == "eval":
+        return {
+            "prediction": output_data[COMMON_KEYS.semantics3d],
+            "groundtruth": in_data[COMMON_KEYS.semantics3d],
+        }
+    return {}
 
 
 def train(args: argparse.Namespace) -> None:
     """Training."""
     # parameters
-    log_step = 1
+    log_step = 10
     num_epochs = 400
     batch_size = 32
-    learning_rate = 1e-3
+    learning_rate = 1e-4
     device = torch.device("cuda")
     balance_weights = True
     save_prefix = "vis4d-workspace/test/pointnet_s3dis_epoch"
@@ -111,16 +140,14 @@ def train(args: argparse.Namespace) -> None:
 
     if balance_weights:
         balanced_weigths = S3DIS.CLASS_COUNTS / S3DIS.CLASS_COUNTS.sum()
-        balanced_weigths = torch.max(balanced_weigths) / balanced_weigths
-        balanced_weigths = balanced_weigths.to(device)
-        balanced_weigths = torch.pow(balanced_weigths, 1 / 3.0)
-        pointnet_loss = loss_cls(semantic_weights=balanced_weigths)
+        balanced_weigths = 1 / (balanced_weigths + 0.02)
+        # normalize
+        balanced_weigths = (
+            balanced_weigths * len(balanced_weigths) / balanced_weigths.sum()
+        )
+        pointnet_loss = loss_cls(semantic_weights=balanced_weigths.cuda())
     else:
         pointnet_loss = loss_cls()
-
-    model_train_keys = [COMMON_KEYS.points3d, COMMON_KEYS.semantics3d]
-    model_test_keys = [COMMON_KEYS.points3d]
-    loss_keys = [COMMON_KEYS.semantics3d]
 
     # optimization
     optimizer = optim.Adam(
@@ -128,7 +155,7 @@ def train(args: argparse.Namespace) -> None:
         lr=learning_rate,
     )
     scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[50, 100], gamma=0.1
+        optimizer, milestones=[20, 40], gamma=0.1
     )
     warmup = None
 
@@ -142,9 +169,7 @@ def train(args: argparse.Namespace) -> None:
         test_metric,
         segmenter,
         pointnet_loss,
-        model_train_keys,
-        model_test_keys,
-        loss_keys,
+        data_connector,
         optimizer,
         scheduler,
         num_epochs,
@@ -153,7 +178,8 @@ def train(args: argparse.Namespace) -> None:
         save_prefix,
         warmup,
         visualizers=visualizers,
-        test_every_nth_epoch=5,
+        eval_connector=eval_connector,
+        test_every_nth_epoch=10,
         save_every_nth_epoch=5,
         vis_every_nth_epoch=-1,  # do not visualize
     )
@@ -184,7 +210,12 @@ def test(args: argparse.Namespace) -> None:
 
     # run testing
     testing_loop(
-        test_loader, test_evals, test_metric, segmenter, model_test_keys
+        test_loader,
+        test_evals,
+        test_metric,
+        segmenter,
+        data_connector,
+        eval_connector,
     )
     test_evals = [e.to(device) for e in test_evals]
 

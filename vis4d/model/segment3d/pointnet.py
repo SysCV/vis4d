@@ -1,16 +1,11 @@
-from tokenize import Ignore
 from typing import Optional, Tuple, Union
 
 import torch
 from torch import nn
 
-from vis4d.common import COMMON_KEYS
 from vis4d.common.typing import LossesType, ModelOutput
-from vis4d.op.base.pointnet import (
-    PointNetSegmentation,
-    PointNetSemanticsLoss,
-    PointNetSemanticsOut,
-)
+from vis4d.data.const import COMMON_KEYS
+from vis4d.op.base.pointnet import PointNetSegmentation, PointNetSemanticsOut
 from vis4d.op.loss.orthogonal_transform_loss import (
     OrthogonalTransformRegularizationLoss,
 )
@@ -18,7 +13,7 @@ from vis4d.op.util import load_model_checkpoint
 
 
 class PointnetSegmentationModel(nn.Module):
-    """TODO"""
+    """Simple Segmentation Model using Pointnet"""
 
     def __init__(
         self,
@@ -26,7 +21,13 @@ class PointnetSegmentationModel(nn.Module):
         in_dimensions: int = 3,
         weights: Optional[str] = None,
     ) -> None:
-        """TODO"""
+        """Simple Segmentation Model using Pointnet.
+
+        Args:
+            num_classes: Number of semantic classes
+            in_dimensions: Input dimension
+            weights: Path to weight file
+        """
         super().__init__()
         self.model = PointNetSegmentation(
             n_classes=num_classes, in_dimensions=in_dimensions
@@ -34,10 +35,26 @@ class PointnetSegmentationModel(nn.Module):
         if weights is not None:
             load_model_checkpoint(self, weights)
 
+    def __call__(
+        self, data: torch.Tensor, target: Optional[torch.Tensor] = None
+    ) -> Union[PointNetSemanticsOut, ModelOutput]:
+        """Runs the semantic model.
+
+        Args:
+            data: Input Tensor Shape [N, C, n_pts]
+            target: Target Classes shape [N, n_ots]
+        """
+        self._call_impl(data, target)
+
     def forward(
         self, data: torch.Tensor, target: Optional[torch.Tensor] = None
     ) -> Union[PointNetSemanticsOut, ModelOutput]:
-        """TODO"""
+        """Runs the semantic model.
+
+        Args:
+            data: Input Tensor Shape [N, C, n_pts]
+            target: Target Classes shape [N, n_ots]
+        """
         if target is not None:
             return self.forward_train(data, target)
         return self.forward_test(data)
@@ -46,7 +63,7 @@ class PointnetSegmentationModel(nn.Module):
         self,
         points: torch.Tensor,
         target: torch.Tensor,
-    ) -> Tuple[ModelOutput, PointNetSemanticsOut]:
+    ) -> PointNetSemanticsOut:
         """Forward training stage."""
         out = self.model(points)
         return out
@@ -73,7 +90,15 @@ class PointnetSegmentationLoss(nn.Module):
         transform_weight: float = 1e-3,
         semantic_weights: Optional[torch.Tensor] = None,
     ) -> None:
-        """Init."""
+        """Init.
+
+        Args:
+            regularize_transform: If true add transforms to loss
+            ignore_index: Semantic class that should be ignored
+            transform_weight: Loss weight factor for transform
+                              regularization loss
+            semantic_weights: Classwise weights for semantic loss
+        """
         super().__init__()
         self.segmentation_loss = nn.CrossEntropyLoss(
             weight=semantic_weights, ignore_index=ignore_index
@@ -85,6 +110,12 @@ class PointnetSegmentationLoss(nn.Module):
     def forward(
         self, outputs: PointNetSemanticsOut, target: torch.Tensor
     ) -> LossesType:
+        """Calculates the losss.
+
+        Args:
+            outputs: Pointnet output
+            target: Target Labels
+        """
         if not self.regularize_transform:
             dict(
                 segmentation_loss=self.segmentation_loss(

@@ -1,4 +1,4 @@
-cv2
+opencv-python
 dash
 open3d
 plotly

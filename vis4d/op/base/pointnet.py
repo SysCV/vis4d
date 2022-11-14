@@ -1,17 +1,26 @@
-"""Operations for PointNet."""
+"""Operations for PointNet.
+
+Code taken from
+https://github.com/timothylimyl/PointNet-Pytorch/blob/master/pointnet/model.py
+and modified to allow for modular configuration.
+"""
 from typing import Callable, List, NamedTuple, Optional
 
 import torch
 from torch import nn
 
-from vis4d.op.base.base import BaseModel
-
 
 class PointNetEncoderOut(NamedTuple):
-    """Output of the PointNetEncoder."""
+    """Output of the PointNetEncoder.
 
-    features: torch.Tensor  # Feature Description [B, feature_dim]
-    pointwise_features: torch.Tensor  # Pointwise Features [B, last_mlp_dim. feature_dim ]
+    features: Global features shape [N, feature_dim]
+    pointwise Features: Pointwise features shape [N, last_mlp_dim, n_pts]
+    transformations: List with all transformation matrixes that were used.
+                     Shape [N, d, d]
+    """
+
+    features: torch.Tensor
+    pointwise_features: torch.Tensor  #
     transformations: List[  # List with all transformation matrices [[B, d, d]]
         torch.Tensor
     ]
@@ -25,7 +34,7 @@ class PointNetSemanticsLoss(NamedTuple):
 
 
 class PointNetSemanticsOut(NamedTuple):
-    """Output of the PointNet Segmentation network"""
+    """Output of the PointNet Segmentation network."""
 
     class_logits: torch.Tensor  # B, n_classes, n_pts
     transformations: List[  # List with all transformation matrices [[B, d, d]]
@@ -52,20 +61,20 @@ class LinearTransform(nn.Module):
         norm_cls: Optional[str] = "BatchNorm1d",
         activation_cls: str = "ReLU",
     ) -> None:
-        """Creates a new LinearTransform, which learns a transformation matrix
-        from data
+        """Creates a new LinearTransform.
+
+        This learns a transformation matrix from data.
 
         Args:
-            in_dimensions (int): input dimension
+            in_dimension (int): input dimension
             upsampling_dims (List[int]): list of intermediate feature shapes
                                          for upsampling
-            downsampling_dims (List[int]):list of intermediate feature shapes
+            downsampling_dims (List[int]): list of intermediate feature shapes
                                           for downsampling. Make sure this
                                           matches with the last upsampling_dims
             norm_cls (Optional(str)): class for norm (nn.'norm_cls') or None
             activation_cls (str): class for activation (nn.'activation_cls')
         """
-
         super().__init__()
         assert len(upsampling_dims) != 0 and len(downsampling_dims) != 0
         assert upsampling_dims[-1] == downsampling_dims[0]
@@ -74,7 +83,7 @@ class LinearTransform(nn.Module):
         self.downsampling_dims_ = downsampling_dims
         self.in_dimension_ = in_dimension
         self.register_buffer(
-            "identity", torch.eye(in_dimension).reshape(1, in_dimension ** 2)
+            "identity", torch.eye(in_dimension).reshape(1, in_dimension**2)
         )
 
         # Create activation
@@ -108,7 +117,7 @@ class LinearTransform(nn.Module):
             ]
         )
         self.downsampling_layers.append(
-            nn.Linear(downsampling_dims[-1], in_dimension ** 2)
+            nn.Linear(downsampling_dims[-1], in_dimension**2)
         )
 
     def __call__(
@@ -122,7 +131,7 @@ class LinearTransform(nn.Module):
         self,
         features: torch.Tensor,
     ) -> torch.Tensor:
-        """Linear Transform forward
+        """Linear Transform forward.
 
         Args:
             features (Tensor[B, C, N]): Input features (e.g. points)
@@ -155,7 +164,7 @@ class LinearTransform(nn.Module):
                     features = self.norms_[norm_idx](features)
                 features = self.activation_(features)
 
-        identity_batch = self.identity.repeat(batchsize, 1)
+        identity_batch = self.identity.repeat(batchsize, 1)  # type: ignore
         transformations = features + identity_batch
 
         return transformations.view(
@@ -166,10 +175,6 @@ class LinearTransform(nn.Module):
 class PointNetEncoder(nn.Module):
     """PointNetEncoder.
     Encodes a pointcloud and additional features into one feature description
-
-    Code taken from
-    https://github.com/timothylimyl/PointNet-Pytorch/blob/master/pointnet/model.py
-    and modified to allow for modular configuration.
 
     See pointnet publication for more information (https://arxiv.org/pdf/1612.00593.pdf)
     """
@@ -227,7 +232,7 @@ class PointNetEncoder(nn.Module):
         )
 
         for mlp_idx, mlp_dims in enumerate(mlp_dimensions):
-            layers = []
+            layers: List[nn.Module] = []
 
             for idx, (in_dim, out_dim) in enumerate(
                 zip(mlp_dims[:-1], mlp_dims[1:])
@@ -252,7 +257,7 @@ class PointNetEncoder(nn.Module):
         return self._call_impl(features)
 
     def forward(self, features: torch.Tensor) -> PointNetEncoderOut:
-        """PointNetEncoder forward
+        """Pointnet encoder forward.
 
         Args:
             features (Tensor[B, C, N]): Input features stacked in channels.
@@ -261,7 +266,6 @@ class PointNetEncoder(nn.Module):
             Extracted feature representation for input and all
             applied transformations.
         """
-
         transforms: List[torch.Tensor] = []
 
         for block_idx, trans_layer in enumerate(self.trans_layers_):
@@ -288,8 +292,8 @@ class PointNetEncoder(nn.Module):
         )
 
 
-class PointNetSegmentation(BaseModel):
-    """Segmentation network using a simple pointned as encoder"""
+class PointNetSegmentation(nn.Module):
+    """Segmentation network using a simple pointnet as encoder."""
 
     def __init__(
         self,
@@ -299,7 +303,8 @@ class PointNetSegmentation(BaseModel):
         norm_cls: str = "BatchNorm1d",
         activation_cls: str = "ReLU",
     ):
-        """Creates a new Point Net segementation network
+        """Creates a new Point Net segementation network.
+
         Args:
             n_classes (int): Number of semantic classes
             in_dimensions (int): Input dimension (3 for xyz, 6 xyzrgb, ...)
@@ -344,8 +349,10 @@ class PointNetSegmentation(BaseModel):
 
     def forward(self, points: torch.Tensor) -> PointNetSemanticsOut:
         """Pointnet Segmenter Forward.
+
         Args:
             points (tensor) : inputs points dimension [B, in_dim, n_pts]
+
         Returns:
             Returns a list of tensors where the first element is
             the desired segmentation [B, n_classes, n_pts] and the other

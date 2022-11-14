@@ -30,11 +30,17 @@ def training_loop(
     save_prefix: str,
     warmup: Optional[BaseLRWarmup] = None,
     visualizers: List[Visualizer] = [],
+    eval_connector=None,  # TODO, discuss
     test_every_nth_epoch=1,
     save_every_nth_epoch=1,
     vis_every_nth_epoch=1,
 ) -> None:
     """Training loop."""
+
+    if eval_connector is None:
+        # For now just wrap data connector to not break anything.
+        eval_connector = lambda in_data, out_data: data_connector(in_data)
+
     running_losses = {}
     for epoch in range(num_epochs):
         model.train()
@@ -43,13 +49,11 @@ def training_loop(
 
             # zero the parameter gradients
             optimizer.zero_grad()
-
             # input data
             device = next(model.parameters()).device  # model device
             data = move_data_to_device(data, device)
             train_input = data_connector("train", data)
             loss_input = data_connector("loss", data)
-
             # forward + backward + optimize
             output = model(**train_input)
             losses = loss(output, **loss_input)
@@ -75,14 +79,11 @@ def training_loop(
                 else:
                     running_losses[k] = v
             if i % log_step == (log_step - 1):
-                log_str = (
-                    f"[{epoch + 1}, {i + 1:5d} / {len(train_dataloader)}] "
-                )
+                log_str = f"[{epoch + 1}, {i + 1:5d} / ?] "
                 for k, v in running_losses.items():
                     log_str += f"{k}: {v / log_step:.3f}, "
                 print(log_str.rstrip(", "))  # FIXME move to log statement
                 running_losses = {}
-
         scheduler.step()
         if epoch % save_every_nth_epoch == (save_every_nth_epoch - 1):
             torch.save(model.state_dict(), f"{save_prefix}_{epoch + 1}.pt")
@@ -105,6 +106,7 @@ def training_loop(
                 metric,
                 model,
                 data_connector,
+                eval_connector,
                 visualizers_to_use,
             )
     print("training done.")  # FIXME move to log statement
