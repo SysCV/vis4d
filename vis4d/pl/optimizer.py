@@ -29,12 +29,6 @@ DEFAULT_OPTIM = {
     },
 }
 
-DEFAULT_SCHEDULER = {
-    "class_path": "torch.optim.lr_scheduler.StepLR",
-    "mode": "epoch",
-    "init_args": {"step_size": 10},
-}
-
 
 class DefaultOptimizer(pl.LightningModule):
     """Default optimization routine."""
@@ -60,12 +54,8 @@ class DefaultOptimizer(pl.LightningModule):
         self.optimizer_init = (
             optimizer_init if optimizer_init is not None else DEFAULT_OPTIM
         )
-        self.lr_scheduler_init = (
-            lr_scheduler_init
-            if lr_scheduler_init is not None
-            else DEFAULT_SCHEDULER
-        )
-        if not self.lr_scheduler_init.get("mode", "epoch") in [
+        self.lr_scheduler_init = lr_scheduler_init
+        if self.lr_scheduler_init is not None and not self.lr_scheduler_init.get("mode", "epoch") in [
             "step",
             "epoch",
         ]:
@@ -93,8 +83,10 @@ class DefaultOptimizer(pl.LightningModule):
     ) -> Tuple[List[Optimizer], List[lr_scheduler._LRScheduler]]:
         """Configure optimizers and schedulers of model."""
         optimizer = instantiate_class(self.parameters(), self.optimizer_init)
-        scheduler = instantiate_class(optimizer, self.lr_scheduler_init)
-        return [optimizer], [scheduler]
+        if self.lr_scheduler_init is not None:
+            scheduler = instantiate_class(optimizer, self.lr_scheduler_init)
+            return [optimizer], [scheduler]
+        return [optimizer]
 
     @no_type_check
     def optimizer_step(
@@ -128,7 +120,7 @@ class DefaultOptimizer(pl.LightningModule):
 
         # if lr_scheduler is step-based, we need to call .step(), PL calls
         # .step() only after each epoch.
-        if self.lr_scheduler_init.get("mode", "epoch") == "step":
+        if self.lr_scheduler_init is not None and self.lr_scheduler_init.get("mode", "epoch") == "step":
             lr_schedulers = self.lr_schedulers()
             if isinstance(lr_schedulers, Iterable):  # pragma: no cover
                 for scheduler in lr_schedulers:
