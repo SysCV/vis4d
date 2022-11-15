@@ -1,5 +1,5 @@
 """Wrapper for conv2d."""
-from typing import Optional, Tuple
+from typing import NamedTuple, Optional, Tuple
 
 import torch
 from torch import nn
@@ -81,3 +81,184 @@ def add_conv_branch(
         last_layer_dim = conv_out_dim
 
     return convs, last_layer_dim
+
+
+class UnetDownConvOut(NamedTuple):
+    """Output of the UnetDownConv operator.
+
+    features: Features before applying the pooling operator
+    pooled_features: Features after applying the pooling operator
+    """
+
+    features: torch.Tensor
+    pooled_features: torch.Tensor
+
+
+class UnetDownConv(nn.Module):
+    """Downsamples a feature map by applying two convolutions and maxpool."""
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        pooling: bool = True,
+        activation: str = "ReLU",
+    ):
+        """Creates a new downsampling convolution operator.
+
+        This operator consists of two convolutions followed
+        by a maxpool operator.
+
+
+        Args:
+            in_channels (int): input channesl
+            out_channels (int): output channesl
+            pooling (bool): If pooling should be applied
+            activation (str): Activation that should be applied
+        """
+        super(UnetDownConv, self).__init__()
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.pooling = pooling
+        activation = getattr(nn, activation)()
+
+        self.conv1 = nn.Conv2d(
+            self.in_channels,
+            self.out_channels,
+            kernel_size=3,
+            padding=1,
+            stride=1,
+            bias=True,
+        )
+        self.conv2 = nn.Conv2d(
+            self.out_channels,
+            self.out_channels,
+            kernel_size=3,
+            padding=1,
+            stride=1,
+            bias=True,
+        )
+
+        if self.pooling:
+            self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+    def __call__(self, data: torch.Tensor) -> UnetDownConvOut:
+        """Applies the operator.
+
+        Args:
+            data (tensor): Input data
+
+        Returns:
+            UnetDownConvOut containing the features before the pooling
+            operation (features) and after (pooled_features).
+        """
+        return self._call_impl(data)
+
+    def forward(self, data: torch.Tensor) -> UnetDownConvOut:
+        """Applies the operator.
+
+        Args:
+            data (tensor): Input data
+
+        Returns:
+            UnetDownConvOut containing the features before the pooling
+            operation (features) and after (pooled_features).
+        """
+        x = F.relu(self.conv1(data))
+        x = F.relu(self.conv2(x))
+        before_pool = x
+        if self.pooling:
+            x = self.pool(x)
+        return UnetDownConvOut(features=before_pool, pooled_features=x)
+
+
+class UnetUpConv(nn.Module):
+    """An operator that performs 2 convolutions and 1 UpConvolution.
+
+    A ReLU activation follows each convolution.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        merge_mode: str = "concat",
+        up_mode: str = "transpose",
+    ):
+        """Creates a new UpConv operator.
+
+            This operator merges two inputs by upsampling one
+            and combining it with the other
+
+        Args:
+            in_channels: Number of input channels (low res)
+            out_channels: Number of output channels (high res)
+            merge_mode: How to merge both input channels
+            up_mode: How to upsample the channel with lower resolution
+        """
+        super(UnetUpConv, self).__init__()
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.merge_mode = merge_mode
+        self.up_mode = up_mode
+
+        # Upsampling
+        if self.up_mode == "transpose":
+            self.upconv: nn.Module = nn.ConvTranspose2d(
+                in_channels, out_channels, kernel_size=2, stride=2
+            )
+        elif self.up_mode == "upsample":
+            self.upconv = nn.Sequential(
+                nn.Upsample(mode="bilinear", scale_factor=2),
+                nn.Conv2d(in_channels, out_channels, kernel_size=1),
+            )
+        else:
+            raise ValueError(f"Unknown upsampling mode: {up_mode}")
+
+        if self.merge_mode == "concat":
+            self.conv1 = nn.Conv2d(
+                2 * self.out_channels, self.out_channels, 3, padding=1
+            )
+        else:
+            # num of input channels to conv2 is same
+            self.conv1 = nn.Conv2d(
+                self.out_channels, self.out_channels, 3, padding=1
+            )
+        self.conv2 = nn.Conv2d(
+            self.out_channels, self.out_channels, 3, padding=1
+        )
+
+    def __call__(
+        self, from_down: torch.Tensor, from_up: torch.Tensor
+    ) -> torch.Tensor:
+        """Forward pass.
+
+        Arguments:
+            from_down: tensor from the encoder pathway.
+                        Assumed to have dimension 'out_channels'
+            from_up: upconv'd tensor from the decoder pathway
+                    Assumed to have dimension 'in_channels'
+        """
+        return self._call_impl(from_down, from_up)
+
+    def forward(
+        self, from_down: torch.Tensor, from_up: torch.Tensor
+    ) -> torch.Tensor:
+        """Forward pass.
+
+        Arguments:
+            from_down: tensor from the encoder pathway.
+                        Assumed to have dimension 'out_channels'
+            from_up: upconv'd tensor from the decoder pathway
+                    Assumed to have dimension 'in_channels'
+        """
+        from_up = self.upconv(from_up)
+        if self.merge_mode == "concat":
+            x = torch.cat((from_up, from_down), 1)
+        else:
+            x = from_up + from_down
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        return x
