@@ -55,10 +55,14 @@ class DefaultOptimizer(pl.LightningModule):
             optimizer_init if optimizer_init is not None else DEFAULT_OPTIM
         )
         self.lr_scheduler_init = lr_scheduler_init
-        if self.lr_scheduler_init is not None and not self.lr_scheduler_init.get("mode", "epoch") in [
-            "step",
-            "epoch",
-        ]:
+        if (
+            self.lr_scheduler_init is not None
+            and not self.lr_scheduler_init.get("mode", "epoch")
+            in [
+                "step",
+                "epoch",
+            ]
+        ):
             raise ValueError(
                 "Attribute mode of LR Scheduler must be either step or epoch, "
                 f"found {self.lr_scheduler_init['mode']}"
@@ -120,7 +124,10 @@ class DefaultOptimizer(pl.LightningModule):
 
         # if lr_scheduler is step-based, we need to call .step(), PL calls
         # .step() only after each epoch.
-        if self.lr_scheduler_init is not None and self.lr_scheduler_init.get("mode", "epoch") == "step":
+        if (
+            self.lr_scheduler_init is not None
+            and self.lr_scheduler_init.get("mode", "epoch") == "step"
+        ):
             lr_schedulers = self.lr_schedulers()
             if isinstance(lr_schedulers, Iterable):  # pragma: no cover
                 for scheduler in lr_schedulers:

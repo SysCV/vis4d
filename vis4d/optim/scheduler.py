@@ -1,11 +1,9 @@
 """Vis4D LR schedulers."""
 from typing import List
 
-from pytorch_lightning.utilities.cli import LR_SCHEDULER_REGISTRY
 from torch.optim import Optimizer, lr_scheduler
 
 
-@LR_SCHEDULER_REGISTRY
 class PolyLRScheduler(lr_scheduler._LRScheduler):  # type: ignore # pylint: disable=protected-access,line-too-long
     """Polynomial learning rate decay."""
 

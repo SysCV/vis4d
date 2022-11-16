@@ -11,8 +11,9 @@ from torch.utils.data import (
     IterableDataset,
     get_worker_info,
 )
+from torch.utils.data.distributed import DistributedSampler
 
-from ..common.distributed import get_world_size
+from ..common.distributed import PicklableWrapper, get_world_size
 from .const import COMMON_KEYS
 from .datasets import VideoMixin
 from .reference import ReferenceViewSampler
@@ -76,7 +77,7 @@ class DataPipe(ConcatDataset):
         if isinstance(datasets, Dataset):
             datasets = [datasets]
         super().__init__(datasets)
-        self.preprocess_fn = preprocess_fn
+        self.preprocess_fn = PicklableWrapper(preprocess_fn)
         self.reference_view_sampler = reference_view_sampler
 
     def get_dataset_sample_index(self, idx: int) -> Tuple[int, int]:
@@ -225,12 +226,17 @@ def build_train_dataloader(
                 views.append(view)
             return views
 
+    if get_world_size() > 1 and sampler is None:
+        sampler = DistributedSampler(dataset)
+        shuffle = False
+
     dataloader = DataLoader(
         dataset,
         batch_sampler=train_sampler,
         batch_size=batch_size,
         num_workers=workers_per_gpu,
-        collate_fn=_collate_fn,
+        collate_fn=PicklableWrapper(_collate_fn),
+        sampler=sampler,
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
         shuffle=shuffle,
@@ -251,20 +257,20 @@ def build_inference_dataloaders(
     if isinstance(datasets, Dataset):
         datasets = [datasets]
     dataloaders = []
+    _collate_fn = PicklableWrapper(lambda x: collate_fn(batchprocess_fn(x)))
     for dataset in datasets:
-        if (
-            get_world_size() > 1
-            and isinstance(dataset, VideoMixin)
-            and video_based_inference
-        ):
-            sampler = VideoInferenceSampler(dataset)
+        if get_world_size() > 1 and sampler is None:
+            if isinstance(dataset, VideoMixin) and video_based_inference:
+                sampler = VideoInferenceSampler(dataset)
+            else:
+                sampler = DistributedSampler(dataset)
 
         test_dataloader = DataLoader(
             dataset,
             batch_size=samples_per_gpu,
             num_workers=workers_per_gpu,
             sampler=sampler,
-            collate_fn=lambda x: collate_fn(batchprocess_fn(x)),
+            collate_fn=_collate_fn,
             persistent_workers=workers_per_gpu > 0,
         )
         dataloaders.append(test_dataloader)

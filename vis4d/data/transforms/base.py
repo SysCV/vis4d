@@ -109,8 +109,7 @@ class Transform:
                     return data
 
                 return _multi_sensor_transform_fn
-            else:
-                return _transform_fn
+            return _transform_fn
 
         return get_transform_fn
 
@@ -182,8 +181,7 @@ class BatchTransform:
                     return batch
 
                 return _multi_sensor_transform_fn
-            else:
-                return _transform_fn
+            return _transform_fn
 
         return get_transform_fn
 

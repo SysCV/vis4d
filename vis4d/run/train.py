@@ -1,11 +1,13 @@
 """Vis4D trainer."""
 from time import perf_counter
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
 
+from vis4d.common.distributed import get_rank
 from vis4d.eval import Evaluator
 from vis4d.optim.warmup import BaseLRWarmup
 from vis4d.vis.base import Visualizer
@@ -29,7 +31,7 @@ def training_loop(
     learning_rate: float,
     save_prefix: str,
     warmup: Optional[BaseLRWarmup] = None,
-    visualizers: List[Visualizer] = [],
+    visualizers: Tuple[Visualizer] = (),
     eval_connector=None,  # TODO, discuss
     test_every_nth_epoch=1,
     save_every_nth_epoch=1,
@@ -44,6 +46,8 @@ def training_loop(
     running_losses = {}
     for epoch in range(num_epochs):
         model.train()
+        if isinstance(train_dataloader.sampler, DistributedSampler):
+            train_dataloader.sampler.set_epoch(epoch)
         for i, data in enumerate(train_dataloader):
             tic = perf_counter()
 
@@ -85,8 +89,13 @@ def training_loop(
                 print(log_str.rstrip(", "))  # FIXME move to log statement
                 running_losses = {}
         scheduler.step()
-        if epoch % save_every_nth_epoch == (save_every_nth_epoch - 1):
-            torch.save(model.state_dict(), f"{save_prefix}_{epoch + 1}.pt")
+        if (
+            epoch % save_every_nth_epoch == (save_every_nth_epoch - 1)
+            and get_rank() == 0
+        ):
+            torch.save(
+                model.module.state_dict(), f"{save_prefix}_{epoch + 1}.pt"
+            )
         # Make sure to test at last epoch or at desired frequency
         if (epoch == num_epochs - 1) or epoch % test_every_nth_epoch == (
             test_every_nth_epoch - 1

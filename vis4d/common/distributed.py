@@ -6,9 +6,39 @@ import shutil
 import tempfile
 from typing import Any, List, Optional, Tuple
 
+import cloudpickle
 import pytorch_lightning as pl
 import torch
 import torch.distributed as dist
+
+
+class PicklableWrapper:
+    """
+    Wrap an object to make it more picklable, note that it uses
+    heavy weight serialization libraries that are slower than pickle.
+    It's best to use it only on closures (which are usually not picklable).
+    This is a simplified version of
+    https://github.com/joblib/joblib/blob/master/joblib/externals/loky/cloudpickle_wrapper.py
+    """
+
+    def __init__(self, obj):
+        while isinstance(obj, PicklableWrapper):
+            # Wrapping an object twice is no-op
+            obj = obj._obj
+        self._obj = obj
+
+    def __reduce__(self):
+        s = cloudpickle.dumps(self._obj)
+        return cloudpickle.loads, (s,)
+
+    def __call__(self, *args, **kwargs):
+        return self._obj(*args, **kwargs)
+
+    def __getattr__(self, attr):
+        # Ensure that the wrapped object can be used seamlessly as the previous object.
+        if attr not in ["_obj"]:
+            return getattr(self._obj, attr)
+        return getattr(self, attr)
 
 
 # no coverage for these functions, since we don't unittest distributed setting
@@ -53,12 +83,12 @@ def _serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: d
     device = torch.device("cpu" if backend == "gloo" else "cuda")
 
     buffer = pickle.dumps(data)
-    if len(buffer) > 1024**3:
+    if len(buffer) > 1024 ** 3:
         logger = logging.getLogger(__name__)
         logger.warning(
             "Rank %s tries all-gather %.2f GB of data on device %s",
             get_rank(),
-            len(buffer) / (1024**3),
+            len(buffer) / (1024 ** 3),
             device,
         )
     storage = torch.ByteStorage.from_buffer(buffer)

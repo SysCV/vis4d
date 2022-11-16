@@ -1,12 +1,17 @@
 """Faster RCNN COCO training example."""
 import argparse
+import os
 import warnings
 from typing import List, Optional, Tuple
 
 import torch
+import torch.multiprocessing as mp
 from torch import nn, optim
+from torch.distributed import destroy_process_group, init_process_group
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 
+from vis4d.common.distributed import get_world_size
 from vis4d.data import DictData
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
@@ -67,30 +72,30 @@ def data_connector(mode: str, data: DictData):
     return {v: data[k] for k, v in data_keys.items()}
 
 
-def train(num_gpus: int, ckpt: str) -> None:
+def train(ckpt: str, gpu_id: int = 0) -> None:
     """Training."""
     # parameters
     log_step = 100
     num_epochs = 12
-    batch_size = int(16 * (num_gpus / 8))
+    batch_size = int(16 * (get_world_size() / 8))
     learning_rate = 0.02 / 16 * batch_size
-    device = torch.device("cuda")
+    device = torch.device(f"cuda:{gpu_id}")
     save_prefix = "vis4d-workspace/test/frcnn_coco_epoch"
 
     # data loaders and evaluators
     train_loader, test_loader, test_evals, test_metric = get_dataloaders(
-        True, batch_size
+        True,
+        batch_size,
     )
     assert train_loader is not None
+    torch.backends.cudnn.benchmark = True
 
     # model
     faster_rcnn = FasterRCNN(num_classes=80, weights=ckpt)
     faster_rcnn.to(device)
     faster_rcnn_loss = FasterRCNNLoss()
-    if num_gpus > 1:
-        faster_rcnn = nn.DataParallel(
-            faster_rcnn, device_ids=[device, torch.device("cuda:1")]
-        )
+    if get_world_size() > 1:
+        faster_rcnn = DDP(faster_rcnn, device_ids=[gpu_id])
 
     # optimization
     optimizer = optim.SGD(
@@ -123,10 +128,10 @@ def train(num_gpus: int, ckpt: str) -> None:
     )
 
 
-def test(ckpt: str) -> None:
+def test(ckpt: str, gpu_id: int = 0) -> None:
     """Testing."""
     # parameters
-    device = torch.device("cuda")
+    device = torch.device(f"cuda:{gpu_id}")
 
     # data loaders and evaluators
     _, test_loader, test_evals, test_metric = get_dataloaders()
@@ -134,6 +139,8 @@ def test(ckpt: str) -> None:
     # model
     faster_rcnn = FasterRCNN(num_classes=80, weights=ckpt)
     faster_rcnn.to(device)
+    if get_world_size() > 1:
+        faster_rcnn = DDP(faster_rcnn, device_ids=[gpu_id])
 
     # run testing
     testing_loop(
@@ -141,14 +148,42 @@ def test(ckpt: str) -> None:
     )
 
 
+def ddp_setup(rank: int, world_size: int) -> None:
+    """Setup DDP environment and init processes.
+
+    Args:
+        rank: Unique identifier of each process
+        world_size: Total number of processes
+    """
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
+    init_process_group(backend="nccl", rank=rank, world_size=world_size)
+
+
+def main(rank: int, ckpt: str, world_size: int) -> None:
+    """Main script setting up DDP, executing action, terminating."""
+    ddp_setup(rank, world_size)
+    if ckpt is None:
+        train(ckpt, rank)
+    else:
+        test(ckpt, rank)  # TODO test testing loop with DDP
+    destroy_process_group()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="COCO train/eval.")
     parser.add_argument(
         "-c", "--ckpt", default=None, help="path of model to eval"
     )
-    parser.add_argument("-n", "--num_gpus", default=1, help="number of gpus")
+    parser.add_argument(
+        "-n", "--num_gpus", type=int, default=1, help="number of gpus"
+    )
     args = parser.parse_args()
-    if args.ckpt is None:
-        train(args.num_gpus, args.ckpt)
-    else:
-        test(args.ckpt)
+    mp.spawn(
+        main,
+        args=(
+            args.ckpt,
+            args.num_gpus,
+        ),
+        nprocs=args.num_gpus,
+    )
