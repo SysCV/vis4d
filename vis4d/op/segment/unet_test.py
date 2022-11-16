@@ -1,5 +1,6 @@
 """Test of the U-Net Architecture."""
 import unittest
+
 import torch
 
 from vis4d.op.segment.unet import UNet

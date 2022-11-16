@@ -9,10 +9,16 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 from vis4d.common import MetricLogs, ModelOutput
 from vis4d.common.distributed import all_gather_object_cpu
+from vis4d.common.typing import DictStrAny
 from vis4d.data.datasets.base import DictData
 from vis4d.eval.base import Evaluator
 
 logger = logging.getLogger("pytorch_lightning")
+
+
+def default_eval_connector(mode: str, data: DictData, outputs) -> DictStrAny:
+    """Default eva connector forwards input and outputs."""
+    return dict(data=data, outputs=outputs)
 
 
 class DefaultEvaluatorCallback(Callback):
@@ -26,6 +32,7 @@ class DefaultEvaluatorCallback(Callback):
         self,
         dataloader_idx: int,
         evaluator: Evaluator,
+        eval_connector=default_eval_connector,
         output_dir: Optional[str] = None,
         collect: str = "cpu",
     ) -> None:
@@ -36,6 +43,7 @@ class DefaultEvaluatorCallback(Callback):
         self.dataloader_idx = dataloader_idx
         self.output_dir = output_dir
         self.evaluator = evaluator
+        self.eval_connector = eval_connector
         self.logging_disabled = False
         self.run_eval = True
 
@@ -73,7 +81,8 @@ class DefaultEvaluatorCallback(Callback):
     ) -> None:
         """Wait for on_test_batch_end PL hook to call 'process'."""
         if dataloader_idx == self.dataloader_idx:
-            self.process(batch, outputs)  # type: ignore
+            eval_inputs = self.eval_connector(batch, outputs)
+            self.process(**eval_inputs)  # type: ignore
 
     def on_validation_batch_end(  # type: ignore
         self,
@@ -86,7 +95,7 @@ class DefaultEvaluatorCallback(Callback):
     ) -> None:
         """Wait for on_validation_batch_end PL hook to call 'process'."""
         if dataloader_idx == self.dataloader_idx:
-            self.process(batch, outputs)  # type: ignore
+            self.evaluator.process(batch, outputs)  # type: ignore
 
     def on_sanity_check_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -101,10 +110,6 @@ class DefaultEvaluatorCallback(Callback):
         """Enable logging of results after sanity check."""
         self.logging_disabled = False
         self.run_eval = True
-
-    def process(self, inputs: DictData, outputs: ModelOutput) -> None:
-        """Process the pair of inputs and outputs."""
-        self.evaluator.process(inputs, outputs)
 
     def evaluate(self) -> Dict[str, MetricLogs]:
         """Evaluate the performance after processing all input/output pairs."""

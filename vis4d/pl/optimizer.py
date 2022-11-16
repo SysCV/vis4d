@@ -30,6 +30,11 @@ DEFAULT_OPTIM = {
 }
 
 
+def default_data_connector(mode: str, data: DictData) -> DictStrAny:
+    """Default data connector forwards input with key data."""
+    return dict(data=data)
+
+
 class DefaultOptimizer(pl.LightningModule):
     """Default optimization routine."""
 
@@ -37,9 +42,7 @@ class DefaultOptimizer(pl.LightningModule):
         self,
         model: nn.Module,
         loss: nn.Module,
-        model_train_in_keys: Optional[List[str]] = None,
-        model_test_in_keys: Optional[List[str]] = None,
-        loss_in_keys: Optional[List[str]] = None,
+        data_connector=default_data_connector,
         optimizer_init: Optional[DictStrAny] = None,
         lr_scheduler_init: Optional[DictStrAny] = None,
         freeze: bool = False,
@@ -69,9 +72,7 @@ class DefaultOptimizer(pl.LightningModule):
             )
         self.model = model
         self.model_loss = loss
-        self.model_train_in_keys = model_train_in_keys
-        self.model_test_in_keys = model_test_in_keys
-        self.loss_in_keys = loss_in_keys
+        self.data_connector = data_connector
 
         self._freeze = freeze
         self._freeze_parameters = freeze_parameters
@@ -160,15 +161,8 @@ class DefaultOptimizer(pl.LightningModule):
         self, batch: DictData, *args, **kwargs
     ) -> LossesType:
         """Wrap training step of LightningModule. Add overall loss."""
-        if self.model_train_in_keys is not None:
-            train_input = {key: batch[key] for key in self.model_train_in_keys}
-        else:
-            train_input = dict(data=batch)
-
-        if self.loss_in_keys:
-            loss_input = {key: batch[key] for key in self.loss_in_keys}
-        else:
-            loss_input = dict(data=batch)
+        train_input = self.data_connector("train", batch)
+        loss_input = self.data_connector("loss", batch)
 
         # forward + backward + optimize
         output = self.model(**train_input)
@@ -183,10 +177,7 @@ class DefaultOptimizer(pl.LightningModule):
         self, batch: DictData, *args, **kwargs
     ) -> ModelOutput:
         """Wrap test step of LightningModule."""
-        if self.model_test_in_keys:
-            test_input = {key: batch[key] for key in self.model_test_in_keys}
-        else:
-            test_input = dict(data=batch)
+        test_input = self.data_connector("test", batch)
         return self.model(**test_input)
 
     def validation_step(  # type: ignore # pylint: disable=arguments-differ
