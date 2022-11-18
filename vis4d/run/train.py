@@ -1,11 +1,13 @@
 """Vis4D trainer."""
 from time import perf_counter
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
 
+from vis4d.common.distributed import get_rank
 from vis4d.eval import Evaluator
 from vis4d.optim.warmup import BaseLRWarmup
 from vis4d.vis.base import Visualizer
@@ -21,9 +23,7 @@ def training_loop(
     metric: str,
     model: nn.Module,
     loss: nn.Module,
-    model_train_keys: List[str],
-    model_test_keys: List[str],
-    loss_keys: List[str],
+    data_connector,
     optimizer: optim.Optimizer,
     scheduler: optim.lr_scheduler._LRScheduler,
     num_epochs: int,
@@ -31,27 +31,33 @@ def training_loop(
     learning_rate: float,
     save_prefix: str,
     warmup: Optional[BaseLRWarmup] = None,
-    visualizers: List[Visualizer] = [],
+    visualizers: Tuple[Visualizer] = (),
+    eval_connector=None,  # TODO, discuss
     test_every_nth_epoch=1,
     save_every_nth_epoch=1,
     vis_every_nth_epoch=1,
 ) -> None:
     """Training loop."""
+
+    if eval_connector is None:
+        # For now just wrap data connector to not break anything.
+        eval_connector = lambda in_data, out_data: data_connector(in_data)
+
     running_losses = {}
     for epoch in range(num_epochs):
         model.train()
+        if isinstance(train_dataloader.sampler, DistributedSampler):
+            train_dataloader.sampler.set_epoch(epoch)
         for i, data in enumerate(train_dataloader):
             tic = perf_counter()
 
             # zero the parameter gradients
             optimizer.zero_grad()
-
             # input data
             device = next(model.parameters()).device  # model device
             data = move_data_to_device(data, device)
-            train_input = {key: data[key] for key in model_train_keys}
-            loss_input = {key: data[key] for key in loss_keys}
-
+            train_input = data_connector("train", data)
+            loss_input = data_connector("loss", data)
             # forward + backward + optimize
             output = model(**train_input)
             losses = loss(output, **loss_input)
@@ -77,17 +83,19 @@ def training_loop(
                 else:
                     running_losses[k] = v
             if i % log_step == (log_step - 1):
-                log_str = (
-                    f"[{epoch + 1}, {i + 1:5d} / {len(train_dataloader)}] "
-                )
+                log_str = f"[{epoch + 1}, {i + 1:5d} / ?] "
                 for k, v in running_losses.items():
                     log_str += f"{k}: {v / log_step:.3f}, "
                 print(log_str.rstrip(", "))  # FIXME move to log statement
                 running_losses = {}
-
         scheduler.step()
-        if epoch % save_every_nth_epoch == (save_every_nth_epoch - 1):
-            torch.save(model.state_dict(), f"{save_prefix}_{epoch + 1}.pt")
+        if (
+            epoch % save_every_nth_epoch == (save_every_nth_epoch - 1)
+            and get_rank() == 0
+        ):
+            torch.save(
+                model.module.state_dict(), f"{save_prefix}_{epoch + 1}.pt"
+            )
         # Make sure to test at last epoch or at desired frequency
         if (epoch == num_epochs - 1) or epoch % test_every_nth_epoch == (
             test_every_nth_epoch - 1
@@ -106,7 +114,8 @@ def training_loop(
                 evaluators,
                 metric,
                 model,
-                model_test_keys,
+                data_connector,
+                eval_connector,
                 visualizers_to_use,
             )
     print("training done.")  # FIXME move to log statement

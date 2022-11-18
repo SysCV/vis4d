@@ -5,7 +5,6 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 from PIL import Image
-from scipy.spatial.transform import Rotation as R
 from torch import Tensor
 
 from vis4d.common import NDArrayF64, NDArrayUI8

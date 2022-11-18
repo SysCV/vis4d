@@ -9,6 +9,7 @@ from vis4d.data.const import COMMON_KEYS
 
 from .points import move_pts_to_last_channel, rotate_around_axis
 
+
 # TODO, more tests required here
 class TestPoints(unittest.TestCase):
     """Tests sampling in a block based fashion."""

@@ -8,7 +8,12 @@ from .base import Transform
 
 @Transform()
 def flip_image(direction: str = "horizontal"):
-    """Flip a tensor of shape [N, C, H, W] horizontally."""
+    """Flip a tensor of shape [N, C, H, W] horizontally.
+
+    Args:
+        direction (str, optional): Either vertical or horizontal. Defaults to
+            "horizontal".
+    """
 
     def _flip(tensor: torch.Tensor) -> torch.Tensor:
         if direction == "horizontal":
@@ -25,7 +30,12 @@ def flip_image(direction: str = "horizontal"):
     out_keys=(COMMON_KEYS.boxes2d,),
 )
 def flip_boxes2d(direction: str = "horizontal"):
-    """Flip 2D bounding box tensor."""
+    """Flip 2D bounding box tensor.
+
+    Args:
+        direction (str, optional): Either vertical or horizontal. Defaults to
+            "horizontal".
+    """
 
     def _flip(boxes: torch.Tensor, image: torch.Tensor) -> torch.Tensor:
         if direction == "horizontal":
@@ -73,7 +83,12 @@ def get_axis(direction: str, axis_mode: AxisMode) -> int:
 
 @Transform(in_keys=(COMMON_KEYS.boxes3d,), out_keys=(COMMON_KEYS.boxes3d,))
 def flip_boxes3d(direction: str = "horizontal"):
-    """Flip 3D bounding box tensor."""
+    """ "Flip 3D bounding box tensor.
+
+    Args:
+        direction (str, optional): Either vertical or horizontal. Defaults to
+            "horizontal".
+    """
 
     def _flip(boxes: torch.Tensor, axis_mode: AxisMode) -> torch.Tensor:
         if direction == "horizontal":
@@ -90,7 +105,11 @@ def flip_boxes3d(direction: str = "horizontal"):
 
 @Transform(in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,))
 def flip_points3d(direction: str = "horizontal"):
-    """Flip pointcloud tensor."""
+    """Flip pointcloud tensor.
+
+    Args:
+        direction (str, optional): Either vertical or horizontal. Defaults to "horizontal".
+    """
 
     def _flip(points3d: torch.Tensor) -> torch.Tensor:
         if direction == "horizontal":
@@ -108,7 +127,12 @@ def flip_points3d(direction: str = "horizontal"):
     in_keys=(COMMON_KEYS.intrinsics,), out_keys=(COMMON_KEYS.intrinsics,)
 )
 def flip_intrinsics(direction: str = "horizontal"):
-    """Modify intrinsics for image flip."""
+    """Modify intrinsics for image flip.
+
+    Args:
+        direction (str, optional): Either vertical or horizontal. Defaults to
+            "horizontal".
+    """
 
     def _flip(intrinsics: torch.Tensor, image: torch.Tensor) -> torch.Tensor:
         if direction == "horizontal":

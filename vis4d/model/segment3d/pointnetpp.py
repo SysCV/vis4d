@@ -1,9 +1,11 @@
-from typing import Optional, Tuple
+"""Pointnet++ Implementation."""
+from typing import Optional, Union, overload
 
 import torch
 import torch.nn as nn
 
-from vis4d.common.typing import COMMON_KEYS, LossesType, ModelOutput
+from vis4d.common.typing import LossesType, ModelOutput
+from vis4d.data.const import COMMON_KEYS
 from vis4d.op.base.pointnetpp import (
     PointNet2Segmentation,
     PointNet2SegmentationOut,
@@ -29,21 +31,33 @@ class PointNet2SegmentationModel(nn.Module):
         if weights is not None:
             load_model_checkpoint(self, weights)
 
+    @overload
+    def forward(self, points3d: torch.Tensor) -> ModelOutput:
+        ...
+
+    @overload
     def forward(
-        self, xyz, target=None
-    ) -> Tuple[PointNet2Segmentation, ModelOutput]:
+        self, points3d: torch.Tensor, semantics3d: Optional[torch.Tensor]
+    ) -> PointNet2SegmentationOut:
+        ...
+
+    def forward(
+        self, points3d: torch.Tensor, semantics3d=None
+    ) -> Union[PointNet2SegmentationOut, ModelOutput]:
         """Forward pass of the model. Extract semantic predictions."""
-        x = self.segmentation_model(xyz)
+        x = self.segmentation_model(points3d)
+        if semantics3d is not None:
+            return x
         class_pred = torch.argmax(x.class_logits, dim=1)
-        return x, {COMMON_KEYS.semantics3d: class_pred}
+        return {COMMON_KEYS.semantics3d: class_pred}
 
-    def forward_test(self, xyz) -> ModelOutput:
-        """Forward test"""
-        return self.forward(xyz, None)[1]
+    def forward_test(self, points3d) -> ModelOutput:
+        """Forward test."""
+        return self.forward(points3d)
 
-    def forward_train(self, xyz, targets) -> PointNet2Segmentation:
-        """Forward train"""
-        return self.forward(xyz, targets)[0]
+    def forward_train(self, points3d, semantics3d) -> PointNet2SegmentationOut:
+        """Forward train."""
+        return self.forward(points3d, semantics3d)
 
 
 class Pointnet2SegmentationLoss(nn.Module):
@@ -59,11 +73,11 @@ class Pointnet2SegmentationLoss(nn.Module):
         )
 
     def forward(
-        self, outputs: PointNet2SegmentationOut, target: torch.Tensor
+        self, outputs: PointNet2SegmentationOut, semantics3d: torch.Tensor
     ) -> LossesType:
         """Calculates the loss"""
         return dict(
             segmentation_loss=self.segmentation_loss(
-                outputs.class_logits, target
+                outputs.class_logits, semantics3d
             ),
         )

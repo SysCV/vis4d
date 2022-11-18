@@ -10,20 +10,6 @@ from scalabel.label.typing import Frame, ImageSize
 from torch import nn
 
 from vis4d.pl import DefaultTrainer
-from vis4d.struct_to_revise import (
-    ArgsType,
-    Boxes2D,
-    Boxes3D,
-    Images,
-    InputSample,
-    InstanceMasks,
-    Intrinsics,
-    LabelInstances,
-    LossesType,
-    ModelOutput,
-    SemanticMasks,
-    TLabelInstance,
-)
 
 
 def get_test_file(file_name: str) -> str:
@@ -41,7 +27,7 @@ def generate_dets(
     num_dets: int,
     track_ids: bool = False,
     use_score: bool = True,
-) -> Boxes2D:
+):
     """Create random detections."""
     state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
@@ -78,7 +64,7 @@ def generate_dets(
 
 def generate_dets3d(
     num_dets: int, track_ids: bool = False, use_score: bool = True
-) -> Boxes3D:
+):
     """Create random 3D detections."""
     state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
@@ -107,7 +93,7 @@ def generate_dets3d(
 
 def generate_instance_masks(
     height: int, width: int, num_masks: int, track_ids: bool = False
-) -> InstanceMasks:
+):
     """Create random masks."""
     state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
@@ -122,9 +108,7 @@ def generate_instance_masks(
     return masks
 
 
-def generate_semantic_masks(
-    height: int, width: int, num_masks: int
-) -> SemanticMasks:
+def generate_semantic_masks(height: int, width: int, num_masks: int):
     """Create random masks."""
     state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
@@ -166,7 +150,7 @@ def generate_input_sample(
     use_score: bool = True,
     frame_name: str = "test_frame",
     video_name: str = "test_video",
-) -> InputSample:
+):
     """Create random InputSample."""
     state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
@@ -213,18 +197,13 @@ def generate_input_sample(
 class MockModel(nn.Module):
     """Model Mockup."""
 
-    def __init__(self, model_param: int, *args: ArgsType, **kwargs: ArgsType):
+    def __init__(self, model_param: int, *args, **kwargs):
         """Init."""
         super().__init__(*args, **kwargs)
         self.model_param = model_param
         self.linear = nn.Linear(10, 1)
 
-    def forward(
-        self,
-        batch_inputs: List[
-            InputSample
-        ],  # pylint: disable=unused-argument,line-too-long
-    ) -> Union[LossesType, ModelOutput]:
+    def forward(self, *args, **kwargs):
         """Forward."""
         if self.training:
             return {

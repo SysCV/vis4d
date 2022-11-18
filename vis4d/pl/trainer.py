@@ -143,7 +143,7 @@ class DefaultTrainer(pl.Trainer):
             )
         ]
 
-        # add distributed plugin
+        # add distributed strategy
         if "gpus" in kwargs:  # pragma: no cover
             gpu_ids = parse_gpu_ids(
                 kwargs["gpus"], include_cuda=True, include_mps=True
@@ -154,17 +154,12 @@ class DefaultTrainer(pl.Trainer):
                     ddp_plugin: Strategy = DDPPlugin(
                         find_unused_parameters=find_unused_parameters
                     )
-                    kwargs["plugins"] = [ddp_plugin]
-                elif kwargs["strategy"] == "ddp_spawn":
-                    ddp_plugin = DDPSpawnPlugin(
-                        find_unused_parameters=find_unused_parameters
+                    kwargs["strategy"] = ddp_plugin
+                else:
+                    raise AttributeError(
+                        "Vis4D does not support strategy %s",
+                        kwargs["strategy"],
                     )
-                    kwargs["plugins"] = [ddp_plugin]
-                elif kwargs["strategy"] == "ddp2":
-                    ddp_plugin = DDP2Plugin(
-                        find_unused_parameters=find_unused_parameters
-                    )
-                    kwargs["plugins"] = [ddp_plugin]
 
         if "callbacks" not in kwargs or kwargs["callbacks"] is None:
             kwargs["callbacks"] = callbacks

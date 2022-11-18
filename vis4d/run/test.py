@@ -18,7 +18,8 @@ def testing_loop(
     evaluators: List[Evaluator],
     metric: str,
     model: nn.Module,
-    model_test_keys: List[str],
+    data_connector,
+    eval_connector,  # TODO, discuss
     visualizers: List[Visualizer] = [],
 ) -> None:
     """Testing loop."""
@@ -29,14 +30,19 @@ def testing_loop(
             # input data
             device = next(model.parameters()).device  # model device
             data = move_data_to_device(data, device)
-            test_input = {key: data[key] for key in model_test_keys}
+            test_input = data_connector("test", data)
 
             # forward
-            output = model(*test_input)
+            output = model(**test_input)
 
             for test_eval in evaluators:
-                test_eval.process(data, output)
-
+                evaluator_kwargs = eval_connector("eval", data, output)
+                test_eval.process(
+                    *[
+                        v.detach().cpu().numpy()
+                        for k, v in evaluator_kwargs.items()
+                    ]
+                )
             for vis in visualizers:
                 vis.process(data, output)
     for test_eval in evaluators:
@@ -45,4 +51,4 @@ def testing_loop(
 
     for test_vis in visualizers:
         test_vis.visualize()
-        test_vis.clear()
+        # test_vis.clear()

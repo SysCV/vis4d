@@ -29,11 +29,10 @@ DEFAULT_OPTIM = {
     },
 }
 
-DEFAULT_SCHEDULER = {
-    "class_path": "torch.optim.lr_scheduler.StepLR",
-    "mode": "epoch",
-    "init_args": {"step_size": 10},
-}
+
+def default_data_connector(mode: str, data: DictData) -> DictStrAny:
+    """Default data connector forwards input with key data."""
+    return dict(data=data)
 
 
 class DefaultOptimizer(pl.LightningModule):
@@ -43,9 +42,7 @@ class DefaultOptimizer(pl.LightningModule):
         self,
         model: nn.Module,
         loss: nn.Module,
-        model_train_in_keys: Optional[List[str]] = None,
-        model_test_in_keys: Optional[List[str]] = None,
-        loss_in_keys: Optional[List[str]] = None,
+        data_connector=default_data_connector,
         optimizer_init: Optional[DictStrAny] = None,
         lr_scheduler_init: Optional[DictStrAny] = None,
         freeze: bool = False,
@@ -57,28 +54,25 @@ class DefaultOptimizer(pl.LightningModule):
     ):
         """Init."""
         super().__init__()
-
         self.optimizer_init = (
             optimizer_init if optimizer_init is not None else DEFAULT_OPTIM
         )
-        self.lr_scheduler_init = (
-            lr_scheduler_init
-            if lr_scheduler_init is not None
-            else DEFAULT_SCHEDULER
-        )
-        if not self.lr_scheduler_init.get("mode", "epoch") in [
-            "step",
-            "epoch",
-        ]:
+        self.lr_scheduler_init = lr_scheduler_init
+        if (
+            self.lr_scheduler_init is not None
+            and not self.lr_scheduler_init.get("mode", "epoch")
+            in [
+                "step",
+                "epoch",
+            ]
+        ):
             raise ValueError(
                 "Attribute mode of LR Scheduler must be either step or epoch, "
                 f"found {self.lr_scheduler_init['mode']}"
             )
         self.model = model
         self.model_loss = loss
-        self.model_train_in_keys = model_train_in_keys
-        self.model_test_in_keys = model_test_in_keys
-        self.loss_in_keys = loss_in_keys
+        self.data_connector = data_connector
 
         self._freeze = freeze
         self._freeze_parameters = freeze_parameters
@@ -94,8 +88,10 @@ class DefaultOptimizer(pl.LightningModule):
     ) -> Tuple[List[Optimizer], List[lr_scheduler._LRScheduler]]:
         """Configure optimizers and schedulers of model."""
         optimizer = instantiate_class(self.parameters(), self.optimizer_init)
-        scheduler = instantiate_class(optimizer, self.lr_scheduler_init)
-        return [optimizer], [scheduler]
+        if self.lr_scheduler_init is not None:
+            scheduler = instantiate_class(optimizer, self.lr_scheduler_init)
+            return [optimizer], [scheduler]
+        return [optimizer]
 
     @no_type_check
     def optimizer_step(
@@ -129,7 +125,10 @@ class DefaultOptimizer(pl.LightningModule):
 
         # if lr_scheduler is step-based, we need to call .step(), PL calls
         # .step() only after each epoch.
-        if self.lr_scheduler_init.get("mode", "epoch") == "step":
+        if (
+            self.lr_scheduler_init is not None
+            and self.lr_scheduler_init.get("mode", "epoch") == "step"
+        ):
             lr_schedulers = self.lr_schedulers()
             if isinstance(lr_schedulers, Iterable):  # pragma: no cover
                 for scheduler in lr_schedulers:
@@ -137,19 +136,33 @@ class DefaultOptimizer(pl.LightningModule):
             else:
                 lr_schedulers.step()
 
+    def _log_metric(
+        self, key: str, value: torch.Tensor, prefix: str = ""
+    ) -> None:
+        """Log a scalar tensor metric with a certain key."""
+        if not hasattr(self, key):
+            metric = MeanMetric()
+            metric.to(self.device)
+            setattr(self, key, metric)
+
+        metric = getattr(self, key)
+        metric(value.detach())
+        self.log(
+            prefix + key,
+            metric,
+            logger=True,
+            prog_bar=True,
+            on_step=True,
+            on_epoch=False,
+            metric_attribute=key,
+        )
+
     def training_step(  # type: ignore # pylint: disable=arguments-differ
         self, batch: DictData, *args, **kwargs
     ) -> LossesType:
         """Wrap training step of LightningModule. Add overall loss."""
-        if self.model_train_in_keys is not None:
-            train_input = {key: batch[key] for key in self.model_train_in_keys}
-        else:
-            train_input = dict(data=batch)
-
-        if self.loss_in_keys:
-            loss_input = {key: batch[key] for key in self.loss_in_keys}
-        else:
-            loss_input = dict(data=batch)
+        train_input = self.data_connector("train", batch)
+        loss_input = self.data_connector("loss", batch)
 
         # forward + backward + optimize
         output = self.model(**train_input)
@@ -157,32 +170,14 @@ class DefaultOptimizer(pl.LightningModule):
         losses["loss"] = sum(list(losses.values()))
 
         for k, v in losses.items():
-            if not hasattr(self, k):
-                metric = MeanMetric()
-                metric.to(self.device)
-                setattr(self, k, metric)
-
-            metric = getattr(self, k)
-            metric(v.detach())
-            self.log(
-                "train/" + k,
-                metric,
-                logger=True,
-                prog_bar=True,
-                on_step=True,
-                on_epoch=False,
-                metric_attribute=k,
-            )
+            self._log_metric(k, v, prefix="train/")
         return losses
 
     def test_step(  # type: ignore # pylint: disable=arguments-differ
         self, batch: DictData, *args, **kwargs
     ) -> ModelOutput:
         """Wrap test step of LightningModule."""
-        if self.model_test_in_keys:
-            test_input = {key: batch[key] for key in self.model_test_in_keys}
-        else:
-            test_input = dict(data=batch)
+        test_input = self.data_connector("test", batch)
         return self.model(**test_input)
 
     def validation_step(  # type: ignore # pylint: disable=arguments-differ

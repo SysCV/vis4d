@@ -2,12 +2,10 @@
 import torch
 from torch import nn
 
-try:
-    from mmcv.ops.modulated_deform_conv import ModulatedDeformConv2dPack
+from vis4d.common.imports import MMCV_AVAILABLE
 
-    MMCV_INSTALLED = True
-except (ImportError, NameError):  # pragma: no cover
-    MMCV_INSTALLED = False
+if MMCV_AVAILABLE:
+    from mmcv.ops.modulated_deform_conv import ModulatedDeformConv2dPack
 
 
 BN_MOMENTUM = 0.1
@@ -18,7 +16,7 @@ class DeformConv(nn.Module):
 
     def __init__(self, chi: int, cho: int) -> None:
         """Init."""
-        assert MMCV_INSTALLED, "DeformConv requires mmcv to be installed!"
+        assert MMCV_AVAILABLE, "DeformConv requires mmcv to be installed!"
         super().__init__()
         self.actf = nn.Sequential(
             nn.BatchNorm2d(cho, momentum=BN_MOMENTUM), nn.ReLU(inplace=True)

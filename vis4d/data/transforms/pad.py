@@ -9,7 +9,15 @@ from .base import BatchTransform
 
 @BatchTransform()
 def pad_image(stride: int = 32, mode: str = "constant", value: float = 0.0):
-    """Pad batch of images."""
+    """Pad batch of images at the bottom right.
+
+    Args:
+        stride (int, optional): Chooses padding size so that the input will be
+            divisible by stride. Defaults to 32.
+        mode (str, optional): Padding mode. One of constant, reflect,
+            replicate or circular. Defaults to "constant".
+        value (float, optional): Value for constant padding. Defaults to 0.0.
+    """
 
     def _pad(images: List[torch.Tensor]) -> List[torch.Tensor]:
         heights = [im.shape[-2] for im in images]

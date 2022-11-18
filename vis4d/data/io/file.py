@@ -12,12 +12,27 @@ class FileBackend(DataBackend):
         return os.path.exists(filepath)
 
     def set(self, filepath: str, content: bytes) -> None:
-        """Set the file content."""
+        """Write the file content to disk.
+
+        Args:
+            filepath (str): Path to file.
+            content (bytes): Content to write in bytes.
+        """
         with open(filepath, "wb") as f:
             f.write(content)
 
     def get(self, filepath: str) -> bytes:
-        """Get file content as bytes."""
+        """Get file content as bytes.
+
+        Args:
+            filepath (str): Path to file.
+
+        Raises:
+            FileNotFoundError: If filepath does not exist.
+
+        Returns:
+            bytes: File content as bytes.
+        """
         if not self.exists(filepath):
             raise FileNotFoundError(f"File not found:" f" {filepath}")
         with open(filepath, "rb") as f:

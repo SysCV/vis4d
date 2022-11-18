@@ -40,7 +40,8 @@ class ReferenceViewSampler:
 
         Args:
             num_ref_samples (int): Number of reference views to sample.
-            sort_fn (SortingFunc, optional): Function that sorts the views. Defaults to sort_key_first.
+            sort_fn (SortingFunc, optional): Function that sorts the views.
+                Defaults to sort_key_first.
         """
         self.sort_fn = sort_fn
         self.num_ref_samples = num_ref_samples
@@ -100,9 +101,11 @@ class UniformViewSampler(ReferenceViewSampler):
         """Init.
 
         Args:
-            scope (int): Define scope of neighborhood to key view to sample from.
+            scope (int): Define scope of neighborhood to key view to sample
+                from.
             num_ref_samples (int): Number of reference views to sample.
-            sort_fn (SortingFunc, optional): Function that sorts the views. Defaults to sort_key_first.
+            sort_fn (SortingFunc, optional): Function that sorts the views.
+                Defaults to sort_key_first.
         """
         super().__init__(num_ref_samples, sort_fn)
         self.scope = scope

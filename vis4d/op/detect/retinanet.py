@@ -7,13 +7,13 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops import batched_nms
 
+from vis4d.op.box.box2d import filter_boxes_by_area
 from vis4d.op.box.encoder import BoxEncoder2D, DeltaXYWHBBoxEncoder
 from vis4d.op.box.matchers import BaseMatcher, MaxIoUMatcher
 from vis4d.op.box.samplers import BaseSampler, PseudoSampler
 from vis4d.op.detect.rpn import images_to_levels, unmap
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
-from vis4d.struct_to_revise.labels.boxes import filter_boxes
 
 from .anchor_generator import AnchorGenerator, anchor_inside_image
 from .rcnn import DetOut
@@ -216,7 +216,7 @@ def decode_multi_level_outputs(
         torch.cat(anchors_all), torch.cat(reg_out_all), max_shape=image_hw
     )
 
-    boxes, mask = filter_boxes(boxes, min_area=prod(min_box_size))
+    boxes, mask = filter_boxes_by_area(boxes, min_area=prod(min_box_size))
     scores, labels = scores[mask], labels[mask]
 
     if boxes.numel() > 0:

@@ -4,17 +4,10 @@ Welcome to Vis4D's documentation!
 ===============================================
 
 .. toctree::
-   :caption: Getting started
-
-   getting_started/install
-   getting_started/usage
-
-
-.. toctree::
    :maxdepth: 2
    :caption: Tutorials
 
-   tutorials/customize
+   tutorials/install
 
 
 .. toctree::

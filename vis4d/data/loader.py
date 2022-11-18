@@ -11,8 +11,9 @@ from torch.utils.data import (
     IterableDataset,
     get_worker_info,
 )
+from torch.utils.data.distributed import DistributedSampler
 
-from ..common.distributed import get_world_size
+from ..common.distributed import PicklableWrapper, get_world_size
 from .const import COMMON_KEYS
 from .datasets import VideoMixin
 from .reference import ReferenceViewSampler
@@ -23,10 +24,8 @@ from .typing import DictData
 POINT_KEYS = [
     COMMON_KEYS.colors3d,
     COMMON_KEYS.points3d,
-    # COMMON_KEYS.points3dCenter,  # TODO these keys dont exist anymore
     COMMON_KEYS.semantics3d,
     COMMON_KEYS.instances3d,
-    # COMMON_KEYS.index,
 ]
 
 
@@ -64,19 +63,21 @@ class DataPipe(ConcatDataset):
     def __init__(
         self,
         datasets: Union[Dataset, Iterable[Dataset]],
-        preprocess_fn: Callable[[DictData], DictData],
+        preprocess_fn: Callable[[DictData], DictData] = lambda x: x,
         reference_view_sampler: Optional[ReferenceViewSampler] = None,
     ):
         """Init.
 
         Args:
-            datasets (Union[Dataset, Iterable[Dataset]]): Dataset(s) to be wrapped by this data pipeline.
-            preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing function of a single sample.
+            datasets (Union[Dataset, Iterable[Dataset]]): Dataset(s) to be
+                wrapped by this data pipeline.
+            preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing
+                function of a single sample.
         """
         if isinstance(datasets, Dataset):
             datasets = [datasets]
         super().__init__(datasets)
-        self.preprocess_fn = preprocess_fn
+        self.preprocess_fn = PicklableWrapper(preprocess_fn)
         self.reference_view_sampler = reference_view_sampler
 
     def get_dataset_sample_index(self, idx: int) -> Tuple[int, int]:
@@ -157,6 +158,7 @@ class SubdividingIterableDataset(IterableDataset):
         self.dataset = dataset
         self.n_samples_per_batch = n_samples_per_batch
         self.preprocess_fn = preprocess_fn
+        self.reference_view_sampler = None
 
     def __iter__(self) -> Iterator[DictData]:
         """Iterates over the dataset, supporting distributed sampling."""
@@ -209,7 +211,7 @@ def build_train_dataloader(
     else:
         batch_size, shuffle, train_sampler = (
             samples_per_gpu,
-            True,
+            False,
             None,
         )
 
@@ -224,12 +226,17 @@ def build_train_dataloader(
                 views.append(view)
             return views
 
+    if get_world_size() > 1 and sampler is None:
+        sampler = DistributedSampler(dataset)
+        shuffle = False
+
     dataloader = DataLoader(
         dataset,
         batch_sampler=train_sampler,
         batch_size=batch_size,
         num_workers=workers_per_gpu,
-        collate_fn=_collate_fn,
+        collate_fn=PicklableWrapper(_collate_fn),
+        sampler=sampler,
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
         shuffle=shuffle,
@@ -250,20 +257,20 @@ def build_inference_dataloaders(
     if isinstance(datasets, Dataset):
         datasets = [datasets]
     dataloaders = []
+    _collate_fn = PicklableWrapper(lambda x: collate_fn(batchprocess_fn(x)))
     for dataset in datasets:
-        if (
-            get_world_size() > 1
-            and isinstance(dataset, VideoMixin)
-            and video_based_inference
-        ):
-            sampler = VideoInferenceSampler(dataset)
+        if get_world_size() > 1 and sampler is None:
+            if isinstance(dataset, VideoMixin) and video_based_inference:
+                sampler = VideoInferenceSampler(dataset)
+            else:
+                sampler = DistributedSampler(dataset)
 
         test_dataloader = DataLoader(
             dataset,
             batch_size=samples_per_gpu,
             num_workers=workers_per_gpu,
             sampler=sampler,
-            collate_fn=lambda x: collate_fn(batchprocess_fn(x)),
+            collate_fn=_collate_fn,
             persistent_workers=workers_per_gpu > 0,
         )
         dataloaders.append(test_dataloader)

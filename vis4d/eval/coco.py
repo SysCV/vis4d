@@ -1,9 +1,11 @@
 """COCO evaluator."""
+# FIXME, rewrite to numpy based API
+
 import contextlib
 import copy
 import io
 import itertools
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pycocotools.mask as maskUtils
@@ -41,6 +43,8 @@ class COCOevalV2(COCOeval):
 
 
 def predictions_to_coco(
+    cat_map: Dict[str, int],
+    coco_id2name: Dict[int, str],
     image_id: str,
     boxes: Tensor,
     scores: Tensor,
@@ -50,7 +54,8 @@ def predictions_to_coco(
     """Convert Vis4D format predictions to COCO format."""
     predictions = []
     boxes = xyxy_to_xywh(boxes)
-    for box, score, cls, mask in zip(boxes, scores, classes, masks):
+    for i, (box, score, cls) in enumerate(zip(boxes, scores, classes)):
+        mask = masks[i] if masks is not None else None
         xywh = box.cpu().numpy().tolist()
         area = float(xywh[2] * xywh[3])
         annotation = dict(
@@ -58,7 +63,7 @@ def predictions_to_coco(
             bbox=xywh,
             area=area,
             score=float(score),
-            category_id=self.cat_map[self.coco_id2name[int(cls)]],
+            category_id=cat_map[coco_id2name[int(cls)]],
             iscrowd=0,
         )
         if mask is not None:
@@ -117,7 +122,13 @@ class COCOEvaluator(Evaluator):
         ):
             masks = outputs["masks"][i] if "masks" in outputs else None
             coco_preds = predictions_to_coco(
-                image_id, boxes, scores, classes, masks
+                self.cat_map,
+                self.coco_id2name,
+                image_id,
+                boxes,
+                scores,
+                classes,
+                masks,
             )
 
             self._predictions.extend(coco_preds)
