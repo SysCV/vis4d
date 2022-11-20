@@ -3,18 +3,6 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-@dataclass
-class MODEL_OUT_KEYS:
-    """Container for common keys used in model outputs.
-
-    Connects model outputs to evaluators, writers, etc.
-    """
-
-    boxes2d = "boxes2d"
-    boxes2d_scores = "boxes2d_scores"
-    boxes2d_classes = "boxes2d_classes"
-
-
 class AxisMode(Enum):
     """Enum for choosing among different coordinate frame conventions.
 
