@@ -1,0 +1,109 @@
+"""RetinaNet tests."""
+import unittest
+
+import torch
+from torch import optim
+
+from vis4d.data.const import COMMON_KEYS
+from vis4d.data.datasets import COCO
+from vis4d.op.util import load_model_checkpoint
+from vis4d.unittest.util import get_test_file
+
+from .faster_rcnn_test import get_test_dataloader, get_train_dataloader
+from .retinanet import REV_KEYS, RetinaNet, RetinaNetLoss
+
+
+class RetinaNetTest(unittest.TestCase):
+    """RetinaNet test class."""
+
+    def test_inference(self):
+        """Test inference of RetinaNet.
+
+        Run::
+            >>> pytest vis4d/model/detect/retinanet_test.py::RetinaNetTest::test_inference
+        """  # pylint: disable=line-too-long # Disable the line length requirement becase of the cmd line prompts
+        dataset = COCO(
+            get_test_file("coco_test"),
+            keys=(COMMON_KEYS.images,),
+            split="train",
+        )
+        test_loader = get_test_dataloader(dataset, 2, (512, 512))
+        batch = next(iter(test_loader))
+        inputs, images_hw = (
+            batch[COMMON_KEYS.images],
+            batch[COMMON_KEYS.input_hw],
+        )
+
+        weights = (
+            "mmdet://retinanet/retinanet_r50_fpn_2x_coco/"
+            "retinanet_r50_fpn_2x_coco_20200131-fdb43119.pth"
+        )
+        retina_net = RetinaNet(num_classes=80)
+        load_model_checkpoint(retina_net, weights, rev_keys=REV_KEYS)
+
+        retina_net.eval()
+        with torch.no_grad():
+            dets = retina_net(inputs, images_hw, original_hw=images_hw)
+
+        testcase_gt = torch.load(get_test_file("retinanet.pt"))
+        for k in testcase_gt:
+            assert k in dets
+            for i in range(len(testcase_gt[k])):
+                assert (
+                    torch.isclose(dets[k][i], testcase_gt[k][i], atol=1e-4)
+                    .all()
+                    .item()
+                )
+
+    def test_train(self):
+        """Test RetinaNet training."""
+        retina_net = RetinaNet(num_classes=80)
+        retinanet_loss = RetinaNetLoss(
+            retina_net.retinanet_head.anchor_generator,
+            retina_net.retinanet_head.box_encoder,
+            retina_net.retinanet_head.box_matcher,
+            retina_net.retinanet_head.box_sampler,
+        )
+
+        optimizer = optim.SGD(retina_net.parameters(), lr=0.001, momentum=0.9)
+
+        dataset = COCO(get_test_file("coco_test"), split="train")
+        train_loader = get_train_dataloader(dataset, 2, (256, 256))
+
+        running_losses = {}
+        retina_net.train()
+        log_step = 1
+        for epoch in range(2):
+            for i, data in enumerate(train_loader):
+                inputs, images_hw, gt_boxes, gt_class_ids = (
+                    data[COMMON_KEYS.images],
+                    data[COMMON_KEYS.input_hw],
+                    data[COMMON_KEYS.boxes2d],
+                    data[COMMON_KEYS.boxes2d_classes],
+                )
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
+
+                # forward + backward + optimize
+                outputs = retina_net(inputs)
+                retinanet_losses = retinanet_loss(
+                    outputs, images_hw, gt_boxes, gt_class_ids
+                )
+                total_loss = sum(retinanet_losses.values())
+                total_loss.backward()
+                optimizer.step()
+
+                # print statistics
+                losses = dict(loss=total_loss, **retinanet_losses)
+                for k, v in losses.items():
+                    if k in running_losses:
+                        running_losses[k] += v
+                    else:
+                        running_losses[k] = v
+                if i % log_step == (log_step - 1):
+                    log_str = f"[{epoch + 1}, {i + 1:5d}] "
+                    for k, v in running_losses.items():
+                        log_str += f"{k}: {v / log_step:.3f}, "
+                    print(log_str.rstrip(", "))
+                    running_losses = {}

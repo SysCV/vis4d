@@ -21,11 +21,12 @@ from vis4d.op.util import load_model_checkpoint
 from vis4d.vis.image import imshow_bboxes
 
 REV_KEYS = [
-    (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
-    (r"^roi_head.bbox_head\.", "roi_head."),
-    (r"^backbone\.", "body."),
-    (r"^neck.lateral_convs\.", "inner_blocks."),
-    (r"^neck.fpn_convs\.", "layer_blocks."),
+    (r"^rpn_head.rpn_reg\.", "faster_rcnn_heads.rpn_head.rpn_box."),
+    (r"^rpn_head.rpn_", "faster_rcnn_heads.rpn_head.rpn_"),
+    (r"^roi_head.bbox_head\.", "faster_rcnn_heads.roi_head."),
+    (r"^backbone\.", "backbone.body."),
+    (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
+    (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
     (r"\.conv.weight", ".weight"),
     (r"\.conv.bias", ".bias"),
 ]

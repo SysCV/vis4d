@@ -74,6 +74,7 @@ class RetinaNetHead(nn.Module):
         anchor_generator: Optional[AnchorGenerator] = None,
         box_encoder: Optional[BoxEncoder2D] = None,
         box_matcher: Optional[BaseMatcher] = None,
+        box_sampler: Optional[BaseSampler] = None,
     ):
         """Init."""
         super().__init__()
@@ -91,6 +92,11 @@ class RetinaNetHead(nn.Module):
             box_matcher
             if box_matcher is not None
             else get_default_box_matcher()
+        )
+        self.box_sampler = (
+            box_sampler
+            if box_sampler is not None
+            else get_default_box_sampler()
         )
         num_base_priors = self.anchor_generator.num_base_priors[0]
 
