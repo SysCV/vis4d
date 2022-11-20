@@ -96,6 +96,7 @@ class FasterRCNN(nn.Module):
         target_classes: List[torch.Tensor],
     ) -> FRCNNOut:
         """Forward training stage."""
+        breakpoint()
         features = self.fpn(self.backbone(images))
         return self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
