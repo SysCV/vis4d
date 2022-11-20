@@ -15,7 +15,7 @@ from .utils import assign_boxes_to_levels, boxes_to_tensor
 # implementation modified from:
 # https://github.com/facebookresearch/detectron2/
 class MultiScaleRoIPooler(RoIPooler):
-    """Wrapper for  roi pooling that supports multi-scale feature maps."""
+    """Wrapper for roi pooling that supports multi-scale feature maps."""
 
     def __init__(
         self,
@@ -29,7 +29,7 @@ class MultiScaleRoIPooler(RoIPooler):
 
         Args:
             resolution: Pooler resolution.
-            strides: feature map strides relative to the input.
+            strides: Feature map strides relative to the input.
                 The strides must be powers of 2 and a monotically decreasing
                 geometric sequence with a factor of 1/2.
             canonical_box_size: Canonical box size in pixels (sqrt(box area)).
@@ -76,14 +76,14 @@ class MultiScaleRoIPooler(RoIPooler):
         """Torchvision based roi pooling operation.
 
         Args:
-            features: list of image feature tensors (e.g.
-            fpn levels) - NCHW format
-            boxes: list of proposals (per image)
+            features: List of image feature tensors (e.g., fpn levels) - NCHW
+                format.
+            boxes: List of proposals (per image).
 
         Returns:
             torch.Tensor: NCHW format, where N = num boxes (total),
-            HW is roi size, C is feature dim. Boxes are concatenated along
-            dimension 0 for all batch elements.
+                HW is roi size, C is feature dim. Boxes are concatenated along
+                dimension 0 for all batch elements.
         """
         assert len(features) == len(self.scales), (
             f"unequal value, len(strides)={len(self.scales)}, "
@@ -132,9 +132,7 @@ class MultiScaleRoIPooler(RoIPooler):
             inds = (level_assignments == level).nonzero()[:, 0]
             pooler_fmt_boxes_level = pooler_fmt_boxes[inds]
             pooled_features = self._pooling_op(
-                features[level],
-                pooler_fmt_boxes_level,
-                spatial_scale=scale,
+                features[level], pooler_fmt_boxes_level, spatial_scale=scale
             )
             # Use index_put_ instead of advance indexing
             # avoids pytorch/issues/49852

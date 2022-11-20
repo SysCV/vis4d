@@ -95,13 +95,20 @@ class FasterRCNNHead(nn.Module):
         """Init.
 
         Args:
-            num_classes (int, optional): Number of object categories. Defaults to 80.
-            anchor_generator (Optional[AnchorGenerator], optional): Custom anchor generator for RPN. Defaults to None.
-            rpn_box_encoder (Optional[BoxEncoder2D], optional): Custom rpn box encoder. Defaults to None.
-            rcnn_box_encoder (Optional[BoxEncoder2D], optional): Custom rcnn box encoder. Defaults to None.
-            box_matcher (Optional[MaxIoUMatcher], optional): Custom box matcher for RCNN stage. Defaults to None.
-            box_sampler (Optional[RandomSampler], optional): Custom box sampler for RCNN stage. Defaults to None.
-            proposal_append_gt (bool): If to append the ground truth boxes for proposal sampling during training. Defaults to True.
+            num_classes (int, optional): Number of object categories. Defaults
+                to 80.
+            anchor_generator (Optional[AnchorGenerator], optional): Custom
+                anchor generator for RPN. Defaults to None.
+            rpn_box_encoder (Optional[BoxEncoder2D], optional): Custom rpn box
+                encoder. Defaults to None.
+            rcnn_box_encoder (Optional[BoxEncoder2D], optional): Custom rcnn
+                box encoder. Defaults to None.
+            box_matcher (Optional[MaxIoUMatcher], optional): Custom box matcher
+                for RCNN stage. Defaults to None.
+            box_sampler (Optional[RandomSampler], optional): Custom box sampler
+                for RCNN stage. Defaults to None.
+            proposal_append_gt (bool): If to append the ground truth boxes for
+                proposal sampling during training. Defaults to True.
         """
         super().__init__()
         self.anchor_generator = (
@@ -145,10 +152,10 @@ class FasterRCNNHead(nn.Module):
         """Sample proposals for training of Faster RCNN.
 
         Args:
-            proposal_boxes (List[torch.Tensor]): proposals decoded from RPN.
-            scores (List[torch.Tensor]): scores decoded from RPN.
-            target_boxes (List[torch.Tensor]): all target boxes.
-            target_classes (List[torch.Tensor]): according class labels.
+            proposal_boxes (List[torch.Tensor]): Proposals decoded from RPN.
+            scores (List[torch.Tensor]): Scores decoded from RPN.
+            target_boxes (List[torch.Tensor]): All target boxes.
+            target_classes (List[torch.Tensor]): According class labels.
 
         Returns:
             Tuple[Proposals, Targets]: Sampled proposals, associated targets.
@@ -200,12 +207,12 @@ class FasterRCNNHead(nn.Module):
         Args:
             features (List[torch.Tensor]): Feature pyramid
             images_hw (List[Tuple[int, int]]): Image sizes without padding.
-            This is necessary for removing the erronous boxes on the padded
-            regsions.
+                This is necessary for removing the erronous boxes on the padded
+                regsions.
             target_boxes (Optional[List[torch.Tensor]], optional): Ground
-            truth bounding box locations. Defaults to None.
+                truth bounding box locations. Defaults to None.
             target_classes (Optional[List[torch.Tensor]], optional): Ground
-            truth bounding box classes. Defaults to None.
+                truth bounding box classes. Defaults to None.
 
         Returns:
             FRCNNReturn: proposal and roi outputs.

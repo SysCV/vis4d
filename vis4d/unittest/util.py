@@ -21,6 +21,45 @@ def get_test_file(file_name: str) -> str:
     )
 
 
+def generate_boxes(
+    height: int,
+    width: int,
+    num_boxes: int,
+    track_ids: bool = False,
+    use_score: bool = True,
+):
+    """Create random bounding boxes."""
+    state = torch.random.get_rng_state()
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
+    if use_score:
+        box = [width, height, width, height, 1.0]
+    else:
+        box = [width, height, width, height]
+    rand_max = torch.repeat_interleave(torch.tensor([box]), num_boxes, dim=0)
+    box_tensor = torch.rand(num_boxes, 5 if use_score else 4) * rand_max
+    sorted_xy = [
+        box_tensor[:, [0, 2]].sort(dim=-1)[0],
+        box_tensor[:, [1, 3]].sort(dim=-1)[0],
+    ]
+    box_tensor[:, :4] = torch.cat(
+        [
+            sorted_xy[0][:, 0:1],
+            sorted_xy[1][:, 0:1],
+            sorted_xy[0][:, 1:2],
+            sorted_xy[1][:, 1:2],
+        ],
+        dim=-1,
+    )
+    tracks = torch.arange(0, num_boxes) if track_ids else None
+    torch.random.set_rng_state(state)
+    return (
+        box_tensor[:, :-1],
+        box_tensor[:, -1:],
+        torch.zeros(num_boxes, dtype=torch.long),
+        tracks,
+    )
+
+
 def generate_dets(
     height: int,
     width: int,
@@ -131,7 +170,7 @@ def generate_feature_list(
     for i in range(list_len):
         features_list.append(
             torch.rand(
-                1, channels, init_height // (2**i), init_width // (2**i)
+                1, channels, init_height // (2 ** i), init_width // (2 ** i)
             )
         )
 

@@ -44,9 +44,12 @@ class RCNNHead(nn.Module):
 
         Args:
             num_classes (int, optional): number of categories. Defaults to 80.
-            roi_size (Tuple[int, int], optional): size of pooled RoIs. Defaults to (7, 7).
-            in_channels (int, optional): Number of channels in input feature maps. Defaults to 256.
-            fc_out_channels (int, optional): Output channels of shared linear layers. Defaults to 1024.
+            roi_size (Tuple[int, int], optional): size of pooled RoIs. Defaults
+                to (7, 7).
+            in_channels (int, optional): Number of channels in input feature
+                maps. Defaults to 256.
+            fc_out_channels (int, optional): Output channels of shared linear
+                layers. Defaults to 1024.
         """
         super().__init__()
         in_channels *= prod(roi_size)
@@ -56,7 +59,7 @@ class RCNNHead(nn.Module):
         )
 
         self.roi_pooler = MultiScaleRoIAlign(
-            sampling_ratio=0, resolution=(7, 7), strides=[4, 8, 16, 32]
+            sampling_ratio=0, resolution=roi_size, strides=[4, 8, 16, 32]
         )
         self.fc_cls = nn.Linear(
             in_features=fc_out_channels, out_features=num_classes + 1
@@ -69,7 +72,8 @@ class RCNNHead(nn.Module):
         self._init_weights(self.fc_cls)
         self._init_weights(self.fc_reg, std=0.001)
 
-    def _init_weights(self, module, std: float = 0.01):
+    @staticmethod
+    def _init_weights(module, std: float = 0.01) -> None:
         """Init weights."""
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=std)
@@ -77,9 +81,7 @@ class RCNNHead(nn.Module):
                 module.bias.data.zero_()
 
     def forward(
-        self,
-        features: List[torch.Tensor],
-        boxes: List[torch.Tensor],
+        self, features: List[torch.Tensor], boxes: List[torch.Tensor]
     ) -> RCNNOut:
         """Forward pass during training stage."""
         # Take stride 4, 8, 16, 32 features
@@ -91,9 +93,7 @@ class RCNNHead(nn.Module):
         return RCNNOut(cls_score, bbox_pred)
 
     def __call__(
-        self,
-        features: List[torch.Tensor],
-        boxes: List[torch.Tensor],
+        self, features: List[torch.Tensor], boxes: List[torch.Tensor]
     ) -> RCNNOut:
         """Type definition for function call."""
         return self._call_impl(features, boxes)
@@ -129,10 +129,14 @@ class RoI2Det(nn.Module):
         """Init.
 
         Args:
-            box_encoder (BoxEncoder2D): Decodes regression parameters to detected boxes.
-            score_threshold (float, optional): Minimum score of a detection. Defaults to 0.05.
-            iou_threshold (float, optional): IoU threshold of NMS post-processing step. Defaults to 0.5.
-            max_per_img (int, optional): Maximum number of detections per image. Defaults to 100.
+            box_encoder (BoxEncoder2D): Decodes regression parameters to
+                detected boxes.
+            score_threshold (float, optional): Minimum score of a detection.
+                Defaults to 0.05.
+            iou_threshold (float, optional): IoU threshold of NMS
+                post-processing step. Defaults to 0.5.
+            max_per_img (int, optional): Maximum number of detections per
+                image. Defaults to 100.
         """
         super().__init__()
         self.bbox_coder = box_encoder
@@ -150,8 +154,10 @@ class RoI2Det(nn.Module):
         """Convert RCNN network outputs to detections.
 
         Args:
-            class_outs (torch.Tensor): [B, N, num_classes] batched tensor of classifiation scores.
-            regression_outs (torch.Tensor): [B, N, num_classes * 4] predicted box offsets.
+            class_outs (torch.Tensor): [B, num_classes] batched tensor of
+                classifiation scores.
+            regression_outs (torch.Tensor): [B, num_classes * 4] predicted
+                box offsets.
             boxes (List[torch.Tensor]): Initial boxes (RoIs).
             images_hw (List[Tuple[int, int]]): Image sizes.
 
@@ -222,12 +228,16 @@ class RCNNLoss(nn.Module):
     corresponding target boxes with the given box encoder.
     """
 
-    def __init__(self, box_encoder: BoxEncoder2D, num_classes: int = 80):
+    def __init__(
+        self, box_encoder: BoxEncoder2D, num_classes: int = 80
+    ) -> None:
         """Init.
 
         Args:
-            box_encoder (BoxEncoder2D): Decodes box regression parameters into detected boxes.
-            num_classes (int, optional): number of object categories. Defaults to 80.
+            box_encoder (BoxEncoder2D): Decodes box regression parameters into
+                detected boxes.
+            num_classes (int, optional): number of object categories. Defaults
+                to 80.
         """
         super().__init__()
         self.num_classes = num_classes
@@ -290,12 +300,18 @@ class RCNNLoss(nn.Module):
         """Calculate losses of RCNN head.
 
         Args:
-            class_outs (torch.Tensor): [M*B, num_classes] classification outputs.
-            regression_outs (torch.Tensor): Tensor[M*B, regression_params] regression outputs.
-            boxes (List[torch.Tensor]): [M, 4] proposal boxes per batch element.
-            boxes_mask (List[torch.Tensor]): positive (1), ignore (-1), negative (0)
-            target_boxes (List[torch.Tensor]): list of [M, 4] assigned target boxes for each proposal.
-            target_classes (List[torch.Tensor]): list of [M,] assigned target classes for each proposal.
+            class_outs (torch.Tensor): [M*B, num_classes] classification
+                outputs.
+            regression_outs (torch.Tensor): Tensor[M*B, regression_params]
+                regression outputs.
+            boxes (List[torch.Tensor]): [M, 4] proposal boxes per batch
+                element.
+            boxes_mask (List[torch.Tensor]): positive (1), ignore (-1),
+                negative (0).
+            target_boxes (List[torch.Tensor]): list of [M, 4] assigned target
+                boxes for each proposal.
+            target_classes (List[torch.Tensor]): list of [M,] assigned target
+                classes for each proposal.
 
         Returns:
             RCNNLosses: classification and regression losses.
@@ -404,7 +420,8 @@ class MaskRCNNHead(nn.Module):
         self._init_weights(self.upsample, mode="fan_out")
         self._init_weights(self.conv_logits, mode="fan_out")
 
-    def _init_weights(self, module, mode="fan_in"):
+    @staticmethod
+    def _init_weights(module, mode="fan_in") -> None:
         """Initialize weights."""
         if hasattr(module, "weight") and hasattr(module, "bias"):
             nn.init.kaiming_normal_(
@@ -500,11 +517,12 @@ class MaskRCNNHeadLosses(NamedTuple):
 class MaskRCNNHeadLoss(nn.Module):
     """Mask RoI head loss function."""
 
-    def __init__(self, num_classes: int = 80):
+    def __init__(self, num_classes: int = 80) -> None:
         """Init.
 
         Args:
-            num_classes (int, optional): number of object categories. Defaults to 80.
+            num_classes (int, optional): number of object categories. Defaults
+                to 80.
         """
         super().__init__()
         self.num_classes = num_classes
@@ -523,7 +541,7 @@ class MaskRCNNHeadLoss(nn.Module):
             tgt_masks (Tensor): target masks.
             out_shape (Tuple[int, int]): output shape.
             binarize (bool, optional): whether to convert target mask to
-            binary. Defaults to True.
+                binary. Defaults to True.
 
         Returns:
             Tensor: aligned mask targets.
@@ -549,11 +567,11 @@ class MaskRCNNHeadLoss(nn.Module):
         Args:
             mask_pred (torch.Tensor): mask outputs.
             proposal_boxes (List[torch.Tensor]): [M, 4] proposal boxes per
-            batch element.
+                batch element.
             target_classes (List[torch.Tensor]): list of [M, 4] assigned
-            target boxes for each proposal.
+                target boxes for each proposal.
             target_masks (List[torch.Tensor]): list of [M, N, W] assigned
-            target masks for each proposal.
+                target masks for each proposal.
 
         Returns:
             MaskRCNNHeadLosses: mask loss.
