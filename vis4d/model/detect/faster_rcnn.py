@@ -18,7 +18,6 @@ from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
 from vis4d.op.util import load_model_checkpoint
-from vis4d.vis.image import imshow_bboxes
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "faster_rcnn_heads.rpn_head.rpn_box."),
@@ -32,13 +31,16 @@ REV_KEYS = [
 ]
 
 
-def visualize_proposals(
-    images: torch.Tensor, outs: FRCNNOut, topk: int = 100
-) -> None:
-    """Visualize topk proposals."""
-    for im, boxes, scores in zip(images, *outs.proposals):
-        _, topk_indices = torch.topk(scores, topk)
-        imshow_bboxes(im, boxes[topk_indices])
+# TODO move somewhere
+# from vis4d.vis.image import imshow_bboxes
+#
+# def visualize_proposals(
+#     images: torch.Tensor, outs: FRCNNOut, topk: int = 100
+# ) -> None:
+#     """Visualize topk proposals."""
+#     for im, boxes, scores in zip(images, *outs.proposals):
+#         _, topk_indices = torch.topk(scores, topk)
+#         imshow_bboxes(im, boxes[topk_indices])
 
 
 class FasterRCNN(nn.Module):
@@ -47,7 +49,14 @@ class FasterRCNN(nn.Module):
     def __init__(
         self, num_classes: int, weights: Optional[str] = None
     ) -> None:
-        """Init."""
+        """Init.
+
+        Args:
+            num_classes (int): Number of classes.
+            weights (Optional[str], optional): Weights to load for model. If
+                set to "mmdet", will load MMDetection pre-trained weights.
+                Defaults to None.
+        """
         super().__init__()
         self.anchor_gen = get_default_anchor_generator()
         self.rpn_bbox_encoder = get_default_rpn_box_encoder()
@@ -79,7 +88,23 @@ class FasterRCNN(nn.Module):
         boxes2d_classes: Optional[List[torch.Tensor]] = None,
         original_hw: Optional[List[Tuple[int, int]]] = None,
     ) -> Union[FRCNNOut, ModelOutput]:
-        """Forward."""
+        """Forward pass.
+
+        Args:
+            images (torch.Tensor): Input images.
+            input_hw (List[Tuple[int, int]]): Input image resolutions.
+            boxes2d (Optional[List[torch.Tensor]], optional): Bounding box
+                labels. Required for training. Defaults to None.
+            boxes2d_classes (Optional[List[torch.Tensor]], optional): Class
+                labels. Required for training. Defaults to None.
+            original_hw (Optional[List[Tuple[int, int]]], optional): Original
+                image resolutions (before padding and resizing). Required for
+                testing. Defaults to None.
+
+        Returns:
+            Union[FRCNNOut, ModelOutput]: Either raw model outputs (for
+                training) or predicted outputs (for testing).
+        """
         if self.training:
             assert boxes2d is not None and boxes2d_classes is not None
             return self.forward_train(
@@ -95,8 +120,17 @@ class FasterRCNN(nn.Module):
         target_boxes: List[torch.Tensor],
         target_classes: List[torch.Tensor],
     ) -> FRCNNOut:
-        """Forward training stage."""
-        breakpoint()
+        """Forward training stage.
+
+        Args:
+            images (torch.Tensor): Input images.
+            images_hw (List[Tuple[int, int]]): Input image resolutions.
+            target_boxes (List[torch.Tensor]): Bounding box labels.
+            target_classes (List[torch.Tensor]): Class labels.
+
+        Returns:
+            FRCNNOut: Raw model outputs.
+        """
         features = self.fpn(self.backbone(images))
         return self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
@@ -108,7 +142,17 @@ class FasterRCNN(nn.Module):
         images_hw: List[Tuple[int, int]],
         original_hw: List[Tuple[int, int]],
     ) -> ModelOutput:
-        """Forward testing stage."""
+        """Forward testing stage.
+
+        Args:
+            images (torch.Tensor): Input images.
+            images_hw (List[Tuple[int, int]]): Input image resolutions.
+            original_hw (List[Tuple[int, int]]): Original image resolutions
+                (before padding and resizing).
+
+        Returns:
+            ModelOutput: Predicted outputs.
+        """
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
         boxes, scores, class_ids = self.roi2det(
@@ -140,7 +184,16 @@ class FasterRCNNLoss(nn.Module):
         input_hw: List[Tuple[int, int]],
         boxes2d: List[torch.Tensor],
     ) -> LossesType:
-        """Forward."""
+        """Forward of loss function.
+
+        Args:
+            outputs (FRCNNOut): Raw model outputs.
+            input_hw (List[Tuple[int, int]]): Input image resolutions.
+            boxes2d (List[torch.Tensor]): Bounding box labels.
+
+        Returns:
+            LossesType: Dictionary of model losses.
+        """
         rpn_losses = self.rpn_loss(*outputs.rpn, boxes2d, input_hw)
         rcnn_losses = self.rcnn_loss(
             *outputs.roi,
