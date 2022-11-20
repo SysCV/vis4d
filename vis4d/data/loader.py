@@ -209,11 +209,7 @@ def build_train_dataloader(
     if sampler is not None:
         batch_size, shuffle = 1, False
     else:
-        batch_size, shuffle, train_sampler = (
-            samples_per_gpu,
-            False,
-            None,
-        )
+        batch_size, shuffle, train_sampler = samples_per_gpu, False, None
 
     if dataset.reference_view_sampler is None:
         _collate_fn = lambda x: collate_fn(batchprocess_fn(x))

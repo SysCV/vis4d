@@ -14,7 +14,6 @@ from torch.utils.data import (
 from torch.utils.data.distributed import DistributedSampler
 
 from vis4d.common import ArgsType
-from vis4d.common.distributed import get_world_size
 
 from .datasets import Dataset, VideoMixin
 
@@ -30,7 +29,18 @@ class BaseSampler(Sampler[List[int]]):
         drop_last: bool = False,
         generator: Optional[torch.Generator] = None,
     ) -> None:
-        """Initialize sampler."""
+        """Initialize sampler.
+
+        Args:
+            dataset (ConcatDataset): Sampling dataset.
+            batch_size (int): Size of mini-batch.
+            shuffle (bool, optional): If ``True`` (default), sampler will
+                shuffle the indices.
+            drop_last (bool): If ``True``, the sampler will drop the last batch
+                if its size would be less than ``batch_size``
+            generator (Optional[torch.Generator], optional): Generator used in
+                sampling. Defaults to None.
+        """
         super().__init__(dataset)
         self.dataset = dataset
         self.batch_size = batch_size
@@ -68,10 +78,31 @@ class BaseDistributedSampler(
         rank: Optional[int] = None,
         seed: int = 0,
     ) -> None:
-        """Initialize sampler."""
+        """Initialize distributed sampler.
+
+        Args:
+            dataset (ConcatDataset): Sampling dataset.
+            batch_size (int): Size of mini-batch.
+            shuffle (bool, optional): If ``True`` (default), sampler will
+                shuffle the indices.
+            drop_last (bool, optional): if ``True``, then the sampler will drop
+                the tail of the data to make it evenly divisible across the
+                number of replicas. If ``False``, the sampler will add extra
+                indices to make the data evenly divisible across the replicas.
+                Default: ``False``.
+            num_replicas (int, optional): Number of processes participating in
+                distributed training. By default, :attr:`world_size` is
+                retrieved from the current distributed group.
+            rank (int, optional): Rank of the current process within
+                :attr:`num_replicas`. By default, :attr:`rank` is retrieved
+                from the current distributed group.
+            seed (int, optional): random seed used to shuffle the sampler if
+                :attr:`shuffle=True`. This number should be identical across
+                all processes in the distributed group. Default: ``0``.
+        """
         super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
         self.batch_size = batch_size
-        self.samplers = [
+        self.samplers: List[DistributedSampler[List[int]]] = [
             DistributedSampler(
                 dset, num_replicas, rank, self.shuffle, seed, self.drop_last
             )
@@ -87,14 +118,21 @@ class BaseDistributedSampler(
         raise NotImplementedError
 
     def set_epoch(self, epoch: int) -> None:
-        """Sets the epoch for all samplers."""
+        """Sets the epoch for all samplers.
+
+        Args:
+            epoch (int): Epoch to set all samplers to.
+        """
         self.epoch = epoch
         for sampler in self.samplers:
             sampler.epoch = epoch
 
 
-class RoundRobin:
-    """Round-robin batch-level sampling functionality."""
+class RoundRobinMixin:
+    """Round-robin batch-level sampling functionality.
+
+    Used by RoundRobinSampler and RoundRobinDistributedSampler.
+    """
 
     @staticmethod
     def setup_parameters(
@@ -143,8 +181,8 @@ class RoundRobin:
     ) -> Iterator[List[int]]:
         """Generate dataset indices for each step."""
         samp_iters = [iter(sampler) for sampler in samplers]
-        samp_lens = RoundRobin.get_sampler_lens(samplers, max_samples)
-        samp_interval = RoundRobin.get_samp_intervals(
+        samp_lens = RoundRobinMixin.get_sampler_lens(samplers, max_samples)
+        samp_interval = RoundRobinMixin.get_samp_intervals(
             samplers, samp_lens, repeat_interval, spread_samples
         )
         for e in range(max(samp_lens)):
@@ -203,7 +241,7 @@ class RoundRobin:
         max_samples: List[int],
     ) -> int:
         """Get length of round-robin sampler."""
-        sampler_lens = RoundRobin.get_sampler_lens(samplers, max_samples)
+        sampler_lens = RoundRobinMixin.get_sampler_lens(samplers, max_samples)
         total_len = 0
         for i, _ in enumerate(samplers):
             if repeat_interval[i] > 0:
@@ -213,7 +251,7 @@ class RoundRobin:
         return total_len
 
 
-class RoundRobinSampler(BaseSampler):
+class RoundRobinSampler(BaseSampler, RoundRobinMixin):
     """Round-robin batch-level sampling (single-GPU)."""
 
     def __init__(
@@ -224,22 +262,34 @@ class RoundRobinSampler(BaseSampler):
         max_samples: Union[int, List[int]] = -1,
         **kwargs: ArgsType,
     ) -> None:
-        """Init."""
+        """Init.
+
+        Args:
+            repeat_interval (Union[int, List[int]], optional): Interval between
+                batches for each dataset. If set to 0, then no oversampling
+                will be done. Defaults to 0.
+            spread_samples (Union[bool, List[bool]], optional): Whether to
+                evenly spread samples for each dataset across an epoch.
+                Defaults to True.
+            max_samples (Union[int, List[int]], optional): Maximum number of
+                samples to use from each dataset. If set to -1, then use all
+                data. Defaults to -1.
+        """
         super().__init__(*args, **kwargs)
         (
             self.repeat_interval,
             self.spread_samples,
             self.max_samples,
-        ) = RoundRobin.setup_parameters(
+        ) = self.setup_parameters(
             self.samplers, repeat_interval, spread_samples, max_samples
         )
-        self.samplers = RoundRobin.setup_samplers(
+        self.samplers = self.setup_samplers(
             self.samplers, self.batch_size, self.drop_last
         )
 
     def __iter__(self) -> Iterator[List[int]]:
         """Iteration method."""
-        yield from RoundRobin.generate_indices(
+        yield from self.generate_indices(
             self.samplers,
             self.dataset.cumulative_sizes,
             self.repeat_interval,
@@ -249,12 +299,14 @@ class RoundRobinSampler(BaseSampler):
 
     def __len__(self) -> int:
         """Return length of sampler instance."""
-        return RoundRobin.get_length(
+        return self.get_length(
             self.samplers, self.repeat_interval, self.max_samples
         )
 
 
-class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
+class RoundRobinDistributedSampler(
+    BaseDistributedSampler, RoundRobinMixin
+):  # pragma: no cover # No unittest for distributed setting.
     """Round-robin batch-level sampling (distributed)."""
 
     def __init__(
@@ -265,22 +317,34 @@ class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
         max_samples: Union[int, List[int]] = -1,
         **kwargs: ArgsType,
     ) -> None:
-        """Init."""
+        """Init.
+
+        Args:
+            repeat_interval (Union[int, List[int]], optional): Interval between
+                batches for each dataset. If set to 0, then no oversampling
+                will be done. Defaults to 0.
+            spread_samples (Union[bool, List[bool]], optional): Whether to
+                evenly spread samples for each dataset across an epoch.
+                Defaults to True.
+            max_samples (Union[int, List[int]], optional): Maximum number of
+                samples to use from each dataset. If set to -1, then use all
+                data. Defaults to -1.
+        """
         super().__init__(*args, **kwargs)
         (
             self.repeat_interval,
             self.spread_samples,
             self.max_samples,
-        ) = RoundRobin.setup_parameters(
+        ) = self.setup_parameters(
             self.samplers, repeat_interval, spread_samples, max_samples
         )
-        self.samplers = RoundRobin.setup_samplers(
+        self.samplers = self.setup_samplers(
             self.samplers, self.batch_size, self.drop_last
         )
 
     def __iter__(self) -> Iterator[List[int]]:
         """Iteration method."""
-        yield from RoundRobin.generate_indices(
+        yield from self.generate_indices(
             self.samplers,
             self.dataset.cumulative_sizes,
             self.repeat_interval,
@@ -290,47 +354,14 @@ class RoundRobinDistributedSampler(BaseDistributedSampler):  # pragma: no cover
 
     def __len__(self) -> int:
         """Return length of sampler instance."""
-        return RoundRobin.get_length(
+        return self.get_length(
             self.samplers, self.repeat_interval, self.max_samples
         )
 
 
-def build_data_sampler(
-    cfg,
-    dataset: ConcatDataset,
-    batch_size: int,
-    generator: Optional[torch.Generator] = None,
-) -> Sampler[List[int]]:
-    """Build a sampler."""
-    sampler_type = cfg.pop("type", None)
-    if sampler_type is None:
-        raise ValueError(f"Need type argument in sampler config: {cfg}")
-    if get_world_size() > 1:  # pragma: no cover
-        # create distributed sampler if it exists
-        registry = RegistryHolder.get_registry(BaseDistributedSampler)
-        registry["BaseDistributedSampler"] = BaseDistributedSampler
-        dist_type = sampler_type.replace("Sampler", "DistributedSampler")
-        if dist_type in registry:
-            module = registry[dist_type](dataset, batch_size, **cfg)
-            assert isinstance(module, BaseDistributedSampler)
-            return module
-        rank_zero_warn(
-            f"Distributed version of sampler {dist_type} does not exist, "
-            "adding a distributed sampler by default."
-        )
-    registry = RegistryHolder.get_registry(BaseSampler)
-    registry["BaseSampler"] = BaseSampler
-    if sampler_type in registry:
-        module = registry[sampler_type](
-            dataset, batch_size, **cfg, generator=generator
-        )
-        assert isinstance(module, BaseSampler)
-        return module
-    raise NotImplementedError(f"Sampler {sampler_type} not known!")
-
-
-# no coverage for this class, since we don't unittest distributed setting
-class VideoInferenceSampler(DistributedSampler):  # type: ignore # pragma: no cover # pylint: disable=line-too-long
+class VideoInferenceSampler(
+    DistributedSampler
+):  # type: ignore # pragma: no cover # No unittest for distributed setting.
     """Produce sequence ordered indices for inference across all workers.
 
     Inference needs to run on the __exact__ set of sequences and their
@@ -348,7 +379,27 @@ class VideoInferenceSampler(DistributedSampler):  # type: ignore # pragma: no co
         seed: int = 0,
         drop_last: bool = False,
     ) -> None:
-        """Init."""
+        """Init.
+
+        Args:
+            dataset (Dataset): Inference dataset.
+            num_replicas (int, optional): Number of processes participating in
+                distributed training. By default, :attr:`world_size` is
+                retrieved from the current distributed group.
+            rank (int, optional): Rank of the current process within
+                :attr:`num_replicas`. By default, :attr:`rank` is retrieved
+                from the current distributed group.
+            shuffle (bool, optional): If ``True`` (default), sampler will
+                shuffle the indices.
+            seed (int, optional): random seed used to shuffle the sampler if
+                :attr:`shuffle=True`. This number should be identical across
+                all processes in the distributed group. Default: ``0``.
+            drop_last (bool, optional): if ``True``, then the sampler will drop
+                the tail of the data to make it evenly divisible across the
+                number of replicas. If ``False``, the sampler will add extra
+                indices to make the data evenly divisible across the replicas.
+                Default: ``False``.
+        """
         super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
         assert isinstance(
             dataset, VideoMixin

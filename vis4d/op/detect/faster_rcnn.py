@@ -1,5 +1,6 @@
 """Faster RCNN detector."""
-from typing import List, NamedTuple, Optional, Tuple
+from __future__ import annotations
+from typing import NamedTuple
 
 import torch
 from torch import nn
@@ -22,9 +23,9 @@ from .rpn import RPN2RoI, RPNHead, RPNOut
 class Targets(NamedTuple):
     """Output structure for targets."""
 
-    boxes: List[torch.Tensor]
-    classes: List[torch.Tensor]
-    labels: List[torch.Tensor]
+    boxes: list[torch.Tensor]
+    classes: list[torch.Tensor]
+    labels: list[torch.Tensor]
 
 
 class FRCNNOut(NamedTuple):
@@ -33,9 +34,9 @@ class FRCNNOut(NamedTuple):
     rpn: RPNOut
     roi: RCNNOut
     proposals: Proposals
-    sampled_proposals: Optional[Proposals]
-    sampled_targets: Optional[Targets]
-    sampled_target_indices: Optional[List[torch.Tensor]]
+    sampled_proposals: Proposals | None
+    sampled_targets: Targets | None
+    sampled_target_indices: list[torch.Tensor] | None
 
 
 def get_default_anchor_generator() -> AnchorGenerator:
@@ -85,23 +86,30 @@ class FasterRCNNHead(nn.Module):
     def __init__(
         self,
         num_classes: int = 80,
-        anchor_generator: Optional[AnchorGenerator] = None,
-        rpn_box_encoder: Optional[BoxEncoder2D] = None,
-        rcnn_box_encoder: Optional[BoxEncoder2D] = None,
-        box_matcher: Optional[BaseMatcher] = None,
-        box_sampler: Optional[BaseSampler] = None,
+        anchor_generator: None | AnchorGenerator = None,
+        rpn_box_encoder: None | BoxEncoder2D = None,
+        rcnn_box_encoder: None | BoxEncoder2D = None,
+        box_matcher: None | BaseMatcher = None,
+        box_sampler: None | BaseSampler = None,
         proposal_append_gt: bool = True,
     ):
         """Init.
 
         Args:
-            num_classes (int, optional): Number of object categories. Defaults to 80.
-            anchor_generator (Optional[AnchorGenerator], optional): Custom anchor generator for RPN. Defaults to None.
-            rpn_box_encoder (Optional[BoxEncoder2D], optional): Custom rpn box encoder. Defaults to None.
-            rcnn_box_encoder (Optional[BoxEncoder2D], optional): Custom rcnn box encoder. Defaults to None.
-            box_matcher (Optional[MaxIoUMatcher], optional): Custom box matcher for RCNN stage. Defaults to None.
-            box_sampler (Optional[RandomSampler], optional): Custom box sampler for RCNN stage. Defaults to None.
-            proposal_append_gt (bool): If to append the ground truth boxes for proposal sampling during training. Defaults to True.
+            num_classes (int, optional): Number of object categories. Defaults
+                to 80.
+            anchor_generator (Optional[AnchorGenerator], optional): Custom
+                anchor generator for RPN. Defaults to None.
+            rpn_box_encoder (Optional[BoxEncoder2D], optional): Custom rpn box
+                encoder. Defaults to None.
+            rcnn_box_encoder (Optional[BoxEncoder2D], optional): Custom rcnn
+                box encoder. Defaults to None.
+            box_matcher (Optional[MaxIoUMatcher], optional): Custom box matcher
+                for RCNN stage. Defaults to None.
+            box_sampler (Optional[RandomSampler], optional): Custom box sampler
+                for RCNN stage. Defaults to None.
+            proposal_append_gt (bool): If to append the ground truth boxes for
+                proposal sampling during training. Defaults to True.
         """
         super().__init__()
         self.anchor_generator = (
@@ -137,21 +145,21 @@ class FasterRCNNHead(nn.Module):
     @torch.no_grad()
     def _sample_proposals(
         self,
-        proposal_boxes: List[torch.Tensor],
-        scores: List[torch.Tensor],
-        target_boxes: List[torch.Tensor],
-        target_classes: List[torch.Tensor],
-    ) -> Tuple[Proposals, Targets, List[torch.Tensor]]:
+        proposal_boxes: list[torch.Tensor],
+        scores: list[torch.Tensor],
+        target_boxes: list[torch.Tensor],
+        target_classes: list[torch.Tensor],
+    ) -> tuple[Proposals, Targets, list[torch.Tensor]]:
         """Sample proposals for training of Faster RCNN.
 
         Args:
-            proposal_boxes (List[torch.Tensor]): proposals decoded from RPN.
-            scores (List[torch.Tensor]): scores decoded from RPN.
-            target_boxes (List[torch.Tensor]): all target boxes.
-            target_classes (List[torch.Tensor]): according class labels.
+            proposal_boxes (list[torch.Tensor]): Proposals decoded from RPN.
+            scores (list[torch.Tensor]): Scores decoded from RPN.
+            target_boxes (list[torch.Tensor]): All target boxes.
+            target_classes (list[torch.Tensor]): According class labels.
 
         Returns:
-            Tuple[Proposals, Targets]: Sampled proposals, associated targets.
+            tuple[Proposals, Targets]: Sampled proposals, associated targets.
         """
         if self.proposal_append_gt:
             proposal_boxes = [
@@ -190,22 +198,22 @@ class FasterRCNNHead(nn.Module):
 
     def forward(
         self,
-        features: List[torch.Tensor],
-        images_hw: List[Tuple[int, int]],
-        target_boxes: Optional[List[torch.Tensor]] = None,
-        target_classes: Optional[List[torch.Tensor]] = None,
+        features: list[torch.Tensor],
+        images_hw: list[tuple[int, int]],
+        target_boxes: None | list[torch.Tensor] = None,
+        target_classes: None | list[torch.Tensor] = None,
     ) -> FRCNNOut:
         """Faster RCNN forward.
 
         Args:
-            features (List[torch.Tensor]): Feature pyramid
-            images_hw (List[Tuple[int, int]]): Image sizes without padding.
-            This is necessary for removing the erronous boxes on the padded
-            regsions.
-            target_boxes (Optional[List[torch.Tensor]], optional): Ground
-            truth bounding box locations. Defaults to None.
-            target_classes (Optional[List[torch.Tensor]], optional): Ground
-            truth bounding box classes. Defaults to None.
+            features (list[torch.Tensor]): Feature pyramid
+            images_hw (list[tuple[int, int]]): Image sizes without padding.
+                This is necessary for removing the erronous boxes on the padded
+                regsions.
+            target_boxes (Optional[list[torch.Tensor]], optional): Ground
+                truth bounding box locations. Defaults to None.
+            target_classes (Optional[list[torch.Tensor]], optional): Ground
+                truth bounding box classes. Defaults to None.
 
         Returns:
             FRCNNReturn: proposal and roi outputs.
@@ -256,10 +264,10 @@ class FasterRCNNHead(nn.Module):
 
     def __call__(
         self,
-        features: List[torch.Tensor],
-        images_hw: List[Tuple[int, int]],
-        target_boxes: Optional[List[torch.Tensor]] = None,
-        target_classes: Optional[List[torch.Tensor]] = None,
+        features: list[torch.Tensor],
+        images_hw: list[tuple[int, int]],
+        target_boxes: list[torch.Tensor] | None = None,
+        target_classes: list[torch.Tensor] | None = None,
     ) -> FRCNNOut:
         """Type definition for call implementation."""
         return self._call_impl(

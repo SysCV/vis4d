@@ -110,7 +110,7 @@ class UNet(nn.Module):
         # create the encoder pathway and add to a list
         for i in range(depth):
             ins = self.in_channels if i == 0 else outs  # type: ignore
-            outs = self.start_filts * (2 ** i)
+            outs = self.start_filts * (2**i)
             pooling = i < (depth - 1)
 
             down_conv = UnetDownConv(ins, outs, pooling=pooling)

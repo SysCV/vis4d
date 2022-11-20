@@ -1,5 +1,5 @@
 """Anchor generator for 2D bounding boxes."""
-from typing import Tuple, Union
+from __future__ import annotations
 
 import numpy as np
 import torch
@@ -78,7 +78,7 @@ class AnchorGenerator:
 
     def __init__(
         self,
-        strides: Union[Tuple[int, ...], Tuple[Tuple[int, int], ...]],
+        strides: tuple[int, ...] | tuple[tuple[int, int], ...],
         ratios,  # TODO type annotate
         scales=None,
         base_sizes=None,
@@ -94,7 +94,7 @@ class AnchorGenerator:
                 "center cannot be set when center_offset"
                 f"!=0, {centers} is given."
             )
-        if not (0 <= center_offset <= 1):
+        if not 0 <= center_offset <= 1:
             raise ValueError(
                 "center_offset should be in range [0, 1], "
                 f"{center_offset} is given."
@@ -244,8 +244,7 @@ class AnchorGenerator:
         yy = y.view(-1, 1).repeat(1, x.shape[0]).view(-1)
         if row_major:
             return xx, yy
-        else:
-            return yy, xx
+        return yy, xx
 
     def grid_priors(self, featmap_sizes, dtype=torch.float32, device="cuda"):
         """Generate grid anchors in multiple feature levels.

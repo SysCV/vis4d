@@ -1,6 +1,7 @@
 """RetinaNet."""
+from __future__ import annotations
 from math import prod
-from typing import List, NamedTuple, Optional, Tuple
+from typing import NamedTuple
 
 import torch
 import torch.nn.functional as F
@@ -24,10 +25,10 @@ class RetinaNetOut(NamedTuple):
 
     # logits for the box classication for each feature level. The logit
     # dimention is number of classes plus 1 for the background.
-    cls_score: List[torch.Tensor]
+    cls_score: list[torch.Tensor]
     # Each box has regression for all classes for each feature level. So the
     # tensor dimention is [batch_size, number of boxes, number of classes x 4]
-    bbox_pred: List[torch.Tensor]
+    bbox_pred: list[torch.Tensor]
 
 
 def get_default_anchor_generator() -> AnchorGenerator:
@@ -71,9 +72,10 @@ class RetinaNetHead(nn.Module):
         feat_channels: int = 256,
         stacked_convs: int = 4,
         use_sigmoid_cls: bool = True,
-        anchor_generator: Optional[AnchorGenerator] = None,
-        box_encoder: Optional[BoxEncoder2D] = None,
-        box_matcher: Optional[BaseMatcher] = None,
+        anchor_generator: AnchorGenerator | None = None,
+        box_encoder: BoxEncoder2D | None = None,
+        box_matcher: BaseMatcher | None = None,
+        box_sampler: BaseSampler | None = None,
     ):
         """Init."""
         super().__init__()
@@ -91,6 +93,11 @@ class RetinaNetHead(nn.Module):
             box_matcher
             if box_matcher is not None
             else get_default_box_matcher()
+        )
+        self.box_sampler = (
+            box_sampler
+            if box_sampler is not None
+            else get_default_box_sampler()
         )
         num_base_priors = self.anchor_generator.num_base_priors[0]
 
@@ -116,11 +123,11 @@ class RetinaNetHead(nn.Module):
             feat_channels, num_base_priors * 4, 3, padding=1
         )
 
-    def forward(self, features: List[torch.Tensor]) -> RetinaNetOut:
+    def forward(self, features: list[torch.Tensor]) -> RetinaNetOut:
         """RetinaNet forward.
 
         Args:
-            features (List[torch.Tensor]): Feature pyramid
+            features (list[torch.Tensor]): Feature pyramid
 
         Returns:
             RetinaNetOut: classification score and box prediction.
@@ -137,7 +144,7 @@ class RetinaNetHead(nn.Module):
             bbox_preds.append(self.retina_reg(reg_feat))
         return RetinaNetOut(cls_score=cls_scores, bbox_pred=bbox_preds)
 
-    def __call__(self, features: List[torch.Tensor]) -> RetinaNetOut:
+    def __call__(self, features: list[torch.Tensor]) -> RetinaNetOut:
         """Type definition for call implementation."""
         return self._call_impl(features)
 
@@ -148,20 +155,24 @@ def get_params_per_level(
     anchors: torch.Tensor,
     num_pre_nms: int = 2000,
     score_thr: float = 0.0,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Get a topk pre-selection of flattened classification scores and box
     energies from feature output per level per image before nms.
 
     Args:
-        cls_out (torch.Tensor): [C, H, W] classification scores at a particular scale.
-        reg_out (torch.Tensor): [C, H, W] regression parameters at a particular scale.
-        anchors (torch.Tensor): [H*W, 4] anchor boxes per cell.
+        cls_out (torch.Tensor):
+            [C, H, W] classification scores at a particular scale.
+        reg_out (torch.Tensor):
+            [C, H, W] regression parameters at a particular scale.
+        anchors (torch.Tensor):
+            [H*W, 4] anchor boxes per cell.
         num_pre_nms (int): number of predictions before nms.
         score_thr (float): score threshold for filtering predictions.
 
     Returns:
-        Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: topk
-            flattened classification, regression outputs, and corresponding anchors.
+        tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: topk
+            flattened classification, regression outputs, and corresponding
+            anchors.
     """
     assert cls_out.size()[-2:] == reg_out.size()[-2:], (
         f"Shape mismatch: cls_out({cls_out.size()[-2:]}), reg_out("
@@ -184,32 +195,35 @@ def get_params_per_level(
 
 
 def decode_multi_level_outputs(
-    cls_out_all: List[torch.Tensor],
-    lbl_out_all: List[torch.Tensor],
-    reg_out_all: List[torch.Tensor],
-    anchors_all: List[torch.Tensor],
-    image_hw: Tuple[int, int],
+    cls_out_all: list[torch.Tensor],
+    lbl_out_all: list[torch.Tensor],
+    reg_out_all: list[torch.Tensor],
+    anchors_all: list[torch.Tensor],
+    image_hw: tuple[int, int],
     box_encoder: BoxEncoder2D,
     max_per_img: int = 1000,
     nms_threshold: float = 0.7,
-    min_box_size: Tuple[int, int] = (0, 0),
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    min_box_size: tuple[int, int] = (0, 0),
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Decode box energies into detections for a single image, post-process
     via NMS. NMS is performed per level. Afterwards, select topk detections.
 
     Args:
-        cls_out_all (List[torch.Tensor]): topk class scores per level.
-        lbl_out_all (List[torch.Tensor]): topk class labels per level.
-        reg_out_all (List[torch.Tensor]): topk regression params per level.
-        anchors_all (List[torch.Tensor]): topk anchor boxes per level.
-        image_hw (Tuple[int, int]): image size.
+        cls_out_all (list[torch.Tensor]): topk class scores per level.
+        lbl_out_all (list[torch.Tensor]): topk class labels per level.
+        reg_out_all (list[torch.Tensor]): topk regression params per level.
+        anchors_all (list[torch.Tensor]): topk anchor boxes per level.
+        image_hw (tuple[int, int]): image size.
         box_encoder (BoxEncoder2D): bounding box encoder.
-        max_per_img (int, optional): maximum predictions per image. Defaults to 1000.
-        nms_threshold (float, optional): iou threshold for NMS. Defaults to 0.7.
-        min_box_size (Tuple[int, int], optional): minimum box size. Defaults to (0, 0).
+        max_per_img (int, optional): maximum predictions per image.
+            Defaults to 1000.
+        nms_threshold (float, optional): iou threshold for NMS.
+            Defaults to 0.7.
+        min_box_size (tuple[int, int], optional): minimum box size.
+            Defaults to (0, 0).
 
     Returns:
-        Tuple[torch.Tensor, torch.Tensor]: decoded proposal boxes & scores.
+        tuple[torch.Tensor, torch.Tensor]: decoded proposal boxes & scores.
     """
     scores, labels = torch.cat(cls_out_all), torch.cat(lbl_out_all)
     boxes = box_encoder.decode(
@@ -231,11 +245,14 @@ class Dense2Det(nn.Module):
     """Compute detections from dense network outputs.
 
     This class acts as a stateless functor that does the following:
-    1. Create anchor grid for feature grids (classification and regression outputs) at all scales.
+    1. Create anchor grid for feature grids (classification and regression
+    outputs) at all scales.
     For each image
         For each level
-            2. Get a topk pre-selection of flattened classification scores and box energies from feature output before NMS.
-        3. Decode class scores and box energies into detection boxes, apply NMS.
+            2. Get a topk pre-selection of flattened classification scores and
+            box energies from feature output before NMS.
+        3. Decode class scores and box energies into detection boxes,
+        apply NMS.
     Return detection boxes for all images.
     """
 
@@ -246,7 +263,7 @@ class Dense2Det(nn.Module):
         num_pre_nms: int = 2000,
         max_per_img: int = 1000,
         nms_threshold: float = 0.7,
-        min_box_size: Tuple[int, int] = (0, 0),
+        min_box_size: tuple[int, int] = (0, 0),
         score_thr: float = 0.0,
     ) -> None:
         """Init."""
@@ -261,9 +278,9 @@ class Dense2Det(nn.Module):
 
     def forward(
         self,
-        class_outs: List[torch.Tensor],
-        regression_outs: List[torch.Tensor],
-        images_hw: List[Tuple[int, int]],
+        class_outs: list[torch.Tensor],
+        regression_outs: list[torch.Tensor],
+        images_hw: list[tuple[int, int]],
     ) -> DetOut:
         """Compute detections from dense network outputs.
 
@@ -273,9 +290,9 @@ class Dense2Det(nn.Module):
             Decode those pairs into proposals, post-process with NMS.
 
         Args:
-            class_outs (List[torch.Tensor]): [N, 1 * A, H, W] per scale.
-            regression_outs (List[torch.Tensor]): [N, 4 * A, H, W] per scale.
-            images_hw (List[Tuple[int, int]]): list of image sizes.
+            class_outs (list[torch.Tensor]): [N, 1 * A, H, W] per scale.
+            regression_outs (list[torch.Tensor]): [N, 4 * A, H, W] per scale.
+            images_hw (list[tuple[int, int]]): list of image sizes.
 
         Returns:
             DetOut: detection outputs.
@@ -324,9 +341,9 @@ class Dense2Det(nn.Module):
 
     def __call__(
         self,
-        class_outs: List[torch.Tensor],
-        regression_outs: List[torch.Tensor],
-        images_hw: List[Tuple[int, int]],
+        class_outs: list[torch.Tensor],
+        regression_outs: list[torch.Tensor],
+        images_hw: list[tuple[int, int]],
     ) -> DetOut:
         """Type definition for function call."""
         return self._call_impl(class_outs, regression_outs, images_hw)
@@ -361,8 +378,8 @@ class RetinaNetHeadLoss(nn.Module):
         self,
         anchor_generator: AnchorGenerator,
         box_encoder: BoxEncoder2D,
-        box_matcher: Optional[BaseMatcher] = None,
-        box_sampler: Optional[BaseSampler] = None,
+        box_matcher: BaseMatcher | None = None,
+        box_sampler: BaseSampler | None = None,
         loss_cls=None,
     ):
         """Init.
@@ -404,7 +421,7 @@ class RetinaNetHeadLoss(nn.Module):
         labels: torch.Tensor,
         label_weights: torch.Tensor,
         num_total_samples: int,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute losses per scale, all batch elements.
 
         Args:
@@ -417,7 +434,7 @@ class RetinaNetHeadLoss(nn.Module):
             num_total_samples (int): average factor of loss.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: classification and regression
+            tuple[torch.Tensor, torch.Tensor]: classification and regression
                 losses.
         """
         # classification loss
@@ -448,9 +465,9 @@ class RetinaNetHeadLoss(nn.Module):
         self,
         target_boxes: torch.Tensor,
         anchors: torch.Tensor,
-        image_hw: Tuple[int, int],
-        target_class: Optional[torch.Tensor] = None,
-    ) -> Tuple[RetinaNetTargets, int, int]:
+        image_hw: tuple[int, int],
+        target_class: torch.Tensor | None = None,
+    ) -> tuple[RetinaNetTargets, int, int]:
         """Get targets per batch element, all scales."""
         inside_flags = anchor_inside_image(
             anchors, image_hw, allowed_border=self.allowed_border
@@ -505,20 +522,24 @@ class RetinaNetHeadLoss(nn.Module):
 
     def forward(
         self,
-        class_outs: List[torch.Tensor],
-        regression_outs: List[torch.Tensor],
-        target_boxes: List[torch.Tensor],
-        images_hw: List[Tuple[int, int]],
-        target_class_ids: Optional[List[torch.Tensor]] = None,
+        class_outs: list[torch.Tensor],
+        regression_outs: list[torch.Tensor],
+        target_boxes: list[torch.Tensor],
+        images_hw: list[tuple[int, int]],
+        target_class_ids: list[torch.Tensor] | None = None,
     ) -> RetinaNetLosses:
         """Compute RetinaNet classification and regression losses.
 
         Args:
-            class_outs (List[torch.Tensor]): Network classification outputs at all scales.
-            regression_outs (List[torch.Tensor]): Network regression outputs at all scales.
-            target_boxes (List[torch.Tensor]): Target bounding boxes.
-            images_hw (List[Tuple[int, int]]): Image dimensions without padding.
-            target_class_ids (Optional[List[torch.Tensor]], optional): Target class labels.
+            class_outs (list[torch.Tensor]): Network classification outputs
+                at all scales.
+            regression_outs (list[torch.Tensor]): Network regression outputs
+                at all scales.
+            target_boxes (list[torch.Tensor]): Target bounding boxes.
+            images_hw (list[tuple[int, int]]): Image dimensions without
+                padding.
+            target_class_ids (Optional[list[torch.Tensor]], optional):
+                Targetclass labels.
 
         Returns:
             RetinaNetLosses: classification and regression losses.
@@ -580,11 +601,11 @@ class RetinaNetHeadLoss(nn.Module):
 
     def __call__(
         self,
-        class_outs: List[torch.Tensor],
-        regression_outs: List[torch.Tensor],
-        target_boxes: List[torch.Tensor],
-        images_hw: List[Tuple[int, int]],
-        target_class_ids: Optional[List[torch.Tensor]] = None,
+        class_outs: list[torch.Tensor],
+        regression_outs: list[torch.Tensor],
+        target_boxes: list[torch.Tensor],
+        images_hw: list[tuple[int, int]],
+        target_class_ids: list[torch.Tensor] | None = None,
     ) -> RetinaNetLosses:
         """Type definition."""
         return self._call_impl(
