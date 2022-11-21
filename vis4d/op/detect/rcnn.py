@@ -75,7 +75,7 @@ class RCNNHead(nn.Module):
         self._init_weights(self.fc_reg, std=0.001)
 
     @staticmethod
-    def _init_weights(module, std: float = 0.01) -> None:
+    def _init_weights(module: nn.Module, std: float = 0.01) -> None:
         """Init weights."""
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=std)
@@ -441,9 +441,12 @@ class MaskRCNNHead(nn.Module):
         self._init_weights(self.conv_logits, mode="fan_out")
 
     @staticmethod
-    def _init_weights(module, mode="fan_in") -> None:
+    def _init_weights(module: nn.Module, mode: str = "fan_in") -> None:
         """Initialize weights."""
         if hasattr(module, "weight") and hasattr(module, "bias"):
+            assert isinstance(module.weight, torch.Tensor) and isinstance(
+                module.bias, torch.Tensor
+            )
             nn.init.kaiming_normal_(
                 module.weight, mode=mode, nonlinearity="relu"
             )
