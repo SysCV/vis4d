@@ -1,5 +1,5 @@
 """Projection utilities."""
-from typing import Tuple, Union
+from __future__ import annotations
 
 import torch
 
@@ -78,21 +78,25 @@ def unproject_points(
 def points_inside_image(
     points_coord: torch.Tensor,
     depths: torch.Tensor,
-    images_hw: Union[torch.Tensor, Tuple[int, int]],
+    images_hw: torch.Tensor | tuple[int, int],
 ) -> torch.Tensor:
-    """Generate binary mask, true for all point coordiantes that lie inside img.
+    """Generate binary mask.
+
+    Creates a mask that is true for all point coordiantes that lie inside the
+    image,
 
     Args:
         points_coord (torch.Tensor): 2D pixel coordinates of shape [..., 2].
         depths (torch.Tensor): Associated depth of each 2D pixel coordinate.
-        images_hw (torch.Tensor| Tuple[int, int]]: Associated tensor of image dimensions, shape [..., 2] or single height, width pair.
+        images_hw:  (torch.Tensor| Tuple[int, int]]) Associated tensor of image
+                    dimensions, shape [..., 2] or single height, width pair.
 
     Returns:
         torch.Tensor: Binary mask of points inside an image.
     """
     mask = torch.ones_like(depths)
-    h: Union[int, torch.Tensor] = 0
-    w: Union[int, torch.Tensor] = 0
+    h: int | torch.Tensor = 0
+    w: int | torch.Tensor = 0
 
     if isinstance(images_hw, tuple):
         h, w = images_hw
@@ -109,7 +113,7 @@ def points_inside_image(
 def generate_depth_map(
     points: torch.Tensor,
     intrinsics: torch.Tensor,
-    image_hw: Tuple[int, int],
+    image_hw: tuple[int, int],
 ) -> torch.Tensor:
     """Generate depth map for given pointcloud.
 

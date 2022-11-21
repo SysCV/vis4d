@@ -160,9 +160,10 @@ def euler_angles_to_matrix(
     for letter in convention:
         if letter not in ("X", "Y", "Z"):
             raise ValueError(f"Invalid letter {letter} in convention string.")
-    matrices = map(
-        _axis_angle_rotation, convention, torch.unbind(euler_angles, -1)
-    )
+    matrices = [
+        _axis_angle_rotation(c, a)
+        for c, a in zip(convention, torch.unbind(euler_angles, -1))
+    ]
     return functools.reduce(torch.matmul, matrices)
 
 
@@ -176,7 +177,7 @@ def _index_from_letter(letter: str) -> int:  # pragma: no cover
         int mapping of the corresponding letter [0,1,2]
 
     Raises:
-        ValueError if the given letter is not valid
+        ValueError: if the given letter is not valid
     """
     if letter == "X":
         return 0
@@ -216,7 +217,7 @@ def _angle_from_tan(
     i1, i2 = {"X": (2, 1), "Y": (0, 2), "Z": (1, 0)}[axis]
     if horizontal:
         i2, i1 = i1, i2
-    even = (axis + other_axis) in ["XY", "YZ", "ZX"]
+    even = (axis + other_axis) in {"XY", "YZ", "ZX"}
     if horizontal == even:
         return torch.atan2(data[..., i1], data[..., i2])
     if tait_bryan:
