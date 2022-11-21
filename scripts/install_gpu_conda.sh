@@ -1,10 +1,16 @@
 #!/bin/bash
 CONDA_PATH=$(conda info | grep -i 'base environment' | awk '{print $4}')
 source $CONDA_PATH/etc/profile.d/conda.sh
-echo https://download.pytorch.org/whl/cu$1/torch_stable.html
-echo conda install cudatoolkit=$1 -c pytorch
-# conda create --name vis4d python=3.10
-# conda activate vis4d-dev
-# conda install cudatoolkit=$1 -c pytorch
-# python3 -m pip install --ignore-installed  -r requiremets/base.txt -f https://download.pytorch.org/whl/cu${$1//.}/torch_stable.html
-# python3 setup.py develop
+
+if [ -z "$1" ]
+then
+    CUDA_VERSION=11.7
+else
+    CUDA_VERSION=$1
+fi
+
+conda create --name vis4d python=3.10
+conda activate vis4d-dev
+conda install cudatoolkit=$CUDA_VERSION -c pytorch
+python3 -m pip install --ignore-installed  -r requiremets/base.txt -f https://download.pytorch.org/whl/cu${CUDA_VERSION//.}/torch_stable.html
+python3 setup.py develop
