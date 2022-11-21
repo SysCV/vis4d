@@ -3,9 +3,7 @@ import os
 import sys
 import unittest
 
-from vis4d.data_to_revise.utils import str_decode
-
-from ..utils import timeit
+from ..utils import timeit, str_decode
 from .file import FileBackend
 from .hdf5 import HDF5Backend
 

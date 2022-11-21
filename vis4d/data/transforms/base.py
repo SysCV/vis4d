@@ -8,6 +8,7 @@ import torch
 from vis4d.common import DictStrAny
 from vis4d.data.const import COMMON_KEYS
 from vis4d.data.typing import DictData
+from vis4d.common.prettyprint import describe_shape
 
 
 # TODO move to commen
