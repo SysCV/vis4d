@@ -21,7 +21,7 @@ class MaskRCNNTest(unittest.TestCase):
 
         Run::
             >>> pytest vis4d/model/detect/mask_rcnn_test.py::MaskRCNNTest::test_inference
-        """  # pylint: disable=line-too-long # Disable the line length requirement becase of the cmd line prompts
+        """
         dataset = COCO(
             get_test_file("coco_test"),
             keys=(CommonKeys.images,),

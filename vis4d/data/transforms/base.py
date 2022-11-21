@@ -6,9 +6,9 @@ from typing import Callable, TypeVar
 import torch
 
 from vis4d.common.dict import get_dict_nested, set_dict_nested
+from vis4d.common.prettyprint import describe_shape
 from vis4d.data.const import CommonKeys
 from vis4d.data.typing import DictData
-from vis4d.common.prettyprint import describe_shape
 
 
 class Transform:

@@ -177,8 +177,9 @@ class RoI2Det(nn.Module):
         ):
             scores = F.softmax(cls_out, dim=-1)
             bboxes = bbox_clip(
-                self.bbox_coder.decode(boxs[:, :4], reg_out), image_hw
-            )
+                self.bbox_coder.decode(boxs[:, :4], reg_out).view(-1, 4),
+                image_hw,
+            ).view(reg_out.shape)
             det_bbox, det_scores, det_label, _ = multiclass_nms(
                 bboxes,
                 scores,

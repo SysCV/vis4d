@@ -104,8 +104,8 @@ class PanopticFPNHead(nn.Module):
         num_classes: int = 53,
         in_channels: int = 256,
         inner_channels: int = 128,
-        start_level: int = 0,
-        end_level: int = 4,
+        start_level: int = 2,
+        end_level: int = 6,
     ):
         """Init.
 

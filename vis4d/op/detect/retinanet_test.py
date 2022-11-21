@@ -4,6 +4,7 @@ import unittest
 import torch
 
 from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
+from vis4d.unittest.util import generate_features
 
 from .retinanet import Dense2Det, RetinaNetHead, get_default_anchor_generator
 
@@ -16,10 +17,9 @@ class RetinaNetTest(unittest.TestCase):
         batch_size, num_classes, wh, inc = 2, 5, 128, 64
         # default setup
         retinanet_head = RetinaNetHead(num_classes, inc, feat_channels=64)
-        test_features = [None, None] + [
-            torch.rand(batch_size, inc, wh // 2**i, wh // 2**i)
-            for i in range(5)
-        ]
+        test_features = [None, None] + generate_features(
+            inc, wh, wh, 5, batch_size
+        )
         cls_score, bbox_pred = retinanet_head(test_features[2:])
         assert len(cls_score) == len(bbox_pred) == 5
         for j, (score, box) in enumerate(zip(cls_score, bbox_pred)):
@@ -37,14 +37,8 @@ class RetinaNetTest(unittest.TestCase):
         dense2det = Dense2Det(
             get_default_anchor_generator(), DeltaXYWHBBoxEncoder()
         )
-        test_cls = [
-            torch.rand(batch_size, num_classes * 9, wh // 2**i, wh // 2**i)
-            for i in range(5)
-        ]
-        test_reg = [
-            torch.rand(batch_size, 4 * 9, wh // 2**i, wh // 2**i)
-            for i in range(5)
-        ]
+        test_cls = generate_features(num_classes * 9, wh, wh, 5, batch_size)
+        test_reg = generate_features(4 * 9, wh, wh, 5, batch_size)
         boxes, scores, class_ids = dense2det(
             test_cls, test_reg, [(max_h, max_w)] * batch_size
         )

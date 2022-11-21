@@ -20,7 +20,15 @@ def bbox_scale(
 def bbox_clip(
     boxes: torch.Tensor, image_hw: tuple[float, float]
 ) -> torch.Tensor:
-    """Clip bounding boxes to image dims."""
+    """Clip bounding boxes to image dims.
+
+    Args:
+        boxes (torch.Tensor): Bounding boxes with shape [N, 4]
+        image_hw (tuple[float, float]): Image dimensions.
+
+    Returns:
+        torch.Tensor: Clipped bounding boxes.
+    """
     boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, image_hw[1] - 1)
     boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(0, image_hw[0] - 1)
     return boxes
@@ -227,8 +235,8 @@ def multiclass_nms(
     labels = labels.view(1, -1).expand_as(scores)
 
     bboxes = bboxes.view(-1, 4)
-    scores = scores.view(-1)
-    labels = labels.view(-1)
+    scores = scores.reshape(-1)
+    labels = labels.reshape(-1)
 
     if not torch.onnx.is_in_onnx_export():
         # NonZero not supported  in TensorRT

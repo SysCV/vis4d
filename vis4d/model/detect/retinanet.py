@@ -26,8 +26,8 @@ REV_KEYS = [
     (r"^backbone\.", "backbone.body."),
     (r"^neck.lateral_convs\.", "fpn.inner_blocks."),
     (r"^neck.fpn_convs\.", "fpn.layer_blocks."),
-    (r"^fpn.layer_blocks.3\.", "fpn.extra_blocks.p6."),
-    (r"^fpn.layer_blocks.4\.", "fpn.extra_blocks.p7."),
+    (r"^fpn.layer_blocks.3\.", "fpn.extra_blocks.p6_conv."),
+    (r"^fpn.layer_blocks.4\.", "fpn.extra_blocks.p7_conv."),
     (r"\.conv.weight", ".weight"),
     (r"\.conv.bias", ".bias"),
 ]

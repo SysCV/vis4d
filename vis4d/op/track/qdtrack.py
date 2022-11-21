@@ -1,5 +1,7 @@
 """Quasi-dense embedding similarity based graph."""
-from typing import List, NamedTuple, Optional, Tuple
+from __future__ import annotations
+
+from typing import NamedTuple
 
 import numpy as np
 import torch
@@ -86,7 +88,7 @@ class QDTrackAssociation:
         scores: torch.Tensor,
         class_ids: torch.Tensor,
         embeddings: torch.Tensor,
-    ) -> Tuple[
+    ) -> tuple[
         torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor
     ]:
         """Remove overlapping objects across classes via nms.
@@ -98,7 +100,8 @@ class QDTrackAssociation:
             embeddings (torch.Tensor): [N, C] tensor of appearance embeddings.
 
         Returns:
-            Tuple[torch.Tensor]: filtered detections, scores, class_ids, embeddings, and filtered indices.
+            tuple[torch.Tensor]: filtered detections, scores, class_ids,
+                embeddings, and filtered indices.
         """
         scores, inds = scores.sort(descending=True)
         detections, embeddings, class_ids = (
@@ -131,7 +134,7 @@ class QDTrackAssociation:
         memory_track_ids: torch.Tensor,
         memory_class_ids: torch.Tensor,
         memory_embeddings: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Process inputs, match detections with existing tracks.
 
         Args:
@@ -141,10 +144,12 @@ class QDTrackAssociation:
             detection_embeddings (torch.Tensor): [N, C] appearance embeddings.
             memory_track_ids (torch.Tensor): [M,] track ids in memory.
             memory_class_ids (torch.Tensor): [M,] class indices in memory.
-            memory_embeddings (torch.Tensor): [M, C] appearance embeddings in memory.
+            memory_embeddings (torch.Tensor): [M, C] appearance embeddings in
+                memory.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: track ids of active tracks, selected detection indices corresponding to tracks.
+            tuple[torch.Tensor, torch.Tensor]: track ids of active tracks,
+                selected detection indices corresponding to tracks.
         """
         (
             detections,
@@ -203,7 +208,7 @@ class QDSimilarityHead(nn.Module):
 
     def __init__(
         self,
-        proposal_pooler: Optional[BaseRoIPooler] = None,
+        proposal_pooler: None | BaseRoIPooler = None,
         in_dim: int = 256,
         num_convs: int = 4,
         conv_out_dim: int = 256,
@@ -253,7 +258,7 @@ class QDSimilarityHead(nn.Module):
 
     def _init_embedding_head(
         self,
-    ) -> Tuple[torch.nn.ModuleList, torch.nn.ModuleList, int]:
+    ) -> tuple[torch.nn.ModuleList, torch.nn.ModuleList, int]:
         """Init modules of head."""
         convs, last_layer_dim = add_conv_branch(
             self.num_convs,
@@ -279,8 +284,8 @@ class QDSimilarityHead(nn.Module):
         return convs, fcs, last_layer_dim
 
     def forward(
-        self, features: List[torch.Tensor], boxes: List[torch.Tensor]
-    ) -> List[torch.Tensor]:
+        self, features: list[torch.Tensor], boxes: list[torch.Tensor]
+    ) -> list[torch.Tensor]:
         """Similarity head forward pass."""
         # take features of strides 4, 8, 16, 32
         x = self.roi_pooler(features[2:6], boxes)
@@ -296,7 +301,7 @@ class QDSimilarityHead(nn.Module):
             for fc in self.fcs:
                 x = fc(x)
 
-        embeddings: List[torch.Tensor] = self.fc_embed(x).split(
+        embeddings: list[torch.Tensor] = self.fc_embed(x).split(
             [len(b) for b in boxes]
         )
         return embeddings
@@ -332,15 +337,15 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
 
     def forward(
         self,
-        key_embeddings: List[torch.Tensor],
-        ref_embeddings: List[List[torch.Tensor]],
-        key_track_ids: List[torch.Tensor],
-        ref_track_ids: List[List[torch.Tensor]],
+        key_embeddings: list[torch.Tensor],
+        ref_embeddings: list[list[torch.Tensor]],
+        key_track_ids: list[torch.Tensor],
+        ref_track_ids: list[list[torch.Tensor]],
     ) -> QDTrackInstanceSimilarityLosses:
         """QDTrack instance similarity loss.
 
-        Key inputs are of type List[Tensor/Boxes2D] (Lists are length N)
-        Ref inputs are of type List[List[Tensor/Boxes2D]] where the lists
+        Key inputs are of type list[Tensor/Boxes2D] (Lists are length N)
+        Ref inputs are of type list[list[Tensor/Boxes2D]] where the lists
         are of length MxN.
         Where M is the number of reference views and N is the
         number of batch elements.
@@ -349,10 +354,13 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
         negatives in ref have track_id -1
 
         Args:
-            key_embeddings (List[torch.Tensor]): key frame embeddings.
-            ref_embeddings (List[List[torch.Tensor]]): reference frame embeddings.
-            key_track_ids (List[torch.Tensor]): associated track ids per embedding in key frame.
-            ref_track_ids (List[List[torch.Tensor]]):  associated track ids per embedding in reference frame(s).
+            key_embeddings (list[torch.Tensor]): key frame embeddings.
+            ref_embeddings (list[list[torch.Tensor]]): reference frame
+                embeddings.
+            key_track_ids (list[torch.Tensor]): associated track ids per
+                embedding in key frame.
+            ref_track_ids (list[list[torch.Tensor]]):  associated track ids per
+                embedding in reference frame(s).
 
         Returns:
             QDTrackInstanceSimilarityLosses: Scalar loss tensors.
@@ -400,9 +408,9 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
 
     @staticmethod
     def _get_targets(
-        key_track_ids: List[torch.Tensor],
-        ref_track_ids: List[List[torch.Tensor]],
-    ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
+        key_track_ids: list[torch.Tensor],
+        ref_track_ids: list[list[torch.Tensor]],
+    ) -> tuple[list[list[torch.Tensor]], list[list[torch.Tensor]]]:
         """Create tracking target tensors."""
         # for each reference view
         track_targets, track_weights = [], []
@@ -425,9 +433,9 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
 
     def _match(
         self,
-        key_embeds: List[torch.Tensor],
-        ref_embeds: List[List[torch.Tensor]],
-    ) -> Tuple[List[List[torch.Tensor]], List[List[torch.Tensor]]]:
+        key_embeds: list[torch.Tensor],
+        ref_embeds: list[list[torch.Tensor]],
+    ) -> tuple[list[list[torch.Tensor]], list[list[torch.Tensor]]]:
         """Calculate distances for all pairs of key / ref embeddings."""
         # for each reference view
         dists, cos_dists = [], []

@@ -1,6 +1,7 @@
 """Vis4D trainer."""
+from __future__ import annotations
+
 from time import perf_counter
-from typing import List, Optional, Tuple
 
 import torch
 from torch import nn, optim
@@ -18,8 +19,8 @@ from .util import move_data_to_device
 
 def training_loop(
     train_dataloader: DataLoader,
-    test_dataloader: List[DataLoader],
-    evaluators: List[Evaluator],
+    test_dataloader: list[DataLoader],
+    evaluators: list[Evaluator],
     metric: str,
     model: nn.Module,
     loss: nn.Module,
@@ -30,8 +31,8 @@ def training_loop(
     log_step: int,
     learning_rate: float,
     save_prefix: str,
-    warmup: Optional[BaseLRWarmup] = None,
-    visualizers: Tuple[Visualizer] = (),
+    warmup: None | BaseLRWarmup = None,
+    visualizers: tuple[Visualizer] = (),
     eval_connector=None,  # TODO, discuss
     test_every_nth_epoch=1,
     save_every_nth_epoch=1,
@@ -119,9 +120,3 @@ def training_loop(
                 visualizers_to_use,
             )
     print("training done.")  # FIXME move to log statement
-
-
-x = np.linspace(-1, 1, num=10)
-y = np.linspace(-1, 1, num=10)
-z = np.linspace(-1, 1, num=10)
-xv, yv = np.meshgrid(x, y, z)

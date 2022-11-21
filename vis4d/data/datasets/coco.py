@@ -1,8 +1,9 @@
 """COCO dataset."""
+from __future__ import annotations
+
 import contextlib
 import io
 import os
-from typing import List, Optional, Tuple
 
 import numpy as np
 import pycocotools.mask as maskUtils
@@ -139,7 +140,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
     def __init__(
         self,
         data_root: str,
-        keys: Tuple[str, ...] = (
+        keys: tuple[str, ...] = (
             CommonKeys.images,
             CommonKeys.boxes2d,
             CommonKeys.boxes2d_classes,
@@ -149,7 +150,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         remove_empty: bool = False,
         minimum_box_area: float = 0,
         use_pascal_voc_cats: bool = False,
-        data_backend: Optional[DataBackend] = None,
+        data_backend: None | DataBackend = None,
     ) -> None:
         """Init."""
         super().__init__()
@@ -176,7 +177,10 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
-        return f"COCODataset(root={self.data_root}, split={self.split}, use_pascal_voc_cats={self.use_pascal_voc_cats})"
+        return (
+            f"COCODataset(root={self.data_root}, split={self.split}, "
+            f"use_pascal_voc_cats={self.use_pascal_voc_cats})"
+        )
 
     def _has_valid_annotation(self, anns):
         """Filter empty or low occupied samples."""
@@ -184,7 +188,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             return False
         return sum(ann["area"] for ann in anns) >= self.minimum_box_area
 
-    def _generate_data_mapping(self) -> List[DictStrAny]:
+    def _generate_data_mapping(self) -> list[DictStrAny]:
         """Generate coco dataset mapping."""
         annotation_file = os.path.join(
             self.data_root, "annotations", "instances_" + self.split + ".json"
@@ -218,6 +222,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         return samples
 
     def __len__(self) -> int:
+        """Return length of dataset."""
         return len(self.data)
 
     def __getitem__(self, idx: int) -> DictData:
