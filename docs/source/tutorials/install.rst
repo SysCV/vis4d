@@ -58,4 +58,3 @@ For systems where you cannot write to the python installation use:
 .. code:: bash
 
     python setup.py develop --user
-

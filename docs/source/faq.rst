@@ -29,4 +29,3 @@ Please check `ulimit -n` on your machine and if it is of value 1024 or lower, tr
     OSError: [Errno 12] Cannot allocate memory
 
 Try setting `workers_per_gpu` to a lower value (usually 1/2 of `samples_per_gpu` is sufficient).
-

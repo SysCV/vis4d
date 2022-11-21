@@ -96,7 +96,7 @@ enable=
 # formatting, we can disable C0330 safely.
 # import-error: ignore this error due to optional requirements that may not
 # be installed
-# 
+#
 disable=import-error
 
 
