@@ -1,6 +1,8 @@
 """Interface for Vis4D bounding box samplers."""
+from __future__ import annotations
+
 import abc
-from typing import List, NamedTuple, Tuple
+from typing import NamedTuple
 
 import torch
 from torch import Tensor, nn
@@ -32,17 +34,11 @@ class Sampler(nn.Module):
         self.positive_fraction = positive_fraction
 
     @abc.abstractmethod
-    def forward(
-        self,
-        matching: MatchResult,
-    ) -> SamplingResult:
+    def forward(self, matching: MatchResult) -> SamplingResult:
         """Sample bounding boxes according to their struct."""
         raise NotImplementedError
 
-    def __call__(
-        self,
-        matching: MatchResult,
-    ) -> SamplingResult:
+    def __call__(self, matching: MatchResult) -> SamplingResult:
         """Type declaration."""
         return self._call_impl(matching)
 
@@ -51,9 +47,9 @@ class Sampler(nn.Module):
 def match_and_sample_proposals(
     matcher: Matcher,
     sampler: Sampler,
-    proposal_boxes: List[torch.Tensor],
-    target_boxes: List[torch.Tensor],
-) -> Tuple[List[torch.Tensor], List[torch.Tensor], List[torch.Tensor]]:
+    proposal_boxes: list[torch.Tensor],
+    target_boxes: list[torch.Tensor],
+) -> tuple[list[torch.Tensor], list[torch.Tensor], list[torch.Tensor]]:
     """Match proposals to targets and subsample.
 
     First, match the proposals to targets (ground truth labels) using the

@@ -3,8 +3,6 @@ import unittest
 
 import torch
 
-from vis4d.struct_to_revise import Boxes2D
-
 from ..matchers.base import MatchResult
 from .random import RandomSampler
 
@@ -20,38 +18,14 @@ class TestRandom(unittest.TestCase):
         num_gts = 3
 
         sampler = RandomSampler(
-            batch_size_per_image=samples_per_img,
-            positive_fraction=pos_fract,
+            batch_size=samples_per_img, positive_fraction=pos_fract
         )
-        matching = [
-            MatchResult(
-                assigned_gt_indices=torch.zeros(num_samples),
-                assigned_gt_iou=torch.ones(num_samples),
-                assigned_labels=torch.ones(num_samples),
-            )
-        ]
-        boxes = [Boxes2D(torch.rand(num_samples, 5))]
-        targets = [Boxes2D(torch.rand(num_gts, 5), torch.zeros(num_gts))]
-        sampling_result = sampler(matching, boxes, targets)
-        sampled_boxes, sampled_targets = (
-            sampling_result.sampled_boxes,
-            sampling_result.sampled_targets,
+        matching = MatchResult(
+            assigned_gt_indices=torch.zeros(num_samples),
+            assigned_gt_iou=torch.ones(num_samples),
+            assigned_labels=torch.ones(num_samples),
         )
-        self.assertEqual(
-            len(sampled_boxes[0]), int(samples_per_img * pos_fract)
-        )
-        self.assertEqual(len(sampled_boxes[0]), len(sampled_targets[0]))
+        smp_box_inds, smp_tgt_inds, smp_lbls = sampler(matching)
 
-        for target in sampled_targets[0]:
-            self.assertTrue(
-                torch.isclose(targets[0][0].boxes, target.boxes).all()
-            )
-
-        boxes = [Boxes2D(torch.rand(num_samples, 5))]
-        targets = [Boxes2D.empty()]
-        sampling_result = sampler(matching, boxes, targets)
-        sampled_boxes, sampled_targets = (
-            sampling_result.sampled_boxes,
-            sampling_result.sampled_targets,
-        )
-        self.assertEqual(len(sampled_boxes[0]), len(sampled_targets[0]))
+        assert len(smp_box_inds) == int(samples_per_img * pos_fract)
+        assert len(smp_box_inds) == len(smp_tgt_inds) == len(smp_lbls)

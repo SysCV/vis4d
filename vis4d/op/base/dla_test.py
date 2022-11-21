@@ -1,31 +1,27 @@
 """Testcases for DLA backbone."""
 import unittest
 
-from vis4d.unittest.utils import generate_input_sample
+from vis4d.unittest.util import generate_features
 
 from .dla import DLA
-from .neck import DLAUp
 
 
-# TODO(tobiasfshr) fix the tests
 class TestDLA(unittest.TestCase):
     """Testcases for DLA backbone."""
 
-    inputs = generate_input_sample(32, 32, 2, 2)
+    inputs = generate_features(3, 32, 32, 1, 2)[0]
 
     def test_dla46_c(self) -> None:
         """Testcase for DLA46-C."""
         dla46_c = DLA(
             name="dla46_c",
-            pixel_mean=(0.0, 0.0, 0.0),
-            pixel_std=(1.0, 1.0, 1.0),
             weights="http://dl.yf.io/dla/models/imagenet/dla46_c-2bfd52c3.pth",
         )
         out = dla46_c(self.inputs)
         self.assertEqual(len(out), 6)
         channels = [16, 32, 64, 64, 128, 256]
         for i in range(6):
-            feat = out[f"out{i}"]
+            feat = out[i]
             self.assertEqual(feat.shape[0], 2)
             self.assertEqual(feat.shape[1], channels[i])
             self.assertEqual(feat.shape[2], 32 / (2**i))
@@ -33,57 +29,38 @@ class TestDLA(unittest.TestCase):
 
     def test_dla46x_c(self) -> None:
         """Testcase for DLA46-X-C."""
-        dla46x_c = DLA(
-            name="dla46x_c",
-            pixel_mean=(0.0, 0.0, 0.0),
-            pixel_std=(1.0, 1.0, 1.0),
-        )
+        dla46x_c = DLA(name="dla46x_c")
         out = dla46x_c(self.inputs)
         self.assertEqual(len(out), 6)
         channels = [16, 32, 64, 64, 128, 256]
         for i in range(6):
-            feat = out[f"out{i}"]
+            feat = out[i]
             self.assertEqual(feat.shape[0], 2)
             self.assertEqual(feat.shape[1], channels[i])
             self.assertEqual(feat.shape[2], 32 / (2**i))
             self.assertEqual(feat.shape[3], 32 / (2**i))
 
     def test_dla_custom(self) -> None:
-        """Testcase for custom DLA + DLAUp Neck."""
+        """Testcase for custom DLA."""
         dla_custom = DLA(
-            pixel_mean=(0.0, 0.0, 0.0),
-            pixel_std=(1.0, 1.0, 1.0),
             levels=(1, 1, 1, 2, 2, 1),
             channels=(16, 32, 64, 128, 256, 512),
             block="BasicBlock",
             residual_root=True,
-            neck=DLAUp(
-                use_deformable_convs=False,
-                start_level=2,
-                in_channels=[16, 32, 64, 128, 256, 512],
-            ),
         )
         out = dla_custom(self.inputs)
-        self.assertEqual(tuple(out["out0"].shape[2:]), (8, 8))
+        self.assertEqual(tuple(out[2].shape[2:]), (8, 8))
         dla_custom = DLA(
-            pixel_mean=(0.0, 0.0, 0.0),
-            pixel_std=(1.0, 1.0, 1.0),
             levels=(1, 1, 1, 2, 2, 1),
             channels=(16, 32, 64, 128, 256, 512),
             block="BasicBlock",
-            residual_root=True,
-            neck=DLAUp(
-                use_deformable_convs=True,
-                start_level=2,
-                in_channels=[16, 32, 64, 128, 256, 512],
-            ),
+            residual_root=False,
         )
         out = dla_custom(self.inputs)
-        self.assertEqual(tuple(out["out0"].shape[2:]), (8, 8))
-        dla_custom.neck = None
+        self.assertEqual(tuple(out[2].shape[2:]), (8, 8))
         out = dla_custom(self.inputs)
         for i in range(6):
-            feat = out[f"out{i}"]
+            feat = out[i]
             self.assertEqual(feat.shape[0], 2)
             self.assertEqual(feat.shape[1], 16 * (2**i))
             self.assertEqual(feat.shape[2], 32 / (2**i))

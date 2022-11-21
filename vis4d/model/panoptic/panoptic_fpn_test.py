@@ -22,10 +22,8 @@ from vis4d.data.transforms.resize import (
     resize_image,
     resize_masks,
 )
-from vis4d.op.util import load_model_checkpoint
 from vis4d.unittest.util import get_test_file
 
-from .faster_rcnn import REV_KEYS, FasterRCNN, FasterRCNNLoss
 from .panoptic_fpn import PanopticFPN
 
 
@@ -86,72 +84,12 @@ class PanopticFPNTest(unittest.TestCase):
             batch[CommonKeys.input_hw],
         )
 
-        weights = (
-            "mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/"
-            "faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_"
-            "20200504_210434-a5d8aa15.pth"
+        panoptic_fpn = PanopticFPN(
+            num_things_classes=80, num_stuff_classes=53, weights="mmdet"
         )
-        faster_rcnn = FasterRCNN(num_classes=80)
-        load_model_checkpoint(faster_rcnn, weights, rev_keys=REV_KEYS)
 
-        faster_rcnn.eval()
-        with torch.no_grad():
-            dets = faster_rcnn(inputs, images_hw, original_hw=images_hw)
-
-        testcase_gt = torch.load(get_test_file("faster_rcnn.pt"))
-        for k in testcase_gt:
-            assert k in dets
-            for i in range(len(testcase_gt[k])):
-                assert (
-                    torch.isclose(dets[k][i], testcase_gt[k][i], atol=1e-4)
-                    .all()
-                    .item()
-                )
+        # TODO
 
     def test_train(self):
         """Test Panoptic FPN training."""
-        faster_rcnn = FasterRCNN(num_classes=80)
-        rcnn_loss = FasterRCNNLoss()
-
-        optimizer = optim.SGD(faster_rcnn.parameters(), lr=0.001, momentum=0.9)
-
-        dataset = COCO(get_test_file("coco_test"), split="train")
-        train_loader = get_train_dataloader(dataset, 2, (256, 256))
-
-        running_losses = {}
-        faster_rcnn.train()
-        log_step = 1
-        for epoch in range(2):
-            for i, data in enumerate(train_loader):
-                inputs, images_hw, gt_boxes, gt_class_ids = (
-                    data[CommonKeys.images],
-                    data[CommonKeys.input_hw],
-                    data[CommonKeys.boxes2d],
-                    data[CommonKeys.boxes2d_classes],
-                )
-
-                # zero the parameter gradients
-                optimizer.zero_grad()
-
-                # forward + backward + optimize
-                outputs = faster_rcnn(
-                    inputs, images_hw, gt_boxes, gt_class_ids
-                )
-                rcnn_losses = rcnn_loss(outputs, images_hw, gt_boxes)
-                total_loss = sum(rcnn_losses.values())
-                total_loss.backward()
-                optimizer.step()
-
-                # print statistics
-                losses = dict(loss=total_loss, **rcnn_losses)
-                for k, loss in losses.items():
-                    if k in running_losses:
-                        running_losses[k] += loss
-                    else:
-                        running_losses[k] = loss
-                if i % log_step == (log_step - 1):
-                    log_str = f"[{epoch + 1}, {i + 1:5d}] "
-                    for k, loss in running_losses.items():
-                        log_str += f"{k}: {loss / log_step:.3f}, "
-                    print(log_str.rstrip(", "))
-                    running_losses = {}
+        # TODO
