@@ -3,7 +3,10 @@
 Code taken from https://github.com/jaxony/unet-pytorch/blob/master/model.py
 and modified to include typing and custom ops.
 """
-from typing import Iterable, List, NamedTuple
+from __future__ import annotations
+
+from collections.abc import Iterable
+from typing import NamedTuple
 
 import torch
 from torch import nn
@@ -20,7 +23,7 @@ class UNetOut(NamedTuple):
     """
 
     logits: torch.Tensor
-    intermediate_features: List[torch.Tensor]
+    intermediate_features: list[torch.Tensor]
 
 
 class UNet(nn.Module):
@@ -74,7 +77,7 @@ class UNet(nn.Module):
         """
         super().__init__()
 
-        if up_mode in ("transpose", "upsample"):
+        if up_mode in {"transpose", "upsample"}:
             self.up_mode = up_mode
         else:
             raise ValueError(
@@ -82,7 +85,7 @@ class UNet(nn.Module):
                 f"'transpose' and 'upsample' are allowed."
             )
 
-        if merge_mode in ("concat", "add"):
+        if merge_mode in {"concat", "add"}:
             self.merge_mode = merge_mode
         else:
             raise ValueError(
@@ -147,8 +150,8 @@ class UNet(nn.Module):
         Args:
             data (tensor): Input Images into the network shape [N, C, W, H]
         """
-        encoder_outs: List[torch.Tensor] = []
-        inter_feats: List[torch.Tensor] = []
+        encoder_outs: list[torch.Tensor] = []
+        inter_feats: list[torch.Tensor] = []
         # encoder pathway, save outputs for merging
 
         for down_conv in self.down_convs:
