@@ -293,7 +293,7 @@ def distance_3d_nms(
     ).squeeze(-1)
 
     for i, box3d in enumerate(boxes3d):
-        current_3d_score = box3d.score * boxes2d_scores[i]  # type: ignore
+        current_3d_score = box3d.score * boxes2d_scores[i]
         current_class = cat_mapping[int(box3d.class_ids)]
 
         if current_class in ["pedestrian", "traffic_cone"]:
@@ -306,7 +306,7 @@ def distance_3d_nms(
         nms_candidates = (distance_matrix[i] < nms_dist).nonzero().squeeze(-1)
 
         valid_candidates = (
-            boxes3d[nms_candidates].score * boxes2d_scores[nms_candidates]  # type: ignore # pylint: disable=line-too-long
+            boxes3d[nms_candidates].score * boxes2d_scores[nms_candidates]
             > current_3d_score
         )[(boxes3d[nms_candidates].class_ids == box3d.class_ids).squeeze(0)]
 
