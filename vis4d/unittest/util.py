@@ -25,6 +25,7 @@ def generate_boxes(
     height: int,
     width: int,
     num_boxes: int,
+    batch_size: int = 1,
     track_ids: bool = False,
     use_score: bool = True,
 ):
@@ -53,10 +54,10 @@ def generate_boxes(
     tracks = torch.arange(0, num_boxes) if track_ids else None
     torch.random.set_rng_state(state)
     return (
-        box_tensor[:, :-1],
-        box_tensor[:, -1:],
-        torch.zeros(num_boxes, dtype=torch.long),
-        tracks,
+        [box_tensor[:, :-1]] * batch_size,
+        [box_tensor[:, -1:]] * batch_size,
+        [torch.zeros(num_boxes, dtype=torch.long)] * batch_size,
+        [tracks] * batch_size,
     )
 
 

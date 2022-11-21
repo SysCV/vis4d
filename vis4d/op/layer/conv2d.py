@@ -1,5 +1,7 @@
 """Wrapper for conv2d."""
-from typing import NamedTuple, Optional, Tuple
+from __future__ import annotations
+
+from typing import NamedTuple
 
 import torch
 from torch import nn
@@ -53,17 +55,20 @@ def add_conv_branch(
     last_layer_dim: int,
     conv_out_dim: int,
     conv_has_bias: bool,
-    norm_cfg: Optional[str],
+    norm_cfg: str | None,
     num_groups: int,
-) -> Tuple[nn.ModuleList, int]:
+) -> tuple[nn.ModuleList, int]:
     """Init conv branch for head."""
     convs = nn.ModuleList()
     if norm_cfg is not None:
         norm = getattr(nn, norm_cfg)
     else:
         norm = None
+
     if norm == nn.GroupNorm:
-        norm = lambda x: nn.GroupNorm(num_groups, x)
+        norm = lambda x: nn.GroupNorm(  # pylint: disable=unnecessary-lambda-assignment
+            num_groups, x
+        )
     if num_branch_convs > 0:
         for i in range(num_branch_convs):
             conv_in_dim = last_layer_dim if i == 0 else conv_out_dim
@@ -116,7 +121,7 @@ class UnetDownConv(nn.Module):
             pooling (bool): If pooling should be applied
             activation (str): Activation that should be applied
         """
-        super(UnetDownConv, self).__init__()
+        super().__init__()
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -196,8 +201,11 @@ class UnetUpConv(nn.Module):
             out_channels: Number of output channels (high res)
             merge_mode: How to merge both input channels
             up_mode: How to upsample the channel with lower resolution
+
+        Raises:
+            ValueError: If upsampling mode is unknown
         """
-        super(UnetUpConv, self).__init__()
+        super().__init__()
 
         self.in_channels = in_channels
         self.out_channels = out_channels
