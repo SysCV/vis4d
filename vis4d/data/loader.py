@@ -40,7 +40,7 @@ def default_collate(batch: list[DictData]) -> DictData:
         elif key in [CommonKeys.extrinsics, CommonKeys.intrinsics]:
             data[key] = torch.stack([b[key] for b in batch], 0)
         elif key == CommonKeys.segmentation_masks:
-            data[key] = torch.stack([b[key] for b in batch])
+            data[key] = torch.stack([b[key] for b in batch], 0)
         # elif key in POINT_KEYS:
         #     data[key] = torch.stack([b[key] for b in batch], 0)
         else:

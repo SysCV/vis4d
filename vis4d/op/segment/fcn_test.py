@@ -6,7 +6,6 @@ import skimage
 import torch
 
 from ..base.resnet import ResNet
-from ..util import load_model_checkpoint
 from .fcn import FCNHead
 
 
@@ -62,13 +61,6 @@ class FCNHeadTest(unittest.TestCase):
             seg_channel_idx=[4, 5],
             resize=(512, 512),
         )
-
-        weights = (
-            "https://download.pytorch.org/models/"
-            "fcn_resnet50_coco-1167a1af.pth"
-        )
-        # load_model_checkpoint(basemodel, weights, REV_KEYS)
-        # load_model_checkpoint(fcn, weights, REV_KEYS)
 
         fcn.eval()
         with torch.no_grad():

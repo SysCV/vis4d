@@ -1,5 +1,5 @@
 """FCN tests."""
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import torch
 from torch import nn
@@ -8,21 +8,27 @@ from vis4d.op.base.resnet import ResNet
 from vis4d.op.segment.fcn import FCNHead, FCNLoss, FCNOut
 
 
-class FCN_ResNet(nn.Module):
+REV_KEYS = [
+    (r"^backbone\.", "basemodel.body."),
+    (r"^aux_classifier\.", "fcn.heads.0."),
+    (r"^classifier\.", "fcn.heads.1."),
+]
+
+
+class FCNResNet(nn.Module):
     def __init__(
         self,
         base_model: str = "resnet50",
         num_classes: int = 21,
         resize: Optional[Tuple[int, int]] = (520, 520),
-        weights: Optional[torch.Tensor] = None,
     ) -> None:
         """FCN with ResNet, following `torchvision implementation
         <https://github.com/pytorch/vision/blob/torchvision/models/segmentation/
         fcn.py>`_.
 
-        model: FCN_ResNet(base_model="resnet50")
+        model: FCNResNet(base_model="resnet50")
             - dataset: Coco2017
-            - recipe: vis4d/model/segment/fcn_resnet_coco_training.py
+            - recipe: vis4d/model/segment/FCNResNet_coco_training.py
             - metrics:
                 - mIoU: 62.52
                 - Acc: 90.50
@@ -40,18 +46,33 @@ class FCN_ResNet(nn.Module):
             self.basemodel.out_channels[4:], num_classes, resize=resize
         )
         print(self.basemodel.out_channels[4:])
+
+    def forward(self, images: torch.Tensor) -> FCNOut:
+        features = self.basemodel(images)
+        out = self.fcn(features)
+        return out
+
+
+class FCNResNetLoss(nn.Module):
+    """FCNResNet Loss."""
+
+    def __init__(self, weights: Optional[torch.Tensor] = None) -> None:
+        """Init."""
+        super().__init__()
         self.loss = FCNLoss(
             [4, 5],
             nn.CrossEntropyLoss(weights, ignore_index=255),
             weights=[0.5, 1],
         )
 
-    def forward(
-        self, images: torch.Tensor, targets: Optional[torch.Tensor] = None
-    ) -> Union[Tuple[FCNOut, FCNLoss], FCNOut]:
-        features = self.basemodel(images)
-        out = self.fcn(features)
-        if targets is not None:
-            losses = self.loss(out.outputs, targets)
-            return out, losses
-        return out
+    def forward(self, out: FCNOut, targets: torch.Tensor) -> FCNLoss:
+        """Forward of loss function.
+
+        Args:
+            out (FCNOut): Raw model outputs.
+            targets (torch.Tensor): Segmentation masks
+        Returns:
+            FCNLoss: Dictionary of model losses.
+        """
+        losses = self.loss(out.outputs, targets)
+        return losses

@@ -71,7 +71,7 @@ def test_segment_train_loader():
             resize.resize_image((520, 520)),
             resize.resize_masks(),
             normalize.normalize_image(),
-            mask.convert_ins_masks_to_seg_mask(),
+            mask.convert_to_seg_masks(),
         ]
     )
     datapipe = DataPipe(coco, preprocess_fn)
@@ -100,7 +100,7 @@ def test_segment_inference_loader():
     preprocess_fn = compose(
         [
             normalize.normalize_image(),
-            mask.convert_ins_masks_to_seg_mask(),
+            mask.convert_to_seg_masks(),
         ]
     )
     datapipe = DataPipe(coco, preprocess_fn)

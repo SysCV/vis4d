@@ -75,9 +75,14 @@ class ResNet(BaseModel):
         Returns:
             List[int]: number of channels
         """
+        # use static value to be compatible with torch.jit
         if self.name in ["resnet18", "resnet34"]:
-            return [3, 3] + [64 * 2**i for i in range(4)]
-        return [3, 3] + [256 * 2**i for i in range(4)]
+            # channels = [3, 3] + [64 * 2**i for i in range(4)]
+            channels = [3, 3, 64, 128, 256, 512]
+        else:
+            # channels = [3, 3] + [256 * 2**i for i in range(4)]
+            channels = [3, 3, 256, 512, 1024, 2048]
+        return channels
 
     def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
         """Torchvision ResNet forward.

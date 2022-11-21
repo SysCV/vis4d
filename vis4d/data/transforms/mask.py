@@ -12,7 +12,7 @@ from .base import Transform
     in_keys=(CommonKeys.boxes2d_classes, CommonKeys.masks),
     out_keys=(CommonKeys.segmentation_masks,),
 )
-def convert_ins_masks_to_seg_mask():
+def convert_to_seg_masks():
     """Merge all instance masks into a single segmentation map."""
 
     def _convert(classes, masks):
