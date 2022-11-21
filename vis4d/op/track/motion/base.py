@@ -2,11 +2,10 @@
 import abc
 
 import torch
+from torch import nn
 
-from vis4d.common.registry import RegistryHolder
 
-
-class BaseMotionModel(metaclass=RegistryHolder):
+class BaseMotionModel(nn.Module):
     """Base class for motion model."""
 
     def __init__(

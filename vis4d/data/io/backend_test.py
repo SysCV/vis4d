@@ -3,11 +3,10 @@ import os
 import sys
 import unittest
 
-from vis4d.data_to_revise.utils import str_decode
-
-from ..utils import timeit
-from .file import FileBackend
-from .hdf5 import HDF5Backend
+from vis4d.common.time import timeit
+from vis4d.data.io.file import FileBackend
+from vis4d.data.io.hdf5 import HDF5Backend
+from vis4d.data.io.util import str_decode
 
 
 class TestBackends(unittest.TestCase):

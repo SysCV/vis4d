@@ -41,7 +41,8 @@ def inverse_rigid_transform(transformation: Tensor) -> Tensor:
     """Calculate inverse of rigid body transformation(s).
 
     Args:
-        transformation (Tensor): [N, 4, 4] transformations or single [4, 4] transformation.
+        transformation (Tensor): [N, 4, 4] transformations or single [4, 4]
+            transformation.
 
     Returns:
         Tensor: Inverse of input transformation(s).
@@ -75,15 +76,15 @@ def get_transform_matrix(rotation: Tensor, translation: Tensor) -> Tensor:
         rotation = rotation.unsqueeze(0)
         translation = translation.unsqueeze(0)
         squeeze = True
-        N = 1
+        batch_size = 1
     else:
         assert len(rotation.shape) == 3 and len(translation.shape) == 2
         assert rotation.shape[0] == translation.shape[0]
-        N = rotation.shape[0]
+        batch_size = rotation.shape[0]
     assert (
         rotation.shape[-2] == rotation.shape[-1] == translation.shape[-1] == 3
     )
-    transforms = rotation.new_zeros((N, 4, 4))
+    transforms = rotation.new_zeros((batch_size, 4, 4))
     transforms[:, :3, :3] = rotation
     transforms[:, :3, 3] = translation
     transforms[:, 3, 3] = 1.0

@@ -1,6 +1,5 @@
 """BBox coder base classes."""
 import abc
-from typing import List
 
 import torch
 

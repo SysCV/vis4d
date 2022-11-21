@@ -94,7 +94,7 @@ class PointCloudVisualizerBackend:
 
     def visualize(self):
         """Visualizes the stored data."""
-        raise not NotImplementedError()
+        raise NotImplementedError
 
     def clear(self):
         """Clears all stored data."""

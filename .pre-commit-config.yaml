@@ -1,0 +1,29 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    hooks:
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+    -   id: check-yaml
+    -   id: check-merge-conflict
+    -   id: requirements-txt-fixer
+    -   id: debug-statements
+    -   id: name-tests-test
+-   repo: https://github.com/psf/black
+    hooks:
+      - id: black
+        language_version: python3.8.12
+-   repo: https://github.com/pycqa/isort
+    hooks:
+      - id: isort
+-   repo: https://github.com/pre-commit/mirrors-pylint
+    hooks:
+      - id: pylint
+
+-   repo: https://github.com/pre-commit/mirrors-mypy
+    hooks:
+      - id: mypy
+
+-   repo: https://github.com/pycqa/pydocstyle
+    hooks:
+    -   id: pydocstyle
+        args: [--convention=google vis4d]

@@ -4,7 +4,7 @@ from typing import List, Optional
 from vis4d.common import DictStrAny
 
 
-def sgd(
+def sgd(  # pylint: disable=invalid-name
     lr: float, momentum: float = 0.9, weight_decay: float = 0.0001
 ) -> DictStrAny:
     """Standard SGD optimizer cfg with given lr."""
@@ -19,7 +19,7 @@ def sgd(
     return optimizer_cfg
 
 
-def adam(
+def adam(  # pylint: disable=invalid-name
     lr: float, amsgrad: bool = False, weight_decay: float = 0.0001
 ) -> DictStrAny:
     """Standard Adam optimizer cfg with given lr."""

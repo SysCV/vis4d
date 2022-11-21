@@ -17,7 +17,7 @@ class FasterRCNNTest(unittest.TestCase):
         # default setup
         faster_rcnn_head = FasterRCNNHead(num_classes)
         test_features = [None, None] + [
-            torch.rand(batch_size, 256, wh // 2**i, wh // 2**i)
+            torch.rand(batch_size, 256, wh // 2 ** i, wh // 2 ** i)
             for i in range(5)
         ]
         # train forward
@@ -32,7 +32,7 @@ class FasterRCNNTest(unittest.TestCase):
         assert len(rpn_cls) == len(rpn_box) == 5  # number of pyramid levels
         for j, (rpnc, rpnb) in enumerate(zip(rpn_cls, rpn_box)):
             assert len(rpnc) == len(rpnb) == batch_size
-            wh_ = wh // 2**j
+            wh_ = wh // 2 ** j
             assert rpnc.shape[2:] == rpnb.shape[2:] == (wh_, wh_)
         cls_score, bbox_pred = roi
         assert cls_score.shape == (batch_size * 512, num_classes + 1)

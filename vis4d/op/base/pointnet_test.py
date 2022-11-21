@@ -1,5 +1,4 @@
 """Testcases for pointnet."""
-import math
 import unittest
 
 import torch

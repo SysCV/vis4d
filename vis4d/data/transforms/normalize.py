@@ -15,9 +15,12 @@ def normalize_image(
     """Normalize image tensor (assumed range 0..255) with given mean and std.
 
     Args:
-        mean (Tuple[float, float, float], optional): Mean value. Defaults to (123.675, 116.28, 103.53).
-        std (Tuple[float, float, float], optional): Standard deviation value. Defaults to (58.395, 57.12, 57.375).
-        epsilon (float, optional): Epsilon for numerical stability of division. Defaults to 1e-08.
+        mean (Tuple[float, float, float], optional): Mean value. Defaults to
+            (123.675, 116.28, 103.53).
+        std (Tuple[float, float, float], optional): Standard deviation value.
+            Defaults to (58.395, 57.12, 57.375).
+        epsilon (float, optional): Epsilon for numerical stability of division.
+            Defaults to 1e-08.
     """
 
     def _normalize(img: torch.Tensor) -> torch.Tensor:

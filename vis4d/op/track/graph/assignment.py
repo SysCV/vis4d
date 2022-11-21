@@ -49,7 +49,8 @@ class TrackIDCounter:
 
         Args:
             num_ids (int): number of ids
-            device (torch.device, optional): Device to create ids on. Defaults to torch.device("cpu").
+            device (torch.device, optional): Device to create ids on. Defaults
+                to torch.device("cpu").
 
         Returns:
             torch.Tensor: Tensor of new contiguous track ids.

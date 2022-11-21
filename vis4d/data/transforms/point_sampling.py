@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import torch
 
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 
 from .base import Transform
 
@@ -81,8 +81,8 @@ def sample_from_block(
 
 
 @Transform(
-    in_keys=(COMMON_KEYS.points3d,),
-    out_keys=(COMMON_KEYS.points3d,),
+    in_keys=(CommonKeys.points3d,),
+    out_keys=(CommonKeys.points3d,),
 )
 def sample_points_random(num_pts: int = 1024):
     """Subsamples points randomly.
@@ -106,7 +106,7 @@ def sample_points_random(num_pts: int = 1024):
     return _sample_points_random
 
 
-@Transform(in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,))
+@Transform(in_keys=(CommonKeys.points3d,), out_keys=(CommonKeys.points3d,))
 def sample_points_block_random(
     num_pts: int = 1024,
     min_pts: int = 32,
@@ -151,8 +151,8 @@ def sample_points_block_random(
 
 
 @Transform(
-    in_keys=(COMMON_KEYS.points3d,),
-    out_keys=(COMMON_KEYS.points3d,),
+    in_keys=(CommonKeys.points3d,),
+    out_keys=(CommonKeys.points3d,),
 )
 def sample_points_block_full_coverage(
     n_pts_per_block: int = 1024,

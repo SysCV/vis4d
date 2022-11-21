@@ -79,7 +79,7 @@ def imshow_bboxes3d(
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
     image = preprocess_image(image, mode)
-    boxes_corners = boxes3d_to_corners(boxes, AxisMode.OpenCV)
+    boxes_corners = boxes3d_to_corners(boxes, AxisMode.OPENCV)
     box_list, color_list, label_list = preprocess_boxes(boxes_corners)
     intrinsics = intrinsics.detach().cpu().numpy()
 
@@ -642,7 +642,7 @@ def plotly_draw_bbox3d(
 
 def show_pointcloud(
     points: torch.Tensor,
-    axis_mode: AxisMode = AxisMode.OpenCV,
+    axis_mode: AxisMode = AxisMode.OPENCV,
     boxes3d: Tensor | None = None,
     thickness: int = 2,
 ) -> None:  # pragma: no cover
@@ -684,7 +684,7 @@ def show_pointcloud(
     fig = go.Figure(data=data)
 
     # set to camera appropriate to coordinate system
-    if axis_mode == AxisMode.OpenCV:
+    if axis_mode == AxisMode.OPENCV:
         camera = dict(
             up=dict(x=0, y=-1, z=0),
             center=dict(x=0, y=0, z=0),

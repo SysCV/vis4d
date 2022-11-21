@@ -4,7 +4,7 @@ import torch
 from torch import nn
 
 from vis4d.common.typing import LossesType, ModelOutput
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 from vis4d.op.base.pointnet import PointNetSegmentation, PointNetSemanticsOut
 from vis4d.op.loss.orthogonal_transform_loss import (
     OrthogonalTransformRegularizationLoss,
@@ -74,7 +74,7 @@ class PointnetSegmentationModel(nn.Module):
     ) -> ModelOutput:
         """Forward test stage."""
         return {
-            COMMON_KEYS.semantics3d: torch.argmax(
+            CommonKeys.semantics3d: torch.argmax(
                 self.model(points).class_logits, dim=1
             )
         }

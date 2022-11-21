@@ -5,7 +5,7 @@ from typing import List
 import torch
 
 from vis4d.common.imports import OPEN3D_AVAILABLE
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 from vis4d.data.typing import DictData, ModelOutput
 from vis4d.vis.base import Visualizer
 
@@ -182,28 +182,25 @@ class PointCloudVisualizer(Visualizer):
                 )
                 self.current_scene_idx = new_scene_idx
 
-        points = model_input[COMMON_KEYS.points3d].detach().cpu()
+        points = model_input[CommonKeys.points3d].detach().cpu()
         if points.shape[-1] != 3:  # Make sure last channel is xyz
             points = points.transpose(-2, -1)
         self.current_scene.add_points(points)
 
-        if COMMON_KEYS.colors3d in model_input:
-            colors = model_input[COMMON_KEYS.colors3d].detach().cpu()
+        if CommonKeys.colors3d in model_input:
+            colors = model_input[CommonKeys.colors3d].detach().cpu()
             if colors.shape[-1] != 3:
                 colors = colors.transpose(-2, -1)
             self.current_scene.add_colors(colors)
 
-        if COMMON_KEYS.semantics3d in model_predictions:
+        if CommonKeys.semantics3d in model_predictions:
             self.current_scene.add_semantic_prediction(
-                model_predictions[COMMON_KEYS.semantics3d]
-                .detach()
-                .cpu()
-                .long()
+                model_predictions[CommonKeys.semantics3d].detach().cpu().long()
             )
 
-        if COMMON_KEYS.semantics3d in model_input:
+        if CommonKeys.semantics3d in model_input:
             self.current_scene.add_semantic_groundtruth(
-                model_input[COMMON_KEYS.semantics3d].detach().cpu().long()
+                model_input[CommonKeys.semantics3d].detach().cpu().long()
             )
 
     def process(
@@ -216,13 +213,13 @@ class PointCloudVisualizer(Visualizer):
                                     COMMON_KEYS.points3d.
             model_predictions (ModelOutput): The output of the model.
         """
-        if COMMON_KEYS.points3d not in model_input:
+        if CommonKeys.points3d not in model_input:
             raise ValueError(
                 f"PointPredVisualizer requires points3d in inputs."
                 f"Got: {list(model_input.keys())}"
             )
 
-        pts = model_input[COMMON_KEYS.points3d]
+        pts = model_input[CommonKeys.points3d]
 
         if len(pts.shape) == 2:  # Data is not batched
             self._process_non_batched(model_input, model_predictions)

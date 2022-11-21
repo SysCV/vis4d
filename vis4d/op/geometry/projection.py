@@ -80,12 +80,13 @@ def points_inside_image(
     depths: torch.Tensor,
     images_hw: Union[torch.Tensor, Tuple[int, int]],
 ) -> torch.Tensor:
-    """Generate binary mask, true for all point coordiantes that lie inside img.
+    """Generate binary mask, true for all point coords that lie inside img.
 
     Args:
         points_coord (torch.Tensor): 2D pixel coordinates of shape [..., 2].
         depths (torch.Tensor): Associated depth of each 2D pixel coordinate.
-        images_hw (torch.Tensor| Tuple[int, int]]: Associated tensor of image dimensions, shape [..., 2] or single height, width pair.
+        images_hw (torch.Tensor| Tuple[int, int]]: Associated tensor of image
+            dimensions, shape [..., 2] or single height, width pair.
 
     Returns:
         torch.Tensor: Binary mask of points inside an image.

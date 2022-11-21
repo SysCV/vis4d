@@ -7,13 +7,11 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader
 
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.s3dis import S3DIS
 from vis4d.data.typing import DictData
 from vis4d.eval import Evaluator
-from vis4d.eval.segment.segmentation_evaluator import (
-    SegmentationEvaluator,
-)
+from vis4d.eval.segment.segmentation_evaluator import SegmentationEvaluator
 from vis4d.model.segment3d.pointnet import (
     PointnetSegmentationLoss,
     PointnetSegmentationModel,
@@ -42,15 +40,15 @@ def get_dataloaders(
 ) -> Tuple[Optional[DataLoader], List[DataLoader], List[Evaluator], str]:
     """Return dataloaders and evaluators."""
 
-    data_in_keys = [COMMON_KEYS.points3d]
+    data_in_keys = [CommonKeys.points3d]
     if load_colors:
-        data_in_keys += [COMMON_KEYS.colors3d]
+        data_in_keys += [CommonKeys.colors3d]
 
     if is_training:
         train_loader = default_train_pipeline(
             S3DIS(
                 data_root="/data/Stanford3dDataset_v1.2_Aligned_Version",
-                keys_to_load=data_in_keys + [COMMON_KEYS.semantics3d],
+                keys_to_load=data_in_keys + [CommonKeys.semantics3d],
             ),
             batch_size,
             load_colors=load_colors,
@@ -63,7 +61,7 @@ def get_dataloaders(
         S3DIS(
             data_root="/data/Stanford3dDataset_v1.2_Aligned_Version",
             split="testArea5",
-            keys_to_load=data_in_keys + [COMMON_KEYS.semantics3d],
+            keys_to_load=data_in_keys + [CommonKeys.semantics3d],
         ),
         1,
         load_colors=load_colors,
@@ -85,14 +83,14 @@ def data_connector(mode: str, data: DictData):
     """Data connector."""
     if mode == "train":
         data_keys = {
-            COMMON_KEYS.points3d: COMMON_KEYS.points3d,
-            COMMON_KEYS.semantics3d: COMMON_KEYS.semantics3d,
+            CommonKeys.points3d: CommonKeys.points3d,
+            CommonKeys.semantics3d: CommonKeys.semantics3d,
         }
     elif mode == "loss":
-        data_keys = {COMMON_KEYS.semantics3d: COMMON_KEYS.semantics3d}
+        data_keys = {CommonKeys.semantics3d: CommonKeys.semantics3d}
     else:
         data_keys = {
-            COMMON_KEYS.points3d: COMMON_KEYS.points3d,
+            CommonKeys.points3d: CommonKeys.points3d,
             # COMMON_KEYS.semantics3d: COMMON_KEYS.semantics3d,
         }
     return {v: data[k] for k, v in data_keys.items()}
@@ -104,8 +102,8 @@ def eval_connector(
     """Data connector for evaluator and visualizer."""
     if mode == "eval":
         return {
-            "prediction": output_data[COMMON_KEYS.semantics3d],
-            "groundtruth": in_data[COMMON_KEYS.semantics3d],
+            "prediction": output_data[CommonKeys.semantics3d],
+            "groundtruth": in_data[CommonKeys.semantics3d],
         }
     return {}
 
@@ -206,7 +204,7 @@ def test(args: argparse.Namespace) -> None:
         num_classes=13, in_dimensions=in_dimension, weights=args.ckpt
     )
     segmenter.to(device)
-    model_test_keys = [COMMON_KEYS.points3d]
+    model_test_keys = [CommonKeys.points3d]
 
     # run testing
     testing_loop(

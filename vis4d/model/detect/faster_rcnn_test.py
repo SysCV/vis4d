@@ -7,7 +7,7 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
     DataPipe,
@@ -72,17 +72,17 @@ class FasterRCNNTest(unittest.TestCase):
 
         Run::
             >>> pytest vis4d/model/detect/faster_rcnn_test.py::FasterRCNNTest::test_inference
-        """  # pylint: disable=line-too-long # Disable the line length requirement becase of the cmd line prompts
+        """
         dataset = COCO(
             get_test_file("coco_test"),
-            keys=(COMMON_KEYS.images,),
+            keys=(CommonKeys.images,),
             split="train",
         )
         test_loader = get_test_dataloader(dataset, 2, (512, 512))
         batch = next(iter(test_loader))
         inputs, images_hw = (
-            batch[COMMON_KEYS.images],
-            batch[COMMON_KEYS.input_hw],
+            batch[CommonKeys.images],
+            batch[CommonKeys.input_hw],
         )
 
         weights = (
@@ -123,10 +123,10 @@ class FasterRCNNTest(unittest.TestCase):
         for epoch in range(2):
             for i, data in enumerate(train_loader):
                 inputs, images_hw, gt_boxes, gt_class_ids = (
-                    data[COMMON_KEYS.images],
-                    data[COMMON_KEYS.input_hw],
-                    data[COMMON_KEYS.boxes2d],
-                    data[COMMON_KEYS.boxes2d_classes],
+                    data[CommonKeys.images],
+                    data[CommonKeys.input_hw],
+                    data[CommonKeys.boxes2d],
+                    data[CommonKeys.boxes2d_classes],
                 )
 
                 # zero the parameter gradients

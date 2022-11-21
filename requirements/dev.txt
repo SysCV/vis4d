@@ -5,6 +5,7 @@ pydocstyle
 pylint
 pytest
 mypy
+pre-commit
 
 types-toml
 types-termcolor

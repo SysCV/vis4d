@@ -529,8 +529,8 @@ class MaskRCNNHeadLoss(nn.Module):
         super().__init__()
         self.num_classes = num_classes
 
+    @staticmethod
     def _get_targets_per_image(
-        self,
         boxes: Tensor,
         tgt_masks: Tensor,
         out_shape: tuple[int, int],

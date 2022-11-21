@@ -6,7 +6,7 @@ import random
 import torch
 import torch.nn.functional as F
 
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 from vis4d.op.box.box2d import transform_bbox
 
 from .base import Transform
@@ -58,7 +58,7 @@ def _resize_tensor(
     return output
 
 
-@Transform(out_keys=(COMMON_KEYS.images, COMMON_KEYS.input_hw))
+@Transform(out_keys=(CommonKeys.images, CommonKeys.input_hw))
 def resize_image(
     shape: tuple[int, int] | list[tuple[int, int]],
     keep_ratio: bool = False,
@@ -110,11 +110,11 @@ def resize_image(
 
 @Transform(
     in_keys=(
-        COMMON_KEYS.boxes2d,
-        COMMON_KEYS.original_hw,
-        COMMON_KEYS.input_hw,
+        CommonKeys.boxes2d,
+        CommonKeys.original_hw,
+        CommonKeys.input_hw,
     ),
-    out_keys=(COMMON_KEYS.boxes2d,),
+    out_keys=(CommonKeys.boxes2d,),
 )
 def resize_boxes2d():
     """Resize 2D bounding boxes."""
@@ -133,11 +133,11 @@ def resize_boxes2d():
 
 @Transform(
     in_keys=(
-        COMMON_KEYS.intrinsics,
-        COMMON_KEYS.original_hw,
-        COMMON_KEYS.input_hw,
+        CommonKeys.intrinsics,
+        CommonKeys.original_hw,
+        CommonKeys.input_hw,
     ),
-    out_keys=(COMMON_KEYS.intrinsics,),
+    out_keys=(CommonKeys.intrinsics,),
 )
 def resize_intrinsics():
     """Scale camera intrinsics when resizing."""
@@ -155,8 +155,8 @@ def resize_intrinsics():
 
 
 @Transform(
-    in_keys=(COMMON_KEYS.masks, COMMON_KEYS.input_hw),
-    out_keys=(COMMON_KEYS.masks,),
+    in_keys=(CommonKeys.masks, CommonKeys.input_hw),
+    out_keys=(CommonKeys.masks,),
 )
 def resize_masks():
     """Resize masks."""

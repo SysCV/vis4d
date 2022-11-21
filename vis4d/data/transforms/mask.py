@@ -3,14 +3,14 @@ from __future__ import annotations
 
 import torch
 
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 
 from .base import Transform
 
 
 @Transform(
-    in_keys=(COMMON_KEYS.boxes2d_classes, COMMON_KEYS.masks),
-    out_keys=(COMMON_KEYS.segmentation_masks,),
+    in_keys=(CommonKeys.boxes2d_classes, CommonKeys.masks),
+    out_keys=(CommonKeys.segmentation_masks,),
 )
 def convert_ins_masks_to_seg_mask():
     """Merge all instance masks into a single segmentation map."""
@@ -25,8 +25,8 @@ def convert_ins_masks_to_seg_mask():
 
 
 @Transform(
-    in_keys=(COMMON_KEYS.boxes2d_classes,),
-    out_keys=(COMMON_KEYS.boxes2d_classes,),
+    in_keys=(CommonKeys.boxes2d_classes,),
+    out_keys=(CommonKeys.boxes2d_classes,),
 )
 def remap_categories(mapping: list[int]):
     """Remap classes using a mapping list.
@@ -37,8 +37,8 @@ def remap_categories(mapping: list[int]):
     """
 
     def _remap(classes: torch.Tensor):
-        for i in range(len(classes)):
-            classes[i] = mapping.index(classes[i])
+        for i, cls in enumerate(classes):
+            classes[i] = mapping.index(cls)
         return classes
 
     return _remap

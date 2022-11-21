@@ -5,7 +5,7 @@ import unittest
 import pytest
 import torch
 
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 
 from .point_sampling import (
     sample_from_block,
@@ -25,11 +25,11 @@ class TestSampleFromBlock(unittest.TestCase):
     def initdata(self):
         """Loads dummy data."""
         self.data = {
-            COMMON_KEYS.points3d: torch.cat(
+            CommonKeys.points3d: torch.cat(
                 [self.data_in_unit_square, self.data_outside_unit_square]
             ),
-            COMMON_KEYS.colors3d: torch.rand(200, 3),
-            COMMON_KEYS.semantics3d: torch.randint(10, (200, 1)),
+            CommonKeys.colors3d: torch.rand(200, 3),
+            CommonKeys.semantics3d: torch.randint(10, (200, 1)),
         }
         self.original_data = copy.deepcopy(self.data)
 
@@ -90,20 +90,20 @@ class TestSampleFromBlock(unittest.TestCase):
         sampler = sample_points_random(
             num_pts=500,
             in_keys=(
-                COMMON_KEYS.points3d,
-                COMMON_KEYS.semantics3d,
-                COMMON_KEYS.colors3d,
+                CommonKeys.points3d,
+                CommonKeys.semantics3d,
+                CommonKeys.colors3d,
             ),
             out_keys=(
-                COMMON_KEYS.points3d,
-                COMMON_KEYS.semantics3d,
-                COMMON_KEYS.colors3d,
+                CommonKeys.points3d,
+                CommonKeys.semantics3d,
+                CommonKeys.colors3d,
             ),
         )
         data_sampled = sampler(self.data)
-        self.assertEqual(data_sampled[COMMON_KEYS.points3d].size(0), 500)
-        self.assertEqual(data_sampled[COMMON_KEYS.semantics3d].size(0), 500)
-        self.assertEqual(data_sampled[COMMON_KEYS.colors3d].size(0), 500)
+        self.assertEqual(data_sampled[CommonKeys.points3d].size(0), 500)
+        self.assertEqual(data_sampled[CommonKeys.semantics3d].size(0), 500)
+        self.assertEqual(data_sampled[CommonKeys.colors3d].size(0), 500)
 
     def test_full_scale_block_sampling(self):
         """Tests if all points are sampled when using full coverage and enough points."""
@@ -113,22 +113,22 @@ class TestSampleFromBlock(unittest.TestCase):
             min_pts_per_block=1,
             n_pts_per_block=200,
             in_keys=(
-                COMMON_KEYS.points3d,
-                COMMON_KEYS.semantics3d,
-                COMMON_KEYS.colors3d,
+                CommonKeys.points3d,
+                CommonKeys.semantics3d,
+                CommonKeys.colors3d,
             ),
             out_keys=(
-                COMMON_KEYS.points3d,
-                COMMON_KEYS.semantics3d,
-                COMMON_KEYS.colors3d,
+                CommonKeys.points3d,
+                CommonKeys.semantics3d,
+                CommonKeys.colors3d,
             ),
         )
 
         data_sampled = sampler(self.data)
         for key in (
-            COMMON_KEYS.points3d,
-            COMMON_KEYS.semantics3d,
-            COMMON_KEYS.colors3d,
+            CommonKeys.points3d,
+            CommonKeys.semantics3d,
+            CommonKeys.colors3d,
         ):
             self.assertTrue(
                 torch.all(
@@ -147,9 +147,9 @@ class RandomPointSamplingTest(unittest.TestCase):
     def initdata(self):
         """Loads dummy data."""
         self.data = {
-            COMMON_KEYS.points3d: torch.rand(self.n_scene_pts, 3),
-            COMMON_KEYS.colors3d: torch.rand(self.n_scene_pts, 3),
-            COMMON_KEYS.semantics3d: torch.rand(self.n_scene_pts, 1),
+            CommonKeys.points3d: torch.rand(self.n_scene_pts, 3),
+            CommonKeys.colors3d: torch.rand(self.n_scene_pts, 3),
+            CommonKeys.semantics3d: torch.rand(self.n_scene_pts, 1),
         }
 
     def test_sample_less_pts(self):
@@ -159,17 +159,17 @@ class RandomPointSamplingTest(unittest.TestCase):
         # pylint: disable=unexpected-keyword-arg
         sampler = sample_points_random(
             num_pts=100,
-            in_keys=(COMMON_KEYS.points3d, COMMON_KEYS.semantics3d),
+            in_keys=(CommonKeys.points3d, CommonKeys.semantics3d),
             out_keys=(
-                COMMON_KEYS.points3d,
-                COMMON_KEYS.semantics3d,
+                CommonKeys.points3d,
+                CommonKeys.semantics3d,
             ),
         )
         data_sampled = sampler(self.data)
-        self.assertEqual(data_sampled[COMMON_KEYS.points3d].size(0), 100)
-        self.assertEqual(data_sampled[COMMON_KEYS.semantics3d].size(0), 100)
+        self.assertEqual(data_sampled[CommonKeys.points3d].size(0), 100)
+        self.assertEqual(data_sampled[CommonKeys.semantics3d].size(0), 100)
         self.assertEqual(
-            data_sampled[COMMON_KEYS.colors3d].size(0), self.n_scene_pts
+            data_sampled[CommonKeys.colors3d].size(0), self.n_scene_pts
         )
 
     def test_sample_more_pts(self):
@@ -180,17 +180,17 @@ class RandomPointSamplingTest(unittest.TestCase):
         sampler = sample_points_random(
             num_pts=10000,
             in_keys=(
-                COMMON_KEYS.points3d,
-                COMMON_KEYS.semantics3d,
-                COMMON_KEYS.colors3d,
+                CommonKeys.points3d,
+                CommonKeys.semantics3d,
+                CommonKeys.colors3d,
             ),
             out_keys=(
-                COMMON_KEYS.points3d,
-                COMMON_KEYS.semantics3d,
-                COMMON_KEYS.colors3d,
+                CommonKeys.points3d,
+                CommonKeys.semantics3d,
+                CommonKeys.colors3d,
             ),
         )
         data_sampled = sampler(self.data)
-        self.assertEqual(data_sampled[COMMON_KEYS.points3d].size(0), 10000)
-        self.assertEqual(data_sampled[COMMON_KEYS.semantics3d].size(0), 10000)
-        self.assertEqual(data_sampled[COMMON_KEYS.colors3d].size(0), 10000)
+        self.assertEqual(data_sampled[CommonKeys.points3d].size(0), 10000)
+        self.assertEqual(data_sampled[CommonKeys.semantics3d].size(0), 10000)
+        self.assertEqual(data_sampled[CommonKeys.colors3d].size(0), 10000)
