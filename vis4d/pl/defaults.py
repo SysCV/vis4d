@@ -50,16 +50,18 @@ def adamW(  # pylint: disable=invalid-name
 
 
 def step_schedule(
-    max_epochs: int = 12,
+    max_steps: int = 12,
     milestones: Optional[List[int]] = None,
     gamma: float = 0.1,
+    mode: str = "epoch",
 ) -> DictStrAny:
     """Create standard step schedule cfg according to max epochs."""
     if milestones is None:
-        milestones = [int(max_epochs * 2 / 3), int(max_epochs * 11 / 12)]
+        milestones = [int(max_steps * 2 / 3), int(max_steps * 11 / 12)]
     lr_scheduler_cfg = {
         "class_path": "torch.optim.lr_scheduler.MultiStepLR",
         "init_args": {"milestones": milestones, "gamma": gamma},
+        "mode": mode,
     }
     return lr_scheduler_cfg
 
