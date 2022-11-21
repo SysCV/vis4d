@@ -8,7 +8,7 @@ import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from pytorch_lightning.core import LightningModule
-from pytorch_lightning.plugins import DDP2Plugin, DDPPlugin, DDPSpawnPlugin
+from pytorch_lightning.plugins import DDPPlugin
 from pytorch_lightning.strategies.strategy import Strategy
 from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids

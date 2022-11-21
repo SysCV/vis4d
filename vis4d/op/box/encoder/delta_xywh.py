@@ -30,17 +30,18 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         self,
         target_means: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
         target_stds: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
-        clip_border: bool = True,
+        wh_ratio_clip: float = 16 / 1000,
     ):
         self.means = target_means
         self.stds = target_stds
-        self.clip_border = clip_border
+        self.wh_ratio_clip = wh_ratio_clip
 
     def encode(
         self, boxes: torch.Tensor, targets: torch.Tensor
     ) -> torch.Tensor:
-        """Get box regression transformation deltas that can be used to
-        transform the ``bboxes`` into the ``gt_bboxes``.
+        """Get box regression transformation deltas.
+
+        Used to transform target boxes into target regression parameters.
 
         Args:
             boxes (torch.Tensor): Source boxes, e.g., object proposals.
@@ -60,10 +61,8 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         self,
         bboxes: torch.Tensor,
         pred_bboxes: torch.Tensor,
-        max_shape: Optional[Tuple[int, int]] = None,
-        wh_ratio_clip: float = 16 / 1000,
     ):
-        """Apply transformation `pred_bboxes` to `boxes`.
+        """Apply box offset energies pred_bboxes to bboxes.
 
         Args:
             bboxes (torch.Tensor): Basic boxes. Shape (B, N, 4) or (N, 4)
@@ -71,11 +70,6 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
                Has shape (B, N, num_classes * 4) or (B, N, 4) or
                (N, num_classes * 4) or (N, 4). Note N = num_anchors * W * H
                when rois is a grid of anchors.Offset encoding follows [1]_.
-            max_shape (Tuple[int, int]): Maximum bounds for boxes, specified
-               as (H, W). Defaults to None.
-               and the length of max_shape should also be B.
-            wh_ratio_clip (float, optional): The allowed ratio between
-                width and height.
 
         Returns:
             torch.Tensor: Decoded boxes.
@@ -86,9 +80,7 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
             pred_bboxes,
             self.means,
             self.stds,
-            max_shape,
-            wh_ratio_clip,
-            self.clip_border,
+            self.wh_ratio_clip,
         )
 
         return decoded_bboxes
@@ -151,9 +143,7 @@ def delta2bbox(
     deltas: torch.Tensor,
     means: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     stds: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
-    max_shape: Optional[Tuple[int, int]] = None,
     wh_ratio_clip: float = 16 / 1000,
-    clip_border: bool = True,
 ):
     """Apply deltas to shift/scale base boxes.
 
@@ -171,12 +161,8 @@ def delta2bbox(
             Default (0., 0., 0., 0.).
         stds (Sequence[float]): Denormalizing standard deviation for delta
             coordinates. Default (1., 1., 1., 1.).
-        max_shape (tuple[int, int]): Maximum bounds for boxes, specifies
-           (H, W). Default None.
         wh_ratio_clip (float): Maximum aspect ratio for boxes. Default
             16 / 1000.
-        clip_border (bool, optional): Whether clip the objects outside the
-            border of the image. Default True.
 
     Returns:
         Tensor: Boxes with shape (N, num_classes * 4) or (N, 4), where 4
@@ -184,21 +170,6 @@ def delta2bbox(
 
     References:
         .. [1] https://arxiv.org/abs/1311.2524
-
-    Example:
-        >>> rois = torch.Tensor([[ 0.,  0.,  1.,  1.],
-        >>>                      [ 0.,  0.,  1.,  1.],
-        >>>                      [ 0.,  0.,  1.,  1.],
-        >>>                      [ 5.,  5.,  5.,  5.]])
-        >>> deltas = torch.Tensor([[  0.,   0.,   0.,   0.],
-        >>>                        [  1.,   1.,   1.,   1.],
-        >>>                        [  0.,   0.,   2.,  -1.],
-        >>>                        [ 0.7, -1.9, -0.5,  0.3]])
-        >>> delta2bbox(rois, deltas, max_shape=(32, 32, 3))
-        tensor([[0.0000, 0.0000, 1.0000, 1.0000],
-                [0.1409, 0.1409, 2.8591, 2.8591],
-                [0.0000, 0.3161, 4.1945, 0.6839],
-                [5.0000, 5.0000, 5.0000, 5.0000]])
     """
     num_bboxes, num_classes = deltas.size(0), deltas.size(1) // 4
     if num_bboxes == 0:
@@ -228,8 +199,5 @@ def delta2bbox(
     x1y1 = gxy - (gwh * 0.5)
     x2y2 = gxy + (gwh * 0.5)
     bboxes = torch.cat([x1y1, x2y2], dim=-1)
-    if clip_border and max_shape is not None:
-        bboxes[..., 0::2].clamp_(min=0, max=max_shape[1])
-        bboxes[..., 1::2].clamp_(min=0, max=max_shape[0])
     bboxes = bboxes.reshape(num_bboxes, -1)
     return bboxes

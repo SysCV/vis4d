@@ -9,8 +9,8 @@ from vis4d.common import LossesType, ModelOutput
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import BoxEncoder2D
-from vis4d.op.box.matchers import BaseMatcher
-from vis4d.op.box.samplers import BaseSampler
+from vis4d.op.box.matchers import Matcher
+from vis4d.op.box.samplers import Sampler
 from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.retinanet import (
     Dense2Det,
@@ -149,8 +149,8 @@ class RetinaNetLoss(nn.Module):
         self,
         anchor_generator: AnchorGenerator,
         box_encoder: BoxEncoder2D,
-        box_matcher: BaseMatcher,
-        box_sampler: BaseSampler,
+        box_matcher: Matcher,
+        box_sampler: Sampler,
     ) -> None:
         """Init.
 

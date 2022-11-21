@@ -1,9 +1,9 @@
 """Matchers package."""
-from .base import BaseMatcher, MatchResult
+from .base import Matcher, MatchResult
 from .max_iou import MaxIoUMatcher
 
 __all__ = [
-    "BaseMatcher",
+    "Matcher",
     "MaxIoUMatcher",
     "MatchResult",
 ]

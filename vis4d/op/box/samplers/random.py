@@ -7,10 +7,10 @@ import torch
 from vis4d.common import ArgsType
 
 from ..matchers.base import MatchResult
-from .base import BaseSampler, SamplingResult
+from .base import Sampler, SamplingResult
 
 
-class RandomSampler(BaseSampler):
+class RandomSampler(Sampler):
     """Random sampler class."""
 
     def __init__(

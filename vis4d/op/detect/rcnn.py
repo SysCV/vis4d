@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.ops import roi_align
 
-from vis4d.op.box.box2d import multiclass_nms
+from vis4d.op.box.box2d import bbox_clip, multiclass_nms
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.poolers import MultiScaleRoIAlign
 from vis4d.op.loss.common import l1_loss
@@ -176,10 +176,10 @@ class RoI2Det(nn.Module):
             class_outs, regression_outs, boxes, images_hw
         ):
             scores = F.softmax(cls_out, dim=-1)
-            bboxes = self.bbox_coder.decode(
-                boxs[:, :4], reg_out, max_shape=image_hw
+            bboxes = bbox_clip(
+                self.bbox_coder.decode(boxs[:, :4], reg_out), image_hw
             )
-            det_bbox, det_scores, det_label = multiclass_nms(
+            det_bbox, det_scores, det_label, _ = multiclass_nms(
                 bboxes,
                 scores,
                 self.score_threshold,
@@ -620,7 +620,7 @@ class MaskRCNNHeadLoss(nn.Module):
             MaskRCNNHeadLosses: mask loss.
         """
         mask_pred = torch.cat(mask_preds)
-        mask_size = tuple([mask_pred.shape[2], mask_pred.shape[3]])
+        mask_size = (mask_pred.shape[2], mask_pred.shape[3])
         # get targets
         targets = []
         for boxes, tgt_masks in zip(proposal_boxes, target_masks):

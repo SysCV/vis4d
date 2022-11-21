@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops import batched_nms
 
-from vis4d.op.box.box2d import filter_boxes_by_area
+from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
@@ -18,7 +18,8 @@ from vis4d.op.loss.reducer import SumWeightedLoss
 
 from ..layer import Conv2d
 from ..typing import Proposals
-from .anchor_generator import AnchorGenerator, anchor_inside_image
+from .anchor_generator import AnchorGenerator
+from .util import get_targets_per_image, images_to_levels
 
 
 class RPNOut(NamedTuple):
@@ -129,17 +130,37 @@ class RPN2RoI(nn.Module):
         self,
         anchor_generator: AnchorGenerator,
         box_encoder: BoxEncoder2D,
-        num_proposals_pre_nms: int = 2000,
+        num_proposals_pre_nms_train: int = 2000,
+        num_proposals_pre_nms_test: int = 1000,
         max_per_img: int = 1000,
         proposal_nms_threshold: float = 0.7,
         min_proposal_size: tuple[int, int] = (0, 0),
     ) -> None:
+        """Init.
+
+        Args:
+            anchor_generator (AnchorGenerator): Creates anchor grid serving as
+                for bounding box regression.
+            box_encoder (BoxEncoder2D): decodes box energies predicted by the
+                network into 2D bounding box parameters.
+            num_proposals_pre_nms_train (int, optional): How many boxes are
+                kept prior to NMS during training. Defaults to 2000.
+            num_proposals_pre_nms_test (int, optional): How many boxes are
+                kept prior to NMS during inference. Defaults to 1000.
+            max_per_img (int, optional): Maximum boxes per image.
+                Defaults to 1000.
+            proposal_nms_threshold (float, optional): NMS threshold on proposal
+                boxes. Defaults to 0.7.
+            min_proposal_size (tuple[int, int], optional): Minimum size of a
+                proposal box. Defaults to (0, 0).
+        """
         super().__init__()
         self.anchor_generator = anchor_generator
         self.box_encoder = box_encoder
         self.max_per_img = max_per_img
         self.min_proposal_size = min_proposal_size
-        self.num_proposals_pre_nms = num_proposals_pre_nms
+        self.num_proposals_pre_nms_train = num_proposals_pre_nms_train
+        self.num_proposals_pre_nms_test = num_proposals_pre_nms_test
         self.proposal_nms_threshold = proposal_nms_threshold
 
     def _get_params_per_level(
@@ -148,7 +169,9 @@ class RPN2RoI(nn.Module):
         reg_out: torch.Tensor,
         anchors: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Get a topk pre-selection of flattened classification scores and box
+        """Get a topk pre-selection of parameters.
+
+        The parameters include flattened classification scores and box
         energies from feature output per level per image before nms.
 
         Args:
@@ -168,10 +191,15 @@ class RPN2RoI(nn.Module):
         )
         cls_out = cls_out.permute(1, 2, 0).reshape(-1).sigmoid()
         reg_out = reg_out.permute(1, 2, 0).reshape(-1, 4)
-        if 0 < self.num_proposals_pre_nms < cls_out.shape[0]:
+        if self.training:
+            num_proposals_pre_nms = self.num_proposals_pre_nms_train
+        else:
+            num_proposals_pre_nms = self.num_proposals_pre_nms_test
+
+        if 0 < num_proposals_pre_nms < cls_out.shape[0]:
             cls_out_ranked, rank_inds = cls_out.sort(descending=True)
-            topk_inds = rank_inds[: self.num_proposals_pre_nms]
-            cls_out = cls_out_ranked[: self.num_proposals_pre_nms]
+            topk_inds = rank_inds[:num_proposals_pre_nms]
+            cls_out = cls_out_ranked[:num_proposals_pre_nms]
             reg_out = reg_out[topk_inds, :]
             anchors = anchors[topk_inds, :]
 
@@ -185,8 +213,10 @@ class RPN2RoI(nn.Module):
         level_all: list[torch.Tensor],
         image_hw: tuple[int, int],
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Decode box energies into proposals for a single image, post-process
-        via NMS. NMS is performed per level. Afterwards, select topk proposals.
+        """Decode box energies into proposals for a single image, post-process.
+
+        Post-processing happens via NMS. NMS is performed per level.
+        Afterwards, select topk proposals.
 
         Args:
             cls_out_all (list[torch.Tensor]): topk class scores per level.
@@ -200,8 +230,12 @@ class RPN2RoI(nn.Module):
         """
         scores = torch.cat(cls_out_all)
         levels = torch.cat(level_all)
-        proposals = self.box_encoder.decode(
-            torch.cat(anchors_all), torch.cat(reg_out_all), max_shape=image_hw
+
+        proposals = bbox_clip(
+            self.box_encoder.decode(
+                torch.cat(anchors_all), torch.cat(reg_out_all)
+            ),
+            image_hw,
         )
 
         proposals, mask = filter_boxes_by_area(
@@ -252,7 +286,7 @@ class RPN2RoI(nn.Module):
         featmap_sizes = [featmap.size()[-2:] for featmap in class_outs]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
         anchor_grids = self.anchor_generator.grid_priors(
-            featmap_sizes, device=device
+            featmap_sizes, device=device  # type: ignore
         )
         proposals, scores = [], []
         for img_id, image_hw in enumerate(images_hw):
@@ -276,28 +310,6 @@ class RPN2RoI(nn.Module):
             proposals.append(box)
             scores.append(score)
         return Proposals(proposals, scores)
-
-
-class RPNTargets(NamedTuple):
-    """Targets for RPNLoss."""
-
-    labels: torch.Tensor
-    label_weights: torch.Tensor
-    bbox_targets: torch.Tensor
-    bbox_weights: torch.Tensor
-
-
-def unmap(data, count, inds, fill=0):  # TODO needed? if so revise
-    """Unmap a subset of item (data) back to the original set of items (of size
-    count)"""
-    if data.dim() == 1:
-        ret = data.new_full((count,), fill)
-        ret[inds.type(torch.bool)] = data
-    else:
-        new_size = (count,) + data.size()[1:]
-        ret = data.new_full(new_size, fill)
-        ret[inds.type(torch.bool), :] = data
-    return ret
 
 
 class RPNLosses(NamedTuple):
@@ -382,57 +394,6 @@ class RPNLoss(nn.Module):
         )
         return loss_cls, loss_bbox
 
-    def _get_targets_per_image(
-        self,
-        target_boxes: torch.Tensor,
-        anchors: torch.Tensor,
-        image_hw: tuple[int, int],
-    ) -> tuple[RPNTargets, int, int]:
-        """Get targets per batch element, all scales."""
-        inside_flags = anchor_inside_image(
-            anchors, image_hw, allowed_border=self.allowed_border
-        )
-        # assign gt and sample anchors
-        anchors = anchors[inside_flags, :]
-
-        matching = self.matcher(anchors, target_boxes)
-        sampling_result = self.sampler(matching)
-
-        num_valid_anchors = anchors.size(0)
-        bbox_targets = torch.zeros_like(anchors)
-        bbox_weights = torch.zeros_like(anchors)
-        labels = anchors.new_zeros((num_valid_anchors,))
-        label_weights = anchors.new_zeros(num_valid_anchors)
-
-        positives = sampling_result.sampled_labels == 1
-        negatives = sampling_result.sampled_labels == 0
-        pos_inds = sampling_result.sampled_box_indices[positives]
-        pos_target_inds = sampling_result.sampled_target_indices[positives]
-        neg_inds = sampling_result.sampled_box_indices[negatives]
-        if len(pos_inds) > 0:
-            pos_bbox_targets = self.box_encoder.encode(
-                anchors[pos_inds], target_boxes[pos_target_inds]
-            )
-            bbox_targets[pos_inds] = pos_bbox_targets
-            bbox_weights[pos_inds] = 1.0
-            labels[pos_inds] = 1.0
-            label_weights[pos_inds] = 1.0
-        if len(neg_inds) > 0:
-            label_weights[neg_inds] = 1.0
-
-        # map up to original set of anchors
-        num_total_anchors = inside_flags.size(0)
-        labels = unmap(labels, num_total_anchors, inside_flags)
-        label_weights = unmap(label_weights, num_total_anchors, inside_flags)
-        bbox_targets = unmap(bbox_targets, num_total_anchors, inside_flags)
-        bbox_weights = unmap(bbox_weights, num_total_anchors, inside_flags)
-
-        return (
-            RPNTargets(labels, label_weights, bbox_targets, bbox_weights),
-            int(positives.sum()),
-            int(negatives.sum()),
-        )
-
     def forward(
         self,
         class_outs: list[torch.Tensor],
@@ -460,15 +421,21 @@ class RPNLoss(nn.Module):
         device = class_outs[0].device
 
         anchor_grids = self.anchor_generator.grid_priors(
-            featmap_sizes, device=device
+            featmap_sizes, device=device  # type: ignore
         )
         num_level_anchors = [anchors.size(0) for anchors in anchor_grids]
         anchors_all_levels = torch.cat(anchor_grids)
 
         targets, num_total_pos, num_total_neg = [], 0, 0
         for tgt_box, image_hw in zip(target_boxes, images_hw):
-            target, num_pos, num_neg = self._get_targets_per_image(
-                tgt_box, anchors_all_levels, image_hw
+            target, num_pos, num_neg = get_targets_per_image(
+                tgt_box,
+                anchors_all_levels,
+                self.matcher,
+                self.sampler,
+                self.box_encoder,
+                image_hw=image_hw,
+                allowed_border=self.allowed_border,
             )
             num_total_pos += num_pos
             num_total_neg += num_neg
@@ -518,16 +485,3 @@ class RPNLoss(nn.Module):
         return self._call_impl(
             class_outs, regression_outs, target_boxes, images_hw
         )
-
-
-def images_to_levels(targets) -> list[list[torch.Tensor]]:
-    """Convert targets by image to targets by feature level."""
-    targets_per_level = []
-    for lvl_id in range(len(targets[0][0])):
-        targets_single_level = []
-        for tgt_id in range(len(targets[0])):
-            targets_single_level.append(
-                torch.stack([tgt[tgt_id][lvl_id] for tgt in targets], 0)
-            )
-        targets_per_level.append(targets_single_level)
-    return targets_per_level

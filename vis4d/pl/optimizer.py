@@ -1,9 +1,11 @@
 """Base class for Vis4D models."""
+from __future__ import annotations
+
 import os.path as osp
 import re
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import Callable, List, Optional, Tuple, no_type_check
+from typing import Callable, List, no_type_check
 
 import pytorch_lightning as pl
 import torch
@@ -43,14 +45,14 @@ class DefaultOptimizer(pl.LightningModule):
         model: nn.Module,
         loss: nn.Module,
         data_connector=default_data_connector,
-        optimizer_init: Optional[DictStrAny] = None,
-        lr_scheduler_init: Optional[DictStrAny] = None,
+        optimizer_init: DictStrAny | None = None,
+        lr_scheduler_init: DictStrAny | None = None,
         freeze: bool = False,
-        freeze_parameters: Optional[List[str]] = None,
-        weights: Optional[str] = None,
+        freeze_parameters: List[str] | None = None,
+        weights: str | None = None,
         strict: bool = True,
-        revise_keys: Optional[List[Tuple[str, str]]] = None,
-        lr_warmup: Optional[BaseLRWarmup] = None,
+        revise_keys: list[tuple[str, str]] | None = None,
+        lr_warmup: BaseLRWarmup | None = None,
     ):
         """Init."""
         super().__init__()
@@ -85,7 +87,7 @@ class DefaultOptimizer(pl.LightningModule):
 
     def configure_optimizers(
         self,
-    ) -> Tuple[List[Optimizer], List[lr_scheduler._LRScheduler]]:
+    ) -> tuple[list[Optimizer], list[lr_scheduler._LRScheduler]]:
         """Configure optimizers and schedulers of model."""
         optimizer = instantiate_class(self.parameters(), self.optimizer_init)
         if self.lr_scheduler_init is not None:
@@ -98,9 +100,9 @@ class DefaultOptimizer(pl.LightningModule):
         self,
         epoch: int = None,
         batch_idx: int = None,
-        optimizer: Optimizer = None,
+        optimizer: Optimizer | None = None,
         optimizer_idx: int = None,
-        optimizer_closure: Optional[Callable] = None,
+        optimizer_closure: Callable | None = None,
         on_tpu: bool = None,
         using_native_amp: bool = None,
         using_lbfgs: bool = None,
@@ -240,9 +242,7 @@ class DefaultOptimizer(pl.LightningModule):
         # load state_dict
         self.load_state_dict(state_dict, strict=strict)
 
-    def freeze_parameters(
-        self, parameters: Optional[List[str]] = None
-    ) -> None:
+    def freeze_parameters(self, parameters: list[str] | None = None) -> None:
         """Freeze (given) model parameters."""
         if parameters is not None:
             pnames, params = [], []

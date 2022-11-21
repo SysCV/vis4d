@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import torch
+from torch import Tensor
 from torchvision.ops import batched_nms
 
 from vis4d.op.geometry.transform import transform_points
@@ -189,15 +190,13 @@ def filter_boxes_by_area(
 
 
 def multiclass_nms(
-    multi_bboxes,
-    multi_scores,
-    score_thr,
-    iou_thr,
-    max_num=-1,
-    score_factors=None,
-    return_inds=False,
-):  # TODO copied from mmdet, revise
-    """NMS for multi-class bboxes.
+    multi_bboxes: Tensor,
+    multi_scores: Tensor,
+    score_thr: float,
+    iou_thr: float,
+    max_num: int = -1,
+) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    """A per-class version of Non-maximum suppression.
 
     Args:
         multi_bboxes (Tensor): shape (n, #class*4) or (n, 4)
@@ -207,15 +206,11 @@ def multiclass_nms(
             will not be considered.
         nms_thr (float): NMS IoU threshold
         max_num (int, optional): if there are more than max_num bboxes after
-            NMS, only top max_num will be kept. Default to -1.
-        score_factors (Tensor, optional): The factors multiplied to scores
-            before applying NMS. Default to None.
-        return_inds (bool, optional): Whether return the indices of kept
-            bboxes. Default to False.
+            NMS, only top max_num will be kept. Defaults to -1.
 
     Returns:
-        tuple: (dets, labels, indices (optional)), tensors of shape (k, 5),
-            (k), and (k). Dets are boxes with scores. Labels are 0-based.
+        tuple: (Tensor, Tensor, Tensor, Tensor): detections (k, 5), scores
+            (k), classes (k) and indices (k).
     """
     num_classes = multi_scores.size(1) - 1
     # exclude background category
@@ -231,23 +226,14 @@ def multiclass_nms(
     labels = torch.arange(num_classes, dtype=torch.long, device=scores.device)
     labels = labels.view(1, -1).expand_as(scores)
 
-    bboxes = bboxes.reshape(-1, 4)
-    scores = scores.reshape(-1)
-    labels = labels.reshape(-1)
+    bboxes = bboxes.view(-1, 4)
+    scores = scores.view(-1)
+    labels = labels.view(-1)
 
     if not torch.onnx.is_in_onnx_export():
         # NonZero not supported  in TensorRT
         # remove low scoring boxes
         valid_mask = scores > score_thr
-    # multiply score_factor after threshold to preserve more bboxes, improve
-    # mAP by 1% for YOLOv3
-    if score_factors is not None:
-        # expand the shape to match original shape of score
-        score_factors = score_factors.view(-1, 1).expand(
-            multi_scores.size(0), num_classes
-        )
-        score_factors = score_factors.reshape(-1)
-        scores = scores * score_factors
 
     if not torch.onnx.is_in_onnx_export():
         # NonZero not supported  in TensorRT
@@ -266,10 +252,7 @@ def multiclass_nms(
                 "[ONNX Error] Can not record NMS "
                 "as it has not been executed this time"
             )
-        if return_inds:
-            return bboxes, scores, labels, inds
-        else:
-            return bboxes, scores, labels
+        return bboxes, scores, labels, inds
 
     keep = batched_nms(bboxes, scores, labels, iou_thr)
 
@@ -279,11 +262,7 @@ def multiclass_nms(
     bboxes = bboxes[keep]
     scores = scores[keep]
     labels = labels[keep]
-
-    if return_inds:
-        return bboxes, scores, labels, inds[keep]
-    else:
-        return bboxes, scores, labels
+    return bboxes, scores, labels, inds[keep]
 
 
 # TODO revise

@@ -8,10 +8,10 @@ from torch import nn
 
 from vis4d.op.box.box2d import apply_mask
 from vis4d.op.box.encoder import BoxEncoder2D, DeltaXYWHBBoxEncoder
-from vis4d.op.box.matchers import BaseMatcher, MaxIoUMatcher
+from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.samplers import (
-    BaseSampler,
     RandomSampler,
+    Sampler,
     match_and_sample_proposals,
 )
 
@@ -90,8 +90,8 @@ class FasterRCNNHead(nn.Module):
         anchor_generator: None | AnchorGenerator = None,
         rpn_box_encoder: None | BoxEncoder2D = None,
         rcnn_box_encoder: None | BoxEncoder2D = None,
-        box_matcher: None | BaseMatcher = None,
-        box_sampler: None | BaseSampler = None,
+        box_matcher: None | Matcher = None,
+        box_sampler: None | Sampler = None,
         proposal_append_gt: bool = True,
     ):
         """Init.
@@ -228,8 +228,6 @@ class FasterRCNNHead(nn.Module):
             assert (
                 target_classes is not None
             ), "Need target classes for target boxes!"
-
-            self.rpn2roi.num_proposals_pre_nms = 2000  # TODO needs cleanup
             proposal_boxes, scores = self.rpn2roi(
                 rpn_out.cls, rpn_out.box, images_hw
             )
@@ -243,7 +241,6 @@ class FasterRCNNHead(nn.Module):
             )
             roi_out = self.roi_head(features, sampled_proposals.boxes)
         else:
-            self.rpn2roi.num_proposals_pre_nms = 1000  # TODO needs cleanup
             proposal_boxes, scores = self.rpn2roi(
                 rpn_out.cls, rpn_out.box, images_hw
             )

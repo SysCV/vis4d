@@ -19,7 +19,7 @@ class MatchResult(NamedTuple):
     assigned_labels: torch.Tensor
 
 
-class BaseMatcher(nn.Module):
+class Matcher(nn.Module):
     """Base class for box / target matchers."""
 
     @abc.abstractmethod

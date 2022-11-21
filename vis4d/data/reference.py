@@ -25,7 +25,7 @@ def sort_temporal(
     """Sort views temporally."""
     sorted_indices = sorted(
         [key_dataset_index, *ref_indices],
-        key=lambda x: indices_in_video.index(x),
+        key=indices_in_video.index,
     )
     return sorted_indices
 

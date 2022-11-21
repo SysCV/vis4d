@@ -4,10 +4,10 @@ from typing import Tuple
 import torch
 
 from ..matchers.base import MatchResult
-from .base import BaseSampler, SamplingResult
+from .base import Sampler, SamplingResult
 
 
-class PseudoSampler(BaseSampler):
+class PseudoSampler(Sampler):
     """Pseudo sampler class."""
 
     def forward(self, matching: MatchResult) -> SamplingResult:
