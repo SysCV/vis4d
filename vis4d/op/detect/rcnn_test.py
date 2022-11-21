@@ -1,4 +1,4 @@
-"""Faster RCNN tests."""
+"""RCNN tests."""
 import unittest
 
 import torch

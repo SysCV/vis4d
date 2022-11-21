@@ -1,5 +1,5 @@
 """Mask RCNN model implementation and runtime."""
-from typing import List, Optional, Tuple, Union
+from __future__ import annotations
 
 import torch
 from torch import nn
@@ -49,34 +49,32 @@ REV_KEYS = [
 class MaskRCNN(nn.Module):
     """Mask RCNN model."""
 
-    def __init__(
-        self, num_classes: int, weights: Optional[str] = None
-    ) -> None:
+    def __init__(self, num_classes: int, weights: None | str = None) -> None:
         """Init.
 
         Args:
             num_classes (int): Number of classes.
-            weights (Optional[str], optional): Weights to load for model. If
-                set to "mmdet", will load MMDetection pre-trained weights.
+            weights (None | str, optional): Weights to load for model. If set
+                to "mmdet", will load MMDetection pre-trained weights.
                 Defaults to None.
         """
         super().__init__()
-        self.anchor_gen = get_default_anchor_generator()
-        self.rpn_bbox_encoder = get_default_rpn_box_encoder()
-        self.rcnn_bbox_encoder = get_default_rcnn_box_encoder()
+        anchor_gen = get_default_anchor_generator()
+        rpn_bbox_encoder = get_default_rpn_box_encoder()
+        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
         self.faster_rcnn_heads = FasterRCNNHead(
             num_classes=num_classes,
-            anchor_generator=self.anchor_gen,
-            rpn_box_encoder=self.rpn_bbox_encoder,
-            rcnn_box_encoder=self.rcnn_bbox_encoder,
+            anchor_generator=anchor_gen,
+            rpn_box_encoder=rpn_bbox_encoder,
+            rcnn_box_encoder=rcnn_bbox_encoder,
         )
         self.mask_head = MaskRCNNHead()
-        self.rpn_loss = RPNLoss(self.anchor_gen, self.rpn_bbox_encoder)
-        self.rcnn_loss = RCNNLoss(self.rcnn_bbox_encoder)
+        self.rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
+        self.rcnn_loss = RCNNLoss(rcnn_bbox_encoder)
         self.mask_rcnn_loss = MaskRCNNHeadLoss()
-        self.transform_outs = RoI2Det(self.rcnn_bbox_encoder)
+        self.transform_outs = RoI2Det(rcnn_bbox_encoder)
         self.det2mask = Det2Mask()
 
         if weights == "mmdet":
@@ -92,27 +90,27 @@ class MaskRCNN(nn.Module):
     def forward(
         self,
         images: torch.Tensor,
-        images_hw: List[Tuple[int, int]],
-        target_boxes: Optional[List[torch.Tensor]] = None,
-        target_classes: Optional[List[torch.Tensor]] = None,
-        original_hw: Optional[List[Tuple[int, int]]] = None,
-    ) -> Union[Tuple[FRCNNOut, MaskOut], ModelOutput]:
+        images_hw: list[tuple[int, int]],
+        target_boxes: None | list[torch.Tensor] = None,
+        target_classes: None | list[torch.Tensor] = None,
+        original_hw: None | list[tuple[int, int]] = None,
+    ) -> tuple[FRCNNOut, MaskOut] | ModelOutput:
         """Forward pass.
 
         Args:
             images (torch.Tensor): Input images.
-            images_hw (List[Tuple[int, int]]): Input image resolutions.
-            target_boxes (Optional[List[torch.Tensor]], optional): Bounding box
+            images_hw (list[tuple[int, int]]): Input image resolutions.
+            target_boxes (None | list[torch.Tensor], optional): Bounding box
                 labels. Required for training. Defaults to None.
-            target_classes (Optional[List[torch.Tensor]], optional): Class
+            target_classes (None | list[torch.Tensor], optional): Class
                 labels. Required for training. Defaults to None.
-            original_hw (Optional[List[Tuple[int, int]]], optional): Original
+            original_hw (None | list[tuple[int, int]], optional): Original
                 image resolutions (before padding and resizing). Required for
                 testing. Defaults to None.
 
         Returns:
-            Union[Tuple[FRCNNOut, MaskOut], ModelOutput]: Either raw model
-                outputs (for training) or predicted outputs (for testing).
+            tuple[FRCNNOut, MaskOut] | ModelOutput: Either raw model outputs
+                (for training) or predicted outputs (for testing).
         """
         if self.training:
             assert target_boxes is not None and target_classes is not None
@@ -125,22 +123,22 @@ class MaskRCNN(nn.Module):
     def forward_train(
         self,
         images: torch.Tensor,
-        images_hw: List[Tuple[int, int]],
-        target_boxes: List[torch.Tensor],
-        target_classes: List[torch.Tensor],
-    ) -> Tuple[FRCNNOut, MaskOut]:
+        images_hw: list[tuple[int, int]],
+        target_boxes: list[torch.Tensor],
+        target_classes: list[torch.Tensor],
+    ) -> tuple[FRCNNOut, MaskOut]:
         """Forward training stage.
 
         Args:
             images (torch.Tensor): Input images.
-            images_hw (List[Tuple[int, int]]): Input image resolutions.
-            target_boxes (List[torch.Tensor]): Bounding box labels. Required
+            images_hw (list[tuple[int, int]]): Input image resolutions.
+            target_boxes (list[torch.Tensor]): Bounding box labels. Required
                 for training. Defaults to None.
-            target_classes (List[torch.Tensor]): Class labels. Required for
+            target_classes (list[torch.Tensor]): Class labels. Required for
                 training. Defaults to None.
 
         Returns:
-            Tuple[FRCNNOut, MaskOut]: Raw model outputs.
+            tuple[FRCNNOut, MaskOut]: Raw model outputs.
         """
         features = self.fpn(self.backbone(images))
         outputs = self.faster_rcnn_heads(
@@ -156,15 +154,15 @@ class MaskRCNN(nn.Module):
     def forward_test(
         self,
         images: torch.Tensor,
-        images_hw: List[Tuple[int, int]],
-        original_hw: List[Tuple[int, int]],
+        images_hw: list[tuple[int, int]],
+        original_hw: list[tuple[int, int]],
     ) -> ModelOutput:
         """Forward testing stage.
 
         Args:
             images (torch.Tensor): Input images.
-            images_hw (List[Tuple[int, int]]): Input image resolutions.
-            original_hw (List[Tuple[int, int]]): Original image resolutions
+            images_hw (list[tuple[int, int]]): Input image resolutions.
+            original_hw (list[tuple[int, int]]): Original image resolutions
                 (before padding and resizing).
 
         Returns:
@@ -215,18 +213,18 @@ class MaskRCNNLoss(nn.Module):
 
     def forward(
         self,
-        outputs: Tuple[FRCNNOut, MaskOut],
-        images_hw: List[Tuple[int, int]],
-        target_boxes: List[torch.Tensor],
-        target_masks: List[torch.Tensor],
+        outputs: tuple[FRCNNOut, MaskOut],
+        images_hw: list[tuple[int, int]],
+        target_boxes: list[torch.Tensor],
+        target_masks: list[torch.Tensor],
     ) -> LossesType:
         """Forward of loss function.
 
         Args:
-            outputs (Tuple[FRCNNOut, MaskOut]): Raw model outputs.
-            images_hw (List[Tuple[int, int]]): Input image resolutions.
-            target_boxes (List[torch.Tensor]): Bounding box labels.
-            target_masks (List[torch.Tensor]): Instance mask labels.
+            outputs (tuple[FRCNNOut, MaskOut]): Raw model outputs.
+            images_hw (list[tuple[int, int]]): Input image resolutions.
+            target_boxes (list[torch.Tensor]): Bounding box labels.
+            target_masks (list[torch.Tensor]): Instance mask labels.
 
         Returns:
             LossesType: Dictionary of model losses.

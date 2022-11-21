@@ -70,8 +70,8 @@ class TestRoundRobinSampler(unittest.TestCase):
             batch = next(samp_it)
             self.assertTrue(isinstance(batch, list))
             self.assertLessEqual(len(batch), 2)
-            for b in batch:
-                self.assertTrue(5 * i % 3 <= b < 5 * (i % 3 + 1))
+            for ind in batch:
+                self.assertTrue(5 * i % 3 <= ind < 5 * (i % 3 + 1))
 
     def test_repeat(self) -> None:
         """Testcase for repeat sampling."""

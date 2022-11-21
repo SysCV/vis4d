@@ -1,6 +1,8 @@
 """Faster RCNN RPN Head."""
+from __future__ import annotations
+
 from math import prod
-from typing import List, NamedTuple, Tuple
+from typing import NamedTuple
 
 import torch
 import torch.nn.functional as F
@@ -25,11 +27,11 @@ class RPNOut(NamedTuple):
     # Sigmoid input for binary classification of the anchor
     # Positive means there is an object in that anchor.
     # Each list item is for on feature pyramid level.
-    cls: List[torch.Tensor]
+    cls: list[torch.Tensor]
     # 4 x number of anchors for center offets and sizes (width, height) of the
     # boxes under the anchor.
     # Each list item is for on feature pyramid level.
-    box: List[torch.Tensor]
+    box: list[torch.Tensor]
 
 
 class RPNHead(nn.Module):
@@ -51,9 +53,12 @@ class RPNHead(nn.Module):
 
         Args:
             num_anchors (int): Number of anchors per cell.
-            num_convs (int, optional): Number of conv layers before RPN heads. Defaults to 1.
-            in_channels (int, optional): Feature channel size of input feature maps. Defaults to 256.
-            feat_channels (int, optional): Feature channel size of conv layers. Defaults to 256.
+            num_convs (int, optional): Number of conv layers before RPN heads.
+                Defaults to 1.
+            in_channels (int, optional): Feature channel size of input feature
+                maps. Defaults to 256.
+            feat_channels (int, optional): Feature channel size of conv layers.
+                Defaults to 256.
         """
         super().__init__()
         if num_convs > 1:
@@ -84,17 +89,15 @@ class RPNHead(nn.Module):
 
         self.apply(self._init_weights)
 
-    def _init_weights(self, module):
+    @staticmethod
+    def _init_weights(module) -> None:
         """Init RPN weights."""
         if isinstance(module, nn.Conv2d):
             module.weight.data.normal_(mean=0.0, std=0.01)
             if module.bias is not None:
                 module.bias.data.zero_()
 
-    def forward(
-        self,
-        features: List[torch.Tensor],
-    ) -> RPNOut:
+    def forward(self, features: list[torch.Tensor]) -> RPNOut:
         """Forward pass of RPN."""
         cls_outs, box_outs = [], []
         for feat in features[2:]:  # Take stride 4 onwards
@@ -103,11 +106,8 @@ class RPNHead(nn.Module):
             box_outs += [self.rpn_box(feat)]
         return RPNOut(cls=cls_outs, box=box_outs)
 
-    def __call__(
-        self,
-        features: List[torch.Tensor],
-    ) -> RPNOut:
-        """Type definition"""
+    def __call__(self, features: list[torch.Tensor]) -> RPNOut:
+        """Type definition."""
         return self._call_impl(features)
 
 
@@ -115,10 +115,12 @@ class RPN2RoI(nn.Module):
     """Generate Proposals (RoIs) from RPN network output.
 
     This class acts as a stateless functor that does the following:
-    1. Create anchor grid for feature grids (classification and regression outputs) at all scales.
+    1. Create anchor grid for feature grids (classification and regression
+        outputs) at all scales.
     For each image
         For each level
-            2. Get a topk pre-selection of flattened classification scores and box energies from feature output before NMS.
+            2. Get a topk pre-selection of flattened classification scores and
+                box energies from feature output before NMS.
         3. Decode class scores and box energies into proposal boxes, apply NMS.
     Return proposal boxes for all images.
     """
@@ -130,7 +132,7 @@ class RPN2RoI(nn.Module):
         num_proposals_pre_nms: int = 2000,
         max_per_img: int = 1000,
         proposal_nms_threshold: float = 0.7,
-        min_proposal_size: Tuple[int, int] = (0, 0),
+        min_proposal_size: tuple[int, int] = (0, 0),
     ) -> None:
         super().__init__()
         self.anchor_generator = anchor_generator
@@ -145,17 +147,19 @@ class RPN2RoI(nn.Module):
         cls_out: torch.Tensor,
         reg_out: torch.Tensor,
         anchors: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Get a topk pre-selection of flattened classification scores and box
         energies from feature output per level per image before nms.
 
         Args:
-            cls_out (torch.Tensor): [C, H, W] classification scores at a particular scale.
-            reg_out (torch.Tensor): [C, H, W] regression parameters at a particular scale.
+            cls_out (torch.Tensor): [C, H, W] classification scores at a
+                particular scale.
+            reg_out (torch.Tensor): [C, H, W] regression parameters at a
+                particular scale.
             anchors (torch.Tensor): [H*W, 4] anchor boxes per cell.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: topk flattened
+            tuple[torch.Tensor, torch.Tensor, torch.Tensor]: Topk flattened
                 classification, regression outputs and corresponding anchors.
         """
         assert cls_out.size()[-2:] == reg_out.size()[-2:], (
@@ -175,31 +179,29 @@ class RPN2RoI(nn.Module):
 
     def _decode_multi_level_outputs(
         self,
-        cls_out_all: List[torch.Tensor],
-        reg_out_all: List[torch.Tensor],
-        anchors_all: List[torch.Tensor],
-        level_all: List[torch.Tensor],
-        image_hw: Tuple[int, int],
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        cls_out_all: list[torch.Tensor],
+        reg_out_all: list[torch.Tensor],
+        anchors_all: list[torch.Tensor],
+        level_all: list[torch.Tensor],
+        image_hw: tuple[int, int],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Decode box energies into proposals for a single image, post-process
         via NMS. NMS is performed per level. Afterwards, select topk proposals.
 
         Args:
-            cls_out_all (List[torch.Tensor]): topk class scores per level.
-            reg_out_all (List[torch.Tensor]): topk regression params per level.
-            anchors_all (List[torch.Tensor]): topk anchor boxes per level.
-            level_all (List[torch.Tensor]): tensors indicating level per entry.
-            image_hw (Tuple[int, int]): image size.
+            cls_out_all (list[torch.Tensor]): topk class scores per level.
+            reg_out_all (list[torch.Tensor]): topk regression params per level.
+            anchors_all (list[torch.Tensor]): topk anchor boxes per level.
+            level_all (list[torch.Tensor]): tensors indicating level per entry.
+            image_hw (tuple[int, int]): image size.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: decoded proposal boxes & scores.
+            tuple[torch.Tensor, torch.Tensor]: decoded proposal boxes & scores.
         """
         scores = torch.cat(cls_out_all)
         levels = torch.cat(level_all)
         proposals = self.box_encoder.decode(
-            torch.cat(anchors_all),
-            torch.cat(reg_out_all),
-            max_shape=image_hw,
+            torch.cat(anchors_all), torch.cat(reg_out_all), max_shape=image_hw
         )
 
         proposals, mask = filter_boxes_by_area(
@@ -225,9 +227,9 @@ class RPN2RoI(nn.Module):
 
     def forward(
         self,
-        class_outs: List[torch.Tensor],
-        regression_outs: List[torch.Tensor],
-        images_hw: List[Tuple[int, int]],
+        class_outs: list[torch.Tensor],
+        regression_outs: list[torch.Tensor],
+        images_hw: list[tuple[int, int]],
     ) -> Proposals:
         """Compute proposals from RPN network outputs.
 
@@ -237,9 +239,9 @@ class RPN2RoI(nn.Module):
             Decode those pairs into proposals, post-process with NMS.
 
         Args:
-            class_outs (List[torch.Tensor]): [N, 1 * A, H, W] per scale.
-            regression_outs (List[torch.Tensor]): [N, 4 * A, H, W] per scale.
-            images_hw (List[Tuple[int, int]]): list of image sizes.
+            class_outs (list[torch.Tensor]): [N, 1 * A, H, W] per scale.
+            regression_outs (list[torch.Tensor]): [N, 4 * A, H, W] per scale.
+            images_hw (list[tuple[int, int]]): list of image sizes.
 
         Returns:
             Proposals: proposal boxes and scores.
@@ -259,9 +261,7 @@ class RPN2RoI(nn.Module):
                 zip(class_outs, regression_outs, anchor_grids)
             ):
                 cls_out, reg_out, anchors = self._get_params_per_level(
-                    cls_outs[img_id],
-                    reg_outs[img_id],
-                    anchor_grid,
+                    cls_outs[img_id], reg_outs[img_id], anchor_grid
                 )
                 cls_out_all += [cls_out]
                 reg_out_all += [reg_out]
@@ -347,7 +347,7 @@ class RPNLoss(nn.Module):
         labels: torch.Tensor,
         label_weights: torch.Tensor,
         num_total_samples: int,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute losses per scale, all batch elements.
 
         Args:
@@ -360,7 +360,7 @@ class RPNLoss(nn.Module):
             num_total_samples (int): average factor of loss.
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: classification and regression
+            tuple[torch.Tensor, torch.Tensor]: classification and regression
                 losses.
         """
         # classification loss
@@ -386,13 +386,11 @@ class RPNLoss(nn.Module):
         self,
         target_boxes: torch.Tensor,
         anchors: torch.Tensor,
-        image_hw: Tuple[int, int],
-    ) -> Tuple[RPNTargets, int, int]:
+        image_hw: tuple[int, int],
+    ) -> tuple[RPNTargets, int, int]:
         """Get targets per batch element, all scales."""
         inside_flags = anchor_inside_image(
-            anchors,
-            image_hw,
-            allowed_border=self.allowed_border,
+            anchors, image_hw, allowed_border=self.allowed_border
         )
         # assign gt and sample anchors
         anchors = anchors[inside_flags, :]
@@ -413,8 +411,7 @@ class RPNLoss(nn.Module):
         neg_inds = sampling_result.sampled_box_indices[negatives]
         if len(pos_inds) > 0:
             pos_bbox_targets = self.box_encoder.encode(
-                anchors[pos_inds],
-                target_boxes[pos_target_inds],
+                anchors[pos_inds], target_boxes[pos_target_inds]
             )
             bbox_targets[pos_inds] = pos_bbox_targets
             bbox_weights[pos_inds] = 1.0
@@ -438,18 +435,21 @@ class RPNLoss(nn.Module):
 
     def forward(
         self,
-        class_outs: List[torch.Tensor],
-        regression_outs: List[torch.Tensor],
-        target_boxes: List[torch.Tensor],
-        images_hw: List[Tuple[int, int]],
+        class_outs: list[torch.Tensor],
+        regression_outs: list[torch.Tensor],
+        target_boxes: list[torch.Tensor],
+        images_hw: list[tuple[int, int]],
     ) -> RPNLosses:
         """Compute RPN classification and regression losses.
 
         Args:
-            class_outs (List[torch.Tensor]): Network classification outputs at all scales.
-            regression_outs (List[torch.Tensor]): Network regression outputs at all scales.
-            target_boxes (List[torch.Tensor]): Target bounding boxes.
-            images_hw (List[Tuple[int, int]]): Image dimensions without padding.
+            class_outs (list[torch.Tensor]): Network classification outputs at
+                all scales.
+            regression_outs (list[torch.Tensor]): Network regression outputs at
+                all scales.
+            target_boxes (list[torch.Tensor]): Target bounding boxes.
+            images_hw (list[tuple[int, int]]): Image dimensions without
+                padding.
 
         Returns:
             RPNLosses: classification and regression losses.
@@ -468,9 +468,7 @@ class RPNLoss(nn.Module):
         targets, num_total_pos, num_total_neg = [], 0, 0
         for tgt_box, image_hw in zip(target_boxes, images_hw):
             target, num_pos, num_neg = self._get_targets_per_image(
-                tgt_box,
-                anchors_all_levels,
-                image_hw,
+                tgt_box, anchors_all_levels, image_hw
             )
             num_total_pos += num_pos
             num_total_neg += num_neg
@@ -511,10 +509,10 @@ class RPNLoss(nn.Module):
 
     def __call__(
         self,
-        class_outs: List[torch.Tensor],
-        regression_outs: List[torch.Tensor],
-        target_boxes: List[torch.Tensor],
-        images_hw: List[Tuple[int, int]],
+        class_outs: list[torch.Tensor],
+        regression_outs: list[torch.Tensor],
+        target_boxes: list[torch.Tensor],
+        images_hw: list[tuple[int, int]],
     ) -> RPNLosses:
         """Type definition."""
         return self._call_impl(
@@ -522,7 +520,7 @@ class RPNLoss(nn.Module):
         )
 
 
-def images_to_levels(targets):
+def images_to_levels(targets) -> list[list[torch.Tensor]]:
     """Convert targets by image to targets by feature level."""
     targets_per_level = []
     for lvl_id in range(len(targets[0][0])):

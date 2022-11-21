@@ -1,5 +1,8 @@
 """Vis4D data samplers."""
-from typing import Generator, Iterator, List, Optional, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Generator, Iterator
+from typing import List
 
 import numpy as np
 import torch
@@ -27,7 +30,7 @@ class BaseSampler(Sampler[List[int]]):
         batch_size: int,
         shuffle: bool = True,
         drop_last: bool = False,
-        generator: Optional[torch.Generator] = None,
+        generator: None | torch.Generator = None,
     ) -> None:
         """Initialize sampler.
 
@@ -38,7 +41,7 @@ class BaseSampler(Sampler[List[int]]):
                 shuffle the indices.
             drop_last (bool): If ``True``, the sampler will drop the last batch
                 if its size would be less than ``batch_size``
-            generator (Optional[torch.Generator], optional): Generator used in
+            generator (None | torch.Generator, optional): Generator used in
                 sampling. Defaults to None.
         """
         super().__init__(dataset)
@@ -54,7 +57,7 @@ class BaseSampler(Sampler[List[int]]):
             for dset in dataset.datasets
         ]
 
-    def __iter__(self) -> Iterator[List[int]]:
+    def __iter__(self) -> Iterator[list[int]]:
         """Iteration method."""
         raise NotImplementedError
 
@@ -74,8 +77,8 @@ class BaseDistributedSampler(
         batch_size: int,
         shuffle: bool = True,
         drop_last: bool = False,
-        num_replicas: Optional[int] = None,
-        rank: Optional[int] = None,
+        num_replicas: None | int = None,
+        rank: None | int = None,
         seed: int = 0,
     ) -> None:
         """Initialize distributed sampler.
@@ -102,14 +105,14 @@ class BaseDistributedSampler(
         """
         super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
         self.batch_size = batch_size
-        self.samplers: List[DistributedSampler[List[int]]] = [
+        self.samplers: list[DistributedSampler[List[int]]] = [
             DistributedSampler(
                 dset, num_replicas, rank, self.shuffle, seed, self.drop_last
             )
             for dset in dataset.datasets
         ]
 
-    def __iter__(self) -> Iterator[List[int]]:
+    def __iter__(self) -> Iterator[list[int]]:
         """Iteration method."""
         raise NotImplementedError
 
@@ -136,11 +139,11 @@ class RoundRobinMixin:
 
     @staticmethod
     def setup_parameters(
-        samplers: List[Sampler[List[int]]],
-        repeat_interval: Union[int, List[int]],
-        spread_samples: Union[bool, List[bool]],
-        max_samples: Union[int, List[int]],
-    ) -> Tuple[List[int], List[bool], List[int]]:
+        samplers: list[Sampler[List[int]]],
+        repeat_interval: int | list[int],
+        spread_samples: bool | list[bool],
+        max_samples: int | list[int],
+    ) -> tuple[list[int], list[bool], list[int]]:
         """Setup sampler parameters."""
         if isinstance(repeat_interval, int):
             repeat_interval_ = [repeat_interval] * len(samplers)
@@ -161,8 +164,8 @@ class RoundRobinMixin:
 
     @staticmethod
     def setup_samplers(
-        samplers: List[Sampler[List[int]]], batch_size: int, drop_last: bool
-    ) -> List[Sampler[List[int]]]:
+        samplers: list[Sampler[List[int]]], batch_size: int, drop_last: bool
+    ) -> list[Sampler[List[int]]]:
         """Setup samplers."""
         if batch_size > 1:
             samplers = [
@@ -173,12 +176,12 @@ class RoundRobinMixin:
 
     @staticmethod
     def generate_indices(
-        samplers: List[Sampler[List[int]]],
-        cum_sizes: List[int],
-        repeat_interval: List[int],
-        spread_samples: List[bool],
-        max_samples: List[int],
-    ) -> Iterator[List[int]]:
+        samplers: list[Sampler[List[int]]],
+        cum_sizes: list[int],
+        repeat_interval: list[int],
+        spread_samples: list[bool],
+        max_samples: list[int],
+    ) -> Iterator[list[int]]:
         """Generate dataset indices for each step."""
         samp_iters = [iter(sampler) for sampler in samplers]
         samp_lens = RoundRobinMixin.get_sampler_lens(samplers, max_samples)
@@ -203,8 +206,8 @@ class RoundRobinMixin:
 
     @staticmethod
     def get_sampler_lens(
-        samplers: List[Sampler[List[int]]], max_samples: List[int]
-    ) -> List[int]:
+        samplers: list[Sampler[List[int]]], max_samples: list[int]
+    ) -> list[int]:
         """Get length of each sampler."""
         return [
             len(sampler)
@@ -215,11 +218,11 @@ class RoundRobinMixin:
 
     @staticmethod
     def get_samp_intervals(
-        samplers: List[Sampler[List[int]]],
-        samp_lens: List[int],
-        repeat_interval: List[int],
-        spread_samples: List[bool],
-    ) -> List[int]:
+        samplers: list[Sampler[List[int]]],
+        samp_lens: list[int],
+        repeat_interval: list[int],
+        spread_samples: list[bool],
+    ) -> list[int]:
         """Get length of each sampler."""
         samp_interval, max_len = [], max(samp_lens)
         for i in range(len(samplers)):
@@ -236,9 +239,9 @@ class RoundRobinMixin:
 
     @staticmethod
     def get_length(
-        samplers: List[Sampler[List[int]]],
-        repeat_interval: List[int],
-        max_samples: List[int],
+        samplers: list[Sampler[List[int]]],
+        repeat_interval: list[int],
+        max_samples: list[int],
     ) -> int:
         """Get length of round-robin sampler."""
         sampler_lens = RoundRobinMixin.get_sampler_lens(samplers, max_samples)
@@ -257,23 +260,23 @@ class RoundRobinSampler(BaseSampler, RoundRobinMixin):
     def __init__(
         self,
         *args: ArgsType,
-        repeat_interval: Union[int, List[int]] = 0,
-        spread_samples: Union[bool, List[bool]] = True,
-        max_samples: Union[int, List[int]] = -1,
+        repeat_interval: int | list[int] = 0,
+        spread_samples: bool | list[bool] = True,
+        max_samples: int | list[int] = -1,
         **kwargs: ArgsType,
     ) -> None:
         """Init.
 
         Args:
-            repeat_interval (Union[int, List[int]], optional): Interval between
+            repeat_interval (int | list[int], optional): Interval between
                 batches for each dataset. If set to 0, then no oversampling
                 will be done. Defaults to 0.
-            spread_samples (Union[bool, List[bool]], optional): Whether to
-                evenly spread samples for each dataset across an epoch.
-                Defaults to True.
-            max_samples (Union[int, List[int]], optional): Maximum number of
-                samples to use from each dataset. If set to -1, then use all
-                data. Defaults to -1.
+            spread_samples (bool | list[bool], optional): Whether to evenly
+                spread samples for each dataset across an epoch. Defaults to
+                True.
+            max_samples (int | list[int], optional): Maximum number of samples
+                to use from each dataset. If set to -1, then use all data.
+                Defaults to -1.
         """
         super().__init__(*args, **kwargs)
         (
@@ -287,7 +290,7 @@ class RoundRobinSampler(BaseSampler, RoundRobinMixin):
             self.samplers, self.batch_size, self.drop_last
         )
 
-    def __iter__(self) -> Iterator[List[int]]:
+    def __iter__(self) -> Iterator[list[int]]:
         """Iteration method."""
         yield from self.generate_indices(
             self.samplers,
@@ -312,23 +315,23 @@ class RoundRobinDistributedSampler(
     def __init__(
         self,
         *args: ArgsType,
-        repeat_interval: Union[int, List[int]] = 0,
-        spread_samples: Union[bool, List[bool]] = True,
-        max_samples: Union[int, List[int]] = -1,
+        repeat_interval: int | list[int] = 0,
+        spread_samples: bool | list[bool] = True,
+        max_samples: int | list[int] = -1,
         **kwargs: ArgsType,
     ) -> None:
         """Init.
 
         Args:
-            repeat_interval (Union[int, List[int]], optional): Interval between
+            repeat_interval (int | list[int], optional): Interval between
                 batches for each dataset. If set to 0, then no oversampling
                 will be done. Defaults to 0.
-            spread_samples (Union[bool, List[bool]], optional): Whether to
-                evenly spread samples for each dataset across an epoch.
-                Defaults to True.
-            max_samples (Union[int, List[int]], optional): Maximum number of
-                samples to use from each dataset. If set to -1, then use all
-                data. Defaults to -1.
+            spread_samples (bool | list[bool], optional): Whether to evenly
+                spread samples for each dataset across an epoch. Defaults to
+                True.
+            max_samples (int | list[int], optional): Maximum number of samples
+                to use from each dataset. If set to -1, then use all data.
+                Defaults to -1.
         """
         super().__init__(*args, **kwargs)
         (
@@ -342,7 +345,7 @@ class RoundRobinDistributedSampler(
             self.samplers, self.batch_size, self.drop_last
         )
 
-    def __iter__(self) -> Iterator[List[int]]:
+    def __iter__(self) -> Iterator[list[int]]:
         """Iteration method."""
         yield from self.generate_indices(
             self.samplers,
@@ -373,8 +376,8 @@ class VideoInferenceSampler(
     def __init__(
         self,
         dataset: Dataset,
-        num_replicas: Optional[int] = None,
-        rank: Optional[int] = None,
+        num_replicas: None | int = None,
+        rank: None | int = None,
         shuffle: bool = True,
         seed: int = 0,
         drop_last: bool = False,

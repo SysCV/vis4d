@@ -1,4 +1,6 @@
 """Vis4D Visualization tools for analysis and debugging."""
+from __future__ import annotations
+
 from multiprocessing import Process
 from typing import List, Optional, Tuple, Union
 
@@ -34,7 +36,7 @@ from .util import (
 
 
 def imshow(
-    image: Union[Image.Image, ImageType], mode: str = "RGB"
+    image: Image.Image | ImageType, mode: str = "RGB"
 ) -> None:  # pragma: no cover
     """Imshow method.
 
@@ -52,9 +54,9 @@ def imshow(
 def imshow_bboxes(
     image: ImageType,
     boxes: Tensor,
-    scores: Optional[Tensor] = None,
-    class_ids: Optional[Tensor] = None,
-    track_ids: Optional[Tensor] = None,
+    scores: Tensor | None = None,
+    class_ids: Tensor | None = None,
+    track_ids: Tensor | None = None,
     mode: str = "RGB",
 ) -> None:  # pragma: no cover
     """Show image with bounding boxes."""
@@ -90,9 +92,9 @@ def imshow_bboxes3d(
 def imshow_masks(
     image: ImageType,
     masks: Tensor,
-    scores: Optional[Tensor] = None,
-    class_ids: Optional[Tensor] = None,
-    track_ids: Optional[Tensor] = None,
+    scores: Tensor | None = None,
+    class_ids: Tensor | None = None,
+    track_ids: Tensor | None = None,
     mode: str = "RGB",
 ) -> None:  # pragma: no cover
     """Show image with masks."""
@@ -104,6 +106,18 @@ def imshow_masks(
         draw_mask(image, mask, col)
 
     imshow(image)
+
+
+def visualize_proposals(
+    images: torch.Tensor,
+    box_list: list[torch.Tensor],
+    score_list: list[torch.Tensor],
+    topk: int = 100,
+) -> None:
+    """Visualize topk proposals."""
+    for im, boxes, scores in zip(images, box_list, score_list):
+        _, topk_indices = torch.topk(scores, topk)
+        imshow_bboxes(im, boxes[topk_indices])
 
 
 def draw_bev_canvas(
@@ -311,7 +325,7 @@ def draw_bev_box(ax, box, color, label, hist, line_width: int = 2):
             )
 
 
-def draw_bev(boxes3d: Tensor, history: List[Tensor]) -> np.ndarray:
+def draw_bev(boxes3d: Tensor, history: list[Tensor]) -> np.ndarray:
     fig, ax = draw_bev_canvas()
 
     box_list, col_list, label_list = preprocess_boxes(boxes3d)
@@ -343,10 +357,10 @@ def draw_bev(boxes3d: Tensor, history: List[Tensor]) -> np.ndarray:
 
 
 def draw_image(
-    frame: Union[ImageType, Image.Image],
+    frame: ImageType | Image.Image,
     boxes2d=None,  # TODO update
-    boxes3d: Optional[Tensor] = None,
-    intrinsics: Optional[Tensor] = None,
+    boxes3d: Tensor | None = None,
+    intrinsics: Tensor | None = None,
     mode: str = "RGB",
 ) -> Image.Image:
     """Draw boxes2d on an image."""
@@ -370,9 +384,9 @@ def draw_image(
 
 def draw_bbox(
     image: Image.Image,
-    box: List[float],
-    color: Tuple[int],
-    label: Optional[str] = None,
+    box: list[float],
+    color: tuple[int],
+    label: str | None = None,
 ) -> None:
     """Draw 2D box onto image."""
     draw = ImageDraw.Draw(image)
@@ -386,8 +400,8 @@ def draw_bbox3d(
     image: Image.Image,
     box3d_corners: NDArrayF64,
     intrinsics: NDArrayF64,
-    color: Tuple[int],
-    label: Optional[str] = None,
+    color: tuple[int],
+    label: str | None = None,
     camera_near_clip: float = 0.15,
 ) -> None:  # pragma: no cover
     """Draw 3D box onto image."""
@@ -396,7 +410,7 @@ def draw_bbox3d(
     corners_proj = np.dot(corners_proj, intrinsics.T)
 
     def draw_line(
-        point1: NDArrayF64, point2: NDArrayF64, color: Tuple[int]
+        point1: NDArrayF64, point2: NDArrayF64, color: tuple[int]
     ) -> None:
         if point1[2] < camera_near_clip and point2[2] < camera_near_clip:
             return
@@ -432,7 +446,7 @@ def draw_bbox3d(
 
 
 def draw_mask(
-    image: Image.Image, mask: NDArrayUI8, color: Tuple[int]
+    image: Image.Image, mask: NDArrayUI8, color: tuple[int]
 ) -> None:  # pragma: no cover
     """Draw mask onto image."""
     draw = ImageDraw.Draw(image)
@@ -555,7 +569,7 @@ def imshow_pointcloud(
     points: torch.Tensor,
     image: ImageType,
     camera_intrinsics: Tensor,
-    boxes3d: Optional[Tensor] = None,
+    boxes3d: Tensor | None = None,
     dot_size: int = 3,
     mode: str = "RGB",
 ) -> None:  # pragma: no cover
@@ -583,8 +597,8 @@ def imshow_pointcloud(
 
 def plotly_draw_bbox3d(
     box3d_corners: NDArrayF64,
-) -> Tuple[
-    List[NDArrayF64], List[NDArrayF64], List[NDArrayF64]
+) -> tuple[
+    list[NDArrayF64], list[NDArrayF64], list[NDArrayF64]
 ]:  # pragma: no cover
     """Plot 3D boxes in 3D space."""
     ixs_box_0 = [0, 1, 2, 3, 0]
@@ -629,7 +643,7 @@ def plotly_draw_bbox3d(
 def show_pointcloud(
     points: torch.Tensor,
     axis_mode: AxisMode = AxisMode.OpenCV,
-    boxes3d: Optional[Tensor] = None,
+    boxes3d: Tensor | None = None,
     thickness: int = 2,
 ) -> None:  # pragma: no cover
     """Show pointcloud points."""

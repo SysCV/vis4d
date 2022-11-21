@@ -1,5 +1,5 @@
 """Normalize Transform."""
-from typing import Tuple
+from __future__ import annotations
 
 import torch
 
@@ -8,8 +8,8 @@ from .base import Transform
 
 @Transform()
 def normalize_image(
-    mean: Tuple[float, float, float] = (123.675, 116.28, 103.53),
-    std: Tuple[float, float, float] = (58.395, 57.12, 57.375),
+    mean: tuple[float, float, float] = (123.675, 116.28, 103.53),
+    std: tuple[float, float, float] = (58.395, 57.12, 57.375),
     epsilon: float = 1e-08,
 ):
     """Normalize image tensor (assumed range 0..255) with given mean and std.

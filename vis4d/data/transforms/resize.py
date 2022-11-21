@@ -1,6 +1,7 @@
 """Resize augmentation."""
+from __future__ import annotations
+
 import random
-from typing import List, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -12,11 +13,11 @@ from .base import Transform
 
 
 def _get_resize_shape(
-    original_shape: Tuple[int, int],
-    new_shape: Tuple[int, int],
+    original_shape: tuple[int, int],
+    new_shape: tuple[int, int],
     keep_ratio: bool = True,
     align_long_edge: bool = False,
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     """Get shape for resize, considering keep_ratio."""
     h, w = original_shape
     new_h, new_w = new_shape
@@ -32,7 +33,7 @@ def _get_resize_shape(
 
 
 def _transform_from_shapes(
-    input_shape: Tuple[int, int], resize_shape: Tuple[int, int]
+    input_shape: tuple[int, int], resize_shape: tuple[int, int]
 ) -> torch.Tensor:
     """Generate 3x3 scaling matrix from two shapes."""
     h, w = input_shape
@@ -45,7 +46,7 @@ def _transform_from_shapes(
 
 def _resize_tensor(
     inputs: torch.Tensor,
-    shape: Tuple[int, int],
+    shape: tuple[int, int],
     interpolation: str = "bilinear",
 ) -> torch.Tensor:
     """Resize Tensor of dimensions [N, C, H, W]."""
@@ -59,17 +60,17 @@ def _resize_tensor(
 
 @Transform(out_keys=(COMMON_KEYS.images, COMMON_KEYS.input_hw))
 def resize_image(
-    shape: Union[Tuple[int, int], List[Tuple[int, int]]],
+    shape: tuple[int, int] | list[tuple[int, int]],
     keep_ratio: bool = False,
     multiscale_mode: str = "range",
-    scale_range: Tuple[float, float] = (1.0, 1.0),
+    scale_range: tuple[float, float] = (1.0, 1.0),
     align_long_edge: bool = False,
     interpolation: str = "bilinear",
 ):
     """Resize tensor of shape [N, C, H, W].
 
     Args:
-        shape (Union[Tuple[int, int], List[Tuple[int, int]]]): Image shape to
+        shape (tuple[int, int] | list[tuple[int, int]]): Image shape to
             be resized to in (H, W) format. In multiscale mode 'list', shape
             represents the list of possible shapes for resizing.
         keep_ratio (bool, optional): If aspect ratio of original image should
@@ -77,7 +78,7 @@ def resize_image(
             the original image. Defaults to False.
         multiscale_mode (str, optional): one of [range, list]. Defaults to
             "range".
-        scale_range (Tuple[float, float], optional): Range of sampled image
+        scale_range (tuple[float, float], optional): Range of sampled image
             scales in range mode, e.g. (0.8, 1.2), indicating minimum of 0.8 *
             shape and maximum of 1.2 * shape. Defaults to (1.0, 1.0).
         align_long_edge (bool, optional): If keep_ratio is true, this option
@@ -120,8 +121,8 @@ def resize_boxes2d():
 
     def _resize(
         boxes: torch.Tensor,
-        original_hw: Tuple[int, int],
-        input_hw: Tuple[int, int],
+        original_hw: tuple[int, int],
+        input_hw: tuple[int, int],
     ) -> torch.Tensor:
         return transform_bbox(
             _transform_from_shapes(original_hw, input_hw), boxes
@@ -143,8 +144,8 @@ def resize_intrinsics():
 
     def _resize(
         intrinsics: torch.Tensor,
-        original_hw: Tuple[int, int],
-        input_hw: Tuple[int, int],
+        original_hw: tuple[int, int],
+        input_hw: tuple[int, int],
     ) -> torch.Tensor:
         return torch.matmul(
             _transform_from_shapes(original_hw, input_hw), intrinsics
@@ -161,7 +162,7 @@ def resize_masks():
     """Resize masks."""
 
     def _resize(
-        masks: torch.Tensor, input_hw: Tuple[int, int]
+        masks: torch.Tensor, input_hw: tuple[int, int]
     ) -> torch.Tensor:
         if len(masks) == 0:  # handle empty masks
             return masks
@@ -177,13 +178,13 @@ def resize_masks():
 
 
 def _get_target_shape(
-    input_shape: Tuple[int, int],
-    shape: Union[Tuple[int, int], List[Tuple[int, int]]],
+    input_shape: tuple[int, int],
+    shape: tuple[int, int] | list[tuple[int, int]],
     keep_ratio: bool = False,
     multiscale_mode: str = "range",
-    scale_range: Tuple[float, float] = (1.0, 1.0),
+    scale_range: tuple[float, float] = (1.0, 1.0),
     align_long_edge: bool = False,
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     """Generate possibly random target shape."""
     assert multiscale_mode in ["list", "range"]
     if multiscale_mode == "list":

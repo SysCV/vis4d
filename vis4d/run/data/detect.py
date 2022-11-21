@@ -1,5 +1,5 @@
 """Detect data module."""
-from typing import List, Tuple, Union
+from __future__ import annotations
 
 from torch.utils.data import DataLoader, Dataset
 
@@ -20,10 +20,10 @@ from vis4d.data.transforms.resize import (
 
 
 def default_train_pipeline(
-    datasets: Union[Dataset, List[Dataset]],
+    datasets: Dataset | list[Dataset],
     batch_size: int,
     num_workers: int,
-    im_hw: Tuple[int, int],
+    im_hw: tuple[int, int],
     with_mask: bool = False,
 ) -> DataLoader:
     """Default train preprocessing pipeline for detectors."""
@@ -47,11 +47,11 @@ def default_train_pipeline(
 
 
 def default_test_pipeline(
-    datasets: Union[Dataset, List[Dataset]],
+    datasets: Dataset | list[Dataset],
     batch_size: int,
     num_workers: int,
-    im_hw: Tuple[int, int],
-) -> List[DataLoader]:
+    im_hw: tuple[int, int],
+) -> list[DataLoader]:
     """Default test preprocessing pipeline for detectors."""
     preprocess_fn = compose(
         [

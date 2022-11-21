@@ -10,11 +10,13 @@ from torch.nn.modules.utils import _pair
 
 def anchor_inside_image(flat_anchors, img_shape, allowed_border=0):
     """Check whether the anchors are inside the border.
+
     Args:
         flat_anchors (torch.Tensor): Flatten anchors, shape (n, 4).
         img_shape (tuple(int)): Shape of current image.
         allowed_border (int, optional): The border to allow the valid anchor.
             Defaults to 0.
+
     Returns:
         torch.Tensor: Flags indicating whether the anchors are inside a \
             valid range.
@@ -32,31 +34,6 @@ def anchor_inside_image(flat_anchors, img_shape, allowed_border=0):
 class AnchorGenerator:
     """Standard anchor generator for 2D anchor-based detectors.
 
-    Args:
-        strides (list[int] | list[tuple[int, int]]): Strides of anchors
-            in multiple feature levels in order (w, h).
-        ratios (list[float]): The list of ratios between the height and width
-            of anchors in a single level.
-        scales (list[int] | None): Anchor scales for anchors in a single level.
-            It cannot be set at the same time if `octave_base_scale` and
-            `scales_per_octave` are set.
-        base_sizes (list[int] | None): The basic sizes
-            of anchors in multiple levels.
-            If None is given, strides will be used as base_sizes.
-            (If strides are non square, the shortest stride is taken.)
-        scale_major (bool): Whether to multiply scales first when generating
-            base anchors. If true, the anchors in the same row will have the
-            same scales. By default it is True in V2.0
-        octave_base_scale (int): The base scale of octave.
-        scales_per_octave (int): Number of scales for each octave.
-            `octave_base_scale` and `scales_per_octave` are usually used in
-            retinanet and the `scales` should be None when they are set.
-        centers (list[tuple[float, float]] | None): The centers of the anchor
-            relative to the feature grid center in multiple feature levels.
-            By default it is set to be None and not used. If a list of tuple of
-            float is given, they will be used to shift the centers of anchors.
-        center_offset (float): The offset of center in proportion to anchors'
-            width and height. By default it is 0 in V2.0.
     Examples:
         >>> from mmdet.core import AnchorGenerator
         >>> self = AnchorGenerator([16], [1.], [1.], [9])
@@ -79,15 +56,44 @@ class AnchorGenerator:
     def __init__(
         self,
         strides: tuple[int, ...] | tuple[tuple[int, int], ...],
-        ratios,  # TODO type annotate
-        scales=None,
-        base_sizes=None,
-        scale_major=True,
-        octave_base_scale=None,
-        scales_per_octave=None,
-        centers=None,
-        center_offset=0.0,
-    ):
+        ratios: list[float],
+        scales: list[int] | None = None,
+        base_sizes: list[int] | None = None,
+        scale_major: bool = True,
+        octave_base_scale: None | int = None,
+        scales_per_octave: None | int = None,
+        centers: list[tuple[float, float]] | None = None,
+        center_offset: float = 0.0,
+    ) -> None:
+        """Init.
+
+        Args:
+            strides (list[int] | list[tuple[int, int]]): Strides of anchors
+                in multiple feature levels in order (w, h).
+            ratios (list[float]): The list of ratios between the height and
+                width of anchors in a single level.
+            scales (list[int] | None): Anchor scales for anchors in a single
+                level. It cannot be set at the same time if `octave_base_scale`
+                and `scales_per_octave` are set.
+            base_sizes (list[int] | None): The basic sizes
+                of anchors in multiple levels.
+                If None is given, strides will be used as base_sizes.
+                (If strides are non square, the shortest stride is taken.)
+            scale_major (bool): Whether to multiply scales first when
+                generating base anchors. If true, the anchors in the same row
+                will have the same scales. By default it is True in V2.0
+            octave_base_scale (int): The base scale of octave.
+            scales_per_octave (int): Number of scales for each octave.
+                `octave_base_scale` and `scales_per_octave` are usually used in
+                retinanet and the `scales` should be None when they are set.
+            centers (list[tuple[float, float]] | None): The centers of the
+                anchor relative to the feature grid center in multiple feature
+                levels. By default it is set to be None and not used. If a list
+                of tuple of float is given, they will be used to shift the
+                centers of anchors.
+            center_offset (float): The offset of center in proportion to
+                anchors' width and height. By default it is 0 in V2.0.
+        """
         # check center and center_offset
         if center_offset != 0:
             assert centers is None, (
@@ -167,6 +173,7 @@ class AnchorGenerator:
 
     def gen_base_anchors(self):
         """Generate base anchors.
+
         Returns:
             list(torch.Tensor): Base anchors of a feature grid in multiple \
                 feature levels.
@@ -190,6 +197,7 @@ class AnchorGenerator:
         self, base_size, scales, ratios, center=None
     ):
         """Generate base anchors of a single level.
+
         Args:
             base_size (int | float): Basic size of an anchor.
             scales (torch.Tensor): Scales of the anchor.
@@ -197,25 +205,25 @@ class AnchorGenerator:
                 and width of anchors in a single level.
             center (tuple[float], optional): The center of the base anchor
                 related to a single feature grid. Defaults to None.
+
         Returns:
             torch.Tensor: Anchors in a single-level feature maps.
         """
-        w = base_size
-        h = base_size
+        width, height = base_size, base_size
         if center is None:
-            x_center = self.center_offset * w
-            y_center = self.center_offset * h
+            x_center = self.center_offset * width
+            y_center = self.center_offset * height
         else:
             x_center, y_center = center
 
         h_ratios = torch.sqrt(ratios)
         w_ratios = 1 / h_ratios
         if self.scale_major:
-            ws = (w * w_ratios[:, None] * scales[None, :]).view(-1)
-            hs = (h * h_ratios[:, None] * scales[None, :]).view(-1)
+            ws = (width * w_ratios[:, None] * scales[None, :]).view(-1)
+            hs = (height * h_ratios[:, None] * scales[None, :]).view(-1)
         else:
-            ws = (w * scales[:, None] * w_ratios[None, :]).view(-1)
-            hs = (h * scales[:, None] * h_ratios[None, :]).view(-1)
+            ws = (width * scales[:, None] * w_ratios[None, :]).view(-1)
+            hs = (height * scales[:, None] * h_ratios[None, :]).view(-1)
 
         # use float anchor and the anchor's center is aligned with the
         # pixel center
@@ -229,31 +237,40 @@ class AnchorGenerator:
 
         return base_anchors
 
-    def _meshgrid(self, x, y, row_major=True):
+    def _meshgrid(
+        self,
+        x_grid: torch.Tensor,
+        y_grid: torch.Tensor,
+        row_major: bool = True,
+    ):
         """Generate mesh grid of x and y.
+
         Args:
-            x (torch.Tensor): Grids of x dimension.
-            y (torch.Tensor): Grids of y dimension.
+            x_grid (torch.Tensor): Grids of x dimension.
+            y_grid (torch.Tensor): Grids of y dimension.
             row_major (bool, optional): Whether to return y grids first.
                 Defaults to True.
+
         Returns:
             tuple[torch.Tensor]: The mesh grids of x and y.
         """
         # use shape instead of len to keep tracing while exporting to onnx
-        xx = x.repeat(y.shape[0])
-        yy = y.view(-1, 1).repeat(1, x.shape[0]).view(-1)
+        xx = x_grid.repeat(y_grid.shape[0])
+        yy = y_grid.view(-1, 1).repeat(1, x_grid.shape[0]).view(-1)
         if row_major:
             return xx, yy
         return yy, xx
 
     def grid_priors(self, featmap_sizes, dtype=torch.float32, device="cuda"):
         """Generate grid anchors in multiple feature levels.
+
         Args:
             featmap_sizes (list[tuple]): List of feature map sizes in
                 multiple feature levels.
             dtype (:obj:`torch.dtype`): Dtype of priors.
                 Default: torch.float32.
             device (str): The device where the anchors will be put on.
+
         Return:
             list[torch.Tensor]: Anchors in multiple feature levels. \
                 The sizes of each tensor should be [N, 4], where \
@@ -271,22 +288,25 @@ class AnchorGenerator:
         return multi_level_anchors
 
     def single_level_grid_priors(
-        self, featmap_size, level_idx, dtype=torch.float32, device="cuda"
-    ):
+        self,
+        featmap_size: tuple[int, int],
+        level_idx: int,
+        dtype: torch.dtype = torch.float32,
+        device: str | None = "cuda",
+    ) -> torch.Tensor:
         """Generate grid anchors of a single level.
-        Note:
-            This function is usually called by method ``self.grid_priors``.
+
         Args:
-            featmap_size (tuple[int]): Size of the feature maps.
+            featmap_size (tuple[int, int]): Size of the feature maps.
             level_idx (int): The index of corresponding feature map level.
-            dtype (obj:`torch.dtype`): Date type of points.Defaults to
-                ``torch.float32``.
-            device (str, optional): The device the tensor will be put on.
-                Defaults to 'cuda'.
+            dtype (torch.dtype, optional): Data type of points. Defaults to
+                torch.float32.
+            device (str | None, optional): The device the tensor will be put
+                on. Defaults to "cuda".
+
         Returns:
             torch.Tensor: Anchors in the overall feature maps.
         """
-
         base_anchors = self.base_anchors[level_idx].to(device).to(dtype)
         feat_h, feat_w = featmap_size
         stride_w, stride_h = self.strides[level_idx]
@@ -309,53 +329,57 @@ class AnchorGenerator:
 
     def sparse_priors(
         self,
-        prior_idxs,
-        featmap_size,
-        level_idx,
-        dtype=torch.float32,
+        prior_idxs: torch.Tensor,
+        featmap_size: tuple[int, int],
+        level_idx: int,
+        dtype: torch.dtype = torch.float32,
         device="cuda",
-    ):
+    ) -> torch.Tensor:
         """Generate sparse anchors according to the ``prior_idxs``.
-        Args:
-            prior_idxs (Tensor): The index of corresponding anchors
-                in the feature map.
-            featmap_size (tuple[int]): feature map size arrange as (h, w).
-            level_idx (int): The level index of corresponding feature
-                map.
-            dtype (obj:`torch.dtype`): Date type of points.Defaults to
-                ``torch.float32``.
-            device (obj:`torch.device`): The device where the points is
-                located.
-        Returns:
-            Tensor: Anchor with shape (N, 4), N should be equal to
-                the length of ``prior_idxs``.
-        """
 
+        Args:
+            prior_idxs (torch.Tensor): The index of corresponding anchors in
+                the feature map.
+            featmap_size (tuple[int, int]): Feature map size arrange as (h, w).
+            level_idx (int): The level index of corresponding feature map.
+            dtype (torch.dtype, optional): Data type of points. Defaults to
+                torch.float32.
+            device (str, optional): The device where the points are located.
+                Defaults to "cuda".
+
+        Returns:
+            torch.Tensor: Anchor with shape (N, 4), N should be equal to the
+                length of ``prior_idxs``.
+        """
         height, width = featmap_size
         num_base_anchors = self.num_base_anchors[level_idx]
         base_anchor_id = prior_idxs % num_base_anchors
-        x = (
+        x_prior = (
             (prior_idxs // num_base_anchors)
             % width
             * self.strides[level_idx][0]
         )
-        y = (
+        y_prior = (
             (prior_idxs // width // num_base_anchors)
             % height
             * self.strides[level_idx][1]
         )
-        priors = torch.stack([x, y, x, y], 1).to(dtype).to(
+        priors = torch.stack([x_prior, y_prior, x_prior, y_prior], 1).to(
+            dtype
+        ).to(device) + self.base_anchors[level_idx][base_anchor_id, :].to(
             device
-        ) + self.base_anchors[level_idx][base_anchor_id, :].to(device)
+        )
 
         return priors
 
     def grid_anchors(self, featmap_sizes, device="cuda"):
         """Generate grid anchors in multiple feature levels.
+
         Args:
             featmap_sizes (list[tuple]): List of feature map sizes in
                 multiple feature levels.
             device (str): Device where the anchors will be put on.
+
         Return:
             list[torch.Tensor]: Anchors in multiple feature levels. \
                 The sizes of each tensor should be [N, 4], where \
@@ -363,7 +387,6 @@ class AnchorGenerator:
                 are the sizes of the corresponding feature level, \
                 num_base_anchors is the number of anchors for that level.
         """
-
         assert self.num_levels == len(featmap_sizes)
         multi_level_anchors = []
         for i in range(self.num_levels):
@@ -380,6 +403,7 @@ class AnchorGenerator:
         self, base_anchors, featmap_size, stride=(16, 16), device="cuda"
     ):
         """Generate grid anchors of a single level.
+
         Note:
             This function is usually called by method ``self.grid_anchors``.
         Args:
@@ -389,10 +413,10 @@ class AnchorGenerator:
                 (w, h). Defaults to (16, 16).
             device (str, optional): Device the tensor will be put on.
                 Defaults to 'cuda'.
+
         Returns:
             torch.Tensor: Anchors in the overall feature maps.
         """
-
         # keep featmap_size as Tensor instead of int, so that we
         # can convert to ONNX correctly
         feat_h, feat_w = featmap_size
@@ -414,11 +438,13 @@ class AnchorGenerator:
 
     def valid_flags(self, featmap_sizes, pad_shape, device="cuda"):
         """Generate valid flags of anchors in multiple feature levels.
+
         Args:
             featmap_sizes (list(tuple)): List of feature map sizes in
                 multiple feature levels.
             pad_shape (tuple): The padded shape of the image.
             device (str): Device where the anchors will be put on.
+
         Return:
             list(torch.Tensor): Valid flags of anchors in multiple levels.
         """
@@ -427,9 +453,9 @@ class AnchorGenerator:
         for i in range(self.num_levels):
             anchor_stride = self.strides[i]
             feat_h, feat_w = featmap_sizes[i]
-            h, w = pad_shape[:2]
-            valid_feat_h = min(int(np.ceil(h / anchor_stride[1])), feat_h)
-            valid_feat_w = min(int(np.ceil(w / anchor_stride[0])), feat_w)
+            height, width = pad_shape[:2]
+            valid_feat_h = min(int(np.ceil(height / anchor_stride[1])), feat_h)
+            valid_feat_w = min(int(np.ceil(width / anchor_stride[0])), feat_w)
             flags = self.single_level_valid_flags(
                 (feat_h, feat_w),
                 (valid_feat_h, valid_feat_w),
@@ -443,6 +469,7 @@ class AnchorGenerator:
         self, featmap_size, valid_size, num_base_anchors, device="cuda"
     ):
         """Generate the valid flags of anchor in a single feature map.
+
         Args:
             featmap_size (tuple[int]): The size of feature maps, arrange
                 as (h, w).
@@ -450,6 +477,7 @@ class AnchorGenerator:
             num_base_anchors (int): The number of base anchors.
             device (str, optional): Device where the flags will be put on.
                 Defaults to 'cuda'.
+
         Returns:
             torch.Tensor: The valid flags of each anchor in a single level \
                 feature map.

@@ -96,14 +96,14 @@ class RetinaNetTest(unittest.TestCase):
 
                 # print statistics
                 losses = dict(loss=total_loss, **retinanet_losses)
-                for k, v in losses.items():
+                for k, loss in losses.items():
                     if k in running_losses:
-                        running_losses[k] += v
+                        running_losses[k] += loss
                     else:
-                        running_losses[k] = v
+                        running_losses[k] = loss
                 if i % log_step == (log_step - 1):
                     log_str = f"[{epoch + 1}, {i + 1:5d}] "
-                    for k, v in running_losses.items():
-                        log_str += f"{k}: {v / log_step:.3f}, "
+                    for k, loss in running_losses.items():
+                        log_str += f"{k}: {loss / log_step:.3f}, "
                     print(log_str.rstrip(", "))
                     running_losses = {}

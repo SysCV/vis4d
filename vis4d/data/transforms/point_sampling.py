@@ -1,6 +1,5 @@
 """Contains Different Sampling methods to downsample pointclouds."""
-
-from typing import List, Tuple
+from __future__ import annotations
 
 import torch
 
@@ -44,21 +43,20 @@ def sample_from_block(
     data: torch.Tensor,
     center_xyz: torch.Tensor,
     block_size: torch.Tensor,
-    ignore_axis=[2],
-) -> Tuple[int, torch.Tensor]:
-    """
-    Samples point indices inside a box.
+    ignore_axis: list[int] = [2],
+) -> tuple[int, torch.Tensor]:
+    """=Samples point indices inside a box.
 
     Args:
         n_pts (int): How many points to sample
         data: (Tensor): Data containing pointwise information. Shape [n_pts, x]
         center_xyz (Tensor): Center point around which to sample (x,y,z) [3]
         block_size (Tensor): Block length in each direction (x,y,z) [3]
-        ignore_axis (List[int]): If specified, this axis will be ignored and
+        ignore_axis (list[int]): If specified, this axis will be ignored and
                                  all points along this axis will be considered
 
     Returns:
-        Tuple[int, Tensor]: Number of points that were in the box and
+        tuple[int, Tensor]: Number of points that were in the box and
                             the selected indices of shape [n_pts]
     """
     min_data = torch.min(data, dim=0).values
@@ -97,7 +95,7 @@ def sample_points_random(num_pts: int = 1024):
     """
 
     def _sample_points_random(
-        coordinates: torch.Tensor, *args: List[torch.Tensor]
+        coordinates: torch.Tensor, *args: list[torch.Tensor]
     ):
         selected_idxs = sample_indices(num_pts, coordinates)
         sampled_coords = coordinates[selected_idxs, ...]
@@ -112,7 +110,7 @@ def sample_points_random(num_pts: int = 1024):
 def sample_points_block_random(
     num_pts: int = 1024,
     min_pts: int = 32,
-    block_size: List[float] = [1.0, 1.0, 1.0],
+    block_size: list[float] = [1.0, 1.0, 1.0],
     max_tries=100,
     center=False,
 ):
@@ -159,7 +157,7 @@ def sample_points_block_random(
 def sample_points_block_full_coverage(
     n_pts_per_block: int = 1024,
     min_pts_per_block: int = 1,
-    block_size: List[float] = [1.0, 1.0, 1.0],
+    block_size: list[float] = [1.0, 1.0, 1.0],
 ):
     """Subsamples the full pointcloud by regularly dividing it into blocks.
 
@@ -171,7 +169,7 @@ def sample_points_block_full_coverage(
         n_pts_per_block (int): How many points to sample per block
         min_pts_per_block (int): Only sample points if at least these many
                                   points are inside the block
-        block_size (List[float]): Dimension of block from which to sample (xyz)
+        block_size (list[float]): Dimension of block from which to sample (xyz)
     """
 
     def _sample_points_block_full_coverage(coordinates, *args):

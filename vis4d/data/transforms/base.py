@@ -1,5 +1,7 @@
 """Basic data augmentation class."""
-from typing import Any, Callable, List, Optional, Tuple, TypeVar
+from __future__ import annotations
+
+from typing import Any, Callable, TypeVar
 
 import torch
 
@@ -9,7 +11,7 @@ from vis4d.data.typing import DictData
 
 
 # TODO move to commen
-def get_dict_nested(dictionary: DictStrAny, keys: List[str]) -> Any:
+def get_dict_nested(dictionary: DictStrAny, keys: list[str]) -> Any:
     """Get value in nested dict."""
     for key in keys:
         if key not in dictionary:
@@ -19,7 +21,7 @@ def get_dict_nested(dictionary: DictStrAny, keys: List[str]) -> Any:
 
 
 def set_dict_nested(
-    dictionary: DictStrAny, keys: List[str], value: Any
+    dictionary: DictStrAny, keys: list[str], value: Any
 ) -> None:
     """Set value in nested dict."""
     for key in keys[:-1]:
@@ -43,24 +45,30 @@ class Transform:
             return _transform
 
     For the case of multi-sensor data, the sensors that the transform should be
-    applied can be set via the 'sensors' attribute. By default, we assume single
-    sensor data (DictData).
+    applied can be set via the 'sensors' attribute. By default, we assume
+    single sensor data (DictData).
     """
 
     def __init__(
         self,
-        in_keys: Tuple[str, ...] = (COMMON_KEYS.images,),
-        out_keys: Tuple[str, ...] = (COMMON_KEYS.images,),
-        sensors: Optional[Tuple[str, ...]] = None,
+        in_keys: tuple[str, ...] = (COMMON_KEYS.images,),
+        out_keys: tuple[str, ...] = (COMMON_KEYS.images,),
+        sensors: None | tuple[str, ...] = None,
         with_data: bool = False,
     ):
         """Init.
 
         Args:
-            in_keys (Tuple[str, ...], optional): Input keys in the data dictionary. Nested keys are separated by '.', e.g. metadata.image_size. Defaults to (COMMON_KEYS.images,).
-            out_keys (Tuple[str, ...], optional): Output keys (possibly nested).. Defaults to (COMMON_KEYS.images,).
-            sensors (Optional[Tuple[str, ...]], optional): This field indicates which sensors the transform should be applied to. Defaults to None.
-            with_data (bool, optional): Pass the full data dict as auxiliary input. Defaults to False.
+            in_keys (tuple[str, ...], optional): Input keys in the data
+                dictionary. Nested keys are separated by '.', e.g.,
+                metadata.image_size. Defaults to (COMMON_KEYS.images,).
+            out_keys (tuple[str, ...], optional): Output keys (possibly
+                nested). Defaults to (COMMON_KEYS.images,).
+            sensors (None | tuple[str, ...], optional): This field indicates
+                which sensors the transform should be applied to. Defaults to
+                None.
+            with_data (bool, optional): Pass the full data dict as auxiliary
+                input. Defaults to False.
         """
         assert isinstance(in_keys, tuple) or isinstance(in_keys, list)
         assert isinstance(out_keys, tuple) or isinstance(out_keys, list)
@@ -90,7 +98,8 @@ class Transform:
                 in_data = [
                     get_dict_nested(data, key.split(".")) for key in in_keys
                 ]
-                # Optionally allow the function to get the full data dict as aux input.
+                # Optionally allow the function to get the full data dict as
+                # aux input.
                 if self.with_data:
                     result = orig_transform_fn(*in_data, data=data)
                 else:
@@ -121,16 +130,22 @@ class BatchTransform:
         self,
         in_keys=(COMMON_KEYS.images,),
         out_keys=(COMMON_KEYS.images,),
-        sensors: Optional[Tuple[str, ...]] = None,
+        sensors: None | tuple[str, ...] = None,
         with_data: bool = False,
     ):
         """Init.
 
         Args:
-            in_keys (Tuple[str, ...], optional): Input keys in the data dictionary. Nested keys are separated by '.', e.g. metadata.image_size. Defaults to (COMMON_KEYS.images,).
-            out_keys (Tuple[str, ...], optional): Output keys (possibly nested).. Defaults to (COMMON_KEYS.images,).
-            sensors (Optional[Tuple[str, ...]], optional): This field indicates which sensors the transform should be applied to. Defaults to None.
-            with_data (bool, optional): Pass the full data dict as auxiliary input. Defaults to False.
+            in_keys (tuple[str, ...], optional): Input keys in the data
+                dictionary. Nested keys are separated by '.', e.g.,
+                metadata.image_size. Defaults to (COMMON_KEYS.images,).
+            out_keys (tuple[str, ...], optional): Output keys (possibly
+                nested). Defaults to (COMMON_KEYS.images,).
+            sensors (None | tuple[str, ...], optional): This field indicates
+                which sensors the transform should be applied to. Defaults to
+                None.
+            with_data (bool, optional): Pass the full data dict as auxiliary
+                input. Defaults to False.
         """
         self.in_keys = in_keys
         self.out_keys = out_keys
@@ -190,7 +205,7 @@ TInput = TypeVar("TInput")
 
 
 def compose(
-    transforms: List[Callable[[TInput], TInput]]
+    transforms: list[Callable[[TInput], TInput]]
 ) -> Callable[[TInput], TInput]:
     """Compose transformations."""
 
@@ -203,7 +218,7 @@ def compose(
 
 
 def random_apply(
-    transforms: List[Callable[[DictData], DictData]], p: float = 0.5
+    transforms: list[Callable[[DictData], DictData]], p: float = 0.5
 ):
     """Apply given transforms at random with given probability."""
 
