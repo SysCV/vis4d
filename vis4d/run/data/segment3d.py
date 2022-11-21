@@ -4,7 +4,7 @@ from typing import List, Union
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 from vis4d.data.loader import (
     DataPipe,
     SubdividingIterableDataset,
@@ -44,13 +44,13 @@ def default_train_pipeline(
     load_colors: bool = False,
 ) -> DataLoader:
     """Default train preprocessing pipeline for 3D segmentation."""
-    data_keys = [COMMON_KEYS.points3d]
-    labels_keys = [COMMON_KEYS.semantics3d]
+    data_keys = [CommonKeys.points3d]
+    labels_keys = [CommonKeys.semantics3d]
 
     if load_instances:
-        labels_keys.append(COMMON_KEYS.instances3d)
+        labels_keys.append(CommonKeys.instances3d)
     if load_colors:
-        data_keys.append(COMMON_KEYS.colors3d)
+        data_keys.append(CommonKeys.colors3d)
 
     bounds_calc = extract_pc_bounds()
     sample = sample_points_block_random(
@@ -63,7 +63,7 @@ def default_train_pipeline(
     noise = add_norm_noise(std=0.02)
     rand_rotate_z = rotate_around_axis(axis=2)
     norm = center_and_normalize(
-        in_keys=[COMMON_KEYS.points3d],
+        in_keys=[CommonKeys.points3d],
         out_keys=["points3d_normalized"],
         normalize=False,
     )
@@ -85,7 +85,7 @@ def default_train_pipeline(
     if len(data_keys) > 1:
         pipeline.append(
             concatenate_point_features(
-                in_keys=data_keys, out_keys=[COMMON_KEYS.points3d]
+                in_keys=data_keys, out_keys=[CommonKeys.points3d]
             )
         )
     preprocess_fn = compose(pipeline)
@@ -108,13 +108,13 @@ def default_test_pipeline(
     load_colors: bool = False,
 ) -> DataLoader:
     """Default test preprocessing pipeline for 3D segmentation."""
-    data_keys = [COMMON_KEYS.points3d]
-    labels_keys = [COMMON_KEYS.semantics3d]
+    data_keys = [CommonKeys.points3d]
+    labels_keys = [CommonKeys.semantics3d]
 
     if load_instances:
-        labels_keys.append(COMMON_KEYS.instances3d)
+        labels_keys.append(CommonKeys.instances3d)
     if load_colors:
-        data_keys.append(COMMON_KEYS.colors3d)
+        data_keys.append(CommonKeys.colors3d)
 
     sample = sample_points_block_full_coverage(
         in_keys=data_keys + labels_keys,
@@ -125,7 +125,7 @@ def default_test_pipeline(
     bounds_calc = extract_pc_bounds()
 
     norm = center_and_normalize(
-        in_keys=[COMMON_KEYS.points3d],
+        in_keys=[CommonKeys.points3d],
         out_keys=["points3d_normalized"],
         normalize=False,
     )
@@ -138,7 +138,7 @@ def default_test_pipeline(
     if len(data_keys) > 1:
         pipeline.append(
             concatenate_point_features(
-                in_keys=data_keys, out_keys=[COMMON_KEYS.points3d]
+                in_keys=data_keys, out_keys=[CommonKeys.points3d]
             )
         )
     preprocess_fn = compose(pipeline)

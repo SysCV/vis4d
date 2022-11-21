@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from vis4d.common.typing import LossesType, ModelOutput
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 from vis4d.op.base.pointnetpp import (
     PointNet2Segmentation,
     PointNet2SegmentationOut,
@@ -49,7 +49,7 @@ class PointNet2SegmentationModel(nn.Module):
         if semantics3d is not None:
             return x
         class_pred = torch.argmax(x.class_logits, dim=1)
-        return {COMMON_KEYS.semantics3d: class_pred}
+        return {CommonKeys.semantics3d: class_pred}
 
     def forward_test(self, points3d) -> ModelOutput:
         """Forward test."""

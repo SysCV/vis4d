@@ -1,33 +1,14 @@
 """Basic data augmentation class."""
 from __future__ import annotations
 
-from typing import Any, Callable, TypeVar
+from typing import Callable, TypeVar
 
 import torch
 
-from vis4d.common import DictStrAny
-from vis4d.data.const import COMMON_KEYS
+from vis4d.common.dict import get_dict_nested, set_dict_nested
+from vis4d.data.const import CommonKeys
 from vis4d.data.typing import DictData
 from vis4d.common.prettyprint import describe_shape
-
-
-# TODO move to commen
-def get_dict_nested(dictionary: DictStrAny, keys: list[str]) -> Any:
-    """Get value in nested dict."""
-    for key in keys:
-        if key not in dictionary:
-            raise ValueError(f"Key {key} not in dictionary!")
-        dictionary = dictionary[key]
-    return dictionary
-
-
-def set_dict_nested(
-    dictionary: DictStrAny, keys: list[str], value: Any
-) -> None:
-    """Set value in nested dict."""
-    for key in keys[:-1]:
-        dictionary = dictionary.setdefault(key, {})
-    dictionary[keys[-1]] = value
 
 
 class Transform:
@@ -39,11 +20,11 @@ class Transform:
     Nested keys in the data dictionary can be accessed via key.subkey1.subkey2
 
     Example:
-        @Transform(in_keys=["image"], out_keys=["image"])
-        def my_transform(option_a, option_b):
-            def _transform(image):
-                return do_transform(image)
-            return _transform
+        >>> @Transform(in_keys=["image"], out_keys=["image"])
+        >>> def my_transform(option_a, option_b):
+        >>>     def _transform(image):
+        >>>         return do_transform(image)
+        >>>     return _transform
 
     For the case of multi-sensor data, the sensors that the transform should be
     applied can be set via the 'sensors' attribute. By default, we assume
@@ -52,8 +33,8 @@ class Transform:
 
     def __init__(
         self,
-        in_keys: tuple[str, ...] = (COMMON_KEYS.images,),
-        out_keys: tuple[str, ...] = (COMMON_KEYS.images,),
+        in_keys: tuple[str, ...] = (CommonKeys.images,),
+        out_keys: tuple[str, ...] = (CommonKeys.images,),
         sensors: None | tuple[str, ...] = None,
         with_data: bool = False,
     ):
@@ -129,8 +110,8 @@ class BatchTransform:
 
     def __init__(
         self,
-        in_keys=(COMMON_KEYS.images,),
-        out_keys=(COMMON_KEYS.images,),
+        in_keys=(CommonKeys.images,),
+        out_keys=(CommonKeys.images,),
         sensors: None | tuple[str, ...] = None,
         with_data: bool = False,
     ):

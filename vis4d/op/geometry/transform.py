@@ -41,8 +41,8 @@ def inverse_rigid_transform(transformation: Tensor) -> Tensor:
     """Calculate inverse of rigid body transformation(s).
 
     Args:
-        transformation (Tensor): [N, 4, 4] transformations or single [4, 4] t
-                                 ransformation.
+        transformation (Tensor): [N, 4, 4] transformations or single [4, 4]
+            transformation.
 
     Returns:
         Tensor: Inverse of input transformation(s).

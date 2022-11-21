@@ -5,7 +5,7 @@ import math
 
 import torch
 
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 
 from .base import Transform
 
@@ -54,8 +54,8 @@ def _get_rotation_matrix(angle: float, axis: int = 0) -> torch.Tensor:
 
 
 @Transform(
-    in_keys=(COMMON_KEYS.points3d,),
-    out_keys=(COMMON_KEYS.points3d,),
+    in_keys=(CommonKeys.points3d,),
+    out_keys=(CommonKeys.points3d,),
 )
 def move_pts_to_last_channel():
     """Permutes the last two channels of the data for the given keys.
@@ -73,8 +73,8 @@ def move_pts_to_last_channel():
 
 
 @Transform(
-    in_keys=(COMMON_KEYS.points3d, COMMON_KEYS.colors3d),
-    out_keys=(COMMON_KEYS.points3d,),
+    in_keys=(CommonKeys.points3d, CommonKeys.colors3d),
+    out_keys=(CommonKeys.points3d,),
 )
 def concatenate_point_features():
     """Concatenates all given data keys along the first axis."""
@@ -86,8 +86,8 @@ def concatenate_point_features():
 
 
 @Transform(
-    in_keys=(COMMON_KEYS.points3d,),
-    out_keys=(COMMON_KEYS.points3d,),
+    in_keys=(CommonKeys.points3d,),
+    out_keys=(CommonKeys.points3d,),
 )
 def add_norm_noise(std: float = 0.1):
     """Adds random normal distributed noise with given std to the data.
@@ -103,7 +103,7 @@ def add_norm_noise(std: float = 0.1):
     return _add_norm_noise
 
 
-@Transform(in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,))
+@Transform(in_keys=(CommonKeys.points3d,), out_keys=(CommonKeys.points3d,))
 def add_uniform_noise(min_value: float = -0.1, max_value: float = 0.1):
     """Adds uniform distributed noise with given limits to the data.
 
@@ -121,7 +121,7 @@ def add_uniform_noise(min_value: float = -0.1, max_value: float = 0.1):
     return _add_uniform_noise
 
 
-@Transform(in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,))
+@Transform(in_keys=(CommonKeys.points3d,), out_keys=(CommonKeys.points3d,))
 def rotate_around_axis(angle_min=-torch.pi, angle_max=torch.pi, axis=2):
     """Rotates the given data around a specified axis.
 
@@ -141,7 +141,7 @@ def rotate_around_axis(angle_min=-torch.pi, angle_max=torch.pi, axis=2):
     return _rotate_around_axis
 
 
-@Transform(in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,))
+@Transform(in_keys=(CommonKeys.points3d,), out_keys=(CommonKeys.points3d,))
 def center_and_normalize(normalize=True):
     """Centers the data and divides it by the max value.
 
@@ -163,7 +163,7 @@ def center_and_normalize(normalize=True):
     return _center_and_normalize
 
 
-@Transform(in_keys=(COMMON_KEYS.points3d,), out_keys=(PC_BOUND_KEY,))
+@Transform(in_keys=(CommonKeys.points3d,), out_keys=(PC_BOUND_KEY,))
 def extract_pc_bounds():
     """Extracts the max and min values of the loaded points and safes it
     into the out_key (default 'pc_bounds').
@@ -181,8 +181,8 @@ def extract_pc_bounds():
 
 
 @Transform(
-    in_keys=(COMMON_KEYS.points3d, PC_BOUND_KEY),
-    out_keys=(COMMON_KEYS.points3d,),
+    in_keys=(CommonKeys.points3d, PC_BOUND_KEY),
+    out_keys=(CommonKeys.points3d,),
 )
 def normalize_by_bounds(axes: list[int] = [0, 1]):
     """Uses the bounds stored in in_keys[1] (default 'pc_bounds')

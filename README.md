@@ -30,4 +30,3 @@ python -m vis4d.pl.model.faster_rcnn fit -h
 ## Contribute
 
 [Check out our contribution guidelines for this project](docs/source/contribute.rst)
-

@@ -10,7 +10,7 @@ import torch
 from pycocotools.coco import COCO as COCOAPI
 
 from vis4d.common import DictStrAny
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData
@@ -140,10 +140,10 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         self,
         data_root: str,
         keys: Tuple[str, ...] = (
-            COMMON_KEYS.images,
-            COMMON_KEYS.boxes2d,
-            COMMON_KEYS.boxes2d_classes,
-            COMMON_KEYS.masks,
+            CommonKeys.images,
+            CommonKeys.boxes2d,
+            CommonKeys.boxes2d_classes,
+            CommonKeys.masks,
         ),
         split: str = "train2017",
         remove_empty: bool = False,
@@ -166,11 +166,11 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
 
         # handling keys to load
         self.validate_keys(keys)
-        self.with_images = COMMON_KEYS.images in keys
-        self.with_boxes = (COMMON_KEYS.boxes2d in keys) or (
-            COMMON_KEYS.boxes2d_classes in keys
+        self.with_images = CommonKeys.images in keys
+        self.with_boxes = (CommonKeys.boxes2d in keys) or (
+            CommonKeys.boxes2d_classes in keys
         )
-        self.with_masks = COMMON_KEYS.masks in keys
+        self.with_masks = CommonKeys.masks in keys
 
         self.data = self._load_mapping(self._generate_data_mapping)
 
@@ -229,10 +229,10 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         data = self.data[idx]
         img_h, img_w = data["img"]["height"], data["img"]["width"]
         dict_data = {
-            COMMON_KEYS.original_hw: [img_h, img_w],
-            COMMON_KEYS.input_hw: None,
-            COMMON_KEYS.transform_params: {},
-            COMMON_KEYS.batch_transform_params: {},
+            CommonKeys.original_hw: [img_h, img_w],
+            CommonKeys.input_hw: None,
+            CommonKeys.transform_params: {},
+            CommonKeys.batch_transform_params: {},
             "coco_image_id": data["img"]["id"],
         }
 
@@ -249,7 +249,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             assert (img_h, img_w) == img.shape[
                 2:
             ], "Image's shape doesn't match annotation."
-            dict_data[COMMON_KEYS.images] = img
+            dict_data[CommonKeys.images] = img
 
         if self.with_boxes or self.with_masks:
             boxes = []
@@ -283,13 +283,13 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
                     np.ascontiguousarray(masks), dtype=torch.uint8
                 )
 
-            if COMMON_KEYS.boxes2d in self.keys:
-                dict_data[COMMON_KEYS.boxes2d] = box_tensor
-            if COMMON_KEYS.boxes2d_classes in self.keys:
-                dict_data[COMMON_KEYS.boxes2d_classes] = torch.tensor(
+            if CommonKeys.boxes2d in self.keys:
+                dict_data[CommonKeys.boxes2d] = box_tensor
+            if CommonKeys.boxes2d_classes in self.keys:
+                dict_data[CommonKeys.boxes2d_classes] = torch.tensor(
                     classes, dtype=torch.long
                 )
             if self.with_masks:
-                dict_data[COMMON_KEYS.masks] = mask_tensor
+                dict_data[CommonKeys.masks] = mask_tensor
 
         return dict_data

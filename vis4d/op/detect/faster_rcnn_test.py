@@ -21,12 +21,11 @@ class FasterRCNNTest(unittest.TestCase):
             for i in range(5)
         ]
         # train forward
-        boxes, _, classes, _ = generate_boxes(wh * 4, wh * 4, num_boxes)
+        boxes, _, classes, _ = generate_boxes(
+            wh * 4, wh * 4, num_boxes, batch_size
+        )
         rpn, roi, props, smp_props, smp_tgts, smp_tgt_inds = faster_rcnn_head(
-            test_features,
-            [(wh * 4, wh * 4)] * batch_size,
-            [boxes] * batch_size,
-            [classes] * batch_size,
+            test_features, [(wh * 4, wh * 4)] * batch_size, boxes, classes
         )
         rpn_cls, rpn_box = rpn
         assert len(rpn_cls) == len(rpn_box) == 5  # number of pyramid levels

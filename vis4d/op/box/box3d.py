@@ -63,7 +63,7 @@ def boxes3d_to_corners(boxes3d: Tensor, axis_mode: AxisMode) -> Tensor:
         x_corners = -l_corners
         y_corners = w_corners  # TODO check
         z_corners = -h_corners
-    elif axis_mode == AxisMode.OpenCV:
+    elif axis_mode == AxisMode.OPENCV:
         x_corners = l_corners
         y_corners = h_corners
         z_corners = w_corners
@@ -83,14 +83,15 @@ def boxes3d_in_image(
     """Check if a 3D bounding box is (partially) in an image.
 
     Args:
-        boxes (torch.Tensor): [N, 10] Tensor of 3D boxes. In OpenCV coordinate frame.
+        boxes (torch.Tensor): [N, 10] Tensor of 3D boxes. In OpenCV coordinate
+            frame.
         cam_intrinsics (torch.Tensor): [3, 3] Camera matrix.
         image_hw (Tuple[int, int]): image height / width.
 
     Returns:
         torch.Tensor: [N,] boolean values.
     """
-    box_corners = boxes3d_to_corners(boxes, AxisMode.OpenCV)
+    box_corners = boxes3d_to_corners(boxes, AxisMode.OPENCV)
     points = project_points(box_corners.view(-1, 3), cam_intrinsics).view(
         -1, 8, 2
     )

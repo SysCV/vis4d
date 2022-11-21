@@ -5,7 +5,7 @@ import unittest
 import pytest
 import torch
 
-from vis4d.data.const import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 
 from .points import move_pts_to_last_channel, rotate_around_axis
 
@@ -18,9 +18,9 @@ class TestPoints(unittest.TestCase):
     def initdata(self):
         """Loads dummy data."""
         self.data = {
-            COMMON_KEYS.points3d: torch.rand(200, 3),
-            COMMON_KEYS.colors3d: torch.rand(200, 3),
-            COMMON_KEYS.semantics3d: torch.randint(10, (200, 1)),
+            CommonKeys.points3d: torch.rand(200, 3),
+            CommonKeys.colors3d: torch.rand(200, 3),
+            CommonKeys.semantics3d: torch.randint(10, (200, 1)),
         }
         self.original_data = copy.deepcopy(self.data)
 
@@ -28,11 +28,11 @@ class TestPoints(unittest.TestCase):
         """Tests the functional."""
         # pylint: disable=unexpected-keyword-arg
         tf = move_pts_to_last_channel(
-            in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,)
+            in_keys=(CommonKeys.points3d,), out_keys=(CommonKeys.points3d,)
         )
 
         # Check that points are now at last channel
-        self.assertEqual(tf(self.data)[COMMON_KEYS.points3d].shape[-1], 200)
+        self.assertEqual(tf(self.data)[CommonKeys.points3d].shape[-1], 200)
 
     def test_move_pts_to_last_channel_w_multi_keys(self) -> None:
         """Tests the move_pts_to_last_channel functional with multiple inputs."""
@@ -40,14 +40,14 @@ class TestPoints(unittest.TestCase):
         # pylint: disable=unexpected-keyword-arg
         tf = move_pts_to_last_channel(
             in_keys=(
-                COMMON_KEYS.points3d,
-                COMMON_KEYS.colors3d,
-                COMMON_KEYS.semantics3d,
+                CommonKeys.points3d,
+                CommonKeys.colors3d,
+                CommonKeys.semantics3d,
             ),
             out_keys=(
-                COMMON_KEYS.points3d,
-                COMMON_KEYS.colors3d,
-                COMMON_KEYS.semantics3d,
+                CommonKeys.points3d,
+                CommonKeys.colors3d,
+                CommonKeys.semantics3d,
             ),
         )
 
@@ -63,8 +63,8 @@ class TestPoints(unittest.TestCase):
         out = tf(self.data)
         self.assertTrue(
             (
-                out[COMMON_KEYS.points3d]
-                == self.original_data[COMMON_KEYS.points3d]
+                out[CommonKeys.points3d]
+                == self.original_data[CommonKeys.points3d]
             ).all()
         )
 
@@ -74,8 +74,8 @@ class TestPoints(unittest.TestCase):
         tf = rotate_around_axis(angle_min=torch.pi, angle_max=torch.pi, axis=2)
         out = tf(self.data)
 
-        in_points = self.original_data[COMMON_KEYS.points3d]
-        out_points = out[COMMON_KEYS.points3d]
+        in_points = self.original_data[CommonKeys.points3d]
+        out_points = out[CommonKeys.points3d]
         # Make sure signs are correct
         self.assertTrue(
             torch.isclose(in_points[:, :2], -out_points[:, :2]).all()

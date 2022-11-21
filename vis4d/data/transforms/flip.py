@@ -1,7 +1,7 @@
 """Horizontal flip augmentation."""
 import torch
 
-from vis4d.data.const import COMMON_KEYS, AxisMode
+from vis4d.data.const import AxisMode, CommonKeys
 
 from .base import Transform
 
@@ -18,7 +18,7 @@ def flip_image(direction: str = "horizontal"):
     def _flip(tensor: torch.Tensor) -> torch.Tensor:
         if direction == "horizontal":
             return tensor.flip(-1)
-        elif direction == "vertical":
+        if direction == "vertical":
             return tensor.flip(-2)
         raise NotImplementedError(f"Direction {direction} not known!")
 
@@ -26,8 +26,8 @@ def flip_image(direction: str = "horizontal"):
 
 
 @Transform(
-    in_keys=(COMMON_KEYS.boxes2d, COMMON_KEYS.images),
-    out_keys=(COMMON_KEYS.boxes2d,),
+    in_keys=(CommonKeys.boxes2d, CommonKeys.images),
+    out_keys=(CommonKeys.boxes2d,),
 )
 def flip_boxes2d(direction: str = "horizontal"):
     """Flip 2D bounding box tensor.
@@ -44,7 +44,7 @@ def flip_boxes2d(direction: str = "horizontal"):
             boxes[..., 2::4] = im_width - boxes[..., 0::4]
             boxes[..., 0::4] = tmp
             return boxes
-        elif direction == "vertical":
+        if direction == "vertical":
             im_height = image.size(2)
             tmp = im_height - boxes[..., 3::4]
             boxes[..., 3::4] = im_height - boxes[..., 1::4]
@@ -72,7 +72,7 @@ def get_axis(direction: str, axis_mode: AxisMode) -> int:
             "lateral": 1,
             "vertical": 2,
         },
-        AxisMode.OpenCV: {
+        AxisMode.OPENCV: {
             "horizontal": 0,
             "vertical": 1,
             "lateral": 2,
@@ -81,7 +81,7 @@ def get_axis(direction: str, axis_mode: AxisMode) -> int:
     return coord_mapping[axis_mode][direction]
 
 
-@Transform(in_keys=(COMMON_KEYS.boxes3d,), out_keys=(COMMON_KEYS.boxes3d,))
+@Transform(in_keys=(CommonKeys.boxes3d,), out_keys=(CommonKeys.boxes3d,))
 def flip_boxes3d(direction: str = "horizontal"):
     """ "Flip 3D bounding box tensor.
 
@@ -95,7 +95,7 @@ def flip_boxes3d(direction: str = "horizontal"):
             boxes[:, get_axis(direction, axis_mode)] *= -1.0
             # boxes[:, 7] = normalize_angle(np.pi - boxes[:, 7])  TODO align with Quaternion
             return boxes
-        elif direction == "vertical":
+        if direction == "vertical":
             boxes[:, get_axis(direction, axis_mode)] *= -1.0
             return boxes
         raise NotImplementedError(f"Direction {direction} not known!")
@@ -103,19 +103,20 @@ def flip_boxes3d(direction: str = "horizontal"):
     return _flip
 
 
-@Transform(in_keys=(COMMON_KEYS.points3d,), out_keys=(COMMON_KEYS.points3d,))
+@Transform(in_keys=(CommonKeys.points3d,), out_keys=(CommonKeys.points3d,))
 def flip_points3d(direction: str = "horizontal"):
     """Flip pointcloud tensor.
 
     Args:
-        direction (str, optional): Either vertical or horizontal. Defaults to "horizontal".
+        direction (str, optional): Either vertical or horizontal. Defaults to
+            "horizontal".
     """
 
     def _flip(points3d: torch.Tensor) -> torch.Tensor:
         if direction == "horizontal":
             points3d[:, 0] *= -1.0
             return points3d
-        elif direction == "vertical":
+        if direction == "vertical":
             points3d[:, 1] *= -1.0
             return points3d
         raise NotImplementedError(f"Direction {direction} not known!")
@@ -123,9 +124,7 @@ def flip_points3d(direction: str = "horizontal"):
     return _flip
 
 
-@Transform(
-    in_keys=(COMMON_KEYS.intrinsics,), out_keys=(COMMON_KEYS.intrinsics,)
-)
+@Transform(in_keys=(CommonKeys.intrinsics,), out_keys=(CommonKeys.intrinsics,))
 def flip_intrinsics(direction: str = "horizontal"):
     """Modify intrinsics for image flip.
 
@@ -139,7 +138,7 @@ def flip_intrinsics(direction: str = "horizontal"):
             center = image.size(3) / 2
             intrinsics[0, 2] = center - intrinsics[0, 2] - center
             return intrinsics
-        elif direction == "vertical":
+        if direction == "vertical":
             center = image.size(2) / 2
             intrinsics[1, 2] = center - intrinsics[1, 2] - center
             return intrinsics

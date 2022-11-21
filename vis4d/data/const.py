@@ -20,11 +20,11 @@ class AxisMode(Enum):
     """
 
     ROS = 0
-    OpenCV = 1
+    OPENCV = 1
 
 
 @dataclass
-class COMMON_KEYS:
+class CommonKeys:
     """Common supported keys for DictData.
 
     While DictData can hold arbitrary keys of data, we define a common set of

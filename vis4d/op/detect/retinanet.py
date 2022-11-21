@@ -292,16 +292,16 @@ class Dense2Det(nn.Module):
 
         Generate anchor grid for all scales.
         For each batch element:
-            Compute classification, regression and anchor pairs for all scales.
-            Decode those pairs into proposals, post-process with NMS.
+            Compute classification, regression, and anchor pairs for all
+            scales. Decode those pairs into proposals, post-process with NMS.
 
         Args:
-            class_outs (list[torch.Tensor]): [N, 1 * A, H, W] per scale.
+            class_outs (list[torch.Tensor]): [N, C * A, H, W] per scale.
             regression_outs (list[torch.Tensor]): [N, 4 * A, H, W] per scale.
             images_hw (list[tuple[int, int]]): list of image sizes.
 
         Returns:
-            DetOut: detection outputs.
+            DetOut: Detection outputs.
         """
         # since feature map sizes of all images are the same, we only compute
         # anchors for one time

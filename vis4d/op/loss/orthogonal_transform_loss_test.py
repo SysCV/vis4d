@@ -1,4 +1,4 @@
-""""""
+"""Test for the orthogonal transform loss."""
 import math
 import unittest
 
@@ -8,13 +8,13 @@ from .orthogonal_transform_loss import OrthogonalTransformRegularizationLoss
 
 
 class TestOrthogonalTransformLoss(unittest.TestCase):
-    """Tests the losses needed for pointnet segmentation"""
+    """Tests the losses needed for pointnet segmentation."""
 
     def test_regularization_loss(self) -> None:
-
+        """Tests the regularization loss."""
         bs = 4
         loss = OrthogonalTransformRegularizationLoss()
-        transforms = [torch.eye(s).repeat(bs, 1, 1) for s in [3, 64]]
+        transforms = [torch.eye(s).repeat(bs, 1, 1) for s in (3, 64)]
         # Loss should be zero for identity matrix
         self.assertAlmostEqual(loss(transforms).item(), 0)
 
@@ -32,13 +32,13 @@ class TestOrthogonalTransformLoss(unittest.TestCase):
                     1,
                 ]
             ).reshape(1, 3, 3)
-            for a in [0.1, 0.2, 0.3]
+            for a in (0.1, 0.2, 0.3)
         ]
         # Loss should be zero for rotation matrix
         self.assertAlmostEqual(loss(transforms).item(), 0, places=4)
 
         loss = OrthogonalTransformRegularizationLoss()
-        transforms = [torch.eye(s).repeat(bs, 1, 1) + 0.1 for s in [3]]
+        transforms = [torch.eye(s).repeat(bs, 1, 1) + 0.1 for s in (3,)]
         self.assertNotEqual(loss(transforms).item(), 0)
 
         # Check numerical

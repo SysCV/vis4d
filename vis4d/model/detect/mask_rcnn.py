@@ -18,10 +18,9 @@ from vis4d.op.detect.faster_rcnn import (
 )
 from vis4d.op.detect.rcnn import (
     Det2Mask,
-    DetOut,
-    MaskOut,
     MaskRCNNHead,
     MaskRCNNHeadLoss,
+    MaskRCNNHeadOut,
     RCNNLoss,
     RoI2Det,
 )
@@ -94,7 +93,7 @@ class MaskRCNN(nn.Module):
         target_boxes: None | list[torch.Tensor] = None,
         target_classes: None | list[torch.Tensor] = None,
         original_hw: None | list[tuple[int, int]] = None,
-    ) -> tuple[FRCNNOut, MaskOut] | ModelOutput:
+    ) -> tuple[FRCNNOut, MaskRCNNHeadOut] | ModelOutput:
         """Forward pass.
 
         Args:
@@ -109,7 +108,7 @@ class MaskRCNN(nn.Module):
                 testing. Defaults to None.
 
         Returns:
-            tuple[FRCNNOut, MaskOut] | ModelOutput: Either raw model outputs
+            tuple[FRCNNOut, MaskRCNNHeadOut] | ModelOutput: Either raw model outputs
                 (for training) or predicted outputs (for testing).
         """
         if self.training:
@@ -126,7 +125,7 @@ class MaskRCNN(nn.Module):
         images_hw: list[tuple[int, int]],
         target_boxes: list[torch.Tensor],
         target_classes: list[torch.Tensor],
-    ) -> tuple[FRCNNOut, MaskOut]:
+    ) -> tuple[FRCNNOut, MaskRCNNHeadOut]:
         """Forward training stage.
 
         Args:
@@ -138,17 +137,19 @@ class MaskRCNN(nn.Module):
                 training. Defaults to None.
 
         Returns:
-            tuple[FRCNNOut, MaskOut]: Raw model outputs.
+            tuple[FRCNNOut, MaskRCNNHeadOut]: Raw model outputs.
         """
         features = self.fpn(self.backbone(images))
         outputs = self.faster_rcnn_heads(
             features, images_hw, target_boxes, target_classes
         )
+        assert outputs.sampled_proposals is not None
+        assert outputs.sampled_targets is not None
         pos_proposals = apply_mask(
             [label == 1 for label in outputs.sampled_targets.labels],
             outputs.sampled_proposals.boxes,
         )[0]
-        mask_outs = self.mask_head(features[2:-1], pos_proposals)
+        mask_outs = self.mask_head(features, pos_proposals)
         return outputs, mask_outs
 
     def forward_test(
@@ -173,14 +174,12 @@ class MaskRCNN(nn.Module):
         boxes, scores, class_ids = self.transform_outs(
             *outs.roi, outs.proposals.boxes, images_hw
         )
-        mask_outs = self.mask_head(features[2:-1], boxes)
+        mask_outs = self.mask_head(features, boxes)
         for i, boxs in enumerate(boxes):
             boxes[i] = scale_and_clip_boxes(boxs, original_hw[i], images_hw[i])
-        post_dets = DetOut(boxes=boxes, scores=scores, class_ids=class_ids)
+        mask_preds = [m.sigmoid() for m in mask_outs.mask_pred]
         masks = self.det2mask(
-            mask_outs=mask_outs.mask_pred.sigmoid(),
-            dets=post_dets,
-            images_hw=original_hw,
+            mask_preds, boxes, scores, class_ids, original_hw
         )
         return dict(
             boxes2d=boxes,
@@ -213,7 +212,7 @@ class MaskRCNNLoss(nn.Module):
 
     def forward(
         self,
-        outputs: tuple[FRCNNOut, MaskOut],
+        outputs: tuple[FRCNNOut, MaskRCNNHeadOut],
         images_hw: list[tuple[int, int]],
         target_boxes: list[torch.Tensor],
         target_masks: list[torch.Tensor],
@@ -221,7 +220,7 @@ class MaskRCNNLoss(nn.Module):
         """Forward of loss function.
 
         Args:
-            outputs (tuple[FRCNNOut, MaskOut]): Raw model outputs.
+            outputs (tuple[FRCNNOut, MaskRCNNHeadOut]): Raw model outputs.
             images_hw (list[tuple[int, int]]): Input image resolutions.
             target_boxes (list[torch.Tensor]): Bounding box labels.
             target_masks (list[torch.Tensor]): Instance mask labels.
@@ -231,6 +230,8 @@ class MaskRCNNLoss(nn.Module):
         """
         frcnn_outs, mask_outs = outputs
         rpn_losses = self.rpn_loss(*frcnn_outs.rpn, target_boxes, images_hw)
+        assert frcnn_outs.sampled_proposals is not None
+        assert frcnn_outs.sampled_targets is not None
         rcnn_losses = self.rcnn_loss(
             *frcnn_outs.roi,
             frcnn_outs.sampled_proposals.boxes,

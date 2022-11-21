@@ -1,15 +1,18 @@
 """Pointnet++ implementation.
 
-based on https://github.com/yanx27/Pointnet_Pointnet2_pytorch 
-Added typing and named tuples for convenience. 
+based on https://github.com/yanx27/Pointnet_Pointnet2_pytorch
+Added typing and named tuples for convenience.
 
 #TODO write tests
 """
-from typing import Callable, List, NamedTuple, Optional, Tuple
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import NamedTuple
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 
 class PointNetSetAbstractionOut(NamedTuple):
@@ -35,11 +38,11 @@ def square_distance(src: torch.Tensor, dst: torch.Tensor) -> torch.Tensor:
     Output:
         dist: per-point square distance, [B, N, M]
     """
-    B, N, _ = src.shape
-    _, M, _ = dst.shape
+    bs, n_pts_in, _ = src.shape
+    _, n_pts_out, _ = dst.shape
     dist = -2 * torch.matmul(src, dst.permute(0, 2, 1))
-    dist += torch.sum(src**2, -1).view(B, N, 1)
-    dist += torch.sum(dst**2, -1).view(B, 1, M)
+    dist += torch.sum(src**2, -1).view(bs, n_pts_in, 1)
+    dist += torch.sum(dst**2, -1).view(bs, 1, n_pts_out)
     return dist
 
 
@@ -54,13 +57,13 @@ def index_points(points: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
         new_points:, indexed points data, [B, S, C]
     """
     device = points.device
-    B = points.shape[0]
+    bs = points.shape[0]
     view_shape = list(idx.shape)
     view_shape[1:] = [1] * (len(view_shape) - 1)
     repeat_shape = list(idx.shape)
     repeat_shape[0] = 1
     batch_indices = (
-        torch.arange(B, dtype=torch.long)
+        torch.arange(bs, dtype=torch.long)
         .to(device)
         .view(view_shape)
         .repeat(repeat_shape)
@@ -80,14 +83,14 @@ def farthest_point_sample(xyz: torch.Tensor, npoint: int) -> torch.Tensor:
         centroids: sampled pointcloud index, [B, npoint]
     """
     device = xyz.device
-    B, N, _ = xyz.shape
-    centroids = torch.zeros(B, npoint, dtype=torch.long).to(device)
-    distance = torch.ones(B, N).to(device) * 1e10
-    farthest = torch.randint(0, N, (B,), dtype=torch.long).to(device)
-    batch_indices = torch.arange(B, dtype=torch.long).to(device)
+    bs, n_pts, _ = xyz.shape
+    centroids = torch.zeros(bs, npoint, dtype=torch.long).to(device)
+    distance = torch.ones(bs, n_pts).to(device) * 1e10
+    farthest = torch.randint(0, n_pts, (bs,), dtype=torch.long).to(device)
+    batch_indices = torch.arange(bs, dtype=torch.long).to(device)
     for i in range(npoint):
         centroids[:, i] = farthest
-        centroid = xyz[batch_indices, farthest, :].view(B, 1, 3)
+        centroid = xyz[batch_indices, farthest, :].view(bs, 1, 3)
         dist = torch.sum((xyz - centroid) ** 2, -1)
         mask = dist < distance
         distance[mask] = dist[mask]
@@ -110,19 +113,21 @@ def query_ball_point(
         group_idx: grouped points index, [B, S, nsample]
     """
     device = xyz.device
-    B, N, _ = xyz.shape
-    _, S, _ = new_xyz.shape
+    bs, n_pts_in, _ = xyz.shape
+    _, n_pts_out, _ = new_xyz.shape
     group_idx = (
-        torch.arange(N, dtype=torch.long)
+        torch.arange(n_pts_in, dtype=torch.long)
         .to(device)
-        .view(1, 1, N)
-        .repeat([B, S, 1])
+        .view(1, 1, n_pts_in)
+        .repeat([bs, n_pts_out, 1])
     )
     sqrdists = square_distance(new_xyz, xyz)
-    group_idx[sqrdists > radius**2] = N
+    group_idx[sqrdists > radius**2] = n_pts_in
     group_idx = group_idx.sort(dim=-1)[0][:, :, :nsample]
-    group_first = group_idx[:, :, 0].view(B, S, 1).repeat([1, 1, nsample])
-    mask = group_idx == N
+    group_first = (
+        group_idx[:, :, 0].view(bs, n_pts_out, 1).repeat([1, 1, nsample])
+    )
+    mask = group_idx == n_pts_in
     group_idx[mask] = group_first[mask]
     return group_idx
 
@@ -133,7 +138,7 @@ def sample_and_group(
     nsample: int,
     xyz: torch.Tensor,
     points: torch.Tensor,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Samples and groups.
 
     Input:
@@ -147,13 +152,12 @@ def sample_and_group(
         new_xyz: sampled points position data, [B, npoint, nsample, 3]
         new_points: sampled points data, [B, npoint, nsample, 3+D]
     """
-    B, _, C = xyz.shape
-    S = npoint
+    bs, _, channels = xyz.shape
     fps_idx = farthest_point_sample(xyz, npoint)  # [B, npoint, C]
     new_xyz = index_points(xyz, fps_idx)
     idx = query_ball_point(radius, nsample, xyz, new_xyz)
     grouped_xyz = index_points(xyz, idx)  # [B, npoint, nsample, C]
-    grouped_xyz_norm = grouped_xyz - new_xyz.view(B, S, 1, C)
+    grouped_xyz_norm = grouped_xyz - new_xyz.view(bs, npoint, 1, channels)
 
     if points is not None:
         grouped_points = index_points(points, idx)
@@ -167,7 +171,7 @@ def sample_and_group(
 
 def sample_and_group_all(
     xyz: torch.Tensor, points: torch.Tensor
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Sample and groups all.
 
     Input:
@@ -179,11 +183,13 @@ def sample_and_group_all(
         new_points: sampled points data, [B, 1, N, 3+D]
     """
     device = xyz.device
-    B, N, C = xyz.shape
-    new_xyz = torch.zeros(B, 1, C).to(device)
-    grouped_xyz = xyz.view(B, 1, N, C)
+    bs, n_pts, channels = xyz.shape
+    new_xyz = torch.zeros(bs, 1, channels).to(device)
+    grouped_xyz = xyz.view(bs, 1, n_pts, channels)
     if points is not None:
-        new_points = torch.cat([grouped_xyz, points.view(B, 1, N, -1)], dim=-1)
+        new_points = torch.cat(
+            [grouped_xyz, points.view(bs, 1, n_pts, -1)], dim=-1
+        )
     else:
         new_points = grouped_xyz
     return new_xyz, new_points
@@ -198,9 +204,9 @@ class PointNetSetAbstraction(nn.Module):
         radius: float,
         nsample: int,
         in_channel: int,
-        mlp: List[int],
+        mlp: list[int],
         group_all: bool,
-        norm_cls: str = "BatchNorm2d",
+        norm_cls: str | None = "BatchNorm2d",
     ):
         """Set Abstraction Layer from the Pointnet Architecture.
 
@@ -215,7 +221,7 @@ class PointNetSetAbstraction(nn.Module):
                        samples 'nsample' points.
             norm_cls (Optional(str)): class for norm (nn.'norm_cls') or None
         """
-        super(PointNetSetAbstraction, self).__init__()
+        super().__init__()
         self.npoint = npoint
         self.radius = radius
         self.nsample = nsample
@@ -293,17 +299,17 @@ class PointNetFeaturePropagation(nn.Module):
     def __init__(
         self,
         in_channel: int,
-        mlp: List[int],
+        mlp: list[int],
         norm_cls: str = "BatchNorm1d",
     ):
         """Creates a pointnet++ feature propagation layer.
 
         Args:
             in_channel: Number of input channels
-            mlp: List with hidden dimensions of the MLP.
+            mlp: list with hidden dimensions of the MLP.
             norm_cls (Optional(str)): class for norm (nn.'norm_cls') or None
         """
-        super(PointNetFeaturePropagation, self).__init__()
+        super().__init__()
         self.mlp_convs = nn.ModuleList()
         self.mlp_bns = nn.ModuleList()
 
@@ -322,7 +328,7 @@ class PointNetFeaturePropagation(nn.Module):
         self,
         xyz1: torch.Tensor,
         xyz2: torch.Tensor,
-        points1: Optional[torch.Tensor],
+        points1: torch.Tensor | None,
         points2: torch.Tensor,
     ) -> torch.Tensor:
         """Call function.
@@ -330,8 +336,8 @@ class PointNetFeaturePropagation(nn.Module):
         Input:
             xyz1: input points position data, [B, C, N]
             xyz2: sampled input points position data, [B, C, S]
-            points1: input points data, [B, D, N]
-            points2: input points data, [B, D, S]
+            points1: input points features, [B, D, N]
+            points2: sampled points features, [B, D, S]
 
         Return:
             new_points: upsampled points data, [B, D', N]
@@ -342,7 +348,7 @@ class PointNetFeaturePropagation(nn.Module):
         self,
         xyz1: torch.Tensor,
         xyz2: torch.Tensor,
-        points1: Optional[torch.Tensor],
+        points1: torch.Tensor | None,
         points2: torch.Tensor,
     ) -> torch.Tensor:
         """Forward Implementation.
@@ -350,8 +356,8 @@ class PointNetFeaturePropagation(nn.Module):
         Input:
             xyz1: input points position data, [B, C, N]
             xyz2: sampled input points position data, [B, C, S]
-            points1: input points data, [B, D, N]
-            points2: input points data, [B, D, S]
+            points1: input points features, [B, D, N]
+            points2: sampled points features, [B, D, S]
 
         Return:
             new_points: upsampled points data, [B, D', N]
@@ -360,11 +366,11 @@ class PointNetFeaturePropagation(nn.Module):
         xyz2 = xyz2.permute(0, 2, 1)
 
         points2 = points2.permute(0, 2, 1)
-        B, N, _ = xyz1.shape
-        _, S, _ = xyz2.shape
+        bs, n_pts, _ = xyz1.shape
+        _, n_out_pts, _ = xyz2.shape
 
-        if S == 1:
-            interpolated_points = points2.repeat(1, N, 1)
+        if n_out_pts == 1:
+            interpolated_points = points2.repeat(1, n_pts, 1)
         else:
             dists = square_distance(xyz1, xyz2)
             dists, idx = dists.sort(dim=-1)
@@ -374,7 +380,8 @@ class PointNetFeaturePropagation(nn.Module):
             norm = torch.sum(dist_recip, dim=2, keepdim=True)
             weight = dist_recip / norm
             interpolated_points = torch.sum(
-                index_points(points2, idx) * weight.view(B, N, 3, 1), dim=2
+                index_points(points2, idx) * weight.view(bs, n_pts, 3, 1),
+                dim=2,
             )
 
         if points1 is not None:
@@ -406,23 +413,29 @@ class PointNet2Segmentation(nn.Module):  # TODO, probably move to module?
             num_classes: Number of semantic classes
             in_channels: Number of input channels
         """
-        super(PointNet2Segmentation, self).__init__()
-        self.sa1 = PointNetSetAbstraction(
-            1024, 0.1, 32, in_channels + 3, [32, 32, 64], False
-        )
-        self.sa2 = PointNetSetAbstraction(
-            256, 0.2, 32, 64 + 3, [64, 64, 128], False
-        )
-        self.sa3 = PointNetSetAbstraction(
-            64, 0.4, 32, 128 + 3, [128, 128, 256], False
-        )
-        self.sa4 = PointNetSetAbstraction(
-            16, 0.8, 32, 256 + 3, [256, 256, 512], False
-        )
-        self.fp4 = PointNetFeaturePropagation(768, [256, 256])
-        self.fp3 = PointNetFeaturePropagation(384, [256, 256])
-        self.fp2 = PointNetFeaturePropagation(320, [256, 128])
-        self.fp1 = PointNetFeaturePropagation(128, [128, 128, 128])
+        super().__init__()
+
+        self.set_abstractions = [
+            PointNetSetAbstraction(
+                1024, 0.1, 32, in_channels + 3, [32, 32, 64], False
+            ),
+            PointNetSetAbstraction(256, 0.2, 32, 64 + 3, [64, 64, 128], False),
+            PointNetSetAbstraction(
+                64, 0.4, 32, 128 + 3, [128, 128, 256], False
+            ),
+            PointNetSetAbstraction(
+                16, 0.8, 32, 256 + 3, [256, 256, 512], False
+            ),
+        ]
+
+        self.feature_propagations = [
+            PointNetFeaturePropagation(768, [256, 256]),
+            PointNetFeaturePropagation(384, [256, 256]),
+            PointNetFeaturePropagation(320, [256, 128]),
+            PointNetFeaturePropagation(128, [128, 128, 128]),
+        ]
+
+        # Final convolutions
         self.conv1 = nn.Conv1d(128, 128, 1)
         self.bn1 = nn.BatchNorm1d(128)
         self.drop1 = nn.Dropout(0.5)
@@ -454,19 +467,31 @@ class PointNet2Segmentation(nn.Module):  # TODO, probably move to module?
         l0_points = xyz
         l0_xyz = xyz[:, :3, :]
 
-        l1_output = self.sa1(l0_xyz, l0_points)
-        l1_xyz, l1_points = l1_output.coordinates, l1_output.features
-        l2_output = self.sa2(l1_xyz, l1_points)
-        l2_xyz, l2_points = l2_output.coordinates, l2_output.features
-        l3_output = self.sa3(l2_xyz, l2_points)
-        l3_xyz, l3_points = l3_output.coordinates, l3_output.features
-        l4_output = self.sa4(l3_xyz, l3_points)
-        l4_xyz, l4_points = l4_output.coordinates, l4_output.features
+        set_abstraction_out = PointNetSetAbstractionOut(
+            coordinates=l0_xyz, features=l0_points
+        )
+        outputs: list[PointNetSetAbstractionOut] = [set_abstraction_out]
 
-        l3_points = self.fp4(l3_xyz, l4_xyz, l3_points, l4_points)
-        l2_points = self.fp3(l2_xyz, l3_xyz, l2_points, l3_points)
-        l1_points = self.fp2(l1_xyz, l2_xyz, l1_points, l2_points)
-        l0_points = self.fp1(l0_xyz, l1_xyz, None, l1_points)
+        for set_abs_layer in self.set_abstractions:
+            set_abstraction_out = set_abs_layer(
+                set_abstraction_out.coordinates, set_abstraction_out.features
+            )
+            outputs.append(set_abstraction_out)
+
+        pointwise_features = outputs[-1].features
+        for idx, feature_prop_layer in enumerate(self.feature_propagations):
+            layer_after_out = outputs[-idx - 1]  # l4
+            layer_out = outputs[-idx - 2]  # l3
+
+            out_features = (
+                layer_out.features if idx < len(outputs) - 1 else None
+            )
+            pointwise_features = feature_prop_layer(
+                layer_out.coordinates,
+                layer_after_out.coordinates,
+                out_features,
+                pointwise_features,
+            )
 
         x = self.drop1(F.relu(self.bn1(self.conv1(l0_points))))
         x = self.conv2(x)

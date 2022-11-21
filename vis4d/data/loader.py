@@ -16,7 +16,7 @@ from torch.utils.data import (
 from torch.utils.data.distributed import DistributedSampler
 
 from ..common.distributed import PicklableWrapper, get_world_size
-from .const import COMMON_KEYS
+from .const import CommonKeys
 from .datasets import VideoMixin
 from .reference import ReferenceViewSampler
 from .samplers import BaseSampler, VideoInferenceSampler
@@ -24,10 +24,10 @@ from .typing import DictData
 
 """Keys that contain pointcloud based data and can be stacked using torch.stack."""
 POINT_KEYS = [
-    COMMON_KEYS.colors3d,
-    COMMON_KEYS.points3d,
-    COMMON_KEYS.semantics3d,
-    COMMON_KEYS.instances3d,
+    CommonKeys.colors3d,
+    CommonKeys.points3d,
+    CommonKeys.semantics3d,
+    CommonKeys.instances3d,
 ]
 
 
@@ -35,11 +35,11 @@ def default_collate(batch: list[DictData]) -> DictData:
     """Default batch collate."""
     data = {}
     for key in batch[0]:
-        if key == COMMON_KEYS.images:
+        if key == CommonKeys.images:
             data[key] = torch.cat([b[key] for b in batch])
-        elif key in [COMMON_KEYS.extrinsics, COMMON_KEYS.intrinsics]:
+        elif key in [CommonKeys.extrinsics, CommonKeys.intrinsics]:
             data[key] = torch.stack([b[key] for b in batch], 0)
-        elif key == COMMON_KEYS.segmentation_masks:
+        elif key == CommonKeys.segmentation_masks:
             data[key] = torch.stack([b[key] for b in batch])
         # elif key in POINT_KEYS:
         #     data[key] = torch.stack([b[key] for b in batch], 0)

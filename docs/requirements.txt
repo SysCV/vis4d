@@ -1,6 +1,6 @@
-sphinx
 furo
-sphinx_autodoc_typehints
+sphinx
 sphinx_autodoc_defaultargs
+sphinx_autodoc_typehints
 sphinx_copybutton
 sphinx_design

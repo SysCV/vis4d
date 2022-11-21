@@ -5,7 +5,7 @@ import setuptools
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-with open('requirements/base.txt') as f:
+with open("requirements/base.txt") as f:
     required = f.read().splitlines()
 
 setuptools.setup(
@@ -28,7 +28,7 @@ setuptools.setup(
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.9",
     install_requires=required,
     package_data={
         "vis4d": [
