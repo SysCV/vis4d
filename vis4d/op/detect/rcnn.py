@@ -368,7 +368,7 @@ class MaskRCNNHeadOut(NamedTuple):
 
     # logits for mask prediction. The dimension is number of masks x number of
     # classes x H_mask x W_mask
-    mask_pred: torch.Tensor
+    mask_pred: list[torch.Tensor]
 
 
 class MaskRCNNHead(nn.Module):
@@ -385,7 +385,25 @@ class MaskRCNNHead(nn.Module):
         scale_factor: int = 2,
         class_agnostic: bool = False,
     ) -> None:
-        """Init."""
+        """Init.
+
+        Args:
+            num_classes (int, optional): Number of classes. Defaults to 80.
+            num_convs (int, optional): Number of convolution layers. Defaults
+                to 4.
+            roi_size (tuple[int, int], optional): Size of RoI after pooling.
+                Defaults to (14, 14).
+            in_channels (int, optional): Input feature channels.
+                Defaults to 256.
+            conv_kernel_size (int, optional): Kernel size of convolution.
+                Defaults to 3.
+            conv_out_channels (int, optional): Output channels of convolution.
+                Defaults to 256.
+            scale_factor (int, optional): Scaling factor of upsampling.
+                Defaults to 2.
+            class_agnostic (bool, optional): Whether to do class agnostic mask
+                prediction. Defaults to False.
+        """
         super().__init__()
         self.roi_pooler = MultiScaleRoIAlign(
             sampling_ratio=0, resolution=roi_size, strides=[4, 8, 16, 32]
@@ -434,13 +452,24 @@ class MaskRCNNHead(nn.Module):
     def forward(
         self, features: list[torch.Tensor], boxes: list[torch.Tensor]
     ) -> MaskRCNNHeadOut:
-        """Forward pass during training stage."""
-        mask_feats = self.roi_pooler(features, boxes)
+        """Forward pass.
+
+        Args:
+            features (list[torch.Tensor]): Feature pyramid.
+            boxes (list[torch.Tensor]): Proposal boxes.
+
+        Returns:
+            MaskRCNNHeadOut: Mask prediction outputs.
+        """
+        # Take stride 4, 8, 16, 32 features
+        mask_feats = self.roi_pooler(features[2:6], boxes)
         for conv in self.convs:
             mask_feats = self.relu(conv(mask_feats))
         mask_feats = self.relu(self.upsample(mask_feats))
         mask_pred = self.conv_logits(mask_feats)
-        return MaskRCNNHeadOut(mask_pred=mask_pred)
+        num_dets_per_img = tuple(len(d) for d in boxes)
+        mask_preds = mask_pred.split(num_dets_per_img, 0)
+        return MaskRCNNHeadOut(mask_pred=mask_preds)
 
 
 class MaskOut(NamedTuple):
@@ -458,39 +487,46 @@ class Det2Mask(nn.Module):
         """Init.
 
         Args:
-            mask_threshold (float, optional): _description_. Defaults to 0.5.
+            mask_threshold (float, optional): Positive threshold. Defaults to
+                0.5.
         """
         super().__init__()
         self.mask_threshold = mask_threshold
 
     def forward(
         self,
-        mask_outs: torch.Tensor,
-        dets: DetOut,
-        images_hw: list[tuple[int, int]],
+        mask_outs: list[torch.Tensor],
+        det_boxes: list[torch.Tensor],
+        det_scores: list[torch.Tensor],
+        det_class_ids: list[torch.Tensor],
+        original_hw: list[tuple[int, int]],
     ) -> MaskOut:
         """Paste mask predictions back into original image resolution.
 
         Args:
-            mask_outs (torch.Tensor): mask outputs.
-            dets (DetOut): detection outputs.
-            images_hw (list[tuple[int, int]]): original image resolution.
+            mask_outs (list[torch.Tensor]): List of mask outputs for each batch
+                element.
+            det_boxes (list[torch.Tensor]): List of detection boxes for each
+                batch element.
+            det_scores (list[torch.Tensor]): List of detection scores for each
+                batch element.
+            det_class_ids (list[torch.Tensor]): List of detection classeds for
+                each batch element.
+            images_hw (list[tuple[int, int]]): Original image resolution.
 
         Returns:
-            MaskOut: _description_
+            MaskOut: Post-processed mask predictions.
         """
-        num_dets_per_img = tuple(len(d) for d in dets.boxes)
-        mask_outs = mask_outs.split(num_dets_per_img, 0)
         all_masks = []
         all_scores = []
         all_class_ids = []
-        for mask_out, boxes, scores, class_ids, image_hw in zip(
-            mask_outs, dets.boxes, dets.scores, dets.class_ids, images_hw
+        for mask_out, boxes, scores, class_ids, orig_hw in zip(
+            mask_outs, det_boxes, det_scores, det_class_ids, original_hw
         ):
             pasted_masks = paste_masks_in_image(
                 mask_out[torch.arange(len(mask_out)), class_ids],
                 boxes,
-                image_hw[::-1],
+                orig_hw[::-1],
                 self.mask_threshold,
             )
             all_masks.append(pasted_masks)
@@ -502,12 +538,16 @@ class Det2Mask(nn.Module):
 
     def __call__(
         self,
-        mask_outs: torch.Tensor,
-        dets: DetOut,
-        images_hw: list[tuple[int, int]],
+        mask_outs: list[torch.Tensor],
+        det_boxes: list[torch.Tensor],
+        det_scores: list[torch.Tensor],
+        det_class_ids: list[torch.Tensor],
+        original_hw: list[tuple[int, int]],
     ) -> MaskOut:
         """Type definition for function call."""
-        return self._call_impl(mask_outs, dets, images_hw)
+        return self._call_impl(
+            mask_outs, det_boxes, det_scores, det_class_ids, original_hw
+        )
 
 
 class MaskRCNNHeadLosses(NamedTuple):
@@ -529,8 +569,8 @@ class MaskRCNNHeadLoss(nn.Module):
         super().__init__()
         self.num_classes = num_classes
 
+    @staticmethod
     def _get_targets_per_image(
-        self,
         boxes: Tensor,
         tgt_masks: Tensor,
         out_shape: tuple[int, int],
@@ -559,7 +599,7 @@ class MaskRCNNHeadLoss(nn.Module):
 
     def forward(
         self,
-        mask_pred: torch.Tensor,
+        mask_preds: list[torch.Tensor],
         proposal_boxes: list[torch.Tensor],
         target_classes: list[torch.Tensor],
         target_masks: list[torch.Tensor],
@@ -567,17 +607,19 @@ class MaskRCNNHeadLoss(nn.Module):
         """Calculate losses of Mask RCNN head.
 
         Args:
-            mask_pred (torch.Tensor): mask outputs.
+            mask_preds (list[torch.Tensor]): [M, C, H', W'] mask outputs per
+                batch element.
             proposal_boxes (list[torch.Tensor]): [M, 4] proposal boxes per
                 batch element.
             target_classes (list[torch.Tensor]): list of [M, 4] assigned
                 target boxes for each proposal.
-            target_masks (list[torch.Tensor]): list of [M, N, W] assigned
+            target_masks (list[torch.Tensor]): list of [M, H, W] assigned
                 target masks for each proposal.
 
         Returns:
             MaskRCNNHeadLosses: mask loss.
         """
+        mask_pred = torch.cat(mask_preds)
         mask_size = tuple([mask_pred.shape[2], mask_pred.shape[3]])
         # get targets
         targets = []

@@ -429,8 +429,8 @@ class RPNLoss(nn.Module):
 
         return (
             RPNTargets(labels, label_weights, bbox_targets, bbox_weights),
-            positives.sum(),
-            negatives.sum(),
+            int(positives.sum()),
+            int(negatives.sum()),
         )
 
     def forward(
