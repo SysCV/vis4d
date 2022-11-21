@@ -16,7 +16,7 @@ class TestPointnet(unittest.TestCase):
 
     def test_transform_shapes(self) -> None:
         """Tests the shapes of the learnable features transform."""
-        for n_features in [3, 256, 1028]:
+        for n_features in (3, 256, 1028):
             pts = torch.rand(self.batch_size_, n_features, self.n_pts_)
             layer = LinearTransform(in_dimension=n_features)
             out = layer(pts)
@@ -27,8 +27,8 @@ class TestPointnet(unittest.TestCase):
 
     def test_encoder_shape(self) -> None:
         """Tests the shapes of the full pointnet encoder."""
-        for n_features in [3, 6, 9]:
-            for out_dim in [1024, 2048]:
+        for n_features in (3, 6, 9):
+            for out_dim in (1024, 2048):
                 mlp_dimensions = [[64, 64], [64, 128]]
                 pts = torch.rand(self.batch_size_, n_features, self.n_pts_)
                 encoder = PointNetEncoder(

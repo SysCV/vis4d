@@ -119,3 +119,9 @@ def training_loop(
                 visualizers_to_use,
             )
     print("training done.")  # FIXME move to log statement
+
+
+x = np.linspace(-1, 1, num=10)
+y = np.linspace(-1, 1, num=10)
+z = np.linspace(-1, 1, num=10)
+xv, yv = np.meshgrid(x, y, z)
