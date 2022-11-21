@@ -16,13 +16,15 @@ REV_KEYS = [
 
 
 class FCNResNet(nn.Module):
+    """FCN with ResNet basemodel for semantic segmentation."""
+
     def __init__(
         self,
         base_model: str = "resnet50",
         num_classes: int = 21,
         resize: Optional[Tuple[int, int]] = (520, 520),
     ) -> None:
-        """FCN with ResNet, following `torchvision implementation
+        """FCN with ResNet basemodel, following `torchvision implementation
         <https://github.com/pytorch/vision/blob/torchvision/models/segmentation/
         fcn.py>`_.
 
@@ -48,6 +50,14 @@ class FCNResNet(nn.Module):
         print(self.basemodel.out_channels[4:])
 
     def forward(self, images: torch.Tensor) -> FCNOut:
+        """Forward pass.
+
+        Args:
+            images (torch.Tensor): Input images.
+
+        Returns:
+            FCNOut: Raw model predictions.
+        """
         features = self.basemodel(images)
         out = self.fcn(features)
         return out
