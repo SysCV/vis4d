@@ -1,6 +1,5 @@
 """Residual networks for classification."""
-
-from typing import List, Optional
+from __future__ import annotations
 
 import torch
 import torchvision.models.resnet as _resnet
@@ -19,7 +18,7 @@ class ResNet(BaseModel):
         trainable_layers: int = 5,
         norm_freezed: bool = True,
         pretrained: bool = False,
-        replace_stride_with_dilation: Optional[List[bool]] = None,
+        replace_stride_with_dilation: None | list[bool] = None,
     ):
         """Initialize the ResNet base model from torch vision.
 
@@ -32,6 +31,7 @@ class ResNet(BaseModel):
             Defaults to True.
             pretrained (bool, optional): Whether to load ImageNet
             pre-trained weights. Defaults to False.
+
         Raises:
             ValueError: trainable_layers should be between 0 and 5
         """
@@ -69,11 +69,11 @@ class ResNet(BaseModel):
         self.name = resnet_name
 
     @property
-    def out_channels(self) -> List[int]:
+    def out_channels(self) -> list[int]:
         """Get the number of channels for each level of feature pyramid.
 
         Returns:
-            List[int]: number of channels
+            list[int]: number of channels
         """
         # use static value to be compatible with torch.jit
         if self.name in ["resnet18", "resnet34"]:
@@ -84,7 +84,7 @@ class ResNet(BaseModel):
             channels = [3, 3, 256, 512, 1024, 2048]
         return channels
 
-    def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
         """Torchvision ResNet forward.
 
         # TODO(tobiasfshr) Add tests
@@ -94,7 +94,7 @@ class ResNet(BaseModel):
                 type float32 with values ranging 0..255.
 
         Returns:
-            fp (List[torch.Tensor]): The output feature pyramid. The list index
+            fp (list[torch.Tensor]): The output feature pyramid. The list index
             represents the level, which has a downsampling raio of 2^index.
             fp[0] and fp[1] is a reference to the input images and torchvision
             resnet downsamples the feature maps by 4 directly. The last feature

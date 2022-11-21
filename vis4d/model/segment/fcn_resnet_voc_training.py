@@ -16,7 +16,7 @@ from vis4d.model.segment.common import (
     read_output_images,
     save_output_images,
 )
-from vis4d.model.segment.FCNResNet import FCNResNet
+from vis4d.model.segment.fcn_resnet import FCNResNet
 from vis4d.op.segment.testcase.presets import (
     SegmentationPresetEval,
     SegmentationPresetRaw,

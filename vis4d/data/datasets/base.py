@@ -1,6 +1,5 @@
 """Base dataset in Vis4D."""
-
-from typing import Dict, List, Sequence, Tuple, Union
+from __future__ import annotations
 
 from torch.utils.data import Dataset as TorchDataset
 
@@ -26,16 +25,16 @@ class VideoMixin:
     """
 
     @property
-    def video_to_indices(self) -> Dict[str, List[int]]:
+    def video_to_indices(self) -> dict[str, list[int]]:
         """This function should group all dataset sample indices (int) by their
         associated video ID (str).
 
         Returns:
-            Dict[str, List[int]]: Mapping video to index.
+            dict[str, list[int]]: Mapping video to index.
         """
         raise NotImplementedError
 
-    def get_video_indices(self, idx: int) -> List[int]:
+    def get_video_indices(self, idx: int) -> list[int]:
         """Get all dataset indices in a video given a single dataset index."""
         for indices in self.video_to_indices.values():
             if idx in indices:
@@ -46,13 +45,13 @@ class VideoMixin:
 class MultitaskMixin:
     """Multitask dataset interface."""
 
-    _KEYS: List[str] = []
+    _KEYS: list[str] = []
 
-    def validate_keys(self, keys: Tuple[str, ...]) -> None:
+    def validate_keys(self, keys: tuple[str, ...]) -> None:
         """Validation the keys are defined in _KEYS.
 
         Args:
-            keys (List[str]): User input of keys to load.
+            keys (list[str]): User input of keys to load.
 
         Raises:
             ValueError: Raise if any key is not defined in _KEYS.
@@ -69,16 +68,16 @@ class CategoryMapMixin:
     """
 
     @property
-    def category_to_indices(self) -> Dict[str, List[int]]:
+    def category_to_indices(self) -> dict[str, list[int]]:
         """This function should group all dataset sample indices (int) by their
         category (str).
 
         Returns:
-            Dict[str, int]: Mapping category to index.
+            dict[str, int]: Mapping category to index.
         """
         raise NotImplementedError
 
-    def get_category_indices(self, idx: int) -> List[int]:
+    def get_category_indices(self, idx: int) -> list[int]:
         """Get all indices of the data samples that share the same category of
         the given sample index.
         """
@@ -97,12 +96,12 @@ class AttributeMapMixin:
     """
 
     @property
-    def attribute_to_indices(self) -> Dict[str, Dict[str, List[int]]]:
+    def attribute_to_indices(self) -> dict[str, dict[str, list[int]]]:
         """This function should group all dataset sample indices (int) by their
         category (str).
 
         Returns:
-            Dict[str, Dict[str, List[int]]]: Mapping category to index.
+            dict[str, dict[str, list[int]]]: Mapping category to index.
         """
         raise NotImplementedError
 
@@ -112,7 +111,7 @@ class FilteredDataset(Dataset):
 
     Args:
         dataset (Dataset): The whole Dataset
-        filter_fn (Dataset -> List[int]): filtering function.
+        filter_fn (Dataset -> list[int]): filtering function.
     """
 
     def __init__(self, dataset, filter_fn) -> None:

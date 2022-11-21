@@ -1,6 +1,5 @@
 """Combined Sampler."""
-from collections import defaultdict
-from typing import Dict, List, Union
+from __future__ import annotations
 
 import torch
 
@@ -24,7 +23,7 @@ class CombinedSampler(Sampler):
         floor_fraction: float = 0.0,
         num_bins: int = 3,
         bg_label: int = 0,
-        **kwargs: ArgsType
+        **kwargs: ArgsType,
     ):
         """Init."""
         super().__init__(*args, **kwargs)
@@ -131,10 +130,7 @@ class CombinedSampler(Sampler):
 
         return sampled_inds
 
-    def forward(
-        self,
-        matching: MatchResult,
-    ) -> SamplingResult:
+    def forward(self, matching: MatchResult) -> SamplingResult:
         """Sample boxes according to strategies defined in cfg."""
         pos_sample_size = int(self.batch_size * self.positive_fraction)
 

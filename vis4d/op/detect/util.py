@@ -88,8 +88,7 @@ def get_targets_per_image(
     neg_inds = sampling_result.sampled_box_indices[negatives]
     if len(pos_inds) > 0:
         pos_bbox_targets = box_encoder.encode(
-            anchors[pos_inds],
-            target_boxes[pos_target_inds],
+            anchors[pos_inds], target_boxes[pos_target_inds]
         )
         bbox_targets[pos_inds] = pos_bbox_targets
         bbox_weights[pos_inds] = 1.0

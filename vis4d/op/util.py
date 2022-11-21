@@ -1,9 +1,11 @@
 """Utilities for op."""
+from __future__ import annotations
+
 import os
 import re
 import tempfile
 from io import BytesIO
-from typing import Any, List, Optional, Tuple
+from typing import Any
 from urllib.request import urlopen
 from zipfile import ZipFile
 
@@ -63,7 +65,7 @@ def load_model_checkpoint(
     model: nn.Module,
     weights: str,
     strict: bool = False,
-    rev_keys: Optional[List[Tuple[str, str]]] = None,
+    rev_keys: None | list[tuple[str, str]] = None,
 ) -> None:
     """Load MM model checkpoint."""
     if rev_keys is None:  # pragma: no cover
@@ -121,7 +123,7 @@ def load_config(path: str, key: str = "model") -> MMConfig:
 
 
 def set_attr(  # type: ignore
-    attr: Any, partial_keys: List[str], last_key: str, value: Any
+    attr: Any, partial_keys: list[str], last_key: str, value: Any
 ) -> None:
     """Set specific attribute in config."""
     for i, part_k in enumerate(partial_keys):

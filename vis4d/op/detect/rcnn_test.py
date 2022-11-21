@@ -4,7 +4,7 @@ import unittest
 import torch
 
 from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
-from vis4d.unittest.util import generate_boxes
+from vis4d.unittest.util import generate_boxes, generate_features
 
 from .rcnn import Det2Mask, MaskRCNNHead, RCNNHead, RoI2Det
 
@@ -17,10 +17,9 @@ class RCNNTest(unittest.TestCase):
         batch_size, num_classes, num_boxes, wh, inc = 2, 5, 10, 256, 64
         # default setup
         rcnn_head = RCNNHead(num_classes=num_classes, in_channels=64)
-        test_features = [None, None] + [
-            torch.rand(batch_size, inc, wh // 2**i, wh // 2**i)
-            for i in range(4)
-        ]
+        test_features = [None, None] + generate_features(
+            inc, wh, wh, 4, batch_size
+        )
         boxes, _, _, _ = generate_boxes(wh * 4, wh * 4, num_boxes, batch_size)
         cls_score, bbox_pred = rcnn_head(test_features, boxes)
         assert len(cls_score) == len(bbox_pred) == num_boxes * batch_size
@@ -65,7 +64,7 @@ class RCNNTest(unittest.TestCase):
                 boxes[j][:, 0] >= 0, boxes[j][:, 1] >= 0
             )
             box_max = torch.logical_and(
-                boxes[j][:, 2] <= max_w, boxes[j][:, 3] <= max_h
+                boxes[j][:, 2] < max_w, boxes[j][:, 3] < max_h
             )
             assert torch.logical_and(box_min, box_max).all()
 
@@ -78,10 +77,9 @@ class MaskRCNNTest(unittest.TestCase):
         batch_size, num_classes, num_boxes, wh, inc = 2, 5, 10, 256, 64
         # default setup
         rcnn_head = MaskRCNNHead(num_classes=num_classes, in_channels=64)
-        test_features = [None, None] + [
-            torch.rand(batch_size, inc, wh // 2**i, wh // 2**i)
-            for i in range(4)
-        ]
+        test_features = [None, None] + generate_features(
+            inc, wh, wh, 4, batch_size
+        )
         boxes, _, _, _ = generate_boxes(wh * 4, wh * 4, num_boxes, batch_size)
         mask_pred = rcnn_head(test_features, boxes).mask_pred
         assert len(mask_pred) == batch_size

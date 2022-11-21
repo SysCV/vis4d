@@ -1,4 +1,5 @@
-from typing import List
+"""PyTorch Lightning detection module."""
+from __future__ import annotations
 
 from torch.utils.data import DataLoader
 
@@ -17,7 +18,7 @@ class DetectDataModule(DataModule):
         data_backend = self._setup_backend()
         if self.experiment == "bdd100k":
             raise NotImplementedError
-        elif self.experiment == "coco":
+        if self.experiment == "coco":
             dataloader = default_train_pipeline(
                 coco_train(data_backend),
                 self.samples_per_gpu,
@@ -30,12 +31,12 @@ class DetectDataModule(DataModule):
             )
         return dataloader
 
-    def test_dataloader(self) -> List[DataLoader]:
+    def test_dataloader(self) -> list[DataLoader]:
         """Setup inference pipeline."""
         data_backend = self._setup_backend()
         if self.experiment == "bdd100k":
             raise NotImplementedError
-        elif self.experiment == "coco":
+        if self.experiment == "coco":
             dataloaders = default_test_pipeline(
                 coco_val(data_backend),
                 self.samples_per_gpu,
@@ -48,11 +49,11 @@ class DetectDataModule(DataModule):
             )
         return dataloaders
 
-    def evaluators(self) -> List[Evaluator]:
+    def evaluators(self) -> list[Evaluator]:
         """Define evaluators associated with test datasets."""
         if self.experiment == "bdd100k":
             raise NotImplementedError
-        elif self.experiment == "coco":
+        if self.experiment == "coco":
             evaluators = [coco_val_eval()]
         else:
             raise NotImplementedError(
@@ -82,7 +83,7 @@ class DetectDataModule(DataModule):
 #             )
 #         return dataloader
 
-#     def test_dataloader(self) -> List[DataLoader]:
+#     def test_dataloader(self) -> list[DataLoader]:
 #         """Setup inference pipeline."""
 #         data_backend = self._setup_backend()
 #         if self.experiment == "bdd100k":
@@ -103,7 +104,7 @@ class DetectDataModule(DataModule):
 #             )
 #         return dataloaders
 
-#     def evaluators(self) -> List[Evaluator]:
+#     def evaluators(self) -> list[Evaluator]:
 #         """Define evaluators associated with test datasets."""
 #         if self.experiment == "bdd100k":
 #             raise NotImplementedError

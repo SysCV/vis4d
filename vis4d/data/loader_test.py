@@ -10,7 +10,7 @@ from vis4d.data.loader import (
     build_inference_dataloaders,
     build_train_dataloader,
 )
-from vis4d.data.transforms import compose, normalize, pad, resize, mask
+from vis4d.data.transforms import compose, mask, normalize, pad, resize
 
 
 def test_train_loader():

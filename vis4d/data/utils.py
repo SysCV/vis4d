@@ -1,7 +1,7 @@
 """data utils."""
+import sys
 from time import perf_counter
 from typing import Optional, no_type_check
-import sys
 
 
 def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:

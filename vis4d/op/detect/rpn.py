@@ -254,9 +254,7 @@ class RPN2RoI(nn.Module):
             proposals = proposals[keep]
             scores = scores[keep]
         else:
-            return proposals.new_zeros(0, 4), scores.new_zeros(
-                0,
-            )
+            return proposals.new_zeros(0, 4), scores.new_zeros(0)
         return proposals, scores
 
     def forward(

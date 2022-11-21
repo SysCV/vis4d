@@ -2,8 +2,9 @@
 
 TODO(fyu) need clean up and update to the latest interface.
 """
+from __future__ import annotations
+
 import math
-from typing import List, Optional
 
 import numpy as np
 import torch
@@ -33,7 +34,7 @@ class IDAUp(nn.Module):
     """IDAUp."""
 
     def __init__(
-        self, use_dc: bool, o: int, channels: List[int], up_f: List[int]
+        self, use_dc: bool, o: int, channels: list[int], up_f: list[int]
     ) -> None:
         """Init."""
         super().__init__()
@@ -89,7 +90,7 @@ class IDAUp(nn.Module):
                     m.bias.data.zero_()
 
     def forward(
-        self, layers: List[torch.Tensor], startp: int, endp: int
+        self, layers: list[torch.Tensor], startp: int, endp: int
     ) -> None:
         """Forward."""
         for i in range(startp + 1, endp):
@@ -105,8 +106,8 @@ class DLAUp(FeaturePyramidProcessing):
 
     def __init__(
         self,
-        in_channels: List[int],
-        out_channels: Optional[int] = None,
+        in_channels: list[int],
+        out_channels: None | int = None,
         start_level: int = 0,
         end_level: int = -1,
         use_deformable_convs: bool = True,
@@ -147,8 +148,8 @@ class DLAUp(FeaturePyramidProcessing):
 
     def forward(
         self,
-        inputs: List[torch.Tensor],
-    ) -> List[torch.Tensor]:
+        inputs: list[torch.Tensor],
+    ) -> list[torch.Tensor]:
         """Forward."""
         layers = list(inputs.values())
         outs = [layers[self.end_level - 1]]

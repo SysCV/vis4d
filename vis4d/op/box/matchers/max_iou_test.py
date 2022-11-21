@@ -1,8 +1,9 @@
 """Test cases for max iou matcher."""
 import unittest
 
-from vis4d.struct_to_revise import Boxes2D
-from vis4d.unittest.utils import generate_dets
+import torch
+
+from vis4d.unittest.util import generate_boxes
 
 from .max_iou import MaxIoUMatcher
 
@@ -14,20 +15,20 @@ class TestRandom(unittest.TestCase):
         """Testcase for sample function."""
         num_boxes = 10
 
-        boxes = [generate_dets(128, 128, num_boxes)]
+        boxes = generate_boxes(128, 128, num_boxes)[0]
         matcher = MaxIoUMatcher(
             thresholds=[0.3, 0.5],
             labels=[0, -1, 1],
             allow_low_quality_matches=True,
         )
-        match_result = matcher(boxes, boxes)[0]
+        match_result = matcher(boxes[0], boxes[0])
         self.assertTrue(
             match_result.assigned_gt_indices.numpy().tolist()
             == list(range(num_boxes))
         )
 
-        match_result = matcher(boxes, [Boxes2D.empty()])[0]
+        match_result = matcher(boxes[0], torch.empty([0, 4]))
         self.assertTrue((match_result.assigned_labels == 0.0).all())
 
-        match_result = matcher([Boxes2D.empty()], boxes)[0]
+        match_result = matcher(torch.empty([0, 4]), boxes[0])
         self.assertEqual(len(match_result.assigned_gt_indices), 0)
