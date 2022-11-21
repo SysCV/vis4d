@@ -26,8 +26,7 @@ class Evaluator:
         """Reset evaluator for new round of evaluation."""
         raise NotImplementedError
 
-    # FIXME, How do we want to deal with this interface for typing
-    def process(self, *args: NDArrayNumber) -> None:
+    def process(self, *args: Any) -> None:  # type: ignore
         """Process a batch of data."""
         raise NotImplementedError
 

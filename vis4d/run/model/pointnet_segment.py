@@ -11,7 +11,7 @@ from vis4d.data.const import COMMON_KEYS
 from vis4d.data.datasets.s3dis import S3DIS
 from vis4d.data.typing import DictData
 from vis4d.eval import Evaluator
-from vis4d.eval.segmentation.segmentation_evaluator import (
+from vis4d.eval.segment.segmentation_evaluator import (
     SegmentationEvaluator,
 )
 from vis4d.model.segment3d.pointnet import (

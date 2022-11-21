@@ -20,7 +20,7 @@ from vis4d.common.typing import DictStrAny
 from vis4d.data.datasets.base import DictData
 from vis4d.data.datasets.coco import coco_det_map
 
-from .base import Evaluator
+from ..base import Evaluator
 
 
 def xyxy_to_xywh(boxes: torch.Tensor) -> torch.Tensor:
@@ -183,6 +183,6 @@ class COCOEvaluator(Evaluator):
             table_data = [headers]
             table_data += [result for result in results_2d]
             table = AsciiTable(table_data)
-            print("\n" + table.table)
+            print("\n" + table.table)  # TODO remove print, return string
             return evaluator.summarize()
         raise NotImplementedError(f"Metric {metric} not known!")
