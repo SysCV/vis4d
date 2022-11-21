@@ -1,6 +1,7 @@
 """Hdf5 data backend."""
+from __future__ import annotations
+
 import os
-from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -31,10 +32,10 @@ class HDF5Backend(DataBackend):
         super().__init__()
         if not H5PY_AVAILABLE:
             raise ImportError("Please install h5py to enable HDF5Backend.")
-        self.db_cache: Dict[str, File] = {}
+        self.db_cache: dict[str, File] = {}
 
     @staticmethod
-    def _get_hdf5_path(filepath: str) -> Tuple[str, List[str]]:
+    def _get_hdf5_path(filepath: str) -> tuple[str, list[str]]:
         """Get .hdf5 path and keys from filepath."""
         filepath_as_list = filepath.split("/")
         keys = []

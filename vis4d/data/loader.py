@@ -1,7 +1,9 @@
 """Dataloader utility functions."""
+from __future__ import annotations
+
 import bisect
 import math
-from typing import Callable, Iterable, Iterator, List, Optional, Tuple, Union
+from collections.abc import Callable, Iterable, Iterator
 
 import torch
 from torch.utils.data import (
@@ -29,7 +31,7 @@ POINT_KEYS = [
 ]
 
 
-def default_collate(batch: List[DictData]) -> DictData:
+def default_collate(batch: list[DictData]) -> DictData:
     """Default batch collate."""
     data = {}
     for key in batch[0]:
@@ -44,7 +46,7 @@ def default_collate(batch: List[DictData]) -> DictData:
     return data
 
 
-def multi_sensor_collate(batch: List[DictData]) -> DictData:
+def multi_sensor_collate(batch: list[DictData]) -> DictData:
     """Default multi-sensor batch collate."""
     data = {}
     sensors = list(batch[0].keys())
@@ -62,14 +64,14 @@ class DataPipe(ConcatDataset):
 
     def __init__(
         self,
-        datasets: Union[Dataset, Iterable[Dataset]],
+        datasets: Dataset | Iterable[Dataset],
         preprocess_fn: Callable[[DictData], DictData] = lambda x: x,
-        reference_view_sampler: Optional[ReferenceViewSampler] = None,
+        reference_view_sampler: None | ReferenceViewSampler = None,
     ):
         """Init.
 
         Args:
-            datasets (Union[Dataset, Iterable[Dataset]]): Dataset(s) to be
+            datasets (Dataset | Iterable[Dataset]): Dataset(s) to be
                 wrapped by this data pipeline.
             preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing
                 function of a single sample.
@@ -80,7 +82,7 @@ class DataPipe(ConcatDataset):
         self.preprocess_fn = PicklableWrapper(preprocess_fn)
         self.reference_view_sampler = reference_view_sampler
 
-    def get_dataset_sample_index(self, idx: int) -> Tuple[int, int]:
+    def get_dataset_sample_index(self, idx: int) -> tuple[int, int]:
         """Get dataset and sample index from global index"""
         if idx < 0:
             if -idx > len(self):
@@ -100,7 +102,7 @@ class DataPipe(ConcatDataset):
         dataset_idx, sample_idx = self.get_dataset_sample_index(idx)
         return self.datasets[dataset_idx][sample_idx]
 
-    def __getitem__(self, idx: int) -> Union[DictData, List[DictData]]:
+    def __getitem__(self, idx: int) -> DictData | list[DictData]:
         """Wrap getitem to apply augmentations."""
         if self.reference_view_sampler is not None:
             dataset_idx, _ = self.get_dataset_sample_index(idx)
@@ -200,20 +202,16 @@ def build_train_dataloader(
     dataset: DataPipe,
     samples_per_gpu: int = 1,
     workers_per_gpu: int = 1,
-    batchprocess_fn: Callable[[List[DictData]], List[DictData]] = lambda x: x,
-    collate_fn: Callable[[List[DictData]], DictData] = default_collate,
-    sampler: Optional[BaseSampler] = None,
+    batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
+    collate_fn: Callable[[list[DictData]], DictData] = default_collate,
+    sampler: None | BaseSampler = None,
     pin_memory: bool = True,
 ) -> DataLoader:
     """Build training dataloader."""
     if sampler is not None:
         batch_size, shuffle = 1, False
     else:
-        batch_size, shuffle, train_sampler = (
-            samples_per_gpu,
-            False,
-            None,
-        )
+        batch_size, shuffle, train_sampler = samples_per_gpu, False, None
 
     if dataset.reference_view_sampler is None:
         _collate_fn = lambda x: collate_fn(batchprocess_fn(x))
@@ -245,14 +243,14 @@ def build_train_dataloader(
 
 
 def build_inference_dataloaders(
-    datasets: Union[Dataset, List[Dataset]],
+    datasets: Dataset | list[Dataset],
     samples_per_gpu: int = 1,
     workers_per_gpu: int = 1,
     video_based_inference: bool = True,
-    batchprocess_fn: Callable[[List[DictData]], List[DictData]] = lambda x: x,
-    collate_fn: Callable[[List[DictData]], DictData] = default_collate,
-    sampler: Optional[BaseSampler] = None,
-) -> List[DataLoader]:
+    batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
+    collate_fn: Callable[[list[DictData]], DictData] = default_collate,
+    sampler: None | BaseSampler = None,
+) -> list[DataLoader]:
     """Build dataloaders for test / predict."""
     if isinstance(datasets, Dataset):
         datasets = [datasets]

@@ -1,21 +1,19 @@
 """Segmentation/Instance Mask Transform."""
-
-from typing import List
+from __future__ import annotations
 
 import torch
 
-from vis4d.data.datasets.base import COMMON_KEYS
+from vis4d.data.const import COMMON_KEYS
 
 from .base import Transform
 
 
 @Transform(
-    in_keys=[COMMON_KEYS.boxes2d_classes, COMMON_KEYS.masks],
-    out_keys=[COMMON_KEYS.segmentation_mask],
+    in_keys=(COMMON_KEYS.boxes2d_classes, COMMON_KEYS.masks),
+    out_keys=(COMMON_KEYS.segmentation_masks,),
 )
 def convert_ins_masks_to_seg_mask():
-    """Merge all instance masks into a single segmentation map
-    with its corresponding categories."""
+    """Merge all instance masks into a single segmentation map."""
 
     def _convert(classes, masks):
         cats = torch.as_tensor(classes, dtype=masks.dtype)
@@ -27,11 +25,16 @@ def convert_ins_masks_to_seg_mask():
 
 
 @Transform(
-    in_keys=[COMMON_KEYS.boxes2d_classes],
-    out_keys=[COMMON_KEYS.boxes2d_classes],
+    in_keys=(COMMON_KEYS.boxes2d_classes,),
+    out_keys=(COMMON_KEYS.boxes2d_classes,),
 )
-def remap_categories(mapping: List[int]):
-    """Remap classes using a mapping list."""
+def remap_categories(mapping: list[int]):
+    """Remap classes using a mapping list.
+
+    Args:
+        mapping (List[int]): List of class ids, such that classes will be
+            mapped to its location in the list.
+    """
 
     def _remap(classes: torch.Tensor):
         for i in range(len(classes)):

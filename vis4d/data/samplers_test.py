@@ -3,7 +3,7 @@ import unittest
 
 from torch.utils.data import ConcatDataset, Dataset
 
-from .samplers import RoundRobinSampler, build_data_sampler
+from .samplers import RoundRobinSampler
 
 
 class MockDataset(Dataset):  # type: ignore
@@ -70,8 +70,8 @@ class TestRoundRobinSampler(unittest.TestCase):
             batch = next(samp_it)
             self.assertTrue(isinstance(batch, list))
             self.assertLessEqual(len(batch), 2)
-            for b in batch:
-                self.assertTrue(5 * i % 3 <= b < 5 * (i % 3 + 1))
+            for ind in batch:
+                self.assertTrue(5 * i % 3 <= ind < 5 * (i % 3 + 1))
 
     def test_repeat(self) -> None:
         """Testcase for repeat sampling."""
@@ -114,26 +114,3 @@ class TestRoundRobinSampler(unittest.TestCase):
         self.assertTrue(0 <= batch[0] < 5)
         batch = next(samp_it)
         self.assertTrue(5 <= batch[0] < 7)
-
-
-class TestBuildSampler(unittest.TestCase):
-    """Test cases for build sampler."""
-
-    dataset = ConcatDataset(
-        [MockDataset(0, 5), MockDataset(5, 10), MockDataset(10, 15)]
-    )
-
-    def test_build(self) -> None:
-        """Test build sampler function."""
-        sampler = build_data_sampler(
-            {"type": "RoundRobinSampler"}, self.dataset, 1
-        )
-        self.assertEqual(len(sampler), 15)
-        self.assertRaises(ValueError, build_data_sampler, {}, self.dataset, 1)
-        self.assertRaises(
-            NotImplementedError,
-            build_data_sampler,
-            {"type": "WrongSampler"},
-            self.dataset,
-            1,
-        )

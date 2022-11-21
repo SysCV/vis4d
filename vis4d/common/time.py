@@ -1,6 +1,8 @@
 """Utilities for timing."""
+from __future__ import annotations
+
 from time import perf_counter
-from typing import Optional, no_type_check
+from typing import no_type_check
 
 
 @no_type_check
@@ -23,7 +25,7 @@ class Timer:  # pragma: no cover
     def __init__(self) -> None:
         """Init."""
         self._tic = perf_counter()
-        self._toc: Optional[float] = None
+        self._toc: None | float = None
         self.paused = False
 
     def reset(self) -> None:

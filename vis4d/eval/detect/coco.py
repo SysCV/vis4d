@@ -1,11 +1,12 @@
 """COCO evaluator."""
 # FIXME, rewrite to numpy based API
+from __future__ import annotations
 
 import contextlib
 import copy
 import io
 import itertools
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable
 
 import numpy as np
 import pycocotools.mask as maskUtils
@@ -24,17 +25,29 @@ from ..base import Evaluator
 
 
 def xyxy_to_xywh(boxes: torch.Tensor) -> torch.Tensor:
-    """Convert Tensor [N, 4] in xyxy format into xywh."""
+    """Convert Tensor [N, 4] in xyxy format into xywh.
+
+    Args:
+        boxes (torch.Tensor): Bounding boxes in Vis4D format.
+
+    Returns:
+        torch.Tensor: COCO format bounding boxes.
+    """
     boxes[:, 2] = boxes[:, 2] - boxes[:, 0]
     boxes[:, 3] = boxes[:, 3] - boxes[:, 1]
     return boxes
 
 
 class COCOevalV2(COCOeval):
-    """Subclass coco eval for logging / printing."""
+    """Subclass COCO eval for logging / printing."""
 
-    def summarize(self) -> Tuple[MetricLogs, str]:
-        """Capture summary in string."""
+    def summarize(self) -> tuple[MetricLogs, str]:
+        """Capture summary in string.
+
+        Returns:
+            tuple[MetricLogs, str]: Dictionary of scores to log and a pretty
+                printed string.
+        """
         f = io.StringIO()
         with contextlib.redirect_stdout(f):
             super().summarize()
@@ -43,15 +56,28 @@ class COCOevalV2(COCOeval):
 
 
 def predictions_to_coco(
-    cat_map: Dict[str, int],
-    coco_id2name: Dict[int, str],
+    cat_map: dict[str, int],
+    coco_id2name: dict[int, str],
     image_id: str,
     boxes: Tensor,
     scores: Tensor,
     classes: Tensor,
-    masks: Optional[Tensor] = None,
-) -> List[DictStrAny]:  # TODO revise
-    """Convert Vis4D format predictions to COCO format."""
+    masks: None | Tensor = None,
+) -> list[DictStrAny]:  # TODO revise
+    """Convert Vis4D format predictions to COCO format.
+
+    Args:
+        cat_map (dict[str, int]): COCO class name to class ID mapping.
+        coco_id2name (dict[int, str]): COCO class ID to class name mapping.
+        image_id (str): ID of image.
+        boxes (Tensor): Predicted bounding boxes.
+        scores (Tensor): Predicted scores for each box.
+        classes (Tensor): Predicted classes for each box.
+        masks (None | Tensor, optional): Predicted masks. Defaults to None.
+
+    Returns:
+        list[DictStrAny]: Predictions in COCO format.
+    """
     predictions = []
     boxes = xyxy_to_xywh(boxes)
     for i, (box, score, cls) in enumerate(zip(boxes, scores, classes)):
@@ -83,8 +109,17 @@ class COCOEvaluator(Evaluator):
     def __init__(
         self, data_root: str, iou_type: str = "bbox", split: str = "val2017"
     ):
-        """Init."""
+        """Init.
+
+        Args:
+            data_root (str): Root directory of data.
+            iou_type (str, optional): Type of IoU computation to use. Should be
+                set to either "bbox" for bounding or "segm" for masks. Defaults
+                to "bbox".
+            split (str, optional): COCO data split. Defaults to "val2017".
+        """
         super().__init__()
+        assert iou_type in ["bbox", "segm"]
         self.iou_type = iou_type
         self.coco_id2name = {v: k for k, v in coco_det_map.items()}
         with contextlib.redirect_stdout(io.StringIO()):
@@ -96,8 +131,12 @@ class COCOEvaluator(Evaluator):
         self.reset()
 
     @property
-    def metrics(self) -> List[str]:
-        """Supported metrics."""
+    def metrics(self) -> list[str]:
+        """Supported metrics.
+
+        Returns:
+            list[str]: Metrics to evaluate.
+        """
         return ["COCO_AP"]
 
     def gather(self, gather_func: Callable[[Any], Any]) -> None:
@@ -111,7 +150,12 @@ class COCOEvaluator(Evaluator):
         self._predictions = []
 
     def process(self, inputs: DictData, outputs: ModelOutput) -> None:
-        """Process sample and convert detections to coco format."""
+        """Process sample and convert detections to coco format.
+
+        Args:
+            inputs (DictData): Input data.
+            outputs (ModelOutput): Output predictions from model.
+        """
         for i, (image_id, boxes, scores, classes) in enumerate(
             zip(
                 inputs["coco_image_id"],
@@ -133,8 +177,19 @@ class COCOEvaluator(Evaluator):
 
             self._predictions.extend(coco_preds)
 
-    def evaluate(self, metric: str) -> Tuple[MetricLogs, str]:
-        """Evaluate predictions."""
+    def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
+        """Evaluate COCO predictions.
+
+        Args:
+            metric (str): Metric to evaluate. Should be "COCO_AP".
+
+        Raises:
+            NotImplementedError: Raised if metric is not "COCO_AP".
+
+        Returns:
+            tuple[MetricLogs, str]: Dictionary of scores to log and a pretty
+                printed string.
+        """
         if metric == "COCO_AP":
             with contextlib.redirect_stdout(io.StringIO()):
                 if self.iou_type == "segm":
@@ -180,8 +235,7 @@ class COCOEvaluator(Evaluator):
             results_2d = itertools.zip_longest(
                 *[results_flatten[i::num_columns] for i in range(num_columns)]
             )
-            table_data = [headers]
-            table_data += [result for result in results_2d]
+            table_data = [headers] + list(results_2d)
             table = AsciiTable(table_data)
             print("\n" + table.table)  # TODO remove print, return string
             return evaluator.summarize()

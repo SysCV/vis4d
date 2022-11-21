@@ -11,29 +11,52 @@ from vis4d.data.io import DataBackend, HDF5Backend
 
 
 class Evaluator:
-    """Base evaluator class."""
+    """Abstract evaluator class."""
 
     @property
     def metrics(self) -> List[str]:
-        """Return list of metrics to evaluate."""
+        """Return list of metrics to evaluate.
+
+        Returns:
+            List[str]: Metrics to evaluate.
+        """
         return []
 
     def gather(self, gather_func: Callable[[Any], Any]) -> None:
-        """Gather variables in case of distributed setting (if needed)."""
-        pass
+        """Gather variables in case of distributed setting (if needed).
+
+        Args:
+            gather_func (Callable[[Any], Any]): Gather function.
+        """
 
     def reset(self) -> None:
-        """Reset evaluator for new round of evaluation."""
+        """Reset evaluator for new round of evaluation.
+
+        Raises:
+            NotImplementedError: This is an abstract class method.
+        """
         raise NotImplementedError
 
     def process(self, *args: Any) -> None:  # type: ignore
-        """Process a batch of data."""
+        """Process a batch of data.
+
+        Raises:
+            NotImplementedError: This is an abstract class method.
+        """
         raise NotImplementedError
 
     def evaluate(self, metric: str) -> Tuple[MetricLogs, str]:
         """Evaluate all predictions according to given metric.
 
-        Returns a dictionary of scores to log and a pretty printed string.
+        Args:
+            metric (str): Metric to evaluate.
+
+        Raises:
+            NotImplementedError: This is an abstract class method.
+
+        Returns:
+            Tuple[MetricLogs, str]: Dictionary of scores to log and a pretty
+                printed string.
         """
         raise NotImplementedError
 
@@ -45,21 +68,45 @@ class SaveDataMixin:
         self,
         save_dir: Optional[str] = None,
         data_backend: Optional[DataBackend] = None,
-    ):
-        """Init."""
-        self.data_backend = HDF5Backend()
+    ) -> None:
+        """Init.
+
+        Args:
+            save_dir (Optional[str], optional): Directory to save predictions
+                to. If None, a temporary directory will be created. Defaults to
+                None.
+            data_backend (Optional[DataBackend], optional): Data backend. If
+                None, HDF5Backend will be used. Defaults to None.
+        """
+        if data_backend is None:
+            self.data_backend: DataBackend = HDF5Backend()
+        else:
+            self.data_backend = data_backend
         if save_dir is None:
             self.save_dir = tempfile.TemporaryDirectory().name
         else:
             self.save_dir = save_dir
 
     def save(self, data: Any, location: str) -> None:
-        """Save data at given relative location."""
+        """Save data at given relative location.
+
+        Args:
+            data (Any): Data to save.
+            location (str): Location to save to, which depends on data backend.
+        """
         pdata = pickle.dumps(data, protocol=-1)
         self.data_backend.set(os.path.join(self.save_dir, location), pdata)
 
     def get(self, location: str) -> Any:
-        """Get data at given relative location."""
+        """Get data at given relative location.
+
+        Args:
+            location (str): Location to load from, which depends on data
+                backend.
+
+        Returns:
+            Any: Loaded data.
+        """
         data = self.data_backend.get(os.path.join(self.save_dir, location))
         return pickle.loads(data)
 

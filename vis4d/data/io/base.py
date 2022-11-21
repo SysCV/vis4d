@@ -1,7 +1,8 @@
 """Backends for the data types a dataset of interest is saved in.
 
 Those can be used to load data from diverse storage backends, e.g. from HDF5
-files which are more suitable for data centers. The naive backend is the FileBackend, which loads from / saves to file naively.
+files which are more suitable for data centers. The naive backend is the
+FileBackend, which loads from / saves to file naively.
 """
 from abc import abstractmethod
 

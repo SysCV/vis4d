@@ -3,18 +3,6 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-@dataclass
-class MODEL_OUT_KEYS:
-    """Container for common keys used in model outputs.
-
-    Connects model outputs to evaluators, writers, etc.
-    """
-
-    boxes2d = "boxes2d"
-    boxes2d_scores = "boxes2d_scores"
-    boxes2d_classes = "boxes2d_classes"
-
-
 class AxisMode(Enum):
     """Enum for choosing among different coordinate frame conventions.
 
@@ -47,26 +35,32 @@ class COMMON_KEYS:
     batch_transform_params: DictStrAny
 
     images (Tensor): Image of shape [1, C, H, W].
-    original_hw (Tuple[int, int]): Original shape of image in (height, width) .
-    input_hw (Tuple[int, int]): Shape of image in (height, width) after transformations.
+    original_hw (Tuple[int, int]): Original shape of image in (height, width).
+    input_hw (Tuple[int, int]): Shape of image in (height, width) after
+        transformations.
 
     boxes2d (Tensor): 2D bounding boxes of shape [N, 4]
-    boxes2d_classes (Tensor): Semantic classes of 2D bounding boxes, shape [N,].
+    boxes2d_classes (Tensor): Semantic classes of 2D bounding boxes, shape
+        [N,].
     masks (Tensor): Instance segmentation masks of shape [N, H, W].
     segmentation_masks (Tensor):
 
     intrinsics (Tensor): Intrinsic sensor calibration. Shape [3, 3].
-    extrinsics (Tensor): Extrinsic sensor calibration, transformation of sensor to world coordinate frame. Shape [4, 4].
+    extrinsics (Tensor): Extrinsic sensor calibration, transformation of sensor
+        to world coordinate frame. Shape [4, 4].
     axis_mode (AxisMode): Coordinate convention of the current sensor.
     timestamp (int): Sensor timestamp in Unix format.
 
-    points3d (Tensor): 3D pointcloud data, assumed to be [N, 3] and in sensor frame.
+    points3d (Tensor): 3D pointcloud data, assumed to be [N, 3] and in sensor
+        frame.
     colors3d (Tensor): Associated color values for each point, [N, 3].
 
     semantics3d:
     instances3d:
-    boxes3d (Tensor): [N, 10], each row consists of center (XYZ), dimensions (WLH), and orientation quaternion (WXYZ).
-    boxes3d_classes (Tensor): Associated semantic classes of 3D bounding boxes, [N,].
+    boxes3d (Tensor): [N, 10], each row consists of center (XYZ), dimensions
+        (WLH), and orientation quaternion (WXYZ).
+    boxes3d_classes (Tensor): Associated semantic classes of 3D bounding boxes,
+        [N,].
     """
 
     # transformation parameters

@@ -1,297 +1,61 @@
 """Faster RCNN tests."""
-import random
 import unittest
-from typing import Optional, Tuple
 
-import skimage
 import torch
-from torch import optim
-from torch.utils.data import DataLoader, Dataset
 
-from vis4d.data_to_revise.utils import transform_bbox
-from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
-from vis4d.op.detect.rpn import RPNLoss
-from vis4d.op.util import load_model_checkpoint
-from vis4d.run.data.datasets import bdd100k_track_map, bdd100k_track_sample
-from vis4d.struct_to_revise import Boxes2D
+from vis4d.unittest.util import generate_boxes
 
-from ..base.resnet import ResNet
-from ..fpp.fpn import FPN
-from .faster_rcnn import (
-    FasterRCNNHead,
-    get_default_anchor_generator,
-    get_default_rcnn_box_encoder,
-    get_default_rpn_box_encoder,
-)
-from .testcases.faster_rcnn import (
-    DET0_BOXES,
-    DET0_CLASS_IDS,
-    DET0_SCORES,
-    DET1_BOXES,
-    DET1_CLASS_IDS,
-    DET1_SCORES,
-    TOPK_PROPOSAL_BOXES,
-)
-
-REV_KEYS = [
-    (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
-    (r"^roi_head.bbox_head\.", "roi_head."),
-    (r"^backbone\.", "body."),
-    (r"^neck.lateral_convs\.", "inner_blocks."),
-    (r"^neck.fpn_convs\.", "layer_blocks."),
-    ("\.conv.weight", ".weight"),
-    ("\.conv.bias", ".bias"),
-]
-
-
-def normalize(img: torch.Tensor) -> torch.Tensor:
-    pixel_mean = (123.675, 116.28, 103.53)
-    pixel_std = (58.395, 57.12, 57.375)
-    pixel_mean = torch.tensor(pixel_mean, device=img.device).view(-1, 1, 1)
-    pixel_std = torch.tensor(pixel_std, device=img.device).view(-1, 1, 1)
-    img = (img.float() - pixel_mean) / pixel_std
-    return img
-
-
-def url_to_tensor(
-    url: str, im_wh: Optional[Tuple[int, int]] = None
-) -> torch.Tensor:
-    image = skimage.io.imread(url)
-    if im_wh is not None:
-        image = skimage.transform.resize(image, im_wh) * 255
-    return normalize(
-        torch.tensor(image).float().permute(2, 0, 1).unsqueeze(0).contiguous()
-    )
-
-
-class SampleDataset(Dataset):
-    """Sample dataset for debugging."""
-
-    def __init__(
-        self,
-        im_wh: Optional[Tuple[int, int]] = None,
-        sample_reference_view: bool = False,
-    ):
-        """Init."""
-        self.im_wh = im_wh
-        self.scalabel_data = bdd100k_track_sample()
-        self.sample_reference_view = sample_reference_view
-
-    def __len__(self):
-        """Length."""
-        return len(self.scalabel_data.frames)
-
-    def _prepare_sample(self, item):
-        """Prepare single frame into data."""
-        frame = self.scalabel_data.frames[item]
-        img = url_to_tensor(frame.url, im_wh=self.im_wh)
-        labels = Boxes2D.from_scalabel(frame.labels, bdd100k_track_map)
-        if self.im_wh is not None:
-            trans_mat = torch.eye(3)
-            trans_mat[0, 0] = self.im_wh[0] / img.size(3)
-            trans_mat[1, 1] = self.im_wh[1] / img.size(2)
-            labels.boxes[:, :4] = transform_bbox(
-                trans_mat, labels.boxes[:, :4]
-            )
-        return (
-            img,
-            (img.shape[2], img.shape[3]),
-            labels.boxes,
-            labels.class_ids,
-            labels.track_ids,
-            frame.frameIndex - 165,
-        )
-
-    def _get_ref_item(self, item):
-        """Get dataset index of a possible reference view."""
-        key_frame = self.scalabel_data.frames[item]
-        video_name = key_frame.videoName
-        video_indices = [
-            i
-            for i, frame in enumerate(self.scalabel_data.frames)
-            if frame.videoName == video_name
-        ]
-        return video_indices[random.randint(0, len(video_indices) - 1)]
-
-    def __getitem__(self, item):
-        """Get data sample at given index."""
-        key_data = self._prepare_sample(item)
-        if self.sample_reference_view:
-            ref_data = self._prepare_sample(self._get_ref_item(item))
-            return key_data, ref_data
-        return key_data
-
-
-def identity_collate(batch):
-    """Identity function for batch collate."""
-    return tuple(zip(*batch))
+from .faster_rcnn import FasterRCNNHead
 
 
 class FasterRCNNTest(unittest.TestCase):
     """Faster RCNN test class."""
 
-    def test_inference(self):
-        """Test inference of Faster RCNN.
-
-        Run::
-            >>> pytest vis4d/op/detect/faster_rcnn_test.py::FasterRCNNTest::test_inference
-        """  # pylint: disable=line-too-long # Disable the line length requirement becase of the cmd line prompts
-        image1 = url_to_tensor(
-            "https://farm1.staticflickr.com/106/311161252_33d75830fd_z.jpg",
-            (512, 512),
+    def test_faster_rcnn_head(self):
+        """Test FasterRCNNHead class."""
+        batch_size, num_classes, num_boxes, wh = 2, 5, 10, 128
+        # default setup
+        faster_rcnn_head = FasterRCNNHead(num_classes)
+        test_features = [None, None] + [
+            torch.rand(batch_size, 256, wh // 2**i, wh // 2**i)
+            for i in range(5)
+        ]
+        # train forward
+        boxes, _, classes, _ = generate_boxes(wh * 4, wh * 4, num_boxes)
+        rpn, roi, props, smp_props, smp_tgts, smp_tgt_inds = faster_rcnn_head(
+            test_features,
+            [(wh * 4, wh * 4)] * batch_size,
+            [boxes] * batch_size,
+            [classes] * batch_size,
         )
-        image2 = url_to_tensor(
-            "https://farm4.staticflickr.com/3217/2980271186_9ec726e0fa_z.jpg",
-            (512, 512),
+        rpn_cls, rpn_box = rpn
+        assert len(rpn_cls) == len(rpn_box) == 5  # number of pyramid levels
+        for j, (rpnc, rpnb) in enumerate(zip(rpn_cls, rpn_box)):
+            assert len(rpnc) == len(rpnb) == batch_size
+            wh_ = wh // 2**j
+            assert rpnc.shape[2:] == rpnb.shape[2:] == (wh_, wh_)
+        cls_score, bbox_pred = roi
+        assert cls_score.shape == (batch_size * 512, num_classes + 1)
+        assert bbox_pred.shape == (batch_size * 512, num_classes * 4)
+        boxes, scores = props
+        assert len(boxes) == len(scores) == batch_size
+        for j, (box, score) in enumerate(zip(boxes, scores)):
+            assert len(box) == len(score) == 1000
+            assert box.shape[1] == 4
+            assert score.dim() == 1
+        for smp in (smp_props, smp_tgts, smp_tgt_inds):
+            assert smp is not None
+        # test forward
+        rpn, roi, props, smp_props, smp_tgts, smp_tgt_inds = faster_rcnn_head(
+            test_features, [(wh * 4, wh * 4)] * batch_size
         )
-        sample_images = torch.cat([image1, image2])
-        images_hw = [(512, 512) for _ in range(2)]
-
-        basemodel = ResNet("resnet50", trainable_layers=3)
-
-        fpn = FPN(basemodel.out_channels[2:], 256)
-
-        faster_rcnn = FasterRCNNHead(num_classes=80)
-
-        roi2det = RoI2Det(faster_rcnn.rcnn_box_encoder, score_threshold=0.5)
-
-        weights = (
-            "mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/"
-            "faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_"
-            "20200504_210434-a5d8aa15.pth"
-        )
-        load_model_checkpoint(basemodel, weights, REV_KEYS)
-        load_model_checkpoint(fpn, weights, REV_KEYS)
-        load_model_checkpoint(faster_rcnn, weights, REV_KEYS)
-
-        faster_rcnn.eval()
-        with torch.no_grad():
-            features = fpn(basemodel(sample_images))
-            outs = faster_rcnn(features, images_hw)
-            dets = roi2det(
-                class_outs=outs.roi.cls_score,
-                regression_outs=outs.roi.bbox_pred,
-                boxes=outs.proposals.boxes,
-                images_hw=images_hw,
-            )
-
-        _, topk = torch.topk(outs.proposals.scores[0], 100)
-        assert outs.proposals.boxes[0][topk].shape[0] == 100
-        assert outs.proposals.boxes[0][topk].shape.numel() == 400
-        assert (
-            torch.isclose(outs.proposals.boxes[0][topk], TOPK_PROPOSAL_BOXES)
-            .all()
-            .item()
-        )
-        assert torch.isclose(dets.boxes[0], DET0_BOXES).all().item()
-        assert (
-            torch.isclose(dets.scores[0], DET0_SCORES, atol=1e-4).all().item()
-        )
-        assert torch.equal(dets.class_ids[0], DET0_CLASS_IDS)
-        assert torch.isclose(dets.boxes[1], DET1_BOXES).all().item()
-        assert (
-            torch.isclose(dets.scores[1], DET1_SCORES, atol=1e-4).all().item()
-        )
-        assert torch.equal(dets.class_ids[1], DET1_CLASS_IDS)
-
-        # from vis4d.vis.image import imshow_bboxes
-        # imshow_bboxes(
-        #     image1[0], dets.boxes[0], dets.scores[0], dets.class_ids[0]
-        # )
-        # imshow_bboxes(
-        #     image2[0], dets.boxes[1], dets.scores[1], dets.class_ids[1]
-        # )
-
-    def test_train(self):
-        """Test Faster RCNN training."""
-        anchor_gen = get_default_anchor_generator()
-        rpn_bbox_encoder = get_default_rpn_box_encoder()
-        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
-        fpn = FPN(backbone.out_channels[2:], 256)
-        faster_rcnn = FasterRCNNHead(
-            num_classes=8,
-            anchor_generator=anchor_gen,
-            rpn_box_encoder=rpn_bbox_encoder,
-            rcnn_box_encoder=rcnn_bbox_encoder,
-        )
-        rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
-        rcnn_loss = RCNNLoss(rcnn_bbox_encoder, num_classes=8)
-
-        optimizer = optim.SGD(
-            [
-                *backbone.parameters(),
-                *fpn.parameters(),
-                *faster_rcnn.parameters(),
-            ],
-            lr=0.001,
-            momentum=0.9,
-        )
-
-        train_data = SampleDataset()
-        train_loader = DataLoader(
-            train_data, batch_size=2, shuffle=True, collate_fn=identity_collate
-        )
-
-        running_losses = {}
-        faster_rcnn.train()
-        log_step = 1
-        for epoch in range(2):
-            for i, data in enumerate(train_loader):
-                inputs, images_hw, gt_boxes, gt_class_ids, _, _ = data
-                inputs = torch.cat(inputs)
-
-                # zero the parameter gradients
-                optimizer.zero_grad()
-
-                # forward + backward + optimize
-                features = backbone(inputs)
-                features = fpn(features)
-                outputs = faster_rcnn(
-                    features, images_hw, gt_boxes, gt_class_ids
-                )
-                rpn_losses = rpn_loss(
-                    outputs.rpn.cls,
-                    outputs.rpn.box,
-                    gt_boxes,
-                    images_hw,
-                )
-                rcnn_losses = rcnn_loss(
-                    outputs.roi.cls_score,
-                    outputs.roi.bbox_pred,
-                    outputs.sampled_proposals.boxes,
-                    outputs.sampled_targets.labels,
-                    outputs.sampled_targets.boxes,
-                    outputs.sampled_targets.classes,
-                )
-                total_loss = sum((*rpn_losses, *rcnn_losses))
-                total_loss.backward()
-                optimizer.step()
-
-                # print statistics
-                losses = dict(
-                    loss=total_loss,
-                    **rpn_losses._asdict(),
-                    **rcnn_losses._asdict(),
-                )
-                for k, v in losses.items():
-                    if k in running_losses:
-                        running_losses[k] += v
-                    else:
-                        running_losses[k] = v
-                if i % log_step == (log_step - 1):
-                    log_str = f"[{epoch + 1}, {i + 1:5d}] "
-                    for k, v in running_losses.items():
-                        log_str += f"{k}: {v / log_step:.3f}, "
-                    print(log_str.rstrip(", "))
-                    running_losses = {}
-
-    def test_torchscript(self):
-        """Test torchscript export of Faster RCNN."""
-        sample_images = torch.rand((2, 3, 512, 512))
-        backbone = (ResNet("resnet50", pretrained=True, trainable_layers=3),)
-        faster_rcnn = FasterRCNNHead()
-        backbone_scripted = torch.jit.script(backbone)
-        frcnn_scripted = torch.jit.script(faster_rcnn)
-        features = backbone_scripted(sample_images)
-        frcnn_scripted(features)
+        assert smp_props == smp_tgts == smp_tgt_inds == None
+        cls_score, bbox_pred = roi
+        assert cls_score.shape == (batch_size * 1000, num_classes + 1)
+        assert bbox_pred.shape == (batch_size * 1000, num_classes * 4)
+        boxes, scores = props
+        assert len(boxes) == len(scores) == batch_size
+        for j, (box, score) in enumerate(zip(boxes, scores)):
+            assert len(box) == len(score) == 1000
+            assert box.shape[1] == 4
+            assert score.dim() == 1

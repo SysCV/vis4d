@@ -83,7 +83,7 @@ class LinearTransform(nn.Module):
         self.downsampling_dims_ = downsampling_dims
         self.in_dimension_ = in_dimension
         self.register_buffer(
-            "identity", torch.eye(in_dimension).reshape(1, in_dimension ** 2)
+            "identity", torch.eye(in_dimension).reshape(1, in_dimension**2)
         )
 
         # Create activation
@@ -117,7 +117,7 @@ class LinearTransform(nn.Module):
             ]
         )
         self.downsampling_layers.append(
-            nn.Linear(downsampling_dims[-1], in_dimension ** 2)
+            nn.Linear(downsampling_dims[-1], in_dimension**2)
         )
 
     def __call__(

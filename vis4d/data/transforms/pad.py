@@ -1,5 +1,5 @@
 """Pad transformation."""
-from typing import List
+from __future__ import annotations
 
 import torch
 import torch.nn.functional as F
@@ -19,7 +19,7 @@ def pad_image(stride: int = 32, mode: str = "constant", value: float = 0.0):
         value (float, optional): Value for constant padding. Defaults to 0.0.
     """
 
-    def _pad(images: List[torch.Tensor]) -> List[torch.Tensor]:
+    def _pad(images: list[torch.Tensor]) -> list[torch.Tensor]:
         heights = [im.shape[-2] for im in images]
         widths = [im.shape[-1] for im in images]
         max_hw = max(heights), max(widths)

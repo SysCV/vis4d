@@ -1,14 +1,20 @@
 """Rotation utilities."""
 import functools
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 
 
 def normalize_angle(input_angles: torch.Tensor) -> torch.Tensor:
-    """Normalize content of input_angles to range [-pi, pi]."""
-    return (input_angles + np.pi) % (2 * np.pi) - np.pi
+    """Normalize content of input_angles to range [-pi, pi].
+
+    Args:
+        input_angles: (torch.Tensor) tensor of any shape containing
+                       unnormalized angles.
+    Returns:
+        torch.Tensor with angles normalized to +/- pi
+    """
+    return (input_angles + torch.pi) % (2 * torch.pi) - torch.pi
 
 
 def yaw2alpha(rot_y: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
@@ -52,9 +58,9 @@ def rotation_output_to_alpha(
     bin_idx = output[:, :num_bins].argmax(dim=-1)
     res_idx = num_bins + 2 * bin_idx
     bin_centers = torch.arange(
-        -np.pi, np.pi, 2 * np.pi / num_bins, device=output.device
+        -torch.pi, torch.pi, 2 * torch.pi / num_bins, device=output.device
     )
-    bin_centers += np.pi / num_bins
+    bin_centers += torch.pi / num_bins
     alpha = (
         torch.atan(output[out_range, res_idx] / output[out_range, res_idx + 1])
         + bin_centers[bin_idx]
