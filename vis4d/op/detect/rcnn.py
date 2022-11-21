@@ -1,5 +1,6 @@
 """Faster RCNN roi head."""
 from __future__ import annotations
+
 from math import prod
 from typing import NamedTuple
 
@@ -178,7 +179,7 @@ class RoI2Det(nn.Module):
             bboxes = self.bbox_coder.decode(
                 boxs[:, :4], reg_out, max_shape=image_hw
             )
-            det_bbox, det_scores, det_label, _ = multiclass_nms(
+            det_bbox, det_scores, det_label = multiclass_nms(
                 bboxes,
                 scores,
                 self.score_threshold,

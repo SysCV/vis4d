@@ -1,16 +1,16 @@
 """Segmentation/Instance Mask Transform."""
-from typing import List
+from __future__ import annotations
 
 import torch
 
-from vis4d.data.datasets.base import COMMON_KEYS
+from vis4d.data.const import COMMON_KEYS
 
 from .base import Transform
 
 
 @Transform(
     in_keys=(COMMON_KEYS.boxes2d_classes, COMMON_KEYS.masks),
-    out_keys=(COMMON_KEYS.segmentation_mask,),
+    out_keys=(COMMON_KEYS.segmentation_masks,),
 )
 def convert_ins_masks_to_seg_mask():
     """Merge all instance masks into a single segmentation map."""
@@ -28,7 +28,7 @@ def convert_ins_masks_to_seg_mask():
     in_keys=(COMMON_KEYS.boxes2d_classes,),
     out_keys=(COMMON_KEYS.boxes2d_classes,),
 )
-def remap_categories(mapping: List[int]):
+def remap_categories(mapping: list[int]):
     """Remap classes using a mapping list.
 
     Args:

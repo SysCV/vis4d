@@ -1,5 +1,5 @@
 """Faster RCNN model implementation and runtime."""
-from typing import List, Optional, Tuple, Union
+from __future__ import annotations
 
 import torch
 from torch import nn
@@ -31,29 +31,15 @@ REV_KEYS = [
 ]
 
 
-# TODO move somewhere
-# from vis4d.vis.image import imshow_bboxes
-#
-# def visualize_proposals(
-#     images: torch.Tensor, outs: FRCNNOut, topk: int = 100
-# ) -> None:
-#     """Visualize topk proposals."""
-#     for im, boxes, scores in zip(images, *outs.proposals):
-#         _, topk_indices = torch.topk(scores, topk)
-#         imshow_bboxes(im, boxes[topk_indices])
-
-
 class FasterRCNN(nn.Module):
     """Faster RCNN model."""
 
-    def __init__(
-        self, num_classes: int, weights: Optional[str] = None
-    ) -> None:
+    def __init__(self, num_classes: int, weights: None | str = None) -> None:
         """Init.
 
         Args:
             num_classes (int): Number of classes.
-            weights (Optional[str], optional): Weights to load for model. If
+            weights (None | str, optional): Weights to load for model. If
                 set to "mmdet", will load MMDetection pre-trained weights.
                 Defaults to None.
         """
@@ -83,26 +69,26 @@ class FasterRCNN(nn.Module):
     def forward(
         self,
         images: torch.Tensor,
-        input_hw: List[Tuple[int, int]],
-        boxes2d: Optional[List[torch.Tensor]] = None,
-        boxes2d_classes: Optional[List[torch.Tensor]] = None,
-        original_hw: Optional[List[Tuple[int, int]]] = None,
-    ) -> Union[FRCNNOut, ModelOutput]:
+        input_hw: list[tuple[int, int]],
+        boxes2d: None | list[torch.Tensor] = None,
+        boxes2d_classes: None | list[torch.Tensor] = None,
+        original_hw: None | list[tuple[int, int]] = None,
+    ) -> FRCNNOut | ModelOutput:
         """Forward pass.
 
         Args:
             images (torch.Tensor): Input images.
-            input_hw (List[Tuple[int, int]]): Input image resolutions.
-            boxes2d (Optional[List[torch.Tensor]], optional): Bounding box
+            input_hw (list[tuple[int, int]]): Input image resolutions.
+            boxes2d (None | list[torch.Tensor], optional): Bounding box labels.
+                Required for training. Defaults to None.
+            boxes2d_classes (None | list[torch.Tensor], optional): Class
                 labels. Required for training. Defaults to None.
-            boxes2d_classes (Optional[List[torch.Tensor]], optional): Class
-                labels. Required for training. Defaults to None.
-            original_hw (Optional[List[Tuple[int, int]]], optional): Original
+            original_hw (None | list[tuple[int, int]], optional): Original
                 image resolutions (before padding and resizing). Required for
                 testing. Defaults to None.
 
         Returns:
-            Union[FRCNNOut, ModelOutput]: Either raw model outputs (for
+            FRCNNOut | ModelOutput: Either raw model outputs (for
                 training) or predicted outputs (for testing).
         """
         if self.training:
@@ -116,17 +102,17 @@ class FasterRCNN(nn.Module):
     def forward_train(
         self,
         images: torch.Tensor,
-        images_hw: List[Tuple[int, int]],
-        target_boxes: List[torch.Tensor],
-        target_classes: List[torch.Tensor],
+        images_hw: list[tuple[int, int]],
+        target_boxes: list[torch.Tensor],
+        target_classes: list[torch.Tensor],
     ) -> FRCNNOut:
         """Forward training stage.
 
         Args:
             images (torch.Tensor): Input images.
-            images_hw (List[Tuple[int, int]]): Input image resolutions.
-            target_boxes (List[torch.Tensor]): Bounding box labels.
-            target_classes (List[torch.Tensor]): Class labels.
+            images_hw (list[tuple[int, int]]): Input image resolutions.
+            target_boxes (list[torch.Tensor]): Bounding box labels.
+            target_classes (list[torch.Tensor]): Class labels.
 
         Returns:
             FRCNNOut: Raw model outputs.
@@ -139,15 +125,15 @@ class FasterRCNN(nn.Module):
     def forward_test(
         self,
         images: torch.Tensor,
-        images_hw: List[Tuple[int, int]],
-        original_hw: List[Tuple[int, int]],
+        images_hw: list[tuple[int, int]],
+        original_hw: list[tuple[int, int]],
     ) -> ModelOutput:
         """Forward testing stage.
 
         Args:
             images (torch.Tensor): Input images.
-            images_hw (List[Tuple[int, int]]): Input image resolutions.
-            original_hw (List[Tuple[int, int]]): Original image resolutions
+            images_hw (list[tuple[int, int]]): Input image resolutions.
+            original_hw (list[tuple[int, int]]): Original image resolutions
                 (before padding and resizing).
 
         Returns:
@@ -181,15 +167,15 @@ class FasterRCNNLoss(nn.Module):
     def forward(
         self,
         outputs: FRCNNOut,
-        input_hw: List[Tuple[int, int]],
-        boxes2d: List[torch.Tensor],
+        input_hw: list[tuple[int, int]],
+        boxes2d: list[torch.Tensor],
     ) -> LossesType:
         """Forward of loss function.
 
         Args:
             outputs (FRCNNOut): Raw model outputs.
-            input_hw (List[Tuple[int, int]]): Input image resolutions.
-            boxes2d (List[torch.Tensor]): Bounding box labels.
+            input_hw (list[tuple[int, int]]): Input image resolutions.
+            boxes2d (list[torch.Tensor]): Bounding box labels.
 
         Returns:
             LossesType: Dictionary of model losses.

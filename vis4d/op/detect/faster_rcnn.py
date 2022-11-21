@@ -1,5 +1,6 @@
 """Faster RCNN detector."""
 from __future__ import annotations
+
 from typing import NamedTuple
 
 import torch
@@ -206,17 +207,17 @@ class FasterRCNNHead(nn.Module):
         """Faster RCNN forward.
 
         Args:
-            features (list[torch.Tensor]): Feature pyramid
+            features (list[torch.Tensor]): Feature pyramid.
             images_hw (list[tuple[int, int]]): Image sizes without padding.
-                This is necessary for removing the erronous boxes on the padded
-                regsions.
-            target_boxes (Optional[list[torch.Tensor]], optional): Ground
-                truth bounding box locations. Defaults to None.
-            target_classes (Optional[list[torch.Tensor]], optional): Ground
-                truth bounding box classes. Defaults to None.
+                This is necessary for removing the erroneous boxes on the
+                padded regions.
+            target_boxes (None | list[torch.Tensor], optional): Ground truth
+                bounding box locations. Defaults to None.
+            target_classes (None | list[torch.Tensor], optional): Ground truth
+                bounding box classes. Defaults to None.
 
         Returns:
-            FRCNNReturn: proposal and roi outputs.
+            FRCNNReturn: Proposal and RoI outputs.
         """
         if target_boxes is not None:
             assert target_classes is not None

@@ -69,16 +69,17 @@ class UNet(nn.Module):
             merge_mode: string, how to merge features, can be 'concat' or 'add'
 
 
-        raises: ValueError if invalid modes are provided
+        Raises:
+            ValueError: if invalid modes are provided
         """
-        super(UNet, self).__init__()
+        super().__init__()
 
         if up_mode in ("transpose", "upsample"):
             self.up_mode = up_mode
         else:
             raise ValueError(
-                f"{up_mode} is not a valid mode for  upsampling. Only 'transpose'"
-                f"and 'upsample' are allowed."
+                f"{up_mode} is not a valid mode for  upsampling. Only"
+                f"'transpose' and 'upsample' are allowed."
             )
 
         if merge_mode in ("concat", "add"):

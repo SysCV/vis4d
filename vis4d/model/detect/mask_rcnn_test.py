@@ -60,9 +60,9 @@ class MaskRCNNTest(unittest.TestCase):
         """Test Mask RCNN training."""
         mask_rcnn = MaskRCNN(num_classes=80)
         mask_rcnn_loss = MaskRCNNLoss(
-            mask_rcnn.anchor_gen,
-            mask_rcnn.rpn_bbox_encoder,
-            mask_rcnn.rcnn_bbox_encoder,
+            mask_rcnn.faster_rcnn_heads.anchor_generator,
+            mask_rcnn.faster_rcnn_heads.rpn_box_encoder,
+            mask_rcnn.faster_rcnn_heads.rcnn_box_encoder,
         )
 
         optimizer = optim.SGD(mask_rcnn.parameters(), lr=0.001, momentum=0.9)
@@ -97,14 +97,14 @@ class MaskRCNNTest(unittest.TestCase):
 
                 # print statistics
                 losses = dict(loss=total_loss, **mask_losses)
-                for k, v in losses.items():
+                for k, loss in losses.items():
                     if k in running_losses:
-                        running_losses[k] += v
+                        running_losses[k] += loss
                     else:
-                        running_losses[k] = v
+                        running_losses[k] = loss
                 if i % log_step == (log_step - 1):
                     log_str = f"[{epoch + 1}, {i + 1:5d}] "
-                    for k, v in running_losses.items():
-                        log_str += f"{k}: {v / log_step:.3f}, "
+                    for k, loss in running_losses.items():
+                        log_str += f"{k}: {loss / log_step:.3f}, "
                     print(log_str.rstrip(", "))
                     running_losses = {}

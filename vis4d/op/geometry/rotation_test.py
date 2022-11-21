@@ -1,13 +1,14 @@
 """Rotation tests."""
+from __future__ import annotations
+
 import itertools
 import math
 import unittest
-from typing import Optional, Tuple, Union
 
 import numpy as np
 import torch
 
-from vis4d.struct_to_revise import NDArrayF64
+from vis4d.common.typing import NDArrayF64
 
 from .rotation import (
     euler_angles_to_matrix,
@@ -25,17 +26,19 @@ class TestRotationFuncs(unittest.TestCase):
     """Testcases for rotation utility functions."""
 
     @staticmethod
-    def _tait_bryan_conventions() -> Tuple[str]:
+    def _tait_bryan_conventions() -> map[str]:
         """Get tait bryan conventions."""
-        return map("".join, itertools.permutations("XYZ"))  # type: ignore
+        return map(  # pylint: disable=bad-builtin
+            "".join, itertools.permutations("XYZ")
+        )
 
     @staticmethod
-    def _proper_euler_conventions() -> Tuple[str]:
+    def _proper_euler_conventions() -> tuple[str]:
         """Get proper euler conventions."""
         letterpairs = itertools.permutations("XYZ", 2)
         return (l0 + l1 + l0 for l0, l1 in letterpairs)  # type: ignore
 
-    def _all_euler_angle_conventions(self) -> Tuple[str]:
+    def _all_euler_angle_conventions(self) -> tuple[str]:
         """Get all euler angles conventions."""
         return itertools.chain(  # type: ignore
             self._tait_bryan_conventions(), self._proper_euler_conventions()
@@ -43,13 +46,13 @@ class TestRotationFuncs(unittest.TestCase):
 
     def _assert_quaternions_close(
         self,
-        quat: Union[torch.Tensor, NDArrayF64],
-        other: Union[torch.Tensor, NDArrayF64],
+        quat: torch.Tensor | NDArrayF64,
+        other: torch.Tensor | NDArrayF64,
         *,
         rtol: float = 1e-05,
         atol: float = 1e-08,
         equal_nan: bool = False,
-        msg: Optional[str] = None,
+        msg: str | None = None,
     ) -> None:
         """Assert that two quaternions are (almost) equal."""
         self.assertEqual(np.shape(quat), np.shape(other))
@@ -183,8 +186,8 @@ def _copysign(tensor: torch.Tensor, sign_tensor: torch.Tensor) -> torch.Tensor:
 
 def random_quaternions(
     num: int,
-    dtype: Optional[torch.dtype] = None,
-    device: Optional[torch.device] = None,
+    dtype: torch.dtype | None = None,
+    device: torch.device | None = None,
 ) -> torch.Tensor:
     """Generate random quaternions representing rotations.
 
@@ -205,8 +208,8 @@ def random_quaternions(
 
 def random_rotations(
     num: int,
-    dtype: Optional[torch.dtype] = None,
-    device: Optional[torch.device] = None,
+    dtype: torch.dtype | None = None,
+    device: torch.device | None = None,
 ) -> torch.Tensor:
     """Generate random rotations as 3x3 rotation matrices.
 

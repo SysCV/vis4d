@@ -1,5 +1,5 @@
 """Projection utilities."""
-from typing import Tuple, Union
+from __future__ import annotations
 
 import torch
 
@@ -58,12 +58,12 @@ def unproject_points(
         ), "Got multiple intrinsics for single point set!"
         if len(intrinsics.shape) == 3:
             intrinsics = intrinsics.squeeze(0)
-        inv_intrinsics = intrinsics.inverse().transpose()
+        inv_intrinsics = intrinsics.inverse().transpose(0, 1)
         if len(depths.shape) == 1:
             depths = depths.unsqueeze(-1)
         assert len(depths.shape) == 2, "depths must have same dims as points"
     elif len(points.shape) == 3:
-        inv_intrinsics = intrinsics.inverse().transpose()
+        inv_intrinsics = intrinsics.inverse().transpose(-2, -1)
         if len(depths.shape) == 2:
             depths = depths.unsqueeze(-1)
         assert len(depths.shape) == 3, "depths must have same dims as points"
@@ -76,44 +76,60 @@ def unproject_points(
 
 
 def points_inside_image(
-    points: torch.Tensor,
+    points_coord: torch.Tensor,
     depths: torch.Tensor,
-    images_hw: Union[torch.Tensor, Tuple[int, int]],
+    images_hw: torch.Tensor | tuple[int, int],
 ) -> torch.Tensor:
-    """Generate binary mask
+    """Generate binary mask.
+
+    Creates a mask that is true for all point coordiantes that lie inside the
+    image,
 
     Args:
-        points (torch.Tensor): 2D pixel coordinates of shape [..., 2].
+        points_coord (torch.Tensor): 2D pixel coordinates of shape [..., 2].
         depths (torch.Tensor): Associated depth of each 2D pixel coordinate.
-        images_hw (Union[torch.Tensor, Tuple[int, int]]): Associated tensor of image dimensions, shape [..., 2] or single height, width pair.
+        images_hw:  (torch.Tensor| Tuple[int, int]]) Associated tensor of image
+                    dimensions, shape [..., 2] or single height, width pair.
 
     Returns:
         torch.Tensor: Binary mask of points inside an image.
     """
     mask = torch.ones_like(depths)
+    h: int | torch.Tensor = 0
+    w: int | torch.Tensor = 0
+
     if isinstance(images_hw, tuple):
         h, w = images_hw
     else:
         h, w = images_hw[..., 0], images_hw[..., 1]
-
     mask = torch.logical_and(mask, depths > 0)
-    mask = torch.logical_and(mask, points[..., 0] > 0)
-    mask = torch.logical_and(mask, points[..., 0] < w - 1)
-    mask = torch.logical_and(mask, points[..., 1] > 0)
-    mask = torch.logical_and(mask, points[..., 1] < h - 1)
+    mask = torch.logical_and(mask, points_coord[..., 0] > 0)
+    mask = torch.logical_and(mask, points_coord[..., 0] < w - 1)
+    mask = torch.logical_and(mask, points_coord[..., 1] > 0)
+    mask = torch.logical_and(mask, points_coord[..., 1] < h - 1)
     return mask
 
 
 def generate_depth_map(
     points: torch.Tensor,
     intrinsics: torch.Tensor,
-    image_hw: Tuple[int, int],
+    image_hw: tuple[int, int],
 ) -> torch.Tensor:
-    """Generate depth map."""
+    """Generate depth map for given pointcloud.
+
+    Args:
+        points: (N, 3) coordinates.
+        intrinsics: (3, 3) intrinsic camera matrices.
+        image_hw: (tuple[int,int]) height, width of the image
+
+    Returns:
+        torch.Tensor: Projected depth map of the given pointcloud.
+                      Invalid depth has 0 values
+    """
     pts_2d = project_points(points, intrinsics).round()
-    depths = points_cam[:, 2]
-    depth_map = points_cam.new_zeros(image_hw)
-    mask = points_inside_image(depths, pts_2d, image_hw)
-    pts_2d = pts_2d[mask].int()
+    depths = points[:, 2]
+    depth_map = points.new_zeros(image_hw)
+    mask = points_inside_image(pts_2d, depths, image_hw)
+    pts_2d = pts_2d[mask].long()
     depth_map[pts_2d[:, 1], pts_2d[:, 0]] = depths[mask]
     return depth_map

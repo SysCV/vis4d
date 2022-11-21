@@ -1,10 +1,12 @@
 """Vis4D utils for distributed setting."""
+from __future__ import annotations
+
 import logging
 import os
 import pickle
 import shutil
 import tempfile
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 import cloudpickle
 import pytorch_lightning as pl
@@ -13,11 +15,11 @@ import torch.distributed as dist
 
 
 class PicklableWrapper:
-    """
-    Wrap an object to make it more picklable, note that it uses
-    heavy weight serialization libraries that are slower than pickle.
-    It's best to use it only on closures (which are usually not picklable).
-    This is a simplified version of
+    """Wrap an object to make it more picklable.
+
+    Note that it uses heavy weight serialization libraries that are slower than
+    pickle. It's best to use it only on closures (which are usually not
+    picklable). This is a simplified version of
     https://github.com/joblib/joblib/blob/master/joblib/externals/loky/cloudpickle_wrapper.py
     """
 
@@ -35,7 +37,8 @@ class PicklableWrapper:
         return self._obj(*args, **kwargs)
 
     def __getattr__(self, attr):
-        # Ensure that the wrapped object can be used seamlessly as the previous object.
+        # Ensure that the wrapped object can be used seamlessly as the previous
+        # object.
         if attr not in ["_obj"]:
             return getattr(self._obj, attr)
         return getattr(self, attr)
@@ -76,10 +79,10 @@ def synchronize() -> None:  # pragma: no cover
 def _serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: disable=line-too-long # pragma: no cover
     """Serialize arbitrary picklable data to torch.Tensor."""
     backend = dist.get_backend()
-    assert backend in [
+    assert backend in (
         "gloo",
         "nccl",
-    ], "_serialize_to_tensor only supports gloo and nccl backends."
+    ), "_serialize_to_tensor only supports gloo and nccl backends."
     device = torch.device("cpu" if backend == "gloo" else "cuda")
 
     buffer = pickle.dumps(data)
@@ -98,7 +101,7 @@ def _serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: d
 
 def _pad_to_largest_tensor(
     tensor: torch.Tensor, pl_module: pl.LightningModule
-) -> Tuple[List[int], torch.Tensor]:  # pragma: no cover
+) -> tuple[list[int], torch.Tensor]:  # pragma: no cover
     """Pad tensor to largest size among the tensors in each process.
 
     Args:
@@ -133,7 +136,7 @@ def _pad_to_largest_tensor(
 
 def all_gather_object_gpu(  # type: ignore
     data: Any, pl_module: pl.LightningModule, rank_zero_only: bool = True
-) -> Optional[List[Any]]:  # pragma: no cover
+) -> list[Any] | None:  # pragma: no cover
     """Run pl_module.all_gather on arbitrary picklable data.
 
     Args:
@@ -143,7 +146,7 @@ def all_gather_object_gpu(  # type: ignore
         rank_zero_only: if results should only be returned on rank 0
 
     Returns:
-        List[Any]: list of data gathered from each process
+        list[Any]: list of data gathered from each process
     """
     rank, world_size = get_rank(), get_world_size()
     if world_size == 1:
@@ -168,7 +171,7 @@ def all_gather_object_gpu(  # type: ignore
 
 
 def create_tmpdir(
-    pl_module: pl.LightningModule, rank: int, tmpdir: Optional[str] = None
+    pl_module: pl.LightningModule, rank: int, tmpdir: None | str = None
 ) -> str:  # pragma: no cover
     """Create and distribute a temporary directory across all processes."""
     if tmpdir is not None:
@@ -188,9 +191,9 @@ def create_tmpdir(
 def all_gather_object_cpu(  # type: ignore
     data: Any,
     pl_module: pl.LightningModule,
-    tmpdir: Optional[str] = None,
+    tmpdir: None | str = None,
     rank_zero_only: bool = True,
-) -> Optional[List[Any]]:  # pragma: no cover
+) -> list[Any] | None:  # pragma: no cover
     """Share arbitrary picklable data via file system caching.
 
     Args:
@@ -201,7 +204,7 @@ def all_gather_object_cpu(  # type: ignore
         rank_zero_only: if results should only be returned on rank 0
 
     Returns:
-        List[Any]: list of data gathered from each process.
+        list[Any]: list of data gathered from each process.
     """
     rank, world_size = get_rank(), get_world_size()
     if world_size == 1:

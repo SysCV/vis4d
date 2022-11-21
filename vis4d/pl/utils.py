@@ -143,6 +143,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
                         },
                     )
                 )
+                self._metrics = defaultdict(list)
 
     def on_validation_batch_end(
         self,

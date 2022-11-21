@@ -1,5 +1,5 @@
 """Utility functions for bounding boxes."""
-from typing import Dict, List, Optional, Tuple
+from __future__ import annotations
 
 import torch
 from torchvision.ops import batched_nms
@@ -8,7 +8,7 @@ from vis4d.op.geometry.transform import transform_points
 
 
 def bbox_scale(
-    boxes: torch.Tensor, scale_factor_xy: Tuple[float, float]
+    boxes: torch.Tensor, scale_factor_xy: tuple[float, float]
 ) -> torch.Tensor:
     """Scale bounding box tensor."""
     boxes[:, [0, 2]] *= scale_factor_xy[0]
@@ -17,7 +17,7 @@ def bbox_scale(
 
 
 def bbox_clip(
-    boxes: torch.Tensor, image_hw: Tuple[float, float]
+    boxes: torch.Tensor, image_hw: tuple[float, float]
 ) -> torch.Tensor:
     """Clip bounding boxes to image dims."""
     boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, image_hw[1] - 1)
@@ -27,8 +27,8 @@ def bbox_clip(
 
 def scale_and_clip_boxes(
     boxes: torch.Tensor,
-    original_hw: Tuple[int, int],
-    output_hw: Tuple[int, int],
+    original_hw: tuple[int, int],
+    output_hw: tuple[int, int],
     clip: bool = True,
 ) -> torch.Tensor:
     """Postprocess boxes by scaling and clipping to given image dims."""
@@ -152,15 +152,15 @@ def non_intersection(t1: torch.Tensor, t2: torch.Tensor) -> torch.Tensor:
 
 
 def apply_mask(
-    masks: List[torch.Tensor], *args: List[torch.Tensor]
-) -> Tuple[List[torch.Tensor], ...]:
+    masks: list[torch.Tensor], *args: list[torch.Tensor]
+) -> tuple[list[torch.Tensor], ...]:
     """Apply given masks (either bool or indices) to given list of tensors.
 
     Args:
-        masks (List[torch.Tensor]): Masks to apply on tensors.
-        *args (List[torch.Tensor]): List of tensors to apply the masks on.
+        masks (list[torch.Tensor]): Masks to apply on tensors.
+        *args (list[torch.Tensor]): List of tensors to apply the masks on.
     Returns:
-        Tuple[List[torch.Tensor], ...]: Masked tensor lists.
+        tuple[list[torch.Tensor], ...]: Masked tensor lists.
     """
     return tuple(
         [t[m] if len(t) > 0 else t for t, m in zip(t_list, masks)]
@@ -170,14 +170,14 @@ def apply_mask(
 
 def filter_boxes_by_area(
     boxes: torch.Tensor, min_area: float = 0.0
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Filter a set of 2D bounding boxes given a minimum area.
     Args:
         boxes (Tensor): 2D bounding boxes [N, 4].
         min_area (float, optional): Minimum area. Defaults to 0.0.
 
     Returns:
-        Tuple[Tensor, Tensor]: filtered boxes, boolean mask
+        tuple[Tensor, Tensor]: filtered boxes, boolean mask
     """
     if min_area > 0.0:
         w = boxes[:, 2] - boxes[:, 0]
@@ -198,6 +198,7 @@ def multiclass_nms(
     return_inds=False,
 ):  # TODO copied from mmdet, revise
     """NMS for multi-class bboxes.
+
     Args:
         multi_bboxes (Tensor): shape (n, #class*4) or (n, 4)
         multi_scores (Tensor): shape (n, #class), where the last column
@@ -211,6 +212,7 @@ def multiclass_nms(
             before applying NMS. Default to None.
         return_inds (bool, optional): Whether return the indices of kept
             bboxes. Default to False.
+
     Returns:
         tuple: (dets, labels, indices (optional)), tensors of shape (k, 5),
             (k), and (k). Dets are boxes with scores. Labels are 0-based.
@@ -287,7 +289,7 @@ def multiclass_nms(
 # TODO revise
 def distance_3d_nms(
     boxes3d,
-    cat_mapping: Dict[int, str],
+    cat_mapping: dict[int, str],
     boxes2d=None,
 ) -> torch.Tensor:
     """Distance based 3D NMS."""

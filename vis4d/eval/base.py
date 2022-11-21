@@ -37,8 +37,7 @@ class Evaluator:
         """
         raise NotImplementedError
 
-    # FIXME, How do we want to deal with this interface for typing
-    def process(self, *args: NDArrayNumber) -> None:
+    def process(self, *args: Any) -> None:  # type: ignore
         """Process a batch of data.
 
         Raises:

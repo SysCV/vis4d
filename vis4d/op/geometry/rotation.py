@@ -1,14 +1,21 @@
 """Rotation utilities."""
 import functools
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 
 
 def normalize_angle(input_angles: torch.Tensor) -> torch.Tensor:
-    """Normalize content of input_angles to range [-pi, pi]."""
-    return (input_angles + np.pi) % (2 * np.pi) - np.pi
+    """Normalize content of input_angles to range [-pi, pi].
+
+    Args:
+        input_angles: (torch.Tensor) tensor of any shape containing
+                       unnormalized angles.
+
+    Returns:
+        torch.Tensor with angles normalized to +/- pi
+    """
+    return (input_angles + torch.pi) % (2 * torch.pi) - torch.pi
 
 
 def yaw2alpha(rot_y: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
@@ -47,14 +54,21 @@ def rotation_output_to_alpha(
     Uses method described in (with two bins):
     See: 3D Bounding Box Estimation Using Deep Learning and Geometry,
     Mousavian et al., CVPR'17
+
+    Args:
+        output: (torch.Tensor) bin based regressed output.
+        num_bins: (int) number of bins to use
+
+    Returns:
+        torch.Tensor containing the angle from the bin-based regression output
     """
     out_range = torch.tensor(list(range(len(output))), device=output.device)
     bin_idx = output[:, :num_bins].argmax(dim=-1)
     res_idx = num_bins + 2 * bin_idx
     bin_centers = torch.arange(
-        -np.pi, np.pi, 2 * np.pi / num_bins, device=output.device
+        -torch.pi, torch.pi, 2 * torch.pi / num_bins, device=output.device
     )
-    bin_centers += np.pi / num_bins
+    bin_centers += torch.pi / num_bins
     alpha = (
         torch.atan(output[out_range, res_idx] / output[out_range, res_idx + 1])
         + bin_centers[bin_idx]
@@ -146,14 +160,25 @@ def euler_angles_to_matrix(
     for letter in convention:
         if letter not in ("X", "Y", "Z"):
             raise ValueError(f"Invalid letter {letter} in convention string.")
-    matrices = map(
-        _axis_angle_rotation, convention, torch.unbind(euler_angles, -1)
-    )
+    matrices = [
+        _axis_angle_rotation(c, a)
+        for c, a in zip(convention, torch.unbind(euler_angles, -1))
+    ]
     return functools.reduce(torch.matmul, matrices)
 
 
 def _index_from_letter(letter: str) -> int:  # pragma: no cover
-    """Retunr index from letter."""
+    """Return index from letter.
+
+    Args:
+        letter: (str) letter in [X,Y,Z]
+
+    Returns:
+        int mapping of the corresponding letter [0,1,2]
+
+    Raises:
+        ValueError: if the given letter is not valid
+    """
     if letter == "X":
         return 0
     if letter == "Y":
@@ -192,7 +217,7 @@ def _angle_from_tan(
     i1, i2 = {"X": (2, 1), "Y": (0, 2), "Z": (1, 0)}[axis]
     if horizontal:
         i2, i1 = i1, i2
-    even = (axis + other_axis) in ["XY", "YZ", "ZX"]
+    even = (axis + other_axis) in {"XY", "YZ", "ZX"}
     if horizontal == even:
         return torch.atan2(data[..., i1], data[..., i2])
     if tait_bryan:

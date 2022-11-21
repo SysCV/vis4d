@@ -1,6 +1,7 @@
 """Faster RCNN tests."""
+from __future__ import annotations
+
 import unittest
-from typing import Tuple
 
 import torch
 from torch import optim
@@ -30,7 +31,7 @@ from .faster_rcnn import REV_KEYS, FasterRCNN, FasterRCNNLoss
 def get_train_dataloader(
     datasets: Dataset,
     batch_size: int,
-    im_hw: Tuple[int, int],
+    im_hw: tuple[int, int],
     with_mask: bool = False,
 ) -> DataLoader:
     """Get data loader for training."""
@@ -49,7 +50,7 @@ def get_train_dataloader(
 
 
 def get_test_dataloader(
-    datasets: Dataset, batch_size: int, im_hw: Tuple[int, int]
+    datasets: Dataset, batch_size: int, im_hw: tuple[int, int]
 ) -> DataLoader:
     """Get data loader for testing."""
     preprocess_fn = compose([resize_image(im_hw), normalize_image()])
@@ -142,15 +143,15 @@ class FasterRCNNTest(unittest.TestCase):
 
                 # print statistics
                 losses = dict(loss=total_loss, **rcnn_losses)
-                for k, v in losses.items():
+                for k, loss in losses.items():
                     if k in running_losses:
-                        running_losses[k] += v
+                        running_losses[k] += loss
                     else:
-                        running_losses[k] = v
+                        running_losses[k] = loss
                 if i % log_step == (log_step - 1):
                     log_str = f"[{epoch + 1}, {i + 1:5d}] "
-                    for k, v in running_losses.items():
-                        log_str += f"{k}: {v / log_step:.3f}, "
+                    for k, loss in running_losses.items():
+                        log_str += f"{k}: {loss / log_step:.3f}, "
                     print(log_str.rstrip(", "))
                     running_losses = {}
 

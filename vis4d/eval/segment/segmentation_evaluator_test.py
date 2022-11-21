@@ -5,7 +5,7 @@ from typing import Tuple
 import numpy as np
 
 from vis4d.common.typing import NDArrayNumber
-from vis4d.eval.segmentation.segmentation_evaluator import (
+from vis4d.eval.segment.segmentation_evaluator import (
     SegmentationEvaluator,
 )
 

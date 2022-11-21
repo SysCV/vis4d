@@ -1,5 +1,6 @@
 """RetinaNet."""
 from __future__ import annotations
+
 from math import prod
 from typing import NamedTuple
 
@@ -23,11 +24,12 @@ from .rcnn import DetOut
 class RetinaNetOut(NamedTuple):
     """RetinaNet head outputs."""
 
-    # logits for the box classication for each feature level. The logit
-    # dimention is number of classes plus 1 for the background.
+    # Logits for box classification for each feature level. The logit
+    # dimention is [batch_size, number of anchors * number of classes, height,
+    # width].
     cls_score: list[torch.Tensor]
     # Each box has regression for all classes for each feature level. So the
-    # tensor dimention is [batch_size, number of boxes, number of classes x 4]
+    # tensor dimension is [batch_size, number of anchors * 4, height, width].
     bbox_pred: list[torch.Tensor]
 
 
@@ -124,7 +126,7 @@ class RetinaNetHead(nn.Module):
         )
 
     def forward(self, features: list[torch.Tensor]) -> RetinaNetOut:
-        """RetinaNet forward.
+        """Forward pass of RetinaNet.
 
         Args:
             features (list[torch.Tensor]): Feature pyramid
@@ -156,8 +158,10 @@ def get_params_per_level(
     num_pre_nms: int = 2000,
     score_thr: float = 0.0,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Get a topk pre-selection of flattened classification scores and box
-    energies from feature output per level per image before nms.
+    """Get topk params from feature output per level per image before nms.
+
+    Params include flattened classification scores, box energies, and
+    corresponding anchors.
 
     Args:
         cls_out (torch.Tensor):
@@ -205,8 +209,10 @@ def decode_multi_level_outputs(
     nms_threshold: float = 0.7,
     min_box_size: tuple[int, int] = (0, 0),
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Decode box energies into detections for a single image, post-process
-    via NMS. NMS is performed per level. Afterwards, select topk detections.
+    """Decode box energies into detections for a single image.
+
+    Detections are post-processed via NMS. NMS is performed per level.
+    Afterwards, select topk detections.
 
     Args:
         cls_out_all (list[torch.Tensor]): topk class scores per level.

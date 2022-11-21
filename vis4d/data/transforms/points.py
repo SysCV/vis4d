@@ -1,6 +1,7 @@
 """Pointwise transformations."""
+from __future__ import annotations
+
 import math
-from typing import List
 
 import torch
 
@@ -72,10 +73,7 @@ def move_pts_to_last_channel():
 
 
 @Transform(
-    in_keys=(
-        COMMON_KEYS.points3d,
-        COMMON_KEYS.colors3d,
-    ),
+    in_keys=(COMMON_KEYS.points3d, COMMON_KEYS.colors3d),
     out_keys=(COMMON_KEYS.points3d,),
 )
 def concatenate_point_features():
@@ -183,13 +181,10 @@ def extract_pc_bounds():
 
 
 @Transform(
-    in_keys=(
-        COMMON_KEYS.points3d,
-        PC_BOUND_KEY,
-    ),
+    in_keys=(COMMON_KEYS.points3d, PC_BOUND_KEY),
     out_keys=(COMMON_KEYS.points3d,),
 )
-def normalize_by_bounds(axes: List[int] = [0, 1]):
+def normalize_by_bounds(axes: list[int] = [0, 1]):
     """Uses the bounds stored in in_keys[1] (default 'pc_bounds')
     to normalize the data along al axes.
 
