@@ -24,11 +24,12 @@ from .rcnn import DetOut
 class RetinaNetOut(NamedTuple):
     """RetinaNet head outputs."""
 
-    # logits for the box classication for each feature level. The logit
-    # dimention is number of classes plus 1 for the background.
+    # Logits for box classification for each feature level. The logit
+    # dimention is [batch_size, number of anchors * number of classes, height,
+    # width].
     cls_score: list[torch.Tensor]
     # Each box has regression for all classes for each feature level. So the
-    # tensor dimention is [batch_size, number of boxes, number of classes x 4]
+    # tensor dimension is [batch_size, number of anchors * 4, height, width].
     bbox_pred: list[torch.Tensor]
 
 
