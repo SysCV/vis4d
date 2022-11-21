@@ -3,39 +3,40 @@
 Loss reducers are usually used as the last step in loss computation to average
 or sum the loss maps from dense predictions or object detections.
 """
+from __future__ import annotations
 
 from typing import Callable
 
-import torch
+from torch import Tensor
 
-LossReducer = Callable[[torch.Tensor], torch.Tensor]
+LossReducer = Callable[[Tensor], Tensor]
 
 
-def identity_loss(loss: torch.Tensor) -> torch.Tensor:
+def identity_loss(loss: Tensor) -> Tensor:
     """Make no change to the loss."""
     return loss
 
 
-def mean_loss(loss: torch.Tensor) -> torch.Tensor:
+def mean_loss(loss: Tensor) -> Tensor:
     """Average the loss tensor values to a single value.
 
     Args:
-        loss (torch.Tensor): Input multi-dimentional tensor.
+        loss (Tensor): Input multi-dimentional tensor.
 
     Returns:
-        torch.Tensor: Tensor containing a single loss value.
+        Tensor: Tensor containing a single loss value.
     """
     return loss.mean()
 
 
-def sum_loss(loss: torch.Tensor) -> torch.Tensor:
+def sum_loss(loss: Tensor) -> Tensor:
     """Sum the loss tensor values to a single value.
 
     Args:
-        loss (torch.Tensor): Input multi-dimentional tensor.
+        loss (Tensor): Input multi-dimentional tensor.
 
     Returns:
-        torch.Tensor: Tensor containing a single loss value.
+        Tensor: Tensor containing a single loss value.
     """
     return loss.sum()
 
@@ -43,23 +44,23 @@ def sum_loss(loss: torch.Tensor) -> torch.Tensor:
 class SumWeightedLoss:
     """A loss reducer to calculated weighted sum loss."""
 
-    def __init__(self, weight: torch.Tensor, avg_factor: float) -> None:
+    def __init__(self, weight: Tensor, avg_factor: float | Tensor) -> None:
         """Initialize the loss reducer.
 
         Args:
-            weight (torch.Tensor): Weights for each loss elements
-            avg_factor (float): average factor for the weighted loss
+            weight (Tensor): Weights for each loss elements
+            avg_factor (float | Tensor): average factor for the weighted loss
         """
         self.weight = weight
         self.avg_factor = avg_factor
 
-    def __call__(self, loss: torch.Tensor) -> torch.Tensor:
+    def __call__(self, loss: Tensor) -> Tensor:
         """Weight the loss elements and take the sum with the average factor.
 
         Args:
-            loss (torch.Tensor): input loss
+            loss (Tensor): input loss
 
         Returns:
-            torch.Tensor: output loss
+            Tensor: output loss
         """
         return (loss * self.weight).sum() / self.avg_factor

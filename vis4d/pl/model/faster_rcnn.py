@@ -12,7 +12,7 @@ from ..optimizer import DefaultOptimizer
 from ..trainer import CLI
 
 
-def setup_model(
+def setup_model(  # pylint: disable=invalid-name
     experiment: str,
     lr: float = 0.02,
     max_epochs: int = 12,
@@ -50,5 +50,5 @@ class DefaultCLI(CLI):
 if __name__ == "__main__":
     """Example:
 
-    python -m vis4d.pl.model.faster_rcnn fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8"""
+    >>> python -m vis4d.pl.model.faster_rcnn fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8"""
     DefaultCLI(model_class=setup_model, datamodule_class=DetectDataModule)

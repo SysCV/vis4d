@@ -9,16 +9,16 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops import batched_nms
 
-from vis4d.op.box.box2d import filter_boxes_by_area
+from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import BoxEncoder2D, DeltaXYWHBBoxEncoder
-from vis4d.op.box.matchers import BaseMatcher, MaxIoUMatcher
-from vis4d.op.box.samplers import BaseSampler, PseudoSampler
-from vis4d.op.detect.rpn import images_to_levels, unmap
+from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
+from vis4d.op.box.samplers import PseudoSampler, Sampler
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 
-from .anchor_generator import AnchorGenerator, anchor_inside_image
+from .anchor_generator import AnchorGenerator
 from .rcnn import DetOut
+from .util import get_targets_per_image, images_to_levels
 
 
 class RetinaNetOut(NamedTuple):
@@ -39,7 +39,7 @@ def get_default_anchor_generator() -> AnchorGenerator:
         octave_base_scale=4,
         scales_per_octave=3,
         ratios=[0.5, 1.0, 2.0],
-        strides=(8, 16, 32, 64, 128),
+        strides=[8, 16, 32, 64, 128],
     )
 
 
@@ -76,8 +76,8 @@ class RetinaNetHead(nn.Module):
         use_sigmoid_cls: bool = True,
         anchor_generator: AnchorGenerator | None = None,
         box_encoder: BoxEncoder2D | None = None,
-        box_matcher: BaseMatcher | None = None,
-        box_sampler: BaseSampler | None = None,
+        box_matcher: Matcher | None = None,
+        box_sampler: Sampler | None = None,
     ):
         """Init."""
         super().__init__()
@@ -232,8 +232,9 @@ def decode_multi_level_outputs(
         tuple[torch.Tensor, torch.Tensor]: decoded proposal boxes & scores.
     """
     scores, labels = torch.cat(cls_out_all), torch.cat(lbl_out_all)
-    boxes = box_encoder.decode(
-        torch.cat(anchors_all), torch.cat(reg_out_all), max_shape=image_hw
+    boxes = bbox_clip(
+        box_encoder.decode(torch.cat(anchors_all), torch.cat(reg_out_all)),
+        image_hw,
     )
 
     boxes, mask = filter_boxes_by_area(boxes, min_area=prod(min_box_size))
@@ -309,7 +310,7 @@ class Dense2Det(nn.Module):
         featmap_sizes = [featmap.size()[-2:] for featmap in class_outs]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
         anchor_grids = self.anchor_generator.grid_priors(
-            featmap_sizes, device=device
+            featmap_sizes, device=device  # type: ignore
         )
         proposals, scores, labels = [], [], []
         for img_id, image_hw in enumerate(images_hw):
@@ -355,15 +356,6 @@ class Dense2Det(nn.Module):
         return self._call_impl(class_outs, regression_outs, images_hw)
 
 
-class RetinaNetTargets(NamedTuple):
-    """Targets for RetinaNetLoss."""
-
-    labels: torch.Tensor
-    label_weights: torch.Tensor
-    bbox_targets: torch.Tensor
-    bbox_weights: torch.Tensor
-
-
 class RetinaNetLosses(NamedTuple):
     """RetinaNet loss container."""
 
@@ -384,8 +376,8 @@ class RetinaNetHeadLoss(nn.Module):
         self,
         anchor_generator: AnchorGenerator,
         box_encoder: BoxEncoder2D,
-        box_matcher: BaseMatcher | None = None,
-        box_sampler: BaseSampler | None = None,
+        box_matcher: Matcher | None = None,
+        box_sampler: Sampler | None = None,
         loss_cls=None,
     ):
         """Init.
@@ -467,65 +459,6 @@ class RetinaNetHeadLoss(nn.Module):
         )
         return loss_cls, loss_bbox
 
-    def _get_targets_per_image(
-        self,
-        target_boxes: torch.Tensor,
-        anchors: torch.Tensor,
-        image_hw: tuple[int, int],
-        target_class: torch.Tensor | None = None,
-    ) -> tuple[RetinaNetTargets, int, int]:
-        """Get targets per batch element, all scales."""
-        inside_flags = anchor_inside_image(
-            anchors, image_hw, allowed_border=self.allowed_border
-        )
-        # assign gt and sample anchors
-        anchors = anchors[inside_flags, :]
-
-        matching = self.matcher(anchors, target_boxes)
-        sampling_result = self.sampler(matching)
-
-        num_valid_anchors = anchors.size(0)
-        bbox_targets = torch.zeros_like(anchors)
-        bbox_weights = torch.zeros_like(anchors)
-        labels = anchors.new_zeros((num_valid_anchors,))
-        label_weights = anchors.new_zeros(num_valid_anchors)
-
-        positives = sampling_result.sampled_labels == 1
-        negatives = sampling_result.sampled_labels == 0
-        pos_inds = sampling_result.sampled_box_indices[positives]
-        pos_target_inds = sampling_result.sampled_target_indices[positives]
-        neg_inds = sampling_result.sampled_box_indices[negatives]
-        if len(pos_inds) > 0:
-            pos_bbox_targets = self.box_encoder.encode(
-                anchors[pos_inds],
-                target_boxes[pos_target_inds],
-            )
-            bbox_targets[pos_inds] = pos_bbox_targets
-            bbox_weights[pos_inds] = 1.0
-            if target_class is None:
-                # RPN
-                labels[pos_inds] = 1.0
-            else:
-                labels[pos_inds] = target_class[pos_target_inds].float()
-            label_weights[pos_inds] = 1.0
-        if len(neg_inds) > 0:
-            label_weights[neg_inds] = 1.0
-
-        # map up to original set of anchors
-        num_total_anchors = inside_flags.size(0)
-        labels = unmap(labels, num_total_anchors, inside_flags)
-        label_weights = unmap(label_weights, num_total_anchors, inside_flags)
-        bbox_targets = unmap(bbox_targets, num_total_anchors, inside_flags)
-        bbox_weights = unmap(bbox_weights, num_total_anchors, inside_flags)
-
-        return (
-            RetinaNetTargets(
-                labels, label_weights, bbox_targets, bbox_weights
-            ),
-            positives.sum(),
-            negatives.sum(),
-        )
-
     def forward(
         self,
         class_outs: list[torch.Tensor],
@@ -558,7 +491,7 @@ class RetinaNetHeadLoss(nn.Module):
         device = class_outs[0].device
 
         anchor_grids = self.anchor_generator.grid_priors(
-            featmap_sizes, device=device
+            featmap_sizes, device=device  # type: ignore
         )
         num_level_anchors = [anchors.size(0) for anchors in anchor_grids]
         anchors_all_levels = torch.cat(anchor_grids)
@@ -567,8 +500,15 @@ class RetinaNetHeadLoss(nn.Module):
         for tgt_box, tgt_cls, image_hw in zip(
             target_boxes, target_class_ids, images_hw
         ):
-            target, num_pos, num_neg = self._get_targets_per_image(
-                tgt_box, anchors_all_levels, image_hw, tgt_cls
+            target, num_pos, num_neg = get_targets_per_image(
+                tgt_box,
+                anchors_all_levels,
+                self.matcher,
+                self.sampler,
+                self.box_encoder,
+                image_hw,
+                tgt_cls,
+                self.allowed_border,
             )
             num_total_pos += num_pos
             num_total_neg += num_neg

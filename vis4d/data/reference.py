@@ -4,6 +4,8 @@ These Classes sample reference views from a dataset that contains videos.
 This is usually used when a model needs multiple samples of a video during
 training.
 """
+from __future__ import annotations
+
 from abc import abstractmethod
 from typing import Callable, List
 
@@ -13,19 +15,19 @@ SortingFunc = Callable[[int, List[int], List[int]], List[int]]
 
 
 def sort_key_first(
-    key_dataset_index: int, ref_indices: List[int], indices_in_video: List[int]
-) -> List[int]:
+    key_dataset_index: int, ref_indices: list[int], indices_in_video: list[int]
+) -> list[int]:
     """Sort views temporally."""
     return [key_dataset_index, *ref_indices]
 
 
 def sort_temporal(
-    key_dataset_index: int, ref_indices: List[int], indices_in_video: List[int]
-) -> List[int]:
+    key_dataset_index: int, ref_indices: list[int], indices_in_video: list[int]
+) -> list[int]:
     """Sort views temporally."""
     sorted_indices = sorted(
         [key_dataset_index, *ref_indices],
-        key=lambda x: indices_in_video.index(x),
+        key=indices_in_video.index,
     )
     return sorted_indices
 
@@ -48,22 +50,22 @@ class ReferenceViewSampler:
 
     @abstractmethod
     def _sample_ref_indices(
-        self, key_index: int, indices_in_video: List[int]
-    ) -> List[int]:
+        self, key_index: int, indices_in_video: list[int]
+    ) -> list[int]:
         """Sample num_ref_samples reference view indices.
 
         Args:
             key_index (int): Index of key view in the video
-            indices_in_video (List[int]): all dataset indices in the video
+            indices_in_video (list[int]): all dataset indices in the video
 
         Returns:
-            List[int]: dataset indices of reference views.
+            list[int]: dataset indices of reference views.
         """
         raise NotImplementedError
 
     def __call__(
-        self, key_dataset_index: int, indices_in_video: List[int]
-    ) -> List[int]:
+        self, key_dataset_index: int, indices_in_video: list[int]
+    ) -> list[int]:
         """Call function. Wraps _sample_ref_indices with sorting."""
         key_index = indices_in_video.index(key_dataset_index)
         ref_indices = self._sample_ref_indices(key_index, indices_in_video)
@@ -74,8 +76,8 @@ class SequentialViewSampler(ReferenceViewSampler):
     """Sequential View Sampler."""
 
     def _sample_ref_indices(
-        self, key_index: int, indices_in_video: List[int]
-    ) -> List[int]:
+        self, key_index: int, indices_in_video: list[int]
+    ) -> list[int]:
         """Sample sequential reference views."""
         right = key_index + 1 + self.num_ref_samples
         if right <= len(indices_in_video):
@@ -111,8 +113,8 @@ class UniformViewSampler(ReferenceViewSampler):
         self.scope = scope
 
     def _sample_ref_indices(
-        self, key_index: int, indices_in_video: List[int]
-    ) -> List[int]:
+        self, key_index: int, indices_in_video: list[int]
+    ) -> list[int]:
         """Uniformly sample reference views."""
         left = max(0, key_index - self.scope)
         right = min(key_index + self.scope, len(indices_in_video) - 1)
@@ -120,7 +122,7 @@ class UniformViewSampler(ReferenceViewSampler):
             indices_in_video[left:key_index]
             + indices_in_video[key_index + 1 : right + 1]
         )
-        ref_dataset_indices: List[int] = np.random.choice(
+        ref_dataset_indices: list[int] = np.random.choice(
             valid_inds, self.num_ref_samples, replace=False
         ).tolist()
         return ref_dataset_indices

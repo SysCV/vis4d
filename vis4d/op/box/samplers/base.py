@@ -5,7 +5,7 @@ from typing import List, NamedTuple, Tuple
 import torch
 from torch import Tensor, nn
 
-from ..matchers import BaseMatcher, MatchResult
+from ..matchers import Matcher, MatchResult
 
 
 class SamplingResult(NamedTuple):
@@ -22,7 +22,7 @@ class SamplingResult(NamedTuple):
     sampled_labels: Tensor
 
 
-class BaseSampler(nn.Module):
+class Sampler(nn.Module):
     """Sampler base class."""
 
     def __init__(self, batch_size: int, positive_fraction: float) -> None:
@@ -49,8 +49,8 @@ class BaseSampler(nn.Module):
 
 @torch.no_grad()
 def match_and_sample_proposals(
-    matcher: BaseMatcher,
-    sampler: BaseSampler,
+    matcher: Matcher,
+    sampler: Sampler,
     proposal_boxes: List[torch.Tensor],
     target_boxes: List[torch.Tensor],
 ) -> Tuple[List[torch.Tensor], List[torch.Tensor], List[torch.Tensor]]:

@@ -8,10 +8,10 @@ from vis4d.common import ArgsType
 
 from ..box2d import non_intersection, random_choice
 from ..matchers.base import MatchResult
-from .base import BaseSampler, SamplingResult
+from .base import Sampler, SamplingResult
 
 
-class CombinedSampler(BaseSampler):
+class CombinedSampler(Sampler):
     """Combined sampler. Can have different strategies for pos/neg samples."""
 
     def __init__(
@@ -59,15 +59,15 @@ class CombinedSampler(BaseSampler):
         unique_gt_inds = assigned_gts.unique()
         num_gts = len(unique_gt_inds)
         num_per_gt = int(sample_size / float(num_gts))
-        sampled_inds = []
+        sampled_inds_list = []
         # sample specific amount per gt instance
         for i in unique_gt_inds:
             inds = torch.nonzero(assigned_gts == i, as_tuple=False)
             inds = inds.squeeze(1)
             if len(inds) > num_per_gt:
                 inds = random_choice(inds, num_per_gt)
-            sampled_inds.append(inds)
-        sampled_inds = torch.cat(sampled_inds)
+            sampled_inds_list.append(inds)
+        sampled_inds = torch.cat(sampled_inds_list)
 
         # deal with edge cases
         if len(sampled_inds) < sample_size:
@@ -186,7 +186,7 @@ class CombinedSampler(BaseSampler):
         iou_interval = (max_iou - floor_thr) / self.num_bins
         per_bin_samples = int(sample_size / self.num_bins)
 
-        sampled_inds = []
+        sampled_inds_list = []
         for i in range(self.num_bins):
             start_iou = floor_thr + i * iou_interval
             end_iou = floor_thr + (i + 1) * iou_interval
@@ -199,9 +199,9 @@ class CombinedSampler(BaseSampler):
                 )
             else:
                 tmp_sampled_set = idx_tensor[tmp_set]  # pragma: no cover
-            sampled_inds.append(tmp_sampled_set)
+            sampled_inds_list.append(tmp_sampled_set)
 
-        sampled_inds = torch.cat(sampled_inds)
+        sampled_inds = torch.cat(sampled_inds_list)
         if len(sampled_inds) < sample_size:
             num_extra = sample_size - len(sampled_inds)
             extra_inds = non_intersection(idx_tensor, sampled_inds)

@@ -10,7 +10,7 @@ from vis4d.data.loader import (
     build_inference_dataloaders,
     build_train_dataloader,
 )
-from vis4d.data.transforms import compose, normalize, pad, resize
+from vis4d.data.transforms import compose, mask, normalize, pad, resize
 
 
 def test_train_loader():
@@ -62,32 +62,61 @@ def test_inference_loader():
 
 def test_segment_train_loader():
     """Test the data loading pipeline."""
-    coco = COCO(data_root="data/COCO/", with_mask=True)
-    batch_size = 2
-    preprocess_fn = transform_pipeline(
+    coco = COCO(
+        data_root="data/COCO/", use_pascal_voc_cats=True, minimum_box_area=10
+    )
+    batch_size = 4
+    preprocess_fn = compose(
         [
-            Resize((520, 520), keep_ratio=True),
-            Normalize(),
-            FilterByCategory(keep=coco_seg_cats),
-            RemapCategory(mapping=coco_seg_cats),
-            ConvertInsMasksToSegMask(),
+            resize.resize_image((520, 520)),
+            resize.resize_masks(),
+            normalize.normalize_image(),
+            mask.convert_ins_masks_to_seg_mask(),
         ]
     )
-    batchprocess_fn = batch_transform_pipeline([Pad()])
-
     datapipe = DataPipe(coco, preprocess_fn)
-    train_loader = build_train_dataloader(
-        datapipe, samples_per_gpu=batch_size, batchprocess_fn=batchprocess_fn
-    )
+    train_loader = build_train_dataloader(datapipe, samples_per_gpu=batch_size)
 
     for sample in train_loader:
-        assert isinstance(sample[CommonKeys.images], torch.Tensor)
-        assert batch_size == sample[CommonKeys.images].size(0)
-        assert batch_size == len(sample[CommonKeys.boxes2d])
-        assert (
-            sample[CommonKeys.segmentation_mask].shape[-2:]
-            == sample[CommonKeys.images].shape[-2:]
-        )
+        images = sample[CommonKeys.images]
+        segmentation_masks = sample[CommonKeys.segmentation_masks]
+
+        assert isinstance(images, torch.Tensor)
+        assert isinstance(segmentation_masks, torch.Tensor)
+        assert 1 == images.size(0)
+        assert 1 == segmentation_masks.size(0)
+        assert segmentation_masks.shape[-2:] == images.shape[-2:]
+        assert segmentation_masks.min() >= 0
+        assert segmentation_masks[segmentation_masks != 255].max() <= 20
+        break
+
+
+def test_segment_inference_loader():
+    """Test the data loading pipeline."""
+    coco = COCO(
+        data_root="data/COCO/", use_pascal_voc_cats=True, minimum_box_area=10
+    )
+    batch_size = 1
+    preprocess_fn = compose(
+        [
+            normalize.normalize_image(),
+            mask.convert_ins_masks_to_seg_mask(),
+        ]
+    )
+    datapipe = DataPipe(coco, preprocess_fn)
+    test_loader = build_inference_dataloaders(datapipe)
+
+    for sample in test_loader[0]:
+        images = sample[CommonKeys.images]
+        segmentation_masks = sample[CommonKeys.segmentation_masks]
+
+        assert isinstance(images, torch.Tensor)
+        assert isinstance(segmentation_masks, torch.Tensor)
+        assert batch_size == images.size(0)
+        assert batch_size == segmentation_masks.size(0)
+        assert segmentation_masks.shape[-2:] == images.shape[-2:]
+        assert segmentation_masks.min() >= 0
+        assert segmentation_masks[segmentation_masks != 255].max() <= 20
         break
 
 

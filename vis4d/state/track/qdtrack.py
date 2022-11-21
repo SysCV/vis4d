@@ -1,6 +1,7 @@
 """Memory for QDTrack inference."""
+from __future__ import annotations
 
-from typing import Generic, List, NamedTuple, TypeVar
+from typing import Generic, NamedTuple, TypeVar
 
 import torch
 
@@ -10,7 +11,7 @@ TTrackState = TypeVar("TTrackState", bound=NamedTuple)
 class BaseTrackMemory(Generic[TTrackState]):
     """Basic Track Memory class.
 
-    Holds track representation across timesteps as List[NamedTuple].
+    Holds track representation across timesteps as list[NamedTuple].
     Each list element is tracks at time t and tracks at time t are
     represented as NamedTuple, where the first element is a LongTensor of track
     ids, and the other N elements are, e.g., boxes, scores, class_ids, etc.
@@ -20,11 +21,11 @@ class BaseTrackMemory(Generic[TTrackState]):
     def __init__(self, memory_limit: int = -1):
         assert memory_limit >= -1
         self.memory_limit = memory_limit
-        self.frames: List[TTrackState] = []
+        self.frames: list[TTrackState] = []
 
     def reset(self) -> None:
         """Empty the memory."""
-        self.frames: List[TTrackState] = []
+        self.frames: list[TTrackState] = []
 
     @property
     def last_frame(self) -> TTrackState:
@@ -45,7 +46,7 @@ class BaseTrackMemory(Generic[TTrackState]):
 
     def get_frames(
         self, start_index: int, end_index: int
-    ) -> List[TTrackState]:
+    ) -> list[TTrackState]:
         """Get list of frames at certain time interval.
 
         Args:
@@ -53,7 +54,7 @@ class BaseTrackMemory(Generic[TTrackState]):
             end_index (int): end index of interval (excl).
 
         Returns:
-            List[TTrackState]: frame representations inside interval.
+            list[TTrackState]: frame representations inside interval.
         """
         return self.frames[start_index:end_index]
 
@@ -61,14 +62,14 @@ class BaseTrackMemory(Generic[TTrackState]):
         """Return active tracks."""
         return self.frames[-1]
 
-    def get_track(self, track_id: int) -> List[TTrackState]:
+    def get_track(self, track_id: int) -> list[TTrackState]:
         """Get representation of a single track across memory frames.
 
         Args:
             track_id (int): track id of query track.
 
         Returns:
-            List[TTrackState]: List of track states for given query track.
+            list[TTrackState]: List of track states for given query track.
         """
         track = []
         for frame in self.frames:
@@ -108,7 +109,7 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
         memory_momentum: float = 0.8,
     ):
         super().__init__(memory_limit)
-        self.backdrop_frames: List[QDTrackState] = []
+        self.backdrop_frames: list[QDTrackState] = []
         self.memo_momentum = memory_momentum
         self.backdrop_memory_limit = backdrop_memory_limit
         assert backdrop_memory_limit >= 0
@@ -117,7 +118,7 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
     def reset(self) -> None:
         """Empty the memory."""
         super().reset()
-        self.backdrop_frames: List[QDTrackState] = []
+        self.backdrop_frames: list[QDTrackState] = []
 
     def update(self, data: QDTrackState) -> None:
         valid_tracks = data.track_ids != -1
@@ -132,7 +133,7 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
             self.backdrop_frames.pop(0)
 
     @staticmethod
-    def _concat_states(states: List[QDTrackState]) -> QDTrackState:
+    def _concat_states(states: list[QDTrackState]) -> QDTrackState:
         """Concatenate multiple states into a single one."""
         memory_track_ids = torch.cat(
             [mem_entry.track_ids for mem_entry in states]

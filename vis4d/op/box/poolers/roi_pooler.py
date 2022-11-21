@@ -1,7 +1,8 @@
 """Vis4D RoI Pooling module."""
+from __future__ import annotations
+
 import abc
 import math
-from typing import List, Tuple
 
 import torch
 from torchvision.ops import roi_align, roi_pool
@@ -19,8 +20,8 @@ class MultiScaleRoIPooler(RoIPooler):
 
     def __init__(
         self,
-        resolution: Tuple[int, int],
-        strides: List[int],
+        resolution: tuple[int, int],
+        strides: list[int],
         canonical_box_size: int = 224,
         canonical_level: int = 4,
         aligned: bool = True,
@@ -71,7 +72,7 @@ class MultiScaleRoIPooler(RoIPooler):
         assert self.canonical_box_size > 0
 
     def forward(
-        self, features: List[torch.Tensor], boxes: List[torch.Tensor]
+        self, features: list[torch.Tensor], boxes: list[torch.Tensor]
     ) -> torch.Tensor:
         """Torchvision based roi pooling operation.
 

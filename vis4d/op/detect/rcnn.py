@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.ops import roi_align
 
-from vis4d.op.box.box2d import multiclass_nms
+from vis4d.op.box.box2d import bbox_clip, multiclass_nms
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.poolers import MultiScaleRoIAlign
 from vis4d.op.loss.common import l1_loss
@@ -75,7 +75,7 @@ class RCNNHead(nn.Module):
         self._init_weights(self.fc_reg, std=0.001)
 
     @staticmethod
-    def _init_weights(module, std: float = 0.01) -> None:
+    def _init_weights(module: nn.Module, std: float = 0.01) -> None:
         """Init weights."""
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=std)
@@ -176,10 +176,11 @@ class RoI2Det(nn.Module):
             class_outs, regression_outs, boxes, images_hw
         ):
             scores = F.softmax(cls_out, dim=-1)
-            bboxes = self.bbox_coder.decode(
-                boxs[:, :4], reg_out, max_shape=image_hw
-            )
-            det_bbox, det_scores, det_label = multiclass_nms(
+            bboxes = bbox_clip(
+                self.bbox_coder.decode(boxs[:, :4], reg_out).view(-1, 4),
+                image_hw,
+            ).view(reg_out.shape)
+            det_bbox, det_scores, det_label, _ = multiclass_nms(
                 bboxes,
                 scores,
                 self.score_threshold,
@@ -441,9 +442,12 @@ class MaskRCNNHead(nn.Module):
         self._init_weights(self.conv_logits, mode="fan_out")
 
     @staticmethod
-    def _init_weights(module, mode="fan_in") -> None:
+    def _init_weights(module: nn.Module, mode: str = "fan_in") -> None:
         """Initialize weights."""
         if hasattr(module, "weight") and hasattr(module, "bias"):
+            assert isinstance(module.weight, torch.Tensor) and isinstance(
+                module.bias, torch.Tensor
+            )
             nn.init.kaiming_normal_(
                 module.weight, mode=mode, nonlinearity="relu"
             )
@@ -620,7 +624,7 @@ class MaskRCNNHeadLoss(nn.Module):
             MaskRCNNHeadLosses: mask loss.
         """
         mask_pred = torch.cat(mask_preds)
-        mask_size = tuple([mask_pred.shape[2], mask_pred.shape[3]])
+        mask_size = (mask_pred.shape[2], mask_pred.shape[3])
         # get targets
         targets = []
         for boxes, tgt_masks in zip(proposal_boxes, target_masks):

@@ -1,6 +1,5 @@
 """Base dataset in Vis4D."""
-
-from typing import Dict, List, Sequence, Tuple, Union
+from __future__ import annotations
 
 from torch.utils.data import Dataset as TorchDataset
 
@@ -26,16 +25,16 @@ class VideoMixin:
     """
 
     @property
-    def video_to_indices(self) -> Dict[str, List[int]]:
+    def video_to_indices(self) -> dict[str, list[int]]:
         """This function should group all dataset sample indices (int) by their
         associated video ID (str).
 
         Returns:
-            Dict[str, int]: Mapping video to index.
+            dict[str, list[int]]: Mapping video to index.
         """
         raise NotImplementedError
 
-    def get_video_indices(self, idx: int) -> List[int]:
+    def get_video_indices(self, idx: int) -> list[int]:
         """Get all dataset indices in a video given a single dataset index."""
         for indices in self.video_to_indices.values():
             if idx in indices:
@@ -46,13 +45,13 @@ class VideoMixin:
 class MultitaskMixin:
     """Multitask dataset interface."""
 
-    _KEYS: List[str] = []
+    _KEYS: list[str] = []
 
-    def validate_keys(self, keys: Tuple[str, ...]) -> None:
+    def validate_keys(self, keys: tuple[str, ...]) -> None:
         """Validation the keys are defined in _KEYS.
 
         Args:
-            keys (List[str]): User input of keys to load.
+            keys (list[str]): User input of keys to load.
 
         Raises:
             ValueError: Raise if any key is not defined in _KEYS.
@@ -62,22 +61,67 @@ class MultitaskMixin:
                 raise ValueError(f"Key '{k}' is not supported!")
 
 
-class Subset(Dataset):
+class CategoryMapMixin:
+    """Mixin for category map.
+
+    Provides interface for filtering based on categories.
+    """
+
+    @property
+    def category_to_indices(self) -> dict[str, list[int]]:
+        """This function should group all dataset sample indices (int) by their
+        category (str).
+
+        Returns:
+            dict[str, int]: Mapping category to index.
+        """
+        raise NotImplementedError
+
+    def get_category_indices(self, idx: int) -> list[int]:
+        """Get all indices of the data samples that share the same category of
+        the given sample index.
+        """
+        for indices in self.category_to_indices.values():
+            if idx in indices:
+                return indices
+        raise ValueError(
+            f"Dataset index {idx} not found in category_to_indices!"
+        )
+
+
+class AttributeMapMixin:
+    """Mixin for attributes map.
+
+    Provides interface for filtering based on attributes.
+    """
+
+    @property
+    def attribute_to_indices(self) -> dict[str, dict[str, list[int]]]:
+        """This function should group all dataset sample indices (int) by their
+        category (str).
+
+        Returns:
+            dict[str, dict[str, list[int]]]: Mapping category to index.
+        """
+        raise NotImplementedError
+
+
+class FilteredDataset(Dataset):
     """Subset of a dataset at specified indices.
 
     Args:
         dataset (Dataset): The whole Dataset
-        indices (sequence): Indices in the whole set selected for subset
+        filter_fn (Dataset -> list[int]): filtering function.
     """
 
-    def __init__(self, dataset: Dataset, indices: Sequence[int]) -> None:
-        self.dataset = dataset
-        self.indices = indices
-
-    def __getitem__(self, idx: Union[int, List[int]]) -> DictData:
-        if isinstance(idx, list):
-            return self.dataset[[self.indices[i] for i in idx]]
-        return self.dataset[self.indices[idx]]
+    def __init__(self, dataset, filter_fn) -> None:
+        super().__init__()
+        assert isinstance(dataset, FilterMixin)
+        self._filtered_indices = filter_fn(dataset)
 
     def __len__(self) -> int:
-        return len(self.indices)
+        return len(self._filtered_indices)
+
+    def __getitem__(self, idx):
+        mapped_idx = self._filtered_indices[idx]
+        return self.dataset[mapped_idx]

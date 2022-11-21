@@ -215,10 +215,10 @@ class COCOEvaluator(Evaluator):
             assert len(self._coco_gt.getCatIds()) == precisions.shape[2]
 
             results_per_category = []
-            for idx, catId in enumerate(self._coco_gt.getCatIds()):
+            for idx, cat_id in enumerate(self._coco_gt.getCatIds()):
                 # area range index 0: all area ranges
                 # max dets index -1: typically 100 per image
-                nm = self._coco_gt.loadCats(catId)[0]
+                nm = self._coco_gt.loadCats(cat_id)[0]
                 precision = precisions[:, :, idx, 0, -1]
                 precision = precision[precision > -1]
                 if precision.size:

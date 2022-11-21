@@ -1,9 +1,7 @@
 """Faster RCNN tests."""
 import unittest
 
-import torch
-
-from vis4d.unittest.util import generate_boxes
+from vis4d.unittest.util import generate_boxes, generate_features
 
 from .faster_rcnn import FasterRCNNHead
 
@@ -16,10 +14,9 @@ class FasterRCNNTest(unittest.TestCase):
         batch_size, num_classes, num_boxes, wh = 2, 5, 10, 128
         # default setup
         faster_rcnn_head = FasterRCNNHead(num_classes)
-        test_features = [None, None] + [
-            torch.rand(batch_size, 256, wh // 2**i, wh // 2**i)
-            for i in range(5)
-        ]
+        test_features = [None, None] + generate_features(
+            256, wh, wh, 5, batch_size
+        )
         # train forward
         boxes, _, classes, _ = generate_boxes(
             wh * 4, wh * 4, num_boxes, batch_size

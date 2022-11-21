@@ -4,12 +4,12 @@ from typing import List, Tuple
 import torch
 
 from ..box2d import bbox_iou
-from .base import BaseMatcher, MatchResult
+from .base import Matcher, MatchResult
 
 
 # implementation modified from:
 # https://github.com/facebookresearch/detectron2/
-class MaxIoUMatcher(BaseMatcher):
+class MaxIoUMatcher(Matcher):
     """MaxIoUMatcher class."""
 
     def __init__(
