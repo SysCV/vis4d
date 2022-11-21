@@ -11,6 +11,7 @@ def normalize_angle(input_angles: torch.Tensor) -> torch.Tensor:
     Args:
         input_angles: (torch.Tensor) tensor of any shape containing
                        unnormalized angles.
+
     Returns:
         torch.Tensor with angles normalized to +/- pi
     """
@@ -53,6 +54,13 @@ def rotation_output_to_alpha(
     Uses method described in (with two bins):
     See: 3D Bounding Box Estimation Using Deep Learning and Geometry,
     Mousavian et al., CVPR'17
+
+    Args:
+        output: (torch.Tensor) bin based regressed output.
+        num_bins: (int) number of bins to use
+
+    Returns:
+        torch.Tensor containing the angle from the bin-based regression output
     """
     out_range = torch.tensor(list(range(len(output))), device=output.device)
     bin_idx = output[:, :num_bins].argmax(dim=-1)
@@ -159,7 +167,17 @@ def euler_angles_to_matrix(
 
 
 def _index_from_letter(letter: str) -> int:  # pragma: no cover
-    """Retunr index from letter."""
+    """Return index from letter.
+
+    Args:
+        letter: (str) letter in [X,Y,Z]
+
+    Returns:
+        int mapping of the corresponding letter [0,1,2]
+
+    Raises:
+        ValueError if the given letter is not valid
+    """
     if letter == "X":
         return 0
     if letter == "Y":
