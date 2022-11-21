@@ -4,7 +4,10 @@ Code taken from
 https://github.com/timothylimyl/PointNet-Pytorch/blob/master/pointnet/model.py
 and modified to allow for modular configuration.
 """
-from typing import Callable, List, NamedTuple, Optional
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable
+from typing import NamedTuple
 
 import torch
 from torch import nn
@@ -15,13 +18,13 @@ class PointNetEncoderOut(NamedTuple):
 
     features: Global features shape [N, feature_dim]
     pointwise Features: Pointwise features shape [N, last_mlp_dim, n_pts]
-    transformations: List with all transformation matrixes that were used.
+    transformations: list with all transformation matrixes that were used.
                      Shape [N, d, d]
     """
 
     features: torch.Tensor
     pointwise_features: torch.Tensor  #
-    transformations: List[  # List with all transformation matrices [[B, d, d]]
+    transformations: list[  # list with all transformation matrices [[B, d, d]]
         torch.Tensor
     ]
 
@@ -37,7 +40,7 @@ class PointNetSemanticsOut(NamedTuple):
     """Output of the PointNet Segmentation network."""
 
     class_logits: torch.Tensor  # B, n_classes, n_pts
-    transformations: List[  # List with all transformation matrices [[B, d, d]]
+    transformations: list[  # list with all transformation matrices [[B, d, d]]
         torch.Tensor
     ]
 
@@ -56,9 +59,9 @@ class LinearTransform(nn.Module):
     def __init__(
         self,
         in_dimension: int = 3,
-        upsampling_dims: List[int] = [64, 128, 1024],
-        downsampling_dims: List[int] = [1024, 512, 256],
-        norm_cls: Optional[str] = "BatchNorm1d",
+        upsampling_dims: Iterable[int] = (64, 128, 1024),
+        downsampling_dims: Iterable[int] = (1024, 512, 256),
+        norm_cls: str | None = "BatchNorm1d",
         activation_cls: str = "ReLU",
     ) -> None:
         """Creates a new LinearTransform.
@@ -67,20 +70,24 @@ class LinearTransform(nn.Module):
 
         Args:
             in_dimension (int): input dimension
-            upsampling_dims (List[int]): list of intermediate feature shapes
-                                         for upsampling
-            downsampling_dims (List[int]): list of intermediate feature shapes
-                                          for downsampling. Make sure this
-                                          matches with the last upsampling_dims
+            upsampling_dims (Iterable[int]): list of intermediate feature
+                                             shapes for upsampling
+            downsampling_dims (Iterable[int]): list of intermediate feature
+                                               shapes for downsampling.
+                                               Make sure this matches with the
+                                               last upsampling_dims
             norm_cls (Optional(str)): class for norm (nn.'norm_cls') or None
             activation_cls (str): class for activation (nn.'activation_cls')
         """
         super().__init__()
-        assert len(upsampling_dims) != 0 and len(downsampling_dims) != 0
-        assert upsampling_dims[-1] == downsampling_dims[0]
+        self.upsampling_dims = list(upsampling_dims)
+        self.downsampling_dims = list(downsampling_dims)
 
-        self.upsampling_dims_ = upsampling_dims
-        self.downsampling_dims_ = downsampling_dims
+        assert (
+            len(self.upsampling_dims) != 0 and len(self.downsampling_dims) != 0
+        )
+        assert self.upsampling_dims[-1] == self.downsampling_dims[0]
+
         self.in_dimension_ = in_dimension
         self.register_buffer(
             "identity", torch.eye(in_dimension).reshape(1, in_dimension**2)
@@ -97,27 +104,34 @@ class LinearTransform(nn.Module):
         if norm_fn is not None:
             self.norms_ = nn.ModuleList(
                 norm_fn(feature_size)
-                for feature_size in [*upsampling_dims, *downsampling_dims[1:]]
+                for feature_size in list(
+                    *upsampling_dims,
+                    *self.downsampling_dims[1:],
+                )
             )
 
         # Create upsampling layers
         self.upsampling_layers = nn.ModuleList(
-            [nn.Conv1d(in_dimension, upsampling_dims[0], 1)]
+            [nn.Conv1d(in_dimension, self.upsampling_dims[0], 1)]
         )
-        for i in range(len(upsampling_dims) - 1):
+        for i in range(len(self.upsampling_dims) - 1):
             self.upsampling_layers.append(
-                nn.Conv1d(upsampling_dims[i], upsampling_dims[i + 1], 1)
+                nn.Conv1d(
+                    self.upsampling_dims[i], self.upsampling_dims[i + 1], 1
+                )
             )
 
         # Create downsampling layers
         self.downsampling_layers = nn.ModuleList(
             [
-                nn.Linear(downsampling_dims[i], downsampling_dims[i + 1])
-                for i in range(len(downsampling_dims) - 1)
+                nn.Linear(
+                    self.downsampling_dims[i], self.downsampling_dims[i + 1]
+                )
+                for i in range(len(self.downsampling_dims) - 1)
             ]
         )
         self.downsampling_layers.append(
-            nn.Linear(downsampling_dims[-1], in_dimension**2)
+            nn.Linear(self.downsampling_dims[-1], in_dimension**2)
         )
 
     def __call__(
@@ -138,7 +152,8 @@ class LinearTransform(nn.Module):
 
         Returns:
             Learned Canonical Transfomation Matrix for this input.
-            See T-Net in Pointnet publication (https://arxiv.org/pdf/1612.00593.pdf)
+            See T-Net in Pointnet publication
+            (https://arxiv.org/pdf/1612.00593.pdf)
             for further information
         """
         batchsize = features.shape[0]
@@ -150,7 +165,7 @@ class LinearTransform(nn.Module):
             features = self.activation_(features)
 
         features = torch.max(features, 2, keepdim=True)[0]
-        features = features.view(-1, self.upsampling_dims_[-1])
+        features = features.view(-1, self.upsampling_dims[-1])
 
         # Downsample features
         for idx, layer in enumerate(self.downsampling_layers):
@@ -174,38 +189,41 @@ class LinearTransform(nn.Module):
 
 class PointNetEncoder(nn.Module):
     """PointNetEncoder.
+
     Encodes a pointcloud and additional features into one feature description
 
-    See pointnet publication for more information (https://arxiv.org/pdf/1612.00593.pdf)
+    See pointnet publication for more information
+    (https://arxiv.org/pdf/1612.00593.pdf)
     """
 
     def __init__(
         self,
         in_dimensions: int = 3,
         out_dimensions: int = 1024,
-        mlp_dimensions: List[List[int]] = [[64, 64], [64, 128]],
-        norm_cls: Optional[str] = "BatchNorm1d",
+        mlp_dimensions: Iterable[Iterable[int]] = ((64, 64), (64, 128)),
+        norm_cls: str | None = "BatchNorm1d",
         activation_cls: str = "ReLU",
-        **kwargs,  # TODO, type
+        **kwargs,
     ):
         """Creates a new PointNetEncoder.
 
         Args:
             in_dimensions (int): input dimension (e.g. 3 for xzy, 6 for xzyrgb)
             out_dimensions (int): output dimensions
-            mlp_dimensions (List[List[int]]): (Dimensions of MLP layers)
+            mlp_dimensions (Iterable[Iterable[int]]):(Dimensions of MLP layers)
             norm_cls (Optional(str)): class for norm (nn.'norm_cls') or None
             activation_cls (str): class for activation (nn.'activation_cls')
-            kwargs (TODO): See arguments of @LinearTransformStn
+            kwargs : See arguments of @LinearTransformStn
         """
         super().__init__()
 
-        self.out_dimension_ = out_dimensions
-        self.mlp_dimensions = mlp_dimensions
+        self.out_dimension = out_dimensions
 
         # Extend dimensions to upscale from input dimension
-        mlp_dimensions[0].insert(0, in_dimensions)
-        mlp_dimensions[-1].append(out_dimensions)
+        mlp_dim_list: list[list[int]] = [list(d) for d in mlp_dimensions]
+        mlp_dim_list[0].insert(0, in_dimensions)
+        mlp_dim_list[-1].append(out_dimensions)
+        self.mlp_dimensions = mlp_dim_list
 
         # Learnable transformation layers.
         self.trans_layers_ = nn.ModuleList(
@@ -216,7 +234,7 @@ class PointNetEncoder(nn.Module):
                     activation_cls=activation_cls,
                     **kwargs,
                 )
-                for dims in mlp_dimensions
+                for dims in mlp_dim_list
             ]
         )
 
@@ -231,8 +249,8 @@ class PointNetEncoder(nn.Module):
             getattr(nn, norm_cls) if norm_cls is not None else None
         )
 
-        for mlp_idx, mlp_dims in enumerate(mlp_dimensions):
-            layers: List[nn.Module] = []
+        for mlp_idx, mlp_dims in enumerate(mlp_dim_list):
+            layers: list[nn.Module] = []
 
             for idx, (in_dim, out_dim) in enumerate(
                 zip(mlp_dims[:-1], mlp_dims[1:])
@@ -245,7 +263,7 @@ class PointNetEncoder(nn.Module):
 
                 # Only add activation if not last layer
                 if (
-                    mlp_idx != len(mlp_dimensions) - 1
+                    mlp_idx != len(mlp_dim_list) - 1
                     and idx != len(mlp_dims) - 2
                 ):
                     layers.append(activation)
@@ -262,11 +280,12 @@ class PointNetEncoder(nn.Module):
         Args:
             features (Tensor[B, C, N]): Input features stacked in channels.
             e.g. raw point inputs: [B, 3, N] , w color : [B, 3+3, N], ...
+
         Returns:
             Extracted feature representation for input and all
             applied transformations.
         """
-        transforms: List[torch.Tensor] = []
+        transforms: list[torch.Tensor] = []
 
         for block_idx, trans_layer in enumerate(self.trans_layers_):
             # Apply transformation
@@ -283,7 +302,7 @@ class PointNetEncoder(nn.Module):
             features = self.mlp_layers_[block_idx](features)
 
         features = torch.max(features, 2, keepdim=True)[0]
-        features = features.view(-1, self.out_dimension_)
+        features = features.view(-1, self.out_dimension)
 
         return PointNetEncoderOut(
             features=features,
@@ -311,6 +330,9 @@ class PointNetSegmentation(nn.Module):
             feature_dimension (int): Size of feature from the encoder
             norm_cls (Optional(str)): class for norm (nn.'norm_cls') or None
             activation_cls (str): class for activation (nn.'activation_cls')
+
+        Raises:
+            ValueError: If dimensions are invalid
         """
         super().__init__()
         self.in_dimensions = in_dimensions
@@ -321,7 +343,6 @@ class PointNetSegmentation(nn.Module):
             norm_cls=norm_cls,
             activation_cls=activation_cls,
         )
-
         pc_feat_dim = self.encoder.mlp_dimensions[-1][0]
 
         # Create activation
@@ -341,7 +362,14 @@ class PointNetSegmentation(nn.Module):
             if norm_fn is not None:
                 self.classifier.append(norm_fn(out_dim))
             self.classifier.append(activation)
-        self.classifier.append(nn.Conv1d(out_dim, n_classes, 1))
+
+        self.classifier.append(
+            nn.Conv1d(
+                out_dim,  # pylint: disable=undefined-loop-variable
+                n_classes,
+                1,
+            )
+        )
 
     def __call__(self, points: torch.Tensor) -> PointNetSemanticsOut:
         """Call function."""
