@@ -1,5 +1,5 @@
 """Panoptic FPN Head for panoptic segmentation."""
-from typing import List, Tuple
+from __future__ import annotations
 
 import torch
 import torch.nn.functional as F
@@ -12,20 +12,27 @@ class ConvUpsample(nn.Module):
     There are several `ConvModule` layers. In the first few layers, upsampling
     will be applied after each layer of convolution. The number of upsampling
     must be no more than the number of ConvModule layers.
-
-    Args:
-        in_channels (int): Number of channels in the input feature map.
-        inner_channels (int): Number of channels produced by the convolution.
-        num_layers (int): Number of convolution layers.
-        num_upsample (int | optional): Number of upsampling layer. Must be no
-            more than num_layers. Upsampling will be applied after the first
-            ``num_upsample`` layers of convolution. Default: ``num_layers``.
     """
 
     def __init__(
-        self, in_channels, inner_channels, num_layers=1, num_upsample=None
-    ):
-        """Init."""
+        self,
+        in_channels: int,
+        inner_channels: int,
+        num_layers: int = 1,
+        num_upsample: None | int = None,
+    ) -> None:
+        """Init.
+
+        Args:
+            in_channels (int): Number of channels in the input feature map.
+            inner_channels (int): Number of channels produced by the
+                convolution.
+            num_layers (int): Number of convolution layers.
+            num_upsample (int | optional): Number of upsampling layer. Must be
+                no more than num_layers. Upsampling will be applied after the
+                first ``num_upsample`` layers of convolution. Default:
+                ``num_layers``.
+        """
         super().__init__()
         if num_upsample is None:
             num_upsample = num_layers
@@ -55,7 +62,7 @@ class ConvUpsample(nn.Module):
 
         self.init_weights()
 
-    def init_weights(self):
+    def init_weights(self) -> None:
         """Initialize weights."""
         for module in self.conv.modules():
             if isinstance(module, (nn.Sequential, nn.ModuleList)):
@@ -69,17 +76,17 @@ class ConvUpsample(nn.Module):
                 if hasattr(module, "bias") and module.bias:
                     nn.init.constant_(module.bias, 0)
 
-    def forward(self, x):
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
         """Forward."""
         num_upsample = self.num_upsample
         for i in range(self.num_layers):
-            x = self.conv[i](x)
+            feats = self.conv[i](features)
             if num_upsample > 0:
                 num_upsample -= 1
-                x = F.interpolate(
-                    x, scale_factor=2, mode="bilinear", align_corners=False
+                feats = F.interpolate(
+                    feats, scale_factor=2, mode="bilinear", align_corners=False
                 )
-        return x
+        return feats
 
 
 # TODO (thomaseh): move to op/segment
@@ -90,27 +97,27 @@ class PanopticFPNHead(nn.Module):
     + 1``, including all stuff classes and one thing class. The stuff
     classes will be reset from ``0`` to ``num_stuff_classes - 1``, the
     thing classes will be merged to ``num_stuff_classes``-th channel.
-
-    Args:
-        num_classes (int): Number of stuff classes. Default: 53.
-        in_channels (int): Number of channels in the input feature
-            map.
-        inner_channels (int): Number of channels in inner features.
-        start_level (int): The start level of the input features
-            used in PanopticFPN.
-        end_level (int): The end level of the used features, the
-            ``end_level``-th layer will not be used.
     """
 
     def __init__(
         self,
-        num_classes=53,
-        in_channels=256,
-        inner_channels=128,
-        start_level=0,
-        end_level=4,
+        num_classes: int = 53,
+        in_channels: int = 256,
+        inner_channels: int = 128,
+        start_level: int = 0,
+        end_level: int = 4,
     ):
-        """Init."""
+        """Init.
+
+        Args:
+            num_classes (int): Number of stuff classes. Default: 53.
+            in_channels (int): Number of channels in the input feature map.
+            inner_channels (int): Number of channels in inner features.
+            start_level (int): The start level of the input features used in
+                PanopticFPN.
+            end_level (int): The end level of the used features, the
+                ``end_level``-th layer will not be used.
+        """
         super().__init__()
         self.num_classes = num_classes
 
@@ -140,8 +147,15 @@ class PanopticFPNHead(nn.Module):
         )
         nn.init.constant_(self.conv_logits.bias, 0)
 
-    def forward(self, features: List[torch.Tensor]) -> torch.Tensor:
-        """Forward."""
+    def forward(self, features: list[torch.Tensor]) -> torch.Tensor:
+        """Forward.
+
+        Args:
+            features (list[torch.Tensor]): Feature pyramid.
+
+        Returns:
+            torch.Tensor: Segmentation outputs.
+        """
         assert self.num_stages <= len(
             features
         ), "Number of subnets must be not more than length of features."
@@ -156,7 +170,7 @@ class PanopticFPNHead(nn.Module):
 
 
 class PanopticFPNLoss(nn.Module):
-    """Mask RCNN loss function."""
+    """Panoptic FPN loss function."""
 
     def __init__(
         self, num_things_classes: int = 80, num_stuff_classes: int = 53
@@ -197,10 +211,10 @@ class PanopticFPNLoss(nn.Module):
 
 def postprocess_segms(
     segms: torch.Tensor,
-    images_hw: List[Tuple[int, int]],
-    original_hw: List[Tuple[int, int]],
+    images_hw: list[tuple[int, int]],
+    original_hw: list[tuple[int, int]],
 ) -> torch.Tensor:
-    """Postprocess detection boxes."""
+    """Postprocess segmentations."""
     post_segms = []
     for segm, image_hw, orig_hw in zip(segms, images_hw, original_hw):
         post_segms.append(

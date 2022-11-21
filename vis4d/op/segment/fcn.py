@@ -6,8 +6,6 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from .base import BaseSegmentor
-
 
 class FCNOut(NamedTuple):
     """Output of the FCN prediction."""
@@ -23,22 +21,7 @@ class FCNLosses(NamedTuple):
     losses: List[torch.Tensor]
 
 
-class _FCNBase(BaseSegmentor):
-    def __init__(self, in_channels: List[int], out_channels: int) -> None:
-        """Init.
-
-        Args:
-            in_channels (List[int]): Number of channels in multi-level image
-                feature.
-            out_channels (int): Number of output channels. Usually the number
-                of classes.
-        """
-        super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-
-
-class FCNHead(_FCNBase):
+class FCNHead(nn.Module):
     """FCN Head made with ResNet backbone.
 
     This is based on the implementation in `torchvision
@@ -48,7 +31,8 @@ class FCNHead(_FCNBase):
 
     def __init__(
         self,
-        *args,
+        in_channels: List[int],
+        out_channels: int,
         dropout_prob: float = 0.1,
         resize: Optional[Tuple[int, int]] = None,
     ) -> None:
@@ -64,7 +48,9 @@ class FCNHead(_FCNBase):
             dropout_prob (float, optional): Dropout probability. Defaults to
                 0.1.
         """
-        super().__init__(*args)
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         self.resize = resize
         self.heads = nn.ModuleList()
         for idx in range(len(self.in_channels)):
@@ -121,6 +107,10 @@ class FCNHead(_FCNBase):
                 )
             outputs[idx] = F.log_softmax(output, dim=1)
         return FCNOut(pred=outputs[-1], outputs=outputs)
+
+    def __call__(self, x: List[torch.Tensor]) -> FCNOut:
+        """Type definition for function call."""
+        return super()._call_impl(x)
 
 
 class FCNLoss(nn.Module):

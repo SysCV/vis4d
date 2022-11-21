@@ -512,7 +512,7 @@ class Det2Mask(nn.Module):
                 batch element.
             det_class_ids (list[torch.Tensor]): List of detection classeds for
                 each batch element.
-            images_hw (list[tuple[int, int]]): Original image resolution.
+            original_hw (list[tuple[int, int]]): Original image resolution.
 
         Returns:
             MaskOut: Post-processed mask predictions.
