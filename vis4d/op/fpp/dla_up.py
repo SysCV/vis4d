@@ -146,12 +146,9 @@ class DLAUp(FeaturePyramidProcessing):
             [2**i for i in range(self.end_level - self.start_level)],
         )
 
-    def forward(
-        self,
-        inputs: list[torch.Tensor],
-    ) -> list[torch.Tensor]:
+    def forward(self, features: list[torch.Tensor]) -> list[torch.Tensor]:
         """Forward."""
-        layers = list(inputs.values())
+        layers = list(features.values())
         outs = [layers[self.end_level - 1]]
         for i in range(self.end_level - self.start_level - 1):
             ida = getattr(self, f"ida_{i}")

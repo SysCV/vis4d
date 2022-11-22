@@ -17,14 +17,6 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
     Following the practice in `R-CNN <https://arxiv.org/abs/1311.2524>`_,
     it encodes bbox (x1, y1, x2, y2) into delta (dx, dy, dw, dh) and decodes
     delta (dx, dy, dw, dh) back to original bbox (x1, y1, x2, y2).
-
-    Args:
-        target_means (tuple[float]): Denormalizing means of target for
-            delta coordinates
-        target_stds (tuple[float]): Denormalizing standard deviation of
-            target for delta coordinates
-        clip_border (bool, optional): Whether clip the objects outside the
-            border of the image. Defaults to True.
     """
 
     def __init__(
@@ -33,6 +25,16 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         target_stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
         wh_ratio_clip: float = 16 / 1000,
     ):
+        """Init.
+
+        Args:
+            target_means (tuple, optional): Denormalizing means of target for
+                delta coordinates. Defaults to (0.0, 0.0, 0.0, 0.0).
+            target_stds (tuple, optional): Denormalizing standard deviation of
+                target for delta coordinates. Defaults to (1.0, 1.0, 1.0, 1.0).
+            wh_ratio_clip (float, optional): Maximum aspect ratio for boxes.
+                Defaults to 16/1000.
+        """
         self.means = target_means
         self.stds = target_stds
         self.wh_ratio_clip = wh_ratio_clip
@@ -52,22 +54,17 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         Returns:
             torch.Tensor: Box transformation deltas
         """
-
         assert boxes.size(0) == targets.size(0)
         assert boxes.size(-1) == targets.size(-1) == 4
         encoded_bboxes = bbox2delta(boxes, targets, self.means, self.stds)
         return encoded_bboxes
 
-    def decode(
-        self,
-        bboxes: torch.Tensor,
-        pred_bboxes: torch.Tensor,
-    ):
-        """Apply box offset energies pred_bboxes to bboxes.
+    def decode(self, boxes: torch.Tensor, box_deltas: torch.Tensor):
+        """Apply box offset energies box_deltas to boxes.
 
         Args:
-            bboxes (torch.Tensor): Basic boxes. Shape (B, N, 4) or (N, 4)
-            pred_bboxes (Tensor): Encoded offsets with respect to each roi.
+            boxes (torch.Tensor): Basic boxes. Shape (B, N, 4) or (N, 4)
+            box_deltas (Tensor): Encoded offsets with respect to each roi.
                Has shape (B, N, num_classes * 4) or (B, N, 4) or
                (N, num_classes * 4) or (N, 4). Note N = num_anchors * W * H
                when rois is a grid of anchors.Offset encoding follows [1]_.
@@ -75,46 +72,41 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         Returns:
             torch.Tensor: Decoded boxes.
         """
-        assert pred_bboxes.size(0) == bboxes.size(0)
-        decoded_bboxes = delta2bbox(
-            bboxes,
-            pred_bboxes,
-            self.means,
-            self.stds,
-            self.wh_ratio_clip,
+        assert box_deltas.size(0) == boxes.size(0)
+        decoded_boxes = delta2bbox(
+            boxes, box_deltas, self.means, self.stds, self.wh_ratio_clip
         )
-
-        return decoded_bboxes
+        return decoded_boxes
 
 
 @torch.jit.script
 def bbox2delta(
     proposals: torch.Tensor,
-    gt: torch.Tensor,
+    gt_boxes: torch.Tensor,
     means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
 ):
     """Compute deltas of proposals w.r.t. gt.
 
     We usually compute the deltas of x, y, w, h of proposals w.r.t ground
-    truth bboxes to get regression target.
+    truth boxes to get regression target.
     This is the inverse function of :func:`delta2bbox`.
 
     Args:
-        proposals (Tensor): Boxes to be transformed, shape (N, ..., 4)
-        gt (Tensor): Gt bboxes to be used as base, shape (N, ..., 4)
-        means (Sequence[float]): Denormalizing means for delta coordinates
+        proposals (Tensor): Boxes to be transformed, shape (N, ..., 4).
+        gt_boxes (Tensor): Gt boxes to be used as base, shape (N, ..., 4).
+        means (Sequence[float]): Denormalizing means for delta coordinates.
         stds (Sequence[float]): Denormalizing standard deviation for delta
-            coordinates
+            coordinates.
 
     Returns:
         Tensor: deltas with shape (N, 4), where columns represent dx, dy,
             dw, dh.
     """
-    assert proposals.size() == gt.size()
+    assert proposals.size() == gt_boxes.size()
 
     proposals = proposals.float()
-    gt = gt.float()
+    gt = gt_boxes.float()
     px = (proposals[..., 0] + proposals[..., 2]) * 0.5
     py = (proposals[..., 1] + proposals[..., 3]) * 0.5
     pw = proposals[..., 2] - proposals[..., 0]
@@ -172,8 +164,8 @@ def delta2bbox(
     References:
         .. [1] https://arxiv.org/abs/1311.2524
     """
-    num_bboxes, num_classes = deltas.size(0), deltas.size(1) // 4
-    if num_bboxes == 0:
+    num_boxes, num_classes = deltas.size(0), deltas.size(1) // 4
+    if num_boxes == 0:
         return deltas
 
     deltas = deltas.reshape(-1, 4)
@@ -199,6 +191,6 @@ def delta2bbox(
     gwh = pwh * dwh.exp()
     x1y1 = gxy - (gwh * 0.5)
     x2y2 = gxy + (gwh * 0.5)
-    bboxes = torch.cat([x1y1, x2y2], dim=-1)
-    bboxes = bboxes.reshape(num_bboxes, -1)
-    return bboxes
+    boxes = torch.cat([x1y1, x2y2], dim=-1)
+    boxes = boxes.reshape(num_boxes, -1)
+    return boxes

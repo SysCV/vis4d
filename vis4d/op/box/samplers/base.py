@@ -58,8 +58,11 @@ def match_and_sample_proposals(
     Second, the sampler will choose proposals based on certain criteria such as
     total proposal number and ratio of postives and negatives.
     """
-    matchings = tuple(map(matcher, proposal_boxes, target_boxes))
-    sampling_results = tuple(map(sampler, matchings))
+    matchings = tuple(
+        matcher(prop_box, tgt_box)
+        for prop_box, tgt_box in zip(proposal_boxes, target_boxes)
+    )
+    sampling_results = tuple(sampler(matchs) for matchs in matchings)
     return (
         [s.sampled_box_indices for s in sampling_results],
         [s.sampled_target_indices for s in sampling_results],

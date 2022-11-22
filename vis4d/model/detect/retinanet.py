@@ -131,8 +131,8 @@ class RetinaNet(nn.Module):
         features = self.fpn(self.backbone(images))
         outs = self.retinanet_head(features[-5:])
         boxes, scores, class_ids = self.transform_outs(
-            class_outs=outs.cls_score,
-            regression_outs=outs.bbox_pred,
+            cls_outs=outs.cls_score,
+            reg_outs=outs.bbox_pred,
             images_hw=images_hw,
         )
         for i, boxs in enumerate(boxes):

@@ -33,10 +33,10 @@ class CombinedSampler(Sampler):
         self.num_bins = num_bins
         self.bg_label = bg_label
 
-        if not pos_strategy in [
+        if not pos_strategy in {
             "instance_balanced",
             "iou_balanced",
-        ] or not neg_strategy in ["instance_balanced", "iou_balanced"]:
+        } or not neg_strategy in {"instance_balanced", "iou_balanced"}:
             raise ValueError(
                 "strategies must be in [instance_balanced, iou_balanced]"
             )
