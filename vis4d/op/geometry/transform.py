@@ -37,6 +37,32 @@ def transform_points(points: Tensor, transform: Tensor) -> Tensor:
     return points_transformed[..., : points.shape[-1]]
 
 
+def inverse_pinhole(intrinsic_matrix: Tensor) -> Tensor:
+    """Calculate inverse of pinhole projection matrix.
+
+    Args:
+        intrinsic_matrix (Tensor): [N, 3, 3] intrinsics or single [3, 3]
+            intrinsics.
+
+    Returns:
+        Tensor:  Inverse of input intrinisics.
+    """
+    squeeze = False
+    inv = intrinsic_matrix.clone()
+    if len(intrinsic_matrix.shape) == 2:
+        inv = inv.unsqueeze(0)
+        squeeze = True
+
+    inv[:, 0, 0] = 1.0 / inv[:, 0, 0]
+    inv[:, 1, 1] = 1.0 / inv[:, 1, 1]
+    inv[:, 0, 2] = -inv[:, 0, 2] * inv[:, 0, 0]
+    inv[:, 1, 2] = -inv[:, 1, 2] * inv[:, 1, 1]
+
+    if squeeze:
+        inv = inv.squeeze(0)
+    return inv
+
+
 def inverse_rigid_transform(transformation: Tensor) -> Tensor:
     """Calculate inverse of rigid body transformation(s).
 
