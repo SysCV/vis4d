@@ -16,12 +16,9 @@ from vis4d.op.detect.rcnn import (
     RoI2Det,
 )
 from vis4d.op.fpp.fpn import FPN
+from vis4d.op.mask.util import postprocess_segms
 from vis4d.op.panoptic.simple_fusion_head import SimplePanopticFusionHead
-from vis4d.op.segment.panoptic_fpn_head import (
-    PanopticFPNHead,
-    PanopticFPNLoss,
-    postprocess_segms,
-)
+from vis4d.op.segment.panoptic_fpn_head import PanopticFPNHead, PanopticFPNLoss
 from vis4d.op.util import load_model_checkpoint
 
 CNAME = "conv_upsample_layers"

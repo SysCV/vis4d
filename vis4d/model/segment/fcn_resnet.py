@@ -7,7 +7,6 @@ from torch import nn
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.segment.fcn import FCNHead, FCNLoss, FCNOut
 
-
 REV_KEYS = [
     (r"^backbone\.", "basemodel.body."),
     (r"^aux_classifier\.", "fcn.heads.0."),
