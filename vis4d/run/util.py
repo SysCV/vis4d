@@ -1,19 +1,22 @@
 """Run utilities."""
+from __future__ import annotations
+
 import dataclasses
 from abc import ABC
 from collections import OrderedDict, defaultdict
+from collections.abc import Callable, Mapping, Sequence
 from copy import deepcopy
-from typing import Any, Callable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any
 
 import torch
 from torch import Tensor
 
 _BLOCKING_DEVICE_TYPES = ("cpu", "mps")
-_DEVICE = Union[torch.device, str, int]
 
 
 class TransferableDataType(ABC):
     """A custom type for data that can be moved to a torch device via ``.to(...)``.
+
     Example:
         >>> isinstance(dict, TransferableDataType)
         False
@@ -30,7 +33,7 @@ class TransferableDataType(ABC):
     """
 
     @classmethod
-    def __subclasshook__(cls, subclass: Any) -> Union[bool, Any]:
+    def __subclasshook__(cls, subclass: Any) -> bool | Any:
         if cls is TransferableDataType:
             to = getattr(subclass, "to", None)
             return callable(to)
@@ -53,23 +56,29 @@ def is_dataclass_instance(obj: object) -> bool:
 
 def apply_to_collection(
     data: Any,
-    dtype: Union[type, Any, Tuple[Union[type, Any]]],
+    dtype: type | Any | tuple[type | Any],
     function: Callable,
     *args: Any,
-    wrong_dtype: Optional[Union[type, Tuple[type, ...]]] = None,
+    wrong_dtype: None | type | tuple[type, ...] = None,
     include_none: bool = True,
     **kwargs: Any,
 ) -> Any:
     """Recursively applies a function to all elements of a certain dtype.
+
     Args:
         data: the collection to apply the function to
         dtype: the given function will be applied to all elements of this dtype
         function: the function to apply
-        *args: positional arguments (will be forwarded to calls of ``function``)
-        wrong_dtype: the given function won't be applied if this type is specified and the given collections
-            is of the ``wrong_dtype`` even if it is of type ``dtype``
-        include_none: Whether to include an element if the output of ``function`` is ``None``.
-        **kwargs: keyword arguments (will be forwarded to calls of ``function``)
+        *args: positional arguments (will be forwarded to calls of
+            ``function``)
+        wrong_dtype: the given function won't be applied if this type is
+            specified and the given collections is of the ``wrong_dtype`` even
+            if it is of type ``dtype``
+        include_none: Whether to include an element if the output of
+            ``function`` is ``None``.
+        **kwargs: keyword arguments (will be forwarded to calls of
+            ``function``)
+
     Returns:
         The resulting collection
     """
@@ -150,7 +159,8 @@ def apply_to_collection(
                 setattr(result, field_name, v)
             except dataclasses.FrozenInstanceError as e:
                 raise ValueError(
-                    "A frozen dataclass was passed to `apply_to_collection` but this is not allowed."
+                    "A frozen dataclass was passed to `apply_to_collection` "
+                    "but this is not allowed."
                 ) from e
         return result
 
@@ -158,28 +168,33 @@ def apply_to_collection(
     return data
 
 
-def move_data_to_device(batch: Any, device: _DEVICE) -> Any:
-    """Transfers a collection of data to the given device. Any object that defines a method ``to(device)`` will be
-    moved and all other objects in the collection will be left untouched.
+def move_data_to_device(batch: Any, device: torch.device | str | int) -> Any:
+    """Transfers a collection of data to the given device.
+
+    Any object that defines a method ``to(device)`` will be moved and all other
+    objects in the collection will be left untouched.
+
+    This implementation is modified from
+    https://github.com/Lightning-AI/lightning
 
     Args:
-        batch: A tensor or collection of tensors or anything that has a method ``.to(...)``.
-            See :func:`apply_to_collection` for a list of supported collection types.
-        device: The device to which the data should be moved
-    Return:
-        the same collection but with all contained tensors residing on the new device.
-    See Also:
-        - :meth:`torch.Tensor.to`
-        - :class:`torch.device`
-    """
+        batch: A tensor or collection of tensors or anything that has a method
+            ``.to(...)``. See :func:`apply_to_collection` for a list of
+            supported collection types.
+        device: The device to which the data should be moved.
 
+    Return:
+        The same collection but with all contained tensors residing on the new
+            device.
+    """
     if isinstance(device, str):
         device = torch.device(device)
 
     def batch_to(data: Any) -> Any:
         kwargs = {}
         # Don't issue non-blocking transfers to CPU
-        # Same with MPS due to a race condition bug: https://github.com/pytorch/pytorch/issues/83015
+        # Same with MPS due to a race condition bug:
+        # https://github.com/pytorch/pytorch/issues/83015
         if (
             isinstance(data, Tensor)
             and isinstance(device, torch.device)
@@ -189,7 +204,8 @@ def move_data_to_device(batch: Any, device: _DEVICE) -> Any:
         data_output = data.to(device, **kwargs)
         if data_output is not None:
             return data_output
-        # user wrongly implemented the `TransferableDataType` and forgot to return `self`.
+        # user wrongly implemented the `TransferableDataType` and forgot to
+        # return `self`.
         return data
 
     return apply_to_collection(

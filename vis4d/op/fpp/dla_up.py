@@ -125,16 +125,13 @@ class DLAUp(FeaturePyramidProcessing):
         )
         for i in range(len(channels) - 1):
             j = -i - 2
-            setattr(
-                self,
-                f"ida_{i}",
-                IDAUp(
-                    use_deformable_convs,
-                    channels[j],
-                    in_channels[j:],
-                    scales[j:] // scales[j],
-                ),
+            idaup = IDAUp(
+                use_deformable_convs,
+                channels[j],
+                in_channels[j:],
+                scales[j:] // scales[j],
             )
+            setattr(self, f"ida_{i}", idaup)
             scales[j + 1 :] = scales[j]
             in_channels[j + 1 :] = [channels[j] for _ in channels[j + 1 :]]
         if out_channels is None:
@@ -148,12 +145,11 @@ class DLAUp(FeaturePyramidProcessing):
 
     def forward(self, features: list[torch.Tensor]) -> list[torch.Tensor]:
         """Forward."""
-        layers = list(features.values())
-        outs = [layers[self.end_level - 1]]
+        outs = [features[self.end_level - 1]]
         for i in range(self.end_level - self.start_level - 1):
             ida = getattr(self, f"ida_{i}")
-            ida(layers, self.end_level - i - 2, self.end_level)
-            outs.insert(0, layers[self.end_level - 1])
+            ida(features, self.end_level - i - 2, self.end_level)
+            outs.insert(0, features[self.end_level - 1])
         self.ida_final(outs, 0, len(outs))
         outs = [outs[-1]]
         return outs

@@ -23,21 +23,25 @@ def generate_features(
     init_width: int,
     num_features: int,
     batch_size: int = 1,
+    double_channels: bool = False,
 ) -> list[torch.Tensor]:
     """Create random feature lists."""
     state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
 
     features_list = []
+    channel_factor = 1
     for i in range(num_features):
         features_list.append(
             torch.rand(
                 batch_size,
-                channels,
+                channels * channel_factor,
                 init_height // (2**i),
                 init_width // (2**i),
             )
         )
+        if double_channels:
+            channel_factor *= 2
 
     torch.random.set_rng_state(state)
     return features_list
