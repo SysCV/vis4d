@@ -11,6 +11,7 @@ from .fcn import FCNHead
 
 
 def normalize(img: torch.Tensor) -> torch.Tensor:
+    """Normalize the image tensor."""
     pixel_mean = (123.675, 116.28, 103.53)
     pixel_std = (58.395, 57.12, 57.375)
     pixel_mean = torch.tensor(pixel_mean, device=img.device).view(-1, 1, 1)
@@ -22,6 +23,7 @@ def normalize(img: torch.Tensor) -> torch.Tensor:
 def url_to_tensor(
     url: str, im_wh: tuple[int, int] | None = None
 ) -> torch.Tensor:
+    """Load image from URL."""
     image = skimage.io.imread(url)
     if im_wh is not None:
         image = skimage.transform.resize(image, im_wh) * 255
@@ -59,7 +61,6 @@ class FCNHeadTest(unittest.TestCase):
         fcn = FCNHead(
             basemodel.out_channels,
             21,
-            seg_channel_idx=[4, 5],
             resize=(512, 512),
         )
 
