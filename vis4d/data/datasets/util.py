@@ -4,7 +4,7 @@ import hashlib
 import os
 import pickle
 from io import BytesIO
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 import appdirs
 import numpy as np
@@ -88,7 +88,7 @@ class CacheMappingMixin:
 
     def _load_mapping(
         self,
-        generate_map_func: Callable[[], List[DictStrAny]],
+        generate_map_func: Callable[[], list[DictStrAny]],
         use_cache: bool = True,
     ) -> Dataset:
         """Load cached mapping or generate if not exists."""
