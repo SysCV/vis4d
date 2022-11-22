@@ -1,6 +1,7 @@
 """FCN tests."""
+from __future__ import annotations
+
 import unittest
-from typing import Optional, Tuple
 
 import skimage
 import torch
@@ -19,7 +20,7 @@ def normalize(img: torch.Tensor) -> torch.Tensor:
 
 
 def url_to_tensor(
-    url: str, im_wh: Optional[Tuple[int, int]] = None
+    url: str, im_wh: tuple[int, int] | None = None
 ) -> torch.Tensor:
     image = skimage.io.imread(url)
     if im_wh is not None:

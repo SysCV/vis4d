@@ -1,5 +1,5 @@
 """3D bounding box coder."""
-from typing import List
+from __future__ import annotations
 
 import numpy as np
 import torch
@@ -37,10 +37,10 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
 
     def encode(
         self,
-        boxes: List[Boxes2D],
-        targets: List[Boxes3D],
+        boxes: list[Boxes2D],
+        targets: list[Boxes3D],
         intrinsics: Intrinsics,
-    ) -> List[torch.Tensor]:
+    ) -> list[torch.Tensor]:
         """Encode deltas between boxes and targets given intrinsics."""
         result = []
         for boxes_, targets_, intrinsics_ in zip(boxes, targets, intrinsics):
@@ -103,10 +103,10 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
 
     def decode(
         self,
-        boxes: List[Boxes2D],
-        box_deltas: List[torch.Tensor],
+        boxes: list[Boxes2D],
+        box_deltas: list[torch.Tensor],
         intrinsics: Intrinsics,
-    ) -> List[Boxes3D]:
+    ) -> list[Boxes3D]:
         """Decode the predicted box_deltas according to given base boxes."""
         results = []
         for boxes_, box_deltas_, intrinsics_ in zip(

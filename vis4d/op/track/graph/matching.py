@@ -1,5 +1,5 @@
 """Matching calculation utils."""
-from typing import Optional
+from __future__ import annotations
 
 import torch
 
@@ -7,8 +7,8 @@ import torch
 def calc_bisoftmax_affinity(
     detection_embeddings: torch.Tensor,
     track_embeddings: torch.Tensor,
-    detection_class_ids: Optional[torch.Tensor] = None,
-    track_class_ids: Optional[torch.Tensor] = None,
+    detection_class_ids: torch.Tensor | None = None,
+    track_class_ids: torch.Tensor | None = None,
     with_categories: bool = False,
 ) -> torch.Tensor:
     """Calculate affinity matrix using bisoftmax metric."""

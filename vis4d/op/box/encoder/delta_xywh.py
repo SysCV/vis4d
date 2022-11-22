@@ -2,8 +2,9 @@
 
 Modified from mmdetection (https://github.com/open-mmlab/mmdetection).
 """
+from __future__ import annotations
+
 import math
-from typing import Optional, Tuple
 
 import torch
 
@@ -18,9 +19,9 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
     delta (dx, dy, dw, dh) back to original bbox (x1, y1, x2, y2).
 
     Args:
-        target_means (Tuple[float]): Denormalizing means of target for
+        target_means (tuple[float]): Denormalizing means of target for
             delta coordinates
-        target_stds (Tuple[float]): Denormalizing standard deviation of
+        target_stds (tuple[float]): Denormalizing standard deviation of
             target for delta coordinates
         clip_border (bool, optional): Whether clip the objects outside the
             border of the image. Defaults to True.
@@ -28,8 +29,8 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
 
     def __init__(
         self,
-        target_means: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
-        target_stds: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
+        target_means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+        target_stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
         wh_ratio_clip: float = 16 / 1000,
     ):
         self.means = target_means
@@ -90,8 +91,8 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
 def bbox2delta(
     proposals: torch.Tensor,
     gt: torch.Tensor,
-    means: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
-    stds: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
+    means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
 ):
     """Compute deltas of proposals w.r.t. gt.
 
@@ -141,8 +142,8 @@ def bbox2delta(
 def delta2bbox(
     rois: torch.Tensor,
     deltas: torch.Tensor,
-    means: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
-    stds: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
+    means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
+    stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
     wh_ratio_clip: float = 16 / 1000,
 ):
     """Apply deltas to shift/scale base boxes.

@@ -1,5 +1,5 @@
 """Utils for RoI poolers in Vis4D."""
-from typing import List
+from __future__ import annotations
 
 import torch
 
@@ -7,7 +7,7 @@ from ..box2d import bbox_area
 
 
 def assign_boxes_to_levels(
-    box_lists: List[torch.Tensor],
+    box_lists: list[torch.Tensor],
     min_level: int,
     max_level: int,
     canonical_box_size: int,
@@ -44,7 +44,7 @@ def assign_boxes_to_levels(
     return level_assignments.to(torch.int64) - min_level
 
 
-def boxes_to_tensor(boxes: List[torch.Tensor]) -> torch.Tensor:
+def boxes_to_tensor(boxes: list[torch.Tensor]) -> torch.Tensor:
     """Convert all boxes into the tensor format used by ROI pooling ops.
 
     Args:

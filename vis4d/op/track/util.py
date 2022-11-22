@@ -1,5 +1,5 @@
 """Tracking model utils."""
-from typing import List, Tuple
+from __future__ import annotations
 
 import torch
 from torch.nn import functional as F
@@ -8,8 +8,8 @@ from vis4d.struct_to_revise import InputSample
 
 
 def split_key_ref_inputs(
-    inputs: List[InputSample],
-) -> Tuple[InputSample, List[InputSample]]:
+    inputs: list[InputSample],
+) -> tuple[InputSample, list[InputSample]]:
     """Split key / ref frame inputs from List of InputSample."""
     key_ind = 0
     for i, s in enumerate(inputs):

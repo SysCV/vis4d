@@ -1,6 +1,7 @@
 """QDTrack test file."""
+from __future__ import annotations
+
 import unittest
-from typing import List, Tuple, Union
 
 import torch
 from mmcv.runner.checkpoint import load_checkpoint
@@ -61,7 +62,7 @@ REV_KEYS = [
 
 
 def split_key_ref(
-    entries: Union[List[torch.Tensor], torch.Tensor], num_ref_views: int = 1
+    entries: list[torch.Tensor] | torch.Tensor, num_ref_views: int = 1
 ):
     """Split entries into key and reference views."""
     batch_size = len(entries)
@@ -77,12 +78,12 @@ def split_key_ref(
 def sample_proposals(
     box_matcher,
     box_sampler,
-    boxes: List[torch.Tensor],
-    target_boxes: List[torch.Tensor],
-    target_track_ids: List[torch.Tensor],
+    boxes: list[torch.Tensor],
+    target_boxes: list[torch.Tensor],
+    target_track_ids: list[torch.Tensor],
     keyframe: bool = False,
     proposal_append_gt: bool = True,
-) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
     """Sample proposals for instance similarity learning."""
     if proposal_append_gt:
         boxes = [torch.cat([b, t]) for b, t in zip(boxes, target_boxes)]
@@ -278,7 +279,7 @@ class QDTrackTest(unittest.TestCase):
 
         def train_step(
             data,
-        ) -> Tuple[RPNLosses, RCNNLosses, QDTrackInstanceSimilarityLosses]:
+        ) -> tuple[RPNLosses, RCNNLosses, QDTrackInstanceSimilarityLosses]:
             """Train step implementation."""
             key_data, ref_data = data
             (
