@@ -76,10 +76,10 @@ def synchronize() -> None:  # pragma: no cover
 def serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: disable=line-too-long # pragma: no cover
     """Serialize arbitrary picklable data to torch.Tensor."""
     backend = dist.get_backend()
-    assert backend in (
+    assert backend in {
         "gloo",
         "nccl",
-    ), "_serialize_to_tensor only supports gloo and nccl backends."
+    }, "_serialize_to_tensor only supports gloo and nccl backends."
     device = torch.device("cpu" if backend == "gloo" else "cuda")
 
     buffer = pickle.dumps(data)

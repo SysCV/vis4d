@@ -15,7 +15,6 @@ class TestRandom(unittest.TestCase):
         samples_per_img = 10
         pos_fract = 0.5
         num_samples = 10
-        num_gts = 3
 
         sampler = RandomSampler(
             batch_size=samples_per_img, positive_fraction=pos_fract

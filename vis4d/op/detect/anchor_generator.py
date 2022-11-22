@@ -12,10 +12,8 @@ from torch.nn.modules.utils import _pair
 
 
 def anchor_inside_image(
-    flat_anchors: Tensor,
-    img_shape: tuple[int, int],
-    allowed_border: int = 0,
-):
+    flat_anchors: Tensor, img_shape: tuple[int, int], allowed_border: int = 0
+) -> Tensor:
     """Check whether the anchors are inside the border.
 
     Args:
@@ -35,6 +33,28 @@ def anchor_inside_image(
         & (flat_anchors[:, 3] < img_h + allowed_border)
     )
     return inside_flags
+
+
+def meshgrid(
+    x_grid: Tensor, y_grid: Tensor, row_major: bool = True
+) -> tuple[Tensor, Tensor]:
+    """Generate mesh grid of x and y.
+
+    Args:
+        x_grid (Tensor): Grids of x dimension.
+        y_grid (Tensor): Grids of y dimension.
+        row_major (bool, optional): Whether to return y grids first.
+            Defaults to True.
+
+    Returns:
+        tuple[Tensor]: The mesh grids of x and y.
+    """
+    # use shape instead of len to keep tracing while exporting to onnx
+    xx = x_grid.repeat(y_grid.shape[0])
+    yy = y_grid.view(-1, 1).repeat(1, x_grid.shape[0]).view(-1)
+    if row_major:
+        return xx, yy
+    return yy, xx
 
 
 class AnchorGenerator:
@@ -162,16 +182,16 @@ class AnchorGenerator:
         self.base_anchors = self.gen_base_anchors()
 
     @property
-    def num_base_priors(self):
+    def num_base_priors(self) -> list[int]:
         """list[int]: The number of priors at a point on the feature grid."""
         return [base_anchors.size(0) for base_anchors in self.base_anchors]
 
     @property
-    def num_levels(self):
+    def num_levels(self) -> int:
         """int: number of feature levels that the generator will be applied."""
         return len(self.strides)
 
-    def gen_base_anchors(self):
+    def gen_base_anchors(self) -> list[Tensor]:
         """Generate base anchors.
 
         Returns:
@@ -199,7 +219,7 @@ class AnchorGenerator:
         scales: Tensor,
         ratios: Tensor,
         center: tuple[float, float] | None = None,
-    ):
+    ) -> Tensor:
         """Generate base anchors of a single level.
 
         Args:
@@ -211,7 +231,7 @@ class AnchorGenerator:
                 related to a single feature grid. Defaults to None.
 
         Returns:
-            torch.Tensor: Anchors in a single-level feature maps.
+            Tensor: Anchors in a single-level feature maps.
         """
         width, height = base_size, base_size
         if center is None:
@@ -241,36 +261,12 @@ class AnchorGenerator:
 
         return base_anchors
 
-    def _meshgrid(
-        self,
-        x_grid: Tensor,
-        y_grid: Tensor,
-        row_major: bool = True,
-    ):
-        """Generate mesh grid of x and y.
-
-        Args:
-            x_grid (Tensor): Grids of x dimension.
-            y_grid (Tensor): Grids of y dimension.
-            row_major (bool, optional): Whether to return y grids first.
-                Defaults to True.
-
-        Returns:
-            tuple[Tensor]: The mesh grids of x and y.
-        """
-        # use shape instead of len to keep tracing while exporting to onnx
-        xx = x_grid.repeat(y_grid.shape[0])
-        yy = y_grid.view(-1, 1).repeat(1, x_grid.shape[0]).view(-1)
-        if row_major:
-            return xx, yy
-        return yy, xx
-
     def grid_priors(
         self,
         featmap_sizes: list[tuple[int, int]],
         dtype: torch.dtype = torch.float32,
         device: torch.device = torch.device("cpu"),
-    ):
+    ) -> list[Tensor]:
         """Generate grid anchors in multiple feature levels.
 
         Args:
@@ -280,8 +276,8 @@ class AnchorGenerator:
             device (torch.device): The device where the anchors will be put on.
 
         Return:
-            list[torch.Tensor]: Anchors in multiple feature levels.
-                The sizes of each tensor should be [N, 4], where
+            list[Tensor]: Anchors in multiple feature levels. The sizes of each
+                tensor should be [N, 4], where
                 N = width * height * num_base_anchors, width and height
                 are the sizes of the corresponding feature level,
                 num_base_anchors is the number of anchors for that level.
@@ -322,7 +318,7 @@ class AnchorGenerator:
         shift_x = torch.arange(0, feat_w, device=device).to(dtype) * stride_w
         shift_y = torch.arange(0, feat_h, device=device).to(dtype) * stride_h
 
-        shift_xx, shift_yy = self._meshgrid(shift_x, shift_y)
+        shift_xx, shift_yy = meshgrid(shift_x, shift_y)
         shifts = torch.stack([shift_xx, shift_yy, shift_xx, shift_yy], dim=-1)
         # first feat_w elements correspond to the first row of shifts
         # add A anchors (1, A, 4) to K shifts (K, 1, 4) to get
@@ -334,7 +330,7 @@ class AnchorGenerator:
         # then (0, 1), (0, 2), ...
         return all_anchors
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """str: a string that describes the module."""
         indent_str = "    "
         repr_str = self.__class__.__name__ + "(\n"

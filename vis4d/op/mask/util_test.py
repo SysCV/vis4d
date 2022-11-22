@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from vis4d.unittest.util import generate_boxes, generate_masks
+from vis4d.unittest.util import generate_boxes
 
 from .util import nhw_to_hwc_mask, paste_masks_in_image, postprocess_segms
 

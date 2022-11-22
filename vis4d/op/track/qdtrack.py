@@ -9,7 +9,7 @@ from torch import nn
 
 from vis4d.op.box.box2d import bbox_iou
 from vis4d.op.box.matchers.max_iou import MaxIoUMatcher
-from vis4d.op.box.poolers import BaseRoIPooler, MultiScaleRoIAlign
+from vis4d.op.box.poolers import MultiScaleRoIAlign, RoIPooler
 from vis4d.op.box.samplers.combined import CombinedSampler
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
@@ -208,7 +208,7 @@ class QDSimilarityHead(nn.Module):
 
     def __init__(
         self,
-        proposal_pooler: None | BaseRoIPooler = None,
+        proposal_pooler: None | RoIPooler = None,
         in_dim: int = 256,
         num_convs: int = 4,
         conv_out_dim: int = 256,
@@ -305,6 +305,12 @@ class QDSimilarityHead(nn.Module):
             [len(b) for b in boxes]
         )
         return embeddings
+
+    def __call__(
+        self, features: list[torch.Tensor], boxes: list[torch.Tensor]
+    ) -> list[torch.Tensor]:
+        """Type definition."""
+        return self._call_impl(features, boxes)
 
 
 class QDTrackInstanceSimilarityLosses(NamedTuple):
@@ -404,6 +410,18 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
 
         return QDTrackInstanceSimilarityLosses(
             track_loss=loss_track, track_loss_aux=loss_track_aux
+        )
+
+    def __call__(
+        self,
+        key_embeddings: list[torch.Tensor],
+        ref_embeddings: list[list[torch.Tensor]],
+        key_track_ids: list[torch.Tensor],
+        ref_track_ids: list[list[torch.Tensor]],
+    ) -> QDTrackInstanceSimilarityLosses:
+        """Type definition."""
+        return self._call_impl(
+            key_embeddings, ref_embeddings, key_track_ids, ref_track_ids
         )
 
     @staticmethod
