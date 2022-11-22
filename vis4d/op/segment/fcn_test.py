@@ -7,7 +7,7 @@ import skimage
 import torch
 
 from ..base.resnet import ResNet
-from .fcn import FCNHead
+from .fcn import FCNHead, FCNLoss
 
 
 def normalize(img: torch.Tensor) -> torch.Tensor:
@@ -53,23 +53,31 @@ class FCNHeadTest(unittest.TestCase):
             (512, 512),
         )
         sample_images = torch.cat([image1, image2])
+        mock_targets = torch.randint(0, 21, (2, 512, 512))
+
         basemodel = ResNet(
             "resnet50",
             pretrained=True,
             replace_stride_with_dilation=[False, True, True],
         )
         fcn = FCNHead(
-            basemodel.out_channels,
+            basemodel.out_channels[-2:],
             21,
             resize=(512, 512),
         )
+        fcn_loss_weighted = FCNLoss(feature_idx=[4, 5], weights=[0.5, 1])
+        fcn_loss_unweighted = FCNLoss(feature_idx=[4, 5], weights=None)
 
         fcn.eval()
         with torch.no_grad():
             features = basemodel(sample_images)
-            for feat in features:
-                print(feat.shape, end=" ")
-            print()
-            outputs = fcn(features)
+            pred, outputs = fcn(features)
+            losses_weighted = fcn_loss_weighted(outputs, mock_targets)
+            losses_unweighted = fcn_loss_unweighted(outputs, mock_targets)
 
-        assert outputs.pred.shape == (2, 21, 512, 512)
+        assert len(outputs) == 6
+        assert len(losses_weighted.losses) == 2
+        assert len(losses_unweighted.losses) == 2
+        assert pred.shape == (2, 21, 512, 512)
+        for output in outputs[-2:]:
+            assert output.shape == (2, 21, 512, 512)
