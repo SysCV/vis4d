@@ -1,5 +1,5 @@
 """Vis4D LR schedulers."""
-from typing import List
+from __future__ import annotations
 
 from torch.optim import Optimizer, lr_scheduler
 
@@ -22,7 +22,7 @@ class PolyLRScheduler(lr_scheduler._LRScheduler):  # type: ignore # pylint: disa
         self.min_lr = min_lr
         super().__init__(optimizer, last_epoch, verbose)
 
-    def get_lr(self) -> List[float]:
+    def get_lr(self) -> list[float]:
         """Compute current learning rate."""
         if self._step_count >= self.max_steps:  # pragma: no cover
             return [self.min_lr for _ in self.base_lrs]

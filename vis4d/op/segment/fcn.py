@@ -43,10 +43,8 @@ class FCNHead(nn.Module):
         Args:
             in_channels (list[int]): Number of channels in multi-level image
                 feature.
-            out_channels (int): Number of output channels. Usually the number of
-                classes.
-            seg_channel_idx (list[int]): Indices of channel that used to get
-                segmentation maps. Defaults to [4, 5].
+            out_channels (int): Number of output channels. Usually the number
+                of classes.
             dropout_prob (float, optional): Dropout probability. Defaults to
                 0.1.
         """
@@ -55,14 +53,22 @@ class FCNHead(nn.Module):
         self.out_channels = out_channels
         self.resize = resize
         self.heads = nn.ModuleList()
-        for idx in range(len(self.in_channels)):
+        for in_channel in self.in_channels:
             self.heads.append(
-                self._make_head(
-                    self.in_channels[idx], self.out_channels, dropout_prob
-                )
+                self._make_head(in_channel, self.out_channels, dropout_prob)
             )
 
     def _make_head(self, in_channels: int, channels: int, dropout_prob: float):
+        """Generate FCN segmentation head.
+
+        Args:
+            in_channels (int): Input feature channels.
+            channels (int): Output segmentation channels.
+            dropout_prob (float): Dropout probability.
+
+        Returns:
+            nn.Module: FCN segmentation head.
+        """
         inter_channels = in_channels // 4
         layers = [
             nn.Conv2d(
@@ -79,12 +85,12 @@ class FCNHead(nn.Module):
         ]
         return nn.Sequential(*layers)
 
-    def forward(self, x: list[torch.Tensor]) -> FCNOut:
+    def forward(self, feats: list[torch.Tensor]) -> FCNOut:
         """Forward function for transforming feature maps and obtain
         segmentation prediction.
 
         Args:
-            x (list[torch.Tensor]): List of multi-level image features.
+            feats (list[torch.Tensor]): List of multi-level image features.
 
         Returns:
             output (list[torch.Tensor]): Each tensor has shape (batch_size,
@@ -94,11 +100,11 @@ class FCNHead(nn.Module):
             outputs[-2] ==> aux output map (e.g., used for training)
             outputs[:-2] ==> x[:-2]
         """
-        outputs = x.copy()
-        num_features = len(x)
+        outputs = feats.copy()
+        num_features = len(feats)
         for i in range(len(self.in_channels)):
             idx = num_features - len(self.in_channels) + i
-            feat = x[idx]
+            feat = feats[idx]
             output = self.heads[i](feat)
             if self.resize:
                 output = F.interpolate(
@@ -110,36 +116,53 @@ class FCNHead(nn.Module):
             outputs[idx] = F.log_softmax(output, dim=1)
         return FCNOut(pred=outputs[-1], outputs=outputs)
 
-    def __call__(self, x: list[torch.Tensor]) -> FCNOut:
+    def __call__(self, feats: list[torch.Tensor]) -> FCNOut:
         """Type definition for function call."""
-        return super()._call_impl(x)
+        return super()._call_impl(feats)
 
 
 class FCNLoss(nn.Module):
+    """FCN segmentation loss class."""
+
     def __init__(
         self,
         feature_idx: list[int],
         loss_fn: Callable[
             [torch.Tensor, torch.Tensor], torch.Tensor
         ] = nn.CrossEntropyLoss(),
-        weights: list[float] = [0.5, 1],
+        weights: list[float] | None = None,
     ) -> None:
         """Init.
 
         Args:
-            feature_idx (list[int]): Indices for the level of features that
-                contain segmentation results.
+            feature_idx (list[int]): Indices for the level of features to
+                compute losses.
             loss_fn (Callable, optional): Loss function that computes between
                 predictions and targets. Defaults to nn.NLLLoss.
-            weights (list[float]):
+            weights (list[float], optional): The weights of each feature level.
+                If None passes, it will set to 1 for all levels. Defaults to
+                    None.
         """
 
         super().__init__()
         self.feature_idx = feature_idx
         self.loss_fn = loss_fn
-        self.weights = weights
+        if weights is None:
+            self.weights = [1.0] * len(self.feature_idx)
+        else:
+            self.weights = weights
 
     def forward(self, outputs: list[torch.Tensor], target: torch.Tensor):
+        """Forward pass.
+
+        Args:
+            outputs (list[torch.Tensor]): Multilevel FCN outputs.
+            target (torch.Tensor): Assigned segmentation target mask.
+
+        Returns:
+            FCNLosses: computed losses for each level and the weighted total
+                loss.
+        """
         losses = []
         total_loss = 0
         for i, idx in enumerate(self.feature_idx):

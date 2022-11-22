@@ -7,10 +7,11 @@ import skimage
 import torch
 
 from ..base.resnet import ResNet
-from .fcn import FCNHead
+from .fcn import FCNHead, FCNLoss
 
 
 def normalize(img: torch.Tensor) -> torch.Tensor:
+    """Normalize the image tensor."""
     pixel_mean = (123.675, 116.28, 103.53)
     pixel_std = (58.395, 57.12, 57.375)
     pixel_mean = torch.tensor(pixel_mean, device=img.device).view(-1, 1, 1)
@@ -22,6 +23,7 @@ def normalize(img: torch.Tensor) -> torch.Tensor:
 def url_to_tensor(
     url: str, im_wh: tuple[int, int] | None = None
 ) -> torch.Tensor:
+    """Load image from URL."""
     image = skimage.io.imread(url)
     if im_wh is not None:
         image = skimage.transform.resize(image, im_wh) * 255
@@ -51,24 +53,31 @@ class FCNHeadTest(unittest.TestCase):
             (512, 512),
         )
         sample_images = torch.cat([image1, image2])
+        mock_targets = torch.randint(0, 21, (2, 512, 512))
+
         basemodel = ResNet(
             "resnet50",
             pretrained=True,
             replace_stride_with_dilation=[False, True, True],
         )
         fcn = FCNHead(
-            basemodel.out_channels,
+            basemodel.out_channels[-2:],
             21,
-            seg_channel_idx=[4, 5],
             resize=(512, 512),
         )
+        fcn_loss_weighted = FCNLoss(feature_idx=[4, 5], weights=[0.5, 1])
+        fcn_loss_unweighted = FCNLoss(feature_idx=[4, 5], weights=None)
 
         fcn.eval()
         with torch.no_grad():
             features = basemodel(sample_images)
-            for feat in features:
-                print(feat.shape, end=" ")
-            print()
-            outputs = fcn(features)
+            pred, outputs = fcn(features)
+            losses_weighted = fcn_loss_weighted(outputs, mock_targets)
+            losses_unweighted = fcn_loss_unweighted(outputs, mock_targets)
 
-        assert outputs.pred.shape == (2, 21, 512, 512)
+        assert len(outputs) == 6
+        assert len(losses_weighted.losses) == 2
+        assert len(losses_unweighted.losses) == 2
+        assert pred.shape == (2, 21, 512, 512)
+        for output in outputs[-2:]:
+            assert output.shape == (2, 21, 512, 512)

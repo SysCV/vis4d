@@ -13,13 +13,11 @@ from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import RandomSampler
-from vis4d.op.loss.common import l1_loss
-from vis4d.op.loss.reducer import SumWeightedLoss
 
 from ..layer import Conv2d
 from ..typing import Proposals
 from .anchor_generator import AnchorGenerator
-from .util import get_targets_per_image, images_to_levels
+from .dense_anchor import DenseAnchorHeadLoss
 
 
 class RPNOut(NamedTuple):
@@ -317,14 +315,8 @@ class RPNLosses(NamedTuple):
     rpn_loss_bbox: torch.Tensor
 
 
-class RPNLoss(nn.Module):
-    """Loss of region proposal network.
-
-    For a given set of multi-scale RPN outputs, compute the desired target
-    outputs and apply classification and regression losses.
-    The targets are computed with the given target bounding boxes, the
-    anchor grid defined by the anchor generator and the given box encoder.
-    """
+class RPNLoss(DenseAnchorHeadLoss):
+    """Loss of region proposal network."""
 
     def __init__(
         self, anchor_generator: AnchorGenerator, box_encoder: BoxEncoder2D
@@ -333,153 +325,49 @@ class RPNLoss(nn.Module):
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
-            box_encoder (BoxEncoder2D): Encodes bounding boxes to
-                the desired network output.
+            box_encoder (BoxEncoder2D): Encodes bounding boxes to the desired
+                network output.
         """
-        super().__init__()
-        self.anchor_generator = anchor_generator
-        self.box_encoder = box_encoder
-        self.allowed_border = 0
-        self.matcher = MaxIoUMatcher(
+        matcher = MaxIoUMatcher(
             thresholds=[0.3, 0.7],
             labels=[0, -1, 1],
             allow_low_quality_matches=True,
             min_positive_iou=0.3,
         )
-        self.sampler = RandomSampler(batch_size=256, positive_fraction=0.5)
-
-    def _loss_single_scale(
-        self,
-        cls_out: torch.Tensor,
-        reg_out: torch.Tensor,
-        bbox_targets: torch.Tensor,
-        bbox_weights: torch.Tensor,
-        labels: torch.Tensor,
-        label_weights: torch.Tensor,
-        num_total_samples: int,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Compute losses per scale, all batch elements.
-
-        Args:
-            cls_out (torch.Tensor): [N, C, H, W] tensor of class logits.
-            reg_out (torch.Tensor): [N, C, H, W] tensor of regression params.
-            bbox_targets (torch.Tensor): [H*W, 4] bounding box targets
-            bbox_weights (torch.Tensor): [H*W] per-sample weighting for loss.
-            labels (torch.Tensor): [H*W] classification targets.
-            label_weights (torch.Tensor): [H*W] per-sample weighting for loss.
-            num_total_samples (int): average factor of loss.
-
-        Returns:
-            tuple[torch.Tensor, torch.Tensor]: classification and regression
-                losses.
-        """
-        # classification loss
-        labels = labels.reshape(-1)
-        label_weights = label_weights.reshape(-1)
-        cls_score = cls_out.permute(0, 2, 3, 1).reshape(-1)
-        loss_cls = F.binary_cross_entropy_with_logits(
-            cls_score, labels, reduction="none"
+        sampler = RandomSampler(batch_size=256, positive_fraction=0.5)
+        loss_cls = F.binary_cross_entropy_with_logits
+        super().__init__(
+            anchor_generator, box_encoder, matcher, sampler, loss_cls
         )
-        loss_cls = SumWeightedLoss(label_weights, num_total_samples)(loss_cls)
-        # regression loss
-        bbox_targets = bbox_targets.reshape(-1, 4)
-        bbox_weights = bbox_weights.reshape(-1, 4)
-        bbox_pred = reg_out.permute(0, 2, 3, 1).reshape(-1, 4)
-        loss_bbox = l1_loss(
-            bbox_pred,
-            bbox_targets,
-            SumWeightedLoss(bbox_weights, num_total_samples),
-        )
-        return loss_cls, loss_bbox
 
     def forward(
         self,
-        class_outs: list[torch.Tensor],
-        regression_outs: list[torch.Tensor],
+        cls_outs: list[torch.Tensor],
+        reg_outs: list[torch.Tensor],
         target_boxes: list[torch.Tensor],
         images_hw: list[tuple[int, int]],
+        target_class_ids: list[torch.Tensor] | None = None,
     ) -> RPNLosses:
         """Compute RPN classification and regression losses.
 
         Args:
-            class_outs (list[torch.Tensor]): Network classification outputs at
-                all scales.
-            regression_outs (list[torch.Tensor]): Network regression outputs at
-                all scales.
+            cls_outs (list[torch.Tensor]): Network classification outputs
+                at all scales.
+            reg_outs (list[torch.Tensor]): Network regression outputs
+                at all scales.
             target_boxes (list[torch.Tensor]): Target bounding boxes.
             images_hw (list[tuple[int, int]]): Image dimensions without
                 padding.
+            target_class_ids (list[torch.Tensor] | None, optional): Target
+                class labels.
 
         Returns:
-            RPNLosses: classification and regression losses.
+            RPNLosses: Classification and regression losses.
         """
-        featmap_sizes = [featmap.size()[-2:] for featmap in class_outs]
-        assert len(featmap_sizes) == self.anchor_generator.num_levels
-
-        device = class_outs[0].device
-
-        anchor_grids = self.anchor_generator.grid_priors(
-            featmap_sizes, device=device  # type: ignore
+        assert target_class_ids is None
+        losses = super().forward(
+            cls_outs, reg_outs, target_boxes, images_hw, target_class_ids
         )
-        num_level_anchors = [anchors.size(0) for anchors in anchor_grids]
-        anchors_all_levels = torch.cat(anchor_grids)
-
-        targets, num_total_pos, num_total_neg = [], 0, 0
-        for tgt_box, image_hw in zip(target_boxes, images_hw):
-            target, num_pos, num_neg = get_targets_per_image(
-                tgt_box,
-                anchors_all_levels,
-                self.matcher,
-                self.sampler,
-                self.box_encoder,
-                image_hw=image_hw,
-                allowed_border=self.allowed_border,
-            )
-            num_total_pos += num_pos
-            num_total_neg += num_neg
-            bbox_targets_per_level = target.bbox_targets.split(
-                num_level_anchors
-            )
-            bbox_weights_per_level = target.bbox_weights.split(
-                num_level_anchors
-            )
-            labels_per_level = target.labels.split(num_level_anchors)
-            label_weights_per_level = target.label_weights.split(
-                num_level_anchors
-            )
-            targets.append(
-                (
-                    bbox_targets_per_level,
-                    bbox_weights_per_level,
-                    labels_per_level,
-                    label_weights_per_level,
-                )
-            )
-        targets_per_level = images_to_levels(targets)
-        num_samples = num_total_pos + num_total_neg
-
-        loss_cls_all = torch.tensor(0.0, device=device)
-        loss_bbox_all = torch.tensor(0.0, device=device)
-        for level_id, (cls_out, reg_out) in enumerate(
-            zip(class_outs, regression_outs)
-        ):
-            loss_cls, loss_bbox = self._loss_single_scale(
-                cls_out, reg_out, *targets_per_level[level_id], num_samples
-            )
-            loss_cls_all += loss_cls
-            loss_bbox_all += loss_bbox
         return RPNLosses(
-            rpn_loss_cls=loss_cls_all, rpn_loss_bbox=loss_bbox_all
-        )
-
-    def __call__(
-        self,
-        class_outs: list[torch.Tensor],
-        regression_outs: list[torch.Tensor],
-        target_boxes: list[torch.Tensor],
-        images_hw: list[tuple[int, int]],
-    ) -> RPNLosses:
-        """Type definition."""
-        return self._call_impl(
-            class_outs, regression_outs, target_boxes, images_hw
+            rpn_loss_cls=losses.loss_cls, rpn_loss_bbox=losses.loss_bbox
         )
