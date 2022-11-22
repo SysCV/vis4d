@@ -21,7 +21,7 @@ DLA_MODEL_MAPPING = {
     "dla102x2": "dla102x2-262837b6.pth",
     "dla169": "dla169-0914e092.pth",
 }
-DLA_ARCH_SETTINGS = {
+DLA_ARCH_SETTINGS = {  # pylint: disable=consider-using-namedtuple-or-dataclass
     "dla34": (
         (1, 1, 1, 2, 2, 1),
         (16, 32, 64, 128, 256, 512),
@@ -272,7 +272,7 @@ class Root(nn.Module):
             bias=False,
             padding=(kernel_size - 1) // 2,
         )
-        self.bn = nn.BatchNorm2d(out_channels, momentum=BN_MOMENTUM)
+        self.bn1 = nn.BatchNorm2d(out_channels, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
         self.residual = residual
 
@@ -280,7 +280,7 @@ class Root(nn.Module):
         """Forward."""
         children = input_x
         input_x = self.conv(torch.cat(input_x, 1))
-        input_x = self.bn(input_x)
+        input_x = self.bn1(input_x)
         if self.residual:
             input_x += children[0]
         input_x = self.relu(input_x)

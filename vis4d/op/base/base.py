@@ -22,7 +22,7 @@ class BaseModel(nn.Module):
             NotImplementedError: This is an abstract class method.
 
         Returns:
-            fp (list[torch.Tensor]): The output feature pyramid. The list index
+            fp (List[torch.Tensor]): The output feature pyramid. The list index
             represents the level, which has a downsampling ratio of 2^index for
             most of the cases. fp[2] is the C2 or P2 in the FPN paper
             (https://arxiv.org/abs/1612.03144). fp[0] is the original image or
@@ -41,7 +41,7 @@ class BaseModel(nn.Module):
             NotImplementedError: This is an abstract class method.
 
         Returns:
-            list[int]: Number of channels.
+            List[int]: Number of channels.
         """
         raise NotImplementedError
 
@@ -52,6 +52,6 @@ class BaseModel(nn.Module):
             images (torch.Tensor): Image input to process.
 
         Returns:
-            list[torch.Tensor]: The output feature pyramid.
+            List[torch.Tensor]: The output feature pyramid.
         """
         return self._call_impl(images)

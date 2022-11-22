@@ -11,7 +11,16 @@ from vis4d.op.geometry.transform import transform_points
 def bbox_scale(
     boxes: torch.Tensor, scale_factor_xy: tuple[float, float]
 ) -> torch.Tensor:
-    """Scale bounding box tensor."""
+    """Scale bounding box tensor.
+
+    Args:
+        boxes (torch.Tensor): Bounding boxes with shape [N, 4]
+        scale_factor_xy (tuple[float, float]): Scaling factor for x and y
+
+    Returns:
+        torch.Tensor with bounding boxes scaled by the given factors in
+        x and y direction
+    """
     boxes[:, [0, 2]] *= scale_factor_xy[0]
     boxes[:, [1, 3]] *= scale_factor_xy[1]
     return boxes
@@ -40,7 +49,17 @@ def scale_and_clip_boxes(
     output_hw: tuple[int, int],
     clip: bool = True,
 ) -> torch.Tensor:
-    """Postprocess boxes by scaling and clipping to given image dims."""
+    """Postprocess boxes by scaling and clipping to given image dims.
+
+    Args:
+        boxes (torch.Tensor): Bounding boxes with shape [N, 4]
+        original_hw (tuple[int, int]): Original height / width of image
+        output_hw (tuple[int, int]): Rescale height / width  of image
+        clip (bool): if true, clips box corners to image bounds
+
+    Returns:
+        torch.Tensor containing rescaled and possibly clipped bounding boxes
+    """
     scale_factor = (
         original_hw[1] / output_hw[1],
         original_hw[0] / output_hw[0],
@@ -56,7 +75,8 @@ def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
     """Compute bounding box areas.
 
     Args:
-        boxes (torch.Tensor): [N, 4] tensor of 2D boxes in format (x1, y1, x2, y2).
+        boxes (torch.Tensor): [N, 4] tensor of 2D boxes
+                                     in format (x1, y1, x2, y2).
 
     Returns:
         torch.Tensor: [N,] tensor of box areas.
@@ -113,7 +133,16 @@ def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
 def transform_bbox(
     trans_mat: torch.Tensor, boxes: torch.Tensor
 ) -> torch.Tensor:
-    """Apply trans_mat (3, 3) / (B, 3, 3)  to (N, 4) / (B, N, 4) xyxy boxes."""
+    """Apply trans_mat (3, 3) / (B, 3, 3)  to (N, 4) / (B, N, 4) xyxy boxes.
+
+    Args:
+        trans_mat (torch.Tensor): Transformation matrix
+                                  of shape (3,3) or (B,3,3)
+        boxes (torch.Tensor): Bounding boxes of shape (N,4) or (B,N,4)
+
+    Returns:
+        torch.Tensor containing linear transformed bounding boxes. (B?, N, 4)
+    """
     assert len(trans_mat.shape) == len(
         boxes.shape
     ), "trans_mat and boxes must have same number of dimensions!"
@@ -148,16 +177,53 @@ def transform_bbox(
     return transformed_boxes
 
 
+# TODO, refactor? move to utils?
 def random_choice(tensor: torch.Tensor, sample_size: int) -> torch.Tensor:
-    """Randomly choose elements from a tensor."""
+    """Randomly choose elements from a tensor.
+
+    If sample_size < len(tensor) this function will sample without repetition
+    otherwise certain elements will be repeated.
+
+    Args:
+        tensor (torch.Tensor): Tensor to sample from
+        sample_size (int): Number of elements to sample
+
+    Returns:
+        torch.Tensor containing sample_size randomly sampled entries.
+    """
     perm = torch.randperm(len(tensor), device=tensor.device)[:sample_size]
+
+    # Additionally sample with repetition
+    if sample_size > len(tensor):
+        remaining_samples = sample_size - len(tensor)
+        perm = torch.concat(
+            [
+                torch.randint(
+                    remaining_samples,
+                    (remaining_samples,),
+                    device=tensor.device,
+                ),
+                perm,
+            ]
+        )
+
     return tensor[perm]
 
 
-def non_intersection(t1: torch.Tensor, t2: torch.Tensor) -> torch.Tensor:
-    """Get the elements of t1 that are not present in t2."""
-    compareview = t2.repeat(t1.shape[0], 1).T
-    return t1[(compareview != t1).T.prod(1) == 1]
+def non_intersection(
+    tensor_a: torch.Tensor, tensor_b: torch.Tensor
+) -> torch.Tensor:
+    """Get the elements of tensor_a that are not present in tensor_b.
+
+    Args:
+        tensor_a (torch.Tensor): First tensor
+        tensor_b (torch.Tensor): Second tensor
+
+    Returns:
+        torch.Tensor containing all elements that occur in both tensors
+    """
+    compareview = tensor_b.repeat(tensor_a.shape[0], 1).T
+    return tensor_a[(compareview != tensor_a).T.prod(1) == 1]
 
 
 def apply_mask(
@@ -168,6 +234,7 @@ def apply_mask(
     Args:
         masks (list[torch.Tensor]): Masks to apply on tensors.
         *args (list[torch.Tensor]): List of tensors to apply the masks on.
+
     Returns:
         tuple[list[torch.Tensor], ...]: Masked tensor lists.
     """
@@ -181,6 +248,7 @@ def filter_boxes_by_area(
     boxes: torch.Tensor, min_area: float = 0.0
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Filter a set of 2D bounding boxes given a minimum area.
+
     Args:
         boxes (Tensor): 2D bounding boxes [N, 4].
         min_area (float, optional): Minimum area. Defaults to 0.0.
