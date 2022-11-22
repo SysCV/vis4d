@@ -280,13 +280,16 @@ def multiclass_nms(
             contains scores of the background class, but this will be ignored.
         score_thr (float): bbox threshold, bboxes with scores lower than it
             will not be considered.
-        nms_thr (float): NMS IoU threshold
+        iou_thr (float): NMS IoU threshold
         max_num (int, optional): if there are more than max_num bboxes after
             NMS, only top max_num will be kept. Defaults to -1.
 
     Returns:
         tuple: (Tensor, Tensor, Tensor, Tensor): detections (k, 5), scores
             (k), classes (k) and indices (k).
+
+    Raises:
+        RuntimeError: If there is a onnx error,
     """
     num_classes = multi_scores.size(1) - 1
     # exclude background category
@@ -364,9 +367,9 @@ def distance_3d_nms(
         current_3d_score = box3d.score * boxes2d_scores[i]
         current_class = cat_mapping[int(box3d.class_ids)]
 
-        if current_class in ["pedestrian", "traffic_cone"]:
+        if current_class in {"pedestrian", "traffic_cone"}:
             nms_dist = 0.5
-        elif current_class in ["bicycle", "motorcycle", "barrier"]:
+        elif current_class in {"bicycle", "motorcycle", "barrier"}:
             nms_dist = 1
         else:
             nms_dist = 2
