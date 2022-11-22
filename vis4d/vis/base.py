@@ -1,11 +1,8 @@
 """Vis4D base visualizer."""
 
-from vis4d.common import ModelOutput
-from vis4d.data.datasets.base import DictData
+from typing import Any
 
 
-# TODO, this is just a proposal for a generic visualizer class
-# Maybe remove, maybe combine with DataWriter
 class Visualizer:
     """Base visualizer class."""
 
@@ -13,14 +10,23 @@ class Visualizer:
         """Reset visualizer for new round of evaluation."""
         raise NotImplementedError()
 
-    def process(self, inputs: DictData, outputs: ModelOutput) -> None:
+    def process(self, args: Any, **kwargs: Any) -> None:  # type: ignore
         """Process data of single sample."""
         raise NotImplementedError()
 
-    def visualize(self) -> None:
-        """Visualizes the stored predictions."""
+    def show(self, blocking: bool = True) -> None:
+        """Shows the visualization.
+
+        Args:
+            blocking (bool): If the visualization should be blocking
+                             and wait for human input
+        """
         raise NotImplementedError()
 
     def save_to_disk(self, path_to_out_folder: str) -> None:
-        """Saves the visualization to disk"""
+        """Saves the visualization to disk.
+
+        Args:
+            path_to_out_folder (str): Folder where the output should be written
+        """
         raise NotImplementedError()
