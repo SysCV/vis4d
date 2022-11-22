@@ -1,34 +1,42 @@
 """Wrapper for deformable convolution."""
 import torch
 from torch import nn
-
-from vis4d.common.imports import MMCV_AVAILABLE
-
-if MMCV_AVAILABLE:
-    from mmcv.ops.modulated_deform_conv import ModulatedDeformConv2dPack
-
-
-BN_MOMENTUM = 0.1
+from torchvision.ops import DeformConv2d
 
 
 class DeformConv(nn.Module):
-    """Deformable Convolution."""
+    """Deformable Convolution operator.
 
-    def __init__(self, chi: int, cho: int) -> None:
+    Includes batchnorm and ReLU activation and sane defaults.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: tuple[int, int] = (3, 3),
+        stride: int = 1,
+        padding: int = 1,
+        dilation: int = 1,
+        groups: int = 1,
+        bias: bool = True,
+        bn_momentum: float = 0.1,
+    ) -> None:
         """Init."""
-        assert MMCV_AVAILABLE, "DeformConv requires mmcv to be installed!"
         super().__init__()
         self.actf = nn.Sequential(
-            nn.BatchNorm2d(cho, momentum=BN_MOMENTUM), nn.ReLU(inplace=True)
+            nn.BatchNorm2d(out_channels, momentum=bn_momentum),
+            nn.ReLU(inplace=True),
         )
-        self.conv = ModulatedDeformConv2dPack(
-            chi,
-            cho,
-            kernel_size=(3, 3),
-            stride=1,
-            padding=1,
-            dilation=1,
-            deform_groups=1,
+        self.conv = DeformConv2d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=groups,
+            bias=bias,
         )
 
     def forward(self, input_x: torch.Tensor) -> torch.Tensor:
