@@ -1,10 +1,12 @@
 """data utils."""
+from __future__ import annotations
+
 import sys
 from time import perf_counter
-from typing import Optional, no_type_check
+from typing import no_type_check
 
 
-def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:
+def str_decode(str_bytes: bytes, encoding: None | str = None) -> str:
     """Decode to string from bytes."""
     if encoding is None:
         encoding = sys.getdefaultencoding()

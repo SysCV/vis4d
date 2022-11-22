@@ -1,4 +1,6 @@
 """Wrapper for deformable convolution."""
+from __future__ import annotations
+
 import torch
 from torch import nn
 from torchvision.ops import DeformConv2d

@@ -1,12 +1,14 @@
 """Vis4D base evaluation."""
+from __future__ import annotations
+
 import os
 import pickle
 import shutil
 import tempfile
-from typing import Any, Callable, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 from vis4d.common import MetricLogs
-from vis4d.common.typing import NDArrayNumber
 from vis4d.data.io import DataBackend, HDF5Backend
 
 
@@ -14,11 +16,11 @@ class Evaluator:
     """Abstract evaluator class."""
 
     @property
-    def metrics(self) -> List[str]:
+    def metrics(self) -> list[str]:
         """Return list of metrics to evaluate.
 
         Returns:
-            List[str]: Metrics to evaluate.
+            list[str]: Metrics to evaluate.
         """
         return []
 
@@ -45,7 +47,7 @@ class Evaluator:
         """
         raise NotImplementedError
 
-    def evaluate(self, metric: str) -> Tuple[MetricLogs, str]:
+    def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate all predictions according to given metric.
 
         Args:
@@ -55,7 +57,7 @@ class Evaluator:
             NotImplementedError: This is an abstract class method.
 
         Returns:
-            Tuple[MetricLogs, str]: Dictionary of scores to log and a pretty
+            tuple[MetricLogs, str]: Dictionary of scores to log and a pretty
                 printed string.
         """
         raise NotImplementedError
@@ -66,16 +68,16 @@ class SaveDataMixin:
 
     def __init__(
         self,
-        save_dir: Optional[str] = None,
-        data_backend: Optional[DataBackend] = None,
+        save_dir: None | str = None,
+        data_backend: None | DataBackend = None,
     ) -> None:
         """Init.
 
         Args:
-            save_dir (Optional[str], optional): Directory to save predictions
+            save_dir (None | str, optional): Directory to save predictions
                 to. If None, a temporary directory will be created. Defaults to
                 None.
-            data_backend (Optional[DataBackend], optional): Data backend. If
+            data_backend (None | DataBackend, optional): Data backend. If
                 None, HDF5Backend will be used. Defaults to None.
         """
         if data_backend is None:

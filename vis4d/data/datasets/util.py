@@ -1,10 +1,13 @@
 """Utility functions for datasets."""
+from __future__ import annotations
+
 import copy
 import hashlib
 import os
 import pickle
+from collections.abc import Callable
 from io import BytesIO
-from typing import Any, Callable
+from typing import Any
 
 import appdirs
 import numpy as np
