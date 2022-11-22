@@ -5,7 +5,11 @@ import unittest
 import torch
 
 from .rotation import euler_angles_to_matrix
-from .transform import inverse_rigid_transform, transform_points
+from .transform import (
+    inverse_pinhole,
+    inverse_rigid_transform,
+    transform_points,
+)
 
 
 class TestTransform(unittest.TestCase):
@@ -75,3 +79,20 @@ def test_inverse_rigid_transform():
     transform = transform.unsqueeze(0)
     inverse_t = inverse_rigid_transform(transform)
     assert torch.isclose(inverse_t, transform.inverse()).all()
+
+
+def test_inverse_pinhole():
+    """Testcase for inverse pinhole function."""
+    intrinsic_matrix = torch.eye(3, dtype=torch.float32)
+    intrinsic_matrix[0, 0] = 700
+    intrinsic_matrix[1, 1] = 700
+    # e.g. resolution 1920x1280
+    intrinsic_matrix[0, 2] = 1920 / 2
+    intrinsic_matrix[1, 2] = 1280 / 2
+
+    inverse_i = inverse_pinhole(intrinsic_matrix)
+    assert torch.isclose(inverse_i, intrinsic_matrix.inverse()).all()
+
+    intrinsic_matrix = intrinsic_matrix.unsqueeze(0)
+    inverse_i = inverse_pinhole(intrinsic_matrix)
+    assert torch.isclose(inverse_i, intrinsic_matrix.inverse()).all()

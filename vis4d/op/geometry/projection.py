@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import torch
 
+from .transform import inverse_pinhole
+
 
 def project_points(
     points: torch.Tensor, intrinsics: torch.Tensor
@@ -58,12 +60,12 @@ def unproject_points(
         ), "Got multiple intrinsics for single point set!"
         if len(intrinsics.shape) == 3:
             intrinsics = intrinsics.squeeze(0)
-        inv_intrinsics = intrinsics.inverse().transpose(0, 1)
+        inv_intrinsics = inverse_pinhole(intrinsics).transpose(0, 1)
         if len(depths.shape) == 1:
             depths = depths.unsqueeze(-1)
         assert len(depths.shape) == 2, "depths must have same dims as points"
     elif len(points.shape) == 3:
-        inv_intrinsics = intrinsics.inverse().transpose(-2, -1)
+        inv_intrinsics = inverse_pinhole(intrinsics).transpose(-2, -1)
         if len(depths.shape) == 2:
             depths = depths.unsqueeze(-1)
         assert len(depths.shape) == 3, "depths must have same dims as points"
