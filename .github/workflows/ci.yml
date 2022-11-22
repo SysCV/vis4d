@@ -41,7 +41,7 @@ jobs:
 
       - name: mypy
         run: |
-          python3 -m mypy --strict vis4d
+          python3 -m mypy vis4d
 
   test:
     name: test py${{ matrix.python-version }}

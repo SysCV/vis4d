@@ -79,8 +79,9 @@ class ConvUpsample(nn.Module):
     def forward(self, features: torch.Tensor) -> torch.Tensor:
         """Forward."""
         num_upsample = self.num_upsample
+        feats = features
         for i in range(self.num_layers):
-            feats = self.conv[i](features)
+            feats = self.conv[i](feats)
             if num_upsample > 0:
                 num_upsample -= 1
                 feats = F.interpolate(
@@ -89,7 +90,6 @@ class ConvUpsample(nn.Module):
         return feats
 
 
-# TODO (thomaseh): move to op/segment
 class PanopticFPNHead(nn.Module):
     """PanopticFPNHead used in Panoptic FPN.
 
@@ -104,8 +104,8 @@ class PanopticFPNHead(nn.Module):
         num_classes: int = 53,
         in_channels: int = 256,
         inner_channels: int = 128,
-        start_level: int = 0,
-        end_level: int = 4,
+        start_level: int = 2,
+        end_level: int = 6,
     ):
         """Init.
 
@@ -207,21 +207,3 @@ class PanopticFPNLoss(nn.Module):
             seg_pred, target_segs.long(), ignore_index=255
         )
         return loss_seg
-
-
-def postprocess_segms(
-    segms: torch.Tensor,
-    images_hw: list[tuple[int, int]],
-    original_hw: list[tuple[int, int]],
-) -> torch.Tensor:
-    """Postprocess segmentations."""
-    post_segms = []
-    for segm, image_hw, orig_hw in zip(segms, images_hw, original_hw):
-        post_segms.append(
-            F.interpolate(
-                segm[:, : image_hw[0], : image_hw[1]].unsqueeze(1),
-                size=(orig_hw[0], orig_hw[1]),
-                mode="bilinear",
-            ).squeeze(1)
-        )
-    return torch.stack(post_segms).argmax(dim=1)

@@ -2,7 +2,7 @@
 
 TODO (tobiasfshr) convert to the operator structure.
 """
-from typing import Tuple
+from __future__ import annotations
 
 import torch
 import torch.nn.functional as F
@@ -19,7 +19,7 @@ class Box3DUncertaintyLoss(Loss):
     def __init__(
         self,
         reduction: str = "mean",
-        loss_weights: Tuple[float, float, float, float, float] = (
+        loss_weights: tuple[float, float, float, float, float] = (
             1.0,
             1.0,
             1.0,

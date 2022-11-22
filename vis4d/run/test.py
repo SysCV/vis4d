@@ -1,5 +1,5 @@
 """Vis4D tester."""
-from typing import List
+from __future__ import annotations
 
 import torch
 from torch import nn
@@ -14,13 +14,13 @@ from .util import move_data_to_device
 
 @torch.no_grad()
 def testing_loop(
-    test_dataloader: List[DataLoader],
-    evaluators: List[Evaluator],
+    test_dataloader: list[DataLoader],
+    evaluators: list[Evaluator],
     metric: str,
     model: nn.Module,
     data_connector,
     eval_connector,  # TODO, discuss
-    visualizers: List[Visualizer] = [],
+    visualizers: list[Visualizer] = [],
 ) -> None:
     """Testing loop."""
     model.eval()

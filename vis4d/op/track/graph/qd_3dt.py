@@ -1,6 +1,8 @@
 """QD-3DT tracking graph."""
+from __future__ import annotations
+
 import copy
-from typing import Dict, List, Optional, Tuple, TypedDict
+from typing import Dict, TypedDict
 
 import torch
 import torch.nn.functional as F
@@ -44,7 +46,7 @@ class QD3DTrackGraph(torch.nn.Module):
         bbox_affinity_weight: float = 0.5,
         motion_dims: int = 7,
         num_frames: int = 5,
-        lstm_ckpt: Optional[str] = None,
+        lstm_ckpt: str | None = None,
         feature_dim: int = 64,
         hidden_size: int = 128,
         num_layers: int = 2,
@@ -81,14 +83,14 @@ class QD3DTrackGraph(torch.nn.Module):
         """Reset tracks."""
         self.num_tracks = 0
         self.tracks: Dict[int, Track] = {}  # type: ignore
-        self.backdrops: List[DictStrAny] = []
+        self.backdrops: list[DictStrAny] = []
 
     def get_tracks(  # type: ignore
         self,
         device: torch.device,
-        frame_id: Optional[int] = None,
+        frame_id: int | None = None,
         add_backdrops: bool = False,
-    ) -> Tuple[Boxes2D, Boxes3D, torch.Tensor, nn.Module, torch.Tensor]:
+    ) -> tuple[Boxes2D, Boxes3D, torch.Tensor, nn.Module, torch.Tensor]:
         """Get active tracks at given frame.
 
         If frame_id is None, return all tracks in memory.
@@ -177,7 +179,7 @@ class QD3DTrackGraph(torch.nn.Module):
         detections: Boxes2D,
         detections_3d: Boxes3D,
         embeddings: torch.Tensor,
-    ) -> Tuple[Boxes2D, Boxes3D, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[Boxes2D, Boxes3D, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Remove overlapping objects across classes via nms."""
         # duplicate removal for potential backdrops and cross classes
         scores = detections.score
@@ -261,7 +263,7 @@ class QD3DTrackGraph(torch.nn.Module):
         self,
         inputs: InputSample,
         predictions: LabelInstances,
-        embeddings: Optional[torch.Tensor] = None,
+        embeddings: torch.Tensor | None = None,
         **kwargs: torch.Tensor,
     ) -> LabelInstances:
         """Process inputs, match detections with existing tracks."""
@@ -405,10 +407,10 @@ class QD3DTrackGraph(torch.nn.Module):
 
     def forward_train(
         self,
-        inputs: List[InputSample],
-        predictions: List[LabelInstances],
-        targets: Optional[List[LabelInstances]],
-        **kwargs: List[torch.Tensor],
+        inputs: list[InputSample],
+        predictions: list[LabelInstances],
+        targets: list[LabelInstances] | None,
+        **kwargs: list[torch.Tensor],
     ) -> LossesType:
         """Forward of QDTrackGraph in training stage."""
         raise NotImplementedError

@@ -1,7 +1,7 @@
 """Embedding distance loss.
 TODO (tobiasfshr) Document the loss functions
 """
-from typing import Optional, Tuple
+from __future__ import annotations
 
 import torch
 
@@ -34,7 +34,7 @@ class EmbeddingDistanceLoss(Loss):
         self,
         pred: torch.Tensor,
         target: torch.Tensor,
-        weight: Optional[torch.Tensor] = None,
+        weight: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward function.
 
@@ -56,7 +56,7 @@ class EmbeddingDistanceLoss(Loss):
 
     def update_weight(
         self, pred: torch.Tensor, target: torch.Tensor, weight: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, float]:
+    ) -> tuple[torch.Tensor, torch.Tensor, float]:
         """Update element-wise loss weights.
 
         Exclude negatives according to maximum fraction of samples and/or

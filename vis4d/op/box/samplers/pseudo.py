@@ -1,5 +1,5 @@
 """Random Sampler."""
-from typing import Tuple
+from __future__ import annotations
 
 import torch
 
@@ -23,7 +23,7 @@ class PseudoSampler(Sampler):
     @staticmethod
     def _sample_labels(
         labels: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Randomly sample indices from given labels."""
         positive = ((labels != -1) & (labels != 0)).nonzero()[:, 0]
         negative = (labels == 0).nonzero()[:, 0]

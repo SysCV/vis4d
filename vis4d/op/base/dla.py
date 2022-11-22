@@ -1,5 +1,5 @@
 """DLA backbone."""
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 import torch
 from torch import nn
@@ -21,7 +21,7 @@ DLA_MODEL_MAPPING = {
     "dla102x2": "dla102x2-262837b6.pth",
     "dla169": "dla169-0914e092.pth",
 }
-DLA_ARCH_SETTINGS = {
+DLA_ARCH_SETTINGS = {  # pylint: disable=consider-using-namedtuple-or-dataclass
     "dla34": (
         (1, 1, 1, 2, 2, 1),
         (16, 32, 64, 128, 256, 512),
@@ -117,7 +117,7 @@ class BasicBlock(nn.Module):
         self.stride = stride
 
     def forward(
-        self, input_x: torch.Tensor, residual: Optional[torch.Tensor] = None
+        self, input_x: torch.Tensor, residual: None | torch.Tensor = None
     ) -> torch.Tensor:
         """Forward."""
         if residual is None:
@@ -170,7 +170,7 @@ class Bottleneck(nn.Module):
         self.stride = stride
 
     def forward(
-        self, input_x: torch.Tensor, residual: Optional[torch.Tensor] = None
+        self, input_x: torch.Tensor, residual: None | torch.Tensor = None
     ) -> torch.Tensor:
         """Forward."""
         if residual is None:
@@ -229,7 +229,7 @@ class BottleneckX(nn.Module):
         self.stride = stride
 
     def forward(
-        self, input_x: torch.Tensor, residual: Optional[torch.Tensor] = None
+        self, input_x: torch.Tensor, residual: None | torch.Tensor = None
     ) -> torch.Tensor:
         """Forward."""
         if residual is None:
@@ -272,7 +272,7 @@ class Root(nn.Module):
             bias=False,
             padding=(kernel_size - 1) // 2,
         )
-        self.bn = nn.BatchNorm2d(out_channels, momentum=BN_MOMENTUM)
+        self.bn1 = nn.BatchNorm2d(out_channels, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
         self.residual = residual
 
@@ -280,7 +280,7 @@ class Root(nn.Module):
         """Forward."""
         children = input_x
         input_x = self.conv(torch.cat(input_x, 1))
-        input_x = self.bn(input_x)
+        input_x = self.bn1(input_x)
         if self.residual:
             input_x += children[0]
         input_x = self.relu(input_x)
@@ -375,8 +375,8 @@ class Tree(nn.Module):
     def forward(
         self,
         input_x: torch.Tensor,
-        residual: Optional[torch.Tensor] = None,
-        children: Optional[List[torch.Tensor]] = None,
+        residual: None | torch.Tensor = None,
+        children: None | list[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Forward."""
         children = [] if children is None else children
@@ -399,9 +399,9 @@ class DLA(BaseModel):
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        levels: Tuple[int, int, int, int, int, int] = (1, 1, 1, 2, 2, 1),
-        channels: Tuple[int, int, int, int, int, int] = (
+        name: None | str = None,
+        levels: tuple[int, int, int, int, int, int] = (1, 1, 1, 2, 2, 1),
+        channels: tuple[int, int, int, int, int, int] = (
             16,
             32,
             64,
@@ -412,7 +412,7 @@ class DLA(BaseModel):
         block: str = "BasicBlock",
         residual_root: bool = False,
         cardinality: int = 32,
-        weights: Optional[str] = None,
+        weights: None | str = None,
         style: str = "imagenet",
     ) -> None:
         """Init."""
@@ -524,7 +524,7 @@ class DLA(BaseModel):
             model_weights = torch.load(weights)
         self.load_state_dict(model_weights, strict=False)
 
-    def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
         """DLA forward.
 
         Args:
@@ -532,23 +532,23 @@ class DLA(BaseModel):
                 type float32 with values ranging 0..255.
 
         Returns:
-            fp (List[torch.Tensor]): The output feature pyramid. The list index
+            fp (list[torch.Tensor]): The output feature pyramid. The list index
             represents the level, which has a downsampling raio of 2^index.
             fp[0] is a feature map with the image resolution instead of the
             original image.
         """
         input_x = self.base_layer(images)
-        outs: List[torch.Tensor] = []
+        outs: list[torch.Tensor] = []
         for i in range(6):
             input_x = getattr(self, f"level{i}")(input_x)
             outs.append(input_x)
         return outs
 
     @property
-    def out_channels(self) -> List[int]:
+    def out_channels(self) -> list[int]:
         """Get the numbers of channels for each level of feature pyramid.
 
         Returns:
-            List[int]: number of channels
+            list[int]: number of channels
         """
         return self._out_channels

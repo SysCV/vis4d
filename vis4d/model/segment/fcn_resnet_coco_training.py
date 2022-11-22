@@ -15,7 +15,7 @@ from vis4d.model.segment.common import (
     read_output_images,
     save_output_images,
 )
-from vis4d.model.segment.fcn_resnet import FCN_ResNet
+from vis4d.model.segment.FCNResNet import FCNResNet
 from vis4d.op.segment.testcase.presets import (
     SegmentationPresetEval,
     SegmentationPresetRaw,
@@ -92,7 +92,7 @@ def training_loop(
     total_iters: int,
     log_step: int = 5,
     val_step: int = 2000,
-    ckpt_dir: str = "vis4d-workspace/test/fcn_resnet50_coco2017",
+    ckpt_dir: str = "vis4d-workspace/test/FCNResNet50_coco2017",
 ):
     """Training loop."""
     print("Start training...", flush=True)
@@ -196,10 +196,10 @@ def visualize_loop(
 
 def setup(args):
     # setup model and dataloader
-    fcn_resnet = FCN_ResNet(base_model=args.base_model, resize=(520, 520))
+    FCNResNet = FCNResNet(base_model=args.base_model, resize=(520, 520))
     if args.optim == "SGD":
         optimizer = optim.SGD(
-            fcn_resnet.parameters(),
+            FCNResNet.parameters(),
             lr=args.lr,
             momentum=0.9,
             weight_decay=1e-4,
@@ -207,7 +207,7 @@ def setup(args):
         )
     elif args.optim == "Adam":
         optimizer = optim.Adam(
-            fcn_resnet.parameters(), lr=args.lr, weight_decay=1e-4
+            FCNResNet.parameters(), lr=args.lr, weight_decay=1e-4
         )
     lr_scheduler = optim.lr_scheduler.PolynomialLR(
         optimizer, args.total_iters, power=0.9
@@ -248,7 +248,7 @@ def setup(args):
         batch_size=8,
         shuffle=False,
     )
-    return fcn_resnet, optimizer, scheduler, train_loader, val_loader
+    return FCNResNet, optimizer, scheduler, train_loader, val_loader
 
 
 if __name__ == "__main__":
@@ -270,7 +270,7 @@ if __name__ == "__main__":
     parser.add_argument("--optim", default="SGD", help="optimizer")
     parser.add_argument(
         "--save_name",
-        default="fcn_resnet50_coco2017",
+        default="FCNResNet50_coco2017",
         help="folder name where models are saved.",
     )
     parser.add_argument(
@@ -289,14 +289,14 @@ if __name__ == "__main__":
 
     ckpt_dir = f"vis4d-workspace/test/{args.save_name}"
     device = torch.device("cuda")
-    fcn_resnet, optimizer, scheduler, train_loader, val_loader = setup(args)
-    fcn_resnet.to(device)
+    FCNResNet, optimizer, scheduler, train_loader, val_loader = setup(args)
+    FCNResNet.to(device)
     if args.ckpt is None:
         if args.num_gpus > 1:
             print("GPUs:", torch.cuda.device_count())
-            fcn_resnet = nn.DataParallel(fcn_resnet)
+            FCNResNet = nn.DataParallel(FCNResNet)
         training_loop(
-            fcn_resnet,
+            FCNResNet,
             train_loader,
             val_loader,
             total_iters=args.total_iters,
@@ -306,16 +306,16 @@ if __name__ == "__main__":
         if args.ckpt == "torchvision":
             weights = (
                 "https://download.pytorch.org/models/"
-                "fcn_resnet50_coco-1167a1af.pth"
+                "FCNResNet50_coco-1167a1af.pth"
             )
-            load_model_checkpoint(fcn_resnet, weights, REV_KEYS)
+            load_model_checkpoint(FCNResNet, weights, REV_KEYS)
         else:
             ckpt_path = f"{ckpt_dir}/{args.ckpt}"
             ckpt = torch.load(ckpt_path)
             print(f"Loaded checkpoint from {ckpt_path}.")
-            fcn_resnet.load_state_dict(ckpt)
+            FCNResNet.load_state_dict(ckpt)
         validation_loop(
-            fcn_resnet,
+            FCNResNet,
             val_loader,
             cur_iter=0,
             output_dir=f"{ckpt_dir}/pred_{args.ckpt}",

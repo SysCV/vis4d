@@ -1,6 +1,5 @@
 """Residual networks for classification."""
-
-from typing import List, Optional
+from __future__ import annotations
 
 import torch
 import torchvision.models.vgg as _vgg
@@ -15,7 +14,7 @@ class VGG(BaseModel):
     def __init__(
         self,
         vgg_name: str,
-        trainable_layers: Optional[int] = None,
+        trainable_layers: None | int = None,
         pretrained: bool = False,
     ):
         """Initialize the VGG base model from torchvision.
@@ -81,15 +80,15 @@ class VGG(BaseModel):
         self.name = vgg_name
 
     @property
-    def out_channels(self) -> List[int]:
+    def out_channels(self) -> list[int]:
         """Get the number of channels for each level of feature pyramid.
 
         Returns:
-            List[int]: number of channels
+            list[int]: number of channels
         """
         return [3, 3, *self._out_channels]
 
-    def forward(self, images: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
         """VGG feature forward without classification head.
 
         Args:
@@ -97,7 +96,7 @@ class VGG(BaseModel):
                 type float32 with values ranging 0..255.
 
         Returns:
-            fp (List[torch.Tensor]): The output feature pyramid. The list index
+            fp (list[torch.Tensor]): The output feature pyramid. The list index
             represents the level, which has a downsampling raio of 2^index.
             fp[0] and fp[1] is a reference to the input images. The last
             feature map downsamples the input image by 64.

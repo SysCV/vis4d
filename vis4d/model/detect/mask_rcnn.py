@@ -108,8 +108,8 @@ class MaskRCNN(nn.Module):
                 testing. Defaults to None.
 
         Returns:
-            tuple[FRCNNOut, MaskRCNNHeadOut] | ModelOutput: Either raw model outputs
-                (for training) or predicted outputs (for testing).
+            tuple[FRCNNOut, MaskRCNNHeadOut] | ModelOutput: Either raw model
+                outputs (for training) or predicted outputs (for testing).
         """
         if self.training:
             assert target_boxes is not None and target_classes is not None

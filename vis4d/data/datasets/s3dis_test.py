@@ -1,10 +1,7 @@
 """S3DIS dataset testing class."""
 import unittest
-from collections import defaultdict
 
-from sympy import dsolve
-
-from vis4d.common import COMMON_KEYS
+from vis4d.data.const import CommonKeys
 
 from .s3dis import S3DIS
 
@@ -30,9 +27,9 @@ class S3DISTest(unittest.TestCase):
         self.assertEqual(
             tuple(self.ds[0].keys()),
             (
-                COMMON_KEYS.points3d,
-                COMMON_KEYS.colors3d,
-                COMMON_KEYS.semantics3d,
-                COMMON_KEYS.instances3d,
+                CommonKeys.points3d,
+                CommonKeys.colors3d,
+                CommonKeys.semantics3d,
+                CommonKeys.instances3d,
             ),
         )

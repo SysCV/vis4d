@@ -4,8 +4,6 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from vis4d.op.detect.rcnn import MaskOut
-
 INSTANCE_OFFSET = 1000
 
 
@@ -20,7 +18,7 @@ class SimplePanopticFusionHead(nn.Module):
         overlap_thr: float = 0.5,
         stuff_area_thr: int = 4096,
         thing_conf_thr: float = 0.5,
-    ):
+    ) -> None:
         """Init.
 
         Args:
@@ -44,35 +42,47 @@ class SimplePanopticFusionHead(nn.Module):
         self.stuff_area_thr = stuff_area_thr
         self.thing_conf_thr = thing_conf_thr
         if ignore_class == -1:
-            ignore_class = self.num_stuff_classes
+            ignore_class = num_things_classes + self.num_stuff_classes
         if isinstance(ignore_class, int):
-            ignore_class = [ignore_class]
-        self.ignore_class = ignore_class
+            self.ignore_class = [ignore_class]
+        else:
+            self.ignore_class = ignore_class
 
     def _combine_segms(
-        self, ins_segm: MaskOut, sem_segm: torch.Tensor
+        self,
+        ins_mask: torch.Tensor,
+        ins_score: torch.Tensor,
+        ins_class_id: torch.Tensor,
+        sem_mask: torch.Tensor,
     ) -> torch.Tensor:
         """Combine instance and semantic masks.
 
         Uses a simple combining logic following
         "combine_semantic_and_instance_predictions.py" in panopticapi.
+
+        Args:
+            ins_mask (torch.Tensor): Instance mask with shape [N, H, W].
+            ins_score (torch.Tensor): Instance scores with shape [N].
+            ins_class_id (torch.Tensor): Instance class IDs with shape [N].
+            sem_mask (torch.Tensor): Semantic mask with shape [H, W].
+
+        Returns:
+            torch.Tensor: Panoptic mask with shape [H, W].
         """
         # panoptic segmentation
         pan_segm = torch.zeros(
-            ins_segm.masks[0].shape[1:],
-            dtype=torch.int,
-            device=ins_segm.masks[0].device,
+            ins_mask.shape[1:], dtype=torch.int, device=ins_mask.device
         )
 
         # sort instance outputs by scores
-        sorted_inds = ins_segm.scores[0].argsort(descending=True)
+        sorted_inds = ins_score.argsort(descending=True)
 
         # add instances one-by-one, check for overlaps with existing ones
         ins_id = 1
         for inst_id in sorted_inds:
-            mask = ins_segm.masks[0][inst_id]  # H,W
-            score = ins_segm.scores[0][inst_id].item()
-            cls_id = ins_segm.class_ids[0][inst_id].item()
+            mask = ins_mask[inst_id]  # H,W
+            score = ins_score[inst_id].item()
+            cls_id = ins_class_id[inst_id].item()
             if score < self.thing_conf_thr:
                 continue
 
@@ -91,37 +101,55 @@ class SimplePanopticFusionHead(nn.Module):
             ins_id += 1
 
         # add semantic results to remaining empty areas
-        sem_segm[pan_segm > 0] = self.ignore_class[0]
-        sem_clses, sem_cnts = sem_segm.unique(return_counts=True)
+        sem_mask[pan_segm > 0] = self.ignore_class[0]
+        sem_clses, sem_cnts = sem_mask.unique(return_counts=True)
         for sem_cls, sem_cnt in zip(sem_clses, sem_cnts):
             if sem_cls in self.ignore_class or sem_cnt < self.stuff_area_thr:
                 continue
-            pan_segm[sem_segm == sem_cls] = sem_cls + self.num_things_classes
+            pan_segm[sem_mask == sem_cls] = sem_cls + self.num_things_classes
 
         return pan_segm
 
     def forward(
-        self, ins_masks: MaskOut, sem_masks: torch.Tensor
+        self,
+        ins_masks: list[torch.Tensor],
+        ins_scores: list[torch.Tensor],
+        ins_class_ids: list[torch.Tensor],
+        sem_masks: list[torch.Tensor],
     ) -> torch.Tensor:
-        """Forward pass."""
+        """Forward pass.
+
+        Args:
+            ins_masks (list[torch.Tensor]): List of instance masks, each with
+                shape [N, H, W].
+            ins_scores (list[torch.Tensor]): List of instance scores, each with
+                shape [N].
+            ins_class_ids (list[torch.Tensor]): List of class IDs, each with
+                shape [N].
+            sem_masks (list[torch.Tensor]): List of semantic masks, each with
+                shape [H, W].
+
+        Returns:
+            torch.Tensor: Panoptic masks with shape [B, H, W].
+        """
         ins_masks_list = [
-            MaskOut(
-                masks=[ins_masks.masks[i]],
-                scores=[ins_masks.scores[i]],
-                class_ids=[ins_masks.class_ids[i]],
-            )
-            for i in range(len(ins_masks.masks))
+            (ins_masks[i], ins_scores[i], ins_class_ids[i])
+            for i in range(len(ins_masks))
         ]
         assert len(ins_masks_list) == len(
             sem_masks
         ), "Length of predictions is not the same, but should be"
         pan_segms = []
         for ins_segm, sem_segm in zip(ins_masks_list, sem_masks):
-            pan_segms.append(self._combine_segms(ins_segm, sem_segm))
+            pan_segms.append(self._combine_segms(*ins_segm, sem_segm))
         return torch.stack(pan_segms)
 
     def __call__(
-        self, ins_masks: MaskOut, sem_masks: torch.Tensor
+        self,
+        ins_masks: list[torch.Tensor],
+        ins_scores: list[torch.Tensor],
+        ins_class_ids: list[torch.Tensor],
+        sem_masks: list[torch.Tensor],
     ) -> torch.Tensor:
         """Type definition for function call."""
-        return self._call_impl(ins_masks, sem_masks)
+        return self._call_impl(ins_masks, ins_scores, ins_class_ids, sem_masks)

@@ -1,9 +1,11 @@
 """Utilities for op."""
+from __future__ import annotations
+
 import os
 import re
 import tempfile
 from io import BytesIO
-from typing import Any, List, Optional, Tuple
+from typing import Any
 from urllib.request import urlopen
 from zipfile import ZipFile
 
@@ -15,10 +17,10 @@ from vis4d.common import DictStrAny
 from vis4d.common.imports import MMCV_AVAILABLE
 
 if MMCV_AVAILABLE:
-    from mmcv import Config as MMConfig
+    from mmcv import Config as MM_CONFIG
     from mmcv.runner import load_checkpoint
 else:
-    MMConfig = None
+    MM_CONFIG = None
 
 
 BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
@@ -63,7 +65,7 @@ def load_model_checkpoint(
     model: nn.Module,
     weights: str,
     strict: bool = False,
-    rev_keys: Optional[List[Tuple[str, str]]] = None,
+    rev_keys: None | list[tuple[str, str]] = None,
 ) -> None:
     """Load MM model checkpoint."""
     if rev_keys is None:  # pragma: no cover
@@ -89,10 +91,10 @@ def load_config_from_mm(url: str, mm_base: str) -> str:
     return response.text
 
 
-def load_config(path: str, key: str = "model") -> MMConfig:
+def load_config(path: str, key: str = "model") -> MM_CONFIG:
     """Load config either from file or from URL."""
     if os.path.exists(path):
-        cfg = MMConfig.fromfile(path)
+        cfg = MM_CONFIG.fromfile(path)
     elif re.compile(r"^mm(det|seg)://").search(path):
         pre = path[:8]
         cfg_content = load_config_from_mm(path.split(pre)[-1], MM_CFG_MAP[pre])
@@ -110,10 +112,10 @@ def load_config(path: str, key: str = "model") -> MMConfig:
                 ) as zipfile:
                     zipfile.extractall(path=temp_config_dir)
                 os.chdir(os.path.join(temp_config_dir, MM_ZIP_MAP[pre]))
-                cfg = MMConfig.fromfile(path.replace(pre, ""))
+                cfg = MM_CONFIG.fromfile(path.replace(pre, ""))
                 os.chdir(cwd)
         else:
-            cfg = MMConfig.fromstring(cfg_content, os.path.splitext(path)[1])
+            cfg = MM_CONFIG.fromstring(cfg_content, os.path.splitext(path)[1])
     else:
         raise FileNotFoundError(f"MM config not found: {path}")
     assert key in cfg
@@ -121,7 +123,7 @@ def load_config(path: str, key: str = "model") -> MMConfig:
 
 
 def set_attr(  # type: ignore
-    attr: Any, partial_keys: List[str], last_key: str, value: Any
+    attr: Any, partial_keys: list[str], last_key: str, value: Any
 ) -> None:
     """Set specific attribute in config."""
     for i, part_k in enumerate(partial_keys):
@@ -133,7 +135,7 @@ def set_attr(  # type: ignore
     attr[last_key] = value
 
 
-def add_keyword_args(model_kwargs: DictStrAny, cfg: MMConfig) -> None:
+def add_keyword_args(model_kwargs: DictStrAny, cfg: MM_CONFIG) -> None:
     """Add keyword args in config."""
     for k, v in model_kwargs.items():
         partial_keys = k.split(".")

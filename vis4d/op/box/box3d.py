@@ -1,5 +1,5 @@
 """Utility functions for 3D bounding boxes."""
-from typing import Tuple
+from __future__ import annotations
 
 import torch
 from torch import Tensor
@@ -19,6 +19,8 @@ def boxes3d_to_corners(boxes3d: Tensor, axis_mode: AxisMode) -> Tensor:
 
     Returns:
         Tensor: [N, 8, 3] 3D bounding box corner coordinates, in this order:
+
+               (back)
         (6) +---------+. (7)
             | ` .     |  ` .
             | (4) +---+-----+ (5)
@@ -26,6 +28,7 @@ def boxes3d_to_corners(boxes3d: Tensor, axis_mode: AxisMode) -> Tensor:
         (2) +-----+---+. (3)|
             ` .   |     ` . |
             (0) ` +---------+ (1)
+                     (front)
     """
     w, l, h = boxes3d[:, 3], boxes3d[:, 4], boxes3d[:, 5]
     rotation_matrix = quaternion_to_matrix(boxes3d[:, 6:])
@@ -78,7 +81,7 @@ def boxes3d_to_corners(boxes3d: Tensor, axis_mode: AxisMode) -> Tensor:
 def boxes3d_in_image(
     boxes: torch.Tensor,
     cam_intrinsics: torch.Tensor,
-    image_hw: Tuple[int, int],
+    image_hw: tuple[int, int],
 ) -> torch.Tensor:
     """Check if a 3D bounding box is (partially) in an image.
 
@@ -86,7 +89,7 @@ def boxes3d_in_image(
         boxes (torch.Tensor): [N, 10] Tensor of 3D boxes. In OpenCV coordinate
             frame.
         cam_intrinsics (torch.Tensor): [3, 3] Camera matrix.
-        image_hw (Tuple[int, int]): image height / width.
+        image_hw (tuple[int, int]): image height / width.
 
     Returns:
         torch.Tensor: [N,] boolean values.

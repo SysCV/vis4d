@@ -16,7 +16,7 @@ from vis4d.model.segment.common import (
     read_output_images,
     save_output_images,
 )
-from vis4d.model.segment.fcn_resnet import FCN_ResNet
+from vis4d.model.segment.fcn_resnet import FCNResNet
 from vis4d.op.segment.testcase.presets import (
     SegmentationPresetEval,
     SegmentationPresetRaw,
@@ -186,10 +186,10 @@ def visualize_prediction(args):
 
 def setup(args):
     # setup model and dataloader
-    fcn_resnet = FCN_ResNet(base_model=args.base_model)
+    FCNResNet = FCNResNet(base_model=args.base_model)
     if args.optim == "SGD":
         optimizer = optim.SGD(
-            fcn_resnet.parameters(),
+            FCNResNet.parameters(),
             lr=args.lr,
             momentum=0.9,
             weight_decay=5e-4,
@@ -197,7 +197,7 @@ def setup(args):
         )
     elif args.optim == "Adam":
         optimizer = optim.Adam(
-            fcn_resnet.parameters(), lr=args.lr, weight_decay=5e-4
+            FCNResNet.parameters(), lr=args.lr, weight_decay=5e-4
         )
     scheduler = optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[40, 60, 80], gamma=0.2
@@ -225,7 +225,7 @@ def setup(args):
         batch_size=8,
         shuffle=False,
     )
-    return fcn_resnet, optimizer, scheduler, train_loader, val_loader
+    return FCNResNet, optimizer, scheduler, train_loader, val_loader
 
 
 if __name__ == "__main__":
@@ -244,7 +244,7 @@ if __name__ == "__main__":
     parser.add_argument("--optim", default="SGD", help="optimizer")
     parser.add_argument(
         "--save_name",
-        default="fcn_resnet50_voc2012",
+        default="FCNResNet50_voc2012",
         help="folder name where models are saved.",
     )
     parser.add_argument(
@@ -257,16 +257,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     device = torch.device("cuda")
-    fcn_resnet, optimizer, scheduler, train_loader, val_loader = setup(args)
-    fcn_resnet.to(device)
+    FCNResNet, optimizer, scheduler, train_loader, val_loader = setup(args)
+    FCNResNet.to(device)
     if args.ckpt is None:
         if args.num_gpus > 1:
-            fcn_resnet = nn.DataParallel(
-                fcn_resnet, device_ids=[device, torch.device("cuda:1")]
+            FCNResNet = nn.DataParallel(
+                FCNResNet, device_ids=[device, torch.device("cuda:1")]
             )
         ckpt_dir = f"vis4d-workspace/test/{args.save_name}"
         training_loop(
-            fcn_resnet,
+            FCNResNet,
             train_loader,
             val_loader,
             num_epochs=args.epochs,
@@ -276,11 +276,11 @@ if __name__ == "__main__":
         if args.ckpt == "torchvision":
             weights = (
                 "https://download.pytorch.org/models/"
-                "fcn_resnet50_coco-1167a1af.pth"
+                "FCNResNet50_coco-1167a1af.pth"
             )
-            load_model_checkpoint(fcn_resnet, weights, REV_KEYS)
+            load_model_checkpoint(FCNResNet, weights, REV_KEYS)
         else:
             ckpt = torch.load(args.ckpt)
-            fcn_resnet.load_state_dict(ckpt)
-        validation_loop(fcn_resnet, val_loader, epoch=args.epochs)
+            FCNResNet.load_state_dict(ckpt)
+        validation_loop(FCNResNet, val_loader, epoch=args.epochs)
         visualize_prediction(args)

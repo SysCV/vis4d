@@ -1,5 +1,5 @@
 """Quasi-dense instance similarity learning model."""
-from typing import Dict, List, Optional, Tuple
+from __future__ import annotations
 
 import torch
 from torch import nn
@@ -7,7 +7,6 @@ from torch import nn
 from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
 from vis4d.op.detect.rcnn import DetOut, RCNNLoss, RCNNLosses, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss, RPNLosses
-from vis4d.op.fpp.fpn import FPN
 from vis4d.op.track.graph.assignment import TrackIDCounter
 from vis4d.op.track.qdtrack import (
     QDSimilarityHead,
@@ -18,7 +17,7 @@ from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
 
 REV_KEYS = [
     (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),
-    ("\.rpn_reg\.", ".rpn_box."),
+    (r"\.rpn_reg\.", ".rpn_box."),
     (r"^detector.roi_head.mm_roi_head.bbox_head\.", "roi_head."),
     (r"^detector.backbone.mm_backbone\.", "body."),
     (
@@ -29,8 +28,8 @@ REV_KEYS = [
         r"^detector.backbone.neck.mm_neck.fpn_convs\.",
         "layer_blocks.",
     ),
-    ("\.conv.weight", ".weight"),
-    ("\.conv.bias", ".bias"),
+    (r"\.conv.weight", ".weight"),
+    (r"\.conv.bias", ".bias"),
 ]
 
 
@@ -85,14 +84,14 @@ class QDTrack(nn.Module):
 
     def forward(
         self,
-        features: List[torch.Tensor],
-        det_boxes: List[torch.Tensor],
-        det_scores: List[torch.Tensor],
-        det_class_ids: List[torch.Tensor],
-        frame_ids: Optional[Tuple[int, ...]] = None,
-        target_boxes: Optional[List[torch.Tensor]] = None,
-        target_track_ids: Optional[List[torch.Tensor]] = None,
-    ) -> List[QDTrackState]:
+        features: list[torch.Tensor],
+        det_boxes: list[torch.Tensor],
+        det_scores: list[torch.Tensor],
+        det_class_ids: list[torch.Tensor],
+        frame_ids: None | tuple[int, ...] = None,
+        target_boxes: None | list[torch.Tensor] = None,
+        target_track_ids: None | list[torch.Tensor] = None,
+    ) -> list[QDTrackState]:
         """Forward function."""
         if target_boxes is not None:
             assert (
@@ -111,13 +110,13 @@ class QDTrack(nn.Module):
 
     def _split_views(
         self,
-        embeddings: List[torch.Tensor],
-        target_track_ids: List[torch.Tensor],
-    ) -> Tuple[
-        List[torch.Tensor],
-        List[List[torch.Tensor]],
-        List[torch.Tensor],
-        List[List[torch.Tensor]],
+        embeddings: list[torch.Tensor],
+        target_track_ids: list[torch.Tensor],
+    ) -> tuple[
+        list[torch.Tensor],
+        list[list[torch.Tensor]],
+        list[torch.Tensor],
+        list[list[torch.Tensor]],
     ]:
         """Split batch and reference view dimension."""
         B, R = len(embeddings), self.num_ref_views + 1
@@ -136,10 +135,10 @@ class QDTrack(nn.Module):
     @torch.no_grad()
     def _sample_proposals(
         self,
-        det_boxes: List[torch.Tensor],
-        target_boxes: List[torch.Tensor],
-        target_track_ids: List[torch.Tensor],
-    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+        det_boxes: list[torch.Tensor],
+        target_boxes: list[torch.Tensor],
+        target_track_ids: list[torch.Tensor],
+    ) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
         """Sample proposals for instance similarity learning."""
         B, R = len(det_boxes), self.num_ref_views + 1
 
@@ -177,10 +176,10 @@ class QDTrack(nn.Module):
 
     def _forward_train(
         self,
-        features: List[torch.Tensor],
-        det_boxes: List[torch.Tensor],
-        target_boxes: List[torch.Tensor],
-        target_track_ids: List[torch.Tensor],
+        features: list[torch.Tensor],
+        det_boxes: list[torch.Tensor],
+        target_boxes: list[torch.Tensor],
+        target_track_ids: list[torch.Tensor],
     ):
         """TODO define return type."""
         sampled_boxes, sampled_track_ids = self._sample_proposals(
@@ -193,12 +192,12 @@ class QDTrack(nn.Module):
 
     def _forward_test(
         self,
-        features: List[torch.Tensor],
-        det_boxes: List[torch.Tensor],
-        det_scores: List[torch.Tensor],
-        det_class_ids: List[torch.Tensor],
-        frame_ids: Tuple[int, ...],
-    ) -> List[QDTrackState]:
+        features: list[torch.Tensor],
+        det_boxes: list[torch.Tensor],
+        det_scores: list[torch.Tensor],
+        det_class_ids: list[torch.Tensor],
+        frame_ids: tuple[int, ...],
+    ) -> list[QDTrackState]:
         """Forward during test."""
         embeddings = self.similarity_head(features, det_boxes)
 
@@ -247,18 +246,18 @@ class FasterRCNNQDTrack(nn.Module):
     def forward(
         self,
         images: torch.Tensor,
-        images_hw: List[Tuple[int, int]],
-        frame_ids: List[int],
-    ) -> List[QDTrackState]:
+        images_hw: list[tuple[int, int]],
+        frame_ids: list[int],
+    ) -> list[QDTrackState]:
         """Forward."""
         return self._forward_test(images, images_hw, frame_ids)
 
     def _forward_test(
         self,
         images: torch.Tensor,
-        images_hw: List[Tuple[int, int]],
-        frame_ids: List[int],
-    ) -> List[QDTrackState]:
+        images_hw: list[tuple[int, int]],
+        frame_ids: list[int],
+    ) -> list[QDTrackState]:
         """Forward inference stage."""
         features = self.backbone(images)
         features = self.fpn(features)

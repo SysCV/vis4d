@@ -1,5 +1,7 @@
 """Vis4D op typing."""
-from typing import List, NamedTuple
+from __future__ import annotations
+
+from typing import NamedTuple
 
 from torch import Tensor
 
@@ -7,5 +9,5 @@ from torch import Tensor
 class Proposals(NamedTuple):
     """Output structure for 2D bounding box proposals."""
 
-    boxes: List[Tensor]
-    scores: List[Tensor]
+    boxes: list[Tensor]
+    scores: list[Tensor]

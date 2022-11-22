@@ -8,6 +8,7 @@ from vis4d.struct_to_revise import Boxes2D, Intrinsics
 from .box3d import QD3DTBox3DCoder
 
 
+# TODO fix test after fixing box3d.py, renaming for now
 class TestBox3DCoder(unittest.TestCase):
     """Test cases for Box3D coder."""
 

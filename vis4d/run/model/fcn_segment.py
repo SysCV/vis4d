@@ -11,7 +11,7 @@ from vis4d.data import DictData
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
 from vis4d.eval import COCOEvaluator, Evaluator
-from vis4d.model.segment.fcn_resnet import FCN_ResNet
+from vis4d.model.segment.fcn_resnet import FCNResNet
 from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.run.data.detect import default_test_pipeline, default_train_pipeline
 from vis4d.run.test import testing_loop
@@ -89,8 +89,8 @@ def train(num_gpus: int, ckpt: str) -> None:
     assert train_loader is not None
 
     # model
-    fcn_resnet = FCN_ResNet(base_model=args.base_model, resize=(520, 520))
-    fcn_resnet.to(device)
+    FCNResNet = FCNResNet(base_model=args.base_model, resize=(520, 520))
+    FCNResNet.to(device)
 
     if num_gpus > 1:
         mask_rcnn = nn.DataParallel(
@@ -99,7 +99,7 @@ def train(num_gpus: int, ckpt: str) -> None:
 
     # optimization
     optimizer = optim.Adam(
-        fcn_resnet.parameters(),
+        FCNResNet.parameters(),
         lr=learning_rate,
         momentum=0.9,
         weight_decay=0.0001,
@@ -115,7 +115,7 @@ def train(num_gpus: int, ckpt: str) -> None:
         test_loader,
         test_evals,
         test_metric,
-        fcn_resnet,
+        FCNResNet,
         mask_rcnn_loss,
         data_connector,
         optimizer,
@@ -137,12 +137,12 @@ def test(ckpt: str) -> None:
     _, test_loader, test_evals, test_metric = get_dataloaders()
 
     # model
-    fcn_resnet = FCN_ResNet(base_model=args.base_model, resize=(520, 520))
-    fcn_resnet.to(device)
+    FCNResNet = FCNResNet(base_model=args.base_model, resize=(520, 520))
+    FCNResNet.to(device)
 
     # run testing
     testing_loop(
-        test_loader, test_evals, test_metric, fcn_resnet, data_connector
+        test_loader, test_evals, test_metric, FCNResNet, data_connector
     )
 
 
@@ -157,9 +157,3 @@ if __name__ == "__main__":
         train(args.num_gpus, args.ckpt)
     else:
         test(args.ckpt)
-
-x = np.linspace(-1, 1, num=10)
-y = np.linspace(-1, 1, num=10)
-z = np.linspace(-1, 1, num=10)
-grid = np.meshgrid(x, y, z)
-pcd = np.column_stack((v.flatten() for v in grid))

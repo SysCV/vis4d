@@ -1,5 +1,5 @@
 """Match predictions and targets according to maximum 2D IoU."""
-from typing import List, Tuple
+from __future__ import annotations
 
 import torch
 
@@ -14,8 +14,8 @@ class MaxIoUMatcher(Matcher):
 
     def __init__(
         self,
-        thresholds: List[float],
-        labels: List[int],
+        thresholds: list[float],
+        labels: list[int],
         allow_low_quality_matches: bool,
         min_positive_iou: float = 0.0,
     ):
@@ -71,7 +71,7 @@ class MaxIoUMatcher(Matcher):
 
     def _compute_matches(
         self, match_quality_matrix: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute matching boxes and their labels w/ match_quality_matrix."""
         assert match_quality_matrix.dim() == 2
         if match_quality_matrix.numel() == 0:

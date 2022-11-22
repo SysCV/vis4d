@@ -3,8 +3,7 @@ import unittest
 
 import torch
 
-from vis4d.struct_to_revise import Boxes2D
-from vis4d.unittest.utils import generate_dets
+from vis4d.unittest.util import generate_boxes
 
 from .roi_pooler import MultiScaleRoIAlign, MultiScaleRoIPool
 
@@ -15,9 +14,7 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
     def test_pool(self) -> None:
         """Testcase for pool function."""
         pooler = MultiScaleRoIAlign(
-            resolution=(7, 7),
-            strides=[8, 16],
-            sampling_ratio=0,
+            resolution=(7, 7), strides=[8, 16], sampling_ratio=0
         )
 
         N, C, H, W = 2, 128, 1024, 1024  # pylint: disable=invalid-name
@@ -29,24 +26,18 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
                 (N, C, H // pooler.strides[1], W // pooler.strides[1])
             ),
         ]
-
-        boxes_list = []
-        for _ in range(N):
-            boxes_list += [generate_dets(H, W, 10)]
+        boxes_list = [generate_boxes(H, W, 10)[0][0] for _ in range(N)]
 
         out = pooler(inputs, boxes_list)
         self.assertEqual(out.shape, (N * 10, C, 7, 7))
 
-        pooler = MultiScaleRoIPool(
-            resolution=(7, 7),
-            strides=[8],
-        )
+        pooler = MultiScaleRoIPool(resolution=(7, 7), strides=[8])
         out = pooler([inputs[0]], boxes_list)
         self.assertEqual(out.shape, (N * 10, C, 7, 7))
 
         boxes_list = []
         for _ in range(N):
-            boxes_list += [Boxes2D.empty()]
+            boxes_list += [torch.empty([0, 4])]
 
         out = pooler([inputs[0]], boxes_list)
         self.assertEqual(out.shape, (0, C, 7, 7))

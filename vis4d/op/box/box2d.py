@@ -11,7 +11,16 @@ from vis4d.op.geometry.transform import transform_points
 def bbox_scale(
     boxes: torch.Tensor, scale_factor_xy: tuple[float, float]
 ) -> torch.Tensor:
-    """Scale bounding box tensor."""
+    """Scale bounding box tensor.
+
+    Args:
+        boxes (torch.Tensor): Bounding boxes with shape [N, 4]
+        scale_factor_xy (tuple[float, float]): Scaling factor for x and y
+
+    Returns:
+        torch.Tensor with bounding boxes scaled by the given factors in
+        x and y direction
+    """
     boxes[:, [0, 2]] *= scale_factor_xy[0]
     boxes[:, [1, 3]] *= scale_factor_xy[1]
     return boxes
@@ -20,7 +29,15 @@ def bbox_scale(
 def bbox_clip(
     boxes: torch.Tensor, image_hw: tuple[float, float]
 ) -> torch.Tensor:
-    """Clip bounding boxes to image dims."""
+    """Clip bounding boxes to image dims.
+
+    Args:
+        boxes (torch.Tensor): Bounding boxes with shape [N, 4]
+        image_hw (tuple[float, float]): Image dimensions.
+
+    Returns:
+        torch.Tensor: Clipped bounding boxes.
+    """
     boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, image_hw[1] - 1)
     boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(0, image_hw[0] - 1)
     return boxes
@@ -32,7 +49,17 @@ def scale_and_clip_boxes(
     output_hw: tuple[int, int],
     clip: bool = True,
 ) -> torch.Tensor:
-    """Postprocess boxes by scaling and clipping to given image dims."""
+    """Postprocess boxes by scaling and clipping to given image dims.
+
+    Args:
+        boxes (torch.Tensor): Bounding boxes with shape [N, 4]
+        original_hw (tuple[int, int]): Original height / width of image
+        output_hw (tuple[int, int]): Rescale height / width  of image
+        clip (bool): if true, clips box corners to image bounds
+
+    Returns:
+        torch.Tensor containing rescaled and possibly clipped bounding boxes
+    """
     scale_factor = (
         original_hw[1] / output_hw[1],
         original_hw[0] / output_hw[0],
@@ -48,7 +75,8 @@ def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
     """Compute bounding box areas.
 
     Args:
-        boxes (torch.Tensor): [N, 4] tensor of 2D boxes in format (x1, y1, x2, y2).
+        boxes (torch.Tensor): [N, 4] tensor of 2D boxes
+                                     in format (x1, y1, x2, y2).
 
     Returns:
         torch.Tensor: [N,] tensor of box areas.
@@ -105,7 +133,16 @@ def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
 def transform_bbox(
     trans_mat: torch.Tensor, boxes: torch.Tensor
 ) -> torch.Tensor:
-    """Apply trans_mat (3, 3) / (B, 3, 3)  to (N, 4) / (B, N, 4) xyxy boxes."""
+    """Apply trans_mat (3, 3) / (B, 3, 3)  to (N, 4) / (B, N, 4) xyxy boxes.
+
+    Args:
+        trans_mat (torch.Tensor): Transformation matrix
+                                  of shape (3,3) or (B,3,3)
+        boxes (torch.Tensor): Bounding boxes of shape (N,4) or (B,N,4)
+
+    Returns:
+        torch.Tensor containing linear transformed bounding boxes. (B?, N, 4)
+    """
     assert len(trans_mat.shape) == len(
         boxes.shape
     ), "trans_mat and boxes must have same number of dimensions!"
@@ -140,16 +177,53 @@ def transform_bbox(
     return transformed_boxes
 
 
+# TODO, refactor? move to utils?
 def random_choice(tensor: torch.Tensor, sample_size: int) -> torch.Tensor:
-    """Randomly choose elements from a tensor."""
+    """Randomly choose elements from a tensor.
+
+    If sample_size < len(tensor) this function will sample without repetition
+    otherwise certain elements will be repeated.
+
+    Args:
+        tensor (torch.Tensor): Tensor to sample from
+        sample_size (int): Number of elements to sample
+
+    Returns:
+        torch.Tensor containing sample_size randomly sampled entries.
+    """
     perm = torch.randperm(len(tensor), device=tensor.device)[:sample_size]
+
+    # Additionally sample with repetition
+    if sample_size > len(tensor):
+        remaining_samples = sample_size - len(tensor)
+        perm = torch.concat(
+            [
+                torch.randint(
+                    remaining_samples,
+                    (remaining_samples,),
+                    device=tensor.device,
+                ),
+                perm,
+            ]
+        )
+
     return tensor[perm]
 
 
-def non_intersection(t1: torch.Tensor, t2: torch.Tensor) -> torch.Tensor:
-    """Get the elements of t1 that are not present in t2."""
-    compareview = t2.repeat(t1.shape[0], 1).T
-    return t1[(compareview != t1).T.prod(1) == 1]
+def non_intersection(
+    tensor_a: torch.Tensor, tensor_b: torch.Tensor
+) -> torch.Tensor:
+    """Get the elements of tensor_a that are not present in tensor_b.
+
+    Args:
+        tensor_a (torch.Tensor): First tensor
+        tensor_b (torch.Tensor): Second tensor
+
+    Returns:
+        torch.Tensor containing all elements that occur in both tensors
+    """
+    compareview = tensor_b.repeat(tensor_a.shape[0], 1).T
+    return tensor_a[(compareview != tensor_a).T.prod(1) == 1]
 
 
 def apply_mask(
@@ -160,6 +234,7 @@ def apply_mask(
     Args:
         masks (list[torch.Tensor]): Masks to apply on tensors.
         *args (list[torch.Tensor]): List of tensors to apply the masks on.
+
     Returns:
         tuple[list[torch.Tensor], ...]: Masked tensor lists.
     """
@@ -173,6 +248,7 @@ def filter_boxes_by_area(
     boxes: torch.Tensor, min_area: float = 0.0
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Filter a set of 2D bounding boxes given a minimum area.
+
     Args:
         boxes (Tensor): 2D bounding boxes [N, 4].
         min_area (float, optional): Minimum area. Defaults to 0.0.
@@ -204,13 +280,16 @@ def multiclass_nms(
             contains scores of the background class, but this will be ignored.
         score_thr (float): bbox threshold, bboxes with scores lower than it
             will not be considered.
-        nms_thr (float): NMS IoU threshold
+        iou_thr (float): NMS IoU threshold
         max_num (int, optional): if there are more than max_num bboxes after
             NMS, only top max_num will be kept. Defaults to -1.
 
     Returns:
         tuple: (Tensor, Tensor, Tensor, Tensor): detections (k, 5), scores
             (k), classes (k) and indices (k).
+
+    Raises:
+        RuntimeError: If there is a onnx error,
     """
     num_classes = multi_scores.size(1) - 1
     # exclude background category
@@ -227,8 +306,8 @@ def multiclass_nms(
     labels = labels.view(1, -1).expand_as(scores)
 
     bboxes = bboxes.view(-1, 4)
-    scores = scores.view(-1)
-    labels = labels.view(-1)
+    scores = scores.reshape(-1)
+    labels = labels.reshape(-1)
 
     if not torch.onnx.is_in_onnx_export():
         # NonZero not supported  in TensorRT
@@ -285,12 +364,12 @@ def distance_3d_nms(
     ).squeeze(-1)
 
     for i, box3d in enumerate(boxes3d):
-        current_3d_score = box3d.score * boxes2d_scores[i]  # type: ignore
+        current_3d_score = box3d.score * boxes2d_scores[i]
         current_class = cat_mapping[int(box3d.class_ids)]
 
-        if current_class in ["pedestrian", "traffic_cone"]:
+        if current_class in {"pedestrian", "traffic_cone"}:
             nms_dist = 0.5
-        elif current_class in ["bicycle", "motorcycle", "barrier"]:
+        elif current_class in {"bicycle", "motorcycle", "barrier"}:
             nms_dist = 1
         else:
             nms_dist = 2
@@ -298,7 +377,7 @@ def distance_3d_nms(
         nms_candidates = (distance_matrix[i] < nms_dist).nonzero().squeeze(-1)
 
         valid_candidates = (
-            boxes3d[nms_candidates].score * boxes2d_scores[nms_candidates]  # type: ignore # pylint: disable=line-too-long
+            boxes3d[nms_candidates].score * boxes2d_scores[nms_candidates]
             > current_3d_score
         )[(boxes3d[nms_candidates].class_ids == box3d.class_ids).squeeze(0)]
 

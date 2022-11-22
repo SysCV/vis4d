@@ -1,6 +1,5 @@
 """Random Sampler."""
-from collections import defaultdict
-from typing import Dict, List, Tuple, Union
+from __future__ import annotations
 
 import torch
 
@@ -38,7 +37,7 @@ class RandomSampler(Sampler):
 
     def _sample_labels(
         self, labels: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Randomly sample indices from given labels."""
         positive = ((labels != -1) & (labels != self.bg_label)).nonzero()[:, 0]
         negative = (labels == self.bg_label).nonzero()[:, 0]

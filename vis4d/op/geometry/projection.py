@@ -90,7 +90,7 @@ def points_inside_image(
     Args:
         points_coord (torch.Tensor): 2D pixel coordinates of shape [..., 2].
         depths (torch.Tensor): Associated depth of each 2D pixel coordinate.
-        images_hw:  (torch.Tensor| Tuple[int, int]]) Associated tensor of image
+        images_hw:  (torch.Tensor| tuple[int, int]]) Associated tensor of image
                     dimensions, shape [..., 2] or single height, width pair.
 
     Returns:

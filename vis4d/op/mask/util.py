@@ -1,14 +1,11 @@
 """Utility functions for segmentation masks."""
-from typing import Tuple
+from __future__ import annotations
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
 
-# implementation modified from:
-# https://github.com/facebookresearch/detectron2/
-# TODO (Thomas) describe the changes
 def _do_paste_mask(
     masks: torch.Tensor,
     boxes: torch.Tensor,
@@ -16,11 +13,29 @@ def _do_paste_mask(
     img_w: int,
     skip_empty: bool = True,
 ) -> torch.Tensor:
-    """Paste mask onto image."""
-    # On GPU, paste all masks together (up to chunk size)
-    # by using the entire image to sample the masks
-    # Compared to pasting them one by one,
-    # this has more operations but is faster on COCO-scale dataset.
+    """Paste mask onto image.
+
+    On GPU, paste all masks together (up to chunk size) by using the entire
+    image to sample the masks Compared to pasting them one by one, this has
+    more operations but is faster on COCO-scale dataset.
+
+    This implementation is modified from
+    https://github.com/facebookresearch/detectron2/
+
+    Args:
+        masks (torch.Tensor): Masks with shape [N, 1, Hmask, Wmask].
+        boxes (torch.Tensor): Boxes with shape [N, 4].
+        img_h (int): Image height.
+        img_w (int): Image width.
+        skip_empty (bool, optional): Only paste masks within the region that
+            tightly bound all boxes, and returns the results this region only.
+            An important optimization for CPU. Defaults to True.
+
+    Returns:
+        torch.Tensor: Mask with shape [N, Himg, Wimg] if skip_empty == True, or
+            a mask of shape (N, H', W') and the slice object for the
+            corresponding region if skip_empty == False.
+    """
     device = masks.device
 
     if skip_empty:
@@ -33,7 +48,7 @@ def _do_paste_mask(
         y1_int = torch.clamp(boxes[:, 3].max().ceil() + 1, max=img_h).to(
             dtype=torch.int32
         )
-    else:  # pragma: no cover
+    else:
         x0_int, y0_int = 0, 0
         x1_int, y1_int = img_w, img_h
     x0, y0, x1, y1 = torch.split(boxes, 1, dim=1)  # each is Nx1
@@ -46,9 +61,8 @@ def _do_paste_mask(
     img_x = (
         torch.arange(x0_int, x1_int, device=device, dtype=torch.float32) + 0.5
     )
-    img_y = (img_y - y0) / (y1 - y0) * 2 - 1
-    img_x = (img_x - x0) / (x1 - x0) * 2 - 1
-    # img_x, img_y have shapes (N, w), (N, h)
+    img_y = (img_y - y0) / (y1 - y0) * 2 - 1  # (N, h)
+    img_x = (img_x - x0) / (x1 - x0) * 2 - 1  # (N, w)
 
     gx = img_x[:, None, :].expand(num_masks, img_y.size(1), img_x.size(1))
     gy = img_y[:, :, None].expand(num_masks, img_y.size(1), img_x.size(1))
@@ -60,28 +74,50 @@ def _do_paste_mask(
 
     if skip_empty:
         return img_masks[:, 0], (slice(y0_int, y1_int), slice(x0_int, x1_int))
-    return img_masks[:, 0], ()  # pragma: no cover
+    return img_masks[:, 0], ()
 
 
 def paste_masks_in_image(
     masks: torch.Tensor,
     boxes: torch.Tensor,
-    image_shape: Tuple[int, int],
+    image_shape: tuple[int, int],
     threshold: float = 0.5,
     bytes_per_float: int = 4,
     gpu_mem_limit: int = 1024**3,
 ) -> torch.Tensor:
     """Paste masks that are of a fixed resolution into an image.
 
+    The location, height, and width for pasting each mask is determined by
+    their corresponding bounding boxes in boxes.
+
     This implementation is modified from
     https://github.com/facebookresearch/detectron2/
+
+    Args:
+        masks (torch.Tensor): Masks with shape [N, Hmask, Wmask], where N is
+            the number of detected object instances in the image and Hmask,
+            Wmask are the mask width and mask height of the predicted mask
+            (e.g., Hmask = Wmask = 28). Values are in [0, 1].
+        boxes (torch.Tensor): Boxes with shape [N, 4]. boxes[i] and masks[i]
+            correspond to the same object instance.
+        image_shape (tuple[int, int]): Image resolution (width, height).
+        threshold (float, optional): Threshold for discretization of mask.
+            Defaults to 0.5.
+        bytes_per_float (int, optional): Number of bytes per float. Defaults to
+            4.
+        gpu_mem_limit (int, optional): GPU memory limit. Defaults to 1024**3.
+
+    Returns:
+        torch.Tensor: Masks with shape [N, Himage, Wimage], where N is the
+            number of detected object instances and Himage, Wimage are the
+            image width and height.
     """
     assert (
         masks.shape[-1] == masks.shape[-2]
     ), "Only square mask predictions are supported"
     assert threshold >= 0
     num_masks = len(masks)
-    if num_masks == 0:  # pragma: no cover
+    if num_masks == 0:
         return masks
 
     img_w, img_h = image_shape
@@ -130,10 +166,47 @@ def paste_masks_in_image(
 def nhw_to_hwc_mask(
     masks: torch.Tensor, class_ids: torch.Tensor, ignore_class: int = 255
 ) -> torch.Tensor:
-    """Convert N binary HxW masks to HxW semantic mask."""
+    """Convert N binary HxW masks to HxW semantic mask.
+
+    Args:
+        masks (torch.Tensor): Masks with shape [N, H, W].
+        class_ids (torch.Tensor): Class IDs with shape [N, 1].
+        ignore_class (int, optional): Ignore label. Defaults to 255.
+
+    Returns:
+        torch.Tensor: Masks with shape [H, W], where each location indicate the
+            class label.
+    """
     hwc_mask = torch.full(
         masks.shape[1:], ignore_class, dtype=masks.dtype, device=masks.device
     )
     for mask, cat_id in zip(masks, class_ids):
         hwc_mask[mask > 0] = cat_id
     return hwc_mask
+
+
+def postprocess_segms(
+    segms: torch.Tensor,
+    images_hw: list[tuple[int, int]],
+    original_hw: list[tuple[int, int]],
+) -> torch.Tensor:
+    """Postprocess segmentations.
+
+    Args:
+        segms (torch.Tensor): Segmentations with shape [B, C, H, W].
+        images_hw (list[tuple[int, int]]): Image resolutions.
+        original_hw (list[tuple[int, int]]): Original image resolutions.
+
+    Returns:
+        torch.Tensor: Post-processed segmentations.
+    """
+    post_segms = []
+    for segm, image_hw, orig_hw in zip(segms, images_hw, original_hw):
+        post_segms.append(
+            F.interpolate(
+                segm[:, : image_hw[0], : image_hw[1]].unsqueeze(1),
+                size=(orig_hw[0], orig_hw[1]),
+                mode="bilinear",
+            ).squeeze(1)
+        )
+    return torch.stack(post_segms).argmax(dim=1)

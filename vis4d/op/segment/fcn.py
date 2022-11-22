@@ -1,6 +1,8 @@
 """FCN Head for semantic segmentation."""
+from __future__ import annotations
 
-from typing import Callable, List, NamedTuple, Optional, Tuple
+from collections.abc import Callable
+from typing import NamedTuple
 
 import torch
 import torch.nn.functional as F
@@ -11,14 +13,14 @@ class FCNOut(NamedTuple):
     """Output of the FCN prediction."""
 
     pred: torch.Tensor  # logits for final prediction, (N, C, H, W)
-    outputs: List[torch.Tensor]  # transformed feature maps
+    outputs: list[torch.Tensor]  # transformed feature maps
 
 
 class FCNLosses(NamedTuple):
     """Losses for FCN"""
 
     total_loss: torch.Tensor
-    losses: List[torch.Tensor]
+    losses: list[torch.Tensor]
 
 
 class FCNHead(nn.Module):
@@ -31,19 +33,19 @@ class FCNHead(nn.Module):
 
     def __init__(
         self,
-        in_channels: List[int],
+        in_channels: list[int],
         out_channels: int,
         dropout_prob: float = 0.1,
-        resize: Optional[Tuple[int, int]] = None,
+        resize: tuple[int, int] | None = None,
     ) -> None:
         """Init.
 
         Args:
-            in_channels (List[int]): Number of channels in multi-level image
+            in_channels (list[int]): Number of channels in multi-level image
                 feature.
             out_channels (int): Number of output channels. Usually the number of
                 classes.
-            seg_channel_idx (List[int]): Indices of channel that used to get
+            seg_channel_idx (list[int]): Indices of channel that used to get
                 segmentation maps. Defaults to [4, 5].
             dropout_prob (float, optional): Dropout probability. Defaults to
                 0.1.
@@ -77,15 +79,15 @@ class FCNHead(nn.Module):
         ]
         return nn.Sequential(*layers)
 
-    def forward(self, x: List[torch.Tensor]) -> FCNOut:
+    def forward(self, x: list[torch.Tensor]) -> FCNOut:
         """Forward function for transforming feature maps and obtain
         segmentation prediction.
 
         Args:
-            x (List[torch.Tensor]): List of multi-level image features.
+            x (list[torch.Tensor]): List of multi-level image features.
 
         Returns:
-            output (List[torch.Tensor]): Each tensor has shape (batch_size,
+            output (list[torch.Tensor]): Each tensor has shape (batch_size,
             self.channels, H, W) which is prediction for each FCN stages. E.g.,
 
             outputs[-1] ==> main output map
@@ -108,7 +110,7 @@ class FCNHead(nn.Module):
             outputs[idx] = F.log_softmax(output, dim=1)
         return FCNOut(pred=outputs[-1], outputs=outputs)
 
-    def __call__(self, x: List[torch.Tensor]) -> FCNOut:
+    def __call__(self, x: list[torch.Tensor]) -> FCNOut:
         """Type definition for function call."""
         return super()._call_impl(x)
 
@@ -116,20 +118,20 @@ class FCNHead(nn.Module):
 class FCNLoss(nn.Module):
     def __init__(
         self,
-        feature_idx: List[int],
+        feature_idx: list[int],
         loss_fn: Callable[
             [torch.Tensor, torch.Tensor], torch.Tensor
         ] = nn.CrossEntropyLoss(),
-        weights: List[float] = [0.5, 1],
+        weights: list[float] = [0.5, 1],
     ) -> None:
         """Init.
 
         Args:
-            feature_idx (List[int]): Indices for the level of features that
+            feature_idx (list[int]): Indices for the level of features that
                 contain segmentation results.
             loss_fn (Callable, optional): Loss function that computes between
                 predictions and targets. Defaults to nn.NLLLoss.
-            weights (List[float]):
+            weights (list[float]):
         """
 
         super().__init__()
@@ -137,7 +139,7 @@ class FCNLoss(nn.Module):
         self.loss_fn = loss_fn
         self.weights = weights
 
-    def forward(self, outputs: List[torch.Tensor], target: torch.Tensor):
+    def forward(self, outputs: list[torch.Tensor], target: torch.Tensor):
         losses = []
         total_loss = 0
         for i, idx in enumerate(self.feature_idx):

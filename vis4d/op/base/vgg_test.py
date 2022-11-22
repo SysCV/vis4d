@@ -1,6 +1,7 @@
 """Testcases for DLA backbone."""
+from __future__ import annotations
+
 import unittest
-from typing import Optional, Tuple
 
 import skimage
 import torch
@@ -18,7 +19,7 @@ def normalize(img: torch.Tensor) -> torch.Tensor:
 
 
 def url_to_tensor(
-    url: str, im_wh: Optional[Tuple[int, int]] = None
+    url: str, im_wh: None | tuple[int, int] = None
 ) -> torch.Tensor:
     image = skimage.io.imread(url)
     if im_wh is not None:
@@ -48,7 +49,6 @@ class TestVGG(unittest.TestCase):
 
     def _test_vgg(self, vgg_name: str, sample_images: torch.Tensor) -> None:
         """Testcase for VGG."""
-
         vgg = VGG(vgg_name, pretrained=False)
         out = vgg(sample_images)
 

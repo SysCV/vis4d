@@ -1,5 +1,5 @@
 """LSTM 3D motion model."""
-from typing import Tuple
+from __future__ import annotations
 
 import numpy as np
 import torch
@@ -221,7 +221,7 @@ class VeloLSTM(nn.Module):  # type: ignore  # pylint: disable=abstract-method
 
         self._init_param()
 
-    def init_hidden(self, device: str) -> Tuple[torch.Tensor, torch.Tensor]:
+    def init_hidden(self, device: str) -> tuple[torch.Tensor, torch.Tensor]:
         """Initializae hidden state.
 
         The axes semantics are (num_layers, minibatch_size, hidden_dim)
@@ -250,8 +250,8 @@ class VeloLSTM(nn.Module):  # type: ignore  # pylint: disable=abstract-method
         observation: torch.Tensor,
         prev_location: torch.Tensor,
         confidence: torch.Tensor,
-        hc_0: Tuple[torch.Tensor, torch.Tensor],
-    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        hc_0: tuple[torch.Tensor, torch.Tensor],
+    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
         """Refine predicted location using single frame estimation at t+1.
 
         Input:
@@ -313,8 +313,8 @@ class VeloLSTM(nn.Module):  # type: ignore  # pylint: disable=abstract-method
         self,
         vel_history: torch.Tensor,
         location: torch.Tensor,
-        hc_0: Tuple[torch.Tensor, torch.Tensor],
-    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        hc_0: tuple[torch.Tensor, torch.Tensor],
+    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
         """Predict location at t+1 using updated location at t.
 
         Input:
