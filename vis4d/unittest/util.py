@@ -5,10 +5,7 @@ import inspect
 import os
 
 import torch
-from pytorch_lightning import Callback
 from torch import nn
-
-from vis4d.pl import DefaultTrainer
 
 
 def get_test_file(file_name: str) -> str:
@@ -157,18 +154,3 @@ class MockModel(nn.Module):
                 ).sum()
             }
         return {}  # type: ignore
-
-
-def _trainer_builder(
-    exp_name: str,
-    fast_dev_run: bool = False,
-    callbacks: None | list[Callback] | Callback = None,
-) -> DefaultTrainer:
-    """Build mockup trainer."""
-    return DefaultTrainer(
-        work_dir="./unittests/",
-        exp_name=exp_name,
-        fast_dev_run=fast_dev_run,
-        callbacks=callbacks,
-        max_steps=10,
-    )
