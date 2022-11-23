@@ -13,7 +13,7 @@ import pycocotools.mask as maskUtils
 import torch
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
-from terminaltables import AsciiTable
+from terminaltables import AsciiTable  # type: ignore
 from torch import Tensor
 
 from vis4d.common import MetricLogs, ModelOutput
@@ -38,7 +38,7 @@ def xyxy_to_xywh(boxes: torch.Tensor) -> torch.Tensor:
     return boxes
 
 
-class COCOevalV2(COCOeval):
+class COCOevalV2(COCOeval):  # type: ignore
     """Subclass COCO eval for logging / printing."""
 
     def summarize(self) -> str:
@@ -134,7 +134,7 @@ class COCOEvaluator(Evaluator):
             )
         coco_gt_cats = self._coco_gt.loadCats(self._coco_gt.getCatIds())
         self.cat_map = {c["name"]: c["id"] for c in coco_gt_cats}
-        self._predictions = []
+        self._predictions: list[DictStrAny] = []
 
     @property
     def metrics(self) -> list[str]:
@@ -145,7 +145,7 @@ class COCOEvaluator(Evaluator):
         """
         return ["COCO_AP"]
 
-    def gather(self, gather_func: Callable[[Any], Any]) -> None:
+    def gather(self, gather_func: Callable[[Any], Any]) -> None:  # type: ignore
         """Accumulate predictions across prcoesses."""
         all_preds = gather_func(self._predictions)
         if all_preds is not None:
@@ -155,7 +155,9 @@ class COCOEvaluator(Evaluator):
         """Reset the saved predictions to start new round of evaluation."""
         self._predictions = []
 
-    def process(self, inputs: DictData, outputs: ModelOutput) -> None:
+    def process(  # type: ignore # pylint: disable=arguments-differ
+        self, inputs: DictData, outputs: ModelOutput
+    ) -> None:
         """Process sample and convert detections to coco format.
 
         Args:

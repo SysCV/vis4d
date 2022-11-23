@@ -1,8 +1,8 @@
 """MIouEvaluator."""
-from typing import Dict, List, Optional, Tuple
+from __future__ import annotations
 
 import numpy as np
-from terminaltables import AsciiTable
+from terminaltables import AsciiTable  # type: ignore
 
 from vis4d.common import MetricLogs
 from vis4d.common.typing import NDArrayI64, NDArrayNumber
@@ -18,17 +18,17 @@ class SegmentationEvaluator(Evaluator):
 
     def __init__(
         self,
-        num_classes: Optional[int] = None,
-        class_to_ignore: Optional[int] = None,
-        class_mapping: Optional[Dict[int, str]] = None,
+        num_classes: int | None = None,
+        class_to_ignore: int | None = None,
+        class_mapping: dict[int, str] | None = None,
     ):
         """Creates a new evaluator.
 
         Args:
             num_classes (int): Number of semantic classes
-            class_to_ignore (Optional[int]): Groundtruth class that should be
+            class_to_ignore (int | None): Groundtruth class that should be
                                              ignored
-            class_mapping (int): Dict mapping each class_id to a readable name
+            class_mapping (int): dict mapping each class_id to a readable name
 
         """
         super().__init__()
@@ -36,11 +36,11 @@ class SegmentationEvaluator(Evaluator):
         self.class_mapping = class_mapping if class_mapping is not None else {}
         self.class_to_ignore = class_to_ignore
 
-        self._confusion_matrix: Optional[NDArrayI64] = None
+        self._confusion_matrix: NDArrayI64 | None = None
         self.reset()
 
     @property
-    def metrics(self) -> List[str]:
+    def metrics(self) -> list[str]:
         """Supported metrics."""
         return [
             SegmentationEvaluator.METRIC_MIOU,
@@ -51,7 +51,7 @@ class SegmentationEvaluator(Evaluator):
     # https://stackoverflow.com/questions/59080843/faster-method-of-computing-confusion-matrix
     def calc_confusion_matrix(
         self, prediction: NDArrayNumber, groundtruth: NDArrayI64
-    ):
+    ) -> NDArrayI64:
         """Calculates the confusion matrix for multi class predictions.
 
         Args:
@@ -85,8 +85,7 @@ class SegmentationEvaluator(Evaluator):
         """Reset the saved predictions to start new round of evaluation."""
         self._confusion_matrix = None
 
-    # FIXME, how to deal with overloading the process function
-    def process(  # type: ignore
+    def process(  # type: ignore # pylint: disable=arguments-differ
         self, prediction: NDArrayNumber, groundtruth: NDArrayI64
     ) -> None:
         """Process sample and update confusion matrix.
@@ -120,7 +119,7 @@ class SegmentationEvaluator(Evaluator):
         """
         return self.class_mapping.get(idx, f"class_{idx}")
 
-    def evaluate(self, metric: str) -> Tuple[MetricLogs, str]:
+    def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate predictions.
 
         Returns a dict containing the raw data and a
@@ -144,14 +143,14 @@ class SegmentationEvaluator(Evaluator):
             fp = np.sum(self._confusion_matrix, axis=0) - tp
             fn = np.sum(self._confusion_matrix, axis=1) - tp
             iou = tp / (tp + fn + fp) * 100
-            mIoU = np.mean(iou)
+            m_iou = np.mean(iou)
 
             iou_class_str = ", ".join(
                 f"{self._get_class_name_for_idx(idx)}: ({d:.3f}%)"
                 for idx, d in enumerate(iou)
             )
-            metric_data[SegmentationEvaluator.METRIC_MIOU] = mIoU
-            short_description += f"mIoU: {mIoU:.3f}% \n"
+            metric_data[SegmentationEvaluator.METRIC_MIOU] = m_iou
+            short_description += f"mIoU: {m_iou:.3f}% \n"
             short_description += iou_class_str + "\n"
 
         if metric in [

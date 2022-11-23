@@ -1,6 +1,7 @@
 """Track visualziation test cases."""
+from __future__ import annotations
+
 import unittest
-from typing import Tuple
 
 import numpy as np
 
@@ -8,7 +9,7 @@ from vis4d.common.typing import NDArrayNumber
 from vis4d.eval.segment.segmentation_evaluator import SegmentationEvaluator
 
 
-def get_test_data() -> Tuple[NDArrayNumber, NDArrayNumber]:
+def get_test_data() -> tuple[NDArrayNumber, NDArrayNumber]:
     """Precomputed input data."""
     pred = np.asarray(
         [
@@ -225,7 +226,7 @@ def get_test_data() -> Tuple[NDArrayNumber, NDArrayNumber]:
 class TestSegmentationEvaluator(unittest.TestCase):
     """Tests for SegmentationyEvaluator."""
 
-    bs = 4
+    batch_size = 4
     n_points = 100
     n_classes = 10
     evaluator = SegmentationEvaluator(num_classes=n_classes)
@@ -233,7 +234,7 @@ class TestSegmentationEvaluator(unittest.TestCase):
     def test_perfect_prediction(self) -> None:
         """Tests when predictions are correct."""
         # All ones
-        pred = np.random.rand(self.bs, self.n_classes, self.n_points)
+        pred = np.random.rand(self.batch_size, self.n_classes, self.n_points)
         pred = np.argmax(pred, axis=1)
         gt = pred.copy()
         self.evaluator.reset()
@@ -244,7 +245,7 @@ class TestSegmentationEvaluator(unittest.TestCase):
     def test_perfect_prediction_without_amax(self) -> None:
         """Tests when predictions are correct with shape [N,C,*]."""
         # All ones
-        pred = np.random.rand(self.bs, self.n_classes, self.n_points)
+        pred = np.random.rand(self.batch_size, self.n_classes, self.n_points)
         pred_amax = np.argmax(pred, axis=1)
         gt = pred_amax.copy()
         self.evaluator.reset()
@@ -258,7 +259,7 @@ class TestSegmentationEvaluator(unittest.TestCase):
         evaluator = SegmentationEvaluator(
             num_classes=self.n_classes, class_to_ignore=255
         )
-        pred = np.random.rand(self.bs, self.n_classes, self.n_points)
+        pred = np.random.rand(self.batch_size, self.n_classes, self.n_points)
         pred = np.argmax(pred, axis=1)
         gt = pred.copy()
         pred[..., :10] = 0  # make wrong predictions

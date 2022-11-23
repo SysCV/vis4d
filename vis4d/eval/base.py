@@ -24,7 +24,7 @@ class Evaluator:
         """
         return []
 
-    def gather(self, gather_func: Callable[[Any], Any]) -> None:
+    def gather(self, gather_func: Callable[[Any], Any]) -> None:  # type: ignore
         """Gather variables in case of distributed setting (if needed).
 
         Args:
@@ -85,11 +85,11 @@ class SaveDataMixin:
         else:
             self.data_backend = data_backend
         if save_dir is None:
-            self.save_dir = tempfile.mkdtemp().name
+            self.save_dir = tempfile.mkdtemp()
         else:
             self.save_dir = save_dir
 
-    def save(self, data: Any, location: str) -> None:
+    def save(self, data: Any, location: str) -> None:  # type: ignore
         """Save data at given relative location.
 
         Args:
@@ -99,7 +99,7 @@ class SaveDataMixin:
         pdata = pickle.dumps(data, protocol=-1)
         self.data_backend.set(os.path.join(self.save_dir, location), pdata)
 
-    def get(self, location: str) -> Any:
+    def get(self, location: str) -> Any:  # type: ignore
         """Get data at given relative location.
 
         Args:
