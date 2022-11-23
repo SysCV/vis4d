@@ -1,7 +1,7 @@
 """Contains base class implementations for image based visualization."""
 from __future__ import annotations
 
-from vis4d.common.typing import NDArrayUI8
+from vis4d.common.typing import NDArrayBool, NDArrayUI8
 
 
 class CanvasBackend:
@@ -26,9 +26,27 @@ class CanvasBackend:
         """
         raise NotImplementedError()
 
+    def draw_bitmap(
+        self,
+        bitmap: NDArrayBool,
+        color: tuple[float, float, float],
+        top_left_corner: tuple[float, float] = (0, 0),
+        alpha: float = 0.5,
+    ):
+        """Draws a binary mask onto the given canvas.
+
+        Args:
+            bitmap (ndarray): The binary mask to draw
+            color (tuple(float)): Color of the box [0,255]
+            top_left_corner (tuple(float, float)): Coordinates of top left
+                                                    corner of the bitmap
+            alpha (float): Alpha value for transparency of this mask
+        """
+        raise NotImplementedError()
+
     def draw_box(
         self,
-        corners: list[float],
+        corners: tuple[float, ...],
         label: str,
         color: tuple[float, ...],
     ) -> None:
