@@ -14,11 +14,9 @@ from pytorch_lightning.plugins import DDPPlugin
 from pytorch_lightning.strategies.strategy import Strategy
 from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
-from pytorch_lightning.utilities.rank_zero import (
-    rank_zero_info,
-    rank_zero_warn,
-)
 from torch.utils.collect_env import get_pretty_env_info
+
+from vis4d.common.logging import rank_zero_info, rank_zero_warn
 
 from ..common import ArgsType, DictStrAny
 from .data import DataModule
@@ -109,7 +107,7 @@ class DefaultTrainer(pl.Trainer):
                     name=version,
                 )
             else:
-                exp_logger = pl.loggers.TensorBoardLogger(  # type: ignore
+                exp_logger = pl.loggers.TensorBoardLogger(
                     save_dir=work_dir,
                     name=exp_name,
                     version=version,
@@ -176,7 +174,7 @@ class DefaultTrainer(pl.Trainer):
     def log_dir(self) -> str | None:
         """Get current logging directory."""
         dirpath = self.strategy.broadcast(self.output_dir)
-        return dirpath  # type: ignore
+        return dirpath
 
 
 class CLI(LightningCLI):

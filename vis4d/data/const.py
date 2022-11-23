@@ -42,6 +42,7 @@ class CommonKeys:
     boxes2d (Tensor): 2D bounding boxes of shape [N, 4]
     boxes2d_classes (Tensor): Semantic classes of 2D bounding boxes, shape
         [N,].
+    boxes2d_track_ids (Tensor): Tracking IDs of 2D bounding boxes, shape [N,].
     masks (Tensor): Instance segmentation masks of shape [N, H, W].
     segmentation_masks (Tensor):
 
@@ -75,6 +76,7 @@ class CommonKeys:
     # 2D annotations
     boxes2d = "boxes2d"
     boxes2d_classes = "boxes2d_classes"
+    boxes2d_track_ids = "boxes2d_track_ids"
     masks = "masks"
     segmentation_masks = "segmentation_masks"
 

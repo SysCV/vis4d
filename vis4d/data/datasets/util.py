@@ -12,11 +12,11 @@ from typing import Any
 import appdirs
 import numpy as np
 from PIL import Image, ImageOps
-from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from torch.utils.data import Dataset
 
 from vis4d.common import DictStrAny, NDArrayI64, NDArrayUI8
 from vis4d.common.imports import OPENCV_AVAILABLE
+from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
 
 if OPENCV_AVAILABLE:

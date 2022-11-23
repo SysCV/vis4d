@@ -4,6 +4,8 @@ from __future__ import annotations
 import logging
 import os
 import pickle
+from collections.abc import Callable
+from functools import wraps
 from typing import Any  # type: ignore
 
 import cloudpickle
@@ -94,3 +96,19 @@ def serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: di
     storage = torch.ByteStorage.from_buffer(buffer)
     tensor = torch.ByteTensor(storage).to(device=device)
     return tensor
+
+
+def rank_zero_only(func: Callable[[Any], Any]) -> Callable[[Any], Any]:  # type: ignore # pylint: disable=line-too-long
+    """Function that can be used as a decorator.
+
+    Enables a function/method being called only on global rank 0.
+    """
+
+    @wraps(func)
+    def wrapped_fn(*args: Any, **kwargs: Any) -> Any:  # type: ignore
+        rank = get_rank()
+        if rank == 0:
+            return func(*args, **kwargs)
+        return None
+
+    return wrapped_fn

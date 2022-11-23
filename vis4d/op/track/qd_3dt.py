@@ -6,9 +6,9 @@ from typing import Dict, TypedDict
 
 import torch
 import torch.nn.functional as F
-from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from torch import nn
 
+from vis4d.common.logging import rank_zero_warn
 from vis4d.op.box.box2d import bbox_iou
 from vis4d.op.track.motion import LSTM3DMotionModel, VeloLSTM
 from vis4d.struct_to_revise import (

@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional, Sequence
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 
 from vis4d.common import ModelOutput
 from vis4d.vis.util import preprocess_image

@@ -7,7 +7,7 @@ from torch import nn
 from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
 from vis4d.op.detect.rcnn import DetOut, RCNNLoss, RCNNLosses, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss, RPNLosses
-from vis4d.op.track.graph.assignment import TrackIDCounter
+from vis4d.op.track.assignment import TrackIDCounter
 from vis4d.op.track.qdtrack import (
     QDSimilarityHead,
     QDTrackAssociation,

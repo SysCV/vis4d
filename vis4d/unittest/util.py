@@ -8,10 +8,16 @@ import torch
 from torch import nn
 
 
-def get_test_file(file_name: str) -> str:
+def get_test_file(file_name: str, rel_path: None | str = None) -> str:
     """Test test file path."""
+    prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
+    prefix_code, prefix_rel = prefix.rsplit("vis4d", 1)
+    if rel_path is None:
+        rel_path = prefix_rel
     return os.path.join(
-        os.path.dirname(os.path.abspath(inspect.stack()[1][1])),
+        prefix_code,
+        "tests",
+        rel_path.strip("/"),
         "testcases",
         file_name,
     )

@@ -6,7 +6,6 @@ from typing import List
 
 import numpy as np
 import torch
-from pytorch_lightning.utilities.rank_zero import rank_zero_warn
 from torch.utils.data import (
     BatchSampler,
     ConcatDataset,
@@ -17,6 +16,7 @@ from torch.utils.data import (
 from torch.utils.data.distributed import DistributedSampler
 
 from vis4d.common import ArgsType
+from vis4d.common.logging import rank_zero_warn
 
 from .datasets import Dataset, VideoMixin
 

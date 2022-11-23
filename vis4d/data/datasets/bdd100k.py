@@ -1,5 +1,9 @@
 """BDD100K dataset."""
+from __future__ import annotations
 
+from torch.utils.data import Dataset
+
+from .scalabel import Scalabel
 
 bdd100k_det_map = {
     "pedestrian": 0,
@@ -87,4 +91,24 @@ bdd100k_panseg_map = {
     "truck": 39,
 }
 
-# TODO implement
+from vis4d.common.imports import BDD100K_AVAILABLE, SCALABEL_AVAILABLE
+
+if BDD100K_AVAILABLE and SCALABEL_AVAILABLE:
+    from bdd100k.common.utils import load_bdd100k_config
+    from bdd100k.label.to_scalabel import bdd100k_to_scalabel
+    from scalabel.label.io import load
+    from scalabel.label.typing import Dataset as ScalabelData
+
+
+class BDD100K(Scalabel):
+    """BDD100K type dataset, based on Scalabel."""
+
+    def _generate_mapping(self) -> ScalabelData:
+        """Generate data mapping."""
+        bdd100k_anns = load(self.annotation_path)
+        frames = bdd100k_anns.frames
+        bdd100k_cfg = load_bdd100k_config(self.config_path)
+        scalabel_frames = bdd100k_to_scalabel(frames, bdd100k_cfg)
+        return ScalabelData(
+            frames=scalabel_frames, config=bdd100k_cfg.scalabel
+        )

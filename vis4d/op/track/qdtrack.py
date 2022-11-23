@@ -14,9 +14,8 @@ from vis4d.op.box.samplers.combined import CombinedSampler
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss import EmbeddingDistanceLoss, MultiPosCrossEntropyLoss
 
-from .graph.assignment import TrackIDCounter, greedy_assign
-from .graph.matching import calc_bisoftmax_affinity
-from .util import cosine_similarity
+from .assignment import TrackIDCounter, greedy_assign
+from .matching import calc_bisoftmax_affinity, cosine_similarity
 
 
 def get_default_box_sampler() -> CombinedSampler:

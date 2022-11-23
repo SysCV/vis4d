@@ -10,7 +10,6 @@ from typing import Callable, List, no_type_check
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.utilities.cli import instantiate_class
-from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 from torch.utils.model_zoo import load_url
@@ -18,6 +17,7 @@ from torchmetrics import MeanMetric
 
 from vis4d.common import DictStrAny, LossesType, ModelOutput
 from vis4d.common.distributed import get_rank, get_world_size
+from vis4d.common.logging import rank_zero_info
 from vis4d.data.typing import DictData
 
 from ..optim.warmup import BaseLRWarmup, LinearLRWarmup

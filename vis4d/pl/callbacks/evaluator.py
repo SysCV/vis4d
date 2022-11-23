@@ -95,7 +95,7 @@ class DefaultEvaluatorCallback(Callback):
     ) -> None:
         """Wait for on_validation_batch_end PL hook to call 'process'."""
         if dataloader_idx == self.dataloader_idx:
-            self.evaluator.process(batch, outputs)  # type: ignore
+            self.evaluator.process(batch, outputs)
 
     def on_sanity_check_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule

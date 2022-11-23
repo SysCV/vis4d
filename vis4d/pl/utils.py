@@ -10,13 +10,12 @@ from typing import Dict, List, Optional, Union
 import pytorch_lightning as pl
 import torch
 from packaging import version
-from pytorch_lightning.utilities.rank_zero import (
-    rank_zero_info,
-    rank_zero_only,
-)
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from termcolor import colored
 from torchmetrics import Metric
+
+from vis4d.common.distributed import rank_zero_only
+from vis4d.common.logging import rank_zero_info
 
 from ..common import ArgsType
 from ..common.time import Timer

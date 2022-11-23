@@ -3,9 +3,9 @@ from typing import List, Optional, Union, no_type_check
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.utilities.distributed import rank_zero_info
 from torch.utils import data
 
+from vis4d.common.logging import rank_zero_info
 from vis4d.data.io import DataBackend, FileBackend, HDF5Backend
 from vis4d.eval.base import Evaluator
 from vis4d.pl.callbacks.evaluator import DefaultEvaluatorCallback
@@ -46,7 +46,7 @@ class DataModule(pl.LightningDataModule):
         video_based_inference: Optional[bool] = None,
     ) -> None:
         """Init."""
-        super().__init__()  # type: ignore
+        super().__init__()
         self.experiment = experiment
         self.visualize = visualize
         self.samples_per_gpu = samples_per_gpu

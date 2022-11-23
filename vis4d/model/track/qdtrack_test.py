@@ -8,9 +8,17 @@ from mmcv.runner.checkpoint import load_checkpoint
 from torch import optim
 from torch.utils.data import DataLoader
 
+from vis4d.data.const import CommonKeys
+from vis4d.data.datasets.scalabel import Scalabel
+from vis4d.data.loader import DataPipe, build_inference_dataloaders
+from vis4d.data.transforms.normalize import normalize_image
+from vis4d.data.transforms.pad import pad_image
+from vis4d.op.base import ResNet
 from vis4d.op.box.samplers import match_and_sample_proposals
+from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RCNNLoss, RCNNLosses, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss, RPNLosses
+from vis4d.op.fpp import FPN
 from vis4d.op.track.qdtrack import (
     QDSimilarityHead,
     QDTrackAssociation,
@@ -20,17 +28,7 @@ from vis4d.op.track.qdtrack import (
     get_default_box_sampler,
 )
 from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
-
-
-def pad(images: torch.Tensor, stride=32) -> torch.Tensor:
-    """Pad image tensor to be compatible with stride."""
-    N, C, H, W = images.shape
-    pad = lambda x: (x + (stride - 1)) // stride * stride
-    pad_hw = pad(H), pad(W)
-    padded_imgs = images.new_zeros((N, C, *pad_hw))
-    padded_imgs[:, :, :H, :W] = images
-    return padded_imgs
-
+from vis4d.unittest.util import get_test_file
 
 REV_KEYS = [
     (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),
@@ -125,7 +123,7 @@ class QDTrackTest(unittest.TestCase):
 
         Run::
             >>> pytest vis4d/op/track/qdtrack_test.py::QDTrackTest::test_inference
-        """  # pylint: disable=line-too-long # Disable the line length requirement becase of the cmd line prompts
+        """
         base = ResNet("resnet50")
         fpn = FPN(base.out_channels[2:], 256)
         faster_rcnn = FasterRCNNHead(num_classes=8)
@@ -164,21 +162,33 @@ class QDTrackTest(unittest.TestCase):
             revise_keys=REV_KEYS,
         )
 
-        test_data = SampleDataset()
-
-        batch_size = 2
-        test_loader = DataLoader(
-            test_data,
-            batch_size=batch_size,
-            shuffle=False,
-            collate_fn=identity_collate,
+        data_root = get_test_file(
+            "track/bdd100k-samples/images", rel_path="run"
         )
+        annotations = get_test_file(
+            "track/bdd100k-samples/labels", rel_path="run"
+        )
+        config = get_test_file(
+            "track/bdd100k-samples/config.toml", rel_path="run"
+        )
+        test_data = DataPipe(
+            Scalabel(data_root, annotations, config_path=config),
+            preprocess_fn=normalize_image(),
+        )
+        batch_fn = pad_image()
+        batch_size = 2
+        test_loader = build_inference_dataloaders(
+            test_data,
+            samples_per_gpu=batch_size,
+            workers_per_gpu=0,
+            batchprocess_fn=batch_fn,
+        )[0]
 
         with torch.no_grad():
-            for data in test_loader:
+            for i, data in enumerate(test_loader):
                 # assume: inputs are consecutive frames
-                inputs, inputs_hw, _, _, _, frame_ids = data
-                images = pad(torch.cat(inputs))
+                images = data[CommonKeys.images]
+                inputs_hw = data[CommonKeys.input_hw]
 
                 features = base(images)
                 features = fpn(features)
@@ -190,10 +200,11 @@ class QDTrackTest(unittest.TestCase):
 
                 embeddings = similarity_head(features, boxes)
 
-                tracks = []
-                for frame_id, box, score, cls_id, embeds in zip(
-                    frame_ids, boxes, scores, class_ids, embeddings
+                tracks = []  # TODO frame ids need to be implemented properly
+                for j, (box, score, cls_id, embeds) in enumerate(
+                    zip(boxes, scores, class_ids, embeddings)
                 ):
+                    frame_id = i + j
                     # reset graph at begin of sequence
                     if frame_id == 0:
                         track_memory.reset()
@@ -219,16 +230,30 @@ class QDTrackTest(unittest.TestCase):
                     track_memory.update(data)
                     tracks.append(track_memory.last_frame)
 
-                from vis4d.vis.image import imshow_bboxes
+                import numpy as np
+
+                from vis4d.vis.functional import imshow_bboxes
+                from vis4d.vis.util import preprocess_boxes, preprocess_image
 
                 for img, boxs, score, cls_id in zip(
                     images, boxes, scores, class_ids
                 ):
-                    imshow_bboxes(img, boxs, score, cls_id)
+                    imshow_bboxes(
+                        np.array(preprocess_image(img)),
+                        boxs.numpy(),
+                        score.numpy(),
+                        cls_id.numpy(),
+                    )
 
                 for img, trk in zip(images, tracks):
                     track_ids, boxes, scores, class_ids, _ = trk
-                    imshow_bboxes(img, boxes, scores, class_ids, track_ids)
+                    imshow_bboxes(
+                        np.array(preprocess_image(img)),
+                        boxes.numpy(),
+                        scores.numpy(),
+                        class_ids.numpy(),
+                        track_ids.numpy(),
+                    )
                 # TODO test bdd100k val numbers and convert to results comparison
 
     def test_train(self):

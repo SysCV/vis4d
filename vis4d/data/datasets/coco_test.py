@@ -1,17 +1,22 @@
 """COCO dataset testing class."""
 import unittest
 
+from vis4d.unittest.util import get_test_file
+
 from .coco import COCO
 
 
 class COCOTest(unittest.TestCase):
     """Test coco dataloading."""
 
-    coco = COCO(data_root="data/COCO/")
+    coco = COCO(
+        data_root=get_test_file("coco_test", rel_path="model/detect/"),
+        split="train",
+    )
 
     def test_len(self):
         """Test if len of dataset correct."""
-        self.assertEqual(len(self.coco), 118287)
+        self.assertEqual(len(self.coco), 2)
 
     def test_sample(self):
         """Test if sample loaded correctly."""
@@ -32,7 +37,8 @@ class COCOSegTest(unittest.TestCase):
     """Test coco dataloading."""
 
     coco = COCO(
-        data_root="data/COCO/",
+        data_root=get_test_file("coco_test", rel_path="model/detect/"),
+        split="train",
         remove_empty=True,
         minimum_box_area=1000,
         use_pascal_voc_cats=True,
@@ -40,7 +46,7 @@ class COCOSegTest(unittest.TestCase):
 
     def test_len(self):
         """Test if len of dataset correct."""
-        self.assertEqual(len(self.coco), 92518)
+        self.assertEqual(len(self.coco), 2)
 
     def test_sample(self):
         """Test if sample loaded correctly."""

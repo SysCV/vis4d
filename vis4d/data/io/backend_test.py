@@ -3,28 +3,22 @@ import os
 import sys
 import unittest
 
-from vis4d.common.time import timeit
 from vis4d.data.io.file import FileBackend
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.data.io.util import str_decode
+from vis4d.unittest.util import get_test_file
 
 
 class TestBackends(unittest.TestCase):
     """Testcases for ensuring equal output of each backend."""
 
-    @timeit  # type: ignore
     def test_get(self) -> None:
         """Test image retrieval from different backends."""
         backend_file = FileBackend()
         backend_hdf5 = HDF5Backend()
-        sample_path = (
-            "vis4d/engine/testcases/track/bdd100k-samples/images/"
-            "00091078-875c1f73/00091078-875c1f73-0000166.jpg"
-        )
-        hdf5_path = (
-            "vis4d/engine/testcases/track/bdd100k-samples/images_.hdf5/"
-            "00091078-875c1f73/00091078-875c1f73-0000166.jpg"
-        )
+        base_path = get_test_file("track/bdd100k-samples", rel_path="run")
+        sample_path = f"{base_path}/images/00091078-875c1f73/00091078-875c1f73-0000166.jpg"
+        hdf5_path = f"{base_path}/images_.hdf5/00091078-875c1f73/00091078-875c1f73-0000166.jpg"
 
         out_file = backend_file.get(sample_path)
         out_hdf5 = backend_hdf5.get(hdf5_path)
@@ -32,10 +26,7 @@ class TestBackends(unittest.TestCase):
 
         # check exists
         self.assertFalse(backend_hdf5.exists("invalid_path"))
-        invalid_inhdf5 = (
-            "vis4d/engine/testcases/track/"
-            "bdd100k-samples/images_.hdf5/invalid_path"
-        )
+        invalid_inhdf5 = f"{base_path}/images_.hdf5/invalid_path"
         self.assertFalse(backend_hdf5.exists(invalid_inhdf5))
         self.assertTrue(backend_hdf5.exists(hdf5_path))
 
@@ -50,10 +41,7 @@ class TestBackends(unittest.TestCase):
         self.assertRaises(FileNotFoundError, backend_file.get, "invalid_path")
         self.assertRaises(FileNotFoundError, backend_hdf5.get, "invalid_path")
 
-        invalid_hdf5_path = (
-            "vis4d/engine/testcases/track/bdd100k-samples/images_.hdf5/"
-            "000/000.jpg"
-        )
+        invalid_hdf5_path = f"{base_path}/images_.hdf5/000/000.jpg"
         self.assertRaises(ValueError, backend_hdf5.get, invalid_hdf5_path)
 
     def test_str_decode(self) -> None:

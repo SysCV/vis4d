@@ -61,7 +61,8 @@ class DataPipe(ConcatDataset):
     """DataPipe class.
 
     This class wraps one or multiple instances of a PyTorch Dataset so that the
-    preprocessing steps can be shared across those datasets.
+    preprocessing steps can be shared across those datasets. Composes dataset
+    and the preprocessing pipeline.
     """
 
     def __init__(
@@ -77,6 +78,10 @@ class DataPipe(ConcatDataset):
                 wrapped by this data pipeline.
             preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing
                 function of a single sample.
+            reference_view_sampler (None | ReferenceViewSampler, optional): For
+                video datasets, the reference sampler decides how reference
+                views will be sampled. Used for training, e.g., tracking models
+                on multiple frames of a video. Defaults to None.
         """
         if isinstance(datasets, Dataset):
             datasets = [datasets]
@@ -155,7 +160,8 @@ class SubdividingIterableDataset(IterableDataset):
             n_samples_per_batch: How many samples each batch should contain.
                                  The first dimension of dataset[0].shape must
                                  be divisible by this number
-            preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing function of a single sample.
+            preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing
+                function of a single sample.
         """
         super().__init__()
 

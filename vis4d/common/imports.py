@@ -12,9 +12,8 @@ def package_available(package_name: str) -> bool:
         return False
 
 
-# general
+# io
 H5PY_AVAILABLE = package_available("h5py")
-SCALABEL_AVAILABLE = package_available("scalabel")
 
 # vision
 MMCV_AVAILABLE = package_available("mmcv") or package_available("mmcv-full")
@@ -25,6 +24,8 @@ DETECTRON2_AVAILABLE = package_available("detectron2")
 # datasets
 WAYMO_AVAILABLE = package_available("waymo")
 NUSCENES_AVAILABLE = package_available("nuscenes")
+SCALABEL_AVAILABLE = package_available("scalabel")
+BDD100K_AVAILABLE = package_available("bdd100k")
 
 # visualization
 OPENCV_AVAILABLE = package_available("cv2")
