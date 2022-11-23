@@ -1,5 +1,6 @@
 """Evaluates Binary Occupancy Predictions."""
-from typing import List, Tuple
+
+from __future__ import annotations
 
 import numpy as np
 
@@ -9,7 +10,7 @@ from vis4d.eval.base import Evaluator
 
 def threshold_and_flatten(
     prediction: NDArrayNumber, target: NDArrayNumber, threshold_value: float
-) -> Tuple[NDArrayBool, NDArrayBool]:
+) -> tuple[NDArrayBool, NDArrayBool]:
     """Thresholds the predictions based on the provided treshold value.
 
     Applies the following actions:
@@ -23,9 +24,9 @@ def threshold_and_flatten(
                          into binary.
 
     Returns:
-        Tuple of two boolean arrays, prediction and target
+        tuple of two boolean arrays, prediction and target
     """
-    prediction_bin = prediction >= threshold_value
+    prediction_bin: NDArrayBool = prediction >= threshold_value
     return prediction_bin.ravel().astype(bool), target.ravel().astype(bool)
 
 
@@ -41,8 +42,8 @@ class OccupancyEvaluator(Evaluator):
 
     def __init__(
         self,
-        threshold=0.5,
-    ):
+        threshold: float = 0.5,
+    ) -> None:
         """Creates a new binary evaluator.
 
         Args:
@@ -54,17 +55,17 @@ class OccupancyEvaluator(Evaluator):
         self.threshold = threshold
         self.reset()
 
-        self.true_positives: List[float] = []
-        self.false_positives: List[float] = []
-        self.true_negatives: List[float] = []
-        self.false_negatives: List[float] = []
-        self.n_samples: List[float] = []
+        self.true_positives: list[float] = []
+        self.false_positives: list[float] = []
+        self.true_negatives: list[float] = []
+        self.false_negatives: list[float] = []
+        self.n_samples: list[float] = []
 
         self.has_samples = False
 
     def _calc_confusion_matrix(
         self, prediction: NDArrayBool, target: NDArrayBool
-    ):
+    ) -> None:
         """Calculates the confusion matrix and stores them as attributes.
 
         Args:
@@ -82,7 +83,7 @@ class OccupancyEvaluator(Evaluator):
         self.n_samples.append(tp + fp + tn + fn)
 
     @property
-    def metrics(self) -> List[str]:
+    def metrics(self) -> list[str]:
         """Supported metrics."""
         return [OccupancyEvaluator.METRIC_IOU]
 
@@ -94,8 +95,7 @@ class OccupancyEvaluator(Evaluator):
         self.false_negatives = []
         self.n_samples = []
 
-    # FIXME, how should we deal with overloading the process function?
-    def process(  # type: ignore
+    def process(  # type: ignore # pylint: disable=arguments-differ
         self,
         prediction: NDArrayNumber,
         groundtruth: NDArrayNumber,
@@ -116,7 +116,7 @@ class OccupancyEvaluator(Evaluator):
         self._calc_confusion_matrix(pred, gt)
         self.has_samples = True
 
-    def evaluate(self, metric: str) -> Tuple[MetricLogs, str]:
+    def evaluate(self, metric: str) -> tuple[MetricLogs, str]:
         """Evaluate predictions.
 
         Returns a dict containing the raw data and a
@@ -127,7 +127,7 @@ class OccupancyEvaluator(Evaluator):
 
         Returns:
             metric_data, description
-            Tuple containing the metric data (dict with metric name and value)
+            tuple containing the metric data (dict with metric name and value)
             as well as a short string with shortened information.
 
         Raises:
@@ -140,7 +140,9 @@ class OccupancyEvaluator(Evaluator):
             )
         metric_data, short_description = {}, ""
 
-        METRIC_ALL = OccupancyEvaluator.METRIC_ALL  # Shorter Name
+        METRIC_ALL = (  # pylint: disable=invalid-name,line-too-long
+            OccupancyEvaluator.METRIC_ALL
+        )
         # IoU
         if metric in [OccupancyEvaluator.METRIC_IOU, METRIC_ALL]:
             iou = sum(self.true_positives) / (

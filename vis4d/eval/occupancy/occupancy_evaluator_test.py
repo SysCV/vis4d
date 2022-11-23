@@ -1,6 +1,7 @@
 """Track visualziation test cases."""
+from __future__ import annotations
+
 import unittest
-from typing import Tuple
 
 import numpy as np
 
@@ -8,7 +9,7 @@ from vis4d.common.typing import NDArrayNumber
 from vis4d.eval.occupancy.occupancy_evaluator import OccupancyEvaluator
 
 
-def get_test_data() -> Tuple[NDArrayNumber, NDArrayNumber]:
+def get_test_data() -> tuple[NDArrayNumber, NDArrayNumber]:
     """Precomputed test data."""
     prediction = np.asarray(
         [
@@ -242,14 +243,14 @@ class TestOccupancyEvaluator(unittest.TestCase):
     """Tests for OccupancyEvaluator."""
 
     evaluator = OccupancyEvaluator()
-    bs = 4
+    batch_size = 4
     n_points = 100
 
     def test_confusion_all_ones(self) -> None:
         """Tests when gt is all ones."""
         # All ones
-        pred = np.ones((self.bs, self.n_points)) * 0.6
-        gt = np.ones((self.bs, self.n_points))
+        pred = np.ones((self.batch_size, self.n_points)) * 0.6
+        gt = np.ones((self.batch_size, self.n_points))
         self.evaluator.reset()
         self.evaluator.process(pred, gt)
         data, _ = self.evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
@@ -261,8 +262,8 @@ class TestOccupancyEvaluator(unittest.TestCase):
         """Tests prediction all ones with different threshold."""
         # All ones
         evaluator = OccupancyEvaluator(threshold=0.3)
-        pred = np.ones((self.bs, self.n_points)) * 0.34
-        gt = np.ones((self.bs, self.n_points))
+        pred = np.ones((self.batch_size, self.n_points)) * 0.34
+        gt = np.ones((self.batch_size, self.n_points))
         evaluator.process(pred, gt)
         data, _ = evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)
         self.assertAlmostEqual(data[OccupancyEvaluator.METRIC_RECALL], 1)
@@ -272,8 +273,8 @@ class TestOccupancyEvaluator(unittest.TestCase):
     def test_confusion_all_zeros(self) -> None:
         """Tests when data is all zeros."""
         # All ones
-        pred = np.ones((self.bs, self.n_points)) * 0.2
-        gt = np.zeros((self.bs, self.n_points))
+        pred = np.ones((self.batch_size, self.n_points)) * 0.2
+        gt = np.zeros((self.batch_size, self.n_points))
         self.evaluator.reset()
         self.evaluator.process(pred, gt)
         data, _ = self.evaluator.evaluate(OccupancyEvaluator.METRIC_ALL)

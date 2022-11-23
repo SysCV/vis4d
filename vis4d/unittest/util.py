@@ -7,9 +7,23 @@ import os
 import torch
 from torch import nn
 
+from vis4d.common.typing import ModelOutput
+
 
 def get_test_file(file_name: str, rel_path: None | str = None) -> str:
-    """Test test file path."""
+    """Return the absolute path to the given test file.
+
+    The test file is assumed to be in a 'testcases' folder in tests, possibly
+    with identical relative path to the current file.
+
+    Args:
+        file_name (str): Name of the test file
+        rel_path (str, optional): Relative path inside test directory.
+            Defaults to None.
+
+    Returns:
+        str: Absolute path to test file <cwd/testcases/file_name>
+    """
     prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
     prefix_code, prefix_rel = prefix.rsplit("vis4d", 1)
     if rel_path is None:
@@ -31,7 +45,23 @@ def generate_features(
     batch_size: int = 1,
     double_channels: bool = False,
 ) -> list[torch.Tensor]:
-    """Create random feature lists."""
+    """Create a random list of features maps with decreasing size.
+
+    Args:
+        channels (int): Number of feature channels (C)
+        init_height (int): Target feature map height (h)
+        init_width (int): Target feature map width (w)
+        num_features (int): Number of features to load
+        batch_size (int, optional): Batch size (B)
+        double_channels (bool, optional): If channels should be doubled for
+                                          each feature map.
+
+    Returns:
+        list[torch.Tensor]: List containing feature tensors
+                            shaped [B, C', h/(2^i), w/(2^i)], where i is
+                            the position in de list and C' is either C or
+                            C*(2^i) depending if double_channels is true
+    """
     state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
 
@@ -60,8 +90,26 @@ def generate_boxes(
     batch_size: int = 1,
     track_ids: bool = False,
     use_score: bool = True,
-):
-    """Create random bounding boxes."""
+) -> tuple[
+    list[torch.Tensor],
+    list[torch.Tensor | None],
+    list[torch.Tensor],
+    list[torch.Tensor | None],
+]:
+    """Generate random detection boxes.
+
+    Args:
+        height (int): Image height
+        width (int): Image width
+        num_boxes (int): Number of boxes to load
+        batch_size (int, optional): Batch size
+        track_ids (bool, optional): If track ids should be loaded.
+        use_score (bool, optional): If scores should be loaded.
+
+    Returns:
+        tuple[list[torch.Tensor] x 4]: [bounding boxes], [scores], [num_boxes],
+                                       [track_ids].
+    """
     state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
     if use_score:
@@ -87,7 +135,7 @@ def generate_boxes(
     torch.random.set_rng_state(state)
     return (
         [box_tensor[:, :-1]] * batch_size,
-        [box_tensor[:, -1:]] * batch_size,
+        [box_tensor[:, -1:] if use_score else None] * batch_size,
         [torch.zeros(num_boxes, dtype=torch.long)] * batch_size,
         [tracks] * batch_size,
     )
@@ -98,8 +146,18 @@ def generate_masks(
     width: int,
     num_masks: int,
     batch_size: int = 1,
-):
-    """Create random masks."""
+) -> tuple[list[torch.Tensor], list[torch.Tensor], list[torch.Tensor]]:
+    """Generate random semantic masks.
+
+    Args:
+        height (int): Image height
+        width (int): Image width
+        num_masks (int): Amount of masks to generate
+        batch_size (int, optional): Batch size
+
+    Returns:
+        (list[torch.Tensor] x 3): [masks], [scores], [id]
+    """
     state = torch.random.get_rng_state()
     torch.random.set_rng_state(torch.manual_seed(0).get_state())
     rand_mask = torch.randint(0, num_masks, (height, width))
@@ -146,13 +204,15 @@ def generate_masks(
 class MockModel(nn.Module):
     """Model Mockup."""
 
-    def __init__(self, model_param: int, *args, **kwargs):
+    def __init__(self, model_param: int, *args, **kwargs):  # type: ignore
         """Init."""
         super().__init__(*args, **kwargs)
         self.model_param = model_param
         self.linear = nn.Linear(10, 1)
 
-    def forward(self, *args, **kwargs):
+    def forward(  # type: ignore
+        self, *args, **kwargs  # pylint: disable=unused-argument,line-too-long
+    ) -> ModelOutput:
         """Forward."""
         if self.training:
             return {
@@ -163,4 +223,4 @@ class MockModel(nn.Module):
                     - 0
                 ).sum()
             }
-        return {}  # type: ignore
+        return {}

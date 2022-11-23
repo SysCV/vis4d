@@ -43,6 +43,7 @@ class BoundingBoxVisualizer(Visualizer):
         n_colors: int = 50,
         class_id_mapping: dict[int, str] | None = None,
         file_type="png",
+        image_mode="RGB",
         canvas: CanvasBackend = PillowCanvasBackend(),
         viewer: ImageViewerBackend = MatplotlibImageViewer(),
     ) -> None:
@@ -54,6 +55,7 @@ class BoundingBoxVisualizer(Visualizer):
             class_id_mapping (dict[int, str]): Mapping from class id to
                                                       human readable name
             file_type (str): Desired file type
+            image_mode (str): Image channel mode (RGB or BGR)
             canvas (CanvasBackend): Backend that is used to draw on images
             viewer (ImageViewerBackend): Backend that is used show images
         """
@@ -64,7 +66,7 @@ class BoundingBoxVisualizer(Visualizer):
             class_id_mapping if class_id_mapping is not None else {}
         )
         self.file_type = file_type
-
+        self.image_mode = image_mode
         self.canvas = canvas
         self.viewer = viewer
 
@@ -258,7 +260,7 @@ class BoundingBoxVisualizer(Visualizer):
             gt_class_ids (np.array): Ground truth class ids of shape [N]
             gt_track_ids (np.array): Ground truth track ids of shape [N]
         """
-        img_normalized = preprocess_image(image)
+        img_normalized = preprocess_image(image, mode=self.image_mode)
         data_sample = DataSample(img_normalized, [], [])
 
         if predicted_boxes is not None:

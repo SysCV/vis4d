@@ -162,11 +162,7 @@ class RetinaNetLoss(nn.Module):
         """
         super().__init__()
         self.retinanet_loss = RetinaNetHeadLoss(
-            anchor_generator,
-            box_encoder,
-            box_matcher,
-            box_sampler,
-            torchvision.ops.sigmoid_focal_loss,
+            anchor_generator, box_encoder, box_matcher, box_sampler
         )
 
     def forward(
