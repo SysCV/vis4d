@@ -13,6 +13,7 @@ def imshow_bboxes(
     track_ids: None | NDArrayI64 = None,
     class_id_mapping: None | dict[int, str] = None,
     n_colors: int = 50,
+    image_mode: str = "RGB",
 ) -> None:
     """Shows the bounding boxes overlayed on the given image.
 
@@ -26,10 +27,13 @@ def imshow_bboxes(
         class_id_mapping (dict[int, str], optional): Mapping to convert
                                                     class id to class name
         n_colors (int, optional): Number of distinct colors used to color the
-        _description_                        boxes. Defaults to 50.
+                                  boxes. Defaults to 50.
+        image_mode (str, optional): Image channel mode (RGB or BGR).
     """
     vis = BoundingBoxVisualizer(
-        n_colors=n_colors, class_id_mapping=class_id_mapping
+        n_colors=n_colors,
+        class_id_mapping=class_id_mapping,
+        image_mode=image_mode,
     )
     vis.process_single_image(
         image,
