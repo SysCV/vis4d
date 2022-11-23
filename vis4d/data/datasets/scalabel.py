@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import pickle
 from collections import defaultdict
-from typing import Callable
+from typing import Callable, Union
 
 import appdirs
 import numpy as np
@@ -129,7 +129,9 @@ def prepare_labels(
         instance_ids_to_global(frames, instance_ids)
 
 
-CategoryMap = dict[str, int] | dict[str, dict[str, int]]
+# Not using | operator because of a bug in Python 3.9
+# https://bugs.python.org/issue42233
+CategoryMap = Union[dict[str, int], dict[str, dict[str, int]]]
 
 
 class Scalabel(Dataset, CacheMappingMixin):
