@@ -105,7 +105,7 @@ class BaseDistributedSampler(
         """
         super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
         self.batch_size = batch_size
-        self.samplers: list[DistributedSampler[List[int]]] = [
+        self.samplers: list[DistributedSampler[list[int]]] = [
             DistributedSampler(
                 dset, num_replicas, rank, self.shuffle, seed, self.drop_last
             )
