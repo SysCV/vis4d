@@ -244,7 +244,6 @@ class QDTrackTest(unittest.TestCase):
                 #         score.numpy(),
                 #         cls_id.numpy(),
                 #     )
-
                 # for img, trk in zip(images, tracks):
                 #     track_ids, boxes, scores, class_ids, _ = trk
                 #     imshow_bboxes(
