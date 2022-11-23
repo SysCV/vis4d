@@ -1,6 +1,7 @@
 """Vis4D trainer."""
 from __future__ import annotations
 
+import logging
 from time import perf_counter
 
 import torch
@@ -8,6 +9,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
+from vis4d.common import DictStrAny
 from vis4d.common.distributed import get_rank
 from vis4d.eval import Evaluator
 from vis4d.optim.warmup import BaseLRWarmup
@@ -39,10 +41,12 @@ def training_loop(
     vis_every_nth_epoch=1,
 ) -> None:
     """Training loop."""
-
     if eval_connector is None:
         # For now just wrap data connector to not break anything.
-        eval_connector = lambda in_data, out_data: data_connector(in_data)
+        def eval_connector(in_data, out_data):
+            return data_connector(in_data)
+
+    logger = logging.getLogger(__name__)
 
     running_losses = {}
     for epoch in range(num_epochs):
@@ -119,4 +123,4 @@ def training_loop(
                 eval_connector,
                 visualizers_to_use,
             )
-    print("training done.")  # FIXME move to log statement
+    logger.info("training done.")

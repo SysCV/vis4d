@@ -1,5 +1,5 @@
 """Segment3D data module."""
-from typing import List, Union
+from __future__ import annotations
 
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -28,7 +28,7 @@ from vis4d.data.transforms.points import (
 from vis4d.data.typing import DictData
 
 
-def default_collate(batch: List[DictData]) -> DictData:
+def default_collate(batch: list[DictData]) -> DictData:
     """Default batch collate."""
     data = {}
     for key in batch[0]:
@@ -37,7 +37,7 @@ def default_collate(batch: List[DictData]) -> DictData:
 
 
 def default_train_pipeline(
-    datasets: Union[Dataset, List[Dataset]],
+    datasets: Dataset | list[Dataset],
     batch_size: int,
     num_pts: int = 2048,
     load_instances: bool = False,
@@ -101,7 +101,7 @@ def default_train_pipeline(
 
 
 def default_test_pipeline(
-    datasets: Union[Dataset, List[Dataset]],
+    datasets: Dataset | list[Dataset],
     batch_size: int,
     num_pts: int = 2048,
     load_instances: bool = False,
