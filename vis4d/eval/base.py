@@ -85,7 +85,7 @@ class SaveDataMixin:
         else:
             self.data_backend = data_backend
         if save_dir is None:
-            self.save_dir = tempfile.TemporaryDirectory().name
+            self.save_dir = tempfile.mkdtemp().name
         else:
             self.save_dir = save_dir
 

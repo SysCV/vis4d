@@ -46,23 +46,23 @@ def bbox_clip(
 def scale_and_clip_boxes(
     boxes: torch.Tensor,
     original_hw: tuple[int, int],
-    output_hw: tuple[int, int],
+    current_hw: tuple[int, int],
     clip: bool = True,
 ) -> torch.Tensor:
     """Postprocess boxes by scaling and clipping to given image dims.
 
     Args:
-        boxes (torch.Tensor): Bounding boxes with shape [N, 4]
-        original_hw (tuple[int, int]): Original height / width of image
-        output_hw (tuple[int, int]): Rescale height / width  of image
-        clip (bool): if true, clips box corners to image bounds
+        boxes (torch.Tensor): Bounding boxes with shape [N, 4].
+        original_hw (tuple[int, int]): Original height / width of image.
+        current_hw (tuple[int, int]): Current height / width of image.
+        clip (bool): If true, clips box corners to image bounds.
 
     Returns:
-        torch.Tensor containing rescaled and possibly clipped bounding boxes
+        torch.Tensor: Rescaled and possibly clipped bounding boxes.
     """
     scale_factor = (
-        original_hw[1] / output_hw[1],
-        original_hw[0] / output_hw[0],
+        original_hw[1] / current_hw[1],
+        original_hw[0] / current_hw[0],
     )
     boxes = bbox_scale(boxes, scale_factor)
     if clip:
