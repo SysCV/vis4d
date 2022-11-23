@@ -1,6 +1,8 @@
 """Vis4D tester."""
 from __future__ import annotations
 
+import logging
+
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -20,11 +22,15 @@ def testing_loop(
     model: nn.Module,
     data_connector,
     eval_connector,  # TODO, discuss
-    visualizers: list[Visualizer] = [],
+    visualizers: None | list[Visualizer] = None,
 ) -> None:
     """Testing loop."""
+    if visualizers is None:
+        visualizers = []
+    logger = logging.getLogger(__name__)
+
     model.eval()
-    print("Running validation...")  # FIXME move to log function
+    logger.info("Running validation...")
     for test_loader in test_dataloader:
         for _, data in enumerate(tqdm(test_loader)):
             # input data
@@ -47,7 +53,7 @@ def testing_loop(
                 vis.process(data, output)
     for test_eval in evaluators:
         _, log_str = test_eval.evaluate(metric)
-        print(log_str)  # FIXME move to log function
+        logger.info(log_str)
 
     for test_vis in visualizers:
         test_vis.visualize()

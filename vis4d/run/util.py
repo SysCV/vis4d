@@ -15,7 +15,7 @@ _BLOCKING_DEVICE_TYPES = ("cpu", "mps")
 
 
 class TransferableDataType(ABC):
-    """A custom type for data that can be moved to a torch device via ``.to(...)``.
+    """A custom type for data that can be moved to a torch device.
 
     Example:
         >>> isinstance(dict, TransferableDataType)
@@ -34,6 +34,7 @@ class TransferableDataType(ABC):
 
     @classmethod
     def __subclasshook__(cls, subclass: Any) -> bool | Any:
+        """Subclass hook."""
         if cls is TransferableDataType:
             to = getattr(subclass, "to", None)
             return callable(to)
@@ -41,7 +42,10 @@ class TransferableDataType(ABC):
 
 
 def is_namedtuple(obj: object) -> bool:
-    # https://github.com/pytorch/pytorch/blob/v1.8.1/torch/nn/parallel/scatter_gather.py#L4-L8
+    """Check if obj is namedtuple.
+
+    https://github.com/pytorch/pytorch/blob/v1.8.1/torch/nn/parallel/scatter_gather.py#L4-L8
+    """
     return (
         isinstance(obj, tuple)
         and hasattr(obj, "_asdict")
@@ -50,7 +54,10 @@ def is_namedtuple(obj: object) -> bool:
 
 
 def is_dataclass_instance(obj: object) -> bool:
-    # https://docs.python.org/3/library/dataclasses.html#module-level-decorators-classes-and-functions
+    """Check if obj is dataclass instance.
+
+    https://docs.python.org/3/library/dataclasses.html#module-level-decorators-classes-and-functions
+    """
     return dataclasses.is_dataclass(obj) and not isinstance(obj, type)
 
 
@@ -78,6 +85,9 @@ def apply_to_collection(
             ``function`` is ``None``.
         **kwargs: keyword arguments (will be forwarded to calls of
             ``function``)
+
+    Raises:
+        ValueError: If frozen dataclass is passed to `apply_to_collection`.
 
     Returns:
         The resulting collection
