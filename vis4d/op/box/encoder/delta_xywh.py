@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 
 import torch
+from torch import Tensor
 
 from .base import BoxEncoder2D
 
@@ -24,7 +25,7 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         target_means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
         target_stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
         wh_ratio_clip: float = 16 / 1000,
-    ):
+    ) -> None:
         """Init.
 
         Args:
@@ -59,7 +60,7 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         encoded_bboxes = bbox2delta(boxes, targets, self.means, self.stds)
         return encoded_bboxes
 
-    def decode(self, boxes: torch.Tensor, box_deltas: torch.Tensor):
+    def decode(self, boxes: torch.Tensor, box_deltas: torch.Tensor) -> Tensor:
         """Apply box offset energies box_deltas to boxes.
 
         Args:
@@ -85,7 +86,7 @@ def bbox2delta(
     gt_boxes: torch.Tensor,
     means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
-):
+) -> Tensor:
     """Compute deltas of proposals w.r.t. gt.
 
     We usually compute the deltas of x, y, w, h of proposals w.r.t ground
@@ -137,7 +138,7 @@ def delta2bbox(
     means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
     wh_ratio_clip: float = 16 / 1000,
-):
+) -> Tensor:
     """Apply deltas to shift/scale base boxes.
 
     Typically the rois are anchor or proposed bounding boxes and the deltas are

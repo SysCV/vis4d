@@ -4,15 +4,16 @@ from __future__ import annotations
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch import Tensor
 
 
 def _do_paste_mask(
-    masks: torch.Tensor,
-    boxes: torch.Tensor,
+    masks: Tensor,
+    boxes: Tensor,
     img_h: int,
     img_w: int,
     skip_empty: bool = True,
-) -> torch.Tensor:
+) -> tuple[Tensor, tuple[slice, slice] | tuple[()]]:
     """Paste mask onto image.
 
     On GPU, paste all masks together (up to chunk size) by using the entire
@@ -23,8 +24,8 @@ def _do_paste_mask(
     https://github.com/facebookresearch/detectron2/
 
     Args:
-        masks (torch.Tensor): Masks with shape [N, 1, Hmask, Wmask].
-        boxes (torch.Tensor): Boxes with shape [N, 4].
+        masks (Tensor): Masks with shape [N, 1, Hmask, Wmask].
+        boxes (Tensor): Boxes with shape [N, 4].
         img_h (int): Image height.
         img_w (int): Image width.
         skip_empty (bool, optional): Only paste masks within the region that
@@ -32,7 +33,7 @@ def _do_paste_mask(
             An important optimization for CPU. Defaults to True.
 
     Returns:
-        torch.Tensor: Mask with shape [N, Himg, Wimg] if skip_empty == True, or
+        Tensor: Mask with shape [N, Himg, Wimg] if skip_empty == True, or
             a mask of shape (N, H', W') and the slice object for the
             corresponding region if skip_empty == False.
     """
@@ -42,11 +43,16 @@ def _do_paste_mask(
         x0_int, y0_int = torch.clamp(
             boxes.min(dim=0).values.floor()[:2] - 1, min=0
         ).to(dtype=torch.int32)
-        x1_int = torch.clamp(boxes[:, 2].max().ceil() + 1, max=img_w).to(
-            dtype=torch.int32
+        x0_int, y0_int = x0_int.item(), y0_int.item()
+        x1_int = (
+            torch.clamp(boxes[:, 2].max().ceil() + 1, max=img_w)
+            .to(dtype=torch.int32)
+            .item()
         )
-        y1_int = torch.clamp(boxes[:, 3].max().ceil() + 1, max=img_h).to(
-            dtype=torch.int32
+        y1_int = (
+            torch.clamp(boxes[:, 3].max().ceil() + 1, max=img_h)
+            .to(dtype=torch.int32)
+            .item()
         )
     else:
         x0_int, y0_int = 0, 0
@@ -78,13 +84,13 @@ def _do_paste_mask(
 
 
 def paste_masks_in_image(
-    masks: torch.Tensor,
-    boxes: torch.Tensor,
+    masks: Tensor,
+    boxes: Tensor,
     image_shape: tuple[int, int],
     threshold: float = 0.5,
     bytes_per_float: int = 4,
     gpu_mem_limit: int = 1024**3,
-) -> torch.Tensor:
+) -> Tensor:
     """Paste masks that are of a fixed resolution into an image.
 
     The location, height, and width for pasting each mask is determined by
@@ -94,11 +100,11 @@ def paste_masks_in_image(
     https://github.com/facebookresearch/detectron2/
 
     Args:
-        masks (torch.Tensor): Masks with shape [N, Hmask, Wmask], where N is
+        masks (Tensor): Masks with shape [N, Hmask, Wmask], where N is
             the number of detected object instances in the image and Hmask,
             Wmask are the mask width and mask height of the predicted mask
             (e.g., Hmask = Wmask = 28). Values are in [0, 1].
-        boxes (torch.Tensor): Boxes with shape [N, 4]. boxes[i] and masks[i]
+        boxes (Tensor): Boxes with shape [N, 4]. boxes[i] and masks[i]
             correspond to the same object instance.
         image_shape (tuple[int, int]): Image resolution (width, height).
         threshold (float, optional): Threshold for discretization of mask.
@@ -108,7 +114,7 @@ def paste_masks_in_image(
         gpu_mem_limit (int, optional): GPU memory limit. Defaults to 1024**3.
 
     Returns:
-        torch.Tensor: Masks with shape [N, Himage, Wimage], where N is the
+        Tensor: Masks with shape [N, Himage, Wimage], where N is the
             number of detected object instances and Himage, Wimage are the
             image width and height.
     """
@@ -164,17 +170,17 @@ def paste_masks_in_image(
 
 
 def nhw_to_hwc_mask(
-    masks: torch.Tensor, class_ids: torch.Tensor, ignore_class: int = 255
-) -> torch.Tensor:
+    masks: Tensor, class_ids: Tensor, ignore_class: int = 255
+) -> Tensor:
     """Convert N binary HxW masks to HxW semantic mask.
 
     Args:
-        masks (torch.Tensor): Masks with shape [N, H, W].
-        class_ids (torch.Tensor): Class IDs with shape [N, 1].
+        masks (Tensor): Masks with shape [N, H, W].
+        class_ids (Tensor): Class IDs with shape [N, 1].
         ignore_class (int, optional): Ignore label. Defaults to 255.
 
     Returns:
-        torch.Tensor: Masks with shape [H, W], where each location indicate the
+        Tensor: Masks with shape [H, W], where each location indicate the
             class label.
     """
     hwc_mask = torch.full(
@@ -186,19 +192,19 @@ def nhw_to_hwc_mask(
 
 
 def postprocess_segms(
-    segms: torch.Tensor,
+    segms: Tensor,
     images_hw: list[tuple[int, int]],
     original_hw: list[tuple[int, int]],
-) -> torch.Tensor:
+) -> Tensor:
     """Postprocess segmentations.
 
     Args:
-        segms (torch.Tensor): Segmentations with shape [B, C, H, W].
+        segms (Tensor): Segmentations with shape [B, C, H, W].
         images_hw (list[tuple[int, int]]): Image resolutions.
         original_hw (list[tuple[int, int]]): Original image resolutions.
 
     Returns:
-        torch.Tensor: Post-processed segmentations.
+        Tensor: Post-processed segmentations.
     """
     post_segms = []
     for segm, image_hw, orig_hw in zip(segms, images_hw, original_hw):

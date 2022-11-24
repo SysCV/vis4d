@@ -31,19 +31,21 @@ class TestMultiScaleRoIPooler(unittest.TestCase):
         out = pooler(inputs, boxes_list)
         self.assertEqual(out.shape, (N * 10, C, 7, 7))
 
-        pooler = MultiScaleRoIPool(resolution=(7, 7), strides=[8])
-        out = pooler([inputs[0]], boxes_list)
+        pooler2 = MultiScaleRoIPool(resolution=(7, 7), strides=[8])
+        out = pooler2([inputs[0]], boxes_list)
         self.assertEqual(out.shape, (N * 10, C, 7, 7))
 
         boxes_list = []
         for _ in range(N):
             boxes_list += [torch.empty([0, 4])]
 
-        out = pooler([inputs[0]], boxes_list)
+        out = pooler2([inputs[0]], boxes_list)
         self.assertEqual(out.shape, (0, C, 7, 7))
 
         inputs = [
-            torch.zeros((0, C, H // pooler.strides[0], W // pooler.strides[0]))
+            torch.zeros(
+                (0, C, H // pooler2.strides[0], W // pooler2.strides[0])
+            )
         ]
-        out = pooler(inputs, [])
+        out = pooler2(inputs, [])
         self.assertEqual(out.shape, (0, C, 7, 7))
