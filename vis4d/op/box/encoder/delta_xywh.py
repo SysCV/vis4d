@@ -124,9 +124,9 @@ def bbox2delta(
     dh = torch.log(gh / ph)
     deltas = torch.stack([dx, dy, dw, dh], dim=-1)
 
-    means = torch.tensor(means, dtype=deltas.dtype, device=deltas.device)
-    stds = torch.tensor(stds, dtype=deltas.dtype, device=deltas.device)
-    deltas = deltas.sub_(means.view(1, -1)).div_(stds.view(1, -1))
+    mean_tensor = torch.tensor(means, dtype=deltas.dtype, device=deltas.device)
+    std_tensor = torch.tensor(stds, dtype=deltas.dtype, device=deltas.device)
+    deltas = deltas.sub_(mean_tensor.view(1, -1)).div_(std_tensor.view(1, -1))
 
     return deltas
 
@@ -171,9 +171,9 @@ def delta2bbox(
 
     deltas = deltas.reshape(-1, 4)
 
-    means = torch.tensor(means, dtype=deltas.dtype, device=deltas.device)
-    stds = torch.tensor(stds, dtype=deltas.dtype, device=deltas.device)
-    denorm_deltas = deltas * stds.view(1, -1) + means.view(1, -1)
+    mean_tensor = torch.tensor(means, dtype=deltas.dtype, device=deltas.device)
+    std_tensor = torch.tensor(stds, dtype=deltas.dtype, device=deltas.device)
+    denorm_deltas = deltas * std_tensor.view(1, -1) + mean_tensor.view(1, -1)
 
     dxy = denorm_deltas[:, :2]
     dwh = denorm_deltas[:, 2:]

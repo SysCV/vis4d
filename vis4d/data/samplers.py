@@ -25,7 +25,7 @@ class BaseSampler(Sampler[list[int]]):
 
     def __init__(
         self,
-        dataset: ConcatDataset,
+        dataset: ConcatDataset[int],
         batch_size: int,
         shuffle: bool = True,
         drop_last: bool = False,
@@ -34,7 +34,7 @@ class BaseSampler(Sampler[list[int]]):
         """Initialize sampler.
 
         Args:
-            dataset (ConcatDataset): Sampling dataset.
+            dataset (ConcatDataset[int]): Sampling dataset.
             batch_size (int): Size of mini-batch.
             shuffle (bool, optional): If ``True`` (default), sampler will
                 shuffle the indices.
@@ -72,7 +72,7 @@ class BaseDistributedSampler(
 
     def __init__(
         self,
-        dataset: ConcatDataset,
+        dataset: ConcatDataset[int],
         batch_size: int,
         shuffle: bool = True,
         drop_last: bool = False,
@@ -83,7 +83,7 @@ class BaseDistributedSampler(
         """Initialize distributed sampler.
 
         Args:
-            dataset (ConcatDataset): Sampling dataset.
+            dataset (ConcatDataset[int]): Sampling dataset.
             batch_size (int): Size of mini-batch.
             shuffle (bool, optional): If ``True`` (default), sampler will
                 shuffle the indices.
@@ -163,7 +163,7 @@ class RoundRobinMixin:
 
     @staticmethod
     def setup_samplers(
-        samplers: list[Sampler[list[int]]], batch_size: int, drop_last: bool
+        samplers: list[Sampler[int]], batch_size: int, drop_last: bool
     ) -> list[Sampler[list[int]]]:
         """Setup samplers."""
         if batch_size > 1:

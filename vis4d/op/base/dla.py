@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import torch
-from torch import nn
-from torch.utils import model_zoo
+from torch import Tensor, nn
 
 from .base import BaseModel
 
@@ -117,8 +116,8 @@ class BasicBlock(nn.Module):
         self.stride = stride
 
     def forward(
-        self, input_x: torch.Tensor, residual: None | torch.Tensor = None
-    ) -> torch.Tensor:
+        self, input_x: Tensor, residual: None | Tensor = None
+    ) -> Tensor:
         """Forward."""
         if residual is None:
             residual = input_x
@@ -170,8 +169,8 @@ class Bottleneck(nn.Module):
         self.stride = stride
 
     def forward(
-        self, input_x: torch.Tensor, residual: None | torch.Tensor = None
-    ) -> torch.Tensor:
+        self, input_x: Tensor, residual: None | Tensor = None
+    ) -> Tensor:
         """Forward."""
         if residual is None:
             residual = input_x
@@ -229,8 +228,8 @@ class BottleneckX(nn.Module):
         self.stride = stride
 
     def forward(
-        self, input_x: torch.Tensor, residual: None | torch.Tensor = None
-    ) -> torch.Tensor:
+        self, input_x: Tensor, residual: None | Tensor = None
+    ) -> Tensor:
         """Forward."""
         if residual is None:
             residual = input_x
@@ -276,16 +275,16 @@ class Root(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.residual = residual
 
-    def forward(self, *input_x: torch.Tensor) -> torch.Tensor:
+    def forward(self, *input_x: Tensor) -> Tensor:
         """Forward."""
         children = input_x
-        input_x = self.conv(torch.cat(input_x, 1))
-        input_x = self.bn1(input_x)
+        feats = self.conv(torch.cat(input_x, 1))
+        feats = self.bn1(feats)
         if self.residual:
-            input_x += children[0]
-        input_x = self.relu(input_x)
+            feats += children[0]
+        feats = self.relu(feats)
 
-        return input_x
+        return feats
 
 
 class Tree(nn.Module):
@@ -374,10 +373,10 @@ class Tree(nn.Module):
 
     def forward(
         self,
-        input_x: torch.Tensor,
-        residual: None | torch.Tensor = None,
-        children: None | list[torch.Tensor] = None,
-    ) -> torch.Tensor:
+        input_x: Tensor,
+        residual: None | Tensor = None,
+        children: None | list[Tensor] = None,
+    ) -> Tensor:
         """Forward."""
         children = [] if children is None else children
         bottom = self.downsample(input_x) if self.downsample else input_x
@@ -519,12 +518,12 @@ class DLA(BaseModel):
     def load_pretrained_model(self, weights: str) -> None:
         """Load pretrained weights."""
         if weights.startswith("http://") or weights.startswith("https://"):
-            model_weights = model_zoo.load_url(weights)
+            model_weights = torch.hub.load_state_dict_from_url(weights)
         else:  # pragma: no cover
             model_weights = torch.load(weights)
         self.load_state_dict(model_weights, strict=False)
 
-    def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
+    def forward(self, images: Tensor) -> list[Tensor]:
         """DLA forward.
 
         Args:
@@ -532,13 +531,13 @@ class DLA(BaseModel):
                 type float32 with values ranging 0..255.
 
         Returns:
-            fp (list[torch.Tensor]): The output feature pyramid. The list index
+            fp (list[Tensor]): The output feature pyramid. The list index
             represents the level, which has a downsampling raio of 2^index.
             fp[0] is a feature map with the image resolution instead of the
             original image.
         """
         input_x = self.base_layer(images)
-        outs: list[torch.Tensor] = []
+        outs: list[Tensor] = []
         for i in range(6):
             input_x = getattr(self, f"level{i}")(input_x)
             outs.append(input_x)

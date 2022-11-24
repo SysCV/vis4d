@@ -45,9 +45,9 @@ class VGG(BaseModel):
 
         vgg = _vgg.__dict__[vgg_name](pretrained=pretrained)
         use_bn = vgg_name[-3:] == "_bn"
-        self._out_channels = []
+        self._out_channels: list[int] = []
         returned_layers = []
-        last_channel = None
+        last_channel = -1
         layer_counter = 0
 
         vgg_channels = _vgg.cfgs[
