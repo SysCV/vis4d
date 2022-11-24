@@ -104,7 +104,7 @@ class LinearTransform(nn.Module):
         if norm_fn is not None:
             self.norms_ = nn.ModuleList(
                 norm_fn(feature_size)
-                for feature_size in list(
+                for feature_size in (
                     *upsampling_dims,
                     *self.downsampling_dims[1:],
                 )
