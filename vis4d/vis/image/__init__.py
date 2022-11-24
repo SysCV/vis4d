@@ -9,10 +9,12 @@ from .image_utils_to_revise import (
     draw_lines_match,
     draw_mask,
     get_intersection_point,
+    imshow,
     imshow_bboxes,
     imshow_bboxes3d,
     imshow_masks,
     imshow_pointcloud,
+    show_pointcloud,
 )
 
 __all__ = [
@@ -29,4 +31,6 @@ __all__ = [
     "imshow_bboxes3d",
     "imshow_masks",
     "imshow_pointcloud",
+    "show_pointcloud",
+    "imshow",
 ]
