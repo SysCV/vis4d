@@ -279,7 +279,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
                     masks.append(maskUtils.decode(rle))
                 else:
                     masks.append(np.empty((img_h, img_w)))
-            if not len(boxes):
+            if not boxes:
                 box_tensor = torch.empty((0, 4), dtype=torch.float32)
                 mask_tensor = torch.empty((0, img_h, img_w), dtype=torch.uint8)
             else:

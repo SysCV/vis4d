@@ -7,7 +7,7 @@ from torch import optim
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.op.util import load_model_checkpoint
-from vis4d.unittest.util import get_test_file
+from vis4d.unittest.util import get_test_data, get_test_file
 
 from .faster_rcnn_test import get_test_dataloader, get_train_dataloader
 from .mask_rcnn import REV_KEYS, MaskRCNN, MaskRCNNLoss
@@ -23,7 +23,7 @@ class MaskRCNNTest(unittest.TestCase):
             >>> pytest vis4d/model/detect/mask_rcnn_test.py::MaskRCNNTest::test_inference
         """
         dataset = COCO(
-            get_test_file("coco_test"),
+            get_test_data("coco_test"),
             keys=(CommonKeys.images,),
             split="train",
         )
@@ -46,6 +46,10 @@ class MaskRCNNTest(unittest.TestCase):
         with torch.no_grad():
             masks = mask_rcnn(inputs, images_hw, original_hw=images_hw)
 
+        test_samples = 10
+        for key in masks:
+            for i, _ in enumerate(masks[key]):
+                masks[key][i] = masks[key][i][:test_samples]
         testcase_gt = torch.load(get_test_file("mask_rcnn.pt"))
         for k in testcase_gt:
             assert k in masks
@@ -67,7 +71,7 @@ class MaskRCNNTest(unittest.TestCase):
 
         optimizer = optim.SGD(mask_rcnn.parameters(), lr=0.001, momentum=0.9)
 
-        dataset = COCO(get_test_file("coco_test"), split="train")
+        dataset = COCO(get_test_data("coco_test"), split="train")
         train_loader = get_train_dataloader(dataset, 2, (256, 256))
 
         running_losses = {}

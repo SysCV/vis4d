@@ -65,7 +65,7 @@ def get_axis(direction: str, axis_mode: AxisMode) -> int:
     Returns:
         int: Number of axis in certain direction.
     """
-    assert direction in ["horizontal", "lateral", "vertical"]
+    assert direction in {"horizontal", "lateral", "vertical"}
     coord_mapping = {
         AxisMode.ROS: {
             "horizontal": 0,
@@ -93,7 +93,8 @@ def flip_boxes3d(direction: str = "horizontal"):
     def _flip(boxes: torch.Tensor, axis_mode: AxisMode) -> torch.Tensor:
         if direction == "horizontal":
             boxes[:, get_axis(direction, axis_mode)] *= -1.0
-            # boxes[:, 7] = normalize_angle(np.pi - boxes[:, 7])  TODO align with Quaternion
+            # boxes[:, 7] = normalize_angle(np.pi - boxes[:, 7])
+            # TODO align with Quaternion
             return boxes
         if direction == "vertical":
             boxes[:, get_axis(direction, axis_mode)] *= -1.0

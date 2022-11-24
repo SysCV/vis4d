@@ -139,7 +139,7 @@ class DatasetFromList(Dataset):  # type: ignore
     """
 
     def __init__(  # type: ignore
-        self, lst: List[Any], deepcopy: bool = False, serialize: bool = True
+        self, lst: list[Any], deepcopy: bool = False, serialize: bool = True
     ):
         """Init.
 

@@ -257,9 +257,8 @@ class AnchorGenerator:
             x_center + 0.5 * ws,
             y_center + 0.5 * hs,
         ]
-        base_anchors = torch.stack(base_anchors, dim=-1)  # type: ignore
 
-        return base_anchors
+        return torch.stack(base_anchors, dim=-1)
 
     def grid_priors(
         self,

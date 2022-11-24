@@ -16,9 +16,9 @@ from ..layer import Conv2d, DeformConv
 from .base import FeaturePyramidProcessing
 
 
-def fill_up_weights(up: nn.ConvTranspose2d) -> None:
+def fill_up_weights(up_layer: nn.ConvTranspose2d) -> None:
     """Initialize weights of upsample layer."""
-    w = up.weight.data
+    w = up_layer.weight.data
     f = math.ceil(w.size(2) / 2)
     c = (2 * f - 1 - f % 2) / (2.0 * f)
     for i in range(w.size(2)):

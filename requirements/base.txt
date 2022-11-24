@@ -1,5 +1,6 @@
 appdirs
 cloudpickle
+cython
 devtools
 jsonargparse[signatures]
 numpy>=1.21.0

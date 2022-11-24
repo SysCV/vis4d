@@ -8,7 +8,7 @@ from torch import nn
 from torch.nn import functional as F
 
 
-class Conv2d(torch.nn.Conv2d):  # type: ignore
+class Conv2d(torch.nn.Conv2d):
     """Wrapper around Conv2d to support empty inputs and norm/activation."""
 
     def __init__(self, *args, **kwargs) -> None:  # type: ignore
@@ -113,7 +113,6 @@ class UnetDownConv(nn.Module):
 
         This operator consists of two convolutions followed
         by a maxpool operator.
-
 
         Args:
             in_channels (int): input channesl

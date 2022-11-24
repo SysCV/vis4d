@@ -235,25 +235,24 @@ class QDTrackTest(unittest.TestCase):
                 from vis4d.vis.functional import imshow_bboxes
                 from vis4d.vis.util import preprocess_boxes, preprocess_image
 
-                for img, boxs, score, cls_id in zip(
-                    images, boxes, scores, class_ids
-                ):
-                    imshow_bboxes(
-                        np.array(preprocess_image(img)),
-                        boxs.numpy(),
-                        score.numpy(),
-                        cls_id.numpy(),
-                    )
-
-                for img, trk in zip(images, tracks):
-                    track_ids, boxes, scores, class_ids, _ = trk
-                    imshow_bboxes(
-                        np.array(preprocess_image(img)),
-                        boxes.numpy(),
-                        scores.numpy(),
-                        class_ids.numpy(),
-                        track_ids.numpy(),
-                    )
+                # for img, boxs, score, cls_id in zip(
+                #     images, boxes, scores, class_ids
+                # ):
+                #     imshow_bboxes(
+                #         np.array(preprocess_image(img)),
+                #         boxs.numpy(),
+                #         score.numpy(),
+                #         cls_id.numpy(),
+                #     )
+                # for img, trk in zip(images, tracks):
+                #     track_ids, boxes, scores, class_ids, _ = trk
+                #     imshow_bboxes(
+                #         np.array(preprocess_image(img)),
+                #         boxes.numpy(),
+                #         scores.numpy(),
+                #         class_ids.numpy(),
+                #         track_ids.numpy(),
+                #     )
                 # TODO test bdd100k val numbers and convert to results comparison
 
     def test_train(self):

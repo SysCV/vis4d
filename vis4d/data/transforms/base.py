@@ -1,12 +1,12 @@
 """Basic data augmentation class."""
 from __future__ import annotations
 
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 import torch
 
 from vis4d.common.dict import get_dict_nested, set_dict_nested
-from vis4d.common.prettyprint import describe_shape
 from vis4d.data.const import CommonKeys
 from vis4d.data.typing import DictData
 
@@ -52,13 +52,9 @@ class Transform:
             with_data (bool, optional): Pass the full data dict as auxiliary
                 input. Defaults to False.
         """
-        assert isinstance(in_keys, tuple) or isinstance(in_keys, list)
-        assert isinstance(out_keys, tuple) or isinstance(out_keys, list)
-        assert (
-            isinstance(sensors, tuple)
-            or isinstance(sensors, list)
-            or sensors is None
-        )
+        assert isinstance(in_keys, (list, tuple))
+        assert isinstance(out_keys, (list, tuple))
+        assert isinstance(sensors, (list, tuple)) or sensors is None
         self.in_keys = in_keys
         self.out_keys = out_keys
         self.sensors = sensors
@@ -153,7 +149,8 @@ class BatchTransform:
                     for data in batch:
                         key_data.append(get_dict_nested(data, key.split(".")))
                     in_batch.append(key_data)
-                # Optionally allow the function to get the full data dict as aux input.
+                # Optionally allow the function to get the full data dict as
+                # aux input.
                 if self.with_data:
                     result = orig_transform_fn(*in_batch, data=batch)
                 else:

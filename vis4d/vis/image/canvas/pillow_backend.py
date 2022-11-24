@@ -4,7 +4,8 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from vis4d.vis.image.base import CanvasBackend, NDArrayUI8
+from vis4d.common.typing import NDArrayBool, NDArrayUI8
+from vis4d.vis.image.base import CanvasBackend
 
 
 class PillowCanvasBackend(CanvasBackend):
@@ -40,9 +41,41 @@ class PillowCanvasBackend(CanvasBackend):
         if image is None and image_hw is None:
             raise ValueError("Image or Image Shapes required to create canvas")
         if image_hw is not None:
-            image = np.zeros(image_hw)
+            image = np.zeros(image_hw, dtype=np.uint8)
         self._image = Image.fromarray(image)
         self._image_draw = ImageDraw.Draw(self._image)
+
+    def draw_bitmap(
+        self,
+        bitmap: NDArrayBool,
+        color: tuple[float, float, float],
+        top_left_corner: tuple[float, float] = (0, 0),
+        alpha: float = 0.5,
+    ) -> None:
+        """Draws a binary mask onto the given canvas.
+
+        Args:
+            bitmap (ndarray): The binary mask to draw
+            color (tuple(float)): Color of the box [0,255]
+            top_left_corner (tuple(float, float)): Coordinates of top left
+                                                    corner of the bitmap
+            alpha (float): Alpha value for transparency of this mask
+
+        Raises:
+            ValueError: If the canvas is not initialized.
+        """
+        if self._image_draw is None:
+            raise ValueError(
+                "No Image Draw initialized! Did you call 'create_canvas'?"
+            )
+        mask = np.squeeze(bitmap)
+        assert len(mask.shape) == 2, "Bitmap expected to have shape [h,w]"
+
+        bitmap_with_alpha = np.repeat(mask[:, :, None], 4, axis=2)
+        bitmap_with_alpha[..., -1] *= alpha * 255
+
+        bitmap_pil = Image.fromarray(bitmap_with_alpha, mode="RGBA")
+        self._image_draw.bitmap(top_left_corner, bitmap_pil, outline=color)
 
     def draw_box(
         self,

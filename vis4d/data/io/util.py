@@ -1,9 +1,10 @@
 """Data I/O Utilities."""
+from __future__ import annotations
+
 import sys
-from typing import Optional
 
 
-def str_decode(str_bytes: bytes, encoding: Optional[str] = None) -> str:
+def str_decode(str_bytes: bytes, encoding: None | str = None) -> str:
     """Decode to string from bytes."""
     if encoding is None:
         encoding = sys.getdefaultencoding()

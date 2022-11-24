@@ -15,7 +15,7 @@ bin/
 app/dist/
 
 # potential integration testing data directory
-test_data/
+# test_data/
 /data
 
 #python

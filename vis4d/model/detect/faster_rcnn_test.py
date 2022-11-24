@@ -22,10 +22,9 @@ from vis4d.data.transforms.resize import (
     resize_image,
     resize_masks,
 )
-from vis4d.op.util import load_model_checkpoint
-from vis4d.unittest.util import get_test_file
+from vis4d.unittest.util import get_test_data, get_test_file
 
-from .faster_rcnn import REV_KEYS, FasterRCNN, FasterRCNNLoss
+from .faster_rcnn import FasterRCNN, FasterRCNNLoss
 
 
 def get_train_dataloader(
@@ -67,14 +66,14 @@ def get_test_dataloader(
 class FasterRCNNTest(unittest.TestCase):
     """Faster RCNN test class."""
 
-    def test_inference(self):
+    def test_inference(self) -> None:
         """Test inference of Faster RCNN.
 
         Run::
             >>> pytest vis4d/model/detect/faster_rcnn_test.py::FasterRCNNTest::test_inference
         """
         dataset = COCO(
-            get_test_file("coco_test"),
+            get_test_data("coco_test"),
             keys=(CommonKeys.images,),
             split="train",
         )
@@ -85,13 +84,7 @@ class FasterRCNNTest(unittest.TestCase):
             batch[CommonKeys.input_hw],
         )
 
-        weights = (
-            "mmdet://faster_rcnn/faster_rcnn_r50_fpn_2x_coco/"
-            "faster_rcnn_r50_fpn_2x_coco_bbox_mAP-0.384_"
-            "20200504_210434-a5d8aa15.pth"
-        )
-        faster_rcnn = FasterRCNN(num_classes=80)
-        load_model_checkpoint(faster_rcnn, weights, rev_keys=REV_KEYS)
+        faster_rcnn = FasterRCNN(num_classes=80, weights="mmdet")
 
         faster_rcnn.eval()
         with torch.no_grad():
@@ -107,14 +100,14 @@ class FasterRCNNTest(unittest.TestCase):
                     .item()
                 )
 
-    def test_train(self):
+    def test_train(self) -> None:
         """Test Faster RCNN training."""
         faster_rcnn = FasterRCNN(num_classes=80)
         rcnn_loss = FasterRCNNLoss()
 
         optimizer = optim.SGD(faster_rcnn.parameters(), lr=0.001, momentum=0.9)
 
-        dataset = COCO(get_test_file("coco_test"), split="train")
+        dataset = COCO(get_test_data("coco_test"), split="train")
         train_loader = get_train_dataloader(dataset, 2, (256, 256))
 
         running_losses = {}
@@ -155,7 +148,7 @@ class FasterRCNNTest(unittest.TestCase):
                     print(log_str.rstrip(", "))
                     running_losses = {}
 
-    def test_torchscript(self):
+    def test_torchscript(self) -> None:
         """Test torchscript export of Faster RCNN."""
         sample_images = torch.rand((2, 3, 512, 512))
         faster_rcnn = FasterRCNN(80)
