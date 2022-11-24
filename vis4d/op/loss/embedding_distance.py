@@ -1,6 +1,4 @@
-"""Embedding distance loss.
-TODO (tobiasfshr) Document the loss functions
-"""
+"""Embedding distance loss."""
 from __future__ import annotations
 
 import torch
@@ -12,6 +10,7 @@ from .common import l2_loss
 from .reducer import LossReducer, SumWeightedLoss, identity_loss
 
 
+# TODO (tobiasfshr) Document the loss functions
 class EmbeddingDistanceLoss(Loss):
     """Embedding distance loss."""
 

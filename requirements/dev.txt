@@ -6,7 +6,6 @@ pre-commit
 pydocstyle
 pylint
 pytest
-scikit-image
 types-PyYAML
 types-requests
 types-tabulate

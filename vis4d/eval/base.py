@@ -24,7 +24,9 @@ class Evaluator:
         """
         return []
 
-    def gather(self, gather_func: Callable[[Any], Any]) -> None:  # type: ignore
+    def gather(
+        self, gather_func: Callable[[Any], Any]
+    ) -> None:  # type: ignore
         """Gather variables in case of distributed setting (if needed).
 
         Args:

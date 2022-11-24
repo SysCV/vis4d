@@ -56,7 +56,7 @@ class ResNet(BaseModel):
         if trainable_layers == 5:
             layers_to_train.append("bn1")
         for name, parameter in resnet.named_parameters():
-            if all([not name.startswith(layer) for layer in layers_to_train]):
+            if all(not name.startswith(layer) for layer in layers_to_train):
                 parameter.requires_grad_(False)
 
         returned_layers = [1, 2, 3, 4]
@@ -76,7 +76,7 @@ class ResNet(BaseModel):
             list[int]: number of channels
         """
         # use static value to be compatible with torch.jit
-        if self.name in ["resnet18", "resnet34"]:
+        if self.name in {"resnet18", "resnet34"}:
             # channels = [3, 3] + [64 * 2**i for i in range(4)]
             channels = [3, 3, 64, 128, 256, 512]
         else:

@@ -114,7 +114,6 @@ class UnetDownConv(nn.Module):
         This operator consists of two convolutions followed
         by a maxpool operator.
 
-
         Args:
             in_channels (int): input channesl
             out_channels (int): output channesl

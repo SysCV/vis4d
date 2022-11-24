@@ -11,11 +11,12 @@ from vis4d.data.loader import (
     build_train_dataloader,
 )
 from vis4d.data.transforms import compose, mask, normalize, pad, resize
+from vis4d.unittest.util import get_test_data
 
 
-def test_train_loader():
+def test_train_loader() -> None:
     """Test the data loading pipeline."""
-    coco = COCO(data_root="data/COCO/")
+    coco = COCO(data_root=get_test_data("coco_test"), split="train")
     batch_size = 2
     preprocess_fn = compose(
         [
@@ -37,9 +38,9 @@ def test_train_loader():
         break
 
 
-def test_inference_loader():
+def test_inference_loader() -> None:
     """Test the data loading pipeline."""
-    coco = COCO(data_root="data/COCO/", split="val2017")
+    coco = COCO(data_root=get_test_data("coco_test"), split="train")
     preprocess_fn = compose(
         [
             resize.resize_image((256, 256), keep_ratio=True),
@@ -55,15 +56,18 @@ def test_inference_loader():
 
     for sample in test_loaders[0]:
         assert isinstance(sample[CommonKeys.images], torch.Tensor)
-        assert 1 == sample[CommonKeys.images].size(0)
-        assert 1 == len(sample[CommonKeys.boxes2d])
+        assert sample[CommonKeys.images].size(0) == 1
+        assert len(sample[CommonKeys.boxes2d]) == 1
         break
 
 
-def test_segment_train_loader():
+def test_segment_train_loader() -> None:
     """Test the data loading pipeline."""
     coco = COCO(
-        data_root="data/COCO/", use_pascal_voc_cats=True, minimum_box_area=10
+        data_root=get_test_data("coco_test"),
+        split="train",
+        use_pascal_voc_cats=True,
+        minimum_box_area=10,
     )
     batch_size = 4
     preprocess_fn = compose(
@@ -83,25 +87,25 @@ def test_segment_train_loader():
 
         assert isinstance(images, torch.Tensor)
         assert isinstance(segmentation_masks, torch.Tensor)
-        assert 1 == images.size(0)
-        assert 1 == segmentation_masks.size(0)
+        assert images.size(0) == 2
+        assert segmentation_masks.size(0) == 2
         assert segmentation_masks.shape[-2:] == images.shape[-2:]
         assert segmentation_masks.min() >= 0
         assert segmentation_masks[segmentation_masks != 255].max() <= 20
         break
 
 
-def test_segment_inference_loader():
+def test_segment_inference_loader() -> None:
     """Test the data loading pipeline."""
     coco = COCO(
-        data_root="data/COCO/", use_pascal_voc_cats=True, minimum_box_area=10
+        data_root=get_test_data("coco_test"),
+        split="train",
+        use_pascal_voc_cats=True,
+        minimum_box_area=10,
     )
     batch_size = 1
     preprocess_fn = compose(
-        [
-            normalize.normalize_image(),
-            mask.convert_to_seg_masks(),
-        ]
+        [normalize.normalize_image(), mask.convert_to_seg_masks()]
     )
     datapipe = DataPipe(coco, preprocess_fn)
     test_loader = build_inference_dataloaders(datapipe)
@@ -120,7 +124,7 @@ def test_segment_inference_loader():
         break
 
 
-def test_train_loader_3D():
+def test_train_loader_3D() -> None:
     """Test the data loading pipeline for 3D Data."""
     s3dis = S3DIS(data_root="/data/Stanford3dDataset_v1.2")
 
@@ -141,7 +145,7 @@ def test_train_loader_3D():
         break
 
 
-def test_train_loader_3D_full_scene_batched():
+def test_train_loader_3D_full_scene_batched() -> None:
     """Test the data loading pipeline for 3D Data with full scene sampling."""
     s3dis = S3DIS(data_root="/data/Stanford3dDataset_v1.2")
 

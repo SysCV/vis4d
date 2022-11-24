@@ -20,7 +20,7 @@ from torchvision.ops.feature_pyramid_network import (
 from .base import FeaturePyramidProcessing
 
 
-class FPN(_FPN, FeaturePyramidProcessing):
+class FPN(_FPN, FeaturePyramidProcessing):  # type: ignore
     """Feature Pyramid Network.
 
     This is a wrapper of the torchvision implementation.
@@ -78,7 +78,7 @@ class FPN(_FPN, FeaturePyramidProcessing):
         return self._call_impl(x)
 
 
-class LastLevelP6P7(ExtraFPNBlock):
+class LastLevelP6P7(ExtraFPNBlock):  # type: ignore
     """This module is used in RetinaNet to generate extra layers, P6 and P7.
 
     Implementation modified from torchvision:
@@ -96,10 +96,11 @@ class LastLevelP6P7(ExtraFPNBlock):
         self.p7_conv = nn.Conv2d(out_channels, out_channels, 3, 2, 1)
         for module in (self.p6_conv, self.p7_conv):
             nn.init.kaiming_uniform_(module.weight, a=1)
-            nn.init.constant_(module.bias, 0)
+            if module.bias is not None:
+                nn.init.constant_(module.bias, 0)
         self.use_p5 = in_channels == out_channels
 
-    def forward(
+    def forward(  # pylint: disable=arguments-renamed
         self, p: list[torch.Tensor], c: list[torch.Tensor], names: list[str]
     ) -> tuple[list[torch.Tensor], list[str]]:
         """Forward."""

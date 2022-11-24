@@ -1,56 +1,28 @@
-"""Testcases for DLA backbone."""
+"""Testcases for VGG base model."""
 from __future__ import annotations
 
 import unittest
 
-import skimage
-import torch
+from vis4d.unittest.util import generate_features
 
 from .vgg import VGG
-
-
-def normalize(img: torch.Tensor) -> torch.Tensor:
-    pixel_mean = (123.675, 116.28, 103.53)
-    pixel_std = (58.395, 57.12, 57.375)
-    pixel_mean = torch.tensor(pixel_mean, device=img.device).view(-1, 1, 1)
-    pixel_std = torch.tensor(pixel_std, device=img.device).view(-1, 1, 1)
-    img = (img.float() - pixel_mean) / pixel_std
-    return img
-
-
-def url_to_tensor(
-    url: str, im_wh: None | tuple[int, int] = None
-) -> torch.Tensor:
-    image = skimage.io.imread(url)
-    if im_wh is not None:
-        image = skimage.transform.resize(image, im_wh) * 255
-    return normalize(
-        torch.tensor(image).float().permute(2, 0, 1).unsqueeze(0).contiguous()
-    )
 
 
 class TestVGG(unittest.TestCase):
     """Testcases for VGG backbone."""
 
     def test_vgg(self) -> None:
-        image1 = url_to_tensor(
-            "https://farm1.staticflickr.com/106/311161252_33d75830fd_z.jpg",
-            (512, 512),
-        )
-        image2 = url_to_tensor(
-            "https://farm4.staticflickr.com/3217/2980271186_9ec726e0fa_z.jpg",
-            (512, 512),
-        )
-        sample_images = torch.cat([image1, image2])
+        """Testcase for VGG."""
+        for vgg_name in ("vgg11", "vgg13", "vgg16", "vgg19"):
+            self._test_vgg(vgg_name)
+            self._test_vgg(vgg_name + "_bn")
 
-        for vgg_name in ["vgg11", "vgg13", "vgg16", "vgg19"]:
-            self._test_vgg(vgg_name, sample_images)
-            self._test_vgg(vgg_name + "_bn", sample_images)
-
-    def _test_vgg(self, vgg_name: str, sample_images: torch.Tensor) -> None:
+    def _test_vgg(self, vgg_name: str) -> None:
         """Testcase for VGG."""
         vgg = VGG(vgg_name, pretrained=False)
-        out = vgg(sample_images)
+
+        test_images = generate_features(3, 512, 512, 1, 2)[0]
+        out = vgg(test_images)
 
         channels = [3, 3, 64, 128, 256, 512, 512]
         self.assertEqual(vgg.out_channels, channels)

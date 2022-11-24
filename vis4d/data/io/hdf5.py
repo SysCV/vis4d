@@ -13,7 +13,7 @@ if H5PY_AVAILABLE:
     import h5py
     from h5py import File
 else:
-    File = None
+    File = None  # pylint: disable=invalid-name
 
 
 class HDF5Backend(DataBackend):

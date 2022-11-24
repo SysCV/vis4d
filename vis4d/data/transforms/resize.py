@@ -50,7 +50,7 @@ def _resize_tensor(
     interpolation: str = "bilinear",
 ) -> torch.Tensor:
     """Resize Tensor of dimensions [N, C, H, W]."""
-    assert interpolation in ["nearest", "bilinear", "bicubic"]
+    assert interpolation in {"nearest", "bilinear", "bicubic"}
     align_corners = None if interpolation == "nearest" else False
     output = F.interpolate(
         inputs, shape, mode=interpolation, align_corners=align_corners
@@ -109,11 +109,7 @@ def resize_image(
 
 
 @Transform(
-    in_keys=(
-        CommonKeys.boxes2d,
-        CommonKeys.original_hw,
-        CommonKeys.input_hw,
-    ),
+    in_keys=(CommonKeys.boxes2d, CommonKeys.original_hw, CommonKeys.input_hw),
     out_keys=(CommonKeys.boxes2d,),
 )
 def resize_boxes2d():
@@ -186,7 +182,7 @@ def _get_target_shape(
     align_long_edge: bool = False,
 ) -> tuple[int, int]:
     """Generate possibly random target shape."""
-    assert multiscale_mode in ["list", "range"]
+    assert multiscale_mode in {"list", "range"}
     if multiscale_mode == "list":
         assert isinstance(
             shape, list

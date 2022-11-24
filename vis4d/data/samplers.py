@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from collections.abc import Generator, Iterator
-from typing import List
 
 import numpy as np
 import torch
@@ -21,7 +20,7 @@ from vis4d.common.logging import rank_zero_warn
 from .datasets import Dataset, VideoMixin
 
 
-class BaseSampler(Sampler[List[int]]):
+class BaseSampler(Sampler[list[int]]):
     """Base sampler class."""
 
     def __init__(
@@ -67,7 +66,7 @@ class BaseSampler(Sampler[List[int]]):
 
 
 class BaseDistributedSampler(
-    DistributedSampler[List[int]]
+    DistributedSampler[list[int]]
 ):  # pragma: no cover
     """Base distributed sampler class."""
 
@@ -139,7 +138,7 @@ class RoundRobinMixin:
 
     @staticmethod
     def setup_parameters(
-        samplers: list[Sampler[List[int]]],
+        samplers: list[Sampler[list[int]]],
         repeat_interval: int | list[int],
         spread_samples: bool | list[bool],
         max_samples: int | list[int],
@@ -164,8 +163,8 @@ class RoundRobinMixin:
 
     @staticmethod
     def setup_samplers(
-        samplers: list[Sampler[List[int]]], batch_size: int, drop_last: bool
-    ) -> list[Sampler[List[int]]]:
+        samplers: list[Sampler[list[int]]], batch_size: int, drop_last: bool
+    ) -> list[Sampler[list[int]]]:
         """Setup samplers."""
         if batch_size > 1:
             samplers = [
@@ -176,7 +175,7 @@ class RoundRobinMixin:
 
     @staticmethod
     def generate_indices(
-        samplers: list[Sampler[List[int]]],
+        samplers: list[Sampler[list[int]]],
         cum_sizes: list[int],
         repeat_interval: list[int],
         spread_samples: list[bool],
@@ -206,7 +205,7 @@ class RoundRobinMixin:
 
     @staticmethod
     def get_sampler_lens(
-        samplers: list[Sampler[List[int]]], max_samples: list[int]
+        samplers: list[Sampler[list[int]]], max_samples: list[int]
     ) -> list[int]:
         """Get length of each sampler."""
         return [
@@ -218,7 +217,7 @@ class RoundRobinMixin:
 
     @staticmethod
     def get_samp_intervals(
-        samplers: list[Sampler[List[int]]],
+        samplers: list[Sampler[list[int]]],
         samp_lens: list[int],
         repeat_interval: list[int],
         spread_samples: list[bool],
@@ -239,7 +238,7 @@ class RoundRobinMixin:
 
     @staticmethod
     def get_length(
-        samplers: list[Sampler[List[int]]],
+        samplers: list[Sampler[list[int]]],
         repeat_interval: list[int],
         max_samples: list[int],
     ) -> int:

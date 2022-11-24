@@ -145,7 +145,9 @@ class COCOEvaluator(Evaluator):
         """
         return ["COCO_AP"]
 
-    def gather(self, gather_func: Callable[[Any], Any]) -> None:  # type: ignore
+    def gather(
+        self, gather_func: Callable[[Any], Any]
+    ) -> None:  # type: ignore
         """Accumulate predictions across prcoesses."""
         all_preds = gather_func(self._predictions)
         if all_preds is not None:

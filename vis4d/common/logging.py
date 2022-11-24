@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 
 
 def _debug(*args: ArgsType, stacklevel: int = 2, **kwargs: ArgsType) -> None:
+    """Function used to log debug-level messages."""
     kwargs["stacklevel"] = stacklevel
     log.debug(*args, **kwargs)
 
@@ -24,6 +25,7 @@ def rank_zero_debug(
 
 
 def _info(*args: ArgsType, stacklevel: int = 2, **kwargs: ArgsType) -> None:
+    """Function used to log info-level messages."""
     kwargs["stacklevel"] = stacklevel
     log.info(*args, **kwargs)
 
@@ -39,6 +41,7 @@ def rank_zero_info(
 def _warn(
     message: str | Warning, stacklevel: int = 2, **kwargs: ArgsType
 ) -> None:
+    """Function used to log warn-level messages."""
     warnings.warn(message, stacklevel=stacklevel, **kwargs)
 
 

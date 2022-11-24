@@ -60,7 +60,6 @@ def unmap(data: Tensor, count: int, inds: Tensor, fill: int = 0) -> Tensor:
     return ret
 
 
-# TODO check if still needed, revise or remove
 def load_model_checkpoint(
     model: nn.Module,
     weights: str,
@@ -84,7 +83,7 @@ def load_model_checkpoint(
 def load_config_from_mm(url: str, mm_base: str) -> str:
     """Get config from mmdetection GitHub repository."""
     full_url = "https://raw.githubusercontent.com/" + mm_base + url
-    response = requests.get(full_url)
+    response = requests.get(full_url, timeout=60)
     assert (
         response.status_code == 200
     ), f"Request to {full_url} failed with code {response.status_code}!"

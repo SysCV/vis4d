@@ -7,7 +7,7 @@ from torch import optim
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.op.util import load_model_checkpoint
-from vis4d.unittest.util import get_test_file
+from vis4d.unittest.util import get_test_data, get_test_file
 
 from .faster_rcnn_test import get_test_dataloader, get_train_dataloader
 from .retinanet import REV_KEYS, RetinaNet, RetinaNetLoss
@@ -16,14 +16,14 @@ from .retinanet import REV_KEYS, RetinaNet, RetinaNetLoss
 class RetinaNetTest(unittest.TestCase):
     """RetinaNet test class."""
 
-    def test_inference(self):
+    def test_inference(self) -> None:
         """Test inference of RetinaNet.
 
         Run::
             >>> pytest vis4d/model/detect/retinanet_test.py::RetinaNetTest::test_inference
         """
         dataset = COCO(
-            get_test_file("coco_test"),
+            get_test_data("coco_test"),
             keys=(CommonKeys.images,),
             split="train",
         )
@@ -55,7 +55,7 @@ class RetinaNetTest(unittest.TestCase):
                     .item()
                 )
 
-    def test_train(self):
+    def test_train(self) -> None:
         """Test RetinaNet training."""
         retina_net = RetinaNet(num_classes=80)
         retinanet_loss = RetinaNetLoss(
@@ -67,7 +67,7 @@ class RetinaNetTest(unittest.TestCase):
 
         optimizer = optim.SGD(retina_net.parameters(), lr=0.001, momentum=0.9)
 
-        dataset = COCO(get_test_file("coco_test"), split="train")
+        dataset = COCO(get_test_data("coco_test"), split="train")
         train_loader = get_train_dataloader(dataset, 2, (256, 256))
 
         running_losses = {}

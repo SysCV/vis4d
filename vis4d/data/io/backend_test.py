@@ -17,8 +17,9 @@ class TestBackends(unittest.TestCase):
         backend_file = FileBackend()
         backend_hdf5 = HDF5Backend()
         base_path = get_test_file("track/bdd100k-samples", rel_path="run")
-        sample_path = f"{base_path}/images/00091078-875c1f73/00091078-875c1f73-0000166.jpg"
-        hdf5_path = f"{base_path}/images_.hdf5/00091078-875c1f73/00091078-875c1f73-0000166.jpg"
+        img = "00091078-875c1f73"
+        sample_path = f"{base_path}/images/{img}/{img}-0000166.jpg"
+        hdf5_path = f"{base_path}/images_.hdf5/{img}/{img}-0000166.jpg"
 
         out_file = backend_file.get(sample_path)
         out_hdf5 = backend_hdf5.get(hdf5_path)

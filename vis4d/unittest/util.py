@@ -10,6 +10,20 @@ from torch import nn
 from vis4d.common.typing import ModelOutput
 
 
+def get_test_data(dir_name: str) -> str:
+    """Return the absolute path to the given test data directory.
+
+    Args:
+        dir_name (str): Name of test data directory.
+
+    Returns:
+        str: Absolute path to test data directory.
+    """
+    prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
+    prefix_code, _ = prefix.rsplit("vis4d", 1)
+    return os.path.join(prefix_code, "tests", "test_data", dir_name)
+
+
 def get_test_file(file_name: str, rel_path: None | str = None) -> str:
     """Return the absolute path to the given test file.
 
@@ -17,23 +31,19 @@ def get_test_file(file_name: str, rel_path: None | str = None) -> str:
     with identical relative path to the current file.
 
     Args:
-        file_name (str): Name of the test file
+        file_name (str): Name of the test file.
         rel_path (str, optional): Relative path inside test directory.
             Defaults to None.
 
     Returns:
-        str: Absolute path to test file <cwd/testcases/file_name>
+        str: Absolute path to test file <cwd/testcases/file_name>.
     """
     prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
     prefix_code, prefix_rel = prefix.rsplit("vis4d", 1)
     if rel_path is None:
         rel_path = prefix_rel
     return os.path.join(
-        prefix_code,
-        "tests",
-        rel_path.strip("/"),
-        "testcases",
-        file_name,
+        prefix_code, "tests", rel_path.strip("/"), "testcases", file_name
     )
 
 
@@ -48,10 +58,10 @@ def generate_features(
     """Create a random list of features maps with decreasing size.
 
     Args:
-        channels (int): Number of feature channels (C)
-        init_height (int): Target feature map height (h)
-        init_width (int): Target feature map width (w)
-        num_features (int): Number of features to load
+        channels (int): Number of feature channels (C).
+        init_height (int): Target feature map height (h).
+        init_width (int): Target feature map width (w).
+        num_features (int): Number of features maps.
         batch_size (int, optional): Batch size (B)
         double_channels (bool, optional): If channels should be doubled for
                                           each feature map.
@@ -170,35 +180,6 @@ def generate_masks(
         [torch.rand(num_masks)] * batch_size,
         [torch.arange(num_masks)] * batch_size,
     )
-
-
-# def generate_dets3d(
-#     num_dets: int, track_ids: bool = False, use_score: bool = True
-# ):
-#     """Create random 3D detections."""
-#     state = torch.random.get_rng_state()
-#     torch.random.set_rng_state(torch.manual_seed(0).get_state())
-#     min_inp = [-10, -1, 0, 1.5, 1, 3, 0, -math.pi, 0]
-#     rand_min = torch.repeat_interleave(
-#         torch.tensor([min_inp + [1.0] if use_score else min_inp]),
-#         num_dets,
-#         dim=0,
-#     )
-#     max_inp = [10, 1, 80, 2, 2, 4, 0, math.pi, 0]
-#     rand_max = torch.repeat_interleave(
-#         torch.tensor([max_inp + [1.0] if use_score else max_inp]),
-#         num_dets,
-#         dim=0,
-#     )
-#     box_tensor = (
-#         torch.rand(num_dets, 10 if use_score else 9) * (rand_max - rand_min)
-#         + rand_min
-#     )
-
-#     tracks = torch.arange(0, num_dets) if track_ids else None
-#     dets = Boxes3D(box_tensor, torch.zeros(num_dets), tracks)
-#     torch.random.set_rng_state(state)
-#     return dets
 
 
 class MockModel(nn.Module):

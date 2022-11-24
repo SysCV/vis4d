@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import torch
-import torchvision
 from torch import nn
 
 from vis4d.common import LossesType, ModelOutput
