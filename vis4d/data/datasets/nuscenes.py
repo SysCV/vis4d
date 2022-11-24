@@ -143,6 +143,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                 self.split + ".pkl",
             ),
         )
+        self.instance_tokens = []
 
     @property
     def video_to_indices(self) -> dict[str, list[int]]:
@@ -244,6 +245,15 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         )
         return image, intrinsics, extrinsics, timestamp
 
+    def _get_track_id(self, box: Box) -> int:
+        """Get track id for a NuScenes box annotation."""
+        instance_token = self.data.get("sample_annotation", box.token)[
+            "instance_token"
+        ]
+        if not instance_token in self.instance_tokens:
+            self.instance_tokens.append(instance_token)
+        return self.instance_tokens.index(instance_token)
+
     def _load_boxes3d(
         self,
         list_boxes: list[Box],
@@ -289,6 +299,12 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                     torch.tensor(
                         [nuscenes_track_map[box_class]], dtype=torch.long
                     ),
+                ]
+            )
+            boxes_track_ids = torch.cat(
+                [
+                    boxes_track_ids,
+                    torch.tensor([self._get_track_id(box)], dtype=torch.long),
                 ]
             )
             if axis_mode == AxisMode.OPENCV:
@@ -379,6 +395,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                 CommonKeys.axis_mode: AxisMode.ROS,
                 CommonKeys.boxes3d: boxes3d,
                 CommonKeys.boxes3d_classes: boxes3d_classes,
+                CommonKeys.boxes3d_track_ids: boxes3d_track_ids,
             }
 
         # load camera frames
@@ -407,8 +424,10 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                     CommonKeys.axis_mode: AxisMode.OPENCV,
                     CommonKeys.boxes2d: boxes2d,
                     CommonKeys.boxes2d_classes: boxes3d_classes[mask],
+                    CommonKeys.boxes2d_track_ids: boxes3d_track_ids[mask],
                     CommonKeys.boxes3d: boxes3d[mask],
                     CommonKeys.boxes3d_classes: boxes3d_classes[mask],
+                    CommonKeys.boxes3d_track_ids: boxes3d_track_ids[mask],
                 }
 
         # TODO add RADAR, Map data

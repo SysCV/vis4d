@@ -10,7 +10,9 @@ def get_dict_nested(dictionary: DictStrAny, keys: list[str]) -> Any:
     """Get value in nested dict."""
     for key in keys:
         if key not in dictionary:
-            raise ValueError(f"Key {key} not in dictionary!")
+            raise ValueError(
+                f"Key {key} not in dictionary! Current keys: {dictionary.keys()}"
+            )
         dictionary = dictionary[key]
     return dictionary
 
