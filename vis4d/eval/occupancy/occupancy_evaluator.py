@@ -186,7 +186,7 @@ class OccupancyEvaluator(Evaluator):
 
         # F1
         if metric in [OccupancyEvaluator.METRIC_F1, METRIC_ALL]:
-            f1 = 2 * precision * recall / (precision + recall + 1e-6)
+            f1 = 2 * precision * recall / (precision + recall + 1e-8)
             metric_data[OccupancyEvaluator.METRIC_F1] = f1
             short_description += f"F1: {f1:.3f}\n"
 
