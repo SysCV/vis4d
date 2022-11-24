@@ -1,4 +1,6 @@
 """Test loader components."""
+from __future__ import annotations
+
 import torch
 
 from vis4d.data.const import CommonKeys
@@ -11,6 +13,11 @@ from vis4d.data.loader import (
     build_train_dataloader,
 )
 from vis4d.data.transforms import compose, mask, normalize, pad, resize
+from vis4d.data.transforms.point_sampling import (
+    sample_points_block_full_coverage,
+    sample_points_random,
+)
+from vis4d.data.typing import DictData
 from vis4d.unittest.util import get_test_data
 
 
@@ -124,15 +131,49 @@ def test_segment_inference_loader() -> None:
         break
 
 
+def point_collate(batch: list[DictData]) -> DictData:
+    """Stacks point samples at the first axis of the tensor.
+
+    Args:
+        batch (list[DictData]): List with data from the dataset.
+
+    Returns:
+        DictData: Collated data.
+    """
+
+    data = {}
+    for key in batch[0]:
+        if key in (
+            CommonKeys.points3d,
+            CommonKeys.colors3d,
+            CommonKeys.instances3d,
+            CommonKeys.semantics3d,
+        ):
+            data[key] = torch.stack([b[key] for b in batch], 0)
+        else:
+            data[key] = [b[key] for b in batch]
+    return data
+
+
 def test_train_loader_3D() -> None:
     """Test the data loading pipeline for 3D Data."""
-    s3dis = S3DIS(data_root="/data/Stanford3dDataset_v1.2")
+    s3dis = S3DIS(data_root=get_test_data("s3d_test"))
 
     batch_size = 2
-    preprocess_fn = transform_pipeline([RandomPointSampler(n_pts=1024)])
+    keys = (
+        CommonKeys.points3d,
+        CommonKeys.colors3d,
+        CommonKeys.instances3d,
+        CommonKeys.semantics3d,
+    )
+    preprocess_fn = compose(
+        [sample_points_random(in_keys=keys, out_keys=keys, num_pts=1024)]
+    )
 
     datapipe = DataPipe(s3dis, preprocess_fn)
-    train_loader = build_train_dataloader(datapipe, samples_per_gpu=batch_size)
+    train_loader = build_train_dataloader(
+        datapipe, samples_per_gpu=batch_size, collate_fn=point_collate
+    )
 
     for sample in train_loader:
         assert isinstance(sample[CommonKeys.colors3d], torch.Tensor)
@@ -147,17 +188,27 @@ def test_train_loader_3D() -> None:
 
 def test_train_loader_3D_full_scene_batched() -> None:
     """Test the data loading pipeline for 3D Data with full scene sampling."""
-    s3dis = S3DIS(data_root="/data/Stanford3dDataset_v1.2")
-
+    s3dis = S3DIS(data_root=get_test_data("s3d_test"))
+    keys = (
+        CommonKeys.points3d,
+        CommonKeys.colors3d,
+        CommonKeys.instances3d,
+        CommonKeys.semantics3d,
+    )
     batch_size = 2
-    preprocess_fn = transform_pipeline(
-        [FullCoverageBlockSampler(n_pts_per_block=1024)]
+    preprocess_fn = compose(
+        [
+            sample_points_block_full_coverage(
+                in_keys=keys, out_keys=keys, n_pts_per_block=1024
+            )
+        ]
     )
 
     datapipe = DataPipe(s3dis, preprocess_fn)
     inference_loader = build_inference_dataloaders(
         SubdividingIterableDataset(datapipe, n_samples_per_batch=1024),
         samples_per_gpu=batch_size,
+        collate_fn=point_collate,
     )
 
     for sample in inference_loader[0]:
@@ -165,11 +216,9 @@ def test_train_loader_3D_full_scene_batched() -> None:
         assert isinstance(sample[CommonKeys.points3d], torch.Tensor)
         assert isinstance(sample[CommonKeys.semantics3d], torch.Tensor)
         assert isinstance(sample[CommonKeys.instances3d], torch.Tensor)
-        assert isinstance(sample[CommonKeys.index], torch.Tensor)
 
         assert batch_size == sample[CommonKeys.colors3d].size(0)
         assert batch_size == sample[CommonKeys.points3d].size(0)
         assert batch_size == sample[CommonKeys.semantics3d].size(0)
         assert batch_size == sample[CommonKeys.instances3d].size(0)
-        assert batch_size == sample[CommonKeys.index].size(0)
         break

@@ -152,16 +152,16 @@ class SubdividingIterableDataset(IterableDataset):
         self,
         dataset: Dataset[DictData],
         n_samples_per_batch: int,
-        preprocess_fn: Callable[[DictData], DictData],
+        preprocess_fn: Callable[[DictData], DictData] | None = None,
     ) -> None:
         """Creates a new Dataset
         Args:
-            dataset (Dataset): The dataset which should be subdivided
+            dataset (Dataset): The dataset which should be subdivided.
             n_samples_per_batch: How many samples each batch should contain.
                                  The first dimension of dataset[0].shape must
-                                 be divisible by this number
+                                 be divisible by this number.
             preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing
-                function of a single sample.
+                function of a single sample. Can be None.
         """
         super().__init__()
 
@@ -203,7 +203,9 @@ class SubdividingIterableDataset(IterableDataset):
                         out_data[key] = data_sample[key][
                             start_idx:end_idx, ...
                         ]
-                yield self.preprocess_fn(out_data)
+                yield self.preprocess_fn(
+                    out_data
+                ) if self.preprocess_fn else out_data
 
 
 def build_train_dataloader(
