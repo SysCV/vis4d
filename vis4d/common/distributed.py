@@ -1,3 +1,4 @@
+# type: ignore
 """Vis4D utils for distributed setting."""
 from __future__ import annotations
 
@@ -6,7 +7,7 @@ import os
 import pickle
 from collections.abc import Callable
 from functools import wraps
-from typing import Any  # type: ignore
+from typing import Any
 
 import cloudpickle
 import torch
@@ -22,22 +23,28 @@ class PicklableWrapper:
     https://github.com/joblib/joblib/blob/master/joblib/externals/loky/cloudpickle_wrapper.py
     """
 
-    def __init__(self, obj):
+    def __init__(self, obj: PicklableWrapper) -> None:
+        """Init."""
         while isinstance(obj, PicklableWrapper):
             # Wrapping an object twice is no-op
             obj = obj._obj
         self._obj = obj
 
-    def __reduce__(self):
+    def __reduce__(self) -> tuple[Any, tuple[bytes]]:
+        """Reduce."""
         s = cloudpickle.dumps(self._obj)
         return cloudpickle.loads, (s,)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Any:
+        """Call."""
         return self._obj(*args, **kwargs)
 
-    def __getattr__(self, attr):
-        # Ensure that the wrapped object can be used seamlessly as the previous
-        # object.
+    def __getattr__(self, attr: str) -> Any:
+        """Get attribute.
+
+        Ensure that the wrapped object can be used seamlessly as the previous
+        object.
+        """
         if attr not in ["_obj"]:
             return getattr(self._obj, attr)
         return getattr(self, attr)
@@ -75,7 +82,7 @@ def synchronize() -> None:  # pragma: no cover
     dist.barrier()
 
 
-def serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: disable=line-too-long # pragma: no cover
+def serialize_to_tensor(data: Any) -> torch.Tensor:  # pragma: no cover
     """Serialize arbitrary picklable data to torch.Tensor."""
     backend = dist.get_backend()
     assert backend in {
@@ -98,14 +105,14 @@ def serialize_to_tensor(data: Any) -> torch.Tensor:  # type: ignore # pylint: di
     return tensor
 
 
-def rank_zero_only(func: Callable[[Any], Any]) -> Callable[[Any], Any]:  # type: ignore # pylint: disable=line-too-long
+def rank_zero_only(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
     """Function that can be used as a decorator.
 
     Enables a function/method being called only on global rank 0.
     """
 
     @wraps(func)
-    def wrapped_fn(*args: Any, **kwargs: Any) -> Any:  # type: ignore
+    def wrapped_fn(*args: Any, **kwargs: Any) -> Any:
         rank = get_rank()
         if rank == 0:
             return func(*args, **kwargs)

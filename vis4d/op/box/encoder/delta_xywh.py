@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 
 import torch
+from torch import Tensor
 
 from .base import BoxEncoder2D
 
@@ -24,7 +25,7 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         target_means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
         target_stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
         wh_ratio_clip: float = 16 / 1000,
-    ):
+    ) -> None:
         """Init.
 
         Args:
@@ -59,7 +60,7 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         encoded_bboxes = bbox2delta(boxes, targets, self.means, self.stds)
         return encoded_bboxes
 
-    def decode(self, boxes: torch.Tensor, box_deltas: torch.Tensor):
+    def decode(self, boxes: torch.Tensor, box_deltas: torch.Tensor) -> Tensor:
         """Apply box offset energies box_deltas to boxes.
 
         Args:
@@ -85,7 +86,7 @@ def bbox2delta(
     gt_boxes: torch.Tensor,
     means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
-):
+) -> Tensor:
     """Compute deltas of proposals w.r.t. gt.
 
     We usually compute the deltas of x, y, w, h of proposals w.r.t ground
@@ -123,9 +124,9 @@ def bbox2delta(
     dh = torch.log(gh / ph)
     deltas = torch.stack([dx, dy, dw, dh], dim=-1)
 
-    means = torch.tensor(means, dtype=deltas.dtype, device=deltas.device)
-    stds = torch.tensor(stds, dtype=deltas.dtype, device=deltas.device)
-    deltas = deltas.sub_(means.view(1, -1)).div_(stds.view(1, -1))
+    mean_tensor = torch.tensor(means, dtype=deltas.dtype, device=deltas.device)
+    std_tensor = torch.tensor(stds, dtype=deltas.dtype, device=deltas.device)
+    deltas = deltas.sub_(mean_tensor.view(1, -1)).div_(std_tensor.view(1, -1))
 
     return deltas
 
@@ -137,7 +138,7 @@ def delta2bbox(
     means: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0),
     stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
     wh_ratio_clip: float = 16 / 1000,
-):
+) -> Tensor:
     """Apply deltas to shift/scale base boxes.
 
     Typically the rois are anchor or proposed bounding boxes and the deltas are
@@ -170,9 +171,9 @@ def delta2bbox(
 
     deltas = deltas.reshape(-1, 4)
 
-    means = torch.tensor(means, dtype=deltas.dtype, device=deltas.device)
-    stds = torch.tensor(stds, dtype=deltas.dtype, device=deltas.device)
-    denorm_deltas = deltas * stds.view(1, -1) + means.view(1, -1)
+    mean_tensor = torch.tensor(means, dtype=deltas.dtype, device=deltas.device)
+    std_tensor = torch.tensor(stds, dtype=deltas.dtype, device=deltas.device)
+    denorm_deltas = deltas * std_tensor.view(1, -1) + mean_tensor.view(1, -1)
 
     dxy = denorm_deltas[:, :2]
     dwh = denorm_deltas[:, 2:]

@@ -25,7 +25,7 @@ class BaseSampler(Sampler[list[int]]):
 
     def __init__(
         self,
-        dataset: ConcatDataset,
+        dataset: ConcatDataset[int],
         batch_size: int,
         shuffle: bool = True,
         drop_last: bool = False,
@@ -34,7 +34,7 @@ class BaseSampler(Sampler[list[int]]):
         """Initialize sampler.
 
         Args:
-            dataset (ConcatDataset): Sampling dataset.
+            dataset (ConcatDataset[int]): Sampling dataset.
             batch_size (int): Size of mini-batch.
             shuffle (bool, optional): If ``True`` (default), sampler will
                 shuffle the indices.
@@ -72,7 +72,7 @@ class BaseDistributedSampler(
 
     def __init__(
         self,
-        dataset: ConcatDataset,
+        dataset: ConcatDataset[int],
         batch_size: int,
         shuffle: bool = True,
         drop_last: bool = False,
@@ -83,7 +83,7 @@ class BaseDistributedSampler(
         """Initialize distributed sampler.
 
         Args:
-            dataset (ConcatDataset): Sampling dataset.
+            dataset (ConcatDataset[int]): Sampling dataset.
             batch_size (int): Size of mini-batch.
             shuffle (bool, optional): If ``True`` (default), sampler will
                 shuffle the indices.
@@ -163,7 +163,7 @@ class RoundRobinMixin:
 
     @staticmethod
     def setup_samplers(
-        samplers: list[Sampler[list[int]]], batch_size: int, drop_last: bool
+        samplers: list[Sampler[int]], batch_size: int, drop_last: bool
     ) -> list[Sampler[list[int]]]:
         """Setup samplers."""
         if batch_size > 1:
@@ -363,7 +363,7 @@ class RoundRobinDistributedSampler(
 
 class VideoInferenceSampler(
     DistributedSampler
-):  # type: ignore # pragma: no cover # No unittest for distributed setting.
+):  # pragma: no cover # No unittest for distributed setting.
     """Produce sequence ordered indices for inference across all workers.
 
     Inference needs to run on the __exact__ set of sequences and their
@@ -412,7 +412,7 @@ class VideoInferenceSampler(
             f"Number of sequences ({self.num_seqs}) must be greater or "
             f"equal to number of replicas ({self.num_replicas})!"
         )
-        chunks = np.array_split(self.sequences, self.num_replicas)  # type: ignore # pylint: disable=line-too-long
+        chunks = np.array_split(self.sequences, self.num_replicas)
         self._local_seqs = chunks[self.rank]
         self._local_idcs = []
         for seq in self._local_seqs:

@@ -131,9 +131,7 @@ def get_targets_per_batch(
     """Get targets for all batch elements, all scales."""
     device = target_boxes[0].device
 
-    anchor_grids = anchor_generator.grid_priors(
-        featmap_sizes, device=device  # type: ignore
-    )
+    anchor_grids = anchor_generator.grid_priors(featmap_sizes, device=device)
     num_level_anchors = [anchors.size(0) for anchors in anchor_grids]
     anchors_all_levels = torch.cat(anchor_grids)
 

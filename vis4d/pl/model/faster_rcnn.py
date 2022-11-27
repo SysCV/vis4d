@@ -1,5 +1,5 @@
 """Default run configuration for pytorch lightning."""
-from typing import Optional
+from __future__ import annotations
 
 from vis4d.data.datasets.bdd100k import bdd100k_det_map
 from vis4d.data.datasets.coco import coco_det_map
@@ -16,7 +16,7 @@ def setup_model(  # pylint: disable=invalid-name
     experiment: str,
     lr: float = 0.02,
     max_epochs: int = 12,
-    weights: Optional[str] = None,
+    weights: None | str = None,
 ) -> DefaultOptimizer:
     """Setup model with experiment specific hyperparameters."""
     if experiment == "bdd100k":

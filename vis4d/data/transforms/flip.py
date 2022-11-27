@@ -81,7 +81,10 @@ def get_axis(direction: str, axis_mode: AxisMode) -> int:
     return coord_mapping[axis_mode][direction]
 
 
-@Transform(in_keys=(CommonKeys.boxes3d,), out_keys=(CommonKeys.boxes3d,))
+@Transform(
+    in_keys=(CommonKeys.boxes3d, CommonKeys.axis_mode),
+    out_keys=(CommonKeys.boxes3d,),
+)
 def flip_boxes3d(direction: str = "horizontal"):
     """ "Flip 3D bounding box tensor.
 
@@ -104,7 +107,29 @@ def flip_boxes3d(direction: str = "horizontal"):
     return _flip
 
 
-@Transform(in_keys=(CommonKeys.points3d,), out_keys=(CommonKeys.points3d,))
+@Transform(
+    in_keys=(CommonKeys.extrinsics, CommonKeys.axis_mode),
+    out_keys=(CommonKeys.extrinsics,),
+)
+def flip_extrinsics(direction: str = "horizontal"):
+    """ "Flip extrinsic calibration tensor.
+
+    Args:
+        direction (str, optional): Either vertical or horizontal. Defaults to
+            "horizontal".
+    """
+
+    def _flip(extrinsics: torch.Tensor, axis_mode: AxisMode) -> torch.Tensor:
+        extrinsics[get_axis(direction, axis_mode), -1] *= -1.0
+        return extrinsics
+
+    return _flip
+
+
+@Transform(
+    in_keys=(CommonKeys.points3d, CommonKeys.axis_mode),
+    out_keys=(CommonKeys.points3d,),
+)
 def flip_points3d(direction: str = "horizontal"):
     """Flip pointcloud tensor.
 
@@ -113,19 +138,17 @@ def flip_points3d(direction: str = "horizontal"):
             "horizontal".
     """
 
-    def _flip(points3d: torch.Tensor) -> torch.Tensor:
-        if direction == "horizontal":
-            points3d[:, 0] *= -1.0
-            return points3d
-        if direction == "vertical":
-            points3d[:, 1] *= -1.0
-            return points3d
-        raise NotImplementedError(f"Direction {direction} not known!")
+    def _flip(points3d: torch.Tensor, axis_mode: AxisMode) -> torch.Tensor:
+        points3d[:, get_axis(direction, axis_mode)] *= -1.0
+        return points3d
 
     return _flip
 
 
-@Transform(in_keys=(CommonKeys.intrinsics,), out_keys=(CommonKeys.intrinsics,))
+@Transform(
+    in_keys=(CommonKeys.intrinsics, CommonKeys.images),
+    out_keys=(CommonKeys.intrinsics,),
+)
 def flip_intrinsics(direction: str = "horizontal"):
     """Modify intrinsics for image flip.
 

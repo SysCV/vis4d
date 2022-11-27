@@ -98,7 +98,7 @@ def add_data_path(data_root: str, frames: list[Frame]) -> None:
 
 def prepare_labels(
     frames: list[Frame], global_instance_ids: bool = False
-) -> dict[str, int]:
+) -> None:
     """Add category id and instance id to labels, return class frequencies."""
     instance_ids: dict[str, list[str]] = defaultdict(list)
     for frame_id, ann in enumerate(frames):
@@ -153,7 +153,6 @@ class Scalabel(Dataset, CacheMappingMixin):
         """Init.
 
         Args:
-
             data_root (str): Root directory of the data.
             annotation_path (str): Path to the annotation json(s).
             inputs_to_load (tuple[str, ...], optional): Input fields to load.

@@ -95,4 +95,5 @@ class CommonKeys:
     instances3d = "instances3d"
     boxes3d = "boxes3d"
     boxes3d_classes = "boxes3d_classes"
+    boxes3d_track_ids = "boxes3d_track_ids"
     occupancy3d = "occupancy3d"
