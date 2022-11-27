@@ -356,10 +356,9 @@ class RPNLoss(DenseAnchorHeadLoss):
             reg_outs (list[torch.Tensor]): Network regression outputs
                 at all scales.
             target_boxes (list[torch.Tensor]): Target bounding boxes.
-            images_hw (list[tuple[int, int]]): Image dimensions without
-                padding.
-            target_class_ids (list[torch.Tensor] | None, optional): Target
-                class labels.
+            images_hw (list[tuple[int, int]]): Image dimensions
+                without padding.
+            target_class_ids (list[torch.Tensor] | None): Target class labels.
 
         Returns:
             RPNLosses: Classification and regression losses.
