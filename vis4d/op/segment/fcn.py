@@ -58,7 +58,9 @@ class FCNHead(nn.Module):
                 self._make_head(in_channel, self.out_channels, dropout_prob)
             )
 
-    def _make_head(self, in_channels: int, channels: int, dropout_prob: float):
+    def _make_head(
+        self, in_channels: int, channels: int, dropout_prob: float
+    ) -> nn.Module:
         """Generate FCN segmentation head.
 
         Args:
@@ -152,7 +154,9 @@ class FCNLoss(nn.Module):
         else:
             self.weights = weights
 
-    def forward(self, outputs: list[torch.Tensor], target: torch.Tensor):
+    def forward(
+        self, outputs: list[torch.Tensor], target: torch.Tensor
+    ) -> FCNLosses:
         """Forward pass.
 
         Args:

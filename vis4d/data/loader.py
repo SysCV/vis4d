@@ -11,6 +11,7 @@ from torch.utils.data import (
     DataLoader,
     Dataset,
     IterableDataset,
+    Sampler,
     get_worker_info,
 )
 from torch.utils.data.distributed import DistributedSampler
@@ -22,7 +23,7 @@ from .reference import ReferenceViewSampler
 from .samplers import BaseSampler, VideoInferenceSampler
 from .typing import DictData
 
-"""Keys that contain pointcloud based data and can be stacked using torch.stack."""
+# Keys that contain pointcloud based data and can be stacked using torch.stack.
 POINT_KEYS = [
     CommonKeys.colors3d,
     CommonKeys.points3d,
@@ -33,7 +34,7 @@ POINT_KEYS = [
 
 def default_collate(batch: list[DictData]) -> DictData:
     """Default batch collate."""
-    data = {}
+    data: DictData = {}
     for key in batch[0]:
         if key == CommonKeys.images:
             data[key] = torch.cat([b[key] for b in batch])
@@ -90,7 +91,7 @@ class DataPipe(ConcatDataset):
         self.reference_view_sampler = reference_view_sampler
 
     def get_dataset_sample_index(self, idx: int) -> tuple[int, int]:
-        """Get dataset and sample index from global index"""
+        """Get dataset and sample index from global index."""
         if idx < 0:
             if -idx > len(self):
                 raise ValueError(
@@ -114,9 +115,11 @@ class DataPipe(ConcatDataset):
         if self.reference_view_sampler is not None:
             dataset_idx, _ = self.get_dataset_sample_index(idx)
             dataset = self.datasets[dataset_idx]
-            assert isinstance(
-                dataset, VideoMixin
-            ), f"Reference view sampling is only supported for datasets that implement the VideoMixin. Incompatible dataset: {self.datasets[dataset_idx]}"
+            assert isinstance(dataset, VideoMixin), (
+                "Reference view sampling is only supported for datasets that "
+                "implement the VideoMixin. Incompatible dataset: "
+                f"{self.datasets[dataset_idx]}"
+            )
             video_indices = dataset.get_video_indices(idx)
             indices = self.reference_view_sampler(idx, video_indices)
             samples = [self._getitem(i) for i in indices]
@@ -130,9 +133,9 @@ class DataPipe(ConcatDataset):
 
 class SubdividingIterableDataset(IterableDataset):
     """Subdivides a given dataset into smaller chunks.
+
     This also adds a field called 'index' (DataKeys.index) to the data
     struct in order to relate the data to the source index.
-
 
     Example: Given a dataset (ds) that outputs tensors of the shape (10, 3):
     sub_ds = SubdividingIterableDataset(ds, n_samples_per_batch = 5)
@@ -154,12 +157,13 @@ class SubdividingIterableDataset(IterableDataset):
         n_samples_per_batch: int,
         preprocess_fn: Callable[[DictData], DictData] | None = None,
     ) -> None:
-        """Creates a new Dataset
+        """Creates a new Dataset.
+
         Args:
             dataset (Dataset): The dataset which should be subdivided.
             n_samples_per_batch: How many samples each batch should contain.
-                                 The first dimension of dataset[0].shape must
-                                 be divisible by this number.
+                The first dimension of dataset[0].shape must be divisible by
+                this number.
             preprocess_fn (Callable[[DataDict], DataDict]): Preprocessing
                 function of a single sample. Can be None.
         """
@@ -189,9 +193,10 @@ class SubdividingIterableDataset(IterableDataset):
             n_elements = next(iter(data_sample.values())).size(0)
             for idx in range(int(n_elements / self.n_samples_per_batch)):
                 # TODO, this is kind of ugly
-                # this field defines from which source the data was loaded (first entry, second entry, ...)
-                # this is required if we e.g. want to subdivide a room that is too big
-                # into equal sized chunks and stick them back together
+                # this field defines from which source the data was loaded
+                # (first entry, second entry, ...)
+                # this is required if we e.g. want to subdivide a room that is
+                # too big into equal sized chunks and stick them back together
                 # for visualizaton
                 out_data = {"source_index": torch.tensor([data_idx])}
                 for key in data_sample:
@@ -227,7 +232,7 @@ def build_train_dataloader(
         _collate_fn = lambda x: collate_fn(batchprocess_fn(x))
     else:
 
-        def _collate_fn(data):
+        def _collate_fn(data: DictData):
             views = []
             for view_idx in range(len(data[0])):
                 view = collate_fn(batchprocess_fn([d[view_idx] for d in data]))
@@ -253,7 +258,7 @@ def build_train_dataloader(
 
 
 def build_inference_dataloaders(
-    datasets: Dataset | list[Dataset],
+    datasets: Dataset[DictData] | list[Dataset],
     samples_per_gpu: int = 1,
     workers_per_gpu: int = 1,
     video_based_inference: bool = True,
@@ -267,17 +272,20 @@ def build_inference_dataloaders(
     dataloaders = []
     _collate_fn = PicklableWrapper(lambda x: collate_fn(batchprocess_fn(x)))
     for dataset in datasets:
+        dset_sampler: Sampler[list[int]] | DistributedSampler[list[int]]
         if get_world_size() > 1 and sampler is None:
             if isinstance(dataset, VideoMixin) and video_based_inference:
-                sampler = VideoInferenceSampler(dataset)
+                dset_sampler = VideoInferenceSampler(dataset)
             else:
-                sampler = DistributedSampler(dataset)
+                dset_sampler = DistributedSampler(dataset)
+        else:
+            dset_sampler = sampler
 
         test_dataloader = DataLoader(
             dataset,
             batch_size=samples_per_gpu,
             num_workers=workers_per_gpu,
-            sampler=sampler,
+            sampler=dset_sampler,
             collate_fn=_collate_fn,
             persistent_workers=workers_per_gpu > 0,
         )

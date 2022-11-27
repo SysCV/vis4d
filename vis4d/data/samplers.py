@@ -138,44 +138,46 @@ class RoundRobinMixin:
 
     @staticmethod
     def setup_parameters(
-        samplers: list[Sampler[list[int]]],
+        num_samplers: int,
         repeat_interval: int | list[int],
         spread_samples: bool | list[bool],
         max_samples: int | list[int],
     ) -> tuple[list[int], list[bool], list[int]]:
         """Setup sampler parameters."""
         if isinstance(repeat_interval, int):
-            repeat_interval_ = [repeat_interval] * len(samplers)
+            repeat_interval_ = [repeat_interval] * num_samplers
         else:
-            assert len(repeat_interval) == len(samplers)
+            assert len(repeat_interval) == num_samplers
             repeat_interval_ = repeat_interval
         if isinstance(spread_samples, bool):
-            spread_samples_ = [spread_samples] * len(samplers)
+            spread_samples_ = [spread_samples] * num_samplers
         else:
-            assert len(spread_samples) == len(samplers)
+            assert len(spread_samples) == num_samplers
             spread_samples_ = spread_samples
         if isinstance(max_samples, int):
-            max_samples_ = [max_samples] * len(samplers)
+            max_samples_ = [max_samples] * num_samplers
         else:
-            assert len(max_samples) == len(samplers)
+            assert len(max_samples) == num_samplers
             max_samples_ = max_samples
         return repeat_interval_, spread_samples_, max_samples_
 
     @staticmethod
     def setup_samplers(
         samplers: list[Sampler[int]], batch_size: int, drop_last: bool
-    ) -> list[Sampler[list[int]]]:
+    ) -> list[Sampler[int | list[int]]]:
         """Setup samplers."""
         if batch_size > 1:
-            samplers = [
+            samplers_: list[Sampler[int | list[int]]] = [
                 BatchSampler(sampler, batch_size, drop_last)
                 for sampler in samplers
             ]
-        return samplers
+        else:
+            samplers_ = samplers
+        return samplers_
 
     @staticmethod
     def generate_indices(
-        samplers: list[Sampler[list[int]]],
+        samplers: list[Sampler[int | list[int]]],
         cum_sizes: list[int],
         repeat_interval: list[int],
         spread_samples: list[bool],
@@ -205,7 +207,7 @@ class RoundRobinMixin:
 
     @staticmethod
     def get_sampler_lens(
-        samplers: list[Sampler[list[int]]], max_samples: list[int]
+        samplers: list[Sampler[int | list[int]]], max_samples: list[int]
     ) -> list[int]:
         """Get length of each sampler."""
         return [
@@ -217,7 +219,7 @@ class RoundRobinMixin:
 
     @staticmethod
     def get_samp_intervals(
-        samplers: list[Sampler[list[int]]],
+        samplers: list[Sampler[int | list[int]]],
         samp_lens: list[int],
         repeat_interval: list[int],
         spread_samples: list[bool],
@@ -238,7 +240,7 @@ class RoundRobinMixin:
 
     @staticmethod
     def get_length(
-        samplers: list[Sampler[list[int]]],
+        samplers: list[Sampler[int | list[int]]],
         repeat_interval: list[int],
         max_samples: list[int],
     ) -> int:
@@ -283,16 +285,16 @@ class RoundRobinSampler(BaseSampler, RoundRobinMixin):
             self.spread_samples,
             self.max_samples,
         ) = self.setup_parameters(
-            self.samplers, repeat_interval, spread_samples, max_samples
+            len(self.samplers), repeat_interval, spread_samples, max_samples
         )
-        self.samplers = self.setup_samplers(
+        self.batch_samplers = self.setup_samplers(
             self.samplers, self.batch_size, self.drop_last
         )
 
     def __iter__(self) -> Iterator[list[int]]:
         """Iteration method."""
         yield from self.generate_indices(
-            self.samplers,
+            self.batch_samplers,
             self.dataset.cumulative_sizes,
             self.repeat_interval,
             self.spread_samples,
@@ -302,7 +304,7 @@ class RoundRobinSampler(BaseSampler, RoundRobinMixin):
     def __len__(self) -> int:
         """Return length of sampler instance."""
         return self.get_length(
-            self.samplers, self.repeat_interval, self.max_samples
+            self.batch_samplers, self.repeat_interval, self.max_samples
         )
 
 
@@ -338,16 +340,17 @@ class RoundRobinDistributedSampler(
             self.spread_samples,
             self.max_samples,
         ) = self.setup_parameters(
-            self.samplers, repeat_interval, spread_samples, max_samples
+            len(self.samplers), repeat_interval, spread_samples, max_samples
         )
-        self.samplers = self.setup_samplers(
+        self.batch_samplers = self.setup_samplers(
             self.samplers, self.batch_size, self.drop_last
         )
 
     def __iter__(self) -> Iterator[list[int]]:
         """Iteration method."""
+        assert isinstance(self.dataset, ConcatDataset)
         yield from self.generate_indices(
-            self.samplers,
+            self.batch_samplers,
             self.dataset.cumulative_sizes,
             self.repeat_interval,
             self.spread_samples,
@@ -357,12 +360,12 @@ class RoundRobinDistributedSampler(
     def __len__(self) -> int:
         """Return length of sampler instance."""
         return self.get_length(
-            self.samplers, self.repeat_interval, self.max_samples
+            self.batch_samplers, self.repeat_interval, self.max_samples
         )
 
 
 class VideoInferenceSampler(
-    DistributedSampler
+    DistributedSampler[list[int]]
 ):  # pragma: no cover # No unittest for distributed setting.
     """Produce sequence ordered indices for inference across all workers.
 

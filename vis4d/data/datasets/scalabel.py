@@ -28,7 +28,13 @@ if SCALABEL_AVAILABLE:
     from scalabel.label.transforms import box2d_to_xyxy
     from scalabel.label.typing import Config
     from scalabel.label.typing import Dataset as ScalabelData
-    from scalabel.label.typing import Extrinsics, Frame, Intrinsics, Label
+    from scalabel.label.typing import (
+        Extrinsics,
+        Frame,
+        ImageSize,
+        Intrinsics,
+        Label,
+    )
     from scalabel.label.utils import (
         check_crowd,
         check_ignored,
@@ -149,6 +155,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         category_map: None | CategoryMap = None,
         config_path: None | str = None,
         global_instance_ids: bool = False,
+        bg_as_class: bool = False,
     ) -> None:
         """Init.
 
@@ -172,6 +179,8 @@ class Scalabel(Dataset, CacheMappingMixin):
             global_instance_ids (bool): Whether to convert tracking IDs of
                 annotations into dataset global IDs or stay with local,
                 per-video IDs. Defaults to false.
+            bg_as_class (bool): Whether to include background pixels as an
+                additional class for masks.
         """
         super().__init__()
         self.data_root = data_root
@@ -179,6 +188,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         self.inputs_to_load = inputs_to_load
         self.targets_to_load = targets_to_load
         self.global_instance_ids = global_instance_ids
+        self.bg_as_class = bg_as_class
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
         )
@@ -393,3 +403,24 @@ def boxes2d_from_scalabel(
     class_ids = torch.tensor(cls_list, dtype=torch.long)
     track_ids = torch.tensor(idx_list, dtype=torch.long)
     return box_tensor, class_ids, track_ids
+
+
+def instance_masks_from_scalabel(
+    labels: list[Label],
+    class_to_idx: dict[str, int],
+    label_id_to_idx: dict[str, int] | None = None,
+    frame_size: ImageSize | None = None,
+) -> Tensor:
+    """"""
+    raise NotImplementedError
+
+
+def semantic_masks_from_scalabel(
+    labels: list[Label],
+    class_to_idx: dict[str, int],
+    label_id_to_idx: dict[str, int] | None = None,
+    frame_size: ImageSize | None = None,
+    bg_as_class: bool = False,
+) -> Tensor:
+    """"""
+    raise NotImplementedError

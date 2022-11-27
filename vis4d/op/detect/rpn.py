@@ -89,7 +89,7 @@ class RPNHead(nn.Module):
         self.apply(self._init_weights)
 
     @staticmethod
-    def _init_weights(module) -> None:
+    def _init_weights(module: nn.Module) -> None:
         """Init RPN weights."""
         if isinstance(module, nn.Conv2d):
             module.weight.data.normal_(mean=0.0, std=0.01)

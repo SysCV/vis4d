@@ -182,7 +182,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             f"use_pascal_voc_cats={self.use_pascal_voc_cats})"
         )
 
-    def _has_valid_annotation(self, anns):
+    def _has_valid_annotation(self, anns: list[dict[str, float]]) -> bool:
         """Filter empty or low occupied samples."""
         if self.remove_empty and len(anns) == 0:
             return False
@@ -247,14 +247,14 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             )
             im_bytes = self.data_backend.get(img_path)
             img = im_decode(im_bytes)
-            img = torch.as_tensor(
+            img_tensor = torch.as_tensor(
                 np.ascontiguousarray(img.transpose(2, 0, 1)),
                 dtype=torch.float32,
             ).unsqueeze(0)
-            assert (img_h, img_w) == img.shape[
+            assert (img_h, img_w) == img_tensor.shape[
                 2:
             ], "Image's shape doesn't match annotation."
-            dict_data[CommonKeys.images] = img
+            dict_data[CommonKeys.images] = img_tensor
 
         if self.with_boxes or self.with_masks:
             boxes = []

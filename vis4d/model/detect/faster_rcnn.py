@@ -181,6 +181,10 @@ class FasterRCNNLoss(nn.Module):
             LossesType: Dictionary of model losses.
         """
         rpn_losses = self.rpn_loss(*outputs.rpn, boxes2d, input_hw)
+        assert (
+            outputs.sampled_proposals is not None
+            and outputs.sampled_targets is not None
+        )
         rcnn_losses = self.rcnn_loss(
             *outputs.roi,
             outputs.sampled_proposals.boxes,

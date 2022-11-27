@@ -26,7 +26,7 @@ class DetectorTargets(NamedTuple):
     bbox_weights: torch.Tensor
 
 
-def images_to_levels(targets) -> list[list[Tensor]]:
+def images_to_levels(targets: list[tuple[list[Tensor]]]) -> list[list[Tensor]]:
     """Convert targets by image to targets by feature level."""
     targets_per_level = []
     for lvl_id in range(len(targets[0][0])):
@@ -135,7 +135,8 @@ def get_targets_per_batch(
     num_level_anchors = [anchors.size(0) for anchors in anchor_grids]
     anchors_all_levels = torch.cat(anchor_grids)
 
-    targets, num_total_pos, num_total_neg = [], 0, 0
+    targets: list[tuple[list[Tensor]]] = []
+    num_total_pos, num_total_neg = 0, 0
     for tgt_box, tgt_cls, image_hw in zip(
         target_boxes, target_class_ids, images_hw
     ):
@@ -271,7 +272,7 @@ class DenseAnchorHeadLoss(nn.Module):
         reg_outs: list[torch.Tensor],
         target_boxes: list[torch.Tensor],
         images_hw: list[tuple[int, int]],
-        target_class_ids: list[torch.Tensor] | None = None,
+        target_class_ids: list[torch.Tensor | float] | None = None,
     ) -> DenseAnchorHeadLosses:
         """Compute RetinaNet classification and regression losses.
 
@@ -289,7 +290,7 @@ class DenseAnchorHeadLoss(nn.Module):
         Returns:
             DenseAnchorHeadLosses: Classification and regression losses.
         """
-        featmap_sizes = [featmap.size()[-2:] for featmap in cls_outs]
+        featmap_sizes = [tuple(featmap.size()[-2:]) for featmap in cls_outs]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
         if target_class_ids is None:
             target_class_ids = [1.0 for _ in range(len(target_boxes))]
@@ -310,8 +311,9 @@ class DenseAnchorHeadLoss(nn.Module):
         loss_cls_all = torch.tensor(0.0, device=device)
         loss_bbox_all = torch.tensor(0.0, device=device)
         for level_id, (cls_out, reg_out) in enumerate(zip(cls_outs, reg_outs)):
+            box_tgt, box_wgt, lbl, lbl_wgt = targets_per_level[level_id]
             loss_cls, loss_bbox = self._loss_single_scale(
-                cls_out, reg_out, *targets_per_level[level_id], num_samples
+                cls_out, reg_out, box_tgt, box_wgt, lbl, lbl_wgt, num_samples
             )
             loss_cls_all += loss_cls
             loss_bbox_all += loss_bbox
