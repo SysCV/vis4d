@@ -3,6 +3,28 @@ from __future__ import annotations
 
 from vis4d.common.typing import NDArrayF64, NDArrayI64, NDArrayNumber
 from vis4d.vis.image.bounding_box_visualizer import BoundingBoxVisualizer
+from vis4d.vis.pointcloud.pointcloud_visualizer import PointCloudVisualizer
+
+
+def show_points(
+    points_xyz: NDArrayF64,
+    semantics: NDArrayI64 | None = None,
+    instances: NDArrayI64 | None = None,
+    colors: NDArrayF64 | None = None,
+    backend: str = "open3d",
+):
+    """Visualizes point cloud data.
+
+    Args:
+        points_xyz: xyz coordinates of the points shape [B, N, 3]
+        semantics: semantic ids of the points shape [B, N, 1]
+        instances: instance ids of the points shape [B, N, 1]
+        colors: colors of the points shape [B, N,3] and ranging from  [0,1]
+        backend (str): Which visualization backend to use. Choice from [open3d]
+    """
+    vis = PointCloudVisualizer(backend)
+    vis.process_single(points_xyz, semantics, instances, colors)
+    vis.show()
 
 
 def imshow_bboxes(
