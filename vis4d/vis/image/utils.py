@@ -1,37 +1,33 @@
 """Utility functions for image processing operations."""
 from __future__ import annotations
 
-import colorsys
-
 import numpy as np
 import numpy.typing as npt
 
 from vis4d.common.typing import NDArrayBool, NDArrayNumber
+from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 ImageType = npt.NDArray[np.float64]
-
-
-def generate_color_map(length: int) -> list[tuple[float, float, float]]:
-    """Generate a color palette of [length] colors."""
-    brightness = 0.7
-    hsv = [(i / length, 1, brightness) for i in range(length)]
-    colors = [colorsys.hsv_to_rgb(*c) for c in hsv]
-    colors = (np.array(colors) * 255).astype(np.uint8).tolist()
-    s = np.random.get_state()
-    np.random.seed(0)
-    result = [tuple(colors[i]) for i in np.random.permutation(len(colors))]
-    np.random.set_state(s)
-    return result
-
-
-DEFAULT_COLOR_MAPPING = generate_color_map(50)
 
 
 def preprocess_masks(
     masks: NDArrayBool,
     class_ids: NDArrayNumber | None,
     color_mapping: list[tuple[float, float, float]] = DEFAULT_COLOR_MAPPING,
-):
+) -> tuple[list[NDArrayBool], list[tuple[float, float, float]]]:
+    """Preprocesses predicted semantic masks.
+
+    Args:
+        masks (NDArrayBool): The semantic masks of shape [N, h, w].
+        class_ids (NDArrayNumber, None):  An array with class ids for each mask
+            shape [N]
+        color_mapping (list[tuple[float, float, float]]): Color mapping for
+            each semantic class
+
+    Returns:
+        tuple[list[masks], list[colors]]: Returns a list with all masks of
+            shape [h,w] as well as a list with the corresponding colors.
+    """
     mask_list: list[NDArrayBool] = []
     color_list: list[tuple[float, float, float]] = []
 

@@ -4,11 +4,11 @@ from __future__ import annotations
 from vis4d.common.imports import OPEN3D_AVAILABLE
 from vis4d.common.typing import NDArrayF64, NDArrayI64
 from vis4d.vis.base import Visualizer
+from vis4d.vis.old_vis_to_revise.util import COLOR_PALETTE
 from vis4d.vis.pointcloud.base import (
     PointcloudScene,
     PointCloudVisualizerBackend,
 )
-from vis4d.vis.util import COLOR_PALETTE
 
 if OPEN3D_AVAILABLE:
     from .o3d_backend import Open3DVisualizationBackend
@@ -63,7 +63,7 @@ class PointCloudVisualizer(Visualizer):
         colors: NDArrayF64 | None = None,
         scene_index: NDArrayI64 | int | None = None,
     ) -> None:
-        """Processes a batch of data and adds it to the visualizer.
+        """Processes data and adds it to the visualizer.
 
         Args:
             points_xyz: xyz coordinates of the points shape [B, N, 3]
@@ -73,12 +73,11 @@ class PointCloudVisualizer(Visualizer):
             scene_index: Scene index for visualization of shape [B, 1].
                 This allows to plot multiple predictions in the same scene
                 if e.g. for memory reasons it had to be split up in multiple
-                chunls.
+                channels..
 
         Raises:
             ValueError: If shapes of the arrays missmatch.
         """
-
         # Load correct scene
         if scene_index is None:
             # No scene index given. Create new scene for each call

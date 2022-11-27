@@ -27,7 +27,7 @@ if DASH_AVAILABLE and PLOTLY_AVAILABLE:
     import plotly.graph_objects as go
     from dash import dcc, html
 
-from vis4d.vis.util import (
+from vis4d.vis.old_vis_to_revise.util import (
     ImageType,
     preprocess_boxes,
     preprocess_image,
