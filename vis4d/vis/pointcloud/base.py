@@ -1,15 +1,33 @@
 """Generic classes to save pointcloud data."""
-from types import SimpleNamespace
-from typing import List
+from __future__ import annotations
 
-import torch
+from typing import overload
+
+import numpy as np
+
+from vis4d.common.typing import NDArrayF64, NDArrayI64, NDArrayNumber
 
 
-def _unsqueeze2d(arg: torch.Tensor) -> torch.Tensor:
-    """Adds an empty dimension from the right if target is not 2D."""
-    if len(arg.shape) == 1:
-        return arg.unsqueeze(-1)
-    return arg
+@overload
+def _unsqueeze2d(array: NDArrayF64) -> NDArrayF64:
+    ...
+
+
+@overload
+def _unsqueeze2d(array: NDArrayI64) -> NDArrayI64:
+    ...
+
+
+def _unsqueeze2d(array: NDArrayNumber) -> NDArrayNumber:
+    """Adds an empty dimension from the right if target is not 2D.
+
+    Args:
+        array: Numpy array to unsqueeze
+
+    Returns:
+        Unsqueezed 2D array
+    """
+    return array[..., None] if len(array.shape) == 1 else array
 
 
 class PointcloudScene:
@@ -17,68 +35,77 @@ class PointcloudScene:
 
     def __init__(self) -> None:
         """Creates a new, empty scene."""
-        self.points = torch.zeros(0, 3)  # xyz
-        self.colors = torch.zeros(0, 3)  # rgb
-        self.semantics = SimpleNamespace(
-            prediction=torch.zeros(0, 1).long(),
-            groundtruth=torch.zeros(0, 1).long(),
-        )
+        self.points = np.zeros((0, 3))  # xyz
+        self.colors = np.zeros((0, 3))  # rgb
+        self.semantics: NDArrayI64 = np.zeros((0, 1), dtype=np.int64)
+        self.instances: NDArrayI64 = np.zeros((0, 1), dtype=np.int64)
 
-    def add_points(self, points: torch.Tensor) -> None:
+    def add_points(self, points: NDArrayF64) -> None:
         """Adds a pointcloud to the scene.
 
         Args:
-            points (torch.Tensor): The pointcloud data [n_pts, 3]
+            points (NDArrayF64): The pointcloud data [n_pts, 3]
         """
-        self.points = torch.cat([self.points, _unsqueeze2d(points)])
+        self.points = np.concatenate([self.points, _unsqueeze2d(points)])
 
-    def add_semantic_prediction(self, prediction: torch.Tensor) -> None:
-        """Adds a semantic prediction to the scene.
+    def add_semantics(self, semantics: NDArrayI64) -> None:
+        """Adds semantic information to the scene.
 
         Args:
-            prediction (torch.Tensor): The semantic prediction shape [n_pts, 1]
+            semantics (NDArrayI64): The semantic prediction shape [n_pts, 1]
         """
-        self.semantics.prediction = torch.cat(
-            [self.semantics.prediction, _unsqueeze2d(prediction)]
+        self.semantics = np.concatenate(
+            [self.semantics, _unsqueeze2d(semantics)]
         )
 
-    def add_semantic_groundtruth(self, groundtruth: torch.Tensor) -> None:
-        """Adds a semantic groundtruth to the scene.
+    def add_instances(self, instances: NDArrayI64) -> None:
+        """Adds semantic information to the scene.
 
         Args:
-            groundtruth (torch.Tensor): The semantic groundtruth
-                                        shape [n_pts, 1]
+            instances (NDArrayI64): The semantic prediction shape [n_pts, 1]
         """
-        self.semantics.groundtruth = torch.cat(
-            [self.semantics.groundtruth, _unsqueeze2d(groundtruth)]
+        self.instances = np.concatenate(
+            [self.instances, _unsqueeze2d(instances)]
         )
 
-    def add_colors(self, colors: torch.Tensor) -> None:
+    def add_colors(self, colors: NDArrayF64) -> None:
         """Adds color information tot he scene.
 
         Args:
-            colors (torch.Tensor): The color data [n_pts, 3]
+            colors (NDArrayF64): The color data [n_pts, 3] ranging from [0,1].
         """
-
-        self.colors = torch.cat([self.colors, _unsqueeze2d(colors)])
+        self.colors = np.concatenate([self.colors, _unsqueeze2d(colors)])
 
 
 class PointCloudVisualizerBackend:
     """Visualization Backen Interface for Pointclouds."""
 
-    def __init__(self, color_mapping: torch.Tensor) -> None:
+    def __init__(
+        self,
+        class_color_mapping: list[tuple[float, float, float]],
+        instance_color_mapping: list[tuple[float, float, float]] | None = None,
+    ) -> None:
         """Creates a new Open3D visualization backend.
 
         Args:
-            color_mapping (tensor): Tensor of size [n_classes, 3] that maps
-            each class index to a unique color.
+            class_color_mapping (array): Array of size [n_classes, 3] that maps
+                each class index to a unique color.
+            instance_color_mapping (array): Array of size [n_instances, 3] that
+                maps each instance id to a unique color.
         """
-        self.scenes: List[PointcloudScene] = []
+        self.scenes: list[PointcloudScene] = []
 
-        if (color_mapping > 1).any():  # Color mapping from [0, 255]
-            self.color_mapping = color_mapping / 255
+        self.class_color_mapping = np.asarray(class_color_mapping)
+
+        if np.any(self.class_color_mapping > 1):  # Color mapping from [0, 255]
+            self.class_color_mapping = self.class_color_mapping / 255
+
+        if instance_color_mapping is None:
+            self.instance_color_mapping = self.class_color_mapping
         else:
-            self.color_mapping = color_mapping
+            self.instance_color_mapping = np.asarray(instance_color_mapping)
+            if np.any(self.instance_color_mapping > 1):
+                self.instance_color_mapping = self.instance_color_mapping / 255
 
     def create_new_scene(self) -> PointcloudScene:
         """Creates a new empty scene."""
@@ -86,16 +113,35 @@ class PointCloudVisualizerBackend:
         return self.get_current_scene()
 
     def get_current_scene(self) -> PointcloudScene:
-        """Returns the currently active scene."""
+        """Returns the currently active scene.
+
+        If no scene is available, an new empty one is created.
+
+        Returns:
+            PointcloudScene: current pointcloud scene
+        """
         if (len(self.scenes)) == 0:
             return self.create_new_scene()
 
         return self.scenes[-1]
 
-    def visualize(self):
-        """Visualizes the stored data."""
-        raise NotImplementedError
+    def show(self, blocking: bool = True) -> None:
+        """Shows the visualization.
 
-    def clear(self):
+        Args:
+            blocking (bool): If the visualization should be blocking
+                             and wait for human input
+        """
+        raise NotImplementedError()
+
+    def reset(self) -> None:
         """Clears all stored data."""
         self.scenes = []
+
+    def save_to_disk(self, path_to_out_folder: str) -> None:
+        """Saves the visualization to disk.
+
+        Args:
+            path_to_out_folder (str): Path to output folder
+        """
+        raise NotImplementedError()

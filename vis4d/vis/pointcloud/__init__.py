@@ -1,5 +1,5 @@
 """Pointcloud Visualization Package."""
 
-from .visualizer import PointCloudVisualizer
+from .pointcloud_visualizer import PointCloudVisualizer
 
 __all__ = ["PointCloudVisualizer"]
