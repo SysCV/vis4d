@@ -332,7 +332,8 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
         """Init.
 
         Args:
-            softmax_temp (float, optional): Temperature parameter for multi-positive cross-entropy loss. Defaults to -1.
+            softmax_temp (float, optional): Temperature parameter for
+                multi-positive cross-entropy loss. Defaults to -1.
         """
         super().__init__()
         self.softmax_temp = softmax_temp
