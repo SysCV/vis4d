@@ -12,7 +12,7 @@ def show_points(
     instances: NDArrayI64 | None = None,
     colors: NDArrayF64 | None = None,
     backend: str = "open3d",
-):
+) -> None:
     """Visualizes point cloud data.
 
     Args:
