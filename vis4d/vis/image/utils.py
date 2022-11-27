@@ -6,12 +6,12 @@ import colorsys
 import numpy as np
 import numpy.typing as npt
 
-from vis4d.common.typing import NDArrayNumber
+from vis4d.common.typing import NDArrayBool, NDArrayNumber
 
 ImageType = npt.NDArray[np.float64]
 
 
-def generate_color_map(length: int) -> list[tuple[float, ...]]:
+def generate_color_map(length: int) -> list[tuple[float, float, float]]:
     """Generate a color palette of [length] colors."""
     brightness = 0.7
     hsv = [(i / length, 1, brightness) for i in range(length)]
@@ -22,6 +22,30 @@ def generate_color_map(length: int) -> list[tuple[float, ...]]:
     result = [tuple(colors[i]) for i in np.random.permutation(len(colors))]
     np.random.set_state(s)
     return result
+
+
+DEFAULT_COLOR_MAPPING = generate_color_map(50)
+
+
+def preprocess_masks(
+    masks: NDArrayBool,
+    class_ids: NDArrayNumber | None,
+    color_mapping: list[tuple[float, float, float]] = DEFAULT_COLOR_MAPPING,
+):
+    mask_list: list[NDArrayBool] = []
+    color_list: list[tuple[float, float, float]] = []
+
+    for idx in range(masks.shape[0]):
+        mask = masks[idx, ...]
+
+        class_id = None if class_ids is None else class_ids[idx].item()
+        if class_id is not None:
+            color = color_mapping[class_id % len(color_mapping)]
+        else:
+            color = color_mapping[idx % len(color_mapping)]
+        mask_list.append(mask)
+        color_list.append(color)
+    return mask_list, color_list
 
 
 def preprocess_image(

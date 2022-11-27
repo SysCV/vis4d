@@ -13,7 +13,11 @@ from vis4d.common.typing import (
 from vis4d.vis.base import Visualizer
 from vis4d.vis.image.base import CanvasBackend, ImageViewerBackend
 from vis4d.vis.image.canvas import PillowCanvasBackend
-from vis4d.vis.image.utils import generate_color_map, preprocess_image
+from vis4d.vis.image.utils import (
+    generate_color_map,
+    preprocess_image,
+    preprocess_masks,
+)
 from vis4d.vis.image.viewer import MatplotlibImageViewer
 
 
@@ -90,14 +94,7 @@ class SemanticMaskVisualizer(Visualizer):
                 len(class_ids) == masks.shape[0]
             ), "The amount of masks must match the given class count!"
 
-        for idx in range(masks.shape[0]):
-            mask = masks[idx, ...]
-
-            class_id = None if class_ids is None else class_ids[idx].item()
-            if class_id is not None:
-                color = self.color_palette[class_id % len(self.color_palette)]
-            else:
-                color = self.color_palette[idx % len(self.color_palette)]
+        for mask, color in zip(preprocess_masks(masks, class_ids)):
             data_sample.masks.append(SemanticMask2D(mask=mask, color=color))
 
     def _draw_image(self, sample: ImageWithSemanticMask) -> NDArrayUI8:
@@ -149,7 +146,8 @@ class SemanticMaskVisualizer(Visualizer):
         Args:
             image (np.array): Images to show
             masks (NDArrayBool): Binary masks to show each shape [N,h,w]
-            class_ids (NDArrayI64, optional): Binary masks to show each shape [N]
+            class_ids (NDArrayI64, optional): Binary masks to show
+                each mask of shape [h,w]
         """
         img_normalized = preprocess_image(image, mode=self.image_mode)
         data_sample = ImageWithSemanticMask(img_normalized, [])

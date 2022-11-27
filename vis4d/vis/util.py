@@ -1,4 +1,6 @@
 """Utilities for visualization."""
+from __future__ import annotations
+
 import colorsys
 from typing import List, Optional, Tuple, Union
 
@@ -18,6 +20,19 @@ ColorType = Union[
 ]
 
 
+def generate_color_map(length: int) -> list[tuple[float, float, float]]:
+    """Generate a color palette of [length] colors."""
+    brightness = 0.7
+    hsv = [(i / length, 1, brightness) for i in range(length)]
+    colors = [colorsys.hsv_to_rgb(*c) for c in hsv]
+    colors = (np.array(colors) * 255).astype(np.uint8).tolist()
+    s = np.random.get_state()
+    np.random.seed(0)
+    result = [tuple(colors[i]) for i in np.random.permutation(len(colors))]
+    np.random.set_state(s)
+    return result
+
+
 def generate_colors(length: int) -> List[Tuple[int]]:
     """Generate a color palette of [length] colors."""
     brightness = 0.7
@@ -32,7 +47,8 @@ def generate_colors(length: int) -> List[Tuple[int]]:
 
 
 NUM_COLORS = 50
-COLOR_PALETTE = generate_colors(NUM_COLORS)
+COLOR_PALETTE = generate_color_map(NUM_COLORS)
+COLOR_PALETTE_NP = np.asarray(COLOR_PALETTE)
 
 
 def preprocess_boxes(
