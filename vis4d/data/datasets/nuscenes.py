@@ -127,7 +127,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             assert split in [
                 "train",
                 "val",
-            ], f"Invalid split for NuScenes {version}!"
+            ], f"Invalid split for NuScenes {version}!"  # TODO improve error msg for mini version
 
         self.split = split
         self.include_non_key = include_non_key

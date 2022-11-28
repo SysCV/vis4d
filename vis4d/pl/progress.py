@@ -1,28 +1,18 @@
-"""Vis4D engine utils."""
+"""Progress bar utils."""
+from __future__ import annotations
+
 import datetime
-import logging
-import os
-import sys
-import warnings
 from collections import defaultdict
 from typing import Dict, List, Optional, Union
 
 import pytorch_lightning as pl
 import torch
-from packaging import version
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-from termcolor import colored
-from torchmetrics import Metric
 
-from vis4d.common.distributed import rank_zero_only
 from vis4d.common.logging import rank_zero_info
 
 from ..common import ArgsType
 from ..common.time import Timer
-
-logger = logging.getLogger("pytorch_lightning")
-# ignore DeprecationWarning by default (e.g. numpy)
-warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
@@ -218,69 +208,3 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
                     self.trainer.num_predict_batches[dataloader_idx],
                 )
             )
-
-
-class _ColorFormatter(logging.Formatter):
-    """Formatter for terminal messages with colors."""
-
-    def formatMessage(self, record: logging.LogRecord) -> str:
-        """Add appropriate color to log message."""
-        log = super().formatMessage(record)
-        if record.levelno == logging.WARNING:
-            prefix = colored("WARNING", "red", attrs=["blink"])
-        elif record.levelno in [logging.ERROR, logging.CRITICAL]:
-            prefix = colored("ERROR", "red", attrs=["blink", "underline"])
-        else:
-            return log
-        return prefix + " " + log
-
-
-@rank_zero_only
-def setup_logger(
-    filepath: Optional[str] = None,
-    color: bool = True,
-    std_out_level: int = logging.INFO,
-) -> None:
-    """Configure logging for Vis4D using the pytorch lightning logger."""
-    # get PL logger, remove handlers to re-define behavior
-    # https://pytorch-lightning.readthedocs.io/en/stable/extensions/logging.html#configure-console-logging
-    for h in logger.handlers:
-        logger.removeHandler(h)
-
-    # console logger
-    plain_formatter = logging.Formatter(
-        "[%(asctime)s] Vis4D %(levelname)s: %(message)s",
-        datefmt="%m/%d %H:%M:%S",
-    )
-
-    ch = logging.StreamHandler(stream=sys.stdout)
-    ch.setLevel(std_out_level)
-    if color:
-        formatter = _ColorFormatter(
-            colored("[%(asctime)s Vis4D]: ", "green") + "%(message)s",
-            datefmt="%m/%d %H:%M:%S",
-        )
-        ch.setFormatter(formatter)
-    else:
-        ch.setFormatter(plain_formatter)
-    logger.addHandler(ch)
-
-    # file logger
-    if filepath is not None:
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        fh = logging.FileHandler(filepath)
-        fh.setLevel(logging.DEBUG)
-        fh.setFormatter(plain_formatter)
-        logger.addHandler(fh)
-
-
-def is_torch_tf32_available() -> bool:
-    """Check if torch TF32 is available."""
-    return not (
-        not torch.cuda.is_available()
-        or torch.version.cuda is None
-        or torch.cuda.get_device_properties(torch.cuda.current_device()).major
-        < 8
-        or int(torch.version.cuda.split(".", maxsplit=1)[0]) < 11
-        or version.parse(torch.__version__) < version.parse("1.7")
-    )

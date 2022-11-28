@@ -2,16 +2,19 @@
 from __future__ import annotations
 
 import logging
+import os
+import sys
 import warnings
+
+from termcolor import colored
 
 from .distributed import rank_zero_only
 from .typing import ArgsType
 
-log = logging.getLogger(__name__)
-
 
 def _debug(*args: ArgsType, stacklevel: int = 2, **kwargs: ArgsType) -> None:
     """Function used to log debug-level messages."""
+    log = logging.getLogger(__name__)
     kwargs["stacklevel"] = stacklevel
     log.debug(*args, **kwargs)
 
@@ -27,6 +30,7 @@ def rank_zero_debug(
 def _info(*args: ArgsType, stacklevel: int = 2, **kwargs: ArgsType) -> None:
     """Function used to log info-level messages."""
     kwargs["stacklevel"] = stacklevel
+    log = logging.getLogger(__name__)
     log.info(*args, **kwargs)
 
 
@@ -51,3 +55,68 @@ def rank_zero_warn(
 ) -> None:
     """Function used to log warn-level messages only on global rank 0."""
     _warn(message, stacklevel=stacklevel, **kwargs)
+
+
+class _ColorFormatter(logging.Formatter):
+    """Formatter for terminal messages with colors."""
+
+    def formatMessage(self, record: logging.LogRecord) -> str:
+        """Add appropriate color to log message."""
+        log = super().formatMessage(record)
+        if record.levelno == logging.WARNING:
+            prefix = colored("WARNING", "red", attrs=["blink"])
+        elif record.levelno in [logging.ERROR, logging.CRITICAL]:
+            prefix = colored("ERROR", "red", attrs=["blink", "underline"])
+        else:
+            return log
+        return prefix + " " + log
+
+
+@rank_zero_only
+def setup_logger(
+    logger: logging.Logger,
+    filepath: None | str = None,
+    color: bool = True,
+    std_out_level: int = logging.INFO,
+) -> None:
+    """Configure logging for Vis4D.
+
+    Args:
+        logger (logging.Logger): The logger instance to be configured.
+        filepath (None | str, optional): The filepath to the log file that
+            stores the console output. Defaults to None.
+        color (bool, optional): Whether to use a colored console output.
+            Defaults to True.
+        std_out_level (int, optional): Which logging level to output to the
+            console. Defaults to logging.INFO. Note that all levels will be
+            logged to file.
+    """
+    # get logger, remove handlers to re-define behavior
+    for h in logger.handlers:
+        logger.removeHandler(h)
+
+    # console logger
+    plain_formatter = logging.Formatter(
+        "[%(asctime)s] Vis4D %(levelname)s: %(message)s",
+        datefmt="%m/%d %H:%M:%S",
+    )
+
+    ch = logging.StreamHandler(stream=sys.stdout)
+    ch.setLevel(std_out_level)
+    if color:
+        formatter = _ColorFormatter(
+            colored("[%(asctime)s Vis4D]: ", "green") + "%(message)s",
+            datefmt="%m/%d %H:%M:%S",
+        )
+        ch.setFormatter(formatter)
+    else:
+        ch.setFormatter(plain_formatter)
+    logger.addHandler(ch)
+
+    # file logger
+    if filepath is not None:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        fh = logging.FileHandler(filepath)
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(plain_formatter)
+        logger.addHandler(fh)

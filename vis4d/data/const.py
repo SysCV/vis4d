@@ -39,7 +39,7 @@ class CommonKeys:
     input_hw (Tuple[int, int]): Shape of image in (height, width) after
         transformations.
 
-    boxes2d (Tensor): 2D bounding boxes of shape [N, 4]
+    boxes2d (Tensor): 2D bounding boxes of shape [N, 4] in xyxy format.
     boxes2d_classes (Tensor): Semantic classes of 2D bounding boxes, shape
         [N,].
     boxes2d_track_ids (Tensor): Tracking IDs of 2D bounding boxes, shape [N,].

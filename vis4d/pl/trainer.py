@@ -1,9 +1,8 @@
 """Vis4D Trainer."""
-from __future__ import annotations
-
+import logging
 import os.path as osp
-from collections.abc import Callable
 from datetime import datetime
+from typing import Callable, List, Optional, Type, Union
 
 import pytorch_lightning as pl
 import torch
@@ -16,11 +15,11 @@ from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 from torch.utils.collect_env import get_pretty_env_info
 
-from vis4d.common.logging import rank_zero_info, rank_zero_warn
-
-from ..common import ArgsType, DictStrAny
-from .data import DataModule
-from .utils import DefaultProgressBar, is_torch_tf32_available, setup_logger
+from vis4d.common import ArgsType, DictStrAny
+from vis4d.common.imports import is_torch_tf32_available
+from vis4d.common.logging import rank_zero_info, rank_zero_warn, setup_logger
+from vis4d.pl.data import DataModule
+from vis4d.pl.progress import DefaultProgressBar
 
 
 class DefaultTrainer(pl.Trainer):
@@ -50,7 +49,7 @@ class DefaultTrainer(pl.Trainer):
         *args: ArgsType,
         work_dir: str = "vis4d-workspace",
         exp_name: str = "unnamed",
-        version: None | str = None,
+        version: Optional[str] = None,
         find_unused_parameters: bool = False,
         checkpoint_period: int = 1,
         resume: bool = False,
@@ -58,8 +57,8 @@ class DefaultTrainer(pl.Trainer):
         tqdm: bool = False,
         use_tf32: bool = False,
         progress_bar_refresh_rate: int = 50,
-        tuner_params: None | DictStrAny = None,
-        tuner_metrics: None | list[str] = None,
+        tuner_params: Optional[DictStrAny] = None,
+        tuner_metrics: Optional[List[str]] = None,
         **kwargs: ArgsType,
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
@@ -107,7 +106,7 @@ class DefaultTrainer(pl.Trainer):
                     name=version,
                 )
             else:
-                exp_logger = pl.loggers.TensorBoardLogger(
+                exp_logger = pl.loggers.TensorBoardLogger(  # type: ignore
                     save_dir=work_dir,
                     name=exp_name,
                     version=version,
@@ -116,7 +115,7 @@ class DefaultTrainer(pl.Trainer):
                 )
             kwargs["logger"] = exp_logger
 
-        callbacks: list[pl.callbacks.Callback] = []
+        callbacks: List[pl.callbacks.Callback] = []
 
         # add learning rate / GPU stats monitor (logs to tensorboard)
         callbacks += [
@@ -171,10 +170,10 @@ class DefaultTrainer(pl.Trainer):
         super().__init__(*args, **kwargs)
 
     @property
-    def log_dir(self) -> str | None:
+    def log_dir(self) -> Optional[str]:
         """Get current logging directory."""
         dirpath = self.strategy.broadcast(self.output_dir)
-        return dirpath
+        return dirpath  # type: ignore
 
 
 class CLI(LightningCLI):
@@ -182,16 +181,18 @@ class CLI(LightningCLI):
 
     def __init__(  # type: ignore
         self,
-        model_class: None
-        | type[LightningModule]
-        | Callable[..., LightningModule] = None,
-        datamodule_class: None
-        | type[DataModule]
-        | Callable[..., DataModule] = None,
-        save_config_callback: type[SaveConfigCallback]
-        | None = SaveConfigCallback,
-        trainer_class: type[pl.Trainer]
-        | Callable[..., pl.Trainer] = DefaultTrainer,
+        model_class: Optional[
+            Union[Type[LightningModule], Callable[..., LightningModule]]
+        ] = None,
+        datamodule_class: Optional[
+            Union[Type[DataModule], Callable[..., DataModule]]
+        ] = None,
+        save_config_callback: Optional[
+            Type[SaveConfigCallback]
+        ] = SaveConfigCallback,
+        trainer_class: Union[
+            Type[pl.Trainer], Callable[..., pl.Trainer]
+        ] = DefaultTrainer,
         description: str = "Vis4D command line tool",
         env_prefix: str = "V4D",
         save_config_overwrite: bool = True,
@@ -225,9 +226,13 @@ class CLI(LightningCLI):
         if version is None:
             version = timestamp
         self.config[subcommand].trainer.version = version
-        setup_logger(
-            osp.join(work_dir, exp_name, version, f"log_{timestamp}.txt")
-        )
+
+        logger_vis4d = logging.getLogger("vis4d")
+        logger_pl = logging.getLogger("pytorch_lightning")
+        log_dir = osp.join(work_dir, exp_name, version, f"log_{timestamp}.txt")
+        setup_logger(logger_vis4d, log_dir)
+        setup_logger(logger_pl, log_dir)
+
         rank_zero_info("Environment info: %s", get_pretty_env_info())
 
         # instantiate classes

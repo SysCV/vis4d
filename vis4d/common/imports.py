@@ -2,6 +2,9 @@
 from functools import lru_cache
 from importlib.util import find_spec
 
+import torch
+from packaging import version
+
 
 @lru_cache()
 def package_available(package_name: str) -> bool:
@@ -32,3 +35,15 @@ OPENCV_AVAILABLE = package_available("cv2")
 DASH_AVAILABLE = package_available("dash")
 OPEN3D_AVAILABLE = package_available("open3d")
 PLOTLY_AVAILABLE = package_available("plotly")
+
+
+def is_torch_tf32_available() -> bool:
+    """Check if torch TF32 is available."""
+    return not (
+        not torch.cuda.is_available()
+        or torch.version.cuda is None
+        or torch.cuda.get_device_properties(torch.cuda.current_device()).major
+        < 8
+        or int(torch.version.cuda.split(".", maxsplit=1)[0]) < 11
+        or version.parse(torch.__version__) < version.parse("1.7")
+    )

@@ -13,8 +13,6 @@ from vis4d.data.datasets.base import DictData
 from vis4d.eval.base import Evaluator
 from vis4d.pl.distributed import all_gather_object_cpu
 
-logger = logging.getLogger("pytorch_lightning")
-
 
 def default_eval_connector(mode: str, data: DictData, outputs) -> DictStrAny:
     """Default eva connector forwards input and outputs."""
@@ -117,6 +115,7 @@ class DefaultEvaluatorCallback(Callback):
             return "", {}
 
         results = {}
+        logger = logging.getLogger(__name__)
         if not self.logging_disabled:
             logger.info(f"Running evaluator {str(self.evaluator)}...")
 

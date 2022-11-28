@@ -25,7 +25,7 @@ class BaseTrackMemory(Generic[TTrackState]):
 
     def reset(self) -> None:
         """Empty the memory."""
-        self.frames: list[TTrackState] = []
+        self.frames = []
 
     @property
     def last_frame(self) -> TTrackState:
