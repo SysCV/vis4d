@@ -91,8 +91,10 @@ class SemanticMaskVisualizer(Visualizer):
                 len(class_ids) == masks.shape[0]
             ), "The amount of masks must match the given class count!"
 
-        for mask, color in zip(preprocess_masks(masks, class_ids)):
-            data_sample.masks.append(SemanticMask2D(mask=mask, color=color))
+        for mask, color in zip(*preprocess_masks(masks, class_ids)):
+            data_sample.masks.append(
+                SemanticMask2D(mask=mask.astype(bool), color=color)
+            )
 
     def _draw_image(self, sample: ImageWithSemanticMask) -> NDArrayUI8:
         """Visualizes the datasample and returns is as numpy image.
