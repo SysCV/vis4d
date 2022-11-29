@@ -5,6 +5,7 @@ import numpy as np
 import numpy.typing as npt
 
 from vis4d.common.typing import NDArrayBool, NDArrayNumber
+from vis4d.vis.image.base import CanvasBackend
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 ImageType = npt.NDArray[np.float64]
@@ -73,3 +74,59 @@ def preprocess_image(
         mode = "RGB"
 
     return image.astype(np.uint8)
+
+
+def get_intersection_point(
+    point1: tuple[float, float, float],
+    point2: tuple[float, float, float],
+    camera_near_clip: float,
+) -> tuple[float, float]:
+    """Get point intersecting with camera near plane on line point1 -> point2.
+
+    The line is defined by two points in pixel coordinates and their depth.
+    """
+    c1, c2, c3 = 0, 0, camera_near_clip
+    a1, a2, a3 = 0, 0, 1
+    x1, y1, z1 = point1
+    x2, y2, z2 = point2
+
+    k_up = abs(a1 * (x1 - c1) + a2 * (y1 - c2) + a3 * (z1 - c3))
+    k_down = abs(a1 * (x1 - x2) + a2 * (y1 - y2) + a3 * (z1 - z2))
+    if k_up > k_down:
+        k = 1
+    else:
+        k = k_up / k_down
+    return (1 - k) * point1 + k * point2
+
+
+def draw_box3d(
+    canvas: CanvasBackend,
+    corners: tuple[tuple[float, float], ...],
+    label: str,
+    color: tuple[float, float, float],
+) -> None:
+    """Draw 3D bounding box on a given 2D canvas.
+
+    Args:
+        canvas (CanvasBackend): Current canvas to draw on.
+        corners (tuple[tuple[float, float], ...]): Projected locations of the
+            3D bounding box corners.
+        label (str): Text label of the 3D box.
+        color (tuple[float, float, float]): The box color.
+    """
+    assert len(corners) == 8, "A 3D box needs 8 corners."
+    # Draw the sides
+    for i in range(4):
+        canvas.draw_line(corners[i], corners[i + 4], color)
+
+    # Draw bottom (first 4 corners) and top (last 4 corners)
+    canvas.draw_rotated_box(corners[:4], color)
+    canvas.draw_rotated_box(corners[4:], color)
+
+    # Draw line indicating the front
+    center_bottom_forward = np.mean(corners[:2], axis=0)
+    center_bottom = np.mean(corners[:4], axis=0)
+    canvas.draw_line(center_bottom, center_bottom_forward, color)
+
+    # Draw label
+    canvas.draw_text(corners[0], label, color)

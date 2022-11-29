@@ -80,10 +80,26 @@ class PillowCanvasBackend(CanvasBackend):
         )
         self._image_draw.bitmap(top_left_corner, bitmap_pil, fill=color)
 
+    def draw_text(
+        self,
+        position: tuple[float, float],
+        text: str,
+        color: tuple[int, int, int] = (255, 255, 255),
+    ) -> None:
+        """Draw text onto canvas at given position.
+
+        Args:
+            position (tuple[float, float]): x,y position where the text will
+                start.
+            text (str): Text to be placed at the given location.
+            color (tuple[int, int, int], optional): Text color. Defaults to
+                (255, 255, 255).
+        """
+        self._image_draw.text(position, text, color, font=self._font)
+
     def draw_box(
         self,
         corners: tuple[float, float, float, float],
-        label: str,
         color: tuple[float, float, float],
     ) -> None:
         """Draws a box onto the given canvas.
@@ -91,7 +107,6 @@ class PillowCanvasBackend(CanvasBackend):
         Args:
             corners (list[float]): Containing [x1,y2,x2,y2] the corners of
                                     the box
-            label (str): Label of the box.
             color (tuple(float)): Color of the box [0,255]
 
         Raises:
@@ -103,9 +118,56 @@ class PillowCanvasBackend(CanvasBackend):
             )
 
         self._image_draw.rectangle(corners, outline=color)
-        self._image_draw.text(
-            corners[:2], label, (255, 255, 255), font=self._font
-        )
+
+    def draw_rotated_box(
+        self,
+        corners: tuple[tuple[float, float], ...],
+        color: tuple[float, float, float],
+        width: int = 0,
+    ) -> None:
+        """Draws a box onto the given canvas.
+
+        Corner ordering:
+
+        (2) +---------+ (3)
+            |         |
+            |         |
+            |         |
+        (0) +---------+ (1)
+
+        Args:
+            corners (tuple[tuple[float, float], ...]): Containing the four
+                corners of the box.
+            color (tuple(float)): Color of the box [0,255].
+            width (int, optional): Line width. Defaults to 0.
+
+        Raises:
+            ValueError: If the canvas is not initialized.
+        """
+        assert len(corners) == 4, "2D box must consist of 4 corner points."
+        if self._image_draw is None:
+            raise ValueError(
+                "No Image Draw initialized! Did you call 'create_canvas'?"
+            )
+        for i in range(3):
+            self.draw_line(corners[i], corners[i + 1], color, width)
+
+    def draw_line(
+        self,
+        point1: tuple[float, float],
+        point2: tuple[float, float],
+        color: tuple[float, float, float],
+        width: int = 0,
+    ) -> None:
+        """Draw a line onto canvas from point 1 to 2.
+
+        Args:
+            point1 (tuple[float, float]): Start point (2D pixel coordinates).
+            point2 (tuple[float, float]): End point (2D pixel coordinates).
+            color (tuple[float, float, float]): Color of the line.
+            width (int, optional): Line width. Defaults to 0.
+        """
+        self._image_draw.line((point1, point2), width=width, fill=color)
 
     def as_numpy_image(self) -> NDArrayUI8:
         """Returns the current canvas as numpy image.
