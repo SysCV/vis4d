@@ -15,10 +15,14 @@ from torch import Tensor
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import AxisMode, CommonKeys
 from vis4d.data.datasets.util import CacheMappingMixin, DatasetFromList
 from vis4d.data.io import DataBackend, FileBackend
 from vis4d.data.typing import DictData
+from vis4d.op.geometry.rotation import (
+    euler_angles_to_matrix,
+    matrix_to_quaternion,
+)
 
 from .base import Dataset, VideoMixin
 from .util import im_decode
@@ -274,6 +278,7 @@ class Scalabel(Dataset, CacheMappingMixin):
             data[CommonKeys.images] = image
             data[CommonKeys.original_hw] = (image.shape[2], image.shape[3])
             data[CommonKeys.input_hw] = (image.shape[2], image.shape[3])
+            data[CommonKeys.axis_mode] = AxisMode.OPENCV
         if (
             frame.intrinsics is not None
             and CommonKeys.intrinsics in self.inputs_to_load
@@ -323,7 +328,15 @@ class Scalabel(Dataset, CacheMappingMixin):
             data[CommonKeys.boxes2d_classes] = classes
             data[CommonKeys.boxes2d_track_ids] = track_ids
 
-    def __len__(self):
+        if CommonKeys.boxes3d in self.targets_to_load:
+            boxes3d, classes, track_ids = boxes3d_from_scalabel(
+                labels_used, self.cats_name2id[CommonKeys.boxes3d], instid_map
+            )
+            data[CommonKeys.boxes3d] = boxes3d
+            data[CommonKeys.boxes3d_classes] = classes
+            data[CommonKeys.boxes3d_track_ids] = track_ids
+
+    def __len__(self) -> int:
         """Length of dataset."""
         return len(self.frames)
 
@@ -369,6 +382,45 @@ class ScalabelVideo(Scalabel, VideoMixin):
         return video_to_indices
 
 
+def boxes3d_from_scalabel(
+    labels: list[Label],
+    class_to_idx: dict[str, int],
+    label_id_to_idx: dict[str, int] | None = None,
+) -> tuple[Tensor, Tensor, Tensor]:
+    """Convert 3D bounding boxes from scalabel format to Vis4D."""
+    box_list, cls_list, idx_list = [], [], []
+    for i, label in enumerate(labels):
+        box, box_cls, l_id = label.box3d, label.category, label.id
+        if box is None:
+            continue
+        if box_cls in class_to_idx:
+            cls_list.append(class_to_idx[box_cls])
+        else:
+            continue
+
+        quaternion = (
+            matrix_to_quaternion(
+                euler_angles_to_matrix(torch.tensor([box.orientation]))
+            )[0]
+            .numpy()
+            .tolist()
+        )
+        box_list.append([*box.location, *box.dimension, *quaternion])
+        idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
+        idx_list.append(idx)
+
+    if len(box_list) == 0:
+        return (
+            torch.empty(0, 10),
+            torch.empty(0, dtype=torch.long),
+            torch.empty(0, dtype=torch.long),
+        )
+    box_tensor = torch.tensor(box_list, dtype=torch.float32)
+    class_ids = torch.tensor(cls_list, dtype=torch.long)
+    track_ids = torch.tensor(idx_list, dtype=torch.long)
+    return box_tensor, class_ids, track_ids
+
+
 def boxes2d_from_scalabel(
     labels: list[Label],
     class_to_idx: dict[str, int],
@@ -376,9 +428,9 @@ def boxes2d_from_scalabel(
 ) -> tuple[Tensor, Tensor, Tensor]:
     """Convert from scalabel format to Vis4D.
 
-    NOTE: The box definition in Scalabel includes x2y2, whereas Vis4D and
-    other software libraries like detectron2, mmdet do not include this,
-    which is why we convert via box2d_to_xyxy.
+    NOTE: The box definition in Scalabel includes x2y2 in the box area, whereas
+    Vis4D and other software libraries like detectron2 and mmdet do not include
+    this, which is why we convert via box2d_to_xyxy.
     """
     box_list, cls_list, idx_list = [], [], []
     for i, label in enumerate(labels):
@@ -391,13 +443,19 @@ def boxes2d_from_scalabel(
             continue
         if box_cls in class_to_idx:
             cls_list.append(class_to_idx[box_cls])
+        else:
+            continue
 
         box_list.append(box2d_to_xyxy(box))
         idx = label_id_to_idx[l_id] if label_id_to_idx is not None else i
         idx_list.append(idx)
 
     if len(box_list) == 0:
-        return torch.empty(0, 4), torch.empty(0), torch.empty(0)
+        return (
+            torch.empty(0, 4),
+            torch.empty(0, dtype=torch.long),
+            torch.empty(0, dtype=torch.long),
+        )
 
     box_tensor = torch.tensor(box_list, dtype=torch.float32)
     class_ids = torch.tensor(cls_list, dtype=torch.long)

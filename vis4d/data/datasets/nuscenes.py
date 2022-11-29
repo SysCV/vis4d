@@ -27,15 +27,6 @@ if NUSCENES_AVAILABLE:
     from nuscenes.utils.geometry_utils import transform_matrix
     from nuscenes.utils.splits import create_splits_scenes
 
-NUSCENES_CAMS = [
-    "CAM_FRONT",
-    "CAM_FRONT_LEFT",
-    "CAM_FRONT_RIGHT",
-    "CAM_BACK",
-    "CAM_BACK_LEFT",
-    "CAM_BACK_RIGHT",
-]
-
 
 nuscenes_track_map = {
     "bicycle": 0,
@@ -78,6 +69,15 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
 
     _SENSORS = [
         "LIDAR_TOP",
+        "CAM_FRONT",
+        "CAM_FRONT_LEFT",
+        "CAM_FRONT_RIGHT",
+        "CAM_BACK",
+        "CAM_BACK_LEFT",
+        "CAM_BACK_RIGHT",
+    ]
+
+    _CAMERAS = [
         "CAM_FRONT",
         "CAM_FRONT_LEFT",
         "CAM_FRONT_RIGHT",
@@ -288,7 +288,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             torch.empty((1, 10), dtype=torch.float32),
             torch.empty((1,), dtype=torch.long),
             torch.empty((1,), dtype=torch.long),
-        )  # TODO track ids
+        )
         for box in boxes:
             box_class = category_to_detection_name(box.name)
             if box_class is None:
@@ -399,7 +399,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             }
 
         # load camera frames
-        for cam in NUSCENES_CAMS:
+        for cam in NuScenes._CAMERAS:
             if cam in self._SENSORS:
                 cam_token = sample["data"][cam]
                 image, intrinsics, extrinsics, timestamp = self._load_cam_data(
@@ -418,6 +418,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                 data_dict[cam] = {
                     CommonKeys.images: image,
                     CommonKeys.original_hw: image_hw,
+                    CommonKeys.input_hw: image_hw,
                     CommonKeys.intrinsics: intrinsics,
                     CommonKeys.extrinsics: extrinsics,
                     CommonKeys.timestamp: timestamp,

@@ -56,8 +56,8 @@ class CommonKeys:
         frame.
     colors3d (Tensor): Associated color values for each point, [N, 3].
 
-    semantics3d:
-    instances3d:
+    semantics3d:  TODO complete
+    instances3d:  TODO complete
     boxes3d (Tensor): [N, 10], each row consists of center (XYZ), dimensions
         (WLH), and orientation quaternion (WXYZ).
     boxes3d_classes (Tensor): Associated semantic classes of 3D bounding boxes,

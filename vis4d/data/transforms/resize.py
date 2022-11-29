@@ -90,7 +90,7 @@ def resize_image(
             ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
     """
 
-    def _resize(image: torch.Tensor) -> torch.Tensor:
+    def _resize(image: torch.Tensor) -> tuple[torch.Tensor, tuple[int, int]]:
         im_shape = (image.size(2), image.size(3))
         tgt_shape = _get_target_shape(
             im_shape,
