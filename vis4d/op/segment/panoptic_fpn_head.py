@@ -140,7 +140,7 @@ class PanopticFPNHead(nn.Module):
         self.conv_logits = nn.Conv2d(inner_channels, num_classes + 1, 1)
         self.init_weights()
 
-    def init_weights(self):
+    def init_weights(self) -> None:
         """Initialize weights."""
         nn.init.kaiming_normal_(
             self.conv_logits.weight, mode="fan_out", nonlinearity="relu"

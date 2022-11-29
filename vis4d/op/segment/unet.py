@@ -110,7 +110,7 @@ class UNet(nn.Module):
         self.start_filts = start_filts
         self.depth = depth
 
-        self.down_convs: Iterable[UnetDownConv] = nn.ModuleList()
+        self.down_convs: nn.ModuleList[UnetDownConv] = nn.ModuleList()
         # create the encoder pathway and add to a list
         for i in range(depth):
             ins = self.in_channels if i == 0 else outs  # type: ignore
@@ -120,7 +120,7 @@ class UNet(nn.Module):
             down_conv = UnetDownConv(ins, outs, pooling=pooling)
             self.down_convs.append(down_conv)
 
-        self.up_convs: Iterable[UnetUpConv] = nn.ModuleList()
+        self.up_convs: nn.ModuleLis[UnetUpConv] = nn.ModuleList()
         # create the decoder pathway and add to a list
         # - careful! decoding only requires depth-1 blocks
         for i in range(depth - 1):
