@@ -65,11 +65,7 @@ class ConvUpsample(nn.Module):
     def init_weights(self) -> None:
         """Initialize weights."""
         for module in self.conv.modules():
-            if isinstance(module, (nn.Sequential, nn.ModuleList)):
-                continue
-            if isinstance(module, nn.GroupNorm):
-                continue
-            if hasattr(module, "weight"):
+            if isinstance(module, torch.Tensor) and hasattr(module, "weight"):
                 nn.init.kaiming_normal_(
                     module.weight, mode="fan_out", nonlinearity="relu"
                 )
@@ -145,7 +141,8 @@ class PanopticFPNHead(nn.Module):
         nn.init.kaiming_normal_(
             self.conv_logits.weight, mode="fan_out", nonlinearity="relu"
         )
-        nn.init.constant_(self.conv_logits.bias, 0)
+        if hasattr(self.conv_logits, "bias") and self.conv_logits.bias:
+            nn.init.constant_(self.conv_logits.bias, 0)
 
     def forward(self, features: list[torch.Tensor]) -> torch.Tensor:
         """Forward.

@@ -168,7 +168,7 @@ class FCNLoss(nn.Module):
                 loss.
         """
         losses = []
-        total_loss = 0
+        total_loss = torch.tensor(0.0, device=outputs[0].device)
         for i, idx in enumerate(self.feature_idx):
             loss = self.loss_fn(outputs[idx], target)
             total_loss += self.weights[i] * loss

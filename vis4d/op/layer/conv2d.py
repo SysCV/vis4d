@@ -23,7 +23,7 @@ class Conv2d(torch.nn.Conv2d):
         self, x: torch.Tensor
     ) -> torch.Tensor:
         """Forward pass."""
-        if not torch.jit.is_scripting():
+        if not torch.jit.is_scripting():  # type: ignore
             # https://github.com/pytorch/pytorch/issues/12013
             if (
                 x.numel() == 0
