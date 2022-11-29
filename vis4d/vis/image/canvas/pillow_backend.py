@@ -94,7 +94,14 @@ class PillowCanvasBackend(CanvasBackend):
             text (str): Text to be placed at the given location.
             color (tuple[int, int, int], optional): Text color. Defaults to
                 (255, 255, 255).
+
+        Raises:
+            ValueError: If the canvas is not initialized.
         """
+        if self._image_draw is None:
+            raise ValueError(
+                "No Image Draw initialized! Did you call 'create_canvas'?"
+            )
         self._image_draw.text(position, text, color, font=self._font)
 
     def draw_box(
@@ -166,7 +173,14 @@ class PillowCanvasBackend(CanvasBackend):
             point2 (tuple[float, float]): End point (2D pixel coordinates).
             color (tuple[float, float, float]): Color of the line.
             width (int, optional): Line width. Defaults to 0.
+
+        Raises:
+            ValueError: If the canvas is not initialized.
         """
+        if self._image_draw is None:
+            raise ValueError(
+                "No Image Draw initialized! Did you call 'create_canvas'?"
+            )
         self._image_draw.line((point1, point2), width=width, fill=color)
 
     def as_numpy_image(self) -> NDArrayUI8:

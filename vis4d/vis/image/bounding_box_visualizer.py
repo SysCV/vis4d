@@ -135,6 +135,7 @@ class BoundingBoxVisualizer(Visualizer):
         )
 
         for idx in range(boxes.shape[0]):
+            # TODO MOVE TO PREPROCESS IN utils.
             class_id = None if class_ids is None else class_ids[idx].item()
             score = None if scores is None else scores[idx].item()
             track_id = None if track_ids is None else track_ids[idx].item()
@@ -169,12 +170,14 @@ class BoundingBoxVisualizer(Visualizer):
         for box in sample.groundtruth_boxes:
             if box.color is None:
                 box.color = (0, 255, 0)
-            self.canvas.draw_box(box.corners, box.label, box.color)
+            self.canvas.draw_box(box.corners, box.color)
+            self.canvas.draw_text(box.corners[:2], box.label)
 
         for box in sample.predicted_boxes:
             if box.color is None:
                 box.color = (0, 0, 250)
-            self.canvas.draw_box(box.corners, box.label, box.color)
+            self.canvas.draw_box(box.corners, box.color)
+            self.canvas.draw_text(box.corners[:2], box.label)
 
         return self.canvas.as_numpy_image()
 
@@ -316,12 +319,14 @@ class BoundingBoxVisualizer(Visualizer):
             for box in sample.groundtruth_boxes:
                 if box.color is None:
                     box.color = (0, 255, 0)
-                self.canvas.draw_box(box.corners, box.label, box.color)
+                self.canvas.draw_box(box.corners, box.color)
+                self.canvas.draw_text(box.corners[:2], box.label)
 
             for box in sample.predicted_boxes:
                 if box.color is None:
                     box.color = (0, 0, 250)
-                self.canvas.draw_box(box.corners, box.label, box.color)
+                self.canvas.draw_box(box.corners, box.color)
+                self.canvas.draw_text(box.corners[:2], box.label)
 
             self.canvas.save_to_disk(
                 os.path.join(path_to_out_folder, image_name)

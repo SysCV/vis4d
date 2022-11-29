@@ -81,16 +81,17 @@ class CanvasBackend:
     def draw_box(
         self,
         corners: tuple[float, float, float, float],
-        label: str,
         color: tuple[float, float, float],
     ) -> None:
         """Draws a box onto the given canvas.
 
         Args:
-            corners (tuple[float]): Containing [x1,y2,x2,y2] the corners of
+            corners (list[float]): Containing [x1,y1,x2,y2] the corners of
                                     the box
-            label (str): Label of the box.
             color (tuple(float)): Color of the box [0,255]
+
+        Raises:
+            ValueError: If the canvas is not initialized.
         """
         raise NotImplementedError
 
