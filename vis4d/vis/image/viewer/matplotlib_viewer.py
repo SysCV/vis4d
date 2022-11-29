@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 
-from vis4d.vis.image.base import ImageViewerBackend, NDArrayUI8
+from vis4d.common.typing import NDArrayUI8
+from vis4d.vis.image.base import ImageViewerBackend
 
 
 class MatplotlibImageViewer(ImageViewerBackend):

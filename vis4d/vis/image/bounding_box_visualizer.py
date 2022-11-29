@@ -22,9 +22,9 @@ from vis4d.vis.util import generate_color_map
 class DetectionBox2D:
     """Dataclass storing box informations."""
 
-    corners: list[float]
+    corners: tuple[float, float, float, float]
     label: str
-    color: tuple[float, ...]
+    color: tuple[float, float, float]
 
 
 @dataclass
@@ -43,8 +43,8 @@ class BoundingBoxVisualizer(Visualizer):
         self,
         n_colors: int = 50,
         class_id_mapping: dict[int, str] | None = None,
-        file_type="png",
-        image_mode="RGB",
+        file_type: str = "png",
+        image_mode: str = "RGB",
         canvas: CanvasBackend = PillowCanvasBackend(),
         viewer: ImageViewerBackend = MatplotlibImageViewer(),
     ) -> None:
@@ -114,7 +114,7 @@ class BoundingBoxVisualizer(Visualizer):
         class_ids: None | NDArrayI64 = None,
         track_ids: None | NDArrayI64 = None,
         is_gt: bool = False,
-    ):
+    ) -> None:
         """Adds a list of boxes to the given data_sample.
 
         Args:
@@ -178,7 +178,7 @@ class BoundingBoxVisualizer(Visualizer):
 
         return self.canvas.as_numpy_image()
 
-    def process(  # type: ignore, pylint: disable=arguments-renamed,arguments-differ,line-too-long
+    def process(  # type: ignore # pylint: disable=arguments-renamed,arguments-differ,line-too-long
         self,
         images: list[NDArrayNumber],
         pred_boxes: list[NDArrayF64] | None = None,
@@ -187,8 +187,8 @@ class BoundingBoxVisualizer(Visualizer):
         pred_track_ids: None | list[NDArrayI64] = None,
         gt_boxes: None | list[NDArrayF64] = None,
         gt_scores: None | list[NDArrayF64] = None,
-        gt_class_ids: None | list[NDArrayF64] = None,
-        gt_track_ids: None | list[NDArrayF64] = None,
+        gt_class_ids: None | list[NDArrayI64] = None,
+        gt_track_ids: None | list[NDArrayI64] = None,
     ) -> None:
         """Processes a batch of data.
 
@@ -285,7 +285,7 @@ class BoundingBoxVisualizer(Visualizer):
 
         self._samples.append(data_sample)
 
-    def show(self, blocking=True) -> None:
+    def show(self, blocking: bool = True) -> None:
         """Shows the processed images in a interactive window.
 
         Args:

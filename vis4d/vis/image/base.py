@@ -32,7 +32,7 @@ class CanvasBackend:
         color: tuple[float, float, float],
         top_left_corner: tuple[float, float] = (0, 0),
         alpha: float = 0.5,
-    ):
+    ) -> None:
         """Draws a binary mask onto the given canvas.
 
         Args:
@@ -46,14 +46,14 @@ class CanvasBackend:
 
     def draw_box(
         self,
-        corners: tuple[float, ...],
+        corners: tuple[float, float, float, float],
         label: str,
-        color: tuple[float, ...],
+        color: tuple[float, float, float],
     ) -> None:
         """Draws a box onto the given canvas.
 
         Args:
-            corners (list[float]): Containing [x1,y2,x2,y2] the corners of
+            corners (tuple[float]): Containing [x1,y2,x2,y2] the corners of
                                     the box
             label (str): Label of the box.
             color (tuple(float)): Color of the box [0,255]

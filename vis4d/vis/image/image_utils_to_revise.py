@@ -35,42 +35,6 @@ from vis4d.vis.old_vis_to_revise.util import (
 )
 
 
-def imshow(
-    image: Image.Image | ImageType, mode: str = "RGB"
-) -> None:  # pragma: no cover
-    """Imshow method.
-
-    Args:
-        image: PIL Image or ImageType (i.e. numpy array, torch.Tensor)
-        mode: Image channel format, will be used to convert ImageType to
-        an RGB PIL Image.
-    """
-    if not isinstance(image, Image.Image):
-        image = preprocess_image(image, mode)
-    plt.imshow(np.asarray(image))
-    plt.show()
-
-
-def imshow_bboxes(
-    image: ImageType,
-    boxes: Tensor,
-    scores: Tensor | None = None,
-    class_ids: Tensor | None = None,
-    track_ids: Tensor | None = None,
-    mode: str = "RGB",
-) -> None:  # pragma: no cover
-    """Show image with bounding boxes."""
-    image = preprocess_image(image, mode)
-    box_list, color_list, label_list = preprocess_boxes(
-        boxes, scores, class_ids, track_ids
-    )
-    for box, col, label in zip(box_list, color_list, label_list):
-        draw_bbox(image, box, col, label)
-
-    # return np.asarray(image)
-    imshow(image)
-
-
 def imshow_bboxes3d(
     image: ImageType,
     boxes: Tensor,
