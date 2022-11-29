@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from vis4d.common.typing import NDArrayBool, NDArrayUI8
+from vis4d.common.typing import NDArrayBool, NDArrayF64, NDArrayUI8
 from vis4d.vis.image.base import CanvasBackend
 
 
@@ -58,7 +58,7 @@ class PillowCanvasBackend(CanvasBackend):
             bitmap (ndarray): The binary mask to draw
             color (tuple(float)): Color of the box [0,255]
             top_left_corner (tuple(float, float)): Coordinates of top left
-                                                    corner of the bitmap
+                 corner of the bitmap.
             alpha (float): Alpha value for transparency of this mask
 
         Raises:
@@ -71,18 +71,21 @@ class PillowCanvasBackend(CanvasBackend):
         mask = np.squeeze(bitmap)
         assert len(mask.shape) == 2, "Bitmap expected to have shape [h,w]"
 
-        bitmap_with_alpha = np.repeat(mask[:, :, None], 4, axis=2)
-        bitmap_with_alpha[..., -1] *= alpha * 255
-
-        bitmap_pil = Image.fromarray(bitmap_with_alpha, mode="RGBA")
-        self._image_draw.bitmap(top_left_corner, bitmap_pil, outline=color)
+        bitmap_with_alpha: NDArrayF64 = np.repeat(
+            mask[:, :, None], 4, axis=2
+        ).astype(np.float64)
+        bitmap_with_alpha[..., -1] = bitmap_with_alpha[..., -1] * alpha * 255
+        bitmap_pil = Image.fromarray(
+            bitmap_with_alpha.astype(np.uint8), mode="RGBA"
+        )
+        self._image_draw.bitmap(top_left_corner, bitmap_pil, fill=color)
 
     def draw_box(
         self,
         corners: tuple[float, float, float, float],
         label: str,
-        color: tuple[float, ...],
-    ):
+        color: tuple[float, float, float],
+    ) -> None:
         """Draws a box onto the given canvas.
 
         Args:
@@ -116,7 +119,7 @@ class PillowCanvasBackend(CanvasBackend):
             )
         return np.asarray(self._image)
 
-    def save_to_disk(self, image_path: str):
+    def save_to_disk(self, image_path: str) -> None:
         """Writes the current canvas to disk.
 
         Args:

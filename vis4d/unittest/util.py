@@ -187,7 +187,7 @@ class MockModel(nn.Module):
 
     def __init__(self, model_param: int, *args, **kwargs):  # type: ignore
         """Init."""
-        super().__init__(*args, **kwargs)
+        super().__init__()
         self.model_param = model_param
         self.linear = nn.Linear(10, 1)
 

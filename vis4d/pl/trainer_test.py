@@ -52,16 +52,19 @@ def test_custom_init() -> None:
     trainer.fit(model, [None])
 
 
-def test_base_cli(monkeypatch: MonkeyPatch) -> None:
+def test_cli(monkeypatch: MonkeyPatch) -> None:
     """Test that CLI correctly instantiates model/trainer and calls fit."""
     expected_model = dict(model_param=7)
     expected_trainer = dict(exp_name="cli_test")
     expected_datamodule = {"example": "attribute"}
 
     # wrap model into setup function to modify model_param via cmd line
-    def model_setup(model_param: int = 7) -> DefaultOptimizer:
+    def model_setup(
+        model_param: int = 7, optional_param: str | None = None
+    ) -> DefaultOptimizer:
         return DefaultOptimizer(
-            MockModel(model_param=model_param), MockModel(model_param=3)
+            MockModel(model_param=model_param, optional_param=optional_param),
+            MockModel(model_param=3),
         )
 
     def fit(trainer, model, datamodule):
