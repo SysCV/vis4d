@@ -26,8 +26,9 @@ class VideoMixin:
 
     @property
     def video_to_indices(self) -> dict[str, list[int]]:
-        """This function should group all dataset sample indices (int) by their
-        associated video ID (str).
+        """Group dataset sample indices by their associated video ID.
+
+        The sample index is an integer while video IDs are string.
 
         Returns:
             dict[str, list[int]]: Mapping video to index.
@@ -109,19 +110,25 @@ class AttributeMapMixin:
 class FilteredDataset(Dataset):
     """Subset of a dataset at specified indices.
 
-    Args:
+    It uses the dataset and applies filter_fn to it, which should return the
+    dataset indices that are to be kept after filtering.
+
+    Attributes:
         dataset (Dataset): The whole Dataset
         filter_fn (Dataset -> list[int]): filtering function.
     """
 
     def __init__(self, dataset, filter_fn) -> None:
+        """Init."""
         super().__init__()
         assert isinstance(dataset, FilterMixin)
         self._filtered_indices = filter_fn(dataset)
 
     def __len__(self) -> int:
+        """Wrapper for len."""
         return len(self._filtered_indices)
 
     def __getitem__(self, idx):
+        """Wrapper for getitem."""
         mapped_idx = self._filtered_indices[idx]
         return self.dataset[mapped_idx]

@@ -9,6 +9,7 @@ import torch
 from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
 from pytorch_lightning.utilities.cli import SaveConfigCallback
+from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from vis4d.pl.data.base import DataModule
@@ -19,23 +20,32 @@ from .trainer import CLI, DefaultTrainer
 
 
 class MockDataset(Dataset):
-    def __len__():
+    """Dataset mockup."""
+
+    def __len__(self) -> int:
+        """Len mockup."""
         return 10
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Tensor:
+        """Len mockup."""
         return torch.rand((3, 32, 32))
 
 
 class MockDataModule(DataModule):
+    """Data module Mockup."""
+
     def __init__(self, example: str, *args, **kwargs) -> None:
+        """Init."""
         super().__init__(*args, **kwargs)
         self.example = example
 
     def train_dataloader(self) -> DataLoader:
+        """Mockup train dataloader."""
         dataset = MockDataset()
         return DataLoader(dataset, 1, True)
 
     def test_dataloader(self) -> List[DataLoader]:
+        """Mockup test dataloader."""
         return self.train_dataloader()
 
 

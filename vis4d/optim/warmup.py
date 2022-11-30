@@ -44,4 +44,4 @@ class ExponentialLRWarmup(BaseLRWarmup):
         """Compute learning rate according to exponential warmup schedule."""
         k = self.warmup_ratio ** (1 - cur_steps / self.warmup_steps)
         warmup_lr = regular_lr * k
-        return warmup_lr  # type: ignore
+        return warmup_lr

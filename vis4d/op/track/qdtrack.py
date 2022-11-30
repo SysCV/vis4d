@@ -218,7 +218,29 @@ class QDSimilarityHead(nn.Module):
         norm: str = "GroupNorm",
         num_groups: int = 32,
     ) -> None:
-        """Init."""
+        """Init.
+
+        Args:
+            proposal_pooler (None | RoIPooler, optional): RoI pooling module.
+                Defaults to None.
+            in_dim (int, optional): Input feature dimension. Defaults to 256.
+            num_convs (int, optional): Number of convolutional layers inside
+                the head. Defaults to 4.
+            conv_out_dim (int, optional): Output dimension of the last conv
+                layer. Defaults to 256.
+            conv_has_bias (bool, optional): If the conv layers have a bias
+                parameter. Defaults to False.
+            num_fcs (int, optional): Number of fully connected layers following
+                the conv layers. Defaults to 1.
+            fc_out_dim (int, optional): Output dimension of the last fully
+                connected layer. Defaults to 1024.
+            embedding_dim (int, optional): Dimensionality of the output
+                instance embedding. Defaults to 256.
+            norm (str, optional): Normalization of the layers inside the head.
+                One of BatchNorm2d, GroupNorm. Defaults to "GroupNorm".
+            num_groups (int, optional): Number of groups for the GroupNorm
+                normalization. Defaults to 32.
+        """
         super().__init__()
         self.in_dim = in_dim
         self.num_convs = num_convs
@@ -285,7 +307,19 @@ class QDSimilarityHead(nn.Module):
     def forward(
         self, features: list[torch.Tensor], boxes: list[torch.Tensor]
     ) -> list[torch.Tensor]:
-        """Similarity head forward pass."""
+        """Similarity head forward pass.
+
+        Args:
+            features (list[torch.Tensor]): A feature pyramid. The list index
+                represents the level, which has a downsampling raio of 2^index.
+                fp[0] is a feature map with the image resolution instead of the
+                original image.
+            boxes (list[torch.Tensor]): A list of [N, 4] 2D bounding boxes per
+                batch element.
+
+        Returns:
+            list[torch.Tensor]: An embedding vector per input box, .
+        """
         # take features of strides 4, 8, 16, 32
         x = self.roi_pooler(features[2:6], boxes)
 
@@ -348,7 +382,7 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
         key_track_ids: list[torch.Tensor],
         ref_track_ids: list[list[torch.Tensor]],
     ) -> QDTrackInstanceSimilarityLosses:
-        """QDTrack instance similarity loss.
+        """The QDTrack instance similarity loss.
 
         Key inputs are of type list[Tensor/Boxes2D] (Lists are length N)
         Ref inputs are of type list[list[Tensor/Boxes2D]] where the lists
@@ -429,7 +463,25 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
         key_track_ids: list[torch.Tensor],
         ref_track_ids: list[list[torch.Tensor]],
     ) -> tuple[list[list[torch.Tensor]], list[list[torch.Tensor]]]:
-        """Create tracking target tensors."""
+        """Create tracking target tensors.
+
+        Args:
+            key_track_ids (list[torch.Tensor]): A List of Tensors [N,] per
+                batch element containing the corresponding track ids of each
+                box in the key frame.
+            ref_track_ids (list[list[torch.Tensor]]): A nested list fo Tensors
+                [N,] per batch element, per reference view. The inner list
+                denotes the batch index, the outer list the reference view
+                index. Contains track ids of boxes in all reference views
+                across the batch.
+
+        Returns:
+            tuple[list[list[torch.Tensor]], list[list[torch.Tensor]]]: The
+                target tensors per key-reference pair containing 1 if the
+                identities of two boxes across the key and a reference view
+                match, and 0 otherwise and the loss reduction weights for
+                a certain box.
+        """
         # for each reference view
         track_targets, track_weights = [], []
         for ref_target in ref_track_ids:
@@ -454,7 +506,18 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
         key_embeds: list[torch.Tensor],
         ref_embeds: list[list[torch.Tensor]],
     ) -> tuple[list[list[torch.Tensor]], list[list[torch.Tensor]]]:
-        """Calculate distances for all pairs of key / ref embeddings."""
+        """Calculate distances for all pairs of key / ref embeddings.
+
+        Args:
+            key_embeds (list[torch.Tensor]): Embeddings for boxes in key frame.
+            ref_embeds (list[list[torch.Tensor]]): Embeddings for boxes in
+                all reference frames.
+
+        Returns:
+            tuple[list[list[torch.Tensor]], list[list[torch.Tensor]]]:
+                Embedding distances for all embedding pairs, first normalized
+                via softmax, then normal cosine similary.
+        """
         # for each reference view
         dists, cos_dists = [], []
         for ref_embed in ref_embeds:

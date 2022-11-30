@@ -20,7 +20,7 @@ def generate_color_map(length: int) -> list[tuple[float, float, float]]:
     hsv = [(i / length, 1, brightness) for i in range(length)]
     colors_float = [colorsys.hsv_to_rgb(*c) for c in hsv]
     colors: list[float] = (
-        (np.array(colors_float) * 255).astype(np.uint8).tolist()  # type: ignore[attr-defined] # pylint: disable=line-too-long
+        (np.array(colors_float) * 255).astype(np.uint8).tolist()
     )
     s = np.random.get_state()
     np.random.seed(0)
