@@ -118,14 +118,14 @@ def preprocess_boxes(
 
 def preprocess_masks(
     masks: NDArrayBool,
-    class_ids: NDArrayNumber | None,
+    class_ids: NDArrayI64 | None,
     color_mapping: list[tuple[float, float, float]] = DEFAULT_COLOR_MAPPING,
 ) -> tuple[list[NDArrayBool], list[tuple[float, float, float]]]:
     """Preprocesses predicted semantic masks.
 
     Args:
         masks (NDArrayBool): The semantic masks of shape [N, h, w].
-        class_ids (NDArrayNumber, None):  An array with class ids for each mask
+        class_ids (NDArrayI64, None):  An array with class ids for each mask
             shape [N]
         color_mapping (list[tuple[float, float, float]]): Color mapping for
             each semantic class
@@ -189,6 +189,14 @@ def get_intersection_point(
     """Get point intersecting with camera near plane on line point1 -> point2.
 
     The line is defined by two points in pixel coordinates and their depth.
+
+    Args:
+        point1 (tuple[float x 3]): First point in camera coordinates.
+        point2 (tuple[float x 3]): Second point in camera coordinates
+        camera_near_clip (float): camera_near_clip
+
+    Returns:
+        tuple[float x 2]: The intersection point in camera coordiantes.
     """
     c1, c2, c3 = 0, 0, camera_near_clip
     a1, a2, a3 = 0, 0, 1
@@ -198,10 +206,10 @@ def get_intersection_point(
     k_up = abs(a1 * (x1 - c1) + a2 * (y1 - c2) + a3 * (z1 - c3))
     k_down = abs(a1 * (x1 - x2) + a2 * (y1 - y2) + a3 * (z1 - z2))
     if k_up > k_down:
-        k = 1
+        k = 1.0
     else:
         k = k_up / k_down
-    return (1 - k) * point1 + k * point2
+    return ((1 - k) * x1 + k * x1, (1 - k) * x2 + k * x2)
 
 
 def draw_box3d(

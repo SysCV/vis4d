@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 from multiprocessing import Process
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from matplotlib import patches as mpatches
 from matplotlib.ticker import MultipleLocator
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from torch import Tensor
 
 from vis4d.common import NDArrayF64, NDArrayUI8
@@ -22,52 +22,157 @@ from vis4d.op.geometry.projection import (
     project_points,
 )
 
+ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
+
+ColorType = Union[
+    Union[tuple[int], str],
+    list[Union[tuple[int], str]],
+    list[list[Union[tuple[int], str]]],
+]
+
 if DASH_AVAILABLE and PLOTLY_AVAILABLE:
     import dash
     import plotly.graph_objects as go
     from dash import dcc, html
 
-from vis4d.vis.old_vis_to_revise.util import (
-    ImageType,
-    preprocess_boxes,
-    preprocess_image,
-    preprocess_masks,
-)
+from vis4d.vis.util import DEFAULT_COLOR_MAPPING
+
+COLOR_PALETTE = DEFAULT_COLOR_MAPPING
+NUM_COLORS = 50
 
 
-def imshow(
-    image: Image.Image | ImageType, mode: str = "RGB"
-) -> None:  # pragma: no cover
-    """Imshow method.
-    Args:
-        image: PIL Image or ImageType (i.e. numpy array, torch.Tensor)
-        mode: Image channel format, will be used to convert ImageType to
-        an RGB PIL Image.
-    """
-    if not isinstance(image, Image.Image):
-        image = preprocess_image(image, mode)
-    plt.imshow(np.asarray(image))
-    plt.show()
-
-
-def imshow_bboxes(
-    image: ImageType,
+def preprocess_boxes(
     boxes: Tensor,
-    scores: Tensor | None = None,
-    class_ids: Tensor | None = None,
-    track_ids: Tensor | None = None,
-    mode: str = "RGB",
-) -> None:  # pragma: no cover
-    """Show image with bounding boxes."""
-    image = preprocess_image(image, mode)
-    box_list, color_list, label_list = preprocess_boxes(
-        boxes, scores, class_ids, track_ids
-    )
-    for box, col, label in zip(box_list, color_list, label_list):
-        draw_bbox(image, box, col, label)
+    scores: Optional[Tensor] = None,
+    class_ids: Optional[Tensor] = None,
+    track_ids: Optional[Tensor] = None,
+    color_idx: int = 0,
+) -> tuple[list[list[float]], list[tuple[int]], list[str]]:
+    """Preprocess BoxType to boxes / colors / labels for drawing."""
+    boxes_list = boxes.detach().cpu().numpy().tolist()
 
-    # return np.asarray(image)
-    imshow(image)
+    if scores is not None:
+        scores = scores.detach().cpu().numpy().tolist()
+    else:
+        scores = [None for _ in range(len(boxes_list))]
+
+    if track_ids is not None:
+        track_ids = track_ids.detach().cpu().numpy()
+        if len(track_ids.shape) > 1:
+            track_ids = track_ids.squeeze(-1)
+    else:
+        track_ids = [None for _ in range(len(boxes_list))]
+
+    if class_ids is not None:
+        class_ids = class_ids.detach().cpu().numpy()
+    else:
+        class_ids = [None for _ in range(len(boxes_list))]
+
+    labels, draw_colors = [], []
+    for s, t, c in zip(scores, track_ids, class_ids):
+        if t is not None:
+            draw_color = COLOR_PALETTE[int(t) % NUM_COLORS]
+        elif c is not None:
+            draw_color = COLOR_PALETTE[int(c) % NUM_COLORS]
+        else:
+            draw_color = COLOR_PALETTE[color_idx % NUM_COLORS]
+
+        label = ""
+        if t is not None:
+            label += str(int(t))
+        if c is not None:
+            label += "," + str(int(c))
+
+        if s is not None:
+            label += f",{s * 100:.1f}%"
+        labels.append(label)
+        draw_colors.append(draw_color)
+
+    return boxes_list, draw_colors, labels
+
+
+def preprocess_masks(
+    masks: Tensor,
+    scores: Optional[Tensor] = None,
+    class_ids: Optional[Tensor] = None,
+    track_ids: Optional[Tensor] = None,
+    color_idx: int = 0,
+) -> tuple[list[NDArrayUI8], list[tuple[int]]]:
+    """Preprocess masks for drawing."""
+    if isinstance(masks, list):
+        result_mask, result_color = [], []
+        for i, m in enumerate(masks):
+            mask, color = preprocess_masks(m, i)  # type: ignore
+            result_mask.extend(mask)
+            result_color.extend(color)
+        return result_mask, result_color
+
+    if masks.dim() == 2:
+        class_ids = torch.unique(masks)
+        masks_list = np.stack(
+            [
+                ((masks == i).cpu().numpy() * 255).astype(np.uint8)
+                for i in class_ids
+            ]
+        )
+    else:
+        masks_list = (masks.cpu().numpy() * 255).astype(np.uint8)
+
+    if track_ids is not None:
+        track_ids = track_ids.cpu().numpy()
+        if len(track_ids.shape) > 1:
+            track_ids = track_ids.squeeze(-1)
+    else:
+        track_ids = [None for _ in range(len(masks_list))]
+
+    if class_ids is not None:
+        class_ids = class_ids.cpu().numpy()
+    else:
+        class_ids = [None for _ in range(len(masks_list))]
+
+    draw_colors = []
+    for t, c in zip(track_ids, class_ids):
+        if t is not None:
+            draw_color = COLOR_PALETTE[int(t) % NUM_COLORS]
+        elif c is not None:
+            draw_color = COLOR_PALETTE[int(c) % NUM_COLORS]
+        else:
+            draw_color = COLOR_PALETTE[color_idx % NUM_COLORS]
+        draw_colors.append(draw_color)
+
+    return masks_list, draw_colors
+
+
+def preprocess_image(image: ImageType, mode: str = "RGB") -> Image.Image:
+    """Validate and convert input image.
+
+    Args:
+        image: CHW or HWC image (ImageType) with C = 3.
+        mode: input channel format (e.g. BGR, HSV). More info
+        at https://pillow.readthedocs.io/en/stable/handbook/concepts.html
+
+    Returns:
+        PIL.Image.Image: Processed image in RGB.
+    """
+    assert len(image.shape) == 3
+    assert image.shape[0] == 3 or image.shape[-1] == 3
+
+    if isinstance(image, torch.Tensor):
+        image = image.cpu().numpy()
+
+    if not image.shape[-1] == 3:
+        image = image.transpose(1, 2, 0)
+    min_val, max_val = (np.min(image, axis=(0, 1)), np.max(image, axis=(0, 1)))
+
+    image = image.astype(np.float32)
+
+    image = (image - min_val) / (max_val - min_val) * 255.0
+
+    if mode == "BGR":
+        image = image[..., [2, 1, 0]]
+        mode = "RGB"
+
+    return Image.fromarray(image.astype(np.uint8), mode=mode).convert("RGB")
 
 
 def imshow_bboxes3d(
@@ -86,37 +191,6 @@ def imshow_bboxes3d(
         draw_bbox3d(image, np.array(box), intrinsics, col, label)
 
     imshow(image)
-
-
-def imshow_masks(
-    image: ImageType,
-    masks: Tensor,
-    scores: Tensor | None = None,
-    class_ids: Tensor | None = None,
-    track_ids: Tensor | None = None,
-    mode: str = "RGB",
-) -> None:  # pragma: no cover
-    """Show image with masks."""
-    image = preprocess_image(image, mode)
-    mask_list, color_list = preprocess_masks(
-        masks, scores, class_ids, track_ids
-    )
-    for mask, col in zip(mask_list, color_list):
-        draw_mask(image, mask, col)
-
-    imshow(image)
-
-
-def visualize_proposals(
-    images: torch.Tensor,
-    box_list: list[torch.Tensor],
-    score_list: list[torch.Tensor],
-    topk: int = 100,
-) -> None:
-    """Visualize topk proposals."""
-    for im, boxes, scores in zip(images, box_list, score_list):
-        _, topk_indices = torch.topk(scores, topk)
-        imshow_bboxes(im, boxes[topk_indices])
 
 
 def draw_bev_canvas(
@@ -353,130 +427,6 @@ def draw_bev(boxes3d: Tensor, history: list[Tensor]) -> np.ndarray:
     # Take only RGB
     buf = buf[:, :, 1:]
     return buf
-
-
-def draw_image(
-    frame: ImageType | Image.Image,
-    boxes2d=None,  # TODO update
-    boxes3d: Tensor | None = None,
-    intrinsics: Tensor | None = None,
-    mode: str = "RGB",
-) -> Image.Image:
-    """Draw boxes2d on an image."""
-    image = (
-        preprocess_image(frame, mode)
-        if not isinstance(frame, Image.Image)
-        else frame
-    )
-    if boxes2d is not None:
-        box_list, col_list, label_list = preprocess_boxes(boxes2d)
-        for box, col, label in zip(box_list, col_list, label_list):
-            draw_bbox(image, box, col, label)
-    if boxes3d is not None:
-        assert intrinsics is not None, "Drawing 3D boxes requires intrinsics!"
-        intr_matrix = preprocess_intrinsics(intrinsics)
-        box_list, col_list, label_list = preprocess_boxes(boxes3d)
-        for box, col, label in zip(box_list, col_list, label_list):
-            draw_bbox3d(image, np.array(box), intr_matrix, col, label)
-    return image
-
-
-def draw_bbox(
-    image: Image.Image,
-    box: list[float],
-    color: tuple[int],
-    label: str | None = None,
-) -> None:
-    """Draw 2D box onto image."""
-    draw = ImageDraw.Draw(image)
-    draw.rectangle(box, outline=color)
-    if label is not None:
-        font = ImageFont.load_default()
-        draw.text(box[:2], label, (255, 255, 255), font=font)
-
-
-def draw_bbox3d(
-    image: Image.Image,
-    box3d_corners: NDArrayF64,
-    intrinsics: NDArrayF64,
-    color: tuple[int],
-    label: str | None = None,
-    camera_near_clip: float = 0.15,
-) -> None:  # pragma: no cover
-    """Draw 3D box onto image."""
-    draw = ImageDraw.Draw(image)
-    corners_proj = box3d_corners / box3d_corners[:, 2:3]
-    corners_proj = np.dot(corners_proj, intrinsics.T)
-
-    def draw_line(
-        point1: NDArrayF64, point2: NDArrayF64, color: tuple[int]
-    ) -> None:
-        if point1[2] < camera_near_clip and point2[2] < camera_near_clip:
-            return
-        if point1[2] < camera_near_clip:
-            point1 = get_intersection_point(point1, point2, camera_near_clip)
-        elif point2[2] < camera_near_clip:
-            point2 = get_intersection_point(point1, point2, camera_near_clip)
-        draw.line((tuple(point1[:2]), tuple(point2[:2])), fill=color)
-
-    def draw_rect(selected_corners: NDArrayF64) -> None:
-        prev = selected_corners[-1]
-        for corner in selected_corners:
-            draw_line(prev, corner, color)
-            prev = corner
-
-    # Draw the sides
-    for i in range(4):
-        draw_line(corners_proj[i], corners_proj[i + 4], color)
-
-    # Draw bottom (first 4 corners) and top (last 4 corners)
-    draw_rect(corners_proj[:4])
-    draw_rect(corners_proj[4:])
-
-    # Draw line indicating the front
-    center_bottom_forward = np.mean(corners_proj[:2], axis=0)
-    center_bottom = np.mean(corners_proj[:4], axis=0)
-    draw_line(center_bottom, center_bottom_forward, color)
-
-    if label is not None:
-        font = ImageFont.load_default()
-        center_top_forward = tuple(np.mean(corners_proj[2:4], axis=0)[:2])
-        draw.text(center_top_forward, label, (255, 255, 255), font=font)
-
-
-def draw_mask(
-    image: Image.Image, mask: NDArrayUI8, color: tuple[int]
-) -> None:  # pragma: no cover
-    """Draw mask onto image."""
-    draw = ImageDraw.Draw(image)
-    # create overlay mask
-    mask = np.repeat(mask[:, :, None], 4, axis=2)
-    mask[:, :, -1][mask[:, :, -1] == 255] = 128
-    draw.bitmap([0, 0], Image.fromarray(mask, mode="RGBA"), fill=color)
-
-
-def get_intersection_point(
-    point1: NDArrayF64, point2: NDArrayF64, camera_near_clip: float
-) -> NDArrayF64:  # pragma: no cover
-    """Get point intersecting with camera near plane on line point1 -> point2.
-
-    The line is defined by two points (3 dimensional) in camera coordinates.
-    """
-    cam_dir: NDArrayF64 = np.array([0, 0, 1], dtype=np.float64)
-    center_pt: NDArrayF64 = cam_dir * camera_near_clip
-
-    c1, c2, c3 = center_pt
-    a1, a2, a3 = cam_dir
-    x1, y1, z1 = point1
-    x2, y2, z2 = point2
-
-    k_up = abs(a1 * (x1 - c1) + a2 * (y1 - c2) + a3 * (z1 - c3))
-    k_down = abs(a1 * (x1 - x2) + a2 * (y1 - y2) + a3 * (z1 - z2))
-    if k_up > k_down:
-        k = 1
-    else:
-        k = k_up / k_down
-    return (1 - k) * point1 + k * point2
 
 
 def draw_lines_match(

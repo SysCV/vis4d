@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from vis4d.common.typing import NDArrayBool, NDArrayUI8
 
+# TODO @zrene, change color to int,int,int not float,float,float
+
 
 class CanvasBackend:
     """Abstract interface that allows to draw on images.
@@ -48,7 +50,7 @@ class CanvasBackend:
         self,
         position: tuple[float, float],
         text: str,
-        color: tuple[int, int, int] = (255, 255, 255),
+        color: tuple[float, float, float] = (255, 255, 255),
     ) -> None:
         """Draw text onto canvas at given position.
 

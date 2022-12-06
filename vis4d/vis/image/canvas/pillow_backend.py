@@ -84,7 +84,7 @@ class PillowCanvasBackend(CanvasBackend):
         self,
         position: tuple[float, float],
         text: str,
-        color: tuple[int, int, int] = (255, 255, 255),
+        color: tuple[float, float, float] = (255, 255, 255),
     ) -> None:
         """Draw text onto canvas at given position.
 
@@ -92,8 +92,8 @@ class PillowCanvasBackend(CanvasBackend):
             position (tuple[float, float]): x,y position where the text will
                 start.
             text (str): Text to be placed at the given location.
-            color (tuple[int, int, int], optional): Text color. Defaults to
-                (255, 255, 255).
+            color (tuple[float, float, float], optional): Text color. Defaults
+                to (255, 255, 255).
 
         Raises:
             ValueError: If the canvas is not initialized.
