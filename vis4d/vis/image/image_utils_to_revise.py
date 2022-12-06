@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from multiprocessing import Process
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,9 +25,9 @@ from vis4d.op.geometry.projection import (
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
 ColorType = Union[
-    Union[tuple[int], str],
-    list[Union[tuple[int], str]],
-    list[list[Union[tuple[int], str]]],
+    Union[Tuple[int], str],
+    List[Union[Tuple[int], str]],
+    List[List[Union[Tuple[int], str]]],
 ]
 
 if DASH_AVAILABLE and PLOTLY_AVAILABLE:
