@@ -3,10 +3,10 @@ from typing import Optional
 
 from vis4d.data.datasets.bdd100k import bdd100k_det_map
 from vis4d.data.datasets.coco import coco_det_map
+from vis4d.engine.model.faster_rcnn import data_connector
 from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
 from vis4d.pl.data import DetectDataModule
 from vis4d.pl.defaults import sgd, step_schedule
-from vis4d.run.model.faster_rcnn import data_connector
 
 from ..optimizer import DefaultOptimizer
 from ..trainer import CLI

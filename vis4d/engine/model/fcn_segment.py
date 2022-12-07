@@ -1,4 +1,4 @@
-"""RetinaNet COCO training example."""
+"""FCN COCO training example."""
 import argparse
 import warnings
 from typing import List, Optional, Tuple
@@ -10,16 +10,15 @@ from torch.utils.data import DataLoader
 from vis4d.data import DictData
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
-from vis4d.eval import COCOEvaluator, Evaluator
-from vis4d.model.detect.retinanet import RetinaNet, RetinaNetLoss
-from vis4d.op.detect.retinanet import (
-    get_default_box_matcher,
-    get_default_box_sampler,
+from vis4d.engine.data.detect import (
+    default_test_pipeline,
+    default_train_pipeline,
 )
+from vis4d.engine.test import testing_loop
+from vis4d.engine.trainer import training_loop
+from vis4d.eval import COCOEvaluator, Evaluator
+from vis4d.model.segment.fcn_resnet import FCNResNet
 from vis4d.optim.warmup import LinearLRWarmup
-from vis4d.run.data.detect import default_test_pipeline, default_train_pipeline
-from vis4d.run.test import testing_loop
-from vis4d.run.train import training_loop
 
 warnings.filterwarnings("ignore")
 
@@ -37,6 +36,7 @@ def get_dataloaders(
             batch_size,
             num_workers,
             train_resolution,
+            with_mask=True,
         )
     else:
         train_loader = None
@@ -46,7 +46,7 @@ def get_dataloaders(
         1,
         test_resolution,
     )
-    test_evals = [COCOEvaluator(data_root)]
+    test_evals = [COCOEvaluator(data_root), COCOEvaluator(data_root, "segm")]
     test_metric = "COCO_AP"
     return train_loader, test_loader, test_evals, test_metric
 
@@ -54,12 +54,17 @@ def get_dataloaders(
 def data_connector(mode: str, data: DictData):
     """Data connector."""
     if mode == "train":
-        data_keys = {"images": "images"}
+        data_keys = {
+            "images": "images",
+            "input_hw": "images_hw",
+            "boxes2d": "target_boxes",
+            "boxes2d_classes": "target_classes",
+        }
     elif mode == "loss":
         data_keys = {
             "input_hw": "images_hw",
             "boxes2d": "target_boxes",
-            "boxes2d_classes": "target_classes",
+            "masks": "target_masks",
         }
     else:
         data_keys = {
@@ -74,40 +79,36 @@ def train(num_gpus: int, ckpt: str) -> None:
     """Training."""
     # parameters
     log_step = 100
-    num_epochs = 12
-    batch_size = int(16 * (num_gpus / 8))
-    learning_rate = 0.01 / 16 * batch_size
+    num_iters = 40000
+    batch_size = int(8 * (num_gpus / 8))
+    learning_rate = 0.02 / 16 * batch_size
     device = torch.device("cuda")
-    save_prefix = "vis4d-workspace/test/retinanet_coco_epoch"
+    save_prefix = "vis4d-workspace/test/maskrcnn_coco_epoch"
 
     # data loaders and evaluators
     train_loader, test_loader, test_evals, test_metric = get_dataloaders(
         True, batch_size
     )
+    assert train_loader is not None
 
     # model
-    retinanet = RetinaNet(num_classes=80, weights=ckpt)
-    retinanet.to(device)
-    retinanet_loss = RetinaNetLoss(
-        retinanet.retinanet_head.anchor_generator,
-        retinanet.retinanet_head.box_encoder,
-        get_default_box_matcher(),
-        get_default_box_sampler(),
-    )
+    FCNResNet = FCNResNet(base_model=args.base_model, resize=(520, 520))
+    FCNResNet.to(device)
+
     if num_gpus > 1:
-        retinanet = nn.DataParallel(
-            retinanet, device_ids=[device, torch.device("cuda:1")]
+        mask_rcnn = nn.DataParallel(
+            mask_rcnn, device_ids=[device, torch.device("cuda:1")]
         )
 
     # optimization
-    optimizer = optim.SGD(
-        retinanet.parameters(),
+    optimizer = optim.Adam(
+        FCNResNet.parameters(),
         lr=learning_rate,
         momentum=0.9,
         weight_decay=0.0001,
     )
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[8, 11], gamma=0.1
+    scheduler = optim.lr_scheduler.PolynomialLR(
+        optimizer, num_iters, power=0.9
     )
     warmup = LinearLRWarmup(0.001, 500)
 
@@ -117,8 +118,8 @@ def train(num_gpus: int, ckpt: str) -> None:
         test_loader,
         test_evals,
         test_metric,
-        retinanet,
-        retinanet_loss,
+        FCNResNet,
+        mask_rcnn_loss,
         data_connector,
         optimizer,
         scheduler,
@@ -139,12 +140,12 @@ def test(ckpt: str) -> None:
     _, test_loader, test_evals, test_metric = get_dataloaders()
 
     # model
-    retinanet = RetinaNet(num_classes=80, weights=ckpt)
-    retinanet.to(device)
+    FCNResNet = FCNResNet(base_model=args.base_model, resize=(520, 520))
+    FCNResNet.to(device)
 
     # run testing
     testing_loop(
-        test_loader, test_evals, test_metric, retinanet, data_connector
+        test_loader, test_evals, test_metric, FCNResNet, data_connector
     )
 
 

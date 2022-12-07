@@ -10,12 +10,15 @@ from torch.utils.data import DataLoader
 from vis4d.data import DictData
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
+from vis4d.engine.data.detect import (
+    default_test_pipeline,
+    default_train_pipeline,
+)
+from vis4d.engine.test import testing_loop
+from vis4d.engine.train import training_loop
 from vis4d.eval import COCOEvaluator, Evaluator
 from vis4d.model.detect.mask_rcnn import MaskRCNN, MaskRCNNLoss
 from vis4d.optim.warmup import LinearLRWarmup
-from vis4d.run.data.detect import default_test_pipeline, default_train_pipeline
-from vis4d.run.test import testing_loop
-from vis4d.run.train import training_loop
 
 warnings.filterwarnings("ignore")
 
