@@ -79,8 +79,8 @@ class DefaultEvaluatorCallback(Callback):
     ) -> None:
         """Wait for on_test_batch_end PL hook to call 'process'."""
         if dataloader_idx == self.dataloader_idx:
-            eval_inputs = self.eval_connector(batch, outputs)
-            self.process(**eval_inputs)  # type: ignore
+            eval_inputs = self.eval_connector("", batch, outputs)
+            self.evaluator.process(**eval_inputs)  # type: ignore
 
     def on_validation_batch_end(  # type: ignore
         self,

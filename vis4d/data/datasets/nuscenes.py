@@ -384,7 +384,6 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             points, extrinsics, timestamp = self._load_lidar_data(
                 lidar_data, ego_pose
             )
-            # TODO add track ids
             boxes3d, boxes3d_classes, boxes3d_track_ids = self._load_boxes3d(
                 boxes, extrinsics
             )

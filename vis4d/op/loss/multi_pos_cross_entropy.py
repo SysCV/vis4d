@@ -6,7 +6,10 @@ from .reducer import LossReducer, SumWeightedLoss
 
 
 class MultiPosCrossEntropyLoss(Loss):
-    """Multi-positive cross entropy loss class."""
+    """Multi-positive cross entropy loss.
+
+    Used for appearance similiary learning in QDTrack.
+    """
 
     def forward(
         self,
@@ -15,7 +18,18 @@ class MultiPosCrossEntropyLoss(Loss):
         weight: torch.Tensor,
         avg_factor: float,
     ) -> torch.Tensor:
-        """Multi-positive cross entropy loss forward."""
+        """Multi-positive cross entropy loss.
+
+        Args:
+            pred (torch.Tensor): Similarity scores before softmax. Shape [N, M]
+            target (torch.Tensor): Target for each pair. Either one, meaning
+                same identity or zero, meaning different identity. Shape [N, M]
+            weight (torch.Tensor): The weight of loss for each prediction.
+            avg_factor (float): Averaging factor for the loss.
+
+        Returns:
+            torch.Tensor: Scalar loss value.
+        """
         return multi_pos_cross_entropy(
             pred,
             target,

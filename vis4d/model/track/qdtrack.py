@@ -4,9 +4,9 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
-from vis4d.op.detect.rcnn import DetOut, RCNNLoss, RCNNLosses, RoI2Det
-from vis4d.op.detect.rpn import RPNLoss, RPNLosses
+from vis4d.model.detect.faster_rcnn import FasterRCNN
+from vis4d.op.box.matchers import MaxIoUMatcher
+from vis4d.op.box.samplers import CombinedSampler, match_and_sample_proposals
 from vis4d.op.track.assignment import TrackIDCounter
 from vis4d.op.track.qdtrack import (
     QDSimilarityHead,
@@ -31,22 +31,6 @@ REV_KEYS = [
     (r"\.conv.weight", ".weight"),
     (r"\.conv.bias", ".bias"),
 ]
-
-
-def _debug_visualization(key_inputs, ref_inputs, ref_proposals):  # TODO revise
-    from vis4d.vis.track import imshow_bboxes
-
-    for ref_inp, ref_props in zip(ref_inputs, ref_proposals):
-        for ref_img, ref_prop in zip(ref_inp.images, ref_props):
-            _, topk_i = torch.topk(ref_prop.boxes[:, -1], 100)
-            imshow_bboxes(ref_img.tensor[0], ref_prop[topk_i])
-    for batch_i, key_inp in enumerate(key_inputs):
-        imshow_bboxes(key_inp.images.tensor[0], key_inp.targets.boxes2d[0])
-        for ref_i, ref_inp in enumerate(ref_inputs):
-            imshow_bboxes(
-                ref_inp[batch_i].images.tensor[0],
-                ref_inp[batch_i].targets.boxes2d[0],
-            )
 
 
 class QDTrack(nn.Module):
@@ -119,13 +103,17 @@ class QDTrack(nn.Module):
         list[list[torch.Tensor]],
     ]:
         """Split batch and reference view dimension."""
-        B, R = len(embeddings), self.num_ref_views + 1
-        key_embeddings = [embeddings[i] for i in range(0, B, R)]
-        key_track_ids = [target_track_ids[i] for i in range(0, B, R)]
+        batch_size, ref_views = len(embeddings), self.num_ref_views + 1
+        key_embeddings = [
+            embeddings[i] for i in range(0, batch_size, ref_views)
+        ]
+        key_track_ids = [
+            target_track_ids[i] for i in range(0, batch_size, ref_views)
+        ]
         ref_embeddings, ref_track_ids = [], []
-        for i in range(1, B, R):
+        for i in range(1, batch_size, ref_views):
             current_refs, current_track_ids = [], []
-            for j in range(i, i + R - 1):
+            for j in range(i, i + ref_views - 1):
                 current_refs.append(embeddings[j])
                 current_track_ids.append(target_track_ids[j])
             ref_embeddings.append(current_refs)
@@ -140,7 +128,7 @@ class QDTrack(nn.Module):
         target_track_ids: list[torch.Tensor],
     ) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
         """Sample proposals for instance similarity learning."""
-        B, R = len(det_boxes), self.num_ref_views + 1
+        batch_size, ref_views = len(det_boxes), self.num_ref_views + 1
 
         if self.proposal_append_gt:
             det_boxes = [
@@ -158,9 +146,9 @@ class QDTrack(nn.Module):
             target_boxes,
         )
         sampled_boxes, sampled_track_ids = [], []
-        for i in range(B):
+        for i in range(batch_size):
             positives = sampled_labels[i] == 1
-            if i % R == 0:  # take only positives for keyframes
+            if i % ref_views == 0:  # key view: take only positives
                 sampled_box = det_boxes[i][sampled_box_indices[i]][positives]
                 sampled_tr_id = target_track_ids[i][sampled_target_indices[i]][
                     positives
@@ -250,6 +238,7 @@ class FasterRCNNQDTrack(nn.Module):
         frame_ids: list[int],
     ) -> list[QDTrackState]:
         """Forward."""
+        # TODO implement forward_train
         return self._forward_test(images, images_hw, frame_ids)
 
     def _forward_test(
@@ -268,3 +257,12 @@ class FasterRCNNQDTrack(nn.Module):
         )
         outs = self.qdtrack(features, boxes, scores, class_ids, frame_ids)
         return outs
+
+    def __call__(
+        self,
+        images: torch.Tensor,
+        images_hw: list[tuple[int, int]],
+        frame_ids: list[int],
+    ) -> list[QDTrackState]:
+        """Type definition for call implementation."""
+        return self._call_impl(images, images_hw, frame_ids)

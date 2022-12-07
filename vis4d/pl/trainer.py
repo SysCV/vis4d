@@ -9,7 +9,7 @@ import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from pytorch_lightning.core import LightningModule
-from pytorch_lightning.plugins import DDPPlugin
+from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.strategies.strategy import Strategy
 from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
@@ -150,7 +150,7 @@ class DefaultTrainer(pl.Trainer):
             num_gpus = len(gpu_ids) if gpu_ids is not None else 0
             if num_gpus > 1:
                 if kwargs["strategy"] == "ddp" or kwargs["strategy"] is None:
-                    ddp_plugin: Strategy = DDPPlugin(
+                    ddp_plugin: Strategy = DDPStrategy(
                         find_unused_parameters=find_unused_parameters
                     )
                     kwargs["strategy"] = ddp_plugin

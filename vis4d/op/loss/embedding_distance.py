@@ -10,9 +10,13 @@ from .common import l2_loss
 from .reducer import LossReducer, SumWeightedLoss, identity_loss
 
 
-# TODO (tobiasfshr) Document the loss functions
 class EmbeddingDistanceLoss(Loss):
-    """Embedding distance loss."""
+    """Embedding distance loss for learning appearance similarity.
+
+    Computes the difference between the target distances and the predicted
+    distances of two sets of embedding vectors. Uses hard negative mining based
+    on the loss values to select pairs for overall loss computation.
+    """
 
     def __init__(
         self,
@@ -38,8 +42,10 @@ class EmbeddingDistanceLoss(Loss):
         """Forward function.
 
         Args:
-            pred (torch.Tensor): The prediction.
-            target (torch.Tensor): The learning target of the prediction.
+            pred (torch.Tensor): The predicted distances between two sets of
+                predictions. Shape [N, M].
+            target (torch.Tensor): The corresponding target distances. Either
+                zero (different identity) or one (same identity).
             weight (torch.Tensor, optional): The weight of loss for each
                 prediction. Defaults to None.
 
@@ -55,7 +61,7 @@ class EmbeddingDistanceLoss(Loss):
 
     def update_weight(
         self, pred: torch.Tensor, target: torch.Tensor, weight: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, float]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Update element-wise loss weights.
 
         Exclude negatives according to maximum fraction of samples and/or
@@ -92,5 +98,5 @@ class EmbeddingDistanceLoss(Loss):
             invalid_neg_inds = torch.logical_xor(neg_inds, new_neg_inds)
             weight[invalid_neg_inds] = 0
 
-        avg_factor = (weight > 0).sum().item()
+        avg_factor = (weight > 0).sum()
         return pred, weight, avg_factor

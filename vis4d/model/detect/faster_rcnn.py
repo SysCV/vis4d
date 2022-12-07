@@ -99,6 +99,19 @@ class FasterRCNN(nn.Module):
         assert original_hw is not None
         return self.forward_test(images, input_hw, original_hw)
 
+    def __call__(
+        self,
+        images: torch.Tensor,
+        input_hw: list[tuple[int, int]],
+        boxes2d: None | list[torch.Tensor] = None,
+        boxes2d_classes: None | list[torch.Tensor] = None,
+        original_hw: None | list[tuple[int, int]] = None,
+    ) -> FRCNNOut | ModelOutput:
+        """Type definition for call implementation."""
+        return self._call_impl(
+            images, input_hw, boxes2d, boxes2d_classes, original_hw
+        )
+
     def forward_train(
         self,
         images: torch.Tensor,
@@ -193,3 +206,16 @@ class FasterRCNNLoss(nn.Module):
             outputs.sampled_targets.classes,
         )
         return dict(**rpn_losses._asdict(), **rcnn_losses._asdict())
+
+    def __call__(
+        self,
+        outputs: FRCNNOut,
+        input_hw: list[tuple[int, int]],
+        boxes2d: list[torch.Tensor],
+    ) -> LossesType:
+        """Type definition for call implementation."""
+        return self._call_impl(
+            outputs,
+            input_hw,
+            boxes2d,
+        )
