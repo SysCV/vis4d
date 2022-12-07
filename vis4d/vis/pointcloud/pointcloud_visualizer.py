@@ -4,11 +4,11 @@ from __future__ import annotations
 from vis4d.common.imports import OPEN3D_AVAILABLE
 from vis4d.common.typing import NDArrayF64, NDArrayI64
 from vis4d.vis.base import Visualizer
-from vis4d.vis.old_vis_to_revise.util import COLOR_PALETTE
 from vis4d.vis.pointcloud.base import (
     PointcloudScene,
     PointCloudVisualizerBackend,
 )
+from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 if OPEN3D_AVAILABLE:
     from .o3d_backend import Open3DVisualizationBackend
@@ -43,10 +43,10 @@ class PointCloudVisualizer(Visualizer):
                 Open3DVisualizationBackend(
                     class_color_mapping=class_color_mapping
                     if class_color_mapping is not None
-                    else COLOR_PALETTE,
+                    else DEFAULT_COLOR_MAPPING,
                     instance_color_mapping=instance_color_mapping
                     if instance_color_mapping is not None
-                    else COLOR_PALETTE,
+                    else DEFAULT_COLOR_MAPPING,
                 )
             )
         else:
