@@ -12,6 +12,7 @@ from torch.distributed import destroy_process_group, init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 
+from vis4d.common import DictStrAny
 from vis4d.common.distributed import get_world_size
 from vis4d.data import DictData
 from vis4d.data.datasets.coco import COCO
@@ -21,6 +22,7 @@ from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
 from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.run.data.detect import default_test_pipeline, default_train_pipeline
 from vis4d.run.trainer import Trainer
+from vis4d.vis.base import Visualizer
 
 warnings.filterwarnings("ignore")
 
@@ -158,8 +160,8 @@ def ddp_setup(rank: int, world_size: int) -> None:
     """Setup DDP environment and init processes.
 
     Args:
-        rank: Unique identifier of each process
-        world_size: Total number of processes
+        rank: Unique identifier of each process.
+        world_size: Total number of processes.
     """
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "12355"
@@ -185,11 +187,4 @@ if __name__ == "__main__":
         "-n", "--num_gpus", type=int, default=1, help="number of gpus"
     )
     args = parser.parse_args()
-    mp.spawn(
-        main,
-        args=(
-            args.ckpt,
-            args.num_gpus,
-        ),
-        nprocs=args.num_gpus,
-    )
+    mp.spawn(main, args=(args.ckpt, args.num_gpus), nprocs=args.num_gpus)
