@@ -24,7 +24,7 @@ from vis4d.vis.util import generate_color_map
 # ======================== Image ==================================
 
 
-def show_image(
+def imshow(
     image: NDArrayUI8,
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
 ) -> None:
@@ -160,7 +160,7 @@ def imshow_bboxes(
         n_colors,
         image_mode,
     )
-    show_image(img, image_viewer)
+    imshow(img, image_viewer)
 
 
 def imshow_masks(
@@ -188,7 +188,7 @@ def imshow_masks(
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
     """
-    show_image(
+    imshow(
         draw_masks(image, masks, class_ids, n_colors, image_mode, canvas),
         image_viewer,
     )
@@ -298,7 +298,7 @@ def imshow_track_matches(
                     ref_image, ref_box[batch_i], image_mode=image_mode
                 )
                 stacked_img = np.vstack([k_img, r_img])
-                show_image(stacked_img, image_viewer)
+                imshow(stacked_img, image_viewer)
 
 
 # =========================== Pointcloud ===================================
