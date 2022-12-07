@@ -51,6 +51,7 @@ class FasterRCNNTrainer(Trainer):
 
     def data_connector(self, mode: str, data: DictData) -> DictData:
         """Connector between the data and the model."""
+        assert mode in ["train", "loss"]
         if mode == "train":
             data_keys = {
                 "images": "images",
@@ -149,7 +150,7 @@ class FasterRCNNOptimizer(Optimizer):
         return LinearLRWarmup(0.001, 500)
 
 
-def train(ckpt: str, gpu_id: int = 0) -> None:
+def train(ckpt: None | str, gpu_id: int = 0) -> None:
     """Training."""
     # parameters
     num_epochs = 12
@@ -226,8 +227,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.num_gpus > 1:
         mp.spawn(main, args=(args.ckpt, args.num_gpus), nprocs=args.num_gpus)
+    elif args.ckpt is None:
+        train(args.ckpt)
     else:
-        if args.ckpt is None:
-            train(args.ckpt)
-        else:
-            test(args.ckpt)
+        test(args.ckpt)

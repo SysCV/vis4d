@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from vis4d.common import DictStrAny
-from vis4d.common.distributed import get_rank
 from vis4d.data import DictData
 from vis4d.eval import Evaluator
 from vis4d.vis.base import Visualizer

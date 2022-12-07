@@ -43,6 +43,7 @@ class Trainer:
 
     def data_connector(self, mode: str, data: DictData) -> DictData:
         """Connector between the data and the model."""
+        assert mode in ["train", "loss"]
         return data
 
     def train(
