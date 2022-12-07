@@ -15,7 +15,7 @@ from vis4d.model.segment.fcn_resnet import FCNResNet
 from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.run.data.detect import default_test_pipeline, default_train_pipeline
 from vis4d.run.test import testing_loop
-from vis4d.run.train import training_loop
+from vis4d.run.trainer import training_loop
 
 warnings.filterwarnings("ignore")
 

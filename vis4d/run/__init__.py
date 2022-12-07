@@ -1,1 +1,1 @@
-"""Vis4D trainer and tester."""
+"""Vis4D run package."""

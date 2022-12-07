@@ -1,12 +1,13 @@
 """Faster RCNN COCO training example."""
+from __future__ import annotations
+
 import argparse
 import os
 import warnings
-from typing import List, Optional, Tuple
 
 import torch
 import torch.multiprocessing as mp
-from torch import nn, optim
+from torch import optim
 from torch.distributed import destroy_process_group, init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
@@ -19,75 +20,86 @@ from vis4d.eval import COCOEvaluator, Evaluator
 from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
 from vis4d.optim.warmup import LinearLRWarmup
 from vis4d.run.data.detect import default_test_pipeline, default_train_pipeline
-from vis4d.run.test import testing_loop
-from vis4d.run.train import training_loop
+from vis4d.run.trainer import Trainer
 
 warnings.filterwarnings("ignore")
 
+DATA_ROOT = "data/COCO"
 
-def get_dataloaders(
-    is_training: bool = False, batch_size: int = 1, num_workers: int = 1
-) -> Tuple[Optional[DataLoader], List[DataLoader], List[Evaluator], str]:
-    """Return dataloaders and evaluators."""
-    data_root = "data/COCO"
-    train_resolution = (800, 1333)
-    test_resolution = (800, 1333)
-    if is_training:
-        train_loader = default_train_pipeline(
-            COCO(data_root, split="train2017", data_backend=HDF5Backend()),
+
+class FasterRCNNTrainer(Trainer):
+    """Faster RCNN Trainer."""
+
+    def setup_train_dataloaders(self) -> DataLoader:
+        """Set-up training data loaders."""
+        batch_size = int(16 * (get_world_size() / 8))
+        num_workers = 1
+        train_resolution = (800, 1333)
+        return default_train_pipeline(
+            COCO(DATA_ROOT, split="train2017", data_backend=HDF5Backend()),
             batch_size,
             num_workers,
             train_resolution,
         )
-    else:
-        train_loader = None
-    test_loader = default_test_pipeline(
-        COCO(data_root, split="val2017", data_backend=HDF5Backend()),
-        1,
-        1,
-        test_resolution,
-    )
-    test_evals = [COCOEvaluator(data_root)]
-    test_metric = "COCO_AP"
-    return train_loader, test_loader, test_evals, test_metric
 
+    def setup_test_dataloaders(self) -> list[DataLoader]:
+        """Set-up testing data loaders."""
+        test_resolution = (800, 1333)
+        return default_test_pipeline(
+            COCO(DATA_ROOT, split="val2017", data_backend=HDF5Backend()),
+            1,
+            1,
+            test_resolution,
+        )
 
-def data_connector(mode: str, data: DictData):
-    """Data connector."""
-    if mode == "train":
-        data_keys = {
-            "images": "images",
-            "input_hw": "input_hw",
-            "boxes2d": "boxes2d",
-            "boxes2d_classes": "boxes2d_classes",
-        }
-    elif mode == "loss":
-        data_keys = {"input_hw": "input_hw", "boxes2d": "boxes2d"}
-    else:
-        data_keys = {
-            "images": "images",
-            "input_hw": "input_hw",
-            "original_hw": "original_hw",
-        }
-    return {v: data[k] for k, v in data_keys.items()}
+    def data_connector(self, mode: str, data: DictData) -> DictData:
+        """Connector between the data and the model."""
+        if mode == "train":
+            data_keys = {
+                "images": "images",
+                "input_hw": "input_hw",
+                "boxes2d": "boxes2d",
+                "boxes2d_classes": "boxes2d_classes",
+            }
+        elif mode == "loss":
+            data_keys = {"input_hw": "input_hw", "boxes2d": "boxes2d"}
+        else:
+            data_keys = {
+                "images": "images",
+                "input_hw": "input_hw",
+                "original_hw": "original_hw",
+            }
+        return {v: data[k] for k, v in data_keys.items()}
+
+    def setup_evaluators(self) -> list[Evaluator]:
+        """Set-up evaluators."""
+        return [COCOEvaluator(DATA_ROOT)]
+
+    def evaluator_connector(
+        self, data: DictData, output: DictStrAny
+    ) -> DictStrAny:
+        """Connector between the data and the evaluator."""
+        # For now just wrap data connector to not break anything.
+        return data
+
+    def setup_visualizers(self) -> list[Visualizer]:
+        """Set-up visualizers."""
+        return []
 
 
 def train(ckpt: str, gpu_id: int = 0) -> None:
     """Training."""
     # parameters
-    log_step = 100
     num_epochs = 12
+    log_step = 100
     batch_size = int(16 * (get_world_size() / 8))
     learning_rate = 0.02 / 16 * batch_size
     device = torch.device(f"cuda:{gpu_id}")
     save_prefix = "vis4d-workspace/test/frcnn_coco_epoch"
+    metric = "COCO_AP"
 
-    # data loaders and evaluators
-    train_loader, test_loader, test_evals, test_metric = get_dataloaders(
-        True,
-        batch_size,
-    )
-    assert train_loader is not None
+    # setup trainer
+    trainer = FasterRCNNTrainer(num_epochs, log_step)
     torch.backends.cudnn.benchmark = True
 
     # model
@@ -110,21 +122,15 @@ def train(ckpt: str, gpu_id: int = 0) -> None:
     warmup = LinearLRWarmup(0.001, 500)
 
     # run training
-    training_loop(
-        train_loader,
-        test_loader,
-        test_evals,
-        test_metric,
+    trainer.train(
         faster_rcnn,
         faster_rcnn_loss,
-        data_connector,
         optimizer,
         scheduler,
-        num_epochs,
-        log_step,
         learning_rate,
-        save_prefix,
         warmup,
+        save_prefix,
+        metric,
     )
 
 
