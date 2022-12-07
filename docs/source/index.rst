@@ -8,6 +8,7 @@ Welcome to Vis4D's documentation!
    :caption: Tutorials
 
    tutorials/install
+   tutorials/getting_started
 
 
 .. toctree::

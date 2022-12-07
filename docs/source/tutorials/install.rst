@@ -1,13 +1,13 @@
 Installation
 ===============================================
 
-We currently support Python 3.7, 3.8 and 3.9.
+We currently support Python 3.9+.
 
 First, create a new virtual environment, e.g. with conda:
 
 .. code:: bash
 
-    conda create --name vis4d python=3.8
+    conda create --name vis4d python=3.10
     conda activate vis4d
 
 Next, install the library and its dependencies:

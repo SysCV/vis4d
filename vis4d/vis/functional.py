@@ -12,7 +12,7 @@ from vis4d.common.typing import (
 )
 from vis4d.vis.image.base import CanvasBackend, ImageViewerBackend
 from vis4d.vis.image.canvas import PillowCanvasBackend
-from vis4d.vis.image.utils import (
+from vis4d.vis.image.util import (
     preprocess_boxes,
     preprocess_image,
     preprocess_masks,
@@ -150,6 +150,7 @@ def imshow_bboxes(
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
     """
+    image = preprocess_image(image, mode=image_mode)
     img = draw_bboxes(
         image,
         boxes,

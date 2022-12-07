@@ -13,7 +13,7 @@ from vis4d.common.typing import (
 from vis4d.vis.base import Visualizer
 from vis4d.vis.image.base import CanvasBackend, ImageViewerBackend
 from vis4d.vis.image.canvas import PillowCanvasBackend
-from vis4d.vis.image.utils import preprocess_boxes, preprocess_image
+from vis4d.vis.image.util import preprocess_boxes, preprocess_image
 from vis4d.vis.image.viewer import MatplotlibImageViewer
 from vis4d.vis.util import generate_color_map
 

@@ -20,7 +20,7 @@ def get_test_data(dir_name: str) -> str:
         str: Absolute path to test data directory.
     """
     prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
-    prefix_code, _ = prefix.rsplit("vis4d", 1)
+    prefix_code, _ = prefix.rsplit("tests", 1)
     return os.path.join(prefix_code, "tests", "test_data", dir_name)
 
 
@@ -29,7 +29,6 @@ def get_test_file(file_name: str, rel_path: None | str = None) -> str:
 
     The test file is assumed to be in a 'testcases' folder in tests, possibly
     with identical relative path to the current file.
-
     Args:
         file_name (str): Name of the test file.
         rel_path (str, optional): Relative path inside test directory.
@@ -39,7 +38,7 @@ def get_test_file(file_name: str, rel_path: None | str = None) -> str:
         str: Absolute path to test file <cwd/testcases/file_name>.
     """
     prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
-    prefix_code, prefix_rel = prefix.rsplit("vis4d", 1)
+    prefix_code, prefix_rel = prefix.rsplit("tests", 1)
     if rel_path is None:
         rel_path = prefix_rel
     return os.path.join(

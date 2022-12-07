@@ -46,6 +46,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
     "sphinx_design",
+    "myst_nb",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -55,7 +56,7 @@ templates_path = ["_templates"]
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
-source_suffix = ".rst"
+source_suffix = [".rst", ".ipynb"]
 
 # The master toctree document.
 master_doc = "index"

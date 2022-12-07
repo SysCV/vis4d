@@ -22,7 +22,7 @@ setuptools.setup(
         "Source": "https://github.com/syscv/",
         "Tracker": "https://github.com/syscv/",
     },
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(exclude=("tests", "tests.*", "docs.*")),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",

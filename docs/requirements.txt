@@ -1,4 +1,5 @@
 furo
+myst_nb
 sphinx
 sphinx_autodoc_defaultargs
 sphinx_autodoc_typehints

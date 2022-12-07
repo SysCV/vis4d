@@ -29,13 +29,13 @@
     "./data/**": true,
     "./vis4d-workspace/**": true,
     "**/node_modules/**": true,
-    "node_modules": true,
+    "node_modules": true
   },
   "files.watcherExclude": {
     "node_modules": true
   },
   "esbonio.sphinx.confDir": "${workspaceFolder}/docs/source",
-  "python.testing.pytestArgs": ["vis4d"],
+  "python.testing.pytestArgs": ["tests"],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "python.testing.unittestArgs": ["-v", "-s", "./vis4d", "-p", "*_test.py"]
