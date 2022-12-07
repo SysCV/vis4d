@@ -139,10 +139,10 @@ class TestConvOccnet(unittest.TestCase):
         # Single image
         vis.process_single_image(
             self.images[0],
-            predicted_boxes=self.boxes[0],
-            predicted_scores=self.scores[0],
-            predicted_class_ids=self.classes[0],
-            predicted_track_ids=self.tracks[0],
+            boxes=self.boxes[0],
+            scores=self.scores[0],
+            class_ids=self.classes[0],
+            track_ids=self.tracks[0],
         )
 
         vis.save_to_disk(self.test_dir)
@@ -157,10 +157,10 @@ class TestConvOccnet(unittest.TestCase):
         # Single image
         vis.process_single_image(
             self.images[0],
-            predicted_boxes=self.boxes[0],
-            predicted_scores=self.scores[0],
-            predicted_class_ids=self.classes[0],
-            predicted_track_ids=None,
+            boxes=self.boxes[0],
+            scores=self.scores[0],
+            class_ids=self.classes[0],
+            track_ids=None,
         )
 
         vis.save_to_disk(self.test_dir)
@@ -175,10 +175,10 @@ class TestConvOccnet(unittest.TestCase):
         # Single image
         vis.process_single_image(
             self.images[0],
-            predicted_boxes=self.boxes[0],
-            predicted_scores=None,
-            predicted_class_ids=self.classes[0],
-            predicted_track_ids=None,
+            boxes=self.boxes[0],
+            scores=None,
+            class_ids=self.classes[0],
+            track_ids=None,
         )
         vis.save_to_disk(self.test_dir)
         self.assert_img_equal(
@@ -192,10 +192,10 @@ class TestConvOccnet(unittest.TestCase):
         # Single image
         vis.process(
             self.images,
-            pred_boxes=self.boxes,
-            pred_scores=self.scores,
-            pred_class_ids=self.classes,
-            pred_track_ids=self.tracks,
+            boxes=self.boxes,
+            scores=self.scores,
+            class_ids=self.classes,
+            track_ids=self.tracks,
         )
         vis.save_to_disk(self.test_dir)
 

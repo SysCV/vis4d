@@ -4,23 +4,128 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 
-from vis4d.common.typing import NDArrayBool, NDArrayNumber
+from vis4d.common.typing import (
+    NDArrayBool,
+    NDArrayF64,
+    NDArrayI64,
+    NDArrayNumber,
+)
 from vis4d.vis.image.base import CanvasBackend
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 ImageType = npt.NDArray[np.float64]
 
 
+def _get_box_label(
+    class_id: int | None,
+    score: float | None,
+    track_id: int | None,
+    class_id_mapping: dict[int, str] | None = None,
+) -> str:
+    """Gets a unique string representation for a box definition.
+
+    Args:
+        class_id (int): The class id for this box
+        score (float): The confidence score
+        track_id (int): The track id
+        class_id_mapping (dict[int,str]): Mapping of class_id to class name
+
+    Returns:
+        str: Label for this box of format
+            'class_name, track_id, score%'
+    """
+    labels = []
+    if class_id_mapping is None:
+        class_id_mapping = {}
+
+    if class_id is not None:
+        labels.append(class_id_mapping.get(class_id, str(class_id)))
+    if track_id is not None:
+        labels.append(str(track_id))
+    if score is not None:
+        labels.append(f"{score * 100:.1f}%")
+    return ", ".join(labels)
+
+
+def preprocess_boxes(
+    boxes: NDArrayF64,
+    scores: None | NDArrayF64 = None,
+    class_ids: None | NDArrayI64 = None,
+    track_ids: None | NDArrayI64 = None,
+    color_palette: list[tuple[float, float, float]] = DEFAULT_COLOR_MAPPING,
+    class_id_mapping: dict[int, str] | None = None,
+    default_color: tuple[int, int, int] = (255, 0, 0),
+) -> tuple[
+    list[tuple[float, float, float, float]],
+    list[str],
+    list[tuple[float, float, float]],
+]:
+    """Preprocesses bounding boxes.
+
+    Converts the given predicted bounding boxes and class/track information
+    into lists of corners, labels and colors.
+
+    Args:
+        boxes (NDArrayF64): Boxes of shape [N, 4] where N is the number of
+                            boxes and the second channel consists of
+                            (x1,y1,x2,y2) box coordinates.
+        scores (NDArrayF64): Scores for each box shape [N]
+        class_ids (NDArrayI64): Class id for each box shape [N]
+        track_ids (NDArrayI64): Track id for each box shape [N]
+        color_palette (list[tuple[float, float, float]]): Color palette for
+            each id.
+        class_id_mapping(dict[int, str], optional): Mapping from class id
+            to color tuple (0-255).
+        default_color (tuple[int, int, int]): fallback color for boxes of no
+            class or track id is given.
+
+    Returns:
+        tuple[list[tuple[float x 4]], list[str], list[tuple[float x 3]]]:
+        box corners, labels and colors
+    """
+    if class_id_mapping is None:
+        class_id_mapping = {}
+
+    boxes_proc: list[tuple[float, float, float, float]] = []
+    colors_proc: list[tuple[float, float, float]] = []
+    labels_proc: list[str] = []
+    for idx in range(boxes.shape[0]):
+        class_id = None if class_ids is None else class_ids[idx].item()
+        score = None if scores is None else scores[idx].item()
+        track_id = None if track_ids is None else track_ids[idx].item()
+
+        if track_id is not None:
+            color = color_palette[track_id % len(color_palette)]
+        elif class_id is not None:
+            color = color_palette[class_id % len(color_palette)]
+        else:
+            color = default_color
+
+        boxes_proc.append(
+            (
+                boxes[idx][0].item(),
+                boxes[idx][1].item(),
+                boxes[idx][2].item(),
+                boxes[idx][3].item(),
+            )
+        )
+        colors_proc.append(color)
+        labels_proc.append(
+            _get_box_label(class_id, score, track_id, class_id_mapping)
+        )
+    return boxes_proc, labels_proc, colors_proc
+
+
 def preprocess_masks(
     masks: NDArrayBool,
-    class_ids: NDArrayNumber | None,
+    class_ids: NDArrayI64 | None,
     color_mapping: list[tuple[float, float, float]] = DEFAULT_COLOR_MAPPING,
 ) -> tuple[list[NDArrayBool], list[tuple[float, float, float]]]:
     """Preprocesses predicted semantic masks.
 
     Args:
         masks (NDArrayBool): The semantic masks of shape [N, h, w].
-        class_ids (NDArrayNumber, None):  An array with class ids for each mask
+        class_ids (NDArrayI64, None):  An array with class ids for each mask
             shape [N]
         color_mapping (list[tuple[float, float, float]]): Color mapping for
             each semantic class
@@ -84,6 +189,14 @@ def get_intersection_point(
     """Get point intersecting with camera near plane on line point1 -> point2.
 
     The line is defined by two points in pixel coordinates and their depth.
+
+    Args:
+        point1 (tuple[float x 3]): First point in camera coordinates.
+        point2 (tuple[float x 3]): Second point in camera coordinates
+        camera_near_clip (float): camera_near_clip
+
+    Returns:
+        tuple[float x 2]: The intersection point in camera coordiantes.
     """
     c1, c2, c3 = 0, 0, camera_near_clip
     a1, a2, a3 = 0, 0, 1
@@ -93,10 +206,10 @@ def get_intersection_point(
     k_up = abs(a1 * (x1 - c1) + a2 * (y1 - c2) + a3 * (z1 - c3))
     k_down = abs(a1 * (x1 - x2) + a2 * (y1 - y2) + a3 * (z1 - z2))
     if k_up > k_down:
-        k = 1
+        k = 1.0
     else:
         k = k_up / k_down
-    return (1 - k) * point1 + k * point2
+    return ((1 - k) * x1 + k * x1, (1 - k) * x2 + k * x2)
 
 
 def draw_box3d(
