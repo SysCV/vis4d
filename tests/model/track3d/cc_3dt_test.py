@@ -1,3 +1,4 @@
+"""CC-3DT Tests."""
 import torch
 
 from vis4d.data.const import CommonKeys
@@ -19,6 +20,7 @@ from vis4d.unittest.util import get_test_file
 
 
 def test_inference():
+    """CC-3DT inference test."""
     base = ResNet("resnet50")
     fpn = FPN(base.out_channels[2:], 256)
     faster_rcnn = FasterRCNNHead(num_classes=8)

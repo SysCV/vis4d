@@ -34,7 +34,7 @@ class TestPointcloudViewer(unittest.TestCase):
         shutil.rmtree(self.test_dir)
 
     def _assert_pc_equal(self, file1: str, file2: str) -> None:
-        """Checks that the pointcloud stored at the given two paths are equal
+        """Checks that the pointcloud stored at the given two paths are equal.
 
         Args:
             file1: Path to pc1
