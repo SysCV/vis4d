@@ -5,20 +5,18 @@ import logging
 from time import perf_counter
 
 import torch
-from torch import nn, optim
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from vis4d.common import DictStrAny
 from vis4d.common.distributed import get_rank
 from vis4d.data import DictData
-from vis4d.optim.warmup import BaseLRWarmup
 
+from .opt import Optimizer
 from .test import Tester
 from .util import move_data_to_device
 
 
-# TODO: have a separate Optimizer class that has the model, optimizer, and scheduler?
 class Trainer:
     """Vis4D Trainer."""
 
@@ -49,12 +47,7 @@ class Trainer:
 
     def train(
         self,
-        model: nn.Module,
-        loss: nn.Module,
-        optimizer: optim.Optimizer,
-        scheduler: optim.lr_scheduler._LRScheduler,
-        learning_rate: float,
-        warmup: None | BaseLRWarmup = None,
+        opt: Optimizer,
         save_prefix: str = "model",
         tester: None | Tester = None,
         metric: None | str = None,
@@ -63,35 +56,30 @@ class Trainer:
         logger = logging.getLogger(__name__)
 
         running_losses: DictStrAny = {}
+        step = 0
         for epoch in range(self.num_epochs):
-            model.train()
+            opt.model.train()
             if isinstance(self.train_dataloader.sampler, DistributedSampler):
                 self.train_dataloader.sampler.set_epoch(epoch)
             for i, data in enumerate(self.train_dataloader):
                 tic = perf_counter()
 
                 # zero the parameter gradients
-                optimizer.zero_grad()
+                opt.optimizer.zero_grad()
                 # input data
-                device = next(model.parameters()).device  # model device
+                device = next(opt.model.parameters()).device  # model device
                 data = move_data_to_device(data, device)
                 train_input = self.data_connector("train", data)
                 loss_input = self.data_connector("loss", data)
                 # forward + backward + optimize
-                output = model(**train_input)
-                losses = loss(output, **loss_input)
+                output = opt.model(**train_input)
+                losses = opt.loss(output, **loss_input)
                 total_loss = sum(losses.values())
                 total_loss.backward()
 
-                if warmup is not None:
-                    if epoch == 0 and i < 500:
-                        for g in optimizer.param_groups:
-                            g["lr"] = warmup(i, learning_rate)
-                    elif epoch == 0 and i == 500:
-                        for g in optimizer.param_groups:
-                            g["lr"] = learning_rate
-
-                optimizer.step()
+                opt.warmup_step(epoch)
+                opt.optimizer.step()
+                step += 1
                 toc = perf_counter()
 
                 # print statistics
@@ -107,7 +95,7 @@ class Trainer:
                         log_str += f"{k}: {v / self.log_step:.3f}, "
                     logger.info(log_str.rstrip(", "))
                     running_losses = {}
-            scheduler.step()
+            opt.lr_scheduler.step()
 
             if (
                 epoch % self.save_every_nth_epoch
@@ -115,11 +103,12 @@ class Trainer:
                 and get_rank() == 0
             ):
                 torch.save(
-                    model.module.state_dict(), f"{save_prefix}_{epoch + 1}.pt"
+                    opt.model.module.state_dict(),
+                    f"{save_prefix}_{epoch + 1}.pt",
                 )
 
             # testing
             if tester is not None:
                 assert metric is not None
-                tester.test(model, metric, epoch)
+                tester.test(opt.model, metric, epoch)
         logger.info("training done.")

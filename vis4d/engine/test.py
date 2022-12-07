@@ -52,7 +52,7 @@ class Tester:
     ) -> DictStrAny:
         """Connector between the data and the evaluator."""
         # For now just wrap data connector to not break anything.
-        return data
+        return data | output
 
     def do_evaluation(self, epoch: int) -> bool:
         """Return whether to do evaluation for current epoch."""
@@ -74,7 +74,9 @@ class Tester:
         )
 
     @torch.no_grad()
-    def test(self, model: nn.Module, metric: str, epoch: int) -> None:
+    def test(
+        self, model: nn.Module, metric: str, epoch: None | int = None
+    ) -> None:
         """Testing loop."""
         logger = logging.getLogger(__name__)
 
@@ -90,28 +92,23 @@ class Tester:
                 # forward
                 output = model(**test_input)
 
-                if self.do_evaluation(epoch):
+                if not epoch or self.do_evaluation(epoch):
                     for test_eval in self.evaluators:
-                        evaluator_kwargs = self.evaluator_connector(
-                            data, output
-                        )
+                        eval_kwargs = self.evaluator_connector(data, output)
                         test_eval.process(
-                            *[
-                                v.detach().cpu().numpy()
-                                for k, v in evaluator_kwargs.items()
-                            ]
+                            **move_data_to_device(eval_kwargs, "cpu", True)
                         )
 
-                if self.do_visualization(epoch):
+                if not epoch or self.do_visualization(epoch):
                     for vis in self.visualizers:
                         vis.process(data, output)
 
-        if self.do_evaluation(epoch):
+        if not epoch or self.do_evaluation(epoch):
             for test_eval in self.evaluators:
                 _, log_str = test_eval.evaluate(metric)
                 logger.info(log_str)
 
-        if self.do_visualization(epoch):
+        if not epoch or self.do_visualization(epoch):
             for test_vis in self.visualizers:
                 test_vis.visualize()
                 # test_vis.clear()

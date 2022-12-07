@@ -178,7 +178,11 @@ def apply_to_collection(
     return data
 
 
-def move_data_to_device(batch: Any, device: torch.device | str | int) -> Any:
+def move_data_to_device(
+    batch: Any,
+    device: torch.device | str | int,
+    convert_to_numpy: bool = False,
+) -> Any:
     """Transfers a collection of data to the given device.
 
     Any object that defines a method ``to(device)`` will be moved and all other
@@ -192,6 +196,7 @@ def move_data_to_device(batch: Any, device: torch.device | str | int) -> Any:
             ``.to(...)``. See :func:`apply_to_collection` for a list of
             supported collection types.
         device: The device to which the data should be moved.
+        convert_to_numpy: Whether to convert from tensor to numpy array.
 
     Return:
         The same collection but with all contained tensors residing on the new
@@ -213,6 +218,8 @@ def move_data_to_device(batch: Any, device: torch.device | str | int) -> Any:
             kwargs["non_blocking"] = True
         data_output = data.to(device, **kwargs)
         if data_output is not None:
+            if convert_to_numpy:
+                data_output = data_output.numpy()
             return data_output
         # user wrongly implemented the `TransferableDataType` and forgot to
         # return `self`.

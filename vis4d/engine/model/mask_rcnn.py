@@ -1,4 +1,4 @@
-"""FCN COCO training example."""
+"""Mask RCNN COCO training example."""
 import argparse
 import warnings
 from typing import List, Optional, Tuple
@@ -10,12 +10,15 @@ from torch.utils.data import DataLoader
 from vis4d.data import DictData
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
+from vis4d.engine.data.detect import (
+    default_test_pipeline,
+    default_train_pipeline,
+)
+from vis4d.engine.test import testing_loop
+from vis4d.engine.train import training_loop
 from vis4d.eval import COCOEvaluator, Evaluator
-from vis4d.model.segment.fcn_resnet import FCNResNet
+from vis4d.model.detect.mask_rcnn import MaskRCNN, MaskRCNNLoss
 from vis4d.optim.warmup import LinearLRWarmup
-from vis4d.run.data.detect import default_test_pipeline, default_train_pipeline
-from vis4d.run.test import testing_loop
-from vis4d.run.trainer import training_loop
 
 warnings.filterwarnings("ignore")
 
@@ -76,7 +79,7 @@ def train(num_gpus: int, ckpt: str) -> None:
     """Training."""
     # parameters
     log_step = 100
-    num_iters = 40000
+    num_epochs = 12
     batch_size = int(8 * (num_gpus / 8))
     learning_rate = 0.02 / 16 * batch_size
     device = torch.device("cuda")
@@ -89,23 +92,27 @@ def train(num_gpus: int, ckpt: str) -> None:
     assert train_loader is not None
 
     # model
-    FCNResNet = FCNResNet(base_model=args.base_model, resize=(520, 520))
-    FCNResNet.to(device)
-
+    mask_rcnn = MaskRCNN(num_classes=80, weights=ckpt)
+    mask_rcnn.to(device)
+    mask_rcnn_loss = MaskRCNNLoss(
+        mask_rcnn.anchor_gen,
+        mask_rcnn.rpn_bbox_encoder,
+        mask_rcnn.rcnn_bbox_encoder,
+    )
     if num_gpus > 1:
         mask_rcnn = nn.DataParallel(
             mask_rcnn, device_ids=[device, torch.device("cuda:1")]
         )
 
     # optimization
-    optimizer = optim.Adam(
-        FCNResNet.parameters(),
+    optimizer = optim.SGD(
+        mask_rcnn.parameters(),
         lr=learning_rate,
         momentum=0.9,
         weight_decay=0.0001,
     )
-    scheduler = optim.lr_scheduler.PolynomialLR(
-        optimizer, num_iters, power=0.9
+    scheduler = optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[8, 11], gamma=0.1
     )
     warmup = LinearLRWarmup(0.001, 500)
 
@@ -115,7 +122,7 @@ def train(num_gpus: int, ckpt: str) -> None:
         test_loader,
         test_evals,
         test_metric,
-        FCNResNet,
+        mask_rcnn,
         mask_rcnn_loss,
         data_connector,
         optimizer,
@@ -137,12 +144,12 @@ def test(ckpt: str) -> None:
     _, test_loader, test_evals, test_metric = get_dataloaders()
 
     # model
-    FCNResNet = FCNResNet(base_model=args.base_model, resize=(520, 520))
-    FCNResNet.to(device)
+    mask_rcnn = MaskRCNN(num_classes=80, weights=ckpt)
+    mask_rcnn.to(device)
 
     # run testing
     testing_loop(
-        test_loader, test_evals, test_metric, FCNResNet, data_connector
+        test_loader, test_evals, test_metric, mask_rcnn, data_connector
     )
 
 

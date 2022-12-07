@@ -10,6 +10,12 @@ from torch.utils.data import DataLoader
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.s3dis import S3DIS
 from vis4d.data.typing import DictData
+from vis4d.engine.data.segment3d import (
+    default_test_pipeline,
+    default_train_pipeline,
+)
+from vis4d.engine.test import testing_loop
+from vis4d.engine.train import training_loop
 from vis4d.eval import Evaluator
 from vis4d.eval.segment.segmentation_evaluator import SegmentationEvaluator
 from vis4d.model.segment3d.pointnet import (
@@ -20,12 +26,6 @@ from vis4d.model.segment3d.pointnetpp import (
     Pointnet2SegmentationLoss,
     PointNet2SegmentationModel,
 )
-from vis4d.run.data.segment3d import (
-    default_test_pipeline,
-    default_train_pipeline,
-)
-from vis4d.run.test import testing_loop
-from vis4d.run.train import training_loop
 
 warnings.filterwarnings("ignore")
 

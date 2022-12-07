@@ -13,7 +13,10 @@ from vis4d.data_to_revise.transforms import (
     RandomCrop,
     Resize,
 )
-from vis4d.run.data.datasets import bdd100k_sem_seg_train, bdd100k_sem_seg_val
+from vis4d.engine.data.datasets import (
+    bdd100k_sem_seg_train,
+    bdd100k_sem_seg_val,
+)
 
 # TODO(tao) update
 

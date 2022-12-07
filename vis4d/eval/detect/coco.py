@@ -10,28 +10,25 @@ from typing import Any
 
 import numpy as np
 import pycocotools.mask as maskUtils
-import torch
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from terminaltables import AsciiTable  # type: ignore
-from torch import Tensor
 
-from vis4d.common import MetricLogs, ModelOutput
-from vis4d.common.typing import DictStrAny
-from vis4d.data.datasets.base import DictData
+from vis4d.common import MetricLogs
+from vis4d.common.typing import DictStrAny, NDArrayNumber
 from vis4d.data.datasets.coco import coco_det_map
 
 from ..base import Evaluator
 
 
-def xyxy_to_xywh(boxes: torch.Tensor) -> torch.Tensor:
+def xyxy_to_xywh(boxes: NDArrayNumber) -> NDArrayNumber:
     """Convert Tensor [N, 4] in xyxy format into xywh.
 
     Args:
-        boxes (torch.Tensor): Bounding boxes in Vis4D format.
+        boxes (NDArrayNumber): Bounding boxes in Vis4D format.
 
     Returns:
-        torch.Tensor: COCO format bounding boxes.
+        NDArrayNumber: COCO format bounding boxes.
     """
     boxes[:, 2] = boxes[:, 2] - boxes[:, 0]
     boxes[:, 3] = boxes[:, 3] - boxes[:, 1]
@@ -58,10 +55,10 @@ def predictions_to_coco(
     cat_map: dict[str, int],
     coco_id2name: dict[int, str],
     image_id: str,
-    boxes: Tensor,
-    scores: Tensor,
-    classes: Tensor,
-    masks: None | Tensor = None,
+    boxes: NDArrayNumber,
+    scores: NDArrayNumber,
+    classes: NDArrayNumber,
+    masks: None | NDArrayNumber = None,
 ) -> list[DictStrAny]:
     """Convert Vis4D format predictions to COCO format.
 
@@ -69,10 +66,11 @@ def predictions_to_coco(
         cat_map (dict[str, int]): COCO class name to class ID mapping.
         coco_id2name (dict[int, str]): COCO class ID to class name mapping.
         image_id (str): ID of image.
-        boxes (Tensor): Predicted bounding boxes.
-        scores (Tensor): Predicted scores for each box.
-        classes (Tensor): Predicted classes for each box.
-        masks (None | Tensor, optional): Predicted masks. Defaults to None.
+        boxes (NDArrayNumber): Predicted bounding boxes.
+        scores (NDArrayNumber): Predicted scores for each box.
+        classes (NDArrayNumber): Predicted classes for each box.
+        masks (None | NDArrayNumber, optional): Predicted masks. Defaults to
+            None.
 
     Returns:
         list[DictStrAny]: Predictions in COCO format.
@@ -81,7 +79,7 @@ def predictions_to_coco(
     boxes = xyxy_to_xywh(boxes)
     for i, (box, score, cls) in enumerate(zip(boxes, scores, classes)):
         mask = masks[i] if masks is not None else None
-        xywh = box.cpu().numpy().tolist()
+        xywh = box.tolist()
         area = float(xywh[2] * xywh[3])
         annotation = dict(
             image_id=image_id,
@@ -111,7 +109,7 @@ class COCOEvaluator(Evaluator):
         iou_type: str = "bbox",
         split: str = "val2017",
         per_class_eval: bool = False,
-    ):
+    ) -> None:
         """Init.
 
         Args:
@@ -158,7 +156,12 @@ class COCOEvaluator(Evaluator):
         self._predictions = []
 
     def process(  # type: ignore # pylint: disable=arguments-differ
-        self, inputs: DictData, outputs: ModelOutput
+        self,
+        coco_image_id: list[int],
+        pred_boxes: list[NDArrayNumber],
+        pred_scores: list[NDArrayNumber],
+        pred_classes: list[NDArrayNumber],
+        pred_masks: None | list[NDArrayNumber] = None,
     ) -> None:
         """Process sample and convert detections to coco format.
 
@@ -166,21 +169,10 @@ class COCOEvaluator(Evaluator):
             inputs (DictData): Input data.
             outputs (ModelOutput): Output predictions from model.
         """
-        # FIXME, rewrite to numpy based API
-        assert (
-            "boxes2d" in outputs
-            and "boxes2d_scores" in outputs
-            and "boxes2d_classes" in outputs
-        )
         for i, (image_id, boxes, scores, classes) in enumerate(
-            zip(
-                inputs["coco_image_id"],
-                outputs["boxes2d"],
-                outputs["boxes2d_scores"],
-                outputs["boxes2d_classes"],
-            )
+            zip(coco_image_id, pred_boxes, pred_scores, pred_classes)
         ):
-            masks = outputs["masks"][i] if "masks" in outputs else None
+            masks = pred_masks[i] if pred_masks else None
             coco_preds = predictions_to_coco(
                 self.cat_map,
                 self.coco_id2name,
