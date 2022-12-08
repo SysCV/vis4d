@@ -28,20 +28,29 @@ jobs:
           python3 -m pip freeze
 
       - name: isort
-        run: python3 -m isort -c vis4d
+        run: |
+          python3 -m isort -c vis4d
+          python3 -m isort -c tests
 
       - name: black
-        run: python3 -m black --check vis4d
+        run: |
+          python3 -m black --check vis4d
+          python3 -m black --check tests
 
       - name: lint
-        run: python3 -m pylint vis4d
+        run: |
+          python3 -m pylint vis4d
+          python3 -m pylint tests
 
       - name: docstyle
-        run: python3 -m pydocstyle --convention=google vis4d
+        run: |
+          python3 -m pydocstyle --convention=google vis4d
+          python3 -m pydocstyle --convention=google tests
 
       - name: mypy
         run: |
           python3 -m mypy vis4d
+          python3 -m mypy tests
 
   test:
     name: test py${{ matrix.python-version }}
@@ -64,7 +73,7 @@ jobs:
           python3 -m pip freeze
 
       - name: test
-        run: python3 -m coverage run --source=vis4d -m pytest --pyargs vis4d
+        run: python3 -m coverage run --source=vis4d -m pytest --pyargs tests
 
       - name: test coverage
         run: python3 -m coverage report --fail-under=99 -m
