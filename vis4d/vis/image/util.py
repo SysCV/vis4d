@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import numpy as np
 import numpy.typing as npt
+import torch
 
 from vis4d.common.typing import (
     NDArrayBool,
@@ -151,7 +152,7 @@ def preprocess_masks(
 
 
 def preprocess_image(
-    image: NDArrayNumber, mode: str = "RGB"
+    image: NDArrayNumber | torch.Tensor, mode: str = "RGB"
 ) -> npt.NDArray[np.uint8]:
     """Validate and convert input image.
 
@@ -162,23 +163,35 @@ def preprocess_image(
     Returns:
         np.array[uint8]: Processed image in RGB.
     """
-    assert len(image.shape) == 3
-    assert image.shape[0] == 3 or image.shape[-1] == 3
+    # Convert torch to numpy
+    if isinstance(image, torch.Tensor):
+        image_np = image.numpy()
+    else:
+        image_np = image
+
+    if len(image_np.shape) == 4:  # got batch dimension
+        image_np = image_np.squeeze(0)
+
+    assert len(image_np.shape) == 3
+    assert image_np.shape[0] == 3 or image_np.shape[-1] == 3
 
     # Convert torch to numpy convention
-    if not image.shape[-1] == 3:
-        image = image.permute(1, 2, 0)
+    if not image_np.shape[-1] == 3:
+        image_np = np.transpose(image_np, (1, 2, 0))
 
-    # Convert image to [0, 255]
-    min_val, max_val = (np.min(image, axis=(0, 1)), np.max(image, axis=(0, 1)))
-    image = image.astype(np.float32)
-    image = (image - min_val) / (max_val - min_val) * 255.0
+    # Convert image_np to [0, 255]
+    min_val, max_val = (
+        np.min(image_np, axis=(0, 1)),
+        np.max(image_np, axis=(0, 1)),
+    )
+    image_np = image_np.astype(np.float32)
+    image_np = (image_np - min_val) / (max_val - min_val) * 255.0
 
     if mode == "BGR":
-        image = image[..., [2, 1, 0]]
+        image_np = image_np[..., [2, 1, 0]]
         mode = "RGB"
 
-    return image.astype(np.uint8)
+    return image_np.astype(np.uint8)
 
 
 def get_intersection_point(

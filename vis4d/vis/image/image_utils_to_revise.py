@@ -219,7 +219,7 @@ def draw_bev_canvas(
 
     for radius in range(y_max, -1, -interval):
         # Mark all around sector
-        ax.add_patch(
+        ax.add_patch(  # Draws circle around car.
             mpatches.Wedge(
                 center=[0, 0],
                 alpha=0.1,
