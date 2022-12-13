@@ -212,7 +212,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         return points, extrinsics, timestamp
 
     def _load_cam_data(
-        self, cam_token: str
+        self, cam_token: str, ego_pose: DictStrAny
     ) -> tuple[Tensor, Tensor, Tensor, str]:
         """Load camera data.
 
@@ -224,7 +224,6 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                 timestamp.
         """
         cam_data = self.data.get("sample_data", cam_token)
-        ego_pose_cam = self.data.get("ego_pose", cam_data["ego_pose_token"])
         timestamp = cam_data["timestamp"]
         cam_filepath = cam_data["filename"]
         calibration_cam = self.data.get(
@@ -239,7 +238,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             .permute(2, 0, 1)
             .unsqueeze(0)
         )
-        extrinsics = _get_extrinsics(ego_pose_cam, calibration_cam)
+        extrinsics = _get_extrinsics(ego_pose, calibration_cam)
         intrinsics = torch.tensor(
             calibration_cam["camera_intrinsic"], dtype=torch.float32
         )
@@ -402,7 +401,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             if cam in self._SENSORS:
                 cam_token = sample["data"][cam]
                 image, intrinsics, extrinsics, timestamp = self._load_cam_data(
-                    cam_token
+                    cam_token, ego_pose
                 )
                 image_hw = image.size(2), image.size(3)
                 (
