@@ -10,7 +10,7 @@ import unittest
 import numpy as np
 from PIL import Image
 
-from vis4d.unittest.util import get_test_file
+from tests.util import get_test_file
 from vis4d.vis.image.semantic_mask_visualizer import SemanticMaskVisualizer
 
 SEM_MAPPING = {  # pylint:disable=duplicate-code

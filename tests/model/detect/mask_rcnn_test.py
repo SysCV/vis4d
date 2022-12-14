@@ -4,11 +4,11 @@ import unittest
 import torch
 from torch import optim
 
+from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.model.detect.mask_rcnn import REV_KEYS, MaskRCNN, MaskRCNNLoss
 from vis4d.op.util import load_model_checkpoint
-from vis4d.unittest.util import get_test_data, get_test_file
 
 from .faster_rcnn_test import get_test_dataloader, get_train_dataloader
 

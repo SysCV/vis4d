@@ -15,7 +15,7 @@ While the data pipeline gives you the option to order your input frames sequenti
 
 
 Troubleshooting
-==================
+++++++++++++++++++++++++++++
 Training crashes with:
 
 .. code:: bash

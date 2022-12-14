@@ -5,9 +5,9 @@ import unittest
 
 import torch
 
+from tests.util import generate_features
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.segment.fcn import FCNHead, FCNLoss
-from vis4d.unittest.util import generate_features
 
 REV_KEYS = [
     (r"^backbone\.", "body."),

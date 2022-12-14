@@ -7,6 +7,7 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
+from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
@@ -23,7 +24,6 @@ from vis4d.data.transforms.resize import (
     resize_masks,
 )
 from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
-from vis4d.unittest.util import get_test_data, get_test_file
 
 
 def get_train_dataloader(

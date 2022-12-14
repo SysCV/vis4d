@@ -3,8 +3,8 @@ import unittest
 
 import torch
 
+from tests.util import generate_boxes
 from vis4d.op.box.matchers.max_iou import MaxIoUMatcher
-from vis4d.unittest.util import generate_boxes
 
 
 class TestRandom(unittest.TestCase):

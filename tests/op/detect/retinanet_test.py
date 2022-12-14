@@ -2,13 +2,13 @@
 
 import torch
 
+from tests.util import generate_features
 from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
 from vis4d.op.detect.retinanet import (
     Dense2Det,
     RetinaNetHead,
     get_default_anchor_generator,
 )
-from vis4d.unittest.util import generate_features
 
 
 def test_retinanet_head():

@@ -9,6 +9,7 @@ import numpy as np
 import open3d as o3d
 import torch
 
+from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.s3dis import S3DIS
 from vis4d.data.loader import DataPipe, SubdividingIterableDataset
@@ -16,7 +17,6 @@ from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.point_sampling import (
     sample_points_block_full_coverage,
 )
-from vis4d.unittest.util import get_test_data, get_test_file
 from vis4d.vis.pointcloud.pointcloud_visualizer import PointCloudVisualizer
 
 

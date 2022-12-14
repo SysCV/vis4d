@@ -10,8 +10,8 @@ import unittest
 import numpy as np
 from PIL import Image
 
+from tests.util import get_test_file
 from vis4d.common.typing import NDArrayF64, NDArrayI64
-from vis4d.unittest.util import get_test_file
 from vis4d.vis.image.bounding_box_visualizer import BoundingBoxVisualizer
 
 SEM_MAPPING = {

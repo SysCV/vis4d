@@ -1,8 +1,8 @@
 """Testcases for DLA backbone."""
 import unittest
 
+from tests.util import generate_features
 from vis4d.op.base.dla import DLA
-from vis4d.unittest.util import generate_features
 
 
 class TestDLA(unittest.TestCase):

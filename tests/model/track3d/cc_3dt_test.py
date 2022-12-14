@@ -1,6 +1,7 @@
 """CC-3DT Tests."""
 import torch
 
+from tests.util import get_test_file
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.datasets.scalabel import Scalabel
@@ -16,7 +17,6 @@ from vis4d.op.detect.faster_rcnn import FasterRCNNHead
 from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.fpp import FPN
 from vis4d.op.track.qdtrack import QDSimilarityHead
-from vis4d.unittest.util import get_test_file
 
 
 def test_inference():

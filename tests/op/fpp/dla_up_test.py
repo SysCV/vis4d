@@ -1,8 +1,8 @@
 """Testcases for DLA-UP."""
 import unittest
 
+from tests.util import generate_features
 from vis4d.op.fpp.dla_up import DLAUp
-from vis4d.unittest.util import generate_features
 
 
 class TestDLAUp(unittest.TestCase):

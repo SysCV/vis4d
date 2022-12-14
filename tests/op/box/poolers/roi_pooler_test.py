@@ -3,11 +3,11 @@ import unittest
 
 import torch
 
+from tests.util import generate_boxes
 from vis4d.op.box.poolers.roi_pooler import (
     MultiScaleRoIAlign,
     MultiScaleRoIPool,
 )
-from vis4d.unittest.util import generate_boxes
 
 
 class TestMultiScaleRoIPooler(unittest.TestCase):

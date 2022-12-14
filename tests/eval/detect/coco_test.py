@@ -6,11 +6,11 @@ import unittest
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+from tests.util import generate_boxes, get_test_data
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.eval.detect.coco import COCOEvaluator
-from vis4d.unittest.util import generate_boxes, get_test_data
 
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:

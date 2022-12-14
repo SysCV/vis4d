@@ -32,6 +32,7 @@ More information about torch and pytorch-lightning installation
 The standard location for datasets used in the experiments is:
 
 .. code:: bash
+
     --root
         --data
             --dataset1

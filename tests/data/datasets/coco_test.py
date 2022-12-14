@@ -1,8 +1,8 @@
 """COCO dataset testing class."""
 import unittest
 
+from tests.util import get_test_data
 from vis4d.data.datasets.coco import COCO
-from vis4d.unittest.util import get_test_data
 
 
 class COCOTest(unittest.TestCase):

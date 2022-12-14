@@ -1,8 +1,8 @@
 """Testcases for FPN."""
 import unittest
 
+from tests.util import generate_features
 from vis4d.op.fpp.fpn import FPN, LastLevelP6P7
-from vis4d.unittest.util import generate_features
 
 
 class TestFPN(unittest.TestCase):

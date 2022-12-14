@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import torch
 
+from tests.util import get_test_data
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.datasets.s3dis import S3DIS
@@ -18,7 +19,6 @@ from vis4d.data.transforms.point_sampling import (
     sample_points_random,
 )
 from vis4d.data.typing import DictData
-from vis4d.unittest.util import get_test_data
 
 
 def test_train_loader() -> None:

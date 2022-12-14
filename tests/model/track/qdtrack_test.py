@@ -4,13 +4,13 @@ import unittest
 import torch
 from mmcv.runner.checkpoint import load_checkpoint
 
+from tests.util import get_test_file
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.scalabel import Scalabel
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.data.transforms.normalize import normalize_image
 from vis4d.data.transforms.pad import pad_image
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
-from vis4d.unittest.util import get_test_file
 
 REV_KEYS = [
     (r"^detector.rpn_head.mm_dense_head\.", "rpn_head."),

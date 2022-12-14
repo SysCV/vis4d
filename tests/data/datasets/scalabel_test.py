@@ -3,9 +3,9 @@ import os
 
 import torch
 
+from tests.util import get_test_data
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.scalabel import Scalabel
-from vis4d.unittest.util import get_test_data
 
 
 def test_len_getitem():

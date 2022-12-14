@@ -1,12 +1,12 @@
 """Testcases for simple panoptic fusion head."""
 import unittest
 
+from tests.util import generate_masks
 from vis4d.op.mask.util import nhw_to_hwc_mask
 from vis4d.op.panoptic.simple_fusion_head import (
     INSTANCE_OFFSET,
     SimplePanopticFusionHead,
 )
-from vis4d.unittest.util import generate_masks
 
 
 class TestSimplePanopticFusionHead(unittest.TestCase):

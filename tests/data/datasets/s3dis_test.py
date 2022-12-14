@@ -1,9 +1,9 @@
 """S3DIS dataset testing class."""
 import unittest
 
+from tests.util import get_test_data
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.s3dis import S3DIS
-from vis4d.unittest.util import get_test_data
 
 
 class S3DISTest(unittest.TestCase):

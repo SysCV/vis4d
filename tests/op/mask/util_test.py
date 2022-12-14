@@ -3,12 +3,12 @@ import unittest
 
 import torch
 
+from tests.util import generate_boxes
 from vis4d.op.mask.util import (
     nhw_to_hwc_mask,
     paste_masks_in_image,
     postprocess_segms,
 )
-from vis4d.unittest.util import generate_boxes
 
 
 class TestMaskUtil(unittest.TestCase):

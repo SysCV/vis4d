@@ -1,6 +1,6 @@
 """Faster RCNN tests."""
+from tests.util import generate_boxes, generate_features
 from vis4d.op.detect.faster_rcnn import FasterRCNNHead
-from vis4d.unittest.util import generate_boxes, generate_features
 
 
 def test_faster_rcnn_head():

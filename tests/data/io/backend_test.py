@@ -3,10 +3,10 @@ import os
 import sys
 import unittest
 
+from tests.util import get_test_file
 from vis4d.data.io.file import FileBackend
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.data.io.util import str_decode
-from vis4d.unittest.util import get_test_file
 
 
 class TestBackends(unittest.TestCase):

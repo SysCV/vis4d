@@ -1,8 +1,8 @@
 """Testcases for panoptic fpn head."""
 import unittest
 
+from tests.util import generate_features
 from vis4d.op.segment.panoptic_fpn_head import PanopticFPNHead
-from vis4d.unittest.util import generate_features
 
 
 class TestPanopticFPNHead(unittest.TestCase):

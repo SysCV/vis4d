@@ -4,14 +4,16 @@ Welcome to Vis4D's documentation!
 ===============================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Tutorials
 
    tutorials/install
    tutorials/getting_started
+   tutorials/visualization
 
 
 .. toctree::
+   :maxdepth: 1
    :caption: Tips and Tricks
 
    faq
@@ -23,7 +25,7 @@ Welcome to Vis4D's documentation!
 
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: API Documentation
 
-   api/modules
+   _autosummary/vis4d

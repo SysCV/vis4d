@@ -25,7 +25,6 @@ jobs:
       - name: website build
         run: |
           cd docs
-          sphinx-apidoc -E -f -o ./source/api/ ../vis4d/ ../vis4d/unittest/*
           make html
       - name: deploy website to AWS
         uses: jakejarvis/s3-sync-action@master

@@ -1,9 +1,9 @@
 """RCNN tests."""
 import torch
 
+from tests.util import generate_boxes, generate_features
 from vis4d.op.box.encoder import DeltaXYWHBBoxEncoder
 from vis4d.op.detect.rcnn import Det2Mask, MaskRCNNHead, RCNNHead, RoI2Det
-from vis4d.unittest.util import generate_boxes, generate_features
 
 
 def test_rcnn_head():

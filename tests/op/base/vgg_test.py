@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import unittest
 
+from tests.util import generate_features
 from vis4d.op.base.vgg import VGG
-from vis4d.unittest.util import generate_features
 
 
 class TestVGG(unittest.TestCase):

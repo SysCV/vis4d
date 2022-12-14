@@ -1,16 +1,12 @@
 """Test cases for quasi dense tracking graph construction."""
 import torch
 
+from tests.util import generate_boxes, generate_features, get_test_file
 from vis4d.op.track.assignment import TrackIDCounter
 from vis4d.op.track.qdtrack import (
     QDSimilarityHead,
     QDTrackAssociation,
     QDTrackInstanceSimilarityLoss,
-)
-from vis4d.unittest.util import (
-    generate_boxes,
-    generate_features,
-    get_test_file,
 )
 
 

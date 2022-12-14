@@ -12,10 +12,10 @@ from pytorch_lightning.utilities.cli import SaveConfigCallback
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
+from tests.util import MockModel
 from vis4d.pl.data.base import DataModule
 from vis4d.pl.optimizer import DefaultOptimizer
 from vis4d.pl.trainer import CLI, DefaultTrainer
-from vis4d.unittest.util import MockModel
 
 
 class MockDataset(Dataset):

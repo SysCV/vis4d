@@ -13,12 +13,6 @@ Install dependencies
 pip install -r requirements.txt
 ```
 
-Generate the API documentation
-
-```
-sphinx-apidoc -E -f -o ./source/api/ ../vis4d/ ../vis4d/unittest/*
-```
-
 Build the full documentation
 
 ```

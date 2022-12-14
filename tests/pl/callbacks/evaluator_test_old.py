@@ -4,7 +4,7 @@ import shutil
 import pytest
 from _pytest.fixtures import FixtureRequest
 
-from vis4d.unittest.utils import generate_input_sample
+from tests.utils import generate_input_sample
 
 from ..datasets import BDD100K, COCO, BaseDatasetLoader, Scalabel
 from .evaluator import DefaultEvaluatorCallback
