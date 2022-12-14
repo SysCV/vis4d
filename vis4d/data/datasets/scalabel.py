@@ -469,7 +469,7 @@ def instance_masks_from_scalabel(
     label_id_to_idx: dict[str, int] | None = None,
     frame_size: ImageSize | None = None,
 ) -> Tensor:
-    """"""
+    """Convert from scalabel format to Vis4D."""
     raise NotImplementedError
 
 
@@ -480,5 +480,5 @@ def semantic_masks_from_scalabel(
     frame_size: ImageSize | None = None,
     bg_as_class: bool = False,
 ) -> Tensor:
-    """"""
+    """Convert from scalabel format to Vis4D."""
     raise NotImplementedError

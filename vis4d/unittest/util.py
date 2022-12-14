@@ -184,7 +184,7 @@ def generate_masks(
 class MockModel(nn.Module):
     """Model Mockup."""
 
-    def __init__(self, model_param: int, *args, **kwargs):  # type: ignore
+    def __init__(self, model_param: int, *args, **kwargs):  # type: ignore # pylint: disable=unused-argument,line-too-long
         """Init."""
         super().__init__()
         self.model_param = model_param

@@ -74,7 +74,7 @@ def test_evaluate(task: str) -> None:
     def my_log(key: str, value: float, rank_zero_only: bool) -> None:
         print(key, value, rank_zero_only)
 
-    evaluator.log = my_log  # type: ignore
+    evaluator.log = my_log
 
     frames = dataset_loader.frames
     for frame in frames:

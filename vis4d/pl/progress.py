@@ -1,5 +1,5 @@
+# pylint: disable=consider-using-alias,consider-alternative-union-syntax
 """Progress bar utils."""
-from __future__ import annotations
 
 import datetime
 from collections import defaultdict
@@ -22,7 +22,8 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         """Init."""
         super().__init__()
         self._refresh_rate = refresh_rate
-        self.enable()
+        self._enabled = True
+        self._metrics: Dict[str, List[torch.Tensor]] = defaultdict(list)
         self.timer = Timer()
 
     def disable(self) -> None:

@@ -1,16 +1,16 @@
-"""Visualizer class."""
+# pylint: skip-file
+"""Writer class."""
 import copy
 import os
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Sequence
 
-import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 
 from vis4d.common import ModelOutput
 
-# from vis4d.vis.util import preprocess_image
+# TODO update after vis4d.engine refactor
 
 
 class BaseWriterCallback(Callback):

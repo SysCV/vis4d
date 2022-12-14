@@ -106,7 +106,6 @@ class TestSampleFromBlock(unittest.TestCase):
 
     def test_full_scale_block_sampling(self):
         """Tests if all points are sampled when using full coverage and enough points."""
-
         # pylint: disable=unexpected-keyword-arg
         sampler = sample_points_block_full_coverage(
             min_pts_per_block=1,
@@ -154,7 +153,6 @@ class RandomPointSamplingTest(unittest.TestCase):
     def test_sample_less_pts(self):
         """Test if sampling works when sampling less points than given in
         the scene."""
-
         # pylint: disable=unexpected-keyword-arg
         sampler = sample_points_random(
             num_pts=100,

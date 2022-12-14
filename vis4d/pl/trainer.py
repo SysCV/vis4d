@@ -1,3 +1,4 @@
+# pylint: disable=consider-using-alias,consider-alternative-union-syntax
 """Vis4D Trainer."""
 import logging
 import os.path as osp
@@ -149,15 +150,15 @@ class DefaultTrainer(pl.Trainer):
             )
             num_gpus = len(gpu_ids) if gpu_ids is not None else 0
             if num_gpus > 1:
-                if kwargs["strategy"] == "ddp" or kwargs["strategy"] is None:
+                strategy = kwargs["strategy"]
+                if strategy == "ddp" or strategy is None:
                     ddp_plugin: Strategy = DDPStrategy(
                         find_unused_parameters=find_unused_parameters
                     )
                     kwargs["strategy"] = ddp_plugin
                 else:
                     raise AttributeError(
-                        "Vis4D does not support strategy %s",
-                        kwargs["strategy"],
+                        f"Vis4D does not support strategy {strategy}"
                     )
 
         if "callbacks" not in kwargs or kwargs["callbacks"] is None:

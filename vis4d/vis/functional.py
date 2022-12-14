@@ -26,15 +26,18 @@ from vis4d.vis.util import generate_color_map
 
 def imshow(
     image: NDArrayUI8,
+    image_mode: str = "RGB",
     image_viewer: ImageViewerBackend = MatplotlibImageViewer(),
 ) -> None:
     """Shows a single image.
 
     Args:
         image (NDArrayNumber): The image to show
+        image_mode (str, optional): Image Mode. Defaults to "RGB".
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
     """
+    image = preprocess_image(image, image_mode)
     image_viewer.show_images([image])
 
 
@@ -56,7 +59,7 @@ def draw_masks(
             Defaults to None.
         n_colors (int, optional): Number of colors to use for color palette.
             Defaults to 50.
-        image_mode (str, optional): Image Mode.. Defaults to "RGB".
+        image_mode (str, optional): Image Mode. Defaults to "RGB".
         canvas (CanvasBackend, optional): Canvas backend to use.
             Defaults to PillowCanvasBackend().
 
@@ -98,7 +101,7 @@ def draw_bboxes(
             name. Defaults to None.
         n_colors (int, optional): Number of colors to use for color palette.
             Defaults to 50.
-        image_mode (str, optional): Image Mode.. Defaults to "RGB".
+        image_mode (str, optional): Image Mode. Defaults to "RGB".
         canvas (CanvasBackend, optional): Canvas backend to use.
             Defaults to PillowCanvasBackend().
 

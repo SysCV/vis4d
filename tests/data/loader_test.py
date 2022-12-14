@@ -140,7 +140,6 @@ def point_collate(batch: list[DictData]) -> DictData:
     Returns:
         DictData: Collated data.
     """
-
     data = {}
     for key in batch[0]:
         if key in (

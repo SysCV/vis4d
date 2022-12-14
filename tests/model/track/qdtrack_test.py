@@ -34,6 +34,8 @@ REV_KEYS = [
 class QDTrackTest(unittest.TestCase):
     """QDTrack class tests."""
 
+    model_weights = "https://dl.cv.ethz.ch/vis4d/qdtrack_bdd100k_frcnn_res50_heavy_augs.ckpt"
+
     def test_inference(self):
         """Inference test.
 
@@ -43,7 +45,7 @@ class QDTrackTest(unittest.TestCase):
         qdtrack = FasterRCNNQDTrack(num_classes=8)
         load_checkpoint(
             qdtrack,
-            "./qdtrack_r50_65point7.ckpt",
+            self.model_weights,
             map_location=torch.device("cpu"),
             revise_keys=REV_KEYS,
         )

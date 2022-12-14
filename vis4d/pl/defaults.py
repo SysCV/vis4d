@@ -1,3 +1,4 @@
+# pylint: disable=consider-using-alias,consider-alternative-union-syntax
 """Common optimizers."""
 from typing import List, Optional
 

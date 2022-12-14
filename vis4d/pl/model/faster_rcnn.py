@@ -1,9 +1,9 @@
+# pylint: disable=consider-using-alias,consider-alternative-union-syntax
 """Default run configuration for pytorch lightning."""
 from typing import Optional
 
 from vis4d.data.datasets.bdd100k import bdd100k_det_map
 from vis4d.data.datasets.coco import coco_det_map
-from vis4d.engine.model.faster_rcnn import data_connector
 from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
 from vis4d.pl.data import DetectDataModule
 from vis4d.pl.defaults import sgd, step_schedule
@@ -32,7 +32,6 @@ def setup_model(  # pylint: disable=invalid-name
     return DefaultOptimizer(
         model,
         loss,
-        data_connector=data_connector,
         optimizer_init=sgd(lr),
         lr_scheduler_init=step_schedule(max_epochs),
     )
@@ -48,7 +47,9 @@ class DefaultCLI(CLI):
 
 
 if __name__ == "__main__":
-    """Example:
+    # pylint: disable=pointless-string-statement
+    """Main function.
 
+    Example Usage:
     >>> python -m vis4d.pl.model.faster_rcnn fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8"""
     DefaultCLI(model_class=setup_model, datamodule_class=DetectDataModule)

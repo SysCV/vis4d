@@ -1,3 +1,4 @@
+# pylint: disable=consider-using-alias,consider-alternative-union-syntax
 """Data module composing the data loading pipeline."""
 from typing import List, Optional, Union, no_type_check
 
@@ -9,7 +10,6 @@ from vis4d.common.logging import rank_zero_info
 from vis4d.data.io import DataBackend, FileBackend, HDF5Backend
 from vis4d.eval.base import Evaluator
 from vis4d.pl.callbacks.evaluator import DefaultEvaluatorCallback
-from vis4d.pl.callbacks.writer import DefaultWriterCallback
 
 
 class DataModule(pl.LightningDataModule):
@@ -84,15 +84,16 @@ class DataModule(pl.LightningDataModule):
         # if self._sampler_cfg is not None:
         #     self.trainer._accelerator_connector.replace_sampler_ddp = False
 
-    def setup_data_callbacks(self, stage: str, log_dir: str) -> List[Callback]:
+    def setup_data_callbacks(
+        self, stage: str, log_dir: str  # pylint: disable=unused-argument
+    ) -> List[Callback]:
         """Setup callbacks for evaluation and prediction writing."""
-        if stage == "predict":
-            return self.writers()  # TODO Implement
-        else:
-            return [
-                DefaultEvaluatorCallback(i, ev)
-                for i, ev in enumerate(self.evaluators())
-            ]
+        # if stage == "predict":
+        #     return self.writers()  # TODO Implement
+        return [
+            DefaultEvaluatorCallback(i, ev)
+            for i, ev in enumerate(self.evaluators())
+        ]
 
     def train_dataloader(self) -> data.DataLoader:
         """Return dataloader for training."""
@@ -102,7 +103,7 @@ class DataModule(pl.LightningDataModule):
         """Define Evaluators used in test stage."""
         return []
 
-    # def writers(self) -> List[BaseWriter]:
+    # def writers(self) -> List[Writer]:
     #     """Define writers used in predict stage."""
     #     return []
 

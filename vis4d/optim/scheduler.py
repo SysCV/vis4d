@@ -4,7 +4,9 @@ from __future__ import annotations
 from torch.optim import Optimizer, lr_scheduler
 
 
-class PolyLRScheduler(lr_scheduler._LRScheduler):
+class PolyLRScheduler(
+    lr_scheduler._LRScheduler  # pylint: disable=protected-access
+):
     """Polynomial learning rate decay."""
 
     def __init__(

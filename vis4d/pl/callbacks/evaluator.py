@@ -1,3 +1,4 @@
+# pylint: disable=consider-alternative-union-syntax,consider-using-alias
 """Evaluation components for tracking."""
 import logging
 import os
@@ -7,14 +8,16 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
-from vis4d.common import MetricLogs, ModelOutput
+from vis4d.common import MetricLogs
 from vis4d.common.typing import DictStrAny
 from vis4d.data.datasets.base import DictData
 from vis4d.eval.base import Evaluator
 from vis4d.pl.distributed import all_gather_object_cpu
 
 
-def default_eval_connector(mode: str, data: DictData, outputs) -> DictStrAny:
+def default_eval_connector(
+    mode: str, data: DictData, outputs  # pylint: disable=unused-argument
+) -> DictStrAny:
     """Default eva connector forwards input and outputs."""
     return dict(data=data, outputs=outputs)
 
@@ -35,7 +38,7 @@ class DefaultEvaluatorCallback(Callback):
         collect: str = "cpu",
     ) -> None:
         """Init class."""
-        assert collect in ["cpu", "gpu"], f"Collect arg {collect} unknown."
+        assert collect in set("cpu", "gpu"), f"Collect arg {collect} unknown."
         self.logging_disabled = False
         self.collect = collect
         self.dataloader_idx = dataloader_idx
@@ -52,7 +55,10 @@ class DefaultEvaluatorCallback(Callback):
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_test_epoch_end PL hook to call 'evaluate'."""
-        gather_func = lambda x: all_gather_object_cpu(x, pl_module)
+
+        def gather_func(x):
+            return all_gather_object_cpu(x, pl_module)
+
         self.evaluator.gather(gather_func)
         if trainer.is_global_zero:
             self.evaluate()
@@ -62,7 +68,10 @@ class DefaultEvaluatorCallback(Callback):
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
-        gather_func = lambda x: all_gather_object_cpu(x, pl_module)
+
+        def gather_func(x):
+            return all_gather_object_cpu(x, pl_module)
+
         self.evaluator.gather(gather_func)
         if trainer.is_global_zero:
             self.evaluate()
@@ -117,7 +126,7 @@ class DefaultEvaluatorCallback(Callback):
         results = {}
         logger = logging.getLogger(__name__)
         if not self.logging_disabled:
-            logger.info(f"Running evaluator {str(self.evaluator)}...")
+            logger.info("Running evaluator %s...", str(self.evaluator))
 
         for metric in self.evaluator.metrics:
             if self.output_dir is not None:

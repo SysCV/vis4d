@@ -1,3 +1,4 @@
+# pylint: disable=consider-using-alias,unsubscriptable-object
 """Base class for Vis4D models."""
 from __future__ import annotations
 
@@ -32,12 +33,16 @@ DEFAULT_OPTIM = {
 }
 
 
-def default_data_connector(mode: str, data: DictData) -> DictStrAny:
+def default_data_connector(
+    mode: str, data: DictData  # pylint: disable=unused-argument
+) -> DictStrAny:
     """Default data connector forwards input with key data."""
     return dict(data=data)
 
 
-class DefaultOptimizer(pl.LightningModule):
+class DefaultOptimizer(
+    pl.LightningModule
+):  # pylint: disable=too-many-ancestors
     """Default optimization routine."""
 
     def __init__(
@@ -63,10 +68,7 @@ class DefaultOptimizer(pl.LightningModule):
         if (
             self.lr_scheduler_init is not None
             and not self.lr_scheduler_init.get("mode", "epoch")
-            in [
-                "step",
-                "epoch",
-            ]
+            in set("step", "epoch")
         ):
             raise ValueError(
                 "Attribute mode of LR Scheduler must be either step or epoch, "
@@ -274,7 +276,7 @@ class DefaultOptimizer(pl.LightningModule):
         """Allow for mismatched shapes when loading checkpoints."""
         state_dict = checkpoint["state_dict"]
         model_state_dict = self.state_dict()
-        for k in model_state_dict:
+        for k in model_state_dict.keys():
             if k in checkpoint["state_dict"]:
                 if (
                     checkpoint["state_dict"][k].shape
