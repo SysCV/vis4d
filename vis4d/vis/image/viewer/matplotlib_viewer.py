@@ -22,4 +22,5 @@ class MatplotlibImageViewer(ImageViewerBackend):
         """
         for image in images:
             plt.imshow(image)
+            plt.axis("off")
             plt.show(block=blocking)
