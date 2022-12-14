@@ -90,6 +90,12 @@ def preprocess_boxes(
     boxes_proc: list[tuple[float, float, float, float]] = []
     colors_proc: list[tuple[float, float, float]] = []
     labels_proc: list[str] = []
+
+    # Only one box provided
+    if len(boxes.shape) == 1:
+        # unsqueeze one dimension
+        boxes = boxes.reshape(1, -1)
+
     for idx in range(boxes.shape[0]):
         class_id = None if class_ids is None else class_ids[idx].item()
         score = None if scores is None else scores[idx].item()
