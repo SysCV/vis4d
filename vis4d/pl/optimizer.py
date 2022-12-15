@@ -68,7 +68,7 @@ class DefaultOptimizer(
         if (
             self.lr_scheduler_init is not None
             and not self.lr_scheduler_init.get("mode", "epoch")
-            in set("step", "epoch")
+            in set(("step", "epoch"))
         ):
             raise ValueError(
                 "Attribute mode of LR Scheduler must be either step or epoch, "

@@ -38,7 +38,9 @@ class DefaultEvaluatorCallback(Callback):
         collect: str = "cpu",
     ) -> None:
         """Init class."""
-        assert collect in set("cpu", "gpu"), f"Collect arg {collect} unknown."
+        assert collect in set(
+            ("cpu", "gpu")
+        ), f"Collect device {collect} unknown."
         self.logging_disabled = False
         self.collect = collect
         self.dataloader_idx = dataloader_idx
