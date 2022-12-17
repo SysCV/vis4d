@@ -1,5 +1,5 @@
 """Type definitions in Vis4D."""
-from typing import Any, Dict, Union
+from typing import Any, Dict, Iterable, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -19,3 +19,6 @@ ArgsType = Any  # type: ignore
 ModelOutput = DictStrAny
 TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
 LossesType = Dict[str, Tensor]
+
+ArrayIterable = Iterable[Union[int, float, "ArrayIterable"]]
+ArrayLike = Union[Tensor, npt.NDArray[any], ArrayIterable]  # type: ignore
