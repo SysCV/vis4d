@@ -1,4 +1,4 @@
-"""Tensor utility functions."""
+"""Array utility functions."""
 from __future__ import annotations
 
 from typing import overload
