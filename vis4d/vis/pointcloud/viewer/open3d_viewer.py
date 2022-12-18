@@ -1,4 +1,4 @@
-"""Open3d visualization backend"""
+"""Open3d visualization backend."""
 from __future__ import annotations
 
 import os
@@ -192,7 +192,6 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
             origin = o3d.geometry.TriangleMesh.create_coordinate_frame(
                 size=0.6, origin=[*offset]
             )
-            print(semantics)
             colors = self.class_color_mapping[
                 semantics.squeeze() % self.class_color_mapping.shape[0]
             ]
