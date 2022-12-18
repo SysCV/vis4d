@@ -6,7 +6,24 @@ from typing import overload
 import numpy as np
 import torch
 
-from vis4d.common.typing import ArrayLike, NDArrayNumber
+from vis4d.common.typing import (
+    ArrayLike,
+    ArrayLikeBool,
+    ArrayLikeInt,
+    NDArrayBool,
+    NDArrayInt,
+    NDArrayNumber,
+)
+
+
+@overload
+def convert_to_array(data: ArrayLikeBool, n_dims: int | None) -> NDArrayBool:
+    ...
+
+
+@overload
+def convert_to_array(data: ArrayLikeInt, n_dims: int | None) -> NDArrayInt:
+    ...
 
 
 @overload
