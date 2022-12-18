@@ -9,8 +9,6 @@ from vis4d.common.typing import (
     ArrayLikeBool,
     ArrayLikeFloat,
     ArrayLikeInt,
-    NDArrayF64,
-    NDArrayI64,
     NDArrayUI8,
 )
 from vis4d.vis.image.base import CanvasBackend, ImageViewerBackend
@@ -21,8 +19,11 @@ from vis4d.vis.image.util import (
     preprocess_masks,
 )
 from vis4d.vis.image.viewer import MatplotlibImageViewer
-from vis4d.vis.pointcloud.pointcloud_visualizer import PointCloudVisualizer
-from vis4d.vis.util import generate_color_map
+from vis4d.vis.pointcloud.base import PointCloudVisualizerBackend, Scene3D
+from vis4d.vis.pointcloud.viewer.open3d_viewer import (
+    Open3DVisualizationBackend,
+)
+from vis4d.vis.util import DEFAULT_COLOR_MAPPING, generate_color_map
 
 # ======================== Image ==================================
 
@@ -317,22 +318,81 @@ def imshow_track_matches(
 
 
 # =========================== Pointcloud ===================================
-def show_points(
-    points_xyz: NDArrayF64,
-    semantics: NDArrayI64 | None = None,
-    instances: NDArrayI64 | None = None,
-    colors: NDArrayF64 | None = None,
-    backend: str = "open3d",
-) -> None:
-    """Visualizes point cloud data.
+def show_3d(
+    scene: Scene3D,
+    viewer: PointCloudVisualizerBackend = Open3DVisualizationBackend(
+        class_color_mapping=DEFAULT_COLOR_MAPPING
+    ),
+):
+    """Shows a given 3D scene.
+
+    This method shows a 3D visualization of a given 3D scene. Use the viewer
+    attribute to use different visualization backends (e.g. open3d)
 
     Args:
-        points_xyz: xyz coordinates of the points shape [B, N, 3]
-        semantics: semantic ids of the points shape [B, N, 1]
-        instances: instance ids of the points shape [B, N, 1]
-        colors: colors of the points shape [B, N,3] and ranging from  [0,1]
-        backend (str): Which visualization backend to use. Choice from [open3d]
+        scene (Scene3D): The 3D scene that should be visualized.
+        viewer (PointCloudVisualizerBackend, optional): The Visualization
+            backend that should be used to visualize the scene.
+            Defaults to Open3DVisualizationBackend.
     """
-    vis = PointCloudVisualizer(backend)
-    vis.process_single(points_xyz, semantics, instances, colors)
-    vis.show()
+    viewer.add_scene(scene)
+    viewer.show()
+    viewer.reset()
+
+
+def draw_points(
+    points_xyz: ArrayLikeFloat,
+    colors: ArrayLikeFloat | None = None,
+    classes: ArrayLikeInt | None = None,
+    instances: ArrayLikeInt | None = None,
+    transform: ArrayLikeFloat | None = None,
+    scene: Scene3D | None = None,
+) -> Scene3D:
+    """Adds pointcloud data to a 3D scene for visualization purposes.
+
+    Args:
+        points_xyz: xyz coordinates of the points shape [N, 3]
+        classes: semantic ids of the points shape [N, 1]
+        instances: instance ids of the points shape [N, 1]
+        colors: colors of the points shape [N,3] and ranging from  [0,1]
+        transform: Optional 4x4 SE3 transform that transforms the point data
+            into a static reference frame.
+        scene (Scene3D | None): Visualizer that should be used to display the
+            data.
+    """
+    if scene is None:
+        scene = Scene3D()
+
+    return scene.add_pointcloud(
+        *arrays_to_numpy(points_xyz, colors, n_dims=2),
+        *arrays_to_numpy(classes, instances, n_dims=1),
+        *arrays_to_numpy(transform, n_dims=2),
+    )
+
+
+def show_points(
+    points_xyz: ArrayLikeFloat,
+    colors: ArrayLikeFloat | None = None,
+    classes: ArrayLikeInt | None = None,
+    instances: ArrayLikeInt | None = None,
+    transform: ArrayLikeFloat | None = None,
+    viewer: PointCloudVisualizerBackend = Open3DVisualizationBackend(
+        class_color_mapping=DEFAULT_COLOR_MAPPING
+    ),
+) -> None:
+    """Visualizes a pointcloud with color and semantic information.
+
+    Args:
+        points_xyz: xyz coordinates of the points shape [N, 3]
+        classes: semantic ids of the points shape [N, 1]
+        instances: instance ids of the points shape [N, 1]
+        colors: colors of the points shape [N,3] and ranging from  [0,1]
+        transform: Optional 4x4 SE3 transform that transforms the point data
+            into a static reference frame
+        viewer (PointCloudVisualizerBackend, optional): The Visualization
+            backend that should be used to visualize the scene.
+            Defaults to Open3DVisualizationBackend.
+    """
+    show_3d(
+        draw_points(points_xyz, colors, classes, instances, transform), viewer
+    )

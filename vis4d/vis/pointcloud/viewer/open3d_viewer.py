@@ -7,12 +7,12 @@ import numpy as np
 import open3d as o3d
 
 from vis4d.common.typing import NDArrayF64
-
-from .base import PointcloudScene, PointCloudVisualizerBackend
+from vis4d.vis.pointcloud.base import PointCloudVisualizerBackend
+from vis4d.vis.pointcloud.scene import Scene3D
 
 
 class Open3DVisualizationBackend(PointCloudVisualizerBackend):
-    """Backend that uses open3d to visualize potincloud data"""
+    """Backend that uses open3d to visualize potincloud data."""
 
     def __init__(
         self,
@@ -25,12 +25,14 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
         Args:
             color_mapping (NDArrayF64): array of size [n_classes, 3] that maps
                 each class index to a unique color.
-            class_color_mapping (NDArrayF64): array of size [n_classes, 3] that
-                maps each instance to a unique color.
+            class_color_mapping (list[tuple[float, float, float]]): List of
+                size [n_classes, 3] that maps each class id to a unique color.
+            instance_color_mapping (list[tuple[float, float, float]]): List
+                of size [n_classes, 3] that maps each instance id to unqiue
+                color.
             use_same_window (bool): If true, visualizes all predictions in
                 same window by creating mutiple pointclouds which are offset
                 by each other. If false creates a window for each attribute.
-
         """
         super().__init__(
             class_color_mapping=class_color_mapping,
@@ -49,7 +51,6 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
         for idx, scene in enumerate(self.scenes):
             out_folder = os.path.join(path_to_out_folder, f"scene_{idx:03d}")
             os.makedirs(out_folder, exist_ok=True)
-
             colors = self._create_o3d_cloud(scene.points, scene.colors)
             o3d.io.write_point_cloud(
                 os.path.join(out_folder, "colors.ply"), colors
@@ -142,7 +143,7 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
         return pcd
 
     def _get_vis_data_for_scene(
-        self, scene: PointcloudScene
+        self, scene: Scene3D
     ) -> list[list[o3d.geometry.TriangleMesh | o3d.geometry.PointCloud]]:
         """Converts a given scene to a list of o3d data to visualize.
 
@@ -152,18 +153,34 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
             list[list[o3d.geometry]]: List of o3d geometries to show.
         """
         # Visualize each scene
-        points = scene.points
-        colors = scene.colors
-        semantics = scene.semantics
-        instances = scene.instances
+        points = np.zeros((0, 3))
+        colors = np.zeros((0, 3))
+        semantics = np.zeros(0).astype(int)
+        instances = np.zeros(0).astype(int)
 
-        pts_bounds = np.max(np.abs(points), axis=0)  # max bounds xyz
+        for pc in scene.pointclouds:
+            points = np.concatenate([points, pc.xyz])
+            # FIXME. This will only work if ALL points have colors, instances
+            # etc or No points have, Otherwise we will have missmatched
+            # assignements
+            if pc.colors is not None:
+                colors = np.concatenate([colors, pc.colors])
+            if pc.classes is not None:
+                semantics = np.concatenate([semantics, pc.classes])
+            if pc.instances is not None:
+                instances = np.concatenate([instances, pc.instances])
+
+        pts_bounds = np.max(np.abs(points), axis=0) * 2  # max bounds xyz
 
         origin = o3d.geometry.TriangleMesh.create_coordinate_frame(
             size=0.6, origin=[0, 0, 0]
         )
+        data_to_visualize = []
 
-        data_to_visualize = [[origin, self._create_o3d_cloud(points, colors)]]
+        if len(colors) > 0:
+            data_to_visualize += [
+                [origin, self._create_o3d_cloud(points, colors)]
+            ]
 
         if len(semantics) > 0:
             # Move origin for visualization
@@ -175,6 +192,7 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
             origin = o3d.geometry.TriangleMesh.create_coordinate_frame(
                 size=0.6, origin=[*offset]
             )
+            print(semantics)
             colors = self.class_color_mapping[
                 semantics.squeeze() % self.class_color_mapping.shape[0]
             ]
