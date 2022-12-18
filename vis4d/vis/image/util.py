@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 
-from vis4d.common.array import convert_to_array, convert_to_arrays
+from vis4d.common.array import array_to_numpy, arrays_to_numpy
 from vis4d.common.typing import (
     ArrayLike,
     ArrayLikeBool,
@@ -88,8 +88,8 @@ def preprocess_boxes(
     if class_id_mapping is None:
         class_id_mapping = {}
 
-    boxes = convert_to_array(boxes, n_dims=2)
-    (scores, class_ids, track_ids) = convert_to_arrays(
+    boxes = array_to_numpy(boxes, n_dims=2)
+    (scores, class_ids, track_ids) = arrays_to_numpy(
         scores, class_ids, track_ids, n_dims=1
     )
 
@@ -147,8 +147,8 @@ def preprocess_masks(
         tuple[list[masks], list[colors]]: Returns a list with all masks of
             shape [h,w] as well as a list with the corresponding colors.
     """
-    masks = convert_to_array(masks, n_dims=3)
-    class_ids = convert_to_array(class_ids, n_dims=1)
+    masks = array_to_numpy(masks, n_dims=3)
+    class_ids = array_to_numpy(class_ids, n_dims=1)
 
     mask_list: list[NDArrayBool] = []
     color_list: list[tuple[float, float, float]] = []
@@ -178,7 +178,7 @@ def preprocess_image(
     Returns:
         np.array[uint8]: Processed image_np in RGB.
     """
-    image_np = convert_to_array(image, n_dims=3)  # type: ignore no-redef
+    image_np = array_to_numpy(image, n_dims=3)  # type: ignore no-redef
     # Convert torch to numpy
     assert len(image_np.shape) == 3
     assert image_np.shape[0] == 3 or image_np.shape[-1] == 3

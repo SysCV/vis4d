@@ -17,26 +17,26 @@ from vis4d.common.typing import (
 
 
 @overload
-def convert_to_array(data: ArrayLikeBool, n_dims: int | None) -> NDArrayBool:
+def array_to_numpy(data: ArrayLikeBool, n_dims: int | None) -> NDArrayBool:
     ...
 
 
 @overload
-def convert_to_array(data: ArrayLikeInt, n_dims: int | None) -> NDArrayInt:
+def array_to_numpy(data: ArrayLikeInt, n_dims: int | None) -> NDArrayInt:
     ...
 
 
 @overload
-def convert_to_array(data: ArrayLike, n_dims: int | None) -> NDArrayNumber:
+def array_to_numpy(data: ArrayLike, n_dims: int | None) -> NDArrayNumber:
     ...
 
 
 @overload
-def convert_to_array(data: None, n_dims: int | None) -> None:
+def array_to_numpy(data: None, n_dims: int | None) -> None:
     ...
 
 
-def convert_to_array(
+def array_to_numpy(
     data: ArrayLike | None, n_dims: int | None = None
 ) -> NDArrayNumber | None:
     """Converts a given array like object to a numpy array.
@@ -46,13 +46,13 @@ def convert_to_array(
 
     If the argument is None, None will be returned.
 
-    Example:
+    Examples:
     >>> convert_to_array([1,2,3])
-    >>> # -> array[1,2,3]
+    >>> # -> array([1,2,3])
     >>> convert_to_array(None)
     >>> # -> None
     >>> convert_to_array(torch.tensor([1,2,3]).cuda())
-    >>> # -> array[1,2,3]
+    >>> # -> array([1,2,3])
     >>> convert_to_array([1,2,3], n_dims = 2).shape
     >>> # -> [1, 3]
 
@@ -63,7 +63,7 @@ def convert_to_array(
         n_dims (int | None, optional): Target number of dimension of the array.
             If the provided array does not have this shape, it will be
             squeezed or exanded (from the left). If it still does not match,
-            an error is Raised.
+            an error is raised.
 
     Raises:
         ValueError: If the provied array like objects can not be converted
@@ -104,7 +104,7 @@ def convert_to_array(
     return array
 
 
-def convert_to_arrays(
+def arrays_to_numpy(
     *args: ArrayLike | None, n_dims: int | None = None
 ) -> tuple[NDArrayNumber | None, ...]:
     """Converts a given sequence of optional ArrayLike objects to numpy.
@@ -123,4 +123,4 @@ def convert_to_arrays(
     Returns:
         tuple[NDArrayNumber | None]: The converted arguments as numpy array.
     """
-    return tuple(convert_to_array(arg, n_dims) for arg in args)
+    return tuple(array_to_numpy(arg, n_dims) for arg in args)

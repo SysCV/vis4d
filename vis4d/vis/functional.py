@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from vis4d.common.array import convert_to_array, convert_to_arrays
+from vis4d.common.array import array_to_numpy, arrays_to_numpy
 from vis4d.common.typing import (
     ArrayLike,
     ArrayLikeBool,
@@ -232,7 +232,7 @@ def imshow_topk_bboxes(
             to use. Defaults to MatplotlibImageViewer().
 
     """
-    scores = convert_to_array(scores, n_dims=1)
+    scores = array_to_numpy(scores, n_dims=1)
     top_k_idxs = np.argpartition(scores.ravel(), -topk)[-topk:]
     imshow_bboxes(
         image,
@@ -272,12 +272,12 @@ def imshow_track_matches(
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
     """
-    key_imgs = convert_to_arrays(*key_imgs, n_dims=3)
-    ref_imgs = convert_to_arrays(*ref_imgs, n_dims=3)
-    key_boxes = convert_to_arrays(*key_boxes, n_dims=2)
-    ref_boxes = convert_to_arrays(*ref_boxes, n_dims=2)
-    key_track_ids = convert_to_arrays(*key_track_ids, n_dims=1)
-    ref_track_ids = convert_to_arrays(*ref_track_ids, n_dims=1)
+    key_imgs = arrays_to_numpy(*key_imgs, n_dims=3)
+    ref_imgs = arrays_to_numpy(*ref_imgs, n_dims=3)
+    key_boxes = arrays_to_numpy(*key_boxes, n_dims=2)
+    ref_boxes = arrays_to_numpy(*ref_boxes, n_dims=2)
+    key_track_ids = arrays_to_numpy(*key_track_ids, n_dims=1)
+    ref_track_ids = arrays_to_numpy(*ref_track_ids, n_dims=1)
 
     for batch_i, (key_box, ref_box) in enumerate(zip(key_boxes, ref_boxes)):
         target = key_track_ids[batch_i].reshape(-1, 1) == ref_track_ids[
