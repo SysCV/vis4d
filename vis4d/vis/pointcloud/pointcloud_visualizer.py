@@ -4,14 +4,12 @@ from __future__ import annotations
 from vis4d.common.imports import OPEN3D_AVAILABLE
 from vis4d.common.typing import NDArrayF64, NDArrayI64
 from vis4d.vis.base import Visualizer
-from vis4d.vis.pointcloud.base import (
-    PointcloudScene,
-    PointCloudVisualizerBackend,
-)
+from vis4d.vis.pointcloud.base import PointCloudVisualizerBackend
+from vis4d.vis.pointcloud.scene import Scene3D
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 if OPEN3D_AVAILABLE:
-    from .o3d_backend import Open3DVisualizationBackend
+    from .viewer.open3d_viewer import Open3DVisualizationBackend
 
 
 class PointCloudVisualizer(Visualizer):
@@ -53,7 +51,7 @@ class PointCloudVisualizer(Visualizer):
             raise ValueError(f"Unknown Point Visualization Backend {backend}")
 
         self.current_scene_idx: int | None = None
-        self.current_scene: PointcloudScene | None = None
+        self.current_scene: Scene3D | None = None
 
     def process_single(
         self,

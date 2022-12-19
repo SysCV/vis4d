@@ -10,6 +10,7 @@ Welcome to Vis4D's documentation!
    tutorials/install
    tutorials/getting_started
    tutorials/visualization
+   tutorials/3D_visualization
 
 
 .. toctree::

@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import numpy as np
 import numpy.typing as npt
-import torch
 
+from vis4d.common.array import array_to_numpy, arrays_to_numpy
 from vis4d.common.typing import (
+    ArrayLike,
+    ArrayLikeBool,
+    ArrayLikeFloat,
+    ArrayLikeInt,
     NDArrayBool,
-    NDArrayF64,
-    NDArrayI64,
-    NDArrayNumber,
 )
 from vis4d.vis.image.base import CanvasBackend
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
@@ -49,10 +50,10 @@ def _get_box_label(
 
 
 def preprocess_boxes(
-    boxes: NDArrayF64,
-    scores: None | NDArrayF64 = None,
-    class_ids: None | NDArrayI64 = None,
-    track_ids: None | NDArrayI64 = None,
+    boxes: ArrayLikeFloat,
+    scores: None | ArrayLikeFloat = None,
+    class_ids: None | ArrayLikeInt = None,
+    track_ids: None | ArrayLikeInt = None,
     color_palette: list[tuple[float, float, float]] = DEFAULT_COLOR_MAPPING,
     class_id_mapping: dict[int, str] | None = None,
     default_color: tuple[int, int, int] = (255, 0, 0),
@@ -67,12 +68,12 @@ def preprocess_boxes(
     into lists of corners, labels and colors.
 
     Args:
-        boxes (NDArrayF64): Boxes of shape [N, 4] where N is the number of
+        boxes (ArrayLikeFloat): Boxes of shape [N, 4] where N is the number of
                             boxes and the second channel consists of
                             (x1,y1,x2,y2) box coordinates.
-        scores (NDArrayF64): Scores for each box shape [N]
-        class_ids (NDArrayI64): Class id for each box shape [N]
-        track_ids (NDArrayI64): Track id for each box shape [N]
+        scores (ArrayLikeFloat): Scores for each box shape [N]
+        class_ids (ArrayLikeInt): Class id for each box shape [N]
+        track_ids (ArrayLikeInt): Track id for each box shape [N]
         color_palette (list[tuple[float, float, float]]): Color palette for
             each id.
         class_id_mapping(dict[int, str], optional): Mapping from class id
@@ -86,6 +87,11 @@ def preprocess_boxes(
     """
     if class_id_mapping is None:
         class_id_mapping = {}
+
+    boxes = array_to_numpy(boxes, n_dims=2)
+    (scores, class_ids, track_ids) = arrays_to_numpy(
+        scores, class_ids, track_ids, n_dims=1
+    )
 
     boxes_proc: list[tuple[float, float, float, float]] = []
     colors_proc: list[tuple[float, float, float]] = []
@@ -124,15 +130,15 @@ def preprocess_boxes(
 
 
 def preprocess_masks(
-    masks: NDArrayBool,
-    class_ids: NDArrayI64 | None,
+    masks: ArrayLikeBool,
+    class_ids: ArrayLikeInt | None,
     color_mapping: list[tuple[float, float, float]] = DEFAULT_COLOR_MAPPING,
 ) -> tuple[list[NDArrayBool], list[tuple[float, float, float]]]:
     """Preprocesses predicted semantic masks.
 
     Args:
-        masks (NDArrayBool): The semantic masks of shape [N, h, w].
-        class_ids (NDArrayI64, None):  An array with class ids for each mask
+        masks (ArrayLikeBool): The semantic masks of shape [N, h, w].
+        class_ids (ArrayLikeInt, None):  An array with class ids for each mask
             shape [N]
         color_mapping (list[tuple[float, float, float]]): Color mapping for
             each semantic class
@@ -141,6 +147,9 @@ def preprocess_masks(
         tuple[list[masks], list[colors]]: Returns a list with all masks of
             shape [h,w] as well as a list with the corresponding colors.
     """
+    masks = array_to_numpy(masks, n_dims=3)
+    class_ids = array_to_numpy(class_ids, n_dims=1)
+
     mask_list: list[NDArrayBool] = []
     color_list: list[tuple[float, float, float]] = []
 
@@ -158,26 +167,19 @@ def preprocess_masks(
 
 
 def preprocess_image(
-    image: NDArrayNumber | torch.Tensor, mode: str = "RGB"
+    image: ArrayLike, mode: str = "RGB"
 ) -> npt.NDArray[np.uint8]:
     """Validate and convert input image.
 
     Args:
-        image: CHW or HWC image (ImageType) with C = 3.
+        image: CHW or HWC image (ArrayLike) with C = 3.
         mode: input channel format (e.g. BGR, HSV).
 
     Returns:
-        np.array[uint8]: Processed image in RGB.
+        np.array[uint8]: Processed image_np in RGB.
     """
+    image_np = array_to_numpy(image, n_dims=3)  # type: ignore no-redef
     # Convert torch to numpy
-    if isinstance(image, torch.Tensor):
-        image_np = image.numpy()
-    else:
-        image_np = image
-
-    if len(image_np.shape) == 4:  # got batch dimension
-        image_np = image_np.squeeze(0)
-
     assert len(image_np.shape) == 3
     assert image_np.shape[0] == 3 or image_np.shape[-1] == 3
 
