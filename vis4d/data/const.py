@@ -82,7 +82,7 @@ class CommonKeys:
 
     # sensor calibration
     intrinsics = "intrinsics"
-    extrinsics = "extrinsiscs"
+    extrinsics = "extrinsics"
     axis_mode = "axis_mode"
     timestamp = "timestamp"
 

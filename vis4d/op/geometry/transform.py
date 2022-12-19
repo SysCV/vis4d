@@ -41,7 +41,7 @@ def inverse_pinhole(intrinsic_matrix: Tensor) -> Tensor:
     """Calculate inverse of pinhole projection matrix.
 
     Args:
-        intrinsic_matrix (Tensor): [N, 3, 3] intrinsics or single [3, 3]
+        intrinsic_matrix (Tensor): [..., 3, 3] intrinsics or single [3, 3]
             intrinsics.
 
     Returns:
@@ -53,10 +53,10 @@ def inverse_pinhole(intrinsic_matrix: Tensor) -> Tensor:
         inv = inv.unsqueeze(0)
         squeeze = True
 
-    inv[:, 0, 0] = 1.0 / inv[:, 0, 0]
-    inv[:, 1, 1] = 1.0 / inv[:, 1, 1]
-    inv[:, 0, 2] = -inv[:, 0, 2] * inv[:, 0, 0]
-    inv[:, 1, 2] = -inv[:, 1, 2] * inv[:, 1, 1]
+    inv[..., 0, 0] = 1.0 / inv[..., 0, 0]
+    inv[..., 1, 1] = 1.0 / inv[..., 1, 1]
+    inv[..., 0, 2] = -inv[..., 0, 2] * inv[..., 0, 0]
+    inv[..., 1, 2] = -inv[..., 1, 2] * inv[..., 1, 1]
 
     if squeeze:
         inv = inv.squeeze(0)
