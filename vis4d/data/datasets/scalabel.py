@@ -279,6 +279,7 @@ class Scalabel(Dataset, CacheMappingMixin):
             data[CommonKeys.original_hw] = (image.shape[2], image.shape[3])
             data[CommonKeys.input_hw] = (image.shape[2], image.shape[3])
             data[CommonKeys.axis_mode] = AxisMode.OPENCV
+            data[CommonKeys.frame_ids] = frame.frameIndex
         if (
             frame.intrinsics is not None
             and CommonKeys.intrinsics in self.inputs_to_load

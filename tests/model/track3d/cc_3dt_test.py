@@ -1,7 +1,7 @@
 """CC-3DT Tests."""
 import torch
 
-from tests.util import get_test_file
+from tests.util import get_test_data
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.nuscenes import NuScenes
 from vis4d.data.datasets.scalabel import Scalabel
@@ -33,9 +33,6 @@ def test_inference():
     # box3d_head = Box3DHead() # TODO
     # transform_box3d = RoI2Det3D() # TODO
 
-    data_root = get_test_file("track/bdd100k-samples/images", rel_path="run")
-    annotations = get_test_file("track/bdd100k-samples/labels", rel_path="run")
-    config = get_test_file("track/bdd100k-samples/config.toml", rel_path="run")
     test_data = DataPipe(
         NuScenes(
             "data/nuscenes_mini/", version="v1.0-mini", split="mini_train"

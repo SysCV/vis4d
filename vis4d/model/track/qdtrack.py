@@ -4,9 +4,17 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from vis4d.model.detect.faster_rcnn import FasterRCNN
+from vis4d.op.base import ResNet
 from vis4d.op.box.matchers import MaxIoUMatcher
 from vis4d.op.box.samplers import CombinedSampler, match_and_sample_proposals
+from vis4d.op.detect.faster_rcnn import (
+    FasterRCNNHead,
+    get_default_anchor_generator,
+    get_default_rcnn_box_encoder,
+    get_default_rpn_box_encoder,
+)
+from vis4d.op.detect.rcnn import RoI2Det
+from vis4d.op.fpp import FPN
 from vis4d.op.track.assignment import TrackIDCounter
 from vis4d.op.track.qdtrack import (
     QDSimilarityHead,
@@ -228,7 +236,19 @@ class FasterRCNNQDTrack(nn.Module):
     def __init__(self, num_classes: int) -> None:
         """Init."""
         super().__init__()
-        self.faster_rcnn = FasterRCNN(num_classes=num_classes)
+        self.anchor_gen = get_default_anchor_generator()
+        self.rpn_bbox_encoder = get_default_rpn_box_encoder()
+        self.rcnn_bbox_encoder = get_default_rcnn_box_encoder()
+
+        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        self.fpn = FPN(self.backbone.out_channels[2:], 256)
+        self.faster_rcnn_heads = FasterRCNNHead(
+            num_classes=num_classes,
+            anchor_generator=self.anchor_gen,
+            rpn_box_encoder=self.rpn_bbox_encoder,
+            rcnn_box_encoder=self.rcnn_bbox_encoder,
+        )
+        self.roi2det = RoI2Det(self.rcnn_bbox_encoder)
         self.qdtrack = QDTrack()
 
     def forward(
@@ -252,7 +272,7 @@ class FasterRCNNQDTrack(nn.Module):
         features = self.fpn(features)
         detector_out = self.faster_rcnn_heads(features, images_hw)
 
-        boxes, scores, class_ids = self.faster_rcnn.roi2det(
+        boxes, scores, class_ids = self.roi2det(
             *detector_out.roi, detector_out.proposals.boxes, images_hw
         )
         outs = self.qdtrack(features, boxes, scores, class_ids, frame_ids)

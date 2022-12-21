@@ -71,12 +71,13 @@ pygments_dark_style = "monokai"
 #
 html_theme = "furo"
 
-# html_theme_options = {
-#     #'light_logo': '_static/logo_light.svg',  TODO add logo
-#     #'dark_logo': '_static/logo_dark.svg',
-#     "sidebar_hide_name": True,
-#     "navigation_with_keys": True,
-# }
+# TODO revise logo
+html_theme_options = {
+    "light_logo": "icon.png",
+    "dark_logo": "icon.png",
+    "sidebar_hide_name": True,
+    "navigation_with_keys": True,
+}
 
 # html_favicon = '_static/img/logo_favicon.png'
 

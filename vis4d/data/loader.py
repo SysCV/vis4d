@@ -286,6 +286,7 @@ def build_inference_dataloaders(
             batch_size=samples_per_gpu,
             num_workers=workers_per_gpu,
             sampler=dset_sampler,
+            shuffle=False,
             collate_fn=_collate_fn,
             persistent_workers=workers_per_gpu > 0,
         )

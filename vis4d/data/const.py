@@ -31,13 +31,12 @@ class CommonKeys:
     keys where we expect a pre-defined format to enable the usage of common
     data pre-processing operations among different datasets.
 
-    transform_params: DictStrAny
-    batch_transform_params: DictStrAny
-
     images (Tensor): Image of shape [1, C, H, W].
     original_hw (Tuple[int, int]): Original shape of image in (height, width).
     input_hw (Tuple[int, int]): Shape of image in (height, width) after
         transformations.
+    frame_ids (int): If the dataset contains videos, this field indicates the
+        temporal frame index of the current image / sample.
 
     boxes2d (Tensor): 2D bounding boxes of shape [N, 4] in xyxy format.
     boxes2d_classes (Tensor): Semantic classes of 2D bounding boxes, shape
@@ -64,14 +63,11 @@ class CommonKeys:
         [N,].
     """
 
-    # transformation parameters
-    transform_params = "transform_params"
-    batch_transform_params = "batch_transform_params"
-
     # image based inputs
     images = "images"
     original_hw = "original_hw"
     input_hw = "input_hw"
+    frame_ids = "frame_ids"
 
     # 2D annotations
     boxes2d = "boxes2d"
