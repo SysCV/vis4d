@@ -20,7 +20,12 @@ def get_test_data(dir_name: str) -> str:
         str: Absolute path to test data directory.
     """
     prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
-    prefix_code, _ = prefix.rsplit("tests", 1)
+    if "tests" in prefix:
+        prefix_code, _ = prefix.rsplit("tests", 1)
+    elif "vis4d" in prefix:
+        # We are calling this function from a file inside the vis4d structure
+        # and note the tests folder
+        prefix_code, _ = prefix.rsplit("vis4d", 1)
     return os.path.join(prefix_code, "tests", "test_data", dir_name)
 
 
@@ -38,9 +43,17 @@ def get_test_file(file_name: str, rel_path: None | str = None) -> str:
         str: Absolute path to test file <cwd/testcases/file_name>.
     """
     prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
-    prefix_code, prefix_rel = prefix.rsplit("tests", 1)
+
+    if "tests" in prefix:
+        prefix_code, prefix_rel = prefix.rsplit("tests", 1)
+    elif "vis4d" in prefix:
+        # We are calling this function from a file inside the vis4d structure
+        # and note the tests folder
+        prefix_code, prefix_rel = prefix.rsplit("vis4d", 1)
+
     if rel_path is None:
         rel_path = prefix_rel
+
     return os.path.join(
         prefix_code, "tests", rel_path.strip("/"), "testcases", file_name
     )
