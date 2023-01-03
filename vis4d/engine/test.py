@@ -8,8 +8,8 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from vis4d.common import DictStrAny
 from vis4d.data import DictData
+from vis4d.data.connectors import DataConnector
 from vis4d.eval import Evaluator
 from vis4d.vis.base import Visualizer
 
@@ -21,6 +21,10 @@ class Tester:
 
     def __init__(
         self,
+        dataloaders: list[DataLoader[DictData]],
+        data_connector: DataConnector,
+        evaluators: dict[str, Evaluator] | None = None,
+        visualizers: dict[str, Visualizer] | None = None,
         num_epochs: int = -1,
         test_every_nth_epoch: int = 1,
         vis_every_nth_epoch: int = 1,
@@ -30,28 +34,10 @@ class Tester:
         self.test_every_nth_epoch = test_every_nth_epoch
         self.vis_every_nth_epoch = vis_every_nth_epoch
 
-        self.test_dataloader = self.setup_test_dataloaders()
-        self.evaluators = self.setup_evaluators()
-        self.visualizers = self.setup_visualizers()
-
-    def setup_test_dataloaders(self) -> list[DataLoader]:
-        """Set-up testing data loaders."""
-        raise NotImplementedError
-
-    def test_connector(self, data: DictData) -> DictData:
-        """Connector between the test data and the model."""
-        return data
-
-    def setup_evaluators(self) -> list[Evaluator]:
-        """Set-up evaluators."""
-        raise NotImplementedError
-
-    def evaluator_connector(
-        self, data: DictData, output: DictStrAny
-    ) -> DictStrAny:
-        """Connector between the data and the evaluator."""
-        # For now just wrap data connector to not break anything.
-        return data | output
+        self.test_dataloader = dataloaders
+        self.data_connector = data_connector
+        self.evaluators = evaluators if evaluators is not None else dict()
+        self.visualizers = visualizers if visualizers is not None else dict()
 
     def do_evaluation(self, epoch: int) -> bool:
         """Return whether to do evaluation for current epoch."""
@@ -60,10 +46,6 @@ class Tester:
             or epoch % self.test_every_nth_epoch
             == self.test_every_nth_epoch - 1
         )
-
-    def setup_visualizers(self) -> list[Visualizer]:
-        """Set-up visualizers."""
-        raise NotImplementedError
 
     def do_visualization(self, epoch: int) -> bool:
         """Return whether to do visualization for current epoch."""
@@ -86,28 +68,36 @@ class Tester:
                 # input data
                 device = next(model.parameters()).device  # model device
                 data = move_data_to_device(data, device)
-                test_input = self.test_connector(data)
+                test_input = self.data_connector.get_test_input(data)
 
                 # forward
                 output = model(**test_input)
 
                 if not epoch or self.do_evaluation(epoch):
-                    for test_eval in self.evaluators:
-                        eval_kwargs = self.evaluator_connector(data, output)
+                    # TODO, this should be all numpy.
+                    for name, test_eval in self.evaluators.items():
+                        eval_kwargs = self.data_connector.get_evaluator_input(
+                            name, output, data
+                        )
                         test_eval.process(
-                            **move_data_to_device(eval_kwargs, "cpu", True)
+                            **move_data_to_device(  # TODO, maybe move this to data connector?
+                                eval_kwargs, "cpu", True
+                            )
                         )
 
                 if not epoch or self.do_visualization(epoch):
-                    for vis in self.visualizers:
-                        vis.process(data, output)
+                    for name, vis in self.visualizers.items():
+                        eval_kwargs = self.data_connector.get_visualizer_input(
+                            name, output, data
+                        )
+                        vis.process(**eval_kwargs)  # type: ignore
 
         if not epoch or self.do_evaluation(epoch):
-            for test_eval in self.evaluators:
+            for name, test_eval in self.evaluators.items():
                 _, log_str = test_eval.evaluate(metric)
                 logger.info(log_str)
 
         if not epoch or self.do_visualization(epoch):
-            for test_vis in self.visualizers:
-                test_vis.visualize()
+            for name, test_vis in self.visualizers.items():
+                test_vis.save_to_disk(".")
                 # test_vis.clear()

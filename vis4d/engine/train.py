@@ -11,6 +11,7 @@ from torch.utils.data.distributed import DistributedSampler
 from vis4d.common import DictStrAny
 from vis4d.common.distributed import get_rank
 from vis4d.data import DictData
+from vis4d.data.connectors import DataConnector
 
 from .opt import Optimizer
 from .test import Tester
@@ -24,6 +25,8 @@ class Trainer:
         self,
         num_epochs: int,
         log_step: int,
+        dataloaders: DataLoader[DictData],
+        data_connector: DataConnector,
         test_every_nth_epoch: int = 1,
         save_every_nth_epoch: int = 1,
         vis_every_nth_epoch: int = 1,
@@ -33,18 +36,8 @@ class Trainer:
         self.log_step = log_step
         self.test_every_nth_epoch = test_every_nth_epoch
         self.save_every_nth_epoch = save_every_nth_epoch
-        self.vis_every_nth_epoch = vis_every_nth_epoch
-
-        self.train_dataloader = self.setup_train_dataloaders()
-
-    def setup_train_dataloaders(self) -> DataLoader:
-        """Set-up training data loaders."""
-        raise NotImplementedError
-
-    def data_connector(self, mode: str, data: DictData) -> DictData:
-        """Connector between the data and the model."""
-        assert mode in ["train", "loss"]
-        return data
+        self.train_dataloader = dataloaders
+        self.data_connector = data_connector
 
     def train(
         self,
@@ -60,7 +53,9 @@ class Trainer:
         step = 0
         for epoch in range(self.num_epochs):
             opt.model.train()
-            if isinstance(self.train_dataloader.sampler, DistributedSampler):
+            if hasattr(self.train_dataloader, "sampler") and isinstance(
+                self.train_dataloader.sampler, DistributedSampler
+            ):
                 self.train_dataloader.sampler.set_epoch(epoch)
             for i, data in enumerate(self.train_dataloader):
                 tic = perf_counter()
@@ -69,11 +64,13 @@ class Trainer:
                 opt.optimizer.zero_grad()
                 # input data
                 device = next(opt.model.parameters()).device  # model device
-                data = move_data_to_device(data, device)
-                train_input = self.data_connector("train", data)
-                loss_input = self.data_connector("loss", data)
+                data_moved: DictData = move_data_to_device(data, device)
+                train_input = self.data_connector.get_train_input(data_moved)
                 # forward + backward + optimize
                 output = opt.model(**train_input)
+                loss_input = self.data_connector.get_loss_input(
+                    output, train_input
+                )
                 losses = opt.loss(output, **loss_input)
                 total_loss = sum(losses.values())
                 total_loss.backward()
@@ -104,12 +101,16 @@ class Trainer:
                 and get_rank() == 0
             ):
                 torch.save(
-                    opt.model.module.state_dict(),
+                    opt.model.state_dict(),
                     f"{save_prefix}_{epoch + 1}.pt",
                 )
 
             # testing
             if tester is not None:
-                assert metric is not None
-                tester.test(opt.model, metric, epoch)
+                if epoch % self.test_every_nth_epoch == (
+                    self.test_every_nth_epoch - 1
+                ):
+                    assert metric is not None
+                    tester.test(opt.model, metric, epoch)
+
         logger.info("training done.")
