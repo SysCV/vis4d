@@ -8,7 +8,7 @@ from typing import Any, Iterable
 from ml_collections import ConfigDict
 
 
-def iterable_sampler(
+def iterable_sampler(  # type: ignore
     samples: Iterable[Any],
 ) -> Callable[[], Generator[Any, None, None]]:
     """Creates a sampler from an iterable.
@@ -86,10 +86,10 @@ def logspace_sampler(
     return _sampler
 
 
-def replicate_config(
+def replicate_config(  # type: ignore
     configuration: ConfigDict,
-    sampling_args: dict[str, Callable[[], Any]],
-    method: str = "grid",
+    sampling_args: dict[str, Callable[[], Generator[Any, None, None]]],
+    method: str = "grid",  # TODO @zrene, change to callable
 ) -> Generator[ConfigDict, None, None]:
     """Function used to replicate a config.
 
@@ -130,25 +130,30 @@ def replicate_config(
             that contains (key, iterator) pairs where the iterator
             yields the values which should be assigned to the key.
         method (str): What replication method to use. Currently only
-            'grid' is supported, performing a grid search like replication.
-
+            'grid' and 'linear' is supported.
+            Grid combines the sampling arguments in a grid wise fashion
+            ([1,2],[3,4] -> [1,3],[1,4],[2,3],[2,4]) whereas 'linear' will
+            only select elements at the same index ([1,2],[3,4]->[1,3],[2,4]).
 
     Raises:
         ValueError: if the replication method is unknown.
     """
+    sampling_queue: Queue[  # type: ignore
+        tuple[str, Callable[[], Generator[Any, None, None]]]
+    ] = Queue()
+
+    for key, value in sampling_args.items():
+        sampling_queue.put((key, value))
 
     if method == "grid":
-        sampling_queue: Queue[
-            tuple[str, Callable[[], Generator[Any, None, None]]]
-        ] = Queue()
-
-        for key, value in sampling_args.items():
-            sampling_queue.put((key, value))
         return _replicate_config_grid(configuration, sampling_queue)
+    if method == "linear":
+        return _replicate_config_linear(configuration, sampling_queue)
+
     raise ValueError(f"Unknown replication method {method}")
 
 
-def _replicate_config_grid(
+def _replicate_config_grid(  # type: ignore
     configuration: ConfigDict,
     sampling_queue: Queue[
         tuple[str, Callable[[], Generator[Any, None, None]]]
@@ -160,6 +165,10 @@ def _replicate_config_grid(
     It will then recursively call itself and yield the ConfigDict with
     updated values for every key in the sampling_queue. Each key combination
     will be yielded exactly once, resulting in prod(len(generator)) entires.
+
+
+    For example, a parameter sweep using 'lr: [0,1], bs: [8, 16]' will yield
+    [0, 8], [0, 16], [0, 8], [1, 16] as combinations.
 
     Args:
         configuration (ConfigDict): Configuration to replicate
@@ -189,6 +198,70 @@ def _replicate_config_grid(
         # Let the other samplers process the remaining keys
         for config in _replicate_config_grid(configuration, sampling_queue):
             yield config
+
+    # Add back this sampler for next round
+    sampling_queue.put((key_name, sampler))
+
+
+def _replicate_config_linear(  # type: ignore
+    configuration: ConfigDict,
+    sampling_queue: Queue[
+        tuple[str, Callable[[], Generator[Any, None, None]]]
+    ],
+    current_position: int | None = None,
+) -> Generator[ConfigDict, None, None]:
+    """Internal function used to replicate a config in a linear way.
+
+    This function takes a ConfigDict and a queue with (key, generator) entries.
+    It will then recursively call itself and yield the ConfigDict with
+    updated values for every key in the sampling_queue.
+
+    For example, a parameter sweep using 'lr: [0,1], bs: [8, 16]' will yield
+    [0, 8], [1, 16] as combinations.
+
+    Args:
+        configuration (ConfigDict): Configuration to replicate
+        sampling_queue (Queue[tuple[str, Callable[[], Any]]]): The queue,
+            that contains (key, iterator) pairs where the iterator
+            yields the values which should be assigned to the key.
+        current_position (int, optional): Current position of the top level
+            sampling module. Used and updated internally.
+
+    Yields:
+        ConfigDict: Replicated configuration with updated key values.
+    """
+    # Termination criterion reached, We processed all samplers
+    if sampling_queue.empty():
+        yield configuration
+        return
+
+    # Get next key we want to replicate
+    (key_name, sampler) = sampling_queue.get()
+
+    is_top_level = False
+    if current_position is None:
+        is_top_level = True  # This is the top level call.
+        current_position = 0
+
+    # Iterate over all possible assignement values for this key
+    for idx, value in enumerate(sampler()):
+        if not is_top_level and idx != current_position:
+            continue  # only yield entry that matches requested position
+
+        # Update value ignoring type errors
+        # (e.g. user set default lr to 1 instead 1.0 would
+        # otherwise give a type error (float != int))
+        with configuration.ignore_type():
+            configuration.update_from_flattened_dict({key_name: value})
+
+        # Let the other samplers process the remaining keys
+        for config in _replicate_config_linear(
+            configuration, sampling_queue, current_position
+        ):
+            yield config
+
+        if is_top_level:
+            current_position += 1
 
     # Add back this sampler for next round
     sampling_queue.put((key_name, sampler))

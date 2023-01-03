@@ -1,0 +1,119 @@
+engine:
+  batch_size: 16
+  experiment_name: frcnn_coco_epoch
+  learning_rate: 0.01
+  save_prefix: vis4d-workspace/test/frcnn_coco_epoch
+data_connector:
+  class_path: vis4d.data.connectors.StaticDataConnector
+  init_args:
+    connections:
+      evaluators:
+        coco:
+          coco_image_id:
+            key: coco_image_id
+            source: data
+          pred_boxes:
+            key: pred_boxes
+            source: prediction
+          pred_classes:
+            key: pred_classes
+            source: prediction
+          pred_scores:
+            key: pred_scores
+            source: prediction
+      loss:
+        boxes2d:
+          key: boxes2d
+          source: data
+        input_hw:
+          key: input_hw
+          source: data
+      test:
+        boxes2d: boxes2d
+        boxes2d_classes: boxes2d_classes
+        images: images
+        input_hw: input_hw
+        original_hw: original_hw
+      train:
+        boxes2d: boxes2d
+        boxes2d_classes: boxes2d_classes
+        images: images
+        input_hw: input_hw
+      vis:
+        boxes:
+          boxes2d:
+            key: boxes2d
+            source: prediction
+test_dl:
+  - class_path: vis4d.data.loader.build_train_dataloader
+    init_args:
+      batchprocess_fn:
+        class_path: vis4d.data.transforms.pad.pad_image
+      dataset:
+        class_path: vis4d.data.loader.DataPipe
+        init_args:
+          datasets:
+            class_path: vis4d.data.datasets.coco.COCO
+            init_args:
+              data_root: /home/zrene/git/vis4d/tests/test_data/coco_test
+              split: train
+          preprocess_fn:
+            class_path: vis4d.data.transforms.base.compose
+            init_args:
+              transforms:
+                - class_path: vis4d.data.transforms.resize.resize_image
+                  init_args:
+                    keep_ratio: True
+                    shape:
+                      - 800
+                      - 1333
+
+                - class_path: vis4d.data.transforms.resize.resize_masks
+                - class_path: vis4d.data.transforms.base.random_apply
+                  init_args:
+                    p: 0.0
+                    transforms:
+                      - class_path: vis4d.data.transforms.flip.flip_image
+                      - class_path: vis4d.data.transforms.flip.flip_boxes2d
+
+                - class_path: vis4d.data.transforms.normalize.normalize_image
+
+      samples_per_gpu: 1
+      workers_per_gpu: 1
+
+train_dl:
+  class_path: vis4d.data.loader.build_train_dataloader
+  init_args:
+    batchprocess_fn:
+      class_path: vis4d.data.transforms.pad.pad_image
+    dataset:
+      class_path: vis4d.data.loader.DataPipe
+      init_args:
+        datasets:
+          class_path: vis4d.data.datasets.coco.COCO
+          init_args:
+            data_root: /home/zrene/git/vis4d/tests/test_data/coco_test
+            split: train
+        preprocess_fn:
+          class_path: vis4d.data.transforms.base.compose
+          init_args:
+            transforms:
+              - class_path: vis4d.data.transforms.resize.resize_image
+                init_args:
+                  keep_ratio: True
+                  shape:
+                    - 800
+                    - 1333
+
+              - class_path: vis4d.data.transforms.resize.resize_masks
+              - class_path: vis4d.data.transforms.base.random_apply
+                init_args:
+                  p: 0.5
+                  transforms:
+                    - class_path: vis4d.data.transforms.flip.flip_image
+                    - class_path: vis4d.data.transforms.flip.flip_boxes2d
+
+              - class_path: vis4d.data.transforms.normalize.normalize_image
+
+    samples_per_gpu: 16
+    workers_per_gpu: 4

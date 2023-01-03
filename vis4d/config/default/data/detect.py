@@ -1,3 +1,4 @@
+"""Default data loading config for object detection."""
 from __future__ import annotations
 
 from typing import Iterable
@@ -35,13 +36,12 @@ def default_detection_preprocessing(
 
     The pipeline consists of the following:
     1. Scale image and boxes to target size.
-    2. Randomly apply given augmentations with the specified propability.
+    2. Randomly apply given augmentations with the specified probability.
     3. Normalize the Image.
 
     Use this in combination with a dataset config to create a dataloader.
 
     Example:
-    >>>
     >>> preprocess_cfg = get_default_detection_preprocessing(480, 640, 0.5)
     >>> dataset_cfg = class_config("your.dataset.Dataset", root = "data/set/")
     >>> dataloader = get_dataloader_config(preprocess_cfg, dataset_cfg)
@@ -64,10 +64,10 @@ def default_detection_preprocessing(
     transforms = [
         class_config(
             "vis4d.data.transforms.resize.resize_image",
-            shape=[
+            shape=(
                 target_img_height,
                 target_img_width,
-            ],
+            ),
             keep_ratio=True,
         ),
         class_config("vis4d.data.transforms.resize.resize_masks"),
