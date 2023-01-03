@@ -6,6 +6,7 @@ Example to run this script:
 # Functional Interface
 from __future__ import annotations
 
+import logging  # TODO change to vis4d logging
 import sys
 
 import torch
@@ -17,7 +18,6 @@ from ml_collections.config_flags.config_flags import (
     _ConfigFlag,
 )
 
-from vis4d.common import logging
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.model.faster_rcnn import FasterRCNNOptimizer
 from vis4d.engine.test import Tester
@@ -121,7 +121,6 @@ def _train() -> None:
     # parameters
     device = torch.device("cuda")  # TODO, copy ddp code from engine
     config: ConfigDict = instantiate_classes(_CONFIG.value)
-    pprint_config(config)
 
     trainer = Trainer(
         num_epochs=config.engine.num_epochs,
@@ -148,7 +147,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
     >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py
 
     """
-    logger = logging.get_logger(__name__)
+    logger = logging.getLogger(__name__)
     logger.info(pprints_config(_CONFIG.value))
     if _MODE.value == "train":
         _train()
