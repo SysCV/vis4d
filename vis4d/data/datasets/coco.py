@@ -236,8 +236,6 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         dict_data = {
             CommonKeys.original_hw: [img_h, img_w],
             CommonKeys.input_hw: [img_h, img_w],
-            CommonKeys.transform_params: {},
-            CommonKeys.batch_transform_params: {},
             "coco_image_id": data["img"]["id"],
         }
 

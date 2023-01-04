@@ -229,10 +229,13 @@ def build_train_dataloader(
         batch_size, shuffle, train_sampler = samples_per_gpu, False, None
 
     if dataset.reference_view_sampler is None:
-        _collate_fn = lambda x: collate_fn(batchprocess_fn(x))
+
+        def _collate_fn(data: list[DictData]):
+            return collate_fn(batchprocess_fn(data))
+
     else:
 
-        def _collate_fn(data: DictData):
+        def _collate_fn(data: list[DictData]):
             views = []
             for view_idx in range(len(data[0])):
                 view = collate_fn(batchprocess_fn([d[view_idx] for d in data]))

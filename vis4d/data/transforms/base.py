@@ -180,13 +180,17 @@ class BatchTransform:
         return get_transform_fn
 
 
-TInput = TypeVar("TInput")
+TInput = TypeVar("TInput")  # pylint: disable=invalid-name
 
 
 def compose(
     transforms: list[Callable[[TInput], TInput]]
 ) -> Callable[[TInput], TInput]:
-    """Compose transformations."""
+    """Compose transformations.
+
+    This function composes a given set of transformation functions into a
+    single function.
+    """
 
     def _preprocess_func(data: TInput) -> TInput:
         for op in transforms:
@@ -197,12 +201,22 @@ def compose(
 
 
 def random_apply(
-    transforms: list[Callable[[DictData], DictData]], p: float = 0.5
-):
-    """Apply given transforms at random with given probability."""
+    transforms: list[Callable[[TInput], TInput]], probability: float = 0.5
+) -> Callable[[TInput], TInput]:
+    """Apply given transforms at random with given probability.
+
+    Args:
+        transforms (list[Callable[[TInput], TInput]]): Transformations that
+            are applied with a given probability.
+        probability (float, optional): Probability to apply transformations.
+            Defaults to 0.5.
+
+    Returns:
+        Callable[[TInput], TInput]]: The randomized transformations.
+    """
 
     def _apply(data: DictData) -> DictData:
-        if torch.rand(1) < p:
+        if torch.rand(1) < probability:
             for op in transforms:
                 data = op(data)
         return data

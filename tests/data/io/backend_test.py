@@ -3,7 +3,7 @@ import os
 import sys
 import unittest
 
-from tests.util import get_test_file
+from tests.util import get_test_data
 from vis4d.data.io.file import FileBackend
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.data.io.util import str_decode
@@ -16,7 +16,7 @@ class TestBackends(unittest.TestCase):
         """Test image retrieval from different backends."""
         backend_file = FileBackend()
         backend_hdf5 = HDF5Backend()
-        base_path = get_test_file("track/bdd100k-samples", rel_path="run")
+        base_path = get_test_data("bdd100k_test/track/")
         img = "00091078-875c1f73"
         sample_path = f"{base_path}/images/{img}/{img}-0000166.jpg"
         hdf5_path = f"{base_path}/images_.hdf5/{img}/{img}-0000166.jpg"

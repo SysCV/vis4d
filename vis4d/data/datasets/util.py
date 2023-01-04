@@ -47,7 +47,7 @@ def im_decode(
     im_bytes: bytes, mode: str = "RGB", backend: str = "PIL"
 ) -> NDArrayUI8:
     """Decode to image (numpy array, RGB) from bytes."""
-    assert mode in ["BGR", "RGB"], f"{mode} not supported for image decoding!"
+    assert mode in {"BGR", "RGB"}, f"{mode} not supported for image decoding!"
     if backend == "PIL":
         pil_img = Image.open(BytesIO(bytearray(im_bytes)))
         pil_img = ImageOps.exif_transpose(pil_img)
@@ -116,7 +116,7 @@ class CacheMappingMixin:
 
         dataset = DatasetFromList(data)
         rank_zero_info(
-            f"Loading {self.__repr__()} takes {timer.time():.2f} seconds."
+            f"Loading {str(self.__repr__)} takes {timer.time():.2f} seconds."
         )
         return dataset
 

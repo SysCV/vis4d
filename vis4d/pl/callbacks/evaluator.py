@@ -134,7 +134,7 @@ class DefaultEvaluatorCallback(Callback):
             if self.output_dir is not None:
                 output_dir = os.path.join(self.output_dir, metric)
                 os.makedirs(output_dir, exist_ok=True)
-                self.evaluator.save(output_dir, metric)  # TODO
+                self.evaluator.save(output_dir, metric)  # TODO implement save
 
             log_dict, log_str = self.evaluator.evaluate(metric)
             results[metric] = log_dict

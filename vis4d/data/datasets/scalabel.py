@@ -196,9 +196,8 @@ class Scalabel(Dataset, CacheMappingMixin):
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
         )
+        self.config_path = config_path
         self.frames, self.cfg = self._load_mapping(self._generate_mapping)
-        if config_path is not None:
-            self.cfg = load_label_config(config_path)
 
         assert self.cfg is not None, (
             "No dataset configuration found. Please provide a configuration "
@@ -258,6 +257,8 @@ class Scalabel(Dataset, CacheMappingMixin):
         add_data_path(self.data_root, frames)
         prepare_labels(frames, global_instance_ids=self.global_instance_ids)
         frames = DatasetFromList(frames)
+        if self.config_path is not None:
+            cfg = load_label_config(self.config_path)
         rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
         return frames, cfg
 

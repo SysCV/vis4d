@@ -184,12 +184,13 @@ def extract_pc_bounds():
     in_keys=(CommonKeys.points3d, PC_BOUND_KEY),
     out_keys=(CommonKeys.points3d,),
 )
-def normalize_by_bounds(axes: list[int] = [0, 1]):
+def normalize_by_bounds(axes: tuple[int, ...] = (0, 1)):
     """Uses the bounds stored in in_keys[1] (default 'pc_bounds')
     to normalize the data along al axes.
 
     Args:
-        axes (list(int)): Axis to apply normalization for. Default ignores z axis
+        axes (tuple(int)): Axis to apply normalization for.
+            Default ignores z axis.
     """
 
     def _extract_pc_bounds(coordinates: torch.Tensor, bounds: torch.Tensor):

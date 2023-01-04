@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from torch.utils.data import Dataset as TorchDataset
 
-from ..typing import DictData
+from vis4d.data.typing import DictData
 
 
 class Dataset(TorchDataset[DictData]):
@@ -121,7 +121,7 @@ class FilteredDataset(Dataset):
     def __init__(self, dataset, filter_fn) -> None:
         """Init."""
         super().__init__()
-        assert isinstance(dataset, FilterMixin)
+        assert isinstance(dataset, FilterMixin)  # TODO fix
         self._filtered_indices = filter_fn(dataset)
 
     def __len__(self) -> int:
