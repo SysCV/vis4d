@@ -84,7 +84,6 @@ class TestRotationFuncs(unittest.TestCase):
         for convention in self._proper_euler_conventions():
             matrices = euler_angles_to_matrix(data, convention)
             mdata = matrix_to_euler_angles(matrices, convention)
-
             self.assertTrue(torch.isclose(data, mdata, rtol=1e-4).all())
 
     def test_to_euler(self) -> None:
