@@ -89,7 +89,7 @@ class LastLevelP6P7(ExtraFPNBlock):  # type: ignore
     def __init__(
         self, in_channels: int, out_channels: int, extra_relu: bool = False
     ):
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.extra_relu = extra_relu
         self.p6_conv = nn.Conv2d(in_channels, out_channels, 3, 2, 1)

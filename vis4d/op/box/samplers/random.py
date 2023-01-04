@@ -18,7 +18,7 @@ class RandomSampler(Sampler):
         bg_label: int = 0,
         **kwargs: ArgsType,
     ):
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__(*args, **kwargs)
         self.bg_label = bg_label
 

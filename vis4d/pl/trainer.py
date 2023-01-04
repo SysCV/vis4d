@@ -178,7 +178,7 @@ class DefaultTrainer(pl.Trainer):
 
 
 class CLI(LightningCLI):
-    """Basic pytorch lightning CLI in Vis4D."""
+    """Basic pytorch lightning CLI."""
 
     def __init__(  # type: ignore
         self,
@@ -199,7 +199,7 @@ class CLI(LightningCLI):
         save_config_overwrite: bool = True,
         **kwargs: ArgsType,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__(
             model_class=model_class,
             datamodule_class=datamodule_class,

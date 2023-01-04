@@ -35,7 +35,7 @@ class FasterRCNN(nn.Module):
     """Faster RCNN model."""
 
     def __init__(self, num_classes: int, weights: None | str = None) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_classes (int): Number of classes.
@@ -169,7 +169,7 @@ class FasterRCNNLoss(nn.Module):
     """Faster RCNN Loss."""
 
     def __init__(self) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         anchor_generator = get_default_anchor_generator()
         rpn_box_encoder = get_default_rpn_box_encoder()

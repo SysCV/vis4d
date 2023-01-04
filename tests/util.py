@@ -185,7 +185,7 @@ class MockModel(nn.Module):
     """Model Mockup."""
 
     def __init__(self, model_param: int, *args, **kwargs):  # type: ignore # pylint: disable=unused-argument,line-too-long
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.model_param = model_param
         self.linear = nn.Linear(10, 1)

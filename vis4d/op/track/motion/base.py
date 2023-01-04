@@ -17,7 +17,7 @@ class BaseMotionModel(nn.Module):
         time_since_update: int = 0,
         age: int = 0,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.num_frames = num_frames
         self.motion_dims = motion_dims

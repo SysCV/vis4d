@@ -1,4 +1,4 @@
-# type: ignore
+# mypy: disable-error-code=misc
 """Vis4D utils for distributed setting."""
 from __future__ import annotations
 
@@ -24,18 +24,18 @@ class PicklableWrapper:
     """
 
     def __init__(self, obj: PicklableWrapper) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         while isinstance(obj, PicklableWrapper):
             # Wrapping an object twice is no-op
             obj = obj._obj
-        self._obj = obj
+        self._obj: Any = obj
 
     def __reduce__(self) -> tuple[Any, tuple[bytes]]:
         """Reduce."""
         s = cloudpickle.dumps(self._obj)
         return cloudpickle.loads, (s,)
 
-    def __call__(self, *args, **kwargs) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Call."""
         return self._obj(*args, **kwargs)
 

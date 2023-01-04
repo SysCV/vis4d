@@ -12,7 +12,7 @@ class Conv2d(torch.nn.Conv2d):
     """Wrapper around Conv2d to support empty inputs and norm/activation."""
 
     def __init__(self, *args, **kwargs) -> None:  # type: ignore
-        """Init."""
+        """Creates an instance of the class."""
         norm = kwargs.pop("norm", None)
         activation = kwargs.pop("activation", None)
         super().__init__(*args, **kwargs)

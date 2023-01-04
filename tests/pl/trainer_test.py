@@ -34,7 +34,7 @@ class MockDataModule(DataModule):
     """Data module Mockup."""
 
     def __init__(self, example: str, *args, **kwargs) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__(*args, **kwargs)
         self.example = example
 
@@ -43,7 +43,7 @@ class MockDataModule(DataModule):
         dataset = MockDataset()
         return DataLoader(dataset, 1, True)
 
-    def test_dataloader(self) -> List[DataLoader]:
+    def test_dataloader(self) -> list[DataLoader]:
         """Mockup test dataloader."""
         return self.train_dataloader()
 
@@ -57,7 +57,9 @@ def test_custom_init() -> None:
         tqdm=True,
         max_steps=2,
     )
-    model = DefaultOptimizer(MockModel(model_param=7))
+    model = DefaultOptimizer(
+        MockModel(model_param=7), MockModel(model_param=3)
+    )
     trainer.fit(model, [None])
 
 

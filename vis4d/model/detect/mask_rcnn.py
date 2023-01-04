@@ -49,7 +49,7 @@ class MaskRCNN(nn.Module):
     """Mask RCNN model."""
 
     def __init__(self, num_classes: int, weights: None | str = None) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_classes (int): Number of classes.
@@ -198,7 +198,7 @@ class MaskRCNNLoss(nn.Module):
         rpn_box_encoder: BoxEncoder2D,
         rcnn_box_encoder: BoxEncoder2D,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Anchor generator for RPN.

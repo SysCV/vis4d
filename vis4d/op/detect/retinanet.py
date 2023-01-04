@@ -77,7 +77,7 @@ class RetinaNetHead(nn.Module):
         box_matcher: Matcher | None = None,
         box_sampler: Sampler | None = None,
     ):
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.anchor_generator = (
             anchor_generator
@@ -270,7 +270,7 @@ class Dense2Det(nn.Module):
         min_box_size: tuple[int, int] = (0, 0),
         score_thr: float = 0.0,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.anchor_generator = anchor_generator
         self.box_encoder = box_encoder
@@ -363,7 +363,7 @@ class RetinaNetHeadLoss(DenseAnchorHeadLoss):
         box_matcher: None | Matcher = None,
         box_sampler: None | Sampler = None,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.

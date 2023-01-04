@@ -108,6 +108,17 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
         backdrop_memory_limit: int = 1,
         memory_momentum: float = 0.8,
     ):
+        """Creates an instance of the class.
+
+        Args:
+            memory_limit (int, optional): Maximum number of frames to be stored
+                inside the memory. Defaults to -1.
+            backdrop_memory_limit (int, optional): Maximum number of frames
+                backdrops are stored. Defaults to 1.
+            memory_momentum (float, optional): Momentum value for accumulating
+                embedding vectors across a track's memory buffer. Defaults
+                to 0.8.
+        """
         super().__init__(memory_limit)
         self.backdrop_frames: list[QDTrackState] = []
         self.memo_momentum = memory_momentum
@@ -121,6 +132,11 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
         self.backdrop_frames: list[QDTrackState] = []
 
     def update(self, data: QDTrackState) -> None:
+        """Update the track memory with a new state.
+
+        Args:
+            data (QDTrackState): The new state.
+        """
         valid_tracks = data.track_ids != -1
         new_tracks = QDTrackState(*(entry[valid_tracks] for entry in data))
         new_backdrops = QDTrackState(*(entry[~valid_tracks] for entry in data))

@@ -21,6 +21,7 @@ from vis4d.op.geometry.projection import (
     points_inside_image,
     project_points,
 )
+from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
@@ -35,7 +36,6 @@ if DASH_AVAILABLE and PLOTLY_AVAILABLE:
     import plotly.graph_objects as go
     from dash import dcc, html
 
-from vis4d.vis.util import DEFAULT_COLOR_MAPPING
 
 COLOR_PALETTE = DEFAULT_COLOR_MAPPING
 NUM_COLORS = 50

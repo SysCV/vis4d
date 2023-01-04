@@ -28,7 +28,7 @@ class Sampler(nn.Module):
     """Sampler base class."""
 
     def __init__(self, batch_size: int, positive_fraction: float) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.batch_size = batch_size
         self.positive_fraction = positive_fraction

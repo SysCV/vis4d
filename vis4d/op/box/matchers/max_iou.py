@@ -19,7 +19,7 @@ class MaxIoUMatcher(Matcher):
         allow_low_quality_matches: bool,
         min_positive_iou: float = 0.0,
     ):
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.allow_low_quality_matches = allow_low_quality_matches
         self.min_positive_iou = min_positive_iou

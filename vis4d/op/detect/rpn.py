@@ -48,7 +48,7 @@ class RPNHead(nn.Module):
         in_channels: int = 256,
         feat_channels: int = 256,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_anchors (int): Number of anchors per cell.
@@ -134,7 +134,7 @@ class RPN2RoI(nn.Module):
         proposal_nms_threshold: float = 0.7,
         min_proposal_size: tuple[int, int] = (0, 0),
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Creates anchor grid serving as
@@ -321,7 +321,7 @@ class RPNLoss(DenseAnchorHeadLoss):
     def __init__(
         self, anchor_generator: AnchorGenerator, box_encoder: BoxEncoder2D
     ):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.

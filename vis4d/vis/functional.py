@@ -263,12 +263,13 @@ def imshow_track_matches(
     Args:
         key_imgs (list[ArrayLike]): Key Images.
         ref_imgs (list[ArrayLike]): Reference Images.
-        key_boxes (list[ArrayLikeFloat]): Predicted Boxes for the key Image.
+        key_boxes (list[ArrayLikeFloat]): Predicted Boxes for the key image.
             Shape [N, 4]
-        ref_boxes (list[ArrayLikeFloat]): Predicted Boxes for the key Image.
+        ref_boxes (list[ArrayLikeFloat]): Predicted Boxes for the key image.
             Shape [N, 4]
-        key_track_ids (list[ArrayLikeInt]): Predicted ids for the key Images.
-        ref_track_ids (list[ArrayLikeInt]): Predicted ids for the reference imgs.
+        key_track_ids (list[ArrayLikeInt]): Predicted ids for the key images.
+        ref_track_ids (list[ArrayLikeInt]): Predicted ids for the reference
+            images.
         image_mode (str, optional): Color mode if the image. Defaults to "RGB".
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().

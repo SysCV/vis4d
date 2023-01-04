@@ -90,7 +90,7 @@ class PointnetSegmentationLoss(nn.Module):
         transform_weight: float = 1e-3,
         semantic_weights: Optional[torch.Tensor] = None,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             regularize_transform: If true add transforms to loss

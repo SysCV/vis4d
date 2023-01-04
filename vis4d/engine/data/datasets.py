@@ -1,4 +1,8 @@
-"""Default dataset configs used in Vis4D."""
+"""Default dataset configurations.
+
+We implement utility functions that simplify the dataset initialization with
+some default settings.
+"""
 from vis4d.data.datasets import COCO
 from vis4d.data.io.base import DataBackend
 from vis4d.eval import COCOEvaluator

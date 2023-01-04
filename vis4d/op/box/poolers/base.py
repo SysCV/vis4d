@@ -11,7 +11,7 @@ class RoIPooler(nn.Module):
     """Base class for RoI poolers."""
 
     def __init__(self, resolution: tuple[int, int]) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.resolution = resolution
 

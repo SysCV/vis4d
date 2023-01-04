@@ -15,8 +15,12 @@ SortingFunc = Callable[[int, List[int], List[int]], List[int]]
 
 
 def sort_key_first(
-    key_dataset_index: int, ref_indices: list[int], indices_in_video: list[int]
-) -> list[int]:  # pylint: disable=unused-argument
+    key_dataset_index: int,
+    ref_indices: list[int],
+    indices_in_video: list[
+        int
+    ],  # pylint: disable=unused-argument,line-too-long
+) -> list[int]:
     """Sort views temporally."""
     return [key_dataset_index, *ref_indices]
 
@@ -38,7 +42,7 @@ class ReferenceViewSampler:
     def __init__(
         self, num_ref_samples: int, sort_fn: SortingFunc = sort_key_first
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_ref_samples (int): Number of reference views to sample.
@@ -100,7 +104,7 @@ class UniformViewSampler(ReferenceViewSampler):
         num_ref_samples: int,
         sort_fn: SortingFunc = sort_key_first,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             scope (int): Define scope of neighborhood to key view to sample

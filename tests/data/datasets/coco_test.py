@@ -19,8 +19,6 @@ class COCOTest(unittest.TestCase):
         assert tuple(self.coco[0].keys()) == (
             "original_hw",
             "input_hw",
-            "transform_params",
-            "batch_transform_params",
             "coco_image_id",
             "images",
             "boxes2d",
@@ -49,8 +47,6 @@ class COCOSegTest(unittest.TestCase):
         assert tuple(self.coco[0].keys()) == (
             "original_hw",
             "input_hw",
-            "transform_params",
-            "batch_transform_params",
             "coco_image_id",
             "images",
             "boxes2d",

@@ -194,7 +194,7 @@ class DenseAnchorHeadLoss(nn.Module):
         loss_cls=None,
         allowed_border: int = 0,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.

@@ -10,7 +10,7 @@ class MockDataset(Dataset):  # type: ignore
     """PyTorch dataset mockup."""
 
     def __init__(self, start: int, end: int) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         assert end > start
         self.start, self.end = start, end

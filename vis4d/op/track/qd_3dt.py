@@ -52,7 +52,7 @@ class QD3DTrackGraph(torch.nn.Module):
         num_layers: int = 2,
         **kwargs: ArgsType,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__(*args, **kwargs)
         self.bbox_affinity_weight = bbox_affinity_weight
         self.feat_affinity_weight = 1 - bbox_affinity_weight
