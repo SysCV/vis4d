@@ -117,7 +117,7 @@ class FasterRCNNOptimizer(Optimizer):
         num_classes: int = 80,
         ckpt: None | str = None,
     ):
-        """Init."""
+        """Creates an instance of the class."""
         self.num_classes = num_classes
         self.ckpt = ckpt
         super().__init__(learning_rate, device, gpu_id)

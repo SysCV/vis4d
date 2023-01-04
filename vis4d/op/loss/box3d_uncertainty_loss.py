@@ -25,7 +25,7 @@ class Box3DUncertaintyLoss(Loss):
         ),
         num_rotation_bins: int = 2,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             reducer (LossReducer): Reducer for the loss function.

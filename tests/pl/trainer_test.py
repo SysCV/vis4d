@@ -34,7 +34,7 @@ class MockDataModule(DataModule):
     """Data module Mockup."""
 
     def __init__(self, example: str, *args, **kwargs) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__(*args, **kwargs)
         self.example = example
 

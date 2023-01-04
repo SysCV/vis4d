@@ -1,4 +1,7 @@
-"""Type definitions in Vis4D."""
+"""Common type definitions.
+
+Here we define commonly used types like specific numpy array and tensor types.
+"""
 from typing import Any, Dict, Iterable, Union
 
 import numpy as np

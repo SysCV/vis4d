@@ -42,7 +42,7 @@ class ReferenceViewSampler:
     def __init__(
         self, num_ref_samples: int, sort_fn: SortingFunc = sort_key_first
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_ref_samples (int): Number of reference views to sample.
@@ -104,7 +104,7 @@ class UniformViewSampler(ReferenceViewSampler):
         num_ref_samples: int,
         sort_fn: SortingFunc = sort_key_first,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             scope (int): Define scope of neighborhood to key view to sample

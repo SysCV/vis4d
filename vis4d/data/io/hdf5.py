@@ -28,7 +28,7 @@ class HDF5Backend(DataBackend):
     """
 
     def __init__(self) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         if not H5PY_AVAILABLE:
             raise ImportError("Please install h5py to enable HDF5Backend.")

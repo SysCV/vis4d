@@ -36,7 +36,7 @@ class RetinaNet(nn.Module):
     """RetinaNet wrapper class for checkpointing etc."""
 
     def __init__(self, num_classes: int, weights: None | str = None) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_classes (int): Number of classes.
@@ -151,7 +151,7 @@ class RetinaNetLoss(nn.Module):
         box_matcher: Matcher,
         box_sampler: Sampler,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Anchor generator for RPN.

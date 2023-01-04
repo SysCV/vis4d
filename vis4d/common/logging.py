@@ -8,8 +8,8 @@ import warnings
 
 from termcolor import colored
 
-from .distributed import rank_zero_only
-from .typing import ArgsType
+from vis4d.common.distributed import rank_zero_only
+from vis4d.common.typing import ArgsType
 
 
 def _debug(*args: ArgsType, stacklevel: int = 2, **kwargs: ArgsType) -> None:

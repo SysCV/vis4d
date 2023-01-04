@@ -161,7 +161,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             data_root (str): Root directory of the data.

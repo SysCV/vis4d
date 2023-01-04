@@ -72,7 +72,7 @@ class QDTrackAssociation:
         nms_class_iou_thr: float = 0.7,
         with_cats: bool = True,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.init_score_thr = init_score_thr
         self.obj_score_thr = obj_score_thr
@@ -218,7 +218,7 @@ class QDSimilarityHead(nn.Module):
         norm: str = "GroupNorm",
         num_groups: int = 32,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             proposal_pooler (None | RoIPooler, optional): RoI pooling module.
@@ -363,7 +363,7 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
     """
 
     def __init__(self, softmax_temp: float = -1):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             softmax_temp (float, optional): Temperature parameter for

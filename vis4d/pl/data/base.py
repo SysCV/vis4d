@@ -45,7 +45,7 @@ class DataModule(pl.LightningDataModule):
         input_dir: Optional[str] = None,
         video_based_inference: Optional[bool] = None,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.experiment = experiment
         self.visualize = visualize

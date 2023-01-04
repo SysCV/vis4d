@@ -19,7 +19,7 @@ class SimplePanopticFusionHead(nn.Module):
         stuff_area_thr: int = 4096,
         thing_conf_thr: float = 0.5,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_things_classes (int, optional): Number of thing (foreground)

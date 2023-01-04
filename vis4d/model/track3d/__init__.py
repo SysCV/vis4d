@@ -1,1 +1,1 @@
-"""3D Tracking models in Vis4D."""
+"""Contains the implementation of 3D Tracking models."""

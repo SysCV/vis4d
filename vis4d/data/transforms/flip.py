@@ -86,7 +86,7 @@ def get_axis(direction: str, axis_mode: AxisMode) -> int:
     out_keys=(CommonKeys.boxes3d,),
 )
 def flip_boxes3d(direction: str = "horizontal"):
-    """ "Flip 3D bounding box tensor.
+    """Flip 3D bounding box tensor.
 
     Args:
         direction (str, optional): Either vertical or horizontal. Defaults to
@@ -112,7 +112,7 @@ def flip_boxes3d(direction: str = "horizontal"):
     out_keys=(CommonKeys.extrinsics,),
 )
 def flip_extrinsics(direction: str = "horizontal"):
-    """ "Flip extrinsic calibration tensor.
+    """Flip extrinsic calibration tensor.
 
     Args:
         direction (str, optional): Either vertical or horizontal. Defaults to

@@ -19,7 +19,7 @@ class BaseWriterCallback(Callback):
     def __init__(
         self, dataloader_idx: int, output_dir: str, collect: str = "cpu"
     ):
-        """Init."""
+        """Creates an instance of the class."""
         assert collect in ["cpu", "gpu"], f"Collect arg {collect} unknown."
         self._output_dir = output_dir
         self._predictions: Dict[str, List[Frame]] = defaultdict(list)
@@ -82,7 +82,7 @@ class DefaultWriterCallback(BaseWriterCallback):
         output_dir: str,
         visualize: bool = True,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__(dataloader_idx, output_dir)
         self._visualize = visualize
         self.viewer: Optional[LabelViewer] = None

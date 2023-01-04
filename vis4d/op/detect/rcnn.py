@@ -42,7 +42,7 @@ class RCNNHead(nn.Module):
         in_channels: int = 256,
         fc_out_channels: int = 1024,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_classes (int, optional): number of categories. Defaults to 80.
@@ -128,7 +128,7 @@ class RoI2Det(nn.Module):
         iou_threshold: float = 0.5,
         max_per_img: int = 100,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             box_encoder (BoxEncoder2D): Decodes regression parameters to
@@ -234,7 +234,7 @@ class RCNNLoss(nn.Module):
     def __init__(
         self, box_encoder: BoxEncoder2D, num_classes: int = 80
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             box_encoder (BoxEncoder2D): Decodes box regression parameters into
@@ -386,7 +386,7 @@ class MaskRCNNHead(nn.Module):
         scale_factor: int = 2,
         class_agnostic: bool = False,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_classes (int, optional): Number of classes. Defaults to 80.
@@ -488,7 +488,7 @@ class Det2Mask(nn.Module):
     """Post processing of mask predictions."""
 
     def __init__(self, mask_threshold: float = 0.5) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             mask_threshold (float, optional): Positive threshold. Defaults to
@@ -564,7 +564,7 @@ class MaskRCNNHeadLoss(nn.Module):
     """Mask RoI head loss function."""
 
     def __init__(self, num_classes: int = 80) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_classes (int, optional): number of object categories. Defaults

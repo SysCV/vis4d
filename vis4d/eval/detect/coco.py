@@ -110,7 +110,7 @@ class COCOEvaluator(Evaluator):
         split: str = "val2017",
         per_class_eval: bool = False,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             data_root (str): Root directory of data.

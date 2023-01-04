@@ -94,7 +94,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         include_non_key: bool = False,
         data_backend: DataBackend | None = None,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             data_root (str): Root directory of nuscenes data in original

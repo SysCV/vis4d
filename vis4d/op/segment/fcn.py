@@ -38,7 +38,7 @@ class FCNHead(nn.Module):
         dropout_prob: float = 0.1,
         resize: tuple[int, int] | None = None,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             in_channels (list[int]): Number of channels in multi-level image
@@ -134,7 +134,7 @@ class FCNLoss(nn.Module):
         ] = nn.CrossEntropyLoss(),
         weights: list[float] | None = None,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             feature_idx (list[int]): Indices for the level of features to

@@ -59,7 +59,7 @@ class DefaultOptimizer(
         revise_keys: list[tuple[str, str]] | None = None,
         lr_warmup: BaseLRWarmup | None = None,
     ):
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.optimizer_init = (
             optimizer_init if optimizer_init is not None else DEFAULT_OPTIM

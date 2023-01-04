@@ -18,7 +18,6 @@ class PrettyRepMixin:
 
 def describe_shape(obj):
     """Recursively output the shape of tensors in its structure."""
-
     log_str = ""
     if isinstance(obj, dict):
         log_str += "{"

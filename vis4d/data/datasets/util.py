@@ -141,7 +141,7 @@ class DatasetFromList(Dataset):  # type: ignore
     def __init__(  # type: ignore
         self, lst: list[Any], deepcopy: bool = False, serialize: bool = True
     ):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             lst: a list which contains elements to produce.

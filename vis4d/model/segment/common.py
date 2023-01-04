@@ -26,7 +26,7 @@ class ResizeWithPadding:
     """Padding image to desired size."""
 
     def __init__(self, size: Tuple[int, int]):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             size (Tuple[int, int]): The desired size of image, (height, width).

@@ -91,7 +91,7 @@ class AnchorGenerator:
         centers: list[tuple[float, float]] | None = None,
         center_offset: float = 0.0,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             strides (list[int] | list[tuple[int, int]]): Strides of anchors

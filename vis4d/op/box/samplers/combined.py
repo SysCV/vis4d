@@ -25,7 +25,7 @@ class CombinedSampler(Sampler):
         bg_label: int = 0,
         **kwargs: ArgsType,
     ):
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__(*args, **kwargs)
         self.neg_pos_ub = neg_pos_ub
         self.floor_thr = floor_thr

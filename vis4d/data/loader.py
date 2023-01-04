@@ -72,7 +72,7 @@ class DataPipe(ConcatDataset):
         preprocess_fn: Callable[[DictData], DictData] = lambda x: x,
         reference_view_sampler: None | ReferenceViewSampler = None,
     ):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             datasets (Dataset | Iterable[Dataset]): Dataset(s) to be

@@ -27,7 +27,7 @@ class QD3DTBox3DCoder(BaseBoxCoder3D):
         num_rotation_bins: int = 2,
         bin_overlap: float = 1 / 6,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.center_scale = center_scale
         self.depth_log_scale = depth_log_scale

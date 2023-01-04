@@ -28,7 +28,7 @@ class Trainer:
         save_every_nth_epoch: int = 1,
         vis_every_nth_epoch: int = 1,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         self.num_epochs = num_epochs
         self.log_step = log_step
         self.test_every_nth_epoch = test_every_nth_epoch

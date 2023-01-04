@@ -1,4 +1,9 @@
-"""Constants used in vis4d.data."""
+"""Defines data related constants.
+
+While the datasets can hold arbitrary data types and formats, this file
+provides some constants that are used to define a common data format which is
+helpful to use for better data transformation.
+"""
 from dataclasses import dataclass
 from enum import Enum
 

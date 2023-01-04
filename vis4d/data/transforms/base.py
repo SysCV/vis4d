@@ -38,7 +38,7 @@ class Transform:
         sensors: None | tuple[str, ...] = None,
         with_data: bool = False,
     ):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             in_keys (tuple[str, ...], optional): Input keys in the data
@@ -111,7 +111,7 @@ class BatchTransform:
         sensors: None | tuple[str, ...] = None,
         with_data: bool = False,
     ):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             in_keys (tuple[str, ...], optional): Input keys in the data

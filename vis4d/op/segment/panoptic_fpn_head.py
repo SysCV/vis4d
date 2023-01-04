@@ -21,7 +21,7 @@ class ConvUpsample(nn.Module):
         num_layers: int = 1,
         num_upsample: None | int = None,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             in_channels (int): Number of channels in the input feature map.
@@ -103,7 +103,7 @@ class PanopticFPNHead(nn.Module):
         start_level: int = 2,
         end_level: int = 6,
     ):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_classes (int): Number of stuff classes. Default: 53.
@@ -172,7 +172,7 @@ class PanopticFPNLoss(nn.Module):
     def __init__(
         self, num_things_classes: int = 80, num_stuff_classes: int = 53
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.num_things_classes = num_things_classes
         self.num_stuff_classes = num_stuff_classes
