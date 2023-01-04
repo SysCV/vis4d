@@ -44,7 +44,7 @@ class PointnetSegmentationModel(nn.Module):
             data: Input Tensor Shape [N, C, n_pts]
             target: Target Classes shape [N, n_ots]
         """
-        self._call_impl(data, target)
+        return self._call_impl(data, target)
 
     def forward(
         self, data: torch.Tensor, target: Optional[torch.Tensor] = None
