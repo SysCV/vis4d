@@ -1,7 +1,8 @@
 """Test cases for Vis4D engine."""
+from __future__ import annotations
+
 import shutil
 import unittest
-from typing import List
 
 import pytest
 import pytorch_lightning as pl
