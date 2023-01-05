@@ -141,7 +141,10 @@ class PanopticFPNHead(nn.Module):
         nn.init.kaiming_normal_(
             self.conv_logits.weight, mode="fan_out", nonlinearity="relu"
         )
-        if hasattr(self.conv_logits, "bias") and self.conv_logits.bias:
+        if (
+            hasattr(self.conv_logits, "bias")
+            and self.conv_logits.bias is not None
+        ):
             nn.init.constant_(self.conv_logits.bias, 0)
 
     def forward(self, features: list[torch.Tensor]) -> torch.Tensor:

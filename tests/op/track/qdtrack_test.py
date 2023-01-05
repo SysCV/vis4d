@@ -1,7 +1,7 @@
 """Test cases for quasi dense tracking graph construction."""
 import torch
 
-from tests.util import generate_boxes, generate_features, get_test_file
+from tests.util import get_test_file
 from vis4d.op.track.assignment import TrackIDCounter
 from vis4d.op.track.qdtrack import (
     QDSimilarityHead,
@@ -23,20 +23,13 @@ def test_qdtrack_loss() -> None:
 
 def test_similarity_head() -> None:
     """Testcase for similarity head."""
-    state = torch.random.get_rng_state()
-    torch.random.set_rng_state(torch.manual_seed(0).get_state())
     qd_head = QDSimilarityHead()
-    batch_size, num_boxes, wh = 2, 10, 128
-    test_features = [None, None] + generate_features(
-        256, wh, wh, 5, batch_size
-    )
-    boxes, _, _, _ = generate_boxes(wh * 4, wh * 4, num_boxes, batch_size)
-
-    embeds = qd_head(test_features, boxes)  # type: ignore
-    embed = torch.stack(embeds)
-    torch.random.set_rng_state(state)
+    path = get_test_file("qd_head_weights.pt")
+    qd_head.load_state_dict(torch.load(path))
     path = get_test_file("qdtrack_embeds.pt")
-    expected_embeds = torch.load(path)
+    test_features, boxes, expected_embeds = torch.load(path)
+    embeds = qd_head(test_features, boxes)
+    embed = torch.stack(embeds)
     assert torch.isclose(embed, expected_embeds).all()
 
 
@@ -44,13 +37,8 @@ def test_association() -> None:
     """Testcase for assocation."""
     tracker = QDTrackAssociation()
 
-    h, w, num_dets = 128, 128, 64
-    boxes, scores, classes, _ = [x[0] for x in generate_boxes(h, w, num_dets)]
-    scores = scores.squeeze(-1)
-
-    state = torch.random.get_rng_state()
-    torch.random.set_rng_state(torch.manual_seed(0).get_state())
-    embeddings = torch.rand(num_dets, 128)
+    path = get_test_file("qdtrack_association_inputs.pt")
+    boxes, scores, classes, embeddings = torch.load(path)
 
     # feed same detections & embeddings --> should be matched to self
     mem_track_ids = TrackIDCounter.get_ids(len(boxes))
@@ -88,6 +76,7 @@ def test_association() -> None:
     )
     track_ids_negative = track_ids[scores_permute < tracker.init_score_thr]
     track_ids_positive = track_ids[scores_permute >= tracker.init_score_thr]
+
     assert torch.isclose(
         track_ids_negative, torch.tensor(-1, dtype=torch.long)
     ).all()
@@ -98,4 +87,3 @@ def test_association() -> None:
             mem_track_ids.max() + 1 + len(track_ids_positive),
         ),
     ).all()
-    torch.random.set_rng_state(state)

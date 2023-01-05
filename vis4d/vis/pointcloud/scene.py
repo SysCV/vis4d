@@ -132,3 +132,39 @@ class Scene3D:
         )
         self.transforms.append(se3_tf)
         return self
+
+    @property
+    def points(self) -> NDArrayFloat:
+        """Returns all points of all pointclouds in the scene.
+
+        Returns:
+            NDArrayFloat: All points in the scene.
+        """
+        return np.concatenate([pc.xyz for pc in self.pointclouds])
+
+    @property
+    def colors(self) -> NDArrayFloat:
+        """Returns all colors of all pointclouds in the scene.
+
+        Returns:
+            NDArrayFloat: All colors in the scene.
+        """
+        return np.concatenate([pc.colors for pc in self.pointclouds])
+
+    @property
+    def instances(self) -> NDArrayInt:
+        """Returns all instances of all pointclouds in the scene.
+
+        Returns:
+            NDArrayInt: All instances in the scene.
+        """
+        return np.concatenate([pc.instances for pc in self.pointclouds])
+
+    @property
+    def classes(self) -> NDArrayInt:
+        """Returns all classes of all pointclouds in the scene.
+
+        Returns:
+            NDArrayInt: All classes in the scene.
+        """
+        return np.concatenate([pc.classes for pc in self.pointclouds])
