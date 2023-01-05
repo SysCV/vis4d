@@ -1,7 +1,7 @@
 """Test cases for quasi dense tracking graph construction."""
 import torch
 
-from tests.util import get_test_file
+from tests.util import fill_weights, get_test_file
 from vis4d.op.track.assignment import TrackIDCounter
 from vis4d.op.track.qdtrack import (
     QDSimilarityHead,
@@ -24,8 +24,7 @@ def test_qdtrack_loss() -> None:
 def test_similarity_head() -> None:
     """Testcase for similarity head."""
     qd_head = QDSimilarityHead()
-    path = get_test_file("qd_head_weights.pt")
-    qd_head.load_state_dict(torch.load(path))
+    fill_weights(qd_head, value=0.01)
     path = get_test_file("qdtrack_embeds.pt")
     test_features, boxes, expected_embeds = torch.load(path)
     embeds = qd_head(test_features, boxes)

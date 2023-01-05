@@ -1,5 +1,4 @@
 """Test cases for pl trainer."""
-import platform
 import shutil
 import unittest
 
@@ -8,7 +7,6 @@ import pytorch_lightning as pl
 import torch
 from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
-from packaging import version
 from pytorch_lightning.utilities.cli import SaveConfigCallback
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
@@ -70,29 +68,16 @@ def test_cli(monkeypatch: MonkeyPatch) -> None:
     expected_trainer = dict(exp_name="cli_test")
     expected_datamodule = {"example": "attribute"}
 
-    if version.parse(platform.python_version()) > version.parse("3.9.14"):
-        # wrap model into setup function to modify model_param via cmd line
-        def model_setup(
-            model_param: int = 7, optional_param: str | None = None
-        ) -> DefaultOptimizer:
-            return DefaultOptimizer(
-                MockModel(
-                    model_param=model_param, optional_param=optional_param
-                ),
-                MockModel(model_param=3),
-            )
-
-    else:
-
-        def model_setup(
-            model_param: int = 7, optional_param: str = "none"
-        ) -> DefaultOptimizer:
-            return DefaultOptimizer(
-                MockModel(
-                    model_param=model_param, optional_param=optional_param
-                ),
-                MockModel(model_param=3),
-            )
+    # from python 3.10 this can be: optional_param: str | None = None
+    # from __future__ import annotations doesn't work here because it is
+    # not supported by jsonargparse
+    def model_setup(
+        model_param: int = 7, optional_param: str = "none"
+    ) -> DefaultOptimizer:
+        return DefaultOptimizer(
+            MockModel(model_param=model_param, optional_param=optional_param),
+            MockModel(model_param=3),
+        )
 
     def fit(trainer, model, datamodule):  # FIXME
         # do this because 'model' will be DefaultOptimizer, and we want to
