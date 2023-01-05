@@ -48,6 +48,8 @@ def test_association() -> None:
     boxes, scores, classes, _ = [x[0] for x in generate_boxes(h, w, num_dets)]
     scores = scores.squeeze(-1)
 
+    state = torch.random.get_rng_state()
+    torch.random.set_rng_state(torch.manual_seed(0).get_state())
     embeddings = torch.rand(num_dets, 128)
 
     # feed same detections & embeddings --> should be matched to self
@@ -96,3 +98,4 @@ def test_association() -> None:
             mem_track_ids.max() + 1 + len(track_ids_positive),
         ),
     ).all()
+    torch.random.set_rng_state(state)

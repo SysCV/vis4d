@@ -257,14 +257,15 @@ class Scalabel(Dataset, CacheMappingMixin):
         add_data_path(self.data_root, frames)
         prepare_labels(frames, global_instance_ids=self.global_instance_ids)
         frames = DatasetFromList(frames)
-        if self.config_path is not None:
-            cfg = load_label_config(self.config_path)
         rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
         return frames, cfg
 
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
-        return load(self.annotation_path)
+        data = load(self.annotation_path)
+        if self.config_path is not None:
+            data.config = load_label_config(self.config_path)
+        return data
 
     def _load_inputs(self, frame: Frame) -> DictData:
         """Load inputs given a scalabel frame."""
