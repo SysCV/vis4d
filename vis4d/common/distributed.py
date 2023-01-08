@@ -52,7 +52,11 @@ class PicklableWrapper:
 
 # no coverage for these functions, since we don't unittest distributed setting
 def get_world_size() -> int:  # pragma: no cover
-    """Get world size of torch.distributed."""
+    """Get the world size (number of processes) of torch.distributed.
+
+    Returns:
+        int: The world size.
+    """
     if not dist.is_available():
         return 1
     if not dist.is_initialized():
@@ -61,7 +65,11 @@ def get_world_size() -> int:  # pragma: no cover
 
 
 def get_rank() -> int:  # pragma: no cover
-    """Get global rank of torch.distributed."""
+    """Get the global rank of the current process in torch.distributed.
+
+    Returns:
+        int: The global rank.
+    """
     rank_keys = ("RANK", "SLURM_PROCID", "LOCAL_RANK")
     for key in rank_keys:
         rank = os.environ.get(key)
@@ -83,7 +91,18 @@ def synchronize() -> None:  # pragma: no cover
 
 
 def serialize_to_tensor(data: Any) -> torch.Tensor:  # pragma: no cover
-    """Serialize arbitrary picklable data to torch.Tensor."""
+    """Serialize arbitrary picklable data to a torch.Tensor.
+
+    Args:
+        data (Any): The data to serialize.
+
+    Returns:
+        torch.Tensor: The serialized data as a torch.Tensor.
+
+    Raises:
+        AssertionError: If the backend of torch.distributed is not gloo or
+            nccl.
+    """
     backend = dist.get_backend()
     assert backend in {
         "gloo",
@@ -106,9 +125,14 @@ def serialize_to_tensor(data: Any) -> torch.Tensor:  # pragma: no cover
 
 
 def rank_zero_only(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    """Function that can be used as a decorator.
+    """Allows the decorated function to be called only on global rank 0.
 
-    Enables a function/method being called only on global rank 0.
+    Args:
+        func( Callable[[Any], Any]): The function to decorate.
+
+    Returns:
+        Callable[[Any], Any]: The decorated function.
+
     """
 
     @wraps(func)

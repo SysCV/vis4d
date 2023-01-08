@@ -37,8 +37,12 @@ OPEN3D_AVAILABLE = package_available("open3d")
 PLOTLY_AVAILABLE = package_available("plotly")
 
 
-def is_torch_tf32_available() -> bool:
-    """Check if torch TF32 is available."""
+def is_torch_tf32_available() -> bool:  # pragma: no cover
+    """Check if torch TF32 is available.
+
+    Returns:
+        bool: True if torch TF32 is available.
+    """
     return not (
         not torch.cuda.is_available()
         or torch.version.cuda is None
