@@ -81,6 +81,9 @@ class CommonKeys:
     masks = "masks"
     segmentation_masks = "segmentation_masks"
 
+    # Image Classification
+    categories = "categories"
+
     # sensor calibration
     intrinsics = "intrinsics"
     extrinsics = "extrinsics"
