@@ -1,4 +1,8 @@
-"""Hdf5 data backend."""
+"""Hdf5 data backend.
+
+This backend works with filepaths pointing to valid HDF5 files. We assume that
+the given HDF5 file contains the whole dataset associated to this backend.
+"""
 from __future__ import annotations
 
 import os
@@ -36,7 +40,15 @@ class HDF5Backend(DataBackend):
 
     @staticmethod
     def _get_hdf5_path(filepath: str) -> tuple[str, list[str]]:
-        """Get .hdf5 path and keys from filepath."""
+        """Get .hdf5 path and keys from filepath.
+
+        Args:
+            filepath (str): The filepath to retrieve the data from.
+                Should have the following format: 'path/to/file.hdf5/key1/key2'
+
+        Returns:
+            tuple[str, list[str]]: The .hdf5 path and the keys to retrieve.
+        """
         filepath_as_list = filepath.split("/")
         keys = []
 
@@ -49,7 +61,14 @@ class HDF5Backend(DataBackend):
         return filepath, keys
 
     def exists(self, filepath: str) -> bool:
-        """Check if filepath exists."""
+        """Check if filepath exists.
+
+        Args:
+            filepath (str): Path to file.
+
+        Returns:
+            bool: True if file exists, False otherwise.
+        """
         hdf5_path, keys = self._get_hdf5_path(filepath)
         if not os.path.exists(hdf5_path):
             return False
@@ -89,7 +108,15 @@ class HDF5Backend(DataBackend):
             )
 
     def _get_client(self, hdf5_path: str, mode: str) -> File:
-        """Get HDF5 client from path."""
+        """Get HDF5 client from path.
+
+        Args:
+            hdf5_path (str): Path to HDF5 file.
+            mode (str): Mode to open the file in.
+
+        Returns:
+            File: the hdf5 file.
+        """
         if hdf5_path not in self.db_cache:
             client = File(hdf5_path, mode)
             self.db_cache[hdf5_path] = [client, mode]
