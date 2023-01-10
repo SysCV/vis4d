@@ -56,10 +56,9 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
                 os.path.join(out_folder, "colors.ply"), colors
             )
 
-            if len(scene.semantics) > 0:
+            if len(scene.classes) > 0:
                 colors = self.class_color_mapping[
-                    scene.semantics.squeeze()
-                    % self.class_color_mapping.shape[0]
+                    scene.classes.squeeze() % self.class_color_mapping.shape[0]
                 ]
                 classes = self._create_o3d_cloud(scene.points, colors)
                 o3d.io.write_point_cloud(

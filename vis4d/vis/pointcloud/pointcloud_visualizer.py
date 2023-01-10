@@ -101,13 +101,9 @@ class PointCloudVisualizer(Visualizer):
             self.current_scene = self.visualization_backend.create_new_scene()
 
         # Add data to scene
-        self.current_scene.add_points(points_xyz)
-        if colors is not None:
-            self.current_scene.add_colors(colors)
-        if semantics is not None:
-            self.current_scene.add_semantics(semantics)
-        if instances is not None:
-            self.current_scene.add_instances(instances)
+        self.current_scene.add_pointcloud(
+            points_xyz, colors=colors, classes=semantics, instances=instances
+        )
 
     def process(  # type: ignore # pylint: disable=arguments-renamed,arguments-differ,line-too-long
         self,

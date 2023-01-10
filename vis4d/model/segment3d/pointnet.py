@@ -44,7 +44,7 @@ class PointnetSegmentationModel(nn.Module):
             data: Input Tensor Shape [N, C, n_pts]
             target: Target Classes shape [N, n_ots]
         """
-        self._call_impl(data, target)
+        return self._call_impl(data, target)
 
     def forward(
         self, data: torch.Tensor, target: Optional[torch.Tensor] = None
@@ -90,7 +90,7 @@ class PointnetSegmentationLoss(nn.Module):
         transform_weight: float = 1e-3,
         semantic_weights: Optional[torch.Tensor] = None,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             regularize_transform: If true add transforms to loss

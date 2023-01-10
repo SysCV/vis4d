@@ -1,7 +1,6 @@
-"""Test cases for Vis4D engine."""
+"""Test cases for pl trainer."""
 import shutil
 import unittest
-from typing import List
 
 import pytest
 import pytorch_lightning as pl
@@ -34,7 +33,7 @@ class MockDataModule(DataModule):
     """Data module Mockup."""
 
     def __init__(self, example: str, *args, **kwargs) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__(*args, **kwargs)
         self.example = example
 
@@ -43,7 +42,7 @@ class MockDataModule(DataModule):
         dataset = MockDataset()
         return DataLoader(dataset, 1, True)
 
-    def test_dataloader(self) -> List[DataLoader]:
+    def test_dataloader(self) -> list[DataLoader]:
         """Mockup test dataloader."""
         return self.train_dataloader()
 
@@ -57,7 +56,9 @@ def test_custom_init() -> None:
         tqdm=True,
         max_steps=2,
     )
-    model = DefaultOptimizer(MockModel(model_param=7))
+    model = DefaultOptimizer(
+        MockModel(model_param=7), MockModel(model_param=3)
+    )
     trainer.fit(model, [None])
 
 
@@ -67,16 +68,18 @@ def test_cli(monkeypatch: MonkeyPatch) -> None:
     expected_trainer = dict(exp_name="cli_test")
     expected_datamodule = {"example": "attribute"}
 
-    # wrap model into setup function to modify model_param via cmd line
+    # from python 3.10 this can be: optional_param: str | None = None
+    # from __future__ import annotations doesn't work here because it is
+    # not supported by jsonargparse
     def model_setup(
-        model_param: int = 7, optional_param: str | None = None
+        model_param: int = 7, optional_param: str = "none"
     ) -> DefaultOptimizer:
         return DefaultOptimizer(
             MockModel(model_param=model_param, optional_param=optional_param),
             MockModel(model_param=3),
         )
 
-    def fit(trainer, model, datamodule):
+    def fit(trainer, model, datamodule):  # FIXME
         # do this because 'model' will be DefaultOptimizer, and we want to
         # check MockModel here
         model = model.model

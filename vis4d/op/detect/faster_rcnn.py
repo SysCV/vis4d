@@ -94,7 +94,7 @@ class FasterRCNNHead(nn.Module):
         box_sampler: None | Sampler = None,
         proposal_append_gt: bool = True,
     ):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_classes (int, optional): Number of object categories. Defaults

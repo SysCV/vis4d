@@ -266,7 +266,7 @@ class RoundRobinSampler(BaseSampler, RoundRobinMixin):
         max_samples: int | list[int] = -1,
         **kwargs: ArgsType,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             repeat_interval (int | list[int], optional): Interval between
@@ -321,7 +321,7 @@ class RoundRobinDistributedSampler(
         max_samples: int | list[int] = -1,
         **kwargs: ArgsType,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             repeat_interval (int | list[int], optional): Interval between
@@ -384,7 +384,7 @@ class VideoInferenceSampler(
         seed: int = 0,
         drop_last: bool = False,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             dataset (Dataset): Inference dataset.

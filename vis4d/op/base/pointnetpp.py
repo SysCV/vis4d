@@ -432,7 +432,7 @@ class PointNet2Segmentation(nn.Module):  # TODO, probably move to module?
             PointNetFeaturePropagation(768, [256, 256]),
             PointNetFeaturePropagation(384, [256, 256]),
             PointNetFeaturePropagation(320, [256, 128]),
-            PointNetFeaturePropagation(128, [128, 128, 128]),
+            PointNetFeaturePropagation(128 + 3, [128, 128, 128]),
         ]
 
         # Final convolutions
@@ -476,6 +476,7 @@ class PointNet2Segmentation(nn.Module):  # TODO, probably move to module?
             set_abstraction_out = set_abs_layer(
                 set_abstraction_out.coordinates, set_abstraction_out.features
             )
+
             outputs.append(set_abstraction_out)
 
         pointwise_features = outputs[-1].features
@@ -493,6 +494,6 @@ class PointNet2Segmentation(nn.Module):  # TODO, probably move to module?
                 pointwise_features,
             )
 
-        x = self.drop1(F.relu(self.bn1(self.conv1(l0_points))))
+        x = self.drop1(F.relu(self.bn1(self.conv1(pointwise_features))))
         x = self.conv2(x)
         return PointNet2SegmentationOut(class_logits=x)

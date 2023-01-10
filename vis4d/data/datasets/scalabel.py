@@ -161,7 +161,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         global_instance_ids: bool = False,
         bg_as_class: bool = False,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             data_root (str): Root directory of the data.
@@ -196,9 +196,8 @@ class Scalabel(Dataset, CacheMappingMixin):
         self.data_backend = (
             data_backend if data_backend is not None else FileBackend()
         )
+        self.config_path = config_path
         self.frames, self.cfg = self._load_mapping(self._generate_mapping)
-        if config_path is not None:
-            self.cfg = load_label_config(config_path)
 
         assert self.cfg is not None, (
             "No dataset configuration found. Please provide a configuration "
@@ -263,7 +262,10 @@ class Scalabel(Dataset, CacheMappingMixin):
 
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
-        return load(self.annotation_path)
+        data = load(self.annotation_path)
+        if self.config_path is not None:
+            data.config = load_label_config(self.config_path)
+        return data
 
     def _load_inputs(self, frame: Frame) -> DictData:
         """Load inputs given a scalabel frame."""

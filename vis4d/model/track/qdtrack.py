@@ -50,7 +50,7 @@ class QDTrack(nn.Module):
         num_ref_views: int = 1,
         proposal_append_gt: bool = True,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.num_ref_views = num_ref_views
         self.similarity_head = QDSimilarityHead()
@@ -234,7 +234,7 @@ class FasterRCNNQDTrack(nn.Module):
     """Wrap qdtrack with detector."""
 
     def __init__(self, num_classes: int) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.anchor_gen = get_default_anchor_generator()
         self.rpn_bbox_encoder = get_default_rpn_box_encoder()

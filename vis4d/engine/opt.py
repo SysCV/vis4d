@@ -18,7 +18,7 @@ class Optimizer:
         device: None | torch.device,
         gpu_id: None | int,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         self.learning_rate = learning_rate
 
         self.model = self.setup_model()

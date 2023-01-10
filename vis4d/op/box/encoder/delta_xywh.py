@@ -26,7 +26,7 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         target_stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
         wh_ratio_clip: float = 16 / 1000,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             target_means (tuple, optional): Denormalizing means of target for

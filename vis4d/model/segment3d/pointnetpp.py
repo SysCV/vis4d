@@ -66,7 +66,7 @@ class Pointnet2SegmentationLoss(nn.Module):
     def __init__(
         self, ignore_index=255, semantic_weights: Optional[torch.Tensor] = None
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.segmentation_loss = nn.CrossEntropyLoss(
             weight=semantic_weights, ignore_index=ignore_index

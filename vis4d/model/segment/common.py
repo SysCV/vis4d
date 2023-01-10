@@ -25,8 +25,8 @@ if SCALABEL_AVAILABLE:
 class ResizeWithPadding:
     """Padding image to desired size."""
 
-    def __init__(self, size: tuple[int, int]):
-        """Init.
+    def __init__(self, size: Tuple[int, int]):
+        """Creates an instance of the class.
 
         Args:
             size (tuple[int, int]): The desired size of image, (height, width).

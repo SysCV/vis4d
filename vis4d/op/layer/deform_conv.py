@@ -24,7 +24,7 @@ class DeformConv(nn.Module):
         bias: bool = True,
         bn_momentum: float = 0.1,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             in_channels (int): Input channels.

@@ -17,15 +17,34 @@ class DataBackend:
 
     @abstractmethod
     def set(self, filepath: str, content: bytes) -> None:
-        """Set the file content."""
+        """Set the file content at the given filepath.
+
+        Args:
+            filepath (str): The filepath to store the data at.
+            content (bytes): The content to store as bytes.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get(self, filepath: str) -> bytes:
-        """Get the file content as bytes."""
+        """Get the file content at the given filepath as bytes.
+
+        Args:
+            filepath (str): The filepath to retrieve the data from."
+
+        Returns:
+            bytes: The content of the file as bytes.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def exists(self, filepath: str) -> bool:
-        """Check if filepath exists."""
+        """Check if filepath exists.
+
+        Args:
+            filepath (str): The filepath to check.
+
+        Returns:
+            bool: True if the filepath exists, False otherwise.
+        """
         raise NotImplementedError

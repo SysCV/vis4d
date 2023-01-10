@@ -25,8 +25,10 @@ def pad_image(stride: int = 32, mode: str = "constant", value: float = 0.0):
         max_hw = max(heights), max(widths)
 
         # ensure divisibility by stride
-        pad = lambda x: (x + (stride - 1)) // stride * stride
-        max_hw = tuple(pad(x) for x in max_hw)
+        def _make_divisible(x: int):
+            return (x + (stride - 1)) // stride * stride
+
+        max_hw = tuple(_make_divisible(x) for x in max_hw)
 
         # generate params for torch pad
         for i, (image, h, w) in enumerate(zip(images, heights, widths)):

@@ -4,7 +4,7 @@ import os
 from pytest_notebook.nb_regression import NBRegressionFixture
 
 
-def test_docs_tutorials():
+def test_docs_tutorials() -> None:
     """Test tutorial notebooks."""
     fixture = NBRegressionFixture(exec_timeout=50)
     fixture.diff_color_words = False

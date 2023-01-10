@@ -174,7 +174,7 @@ class VeloLSTM(nn.Module):  # type: ignore  # pylint: disable=abstract-method
         loc_dim: int,
         dropout: float = 0.0,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.batch_size = batch_size
         self.feature_dim = feature_dim

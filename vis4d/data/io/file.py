@@ -1,4 +1,7 @@
-"""Standard backend for local files on a hard drive."""
+"""Standard backend for local files on a hard drive.
+
+This backends loads data from and saves data to the local hard drive.
+"""
 import os
 
 from .base import DataBackend
@@ -8,7 +11,14 @@ class FileBackend(DataBackend):
     """Raw file from hard disk data backend."""
 
     def exists(self, filepath: str) -> bool:
-        """Check if filepath exists."""
+        """Check if filepath exists.
+
+        Args:
+            filepath (str): Path to file.
+
+        Returns:
+            bool: True if file exists, False otherwise.
+        """
         return os.path.exists(filepath)
 
     def set(self, filepath: str, content: bytes) -> None:

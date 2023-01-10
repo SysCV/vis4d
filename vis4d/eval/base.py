@@ -73,7 +73,7 @@ class SaveDataMixin:
         save_dir: None | str = None,
         data_backend: None | DataBackend = None,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             save_dir (None | str, optional): Directory to save predictions

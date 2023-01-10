@@ -1,7 +1,7 @@
 """BDD100K dataset."""
 from __future__ import annotations
 
-from torch.utils.data import Dataset
+from vis4d.common.imports import BDD100K_AVAILABLE, SCALABEL_AVAILABLE
 
 from .scalabel import Scalabel
 
@@ -90,8 +90,6 @@ bdd100k_panseg_map = {
     "train": 38,
     "truck": 39,
 }
-
-from vis4d.common.imports import BDD100K_AVAILABLE, SCALABEL_AVAILABLE
 
 if BDD100K_AVAILABLE and SCALABEL_AVAILABLE:
     from bdd100k.common.utils import load_bdd100k_config

@@ -26,7 +26,7 @@ class EmbeddingDistanceLoss(Loss):
         neg_margin: float = 0.3,
         hard_mining: bool = True,
     ):
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__(reducer)
         self.neg_pos_ub = neg_pos_ub
         self.neg_margin = neg_margin

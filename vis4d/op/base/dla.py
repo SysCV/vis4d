@@ -90,7 +90,7 @@ class BasicBlock(nn.Module):
     def __init__(
         self, inplanes: int, planes: int, stride: int = 1, dilation: int = 1
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.conv1 = nn.Conv2d(
             inplanes,
@@ -143,7 +143,7 @@ class Bottleneck(nn.Module):
     def __init__(
         self, inplanes: int, planes: int, stride: int = 1, dilation: int = 1
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         expansion = Bottleneck.expansion
         bottle_planes = planes // expansion
@@ -201,7 +201,7 @@ class BottleneckX(nn.Module):
     def __init__(
         self, inplanes: int, planes: int, stride: int = 1, dilation: int = 1
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         cardinality = BottleneckX.cardinality
         bottle_planes = planes * cardinality // 32
@@ -261,7 +261,7 @@ class Root(nn.Module):
         kernel_size: int,
         residual: bool,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.conv = nn.Conv2d(
             in_channels,
@@ -303,7 +303,7 @@ class Tree(nn.Module):
         dilation: int = 1,
         root_residual: bool = False,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         if block == "BasicBlock":
             block_c = BasicBlock
@@ -414,7 +414,7 @@ class DLA(BaseModel):
         weights: None | str = None,
         style: str = "imagenet",
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         if name is not None:
             assert name in DLA_ARCH_SETTINGS

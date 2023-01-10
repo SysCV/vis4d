@@ -17,6 +17,7 @@ from vis4d.common import DictStrAny
 from vis4d.common.imports import MMCV_AVAILABLE
 
 if MMCV_AVAILABLE:
+    # TODO: Replace MMCV dependency
     from mmcv import Config as MM_CONFIG
     from mmcv.runner import load_checkpoint
 else:
@@ -75,8 +76,10 @@ def load_model_checkpoint(
         load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
     elif weights.startswith("bdd100k://"):
         weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
+        # TODO: Replace MMCV dependency
         load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
     else:  # pragma: no cover
+        # TODO: Replace MMCV dependency
         load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
 
 
