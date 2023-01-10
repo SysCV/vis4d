@@ -1,5 +1,5 @@
-"""FCN tests."""
-from typing import Optional, Tuple
+"""FCN Resnet Implementation."""
+from __future__ import annotations
 
 import torch
 from torch import nn
@@ -21,7 +21,7 @@ class FCNResNet(nn.Module):
         self,
         base_model: str = "resnet50",
         num_classes: int = 21,
-        resize: Optional[Tuple[int, int]] = (520, 520),
+        resize: None | tuple[int, int] = (520, 520),
     ) -> None:
         """FCN with ResNet basemodel, following `torchvision implementation
         <https://github.com/pytorch/vision/blob/torchvision/models/segmentation/
@@ -65,7 +65,7 @@ class FCNResNet(nn.Module):
 class FCNResNetLoss(nn.Module):
     """FCNResNet Loss."""
 
-    def __init__(self, weights: Optional[torch.Tensor] = None) -> None:
+    def __init__(self, weights: None | torch.Tensor = None) -> None:
         """Init."""
         super().__init__()
         self.loss = FCNLoss(
