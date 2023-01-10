@@ -25,7 +25,7 @@ if SCALABEL_AVAILABLE:
 class ResizeWithPadding:
     """Padding image to desired size."""
 
-    def __init__(self, size: Tuple[int, int]):
+    def __init__(self, size: tuple[int, int]):
         """Creates an instance of the class.
 
         Args:
@@ -228,16 +228,20 @@ def read_output_images(image_dir):
     return img_list
 
 
-def blend_images(images1, images2, alpha=0.6):
-    """_summary_
+def blend_images(
+    images1: list[np.ndarray], images2: list[np.ndarray], alpha: int = 0.6
+):
+    """
+    This function takes in two lists of images (image1 and image2) and blends
+    them together using the alpha value provided.
 
     Args:
-        images1 (_type_): _description_
-        images2 (_type_): _description_
-        alpha (float, optional): _description_. Defaults to 0.6.
+        images1 (list[np.ndarray]): A list of images to be blended.
+        images2 (list[np.ndarray]): A list of images to be blended with images1
+        alpha (float): The alpha value for blending. Defaults to 0.6.
 
     Returns:
-        _type_: _description_
+        list[np.ndarray]: A list of blended images.
     """
     img_list = []
     for img1, img2 in zip(images1, images2):

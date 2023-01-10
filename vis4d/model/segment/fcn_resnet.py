@@ -65,13 +65,8 @@ class FCNResNet(nn.Module):
 class FCNResNetLoss(nn.Module):
     """FCNResNet Loss."""
 
-<<<<<<< HEAD
     def __init__(self, weights: None | torch.Tensor = None) -> None:
-        """Init."""
-=======
-    def __init__(self, weights: Optional[torch.Tensor] = None) -> None:
         """Creates an instance of the class."""
->>>>>>> 695c7df9fe7901b945a9db3b13fca6e6cc86a61a
         super().__init__()
         self.loss = FCNLoss(
             [4, 5],
