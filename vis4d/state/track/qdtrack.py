@@ -19,6 +19,12 @@ class BaseTrackMemory(Generic[TTrackState]):
     """
 
     def __init__(self, memory_limit: int = -1):
+        """Creates an instance of the class.
+
+        Args:
+            memory_limit (int, optional): Frame limit of memory.
+                Defaults to -1.
+        """
         assert memory_limit >= -1
         self.memory_limit = memory_limit
         self.frames: list[TTrackState] = []
@@ -129,7 +135,7 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
     def reset(self) -> None:
         """Empty the memory."""
         super().reset()
-        self.backdrop_frames: list[QDTrackState] = []
+        self.backdrop_frames.clear()
 
     def update(self, data: QDTrackState) -> None:
         """Update the track memory with a new state.

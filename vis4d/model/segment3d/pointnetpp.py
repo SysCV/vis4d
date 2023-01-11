@@ -75,7 +75,7 @@ class Pointnet2SegmentationLoss(nn.Module):
     def forward(
         self, outputs: PointNet2SegmentationOut, semantics3d: torch.Tensor
     ) -> LossesType:
-        """Calculates the loss"""
+        """Calculates the loss."""
         return dict(
             segmentation_loss=self.segmentation_loss(
                 outputs.class_logits, semantics3d

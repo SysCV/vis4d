@@ -1,3 +1,5 @@
+# pylint: disable=unexpected-keyword-arg
+# TODO remove this once new transforms are implemented
 """Segment3D data module."""
 from __future__ import annotations
 
@@ -17,13 +19,11 @@ from vis4d.data.transforms.point_sampling import (
     sample_points_block_random,
 )
 from vis4d.data.transforms.points import (
-    add_norm_noise,
     center_and_normalize,
     concatenate_point_features,
     extract_pc_bounds,
     move_pts_to_last_channel,
     normalize_by_bounds,
-    rotate_around_axis,
 )
 from vis4d.data.typing import DictData
 
@@ -60,8 +60,6 @@ def default_train_pipeline(
         min_pts=512,
     )
 
-    noise = add_norm_noise(std=0.02)
-    rand_rotate_z = rotate_around_axis(axis=2)
     norm = center_and_normalize(
         in_keys=[CommonKeys.points3d],
         out_keys=["points3d_normalized"],

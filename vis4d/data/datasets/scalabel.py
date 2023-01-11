@@ -2,12 +2,10 @@
 from __future__ import annotations
 
 import os
-import pickle
 from collections import defaultdict
 from collections.abc import Callable
 from typing import Union
 
-import appdirs
 import numpy as np
 import torch
 from torch import Tensor
@@ -15,6 +13,7 @@ from torch import Tensor
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
+from vis4d.common.typing import DictStrAny
 from vis4d.data.const import AxisMode, CommonKeys
 from vis4d.data.datasets.util import CacheMappingMixin, DatasetFromList
 from vis4d.data.io import DataBackend, FileBackend
@@ -230,30 +229,13 @@ class Scalabel(Dataset, CacheMappingMixin):
 
     def _load_mapping(
         self,
-        generate_map_func: Callable[[], ScalabelData],
+        generate_map_func: Callable[[], list[DictStrAny]],
         use_cache: bool = True,
     ) -> tuple[Dataset, Config]:
         """Load cached mapping or generate if not exists."""
         timer = Timer()
-        if use_cache:
-            cache_dir = os.path.join(
-                appdirs.user_cache_dir(appname="vis4d"),
-                "data_mapping",
-                self.__class__.__name__,
-            )
-            os.makedirs(cache_dir, exist_ok=True)
-            cache_path = os.path.join(cache_dir, self._get_hash() + ".pkl")
-            if not os.path.exists(cache_path):
-                data = generate_map_func()
-                with open(cache_path, "wb") as file:
-                    file.write(pickle.dumps(data))
-            else:
-                with open(cache_path, "rb") as file:
-                    data = pickle.loads(file.read())
-        else:
-            data = generate_map_func()
-
-        frames, cfg = data.frames, data.config
+        data = self._load_mapping_data(generate_map_func, use_cache)
+        frames, cfg = data.frames, data.config  # type: ignore
         add_data_path(self.data_root, frames)
         prepare_labels(frames, global_instance_ids=self.global_instance_ids)
         frames = DatasetFromList(frames)
@@ -282,6 +264,9 @@ class Scalabel(Dataset, CacheMappingMixin):
             data[CommonKeys.input_hw] = (image.shape[2], image.shape[3])
             data[CommonKeys.axis_mode] = AxisMode.OPENCV
             data[CommonKeys.frame_ids] = frame.frameIndex
+            # TODO how to properly integrate such metadata?
+            data["name"] = frame.name
+            data["videoName"] = frame.videoName
         if (
             frame.intrinsics is not None
             and CommonKeys.intrinsics in self.inputs_to_load

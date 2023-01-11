@@ -1,13 +1,13 @@
+"""Common utils for segmentation."""
+from __future__ import annotations
+
 import os
 from functools import partial
 from multiprocessing import Pool
-from typing import Dict, List, Set, Tuple
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 import torchvision.transforms.functional as T
-import tqdm
 from PIL import Image
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
@@ -25,11 +25,11 @@ if SCALABEL_AVAILABLE:
 class ResizeWithPadding:
     """Padding image to desired size."""
 
-    def __init__(self, size: Tuple[int, int]):
+    def __init__(self, size: tuple[int, int]):
         """Creates an instance of the class.
 
         Args:
-            size (Tuple[int, int]): The desired size of image, (height, width).
+            size (tuple[int, int]): The desired size of image, (height, width).
         """
         self.size = size
 
@@ -110,18 +110,18 @@ def pascal_label_decode(label_mask: np.ndarray) -> np.ndarray:
 
 
 def per_image_hist(
-    gt: np.ndarray,
+    target: np.ndarray,
     pred: np.ndarray,
     num_classes: int,
     ignore_label: int = 255,
-) -> Tuple[np.ndarray, Set[int]]:
+) -> tuple[np.ndarray, set[int]]:
     """Calculate per image hist."""
     num_classes = num_classes + 1
     assert num_classes >= 2
     assert num_classes <= ignore_label
-    gt = gt.copy()
-    gt[gt == ignore_label] = num_classes - 1
-    gt_id_set = set(np.unique(gt).tolist())
+    target = target.copy()
+    target[target == ignore_label] = num_classes - 1
+    gt_id_set = set(np.unique(target).tolist())
 
     # remove `ignored`
     if num_classes - 1 in gt_id_set:
@@ -129,29 +129,31 @@ def per_image_hist(
 
     if len(pred) == 0:
         # empty mask
-        pred = np.empty_like(gt)
+        pred = np.empty_like(target)
         pred.fill(ignore_label)
-    hist = fast_hist(gt.flatten(), pred.flatten(), num_classes)
+    hist = fast_hist(target.flatten(), pred.flatten(), num_classes)
     return hist, gt_id_set
 
 
 def evaluate_sem_seg(
-    ann_frames: List[torch.Tensor],
-    pred_frames: List[torch.Tensor],
+    ann_frames: list[torch.Tensor],
+    pred_frames: list[torch.Tensor],
     num_classes: int,
     ignore_label: int = 255,
     nproc: int = 4,
-) -> Tuple[Dict, Set]:
+) -> tuple[dict, set]:
     """Evaluate segmentation with Scalabel format.
 
     Args:
-        ann_frames: the ground truth frames.
-        pred_frames: the prediction frames.
-        num_classes: Metadata config.
-        nproc: the number of process.
+        ann_frames (list[torch.Tensor]): The ground truth frames.
+        pred_frames (list[torch.Tensor]): The prediction frames.
+        num_classes (int): Metadata config.
+        ignore_label (int): The value of ignored label. Defaults to 255.
+        nproc (int): the number of process.
 
     Returns:
-        SegResult: evaluation results.
+        res_dict (dict): evaluation results.
+        gt_id_set (set):
     """
     if nproc > 1:
         with Pool(nproc) as pool:
@@ -226,7 +228,21 @@ def read_output_images(image_dir):
     return img_list
 
 
-def blend_images(images1, images2, alpha=0.6):
+def blend_images(
+    images1: list[np.ndarray], images2: list[np.ndarray], alpha: int = 0.6
+):
+    """
+    This function takes in two lists of images (image1 and image2) and blends
+    them together using the alpha value provided.
+
+    Args:
+        images1 (list[np.ndarray]): A list of images to be blended.
+        images2 (list[np.ndarray]): A list of images to be blended with images1
+        alpha (float): The alpha value for blending. Defaults to 0.6.
+
+    Returns:
+        list[np.ndarray]: A list of blended images.
+    """
     img_list = []
     for img1, img2 in zip(images1, images2):
         print(img1.shape, img2.shape)
