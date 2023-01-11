@@ -17,9 +17,7 @@ SortingFunc = Callable[[int, List[int], List[int]], List[int]]
 def sort_key_first(
     key_dataset_index: int,
     ref_indices: list[int],
-    indices_in_video: list[
-        int
-    ],  # pylint: disable=unused-argument,line-too-long
+    indices_in_video: list[int],  # pylint: disable=unused-argument
 ) -> list[int]:
     """Sort views temporally."""
     return [key_dataset_index, *ref_indices]

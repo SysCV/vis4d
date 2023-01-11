@@ -193,7 +193,9 @@ def normalize_by_bounds(axes: tuple[int, ...] = (0, 1)):
             Default ignores z axis.
     """
 
-    def _extract_pc_bounds(coordinates: torch.Tensor, bounds: torch.Tensor):
+    def _extract_pc_bounds(
+        coordinates: torch.Tensor, bounds: torch.Tensor
+    ) -> torch.Tensor:
         max_bounds = torch.max(torch.abs(bounds), dim=0).values
         coords = coordinates
         coords[axes] = coords[axes] / max_bounds

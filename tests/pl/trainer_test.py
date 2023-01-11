@@ -79,7 +79,7 @@ def test_cli(monkeypatch: MonkeyPatch) -> None:
             MockModel(model_param=3),
         )
 
-    def fit(trainer, model, datamodule):  # FIXME
+    def fit(trainer, model, datamodule):
         # do this because 'model' will be DefaultOptimizer, and we want to
         # check MockModel here
         model = model.model
