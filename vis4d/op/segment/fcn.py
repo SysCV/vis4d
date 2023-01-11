@@ -17,7 +17,7 @@ class FCNOut(NamedTuple):
 
 
 class FCNLosses(NamedTuple):
-    """Losses for FCN"""
+    """Losses for FCN."""
 
     total_loss: torch.Tensor
     losses: list[torch.Tensor]
@@ -47,6 +47,8 @@ class FCNHead(nn.Module):
                 of classes.
             dropout_prob (float, optional): Dropout probability. Defaults to
                 0.1.
+            resize (tuple(int,int), optional): Target shape to resize output.
+                Defaults to None.
         """
         super().__init__()
         self.in_channels = in_channels
@@ -88,8 +90,7 @@ class FCNHead(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, feats: list[torch.Tensor]) -> FCNOut:
-        """Forward function for transforming feature maps and obtain
-        segmentation prediction.
+        """Transforms feature maps and returns segmentation prediction.
 
         Args:
             feats (list[torch.Tensor]): List of multi-level image features.
@@ -145,7 +146,6 @@ class FCNLoss(nn.Module):
                 If None passes, it will set to 1 for all levels. Defaults to
                     None.
         """
-
         super().__init__()
         self.feature_idx = feature_idx
         self.loss_fn = loss_fn

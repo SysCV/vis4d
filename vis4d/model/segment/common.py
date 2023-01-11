@@ -74,7 +74,8 @@ PASCAL_LABEL = np.asarray(
 
 
 def pascal_label_encode(color_mask: np.ndarray) -> np.ndarray:
-    """Encode segmentation label images as pascal classes
+    """Encode segmentation label images as pascal classes.
+
     Args:
         color_mask (np.ndarray): raw segmentation label image of dimension
             (M, N, 3), in which the Pascal classes are encoded as colors.
@@ -92,7 +93,8 @@ def pascal_label_encode(color_mask: np.ndarray) -> np.ndarray:
 
 
 def pascal_label_decode(label_mask: np.ndarray) -> np.ndarray:
-    """Decode segmentation label images as pascal classes
+    """Decode segmentation label images as pascal classes.
+
     Args:
         label_mask (np.ndarray): segmentation label image of dimension
             (M, N), in which the Pascal classes are numerical indices.
@@ -115,7 +117,18 @@ def per_image_hist(
     num_classes: int,
     ignore_label: int = 255,
 ) -> tuple[np.ndarray, set[int]]:
-    """Calculate per image hist."""
+    """Calculate per image hist.
+
+    Args:
+        target (np.ndarray): The ground truth.
+        pred (np.ndarray): The prediction.
+        num_classes (int): The number of classes.
+        ignore_label (int): The class index that should be ignored.
+            Defaults to 255.
+    Returns:
+        tuple[np.ndarray, set[int]]: The histogram and the set of groundtruth
+            ids.
+    """
     num_classes = num_classes + 1
     assert num_classes >= 2
     assert num_classes <= ignore_label
@@ -197,8 +210,8 @@ def evaluate_sem_seg(
 
 
 def save_output_images(predictions, output_dir, colorize=True, offset=0):
-    """
-    Saves a given tensor (B x C x H x W) into an image file.
+    """Saves a given tensor (B x C x H x W) into an image file.
+
     If given a mini-batch tensor, will save the tensor as a grid of images.
     """
     os.makedirs(output_dir, exist_ok=True)
@@ -214,8 +227,8 @@ def save_output_images(predictions, output_dir, colorize=True, offset=0):
 
 
 def read_output_images(image_dir):
-    """
-    Saves a given tensor (B x C x H x W) into an image file.
+    """Saves a given tensor (B x C x H x W) into an image file.
+
     If given a mini-batch tensor, will save the tensor as a grid of images.
     """
     img_list = []
@@ -229,11 +242,11 @@ def read_output_images(image_dir):
 
 
 def blend_images(
-    images1: list[np.ndarray], images2: list[np.ndarray], alpha: int = 0.6
+    images1: list[np.ndarray], images2: list[np.ndarray], alpha: float = 0.6
 ):
-    """
-    This function takes in two lists of images (image1 and image2) and blends
-    them together using the alpha value provided.
+    """Takes in two lists of images and blends them together.
+
+    It uses the provided alpha value to combine both images.
 
     Args:
         images1 (list[np.ndarray]): A list of images to be blended.

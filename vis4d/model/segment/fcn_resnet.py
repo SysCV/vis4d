@@ -23,7 +23,8 @@ class FCNResNet(nn.Module):
         num_classes: int = 21,
         resize: None | tuple[int, int] = (520, 520),
     ) -> None:
-        """FCN with ResNet basemodel, following `torchvision implementation
+        """FCN with ResNet basemodel, following `torchvision implementation.
+
         <https://github.com/pytorch/vision/blob/torchvision/models/segmentation/
         fcn.py>`_.
 

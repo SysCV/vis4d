@@ -165,9 +165,11 @@ class COCOEvaluator(Evaluator):
     ) -> None:
         """Process sample and convert detections to coco format.
 
-        Args:
-            inputs (DictData): Input data.
-            outputs (ModelOutput): Output predictions from model.
+        coco_image_id (list[int]): COCO image ID.
+        pred_boxes (list[NDArrayNumber]): Predicted bounding boxes.
+        pred_scores (list[NDArrayNumber]): Predicted scores for each box.
+        pred_classes (list[NDArrayNumber]): Predicted classes for each box.
+        pred_masks (None | list[NDArrayNumber], optional): Predicted masks.
         """
         for i, (image_id, boxes, scores, classes) in enumerate(
             zip(coco_image_id, pred_boxes, pred_scores, pred_classes)

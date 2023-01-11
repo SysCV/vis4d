@@ -147,7 +147,8 @@ def center_and_normalize(normalize=True):
 
     Args:
         normalize(bool): If true, divides the coordinates by the max values
-                         in each direction."""
+                         in each direction.
+    """
 
     def _center_and_normalize(coordinates: torch.Tensor):
         center = (
@@ -165,8 +166,9 @@ def center_and_normalize(normalize=True):
 
 @Transform(in_keys=(CommonKeys.points3d,), out_keys=(PC_BOUND_KEY,))
 def extract_pc_bounds():
-    """Extracts the max and min values of the loaded points and safes it
-    into the out_key (default 'pc_bounds').
+    """Extracts the max and min values of the loaded points.
+
+    The value is safed into the out_key (default 'pc_bounds').
     """
 
     def _extract_pc_bounds(coordinates: torch.Tensor):
@@ -185,7 +187,8 @@ def extract_pc_bounds():
     out_keys=(CommonKeys.points3d,),
 )
 def normalize_by_bounds(axes: tuple[int, ...] = (0, 1)):
-    """Uses the bounds stored in in_keys[1] (default 'pc_bounds')
+    """Uses the bounds stored in in_keys[1] (default 'pc_bounds').
+
     to normalize the data along al axes.
 
     Args:
