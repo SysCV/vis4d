@@ -33,7 +33,15 @@ class ResizeWithPadding:
         """
         self.size = size
 
-    def __call__(self, image):
+    def __call__(self, image: np.ndarray) -> torch.Tensor:
+        """Pad the image.
+
+        Args:
+            image (np.ndarray): Array-like image to be padded.
+
+        Returns:
+            image (torch.Tensor): Padded image tensor.
+        """
         arr = np.asarray(image)
         w, h = image.size
         wp = self.size[1] - w
@@ -42,7 +50,6 @@ class ResizeWithPadding:
             image = T.pad(image, (0, 0, wp, hp), 0, "constant")
         else:
             image = T.pad(image, (0, 0, wp, hp), 255, "constant")
-            print(np.unique(np.array(image)))
         return image
 
 
@@ -74,10 +81,12 @@ PASCAL_LABEL = np.asarray(
 
 
 def pascal_label_encode(color_mask: np.ndarray) -> np.ndarray:
-    """Encode segmentation label images as pascal classes
+    """Encode segmentation label images as pascal classes.
+
     Args:
         color_mask (np.ndarray): raw segmentation label image of dimension
             (M, N, 3), in which the Pascal classes are encoded as colors.
+
     Returns:
         label_mask (np.ndarray): class map with dimensions (M, N), where the
         value at a given location is the integer denoting the class index.
@@ -92,10 +101,12 @@ def pascal_label_encode(color_mask: np.ndarray) -> np.ndarray:
 
 
 def pascal_label_decode(label_mask: np.ndarray) -> np.ndarray:
-    """Decode segmentation label images as pascal classes
+    """Decode segmentation label images as pascal classes.
+
     Args:
         label_mask (np.ndarray): segmentation label image of dimension
             (M, N), in which the Pascal classes are numerical indices.
+
     Returns:
         color_mask (np.ndarray): color map with dimensions (M, N, 3), where the
         value at a given location is the integer denoting the class index.
@@ -142,7 +153,7 @@ def evaluate_sem_seg(
     ignore_label: int = 255,
     nproc: int = 4,
 ) -> tuple[dict, set]:
-    """Evaluate segmentation with Scalabel format.
+    """Evaluate segmentation result.
 
     Args:
         ann_frames (list[torch.Tensor]): The ground truth frames.
@@ -197,8 +208,8 @@ def evaluate_sem_seg(
 
 
 def save_output_images(predictions, output_dir, colorize=True, offset=0):
-    """
-    Saves a given tensor (B x C x H x W) into an image file.
+    """Saves a given tensor (B x C x H x W) into an image file.
+
     If given a mini-batch tensor, will save the tensor as a grid of images.
     """
     os.makedirs(output_dir, exist_ok=True)
@@ -214,8 +225,8 @@ def save_output_images(predictions, output_dir, colorize=True, offset=0):
 
 
 def read_output_images(image_dir):
-    """
-    Saves a given tensor (B x C x H x W) into an image file.
+    """Saves a given tensor (B x C x H x W) into an image file.
+
     If given a mini-batch tensor, will save the tensor as a grid of images.
     """
     img_list = []
@@ -231,7 +242,8 @@ def read_output_images(image_dir):
 def blend_images(
     images1: list[np.ndarray], images2: list[np.ndarray], alpha: int = 0.6
 ):
-    """
+    """Blend two images together.
+
     This function takes in two lists of images (image1 and image2) and blends
     them together using the alpha value provided.
 
