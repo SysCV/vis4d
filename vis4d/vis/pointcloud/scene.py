@@ -10,6 +10,49 @@ from vis4d.common.typing import ArrayLike, NDArrayFloat, NDArrayInt
 
 
 @dataclass
+class BoundingBoxData:
+    """Stores bounding box data for visualization.
+
+    Attributes:
+        corners (NDArrayFloat): Corners of the bounding box shape [8, 3].
+        color (NDArrayFloat): Colors of the bounding box shape [3].
+        class (int | None): Class id of the bounding box. Defaults to None.
+        instance (int | None): Instance id of the bounding box. Defaults to None.
+        score (float | None): Score of the bounding box. Defaults to None.
+    """
+
+    corners: NDArrayFloat
+    color: NDArrayFloat
+    class_: int | None
+    instance: int | None
+    score: float | None
+
+    def transform(self, transform: NDArrayFloat) -> BoundingBoxData:
+        """Transforms the bounding box.
+
+        Args:
+            transform (NDArrayFloat): Transformation matrix shape [4,4] that
+                transforms points from the current local frame to a fixed
+                global frame.
+
+        Returns:
+            BoundingBoxData: Returns a new bounding box with the transformed
+                points.
+        """
+        assert transform.shape == (
+            4,
+            4,
+        ), "Shape of the provided transform not valid."
+        return BoundingBoxData(
+            (transform[:3, :3] @ self.corners.T).T + transform[:3, -1],
+            self.color,
+            self.class_,
+            self.instance,
+            self.score,
+        )
+
+
+@dataclass
 class PointcloudData:
     """Stores pointcloud data for visualization.
 
@@ -71,6 +114,29 @@ class PointcloudData:
                     )
                 )
 
+    def transform(self, transform: NDArrayFloat) -> PointcloudData:
+        """Transforms the pointcloud.
+
+        Args:
+            transform (NDArrayFloat): Transformation matrix shape [4,4] that
+                transforms points from the current local frame to a fixed
+                global frame.
+
+        Returns:
+            PointcloudData: Returns a new pointcloud with the transformed
+                points.
+        """
+        assert transform.shape == (
+            4,
+            4,
+        ), "Shape of the provided transform not valid."
+        return PointcloudData(
+            (transform[:3, :3] @ self.xyz.T).T + transform[:3, -1],
+            self.colors,
+            self.classes,
+            self.instances,
+        )
+
 
 class Scene3D:
     """Stores the data for a 3D scene.
@@ -86,8 +152,70 @@ class Scene3D:
 
     def __init__(self) -> None:
         """Creates a new, empty scene."""
-        self.pointclouds: list[PointcloudData] = []
-        self.transforms: list[NDArrayFloat] = []
+        self._pointclouds: list[tuple[PointcloudData, NDArrayFloat]] = []
+        self._bounding_boxes: list[tuple[BoundingBoxData, NDArrayFloat]] = []
+
+    @staticmethod
+    def _parse_se3_transform(transform: ArrayLike | None) -> NDArrayFloat:
+        """Parses a SE3 transformation matrix.
+
+        Args:
+            transform (ArrayLike | None): Transformation matrix shape [4,4] that
+                transforms points from the current local frame to a fixed
+                global frame.
+
+        Returns:
+            NDArrayFloat: Returns a valid SE3 transformation matrix.
+        """
+        if transform is None:
+            return np.eye(4)
+        else:
+            transform = array_to_numpy(transform, n_dims=2)
+            assert transform.shape == (
+                4,
+                4,
+            ), "Shape of the provided transform not valid."
+            return transform
+
+    def add_bounding_box(
+        self,
+        corners: ArrayLike,
+        color: ArrayLike | None,
+        class_: int | None,
+        instance: int | None,
+        score: float | None,
+        transform: ArrayLike | None = None,
+    ) -> Scene3D:
+        """Adds a bounding box to the 3D Scene.
+
+        Args:
+            corners (ArrayLike): Corners of the bounding box shape [8, 3].
+            color (ArrayLike | None): Color of the bounding box shape [3].
+            class_ (int | None): Class id of the bounding box.
+                Defaults to None.
+            instance (int | None): Instance id of the bounding box.
+                Defaults to None.
+            score (float | None): Score of the bounding box. Defaults to None.
+            transform (ArrayLike | None): Transformation matrix shape [4,4]
+                that transforms points from the current local frame to a fixed
+                global frame.
+
+        Returns:
+            Scene3D: Returns 'self' to chain calls.
+        """
+        self._bounding_boxes.append(
+            (
+                BoundingBoxData(
+                    array_to_numpy(corners, n_dims=2),
+                    array_to_numpy(color, n_dims=1),
+                    class_,
+                    instance,
+                    score,
+                ),
+                self._parse_se3_transform(transform),
+            ),
+        )
+        return self
 
     def add_pointcloud(
         self,
@@ -117,54 +245,30 @@ class Scene3D:
         Returns:
             Scene3D: Returns 'self' to chain calls.
         """
-        se3_tf = (
-            array_to_numpy(transform, n_dims=2)
-            if transform is not None
-            else np.eye(4)
+        self._pointclouds.append(
+            (
+                PointcloudData(xyz, colors, classes, instances),
+                self._parse_se3_transform(transform),
+            )
         )
-
-        assert se3_tf.shape == (
-            4,
-            4,
-        ), "Shape of the provided transform not valid."
-        self.pointclouds.append(
-            PointcloudData(xyz, colors, classes, instances)
-        )
-        self.transforms.append(se3_tf)
         return self
 
     @property
-    def points(self) -> NDArrayFloat:
+    def bounding_boxes(self) -> list[BoundingBoxData]:
+        """Returns all bounding boxes in the scene.
+
+        Returns:
+            list[BoundingBoxData]: List of all bounding boxes in the scene.
+        """
+        return [bbox.transform(tf) for (bbox, tf) in self._bounding_boxes]
+
+    @property
+    def points(self) -> list[PointcloudData]:
         """Returns all points of all pointclouds in the scene.
 
         Returns:
-            NDArrayFloat: All points in the scene.
+            List[PointcloudData]: Data information for all points in the scene.
+                Providing information about the points, colors, classes and
+                instances.
         """
-        return np.concatenate([pc.xyz for pc in self.pointclouds])
-
-    @property
-    def colors(self) -> NDArrayFloat:
-        """Returns all colors of all pointclouds in the scene.
-
-        Returns:
-            NDArrayFloat: All colors in the scene.
-        """
-        return np.concatenate([pc.colors for pc in self.pointclouds])
-
-    @property
-    def instances(self) -> NDArrayInt:
-        """Returns all instances of all pointclouds in the scene.
-
-        Returns:
-            NDArrayInt: All instances in the scene.
-        """
-        return np.concatenate([pc.instances for pc in self.pointclouds])
-
-    @property
-    def classes(self) -> NDArrayInt:
-        """Returns all classes of all pointclouds in the scene.
-
-        Returns:
-            NDArrayInt: All classes in the scene.
-        """
-        return np.concatenate([pc.classes for pc in self.pointclouds])
+        return [pc.transform(tf) for (pc, tf) in self._pointclouds]
