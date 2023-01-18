@@ -63,13 +63,13 @@ def describe_shape(obj: Any) -> str:  # type: ignore
     log_str = ""
     if isinstance(obj, dict):
         log_str += "{"
-        for k in obj.keys():
-            log_str += f"{k}: {describe_shape(obj[k])}, "
+        log_str += ", ".join(
+            [f"{k}: {describe_shape(obj[k])}" for k in obj.keys()]
+        )
         log_str += "}"
     elif isinstance(obj, list):
         log_str += "["
-        for v in obj:
-            log_str += describe_shape(v) + ", "
+        log_str += ", ".join([describe_shape(v) for v in obj])
         log_str += "]"
     elif isinstance(obj, (torch.Tensor, np.ndarray)):
         log_str += f"shape[{', '.join([str(s) for s in obj.shape])}]"
