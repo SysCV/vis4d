@@ -308,9 +308,9 @@ class Tree(nn.Module):
         if block == "BasicBlock":
             block_c = BasicBlock
         elif block == "Bottleneck":
-            block_c = Bottleneck
+            block_c = Bottleneck  # type: ignore
         elif block == "BottleneckX":
-            block_c = BottleneckX
+            block_c = BottleneckX  # type: ignore
         else:
             raise ValueError(f"Block={block} not yet supported in DLA!")
         if root_dim == 0:

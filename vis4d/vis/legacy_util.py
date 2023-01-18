@@ -477,7 +477,7 @@ def show_pointcloud(
 
     Args:
         points (torch.Tensor): Pointcloud points. Shaped [n_pts, 3].
-        colors (AxisMode, optional): RGB color.
+        colors (torch.Tensor, optional): RGB color.
         axis_mode (AxisMode, optional): Axis mode. Defaults to AxisMode.OPENCV.
         boxes3d (Tensor, optional): 3D boxes. Shaped [n_boxes, 7].
             Defaults to None.

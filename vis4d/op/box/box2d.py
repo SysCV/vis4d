@@ -70,7 +70,7 @@ def scale_and_clip_boxes(
     return boxes
 
 
-@torch.jit.script
+@torch.jit.script  # type: ignore
 def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
     """Compute bounding box areas.
 
@@ -86,7 +86,7 @@ def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
     ).clamp(0)
 
 
-@torch.jit.script
+@torch.jit.script  # type: ignore
 def bbox_intersection(
     boxes1: torch.Tensor, boxes2: torch.Tensor
 ) -> torch.Tensor:
@@ -107,7 +107,7 @@ def bbox_intersection(
     return intersection
 
 
-@torch.jit.script
+@torch.jit.script  # type: ignore
 def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     """Compute IoU between all pairs of boxes.
 
@@ -342,46 +342,3 @@ def multiclass_nms(
     scores = scores[keep]
     labels = labels[keep]
     return bboxes, scores, labels, inds[keep]
-
-
-# TODO revise
-def distance_3d_nms(
-    boxes3d,
-    cat_mapping: dict[int, str],
-    boxes2d=None,
-) -> torch.Tensor:
-    """Distance based 3D NMS."""
-    keep_indices = torch.ones(len(boxes3d)).bool()
-
-    if boxes2d is not None:
-        boxes2d_scores = boxes2d.score
-    else:  # pragma: no cover
-        boxes2d_scores = torch.ones(len(boxes3d))
-
-    distance_matrix = torch.cdist(
-        boxes3d.center.unsqueeze(0),
-        boxes3d.center.unsqueeze(-1).transpose(1, 2),
-    ).squeeze(-1)
-
-    for i, box3d in enumerate(boxes3d):
-        current_3d_score = box3d.score * boxes2d_scores[i]
-        current_class = cat_mapping[int(box3d.class_ids)]
-
-        if current_class in {"pedestrian", "traffic_cone"}:
-            nms_dist = 0.5
-        elif current_class in {"bicycle", "motorcycle", "barrier"}:
-            nms_dist = 1
-        else:
-            nms_dist = 2
-
-        nms_candidates = (distance_matrix[i] < nms_dist).nonzero().squeeze(-1)
-
-        valid_candidates = (
-            boxes3d[nms_candidates].score * boxes2d_scores[nms_candidates]
-            > current_3d_score
-        )[(boxes3d[nms_candidates].class_ids == box3d.class_ids).squeeze(0)]
-
-        if torch.any(valid_candidates):
-            keep_indices[i] = False
-
-    return keep_indices

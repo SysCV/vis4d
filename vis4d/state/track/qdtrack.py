@@ -5,6 +5,8 @@ from typing import Generic, NamedTuple, TypeVar
 
 import torch
 
+# TODO refactor this from inheritance to composition
+# pylint: disable=invalid-name
 TTrackState = TypeVar("TTrackState", bound=NamedTuple)
 
 
@@ -64,25 +66,11 @@ class BaseTrackMemory(Generic[TTrackState]):
         """
         return self.frames[start_index:end_index]
 
-    def get_current_tracks(self, device: torch.device) -> TTrackState:
+    def get_current_tracks(
+        self, device: torch.device  # pylint: disable=unused-argument
+    ) -> TTrackState:
         """Return active tracks."""
         return self.frames[-1]
-
-    def get_track(self, track_id: int) -> list[TTrackState]:
-        """Get representation of a single track across memory frames.
-
-        Args:
-            track_id (int): track id of query track.
-
-        Returns:
-            list[TTrackState]: List of track states for given query track.
-        """
-        track = []
-        for frame in self.frames:
-            idx = (frame.track_ids == track_id).nonzero(as_tuple=True)[0]
-            if len(idx) > 0:
-                track.append(tuple(element[idx] for element in frame))
-        return track
 
     def update(self, data: TTrackState) -> None:
         """Store tracks in memory."""
@@ -175,6 +163,22 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
             memory_class_ids,
             memory_embeddings,
         )
+
+    def get_track(self, track_id: int) -> list[QDTrackState]:
+        """Get representation of a single track across memory frames.
+
+        Args:
+            track_id (int): track id of query track.
+
+        Returns:
+            list[QDTrackState]: List of track states for given query track.
+        """
+        track = []
+        for frame in self.frames:
+            idx = (frame.track_ids == track_id).nonzero(as_tuple=True)[0]
+            if len(idx) > 0:
+                track.append(tuple(element[idx] for element in frame))
+        return track  # type: ignore
 
     def get_current_tracks(self, device: torch.device) -> QDTrackState:
         """Get all active tracks and backdrops in memory."""

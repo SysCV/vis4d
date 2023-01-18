@@ -106,22 +106,21 @@ class DefaultTrainer(pl.Trainer):
                     project=exp_name,
                     name=version,
                 )
+            elif TENSORBOARD_AVAILABLE:
+                exp_logger = pl.loggers.TensorBoardLogger(  # type: ignore
+                    save_dir=work_dir,
+                    name=exp_name,
+                    version=version,
+                    default_hp_metric=False,
+                    log_graph=True,
+                )
             else:
-                if TENSORBOARD_AVAILABLE:
-                    exp_logger = pl.loggers.TensorBoardLogger(  # type: ignore
-                        save_dir=work_dir,
-                        name=exp_name,
-                        version=version,
-                        default_hp_metric=False,
-                        log_graph=True,
-                    )
-                else:
-                    exp_logger = None
-                    rank_zero_info(
-                        "Neither `tensorboard` nor `tensorboardX` is "
-                        "available. Running without experiment logger. To log "
-                        "your experiments, try `pip install`ing either."
-                    )
+                exp_logger = None
+                rank_zero_info(
+                    "Neither `tensorboard` nor `tensorboardX` is "
+                    "available. Running without experiment logger. To log "
+                    "your experiments, try `pip install`ing either."
+                )
             kwargs["logger"] = exp_logger
 
         callbacks: List[pl.callbacks.Callback] = []

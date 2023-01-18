@@ -24,11 +24,12 @@ class PolyLRScheduler(
         self.min_lr = min_lr
         super().__init__(optimizer, last_epoch, verbose)
 
-    def get_lr(self) -> list[float]:
+    def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
-        if self._step_count >= self.max_steps:  # pragma: no cover
+        step_count = self._step_count  # type: ignore
+        if step_count >= self.max_steps:
             return [self.min_lr for _ in self.base_lrs]
-        coeff = (1 - self._step_count / self.max_steps) ** self.power
+        coeff = (1 - step_count / self.max_steps) ** self.power
         return [
             (base_lr - self.min_lr) * coeff + self.min_lr
             for base_lr in self.base_lrs

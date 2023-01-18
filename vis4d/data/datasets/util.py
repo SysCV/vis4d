@@ -28,21 +28,6 @@ if OPENCV_AVAILABLE:
     )
 
 
-def convert_input_dir_to_dataset(input_dir: str) -> None:  # TODO revise
-    """Convert a given input directory to a dataset for prediction."""
-    if input_dir is not None:
-        if input_dir is not None:
-            if not os.path.exists(input_dir):
-                raise FileNotFoundError(
-                    f"Input directory does not exist: {input_dir}"
-                )
-        if input_dir[-1] == "/":
-            input_dir = input_dir[:-1]
-        dataset_name = os.path.basename(input_dir)
-        dataset = ScalabelDataset(Custom(dataset_name, input_dir), False)
-    return dataset
-
-
 def im_decode(
     im_bytes: bytes, mode: str = "RGB", backend: str = "PIL"
 ) -> NDArrayUI8:
