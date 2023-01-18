@@ -36,6 +36,11 @@ DASH_AVAILABLE = package_available("dash")
 OPEN3D_AVAILABLE = package_available("open3d")
 PLOTLY_AVAILABLE = package_available("plotly")
 
+# logging
+TENSORBOARD_AVAILABLE = package_available("tensorboardX") or package_available(
+    "tensorboard"
+)
+
 
 def is_torch_tf32_available() -> bool:  # pragma: no cover
     """Check if torch TF32 is available.

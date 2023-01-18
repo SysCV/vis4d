@@ -9,15 +9,15 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
+from pytorch_lightning.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.core import LightningModule
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.strategies.strategy import Strategy
-from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType, DictStrAny
-from vis4d.common.imports import is_torch_tf32_available
+from vis4d.common.imports import TENSORBOARD_AVAILABLE, is_torch_tf32_available
 from vis4d.common.logging import rank_zero_info, rank_zero_warn, setup_logger
 from vis4d.pl.data import DataModule
 from vis4d.pl.progress import DefaultProgressBar
@@ -107,13 +107,21 @@ class DefaultTrainer(pl.Trainer):
                     name=version,
                 )
             else:
-                exp_logger = pl.loggers.TensorBoardLogger(  # type: ignore
-                    save_dir=work_dir,
-                    name=exp_name,
-                    version=version,
-                    default_hp_metric=False,
-                    log_graph=True,
-                )
+                if TENSORBOARD_AVAILABLE:
+                    exp_logger = pl.loggers.TensorBoardLogger(  # type: ignore
+                        save_dir=work_dir,
+                        name=exp_name,
+                        version=version,
+                        default_hp_metric=False,
+                        log_graph=True,
+                    )
+                else:
+                    exp_logger = None
+                    rank_zero_info(
+                        "Neither `tensorboard` nor `tensorboardX` is "
+                        "available. Running without experiment logger. To log "
+                        "your experiments, try `pip install`ing either."
+                    )
             kwargs["logger"] = exp_logger
 
         callbacks: List[pl.callbacks.Callback] = []

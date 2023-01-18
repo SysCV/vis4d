@@ -10,7 +10,7 @@ from typing import Callable, List, no_type_check
 
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.utilities.cli import instantiate_class
+from pytorch_lightning.cli import instantiate_class
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 from torch.utils.model_zoo import load_url
