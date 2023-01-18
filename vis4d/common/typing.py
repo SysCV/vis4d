@@ -39,6 +39,5 @@ ArrayIterableBool = Iterable[Union[bool, "ArrayIterableBool"]]
 
 ArrayLikeFloat = Union[ArrayIterableFloat, NDArrayF32, NDArrayF64, FloatTensor]
 ArrayLikeBool = Union[ArrayIterableBool, NDArrayBool, BoolTensor]
-ArrayLikeInt = Union[ArrayIterableFloat, NDArrayInt, IntTensor]
-
+ArrayLikeInt = Union[ArrayIterableInt, NDArrayInt, IntTensor]
 ArrayLike = Union[ArrayLikeBool, ArrayLikeFloat, ArrayLikeInt]
