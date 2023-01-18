@@ -13,6 +13,10 @@ from torch import (  # pylint: disable=no-name-in-module
     Tensor,
 )
 
+NumpyFloat = Union[np.float32, np.float64]
+NumpyInt = Union[np.int32, np.int64]
+NumpyBool = np.bool_
+
 NDArrayF64 = npt.NDArray[np.float64]
 NDArrayF32 = npt.NDArray[np.float32]
 NDArrayI64 = npt.NDArray[np.int64]
