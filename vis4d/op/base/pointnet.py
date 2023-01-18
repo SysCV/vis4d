@@ -12,6 +12,8 @@ from typing import NamedTuple
 import torch
 from torch import nn
 
+from vis4d.common.typing import ArgsType
+
 
 class PointNetEncoderOut(NamedTuple):
     """Output of the PointNetEncoder.
@@ -203,7 +205,7 @@ class PointNetEncoder(nn.Module):
         mlp_dimensions: Iterable[Iterable[int]] = ((64, 64), (64, 128)),
         norm_cls: str | None = "BatchNorm1d",
         activation_cls: str = "ReLU",
-        **kwargs,
+        **kwargs: ArgsType,
     ):
         """Creates a new PointNetEncoder.
 

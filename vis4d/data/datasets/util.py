@@ -89,13 +89,12 @@ class CacheMappingMixin:
     string representation, so that the mapping can be loaded and re-used.
     """
 
-    def _load_mapping(
+    def _load_mapping_data(
         self,
         generate_map_func: Callable[[], list[DictStrAny]],
         use_cache: bool = True,
-    ) -> Dataset:
-        """Load cached mapping or generate if not exists."""
-        timer = Timer()
+    ) -> list[DictStrAny]:
+        """Load possibly cached mapping via generate_map_func."""
         if use_cache:
             cache_dir = os.path.join(
                 appdirs.user_cache_dir(appname="vis4d"),
@@ -113,7 +112,16 @@ class CacheMappingMixin:
                     data = pickle.loads(file.read())
         else:
             data = generate_map_func()
+        return data
 
+    def _load_mapping(
+        self,
+        generate_map_func: Callable[[], list[DictStrAny]],
+        use_cache: bool = True,
+    ) -> Dataset:
+        """Load cached mapping or generate if not exists."""
+        timer = Timer()
+        data = self._load_mapping_data(generate_map_func, use_cache)
         dataset = DatasetFromList(data)
         rank_zero_info(
             f"Loading {str(self.__repr__)} takes {timer.time():.2f} seconds."

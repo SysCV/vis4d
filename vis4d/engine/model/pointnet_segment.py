@@ -39,7 +39,6 @@ def get_dataloaders(
     is_training: bool = False, batch_size: int = 1, load_colors=False
 ) -> Tuple[Optional[DataLoader], List[DataLoader], List[Evaluator], str]:
     """Return dataloaders and evaluators."""
-
     data_in_keys = [CommonKeys.points3d]
     if load_colors:
         data_in_keys += [CommonKeys.colors3d]

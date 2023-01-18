@@ -5,13 +5,12 @@ import torch
 
 from vis4d.data.const import CommonKeys
 from vis4d.model.segment3d.pointnet import PointnetSegmentationModel
-from vis4d.op.base.pointnet import PointNetSemanticsOut
 
 
 class TestPointnet(unittest.TestCase):
     """Testcase for Pointnet."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Sets up the Test."""
         self.batch_size = 8
         self.n_pts = 1024

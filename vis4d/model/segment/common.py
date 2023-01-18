@@ -22,37 +22,6 @@ if SCALABEL_AVAILABLE:
     )
 
 
-class ResizeWithPadding:
-    """Padding image to desired size."""
-
-    def __init__(self, size: tuple[int, int]):
-        """Creates an instance of the class.
-
-        Args:
-            size (tuple[int, int]): The desired size of image, (height, width).
-        """
-        self.size = size
-
-    def __call__(self, image: np.ndarray) -> torch.Tensor:
-        """Pad the image.
-
-        Args:
-            image (np.ndarray): Array-like image to be padded.
-
-        Returns:
-            image (torch.Tensor): Padded image tensor.
-        """
-        arr = np.asarray(image)
-        w, h = image.size
-        wp = self.size[1] - w
-        hp = self.size[0] - h
-        if len(arr.shape) == 3:
-            image = T.pad(image, (0, 0, wp, hp), 0, "constant")
-        else:
-            image = T.pad(image, (0, 0, wp, hp), 255, "constant")
-        return image
-
-
 PASCAL_LABEL = np.asarray(
     [
         [0, 0, 0],
@@ -126,7 +95,19 @@ def per_image_hist(
     num_classes: int,
     ignore_label: int = 255,
 ) -> tuple[np.ndarray, set[int]]:
-    """Calculate per image hist."""
+    """Calculate per image hist.
+
+    Args:
+        target (np.ndarray): The ground truth.
+        pred (np.ndarray): The prediction.
+        num_classes (int): The number of classes.
+        ignore_label (int): The class index that should be ignored.
+            Defaults to 255.
+
+    Returns:
+        tuple[np.ndarray, set[int]]: The histogram and the set of ground truth
+            ids.
+    """
     num_classes = num_classes + 1
     assert num_classes >= 2
     assert num_classes <= ignore_label
@@ -207,10 +188,20 @@ def evaluate_sem_seg(
     return res_dict, gt_id_set
 
 
-def save_output_images(predictions, output_dir, colorize=True, offset=0):
-    """Saves a given tensor (B x C x H x W) into an image file.
+def save_output_images(
+    predictions: list[np.ndarray],
+    output_dir: str,
+    colorize: bool = True,
+    offset: int = 0,
+):
+    """Saves a given list of images (C x H x W) as image files.
 
-    If given a mini-batch tensor, will save the tensor as a grid of images.
+    Args:
+        predictions (list[np.ndarray]): A list of images to save.
+        output_dir (str): Directory for saving images.
+        colorize (bool): Colorize segmentation results with Pascal schema.
+            Defaults to True.
+        offset (int): Starting number of indices used for naming the images.
     """
     os.makedirs(output_dir, exist_ok=True)
     for i, prediction in enumerate(predictions):
@@ -224,10 +215,14 @@ def save_output_images(predictions, output_dir, colorize=True, offset=0):
         im.save(fn)
 
 
-def read_output_images(image_dir):
-    """Saves a given tensor (B x C x H x W) into an image file.
+def read_output_images(image_dir: str) -> list[np.ndarray]:
+    """Reads image files into a list of numpy array (C x H x W).
 
-    If given a mini-batch tensor, will save the tensor as a grid of images.
+    Args:
+        image_dir (str): Directory for reading images.
+
+    Return:
+        img_list (list[np.ndarray]): A list of image arrays (C x H x W).
     """
     img_list = []
     for fn in sorted(list(os.listdir(image_dir))):
@@ -240,12 +235,11 @@ def read_output_images(image_dir):
 
 
 def blend_images(
-    images1: list[np.ndarray], images2: list[np.ndarray], alpha: int = 0.6
+    images1: list[np.ndarray], images2: list[np.ndarray], alpha: float = 0.6
 ):
-    """Blend two images together.
+    """Takes in two lists of images and blends them together.
 
-    This function takes in two lists of images (image1 and image2) and blends
-    them together using the alpha value provided.
+    It uses the provided alpha value to combine both images.
 
     Args:
         images1 (list[np.ndarray]): A list of images to be blended.

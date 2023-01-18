@@ -1,4 +1,6 @@
 """Point sampling transforms testing class."""
+from __future__ import annotations
+
 import copy
 import unittest
 
@@ -19,9 +21,11 @@ class TestSampleFromBlock(unittest.TestCase):
     data_in_unit_square = torch.rand(100, 3).sort(dim=0).values
     data_outside_unit_square = torch.rand(100, 3).sort(dim=0).values + 10
     n_pts_to_sample = 100
+    data: dict[str, torch.Tensor] = {}
+    original_data: dict[str, torch.Tensor] = {}
 
     @pytest.fixture(autouse=True)
-    def initdata(self):
+    def initdata(self) -> None:
         """Loads dummy data."""
         self.data = {
             CommonKeys.points3d: torch.cat(
@@ -32,7 +36,7 @@ class TestSampleFromBlock(unittest.TestCase):
         }
         self.original_data = copy.deepcopy(self.data)
 
-    def test_block_sampling(self):
+    def test_block_sampling(self) -> None:
         """Tests the functional."""
         # Should return the full block
         data_to_sample_from = self.data_in_unit_square
@@ -83,7 +87,7 @@ class TestSampleFromBlock(unittest.TestCase):
             ).item()
         )
 
-    def test_sampler(self):
+    def test_sampler(self) -> None:
         """Test the Class implementation of the sampling functional."""
         # pylint: disable=unexpected-keyword-arg
         sampler = sample_points_random(
@@ -104,8 +108,8 @@ class TestSampleFromBlock(unittest.TestCase):
         self.assertEqual(data_sampled[CommonKeys.semantics3d].size(0), 500)
         self.assertEqual(data_sampled[CommonKeys.colors3d].size(0), 500)
 
-    def test_full_scale_block_sampling(self):
-        """Tests if all points are sampled when using full coverage and enough points."""
+    def test_full_scale_block_sampling(self) -> None:
+        """Tests if all points are sampled when using full coverage."""
         # pylint: disable=unexpected-keyword-arg
         sampler = sample_points_block_full_coverage(
             min_pts_per_block=1,
@@ -140,9 +144,10 @@ class RandomPointSamplingTest(unittest.TestCase):
     """Test point sampling."""
 
     n_scene_pts = 1000
+    data: dict[str, torch.Tensor] = {}
 
     @pytest.fixture(autouse=True)
-    def initdata(self):
+    def initdata(self) -> None:
         """Loads dummy data."""
         self.data = {
             CommonKeys.points3d: torch.rand(self.n_scene_pts, 3),
@@ -150,9 +155,8 @@ class RandomPointSamplingTest(unittest.TestCase):
             CommonKeys.semantics3d: torch.rand(self.n_scene_pts, 1),
         }
 
-    def test_sample_less_pts(self):
-        """Test if sampling works when sampling less points than given in
-        the scene."""
+    def test_sample_less_pts(self) -> None:
+        """Test if sampling works when sampling less pts than in the scene."""
         # pylint: disable=unexpected-keyword-arg
         sampler = sample_points_random(
             num_pts=100,
@@ -169,10 +173,11 @@ class RandomPointSamplingTest(unittest.TestCase):
             data_sampled[CommonKeys.colors3d].size(0), self.n_scene_pts
         )
 
-    def test_sample_more_pts(self):
-        """Tests if sampling works when sampling more points tha given in
-        the scene."""
+    def test_sample_more_pts(self) -> None:
+        """Tests if sampling works with more points.
 
+        It uses more points than given in the scene.
+        """
         # pylint: disable=unexpected-keyword-arg
         sampler = sample_points_random(
             num_pts=10000,

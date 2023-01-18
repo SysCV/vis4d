@@ -16,6 +16,9 @@ from vis4d.data.transforms.points import (
 class TestPoints(unittest.TestCase):
     """Tests sampling in a block based fashion."""
 
+    data: dict[str, torch.Tensor] = {}
+    original_data: dict[str, torch.Tensor] = {}
+
     @pytest.fixture(autouse=True)
     def initdata(self):
         """Loads dummy data."""
@@ -37,7 +40,7 @@ class TestPoints(unittest.TestCase):
         self.assertEqual(tf(self.data)[CommonKeys.points3d].shape[-1], 200)
 
     def test_move_pts_to_last_channel_w_multi_keys(self) -> None:
-        """Tests the move_pts_to_last_channel functional with multiple inputs."""
+        """Tests the functional with multiple inputs."""
         # Check mutli key case
         # pylint: disable=unexpected-keyword-arg
         tf = move_pts_to_last_channel(

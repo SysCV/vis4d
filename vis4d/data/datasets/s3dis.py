@@ -1,9 +1,11 @@
 """Stanford 3D indoor dataset."""
+from __future__ import annotations
+
 import copy
 import glob
 import os
+from collections.abc import Sequence
 from io import BytesIO
-from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -23,7 +25,10 @@ class S3DIS(Dataset, CacheMappingMixin):
 
     _DESCRIPTION = """S3DIS is a large-scale indoor pointcloud dataset."""
     _TASKS = ["3DSegment"]
-    _URL = "https://openaccess.thecvf.com/content_cvpr_2016/papers/Armeni_3D_Semantic_Parsing_CVPR_2016_paper.pdf"
+    _URL = (
+        "https://openaccess.thecvf.com/content_cvpr_2016/papers/"
+        "Armeni_3D_Semantic_Parsing_CVPR_2016_paper.pdf"
+    )
 
     CLASS_NAME_TO_IDX = {
         "ceiling": 0,
@@ -59,12 +64,12 @@ class S3DIS(Dataset, CacheMappingMixin):
         ]
     )
 
-    AVAILABLE_KEYS: List[str] = [
+    AVAILABLE_KEYS: Sequence[str] = (
         CommonKeys.points3d,
         CommonKeys.colors3d,
         CommonKeys.semantics3d,
         CommonKeys.instances3d,
-    ]
+    )
 
     COLOR_MAPPING = torch.tensor(
         [
@@ -89,27 +94,26 @@ class S3DIS(Dataset, CacheMappingMixin):
         self,
         data_root: str,
         split: str = "trainNoArea5",
-        data_backend: Optional[DataBackend] = None,
-        keys_to_load: List[str] = AVAILABLE_KEYS,
+        data_backend: DataBackend | None = None,
+        keys_to_load: Sequence[str] = AVAILABLE_KEYS,
         cache_points: bool = True,
     ) -> None:
         """Creates a new S3DIS dataset.
 
         Args:
             data_root (str): Path to S3DIS folder
-            split (str): which split to load. Must either be
-                trainNoArea[1-6] or testArea[1-6].
-                e.g. trainNoArea5 will load all areas except area 5 and
-                testArea5 will only load area 5
+            split (str): which split to load. Must either be trainNoArea[1-6]
+                or testArea[1-6].  e.g. trainNoArea5 will load all areas except
+                area 5 and testArea5 will only load area 5.
             data_backend (Optional[DataBackend]): Which data backend to use.
-                        if not specified, will use FileBackend
-            keys_to_load (List[str]): What kind of data should be loaded
-                                      (e.g. colors, xyz, semantics, ...)
+                if not specified, will use FileBackend
+            keys_to_load (list[str]): What kind of data should be loaded
+                (e.g. colors, xyz, semantics, ...)
             cache_points (bool): If true caches loaded points instead of
-                                 reading them from the disk every time.
+                reading them from the disk every time.
 
         Raises:
-            ValueError: If requested split is malformed
+            ValueError: If requested split is malformed.
         """
         super().__init__()
 
@@ -119,7 +123,7 @@ class S3DIS(Dataset, CacheMappingMixin):
             data_backend if data_backend is not None else FileBackend()
         )
 
-        self.areas: List[str] = [
+        self.areas: list[str] = [
             "Area_1",
             "Area_2",
             "Area_3",
@@ -140,10 +144,10 @@ class S3DIS(Dataset, CacheMappingMixin):
 
         # Cache
         self.cache_points = cache_points
-        self._cache: Dict[int, DictData] = {}
+        self._cache: dict[int, DictData] = {}
 
     @property
-    def num_classes(self):
+    def num_classes(self) -> int:
         """The number of classes int he datset."""
         return len(S3DIS.CLASS_NAME_TO_IDX)
 
@@ -151,9 +155,9 @@ class S3DIS(Dataset, CacheMappingMixin):
         """Concise representation of the dataset."""
         return f"S3DIS(root={self.data_root}, split={self.split})"
 
-    def _generate_data_mapping(self) -> List[DictStrAny]:
+    def _generate_data_mapping(self) -> list[DictStrAny]:
         """Generate 3dis dataset mapping."""
-        data: List[DictStrAny] = []
+        data: list[DictStrAny] = []
         for area in self.areas:
             for room_path in glob.glob(
                 os.path.join(self.data_root, area + "/*")
@@ -233,7 +237,7 @@ class S3DIS(Dataset, CacheMappingMixin):
                     ]
                 )
 
-        data = dict()
+        data = {}
         for key in self.keys_to_load:
             if key == CommonKeys.points3d:
                 data[key] = torch.from_numpy(coords)

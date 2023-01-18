@@ -1,3 +1,5 @@
+# pylint: disable=unexpected-keyword-arg
+# TODO remove this once new transforms are implemented
 """Test loader components."""
 from __future__ import annotations
 
@@ -185,7 +187,7 @@ def test_train_loader_3d() -> None:
         break
 
 
-def test_train_loader_3d_full_scene_batched() -> None:
+def test_train_loader_3d_batched() -> None:
     """Test the data loading pipeline for 3D Data with full scene sampling."""
     s3dis = S3DIS(data_root=get_test_data("s3d_test"))
     keys = (

@@ -23,11 +23,10 @@ class FCNResNet(nn.Module):
         num_classes: int = 21,
         resize: None | tuple[int, int] = (520, 520),
     ) -> None:
-        """FCN with ResNet basemodel.
+        """FCN with ResNet basemodel, following torchvision implementation.
 
-        Following `torchvision implementation.
-        <https://github.com/pytorch/vision/blob/torchvision/models/segmentation/
-        fcn.py>`_.
+        <https://github.com/pytorch/vision/blob/torchvision/models/
+        segmentation/fcn.py>_.
 
         model: FCNResNet(base_model="resnet50")
             - dataset: Coco2017
@@ -48,7 +47,6 @@ class FCNResNet(nn.Module):
         self.fcn = FCNHead(
             self.basemodel.out_channels[4:], num_classes, resize=resize
         )
-        print(self.basemodel.out_channels[4:])
 
     def forward(self, images: torch.Tensor) -> FCNOut:
         """Forward pass.
@@ -85,5 +83,5 @@ class FCNResNetLoss(nn.Module):
         Returns:
             FCNLoss: Dictionary of model losses.
         """
-        losses = self.loss(out.outputs, targets)
+        losses = self.loss(out.outputs, targets.long())
         return losses

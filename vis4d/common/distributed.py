@@ -14,7 +14,7 @@ import torch
 import torch.distributed as dist
 
 
-class PicklableWrapper:
+class PicklableWrapper:  #  mypy: disable=line-too-long
     """Wrap an object to make it more picklable.
 
     Note that it uses heavy weight serialization libraries that are slower than
