@@ -60,6 +60,13 @@ def array_to_numpy(
     ...
 
 
+@overload
+def array_to_numpy(
+    data: ArrayLike | None, n_dims: int | None
+) -> NDArrayFloat | None:
+    ...
+
+
 def array_to_numpy(
     data: ArrayLike | None,
     n_dims: int | None = None,
@@ -130,7 +137,9 @@ def array_to_numpy(
                 f"have {n_dims} dimensions."
             )
 
-    return array.astype(dtype)  # type: ignore
+    # hardcode next type check since mypy can not resolve this correctly
+    typed_arr: NDArrayNumber = array.astype(dtype)  # type: ignore
+    return typed_arr
 
 
 def arrays_to_numpy(
@@ -156,4 +165,6 @@ def arrays_to_numpy(
     Returns:
         tuple[NDArrayNumber | None]: The converted arguments as numpy array.
     """
-    return tuple(array_to_numpy(arg, n_dims, dtype) for arg in args)
+    # Ignore mypy check due to 'Not all union combinations were tried because
+    # there are too many unions'
+    return tuple(array_to_numpy(arg, n_dims, dtype) for arg in args)  # type: ignore # pylint: disable=line-too-long

@@ -27,9 +27,7 @@ NDArrayFloat = Union[NDArrayF32, NDArrayF64]
 
 NDArrayInt = Union[NDArrayI64, NDArrayI32]
 
-NDArrayNumber = Union[
-    NDArrayF32, NDArrayF64, NDArrayI64, NDArrayUI8, NDArrayBool
-]
+NDArrayNumber = Union[NDArrayFloat, NDArrayInt, NDArrayBool]
 MetricLogs = Dict[str, Union[float, int]]
 DictStrAny = Dict[str, Any]  # type: ignore
 ArgsType = Any  # type: ignore

@@ -233,7 +233,7 @@ def imshow_topk_bboxes(
             to use. Defaults to MatplotlibImageViewer().
 
     """
-    scores = array_to_numpy(scores, n_dims=1)
+    scores = array_to_numpy(scores, n_dims=1, dtype=np.float32)
     top_k_idxs = np.argpartition(scores.ravel(), -topk)[-topk:]
     imshow_bboxes(
         image,
