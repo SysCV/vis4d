@@ -110,7 +110,8 @@ class TorchvisionClassificationDataset(TorchvisionDataset):
         def _data_converter(img_and_target: tuple[Image, int]) -> DictData:
             """Converts the output of a torchvision dataset.
 
-            The output is converted to the format expected by the vis4d framework.
+            The output is converted to the format expected by the vis4d
+            framework.
 
             Args:
                 img_and_target (tuple[Image, int]): Output of the datasets

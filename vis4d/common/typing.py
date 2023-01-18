@@ -18,7 +18,7 @@ NDArrayF32 = npt.NDArray[np.float32]
 NDArrayI64 = npt.NDArray[np.int64]
 NDArrayI32 = npt.NDArray[np.int32]
 NDArrayUI8 = npt.NDArray[np.uint8]
-NDArrayBool = npt.NDArray[np.bool8]
+NDArrayBool = npt.NDArray[np.bool_]
 NDArrayFloat = Union[NDArrayF32, NDArrayF64]
 
 NDArrayInt = Union[NDArrayI64, NDArrayI32]

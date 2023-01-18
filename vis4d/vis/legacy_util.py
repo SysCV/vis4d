@@ -1,13 +1,18 @@
-"""Vis4D Visualization tools for analysis and debugging."""
+"""Vis4D Visualization tools for analysis and debugging.
+
+This file contains the legacy visualization tools that are not used anymore.
+"""
 from __future__ import annotations
 
 from multiprocessing import Process
-from typing import List, Optional, Tuple, Union
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from matplotlib import patches as mpatches
+from matplotlib.axis import Axis
+from matplotlib.figure import Figure
 from matplotlib.ticker import MultipleLocator
 from PIL import Image, ImageDraw
 from torch import Tensor
@@ -16,181 +21,22 @@ from vis4d.common import NDArrayF64, NDArrayUI8
 from vis4d.common.imports import DASH_AVAILABLE, PLOTLY_AVAILABLE
 from vis4d.data.const import AxisMode
 from vis4d.op.box.box3d import boxes3d_to_corners
-from vis4d.op.geometry.projection import (
-    generate_depth_map,
-    points_inside_image,
-    project_points,
-)
+from vis4d.op.geometry.projection import points_inside_image, project_points
+from vis4d.vis.image.util import preprocess_image
 from vis4d.vis.util import DEFAULT_COLOR_MAPPING
-
-ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
-
-ColorType = Union[
-    Union[Tuple[int], str],
-    List[Union[Tuple[int], str]],
-    List[List[Union[Tuple[int], str]]],
-]
 
 if DASH_AVAILABLE and PLOTLY_AVAILABLE:
     import dash
     import plotly.graph_objects as go
     from dash import dcc, html
 
+ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
 
-COLOR_PALETTE = DEFAULT_COLOR_MAPPING
-NUM_COLORS = 50
-
-
-def preprocess_boxes(
-    boxes: Tensor,
-    scores: Optional[Tensor] = None,
-    class_ids: Optional[Tensor] = None,
-    track_ids: Optional[Tensor] = None,
-    color_idx: int = 0,
-) -> tuple[list[list[float]], list[tuple[int]], list[str]]:
-    """Preprocess BoxType to boxes / colors / labels for drawing."""
-    boxes_list = boxes.detach().cpu().numpy().tolist()
-
-    if scores is not None:
-        scores = scores.detach().cpu().numpy().tolist()
-    else:
-        scores = [None for _ in range(len(boxes_list))]
-
-    if track_ids is not None:
-        track_ids = track_ids.detach().cpu().numpy()
-        if len(track_ids.shape) > 1:
-            track_ids = track_ids.squeeze(-1)
-    else:
-        track_ids = [None for _ in range(len(boxes_list))]
-
-    if class_ids is not None:
-        class_ids = class_ids.detach().cpu().numpy()
-    else:
-        class_ids = [None for _ in range(len(boxes_list))]
-
-    labels, draw_colors = [], []
-    for s, t, c in zip(scores, track_ids, class_ids):
-        if t is not None:
-            draw_color = COLOR_PALETTE[int(t) % NUM_COLORS]
-        elif c is not None:
-            draw_color = COLOR_PALETTE[int(c) % NUM_COLORS]
-        else:
-            draw_color = COLOR_PALETTE[color_idx % NUM_COLORS]
-
-        label = ""
-        if t is not None:
-            label += str(int(t))
-        if c is not None:
-            label += "," + str(int(c))
-
-        if s is not None:
-            label += f",{s * 100:.1f}%"
-        labels.append(label)
-        draw_colors.append(draw_color)
-
-    return boxes_list, draw_colors, labels
-
-
-def preprocess_masks(
-    masks: Tensor,
-    scores: Optional[Tensor] = None,
-    class_ids: Optional[Tensor] = None,
-    track_ids: Optional[Tensor] = None,
-    color_idx: int = 0,
-) -> tuple[list[NDArrayUI8], list[tuple[int]]]:
-    """Preprocess masks for drawing."""
-    if isinstance(masks, list):
-        result_mask, result_color = [], []
-        for i, m in enumerate(masks):
-            mask, color = preprocess_masks(m, i)  # type: ignore
-            result_mask.extend(mask)
-            result_color.extend(color)
-        return result_mask, result_color
-
-    if masks.dim() == 2:
-        class_ids = torch.unique(masks)
-        masks_list = np.stack(
-            [
-                ((masks == i).cpu().numpy() * 255).astype(np.uint8)
-                for i in class_ids
-            ]
-        )
-    else:
-        masks_list = (masks.cpu().numpy() * 255).astype(np.uint8)
-
-    if track_ids is not None:
-        track_ids = track_ids.cpu().numpy()
-        if len(track_ids.shape) > 1:
-            track_ids = track_ids.squeeze(-1)
-    else:
-        track_ids = [None for _ in range(len(masks_list))]
-
-    if class_ids is not None:
-        class_ids = class_ids.cpu().numpy()
-    else:
-        class_ids = [None for _ in range(len(masks_list))]
-
-    draw_colors = []
-    for t, c in zip(track_ids, class_ids):
-        if t is not None:
-            draw_color = COLOR_PALETTE[int(t) % NUM_COLORS]
-        elif c is not None:
-            draw_color = COLOR_PALETTE[int(c) % NUM_COLORS]
-        else:
-            draw_color = COLOR_PALETTE[color_idx % NUM_COLORS]
-        draw_colors.append(draw_color)
-
-    return masks_list, draw_colors
-
-
-def preprocess_image(image: ImageType, mode: str = "RGB") -> Image.Image:
-    """Validate and convert input image.
-
-    Args:
-        image: CHW or HWC image (ImageType) with C = 3.
-        mode: input channel format (e.g. BGR, HSV). More info
-        at https://pillow.readthedocs.io/en/stable/handbook/concepts.html
-
-    Returns:
-        PIL.Image.Image: Processed image in RGB.
-    """
-    assert len(image.shape) == 3
-    assert image.shape[0] == 3 or image.shape[-1] == 3
-
-    if isinstance(image, torch.Tensor):
-        image = image.cpu().numpy()
-
-    if not image.shape[-1] == 3:
-        image = image.transpose(1, 2, 0)
-    min_val, max_val = (np.min(image, axis=(0, 1)), np.max(image, axis=(0, 1)))
-
-    image = image.astype(np.float32)
-
-    image = (image - min_val) / (max_val - min_val) * 255.0
-
-    if mode == "BGR":
-        image = image[..., [2, 1, 0]]
-        mode = "RGB"
-
-    return Image.fromarray(image.astype(np.uint8), mode=mode).convert("RGB")
-
-
-def imshow_bboxes3d(
-    image: ImageType,
-    boxes: Tensor,
-    intrinsics: Tensor,
-    mode: str = "RGB",
-) -> None:  # pragma: no cover
-    """Show image with bounding boxes."""
-    image = preprocess_image(image, mode)
-    boxes_corners = boxes3d_to_corners(boxes, AxisMode.OPENCV)
-    box_list, color_list, label_list = preprocess_boxes(boxes_corners)
-    intrinsics = intrinsics.detach().cpu().numpy()
-
-    for box, col, label in zip(box_list, color_list, label_list):
-        draw_bbox3d(image, np.array(box), intrinsics, col, label)
-
-    imshow(image)
+ColorType = Union[
+    Union[tuple[int], str],
+    list[Union[tuple[int], str]],
+    list[list[Union[tuple[int], str]]],
+]
 
 
 def draw_bev_canvas(
@@ -201,7 +47,24 @@ def draw_bev_canvas(
     fig_size: int = 10,
     dpi: int = 100,
     interval: int = 10,
-):
+) -> tuple[Figure, Axis]:
+    """Draws a bird's eye view canvas.
+
+    Draws a bird's eye view canvas with a car in the center and circular rings
+    around it. Also plots the hardcoded camera poses.
+
+    Args:
+        x_min (int, optional): Minimum x value. Defaults to -55.
+        x_max (int, optional): Maximum x value. Defaults to 55.
+        y_min (int, optional): Minimum y value. Defaults to -55.
+        y_max (int, optional): Maximum y value. Defaults to 55.
+        fig_size (int, optional): Figure size. Defaults to 10.
+        dpi (int, optional): DPI. Defaults to 100.
+        interval (int, optional): Interval between rings. Defaults to 10.
+
+    Returns:
+        fig, ax: Figure and axis.
+    """
     # Create canvas
     # sns.set(style="darkgrid")
     fig, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=dpi)
@@ -322,7 +185,25 @@ def draw_bev_canvas(
     return fig, ax
 
 
-def draw_bev_box(ax, box, color, label, hist, line_width: int = 2):
+def draw_bev_box(
+    axis: Axis,
+    box: torch.Tesnor,
+    color: torch.Tensor,
+    history: torch.tensor = torch.empty((0, 7)),
+    line_width: int = 2,
+):
+    """Draws a 3D bounding box in a bird's eye view.
+
+    Args:
+        axis (Axis): Matplotlib axis.
+        box (torch.Tensor): Bounding box in the format
+            [x_c, y_c, z_C, l, w, h, yaw]. Shape [7].
+        color (torch.Tensor): Color of the bounding box. Shape [n_boxes, 3]
+        history (torch.Tensor): History of the bounding box.
+            Shape [n_history, 7]. Defaults to empty tensor.
+        line_width (int, optional): Line width of the bounding box.
+            Defaults to 2.
+    """
     center = np.array(box[:2])
     yaw = box[8]
     l = box[5]
@@ -330,10 +211,10 @@ def draw_bev_box(ax, box, color, label, hist, line_width: int = 2):
     color = tuple((np.array(color) / 255).tolist())
 
     # Calculate length, width of object
-    vec_l = [l * np.cos(yaw), -l * np.sin(yaw)]
-    vec_w = [-w * np.cos(yaw - np.pi / 2), w * np.sin(yaw - np.pi / 2)]
-    vec_l = np.array(vec_l)
-    vec_w = np.array(vec_w)
+    vec_l = np.array([l * np.cos(yaw), -l * np.sin(yaw)])
+    vec_w = np.array(
+        [-w * np.cos(yaw - np.pi / 2), w * np.sin(yaw - np.pi / 2)]
+    )
 
     # Make 4 points
     p1 = center + 0.5 * vec_l - 0.5 * vec_w
@@ -343,28 +224,29 @@ def draw_bev_box(ax, box, color, label, hist, line_width: int = 2):
 
     # Plot object
     line_style = "-"
-    ax.plot(
+
+    axis.plot(
         [p1[0], p2[0]],
         [p1[1], p2[1]],
         line_style,
         c=color,
         linewidth=3 * line_width,
     )
-    ax.plot(
+    axis.plot(
         [p1[0], p4[0]],
         [p1[1], p4[1]],
         line_style,
         c=color,
         linewidth=line_width,
     )
-    ax.plot(
+    axis.plot(
         [p3[0], p2[0]],
         [p3[1], p2[1]],
         line_style,
         c=color,
         linewidth=line_width,
     )
-    ax.plot(
+    axis.plot(
         [p3[0], p4[0]],
         [p3[1], p4[1]],
         line_style,
@@ -373,15 +255,15 @@ def draw_bev_box(ax, box, color, label, hist, line_width: int = 2):
     )
 
     # Plot center history
-    if len(hist) > 0:
-        yaw_hist = hist[:, 8]
-        center_hist = hist[:, :2]
+    if len(history) > 0:
+        yaw_hist = history[:, 8]
+        center_hist = history[:, :2]
         for index, ct in enumerate(center_hist):
             yaw = yaw_hist[index].item()
             vec_l = np.array([l * np.cos(yaw), -l * np.sin(yaw)])
             ct_dir = ct + 0.5 * vec_l
             alpha = max(float(index) / len(center_hist), 0.5)
-            ax.plot(
+            axis.plot(
                 [ct[0], ct_dir[0]],
                 [ct[1], ct_dir[1]],
                 line_style,
@@ -389,7 +271,7 @@ def draw_bev_box(ax, box, color, label, hist, line_width: int = 2):
                 c=color,
                 linewidth=line_width,
             )
-            ax.scatter(
+            axis.scatter(
                 ct[0],
                 ct[1],
                 alpha=alpha,
@@ -398,20 +280,29 @@ def draw_bev_box(ax, box, color, label, hist, line_width: int = 2):
             )
 
 
-def draw_bev(boxes3d: Tensor, history: list[Tensor]) -> np.ndarray:
+def draw_bev(
+    boxes3d: Tensor, history: list[Tensor] | None = None
+) -> np.ndarray:
+    """Plots a bird's eye view of the scene with the given bounding boxes.
+
+    Args:
+        boxes3d (Tensor): Bounding boxes in the format
+            [x_c, y_c, z_c, l, w, h, yaw]. Shaped [n_boxes, 7].
+        history (list[Tensor]): History of the bounding boxes.
+            Shape [n_boxes, n_history, 7]. Defaults to None.
+
+    Returns:
+        np.ndarray: Numpy image rendered top down.
+    """
     fig, ax = draw_bev_canvas()
 
-    box_list, col_list, label_list = preprocess_boxes(boxes3d)
-    for box, col, label in zip(box_list, col_list, label_list):
-        track_id = int(label.split(",")[0])
-        hist = []
-        for hist_boxes3d in history:
-            for box3d in hist_boxes3d:
-                if box3d.track_ids[0] == track_id:
-                    hist.append(box3d.boxes[0])
-        if len(hist) > 0:
-            hist = torch.stack(hist, 0)
-        draw_bev_box(ax, box, col, label, hist)
+    assert (
+        history is None or history.shape[0] == boxes3d.shape[1]
+    ), "History and boxes3d must have the same length."
+
+    for idx, box in enumerate(boxes3d):
+        hist = history[idx] if history is not None else torch.empty((0, 7))
+        draw_bev_box(ax, box, color=torch.tensor([255, 0, 0]), history=hist)
 
     fig.canvas.figure.tight_layout()
     fig.canvas.draw()
@@ -436,7 +327,23 @@ def draw_lines_match(
     pts2: torch.Tensor,
     radius: int = 5,
 ) -> Image:  # pragma: no cover
-    """Draw matched lines."""
+    """Draws matched points between two images.
+
+    This function is used to draw the matches between two images. It is used
+    to visualize the matches between the keypoints of two images. The keypoints
+    are represented by circles and the lines connecting the circles represent
+    the matches between the keypoints.
+
+    Args:
+        img1 (Image.Image): First image.
+        img2 (Image.Image): Second image.
+        pts1 (torch.Tensor): Keypoints of the first image. Shaped [n_pts, 2].
+        pts2 (torch.Tensor): Keypoints of the second image. Shaped [n_pts, 2].
+        radius (int): Radius of the circles representing the keypoints.
+
+    Returns:
+        Image: Image with the keypoints and matches drawn.
+    """
     img1 = np.array(img1)
     img2 = np.array(img2)
     rows1 = img1.shape[0]
@@ -474,55 +381,22 @@ def draw_lines_match(
     return out_im
 
 
-def imshow_correspondence(
-    key_image: ImageType,
-    key_extrinsics: Tensor,
-    key_intrinsics: Tensor,
-    ref_image: ImageType,
-    ref_extrinsics: Tensor,
-    ref_intrinsics: Tensor,
-    key_points: torch.Tensor,
-) -> None:  # pragma: no cover
-    """Draw corresponded pointcloud points."""
-    key_im, ref_im = preprocess_image(key_image), preprocess_image(ref_image)
-
-    hom_points = torch.cat(
-        [key_points[:, :3], torch.ones_like(key_points[:, 0:1])], -1
-    )
-
-    points_key = key_points[:, :3]
-    points_ref = (
-        hom_points
-        @ key_extrinsics.transpose().tensor[0]
-        @ ref_extrinsics.inverse().transpose().tensor[0]
-    )[:, :3]
-    key_pix = project_points(points_key, key_intrinsics)
-    mask = points_inside_image(
-        key_pix, points_key[:, 2], (key_im.size[0], key_im.size[1])
-    )
-
-    _, ref_pix, _, mask = generate_depth_map(
-        points_ref, ref_intrinsics, ref_im.size[0], ref_im.size[1], mask
-    )
-    key_pix = key_pix[mask]
-
-    perm = torch.randperm(key_pix.shape[0])[:10]
-    key_pix = key_pix[perm].cpu().numpy()
-    ref_pix = ref_pix[perm].cpu().numpy()
-
-    corresp_im = draw_lines_match(key_im, ref_im, key_pix, ref_pix)
-    imshow(corresp_im)
-
-
 def imshow_pointcloud(
     points: torch.Tensor,
     image: ImageType,
     camera_intrinsics: Tensor,
-    boxes3d: Tensor | None = None,
     dot_size: int = 3,
     mode: str = "RGB",
 ) -> None:  # pragma: no cover
-    """Show image with pointcloud points."""
+    """Show image with pointcloud points.
+
+    Args:
+        points (torch.Tensor): Pointcloud points. Shaped [n_pts, 3].
+        image (ImageType): Image.
+        camera_intrinsics (Tensor): Camera intrinsics.
+        dot_size (int, optional): Size of the points. Defaults to 3.
+        mode (str, optional): Image mode. Defaults to "RGB".
+    """
     image_p = preprocess_image(image, mode)
 
     pts_2d = project_points(points, camera_intrinsics).round()
@@ -538,18 +412,20 @@ def imshow_pointcloud(
     plt.scatter(pts_2d[:, 0], pts_2d[:, 1], c=depths, s=dot_size)
     plt.axis("off")
 
-    if boxes3d is not None:
-        imshow_bboxes3d(image, boxes3d, camera_intrinsics)
-    else:
-        imshow(image)
 
-
-def plotly_draw_bbox3d(
+def bbox3d_to_lines_plotly(
     box3d_corners: NDArrayF64,
 ) -> tuple[
     list[NDArrayF64], list[NDArrayF64], list[NDArrayF64]
 ]:  # pragma: no cover
-    """Plot 3D boxes in 3D space."""
+    """Convert 3D boxes to lines.
+
+    Args:
+        box3d_corners (NDArrayF64): 3D boxes. Shaped [n_boxes, 8, 3].
+
+    Returns:
+        tuple[list[NDArrayF64], list[NDArrayF64], list[NDArrayF64]]: 3D lines.
+    """
     ixs_box_0 = [0, 1, 2, 3, 0]
     ixs_box_1 = [4, 5, 6, 7, 4]
 
@@ -595,7 +471,18 @@ def show_pointcloud(
     boxes3d: Tensor | None = None,
     thickness: int = 2,
 ) -> None:  # pragma: no cover
-    """Show pointcloud points."""
+    """Show pointcloud points using plotly as backend.
+
+    Args:
+        points (torch.Tensor): Pointcloud points. Shaped [n_pts, 3].
+        axis_mode (AxisMode, optional): Axis mode. Defaults to AxisMode.OPENCV.
+        boxes3d (Tensor, optional): 3D boxes. Shaped [n_boxes, 7].
+            Defaults to None.
+        thickness (int, optional): Thickness of the points. Defaults to 2.
+
+    Raises:
+        ValueError: If axis_mode is not AxisMode.ROS or AxisMode.OPENCV.
+    """
     assert (
         PLOTLY_AVAILABLE
     ), "Visualize pointcloud in 3D needs Plotly installed!."
@@ -617,9 +504,9 @@ def show_pointcloud(
     data = [scatter]
     if boxes3d is not None:
         boxes_corners = boxes3d_to_corners(boxes3d, axis_mode)
-        box_list, col_list, label_list = preprocess_boxes(boxes_corners)
-        for box, color, _ in zip(box_list, col_list, label_list):
-            x_lines, y_lines, z_lines = plotly_draw_bbox3d(np.array(box))
+        for idx, box in enumerate(boxes_corners):
+            color = DEFAULT_COLOR_MAPPING[idx % len(DEFAULT_COLOR_MAPPING)]
+            x_lines, y_lines, z_lines = bbox3d_to_lines_plotly(np.array(box))
             lines = go.Scatter3d(
                 x=x_lines,
                 y=y_lines,
@@ -662,5 +549,5 @@ def show_pointcloud(
 
     p = Process(target=dash_app)
     p.start()
-    input("Press Enter to continue...")
+    input("Press Enter to continue...")  # pylint: disable=bad-builtin
     p.terminate()

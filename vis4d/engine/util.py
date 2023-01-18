@@ -33,7 +33,7 @@ class TransferableDataType(ABC):
     """
 
     @classmethod
-    def __subclasshook__(cls, subclass: Any) -> bool | Any:
+    def __subclasshook__(cls, subclass: Any) -> bool | Any:  # type: ignore
         """Subclass hook."""
         if cls is TransferableDataType:
             to = getattr(subclass, "to", None)

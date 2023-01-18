@@ -17,7 +17,8 @@ class BoundingBoxData:
         corners (NDArrayFloat): Corners of the bounding box shape [8, 3].
         color (NDArrayFloat): Colors of the bounding box shape [3].
         class (int | None): Class id of the bounding box. Defaults to None.
-        instance (int | None): Instance id of the bounding box. Defaults to None.
+        instance (int | None): Instance id of the bounding box.
+            Defaults to None.
         score (float | None): Score of the bounding box. Defaults to None.
     """
 
@@ -160,8 +161,8 @@ class Scene3D:
         """Parses a SE3 transformation matrix.
 
         Args:
-            transform (ArrayLike | None): Transformation matrix shape [4,4] that
-                transforms points from the current local frame to a fixed
+            transform (ArrayLike | None): Transformation matrix shape [4,4]
+                that transforms points from the current local frame to a fixed
                 global frame.
 
         Returns:
@@ -169,13 +170,13 @@ class Scene3D:
         """
         if transform is None:
             return np.eye(4)
-        else:
-            transform = array_to_numpy(transform, n_dims=2)
-            assert transform.shape == (
-                4,
-                4,
-            ), "Shape of the provided transform not valid."
-            return transform
+
+        transform = array_to_numpy(transform, n_dims=2)
+        assert transform.shape == (
+            4,
+            4,
+        ), "Shape of the provided transform not valid."
+        return transform
 
     def add_bounding_box(
         self,
