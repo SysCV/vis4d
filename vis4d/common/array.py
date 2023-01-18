@@ -1,4 +1,4 @@
-"""Array utility functions."""
+"""This module contains array utility functions."""
 from __future__ import annotations
 
 from typing import overload

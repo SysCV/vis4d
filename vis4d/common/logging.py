@@ -1,4 +1,8 @@
-"""Vis4D logging unctions."""
+"""This module contains logging utility functions.
+
+We provide utilities for setting up a logger and logging in a distributed
+setting.
+"""
 from __future__ import annotations
 
 import logging

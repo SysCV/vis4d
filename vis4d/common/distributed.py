@@ -1,5 +1,5 @@
 # mypy: disable-error-code=misc
-"""Vis4D utils for distributed setting."""
+"""This module contains utilities for multiprocess parallelism."""
 from __future__ import annotations
 
 import logging

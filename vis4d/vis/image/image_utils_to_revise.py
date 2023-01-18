@@ -518,7 +518,6 @@ def imshow_pointcloud(
     points: torch.Tensor,
     image: ImageType,
     camera_intrinsics: Tensor,
-    boxes3d: Tensor | None = None,
     dot_size: int = 3,
     mode: str = "RGB",
 ) -> None:  # pragma: no cover
@@ -537,11 +536,7 @@ def imshow_pointcloud(
     plt.imshow(image_p)
     plt.scatter(pts_2d[:, 0], pts_2d[:, 1], c=depths, s=dot_size)
     plt.axis("off")
-
-    if boxes3d is not None:
-        imshow_bboxes3d(image, boxes3d, camera_intrinsics)
-    else:
-        imshow(image)
+    plt.show()
 
 
 def plotly_draw_bbox3d(
@@ -591,6 +586,7 @@ def plotly_draw_bbox3d(
 
 def show_pointcloud(
     points: torch.Tensor,
+    colors=None,
     axis_mode: AxisMode = AxisMode.OPENCV,
     boxes3d: Tensor | None = None,
     thickness: int = 2,
@@ -602,16 +598,24 @@ def show_pointcloud(
     assert DASH_AVAILABLE, "Visualize pointcloud in 3D needs Dash installed!."
     points = points[:, :3].cpu()
 
+    if colors is None:
+        marker = dict(
+            color=np.linalg.norm(points, axis=1),
+            colorscale="Viridis",
+            size=thickness,
+        )
+    else:
+        marker = dict(
+            color=colors.cpu().numpy(),
+            size=thickness,
+        )
+
     scatter = go.Scatter3d(
         x=points[:, 0],
         y=points[:, 1],
         z=points[:, 2],
         mode="markers",
-        marker=dict(
-            color=np.linalg.norm(points, axis=1),
-            colorscale="Viridis",
-            size=thickness,
-        ),
+        marker=marker,
     )
 
     data = [scatter]

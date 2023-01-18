@@ -1,4 +1,8 @@
-"""Vis4D tracking loss implementations."""
+"""This module contains commonly used loss functions.
+
+The losses do not follow a common API, but have a reducer as attribute,
+which is a function to aggregate loss values into a single tensor value.
+"""
 
 from .base import Loss
 from .box3d_uncertainty_loss import Box3DUncertaintyLoss

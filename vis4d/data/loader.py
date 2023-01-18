@@ -219,14 +219,13 @@ def build_train_dataloader(
     workers_per_gpu: int = 1,
     batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
-    sampler: None | BaseSampler = None,
+    batch_sampler: None | BaseSampler = None,
     pin_memory: bool = True,
+    shuffle: bool = True,
 ) -> DataLoader:
     """Build training dataloader."""
-    if sampler is not None:
-        batch_size, shuffle = 1, False
-    else:
-        batch_size, shuffle, train_sampler = samples_per_gpu, False, None
+    if batch_sampler is not None:
+        samples_per_gpu, shuffle = 1, False
 
     if dataset.reference_view_sampler is None:
 
@@ -242,14 +241,15 @@ def build_train_dataloader(
                 views.append(view)
             return views
 
-    if get_world_size() > 1 and sampler is None:
-        sampler = DistributedSampler(dataset)
+    sampler = None
+    if get_world_size() > 1 and batch_sampler is None:
+        sampler = DistributedSampler(dataset, shuffle=shuffle)
         shuffle = False
 
     dataloader = DataLoader(
         dataset,
-        batch_sampler=train_sampler,
-        batch_size=batch_size,
+        batch_sampler=batch_sampler,
+        batch_size=samples_per_gpu,
         num_workers=workers_per_gpu,
         collate_fn=PicklableWrapper(_collate_fn),
         sampler=sampler,

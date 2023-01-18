@@ -1,4 +1,4 @@
-"""Utilities for pretty printing."""
+"""This module contains utilities for pretty printing."""
 from typing import Any
 
 import numpy as np

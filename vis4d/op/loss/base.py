@@ -17,7 +17,7 @@ class Loss(nn.Module, abc.ABC):
 
         Args:
             reducer (LossReducer): A function to aggregate the loss values into
-            a single tenor value. It is commonly used for dense prediction
+            a single tensor value. It is commonly used for dense prediction
             tasks to merge pixel-wise loss to a final loss.
 
             Example::
