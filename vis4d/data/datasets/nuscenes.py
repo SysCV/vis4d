@@ -175,12 +175,14 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             scene_name = record["name"]
             if scene_name not in scene_names_per_split[self.split]:
                 continue
-
+            frame_index = 0
             sample_token = record["first_sample_token"]
             while sample_token:
                 sample = self.data.get("sample", sample_token)
+                sample["frame_index"] = frame_index
                 sample_token = sample["next"]
                 samples.append(sample)  # TODO non-key frames
+                frame_index += 1
         return samples
 
     def __len__(self) -> int:
@@ -419,6 +421,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                     CommonKeys.images: image,
                     CommonKeys.original_hw: image_hw,
                     CommonKeys.input_hw: image_hw,
+                    CommonKeys.frame_ids: sample["frame_index"],
                     CommonKeys.intrinsics: intrinsics,
                     CommonKeys.extrinsics: extrinsics,
                     CommonKeys.timestamp: timestamp,
