@@ -52,7 +52,6 @@ def test_custom_init() -> None:
     trainer = DefaultTrainer(
         work_dir="./unittests/",
         exp_name="trainer_test",
-        callbacks=pl.callbacks.LearningRateMonitor(),
         tqdm=True,
         max_steps=2,
     )
