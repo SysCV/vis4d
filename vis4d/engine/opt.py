@@ -24,11 +24,12 @@ class Optimizer:
         self.model = self.setup_model()
         self.model.to(device)
         if get_world_size() > 1:
-            self.model = DDP(self.model, device_ids=[gpu_id])
+            # This is ok. Not sure why pylint complains.
+            self.model = DDP(self.model, device_ids=[gpu_id])  # type: ignore
         self.loss = self.setup_loss()
         self.optimizer = self.setup_optimizer()
         self.lr_scheduler = self.setup_lr_scheduler()
-        self.warmup: None | BaseLRWarmup = self.setup_warmup()
+        self.warmup: BaseLRWarmup | None = self.setup_warmup()
 
     def setup_model(self) -> nn.Module:
         """Set-up model."""
@@ -56,7 +57,9 @@ class Optimizer:
             return
         if step < 500:
             for g in self.optimizer.param_groups:
-                g["lr"] = self.warmup(step, self.learning_rate)
+                g["lr"] = self.warmup(  # pylint: disable=not-callable
+                    step, self.learning_rate
+                )
         elif step == 500:
             for g in self.optimizer.param_groups:
                 g["lr"] = self.learning_rate

@@ -8,7 +8,7 @@ from vis4d.vis.image.base import ImageViewerBackend
 
 
 class MatplotlibImageViewer(ImageViewerBackend):
-    """A image viewer using matplotlib.pyplot"""
+    """A image viewer using matplotlib.pyplot."""
 
     def show_images(
         self, images: list[NDArrayUI8], blocking: bool = True

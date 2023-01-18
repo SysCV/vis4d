@@ -1,16 +1,13 @@
 """Common utils for segmentation."""
 from __future__ import annotations
 
-import os
 from functools import partial
 from multiprocessing import Pool
 
 import numpy as np
-import torch
-import torchvision.transforms.functional as T
-from PIL import Image
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
+from vis4d.common.typing import NDArrayInt, NDArrayUI8
 
 if SCALABEL_AVAILABLE:
     from scalabel.eval.sem_seg import (
@@ -20,30 +17,6 @@ if SCALABEL_AVAILABLE:
         per_class_iou,
         whole_acc,
     )
-
-
-class ResizeWithPadding:
-    """Padding image to desired size."""
-
-    def __init__(self, size: tuple[int, int]):
-        """Creates an instance of the class.
-
-        Args:
-            size (tuple[int, int]): The desired size of image, (height, width).
-        """
-        self.size = size
-
-    def __call__(self, image):
-        arr = np.asarray(image)
-        w, h = image.size
-        wp = self.size[1] - w
-        hp = self.size[0] - h
-        if len(arr.shape) == 3:
-            image = T.pad(image, (0, 0, wp, hp), 0, "constant")
-        else:
-            image = T.pad(image, (0, 0, wp, hp), 255, "constant")
-            print(np.unique(np.array(image)))
-        return image
 
 
 PASCAL_LABEL = np.asarray(
@@ -73,13 +46,15 @@ PASCAL_LABEL = np.asarray(
 )
 
 
-def pascal_label_encode(color_mask: np.ndarray) -> np.ndarray:
-    """Encode segmentation label images as pascal classes
+def pascal_label_encode(color_mask: NDArrayInt) -> NDArrayInt:
+    """Encode segmentation label images as pascal classes.
+
     Args:
-        color_mask (np.ndarray): raw segmentation label image of dimension
+        color_mask (NDArrayInt): raw segmentation label image of dimension
             (M, N, 3), in which the Pascal classes are encoded as colors.
+
     Returns:
-        label_mask (np.ndarray): class map with dimensions (M, N), where the
+        label_mask (NDArrayInt): class map with dimensions (M, N), where the
         value at a given location is the integer denoting the class index.
     """
     color_mask = np.asarray(color_mask)
@@ -91,13 +66,15 @@ def pascal_label_encode(color_mask: np.ndarray) -> np.ndarray:
     return label_mask
 
 
-def pascal_label_decode(label_mask: np.ndarray) -> np.ndarray:
-    """Decode segmentation label images as pascal classes
+def pascal_label_decode(label_mask: NDArrayInt) -> NDArrayUI8:
+    """Decode segmentation label images as pascal classes.
+
     Args:
-        label_mask (np.ndarray): segmentation label image of dimension
+        label_mask (NDArrayInt): segmentation label image of dimension
             (M, N), in which the Pascal classes are numerical indices.
+
     Returns:
-        color_mask (np.ndarray): color map with dimensions (M, N, 3), where the
+        color_mask (NDArrayUI8): color map with dimensions (M, N, 3), where the
         value at a given location is the integer denoting the class index.
     """
     assert len(label_mask.shape) == 2
@@ -110,12 +87,24 @@ def pascal_label_decode(label_mask: np.ndarray) -> np.ndarray:
 
 
 def per_image_hist(
-    target: np.ndarray,
-    pred: np.ndarray,
+    target: NDArrayUI8,
+    pred: NDArrayUI8,
     num_classes: int,
     ignore_label: int = 255,
-) -> tuple[np.ndarray, set[int]]:
-    """Calculate per image hist."""
+) -> tuple[NDArrayInt, set[int]]:
+    """Calculate per image hist.
+
+    Args:
+        target (NDArrayUI8): The ground truth.
+        pred (NDArrayUI8): The prediction.
+        num_classes (int): The number of classes.
+        ignore_label (int): The class index that should be ignored.
+            Defaults to 255.
+
+    Returns:
+        tuple[np.ndarray, set[int]]: The histogram and the set of ground truth
+            ids.
+    """
     num_classes = num_classes + 1
     assert num_classes >= 2
     assert num_classes <= ignore_label
@@ -136,13 +125,13 @@ def per_image_hist(
 
 
 def evaluate_sem_seg(
-    ann_frames: list[torch.Tensor],
-    pred_frames: list[torch.Tensor],
+    ann_frames: list[NDArrayUI8],
+    pred_frames: list[NDArrayUI8],
     num_classes: int,
     ignore_label: int = 255,
     nproc: int = 4,
-) -> tuple[dict, set]:
-    """Evaluate segmentation with Scalabel format.
+) -> tuple[dict[str, float], set[int]]:
+    """Evaluate segmentation result.
 
     Args:
         ann_frames (list[torch.Tensor]): The ground truth frames.
@@ -152,8 +141,8 @@ def evaluate_sem_seg(
         nproc (int): the number of process.
 
     Returns:
-        res_dict (dict): evaluation results.
-        gt_id_set (set):
+        res_dict (dict[str, float]): Dictionary of evaluation results.
+        gt_id_set (set): Set of unique ground truth ids.
     """
     if nproc > 1:
         with Pool(nproc) as pool:
@@ -194,67 +183,3 @@ def evaluate_sem_seg(
         Accs=np.multiply(accs, 100),
     )
     return res_dict, gt_id_set
-
-
-def save_output_images(predictions, output_dir, colorize=True, offset=0):
-    """
-    Saves a given tensor (B x C x H x W) into an image file.
-    If given a mini-batch tensor, will save the tensor as a grid of images.
-    """
-    os.makedirs(output_dir, exist_ok=True)
-    for i, prediction in enumerate(predictions):
-        if len(prediction.shape) == 3:
-            prediction = prediction.transpose((1, 2, 0))
-        elif len(prediction.shape) == 2:
-            if colorize:
-                prediction = pascal_label_decode(prediction)
-        im = Image.fromarray(prediction.astype(np.uint8))
-        fn = os.path.join(output_dir, f"{offset + i:04d}.png")
-        im.save(fn)
-
-
-def read_output_images(image_dir):
-    """
-    Saves a given tensor (B x C x H x W) into an image file.
-    If given a mini-batch tensor, will save the tensor as a grid of images.
-    """
-    img_list = []
-    for fn in sorted(list(os.listdir(image_dir))):
-        if fn.endswith(".png") or fn.endswith(".jpg"):
-            img = np.asarray(Image.open(os.path.join(image_dir, fn)))
-        if len(img.shape) == 3:
-            img = img.transpose((2, 0, 1))
-        img_list.append(img)
-    return img_list
-
-
-def blend_images(
-    images1: list[np.ndarray], images2: list[np.ndarray], alpha: int = 0.6
-):
-    """
-    This function takes in two lists of images (image1 and image2) and blends
-    them together using the alpha value provided.
-
-    Args:
-        images1 (list[np.ndarray]): A list of images to be blended.
-        images2 (list[np.ndarray]): A list of images to be blended with images1
-        alpha (float): The alpha value for blending. Defaults to 0.6.
-
-    Returns:
-        list[np.ndarray]: A list of blended images.
-    """
-    img_list = []
-    for img1, img2 in zip(images1, images2):
-        print(img1.shape, img2.shape)
-        if len(img1.shape) == 3:
-            img1 = img1.transpose((1, 2, 0))
-        if len(img2.shape) == 3:
-            img2 = img2.transpose((1, 2, 0))
-        img1 = Image.fromarray(img1)
-        img2 = Image.fromarray(img2)
-        img2 = img2.resize(img1.size)
-        img = np.asarray(Image.blend(img1, img2, alpha))
-        if len(img.shape) == 3:
-            img = img.transpose((2, 0, 1))
-        img_list.append(img)
-    return img_list

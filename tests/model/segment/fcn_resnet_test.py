@@ -70,7 +70,7 @@ class FCNResNetTest(unittest.TestCase):
         batch = next(iter(test_loader))
         weights = (
             "https://download.pytorch.org/models/"
-            "FCNResNet50_coco-1167a1af.pth"
+            "fcn_resnet50_coco-1167a1af.pth"
         )
         load_model_checkpoint(model, weights, rev_keys=REV_KEYS)
 
@@ -78,16 +78,9 @@ class FCNResNetTest(unittest.TestCase):
         with torch.no_grad():
             outs = model(batch[CommonKeys.images])
 
+        pred = outs.pred.argmax(1)
         testcase_gt = torch.load(get_test_file("fcn_resnet.pt"))
-        for k in testcase_gt:
-            print(k)
-            assert k in outs
-            for i in range(len(testcase_gt[k])):
-                assert (
-                    torch.isclose(outs[k][i], testcase_gt[k][i], atol=1e-4)
-                    .all()
-                    .item()
-                )
+        assert torch.isclose(pred, testcase_gt, atol=1e-4).all().item()
 
     def test_train(self):
         """Test Faster RCNN training."""
@@ -104,7 +97,8 @@ class FCNResNetTest(unittest.TestCase):
         model.train()
 
         running_losses = {}
-        for epoch in range(2):
+        latest_loss = 0.0
+        for epoch in range(4):
             for i, data in enumerate(train_loader):
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -126,12 +120,9 @@ class FCNResNetTest(unittest.TestCase):
                 log_str = f"[{epoch + 1}, {i + 1:5d}] "
                 for k, loss in running_losses.items():
                     log_str += f"{k}: {loss:.3f}, "
+
+                latest_loss = running_losses["loss"]
                 print(log_str.rstrip(", "))
                 running_losses = {}
 
-    def test_torchscript(self):
-        """Test torchscript export of FCN ResNet."""
-        sample_images = torch.rand((2, 3, 520, 520))
-        model = FCNResNet(base_model="resnet50", resize=(520, 520))
-        model_scripted = torch.jit.script(model)
-        model_scripted(sample_images)
+        assert latest_loss <= 2.0

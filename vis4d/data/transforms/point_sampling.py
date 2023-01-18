@@ -1,6 +1,8 @@
 """Contains Different Sampling methods to downsample pointclouds."""
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import torch
 
 from vis4d.data.const import CommonKeys
@@ -43,17 +45,17 @@ def sample_from_block(
     data: torch.Tensor,
     center_xyz: torch.Tensor,
     block_size: torch.Tensor,
-    ignore_axis: list[int] = [2],
+    ignore_axis: Sequence[int] = (2,),
 ) -> tuple[int, torch.Tensor]:
-    """=Samples point indices inside a box.
+    """Samples point indices inside a box.
 
     Args:
         n_pts (int): How many points to sample
         data: (Tensor): Data containing pointwise information. Shape [n_pts, x]
         center_xyz (Tensor): Center point around which to sample (x,y,z) [3]
         block_size (Tensor): Block length in each direction (x,y,z) [3]
-        ignore_axis (list[int]): If specified, this axis will be ignored and
-                                 all points along this axis will be considered
+        ignore_axis (Sequence[int]): If specified, this axis will be ignored
+            and all points along this axis will be considered
 
     Returns:
         tuple[int, Tensor]: Number of points that were in the box and
@@ -95,8 +97,8 @@ def sample_points_random(num_pts: int = 1024):
     """
 
     def _sample_points_random(
-        coordinates: torch.Tensor, *args: list[torch.Tensor]
-    ):
+        coordinates: torch.Tensor, *args: torch.Tensor
+    ) -> torch.Tensor | list[torch.Tensor]:
         selected_idxs = sample_indices(num_pts, coordinates)
         sampled_coords = coordinates[selected_idxs, ...]
         if len(args) == 0:
@@ -110,9 +112,9 @@ def sample_points_random(num_pts: int = 1024):
 def sample_points_block_random(
     num_pts: int = 1024,
     min_pts: int = 32,
-    block_size: list[float] = [1.0, 1.0, 1.0],
-    max_tries=100,
-    center=False,
+    block_size: Sequence[float] = (1.0, 1.0, 1.0),
+    max_tries: int = 100,
+    center: bool = False,
 ):
     """Subsamples points around a randomly chosen block.
 
@@ -123,12 +125,15 @@ def sample_points_block_random(
         num_pts (int): How many points to sample
         min_pts (int): Only sample points if at least these many points
                        are inside it
-        block_size (List[float]): Dimension of block from which to sample (xyz)
+        block_size (Sequence[float]): Dimension of block from which to sample
+            (xyz)
         max_tries (bool): Maximum of tries to sample a block before giving up
         center (bool): If true, substracts center point coordiantes
     """
 
-    def _sample_points_block_random(coordinates, *args):
+    def _sample_points_block_random(
+        coordinates: torch.Tensor, *args: torch.Tensor
+    ) -> torch.Tensor | list[torch.Tensor]:
         """Apply point sampling."""
         for _ in range(max_tries):
             center_pt_idx = torch.randperm(coordinates.shape[0])[0]
@@ -154,10 +159,10 @@ def sample_points_block_random(
     in_keys=(CommonKeys.points3d,),
     out_keys=(CommonKeys.points3d,),
 )
-def sample_points_block_full_coverage(
+def sample_points_block_full_coverage(  # pylint: disable=invalid-name
     n_pts_per_block: int = 1024,
     min_pts_per_block: int = 1,
-    block_size: list[float] = [1.0, 1.0, 1.0],
+    block_size: Sequence[float] = (1.0, 1.0, 1.0),
 ):
     """Subsamples the full pointcloud by regularly dividing it into blocks.
 
@@ -166,13 +171,16 @@ def sample_points_block_full_coverage(
     Boxes are only sampled at the xy plane.
 
     Args:
-        n_pts_per_block (int): How many points to sample per block
+        n_pts_per_block (int): How many points to sample per block.
         min_pts_per_block (int): Only sample points if at least these many
-                                  points are inside the block
-        block_size (list[float]): Dimension of block from which to sample (xyz)
+            points are inside the block.
+        block_size (Sequence[float]): Dimension of block from which to
+            sample (xyz).
     """
 
-    def _sample_points_block_full_coverage(coordinates, *args):
+    def _sample_points_block_full_coverage(  # pylint: disable=invalid-name
+        coordinates: torch.Tensor, *args: torch.Tensor
+    ) -> torch.Tensor | list[torch.Tensor]:
         """Apply point sampling."""
         # Get bounding box for sampling
         coord_min, coord_max = (

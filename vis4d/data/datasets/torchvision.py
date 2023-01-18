@@ -1,7 +1,8 @@
 """Provides functionalities to wrap torchvision datasets."""
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import torch
 from PIL.Image import Image
@@ -107,8 +108,10 @@ class TorchvisionClassificationDataset(TorchvisionDataset):
         img_to_tensor = ToTensor()
 
         def _data_converter(img_and_target: tuple[Image, int]) -> DictData:
-            """Converts the output of a torchvision dataset to the format
-                expected by the vis4d framework.
+            """Converts the output of a torchvision dataset.
+
+            The output is converted to the format expected by the vis4d
+            framework.
 
             Args:
                 img_and_target (tuple[Image, int]): Output of the datasets
@@ -118,7 +121,7 @@ class TorchvisionClassificationDataset(TorchvisionDataset):
                 DictData: Sample in vis4d format.
             """
             img, class_id = img_and_target
-            data: DictData = dict()
+            data: DictData = {}
             data[CommonKeys.images] = img_to_tensor(img)
             data[CommonKeys.categories] = torch.tensor(class_id).reshape(1, 1)
 

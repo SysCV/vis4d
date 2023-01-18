@@ -109,30 +109,3 @@ class AttributeMapMixin:
             dict[str, dict[str, list[int]]]: Mapping category to index.
         """
         raise NotImplementedError
-
-
-class FilteredDataset(Dataset):
-    """Subset of a dataset at specified indices.
-
-    It uses the dataset and applies filter_fn to it, which should return the
-    dataset indices that are to be kept after filtering.
-
-    Attributes:
-        dataset (Dataset): The whole Dataset
-        filter_fn (Dataset -> list[int]): filtering function.
-    """
-
-    def __init__(self, dataset, filter_fn) -> None:
-        """Creates an instance of the class."""
-        super().__init__()
-        assert isinstance(dataset, FilterMixin)  # TODO fix
-        self._filtered_indices = filter_fn(dataset)
-
-    def __len__(self) -> int:
-        """Wrapper for len."""
-        return len(self._filtered_indices)
-
-    def __getitem__(self, idx):
-        """Wrapper for getitem."""
-        mapped_idx = self._filtered_indices[idx]
-        return self.dataset[mapped_idx]
