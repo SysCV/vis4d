@@ -468,7 +468,7 @@ def bbox3d_to_lines_plotly(
 
 def show_pointcloud(
     points: torch.Tensor,
-    colors=None,
+    colors: torch.Tensor = None,
     axis_mode: AxisMode = AxisMode.OPENCV,
     boxes3d: Tensor | None = None,
     thickness: int = 2,
@@ -477,6 +477,7 @@ def show_pointcloud(
 
     Args:
         points (torch.Tensor): Pointcloud points. Shaped [n_pts, 3].
+        colors (AxisMode, optional): RGB color.
         axis_mode (AxisMode, optional): Axis mode. Defaults to AxisMode.OPENCV.
         boxes3d (Tensor, optional): 3D boxes. Shaped [n_boxes, 7].
             Defaults to None.
