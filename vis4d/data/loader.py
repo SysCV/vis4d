@@ -174,6 +174,10 @@ class SubdividingIterableDataset(IterableDataset):
         self.preprocess_fn = preprocess_fn
         self.reference_view_sampler = None
 
+    def __getitem__(self, index) -> DictData:
+        """Indexing is not supported for IterableDatasets."""
+        raise NotImplementedError("IterableDataset does not support indeing")
+
     def __iter__(self) -> Iterator[DictData]:
         """Iterates over the dataset, supporting distributed sampling."""
         worker_info = get_worker_info()
@@ -190,7 +194,7 @@ class SubdividingIterableDataset(IterableDataset):
             if data_idx >= len(self.dataset):
                 continue
             data_sample = self.dataset[data_idx]
-            n_elements = next(iter(data_sample.values())).size(0)
+            n_elements = list((data_sample.values()))[0].size(0)
             for idx in range(int(n_elements / self.n_samples_per_batch)):
                 # TODO, this is kind of ugly
                 # this field defines from which source the data was loaded

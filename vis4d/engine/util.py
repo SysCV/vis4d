@@ -61,7 +61,7 @@ def is_dataclass_instance(obj: object) -> bool:
     return dataclasses.is_dataclass(obj) and not isinstance(obj, type)
 
 
-def apply_to_collection(
+def apply_to_collection(  # type: ignore
     data: Any,
     dtype: type | Any | tuple[type | Any],
     function: Callable,

@@ -43,7 +43,7 @@ class FPN(_FPN, FeaturePyramidProcessing):  # type: ignore
             start_index (int, optional): Start index of base model feature
                 maps. Defaults to 2.
         """
-        super().__init__(
+        super().__init__(  # type: ignore
             in_channels_list, out_channels, extra_blocks=extra_blocks
         )
         self.start_index = start_index
@@ -70,7 +70,7 @@ class FPN(_FPN, FeaturePyramidProcessing):  # type: ignore
                 x[self.start_index :],
             )
         )
-        outs = super().forward(feat_dict)
+        outs = super().forward(feat_dict)  # type: ignore
         return [*x[: self.start_index], *outs.values()]
 
     def __call__(self, x: list[torch.Tensor]) -> list[torch.Tensor]:
