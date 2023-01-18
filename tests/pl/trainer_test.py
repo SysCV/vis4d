@@ -7,7 +7,7 @@ import pytorch_lightning as pl
 import torch
 from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
-from pytorch_lightning.utilities.cli import SaveConfigCallback
+from pytorch_lightning.cli import SaveConfigCallback
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 

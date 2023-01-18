@@ -9,10 +9,10 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
+from pytorch_lightning.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.core import LightningModule
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.strategies.strategy import Strategy
-from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 from torch.utils.collect_env import get_pretty_env_info
 
@@ -119,7 +119,7 @@ class DefaultTrainer(pl.Trainer):
                     exp_logger = None
                     rank_zero_info(
                         "Neither `tensorboard` nor `tensorboardX` is "
-                        "available.Running without experiment logger. To log "
+                        "available. Running without experiment logger. To log "
                         "your experiments, try `pip install`ing either."
                     )
             kwargs["logger"] = exp_logger
