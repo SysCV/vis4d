@@ -3,7 +3,6 @@ import shutil
 import unittest
 
 import pytest
-import pytorch_lightning as pl
 import torch
 from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
@@ -52,7 +51,6 @@ def test_custom_init() -> None:
     trainer = DefaultTrainer(
         work_dir="./unittests/",
         exp_name="trainer_test",
-        callbacks=pl.callbacks.LearningRateMonitor(),
         tqdm=True,
         max_steps=2,
     )
