@@ -3,7 +3,6 @@ import shutil
 import unittest
 
 import pytest
-import pytorch_lightning as pl
 import torch
 from _pytest.fixtures import FixtureRequest
 from _pytest.monkeypatch import MonkeyPatch
