@@ -318,10 +318,10 @@ class Tree(nn.Module):
         if level_root:
             root_dim += in_channels
         if levels == 1:
-            self.tree1 = block_c(
+            self.tree1: Tree | BasicBlock = block_c(
                 in_channels, out_channels, stride, dilation=dilation
             )
-            self.tree2 = block_c(
+            self.tree2: Tree | BasicBlock = block_c(
                 out_channels, out_channels, 1, dilation=dilation
             )
             self.root = Root(

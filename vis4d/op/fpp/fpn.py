@@ -71,7 +71,7 @@ class FPN(_FPN, FeaturePyramidProcessing):  # type: ignore
             )
         )
         outs = super().forward(feat_dict)  # type: ignore
-        return [*x[: self.start_index], *outs.values()]
+        return [*x[: self.start_index], *outs.values()]  # type: ignore
 
     def __call__(self, x: list[torch.Tensor]) -> list[torch.Tensor]:
         """Type definition for call implementation."""
