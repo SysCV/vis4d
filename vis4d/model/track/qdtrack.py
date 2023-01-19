@@ -83,7 +83,7 @@ class QDTrack(nn.Module):
         frame_ids: None | tuple[int, ...] = None,
         target_boxes: None | list[torch.Tensor] = None,
         target_track_ids: None | list[torch.Tensor] = None,
-    ) -> list[QDTrackState]:
+    ) -> list[QDTrackState] | QDTrackInstanceSimilarityLoss:
         """Forward function."""
         if target_boxes is not None:
             assert (
@@ -128,7 +128,7 @@ class QDTrack(nn.Module):
             ref_track_ids.append(current_track_ids)
         return key_embeddings, ref_embeddings, key_track_ids, ref_track_ids
 
-    @torch.no_grad()
+    @torch.no_grad()  # type: ignore
     def _sample_proposals(
         self,
         det_boxes: list[torch.Tensor],
@@ -176,8 +176,8 @@ class QDTrack(nn.Module):
         det_boxes: list[torch.Tensor],
         target_boxes: list[torch.Tensor],
         target_track_ids: list[torch.Tensor],
-    ):
-        """TODO define return type."""
+    ) -> QDTrackInstanceSimilarityLoss:
+        """Forward train."""  # TODO doc, verify training
         sampled_boxes, sampled_track_ids = self._sample_proposals(
             det_boxes, target_boxes, target_track_ids
         )
