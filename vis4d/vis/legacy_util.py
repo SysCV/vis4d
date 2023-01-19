@@ -408,7 +408,7 @@ def imshow_pointcloud(
     pts_2d = project_points(points, camera_intrinsics).round()
     depths = points[:, 2]
     mask = points_inside_image(
-        pts_2d, depths, (image_p.shape[1], image_p.shape[0])
+        pts_2d, depths, (image_p.shape[0], image_p.shape[1])
     )
     pts_2d = pts_2d[mask].int().cpu().numpy()
     depths = depths[mask].cpu().numpy()

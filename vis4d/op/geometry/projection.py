@@ -97,8 +97,8 @@ def points_inside_image(
         torch.Tensor: Binary mask of points inside an image.
     """
     mask = torch.ones_like(depths)
-    h: int | torch.Tensor = 0
-    w: int | torch.Tensor = 0
+    h: int | torch.Tensor
+    w: int | torch.Tensor
 
     if isinstance(images_hw, tuple):
         h, w = images_hw
