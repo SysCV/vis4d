@@ -20,7 +20,7 @@ from ..common.distributed import PicklableWrapper, get_world_size
 from .const import CommonKeys
 from .datasets import VideoMixin
 from .reference import ReferenceViewSampler
-from .samplers import BaseSampler, VideoInferenceSampler
+from .samplers import VideoInferenceSampler
 from .typing import DictData
 
 # Keys that contain pointcloud based data and can be stacked using torch.stack.
@@ -223,14 +223,10 @@ def build_train_dataloader(
     workers_per_gpu: int = 1,
     batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
-    batch_sampler: None | BaseSampler = None,
     pin_memory: bool = True,
     shuffle: bool = True,
 ) -> DataLoader:
     """Build training dataloader."""
-    if batch_sampler is not None:
-        samples_per_gpu, shuffle = 1, False
-
     if dataset.reference_view_sampler is None:
 
         def _collate_fn(data: list[DictData]):
@@ -246,13 +242,12 @@ def build_train_dataloader(
             return views
 
     sampler = None
-    if get_world_size() > 1 and batch_sampler is None:
+    if get_world_size() > 1:
         sampler = DistributedSampler(dataset, shuffle=shuffle)
         shuffle = False
 
     dataloader = DataLoader(
         dataset,
-        batch_sampler=batch_sampler,
         batch_size=samples_per_gpu,
         num_workers=workers_per_gpu,
         collate_fn=PicklableWrapper(_collate_fn),
@@ -271,7 +266,6 @@ def build_inference_dataloaders(
     video_based_inference: bool = True,
     batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
-    sampler: None | BaseSampler = None,
 ) -> list[DataLoader]:
     """Build dataloaders for test / predict."""
     if isinstance(datasets, Dataset):
@@ -279,14 +273,14 @@ def build_inference_dataloaders(
     dataloaders = []
     _collate_fn = PicklableWrapper(lambda x: collate_fn(batchprocess_fn(x)))
     for dataset in datasets:
-        dset_sampler: Sampler[list[int]] | DistributedSampler[list[int]]
-        if get_world_size() > 1 and sampler is None:
+        dset_sampler: DistributedSampler[list[int]] | None
+        if get_world_size() > 1:
             if isinstance(dataset, VideoMixin) and video_based_inference:
                 dset_sampler = VideoInferenceSampler(dataset)
             else:
                 dset_sampler = DistributedSampler(dataset)
         else:
-            dset_sampler = sampler
+            dset_sampler = None
 
         test_dataloader = DataLoader(
             dataset,

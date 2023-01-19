@@ -4,12 +4,13 @@ import glob
 import shutil
 import tempfile
 import unittest
+import warnings
 
 import numpy as np
-import open3d as o3d
 import torch
 
 from tests.util import get_test_data, get_test_file
+from vis4d.common.imports import OPEN3D_AVAILABLE
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.s3dis import S3DIS
 from vis4d.data.loader import DataPipe, SubdividingIterableDataset
@@ -18,6 +19,9 @@ from vis4d.data.transforms.point_sampling import (
     sample_points_block_full_coverage,
 )
 from vis4d.vis.pointcloud.pointcloud_visualizer import PointCloudVisualizer
+
+if OPEN3D_AVAILABLE:
+    import open3d as o3d
 
 
 class TestPointcloudViewer(unittest.TestCase):
@@ -52,6 +56,10 @@ class TestPointcloudViewer(unittest.TestCase):
 
     def test_precomputed(self) -> None:
         """Loads a precomputed datasamples from s3dis and checks the output."""
+        if not OPEN3D_AVAILABLE:
+            warnings.warn("open3d not installed, skipping test.")
+            return
+
         test_file_loc = get_test_file("test_s3dis_pts_in.pt")
         data = torch.load(test_file_loc)
         vis = PointCloudVisualizer()
@@ -75,6 +83,10 @@ class TestPointcloudViewer(unittest.TestCase):
 
     def test_vis_s3dis(self) -> None:
         """Loads two rooms from the s3dis dataset and visualizes it."""
+        if not OPEN3D_AVAILABLE:
+            warnings.warn("open3d not installed, skipping test.")
+            return
+
         ds = S3DIS(data_root=get_test_data("s3d_test"))
         sample = sample_points_block_full_coverage(  # pylint: disable=unexpected-keyword-arg,line-too-long
             in_keys=[
