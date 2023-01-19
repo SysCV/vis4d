@@ -61,9 +61,12 @@ def array_to_numpy(
 
 
 @overload
-def array_to_numpy(
-    data: ArrayLike | None, n_dims: int | None
-) -> NDArrayFloat | None:
+def array_to_numpy(data: ArrayLike, n_dims: int | None) -> NDArrayNumber:
+    ...
+
+
+@overload
+def array_to_numpy(data: None) -> None:
     ...
 
 
