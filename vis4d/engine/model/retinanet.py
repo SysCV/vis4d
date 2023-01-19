@@ -1,5 +1,5 @@
 # type: ignore # FIXME Remove and fix this with new engine / config
-# """RetinaNet COCO training example."""
+"""RetinaNet COCO training example."""
 import argparse
 import warnings
 from typing import List, Optional, Tuple
