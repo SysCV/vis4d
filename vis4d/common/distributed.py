@@ -23,7 +23,7 @@ class PicklableWrapper:  #  mypy: disable=line-too-long
     https://github.com/joblib/joblib/blob/master/joblib/externals/loky/cloudpickle_wrapper.py
     """
 
-    def __init__(self, obj: PicklableWrapper) -> None:
+    def __init__(self, obj: Any | PicklableWrapper) -> None:  # type: ignore
         """Creates an instance of the class."""
         while isinstance(obj, PicklableWrapper):
             # Wrapping an object twice is no-op
