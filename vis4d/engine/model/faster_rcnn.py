@@ -26,7 +26,7 @@ from vis4d.engine.test import Tester
 from vis4d.engine.train import Trainer
 from vis4d.eval import COCOEvaluator, Evaluator
 from vis4d.model.detect.faster_rcnn import FasterRCNN, FasterRCNNLoss
-from vis4d.optim.warmup import LinearLRWarmup
+from vis4d.optim.warmup import BaseLRWarmup, LinearLRWarmup
 from vis4d.vis.base import Visualizer
 
 warnings.filterwarnings("ignore")
@@ -37,7 +37,7 @@ DATA_ROOT = "data/COCO"
 class FasterRCNNTrainer(Trainer):
     """Faster RCNN Trainer."""
 
-    def setup_train_dataloaders(self) -> DataLoader:
+    def setup_train_dataloaders(self) -> DataLoader[DictData]:
         """Set-up training data loaders."""
         batch_size = int(16 * (get_world_size() / 8))
         num_workers = 1
@@ -67,7 +67,7 @@ class FasterRCNNTrainer(Trainer):
 class FasterRCNNTester(Tester):
     """Faster RCNN Tester."""
 
-    def setup_test_dataloaders(self) -> list[DataLoader]:
+    def setup_test_dataloaders(self) -> list[DataLoader[DictData]]:
         """Set-up testing data loaders."""
         test_resolution = (800, 1333)
         return default_test_pipeline(
@@ -130,7 +130,7 @@ class FasterRCNNOptimizer(Optimizer):
         """Set-up loss function."""
         return FasterRCNNLoss()
 
-    def setup_optimizer(self):
+    def setup_optimizer(self) -> optim.Optimizer:
         """Set-up optimizer."""
         return optim.SGD(
             self.model.parameters(),
@@ -139,13 +139,13 @@ class FasterRCNNOptimizer(Optimizer):
             weight_decay=0.0001,
         )
 
-    def setup_lr_scheduler(self):
+    def setup_lr_scheduler(self) -> optim.lr_scheduler._LRScheduler:
         """Set-up learning rate scheduler."""
         return optim.lr_scheduler.MultiStepLR(
             self.optimizer, milestones=[8, 11], gamma=0.1
         )
 
-    def setup_warmup(self):
+    def setup_warmup(self) -> BaseLRWarmup:
         """Set-up learning rate warm-up."""
         return LinearLRWarmup(0.001, 500)
 

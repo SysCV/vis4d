@@ -207,8 +207,8 @@ def sample_points_block_full_coverage(  # pylint: disable=invalid-name
                 else torch.zeros((0), dtype=d.dtype)
             )
 
-        for idx_x in range(grid_idxs[0].item()):
-            for idx_y in range(grid_idxs[1].item()):
+        for idx_x in range(int(grid_idxs[0].item())):
+            for idx_y in range(int(grid_idxs[1].item())):
                 center_pt = torch.tensor(
                     [
                         coord_min[0] + idx_x,

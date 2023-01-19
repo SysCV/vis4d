@@ -40,7 +40,7 @@ def setup_model(  # pylint: disable=invalid-name
 class DefaultCLI(CLI):
     """Default CLI for running models with pytorch lightning."""
 
-    def add_arguments_to_parser(self, parser):
+    def add_arguments_to_parser(self, parser) -> None:
         """Link data and model experiment argument."""
         # parser.link_arguments("data.experiment", "model.experiment") TODO
         parser.link_arguments("model.max_epochs", "trainer.max_epochs")
