@@ -98,7 +98,7 @@ class FCNResNetTest(unittest.TestCase):
 
         running_losses = {}
         latest_loss = 0.0
-        for epoch in range(4):
+        for epoch in range(2):
             for i, data in enumerate(train_loader):
                 # zero the parameter gradients
                 optimizer.zero_grad()

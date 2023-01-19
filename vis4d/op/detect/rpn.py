@@ -17,7 +17,7 @@ from vis4d.op.box.samplers import RandomSampler
 from ..layer import Conv2d
 from ..typing import Proposals
 from .anchor_generator import AnchorGenerator
-from .dense_anchor import DenseAnchorHeadLoss
+from .dense_anchor import DenseAnchorHeadLoss, DenseAnchorHeadLosses
 
 
 class RPNOut(NamedTuple):
@@ -347,7 +347,7 @@ class RPNLoss(DenseAnchorHeadLoss):
         target_boxes: list[torch.Tensor],
         images_hw: list[tuple[int, int]],
         target_class_ids: list[torch.Tensor | float] | None = None,
-    ) -> RPNLosses:
+    ) -> DenseAnchorHeadLosses:
         """Compute RPN classification and regression losses.
 
         Args:
@@ -361,12 +361,9 @@ class RPNLoss(DenseAnchorHeadLoss):
             target_class_ids (list[torch.Tensor] | None): Target class labels.
 
         Returns:
-            RPNLosses: Classification and regression losses.
+            DenseAnchorHeadLosses: Classification and regression losses.
         """
         assert target_class_ids is None
-        losses = super().forward(
+        return super().forward(
             cls_outs, reg_outs, target_boxes, images_hw, target_class_ids
-        )
-        return RPNLosses(
-            rpn_loss_cls=losses.loss_cls, rpn_loss_bbox=losses.loss_bbox
         )

@@ -5,9 +5,8 @@ from math import prod
 from typing import NamedTuple
 
 import torch
-import torch.nn.functional as F
 from torch import nn
-from torchvision.ops import batched_nms
+from torchvision.ops import batched_nms, sigmoid_focal_loss
 
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import BoxEncoder2D, DeltaXYWHBBoxEncoder
@@ -384,7 +383,7 @@ class RetinaNetHeadLoss(DenseAnchorHeadLoss):
             if box_sampler is not None
             else get_default_box_sampler()
         )
-        loss_cls = F.binary_cross_entropy_with_logits
+        loss_cls = sigmoid_focal_loss
         super().__init__(
             anchor_generator, box_encoder, matcher, sampler, loss_cls
         )
