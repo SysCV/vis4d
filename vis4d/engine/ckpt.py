@@ -7,7 +7,7 @@ from __future__ import annotations
 import os.path as osp
 import re
 from collections import OrderedDict
-from typing import Callable
+from typing import Callable, Union
 
 import torch
 import torchvision
@@ -19,9 +19,8 @@ from vis4d.common import TorchCheckpoint
 from vis4d.common.distributed import get_rank, get_world_size
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
 
-# pylint: disable=unsupported-binary-operation
 CheckpointLoadFunc = Callable[
-    [str, str | torch.device | None], TorchCheckpoint
+    [str, Union[str, torch.device, None]], TorchCheckpoint
 ]
 
 

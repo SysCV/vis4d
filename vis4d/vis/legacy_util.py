@@ -20,7 +20,7 @@ from torch import Tensor
 from vis4d.common import NDArrayF64, NDArrayUI8
 from vis4d.common.array import array_to_numpy
 from vis4d.common.imports import DASH_AVAILABLE, PLOTLY_AVAILABLE
-from vis4d.common.typing import ArrayLike, ArrayLikeFloat
+from vis4d.common.typing import ArrayLikeFloat
 from vis4d.data.const import AxisMode
 from vis4d.op.box.box3d import boxes3d_to_corners
 from vis4d.op.geometry.projection import points_inside_image, project_points

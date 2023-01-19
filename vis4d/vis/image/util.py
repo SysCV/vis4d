@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 
-from vis4d.common.array import array_to_numpy, arrays_to_numpy
+from vis4d.common.array import array_to_numpy
 from vis4d.common.typing import (
     ArrayLike,
     ArrayLikeBool,
