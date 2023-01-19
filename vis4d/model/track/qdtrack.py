@@ -20,6 +20,7 @@ from vis4d.op.track.qdtrack import (
     QDSimilarityHead,
     QDTrackAssociation,
     QDTrackInstanceSimilarityLoss,
+    QDTrackInstanceSimilarityLosses,
 )
 from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
 
@@ -83,7 +84,7 @@ class QDTrack(nn.Module):
         frame_ids: None | tuple[int, ...] = None,
         target_boxes: None | list[torch.Tensor] = None,
         target_track_ids: None | list[torch.Tensor] = None,
-    ) -> list[QDTrackState] | QDTrackInstanceSimilarityLoss:
+    ) -> list[QDTrackState] | QDTrackInstanceSimilarityLosses:
         """Forward function."""
         if target_boxes is not None:
             assert (
@@ -176,7 +177,7 @@ class QDTrack(nn.Module):
         det_boxes: list[torch.Tensor],
         target_boxes: list[torch.Tensor],
         target_track_ids: list[torch.Tensor],
-    ) -> QDTrackInstanceSimilarityLoss:
+    ) -> QDTrackInstanceSimilarityLosses:
         """Forward train."""  # TODO doc, verify training
         sampled_boxes, sampled_track_ids = self._sample_proposals(
             det_boxes, target_boxes, target_track_ids
