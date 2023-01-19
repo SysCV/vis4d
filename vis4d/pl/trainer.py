@@ -126,9 +126,10 @@ class DefaultTrainer(pl.Trainer):
         callbacks: List[pl.callbacks.Callback] = []
 
         # add learning rate / GPU stats monitor (logs to tensorboard)
-        callbacks += [
-            pl.callbacks.LearningRateMonitor(logging_interval="step")
-        ]
+        if TENSORBOARD_AVAILABLE or wandb:
+            callbacks += [
+                pl.callbacks.LearningRateMonitor(logging_interval="step")
+            ]
 
         # add progress bar (train progress separate from validation)
         if tqdm:
