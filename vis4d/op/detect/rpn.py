@@ -346,7 +346,7 @@ class RPNLoss(DenseAnchorHeadLoss):
         reg_outs: list[torch.Tensor],
         target_boxes: list[torch.Tensor],
         images_hw: list[tuple[int, int]],
-        target_class_ids: list[torch.Tensor] | None = None,
+        target_class_ids: list[torch.Tensor | float] | None = None,
     ) -> RPNLosses:
         """Compute RPN classification and regression losses.
 

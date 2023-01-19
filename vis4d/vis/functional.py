@@ -19,7 +19,8 @@ from vis4d.vis.image.util import (
     preprocess_masks,
 )
 from vis4d.vis.image.viewer import MatplotlibImageViewer
-from vis4d.vis.pointcloud.base import PointCloudVisualizerBackend, Scene3D
+from vis4d.vis.pointcloud.base import PointCloudVisualizerBackend
+from vis4d.vis.pointcloud.scene import Scene3D
 from vis4d.vis.pointcloud.viewer.open3d_viewer import (
     Open3DVisualizationBackend,
 )
@@ -168,7 +169,7 @@ def imshow_bboxes(
         n_colors,
         image_mode,
     )
-    imshow(img, image_viewer)
+    imshow(img, image_mode, image_viewer)
 
 
 def imshow_masks(
@@ -198,6 +199,7 @@ def imshow_masks(
     """
     imshow(
         draw_masks(image, masks, class_ids, n_colors, image_mode, canvas),
+        image_mode,
         image_viewer,
     )
 
@@ -235,12 +237,16 @@ def imshow_topk_bboxes(
     """
     scores = array_to_numpy(scores, n_dims=1, dtype=np.float32)
     top_k_idxs = np.argpartition(scores.ravel(), -topk)[-topk:]
+
+    boxes_np = array_to_numpy(boxes, n_dims=2, dtype=np.float32)
+    class_ids_np = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
+    track_ids_np = array_to_numpy(track_ids, n_dims=1, dtype=np.int32)
     imshow_bboxes(
         image,
-        boxes[top_k_idxs],
+        boxes_np[top_k_idxs],
         scores[top_k_idxs],
-        class_ids[top_k_idxs] if class_ids is not None else None,
-        track_ids[top_k_idxs] if track_ids is not None else None,
+        class_ids_np[top_k_idxs] if class_ids_np is not None else None,
+        track_ids_np[top_k_idxs] if track_ids_np is not None else None,
         class_id_mapping,
         n_colors,
         image_mode,
@@ -274,23 +280,29 @@ def imshow_track_matches(
         image_viewer (ImageViewerBackend, optional): The Image viewer backend
             to use. Defaults to MatplotlibImageViewer().
     """
-    key_imgs = arrays_to_numpy(*key_imgs, n_dims=3)
-    ref_imgs = arrays_to_numpy(*ref_imgs, n_dims=3)
-    key_boxes = arrays_to_numpy(*key_boxes, n_dims=2)
-    ref_boxes = arrays_to_numpy(*ref_boxes, n_dims=2)
-    key_track_ids = arrays_to_numpy(*key_track_ids, n_dims=1)
-    ref_track_ids = arrays_to_numpy(*ref_track_ids, n_dims=1)
+    key_imgs_np = arrays_to_numpy(*key_imgs, n_dims=3, dtype=np.float32)
+    ref_imgs_np = arrays_to_numpy(*ref_imgs, n_dims=3, dtype=np.float32)
+    key_boxes_np = arrays_to_numpy(*key_boxes, n_dims=2, dtype=np.float32)
+    ref_boxes_np = arrays_to_numpy(*ref_boxes, n_dims=2, dtype=np.float32)
+    key_track_ids_np = arrays_to_numpy(
+        *key_track_ids, n_dims=1, dtype=np.int32
+    )
+    ref_track_ids_np = arrays_to_numpy(
+        *ref_track_ids, n_dims=1, dtype=np.int32
+    )
 
-    for batch_i, (key_box, ref_box) in enumerate(zip(key_boxes, ref_boxes)):
-        target = key_track_ids[batch_i].reshape(-1, 1) == ref_track_ids[
+    for batch_i, (key_box, ref_box) in enumerate(
+        zip(key_boxes_np, ref_boxes_np)
+    ):
+        target = key_track_ids_np[batch_i].reshape(-1, 1) == ref_track_ids_np[
             batch_i
         ].reshape(1, -1)
         for key_i in range(target.shape[0]):
             if target[key_i].sum() == 0:
                 continue
             ref_i = np.argmax(target[key_i]).item()
-            ref_image = ref_imgs[batch_i]
-            key_image = key_imgs[batch_i]
+            ref_image = ref_imgs_np[batch_i]
+            key_image = key_imgs_np[batch_i]
 
             if ref_image.shape != key_image.shape:
                 # Can not stack images together
@@ -315,16 +327,18 @@ def imshow_track_matches(
                     ref_image, ref_box[batch_i], image_mode=image_mode
                 )
                 stacked_img = np.vstack([k_img, r_img])
-                imshow(stacked_img, image_viewer)
+                imshow(stacked_img, image_mode, image_viewer)
 
 
 # =========================== Pointcloud ===================================
+
+
 def show_3d(
     scene: Scene3D,
     viewer: PointCloudVisualizerBackend = Open3DVisualizationBackend(
         class_color_mapping=DEFAULT_COLOR_MAPPING
     ),
-):
+) -> None:
     """Shows a given 3D scene.
 
     This method shows a 3D visualization of a given 3D scene. Use the viewer
@@ -365,9 +379,7 @@ def draw_points(
         scene = Scene3D()
 
     return scene.add_pointcloud(
-        *arrays_to_numpy(points_xyz, colors, n_dims=2),
-        *arrays_to_numpy(classes, instances, n_dims=1),
-        *arrays_to_numpy(transform, n_dims=2),
+        points_xyz, colors, classes, instances, transform
     )
 
 

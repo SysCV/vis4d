@@ -18,7 +18,9 @@ from PIL import Image, ImageDraw
 from torch import Tensor
 
 from vis4d.common import NDArrayF64, NDArrayUI8
+from vis4d.common.array import array_to_numpy
 from vis4d.common.imports import DASH_AVAILABLE, PLOTLY_AVAILABLE
+from vis4d.common.typing import ArrayLike, ArrayLikeFloat
 from vis4d.data.const import AxisMode
 from vis4d.op.box.box3d import boxes3d_to_corners
 from vis4d.op.geometry.projection import points_inside_image, project_points
@@ -30,7 +32,7 @@ if DASH_AVAILABLE and PLOTLY_AVAILABLE:
     import plotly.graph_objects as go
     from dash import dcc, html
 
-ImageType = Union[torch.Tensor, NDArrayUI8, NDArrayF64]
+ImageType = Union[Tensor, NDArrayUI8, NDArrayF64]
 
 ColorType = Union[
     Union[tuple[int], str],
@@ -187,19 +189,19 @@ def draw_bev_canvas(
 
 def draw_bev_box(
     axis: Axis,
-    box: torch.Tesnor,
-    color: torch.Tensor,
-    history: torch.tensor = torch.empty((0, 7)),
+    box: Tensor,
+    color: ArrayLikeFloat,
+    history: Tensor = torch.empty((0, 7)),
     line_width: int = 2,
-):
+) -> None:
     """Draws a 3D bounding box in a bird's eye view.
 
     Args:
         axis (Axis): Matplotlib axis.
-        box (torch.Tensor): Bounding box in the format
+        box (Tensor): Bounding box in the format
             [x_c, y_c, z_C, l, w, h, yaw]. Shape [7].
-        color (torch.Tensor): Color of the bounding box. Shape [n_boxes, 3]
-        history (torch.Tensor): History of the bounding box.
+        color (ArrayLikeFloat): Color of the bounding box. Shape [3]
+        history (Tensor): History of the bounding box.
             Shape [n_history, 7]. Defaults to empty tensor.
         line_width (int, optional): Line width of the bounding box.
             Defaults to 2.
@@ -208,7 +210,11 @@ def draw_bev_box(
     yaw = box[8]
     l = box[5]
     w = box[4]
-    color = tuple((np.array(color) / 255).tolist())
+
+    col_np = array_to_numpy(color, n_dims=1, dtype=np.float32)
+    if col_np > 1:  # convert [0,255] encoding to [0,1]
+        col_np = col_np / 255
+    col = tuple(col_np.tolist())
 
     # Calculate length, width of object
     vec_l = np.array([l * np.cos(yaw), -l * np.sin(yaw)])
@@ -256,10 +262,10 @@ def draw_bev_box(
 
     # Plot center history
     if len(history) > 0:
-        yaw_hist = history[:, 8]
+        yaw_hist_ = history[:, 8]
         center_hist = history[:, :2]
         for index, ct in enumerate(center_hist):
-            yaw = yaw_hist[index].item()
+            yaw = yaw_hist_[index].item()
             vec_l = np.array([l * np.cos(yaw), -l * np.sin(yaw)])
             ct_dir = ct + 0.5 * vec_l
             alpha = max(float(index) / len(center_hist), 0.5)
@@ -268,21 +274,21 @@ def draw_bev_box(
                 [ct[1], ct_dir[1]],
                 line_style,
                 alpha=alpha,
-                c=color,
+                c=col,
                 linewidth=line_width,
             )
             axis.scatter(
                 ct[0],
                 ct[1],
                 alpha=alpha,
-                c=np.array([color]),
+                c=np.array([col]),
                 linewidth=line_width,
             )
 
 
 def draw_bev(
     boxes3d: Tensor, history: list[Tensor] | None = None
-) -> np.ndarray:
+) -> NDArrayUI8:
     """Plots a bird's eye view of the scene with the given bounding boxes.
 
     Args:
@@ -297,7 +303,7 @@ def draw_bev(
     fig, ax = draw_bev_canvas()
 
     assert (
-        history is None or history.shape[0] == boxes3d.shape[1]
+        history is None or len(history) == boxes3d.shape[0]
     ), "History and boxes3d must have the same length."
 
     for idx, box in enumerate(boxes3d):
@@ -323,8 +329,8 @@ def draw_bev(
 def draw_lines_match(
     img1: Image.Image,
     img2: Image.Image,
-    pts1: torch.Tensor,
-    pts2: torch.Tensor,
+    pts1: Tensor,
+    pts2: Tensor,
     radius: int = 5,
 ) -> Image:  # pragma: no cover
     """Draws matched points between two images.
@@ -337,8 +343,8 @@ def draw_lines_match(
     Args:
         img1 (Image.Image): First image.
         img2 (Image.Image): Second image.
-        pts1 (torch.Tensor): Keypoints of the first image. Shaped [n_pts, 2].
-        pts2 (torch.Tensor): Keypoints of the second image. Shaped [n_pts, 2].
+        pts1 (Tensor): Keypoints of the first image. Shaped [n_pts, 2].
+        pts2 (Tensor): Keypoints of the second image. Shaped [n_pts, 2].
         radius (int): Radius of the circles representing the keypoints.
 
     Returns:
@@ -382,7 +388,7 @@ def draw_lines_match(
 
 
 def imshow_pointcloud(
-    points: torch.Tensor,
+    points: Tensor,
     image: ImageType,
     camera_intrinsics: Tensor,
     dot_size: int = 3,
@@ -391,7 +397,7 @@ def imshow_pointcloud(
     """Show image with pointcloud points.
 
     Args:
-        points (torch.Tensor): Pointcloud points. Shaped [n_pts, 3].
+        points (Tensor): Pointcloud points. Shaped [n_pts, 3].
         image (ImageType): Image.
         camera_intrinsics (Tensor): Camera intrinsics.
         dot_size (int, optional): Size of the points. Defaults to 3.
@@ -417,7 +423,7 @@ def imshow_pointcloud(
 def bbox3d_to_lines_plotly(
     box3d_corners: NDArrayF64,
 ) -> tuple[
-    list[NDArrayF64], list[NDArrayF64], list[NDArrayF64]
+    list[NDArrayF64 | None], list[NDArrayF64 | None], list[NDArrayF64 | None]
 ]:  # pragma: no cover
     """Convert 3D boxes to lines.
 
@@ -425,14 +431,15 @@ def bbox3d_to_lines_plotly(
         box3d_corners (NDArrayF64): 3D boxes. Shaped [n_boxes, 8, 3].
 
     Returns:
-        tuple[list[NDArrayF64], list[NDArrayF64], list[NDArrayF64]]: 3D lines.
+        tuple[list[NDArrayF64| None], list[NDArrayF64], list[NDArrayF64]]:
+            3D lines.
     """
     ixs_box_0 = [0, 1, 2, 3, 0]
     ixs_box_1 = [4, 5, 6, 7, 4]
 
-    x_lines = [box3d_corners[ixs_box_0, 0]]
-    y_lines = [box3d_corners[ixs_box_0, 1]]
-    z_lines = [box3d_corners[ixs_box_0, 2]]
+    x_lines: list[NDArrayF64 | None] = [box3d_corners[ixs_box_0, 0]]
+    y_lines: list[NDArrayF64 | None] = [box3d_corners[ixs_box_0, 1]]
+    z_lines: list[NDArrayF64 | None] = [box3d_corners[ixs_box_0, 2]]
 
     def f_lines_add_nones() -> None:
         """Add nones for lines."""
@@ -467,8 +474,8 @@ def bbox3d_to_lines_plotly(
 
 
 def show_pointcloud(
-    points: torch.Tensor,
-    colors: torch.Tensor = None,
+    points: Tensor,
+    colors: Tensor | None = None,
     axis_mode: AxisMode = AxisMode.OPENCV,
     boxes3d: Tensor | None = None,
     thickness: int = 2,
@@ -476,8 +483,8 @@ def show_pointcloud(
     """Show pointcloud points using plotly as backend.
 
     Args:
-        points (torch.Tensor): Pointcloud points. Shaped [n_pts, 3].
-        colors (torch.Tensor, optional): RGB color.
+        points (Tensor): Pointcloud points. Shaped [n_pts, 3].
+        colors (Tensor | None , optional): RGB color. Defaults to None.
         axis_mode (AxisMode, optional): Axis mode. Defaults to AxisMode.OPENCV.
         boxes3d (Tensor, optional): 3D boxes. Shaped [n_boxes, 7].
             Defaults to None.

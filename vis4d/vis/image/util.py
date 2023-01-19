@@ -89,9 +89,10 @@ def preprocess_boxes(
         class_id_mapping = {}
 
     boxes = array_to_numpy(boxes, n_dims=2, dtype=np.float32)
-    (scores, class_ids, track_ids) = arrays_to_numpy(
-        scores, class_ids, track_ids, n_dims=1
-    )
+
+    scores_np = array_to_numpy(scores, n_dims=1, dtype=np.float32)
+    class_ids_np = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
+    track_ids_np = array_to_numpy(track_ids, n_dims=1, dtype=np.int32)
 
     boxes_proc: list[tuple[float, float, float, float]] = []
     colors_proc: list[tuple[float, float, float]] = []
@@ -103,9 +104,9 @@ def preprocess_boxes(
         boxes = boxes.reshape(1, -1)
 
     for idx in range(boxes.shape[0]):
-        class_id = None if class_ids is None else class_ids[idx].item()
-        score = None if scores is None else scores[idx].item()
-        track_id = None if track_ids is None else track_ids[idx].item()
+        class_id = None if class_ids_np is None else class_ids_np[idx].item()
+        score = None if scores_np is None else scores_np[idx].item()
+        track_id = None if track_ids_np is None else track_ids_np[idx].item()
 
         if track_id is not None:
             color = color_palette[track_id % len(color_palette)]

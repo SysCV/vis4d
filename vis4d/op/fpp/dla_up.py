@@ -42,8 +42,8 @@ class IDAUp(nn.Module):
             c = channels[i]
             f = int(up_f[i])
             if use_dc:
-                proj = DeformConv(c, o)
-                node = DeformConv(o, o)
+                proj: Conv2d | DeformConv = DeformConv(c, o)
+                node: Conv2d | DeformConv = DeformConv(o, o)
             else:
                 proj = Conv2d(
                     c,

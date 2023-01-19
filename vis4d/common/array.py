@@ -142,6 +142,27 @@ def array_to_numpy(
     return typed_arr
 
 
+@overload
+def arrays_to_numpy(
+    *args: ArrayLike, n_dims: int | None, dtype: type[NumpyBool]
+) -> tuple[NDArrayBool, ...]:
+    ...
+
+
+@overload
+def arrays_to_numpy(
+    *args: ArrayLike, n_dims: int | None, dtype: type[NumpyFloat]
+) -> tuple[NDArrayFloat, ...]:
+    ...
+
+
+@overload
+def arrays_to_numpy(
+    *args: ArrayLike, n_dims: int | None, dtype: type[NumpyInt]
+) -> tuple[NDArrayInt, ...]:
+    ...
+
+
 def arrays_to_numpy(
     *args: ArrayLike | None,
     n_dims: int | None = None,

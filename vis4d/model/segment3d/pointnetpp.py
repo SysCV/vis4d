@@ -80,7 +80,9 @@ class PointNet2SegmentationModel(nn.Module):
         """
         return self.forward(points3d)
 
-    def forward_train(self, points3d, semantics3d) -> PointNet2SegmentationOut:
+    def forward_train(
+        self, points3d: torch.Tensor, semantics3d: torch.Tensor
+    ) -> PointNet2SegmentationOut:
         """Forward train.
 
         Args:

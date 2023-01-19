@@ -178,7 +178,7 @@ def apply_to_collection(  # type: ignore
     return data
 
 
-def move_data_to_device(
+def move_data_to_device(  # type: ignore
     batch: Any,
     device: torch.device | str | int,
     convert_to_numpy: bool = False,
@@ -205,7 +205,7 @@ def move_data_to_device(
     if isinstance(device, str):
         device = torch.device(device)
 
-    def batch_to(data: Any) -> Any:
+    def batch_to(data: Any) -> Any:  # type: ignore[misc]
         kwargs = {}
         # Don't issue non-blocking transfers to CPU
         # Same with MPS due to a race condition bug:

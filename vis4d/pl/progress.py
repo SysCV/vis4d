@@ -68,7 +68,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         prefix: str,
         batch_idx: int,
         total_batches: Union[int, float],
-        metrics: Optional[Dict[str, Union[int, float]]] = None,
+        metrics: Optional[Dict[str, Union[int, float, torch.Tensor]]] = None,
     ) -> str:
         """Compose log str from given information."""
         time_sec_tot = self.timer.time()
