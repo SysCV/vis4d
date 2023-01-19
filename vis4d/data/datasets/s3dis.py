@@ -182,7 +182,7 @@ class S3DIS(Dataset, CacheMappingMixin):
 
     def __len__(self) -> int:
         """Length of the datset."""
-        return len(self.data)  # type: ignore
+        return len(self.data)
 
     def __getitem__(self, idx: int) -> DictData:
         """Transform s3dis sample to vis4d input format.

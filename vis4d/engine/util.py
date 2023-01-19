@@ -64,7 +64,7 @@ def is_dataclass_instance(obj: object) -> bool:
 def apply_to_collection(  # type: ignore
     data: Any,
     dtype: type | Any | tuple[type | Any],
-    function: Callable,
+    function: Callable[[Any], Any],
     *args: Any,
     wrong_dtype: None | type | tuple[type, ...] = None,
     include_none: bool = True,

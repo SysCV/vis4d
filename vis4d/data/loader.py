@@ -4,7 +4,7 @@ from __future__ import annotations
 import bisect
 import math
 from collections.abc import Callable, Iterable, Iterator
-from typing import Union
+from typing import TypeAlias, Union
 
 import torch
 from torch.utils.data import (
@@ -32,7 +32,7 @@ POINT_KEYS = [
 ]
 DictDataOrList = Union[DictData, list[DictData]]
 
-_DATASET = Dataset[DictDataOrList]
+_DATASET: TypeAlias = Dataset[DictDataOrList]
 
 
 def default_collate(batch: list[DictData]) -> DictData:

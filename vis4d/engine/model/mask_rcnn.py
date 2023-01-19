@@ -25,7 +25,9 @@ warnings.filterwarnings("ignore")
 
 def get_dataloaders(
     is_training: bool = False, batch_size: int = 1, num_workers: int = 1
-) -> Tuple[Optional[DataLoader], List[DataLoader], List[Evaluator], str]:
+) -> Tuple[
+    Optional[DataLoader[DictData]], List[DataLoader], List[Evaluator], str
+]:
     """Return dataloaders and evaluators."""
     data_root = "data/COCO"
     train_resolution = (800, 1333)
