@@ -103,7 +103,7 @@ class CacheMappingMixin:
         self,
         generate_map_func: Callable[[], list[DictStrAny]],
         use_cache: bool = True,
-    ) -> Dataset:
+    ) -> Dataset[DictStrAny]:
         """Load cached mapping or generate if not exists."""
         timer = Timer()
         data = self._load_mapping_data(generate_map_func, use_cache)

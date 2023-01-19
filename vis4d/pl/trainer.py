@@ -107,7 +107,7 @@ class DefaultTrainer(pl.Trainer):
                     name=version,
                 )
             elif TENSORBOARD_AVAILABLE:
-                exp_logger = pl.loggers.TensorBoardLogger(  # type: ignore
+                exp_logger = pl.loggers.TensorBoardLogger(
                     save_dir=work_dir,
                     name=exp_name,
                     version=version,
@@ -181,7 +181,7 @@ class DefaultTrainer(pl.Trainer):
     def log_dir(self) -> Optional[str]:
         """Get current logging directory."""
         dirpath = self.strategy.broadcast(self.output_dir)
-        return dirpath  # type: ignore
+        return dirpath
 
 
 class CLI(LightningCLI):

@@ -1,4 +1,4 @@
-# pylint: skip-file
+# type: ignore # pylint: skip-file
 """Writer class."""
 import copy
 import os
@@ -46,7 +46,7 @@ class BaseWriterCallback(Callback):
         """Write the aggregated output."""
         raise NotImplementedError
 
-    def on_predict_batch_end(  # type: ignore
+    def on_predict_batch_end(
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
@@ -59,7 +59,7 @@ class BaseWriterCallback(Callback):
         if dataloader_idx == self.dataloader_idx:
             self.process(batch, outputs)
 
-    def on_predict_epoch_end(  # type: ignore
+    def on_predict_epoch_end(
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,

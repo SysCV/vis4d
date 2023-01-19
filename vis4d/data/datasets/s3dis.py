@@ -11,12 +11,12 @@ import numpy as np
 import pandas as pd
 import torch
 
-from vis4d.common.typing import DictStrAny
+from vis4d.common.typing import DictData, DictStrAny
 from vis4d.data.const import CommonKeys
 from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 
-from .base import Dataset, DictData
+from .base import Dataset
 from .util import CacheMappingMixin
 
 

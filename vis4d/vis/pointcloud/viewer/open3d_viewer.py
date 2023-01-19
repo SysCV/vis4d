@@ -88,8 +88,6 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
         Returns:
             list[dict[str, Any]]: List of o3d geometries primitives to show.
         """
-        data = []
-
         xyz, colors, classes, instances = [], [], [], []
         has_classes = False
         has_instances = False
@@ -99,7 +97,7 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
 
             xyz.append(pc.xyz)
             colors.append(
-                pc.colors if pc.colors is not None else np.zeros(n_pts, 3)
+                pc.colors if pc.colors is not None else np.zeros((n_pts, 3))
             )
 
             if pc.classes is not None:
@@ -109,7 +107,7 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
                 ]
                 classes.append(col)
             else:
-                classes.append(np.zeros(n_pts, 3))
+                classes.append(np.zeros((n_pts, 3)))
 
             if pc.instances is not None:
                 has_instances = True
@@ -119,9 +117,9 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
                 ]
                 instances.append(col)
             else:
-                instances.append(np.zeros(n_pts, 3))
+                instances.append(np.zeros((n_pts, 3)))
 
-        data = []
+        data: list[PointcloudVisEntry] = []
 
         data += [
             {

@@ -185,7 +185,7 @@ def sample_points_block_full_coverage(  # pylint: disable=invalid-name
         # Get bounding box for sampling
         coord_min, coord_max = (
             torch.min(coordinates, dim=0).values,
-            torch.max(coordinates, axis=0).values,
+            torch.max(coordinates, dim=0).values,
         )
         hwl = coord_max - coord_min
 

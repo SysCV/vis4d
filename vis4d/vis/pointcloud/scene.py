@@ -23,7 +23,7 @@ class BoundingBoxData:
     """
 
     corners: NDArrayFloat
-    color: NDArrayFloat
+    color: NDArrayFloat | None
     class_: int | None
     instance: int | None
     score: float | None
@@ -68,9 +68,9 @@ class PointcloudData:
     """
 
     xyz: NDArrayFloat
-    colors: NDArrayInt
-    classes: NDArrayInt
-    instances: NDArrayInt
+    colors: NDArrayFloat | None
+    classes: NDArrayInt | None
+    instances: NDArrayInt | None
 
     num_points: int
     num_classes: int
@@ -94,10 +94,10 @@ class PointcloudData:
             instances (ArrayLike | None, optional): Instance id for each point.
                 shape [n_pts]. Defaults to None.
         """
-        self.xyz = array_to_numpy(xyz, n_dims=2)
-        self.colors = array_to_numpy(colors, n_dims=2)
-        self.classes = array_to_numpy(classes, n_dims=1)
-        self.instances = array_to_numpy(instances, n_dims=1)
+        self.xyz = array_to_numpy(xyz, n_dims=2, dtype=np.float32)
+        self.colors = array_to_numpy(colors, n_dims=2, dtype=np.float32)
+        self.classes = array_to_numpy(classes, n_dims=1, dtype=np.int32)
+        self.instances = array_to_numpy(instances, n_dims=1, dtype=np.int32)
 
         # Assing other properties. Number points, ...
         self.num_points = self.xyz.shape[0]
@@ -168,15 +168,16 @@ class Scene3D:
         Returns:
             NDArrayFloat: Returns a valid SE3 transformation matrix.
         """
-        if transform is None:
+        tf = array_to_numpy(transform, n_dims=2, dtype=np.float32)
+
+        if tf is None:
             return np.eye(4)
 
-        transform = array_to_numpy(transform, n_dims=2)
-        assert transform.shape == (
+        assert tf.shape == (
             4,
             4,
         ), "Shape of the provided transform not valid."
-        return transform
+        return tf
 
     def add_bounding_box(
         self,
@@ -204,11 +205,13 @@ class Scene3D:
         Returns:
             Scene3D: Returns 'self' to chain calls.
         """
+        corners_np = array_to_numpy(corners, n_dims=2, dtype=np.float32)
+        colors_np = array_to_numpy(color, n_dims=1, dtype=np.float32)
         self._bounding_boxes.append(
             (
                 BoundingBoxData(
-                    array_to_numpy(corners, n_dims=2),
-                    array_to_numpy(color, n_dims=1),
+                    corners_np,
+                    colors_np,
                     class_,
                     instance,
                     score,

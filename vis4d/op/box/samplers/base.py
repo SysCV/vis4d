@@ -43,7 +43,6 @@ class Sampler(nn.Module):
         return self._call_impl(matching)
 
 
-@torch.no_grad()
 def match_and_sample_proposals(
     matcher: Matcher,
     sampler: Sampler,
@@ -58,13 +57,14 @@ def match_and_sample_proposals(
     Second, the sampler will choose proposals based on certain criteria such as
     total proposal number and ratio of postives and negatives.
     """
-    matchings = tuple(
-        matcher(prop_box, tgt_box)
-        for prop_box, tgt_box in zip(proposal_boxes, target_boxes)
-    )
-    sampling_results = tuple(sampler(matchs) for matchs in matchings)
-    return (
-        [s.sampled_box_indices for s in sampling_results],
-        [s.sampled_target_indices for s in sampling_results],
-        [s.sampled_labels for s in sampling_results],
-    )
+    with torch.no_grad():
+        matchings = tuple(
+            matcher(prop_box, tgt_box)
+            for prop_box, tgt_box in zip(proposal_boxes, target_boxes)
+        )
+        sampling_results = tuple(sampler(matchs) for matchs in matchings)
+        return (
+            [s.sampled_box_indices for s in sampling_results],
+            [s.sampled_target_indices for s in sampling_results],
+            [s.sampled_labels for s in sampling_results],
+        )
