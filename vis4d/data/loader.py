@@ -11,7 +11,6 @@ from torch.utils.data import (
     DataLoader,
     Dataset,
     IterableDataset,
-    Sampler,
     get_worker_info,
 )
 from torch.utils.data.distributed import DistributedSampler
@@ -30,6 +29,8 @@ POINT_KEYS = [
     CommonKeys.semantics3d,
     CommonKeys.instances3d,
 ]
+
+_DATASET = Dataset[DictData | list[DictData]]
 
 
 def default_collate(batch: list[DictData]) -> DictData:
@@ -58,7 +59,7 @@ def multi_sensor_collate(batch: list[DictData]) -> DictData:
     return data
 
 
-class DataPipe(ConcatDataset):
+class DataPipe(ConcatDataset[DictData | list[DictData]]):
     """DataPipe class.
 
     This class wraps one or multiple instances of a PyTorch Dataset so that the
@@ -68,7 +69,7 @@ class DataPipe(ConcatDataset):
 
     def __init__(
         self,
-        datasets: Dataset | Iterable[Dataset],
+        datasets: _DATASET | Iterable[_DATASET],
         preprocess_fn: Callable[[DictData], DictData] = lambda x: x,
         reference_view_sampler: None | ReferenceViewSampler = None,
     ):
@@ -105,7 +106,7 @@ class DataPipe(ConcatDataset):
             sample_idx = idx - self.cumulative_sizes[dataset_idx - 1]
         return dataset_idx, sample_idx
 
-    def _getitem(self, idx: int) -> DictData:
+    def _getitem(self, idx: int) -> DictData | list[DictData]:
         """Modular re-implementation of getitem."""
         dataset_idx, sample_idx = self.get_dataset_sample_index(idx)
         return self.datasets[dataset_idx][sample_idx]
@@ -131,7 +132,7 @@ class DataPipe(ConcatDataset):
         return data
 
 
-class SubdividingIterableDataset(IterableDataset):
+class SubdividingIterableDataset(IterableDataset[DictData]):
     """Subdivides a given dataset into smaller chunks.
 
     This also adds a field called 'index' (DataKeys.index) to the data
@@ -174,7 +175,7 @@ class SubdividingIterableDataset(IterableDataset):
         self.preprocess_fn = preprocess_fn
         self.reference_view_sampler = None
 
-    def __getitem__(self, index) -> DictData:
+    def __getitem__(self, index: int) -> DictData:
         """Indexing is not supported for IterableDatasets."""
         raise NotImplementedError("IterableDataset does not support indeing")
 
@@ -194,6 +195,7 @@ class SubdividingIterableDataset(IterableDataset):
             if data_idx >= len(self.dataset):
                 continue
             data_sample = self.dataset[data_idx]
+
             n_elements = list((data_sample.values()))[0].size(0)
             for idx in range(int(n_elements / self.n_samples_per_batch)):
                 # TODO, this is kind of ugly
@@ -225,19 +227,21 @@ def build_train_dataloader(
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
     pin_memory: bool = True,
     shuffle: bool = True,
-) -> DataLoader:
+) -> DataLoader[DictData | list[DictData]]:
     """Build training dataloader."""
     if dataset.reference_view_sampler is None:
 
-        def _collate_fn(data: list[DictData]):
+        def _collate_fn(data: list[DictData]) -> DictData | list[DictData]:
             return collate_fn(batchprocess_fn(data))
 
     else:
 
-        def _collate_fn(data: list[DictData]):
+        def _collate_fn(data: list[DictData]) -> DictData | list[DictData]:
             views = []
             for view_idx in range(len(data[0])):
-                view = collate_fn(batchprocess_fn([d[view_idx] for d in data]))
+                view = collate_fn(
+                    batchprocess_fn([d[view_idx] for d in data])
+                )  # FIXME This looks like a bug
                 views.append(view)
             return views
 
@@ -260,19 +264,21 @@ def build_train_dataloader(
 
 
 def build_inference_dataloaders(
-    datasets: Dataset[DictData] | list[Dataset],
+    datasets: _DATASET | list[_DATASET],
     samples_per_gpu: int = 1,
     workers_per_gpu: int = 1,
     video_based_inference: bool = True,
     batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
-) -> list[DataLoader]:
+) -> list[DataLoader[DictData | list[DictData]]]:
     """Build dataloaders for test / predict."""
     if isinstance(datasets, Dataset):
-        datasets = [datasets]
+        datasets_ = [datasets]
+    else:
+        datasets_ = datasets
     dataloaders = []
     _collate_fn = PicklableWrapper(lambda x: collate_fn(batchprocess_fn(x)))
-    for dataset in datasets:
+    for dataset in datasets_:
         dset_sampler: DistributedSampler[list[int]] | None
         if get_world_size() > 1:
             if isinstance(dataset, VideoMixin) and video_based_inference:
