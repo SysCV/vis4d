@@ -74,7 +74,7 @@ class BoundingBoxVisualizer(Visualizer):
         """Reset visualizer for new round of evaluation."""
         self._samples = []
 
-    def process(  # type: ignore # pylint: disable=arguments-renamed,arguments-differ,line-too-long
+    def process(  # pylint: disable=arguments-renamed,arguments-differ,line-too-long
         self,
         images: list[NDArrayNumber],
         boxes: list[NDArrayF64],

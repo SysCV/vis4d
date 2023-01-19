@@ -110,7 +110,7 @@ class SemanticMaskVisualizer(Visualizer):
             self.canvas.draw_bitmap(mask.mask, mask.color)
         return self.canvas.as_numpy_image()
 
-    def process(  # type: ignore # pylint: disable=arguments-renamed,arguments-differ,line-too-long
+    def process(  # pylint: disable=arguments-renamed,arguments-differ,line-too-long
         self,
         images: NDArrayNumber,
         masks: list[NDArrayBool],
