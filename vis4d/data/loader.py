@@ -273,15 +273,14 @@ def build_inference_dataloaders(
     dataloaders = []
     _collate_fn = PicklableWrapper(lambda x: collate_fn(batchprocess_fn(x)))
     for dataset in datasets:
-        dset_sampler: Sampler[list[int]] | DistributedSampler[list[int]]
-        if (
-            get_world_size() > 1
-            and isinstance(dataset, VideoMixin)
-            and video_based_inference
-        ):
-            dset_sampler = VideoInferenceSampler(dataset)
+        dset_sampler: DistributedSampler[list[int]] | None
+        if get_world_size() > 1:
+            if isinstance(dataset, VideoMixin) and video_based_inference:
+                dset_sampler = VideoInferenceSampler(dataset)
+            else:
+                dset_sampler = DistributedSampler(dataset)
         else:
-            dset_sampler = DistributedSampler(dataset)
+            dset_sampler = None
 
         test_dataloader = DataLoader(
             dataset,
