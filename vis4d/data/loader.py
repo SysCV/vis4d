@@ -4,6 +4,7 @@ from __future__ import annotations
 import bisect
 import math
 from collections.abc import Callable, Iterable, Iterator
+from typing import Union
 
 import torch
 from torch.utils.data import (
@@ -29,8 +30,9 @@ POINT_KEYS = [
     CommonKeys.semantics3d,
     CommonKeys.instances3d,
 ]
+DictDataOrList = Union[DictData, list[DictData]]
 
-_DATASET = Dataset[DictData | list[DictData]]
+_DATASET = Dataset[DictDataOrList]
 
 
 def default_collate(batch: list[DictData]) -> DictData:
@@ -59,7 +61,7 @@ def multi_sensor_collate(batch: list[DictData]) -> DictData:
     return data
 
 
-class DataPipe(ConcatDataset[DictData | list[DictData]]):
+class DataPipe(ConcatDataset[DictDataOrList]):
     """DataPipe class.
 
     This class wraps one or multiple instances of a PyTorch Dataset so that the
@@ -106,12 +108,12 @@ class DataPipe(ConcatDataset[DictData | list[DictData]]):
             sample_idx = idx - self.cumulative_sizes[dataset_idx - 1]
         return dataset_idx, sample_idx
 
-    def _getitem(self, idx: int) -> DictData | list[DictData]:
+    def _getitem(self, idx: int) -> DictDataOrList:
         """Modular re-implementation of getitem."""
         dataset_idx, sample_idx = self.get_dataset_sample_index(idx)
         return self.datasets[dataset_idx][sample_idx]
 
-    def __getitem__(self, idx: int) -> DictData | list[DictData]:
+    def __getitem__(self, idx: int) -> DictDataOrList:
         """Wrap getitem to apply augmentations."""
         if self.reference_view_sampler is not None:
             dataset_idx, _ = self.get_dataset_sample_index(idx)
@@ -227,16 +229,16 @@ def build_train_dataloader(
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
     pin_memory: bool = True,
     shuffle: bool = True,
-) -> DataLoader[DictData | list[DictData]]:
+) -> DataLoader[DictDataOrList]:
     """Build training dataloader."""
     if dataset.reference_view_sampler is None:
 
-        def _collate_fn(data: list[DictData]) -> DictData | list[DictData]:
+        def _collate_fn(data: list[DictData]) -> DictDataOrList:
             return collate_fn(batchprocess_fn(data))
 
     else:
 
-        def _collate_fn(data: list[DictData]) -> DictData | list[DictData]:
+        def _collate_fn(data: list[DictData]) -> DictDataOrList:
             views = []
             for view_idx in range(len(data[0])):
                 view = collate_fn(
@@ -270,7 +272,7 @@ def build_inference_dataloaders(
     video_based_inference: bool = True,
     batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
-) -> list[DataLoader[DictData | list[DictData]]]:
+) -> list[DataLoader[DictDataOrList]]:
     """Build dataloaders for test / predict."""
     if isinstance(datasets, Dataset):
         datasets_ = [datasets]
