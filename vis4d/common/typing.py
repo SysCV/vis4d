@@ -30,7 +30,7 @@ MetricLogs = Dict[str, Union[float, int]]
 DictStrAny = Dict[str, Any]  # type: ignore
 ArgsType = Any  # type: ignore
 ModelOutput = DictStrAny
-TorchCheckpoint = Dict[str, Union[int, str, Dict[str, NDArrayF64]]]
+TorchCheckpoint = DictStrAny
 LossesType = Dict[str, Tensor]
 
 ArrayIterableInt = Iterable[Union[int, "ArrayIterableInt"]]
