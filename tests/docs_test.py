@@ -60,7 +60,7 @@ def test_get_started() -> None:
     ignores = (
         "/cells/*/metadata",
         "/metadata/widgets",
-        "/cells/5/outputs/0",  # Suppress downloading checkpoint output
+        "/cells/5/outputs/",  # Suppress downloading checkpoint output
         "/cells/*/execution_count",
         "/cells/*/outputs/*/data/image",
         "/metadata/language_info/version",
@@ -74,8 +74,10 @@ def test_get_started() -> None:
         ),
     )
 
-    fixture = NBRegressionFixture(
-        exec_timeout=50, diff_ignore=ignores, diff_replace=replace
+    fixture = (
+        NBRegressionFixture(  # Higher timeout for downloading checkpoints
+            exec_timeout=300, diff_ignore=ignores, diff_replace=replace
+        )
     )
     fixture.diff_color_words = False
     file = "docs/source/tutorials/getting_started.ipynb"
