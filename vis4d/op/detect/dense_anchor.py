@@ -8,7 +8,6 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from vis4d.common import ArgsType
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.matchers import Matcher
 from vis4d.op.box.samplers import Sampler

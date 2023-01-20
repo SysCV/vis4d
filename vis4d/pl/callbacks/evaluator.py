@@ -16,9 +16,9 @@ from vis4d.pl.distributed import all_gather_object_cpu
 
 
 def default_eval_connector(
-    mode: str,
+    mode: str,  # pylint: disable=unused-argument
     data: DictData,
-    outputs: Any,  # type:ignore # pylint: disable=unused-argument,line-too-long
+    outputs: Any,  # type:ignore
 ) -> DictStrAny:
     """Default eva connector forwards input and outputs."""
     return dict(data=data, outputs=outputs)

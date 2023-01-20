@@ -407,8 +407,8 @@ class QDTrackInstanceSimilarityLoss(nn.Module):
             dummy_loss = torch.sum([e.sum() * 0.0 for e in key_embeddings])  # type: ignore  # pylint: disable=line-too-long
             return QDTrackInstanceSimilarityLosses(dummy_loss, dummy_loss)
 
-        loss_track = Tensor(0.0, device=key_embeddings[0].device)
-        loss_track_aux = Tensor(0.0, device=key_embeddings[0].device)
+        loss_track = torch.tensor(0.0, device=key_embeddings[0].device)
+        loss_track_aux = torch.tensor(0.0, device=key_embeddings[0].device)
         dists, cos_dists = self._match(key_embeddings, ref_embeddings)
         track_targets, track_weights = self._get_targets(
             key_track_ids, ref_track_ids
