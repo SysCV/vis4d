@@ -29,4 +29,5 @@ def test_docs_tutorials() -> None:
     for file in os.listdir(doc_nb_path):
         if file.endswith(".ipynb"):
             path = os.path.join(doc_nb_path, file)
+            print(path)
             fixture.check(path)
