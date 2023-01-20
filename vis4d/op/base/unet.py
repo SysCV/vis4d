@@ -110,6 +110,7 @@ class UNet(nn.Module):
         self.depth = depth
 
         self.down_convs: nn.ModuleList = nn.ModuleList()
+
         # create the encoder pathway and add to a list
         for i in range(depth):
             ins = self.in_channels if i == 0 else outs  # type: ignore
@@ -120,6 +121,7 @@ class UNet(nn.Module):
             self.down_convs.append(down_conv)
 
         self.up_convs: nn.ModuleList = nn.ModuleList()
+
         # create the decoder pathway and add to a list
         # - careful! decoding only requires depth-1 blocks
         for i in range(depth - 1):
@@ -129,7 +131,6 @@ class UNet(nn.Module):
                 ins, outs, up_mode=up_mode, merge_mode=merge_mode
             )
             self.up_convs.append(up_conv)
-
         self.conv_final = nn.Conv2d(
             outs, num_classes, kernel_size=1, groups=1, stride=1
         )

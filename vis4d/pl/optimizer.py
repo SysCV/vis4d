@@ -49,7 +49,9 @@ class DefaultOptimizer(
         self,
         model: nn.Module,
         loss: nn.Module,
-        data_connector=default_data_connector,
+        data_connector: Callable[
+            [str, DictData], DictStrAny
+        ] = default_data_connector,
         optimizer_init: DictStrAny | None = None,
         lr_scheduler_init: DictStrAny | None = None,
         freeze: bool = False,

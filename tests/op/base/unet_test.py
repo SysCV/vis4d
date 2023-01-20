@@ -3,7 +3,7 @@ import unittest
 
 import torch
 
-from vis4d.op.segment.unet import UNet
+from vis4d.op.base.unet import UNet
 
 
 class UNetTest(unittest.TestCase):

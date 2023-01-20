@@ -8,6 +8,7 @@ from torch.utils import data
 
 from vis4d.common.logging import rank_zero_info
 from vis4d.data.io import DataBackend, FileBackend, HDF5Backend
+from vis4d.data.typing import DictData
 from vis4d.eval.base import Evaluator
 from vis4d.pl.callbacks.evaluator import DefaultEvaluatorCallback
 
@@ -59,7 +60,7 @@ class DataModule(pl.LightningDataModule):
     def _setup_backend(self) -> DataBackend:
         """Setup data backend."""
         backend = FileBackend() if not self.use_hdf5 else HDF5Backend()
-        rank_zero_info("Using data backend: %s", backend.__class__.__name__)
+        rank_zero_info(f"Using data backend: {backend.__class__.__name__}")
         return backend
 
     @no_type_check
@@ -95,7 +96,7 @@ class DataModule(pl.LightningDataModule):
             for i, ev in enumerate(self.evaluators())
         ]
 
-    def train_dataloader(self) -> data.DataLoader:
+    def train_dataloader(self) -> data.DataLoader[DictData]:
         """Return dataloader for training."""
         raise NotImplementedError
 
@@ -109,7 +110,7 @@ class DataModule(pl.LightningDataModule):
 
     def predict_dataloader(
         self,
-    ) -> Union[data.DataLoader, List[data.DataLoader]]:
+    ) -> Union[data.DataLoader, List[data.DataLoader[DictData]]]:
         """Return dataloaders for prediction."""
         return self.test_dataloader()  # pragma: no cover
 

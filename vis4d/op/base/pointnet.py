@@ -181,7 +181,7 @@ class LinearTransform(nn.Module):
                     features = self.norms_[norm_idx](features)
                 features = self.activation_(features)
 
-        identity_batch = self.identity.repeat(batchsize, 1)  # type: ignore
+        identity_batch = self.identity.repeat(batchsize, 1)
         transformations = features + identity_batch
 
         return transformations.view(
