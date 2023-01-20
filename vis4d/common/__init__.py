@@ -10,6 +10,7 @@ from .typing import (
     NDArrayI64,
     NDArrayUI8,
     TorchCheckpoint,
+    TorchLossFunc,
 )
 
 __all__ = [
@@ -23,4 +24,5 @@ __all__ = [
     "MetricLogs",
     "TorchCheckpoint",
     "LossesType",
+    "TorchLossFunc",
 ]
