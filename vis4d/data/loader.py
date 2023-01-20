@@ -4,7 +4,7 @@ from __future__ import annotations
 import bisect
 import math
 from collections.abc import Callable, Iterable, Iterator
-from typing import TypeAlias, Union
+from typing import Union
 
 import torch
 from torch.utils.data import (
@@ -30,9 +30,10 @@ POINT_KEYS = [
     CommonKeys.semantics3d,
     CommonKeys.instances3d,
 ]
-DictDataOrList = Union[DictData, list[DictData]]
 
-_DATASET: TypeAlias = Dataset[DictDataOrList]
+# FIXME: Type the generics of the dataset properly for python < 3.10
+# _DATASET: TypeAlias = Dataset
+DictDataOrList = Union[DictData, list[DictData]]
 
 
 def default_collate(batch: list[DictData]) -> DictData:
@@ -61,7 +62,7 @@ def multi_sensor_collate(batch: list[DictData]) -> DictData:
     return data
 
 
-class DataPipe(ConcatDataset[DictDataOrList]):
+class DataPipe(ConcatDataset):
     """DataPipe class.
 
     This class wraps one or multiple instances of a PyTorch Dataset so that the
@@ -71,7 +72,7 @@ class DataPipe(ConcatDataset[DictDataOrList]):
 
     def __init__(
         self,
-        datasets: _DATASET | Iterable[_DATASET],
+        datasets: Dataset | Iterable[Dataset],
         preprocess_fn: Callable[[DictData], DictData] = lambda x: x,
         reference_view_sampler: None | ReferenceViewSampler = None,
     ):
@@ -134,7 +135,7 @@ class DataPipe(ConcatDataset[DictDataOrList]):
         return data
 
 
-class SubdividingIterableDataset(IterableDataset[DictData]):
+class SubdividingIterableDataset(IterableDataset):
     """Subdivides a given dataset into smaller chunks.
 
     This also adds a field called 'index' (DataKeys.index) to the data
@@ -156,7 +157,7 @@ class SubdividingIterableDataset(IterableDataset[DictData]):
 
     def __init__(
         self,
-        dataset: Dataset[DictData],
+        dataset: Dataset,
         n_samples_per_batch: int,
         preprocess_fn: Callable[[DictData], DictData] | None = None,
     ) -> None:
@@ -229,7 +230,7 @@ def build_train_dataloader(
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
     pin_memory: bool = True,
     shuffle: bool = True,
-) -> DataLoader[DictDataOrList]:
+) -> DataLoader:
     """Build training dataloader."""
     if dataset.reference_view_sampler is None:
 
@@ -266,13 +267,13 @@ def build_train_dataloader(
 
 
 def build_inference_dataloaders(
-    datasets: _DATASET | list[_DATASET],
+    datasets: Dataset | list[Dataset],
     samples_per_gpu: int = 1,
     workers_per_gpu: int = 1,
     video_based_inference: bool = True,
     batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
-) -> list[DataLoader[DictDataOrList]]:
+) -> list[DataLoader]:
     """Build dataloaders for test / predict."""
     if isinstance(datasets, Dataset):
         datasets_ = [datasets]
