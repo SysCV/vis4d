@@ -19,7 +19,7 @@ class PointcloudVisEntry(TypedDict):
     """
 
     name: str
-    geom: o3d.geometry.PointCloud
+    geometry: o3d.geometry.PointCloud
 
 
 class Open3DVisualizationBackend(PointCloudVisualizerBackend):
@@ -60,23 +60,26 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
 
             for vis_pc in self._get_pc_data_for_scene(scene):
                 name = vis_pc["name"]
-                pc = vis_pc["geom"]
+                pc = vis_pc["geometry"]
                 o3d.io.write_point_cloud(
                     os.path.join(out_folder, f"{name}.ply"), pc
                 )
                 print("written", f"{name}.ply")
 
-    def show(self, blocking: bool = True) -> None:
+    def show(self, blocking: bool = False) -> None:
         """Shows the visualization.
 
         Args:
             blocking (bool): If the visualization should be blocking
-                             and wait for human input
+                and wait for human input.
         """
         for scene in self.scenes:
             vis_data = []
             vis_data += self._get_pc_data_for_scene(scene)
-            o3d.visualization.draw(vis_data)
+            g = [d["geometry"] for d in vis_data]
+            o3d.visualization.draw(
+                vis_data, non_blocking_and_return_uid=not blocking
+            )
 
     def _get_pc_data_for_scene(
         self, scene: Scene3D
@@ -124,7 +127,7 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
         data += [
             {
                 "name": "colors",
-                "geom": self._create_o3d_cloud(
+                "geometry": self._create_o3d_cloud(
                     np.concatenate(xyz), np.concatenate(colors)
                 ),
             }
@@ -133,7 +136,7 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
             data += [
                 {
                     "name": "instances",
-                    "geom": self._create_o3d_cloud(
+                    "geometry": self._create_o3d_cloud(
                         np.concatenate(xyz), np.concatenate(instances)
                     ),
                 }
@@ -142,7 +145,7 @@ class Open3DVisualizationBackend(PointCloudVisualizerBackend):
             data += [
                 {
                     "name": "classes",
-                    "geom": self._create_o3d_cloud(
+                    "geometry": self._create_o3d_cloud(
                         np.concatenate(xyz), np.concatenate(classes)
                     ),
                 }
