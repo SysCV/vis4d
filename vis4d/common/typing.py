@@ -2,6 +2,7 @@
 
 Here we define commonly used types like specific numpy array and tensor types.
 """
+from collections.abc import Callable
 from typing import Any, Dict, Iterable, Union
 
 import numpy as np
@@ -34,6 +35,7 @@ ArgsType = Any  # type: ignore
 ModelOutput = DictStrAny
 TorchCheckpoint = DictStrAny
 LossesType = Dict[str, Tensor]
+TorchLossFunc = Callable[..., Any]  # type: ignore
 
 ArrayIterableInt = Iterable[Union[int, "ArrayIterableInt"]]
 ArrayIterableFloat = Iterable[Union[float, "ArrayIterableFloat"]]

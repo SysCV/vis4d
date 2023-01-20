@@ -1,13 +1,13 @@
 """Dense anchor-based head."""
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import NamedTuple
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
+from vis4d.common import TorchLossFunc
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.matchers import Matcher
 from vis4d.op.box.samplers import Sampler
@@ -198,7 +198,7 @@ class DenseAnchorHeadLoss(nn.Module):
         box_encoder: BoxEncoder2D,
         box_matcher: Matcher,
         box_sampler: Sampler,
-        loss_cls: Callable[[Tensor, Tensor], Tensor] | None = None,
+        loss_cls: TorchLossFunc | None = None,
         allowed_border: int = 0,
     ) -> None:
         """Creates an instance of the class.
@@ -209,7 +209,7 @@ class DenseAnchorHeadLoss(nn.Module):
                 the desired network output.
             box_matcher (Matcher): Box matcher.
             box_sampler (Sampler): Box sampler.
-            loss_cls: Classification loss.
+            loss_cls (TorchLossFunc): Classification loss.
             allowed_border (int): The border to allow the valid anchor.
                 Defaults to 0.
         """
@@ -296,7 +296,9 @@ class DenseAnchorHeadLoss(nn.Module):
         Returns:
             DenseAnchorHeadLosses: Classification and regression losses.
         """
-        featmap_sizes = [tuple(featmap.size()[-2:]) for featmap in cls_outs]
+        featmap_sizes = [
+            (featmap.size()[-2], featmap.size()[-1]) for featmap in cls_outs
+        ]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
         if target_class_ids is None:
             target_class_ids = [1.0 for _ in range(len(target_boxes))]
