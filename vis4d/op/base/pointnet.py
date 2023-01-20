@@ -91,6 +91,7 @@ class LinearTransform(nn.Module):
         assert self.upsampling_dims[-1] == self.downsampling_dims[0]
 
         self.in_dimension_ = in_dimension
+        self.identity: torch.Tensor
         self.register_buffer(
             "identity", torch.eye(in_dimension).reshape(1, in_dimension**2)
         )
