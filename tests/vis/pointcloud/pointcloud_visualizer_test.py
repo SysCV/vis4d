@@ -1,4 +1,4 @@
-"""TODO."""
+"""Tests for pointcloud visualization."""
 
 import glob
 import shutil
