@@ -4,13 +4,13 @@ import unittest
 
 import torch
 
-from tests.util import get_test_data, get_test_file
+from tests.util import get_test_data
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.scalabel import Scalabel
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.data.transforms.normalize import normalize_image
 from vis4d.data.transforms.pad import pad_image
-from vis4d.engine.ckpt import load_checkpoint
+from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 
 
@@ -28,7 +28,7 @@ class QDTrackTest(unittest.TestCase):
             >>> pytest vis4d/op/track/qdtrack_test.py::QDTrackTest::test_inference
         """
         qdtrack = FasterRCNNQDTrack(num_classes=8)
-        load_checkpoint(qdtrack, self.model_weights)
+        load_model_checkpoint(qdtrack, self.model_weights)
 
         data_root = osp.join(get_test_data("bdd100k_test"), "track/images")
         annotations = osp.join(get_test_data("bdd100k_test"), "track/labels")
