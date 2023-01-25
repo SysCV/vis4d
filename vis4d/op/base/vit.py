@@ -85,9 +85,9 @@ class ViT(BaseModel):
             images (torch.Tensor): Image input tensor with shape [N, C, H, W].
 
         Returns:
-            embeddings (torch.Tensor): List of embedding tensors. It stores two
-                level of embeddings, before and after the seq-to-seq
-                transformer in ViT, both with shape [N, num_patches, dim].
+            embeddings (list[torch.Tensor]): List of embedding tensors. It
+                stores two levels of embeddings, before and after the seq-to-
+                seq transformer in ViT, both with shape [N, num_patches, dim].
         """
         x = self.vit._process_input(images)  # pylint: disable=protected-access
 
