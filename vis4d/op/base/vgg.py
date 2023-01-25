@@ -20,7 +20,7 @@ class VGG(BaseModel):
         """Initialize the VGG base model from torchvision.
 
         Args:
-            vgg_name (str): name of the VGG variant. Choices in ["vgg11",
+            vgg_name (str): Name of the VGG variant. Choices in ["vgg11",
                 "vgg13", "vgg16", "vgg19", "vgg11_bn", "vgg13_bn", "vgg16_bn",
                 "vgg19_bn"].
             trainable_layers (int, optional): Number layers for training or
@@ -32,7 +32,7 @@ class VGG(BaseModel):
             ValueError: The VGG name is not supported
         """
         super().__init__()
-        if vgg_name not in [
+        if vgg_name not in {
             "vgg11",
             "vgg13",
             "vgg16",
@@ -41,7 +41,7 @@ class VGG(BaseModel):
             "vgg13_bn",
             "vgg16_bn",
             "vgg19_bn",
-        ]:
+        }:
             raise ValueError("The VGG name is not supported!")
 
         vgg = _vgg.__dict__[vgg_name](pretrained=pretrained)
