@@ -17,8 +17,8 @@ from vis4d.data.loader import (
 )
 from vis4d.data.transforms import mask, normalize, resize
 from vis4d.data.transforms.base import compose
+from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.model.segment.fcn_resnet import REV_KEYS, FCNResNet, FCNResNetLoss
-from vis4d.op.util import load_model_checkpoint
 
 
 def get_train_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
