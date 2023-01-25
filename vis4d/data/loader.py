@@ -31,7 +31,7 @@ POINT_KEYS = [
     CommonKeys.instances3d,
 ]
 
-# FIXME: Type the generics of the dataset properly for python < 3.10
+# TODO: Type the generics of the dataset properly for python < 3.10
 # _DATASET: TypeAlias = Dataset
 DictDataOrList = Union[DictData, list[DictData]]
 
@@ -243,8 +243,10 @@ def build_train_dataloader(
             views = []
             for view_idx in range(len(data[0])):
                 view = collate_fn(
+                    # FIXME This looks like a bug. view_idx is type int but
+                    # dict is indexed by str
                     batchprocess_fn([d[view_idx] for d in data])
-                )  # FIXME This looks like a bug
+                )
                 views.append(view)
             return views
 
