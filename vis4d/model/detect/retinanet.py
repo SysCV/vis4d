@@ -5,6 +5,7 @@ import torch
 from torch import nn
 
 from vis4d.common import LossesType, ModelOutput
+from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder import BoxEncoder2D
@@ -18,7 +19,6 @@ from vis4d.op.detect.retinanet import (
     RetinaNetOut,
 )
 from vis4d.op.fpp.fpn import FPN, LastLevelP6P7
-from vis4d.op.util import load_model_checkpoint
 
 REV_KEYS = [
     (r"^bbox_head\.", "retinanet_head."),
