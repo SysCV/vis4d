@@ -23,6 +23,53 @@ CheckpointLoadFunc = Callable[
     [str, Union[str, torch.device, None]], TorchCheckpoint
 ]
 
+# Define mapping for specific model checkpoints
+BDD100K_MODEL_PREFIX = "https://dl.cv.ethz.ch/bdd100k/"
+MM_MODEL_MAP = {
+    "mmdet://": "https://download.openmmlab.com/mmdetection/v2.0/",
+    "mmseg://": "https://download.openmmlab.com/mmsegmentation/v0.5/",
+}
+MM_CFG_MAP = {
+    "mmdet://": "syscv/mmdetection/master/configs/",
+    "mmseg://": "open-mmlab/mmsegmentation/master/configs/",
+}
+MM_ZIP_MAP = {
+    "mmdet://": "mmdetection-master/configs/",
+    "mmseg://": "mmsegmentation-master/configs/",
+}
+
+
+def load_model_checkpoint(
+    model: nn.Module,
+    weights: str,
+    strict: bool = False,
+    rev_keys: None | list[tuple[str, str]] = None,
+) -> None:
+    """Load checkpoint from a file or URI.
+
+    Args:
+        model (Module): Module to load checkpoint.
+        weights (str): Accept local filepath, URL, ``torchvision://xxx``,
+            ``open-mmlab://xxx``.
+        strict (bool): Whether to allow different params for the model and
+            checkpoint.
+        rev_keys (tuple[tuple[str, str]]): A tuple of customized keywords to
+            modify the state_dict in checkpoint. Each item is a
+            (pattern, replacement) pair of the regular expression operations.
+            Default: strip the prefix 'module.' by [(r'^module.', '')].
+    """
+    if rev_keys is None:  # pragma: no cover
+        rev_keys = [(r"^module\.", "")]
+    if re.compile(r"^mm(det|seg)://").search(weights):
+        pre = weights[:8]
+        weights = MM_MODEL_MAP[pre] + weights.split(pre)[-1]
+        _load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
+    elif weights.startswith("bdd100k://"):
+        weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
+        _load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
+    else:  # pragma: no cover
+        _load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
+
 
 class CheckpointLoader:
     """A general checkpoint loader to manage all schemes."""
@@ -334,7 +381,7 @@ def load_state_dict(
         rank_zero_warn(err_msg)
 
 
-def load_checkpoint(
+def _load_checkpoint(
     model: torch.nn.Module,
     filename: str,
     map_location: str | torch.device | None = None,

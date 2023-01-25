@@ -5,6 +5,7 @@ import torch
 from torch import nn
 
 from vis4d.common import LossesType, ModelOutput
+from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.detect.faster_rcnn import (
@@ -17,7 +18,6 @@ from vis4d.op.detect.faster_rcnn import (
 from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
-from vis4d.op.util import load_model_checkpoint
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "faster_rcnn_heads.rpn_head.rpn_box."),
