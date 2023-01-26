@@ -62,6 +62,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with: 
+          submodules: recursive
+          token: ${{ secrets.KEY_TEST_DATA_REPO }}
+          
       - name: set up python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
