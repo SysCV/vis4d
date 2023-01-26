@@ -62,10 +62,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with: 
+          submodules: recursive
       - name: set up python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
-          submodules: recursive
           python-version: ${{ matrix.python-version }}
 
       - name: install dependencies
