@@ -228,23 +228,18 @@ def build_train_dataloader(
     shuffle: bool = True,
 ) -> _DATALOADER:
     """Build training dataloader."""
-    if dataset.reference_view_sampler is None:
 
-        def _collate_fn(data: list[DictData]) -> DictDataOrList:
-            return collate_fn(batchprocess_fn(data))
+    def _collate_fn_single(data: list[DictData]) -> DictDataOrList:
+        """Collates data from single view dataset."""
+        return collate_fn(batchprocess_fn(data))
 
-    else:
-
-        def _collate_fn(data: list[DictData]) -> DictDataOrList:
-            views = []
-            for view_idx in range(len(data[0])):
-                view = collate_fn(
-                    # FIXME This looks like a bug. view_idx is type int but
-                    # dict is indexed by str
-                    batchprocess_fn([d[view_idx] for d in data])
-                )
-                views.append(view)
-            return views
+    def _collate_fn_multi(data: list[list[DictData]]) -> DictDataOrList:
+        """Collates data from multi view dataset."""
+        views = []
+        for view_idx in range(len(data[0])):
+            view = collate_fn(batchprocess_fn([d[view_idx] for d in data]))
+            views.append(view)
+        return views
 
     sampler = None
     if get_world_size() > 1:
@@ -255,7 +250,11 @@ def build_train_dataloader(
         dataset,
         batch_size=samples_per_gpu,
         num_workers=workers_per_gpu,
-        collate_fn=PicklableWrapper(_collate_fn),
+        collate_fn=PicklableWrapper(
+            _collate_fn_single
+            if dataset.reference_view_sampler is None
+            else _collate_fn_multi
+        ),
         sampler=sampler,
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
