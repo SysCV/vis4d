@@ -34,7 +34,7 @@ def get_test_data(dir_name: str) -> str:
     """
     prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
     prefix_code, _ = prefix.rsplit("tests", 1)
-    return os.path.join(prefix_code, "tests", "test_data", dir_name)
+    return os.path.join(prefix_code, "tests", "vis4d-test-data", dir_name)
 
 
 def get_test_file(file_name: str, rel_path: None | str = None) -> str:
