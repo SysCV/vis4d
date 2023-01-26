@@ -69,6 +69,7 @@ jobs:
 
       - name: install dependencies
         run: |
+          git submodule update --init --recursive
           python3 -m pip install --upgrade pip
           bash ./scripts/install_cpu_dep_full.sh
           python3 -m pip install -e .
