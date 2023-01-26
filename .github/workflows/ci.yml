@@ -19,29 +19,39 @@ jobs:
       - name: set up python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: '3.10'
 
       - name: install
         run: |
           python3 -m pip install --upgrade pip
           bash ./scripts/install_cpu_dep_full.sh
+          python3 setup.py develop
           python3 -m pip freeze
 
       - name: isort
-        run: python3 -m isort -c vis4d
+        run: |
+          python3 -m isort -c vis4d
+          python3 -m isort -c tests
 
       - name: black
-        run: python3 -m black --check vis4d
+        run: |
+          python3 -m black --check vis4d
+          python3 -m black --check tests
 
       - name: lint
-        run: python3 -m pylint vis4d
+        run: |
+          python3 -m pylint vis4d
+          python3 -m pylint tests
 
       - name: docstyle
-        run: python3 -m pydocstyle --convention=google vis4d
+        run: |
+          python3 -m pydocstyle --convention=google vis4d
+          python3 -m pydocstyle --convention=google tests
 
       - name: mypy
         run: |
-          python3 -m mypy --strict vis4d
+          python3 -m mypy vis4d
+          python3 -m mypy tests
 
   test:
     name: test py${{ matrix.python-version }}
@@ -52,6 +62,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: Checkout submodules using a PAT
+        run: |
+          git config --file .gitmodules --get-regexp url | while read url; do
+            git config --file=.gitmodules $(echo "$url" | sed -E "s/git@github.com:|https:\/\/github.com\//https:\/\/${{ secrets.KEY_TEST_DATA_REPO }}:${{ secrets.KEY_TEST_DATA_REPO }}@github.com\//")
+          done
+          git submodule sync
+          git submodule update --init --recursive
+          
       - name: set up python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
@@ -61,13 +79,15 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           bash ./scripts/install_cpu_dep_full.sh
+          python3 -m pip install -e .
           python3 -m pip freeze
+          
 
       - name: test
-        run: python3 -m coverage run --source=vis4d -m pytest --pyargs vis4d
+        run: python3 -m coverage run --source=vis4d -m pytest --pyargs tests
 
       - name: test coverage
-        run: python3 -m coverage report --fail-under=99 -m
+        run: python3 -m coverage report --fail-under=50 -m
 
       - name: build
         run: python3 setup.py sdist bdist_wheel

@@ -5,6 +5,9 @@ import setuptools
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+with open("requirements/base.txt") as f:
+    required = f.read().splitlines()
+
 setuptools.setup(
     name="vis4d",
     version="0.0",
@@ -19,34 +22,16 @@ setuptools.setup(
         "Source": "https://github.com/syscv/",
         "Tracker": "https://github.com/syscv/",
     },
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(exclude=("tests", "tests.*", "docs.*")),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.7",
-    install_requires=[
-        "numpy",
-        "Pillow",
-        "plyfile",
-        "psutil",
-        "pycocotools",
-        "pydantic",
-        "pytoml",
-        "PyYAML",
-        "requests",
-        "scalabel",
-        "torch",
-        "torchvision",
-        "tqdm",
-        "devtools",
-    ],
+    python_requires=">=3.9",
+    install_requires=required,
     package_data={
         "vis4d": [
-            "data/datasets/motchallenge.toml",
-            "data/datasets/waymo.toml",
-            "data/datasets/kitti.toml",
             "py.typed",
         ]
     },

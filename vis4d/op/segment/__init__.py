@@ -1,0 +1,1 @@
+"""Segmentor module."""

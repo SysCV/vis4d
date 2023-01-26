@@ -8,6 +8,9 @@ python_files = "*_test.py"
 profile = "black"
 line_length = 79
 
+[tool.pyright]
+include = ["vis4d"]
+
 [tool.coverage]
     [tool.coverage.report]
         exclude_lines = [
@@ -20,9 +23,6 @@ line_length = 79
             'raise ImportError',
             'raise AttributeError',
             'raise FileNotFoundError',
-
-            # Don't complain about pydantic validators
-            '@validator',
 
             # Don't complain about overloads
             '@overload',

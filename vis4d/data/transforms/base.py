@@ -1,157 +1,224 @@
-"""Interface Vis4D augmentations."""
-from typing import Dict, List, Optional, Tuple
+"""Basic data augmentation class."""
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import TypeVar
 
 import torch
 
-from vis4d.common.registry import RegistryHolder
-from vis4d.struct import (
-    Boxes2D,
-    Boxes3D,
-    DictStrAny,
-    Extrinsics,
-    Images,
-    InputSample,
-    InstanceMasks,
-    Intrinsics,
-    PointCloud,
-    SemanticMasks,
-    TMasks,
-)
-
-from .utils import sample_batched
-
-AugParams = DictStrAny
+from vis4d.common.dict import get_dict_nested, set_dict_nested
+from vis4d.data.const import CommonKeys
+from vis4d.data.typing import DictData
 
 
-class BaseAugmentation(metaclass=RegistryHolder):
-    """Base augmentation class."""
+class Transform:
+    """Decorator for transforms, which adds `in_keys` and `out_keys`.
+
+    This decorator defines which keys are input to the transformation function
+    and which keys are overwritten in the data dictionary by the output of
+    the transformation.
+    Nested keys in the data dictionary can be accessed via key.subkey1.subkey2
+
+    Example:
+        >>> @Transform(in_keys=["image"], out_keys=["image"])
+        >>> def my_transform(option_a, option_b):
+        >>>     def _transform(image):
+        >>>         return do_transform(image)
+        >>>     return _transform
+
+    For the case of multi-sensor data, the sensors that the transform should be
+    applied can be set via the 'sensors' attribute. By default, we assume
+    single sensor data (DictData).
+    """
 
     def __init__(
         self,
-        prob: float = 1.0,
-        same_on_batch: bool = False,
-        same_on_ref: bool = True,
+        in_keys: tuple[str, ...] = (CommonKeys.images,),
+        out_keys: tuple[str, ...] = (CommonKeys.images,),
+        sensors: None | tuple[str, ...] = None,
+        with_data: bool = False,
     ):
-        """Initialize augmentation."""
-        super().__init__()
-        self.prob = prob
-        self.same_on_batch = same_on_batch
-        self.same_on_ref = same_on_ref
-        self.num_samples = 1
+        """Creates an instance of the class.
 
-    def generate_parameters(self, sample: InputSample) -> AugParams:
-        """Generate current parameters."""
-        parameters = {}
-        parameters["apply"] = sample_batched(
-            len(sample), self.prob, self.same_on_batch
-        )
-        return parameters
+        Args:
+            in_keys (tuple[str, ...], optional): Input keys in the data
+                dictionary. Nested keys are separated by '.', e.g.,
+                metadata.image_size. Defaults to (COMMON_KEYS.images,).
+            out_keys (tuple[str, ...], optional): Output keys (possibly
+                nested). Defaults to (COMMON_KEYS.images,).
+            sensors (None | tuple[str, ...], optional): This field indicates
+                which sensors the transform should be applied to. Defaults to
+                None.
+            with_data (bool, optional): Pass the full data dict as auxiliary
+                input. Defaults to False.
+        """
+        assert isinstance(in_keys, (list, tuple))
+        assert isinstance(out_keys, (list, tuple))
+        assert isinstance(sensors, (list, tuple)) or sensors is None
+        self.in_keys = in_keys
+        self.out_keys = out_keys
+        self.sensors = sensors
+        self.with_data = with_data
 
-    # pylint: disable=unused-argument,no-self-use
-    def apply_image(self, images: Images, parameters: AugParams) -> Images:
-        """Apply augmentation to input image."""
-        return images
+    def __call__(self, orig_get_transform_fn):
+        """Wrap function with a handler for input / output keys."""
 
-    def apply_box2d(
-        self, boxes: List[Boxes2D], parameters: AugParams
-    ) -> List[Boxes2D]:
-        """Apply augmentation to input box2d."""
-        return boxes
+        def get_transform_fn(
+            *args,
+            in_keys=self.in_keys,
+            out_keys=self.out_keys,
+            sensors=self.sensors,
+            **kwargs,
+        ):
+            orig_transform_fn = orig_get_transform_fn(*args, **kwargs)
 
-    def apply_intrinsics(
-        self, intrinsics: Intrinsics, parameters: AugParams
-    ) -> Intrinsics:
-        """Apply augmentation to input intrinsics."""
-        return intrinsics
+            def _transform_fn(data):  # TODO multi sensor error msg improve
+                in_data = [
+                    get_dict_nested(data, key.split(".")) for key in in_keys
+                ]
+                # Optionally allow the function to get the full data dict as
+                # aux input.
+                if self.with_data:
+                    result = orig_transform_fn(*in_data, data=data)
+                else:
+                    result = orig_transform_fn(*in_data)
+                if len(out_keys) == 1:
+                    result = [result]
+                for key, value in zip(out_keys, result):
+                    set_dict_nested(data, key.split("."), value)
+                return data
 
-    def apply_extrinsics(
-        self, extrinsics: Extrinsics, parameters: AugParams
-    ) -> Extrinsics:
-        """Apply augmentation to input extrinsics."""
-        return extrinsics
+            if sensors is not None:
 
-    def apply_points(
-        self, points: PointCloud, parameters: AugParams
-    ) -> PointCloud:
-        """Apply augmentation to input points."""
-        return points
+                def _multi_sensor_transform_fn(data):
+                    for sensor in sensors:
+                        data[sensor] = _transform_fn(data[sensor])
+                    return data
 
-    def apply_box3d(
-        self, boxes: List[Boxes3D], parameters: AugParams
-    ) -> List[Boxes3D]:
-        """Apply augmentation to input box3d."""
-        return boxes
+                return _multi_sensor_transform_fn
+            return _transform_fn
 
-    def apply_mask(
-        self, masks: List[TMasks], parameters: AugParams
-    ) -> List[TMasks]:
-        """Apply augmentation to input mask."""
-        return masks
+        return get_transform_fn
 
-    def apply_instance_mask(
-        self, masks: List[InstanceMasks], parameters: AugParams
-    ) -> List[InstanceMasks]:
-        """Apply augmentation to input instance mask."""
-        return self.apply_mask(masks, parameters)
 
-    def apply_semantic_mask(
-        self, masks: List[SemanticMasks], parameters: AugParams
-    ) -> List[SemanticMasks]:
-        """Apply augmentation to input semantic mask."""
-        return self.apply_mask(masks, parameters)
+class BatchTransform:
+    """Decorator for batch transforms, which adds `in_keys` and `out_keys`."""
 
-    def apply_other_targets(
-        self, other: List[Dict[str, torch.Tensor]], parameters: AugParams
-    ) -> List[Dict[str, torch.Tensor]]:
-        """Apply augmentation to other, user-defined targets."""
-        return other
+    def __init__(
+        self,
+        in_keys=(CommonKeys.images,),
+        out_keys=(CommonKeys.images,),
+        sensors: None | tuple[str, ...] = None,
+        with_data: bool = False,
+    ):
+        """Creates an instance of the class.
 
-    def apply_other_inputs(
-        self, other: List[Dict[str, torch.Tensor]], parameters: AugParams
-    ) -> List[Dict[str, torch.Tensor]]:
-        """Apply augmentation to other, user-defined inputs."""
-        return other
+        Args:
+            in_keys (tuple[str, ...], optional): Input keys in the data
+                dictionary. Nested keys are separated by '.', e.g.,
+                metadata.image_size. Defaults to (COMMON_KEYS.images,).
+            out_keys (tuple[str, ...], optional): Output keys (possibly
+                nested). Defaults to (COMMON_KEYS.images,).
+            sensors (None | tuple[str, ...], optional): This field indicates
+                which sensors the transform should be applied to. Defaults to
+                None.
+            with_data (bool, optional): Pass the full data dict as auxiliary
+                input. Defaults to False.
+        """
+        self.in_keys = in_keys
+        self.out_keys = out_keys
+        self.sensors = sensors
+        self.with_data = with_data
 
-    def __call__(
-        self, sample: InputSample, parameters: Optional[AugParams] = None
-    ) -> Tuple[InputSample, AugParams]:
-        """Apply augmentations to input sample."""
-        if parameters is None or not self.same_on_ref:
-            parameters = self.generate_parameters(sample)
+    def __call__(self, orig_get_transform_fn):
+        """Wrap function with a handler for input / output keys."""
 
-        sample.images = self.apply_image(sample.images, parameters)
-        sample.intrinsics = self.apply_intrinsics(
-            sample.intrinsics, parameters
-        )
-        sample.extrinsics = self.apply_extrinsics(
-            sample.extrinsics, parameters
-        )
+        def get_transform_fn(
+            *args,
+            in_keys=self.in_keys,
+            out_keys=self.out_keys,
+            sensors=self.sensors,
+            **kwargs,
+        ):
+            orig_transform_fn = orig_get_transform_fn(*args, **kwargs)
 
-        sample.points = self.apply_points(sample.points, parameters)
+            def _transform_fn(batch):
+                in_batch = []
+                for key in in_keys:
+                    key_data = []
+                    for data in batch:
+                        key_data.append(get_dict_nested(data, key.split(".")))
+                    in_batch.append(key_data)
+                # Optionally allow the function to get the full data dict as
+                # aux input.
+                if self.with_data:
+                    result = orig_transform_fn(*in_batch, data=batch)
+                else:
+                    result = orig_transform_fn(*in_batch)
 
-        sample.other = self.apply_other_inputs(sample.other, parameters)
-        sample.targets.boxes2d = self.apply_box2d(
-            sample.targets.boxes2d, parameters
-        )
-        sample.targets.boxes3d = self.apply_box3d(
-            sample.targets.boxes3d, parameters
-        )
-        sample.targets.instance_masks = self.apply_instance_mask(
-            sample.targets.instance_masks, parameters
-        )
-        sample.targets.semantic_masks = self.apply_semantic_mask(
-            sample.targets.semantic_masks, parameters
-        )
-        sample.targets.other = self.apply_other_targets(
-            sample.targets.other, parameters
-        )
-        return sample, parameters
+                if len(self.out_keys) == 1:
+                    result = [result]
+                for key, values in zip(out_keys, result):
+                    for data, value in zip(batch, values):
+                        set_dict_nested(data, key.split("."), value)
+                return batch
 
-    def __repr__(self) -> str:  # pragma: no cover
-        """Print class & params, s.t. user can inspect easily via cmd line."""
-        attr_str = ""
-        for k, v in vars(self).items():
-            if k != "type" and not k.startswith("_"):
-                attr_str += f"{k}={str(v)}, "
-        attr_str = attr_str.rstrip(", ")
-        return f"{self.__class__.__name__}({attr_str})"
+            if sensors is not None:
+
+                def _multi_sensor_transform_fn(batch):
+                    for sensor in sensors:
+                        batch_sensor = _transform_fn(
+                            [d[sensor] for d in batch]
+                        )
+                        for i, d in enumerate(batch_sensor):
+                            batch[i][sensor] = d
+                    return batch
+
+                return _multi_sensor_transform_fn
+            return _transform_fn
+
+        return get_transform_fn
+
+
+TInput = TypeVar("TInput")  # pylint: disable=invalid-name
+
+
+def compose(
+    transforms: list[Callable[[TInput], TInput]]
+) -> Callable[[TInput], TInput]:
+    """Compose transformations.
+
+    This function composes a given set of transformation functions into a
+    single function.
+    """
+
+    def _preprocess_func(data: TInput) -> TInput:
+        for op in transforms:
+            data = op(data)
+        return data
+
+    return _preprocess_func
+
+
+def random_apply(
+    transforms: list[Callable[[TInput], TInput]], probability: float = 0.5
+) -> Callable[[TInput], TInput]:
+    """Apply given transforms at random with given probability.
+
+    Args:
+        transforms (list[Callable[[TInput], TInput]]): Transformations that
+            are applied with a given probability.
+        probability (float, optional): Probability to apply transformations.
+            Defaults to 0.5.
+
+    Returns:
+        Callable[[TInput], TInput]]: The randomized transformations.
+    """
+
+    def _apply(data: DictData) -> DictData:
+        if torch.rand(1) < probability:
+            for op in transforms:
+                data = op(data)
+        return data
+
+    return _apply

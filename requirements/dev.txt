@@ -1,0 +1,14 @@
+black
+coverage[toml]
+isort
+mypy
+pre-commit
+pydocstyle
+pylint
+pytest
+pytest-notebook
+types-PyYAML
+types-requests
+types-tabulate
+types-termcolor
+types-toml

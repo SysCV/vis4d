@@ -1,351 +1,438 @@
-"""Load and convert NuScenes labels to scalabel format."""
-import json
+"""NuScenes multi-sensor video dataset."""
+from __future__ import annotations
+
+import copy
 import os
-import shutil
-from typing import Dict, List, Tuple, Union
+from collections import defaultdict
 
 import numpy as np
-from pytorch_lightning.utilities.rank_zero import (
-    rank_zero_info,
-    rank_zero_warn,
-)
-from scalabel.label.io import load, load_label_config, save
-from scalabel.label.to_nuscenes import to_nuscenes
-from scalabel.label.typing import Dataset, Frame
+import torch
+from torch import Tensor
 
-from vis4d.struct import ArgsType, MetricLogs
+from vis4d.common.imports import NUSCENES_AVAILABLE
+from vis4d.common.typing import DictStrAny
+from vis4d.data.const import AxisMode, CommonKeys
+from vis4d.data.datasets import Dataset, VideoMixin
+from vis4d.data.datasets.util import CacheMappingMixin, im_decode
+from vis4d.data.io import DataBackend, FileBackend
+from vis4d.data.typing import DictData
+from vis4d.op.box.box3d import boxes3d_to_corners
+from vis4d.op.geometry.projection import project_points
+from vis4d.op.geometry.transform import inverse_rigid_transform
 
-from .base import BaseDatasetLoader, _eval_mapping
-
-try:  # pragma: no cover
-    from nuscenes import NuScenes as nusc_data
-    from nuscenes.eval.common.config import config_factory as track_configs
-    from nuscenes.eval.detection.config import config_factory
-    from nuscenes.eval.detection.evaluate import NuScenesEval
-    from nuscenes.eval.tracking.evaluate import TrackingEval as track_eval
-    from nuscenes.eval.tracking.utils import metric_name_to_print_format
-
-    # pylint: disable=ungrouped-imports
-    from scalabel.label.from_nuscenes import from_nuscenes
-
-    NUSC_INSTALLED = True
-except (ImportError, NameError):
-    NUSC_INSTALLED = False
+if NUSCENES_AVAILABLE:
+    from nuscenes import NuScenes as NuScenesDevkit
+    from nuscenes.eval.detection.utils import category_to_detection_name
+    from nuscenes.utils.data_classes import Box, Quaternion
+    from nuscenes.utils.geometry_utils import transform_matrix
+    from nuscenes.utils.splits import create_splits_scenes
 
 
-class NuScenes(BaseDatasetLoader):  # pragma: no cover
-    """NuScenes dataloading class."""
+nuscenes_track_map = {
+    "bicycle": 0,
+    "motorcycle": 1,
+    "pedestrian": 2,
+    "bus": 3,
+    "car": 4,
+    "trailer": 5,
+    "truck": 6,
+    "construction_vehicle": 7,
+    "traffic_cone": 8,
+    "barrier": 9,
+}
+
+
+def _get_extrinsics(
+    ego_pose: DictStrAny, car_from_sensor: DictStrAny
+) -> torch.Tensor:
+    """Convert NuScenes ego pose / sensor_to_car to global extrinsics."""
+    global_from_car = transform_matrix(
+        ego_pose["translation"],
+        Quaternion(ego_pose["rotation"]),
+        inverse=False,
+    )
+    car_from_sensor_ = transform_matrix(
+        car_from_sensor["translation"],
+        Quaternion(car_from_sensor["rotation"]),
+        inverse=False,
+    )
+    extrinsics = np.dot(global_from_car, car_from_sensor_)
+    return torch.tensor(extrinsics, dtype=torch.float32)
+
+
+class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
+    """NuScenes multi-sensor video dataset.
+
+    This dataset loads both LiDAR and camera inputs from the NuScenes dataset
+    into the Vis4D expected format for multi-sensor, video datasets.
+    """
+
+    _SENSORS = [
+        "LIDAR_TOP",
+        "CAM_FRONT",
+        "CAM_FRONT_LEFT",
+        "CAM_FRONT_RIGHT",
+        "CAM_BACK",
+        "CAM_BACK_LEFT",
+        "CAM_BACK_RIGHT",
+    ]
+
+    _CAMERAS = [
+        "CAM_FRONT",
+        "CAM_FRONT_LEFT",
+        "CAM_FRONT_RIGHT",
+        "CAM_BACK",
+        "CAM_BACK_LEFT",
+        "CAM_BACK_RIGHT",
+    ]
 
     def __init__(
         self,
-        version: str,
-        split: str,
-        add_non_key: bool,
-        *args: ArgsType,
-        tmp_dir: str = "./nuScenes_tmp/",
-        metadata: Tuple[str, ...] = ("use_camera",),
-        **kwargs: ArgsType,
-    ):
-        """Init dataset loader."""
+        data_root: str,
+        version: str = "v1.0-trainval",
+        split: str = "train",
+        include_non_key: bool = False,
+        data_backend: DataBackend | None = None,
+    ) -> None:
+        """Creates an instance of the class.
+
+        Args:
+            data_root (str): Root directory of nuscenes data in original
+                format.
+            version (str, optional): Version of the data to load. Defaults to
+                "v1.0-trainval".
+            split (str, optional): Split of the data to load. Defaults to
+                "train".
+            include_non_key (bool, optional): Whether to include non-key
+                samples. Note that Non-key samples do not have annotations.
+                Defaults to False.
+            data_backend (Optional[DataBackend], optional): Which data backend
+                to use to load the NuScenes data. Defaults to None.
+        """
+        super().__init__()
+        self.data_backend = (
+            FileBackend() if data_backend is None else data_backend
+        )
+        self.data_root = data_root
+        assert version in {"v1.0-trainval", "v1.0-test", "v1.0-mini"}
         self.version = version
-        self.split = split
-        self.add_non_key = add_non_key
-        self.tmp_dir = tmp_dir
-        self.metadata = metadata
-        super().__init__(*args, **kwargs)
-
-    def load_dataset(self) -> Dataset:
-        """Convert NuScenes annotations to Scalabel format."""
-        assert (
-            NUSC_INSTALLED
-        ), "Using NuScenes dataset needs NuScenes devkit installed!."
-
-        # annotations is the path to the label file in scalabel format.
-        # if the file exists load it, else create it to that location
-        assert (
-            self.annotations is not None
-        ), "Need a path to an annotation file to either load or create it."
-        if not os.path.exists(self.annotations):
-            dataset = from_nuscenes(
-                self.data_root,
-                self.version,
-                self.split,
-                self.num_processes,
-                self.add_non_key,
-            )
-            save(self.annotations, dataset)
+        if "mini" in version:
+            assert split in {
+                "mini_train",
+                "mini_val",
+            }, f"Invalid split for NuScenes {version}!"
+        elif "test" in version:
+            split = "test"
         else:
-            # Load labels from existing file
-            dataset = load(self.annotations, nprocs=self.num_processes)
+            assert split in {
+                "train",
+                "val",
+            }, f"Invalid split for NuScenes {version}!"
+            # TODO improve error msg for mini version
 
-        if self.config_path is not None:
-            dataset.config = load_label_config(self.config_path)
+        self.split = split
+        self.include_non_key = include_non_key
 
-        return dataset
-
-    def _convert_predictions(
-        self,
-        output_dir: str,
-        frames: List[Frame],
-        metric: str,
-        mode: str,
-    ) -> str:
-        """Convert predictions back to nuScenes format, save out to tmp_dir."""
-        os.makedirs(output_dir, exist_ok=True)
-
-        metadata = {
-            "use_camera": False,
-            "use_lidar": False,
-            "use_radar": False,
-            "use_map": False,
-            "use_external": False,
-        }
-
-        for m in self.metadata:
-            metadata[m] = True
-
-        result_path = os.path.join(output_dir, f"{metric}_predictions.json")
-
-        nusc_results = to_nuscenes(Dataset(frames=frames), mode, metadata)
-
-        with open(result_path, mode="w", encoding="utf-8") as f:
-            json.dump(nusc_results, f)
-
-        return result_path
-
-    @staticmethod
-    def _parse_detect_high_level_metrics(
-        tp_errors: Dict[str, float],
-        mean_ap: float,
-        nd_score: float,
-        eval_time: float,
-    ) -> Tuple[List[str], Union[int, float], Union[int, float]]:
-        """Collect high-level metrics."""
-        str_summary_list = ["\nHigh-level metrics:"]
-        str_summary_list.append(f"mAP: {mean_ap:.4f}")
-        err_name_mapping = {
-            "trans_err": "mATE",
-            "scale_err": "mASE",
-            "orient_err": "mAOE",
-            "vel_err": "mAVE",
-            "attr_err": "mAAE",
-        }
-        for tp_name, tp_val in tp_errors.items():
-            str_summary_list.append(
-                f"{err_name_mapping[tp_name]}: {tp_val:.4f}"
-            )
-        str_summary_list.append(f"NDS: {nd_score:.4f}")
-        str_summary_list.append(f"Eval time: {eval_time:.1f}s")
-
-        if mean_ap == 0:
-            mean_ap = int(mean_ap)
-        if nd_score == 0:
-            nd_score = int(nd_score)
-
-        return str_summary_list, mean_ap, nd_score
-
-    @staticmethod
-    def _parse_detect_per_class_metrics(
-        str_summary_list: List[str],
-        class_aps: Dict[str, float],
-        class_tps: Dict[str, Dict[str, float]],
-    ) -> List[str]:
-        """Collect per-class metrics."""
-        str_summary_list.append("\nPer-class results:")
-        str_summary_list.append("Object Class\tAP\tATE\tASE\tAOE\tAVE\tAAE")
-
-        for class_name in class_aps.keys():
-            tmp_str_list = [class_name]
-            tmp_str_list.append(f"{class_aps[class_name]:.3f}")
-            tmp_str_list.append(f"{class_tps[class_name]['trans_err']:.3f}")
-            tmp_str_list.append(f"{class_tps[class_name]['scale_err']:.3f}")
-            tmp_str_list.append(f"{class_tps[class_name]['orient_err']:.3f}")
-            tmp_str_list.append(f"{class_tps[class_name]['vel_err']:.3f}")
-            tmp_str_list.append(f"{class_tps[class_name]['attr_err']:.3f}")
-
-            str_summary_list.append("\t".join(tmp_str_list))
-        return str_summary_list
-
-    def _eval_detection(
-        self, result_path: str, eval_set: str
-    ) -> Tuple[MetricLogs, str]:
-        """Evaluate detection."""
-        nusc = nusc_data(
+        self.data = NuScenesDevkit(
             version=self.version, dataroot=self.data_root, verbose=False
         )
-
-        try:  # pragma: no cover
-            nusc_eval = NuScenesEval(
-                nusc,
-                config=config_factory("detection_cvpr_2019"),
-                result_path=result_path,
-                eval_set=eval_set,
-                output_dir=self.tmp_dir,
-                verbose=False,
-            )
-            metrics, _ = nusc_eval.evaluate()
-            metrics_summary = metrics.serialize()
-
-            (
-                str_summary_list,
-                mean_ap,
-                nd_score,
-            ) = self._parse_detect_high_level_metrics(
-                metrics_summary["tp_errors"],
-                metrics_summary["mean_ap"],
-                metrics_summary["nd_score"],
-                metrics_summary["eval_time"],
-            )
-
-            class_aps = metrics_summary["mean_dist_aps"]
-            class_tps = metrics_summary["label_tp_errors"]
-            str_summary_list = self._parse_detect_per_class_metrics(
-                str_summary_list, class_aps, class_tps
-            )
-
-            log_dict = {"mAP": mean_ap, "NDS": nd_score}
-            str_summary = "\n".join(str_summary_list)
-
-        except (  # pylint: disable=broad-except
-            AssertionError,
-            Exception,
-        ) as e:
-            error_msg = "".join(e.args)
-            rank_zero_warn(f"Evaluation error: {error_msg}")
-            log_dict = {"mAP": 0, "NDS": 0}
-            str_summary = (
-                "Evaluation failure might be raised due to sanity check"
-                + "or all emtpy boxes. "
-            )
-            rank_zero_warn(str_summary)
-
-        return log_dict, str_summary
-
-    def _eval_tracking(
-        self, result_path: str, eval_set: str
-    ) -> Tuple[MetricLogs, str]:
-        """Evaluate tracking."""
-        try:  # pragma: no cover
-            nusc_eval = track_eval(
-                config=track_configs("tracking_nips_2019"),
-                result_path=result_path,
-                eval_set=eval_set,
-                output_dir=self.tmp_dir,
-                verbose=False,
-                nusc_version=self.version,
-                nusc_dataroot=self.data_root,
-            )
-            metrics, _ = nusc_eval.evaluate()
-
-            str_summary_list = ["\nPer-class results:"]
-            metric_names = metrics.label_metrics.keys()
-            str_summary_list.append(
-                "\t\t" + "\t".join([m.upper() for m in metric_names])
-            )
-
-            class_names = metrics.class_names
-            max_name_length = 7
-            for class_name in class_names:
-                print_class = class_name[:max_name_length].ljust(
-                    max_name_length + 1
-                )
-
-                for metric_name in metric_names:
-                    val = metrics.label_metrics[metric_name][class_name]
-                    print_format = (
-                        "%f"
-                        if np.isnan(val)
-                        else metric_name_to_print_format(metric_name)
-                    )
-                    print_class += f"\t{(print_format % val)}"
-
-                str_summary_list.append(print_class)
-
-            str_summary_list.append("\nAggregated results:")
-            for metric_name in metric_names:
-                val = metrics.compute_metric(metric_name, "all")
-                print_format = metric_name_to_print_format(metric_name)
-                str_summary_list.append(
-                    f"{metric_name.upper()}\t{print_format % val}"
-                )
-            str_summary_list.append(f"Eval time: {metrics.eval_time:.1f}s")
-
-            log_dict = {
-                "AMOTA": metrics.compute_metric("amota", "all"),
-                "AMOTP": metrics.compute_metric("amotp", "all"),
-            }
-            str_summary = "\n".join(str_summary_list)
-        except (AssertionError, ValueError) as e:
-            error_msg = "".join(e.args)
-            rank_zero_warn(f"Evaluation error: {error_msg}")
-            log_dict = {"aMOTA": 0, "MOTP": 0}
-            str_summary = (
-                "Evaluation failure might be raised due to sanity check"
-                + " or motmetrics version is not 1.1.3"
-                + " or numpy version is not <= 1.19"
-            )
-            rank_zero_warn(str_summary)
-
-        return log_dict, str_summary
-
-    def evaluate(
-        self, metric: str, predictions: List[Frame], gts: List[Frame]
-    ) -> Tuple[MetricLogs, str]:
-        """Evaluate according to nuScenes metrics."""
-        if not metric in ["detect_3d", "track_3d"]:
-            return super().evaluate(metric, predictions, gts)
-
-        if metric == "detect_3d":
-            mode = "detection"
-        else:
-            mode = "tracking"
-
-        result_path = self._convert_predictions(
-            self.tmp_dir, predictions, metric, mode
+        self.samples = self._load_mapping(
+            self._generate_data_mapping,
+            os.path.join(
+                self.data_root,
+                self.version,
+                self.split + ".pkl",
+            ),
         )
+        self.instance_tokens = []
 
-        if "mini" in self.version:
-            eval_set = "mini_val"
-        else:
-            eval_set = "val"
+    @property
+    def video_to_indices(self) -> dict[str, list[int]]:
+        """Mapping from video name to list of dataset indices.
 
-        if mode == "detection":
-            log_dict, str_summary = self._eval_detection(result_path, eval_set)
-        else:
-            log_dict, str_summary = self._eval_tracking(result_path, eval_set)
+        Required by VideoMixin. Used to split sequences across GPUs and for
+        reference view sampling.
 
-        # clean up tmp dir
-        shutil.rmtree(self.tmp_dir)
+        Returns:
+            Dict[str, List[int]]: video to indices.
+        """
+        video_mapping = defaultdict(list)
+        for i, sample in enumerate(self.samples):
+            video_mapping[sample["scene_token"]].append(i)
+        return video_mapping
 
-        return log_dict, str_summary
+    def _generate_data_mapping(self) -> list[DictStrAny]:
+        """Generate mapping to cache.
 
-    def _check_metrics(self) -> None:
-        """Check if evaluation metrics specified are valid."""
-        assert self.eval_metrics is not None
-        for metric in self.eval_metrics:
-            if (
-                metric not in ["detect_3d", "track_3d"]
-                and metric not in _eval_mapping
-            ):  # pragma: no cover
-                raise KeyError(
-                    f"metric {metric} is not supported in {self.name}"
-                )
+        Returns:
+            List[DictStrAny]: List of items required to load for a single
+                dataset sample.
+        """
+        samples = []
+        scene_names_per_split = create_splits_scenes()
 
-    def save_predictions(
-        self, output_dir: str, metric: str, predictions: List[Frame]
-    ) -> None:
-        """Save model predictions in nuScenes official format."""
-        mode = None
-        if self.custom_save:
-            if metric == "detect_3d":
-                mode = "detection"
-            elif metric == "track_3d":
-                mode = "tracking"
+        for record in self.data.scene:
+            scene_name = record["name"]
+            if scene_name not in scene_names_per_split[self.split]:
+                continue
+            frame_index = 0
+            sample_token = record["first_sample_token"]
+            while sample_token:
+                sample = self.data.get("sample", sample_token)
+                sample["frame_index"] = frame_index
+                sample_token = sample["next"]
+                samples.append(sample)  # TODO non-key frames
+                frame_index += 1
+        return samples
 
-        if mode is None:
-            super().save_predictions(output_dir, metric, predictions)
-        else:
-            rank_zero_info(f"Save {metric} in custom format.")
-            _ = self._convert_predictions(
-                output_dir, predictions, metric, mode
+    def __len__(self) -> int:
+        """Length."""
+        return len(self.samples)
+
+    def _load_lidar_data(
+        self, lidar_data: DictStrAny, ego_pose: DictStrAny
+    ) -> tuple[Tensor, Tensor, str]:
+        """Load LiDAR data.
+
+        Args:
+            lidar_data (DictStrAny): NuScenes format LiDAR data.
+            ego_pose (DictStrAny): Ego vehicle pose in NuScenes format.
+
+        Returns:
+            tuple[Tensor, Tensor, str]: Pointcloud, extrinsics, timestamp.
+        """
+        calibration_lidar = self.data.get(
+            "calibrated_sensor", lidar_data["calibrated_sensor_token"]
+        )
+        timestamp = lidar_data["timestamp"]
+        lidar_filepath = lidar_data["filename"]
+        points_bytes = self.data_backend.get(
+            os.path.join(self.data_root, lidar_filepath)
+        )
+        points = torch.frombuffer(points_bytes, dtype=torch.float32)
+        points = points.view(-1, 5)[:, :3]
+        extrinsics = _get_extrinsics(ego_pose, calibration_lidar)
+        return points, extrinsics, timestamp
+
+    def _load_cam_data(
+        self, cam_token: str, ego_pose: DictStrAny
+    ) -> tuple[Tensor, Tensor, Tensor, str]:
+        """Load camera data.
+
+        Args:
+            cam_token (str): Token of camera.
+            ego_pose (dict): Ego vehicle pose in NuScenes format.
+
+        Returns:
+            tuple[Tensor, Tensor, Tensor, str]: Image, intrinscs, extrinsics,
+                timestamp.
+        """
+        cam_data = self.data.get("sample_data", cam_token)
+        timestamp = cam_data["timestamp"]
+        cam_filepath = cam_data["filename"]
+        calibration_cam = self.data.get(
+            "calibrated_sensor", cam_data["calibrated_sensor_token"]
+        )
+        im_bytes = self.data_backend.get(
+            os.path.join(self.data_root, cam_filepath)
+        )
+        image = (
+            torch.from_numpy(im_decode(im_bytes))
+            .to(torch.float32)
+            .permute(2, 0, 1)
+            .unsqueeze(0)
+        )
+        extrinsics = _get_extrinsics(ego_pose, calibration_cam)
+        intrinsics = torch.tensor(
+            calibration_cam["camera_intrinsic"], dtype=torch.float32
+        )
+        return image, intrinsics, extrinsics, timestamp
+
+    def _get_track_id(self, box: Box) -> int:
+        """Get track id for a NuScenes box annotation."""
+        instance_token = self.data.get("sample_annotation", box.token)[
+            "instance_token"
+        ]
+        if not instance_token in self.instance_tokens:
+            self.instance_tokens.append(instance_token)
+        return self.instance_tokens.index(instance_token)
+
+    def _load_boxes3d(
+        self,
+        list_boxes: list[Box],
+        sensor_extrinsics: Tensor | None = None,
+        axis_mode: AxisMode = AxisMode.ROS,
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        """Load 3D bounding boxes.
+
+        Args:
+            list_boxes (List[Box]): List of boxes in NuScenes format.
+            sensor_extrinsics (Optional[torch.Tensor], optional): Extrinsics
+                of current sensor. Defaults to None.
+            axis_mode (AxisMode, optional): Axis mode of current sensor.
+                Defaults to AxisMode.ROS.
+
+        Returns:
+            tuple[Tensor, Tensor, Tensor]: 3D boxes, classes and track ids in
+                Vis4D format.
+        """
+        boxes = copy.deepcopy(list_boxes)
+        if sensor_extrinsics is not None:
+            inverse_extrinsics = inverse_rigid_transform(sensor_extrinsics)
+            translation_sensor = inverse_extrinsics[:3, 3].numpy()
+            rotation_sensor = Quaternion._from_matrix(  # pylint: disable=protected-access,line-too-long
+                inverse_extrinsics[:3, :3].numpy(), atol=1e-5
             )
+            for box in boxes:
+                box.rotate(rotation_sensor)
+                box.translate(translation_sensor)
+
+        boxes_tensor, boxes_classes, boxes_track_ids = (
+            torch.empty((1, 10), dtype=torch.float32),
+            torch.empty((1,), dtype=torch.long),
+            torch.empty((1,), dtype=torch.long),
+        )
+        for box in boxes:
+            box_class = category_to_detection_name(box.name)
+            if box_class is None:
+                continue
+            boxes_classes = torch.cat(
+                [
+                    boxes_classes,
+                    torch.tensor(
+                        [nuscenes_track_map[box_class]], dtype=torch.long
+                    ),
+                ]
+            )
+            boxes_track_ids = torch.cat(
+                [
+                    boxes_track_ids,
+                    torch.tensor([self._get_track_id(box)], dtype=torch.long),
+                ]
+            )
+            if axis_mode == AxisMode.OPENCV:
+                # 3D Boxes are aligned with LiDAR coord system (ROS convention)
+                # hence we need to extract vertical rotation and switch axis
+                v = np.dot(
+                    box.orientation.rotation_matrix, np.array([1, 0, 0])
+                )
+                yaw = -np.arctan2(v[2], v[0])
+                box.orientation = Quaternion(angle=yaw, axis=[0, 1, 0])
+
+            box_params = torch.tensor(
+                [[*box.center, *box.wlh, *box.orientation]],
+                dtype=torch.float32,
+            )
+            boxes_tensor = torch.cat([boxes_tensor, box_params])
+        return boxes_tensor[1:], boxes_classes[1:], boxes_track_ids[1:]
+
+    def _load_boxes2d(
+        self,
+        boxes3d: torch.Tensor,
+        intrinsics: torch.Tensor,
+        im_hw: tuple[int, int],
+    ) -> tuple[Tensor, Tensor]:
+        """Load 2D bounding boxes.
+
+        Args:
+            boxes3d (torch.Tensor): Tensor of 3D boxes in camera frame.
+            intrinsics (torch.Tensor): Camera intrinsics
+            im_hw (Tuple[int, int]): Image dimensions.
+
+        Returns:
+            tuple[Tensor, Tensor]: Mask of 3D bounding boxes successfully
+                projecting to the image, the corresponding 2D bounding boxes.
+        """
+        box_corners = boxes3d_to_corners(boxes3d, AxisMode.OPENCV)
+        points = project_points(box_corners.view(-1, 3), intrinsics).view(
+            -1, 8, 2
+        )
+        mask = (points[..., 0] >= 0) * (points[..., 0] < im_hw[1]) * (
+            points[..., 1] >= 0
+        ) * (points[..., 1] < im_hw[0]) * box_corners[..., 2] > 0.0
+        mask = mask.any(dim=-1)
+        points = points[mask]
+        points[..., 0] = points[..., 0].clamp(min=0, max=im_hw[1])
+        points[..., 1] = points[..., 1].clamp(min=0, max=im_hw[0])
+        boxes2d = torch.stack(
+            (
+                points[..., 0].min(dim=1)[0],
+                points[..., 1].min(dim=1)[0],
+                points[..., 0].max(dim=1)[0],
+                points[..., 1].max(dim=1)[0],
+            ),
+            dim=-1,
+        )
+        return mask, boxes2d
+
+    def __getitem__(self, idx: int) -> DictData:
+        """Get single sample.
+
+        Args:
+            idx (int): Index of sample.
+
+        Returns:
+            DictData: sample at index in Vis4D input format.
+        """
+        sample = self.samples[idx]
+        lidar_token = sample["data"]["LIDAR_TOP"]
+        lidar_data = self.data.get("sample_data", lidar_token)
+
+        ego_pose = self.data.get("ego_pose", lidar_data["ego_pose_token"])
+        boxes = self.data.get_boxes(lidar_token)
+
+        # load LiDAR frame
+        data_dict: DictData = {}
+        if "LIDAR_TOP" in self._SENSORS:
+            points, extrinsics, timestamp = self._load_lidar_data(
+                lidar_data, ego_pose
+            )
+            boxes3d, boxes3d_classes, boxes3d_track_ids = self._load_boxes3d(
+                boxes, extrinsics
+            )
+            data_dict["LIDAR_TOP"] = {
+                CommonKeys.points3d: points,
+                CommonKeys.extrinsics: extrinsics,
+                CommonKeys.timestamp: timestamp,
+                CommonKeys.axis_mode: AxisMode.ROS,
+                CommonKeys.boxes3d: boxes3d,
+                CommonKeys.boxes3d_classes: boxes3d_classes,
+                CommonKeys.boxes3d_track_ids: boxes3d_track_ids,
+            }
+
+        # load camera frames
+        for cam in NuScenes._CAMERAS:
+            if cam in self._SENSORS:
+                cam_token = sample["data"][cam]
+                image, intrinsics, extrinsics, timestamp = self._load_cam_data(
+                    cam_token, ego_pose
+                )
+                image_hw = image.size(2), image.size(3)
+                (
+                    boxes3d,
+                    boxes3d_classes,
+                    boxes3d_track_ids,
+                ) = self._load_boxes3d(boxes, extrinsics, AxisMode.OPENCV)
+
+                mask, boxes2d = self._load_boxes2d(
+                    boxes3d, intrinsics, image_hw
+                )
+                data_dict[cam] = {
+                    CommonKeys.images: image,
+                    CommonKeys.original_hw: image_hw,
+                    CommonKeys.input_hw: image_hw,
+                    CommonKeys.frame_ids: sample["frame_index"],
+                    CommonKeys.intrinsics: intrinsics,
+                    CommonKeys.extrinsics: extrinsics,
+                    CommonKeys.timestamp: timestamp,
+                    CommonKeys.axis_mode: AxisMode.OPENCV,
+                    CommonKeys.boxes2d: boxes2d,
+                    CommonKeys.boxes2d_classes: boxes3d_classes[mask],
+                    CommonKeys.boxes2d_track_ids: boxes3d_track_ids[mask],
+                    CommonKeys.boxes3d: boxes3d[mask],
+                    CommonKeys.boxes3d_classes: boxes3d_classes[mask],
+                    CommonKeys.boxes3d_track_ids: boxes3d_track_ids[mask],
+                }
+
+        # TODO add RADAR, Map data
+        return data_dict

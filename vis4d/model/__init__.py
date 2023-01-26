@@ -1,15 +1,6 @@
-"""Vis4D model module."""
-from .base import BaseModel
-from .panoptic import PanopticFPN
-from .qd_3dt import QD3DT
-from .qdtrack import QDTrack
-from .segment import BaseSegmentor, MMEncDecSegmentor
+"""Model definitions that connect operators and states together.
 
-__all__ = [
-    "BaseModel",
-    "BaseSegmentor",
-    "MMEncDecSegmentor",
-    "PanopticFPN",
-    "QDTrack",
-    "QD3DT",
-]
+All the compute should go to operators and the model memories should be kept
+in states. The models are supposed to do minimum job to connect the model
+pipelines.
+"""

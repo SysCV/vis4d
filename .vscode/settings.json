@@ -17,7 +17,7 @@
     "editor.rulers": [79],
     // Python use black as formatter
     "editor.defaultFormatter": null
-},
+  },
   "python.formatting.provider": "black",
   "python.linting.pylintEnabled": true,
   "python.linting.mypyEnabled": true,
@@ -26,11 +26,17 @@
   "spellright.language": ["en"],
   "spellright.documentTypes": ["markdown", "latex", "plaintext", "typescript"],
   "files.exclude": {
+    "./data/**": true,
+    "./vis4d-workspace/**": true,
     "**/node_modules/**": true,
     "node_modules": true
   },
   "files.watcherExclude": {
     "node_modules": true
   },
-  "restructuredtext.confPath": "${workspaceFolder}/doc/source"
+  "esbonio.sphinx.confDir": "${workspaceFolder}/docs/source",
+  "python.testing.pytestArgs": ["tests"],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestArgs": ["-v", "-s", "./vis4d", "-p", "*_test.py"]
 }

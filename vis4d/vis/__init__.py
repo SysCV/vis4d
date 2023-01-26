@@ -1,1 +1,1 @@
-"""Vis4D visualization package."""
+"""Contains visualization tools for a variety of data types."""

@@ -15,7 +15,8 @@ bin/
 app/dist/
 
 # potential integration testing data directory
-test_data/
+# test_data/
+/data
 
 #python
 .pyc
@@ -71,3 +72,9 @@ vis4d-workspace
 vis4d.egg-info
 
 *.tmp
+
+# local test logs and scripts
+log/
+/*.sh
+docs/source/api/*
+docs/source/tutorials/.ipynb_checkpoints/*

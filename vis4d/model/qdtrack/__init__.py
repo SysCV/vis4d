@@ -1,1 +1,0 @@
-"""QDTrack project package."""

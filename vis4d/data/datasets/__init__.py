@@ -1,22 +1,10 @@
 """Datasets module."""
-from .base import BaseDatasetLoader
-from .bdd100k import BDD100K
+from .base import Dataset, MultitaskMixin, VideoMixin
 from .coco import COCO
-from .custom import Custom
-from .kitti import KITTI
-from .mot import MOTChallenge
-from .nuscenes import NuScenes
-from .scalabel import Scalabel
-from .waymo import Waymo
 
 __all__ = [
-    "BaseDatasetLoader",
-    "BDD100K",
-    "Scalabel",
+    "Dataset",
+    "VideoMixin",
+    "MultitaskMixin",
     "COCO",
-    "Custom",
-    "Waymo",
-    "NuScenes",
-    "KITTI",
-    "MOTChallenge",
 ]

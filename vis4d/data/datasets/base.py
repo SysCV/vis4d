@@ -1,231 +1,111 @@
-"""Function for registering the datasets in Vis4D."""
-import abc
-import os
-import pickle
-from typing import Dict, List, Optional, Tuple, Union
+"""Base dataset classes.
 
-from pytorch_lightning.utilities.rank_zero import (
-    rank_zero_info,
-    rank_zero_warn,
-)
-from scalabel.eval.detect import evaluate_det
-from scalabel.eval.ins_seg import evaluate_ins_seg
-from scalabel.eval.mot import acc_single_video_mot, evaluate_track
-from scalabel.eval.mots import acc_single_video_mots, evaluate_seg_track
-from scalabel.eval.pan_seg import evaluate_pan_seg
-from scalabel.eval.result import Result
-from scalabel.eval.sem_seg import evaluate_sem_seg
-from scalabel.label.io import group_and_sort, save
-from scalabel.label.typing import Config, Dataset, Frame, FrameGroup
+We implement a typed version of the PyTorch dataset class here. In addition, we
+provide a number of Mixin classes which a dataset can inherit from to implement
+additional functionality.
+"""
+from __future__ import annotations
 
-from vis4d.common.registry import RegistryHolder
-from vis4d.common.utils.time import Timer
-from vis4d.struct import MetricLogs
+from torch.utils.data import Dataset as TorchDataset
+
+from vis4d.data.typing import DictData
 
 
-def _detect(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: Config,
-    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
-) -> Result:
-    """Wrapper for evaluate_det function."""
-    return evaluate_det(gt, pred, cfg, nproc=1)
+class Dataset(TorchDataset[DictData]):
+    """Basic pytorch dataset with defined return type."""
 
-
-def _ins_seg(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: Config,
-    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
-) -> Result:
-    """Wrapper for evaluate_ins_seg function."""
-    return evaluate_ins_seg(gt, pred, cfg, nproc=1)
-
-
-def _track(
-    pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
-) -> Result:
-    """Wrapper for evaluate_track function."""
-    return evaluate_track(
-        acc_single_video_mot,
-        group_and_sort(gt),
-        group_and_sort(pred),
-        cfg,
-        nproc=1,
-        ignore_unknown_cats=ignore_unknown_cats,
-    )
-
-
-def _seg_track(
-    pred: List[Frame], gt: List[Frame], cfg: Config, ignore_unknown_cats: bool
-) -> Result:
-    """Wrapper for evaluate_seg_track function."""
-    return evaluate_seg_track(
-        acc_single_video_mots,
-        group_and_sort(gt),
-        group_and_sort(pred),
-        cfg,
-        nproc=1,
-        ignore_unknown_cats=ignore_unknown_cats,
-    )
-
-
-def _sem_seg(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: Config,
-    ignore_unknown_cats: bool,  # pylint: disable=unused-argument
-) -> Result:
-    """Wrapper for evaluate_sem_seg function."""
-    return evaluate_sem_seg(gt, pred, cfg, nproc=1)
-
-
-def _pan_seg(
-    pred: List[Frame],
-    gt: List[Frame],
-    cfg: Config,
-    ignore_unknown_cats: bool,
-) -> Result:
-    """Wrapper for evaluate_pan_seg function."""
-    return evaluate_pan_seg(
-        gt, pred, cfg, nproc=1, ignore_unknown_cats=ignore_unknown_cats
-    )
-
-
-_eval_mapping = dict(
-    detect=_detect,
-    track=_track,
-    ins_seg=_ins_seg,
-    seg_track=_seg_track,
-    sem_seg=_sem_seg,
-    pan_seg=_pan_seg,
-)
-
-
-class BaseDatasetLoader(metaclass=RegistryHolder):
-    """Interface for loading dataset to Scalabel format."""
-
-    def __init__(
-        self,
-        name: str,
-        data_root: str,
-        annotations: Optional[str] = None,
-        attributes: Optional[
-            Dict[str, Union[bool, float, str, List[float], List[str]]]
-        ] = None,
-        config_path: Optional[str] = None,
-        eval_metrics: Optional[List[str]] = None,
-        ignore_unknown_cats: bool = False,
-        cache_as_binary: bool = False,
-        num_processes: int = 4,
-        collect_device: str = "cpu",
-        multi_sensor_inference: bool = True,
-        compute_global_instance_ids: bool = False,
-        custom_save: bool = False,
-    ):
-        """Init dataset loader."""
-        super().__init__()
-        self.name = name
-        self.data_root = data_root
-        self.annotations = annotations
-        self.config_path = config_path
-        self.eval_metrics = eval_metrics
-        self.ignore_unknown_cats = ignore_unknown_cats
-        self.collect_device = collect_device
-        self.cache_as_binary = cache_as_binary
-        self.compute_global_instance_ids = compute_global_instance_ids
-        self.attributes = attributes
-        self.num_processes = num_processes
-        self.multi_sensor_inference = multi_sensor_inference
-        self.custom_save = custom_save
-
-        if self.eval_metrics is None:
-            self.eval_metrics = []
-        self._check_metrics()
-
-        timer = Timer()
-        if cache_as_binary:
-            dataset = self.load_cached_dataset()
-        else:
-            dataset = self.load_dataset()
-
-        assert dataset.config is not None
-        add_data_path(data_root, dataset.frames)
-        if dataset.groups is not None:
-            add_data_path(data_root, dataset.groups)
-        rank_zero_info(f"Loading {name} takes {timer.time():.2f} seconds.")
-        self.metadata_cfg = dataset.config
-        self.frames = dataset.frames
-        self.groups = dataset.groups
-
-    def load_cached_dataset(self) -> Dataset:
-        """Load cached dataset from file."""
-        if self.annotations is None:  # pragma: no cover
-            cache_path = self.data_root.rstrip("/") + ".pkl"
-        else:
-            cache_path = self.annotations.rstrip("/") + ".pkl"
-        if not os.path.exists(cache_path):
-            dataset = self.load_dataset()
-            with open(cache_path, "wb") as file:
-                file.write(pickle.dumps(dataset))
-        else:
-            with open(cache_path, "rb") as file:
-                dataset = pickle.loads(file.read())
-        return dataset
-
-    @abc.abstractmethod
-    def load_dataset(self) -> Dataset:
-        """Load and possibly convert dataset to Scalabel format."""
+    def __len__(self) -> int:
+        """Return length of dataset."""
         raise NotImplementedError
 
-    def _check_metrics(self) -> None:
-        """Check if evaluation metrics specified are valid."""
-        assert self.eval_metrics is not None
-        for metric in self.eval_metrics:
-            if metric not in _eval_mapping:  # pragma: no cover
-                raise KeyError(
-                    f"metric {metric} is not supported in"
-                    f" dataset {self.name}"
-                )
+    def __getitem__(self, idx: int) -> DictData:
+        """Convert single element at given index into Vis4D data format."""
+        raise NotImplementedError
 
-    def evaluate(
-        self, metric: str, predictions: List[Frame], gts: List[Frame]
-    ) -> Tuple[MetricLogs, str]:
-        """Convert predictions from Scalabel format and evaluate.
 
-        Returns a dictionary of scores to log and a pretty printed string.
+class VideoMixin:
+    """Mixin for video datasets.
+
+    Provides interface for video based data and reference view samplers.
+    """
+
+    @property
+    def video_to_indices(self) -> dict[str, list[int]]:
+        """Group dataset sample indices by their associated video ID.
+
+        The sample index is an integer while video IDs are string.
+
+        Returns:
+            dict[str, list[int]]: Mapping video to index.
         """
-        result = _eval_mapping[metric](
-            predictions, gts, self.metadata_cfg, self.ignore_unknown_cats
+        raise NotImplementedError
+
+    def get_video_indices(self, idx: int) -> list[int]:
+        """Get all dataset indices in a video given a single dataset index."""
+        for indices in self.video_to_indices.values():
+            if idx in indices:
+                return indices
+        raise ValueError(f"Dataset index {idx} not found in video_to_indices!")
+
+
+class MultitaskMixin:
+    """Multitask dataset interface."""
+
+    _KEYS: list[str] = []
+
+    def validate_keys(self, keys: tuple[str, ...]) -> None:
+        """Validation the keys are defined in _KEYS.
+
+        Args:
+            keys (list[str]): User input of keys to load.
+
+        Raises:
+            ValueError: Raise if any key is not defined in _KEYS.
+        """
+        for k in keys:
+            if k not in self._KEYS:
+                raise ValueError(f"Key '{k}' is not supported!")
+
+
+class CategoryMapMixin:
+    """Mixin for category map.
+
+    Provides interface for filtering based on categories.
+    """
+
+    @property
+    def category_to_indices(self) -> dict[str, list[int]]:
+        """Group all dataset sample indices (int) by their category (str).
+
+        Returns:
+            dict[str, int]: Mapping category to index.
+        """
+        raise NotImplementedError
+
+    def get_category_indices(self, idx: int) -> list[int]:
+        """Get all indices that share the same category of the given index.
+
+        Indices refer to the index of the data samples within the dataset.
+        """
+        for indices in self.category_to_indices.values():
+            if idx in indices:
+                return indices
+        raise ValueError(
+            f"Dataset index {idx} not found in category_to_indices!"
         )
-        log_dict = {f"{metric}/{k}": v for k, v in result.summary().items()}
-        return log_dict, str(result)
-
-    def save_predictions(
-        self, output_dir: str, metric: str, predictions: List[Frame]
-    ) -> None:
-        """Save model predictions in Scalabel format."""
-        if self.custom_save:
-            rank_zero_warn(
-                f"You specified custom_save for dataset loader {self.name}, "
-                f"but Scalabel saving is still used for {metric}."
-            )
-
-        file_path = os.path.join(output_dir, f"{metric}_predictions.json")
-        save(file_path, predictions)
 
 
-def add_data_path(
-    data_root: str, frames: Union[List[Frame], List[FrameGroup]]
-) -> None:
-    """Add filepath to frame using data_root."""
-    for ann in frames:
-        assert ann.name is not None
-        if ann.url is None:
-            if ann.videoName is not None:
-                ann.url = os.path.join(data_root, ann.videoName, ann.name)
-            else:
-                ann.url = os.path.join(data_root, ann.name)
-        else:
-            ann.url = os.path.join(data_root, ann.url)
+class AttributeMapMixin:
+    """Mixin for attributes map.
+
+    Provides interface for filtering based on attributes.
+    """
+
+    @property
+    def attribute_to_indices(self) -> dict[str, dict[str, list[int]]]:
+        """Groups all dataset sample indices (int) by their category (str).
+
+        Returns:
+            dict[str, dict[str, list[int]]]: Mapping category to index.
+        """
+        raise NotImplementedError
