@@ -1,15 +1,160 @@
-"""Resize augmentation."""
+"""Resize transformation."""
 from __future__ import annotations
 
 import random
 
 import torch
 import torch.nn.functional as F
+from torch import Tensor
 
 from vis4d.data.const import CommonKeys
 from vis4d.op.box.box2d import transform_bbox
 
 from .base import Transform
+
+
+class Resize(Transform):
+    """Resize Transformation.
+
+    This transformation is used to resize image-based data and the
+    corresponding data fields, e.g. annotations like 2D bounding boxes, and
+    more.
+    """
+
+    def __init__(
+        self,
+        shape: tuple[int, int] | list[tuple[int, int]],
+        keep_ratio: bool = False,
+        multiscale_mode: str = "range",
+        scale_range: tuple[float, float] = (1.0, 1.0),
+        align_long_edge: bool = False,
+        interpolation: str = "bilinear",
+        sensors: None | list[str] | str = None,
+        remap_in_keys: None | list[tuple[str, str]] | tuple[str, str] = None,
+        remap_out_keys: None | list[tuple[str, str]] | tuple[str, str] = None,
+    ) -> None:
+        """Creates an instance of the class.
+
+        Args:
+            shape (tuple[int, int] | list[tuple[int, int]]): Image shape to
+                be resized to in (H, W) format. In multiscale mode 'list',
+                shape represents the list of possible shapes for resizing.
+            keep_ratio (bool, optional): If aspect ratio of the original image
+                should be kept, the new shape will modified to fit the aspect
+                ratio of the original image. Defaults to False.
+            multiscale_mode (str, optional): one of [range, list]. Defaults to
+                "range".
+            scale_range (tuple[float, float], optional): Range of sampled image
+                scales in range mode, e.g. (0.8, 1.2), indicating minimum of
+                0.8 * shape and maximum of 1.2 * shape. Defaults to (1.0, 1.0).
+            align_long_edge (bool, optional): If keep_ratio=true, this option
+                indicates if shape should be automatically aligned with the
+                long edge of the original image, e.g. original shape=(100, 80),
+                original shape=(100, 200) will yield (125, 100) as new shape.
+                Defaults to False.
+            interpolation (str, optional): Interpolation method. One of
+                ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
+            sensors (None | list[str] | str, optional): Specifies the sensors
+                this transformation should be applied to. If None, it will be
+                applied to all available sensors. Defaults to None.
+            remap_in_keys (None | list[tuple[str, str]] | tuple[str, str],
+                optional): Specifies one or multiple (if any) input keys of the
+                data dictionary which should be remapeed to another key.
+                Defaults to None.
+            remap_out_keys (None | list[tuple[str, str]] | tuple[str, str],
+                optional): Specifies one or multiple (if any) input keys of the
+                data dictionary which should be remapeed to another key.
+                Defaults to None.
+        """
+        super().__init__(sensors, remap_in_keys, remap_out_keys)
+        self.shape = shape
+        self.keep_ratio = keep_ratio
+        self.multiscale_mode = multiscale_mode
+        self.scale_range = scale_range
+        self.align_long_edge = align_long_edge
+        self.interpolation = interpolation
+
+        # data dependent parameters
+        self.target_shape: tuple[int, int] | None = None
+        self.scale_factor: tuple[float, float] | None = None
+
+    @property
+    def _param_in_keys(self) -> list[str]:
+        return [CommonKeys.images]
+
+    def _generate_parameters(self, image: Tensor) -> None:
+        im_shape = (image.size(2), image.size(3))
+        self.target_shape = _get_target_shape(
+            im_shape,
+            self.shape,
+            self.keep_ratio,
+            self.multiscale_mode,
+            self.scale_range,
+            self.align_long_edge,
+        )
+        self.scale_factor = (
+            self.target_shape[1] / im_shape[1],
+            self.target_shape[0] / im_shape[0],
+        )
+
+
+@Resize.register(CommonKeys.boxes2d, CommonKeys.boxes2d)
+def resize_boxes2d(boxes: Tensor, resize: Resize) -> Tensor:
+    """Resize 2D bounding boxes.
+
+    Args:
+        boxes (Tensor): The bounding boxes to be resized.
+        resize (Resize): The resize object holding the parameters.
+
+    Returns:
+        Tensor: Resized bounding boxes according to parameters in resize.
+    """
+    assert resize.scale_factor is not None
+    transform = torch.eye(3)
+    transform[0, 0] = resize.scale_factor[0]
+    transform[1, 1] = resize.scale_factor[1]
+    return transform_bbox(transform, boxes)
+
+
+@Resize.register(CommonKeys.images, CommonKeys.images)
+def resize_image(image: Tensor, resize: Resize) -> Tensor:
+    """Resize an image of dimensions [N, C, H, W]
+
+    Args:
+        image (Tensor): The image.
+        resize (Resize): The resize object holding the parameters.
+
+    Returns:
+        Tensor: Resized image according to parameters in resize.
+    """
+    assert resize.target_shape is not None
+    return _resize_tensor(
+        image, resize.target_shape, interpolation=resize.interpolation
+    )
+
+
+@Resize.register(CommonKeys.intrinsics, CommonKeys.intrinsics)
+def resize_intrinsics(intrinsics: Tensor, resize: Resize) -> Tensor:
+    """Scale camera intrinsics when resizing."""
+    assert resize.scale_factor is not None
+    return intrinsics[:2] * resize.scale_factor
+
+
+@Resize.register(CommonKeys.masks, CommonKeys.masks)
+def resize_masks(masks: Tensor, resize: Resize) -> Tensor:
+    """Resize masks."""
+    assert resize.target_shape is not None
+    if len(masks) == 0:  # handle empty masks
+        return masks
+    return (
+        _resize_tensor(
+            masks.float().unsqueeze(0),
+            resize.target_shape,
+            interpolation="nearest",
+        )
+        .type(masks.dtype)
+        .squeeze(0)
+    )
 
 
 def _get_resize_shape(
@@ -18,7 +163,7 @@ def _get_resize_shape(
     keep_ratio: bool = True,
     align_long_edge: bool = False,
 ) -> tuple[int, int]:
-    """Get shape for resize, considering keep_ratio."""
+    """Get shape for resize, considering keep_ratio and align_long_edge."""
     h, w = original_shape
     new_h, new_w = new_shape
     if keep_ratio:
@@ -32,145 +177,18 @@ def _get_resize_shape(
     return new_h, new_w
 
 
-def _transform_from_shapes(
-    input_shape: tuple[int, int], resize_shape: tuple[int, int]
-) -> torch.Tensor:
-    """Generate 3x3 scaling matrix from two shapes."""
-    h, w = input_shape
-    new_h, new_w = resize_shape
-    transform = torch.eye(3)
-    transform[0, 0] = new_w / w
-    transform[1, 1] = new_h / h
-    return transform
-
-
 def _resize_tensor(
-    inputs: torch.Tensor,
+    inputs: Tensor,
     shape: tuple[int, int],
     interpolation: str = "bilinear",
-) -> torch.Tensor:
-    """Resize Tensor of dimensions [N, C, H, W]."""
+) -> Tensor:
+    """Resize Tensor."""
     assert interpolation in {"nearest", "bilinear", "bicubic"}
     align_corners = None if interpolation == "nearest" else False
     output = F.interpolate(
         inputs, shape, mode=interpolation, align_corners=align_corners
     )
     return output
-
-
-@Transform(out_keys=(CommonKeys.images, CommonKeys.input_hw))
-def resize_image(
-    shape: tuple[int, int] | list[tuple[int, int]],
-    keep_ratio: bool = False,
-    multiscale_mode: str = "range",
-    scale_range: tuple[float, float] = (1.0, 1.0),
-    align_long_edge: bool = False,
-    interpolation: str = "bilinear",
-):
-    """Resize tensor of shape [N, C, H, W].
-
-    Args:
-        shape (tuple[int, int] | list[tuple[int, int]]): Image shape to
-            be resized to in (H, W) format. In multiscale mode 'list', shape
-            represents the list of possible shapes for resizing.
-        keep_ratio (bool, optional): If aspect ratio of original image should
-            be kept, the new shape will modified to fit the aspect ratio of
-            the original image. Defaults to False.
-        multiscale_mode (str, optional): one of [range, list]. Defaults to
-            "range".
-        scale_range (tuple[float, float], optional): Range of sampled image
-            scales in range mode, e.g. (0.8, 1.2), indicating minimum of 0.8 *
-            shape and maximum of 1.2 * shape. Defaults to (1.0, 1.0).
-        align_long_edge (bool, optional): If keep_ratio is true, this option
-            indicates if shape should be automatically aligned with the long
-            edge of the original image, e.g. original shape=(100, 80),original
-            shape=(100, 200) will yield (125, 100) as new shape. Defaults to
-            False.
-        interpolation (str, optional): Interpolation method. One of
-            ["nearest", "bilinear", "bicubic"]. Defaults to "bilinear".
-    """
-
-    def _resize(image: torch.Tensor) -> tuple[torch.Tensor, tuple[int, int]]:
-        im_shape = (image.size(2), image.size(3))
-        tgt_shape = _get_target_shape(
-            im_shape,
-            shape,
-            keep_ratio,
-            multiscale_mode,
-            scale_range,
-            align_long_edge,
-        )
-        return (
-            _resize_tensor(image, tgt_shape, interpolation=interpolation),
-            tgt_shape,
-        )
-
-    return _resize
-
-
-@Transform(
-    in_keys=(CommonKeys.boxes2d, CommonKeys.original_hw, CommonKeys.input_hw),
-    out_keys=(CommonKeys.boxes2d,),
-)
-def resize_boxes2d():
-    """Resize 2D bounding boxes."""
-
-    def _resize(
-        boxes: torch.Tensor,
-        original_hw: tuple[int, int],
-        input_hw: tuple[int, int],
-    ) -> torch.Tensor:
-        return transform_bbox(
-            _transform_from_shapes(original_hw, input_hw), boxes
-        )
-
-    return _resize
-
-
-@Transform(
-    in_keys=(
-        CommonKeys.intrinsics,
-        CommonKeys.original_hw,
-        CommonKeys.input_hw,
-    ),
-    out_keys=(CommonKeys.intrinsics,),
-)
-def resize_intrinsics():
-    """Scale camera intrinsics when resizing."""
-
-    def _resize(
-        intrinsics: torch.Tensor,
-        original_hw: tuple[int, int],
-        input_hw: tuple[int, int],
-    ) -> torch.Tensor:
-        return torch.matmul(
-            _transform_from_shapes(original_hw, input_hw), intrinsics
-        )
-
-    return _resize
-
-
-@Transform(
-    in_keys=(CommonKeys.masks, CommonKeys.input_hw),
-    out_keys=(CommonKeys.masks,),
-)
-def resize_masks():
-    """Resize masks."""
-
-    def _resize(
-        masks: torch.Tensor, input_hw: tuple[int, int]
-    ) -> torch.Tensor:
-        if len(masks) == 0:  # handle empty masks
-            return masks
-        return (
-            _resize_tensor(
-                masks.float().unsqueeze(0), input_hw, interpolation="nearest"
-            )
-            .type(masks.dtype)
-            .squeeze(0)
-        )
-
-    return _resize
 
 
 def _get_target_shape(
