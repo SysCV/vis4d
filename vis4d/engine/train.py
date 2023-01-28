@@ -71,6 +71,7 @@ class Trainer:
                 loss_input = self.data_connector.get_loss_input(
                     output, train_input
                 )
+
                 losses = opt.loss(output, **loss_input)
                 total_loss = sum(losses.values())
                 total_loss.backward()
