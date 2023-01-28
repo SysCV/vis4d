@@ -70,7 +70,7 @@ def default_3d_preprocessing(
         class_config(
             "vis4d.data.transforms.base.random_apply",
             transforms=augment_transforms,
-            p=augment_probability,
+            probability=augment_probability,
         ),
         class_config(
             "vis4d.data.transforms.points.center_and_normalize",

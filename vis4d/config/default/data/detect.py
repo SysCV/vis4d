@@ -74,7 +74,7 @@ def default_detection_preprocessing(
         class_config(
             "vis4d.data.transforms.base.random_apply",
             transforms=augmentation_transforms,
-            p=augmentation_probability,
+            probability=augmentation_probability,
         ),
         class_config("vis4d.data.transforms.normalize.normalize_image"),
     ]

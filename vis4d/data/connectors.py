@@ -1,12 +1,15 @@
 """Defines datastructures for data connection."""
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Dict, TypedDict
 
 from torch import Tensor
 from typing_extensions import NotRequired
 
-from vis4d.data.typing import DictData, DictStrArrayNested
+from vis4d.data.typing import DictData
+
+DictStrArrayNested = Dict[str, Tensor | Dict[str, Tensor]]
+
 
 ### Type Definitions
 

@@ -9,12 +9,16 @@ from vis4d.config.default.connectors import default_detection_connector
 from vis4d.data.connectors import SourceKeyDescription
 
 warnings.filterwarnings("ignore")
+import os
+
 from tests.util import get_test_data
 from vis4d.config.default.data.dataloader import default_dataloader_config
 from vis4d.config.default.data.detect import default_detection_preprocessing
 from vis4d.config.util import class_config
 
-COCO_DATA_ROOT = get_test_data("coco_test")
+# This is just for demo purposes. Uses the relative path to the vis4d root.
+VIS4D_ROOT = os.path.abspath(os.path.dirname(__file__) + "../../../../")
+COCO_DATA_ROOT = os.path.join(VIS4D_ROOT, "tests/vis4d-test-data/coco_test")
 TRAIN_SPLIT = "train"
 TEST_SPLIT = "train"  # "val"
 
