@@ -4,7 +4,7 @@ from __future__ import annotations
 import importlib
 import re
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Callable
 
 from ml_collections import ConfigDict
 
@@ -12,7 +12,46 @@ from ml_collections import ConfigDict
 # therefore not strictly typed
 
 
-def class_config(class_path: str, **kwargs: Any) -> ConfigDict:  # type: ignore
+def resolve_class_name(clazz: type | Callable[[Any], Any] | str) -> str:  # type: ignore # pylint: disable=line-too-long
+    """Resolves the full class name of the given class object, callable or str.
+
+    This function takes a class object and returns the class name as a string.
+    Args:
+        clazz (type | Callable[[Any], Any] | str): The object to resolve
+            the full path of.
+
+    Returns:
+        str: The full path of the given object.
+
+    Raises:
+        ValueError: If the given object is a lambda function.
+
+    Examples:
+        >>> class MyClass: pass
+        >>> resolve_class_name(MyClass)
+        '__main__.MyClass'
+        >>> resolve_class_name("path.to.MyClass")
+        'path.to.MyClass'
+        >>> def my_function(): pass
+        >>> resolve_class_name(my_function)
+        '__main__.my_function'
+    """
+    if isinstance(clazz, str):
+        return clazz
+
+    if clazz.__name__ == "lambda":
+        raise ValueError(
+            "Resolving the full class path of lambda functions"
+            "is not supported. Please define a inline function instead."
+        )
+
+    module = clazz.__module__
+    if module is None or module == str.__class__.__module__:
+        return clazz.__name__
+    return module + "." + clazz.__name__
+
+
+def class_config(clazz: type | Callable[[Any], Any] | str, **kwargs: Any) -> ConfigDict:  # type: ignore # pylint: disable=line-too-long
     """Creates a configuration which can be instantiated as a class.
 
     This function creates a configuration dict which can be passed to
@@ -30,16 +69,36 @@ def class_config(class_path: str, **kwargs: Any) -> ConfigDict:  # type: ignore
     >>>
     >>> # instantiate object
     >>> inst_obj = instantiate_classes(class_cfg_obj)
-    >>> print(type(inst_obj)) # -> Will print Module
+    >>> print(type(inst_obj)) # -> Will print <class 'your.module.Module'>
 
+    >>> # Example by directly passing objects:
+    >>> class MyClass:
+    >>>     def __init__(self, name: str, age: int):
+    >>>         self.name = name
+    >>>         self.age = age
+    >>> class_cfg_obj = class_config(MyClass, name="John", age= 25)
+
+    >>> print(class_cfg_obj)
+    >>> # Prints :
+    >>> class_path: __main__.MyClass
+    >>> init_args:
+    >>>   name: John
+    >>>   age: 25
+
+    >>> # instantiate object
+    >>> inst_obj = instantiate_classes(class_cfg_obj)
+    >>> print(type(inst_obj)) # -> Will print <class '__main__.MyClass'>
+    >>> print(inst_obj.name) # -> Will print John
 
     Args:
-        class_path (str): _description_
-        **kwargs (any): Kwargs to pass to the class consstructor.
+        clazz (type | Callable[[Any], Any] | str): class type or functor or
+            class string path.
+        **kwargs (any): Kwargs to pass to the class constructor.
 
     Returns:
         ConfigDict: _description_
     """
+    class_path = resolve_class_name(clazz)
     if class_path is None or len(kwargs) == 0:
         return ConfigDict({"class_path": class_path})
     return ConfigDict(

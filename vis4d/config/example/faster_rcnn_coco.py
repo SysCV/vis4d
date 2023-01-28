@@ -11,10 +11,10 @@ from vis4d.data.connectors import SourceKeyDescription
 warnings.filterwarnings("ignore")
 import os
 
-from tests.util import get_test_data
 from vis4d.config.default.data.dataloader import default_dataloader_config
 from vis4d.config.default.data.detect import default_detection_preprocessing
 from vis4d.config.util import class_config
+from vis4d.data.datasets.coco import COCO
 
 # This is just for demo purposes. Uses the relative path to the vis4d root.
 VIS4D_ROOT = os.path.abspath(os.path.dirname(__file__) + "../../../../")
@@ -53,7 +53,7 @@ def get_config() -> ConfigDict:
 
     # Train
     dataset_cfg_train = class_config(
-        "vis4d.data.datasets.coco.COCO",
+        COCO,
         data_root=COCO_DATA_ROOT,
         split=TRAIN_SPLIT,
     )
@@ -66,11 +66,18 @@ def get_config() -> ConfigDict:
         engine.batch_size,
         4,
         batchprocess_fn=class_config("vis4d.data.transforms.pad.pad_image"),
+        # FIXME: Currently, resolving transforms is broken if we directly pass
+        # the function instead of the name to resolve, since resolving
+        # the function path with the decorator converts e.g. 'pad_image' which
+        # is 'BatchTransform.__call__.<locals>.get_transform_fn'
+        # to  vis4d.data.transforms.base.get_transform_fn.
+        # We need to use to full config path for now. Should probably be fixed
+        # with the transform update
     )
 
     # Test
     dataset_test_cfg = class_config(
-        "vis4d.data.datasets.coco.COCO",
+        COCO,
         data_root=COCO_DATA_ROOT,
         split=TEST_SPLIT,
     )
@@ -83,6 +90,13 @@ def get_config() -> ConfigDict:
         samples_per_gpu=1,
         workers_per_gpu=1,
         batchprocess_fn=class_config("vis4d.data.transforms.pad.pad_image"),
+        # FIXME: Currently, resolving transforms is broken if we directly pass
+        # the function instead of the name to resolve, since resolving
+        # the function path with the decorator converts e.g. 'pad_image' which
+        # is 'BatchTransform.__call__.<locals>.get_transform_fn'
+        # to  vis4d.data.transforms.base.get_transform_fn.
+        # We need to use to full config path for now. Should probably be fixed
+        # with the transform update
     )
 
     config.train_dl = dataloader_train_cfg
