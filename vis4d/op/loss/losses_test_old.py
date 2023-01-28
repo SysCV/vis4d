@@ -1,4 +1,5 @@
 """Testcases for losses."""
+# TODO, move to test
 import unittest
 
 import torch

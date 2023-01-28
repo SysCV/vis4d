@@ -1,4 +1,4 @@
-"""Test cases for warmup."""
+"""Test cases for dataset and dataloader using COCO."""
 from __future__ import annotations
 
 import unittest

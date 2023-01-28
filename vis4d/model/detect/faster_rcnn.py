@@ -4,7 +4,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from vis4d.common import LossesType, ModelOutput
+from vis4d.common import ModelOutput
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
@@ -15,8 +15,7 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
-from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
-from vis4d.op.detect.rpn import RPNLoss
+from vis4d.op.detect.rcnn import RoI2Det
 from vis4d.op.fpp.fpn import FPN
 
 REV_KEYS = [
@@ -165,60 +164,4 @@ class FasterRCNN(nn.Module):
             boxes[i] = scale_and_clip_boxes(boxs, original_hw[i], images_hw[i])
         return dict(
             boxes2d=boxes, boxes2d_scores=scores, boxes2d_classes=class_ids
-        )
-
-
-class FasterRCNNLoss(nn.Module):
-    """Faster RCNN Loss."""
-
-    def __init__(self) -> None:
-        """Creates an instance of the class."""
-        super().__init__()
-        anchor_generator = get_default_anchor_generator()
-        rpn_box_encoder = get_default_rpn_box_encoder()
-        rcnn_box_encoder = get_default_rcnn_box_encoder()
-        self.rpn_loss = RPNLoss(anchor_generator, rpn_box_encoder)
-        self.rcnn_loss = RCNNLoss(rcnn_box_encoder)
-
-    def forward(
-        self,
-        outputs: FRCNNOut,
-        input_hw: list[tuple[int, int]],
-        boxes2d: list[torch.Tensor],
-    ) -> LossesType:
-        """Forward of loss function.
-
-        Args:
-            outputs (FRCNNOut): Raw model outputs.
-            input_hw (list[tuple[int, int]]): Input image resolutions.
-            boxes2d (list[torch.Tensor]): Bounding box labels.
-
-        Returns:
-            LossesType: Dictionary of model losses.
-        """
-        rpn_losses = self.rpn_loss(*outputs.rpn, boxes2d, input_hw)
-        assert (
-            outputs.sampled_proposals is not None
-            and outputs.sampled_targets is not None
-        )
-        rcnn_losses = self.rcnn_loss(
-            *outputs.roi,
-            outputs.sampled_proposals.boxes,
-            outputs.sampled_targets.labels,
-            outputs.sampled_targets.boxes,
-            outputs.sampled_targets.classes,
-        )
-        return dict(**rpn_losses._asdict(), **rcnn_losses._asdict())
-
-    def __call__(
-        self,
-        outputs: FRCNNOut,
-        input_hw: list[tuple[int, int]],
-        boxes2d: list[torch.Tensor],
-    ) -> LossesType:
-        """Type definition for call implementation."""
-        return self._call_impl(
-            outputs,
-            input_hw,
-            boxes2d,
         )

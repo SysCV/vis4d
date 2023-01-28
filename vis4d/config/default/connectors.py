@@ -5,7 +5,11 @@ from ml_collections import ConfigDict
 
 from vis4d.config.util import class_config
 from vis4d.data.const import CommonKeys
-from vis4d.engine.connectors import DataConnectionInfo, SourceKeyDescription
+from vis4d.engine.connectors import (
+    DataConnectionInfo,
+    SourceKeyDescription,
+    StaticDataConnector,
+)
 
 
 def default_detection_connector(
@@ -58,12 +62,38 @@ def default_detection_connector(
     test["original_hw"] = "original_hw"
 
     loss = dict()
-    loss[CommonKeys.input_hw] = SourceKeyDescription(
-        key=CommonKeys.input_hw, source="data"
+
+    # TODO, remove hardcoded loss connections
+    # RPN Loss connections
+    loss["cls_outs"] = SourceKeyDescription(key="rpn.cls", source="prediction")
+    loss["reg_outs"] = SourceKeyDescription(key="rpn.box", source="prediction")
+    loss["target_boxes"] = SourceKeyDescription(key="boxes2d", source="data")
+    loss["images_hw"] = SourceKeyDescription(key="input_hw", source="data")
+
+    # RCNN Loss connections
+    loss["class_outs"] = SourceKeyDescription(
+        key="roi.cls_score", source="prediction"
     )
-    loss[CommonKeys.boxes2d] = SourceKeyDescription(
-        key=CommonKeys.boxes2d, source="data"
+    loss["regression_outs"] = SourceKeyDescription(
+        key="roi.bbox_pred", source="prediction"
     )
+    loss["boxes"] = SourceKeyDescription(
+        key="sampled_proposals.boxes", source="prediction"
+    )
+    loss["boxes_mask"] = SourceKeyDescription(
+        key="sampled_targets.labels", source="prediction"
+    )
+    loss["target_boxes"] = SourceKeyDescription(
+        key="sampled_targets.boxes", source="prediction"
+    )
+    loss["target_classes"] = SourceKeyDescription(
+        key="sampled_targets.classes", source="prediction"
+    )
+
+    loss["pred_sampled_proposals"] = SourceKeyDescription(
+        key="sampled_proposals", source="prediction"
+    )
+    # Visualizer
 
     box_vis = dict()
     box_vis[CommonKeys.boxes2d] = SourceKeyDescription(
@@ -75,6 +105,4 @@ def default_detection_connector(
     if evaluators is not None:
         info["evaluators"] = evaluators
 
-    return class_config(
-        "vis4d.data.connectors.StaticDataConnector", connections=info
-    )
+    return class_config(StaticDataConnector, connections=info)

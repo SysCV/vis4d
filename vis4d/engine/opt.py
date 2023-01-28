@@ -17,39 +17,25 @@ class Optimizer:
         learning_rate: float,
         device: None | torch.device,
         gpu_id: None | int,
+        model: nn.Module,
+        loss: nn.Module,
+        optimizer: optim.Optimizer,
+        lr_warmup: None | BaseLRWarmup,
+        lr_scheduler: None | optim.lr_scheduler._LRScheduler,
     ) -> None:
         """Creates an instance of the class."""
         self.learning_rate = learning_rate
 
-        self.model = self.setup_model()
-        self.model.to(device)
+        self.model = model.to(device)
+
         if get_world_size() > 1:
+            assert gpu_id is not None, "GPU ID must be specified for DDP."
             # This is ok. Not sure why pylint complains.
-            self.model = DDP(self.model, device_ids=[gpu_id])  # type: ignore
-        self.loss = self.setup_loss()
-        self.optimizer = self.setup_optimizer()
-        self.lr_scheduler = self.setup_lr_scheduler()
-        self.warmup: BaseLRWarmup | None = self.setup_warmup()
-
-    def setup_model(self) -> nn.Module:
-        """Set-up model."""
-        raise NotImplementedError
-
-    def setup_loss(self) -> nn.Module:
-        """Set-up loss function."""
-        raise NotImplementedError
-
-    def setup_optimizer(self) -> optim.Optimizer:
-        """Set-up optimizer."""
-        raise NotImplementedError
-
-    def setup_lr_scheduler(self) -> optim.lr_scheduler._LRScheduler:
-        """Set-up learning rate scheduler."""
-        raise NotImplementedError
-
-    def setup_warmup(self) -> None | BaseLRWarmup:
-        """Set-up learning rate warm-up."""
-        return None
+            self.model = DDP(self.model, device_ids=[gpu_id])
+        self.loss = loss
+        self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
+        self.warmup = lr_warmup
 
     def warmup_step(self, step: int) -> None:
         """Set learning rate according to warmup."""

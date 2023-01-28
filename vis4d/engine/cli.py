@@ -17,9 +17,10 @@ from ml_collections.config_flags.config_flags import (
     _ConfigFileParser,
     _ConfigFlag,
 )
+from torch import optim
 
 from vis4d.config.util import instantiate_classes, pprints_config
-from vis4d.engine.model_to_revise.faster_rcnn import FasterRCNNOptimizer
+from vis4d.engine.opt import Optimizer
 from vis4d.engine.test import Tester
 from vis4d.engine.train import Trainer
 
@@ -130,11 +131,25 @@ def _train() -> None:
         data_connector=config.data_connector,
     )
     tester = Tester(
-        dataloaders=[config.train_dl], data_connector=config.data_connector
+        dataloaders=config.test_dl, data_connector=config.data_connector
     )
 
-    # optimizer, TODO move to config.
-    opt = FasterRCNNOptimizer(config.engine.learning_rate, device, 0, 80)
+    opt = Optimizer(
+        config.engine.learning_rate,
+        device,
+        0,
+        config.model,
+        config.loss,
+        optim.SGD(  # TOOD, move optimzier to config
+            config.model.parameters(),
+            lr=config.engine.learning_rate,
+            momentum=0.9,
+            weight_decay=0.0001,
+        ),
+        None,
+        None,
+    )
+
     # run training
     trainer.train(opt, config.engine.save_prefix, tester, config.engine.metric)
 

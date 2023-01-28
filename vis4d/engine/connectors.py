@@ -1,12 +1,14 @@
 """Defines datastructures for data connection."""
 from __future__ import annotations
 
-from typing import Dict, TypedDict, Union
+from typing import Dict, NamedTuple, TypedDict, Union
 
 from torch import Tensor
 from typing_extensions import NotRequired
 
+from vis4d.common.named_tuple import get_from_namedtuple
 from vis4d.data.typing import DictData
+from vis4d.engine.util import is_namedtuple
 
 DictStrArrNested = Dict[str, Union[Tensor, Dict[str, Tensor]]]
 
@@ -242,7 +244,7 @@ class StaticDataConnector(DataConnector):
     def _get_inputs_for_pred_and_data(
         self,
         connection_dict: dict[str, SourceKeyDescription],
-        prediction: DictData,
+        prediction: DictData | NamedTuple,
         data: DictData,
     ) -> dict[str, Tensor | DictStrArrNested]:
         """Extracts input data from the provided SourceKeyDescription.
@@ -263,14 +265,23 @@ class StaticDataConnector(DataConnector):
                 the data dicts.
         """
         out = {}
-        for visualizer_key, data_key_desc in connection_dict.items():
-            if data_key_desc["source"] == "data":
-                out[visualizer_key] = data[data_key_desc["key"]]
-            elif data_key_desc["source"] == "prediction":
-                out[visualizer_key] = prediction[data_key_desc["key"]]
+        for new_key_name, old_key_name in connection_dict.items():
+            # Assign field from data
+            if old_key_name["source"] == "data":
+                out[new_key_name] = data[old_key_name["key"]]
+
+            # Assign field from model prediction
+            elif old_key_name["source"] == "prediction":
+                if is_namedtuple(prediction):
+                    out[new_key_name] = get_from_namedtuple(
+                        prediction, old_key_name["key"]  # type: ignore
+                    )
+                else:
+                    # TODO: dict nested lookups
+                    out[new_key_name] = prediction[old_key_name["key"]]  # type: ignore # pylint: disable=line-too-long
             else:
                 raise ValueError(
-                    f"Unknown data source {data_key_desc['source']}."
+                    f"Unknown data source {old_key_name['source']}."
                     f"Available: [prediction, data]"
                 )
         return out
@@ -306,7 +317,7 @@ class StaticDataConnector(DataConnector):
         return {v: data[k] for k, v in self.connections["test"].items()}
 
     def get_loss_input(
-        self, prediction: DictData, data: DictData
+        self, prediction: DictData | NamedTuple, data: DictData
     ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the loss during training.
 
@@ -325,7 +336,7 @@ class StaticDataConnector(DataConnector):
         )
 
     def get_visualizer_input(
-        self, mode: str, prediction: DictData, data: DictData
+        self, mode: str, prediction: DictData | NamedTuple, data: DictData
     ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the visualizer.
 
@@ -345,7 +356,7 @@ class StaticDataConnector(DataConnector):
         return self._get_inputs_for_pred_and_data(vis_dict, prediction, data)
 
     def get_evaluator_input(
-        self, mode: str, prediction: DictData, data: DictData
+        self, mode: str, prediction: NamedTuple | DictData, data: DictData
     ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the evaluator.
 

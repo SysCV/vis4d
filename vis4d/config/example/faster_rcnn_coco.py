@@ -6,7 +6,11 @@ import warnings
 from ml_collections import ConfigDict
 
 from vis4d.config.default.connectors import default_detection_connector
+from vis4d.config.default.loss.faster_rcnn_loss import (
+    get_default_faster_rcnn_loss,
+)
 from vis4d.engine.connectors import SourceKeyDescription
+from vis4d.model.detect.faster_rcnn import FasterRCNN
 
 warnings.filterwarnings("ignore")
 import os
@@ -101,6 +105,15 @@ def get_config() -> ConfigDict:
 
     config.train_dl = dataloader_train_cfg
     config.test_dl = [dataloader_cfg_test]
+
+    ######################################################
+    ##                        MODEL                     ##
+    ######################################################
+    config.model = class_config(FasterRCNN, num_classes=80, weights=None)
+    ######################################################
+    ##                        LOSS                      ##
+    ######################################################
+    config.loss = class_config(get_default_faster_rcnn_loss)
 
     ######################################################
     ##                  DATA CONNECTOR                  ##

@@ -72,7 +72,7 @@ class Trainer:
                     output, train_input
                 )
 
-                losses = opt.loss(output, **loss_input)
+                losses = opt.loss(**loss_input)
                 total_loss = sum(losses.values())
                 total_loss.backward()
 
@@ -94,7 +94,9 @@ class Trainer:
                         log_str += f"{k}: {v / self.log_step:.3f}, "
                     logger.info(log_str.rstrip(", "))
                     running_losses = {}
-            opt.lr_scheduler.step()
+
+            if opt.lr_scheduler is not None:
+                opt.lr_scheduler.step()
 
             if (
                 epoch % self.save_every_nth_epoch

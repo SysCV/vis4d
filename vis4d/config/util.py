@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import importlib
 import re
-from collections.abc import Sequence
-from typing import Any, Callable
+from collections.abc import Callable, Sequence
+from typing import Any
 
 from ml_collections import ConfigDict
 
@@ -12,7 +12,7 @@ from ml_collections import ConfigDict
 # therefore not strictly typed
 
 
-def resolve_class_name(clazz: type | Callable[[Any], Any] | str) -> str:  # type: ignore # pylint: disable=line-too-long
+def resolve_class_name(clazz: type | Callable[Any, Any] | str) -> str:  # type: ignore # pylint: disable=line-too-long
     """Resolves the full class name of the given class object, callable or str.
 
     This function takes a class object and returns the class name as a string.
@@ -51,7 +51,7 @@ def resolve_class_name(clazz: type | Callable[[Any], Any] | str) -> str:  # type
     return module + "." + clazz.__name__
 
 
-def class_config(clazz: type | Callable[[Any], Any] | str, **kwargs: Any) -> ConfigDict:  # type: ignore # pylint: disable=line-too-long
+def class_config(clazz: type | Callable[Any, Any] | str, **kwargs: Any) -> ConfigDict:  # type: ignore # pylint: disable=line-too-long
     """Creates a configuration which can be instantiated as a class.
 
     This function creates a configuration dict which can be passed to
