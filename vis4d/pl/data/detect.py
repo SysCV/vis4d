@@ -3,8 +3,12 @@ from __future__ import annotations
 
 from torch.utils.data import DataLoader
 
-from vis4d.engine.data.datasets import coco_train, coco_val, coco_val_eval
-from vis4d.engine.data.detect import (
+from vis4d.engine.data_to_revise.datasets import (
+    coco_train,
+    coco_val,
+    coco_val_eval,
+)
+from vis4d.engine.data_to_revise.detect import (
     default_test_pipeline,
     default_train_pipeline,
 )

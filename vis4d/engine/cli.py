@@ -19,7 +19,7 @@ from ml_collections.config_flags.config_flags import (
 )
 
 from vis4d.config.util import instantiate_classes, pprints_config
-from vis4d.engine.model.faster_rcnn import FasterRCNNOptimizer
+from vis4d.engine.model_to_revise.faster_rcnn import FasterRCNNOptimizer
 from vis4d.engine.test import Tester
 from vis4d.engine.train import Trainer
 
@@ -118,6 +118,7 @@ _MODE = flags.DEFINE_string(
 
 
 def _train() -> None:
+    """Train the model."""
     # parameters
     device = torch.device("cuda")  # TODO, copy ddp code from engine
     config: ConfigDict = instantiate_classes(_CONFIG.value)

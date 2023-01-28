@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.s3dis import S3DIS
 from vis4d.data.typing import DictData
-from vis4d.engine.data.segment3d import (
+from vis4d.engine.data_to_revise.segment3d import (
     default_test_pipeline,
     default_train_pipeline,
 )

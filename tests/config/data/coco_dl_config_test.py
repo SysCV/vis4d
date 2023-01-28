@@ -50,6 +50,7 @@ class TestDataloaderConfig(unittest.TestCase):
 
     def test_dataloader_config(self) -> None:
         """Test case to instantiate a dataloader from a config.
+
         This also checks that the detection preprocessing works.
         """
         dataset_cfg_train = class_config(

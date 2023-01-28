@@ -17,7 +17,7 @@ from vis4d.common.distributed import get_world_size
 from vis4d.data import DictData
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.io import HDF5Backend
-from vis4d.engine.data.detect import (
+from vis4d.engine.data_to_revise.detect import (
     default_test_pipeline,
     default_train_pipeline,
 )
