@@ -4,8 +4,8 @@ from __future__ import annotations
 from ml_collections import ConfigDict
 
 from vis4d.config.util import class_config
-from vis4d.data.connectors import DataConnectionInfo, SourceKeyDescription
 from vis4d.data.const import CommonKeys
+from vis4d.engine.connectors import DataConnectionInfo, SourceKeyDescription
 
 
 def default_detection_connector(

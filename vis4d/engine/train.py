@@ -11,7 +11,7 @@ from torch.utils.data.distributed import DistributedSampler
 from vis4d.common import DictStrAny
 from vis4d.common.distributed import get_rank
 from vis4d.data import DictData
-from vis4d.data.connectors import DataConnector
+from vis4d.engine.connectors import DataConnector
 
 from .opt import Optimizer
 from .test import Tester

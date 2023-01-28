@@ -8,7 +8,7 @@ from typing_extensions import NotRequired
 
 from vis4d.data.typing import DictData
 
-DictStrArrNested = Dict[str, Union[Tensor, Dict[str, Tensor]]]  # type: ignore
+DictStrArrNested = Dict[str, Union[Tensor, Dict[str, Tensor]]]
 
 ### Type Definitions
 

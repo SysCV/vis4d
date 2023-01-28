@@ -6,7 +6,7 @@ import warnings
 from ml_collections import ConfigDict
 
 from vis4d.config.default.connectors import default_detection_connector
-from vis4d.data.connectors import SourceKeyDescription
+from vis4d.engine.connectors import SourceKeyDescription
 
 warnings.filterwarnings("ignore")
 import os

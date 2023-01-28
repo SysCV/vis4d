@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from vis4d.data import DictData
-from vis4d.data.connectors import DataConnector
+from vis4d.engine.connectors import DataConnector
 from vis4d.eval import Evaluator
 from vis4d.vis.base import Visualizer
 
