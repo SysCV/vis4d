@@ -33,7 +33,7 @@ class TransferableDataType(ABC):
     """
 
     @classmethod
-    def __subclasshook__(cls, subclass: Any) -> bool | Any:
+    def __subclasshook__(cls, subclass: Any) -> bool | Any:  # type: ignore
         """Subclass hook."""
         if cls is TransferableDataType:
             to = getattr(subclass, "to", None)
@@ -61,10 +61,10 @@ def is_dataclass_instance(obj: object) -> bool:
     return dataclasses.is_dataclass(obj) and not isinstance(obj, type)
 
 
-def apply_to_collection(
+def apply_to_collection(  # type: ignore
     data: Any,
     dtype: type | Any | tuple[type | Any],
-    function: Callable,
+    function: Callable[[Any], Any],
     *args: Any,
     wrong_dtype: None | type | tuple[type, ...] = None,
     include_none: bool = True,
@@ -178,7 +178,7 @@ def apply_to_collection(
     return data
 
 
-def move_data_to_device(
+def move_data_to_device(  # type: ignore
     batch: Any,
     device: torch.device | str | int,
     convert_to_numpy: bool = False,
@@ -205,7 +205,7 @@ def move_data_to_device(
     if isinstance(device, str):
         device = torch.device(device)
 
-    def batch_to(data: Any) -> Any:
+    def batch_to(data: Any) -> Any:  # type: ignore[misc]
         kwargs = {}
         # Don't issue non-blocking transfers to CPU
         # Same with MPS due to a race condition bug:

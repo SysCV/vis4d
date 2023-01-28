@@ -28,26 +28,11 @@ if OPENCV_AVAILABLE:
     )
 
 
-def convert_input_dir_to_dataset(input_dir: str) -> None:  # TODO revise
-    """Convert a given input directory to a dataset for prediction."""
-    if input_dir is not None:
-        if input_dir is not None:
-            if not os.path.exists(input_dir):
-                raise FileNotFoundError(
-                    f"Input directory does not exist: {input_dir}"
-                )
-        if input_dir[-1] == "/":
-            input_dir = input_dir[:-1]
-        dataset_name = os.path.basename(input_dir)
-        dataset = ScalabelDataset(Custom(dataset_name, input_dir), False)
-    return dataset
-
-
 def im_decode(
     im_bytes: bytes, mode: str = "RGB", backend: str = "PIL"
 ) -> NDArrayUI8:
     """Decode to image (numpy array, RGB) from bytes."""
-    assert mode in ["BGR", "RGB"], f"{mode} not supported for image decoding!"
+    assert mode in {"BGR", "RGB"}, f"{mode} not supported for image decoding!"
     if backend == "PIL":
         pil_img = Image.open(BytesIO(bytearray(im_bytes)))
         pil_img = ImageOps.exif_transpose(pil_img)
@@ -89,13 +74,12 @@ class CacheMappingMixin:
     string representation, so that the mapping can be loaded and re-used.
     """
 
-    def _load_mapping(
+    def _load_mapping_data(
         self,
         generate_map_func: Callable[[], list[DictStrAny]],
         use_cache: bool = True,
-    ) -> Dataset:
-        """Load cached mapping or generate if not exists."""
-        timer = Timer()
+    ) -> list[DictStrAny]:
+        """Load possibly cached mapping via generate_map_func."""
         if use_cache:
             cache_dir = os.path.join(
                 appdirs.user_cache_dir(appname="vis4d"),
@@ -113,10 +97,19 @@ class CacheMappingMixin:
                     data = pickle.loads(file.read())
         else:
             data = generate_map_func()
+        return data
 
+    def _load_mapping(
+        self,
+        generate_map_func: Callable[[], list[DictStrAny]],
+        use_cache: bool = True,
+    ) -> Dataset[DictStrAny]:
+        """Load cached mapping or generate if not exists."""
+        timer = Timer()
+        data = self._load_mapping_data(generate_map_func, use_cache)
         dataset = DatasetFromList(data)
         rank_zero_info(
-            f"Loading {self.__repr__()} takes {timer.time():.2f} seconds."
+            f"Loading {str(self.__repr__)} takes {timer.time():.2f} seconds."
         )
         return dataset
 
@@ -141,7 +134,7 @@ class DatasetFromList(Dataset):  # type: ignore
     def __init__(  # type: ignore
         self, lst: list[Any], deepcopy: bool = False, serialize: bool = True
     ):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             lst: a list which contains elements to produce.

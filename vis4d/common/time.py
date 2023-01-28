@@ -1,4 +1,4 @@
-"""Utilities for timing."""
+"""This module contains utilities for tracking execution time."""
 from __future__ import annotations
 
 from time import perf_counter
@@ -23,7 +23,7 @@ class Timer:  # pragma: no cover
     """Timer class based on perf_counter."""
 
     def __init__(self) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         self._tic = perf_counter()
         self._toc: None | float = None
         self.paused = False

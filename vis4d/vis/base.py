@@ -1,6 +1,6 @@
 """Vis4D base visualizer."""
 
-from typing import Any
+from vis4d.common.typing import ArgsType
 
 
 class Visualizer:
@@ -10,7 +10,7 @@ class Visualizer:
         """Reset visualizer for new round of evaluation."""
         raise NotImplementedError()
 
-    def process(self, args: Any, **kwargs: Any) -> None:  # type: ignore
+    def process(self, *args: ArgsType, **kwargs: ArgsType) -> None:
         """Process data of single sample."""
         raise NotImplementedError()
 

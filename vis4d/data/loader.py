@@ -4,6 +4,7 @@ from __future__ import annotations
 import bisect
 import math
 from collections.abc import Callable, Iterable, Iterator
+from typing import Union
 
 import torch
 from torch.utils.data import (
@@ -11,7 +12,6 @@ from torch.utils.data import (
     DataLoader,
     Dataset,
     IterableDataset,
-    Sampler,
     get_worker_info,
 )
 from torch.utils.data.distributed import DistributedSampler
@@ -20,16 +20,15 @@ from ..common.distributed import PicklableWrapper, get_world_size
 from .const import CommonKeys
 from .datasets import VideoMixin
 from .reference import ReferenceViewSampler
-from .samplers import BaseSampler, VideoInferenceSampler
+from .samplers import VideoInferenceSampler
 from .typing import DictData
 
-# Keys that contain pointcloud based data and can be stacked using torch.stack.
-POINT_KEYS = [
-    CommonKeys.colors3d,
-    CommonKeys.points3d,
-    CommonKeys.semantics3d,
-    CommonKeys.instances3d,
-]
+DictDataOrList = Union[DictData, list[DictData]]
+_DATASET = Dataset[DictDataOrList]
+_DATASET_ONLY_DICT = Dataset[DictData]  # pylint: disable=invalid-name
+_CONCAT_DATASET = ConcatDataset[DictDataOrList]  # pylint: disable=invalid-name
+_ITERABLE_DATASET = IterableDataset[DictData]  # pylint: disable=invalid-name
+_DATALOADER = DataLoader[DictDataOrList]  # pylint: disable=invalid-name
 
 
 def default_collate(batch: list[DictData]) -> DictData:
@@ -42,8 +41,6 @@ def default_collate(batch: list[DictData]) -> DictData:
             data[key] = torch.stack([b[key] for b in batch], 0)
         elif key == CommonKeys.segmentation_masks:
             data[key] = torch.stack([b[key] for b in batch], 0)
-        # elif key in POINT_KEYS:
-        #     data[key] = torch.stack([b[key] for b in batch], 0)
         else:
             data[key] = [b[key] for b in batch]
     return data
@@ -58,7 +55,7 @@ def multi_sensor_collate(batch: list[DictData]) -> DictData:
     return data
 
 
-class DataPipe(ConcatDataset):
+class DataPipe(_CONCAT_DATASET):
     """DataPipe class.
 
     This class wraps one or multiple instances of a PyTorch Dataset so that the
@@ -68,11 +65,11 @@ class DataPipe(ConcatDataset):
 
     def __init__(
         self,
-        datasets: Dataset | Iterable[Dataset],
+        datasets: _DATASET | Iterable[_DATASET],
         preprocess_fn: Callable[[DictData], DictData] = lambda x: x,
         reference_view_sampler: None | ReferenceViewSampler = None,
     ):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             datasets (Dataset | Iterable[Dataset]): Dataset(s) to be
@@ -105,12 +102,12 @@ class DataPipe(ConcatDataset):
             sample_idx = idx - self.cumulative_sizes[dataset_idx - 1]
         return dataset_idx, sample_idx
 
-    def _getitem(self, idx: int) -> DictData:
+    def _getitem(self, idx: int) -> DictDataOrList:
         """Modular re-implementation of getitem."""
         dataset_idx, sample_idx = self.get_dataset_sample_index(idx)
         return self.datasets[dataset_idx][sample_idx]
 
-    def __getitem__(self, idx: int) -> DictData | list[DictData]:
+    def __getitem__(self, idx: int) -> DictDataOrList:
         """Wrap getitem to apply augmentations."""
         if self.reference_view_sampler is not None:
             dataset_idx, _ = self.get_dataset_sample_index(idx)
@@ -131,7 +128,7 @@ class DataPipe(ConcatDataset):
         return data
 
 
-class SubdividingIterableDataset(IterableDataset):
+class SubdividingIterableDataset(_ITERABLE_DATASET):
     """Subdivides a given dataset into smaller chunks.
 
     This also adds a field called 'index' (DataKeys.index) to the data
@@ -153,7 +150,7 @@ class SubdividingIterableDataset(IterableDataset):
 
     def __init__(
         self,
-        dataset: Dataset[DictData],
+        dataset: _DATASET_ONLY_DICT,
         n_samples_per_batch: int,
         preprocess_fn: Callable[[DictData], DictData] | None = None,
     ) -> None:
@@ -168,11 +165,14 @@ class SubdividingIterableDataset(IterableDataset):
                 function of a single sample. Can be None.
         """
         super().__init__()
-
         self.dataset = dataset
         self.n_samples_per_batch = n_samples_per_batch
         self.preprocess_fn = preprocess_fn
         self.reference_view_sampler = None
+
+    def __getitem__(self, index: int) -> DictData:
+        """Indexing is not supported for IterableDatasets."""
+        raise NotImplementedError("IterableDataset does not support indeing")
 
     def __iter__(self) -> Iterator[DictData]:
         """Iterates over the dataset, supporting distributed sampling."""
@@ -185,14 +185,19 @@ class SubdividingIterableDataset(IterableDataset):
             num_workers = worker_info.num_workers
             worker_id = worker_info.id
 
-        for i in range(math.ceil(len(self.dataset) / num_workers)):
+        assert hasattr(
+            self.dataset, "__len__"
+        ), "Dataset must have __len__ in order to be subdivided."
+        n_samples = len(self.dataset)
+        for i in range(math.ceil(n_samples / num_workers)):
             data_idx = i * num_workers + worker_id
-            if data_idx >= len(self.dataset):
+            if data_idx >= n_samples:
                 continue
             data_sample = self.dataset[data_idx]
-            n_elements = next(iter(data_sample.values())).size(0)
+
+            n_elements = list((data_sample.values()))[0].size(0)
             for idx in range(int(n_elements / self.n_samples_per_batch)):
-                # TODO, this is kind of ugly
+                # This is kind of ugly
                 # this field defines from which source the data was loaded
                 # (first entry, second entry, ...)
                 # this is required if we e.g. want to subdivide a room that is
@@ -219,36 +224,37 @@ def build_train_dataloader(
     workers_per_gpu: int = 1,
     batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
-    sampler: None | BaseSampler = None,
     pin_memory: bool = True,
-) -> DataLoader:
+    shuffle: bool = True,
+) -> _DATALOADER:
     """Build training dataloader."""
-    if sampler is not None:
-        batch_size, shuffle = 1, False
-    else:
-        batch_size, shuffle, train_sampler = samples_per_gpu, False, None
 
-    if dataset.reference_view_sampler is None:
-        _collate_fn = lambda x: collate_fn(batchprocess_fn(x))
-    else:
+    def _collate_fn_single(data: list[DictData]) -> DictDataOrList:
+        """Collates data from single view dataset."""
+        return collate_fn(batchprocess_fn(data))
 
-        def _collate_fn(data: DictData):
-            views = []
-            for view_idx in range(len(data[0])):
-                view = collate_fn(batchprocess_fn([d[view_idx] for d in data]))
-                views.append(view)
-            return views
+    def _collate_fn_multi(data: list[list[DictData]]) -> DictDataOrList:
+        """Collates data from multi view dataset."""
+        views = []
+        for view_idx in range(len(data[0])):
+            view = collate_fn(batchprocess_fn([d[view_idx] for d in data]))
+            views.append(view)
+        return views
 
-    if get_world_size() > 1 and sampler is None:
-        sampler = DistributedSampler(dataset)
+    sampler = None
+    if get_world_size() > 1:
+        sampler = DistributedSampler(dataset, shuffle=shuffle)
         shuffle = False
 
     dataloader = DataLoader(
         dataset,
-        batch_sampler=train_sampler,
-        batch_size=batch_size,
+        batch_size=samples_per_gpu,
         num_workers=workers_per_gpu,
-        collate_fn=PicklableWrapper(_collate_fn),
+        collate_fn=PicklableWrapper(
+            _collate_fn_single
+            if dataset.reference_view_sampler is None
+            else _collate_fn_multi
+        ),
         sampler=sampler,
         persistent_workers=workers_per_gpu > 0,
         pin_memory=pin_memory,
@@ -258,28 +264,29 @@ def build_train_dataloader(
 
 
 def build_inference_dataloaders(
-    datasets: Dataset[DictData] | list[Dataset],
+    datasets: _DATASET | list[_DATASET],
     samples_per_gpu: int = 1,
     workers_per_gpu: int = 1,
     video_based_inference: bool = True,
     batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
-    sampler: None | BaseSampler = None,
-) -> list[DataLoader]:
+) -> list[_DATALOADER]:
     """Build dataloaders for test / predict."""
     if isinstance(datasets, Dataset):
-        datasets = [datasets]
+        datasets_ = [datasets]
+    else:
+        datasets_ = datasets
     dataloaders = []
     _collate_fn = PicklableWrapper(lambda x: collate_fn(batchprocess_fn(x)))
-    for dataset in datasets:
-        dset_sampler: Sampler[list[int]] | DistributedSampler[list[int]]
-        if get_world_size() > 1 and sampler is None:
+    for dataset in datasets_:
+        dset_sampler: DistributedSampler[list[int]] | None
+        if get_world_size() > 1:
             if isinstance(dataset, VideoMixin) and video_based_inference:
                 dset_sampler = VideoInferenceSampler(dataset)
             else:
                 dset_sampler = DistributedSampler(dataset)
         else:
-            dset_sampler = sampler
+            dset_sampler = None
 
         test_dataloader = DataLoader(
             dataset,

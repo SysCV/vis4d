@@ -5,6 +5,8 @@ from typing import Generic, NamedTuple, TypeVar
 
 import torch
 
+# TODO refactor this from inheritance to composition
+# pylint: disable=invalid-name
 TTrackState = TypeVar("TTrackState", bound=NamedTuple)
 
 
@@ -19,6 +21,12 @@ class BaseTrackMemory(Generic[TTrackState]):
     """
 
     def __init__(self, memory_limit: int = -1):
+        """Creates an instance of the class.
+
+        Args:
+            memory_limit (int, optional): Frame limit of memory.
+                Defaults to -1.
+        """
         assert memory_limit >= -1
         self.memory_limit = memory_limit
         self.frames: list[TTrackState] = []
@@ -58,25 +66,11 @@ class BaseTrackMemory(Generic[TTrackState]):
         """
         return self.frames[start_index:end_index]
 
-    def get_current_tracks(self, device: torch.device) -> TTrackState:
+    def get_current_tracks(
+        self, device: torch.device  # pylint: disable=unused-argument
+    ) -> TTrackState:
         """Return active tracks."""
         return self.frames[-1]
-
-    def get_track(self, track_id: int) -> list[TTrackState]:
-        """Get representation of a single track across memory frames.
-
-        Args:
-            track_id (int): track id of query track.
-
-        Returns:
-            list[TTrackState]: List of track states for given query track.
-        """
-        track = []
-        for frame in self.frames:
-            idx = (frame.track_ids == track_id).nonzero(as_tuple=True)[0]
-            if len(idx) > 0:
-                track.append(tuple(element[idx] for element in frame))
-        return track
 
     def update(self, data: TTrackState) -> None:
         """Store tracks in memory."""
@@ -108,6 +102,17 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
         backdrop_memory_limit: int = 1,
         memory_momentum: float = 0.8,
     ):
+        """Creates an instance of the class.
+
+        Args:
+            memory_limit (int, optional): Maximum number of frames to be stored
+                inside the memory. Defaults to -1.
+            backdrop_memory_limit (int, optional): Maximum number of frames
+                backdrops are stored. Defaults to 1.
+            memory_momentum (float, optional): Momentum value for accumulating
+                embedding vectors across a track's memory buffer. Defaults
+                to 0.8.
+        """
         super().__init__(memory_limit)
         self.backdrop_frames: list[QDTrackState] = []
         self.memo_momentum = memory_momentum
@@ -118,9 +123,14 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
     def reset(self) -> None:
         """Empty the memory."""
         super().reset()
-        self.backdrop_frames: list[QDTrackState] = []
+        self.backdrop_frames.clear()
 
     def update(self, data: QDTrackState) -> None:
+        """Update the track memory with a new state.
+
+        Args:
+            data (QDTrackState): The new state.
+        """
         valid_tracks = data.track_ids != -1
         new_tracks = QDTrackState(*(entry[valid_tracks] for entry in data))
         new_backdrops = QDTrackState(*(entry[~valid_tracks] for entry in data))
@@ -153,6 +163,22 @@ class QDTrackMemory(BaseTrackMemory[QDTrackState]):
             memory_class_ids,
             memory_embeddings,
         )
+
+    def get_track(self, track_id: int) -> list[QDTrackState]:
+        """Get representation of a single track across memory frames.
+
+        Args:
+            track_id (int): track id of query track.
+
+        Returns:
+            list[QDTrackState]: List of track states for given query track.
+        """
+        track = []
+        for frame in self.frames:
+            idx = (frame.track_ids == track_id).nonzero(as_tuple=True)[0]
+            if len(idx) > 0:
+                track.append(tuple(element[idx] for element in frame))
+        return track  # type: ignore
 
     def get_current_tracks(self, device: torch.device) -> QDTrackState:
         """Get all active tracks and backdrops in memory."""

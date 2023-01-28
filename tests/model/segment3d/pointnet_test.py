@@ -3,13 +3,14 @@ import unittest
 
 import torch
 
+from vis4d.data.const import CommonKeys
 from vis4d.model.segment3d.pointnet import PointnetSegmentationModel
 
 
 class TestPointnet(unittest.TestCase):
     """Testcase for Pointnet."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Sets up the Test."""
         self.batch_size = 8
         self.n_pts = 1024
@@ -23,8 +24,10 @@ class TestPointnet(unittest.TestCase):
         # Inference
         pts = torch.rand(self.batch_size, n_features, self.n_pts)
         out = segmenter(pts)
-        self.assertEqual(type(out), torch.Tensor)
-        self.assertEqual(tuple(out.shape), (self.batch_size, self.n_pts))
+        self.assertEqual(
+            tuple(out[CommonKeys.semantics3d].shape),
+            (self.batch_size, self.n_pts),
+        )
 
     def test_train(self) -> None:
         """Tests the forward and training path of the segmentation network."""
@@ -38,8 +41,7 @@ class TestPointnet(unittest.TestCase):
         out = segmenter(pts, targets)
 
         # Check prediction size matches
-        self.assertEqual(type(out), tuple)
-        self.assertEqual(tuple(out[0].shape), (self.batch_size, self.n_pts))
-        # Check that losses are well defined
-        for l in out[1]:
-            self.assertEqual(type(l), torch.Tensor)
+        self.assertEqual(
+            tuple(out.class_logits.shape),
+            (self.batch_size, n_classes, self.n_pts),
+        )

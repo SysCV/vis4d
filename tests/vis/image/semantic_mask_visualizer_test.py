@@ -97,7 +97,7 @@ SEM_MAPPING = {  # pylint:disable=duplicate-code
 }
 
 
-class TestConvOccnet(unittest.TestCase):
+class TestBoundingBoxVis(unittest.TestCase):
     """Testcase for Bounding Box Visualizer."""
 
     def setUp(self) -> None:

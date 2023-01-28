@@ -10,6 +10,19 @@ from torch import nn
 from vis4d.common.typing import ModelOutput
 
 
+def fill_weights(module: nn.Module, value: float = 0.0) -> None:
+    """Fill weights of an nn.Module with specific value.
+
+    Enables deterministic exeuction of computation for testing purposes.
+
+    Args:
+        module (nn.Module): The module.
+        value (float, optional): The desired value. Defaults to 0.0.
+    """
+    for param in module.parameters():
+        param.data.fill_(value)
+
+
 def get_test_data(dir_name: str) -> str:
     """Return the absolute path to the given test data directory.
 
@@ -20,13 +33,8 @@ def get_test_data(dir_name: str) -> str:
         str: Absolute path to test data directory.
     """
     prefix = os.path.dirname(os.path.abspath(inspect.stack()[1][1]))
-    if "tests" in prefix:
-        prefix_code, _ = prefix.rsplit("tests", 1)
-    elif "vis4d" in prefix:
-        # We are calling this function from a file inside the vis4d structure
-        # and note the tests folder
-        prefix_code, _ = prefix.rsplit("vis4d", 1)
-    return os.path.join(prefix_code, "tests", "test_data", dir_name)
+    prefix_code, _ = prefix.rsplit("tests", 1)
+    return os.path.join(prefix_code, "tests", "vis4d-test-data", dir_name)
 
 
 def get_test_file(file_name: str, rel_path: None | str = None) -> str:
@@ -198,7 +206,7 @@ class MockModel(nn.Module):
     """Model Mockup."""
 
     def __init__(self, model_param: int, *args, **kwargs):  # type: ignore # pylint: disable=unused-argument,line-too-long
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.model_param = model_param
         self.linear = nn.Linear(10, 1)

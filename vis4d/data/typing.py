@@ -1,8 +1,11 @@
-"""Vis4D data types."""
-from typing import Dict, Union
+"""Type definitions related to the data pipeline.
 
-from torch import Tensor
+This file defines the data format `DictData` as an arbitrary dictionary that
+can, in principle, hold arbitrary data. However, we provide `CommonKeys` in
+`vis4d.data.const` to define the input format for commonly used input types,
+so that the data pre-processing pipeline can take advantage of pre-defined
+data formats that are necessary to properly pre-process a given data sample.
+"""
+from vis4d.common.typing import DictStrAny
 
-_DictStrArray = Dict[str, Tensor]
-DictStrArrayNested = Dict[str, Union[Tensor, _DictStrArray]]
-DictData = Dict[str, Union[Tensor, DictStrArrayNested]]
+DictData = DictStrAny

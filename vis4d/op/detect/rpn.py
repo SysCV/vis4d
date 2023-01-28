@@ -17,7 +17,7 @@ from vis4d.op.box.samplers import RandomSampler
 from ..layer import Conv2d
 from ..typing import Proposals
 from .anchor_generator import AnchorGenerator
-from .dense_anchor import DenseAnchorHeadLoss
+from .dense_anchor import DenseAnchorHeadLoss, DenseAnchorHeadLosses
 
 
 class RPNOut(NamedTuple):
@@ -48,7 +48,7 @@ class RPNHead(nn.Module):
         in_channels: int = 256,
         feat_channels: int = 256,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_anchors (int): Number of anchors per cell.
@@ -134,7 +134,7 @@ class RPN2RoI(nn.Module):
         proposal_nms_threshold: float = 0.7,
         min_proposal_size: tuple[int, int] = (0, 0),
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Creates anchor grid serving as
@@ -321,7 +321,7 @@ class RPNLoss(DenseAnchorHeadLoss):
     def __init__(
         self, anchor_generator: AnchorGenerator, box_encoder: BoxEncoder2D
     ):
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
@@ -346,8 +346,8 @@ class RPNLoss(DenseAnchorHeadLoss):
         reg_outs: list[torch.Tensor],
         target_boxes: list[torch.Tensor],
         images_hw: list[tuple[int, int]],
-        target_class_ids: list[torch.Tensor] | None = None,
-    ) -> RPNLosses:
+        target_class_ids: list[torch.Tensor | float] | None = None,
+    ) -> DenseAnchorHeadLosses:
         """Compute RPN classification and regression losses.
 
         Args:
@@ -361,12 +361,9 @@ class RPNLoss(DenseAnchorHeadLoss):
             target_class_ids (list[torch.Tensor] | None): Target class labels.
 
         Returns:
-            RPNLosses: Classification and regression losses.
+            DenseAnchorHeadLosses: Classification and regression losses.
         """
         assert target_class_ids is None
-        losses = super().forward(
+        return super().forward(
             cls_outs, reg_outs, target_boxes, images_hw, target_class_ids
-        )
-        return RPNLosses(
-            rpn_loss_cls=losses.loss_cls, rpn_loss_bbox=losses.loss_bbox
         )

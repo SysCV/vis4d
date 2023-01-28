@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
+from vis4d.common import TorchLossFunc
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.matchers import Matcher
 from vis4d.op.box.samplers import Sampler
@@ -20,13 +21,17 @@ from .anchor_generator import AnchorGenerator, anchor_inside_image
 class DetectorTargets(NamedTuple):
     """Targets for first-stage detection."""
 
-    labels: torch.Tensor
-    label_weights: torch.Tensor
-    bbox_targets: torch.Tensor
-    bbox_weights: torch.Tensor
+    labels: Tensor
+    label_weights: Tensor
+    bbox_targets: Tensor
+    bbox_weights: Tensor
 
 
-def images_to_levels(targets: list[tuple[list[Tensor]]]) -> list[list[Tensor]]:
+def images_to_levels(
+    targets: list[
+        tuple[list[Tensor], list[Tensor], list[Tensor], list[Tensor]]
+    ]
+) -> list[list[Tensor]]:
     """Convert targets by image to targets by feature level."""
     targets_per_level = []
     for lvl_id in range(len(targets[0][0])):
@@ -119,8 +124,8 @@ def get_targets_per_image(
 
 def get_targets_per_batch(
     featmap_sizes: list[tuple[int, int]],
-    target_boxes: list[torch.Tensor],
-    target_class_ids: list[torch.Tensor | float],
+    target_boxes: list[Tensor],
+    target_class_ids: list[Tensor | float],
     images_hw: list[tuple[int, int]],
     anchor_generator: AnchorGenerator,
     box_encoder: BoxEncoder2D,
@@ -135,7 +140,9 @@ def get_targets_per_batch(
     num_level_anchors = [anchors.size(0) for anchors in anchor_grids]
     anchors_all_levels = torch.cat(anchor_grids)
 
-    targets: list[tuple[list[Tensor]]] = []
+    targets: list[
+        tuple[list[Tensor], list[Tensor], list[Tensor], list[Tensor]]
+    ] = []
     num_total_pos, num_total_neg = 0, 0
     for tgt_box, tgt_cls, image_hw in zip(
         target_boxes, target_class_ids, images_hw
@@ -172,8 +179,8 @@ def get_targets_per_batch(
 class DenseAnchorHeadLosses(NamedTuple):
     """Dense anchor head loss container."""
 
-    loss_cls: torch.Tensor
-    loss_bbox: torch.Tensor
+    loss_cls: Tensor
+    loss_bbox: Tensor
 
 
 class DenseAnchorHeadLoss(nn.Module):
@@ -191,10 +198,10 @@ class DenseAnchorHeadLoss(nn.Module):
         box_encoder: BoxEncoder2D,
         box_matcher: Matcher,
         box_sampler: Sampler,
-        loss_cls=None,
+        loss_cls: TorchLossFunc | None = None,
         allowed_border: int = 0,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
@@ -202,7 +209,7 @@ class DenseAnchorHeadLoss(nn.Module):
                 the desired network output.
             box_matcher (Matcher): Box matcher.
             box_sampler (Sampler): Box sampler.
-            loss_cls: Classification loss.
+            loss_cls (TorchLossFunc): Classification loss.
             allowed_border (int): The border to allow the valid anchor.
                 Defaults to 0.
         """
@@ -216,29 +223,27 @@ class DenseAnchorHeadLoss(nn.Module):
 
     def _loss_single_scale(
         self,
-        cls_out: torch.Tensor,
-        reg_out: torch.Tensor,
-        bbox_targets: torch.Tensor,
-        bbox_weights: torch.Tensor,
-        labels: torch.Tensor,
-        label_weights: torch.Tensor,
+        cls_out: Tensor,
+        reg_out: Tensor,
+        bbox_targets: Tensor,
+        bbox_weights: Tensor,
+        labels: Tensor,
+        label_weights: Tensor,
         num_total_samples: int,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[Tensor, Tensor]:
         """Compute losses per scale, all batch elements.
 
         Args:
-            cls_out (torch.Tensor): [N, C, H, W] tensor of class logits.
-            reg_out (torch.Tensor): [N, C, H, W] tensor of regression params.
-            bbox_targets (torch.Tensor): [H * W, 4] bounding box targets
-            bbox_weights (torch.Tensor): [H * W] per-sample weighting for loss.
-            labels (torch.Tensor): [H * W] classification targets.
-            label_weights (torch.Tensor): [H * W] per-sample weighting for
-                loss.
+            cls_out (Tensor): [N, C, H, W] tensor of class logits.
+            reg_out (Tensor): [N, C, H, W] tensor of regression params.
+            bbox_targets (Tensor): [H * W, 4] bounding box targets
+            bbox_weights (Tensor): [H * W] per-sample weighting for loss.
+            labels (Tensor): [H * W] classification targets.
+            label_weights (Tensor): [H * W] per-sample weighting for loss.
             num_total_samples (int): average factor of loss.
 
         Returns:
-            tuple[torch.Tensor, torch.Tensor]: classification and regression
-                losses.
+            tuple[Tensor, Tensor]: classification and regression losses.
         """
         # classification loss
         labels = labels.reshape(-1)
@@ -253,6 +258,7 @@ class DenseAnchorHeadLoss(nn.Module):
             )
         else:
             cls_score = cls_score.squeeze(1)
+        assert self.loss_cls is not None
         loss_cls = self.loss_cls(cls_score, labels, reduction="none")
         loss_cls = SumWeightedLoss(label_weights, num_total_samples)(loss_cls)
         # regression loss
@@ -268,29 +274,31 @@ class DenseAnchorHeadLoss(nn.Module):
 
     def forward(
         self,
-        cls_outs: list[torch.Tensor],
-        reg_outs: list[torch.Tensor],
-        target_boxes: list[torch.Tensor],
+        cls_outs: list[Tensor],
+        reg_outs: list[Tensor],
+        target_boxes: list[Tensor],
         images_hw: list[tuple[int, int]],
-        target_class_ids: list[torch.Tensor | float] | None = None,
+        target_class_ids: list[Tensor | float] | None = None,
     ) -> DenseAnchorHeadLosses:
         """Compute RetinaNet classification and regression losses.
 
         Args:
-            cls_outs (list[torch.Tensor]): Network classification outputs
+            cls_outs (list[Tensor]): Network classification outputs
                 at all scales.
-            reg_outs (list[torch.Tensor]): Network regression outputs
+            reg_outs (list[Tensor]): Network regression outputs
                 at all scales.
-            target_boxes (list[torch.Tensor]): Target bounding boxes.
+            target_boxes (list[Tensor]): Target bounding boxes.
             images_hw (list[tuple[int, int]]): Image dimensions without
                 padding.
-            target_class_ids (list[torch.Tensor] | None, optional): Target
+            target_class_ids (list[Tensor] | None, optional): Target
                 class labels.
 
         Returns:
             DenseAnchorHeadLosses: Classification and regression losses.
         """
-        featmap_sizes = [tuple(featmap.size()[-2:]) for featmap in cls_outs]
+        featmap_sizes = [
+            (featmap.size()[-2], featmap.size()[-1]) for featmap in cls_outs
+        ]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
         if target_class_ids is None:
             target_class_ids = [1.0 for _ in range(len(target_boxes))]
@@ -323,11 +331,11 @@ class DenseAnchorHeadLoss(nn.Module):
 
     def __call__(
         self,
-        cls_outs: list[torch.Tensor],
-        reg_outs: list[torch.Tensor],
-        target_boxes: list[torch.Tensor],
+        cls_outs: list[Tensor],
+        reg_outs: list[Tensor],
+        target_boxes: list[Tensor],
         images_hw: list[tuple[int, int]],
-        target_class_ids: list[torch.Tensor] | None = None,
+        target_class_ids: list[Tensor] | None = None,
     ) -> DenseAnchorHeadLosses:
         """Type definition."""
         return self._call_impl(

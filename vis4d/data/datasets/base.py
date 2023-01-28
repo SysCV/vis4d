@@ -1,9 +1,14 @@
-"""Base dataset in Vis4D."""
+"""Base dataset classes.
+
+We implement a typed version of the PyTorch dataset class here. In addition, we
+provide a number of Mixin classes which a dataset can inherit from to implement
+additional functionality.
+"""
 from __future__ import annotations
 
 from torch.utils.data import Dataset as TorchDataset
 
-from ..typing import DictData
+from vis4d.data.typing import DictData
 
 
 class Dataset(TorchDataset[DictData]):
@@ -70,8 +75,7 @@ class CategoryMapMixin:
 
     @property
     def category_to_indices(self) -> dict[str, list[int]]:
-        """This function should group all dataset sample indices (int) by their
-        category (str).
+        """Group all dataset sample indices (int) by their category (str).
 
         Returns:
             dict[str, int]: Mapping category to index.
@@ -79,8 +83,9 @@ class CategoryMapMixin:
         raise NotImplementedError
 
     def get_category_indices(self, idx: int) -> list[int]:
-        """Get all indices of the data samples that share the same category of
-        the given sample index.
+        """Get all indices that share the same category of the given index.
+
+        Indices refer to the index of the data samples within the dataset.
         """
         for indices in self.category_to_indices.values():
             if idx in indices:
@@ -98,37 +103,9 @@ class AttributeMapMixin:
 
     @property
     def attribute_to_indices(self) -> dict[str, dict[str, list[int]]]:
-        """This function should group all dataset sample indices (int) by their
-        category (str).
+        """Groups all dataset sample indices (int) by their category (str).
 
         Returns:
             dict[str, dict[str, list[int]]]: Mapping category to index.
         """
         raise NotImplementedError
-
-
-class FilteredDataset(Dataset):
-    """Subset of a dataset at specified indices.
-
-    It uses the dataset and applies filter_fn to it, which should return the
-    dataset indices that are to be kept after filtering.
-
-    Attributes:
-        dataset (Dataset): The whole Dataset
-        filter_fn (Dataset -> list[int]): filtering function.
-    """
-
-    def __init__(self, dataset, filter_fn) -> None:
-        """Init."""
-        super().__init__()
-        assert isinstance(dataset, FilterMixin)
-        self._filtered_indices = filter_fn(dataset)
-
-    def __len__(self) -> int:
-        """Wrapper for len."""
-        return len(self._filtered_indices)
-
-    def __getitem__(self, idx):
-        """Wrapper for getitem."""
-        mapped_idx = self._filtered_indices[idx]
-        return self.dataset[mapped_idx]

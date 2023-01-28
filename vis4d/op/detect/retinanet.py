@@ -5,9 +5,8 @@ from math import prod
 from typing import NamedTuple
 
 import torch
-import torch.nn.functional as F
 from torch import nn
-from torchvision.ops import batched_nms
+from torchvision.ops import batched_nms, sigmoid_focal_loss
 
 from vis4d.op.box.box2d import bbox_clip, filter_boxes_by_area
 from vis4d.op.box.encoder import BoxEncoder2D, DeltaXYWHBBoxEncoder
@@ -77,7 +76,7 @@ class RetinaNetHead(nn.Module):
         box_matcher: Matcher | None = None,
         box_sampler: Sampler | None = None,
     ):
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.anchor_generator = (
             anchor_generator
@@ -270,7 +269,7 @@ class Dense2Det(nn.Module):
         min_box_size: tuple[int, int] = (0, 0),
         score_thr: float = 0.0,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.anchor_generator = anchor_generator
         self.box_encoder = box_encoder
@@ -363,7 +362,7 @@ class RetinaNetHeadLoss(DenseAnchorHeadLoss):
         box_matcher: None | Matcher = None,
         box_sampler: None | Sampler = None,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Generates anchor grid priors.
@@ -384,7 +383,7 @@ class RetinaNetHeadLoss(DenseAnchorHeadLoss):
             if box_sampler is not None
             else get_default_box_sampler()
         )
-        loss_cls = F.binary_cross_entropy_with_logits
+        loss_cls = sigmoid_focal_loss
         super().__init__(
             anchor_generator, box_encoder, matcher, sampler, loss_cls
         )

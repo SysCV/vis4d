@@ -158,7 +158,7 @@ class MultiScaleRoIAlign(MultiScaleRoIPooler):
     def __init__(
         self, sampling_ratio: int, *args: ArgsType, **kwargs: ArgsType
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__(*args, **kwargs)
         self.sampling_ratio = sampling_ratio
 

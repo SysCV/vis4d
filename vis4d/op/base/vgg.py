@@ -27,6 +27,7 @@ class VGG(BaseModel):
                 fine-tuning. None means all the layers can be fine-tuned.
             pretrained (bool, optional): Whether to load ImageNet
                 pre-trained weights. Defaults to False.
+
         Raises:
             ValueError: The VGG name is not supported
         """

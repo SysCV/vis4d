@@ -94,7 +94,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         include_non_key: bool = False,
         data_backend: DataBackend | None = None,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             data_root (str): Root directory of nuscenes data in original
@@ -114,20 +114,20 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             FileBackend() if data_backend is None else data_backend
         )
         self.data_root = data_root
-        assert version in ["v1.0-trainval", "v1.0-test", "v1.0-mini"]
+        assert version in {"v1.0-trainval", "v1.0-test", "v1.0-mini"}
         self.version = version
         if "mini" in version:
-            assert split in [
+            assert split in {
                 "mini_train",
                 "mini_val",
-            ], f"Invalid split for NuScenes {version}!"
+            }, f"Invalid split for NuScenes {version}!"
         elif "test" in version:
             split = "test"
         else:
-            assert split in [
+            assert split in {
                 "train",
                 "val",
-            ], f"Invalid split for NuScenes {version}!"
+            }, f"Invalid split for NuScenes {version}!"
             # TODO improve error msg for mini version
 
         self.split = split
@@ -175,12 +175,14 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             scene_name = record["name"]
             if scene_name not in scene_names_per_split[self.split]:
                 continue
-
+            frame_index = 0
             sample_token = record["first_sample_token"]
             while sample_token:
                 sample = self.data.get("sample", sample_token)
+                sample["frame_index"] = frame_index
                 sample_token = sample["next"]
                 samples.append(sample)  # TODO non-key frames
+                frame_index += 1
         return samples
 
     def __len__(self) -> int:
@@ -219,6 +221,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
 
         Args:
             cam_token (str): Token of camera.
+            ego_pose (dict): Ego vehicle pose in NuScenes format.
 
         Returns:
             tuple[Tensor, Tensor, Tensor, str]: Image, intrinscs, extrinsics,
@@ -277,7 +280,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         if sensor_extrinsics is not None:
             inverse_extrinsics = inverse_rigid_transform(sensor_extrinsics)
             translation_sensor = inverse_extrinsics[:3, 3].numpy()
-            rotation_sensor = Quaternion._from_matrix(
+            rotation_sensor = Quaternion._from_matrix(  # pylint: disable=protected-access,line-too-long
                 inverse_extrinsics[:3, :3].numpy(), atol=1e-5
             )
             for box in boxes:
@@ -418,6 +421,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                     CommonKeys.images: image,
                     CommonKeys.original_hw: image_hw,
                     CommonKeys.input_hw: image_hw,
+                    CommonKeys.frame_ids: sample["frame_index"],
                     CommonKeys.intrinsics: intrinsics,
                     CommonKeys.extrinsics: extrinsics,
                     CommonKeys.timestamp: timestamp,

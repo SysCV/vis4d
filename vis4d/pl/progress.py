@@ -19,7 +19,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
     """ProgressBar with separate printout per log step."""
 
     def __init__(self, refresh_rate: int = 50) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self._refresh_rate = refresh_rate
         self._enabled = True
@@ -68,7 +68,7 @@ class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
         prefix: str,
         batch_idx: int,
         total_batches: Union[int, float],
-        metrics: Optional[Dict[str, Union[int, float]]] = None,
+        metrics: Optional[Dict[str, Union[int, float, torch.Tensor]]] = None,
     ) -> str:
         """Compose log str from given information."""
         time_sec_tot = self.timer.time()

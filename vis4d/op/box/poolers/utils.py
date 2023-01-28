@@ -1,4 +1,4 @@
-"""Utils for RoI poolers in Vis4D."""
+"""Utility functions for RoI poolers."""
 from __future__ import annotations
 
 import torch

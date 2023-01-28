@@ -152,7 +152,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         use_pascal_voc_cats: bool = False,
         data_backend: None | DataBackend = None,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
 
         self.data_root = data_root

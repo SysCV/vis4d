@@ -1,4 +1,9 @@
-"""Constants used in vis4d.data."""
+"""Defines data related constants.
+
+While the datasets can hold arbitrary data types and formats, this file
+provides some constants that are used to define a common data format which is
+helpful to use for better data transformation.
+"""
 from dataclasses import dataclass
 from enum import Enum
 
@@ -75,6 +80,9 @@ class CommonKeys:
     boxes2d_track_ids = "boxes2d_track_ids"
     masks = "masks"
     segmentation_masks = "segmentation_masks"
+
+    # Image Classification
+    categories = "categories"
 
     # sensor calibration
     intrinsics = "intrinsics"

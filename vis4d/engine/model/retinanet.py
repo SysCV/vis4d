@@ -1,3 +1,4 @@
+# type: ignore # FIXME Remove and fix this with new engine / config
 """RetinaNet COCO training example."""
 import argparse
 import warnings

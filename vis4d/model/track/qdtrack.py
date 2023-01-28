@@ -20,6 +20,7 @@ from vis4d.op.track.qdtrack import (
     QDSimilarityHead,
     QDTrackAssociation,
     QDTrackInstanceSimilarityLoss,
+    QDTrackInstanceSimilarityLosses,
 )
 from vis4d.state.track.qdtrack import QDTrackMemory, QDTrackState
 
@@ -50,7 +51,7 @@ class QDTrack(nn.Module):
         num_ref_views: int = 1,
         proposal_append_gt: bool = True,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.num_ref_views = num_ref_views
         self.similarity_head = QDSimilarityHead()
@@ -83,7 +84,7 @@ class QDTrack(nn.Module):
         frame_ids: None | tuple[int, ...] = None,
         target_boxes: None | list[torch.Tensor] = None,
         target_track_ids: None | list[torch.Tensor] = None,
-    ) -> list[QDTrackState]:
+    ) -> list[QDTrackState] | QDTrackInstanceSimilarityLosses:
         """Forward function."""
         if target_boxes is not None:
             assert (
@@ -128,7 +129,7 @@ class QDTrack(nn.Module):
             ref_track_ids.append(current_track_ids)
         return key_embeddings, ref_embeddings, key_track_ids, ref_track_ids
 
-    @torch.no_grad()
+    @torch.no_grad()  # type: ignore
     def _sample_proposals(
         self,
         det_boxes: list[torch.Tensor],
@@ -176,8 +177,8 @@ class QDTrack(nn.Module):
         det_boxes: list[torch.Tensor],
         target_boxes: list[torch.Tensor],
         target_track_ids: list[torch.Tensor],
-    ):
-        """TODO define return type."""
+    ) -> QDTrackInstanceSimilarityLosses:
+        """Forward train."""  # TODO doc, verify training
         sampled_boxes, sampled_track_ids = self._sample_proposals(
             det_boxes, target_boxes, target_track_ids
         )
@@ -234,7 +235,7 @@ class FasterRCNNQDTrack(nn.Module):
     """Wrap qdtrack with detector."""
 
     def __init__(self, num_classes: int) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.anchor_gen = get_default_anchor_generator()
         self.rpn_bbox_encoder = get_default_rpn_box_encoder()

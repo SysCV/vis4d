@@ -9,15 +9,15 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
+from pytorch_lightning.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.core import LightningModule
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.strategies.strategy import Strategy
-from pytorch_lightning.utilities.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType, DictStrAny
-from vis4d.common.imports import is_torch_tf32_available
+from vis4d.common.imports import TENSORBOARD_AVAILABLE, is_torch_tf32_available
 from vis4d.common.logging import rank_zero_info, rank_zero_warn, setup_logger
 from vis4d.pl.data import DataModule
 from vis4d.pl.progress import DefaultProgressBar
@@ -106,22 +106,30 @@ class DefaultTrainer(pl.Trainer):
                     project=exp_name,
                     name=version,
                 )
-            else:
-                exp_logger = pl.loggers.TensorBoardLogger(  # type: ignore
+            elif TENSORBOARD_AVAILABLE:
+                exp_logger = pl.loggers.TensorBoardLogger(
                     save_dir=work_dir,
                     name=exp_name,
                     version=version,
                     default_hp_metric=False,
                     log_graph=True,
                 )
+            else:
+                exp_logger = None
+                rank_zero_info(
+                    "Neither `tensorboard` nor `tensorboardX` is "
+                    "available. Running without experiment logger. To log "
+                    "your experiments, try `pip install`ing either."
+                )
             kwargs["logger"] = exp_logger
 
         callbacks: List[pl.callbacks.Callback] = []
 
         # add learning rate / GPU stats monitor (logs to tensorboard)
-        callbacks += [
-            pl.callbacks.LearningRateMonitor(logging_interval="step")
-        ]
+        if TENSORBOARD_AVAILABLE or wandb:
+            callbacks += [
+                pl.callbacks.LearningRateMonitor(logging_interval="step")
+            ]
 
         # add progress bar (train progress separate from validation)
         if tqdm:
@@ -174,11 +182,11 @@ class DefaultTrainer(pl.Trainer):
     def log_dir(self) -> Optional[str]:
         """Get current logging directory."""
         dirpath = self.strategy.broadcast(self.output_dir)
-        return dirpath  # type: ignore
+        return dirpath
 
 
 class CLI(LightningCLI):
-    """Basic pytorch lightning CLI in Vis4D."""
+    """Basic pytorch lightning CLI."""
 
     def __init__(  # type: ignore
         self,
@@ -199,7 +207,7 @@ class CLI(LightningCLI):
         save_config_overwrite: bool = True,
         **kwargs: ArgsType,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__(
             model_class=model_class,
             datamodule_class=datamodule_class,

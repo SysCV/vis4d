@@ -5,6 +5,7 @@ import torch
 from torch import nn
 
 from vis4d.common import LossesType, ModelOutput
+from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import apply_mask, scale_and_clip_boxes
 from vis4d.op.box.encoder import BoxEncoder2D
@@ -26,7 +27,6 @@ from vis4d.op.detect.rcnn import (
 )
 from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
-from vis4d.op.util import load_model_checkpoint
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
@@ -49,7 +49,7 @@ class MaskRCNN(nn.Module):
     """Mask RCNN model."""
 
     def __init__(self, num_classes: int, weights: None | str = None) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             num_classes (int): Number of classes.
@@ -198,7 +198,7 @@ class MaskRCNNLoss(nn.Module):
         rpn_box_encoder: BoxEncoder2D,
         rcnn_box_encoder: BoxEncoder2D,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             anchor_generator (AnchorGenerator): Anchor generator for RPN.

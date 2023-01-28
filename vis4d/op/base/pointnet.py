@@ -12,6 +12,8 @@ from typing import NamedTuple
 import torch
 from torch import nn
 
+from vis4d.common.typing import ArgsType
+
 
 class PointNetEncoderOut(NamedTuple):
     """Output of the PointNetEncoder.
@@ -89,6 +91,7 @@ class LinearTransform(nn.Module):
         assert self.upsampling_dims[-1] == self.downsampling_dims[0]
 
         self.in_dimension_ = in_dimension
+        self.identity: torch.Tensor
         self.register_buffer(
             "identity", torch.eye(in_dimension).reshape(1, in_dimension**2)
         )
@@ -179,7 +182,7 @@ class LinearTransform(nn.Module):
                     features = self.norms_[norm_idx](features)
                 features = self.activation_(features)
 
-        identity_batch = self.identity.repeat(batchsize, 1)  # type: ignore
+        identity_batch = self.identity.repeat(batchsize, 1)
         transformations = features + identity_batch
 
         return transformations.view(
@@ -203,7 +206,7 @@ class PointNetEncoder(nn.Module):
         mlp_dimensions: Iterable[Iterable[int]] = ((64, 64), (64, 128)),
         norm_cls: str | None = "BatchNorm1d",
         activation_cls: str = "ReLU",
-        **kwargs,
+        **kwargs: ArgsType,
     ):
         """Creates a new PointNetEncoder.
 

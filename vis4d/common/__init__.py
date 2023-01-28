@@ -1,4 +1,4 @@
-"""Vis4D common module."""
+"""Contains common functions and types that are used across modules."""
 from .typing import (
     ArgsType,
     DictStrAny,
@@ -10,6 +10,7 @@ from .typing import (
     NDArrayI64,
     NDArrayUI8,
     TorchCheckpoint,
+    TorchLossFunc,
 )
 
 __all__ = [
@@ -23,4 +24,5 @@ __all__ = [
     "MetricLogs",
     "TorchCheckpoint",
     "LossesType",
+    "TorchLossFunc",
 ]

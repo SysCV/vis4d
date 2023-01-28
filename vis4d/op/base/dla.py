@@ -90,7 +90,7 @@ class BasicBlock(nn.Module):
     def __init__(
         self, inplanes: int, planes: int, stride: int = 1, dilation: int = 1
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.conv1 = nn.Conv2d(
             inplanes,
@@ -143,7 +143,7 @@ class Bottleneck(nn.Module):
     def __init__(
         self, inplanes: int, planes: int, stride: int = 1, dilation: int = 1
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         expansion = Bottleneck.expansion
         bottle_planes = planes // expansion
@@ -201,7 +201,7 @@ class BottleneckX(nn.Module):
     def __init__(
         self, inplanes: int, planes: int, stride: int = 1, dilation: int = 1
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         cardinality = BottleneckX.cardinality
         bottle_planes = planes * cardinality // 32
@@ -261,7 +261,7 @@ class Root(nn.Module):
         kernel_size: int,
         residual: bool,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.conv = nn.Conv2d(
             in_channels,
@@ -303,14 +303,14 @@ class Tree(nn.Module):
         dilation: int = 1,
         root_residual: bool = False,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         if block == "BasicBlock":
             block_c = BasicBlock
         elif block == "Bottleneck":
-            block_c = Bottleneck
+            block_c = Bottleneck  # type: ignore
         elif block == "BottleneckX":
-            block_c = BottleneckX
+            block_c = BottleneckX  # type: ignore
         else:
             raise ValueError(f"Block={block} not yet supported in DLA!")
         if root_dim == 0:
@@ -318,10 +318,10 @@ class Tree(nn.Module):
         if level_root:
             root_dim += in_channels
         if levels == 1:
-            self.tree1 = block_c(
+            self.tree1: Tree | BasicBlock = block_c(
                 in_channels, out_channels, stride, dilation=dilation
             )
-            self.tree2 = block_c(
+            self.tree2: Tree | BasicBlock = block_c(
                 out_channels, out_channels, 1, dilation=dilation
             )
             self.root = Root(
@@ -414,7 +414,7 @@ class DLA(BaseModel):
         weights: None | str = None,
         style: str = "imagenet",
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         if name is not None:
             assert name in DLA_ARCH_SETTINGS

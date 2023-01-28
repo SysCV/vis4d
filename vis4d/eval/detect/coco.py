@@ -54,7 +54,7 @@ class COCOevalV2(COCOeval):  # type: ignore
 def predictions_to_coco(
     cat_map: dict[str, int],
     coco_id2name: dict[int, str],
-    image_id: str,
+    image_id: int,
     boxes: NDArrayNumber,
     scores: NDArrayNumber,
     classes: NDArrayNumber,
@@ -65,7 +65,7 @@ def predictions_to_coco(
     Args:
         cat_map (dict[str, int]): COCO class name to class ID mapping.
         coco_id2name (dict[int, str]): COCO class ID to class name mapping.
-        image_id (str): ID of image.
+        image_id (int): ID of image.
         boxes (NDArrayNumber): Predicted bounding boxes.
         scores (NDArrayNumber): Predicted scores for each box.
         classes (NDArrayNumber): Predicted classes for each box.
@@ -110,7 +110,7 @@ class COCOEvaluator(Evaluator):
         split: str = "val2017",
         per_class_eval: bool = False,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             data_root (str): Root directory of data.
@@ -143,9 +143,9 @@ class COCOEvaluator(Evaluator):
         """
         return ["COCO_AP"]
 
-    def gather(
+    def gather(  # type: ignore
         self, gather_func: Callable[[Any], Any]
-    ) -> None:  # type: ignore
+    ) -> None:
         """Accumulate predictions across prcoesses."""
         all_preds = gather_func(self._predictions)
         if all_preds is not None:
@@ -165,9 +165,11 @@ class COCOEvaluator(Evaluator):
     ) -> None:
         """Process sample and convert detections to coco format.
 
-        Args:
-            inputs (DictData): Input data.
-            outputs (ModelOutput): Output predictions from model.
+        coco_image_id (list[int]): COCO image ID.
+        pred_boxes (list[NDArrayNumber]): Predicted bounding boxes.
+        pred_scores (list[NDArrayNumber]): Predicted scores for each box.
+        pred_classes (list[NDArrayNumber]): Predicted classes for each box.
+        pred_masks (None | list[NDArrayNumber], optional): Predicted masks.
         """
         for i, (image_id, boxes, scores, classes) in enumerate(
             zip(coco_image_id, pred_boxes, pred_scores, pred_classes)

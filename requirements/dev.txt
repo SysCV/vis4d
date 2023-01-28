@@ -11,5 +11,4 @@ types-PyYAML
 types-requests
 types-tabulate
 types-termcolor
-
 types-toml

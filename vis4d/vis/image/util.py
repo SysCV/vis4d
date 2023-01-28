@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 
-from vis4d.common.array import array_to_numpy, arrays_to_numpy
+from vis4d.common.array import array_to_numpy
 from vis4d.common.typing import (
     ArrayLike,
     ArrayLikeBool,
@@ -88,10 +88,11 @@ def preprocess_boxes(
     if class_id_mapping is None:
         class_id_mapping = {}
 
-    boxes = array_to_numpy(boxes, n_dims=2)
-    (scores, class_ids, track_ids) = arrays_to_numpy(
-        scores, class_ids, track_ids, n_dims=1
-    )
+    boxes = array_to_numpy(boxes, n_dims=2, dtype=np.float32)
+
+    scores_np = array_to_numpy(scores, n_dims=1, dtype=np.float32)
+    class_ids_np = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
+    track_ids_np = array_to_numpy(track_ids, n_dims=1, dtype=np.int32)
 
     boxes_proc: list[tuple[float, float, float, float]] = []
     colors_proc: list[tuple[float, float, float]] = []
@@ -103,9 +104,9 @@ def preprocess_boxes(
         boxes = boxes.reshape(1, -1)
 
     for idx in range(boxes.shape[0]):
-        class_id = None if class_ids is None else class_ids[idx].item()
-        score = None if scores is None else scores[idx].item()
-        track_id = None if track_ids is None else track_ids[idx].item()
+        class_id = None if class_ids_np is None else class_ids_np[idx].item()
+        score = None if scores_np is None else scores_np[idx].item()
+        track_id = None if track_ids_np is None else track_ids_np[idx].item()
 
         if track_id is not None:
             color = color_palette[track_id % len(color_palette)]
@@ -147,8 +148,8 @@ def preprocess_masks(
         tuple[list[masks], list[colors]]: Returns a list with all masks of
             shape [h,w] as well as a list with the corresponding colors.
     """
-    masks = array_to_numpy(masks, n_dims=3)
-    class_ids = array_to_numpy(class_ids, n_dims=1)
+    masks = array_to_numpy(masks, n_dims=3, dtype=np.bool_)
+    class_ids = array_to_numpy(class_ids, n_dims=1, dtype=np.int32)
 
     mask_list: list[NDArrayBool] = []
     color_list: list[tuple[float, float, float]] = []
@@ -178,7 +179,7 @@ def preprocess_image(
     Returns:
         np.array[uint8]: Processed image_np in RGB.
     """
-    image_np = array_to_numpy(image, n_dims=3)  # type: ignore no-redef
+    image_np = array_to_numpy(image, n_dims=3, dtype=np.float32)
     # Convert torch to numpy
     assert len(image_np.shape) == 3
     assert image_np.shape[0] == 3 or image_np.shape[-1] == 3

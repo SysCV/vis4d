@@ -36,14 +36,14 @@ class IDAUp(nn.Module):
     def __init__(
         self, use_dc: bool, o: int, channels: list[int], up_f: list[int]
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         for i in range(1, len(channels)):
             c = channels[i]
             f = int(up_f[i])
             if use_dc:
-                proj = DeformConv(c, o)
-                node = DeformConv(o, o)
+                proj: Conv2d | DeformConv = DeformConv(c, o)
+                node: Conv2d | DeformConv = DeformConv(o, o)
             else:
                 proj = Conv2d(
                     c,
@@ -112,7 +112,7 @@ class DLAUp(FeaturePyramidProcessing):
         end_level: int = -1,
         use_deformable_convs: bool = True,
     ) -> None:
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.start_level = start_level
         self.end_level = end_level

@@ -5,7 +5,7 @@ class BaseLRWarmup:
     """Base class for LR warmup."""
 
     def __init__(self, warmup_ratio: float, warmup_steps: int):
-        """Init."""
+        """Creates an instance of the class."""
         if not warmup_steps > 0:
             raise ValueError("warmup_steps must be a positive integer")
         if not 0 < warmup_ratio <= 1.0:

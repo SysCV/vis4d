@@ -43,7 +43,7 @@ class FPN(_FPN, FeaturePyramidProcessing):  # type: ignore
             start_index (int, optional): Start index of base model feature
                 maps. Defaults to 2.
         """
-        super().__init__(
+        super().__init__(  # type: ignore
             in_channels_list, out_channels, extra_blocks=extra_blocks
         )
         self.start_index = start_index
@@ -70,8 +70,8 @@ class FPN(_FPN, FeaturePyramidProcessing):  # type: ignore
                 x[self.start_index :],
             )
         )
-        outs = super().forward(feat_dict)
-        return [*x[: self.start_index], *outs.values()]
+        outs = super().forward(feat_dict)  # type: ignore
+        return [*x[: self.start_index], *outs.values()]  # type: ignore
 
     def __call__(self, x: list[torch.Tensor]) -> list[torch.Tensor]:
         """Type definition for call implementation."""
@@ -89,7 +89,7 @@ class LastLevelP6P7(ExtraFPNBlock):  # type: ignore
     def __init__(
         self, in_channels: int, out_channels: int, extra_relu: bool = False
     ):
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.extra_relu = extra_relu
         self.p6_conv = nn.Conv2d(in_channels, out_channels, 3, 2, 1)

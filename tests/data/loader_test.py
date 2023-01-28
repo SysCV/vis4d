@@ -1,3 +1,5 @@
+# pylint: disable=unexpected-keyword-arg
+# TODO remove this once new transforms are implemented
 """Test loader components."""
 from __future__ import annotations
 
@@ -31,7 +33,7 @@ def test_train_loader() -> None:
             normalize.normalize_image(),
         ]
     )
-    batchprocess_fn = compose([pad.pad_image()])
+    batchprocess_fn = pad.pad_image()
 
     datapipe = DataPipe(coco, preprocess_fn)
     train_loader = build_train_dataloader(
@@ -54,7 +56,7 @@ def test_inference_loader() -> None:
             normalize.normalize_image(),
         ]
     )
-    batchprocess_fn = compose([pad.pad_image()])
+    batchprocess_fn = pad.pad_image()
 
     datapipe = DataPipe(coco, preprocess_fn)
     test_loaders = build_inference_dataloaders(
@@ -154,7 +156,7 @@ def point_collate(batch: list[DictData]) -> DictData:
     return data
 
 
-def test_train_loader_3D() -> None:
+def test_train_loader_3d() -> None:
     """Test the data loading pipeline for 3D Data."""
     s3dis = S3DIS(data_root=get_test_data("s3d_test"))
 
@@ -185,7 +187,7 @@ def test_train_loader_3D() -> None:
         break
 
 
-def test_train_loader_3D_full_scene_batched() -> None:
+def test_train_loader_3d_batched() -> None:
     """Test the data loading pipeline for 3D Data with full scene sampling."""
     s3dis = S3DIS(data_root=get_test_data("s3d_test"))
     keys = (

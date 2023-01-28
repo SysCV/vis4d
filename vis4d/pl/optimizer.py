@@ -6,11 +6,11 @@ import os.path as osp
 import re
 from collections import OrderedDict
 from collections.abc import Iterable
-from typing import Callable, List, no_type_check
+from typing import Any, Callable, List, no_type_check
 
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.utilities.cli import instantiate_class
+from pytorch_lightning.cli import instantiate_class
 from torch import nn
 from torch.optim import Optimizer, lr_scheduler
 from torch.utils.model_zoo import load_url
@@ -49,7 +49,9 @@ class DefaultOptimizer(
         self,
         model: nn.Module,
         loss: nn.Module,
-        data_connector=default_data_connector,
+        data_connector: Callable[
+            [str, DictData], DictStrAny
+        ] = default_data_connector,
         optimizer_init: DictStrAny | None = None,
         lr_scheduler_init: DictStrAny | None = None,
         freeze: bool = False,
@@ -59,7 +61,7 @@ class DefaultOptimizer(
         revise_keys: list[tuple[str, str]] | None = None,
         lr_warmup: BaseLRWarmup | None = None,
     ):
-        """Init."""
+        """Creates an instance of the class."""
         super().__init__()
         self.optimizer_init = (
             optimizer_init if optimizer_init is not None else DEFAULT_OPTIM
@@ -100,14 +102,13 @@ class DefaultOptimizer(
     @no_type_check
     def optimizer_step(
         self,
-        epoch: int = None,
-        batch_idx: int = None,
-        optimizer: Optimizer | None = None,
-        optimizer_idx: int = None,
-        optimizer_closure: Callable | None = None,
-        on_tpu: bool = None,
-        using_native_amp: bool = None,
-        using_lbfgs: bool = None,
+        epoch: int,
+        batch_idx: int,
+        optimizer: Optimizer | pl.core.LightningOptimizer,
+        optimizer_idx: int = 0,
+        optimizer_closure: Callable[[], Any] | None = None,
+        on_tpu: bool = False,
+        using_lbfgs: bool = False,
     ) -> None:
         """Optimizer step plus learning rate warmup."""
         base_lr = optimizer.defaults.get("lr", None)

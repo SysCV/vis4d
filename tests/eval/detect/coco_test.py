@@ -34,12 +34,7 @@ class TestCOCOEvaluator(unittest.TestCase):
 
         # test empty
         boxes, scores, classes, _ = generate_boxes(512, 512, 20, batch_size)
-        model_output = {
-            "boxes2d": boxes,
-            "boxes2d_scores": scores,
-            "boxes2d_classes": classes,
-        }
-        coco_eval.process({"coco_image_id": [37777, 397133]}, model_output)
+        coco_eval.process([37777, 397133], boxes, scores, classes)
         score_dict, log_str = coco_eval.evaluate("COCO_AP")
         for metric in coco_metrics:
             assert metric in score_dict
@@ -55,16 +50,14 @@ class TestCOCOEvaluator(unittest.TestCase):
         )
         test_loader = get_dataloader(dataset, batch_size)
         batch = next(iter(test_loader))
-        model_output = {
-            "boxes2d": batch["boxes2d"],
-            "boxes2d_scores": [
-                torch.ones((len(b), 1)) for b in batch["boxes2d"]
-            ],
-            "boxes2d_classes": batch["boxes2d_classes"],
-        }
-        coco_eval.process(batch, model_output)
+        coco_eval.process(
+            batch["coco_image_id"],
+            batch["boxes2d"],
+            [torch.ones((len(b), 1)) for b in batch["boxes2d"]],
+            batch["boxes2d_classes"],
+        )
         score_dict, log_str = coco_eval.evaluate("COCO_AP")
         for metric in coco_metrics:
             assert metric in score_dict
-            assert score_dict[metric] > 0.98
+            assert score_dict[metric] > 0.99
         assert isinstance(log_str, str)

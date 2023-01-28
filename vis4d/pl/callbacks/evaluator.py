@@ -10,13 +10,15 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 from vis4d.common import MetricLogs
 from vis4d.common.typing import DictStrAny
-from vis4d.data.datasets.base import DictData
+from vis4d.data.typing import DictData
 from vis4d.eval.base import Evaluator
 from vis4d.pl.distributed import all_gather_object_cpu
 
 
 def default_eval_connector(
-    mode: str, data: DictData, outputs  # pylint: disable=unused-argument
+    mode: str,  # pylint: disable=unused-argument
+    data: DictData,
+    outputs: Any,  # type:ignore
 ) -> DictStrAny:
     """Default eva connector forwards input and outputs."""
     return dict(data=data, outputs=outputs)
@@ -91,7 +93,7 @@ class DefaultEvaluatorCallback(Callback):
         """Wait for on_test_batch_end PL hook to call 'process'."""
         if dataloader_idx == self.dataloader_idx:
             eval_inputs = self.eval_connector("", batch, outputs)
-            self.evaluator.process(**eval_inputs)  # type: ignore
+            self.evaluator.process(**eval_inputs)
 
     def on_validation_batch_end(  # type: ignore
         self,
@@ -104,7 +106,8 @@ class DefaultEvaluatorCallback(Callback):
     ) -> None:
         """Wait for on_validation_batch_end PL hook to call 'process'."""
         if dataloader_idx == self.dataloader_idx:
-            self.evaluator.process(batch, outputs)
+            eval_inputs = self.eval_connector("", batch, outputs)
+            self.evaluator.process(**eval_inputs)
 
     def on_sanity_check_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -123,7 +126,7 @@ class DefaultEvaluatorCallback(Callback):
     def evaluate(self) -> Dict[str, MetricLogs]:
         """Evaluate the performance after processing all input/output pairs."""
         if not self.run_eval:
-            return "", {}
+            return {}
 
         results = {}
         logger = logging.getLogger(__name__)
@@ -134,7 +137,7 @@ class DefaultEvaluatorCallback(Callback):
             if self.output_dir is not None:
                 output_dir = os.path.join(self.output_dir, metric)
                 os.makedirs(output_dir, exist_ok=True)
-                self.evaluator.save(output_dir, metric)  # TODO
+                self.evaluator.t(output_dir, metric)  # TODO implement save
 
             log_dict, log_str = self.evaluator.evaluate(metric)
             results[metric] = log_dict

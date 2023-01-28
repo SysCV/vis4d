@@ -24,9 +24,9 @@ class Evaluator:
         """
         return []
 
-    def gather(
+    def gather(  # type: ignore
         self, gather_func: Callable[[Any], Any]
-    ) -> None:  # type: ignore
+    ) -> None:
         """Gather variables in case of distributed setting (if needed).
 
         Args:
@@ -73,7 +73,7 @@ class SaveDataMixin:
         save_dir: None | str = None,
         data_backend: None | DataBackend = None,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             save_dir (None | str, optional): Directory to save predictions

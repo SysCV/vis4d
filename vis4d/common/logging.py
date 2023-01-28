@@ -1,4 +1,8 @@
-"""Vis4D logging unctions."""
+"""This module contains logging utility functions.
+
+We provide utilities for setting up a logger and logging in a distributed
+setting.
+"""
 from __future__ import annotations
 
 import logging
@@ -8,8 +12,8 @@ import warnings
 
 from termcolor import colored
 
-from .distributed import rank_zero_only
-from .typing import ArgsType
+from vis4d.common.distributed import rank_zero_only
+from vis4d.common.typing import ArgsType
 
 
 def _debug(*args: ArgsType, stacklevel: int = 2, **kwargs: ArgsType) -> None:

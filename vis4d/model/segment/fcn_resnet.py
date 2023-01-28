@@ -1,5 +1,5 @@
-"""FCN tests."""
-from typing import Optional, Tuple
+"""FCN Resnet Implementation."""
+from __future__ import annotations
 
 import torch
 from torch import nn
@@ -21,11 +21,12 @@ class FCNResNet(nn.Module):
         self,
         base_model: str = "resnet50",
         num_classes: int = 21,
-        resize: Optional[Tuple[int, int]] = (520, 520),
+        resize: None | tuple[int, int] = (520, 520),
     ) -> None:
-        """FCN with ResNet basemodel, following `torchvision implementation
-        <https://github.com/pytorch/vision/blob/torchvision/models/segmentation/
-        fcn.py>`_.
+        """FCN with ResNet basemodel, following torchvision implementation.
+
+        <https://github.com/pytorch/vision/blob/torchvision/models/
+        segmentation/fcn.py>_.
 
         model: FCNResNet(base_model="resnet50")
             - dataset: Coco2017
@@ -46,7 +47,6 @@ class FCNResNet(nn.Module):
         self.fcn = FCNHead(
             self.basemodel.out_channels[4:], num_classes, resize=resize
         )
-        print(self.basemodel.out_channels[4:])
 
     def forward(self, images: torch.Tensor) -> FCNOut:
         """Forward pass.
@@ -65,8 +65,8 @@ class FCNResNet(nn.Module):
 class FCNResNetLoss(nn.Module):
     """FCNResNet Loss."""
 
-    def __init__(self, weights: Optional[torch.Tensor] = None) -> None:
-        """Init."""
+    def __init__(self, weights: None | torch.Tensor = None) -> None:
+        """Creates an instance of the class."""
         super().__init__()
         self.loss = FCNLoss(
             [4, 5],
@@ -83,5 +83,5 @@ class FCNResNetLoss(nn.Module):
         Returns:
             FCNLoss: Dictionary of model losses.
         """
-        losses = self.loss(out.outputs, targets)
+        losses = self.loss(out.outputs, targets.long())
         return losses

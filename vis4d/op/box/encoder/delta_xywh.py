@@ -26,7 +26,7 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         target_stds: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
         wh_ratio_clip: float = 16 / 1000,
     ) -> None:
-        """Init.
+        """Creates an instance of the class.
 
         Args:
             target_means (tuple, optional): Denormalizing means of target for
@@ -80,7 +80,7 @@ class DeltaXYWHBBoxEncoder(BoxEncoder2D):
         return decoded_boxes
 
 
-@torch.jit.script
+@torch.jit.script  # type: ignore
 def bbox2delta(
     proposals: torch.Tensor,
     gt_boxes: torch.Tensor,
@@ -131,7 +131,7 @@ def bbox2delta(
     return deltas
 
 
-@torch.jit.script
+@torch.jit.script  # type: ignore
 def delta2bbox(
     rois: torch.Tensor,
     deltas: torch.Tensor,

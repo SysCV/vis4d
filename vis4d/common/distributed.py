@@ -1,5 +1,5 @@
-# type: ignore
-"""Vis4D utils for distributed setting."""
+# mypy: disable-error-code=misc
+"""This module contains utilities for multiprocess parallelism."""
 from __future__ import annotations
 
 import logging
@@ -14,7 +14,7 @@ import torch
 import torch.distributed as dist
 
 
-class PicklableWrapper:
+class PicklableWrapper:  #  mypy: disable=line-too-long
     """Wrap an object to make it more picklable.
 
     Note that it uses heavy weight serialization libraries that are slower than
@@ -23,19 +23,19 @@ class PicklableWrapper:
     https://github.com/joblib/joblib/blob/master/joblib/externals/loky/cloudpickle_wrapper.py
     """
 
-    def __init__(self, obj: PicklableWrapper) -> None:
-        """Init."""
+    def __init__(self, obj: Any | PicklableWrapper) -> None:  # type: ignore
+        """Creates an instance of the class."""
         while isinstance(obj, PicklableWrapper):
             # Wrapping an object twice is no-op
             obj = obj._obj
-        self._obj = obj
+        self._obj: Any = obj
 
     def __reduce__(self) -> tuple[Any, tuple[bytes]]:
         """Reduce."""
         s = cloudpickle.dumps(self._obj)
         return cloudpickle.loads, (s,)
 
-    def __call__(self, *args, **kwargs) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Call."""
         return self._obj(*args, **kwargs)
 
@@ -52,7 +52,11 @@ class PicklableWrapper:
 
 # no coverage for these functions, since we don't unittest distributed setting
 def get_world_size() -> int:  # pragma: no cover
-    """Get world size of torch.distributed."""
+    """Get the world size (number of processes) of torch.distributed.
+
+    Returns:
+        int: The world size.
+    """
     if not dist.is_available():
         return 1
     if not dist.is_initialized():
@@ -61,7 +65,11 @@ def get_world_size() -> int:  # pragma: no cover
 
 
 def get_rank() -> int:  # pragma: no cover
-    """Get global rank of torch.distributed."""
+    """Get the global rank of the current process in torch.distributed.
+
+    Returns:
+        int: The global rank.
+    """
     rank_keys = ("RANK", "SLURM_PROCID", "LOCAL_RANK")
     for key in rank_keys:
         rank = os.environ.get(key)
@@ -83,7 +91,18 @@ def synchronize() -> None:  # pragma: no cover
 
 
 def serialize_to_tensor(data: Any) -> torch.Tensor:  # pragma: no cover
-    """Serialize arbitrary picklable data to torch.Tensor."""
+    """Serialize arbitrary picklable data to a torch.Tensor.
+
+    Args:
+        data (Any): The data to serialize.
+
+    Returns:
+        torch.Tensor: The serialized data as a torch.Tensor.
+
+    Raises:
+        AssertionError: If the backend of torch.distributed is not gloo or
+            nccl.
+    """
     backend = dist.get_backend()
     assert backend in {
         "gloo",
@@ -106,9 +125,14 @@ def serialize_to_tensor(data: Any) -> torch.Tensor:  # pragma: no cover
 
 
 def rank_zero_only(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    """Function that can be used as a decorator.
+    """Allows the decorated function to be called only on global rank 0.
 
-    Enables a function/method being called only on global rank 0.
+    Args:
+        func( Callable[[Any], Any]): The function to decorate.
+
+    Returns:
+        Callable[[Any], Any]: The decorated function.
+
     """
 
     @wraps(func)
