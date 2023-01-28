@@ -38,7 +38,7 @@ class Tester:
         self.data_connector = data_connector
         self.evaluators = evaluators if evaluators is not None else dict()
         self.visualizers = visualizers if visualizers is not None else dict()
-        
+
     def do_evaluation(self, epoch: int) -> bool:
         """Return whether to do evaluation for current epoch."""
         return (
@@ -50,6 +50,7 @@ class Tester:
     def setup_visualizers(self) -> list[Visualizer]:
         """Set-up visualizers."""
         raise NotImplementedError
+
     def do_visualization(self, epoch: int) -> bool:
         """Return whether to do visualization for current epoch."""
         return (
