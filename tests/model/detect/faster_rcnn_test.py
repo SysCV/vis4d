@@ -147,7 +147,7 @@ class FasterRCNNTest(unittest.TestCase):
                     print(log_str.rstrip(", "))
                     running_losses = {}
 
-    # def test_torchscript(self) -> None: # FIXME
+    # def test_torchscript(self) -> None: # TODO: fix this test
     #     """Test torchscript export of Faster RCNN."""
     #     sample_images = torch.rand((2, 3, 512, 512))
     #     faster_rcnn = FasterRCNN(80)

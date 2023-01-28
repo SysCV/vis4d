@@ -265,8 +265,8 @@ def draw_bev_box(
         yaw_hist_ = history[:, 8]
         center_hist = history[:, :2]
         for index, ct in enumerate(center_hist):
-            yaw = yaw_hist_[index].item()
-            vec_l = np.array([l * np.cos(yaw), -l * np.sin(yaw)])
+            yaw_val = yaw_hist_[index].item()
+            vec_l = np.array([l * np.cos(yaw_val), -l * np.sin(yaw_val)])
             ct_dir = ct + 0.5 * vec_l
             alpha = max(float(index) / len(center_hist), 0.5)
             axis.plot(

@@ -29,7 +29,7 @@ class Trainer:
         data_connector: DataConnector,
         test_every_nth_epoch: int = 1,
         save_every_nth_epoch: int = 1,
-        vis_every_nth_epoch: int = 1,
+        # vis_every_nth_epoch: int = 1,
     ) -> None:
         """Creates an instance of the class."""
         self.num_epochs = num_epochs

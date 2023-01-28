@@ -16,7 +16,8 @@ from pytest_notebook.nb_regression import NBRegressionFixture
 #         ("/cells/*/outputs", "\\[Open3D INFO\\] [^\\n]+ *\\n?", ""),
 #         (
 #             "/cells/*/outputs",
-#             "Jupyter environment detected. Enabling Open3D WebVisualizer. *\\n?",
+#             "Jupyter environment detected. Enabling Open3D WebVisualizer.
+#              *\\n?",
 #             "",
 #         ),
 #     )

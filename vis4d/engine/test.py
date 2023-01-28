@@ -36,8 +36,8 @@ class Tester:
 
         self.test_dataloader = dataloaders
         self.data_connector = data_connector
-        self.evaluators = evaluators if evaluators is not None else dict()
-        self.visualizers = visualizers if visualizers is not None else dict()
+        self.evaluators = evaluators if evaluators is not None else {}
+        self.visualizers = visualizers if visualizers is not None else {}
 
     def do_evaluation(self, epoch: int) -> bool:
         """Return whether to do evaluation for current epoch."""
@@ -58,7 +58,7 @@ class Tester:
             or epoch % self.vis_every_nth_epoch == self.vis_every_nth_epoch - 1
         )
 
-    @torch.no_grad()
+    @torch.no_grad()  # type: ignore
     def test(
         self, model: nn.Module, metric: str, epoch: None | int = None
     ) -> None:
@@ -84,8 +84,11 @@ class Tester:
                             name, output, data
                         )
                         test_eval.process(
-                            **move_data_to_device(  # TODO, maybe move this to data connector?
-                                eval_kwargs, "cpu", True
+                            **move_data_to_device(  # TODO, maybe
+                                # move this to data connector?
+                                eval_kwargs,
+                                "cpu",
+                                True,
                             )
                         )
 
@@ -94,7 +97,7 @@ class Tester:
                         eval_kwargs = self.data_connector.get_visualizer_input(
                             name, output, data
                         )
-                        vis.process(**eval_kwargs)  # type: ignore
+                        vis.process(**eval_kwargs)
 
         if not epoch or self.do_evaluation(epoch):
             for name, test_eval in self.evaluators.items():

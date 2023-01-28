@@ -1,15 +1,14 @@
 """Defines datastructures for data connection."""
 from __future__ import annotations
 
-from typing import Dict, TypedDict
+from typing import Dict, TypedDict, Union
 
 from torch import Tensor
 from typing_extensions import NotRequired
 
 from vis4d.data.typing import DictData
 
-DictStrArrayNested = Dict[str, Tensor | Dict[str, Tensor]]
-
+DictStrArrNested = Dict[str, Union[Tensor, Dict[str, Tensor]]]  # type: ignore
 
 ### Type Definitions
 
@@ -103,7 +102,7 @@ class DataConnector:
 
     def get_train_input(
         self, data: DictData
-    ) -> dict[str, Tensor | DictStrArrayNested]:
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the model for training.
 
         Args:
@@ -118,7 +117,7 @@ class DataConnector:
 
     def get_test_input(
         self, data: DictData
-    ) -> dict[str, Tensor | DictStrArrayNested]:
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the model for testing.
 
         Args:
@@ -133,7 +132,7 @@ class DataConnector:
 
     def get_loss_input(
         self, prediction: DictData, data: DictData
-    ) -> dict[str, Tensor | DictStrArrayNested]:
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the loss during training.
 
         Args:
@@ -150,7 +149,7 @@ class DataConnector:
 
     def get_visualizer_input(
         self, mode: str, prediction: DictData, data: DictData
-    ) -> dict[str, Tensor | DictStrArrayNested]:
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the visualizer.
 
         Args:
@@ -169,7 +168,7 @@ class DataConnector:
 
     def get_evaluator_input(
         self, mode: str, prediction: DictData, data: DictData
-    ) -> dict[str, Tensor | DictStrArrayNested]:
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the evaluator.
 
         Args:
@@ -200,8 +199,8 @@ class StaticDataConnector(DataConnector):
         to the next component with the provided new key.
 
         Args:
-            connections (DataConnectionInfo): DataConnectionInfo defining the static
-            key remappings.
+            connections (DataConnectionInfo): DataConnectionInfo defining the
+            static key remappings.
 
 
 
@@ -245,7 +244,7 @@ class StaticDataConnector(DataConnector):
         connection_dict: dict[str, SourceKeyDescription],
         prediction: DictData,
         data: DictData,
-    ) -> dict[str, Tensor | DictStrArrayNested]:
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Extracts input data from the provided SourceKeyDescription.
 
         Args:
@@ -278,7 +277,7 @@ class StaticDataConnector(DataConnector):
 
     def get_train_input(
         self, data: DictData
-    ) -> dict[str, Tensor | DictStrArrayNested]:
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the model for training.
 
         Args:
@@ -293,7 +292,7 @@ class StaticDataConnector(DataConnector):
 
     def get_test_input(
         self, data: DictData
-    ) -> dict[str, Tensor | DictStrArrayNested]:
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the model for testing.
 
         Args:
@@ -308,7 +307,7 @@ class StaticDataConnector(DataConnector):
 
     def get_loss_input(
         self, prediction: DictData, data: DictData
-    ) -> dict[str, Tensor | DictStrArrayNested]:
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the loss during training.
 
         Args:
@@ -327,7 +326,7 @@ class StaticDataConnector(DataConnector):
 
     def get_visualizer_input(
         self, mode: str, prediction: DictData, data: DictData
-    ) -> dict[str, Tensor | DictStrArrayNested]:
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the visualizer.
 
         Args:
@@ -347,7 +346,7 @@ class StaticDataConnector(DataConnector):
 
     def get_evaluator_input(
         self, mode: str, prediction: DictData, data: DictData
-    ) -> dict[str, Tensor | DictStrArrayNested]:
+    ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the evaluator.
 
         Args:
