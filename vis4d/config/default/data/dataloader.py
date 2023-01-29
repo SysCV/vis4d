@@ -18,6 +18,7 @@ def default_dataloader_config(
     workers_per_gpu: int | FieldReference = 1,
     batchprocess_fn: Callable[[list[DictData]], list[DictData]]
     | ConfigDict = lambda x: x,
+    shuffle: bool | FieldReference = True,
 ) -> ConfigDict:
     """Creates a dataloader configuration given dataset and preprocessing.
 
@@ -32,6 +33,7 @@ def default_dataloader_config(
         batchprocess_fn (Callable[[list[DictData]],list[DictData]] | ConfigDict
             , optional): Function to apply for each batch.
             Defaults to identity.
+        shuffle (bool, optional): Whether to shuffle the dataset.
 
     Returns:
         ConfigDict: Configuration that can be instantiate as a dataloader.
@@ -46,4 +48,5 @@ def default_dataloader_config(
         batchprocess_fn=batchprocess_fn,
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=workers_per_gpu,
+        shuffle=shuffle,
     )

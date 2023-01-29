@@ -78,6 +78,7 @@ def get_config() -> ConfigDict:
         # to  vis4d.data.transforms.base.get_transform_fn.
         # We need to use to full config path for now. Should probably be fixed
         # with the transform update
+        shuffle=False,
     )
 
     # Test
@@ -102,6 +103,7 @@ def get_config() -> ConfigDict:
         # to  vis4d.data.transforms.base.get_transform_fn.
         # We need to use to full config path for now. Should probably be fixed
         # with the transform update
+        shuffle=True,
     )
 
     config.train_dl = dataloader_train_cfg
