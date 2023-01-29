@@ -10,6 +10,7 @@ from vis4d.config.default.loss.faster_rcnn_loss import (
     get_default_faster_rcnn_loss,
 )
 from vis4d.engine.connectors import SourceKeyDescription
+from vis4d.eval.detect.coco import COCOEvaluator
 from vis4d.model.detect.faster_rcnn import FasterRCNN
 
 warnings.filterwarnings("ignore")
@@ -42,13 +43,13 @@ def get_config() -> ConfigDict:
     ######################################################
     engine = ConfigDict()  # TODO rename to trainer?
     engine.batch_size = 16
-    engine.learning_rate = 0.02 / 16 * engine.get_ref("batch_size")
+    engine.learning_rate = 0.01 / 16 * engine.get_ref("batch_size")
     engine.experiment_name = "frcnn_coco_epoch"
     engine.save_prefix = "vis4d-workspace/test/" + engine.get_ref(
         "experiment_name"
     )
     engine.metric = "COCO_AP"
-    engine.num_epochs = 10
+    engine.num_epochs = 25
     config.engine = engine
 
     ######################################################
@@ -124,17 +125,25 @@ def get_config() -> ConfigDict:
         key="coco_image_id", source="data"
     )
     coco_eval["pred_boxes"] = SourceKeyDescription(
-        key="pred_boxes", source="prediction"
+        key="boxes2d", source="prediction"
     )
     coco_eval["pred_scores"] = SourceKeyDescription(
-        key="pred_scores", source="prediction"
+        key="boxes2d_scores", source="prediction"
     )
     coco_eval["pred_classes"] = SourceKeyDescription(
-        key="pred_classes", source="prediction"
+        key="boxes2d_classes", source="prediction"
     )
 
     data_connector_cfg = default_detection_connector(dict(coco=coco_eval))
 
     config.data_connector = data_connector_cfg
+
+    config.evaluators = ConfigDict(
+        {
+            "coco": class_config(
+                COCOEvaluator, data_root=COCO_DATA_ROOT, split="train"
+            )
+        }
+    )
 
     return config

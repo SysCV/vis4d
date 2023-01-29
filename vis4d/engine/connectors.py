@@ -278,7 +278,13 @@ class StaticDataConnector(DataConnector):
                     )
                 else:
                     # TODO: dict nested lookups
-                    out[new_key_name] = prediction[old_key_name["key"]]  # type: ignore # pylint: disable=line-too-long
+                    old_key = old_key_name["key"]
+                    if old_key not in prediction:
+                        raise ValueError(
+                            f"Key {old_key} not found in prediction dict."
+                            f"Available keys: {prediction.keys()}"  # type: ignore # pylint: disable=line-too-long
+                        )
+                    out[new_key_name] = prediction[old_key]  # type: ignore # pylint: disable=line-too-long
             else:
                 raise ValueError(
                     f"Unknown data source {old_key_name['source']}."

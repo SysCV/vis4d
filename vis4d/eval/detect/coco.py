@@ -202,6 +202,14 @@ class COCOEvaluator(Evaluator):
         """
         if metric != "COCO_AP":
             raise NotImplementedError(f"Metric {metric} not known!")
+        coco_dt = None  # self._coco_gt.loadRes(self._predictions)
+
+        if len(self._predictions) == 0:
+            print(
+                "[COCO Evaluator]: No predictions to evaluate. "  # TODO: log
+                "Make sure to call process() first!"
+            )
+            return {}, ""
 
         with contextlib.redirect_stdout(io.StringIO()):
             if self.iou_type == "segm":

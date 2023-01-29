@@ -131,7 +131,9 @@ def _train() -> None:
         data_connector=config.data_connector,
     )
     tester = Tester(
-        dataloaders=config.test_dl, data_connector=config.data_connector
+        dataloaders=config.test_dl,
+        data_connector=config.data_connector,
+        evaluators=config.evaluators,
     )
 
     opt = Optimizer(
