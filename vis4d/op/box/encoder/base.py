@@ -20,3 +20,27 @@ class BoxEncoder2D:
     ) -> torch.Tensor:
         """Decode the predicted box_deltas according to given base boxes."""
         raise NotImplementedError
+
+
+class BoxEncoder3D:
+    """Base class for 3D box coders."""
+
+    @abc.abstractmethod
+    def encode(
+        self,
+        boxes: torch.Tensor,
+        targets: torch.Tensor,
+        intrinscs: torch.Tensor,
+    ) -> torch.Tensor:
+        """Encode deltas between boxes and targets given intrinsics."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def decode(
+        self,
+        boxes: torch.Tensor,
+        box_deltas: torch.Tensor,
+        intrinscs: torch.Tensor,
+    ) -> torch.Tensor:
+        """Decode the predicted box_deltas according to given base boxes."""
+        raise NotImplementedError

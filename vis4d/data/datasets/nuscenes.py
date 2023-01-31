@@ -5,6 +5,8 @@ import copy
 import os
 from collections import defaultdict
 
+from typing import List
+
 import numpy as np
 import torch
 from torch import Tensor
@@ -86,12 +88,21 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         "CAM_BACK_RIGHT",
     ]
 
+    _METADATA = {
+        "use_camera": False,
+        "use_lidar": False,
+        "use_radar": False,
+        "use_map": False,
+        "use_external": False,
+    }
+
     def __init__(
         self,
         data_root: str,
         version: str = "v1.0-trainval",
         split: str = "train",
         include_non_key: bool = False,
+        metadata: List[str] = ["use_camera"],
         data_backend: DataBackend | None = None,
     ) -> None:
         """Creates an instance of the class.
@@ -133,6 +144,10 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         self.split = split
         self.include_non_key = include_non_key
 
+        for m in metadata:
+            assert m in self._METADATA, f"Invalid metadata {m}!"
+            self._METADATA[m] = True
+
         self.data = NuScenesDevkit(
             version=self.version, dataroot=self.data_root, verbose=False
         )
@@ -145,6 +160,10 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             ),
         )
         self.instance_tokens = []
+
+    def __repr__(self) -> str:
+        """Concise representation of the dataset."""
+        return f"NuScenesDataset {self.version} {self.split}"
 
     @property
     def video_to_indices(self) -> dict[str, list[int]]:
@@ -383,7 +402,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
 
         # load LiDAR frame
         data_dict: DictData = {}
-        if "LIDAR_TOP" in self._SENSORS:
+        if self._METADATA["use_lidar"]:
             points, extrinsics, timestamp = self._load_lidar_data(
                 lidar_data, ego_pose
             )
@@ -401,38 +420,43 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             }
 
         # load camera frames
-        for cam in NuScenes._CAMERAS:
-            if cam in self._SENSORS:
-                cam_token = sample["data"][cam]
-                image, intrinsics, extrinsics, timestamp = self._load_cam_data(
-                    cam_token, ego_pose
-                )
-                image_hw = image.size(2), image.size(3)
-                (
-                    boxes3d,
-                    boxes3d_classes,
-                    boxes3d_track_ids,
-                ) = self._load_boxes3d(boxes, extrinsics, AxisMode.OPENCV)
+        if self._METADATA["use_camera"]:
+            for cam in NuScenes._CAMERAS:
+                if cam in self._SENSORS:
+                    cam_token = sample["data"][cam]
+                    (
+                        image,
+                        intrinsics,
+                        extrinsics,
+                        timestamp,
+                    ) = self._load_cam_data(cam_token, ego_pose)
+                    image_hw = image.size(2), image.size(3)
+                    (
+                        boxes3d,
+                        boxes3d_classes,
+                        boxes3d_track_ids,
+                    ) = self._load_boxes3d(boxes, extrinsics, AxisMode.OPENCV)
 
-                mask, boxes2d = self._load_boxes2d(
-                    boxes3d, intrinsics, image_hw
-                )
-                data_dict[cam] = {
-                    CommonKeys.images: image,
-                    CommonKeys.original_hw: image_hw,
-                    CommonKeys.input_hw: image_hw,
-                    CommonKeys.frame_ids: sample["frame_index"],
-                    CommonKeys.intrinsics: intrinsics,
-                    CommonKeys.extrinsics: extrinsics,
-                    CommonKeys.timestamp: timestamp,
-                    CommonKeys.axis_mode: AxisMode.OPENCV,
-                    CommonKeys.boxes2d: boxes2d,
-                    CommonKeys.boxes2d_classes: boxes3d_classes[mask],
-                    CommonKeys.boxes2d_track_ids: boxes3d_track_ids[mask],
-                    CommonKeys.boxes3d: boxes3d[mask],
-                    CommonKeys.boxes3d_classes: boxes3d_classes[mask],
-                    CommonKeys.boxes3d_track_ids: boxes3d_track_ids[mask],
-                }
+                    mask, boxes2d = self._load_boxes2d(
+                        boxes3d, intrinsics, image_hw
+                    )
+                    data_dict[cam] = {
+                        "token": sample["token"],
+                        CommonKeys.images: image,
+                        CommonKeys.original_hw: image_hw,
+                        CommonKeys.input_hw: image_hw,
+                        CommonKeys.frame_ids: sample["frame_index"],
+                        CommonKeys.intrinsics: intrinsics,
+                        CommonKeys.extrinsics: extrinsics,
+                        CommonKeys.timestamp: timestamp,
+                        CommonKeys.axis_mode: AxisMode.OPENCV,
+                        CommonKeys.boxes2d: boxes2d,
+                        CommonKeys.boxes2d_classes: boxes3d_classes[mask],
+                        CommonKeys.boxes2d_track_ids: boxes3d_track_ids[mask],
+                        CommonKeys.boxes3d: boxes3d[mask],
+                        CommonKeys.boxes3d_classes: boxes3d_classes[mask],
+                        CommonKeys.boxes3d_track_ids: boxes3d_track_ids[mask],
+                    }
 
         # TODO add RADAR, Map data
         return data_dict

@@ -1,8 +1,9 @@
 """Rotation utilities."""
 import functools
-
+import numpy as np
 import torch
 import torch.nn.functional as F
+import pdb
 
 
 def normalize_angle(input_angles: torch.Tensor) -> torch.Tensor:
@@ -16,6 +17,24 @@ def normalize_angle(input_angles: torch.Tensor) -> torch.Tensor:
         torch.Tensor with angles normalized to +/- pi
     """
     return (input_angles + torch.pi) % (2 * torch.pi) - torch.pi
+
+
+def acute_angle(theta_1: torch.Tensor, theta_2: torch.Tensor) -> torch.Tensor:
+    """Make the angle of two theta is acute."""
+    if np.pi / 2.0 < abs(theta_2 - theta_1) < np.pi * 3 / 2.0:
+        theta_1 += np.pi
+        if theta_1 > np.pi:
+            theta_1 -= np.pi * 2
+        if theta_1 < -np.pi:
+            theta_1 += np.pi * 2
+
+    # Now the angle is acute: < 90 or > 270, convert the case of > 270 to < 90
+    if abs(theta_2 - theta_1) >= np.pi * 3 / 2.0:
+        if theta_2 > 0:
+            theta_1 += np.pi * 2
+        else:
+            theta_1 -= np.pi * 2
+    return theta_1
 
 
 def yaw2alpha(rot_y: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
@@ -477,3 +496,29 @@ def quaternion_apply(
         quaternion_invert(quaternion),
     )
     return out[..., 1:]
+
+
+def rotate_orientation(
+    orientation: torch.Tensor,
+    extrinsics: torch.Tensor,
+    in_image_frame: bool = False,
+) -> torch.Tensor:
+    """Rotate the orientation of the object in different coordinate."""
+    rot = extrinsics[:3, :3] @ euler_angles_to_matrix(orientation)
+
+    new_orientation = rot.new_zeros(orientation.shape[0], 3)
+    if in_image_frame:
+        # Yaw in camera coordinate
+        new_orientation[:, 1] = matrix_to_euler_angles(rot, "YZX")[:, 0]
+    else:
+        # Yaw in lidar or world coordinate
+        new_orientation[:, 2] = matrix_to_euler_angles(rot, "ZYX")[:, 0]
+    return new_orientation
+
+
+def rotate_velocities(
+    velocities: torch.Tensor,
+    extrinsics: torch.Tensor,
+) -> torch.Tensor:
+    """Rotate the velocities of the object in different coordinate."""
+    return (extrinsics[:3, :3] @ velocities.unsqueeze(-1)).squeeze(-1)

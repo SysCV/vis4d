@@ -7,6 +7,8 @@ from torchvision.ops import batched_nms
 
 from vis4d.op.geometry.transform import transform_points
 
+from typing import Optional
+
 
 def bbox_scale(
     boxes: torch.Tensor, scale_factor_xy: tuple[float, float]
@@ -88,39 +90,58 @@ def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
 
 @torch.jit.script  # type: ignore
 def bbox_intersection(
-    boxes1: torch.Tensor, boxes2: torch.Tensor
+    boxes1: Tensor,
+    boxes2: Tensor,
+    camera1_ids: Optional[Tensor] = None,
+    camera2_ids: Optional[Tensor] = None,
 ) -> torch.Tensor:
     """Given two lists of boxes of size N and M, compute N x M intersection.
 
     Args:
         boxes1: N 2D boxes in format (x1, y1, x2, y2)
         boxes2: M 2D boxes in format (x1, y1, x2, y2)
+        camera1_ids: N camera ids
+        camera2_ids: M camera ids
 
     Returns:
         Tensor: intersection (N, M).
     """
+    if camera1_ids is not None and camera2_ids is not None:
+        valid = torch.eq(
+            camera1_ids.unsqueeze(1), camera2_ids.unsqueeze(0)
+        ).int()
+    else:
+        valid = boxes1.new_ones(len(boxes1), len(boxes2))
+
     width_height = torch.min(boxes1[:, None, 2:], boxes2[:, 2:]) - torch.max(
         boxes1[:, None, :2], boxes2[:, :2]
     )
     width_height.clamp_(min=0)
     intersection = width_height.prod(dim=2)
-    return intersection
+    return intersection * valid
 
 
 @torch.jit.script  # type: ignore
-def bbox_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
+def bbox_iou(
+    boxes1: torch.Tensor,
+    boxes2: torch.Tensor,
+    camera1_ids: Optional[Tensor] = None,
+    camera2_ids: Optional[Tensor] = None,
+) -> torch.Tensor:
     """Compute IoU between all pairs of boxes.
 
     Args:
         boxes1: N 2D boxes in format (x1, y1, x2, y2)
         boxes2: M 2D boxes in format (x1, y1, x2, y2)
+        camera1_ids: N camera ids
+        camera2_ids: M camera ids
 
     Returns:
         Tensor: IoU (N, M).
     """
     area1 = bbox_area(boxes1)
     area2 = bbox_area(boxes2)
-    inter = bbox_intersection(boxes1, boxes2)
+    inter = bbox_intersection(boxes1, boxes2, camera1_ids, camera2_ids)
 
     iou = torch.where(
         inter > 0,

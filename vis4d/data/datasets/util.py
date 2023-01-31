@@ -109,7 +109,7 @@ class CacheMappingMixin:
         data = self._load_mapping_data(generate_map_func, use_cache)
         dataset = DatasetFromList(data)
         rank_zero_info(
-            f"Loading {str(self.__repr__)} takes {timer.time():.2f} seconds."
+            f"Loading {str(self.__repr__())} takes {timer.time():.2f} seconds."
         )
         return dataset
 
