@@ -49,7 +49,6 @@ class ConfigFileParser(_ConfigFileParser):  # type: ignore
         Returns (ConfigDict):
           ConfigDict located at 'path'
         """
-        print("called for", path)
         if path.split(".")[-1] == "yaml":
             with open(path, "r", encoding="utf-8") as yaml_file:
                 data_dict = ConfigDict(yaml.safe_load(yaml_file))
@@ -133,7 +132,8 @@ def _train() -> None:
     tester = Tester(
         dataloaders=config.test_dl,
         data_connector=config.data_connector,
-        evaluators=config.evaluators,
+        evaluators=config.get("evaluators", None),
+        visualizers=config.get("visualizers", None),
     )
 
     opt = Optimizer(

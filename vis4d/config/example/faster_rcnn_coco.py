@@ -20,6 +20,7 @@ from vis4d.config.default.data.dataloader import default_dataloader_config
 from vis4d.config.default.data.detect import default_detection_preprocessing
 from vis4d.config.util import class_config
 from vis4d.data.datasets.coco import COCO
+from vis4d.vis.image import BoundingBoxVisualizer
 
 # This is just for demo purposes. Uses the relative path to the vis4d root.
 VIS4D_ROOT = os.path.abspath(os.path.dirname(__file__) + "../../../../")
@@ -113,10 +114,26 @@ def get_config() -> ConfigDict:
     ##                        MODEL                     ##
     ######################################################
     config.model = class_config(FasterRCNN, num_classes=80, weights=None)
+
     ######################################################
     ##                        LOSS                      ##
     ######################################################
+
     config.loss = class_config(get_default_faster_rcnn_loss)
+
+    ######################################################
+    ##                    Visualizer                    ##
+    ######################################################
+    config.visualizers = ConfigDict(
+        {"bboxes": class_config(BoundingBoxVisualizer)}
+    )
+    # data connector for visualizer
+
+    bbox_vis = dict()
+    bbox_vis["images"] = SourceKeyDescription(key="images", source="data")
+    bbox_vis["boxes"] = SourceKeyDescription(
+        key="boxes2d", source="prediction"
+    )
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
@@ -136,7 +153,9 @@ def get_config() -> ConfigDict:
         key="boxes2d_classes", source="prediction"
     )
 
-    data_connector_cfg = default_detection_connector(dict(coco=coco_eval))
+    data_connector_cfg = default_detection_connector(
+        dict(coco=coco_eval), dict(bboxes=bbox_vis)
+    )
 
     config.data_connector = data_connector_cfg
 

@@ -103,6 +103,26 @@ def _get_loss_connection_infos(loss: nn.Module) -> DataConnectionInfo:
     )
 
 
+def _get_vis_connection_infos(
+    visualizer: Evaluator,
+) -> DataConnectionInfo:
+    """Returns the connection infos for a visualizer.
+
+    Args:
+        visualizer: Visualizer to extract data from
+
+    Returns:
+        DataConnectionInfo for the visualizer.
+    """
+    return DataConnectionInfo(
+        in_keys=sorted(
+            list(inspect.signature(visualizer.process).parameters.keys())
+        ),
+        out_keys=[],
+        name=visualizer.__class__.__name__,
+    )
+
+
 def _get_evaluator_connection_infos(
     evaluator: Evaluator,
 ) -> DataConnectionInfo:
@@ -468,22 +488,38 @@ def prints_datagraph_for_config(instantiated_config: ConfigDict) -> str:
         [
             *data_connection_info["test"],
             model_connection_info["test"],
-            *data_connection_info["evaluators"],
         ]
     )
     for inp, out in zip(train_components[:-1], train_components[1:]):
         connect_components(inp, out)
 
+    optional_components: list[DataConnectionInfo] = []
     # Connect evaluators to visualizers
     if "evaluators" in instantiated_config:
         for name, evaluator in instantiated_config.evaluators.items():
+
             connect_info = _get_evaluator_connection_infos(evaluator)
 
-            for component in train_components:
+            for component in data_connection_info["evaluators"]:
                 if component["name"] == name:
                     # found matching connector
                     connect_components(component, connect_info)
-            train_components.append(connect_info)
+                    if component not in optional_components:
+                        optional_components.append(component)
+            optional_components.append(connect_info)
+
+    if "visualizers" in instantiated_config:
+        for name, vis in instantiated_config.visualizers.items():
+            connect_info = _get_vis_connection_infos(vis)
+            for component in data_connection_info["visualizers"]:
+                if component["name"] == name:
+                    # found matching connector
+                    connect_components(component, connect_info)
+                    if component not in optional_components:
+                        optional_components.append(component)
+            optional_components.append(connect_info)
+
+    train_components.extend(optional_components)
 
     for e in train_components:
         log_str += print_box(e["name"], e["in_keys"], e["out_keys"])

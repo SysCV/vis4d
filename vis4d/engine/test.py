@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 import torch
 from torch import nn
@@ -106,6 +107,8 @@ class Tester:
                 logger.info(log_str)
 
         if not epoch or self.do_visualization(epoch):
+            # TODO add output path to config
+            os.makedirs(f"epoch_{epoch}", exist_ok=True)
             for name, test_vis in self.visualizers.items():
-                test_vis.save_to_disk(".")
-                # test_vis.clear()
+                test_vis.save_to_disk(f"epoch_{epoch}")
+                test_vis.reset()
