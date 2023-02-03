@@ -100,7 +100,7 @@ class MaskRCNNTest(unittest.TestCase):
                 optimizer.step()
 
                 # print statistics
-                losses = dict(loss=total_loss, **mask_losses)
+                losses = {"loss": total_loss, **mask_losses}
                 for k, loss in losses.items():
                     if k in running_losses:
                         running_losses[k] += loss

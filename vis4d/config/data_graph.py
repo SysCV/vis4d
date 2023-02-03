@@ -497,7 +497,6 @@ def prints_datagraph_for_config(instantiated_config: ConfigDict) -> str:
     # Connect evaluators to visualizers
     if "evaluators" in instantiated_config:
         for name, evaluator in instantiated_config.evaluators.items():
-
             connect_info = _get_evaluator_connection_infos(evaluator)
 
             for component in data_connection_info["evaluators"]:

@@ -95,7 +95,7 @@ class RetinaNetTest(unittest.TestCase):
                 optimizer.step()
 
                 # print statistics
-                losses = dict(loss=total_loss, **retinanet_losses)
+                losses = {"loss": total_loss, **retinanet_losses}
                 for k, loss in losses.items():
                     if k in running_losses:
                         running_losses[k] += loss

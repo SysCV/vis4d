@@ -9,6 +9,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from vis4d.common.callbacks import EvaluatorCallback
 from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.eval import Evaluator
@@ -39,6 +40,11 @@ class Tester:
         self.data_connector = data_connector
         self.evaluators = evaluators if evaluators is not None else {}
         self.visualizers = visualizers if visualizers is not None else {}
+
+        self.eval_callbacks = {
+            k: EvaluatorCallback(v, self.data_connector)
+            for k, v in self.evaluators.items()
+        }
 
     def do_evaluation(self, epoch: int) -> bool:
         """Return whether to do evaluation for current epoch."""
@@ -80,18 +86,8 @@ class Tester:
 
                 if not epoch or self.do_evaluation(epoch):
                     # TODO, this should be all numpy.
-                    for name, test_eval in self.evaluators.items():
-                        eval_kwargs = self.data_connector.get_evaluator_input(
-                            name, output, data
-                        )
-                        test_eval.process(
-                            **move_data_to_device(  # TODO, maybe
-                                # move this to data connector?
-                                eval_kwargs,
-                                "cpu",
-                                True,
-                            )
-                        )
+                    for k, eval_callback in self.eval_callbacks.items():
+                        eval_callback.on_test_batch_end(output, data, k)
 
                 if not epoch or self.do_visualization(epoch):
                     for name, vis in self.visualizers.items():
@@ -101,10 +97,8 @@ class Tester:
                         vis.process(**eval_kwargs)
 
         if not epoch or self.do_evaluation(epoch):
-            for name, test_eval in self.evaluators.items():
-
-                _, log_str = test_eval.evaluate(metric)
-                logger.info(log_str)
+            for k, eval_callback in self.eval_callbacks.items():
+                eval_callback.on_test_epoch_end()
 
         if not epoch or self.do_visualization(epoch):
             # TODO add output path to config

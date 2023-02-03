@@ -181,12 +181,12 @@ class MaskRCNN(nn.Module):
         masks = self.det2mask(
             mask_preds, boxes, scores, class_ids, original_hw
         )
-        return dict(
-            boxes2d=boxes,
-            boxes2d_scores=scores,
-            boxes2d_classes=class_ids,
-            masks=masks.masks,
-        )
+        return {
+            "boxes2d": boxes,
+            "boxes2d_scores": scores,
+            "boxes2d_classes": class_ids,
+            "masks": masks.masks,
+        }
 
 
 class MaskRCNNLoss(nn.Module):
@@ -252,8 +252,8 @@ class MaskRCNNLoss(nn.Module):
         mask_losses = self.mask_loss(
             mask_outs.mask_pred, pos_proposals, pos_classes, pos_mask_targets
         )
-        return dict(
+        return {
             **rpn_losses._asdict(),
             **rcnn_losses._asdict(),
             **mask_losses._asdict(),
-        )
+        }

@@ -120,7 +120,7 @@ _MODE = flags.DEFINE_string(
 def _train() -> None:
     """Train the model."""
     # parameters
-    device = torch.device("cuda")  # TODO, copy ddp code from engine
+    device = torch.device("cpu")  # TODO, copy ddp code from engine
     config: ConfigDict = instantiate_classes(_CONFIG.value)
 
     trainer = Trainer(

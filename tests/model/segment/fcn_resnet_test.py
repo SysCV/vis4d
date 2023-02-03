@@ -110,7 +110,7 @@ class FCNResNetTest(unittest.TestCase):
                 optimizer.step()
 
                 # print statistics
-                losses = dict(loss=loss.total_loss)
+                losses = {"loss": loss.total_loss}
                 for k, loss in losses.items():
                     if k in running_losses:
                         running_losses[k] += loss.item()

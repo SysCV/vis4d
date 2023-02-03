@@ -146,7 +146,7 @@ class COCOEvaluator(Evaluator):
     def gather(  # type: ignore
         self, gather_func: Callable[[Any], Any]
     ) -> None:
-        """Accumulate predictions across prcoesses."""
+        """Accumulate predictions across processes."""
         all_preds = gather_func(self._predictions)
         if all_preds is not None:
             self._predictions = list(itertools.chain(*all_preds))

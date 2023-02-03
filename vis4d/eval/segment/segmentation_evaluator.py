@@ -157,7 +157,6 @@ class SegmentationEvaluator(Evaluator):
             SegmentationEvaluator.METRIC_CONFUSION_MATRIX,
             SegmentationEvaluator.METRIC_ALL,
         ]:
-
             headers = ["Confusion"] + [
                 self._get_class_name_for_idx(i)
                 for i in range(self._confusion_matrix.shape[0])

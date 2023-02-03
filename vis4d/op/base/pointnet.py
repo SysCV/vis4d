@@ -358,7 +358,7 @@ class PointNetSegmentation(nn.Module):
         self.classifier_dims = [feature_dimension + pc_feat_dim, 512, 256, 128]
         # Build Model
         self.classifier = nn.Sequential()
-        for (in_dim, out_dim) in zip(
+        for in_dim, out_dim in zip(
             self.classifier_dims[:-1], self.classifier_dims[1:]
         ):
             self.classifier.append(nn.Conv1d(in_dim, out_dim, 1))
