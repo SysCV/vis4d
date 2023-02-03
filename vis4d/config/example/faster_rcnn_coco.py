@@ -16,10 +16,13 @@ from vis4d.model.detect.faster_rcnn import FasterRCNN
 warnings.filterwarnings("ignore")
 import os
 
+from torch import optim
+
 from vis4d.config.default.data.dataloader import default_dataloader_config
 from vis4d.config.default.data.detect import default_detection_preprocessing
-from vis4d.config.util import class_config
+from vis4d.config.util import class_config, delayed_instantiator
 from vis4d.data.datasets.coco import COCO
+from vis4d.engine.opt import Optimizer
 from vis4d.vis.image import BoundingBoxVisualizer
 
 # This is just for demo purposes. Uses the relative path to the vis4d root.
@@ -120,6 +123,19 @@ def get_config() -> ConfigDict:
     ######################################################
 
     config.loss = class_config(get_default_faster_rcnn_loss)
+
+    ######################################################
+    ##                    OPTIMIZERS                    ##
+    ######################################################
+    config.optimizers = [
+        class_config(
+            Optimizer,
+            optimizer_cb=delayed_instantiator(
+                # TODO, move learning rate to config field.
+                class_config(optim.SGD, lr=0.01, momentum=0.9),
+            ),
+        )
+    ]
 
     ######################################################
     ##                    Visualizer                    ##

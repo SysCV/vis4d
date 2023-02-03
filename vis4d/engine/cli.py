@@ -136,24 +136,15 @@ def _train() -> None:
         visualizers=config.get("visualizers", None),
     )
 
-    opt = Optimizer(
-        config.engine.learning_rate,
-        device,
-        0,
-        config.model,
-        config.loss,
-        optim.SGD(  # TOOD, move optimzier to config
-            config.model.parameters(),
-            lr=config.engine.learning_rate,
-            momentum=0.9,
-            weight_decay=0.0001,
-        ),
-        None,
-        None,
-    )
-
     # run training
-    trainer.train(opt, config.engine.save_prefix, tester, config.engine.metric)
+    trainer.train(
+        config.model,
+        config.optimizers,
+        config.loss,
+        config.engine.save_prefix,
+        tester,
+        config.engine.metric,
+    )
 
 
 def main(  # type:ignore # pylint: disable=unused-argument
