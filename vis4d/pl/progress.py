@@ -1,9 +1,8 @@
 # pylint: disable=consider-using-alias,consider-alternative-union-syntax
 """Progress bar utils."""
 
-import datetime
 from collections import defaultdict
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import pytorch_lightning as pl
 import torch

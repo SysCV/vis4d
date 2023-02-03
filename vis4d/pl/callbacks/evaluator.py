@@ -21,7 +21,7 @@ def default_eval_connector(
     outputs: Any,  # type:ignore
 ) -> DictStrAny:
     """Default eva connector forwards input and outputs."""
-    return dict(data=data, outputs=outputs)
+    return {"data": data, "outputs": outputs}
 
 
 class DefaultEvaluatorCallback(Callback):

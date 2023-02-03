@@ -217,7 +217,7 @@ def _angle_from_tan(
     i1, i2 = {"X": (2, 1), "Y": (0, 2), "Z": (1, 0)}[axis]
     if horizontal:
         i2, i1 = i1, i2
-    even = (axis + other_axis) in {"XY", "YZ", "ZX"}
+    even = axis + other_axis in {"XY", "YZ", "ZX"}
     if horizontal == even:
         return torch.atan2(data[..., i1], data[..., i2])
     if tait_bryan:

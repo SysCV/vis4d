@@ -62,8 +62,8 @@ def test_custom_init() -> None:
 
 def test_cli(monkeypatch: MonkeyPatch) -> None:
     """Test that CLI correctly instantiates model/trainer and calls fit."""
-    expected_model = dict(model_param=7)
-    expected_trainer = dict(exp_name="cli_test")
+    expected_model = {"model_param": 7}
+    expected_trainer = {"exp_name": "cli_test"}
     expected_datamodule = {"example": "attribute"}
 
     # from python 3.10 this can be: optional_param: str | None = None

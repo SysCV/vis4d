@@ -64,7 +64,7 @@ class FasterRCNNLoss(nn.Module):
             outputs.sampled_targets.boxes,
             outputs.sampled_targets.classes,
         )
-        return dict(**rpn_losses._asdict(), **rcnn_losses._asdict())
+        return {**rpn_losses._asdict(), **rcnn_losses._asdict()}
 
     def __call__(
         self,

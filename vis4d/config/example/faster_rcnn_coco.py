@@ -5,6 +5,7 @@ import warnings
 
 from ml_collections import ConfigDict
 
+from vis4d.common.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.config.default.connectors import default_detection_connector
 from vis4d.config.default.loss.faster_rcnn_loss import (
     get_default_faster_rcnn_loss,
@@ -159,12 +160,33 @@ def get_config() -> ConfigDict:
 
     config.data_connector = data_connector_cfg
 
-    config.evaluators = ConfigDict(
-        {
-            "coco": class_config(
+    ######################################################
+    ##                    CALLBACKS                     ##
+    ######################################################
+
+    eval_callbacks = {
+        "coco": class_config(
+            EvaluatorCallback,
+            evaluator=class_config(
                 COCOEvaluator, data_root=COCO_DATA_ROOT, split="train"
-            )
-        }
-    )
+            ),
+            eval_connector=data_connector_cfg,
+            test_every_nth_epoch=1,
+            num_epochs=engine.num_epochs,
+        )
+    }
+
+    vis_callbacks = {
+        "bboxes": class_config(
+            VisualizerCallback,
+            visualizer=class_config(BoundingBoxVisualizer),
+            data_connector=data_connector_cfg,
+            vis_every_nth_epoch=1,
+            num_epochs=engine.num_epochs,
+            output_dir=os.path.join(engine.save_prefix, "vis"),
+        )
+    }
+
+    config.test_callbacks = {**eval_callbacks, **vis_callbacks}
 
     return config

@@ -37,7 +37,7 @@ def default_data_connector(
     mode: str, data: DictData  # pylint: disable=unused-argument
 ) -> DictStrAny:
     """Default data connector forwards input with key data."""
-    return dict(data=data)
+    return {"data": data}
 
 
 class DefaultOptimizer(

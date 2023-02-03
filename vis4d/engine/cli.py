@@ -132,8 +132,7 @@ def _train() -> None:
     tester = Tester(
         dataloaders=config.test_dl,
         data_connector=config.data_connector,
-        evaluators=config.get("evaluators", None),
-        visualizers=config.get("visualizers", None),
+        test_callbacks=config.get("test_callbacks", None),
     )
 
     opt = Optimizer(

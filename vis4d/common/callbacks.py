@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Callable
 
 from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.distributed import get_rank
@@ -145,7 +144,7 @@ class VisualizerCallback(Callback):
             ("cpu", "gpu")
         ), f"Collect device {collect} unknown."
         self.collect = collect
-        self.output_dir = output_dir  # TODO add output path to config
+        self.output_dir = output_dir
         self.visualizer = visualizer
         self.data_connector = data_connector
         self.vis_every_nth_epoch = vis_every_nth_epoch
