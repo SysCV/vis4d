@@ -2,14 +2,17 @@
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from vis4d.common.callbacks import EvaluatorCallback
+from vis4d.common.callbacks import (
+    Callback,
+    EvaluatorCallback,
+    VisualizerCallback,
+)
 from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.eval import Evaluator
@@ -32,38 +35,33 @@ class Tester:
         vis_every_nth_epoch: int = 1,
     ) -> None:
         """Creates an instance of the class."""
-        self.num_epochs = num_epochs
-        self.test_every_nth_epoch = test_every_nth_epoch
-        self.vis_every_nth_epoch = vis_every_nth_epoch
-
         self.test_dataloader = dataloaders
         self.data_connector = data_connector
-        self.evaluators = evaluators if evaluators is not None else {}
-        self.visualizers = visualizers if visualizers is not None else {}
 
-        self.eval_callbacks = {
-            k: EvaluatorCallback(v, self.data_connector)
-            for k, v in self.evaluators.items()
+        if evaluators is None:
+            evaluators = {}
+        eval_callbacks = {
+            k: EvaluatorCallback(
+                v, self.data_connector, test_every_nth_epoch, num_epochs
+            )
+            for k, v in evaluators.items()
         }
-
-    def do_evaluation(self, epoch: int) -> bool:
-        """Return whether to do evaluation for current epoch."""
-        return (
-            epoch == self.num_epochs - 1
-            or epoch % self.test_every_nth_epoch
-            == self.test_every_nth_epoch - 1
-        )
-
-    def setup_visualizers(self) -> list[Visualizer]:
-        """Set-up visualizers."""
-        raise NotImplementedError
-
-    def do_visualization(self, epoch: int) -> bool:
-        """Return whether to do visualization for current epoch."""
-        return (
-            epoch == self.num_epochs - 1
-            or epoch % self.vis_every_nth_epoch == self.vis_every_nth_epoch - 1
-        )
+        if visualizers is None:
+            visualizers = {}
+        vis_callbacks = {
+            k: VisualizerCallback(
+                v,
+                self.data_connector,
+                vis_every_nth_epoch,
+                num_epochs,
+                "vis4d-workspace/test",
+            )
+            for k, v in visualizers.items()
+        }
+        self.callbacks: dict[str, Callback] = {
+            **eval_callbacks,
+            **vis_callbacks,
+        }
 
     @torch.no_grad()  # type: ignore
     def test(
@@ -84,25 +82,10 @@ class Tester:
                 # forward
                 output = model(**test_input)
 
-                if not epoch or self.do_evaluation(epoch):
-                    # TODO, this should be all numpy.
-                    for k, eval_callback in self.eval_callbacks.items():
-                        eval_callback.on_test_batch_end(output, data, k)
+                for k, callback in self.callbacks.items():
+                    if callback.run_on_epoch(epoch):
+                        callback.on_test_batch_end(output, data, k)
 
-                if not epoch or self.do_visualization(epoch):
-                    for name, vis in self.visualizers.items():
-                        eval_kwargs = self.data_connector.get_visualizer_input(
-                            name, output, data
-                        )
-                        vis.process(**eval_kwargs)
-
-        if not epoch or self.do_evaluation(epoch):
-            for k, eval_callback in self.eval_callbacks.items():
-                eval_callback.on_test_epoch_end()
-
-        if not epoch or self.do_visualization(epoch):
-            # TODO add output path to config
-            os.makedirs(f"epoch_{epoch}", exist_ok=True)
-            for name, test_vis in self.visualizers.items():
-                test_vis.save_to_disk(f"epoch_{epoch}")
-                test_vis.reset()
+        for k, callback in self.callbacks.items():
+            if callback.run_on_epoch(epoch):
+                callback.on_test_epoch_end()

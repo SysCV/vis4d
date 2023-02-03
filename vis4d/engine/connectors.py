@@ -1,4 +1,4 @@
-"""Defines datastructures for data connection."""
+"""Defines data structures for data connection."""
 from __future__ import annotations
 
 from typing import Dict, NamedTuple, TypedDict, Union

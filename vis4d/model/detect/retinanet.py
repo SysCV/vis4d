@@ -136,9 +136,11 @@ class RetinaNet(nn.Module):
         )
         for i, boxs in enumerate(boxes):
             boxes[i] = scale_and_clip_boxes(boxs, original_hw[i], images_hw[i])
-        return dict(
-            boxes2d=boxes, boxes2d_scores=scores, boxes2d_classes=class_ids
-        )
+        return {
+            "boxes2d": boxes,
+            "boxes2d_scores": scores,
+            "boxes2d_classes": class_ids,
+        }
 
 
 class RetinaNetLoss(nn.Module):

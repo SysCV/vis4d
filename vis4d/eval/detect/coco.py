@@ -81,14 +81,14 @@ def predictions_to_coco(
         mask = masks[i] if masks is not None else None
         xywh = box.tolist()
         area = float(xywh[2] * xywh[3])
-        annotation = dict(
-            image_id=image_id,
-            bbox=xywh,
-            area=area,
-            score=float(score),
-            category_id=cat_map[coco_id2name[int(cls)]],
-            iscrowd=0,
-        )
+        annotation = {
+            "image_id": image_id,
+            "bbox": xywh,
+            "area": area,
+            "score": float(score),
+            "category_id": cat_map[coco_id2name[int(cls)]],
+            "iscrowd": 0,
+        }
         if mask is not None:
             annotation["segmentation"] = maskUtils.encode(
                 np.array(mask.cpu(), order="F", dtype="uint8")

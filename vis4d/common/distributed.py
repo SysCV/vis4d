@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import os
 import pickle
-import shutil
 from collections.abc import Callable
 from functools import wraps
 from typing import Any

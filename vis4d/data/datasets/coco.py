@@ -218,7 +218,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
                 else:
                     ann["category_id"] = coco_det_map[cat_name]
             if self._has_valid_annotation(anns):
-                samples.append(dict(img_id=img_id, img=img, anns=anns))
+                samples.append({"img_id": img_id, "img": img, "anns": anns})
         return samples
 
     def __len__(self) -> int:

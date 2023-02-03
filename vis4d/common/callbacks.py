@@ -3,16 +3,22 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 
 from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.distributed import get_rank
 from vis4d.common.typing import DictStrAny
 from vis4d.data.typing import DictData
 from vis4d.eval.base import Evaluator
+from vis4d.vis.base import Visualizer
 
 
 class Callback:
     """Base class for Vis4D Callbacks."""
+
+    def run_on_epoch(self, epoch: int | None) -> bool:
+        """Returns whether to run callback for current epoch (default True)."""
+        return epoch is None or epoch >= 0
 
     def on_train_epoch_end(self) -> None:
         """Hook to run at the end of a training epoch."""
@@ -24,7 +30,7 @@ class Callback:
         """Hook to run at the end of a testing epoch."""
 
     def on_test_batch_end(
-        self, outputs: ArgsType, batch: ArgsType, eval_name: str
+        self, outputs: ArgsType, batch: ArgsType, key_name: str
     ) -> None:
         """Hook to run at the end of a testing batch."""
 
@@ -35,7 +41,7 @@ def default_eval_connector(
     outputs: ArgsType,
 ) -> DictStrAny:
     """Default eval connector forwards input and outputs."""
-    return dict(data=data, outputs=outputs)
+    return {"data": data, "outputs": outputs}
 
 
 class EvaluatorCallback(Callback):
@@ -45,6 +51,8 @@ class EvaluatorCallback(Callback):
         self,
         evaluator: Evaluator,
         eval_connector=default_eval_connector,
+        test_every_nth_epoch: int = 1,
+        num_epochs: int = -1,
         output_dir: None | str = None,
         collect: str = "cpu",
     ) -> None:
@@ -52,16 +60,26 @@ class EvaluatorCallback(Callback):
         assert collect in set(
             ("cpu", "gpu")
         ), f"Collect device {collect} unknown."
-        self.logging_disabled = False
         self.collect = collect
         self.output_dir = output_dir
         self.evaluator = evaluator
         self.eval_connector = eval_connector
+        self.test_every_nth_epoch = test_every_nth_epoch
+        self.num_epochs = num_epochs
         self.logging_disabled = False
         self.run_eval = True
 
         if self.output_dir is not None:
             os.makedirs(self.output_dir, exist_ok=True)
+
+    def run_on_epoch(self, epoch: int | None) -> bool:
+        """Returns whether to run callback for current epoch (default True)."""
+        return (
+            epoch is None
+            or epoch == self.num_epochs - 1
+            or epoch % self.test_every_nth_epoch
+            == self.test_every_nth_epoch - 1
+        )
 
     def on_test_epoch_end(self) -> None:
         """Hook to run at the end of a testing epoch."""
@@ -75,11 +93,12 @@ class EvaluatorCallback(Callback):
         self.evaluator.reset()
 
     def on_test_batch_end(
-        self, outputs: ArgsType, batch: ArgsType, eval_name: str
+        self, outputs: ArgsType, batch: ArgsType, key_name: str
     ) -> None:
         """Hook to run at the end of a testing batch."""
+        # TODO, this should be all numpy.
         eval_inputs = self.eval_connector.get_evaluator_input(
-            eval_name, outputs, batch
+            key_name, outputs, batch
         )
         self.evaluator.process(**eval_inputs)
 
@@ -107,3 +126,59 @@ class EvaluatorCallback(Callback):
                 logger.info("Showing results for %s", metric)
                 logger.info(log_str)
         return results
+
+
+class VisualizerCallback(Callback):
+    """Callback for model visualization."""
+
+    def __init__(
+        self,
+        visualizer: Visualizer,
+        data_connector=default_eval_connector,
+        vis_every_nth_epoch: int = 1,
+        num_epochs: int = -1,
+        output_dir: None | str = None,
+        collect: str = "cpu",
+    ) -> None:
+        """Init callback."""
+        assert collect in set(
+            ("cpu", "gpu")
+        ), f"Collect device {collect} unknown."
+        self.collect = collect
+        self.output_dir = output_dir  # TODO add output path to config
+        self.visualizer = visualizer
+        self.data_connector = data_connector
+        self.vis_every_nth_epoch = vis_every_nth_epoch
+        self.num_epochs = num_epochs
+
+        if self.output_dir is not None:
+            os.makedirs(self.output_dir, exist_ok=True)
+
+    def run_on_epoch(self, epoch: int | None) -> bool:
+        """Returns whether to run callback for current epoch (default True)."""
+        return (
+            epoch is None
+            or epoch == self.num_epochs - 1
+            or epoch % self.vis_every_nth_epoch == self.vis_every_nth_epoch - 1
+        )
+
+    def on_test_epoch_end(self) -> None:
+        """Hook to run at the end of a testing epoch."""
+        # TODO: need an all_gather function?
+        # def gather_func(x):
+        #     return all_gather_object_cpu(x)
+
+        # self.evaluator.gather(gather_func)
+        if get_rank() == 0:
+            if self.output_dir is not None:
+                self.visualizer.save_to_disk(self.output_dir)
+        self.visualizer.reset()
+
+    def on_test_batch_end(
+        self, outputs: ArgsType, batch: ArgsType, key_name: str
+    ) -> None:
+        """Hook to run at the end of a testing batch."""
+        eval_kwargs = self.data_connector.get_visualizer_input(
+            key_name, outputs, batch
+        )
+        self.visualizer.process(**eval_kwargs)
