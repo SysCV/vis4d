@@ -20,10 +20,10 @@ class OptimizerBuilder(Protocol):
 
         Args:
             params: The parameters that will be optimized.
+
         Returns:
             The optimizer.
         """
-        pass
 
 
 class Optimizer:
