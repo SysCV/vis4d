@@ -2,10 +2,28 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
+from typing import Protocol
 
 from torch import nn, optim
 
 from vis4d.optim.warmup import BaseLRWarmup
+
+
+class OptimizerBuilder(Protocol):
+    """Protocol for optimizer builder."""
+
+    # not sure why this is necessary by mypy complains missing __name__ without
+    __name__: str = "OptimizerBuilder"
+
+    def __call__(self, params: Iterator[nn.Parameter]) -> optim.Optimizer:
+        """Returns the optimizer for the desired parameters.
+
+        Args:
+            params: The parameters that will be optimized.
+        Returns:
+            The optimizer.
+        """
+        ...
 
 
 class Optimizer:
@@ -17,7 +35,7 @@ class Optimizer:
 
     def __init__(
         self,
-        optimizer_cb: Callable[[Iterator[nn.Parameter]], optim.Optimizer],
+        optimizer_cb: OptimizerBuilder,
         lr_scheduler_cb: Callable[
             [optim.Optimizer], optim.lr_scheduler._LRScheduler
         ]
@@ -103,8 +121,10 @@ class Optimizer:
 
         Args:
             step: The current step of the training loop.
+
         Raises:
             ValueError: If the base learning rate could not be determined.
+
         Returns:
             True if the warmup is finished, False otherwise.
         """

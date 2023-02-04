@@ -21,7 +21,7 @@ from torch import optim
 
 from vis4d.config.default.data.dataloader import default_dataloader_config
 from vis4d.config.default.data.detect import default_detection_preprocessing
-from vis4d.config.util import class_config, delayed_instantiator
+from vis4d.config.util import class_config, delay_instantiation
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.opt import Optimizer
 from vis4d.vis.image import BoundingBoxVisualizer
@@ -47,8 +47,13 @@ def get_config() -> ConfigDict:
     ##                 Engine Information               ##
     ######################################################
     engine = ConfigDict()  # TODO rename to trainer?
+
     engine.batch_size = 16
-    engine.learning_rate = 0.01 / 16 * engine.get_ref("batch_size")
+    engine.lr = 0.01
+
+    engine.learning_rate = (
+        engine.get_ref("lr") / 16 * engine.get_ref("batch_size")
+    )
     engine.experiment_name = "frcnn_coco_epoch"
     engine.save_prefix = "vis4d-workspace/test/" + engine.get_ref(
         "experiment_name"
@@ -131,9 +136,10 @@ def get_config() -> ConfigDict:
     config.optimizers = [
         class_config(
             Optimizer,
-            optimizer_cb=delayed_instantiator(
-                # TODO, move learning rate to config field.
-                class_config(optim.SGD, lr=0.01, momentum=0.9),
+            optimizer_cb=delay_instantiation(
+                instantiable=class_config(
+                    optim.SGD, lr=engine.get_ref("learning_rate"), momentum=0.9
+                )
             ),
         )
     ]

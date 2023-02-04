@@ -6,7 +6,7 @@ import re
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from ml_collections import ConfigDict
+from ml_collections import ConfigDict, FieldReference, FrozenConfigDict
 
 # Most of these functions need to deal with unknown parameters and are
 # therefore not strictly typed
@@ -188,7 +188,26 @@ def pprint_config(data: ConfigDict) -> None:
     print(pprints_config(data))
 
 
-def delayed_instantiator(instantiable: ConfigDict) -> Any:  # type: ignore
+def delay_instantiation(instantiable: ConfigDict) -> ConfigDict:
+    """Delays the instantiation of the given configuration object.
+
+    This is a somewhat hacky way to delay the initialization of the optimizer
+    configuration object. It works by replacing the class_path with _class_path
+    which basically tells the instantiate_classes function to not instantiate
+    the class. Instead, it returns a function that can be called to instantiate
+    the class
+
+    Args:
+        instantiable (ConfigDict): The configuration object to delay the
+            instantiation of.
+    """
+    instantiable["_class_path"] = instantiable["class_path"]
+    del instantiable["class_path"]
+
+    return class_config(DelayedInstantiator, instantiable=instantiable)
+
+
+class DelayedInstantiator:
     """Class that delays the instantiation of the given configuration object.
 
     This is a somewhat hacky way to delay the initialization of the optimizer
@@ -202,35 +221,19 @@ def delayed_instantiator(instantiable: ConfigDict) -> Any:  # type: ignore
     Args:
         instantiable (ConfigDict): The configuration object to delay the
             instantiation of.
-
-    Example:
-    >>> config = ConfigDict()
-    >>> config.class_path = "torch.optim.Adam"
-    >>> config.init_args = ConfigDict()
-    >>> config.init_args.lr = 0.001
-    >>> config.init_args.betas = (0.9, 0.999)
-
-    >>> optimizer_cb = instantiate_classes(delayed_instantiator(config))
-    type(optimizer_cb) # -> <class 'function'>, not torch.optim.Adam
-
-    >> # Later when the optimizer is needed, it can be instantiated with:
-    >> optimizer = optimizer_cb(params = [])
-    type(optimizer) # -> torch.optim.Adam
     """
-    # Make instantiable non instantiable
-    instantiable["_class_path"] = instantiable["class_path"]
-    del instantiable["class_path"]
 
-    def delayed_callable(**kwargs) -> Any:  # type: ignore
+    def __init__(self, instantiable: ConfigDict) -> None:
+        """Instantiates the DelayedInstantiator."""
+        self.instantiable = instantiable.copy_and_resolve_references()
+
+    def __call__(self, **kwargs: Any) -> Any:  # type: ignore
         """Instantiates the configuration object."""
         for k, v in kwargs.items():
-            instantiable["init_args"][k] = v
-        instantiable["class_path"] = instantiable["_class_path"]
-        del instantiable["_class_path"]
-
-        return instantiate_classes(instantiable)
-
-    return delayed_callable
+            self.instantiable["init_args"][k] = v
+        self.instantiable["class_path"] = self.instantiable["_class_path"]
+        del self.instantiable["_class_path"]
+        return instantiate_classes(self.instantiable)
 
 
 def instantiate_classes(data: ConfigDict) -> ConfigDict | Any:  # type: ignore
@@ -258,8 +261,76 @@ def instantiate_classes(data: ConfigDict) -> ConfigDict | Any:  # type: ignore
         top level element is a class config, the returned element will be
         the instantiated class.
     """
-    instantiated = _instantiate_classes(data)
-    return instantiated
+    return _instantiate_classes(copy_and_resolve_references(data))
+
+
+def copy_and_resolve_references(  # type: ignore
+    config: ConfigDict | Any, visit_map: dict[int, Any] | None = None
+):
+    """Returns a ConfigDict copy with FieldReferences replaced by values.
+
+    If the object is a FrozenConfigDict, the copy returned is also a
+    FrozenConfigDict. However, note that FrozenConfigDict should already have
+    FieldReferences resolved to values, so this method effectively produces
+    a deep copy.
+
+    Note: This method is overwritten from the ConfigDict class and allows to
+    also resolve FieldReferences in lists and tuples.
+
+    Args:
+        config: ConfigDict object to copy.
+        visit_map: A mapping from ConfigDict object ids to their copy. Method
+            is recursive in nature, and it will call
+            ".copy_and_resolve_references(visit_map)" on each encountered
+            object, unless it is already in visit_map.
+
+
+    Returns:
+        ConfigDict copy with previous FieldReferences replaced by values.
+    """
+    if isinstance(config, (list, tuple)):
+        return type(config)(
+            copy_and_resolve_references(value, visit_map) for value in config
+        )
+    if not isinstance(config, ConfigDict):
+        return config
+
+    visit_map = visit_map or {}
+    config_dict_copy = config.__class__()
+    super(ConfigDict, config_dict_copy).__setattr__(
+        "_convert_dict", config.convert_dict
+    )
+    visit_map[id(config)] = config_dict_copy
+
+    for key, value in config._fields.items():
+        if isinstance(value, FieldReference):
+            value = value.get()
+
+        if id(value) in visit_map:
+            value = visit_map[id(value)]
+        elif isinstance(value, ConfigDict):
+            value = copy_and_resolve_references(value, visit_map)
+        elif isinstance(value, list):
+            value = [copy_and_resolve_references(v, visit_map) for v in value]
+        elif isinstance(value, tuple):
+            value = tuple(
+                copy_and_resolve_references(v, visit_map) for v in value
+            )
+
+        if isinstance(config, FrozenConfigDict):
+            config_dict_copy._frozen_setattr(  # pylint:disable=protected-access
+                key, value
+            )
+        else:
+            config_dict_copy[key] = value
+
+    super(ConfigDict, config_dict_copy).__setattr__(
+        "_locked", config.is_locked
+    )
+    super(ConfigDict, config_dict_copy).__setattr__(
+        "_type_safe", config.is_type_safe
+    )
+    return config_dict_copy
 
 
 def _get_index(data: Any) -> Sequence[int] | Any:  # type: ignore
@@ -315,7 +386,10 @@ def _instantiate_classes(data: ConfigDict | Any) -> ConfigDict | Any:  # type: i
 
         if isinstance(value, ConfigDict):
             # Allow to convert ConfigDict to Object
-            with data.ignore_type():
+            if isinstance(data, ConfigDict):
+                with data.ignore_type():
+                    data[key] = _instantiate_classes(value)
+            else:
                 data[key] = _instantiate_classes(value)
 
         elif isinstance(value, (list)):

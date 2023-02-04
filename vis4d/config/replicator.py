@@ -88,7 +88,7 @@ def logspace_sampler(
 
 def replicate_config(  # type: ignore
     configuration: ConfigDict,
-    sampling_args: dict[str, Callable[[], Generator[Any, None, None]]],
+    sampling_args: list[tuple[str, Callable[[], Generator[Any, None, None]]]],
     method: str = "grid",  # TODO @zrene, change to callable
 ) -> Generator[ConfigDict, None, None]:
     """Function used to replicate a config.
@@ -100,7 +100,7 @@ def replicate_config(  # type: ignore
     Example:
     >>> config = ConfigDict({"trainer": {"lr": 0.2, "bs": 2}})
     >>> replicated_config = replicate_config(config,
-    >>>         sampling_args = {"trainer.lr": linspace_sampler(0.01, 0.1, 3)},
+    >>>         sampling_args = [("trainer.lr", linspace_sampler(0.01, 0.1, 3))],
     >>>         method = "grid"
     >>>     )
     >>> for c in replicated_config:
@@ -142,7 +142,7 @@ def replicate_config(  # type: ignore
         tuple[str, Callable[[], Generator[Any, None, None]]]
     ] = Queue()
 
-    for key, value in sampling_args.items():
+    for key, value in sampling_args:
         sampling_queue.put((key, value))
 
     if method == "grid":

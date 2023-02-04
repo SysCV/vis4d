@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging  # TODO change to vis4d logging
 import sys
 
-import torch
 import yaml
 from absl import app, flags
 from ml_collections import ConfigDict
@@ -18,6 +17,7 @@ from ml_collections.config_flags.config_flags import (
     _ConfigFlag,
 )
 
+from vis4d.config.replicator import replicate_config
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.test import Tester
 from vis4d.engine.train import Trainer
@@ -110,37 +110,44 @@ def DEFINE_config_file(  # pylint: disable=invalid-name
 # e.g. --config=model_1.py --config=loader_args.py
 # or --config=my_config.py --config.train_dl=different_dl.py
 _CONFIG = DEFINE_config_file("config")
+_SWEEP = DEFINE_config_file("sweep")
 _MODE = flags.DEFINE_string(
     "mode", default="train", help="Choice of [train, test]"
 )
 
+logger = logging.getLogger(__name__)
 
-def _train() -> None:
+
+def _train(config: ConfigDict) -> None:
     """Train the model."""
-    # parameters
-    device = torch.device("cpu")  # TODO, copy ddp code from engine
-    config: ConfigDict = instantiate_classes(_CONFIG.value)
+    # TODO, connect this to SLURM cluster to directly spawn jobs.
+    logger.info("Starting training")
 
+    logger.info("*" * 80)
+    logger.info(pprints_config(config))
+    logger.info("*" * 80)
+
+    cfg: ConfigDict = instantiate_classes(config)
     trainer = Trainer(
-        num_epochs=config.engine.num_epochs,
+        num_epochs=cfg.engine.num_epochs,
         log_step=1,
-        dataloaders=config.train_dl,
-        data_connector=config.data_connector,
+        dataloaders=cfg.train_dl,
+        data_connector=cfg.data_connector,
     )
     tester = Tester(
-        dataloaders=config.test_dl,
-        data_connector=config.data_connector,
-        test_callbacks=config.get("test_callbacks", None),
+        dataloaders=cfg.test_dl,
+        data_connector=cfg.data_connector,
+        test_callbacks=cfg.get("test_callbacks", None),
     )
 
     # run training
     trainer.train(
-        config.model,
-        config.optimizers,
-        config.loss,
-        config.engine.save_prefix,
+        cfg.model,
+        cfg.optimizers,
+        cfg.loss,
+        cfg.engine.save_prefix,
         tester,
-        config.engine.metric,
+        cfg.engine.metric,
     )
 
 
@@ -152,11 +159,23 @@ def main(  # type:ignore # pylint: disable=unused-argument
     Example to run this script:
     >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py
 
+    Or to run a parameter sweep:
+    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --sweep vis4d/config/example/lr_sweep.py
     """
-    logger = logging.getLogger(__name__)
-    logger.info(pprints_config(_CONFIG.value))
-    if _MODE.value == "train":
-        _train()
+    if _SWEEP.value is not None:
+        # Perform parameter sweep
+        # TODO, improve. Where to save the results? What name for the run?
+        config = _CONFIG.value
+        sweep_obj = instantiate_classes(_SWEEP.value)
+
+        for config in replicate_config(
+            _CONFIG.value,
+            method=sweep_obj.method,
+            sampling_args=sweep_obj.sampling_args,
+        ):
+            _train(config)
+    elif _MODE.value == "train":
+        _train(_CONFIG.value)
 
 
 if __name__ == "__main__":
