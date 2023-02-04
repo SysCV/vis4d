@@ -17,10 +17,8 @@ from ml_collections.config_flags.config_flags import (
     _ConfigFileParser,
     _ConfigFlag,
 )
-from torch import optim
 
 from vis4d.config.util import instantiate_classes, pprints_config
-from vis4d.engine.opt import Optimizer
 from vis4d.engine.test import Tester
 from vis4d.engine.train import Trainer
 
