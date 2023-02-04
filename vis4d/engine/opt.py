@@ -23,7 +23,7 @@ class OptimizerBuilder(Protocol):
         Returns:
             The optimizer.
         """
-        ...
+        pass
 
 
 class Optimizer:
