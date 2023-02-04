@@ -1,51 +1,127 @@
 """Vis4D optimizer."""
 from __future__ import annotations
 
-import torch
-from torch import nn, optim
-from torch.nn.parallel import DistributedDataParallel as DDP
+from collections.abc import Callable, Iterator
 
-from vis4d.common.distributed import get_world_size
+from torch import nn, optim
+
 from vis4d.optim.warmup import BaseLRWarmup
 
 
 class Optimizer:
-    """Vis4D Optimizer."""
+    """Vis4D Optimizer.
+
+    This class is responsible for creating the optimizer and learning rate
+    scheduler. It also handles the learning rate warmup.
+    """
 
     def __init__(
         self,
-        learning_rate: float,
-        device: None | torch.device,
-        gpu_id: None | int,
-        model: nn.Module,
-        loss: nn.Module,
-        optimizer: optim.Optimizer,
-        lr_warmup: None | BaseLRWarmup,
-        lr_scheduler: None | optim.lr_scheduler._LRScheduler,
+        optimizer_cb: Callable[[Iterator[nn.Parameter]], optim.Optimizer],
+        lr_scheduler_cb: Callable[
+            [optim.Optimizer], optim.lr_scheduler._LRScheduler
+        ]
+        | None = None,
+        lr_warmup: None | BaseLRWarmup = None,
     ) -> None:
-        """Creates an instance of the class."""
-        self.learning_rate = learning_rate
+        """Creates an instance of the class.
 
-        self.model = model.to(device)
+        Args:
+            optimizer_cb: A callback that creates the optimizer with the
+                desired parameters.
+            lr_scheduler_cb: A callback that creates the learning rate
+                scheduler.
+            lr_warmup: The learning rate warmup.
+        """
+        self._warmup = lr_warmup
+        self._optimizer_cb = optimizer_cb
+        self._lr_scheduler_cb = lr_scheduler_cb
 
-        if get_world_size() > 1:
-            assert gpu_id is not None, "GPU ID must be specified for DDP."
-            # This is ok. Not sure why pylint complains.
-            self.model = DDP(self.model, device_ids=[gpu_id])
-        self.loss = loss
-        self.optimizer = optimizer
-        self.lr_scheduler = lr_scheduler
-        self.warmup = lr_warmup
+        # These need to be set in setup() since they might depend on the model
+        self.lr_scheduler: optim.lr_scheduler._LRScheduler | None = None
+        self.optimizer: None | optim.Optimizer = None
 
-    def warmup_step(self, step: int) -> None:
-        """Set learning rate according to warmup."""
-        if self.warmup is None:
-            return
-        if step < 500:
+    def setup(self, model: nn.Module) -> None:
+        """Setup optimizer.
+
+        Args:
+            model: The model with the corresponding weights that will
+                be optimized.
+        This creates the optimizer and the learning rate scheduler.
+        Note that this needs to be called before zero_grad() and step().
+        """
+        self.optimizer = self._optimizer_cb(params=model.parameters())
+        self.lr_scheduler = (
+            self._lr_scheduler_cb(self.optimizer)
+            if self._lr_scheduler_cb is not None
+            else None
+        )
+
+    def zero_grad(self) -> None:
+        """Zero gradients in optimizer."""
+        assert self.optimizer is not None, (
+            "Optimizer was not correctly setup. Make sure to call setup()"
+            "before zero_grad()."
+        )
+        self.optimizer.zero_grad()
+
+    def step(
+        self, step: int, closure: Callable[[], float] | None = None
+    ) -> None:
+        """Step optimizer.
+
+        This function will first step the optimizer, then the warmup or the
+        learning rate scheduler.
+        Note that the learning rate scheduler will only be stepped if the
+        warmup is finished.
+
+        This function should be called after zero_grad().
+
+        Args:
+            step: The current step of the training loop.
+            closure (Callable): A closure that reevaluates the model and
+                returns the loss. Optional for most optimizers.
+
+        Raises:
+            ValueError: If the base learning rate could not be determined.
+        """
+        assert self.optimizer is not None, (
+            "Optimizer was not correctly setup. Make sure to call setup()"
+            "before step()."
+        )
+
+        # Optimizer step
+        self.optimizer.step(closure=closure)
+        # Warmup step
+        warmed_up = self.warmup_step(step)
+        # LR scheduler step
+        if self.lr_scheduler is not None and warmed_up:
+            self.lr_scheduler.step()
+
+    def warmup_step(self, step: int) -> bool:
+        """Set learning rate according to warmup.
+
+        Args:
+            step: The current step of the training loop.
+        Raises:
+            ValueError: If the base learning rate could not be determined.
+        Returns:
+            True if the warmup is finished, False otherwise.
+        """
+        assert self.optimizer is not None, "Optimizer was not correctly setup."
+
+        base_lr = self.optimizer.defaults.get("lr", None)
+        if base_lr is None:
+            raise ValueError(
+                "Couldn't determine base LR from optimizer defaults: "
+                f"{self.optimizer.defaults}"
+            )
+
+        if self._warmup is not None and step <= self._warmup.warmup_steps:
             for g in self.optimizer.param_groups:
-                g["lr"] = self.warmup(  # pylint: disable=not-callable
-                    step, self.learning_rate
-                )
-        elif step == 500:
-            for g in self.optimizer.param_groups:
-                g["lr"] = self.learning_rate
+                if step < self._warmup.warmup_steps:
+                    g["lr"] = self._warmup(step, base_lr)
+                else:
+                    g["lr"] = base_lr
+
+        return self._warmup is not None and step <= self._warmup.warmup_steps

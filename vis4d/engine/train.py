@@ -46,66 +46,99 @@ class Trainer:
 
     def train(
         self,
-        opt: Optimizer,
+        model: torch.nn.Module,
+        optimizer: list[Optimizer],
+        loss: torch.nn.Module | None = None,
         save_prefix: str = "model",
         tester: None | Tester = None,
         metric: None | str = None,
     ) -> None:
-        """Training loop."""
+        """Training loop.
+
+        Args:
+            model: Model that should be trained.
+            optimizer: Optimizer that should be used for training. This bundles
+                the optimizer, the learning rate scheduler, and the warmup
+                scheduler.
+            loss: Loss function that should be used for training. Defaults to
+                None.
+            save_prefix: Prefix for the saved model. Defaults to "model".
+            tester: Tester that should be used for testing. Defaults to None.
+            metric: Metric that should be used for testing. Defaults to None.
+
+        """
         logger = logging.getLogger(__name__)
 
         running_losses: DictStrAny = {}
         step = 0
+
+        # Set up optimizers and schedulers. This is done here because the
+        # optimizers require the model parameters.
+        for opt in optimizer:
+            opt.setup(model)
+
         for epoch in range(self.num_epochs):
-            opt.model.train()
+            # Set model to train mode
+            model.train()
+
             if hasattr(self.train_dataloader, "sampler") and isinstance(
                 self.train_dataloader.sampler, DistributedSampler
             ):
                 self.train_dataloader.sampler.set_epoch(epoch)
+
             for i, data in enumerate(self.train_dataloader):
-                # zero the parameter gradients
-                opt.optimizer.zero_grad()
+                # zero grad optimziers
+                for opt in optimizer:
+                    opt.zero_grad()
+
                 # input data
-                device = next(opt.model.parameters()).device  # model device
+                device = next(model.parameters()).device  # model device.
+                # TODO: Is this needed in every iteration? Can it change?
+
                 data_moved: DictData = move_data_to_device(data, device)
                 train_input = self.data_connector.get_train_input(data_moved)
+
                 # forward + backward + optimize
-                output = opt.model(**train_input)
-                loss_input = self.data_connector.get_loss_input(
-                    output, train_input
-                )
+                output = model(**train_input)
 
-                losses = opt.loss(**loss_input)
-                total_loss = sum(losses.values())
-                total_loss.backward()
+                if loss is not None:  # TODO ugly nested. Maybe move
+                    # to own function? Do we want to support no loss?
+                    # Idea is to allow the user to somewhat define a custom
+                    # loss implementation in a custom optimizer.step()
 
-                opt.warmup_step(epoch)
-                opt.optimizer.step()
-                step += 1
-
-                # print statistics
-                losses = {"loss": total_loss, **losses}
-                for k, v in losses.items():
-                    if k in running_losses:
-                        running_losses[k] += v
-                    else:
-                        running_losses[k] = v
-                if i % self.log_step == (self.log_step - 1):
-                    rank_zero_info(
-                        compose_log_str(
-                            f"Epoch {epoch + 1}",
-                            i + 1,
-                            len(self.train_dataloader),
-                            self.timer,
-                            {
-                                k: v / self.log_step
-                                for k, v in running_losses.items()
-                            },
-                        )
+                    # Calculate loss
+                    loss_input = self.data_connector.get_loss_input(
+                        output, train_input
                     )
+                    losses = loss(**loss_input)
+                    total_loss = sum(losses.values())
+                    total_loss.backward()
 
-            if opt.lr_scheduler is not None:
-                opt.lr_scheduler.step()
+                    # print statistics
+                    losses = {"loss": total_loss, **losses}
+                    for k, v in losses.items():
+                        if k in running_losses:
+                            running_losses[k] += v
+                        else:
+                            running_losses[k] = v
+                    if i % self.log_step == (self.log_step - 1):
+                        rank_zero_info(
+                            compose_log_str(
+                                f"Epoch {epoch + 1}",
+                                i + 1,
+                                len(self.train_dataloader),
+                                self.timer,
+                                {
+                                    k: v / self.log_step
+                                    for k, v in running_losses.items()
+                                },
+                            )
+                        )
+
+                for opt in optimizer:
+                    opt.step(step)
+
+                step += 1
 
             if (
                 epoch % self.save_every_nth_epoch
@@ -114,7 +147,8 @@ class Trainer:
             ):
                 os.makedirs(os.path.dirname(save_prefix), exist_ok=True)
                 torch.save(
-                    opt.model.state_dict(),
+                    model.state_dict(),  # TODO, save full state dict with
+                    # optimizer, scheduler, etc.
                     f"{save_prefix}_{epoch + 1}.pt",
                 )
 
@@ -124,6 +158,6 @@ class Trainer:
                     self.test_every_nth_epoch - 1
                 ):
                     assert metric is not None
-                    tester.test(opt.model, metric, epoch)
+                    tester.test(model, metric, epoch)
 
         logger.info("training done.")

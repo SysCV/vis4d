@@ -188,6 +188,51 @@ def pprint_config(data: ConfigDict) -> None:
     print(pprints_config(data))
 
 
+def delayed_instantiator(instantiable: ConfigDict) -> Any:  # type: ignore
+    """Class that delays the instantiation of the given configuration object.
+
+    This is a somewhat hacky way to delay the initialization of the optimizer
+    configuration object. It works by replacing the class_path with _class_path
+    which basically tells the instantiate_classes function to not instantiate
+    the class. Instead, it returns a function that can be called to instantiate
+    the class.
+
+    TODO: Look for a better way to do this.
+
+    Args:
+        instantiable (ConfigDict): The configuration object to delay the
+            instantiation of.
+
+    Example:
+    >>> config = ConfigDict()
+    >>> config.class_path = "torch.optim.Adam"
+    >>> config.init_args = ConfigDict()
+    >>> config.init_args.lr = 0.001
+    >>> config.init_args.betas = (0.9, 0.999)
+
+    >>> optimizer_cb = instantiate_classes(delayed_instantiator(config))
+    type(optimizer_cb) # -> <class 'function'>, not torch.optim.Adam
+
+    >> # Later when the optimizer is needed, it can be instantiated with:
+    >> optimizer = optimizer_cb(params = [])
+    type(optimizer) # -> torch.optim.Adam
+    """
+    # Make instantiable non instantiable
+    instantiable["_class_path"] = instantiable["class_path"]
+    del instantiable["class_path"]
+
+    def delayed_callable(**kwargs) -> Any:  # type: ignore
+        """Instantiates the configuration object."""
+        for k, v in kwargs.items():
+            instantiable["init_args"][k] = v
+        instantiable["class_path"] = instantiable["_class_path"]
+        del instantiable["_class_path"]
+
+        return instantiate_classes(instantiable)
+
+    return delayed_callable
+
+
 def instantiate_classes(data: ConfigDict) -> ConfigDict | Any:  # type: ignore
     """Instantiates all classes in a given ConfigDict.
 
