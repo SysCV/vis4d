@@ -33,8 +33,9 @@ class Tester:
         else:
             self.test_callbacks = test_callbacks
 
+    #  TODO: add metric support
     @torch.no_grad()  # type: ignore
-    def test(
+    def test(  # pylint: disable=unused-argument
         self, model: nn.Module, metric: str, epoch: None | int = None
     ) -> None:
         """Testing loop."""

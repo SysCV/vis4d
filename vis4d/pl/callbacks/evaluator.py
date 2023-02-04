@@ -1,4 +1,4 @@
-# pylint: disable=consider-alternative-union-syntax,consider-using-alias
+# pylint: disable=consider-alternative-union-syntax,consider-using-alias,duplicate-code
 """Evaluation components for tracking."""
 import logging
 import os

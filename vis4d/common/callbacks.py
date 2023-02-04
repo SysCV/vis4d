@@ -46,7 +46,8 @@ def default_eval_connector(
 class EvaluatorCallback(Callback):
     """Callback for model evaluation."""
 
-    def __init__(
+    # TODO, fix eval_connector typing
+    def __init__(  # type: ignore
         self,
         evaluator: Evaluator,
         eval_connector=default_eval_connector,
@@ -115,7 +116,7 @@ class EvaluatorCallback(Callback):
             if self.output_dir is not None:
                 output_dir = os.path.join(self.output_dir, metric)
                 os.makedirs(output_dir, exist_ok=True)
-                self.evaluator.t(output_dir, metric)  # TODO implement save
+                # self.evaluator.t(output_dir, metric)  # TODO implement save
 
             log_dict, log_str = self.evaluator.evaluate(metric)
             results[metric] = log_dict
@@ -130,7 +131,8 @@ class EvaluatorCallback(Callback):
 class VisualizerCallback(Callback):
     """Callback for model visualization."""
 
-    def __init__(
+    # TODO: fix typing for data_connector
+    def __init__(  # type: ignore
         self,
         visualizer: Visualizer,
         data_connector=default_eval_connector,
