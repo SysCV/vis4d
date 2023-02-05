@@ -108,7 +108,7 @@ class Trainer:
 
                     # Calculate loss
                     loss_input = self.data_connector.get_loss_input(
-                        output, train_input
+                        output, data_moved
                     )
                     losses = loss(**loss_input)
                     total_loss = sum(losses.values())

@@ -1,15 +1,14 @@
 """Mask RCNN model implementation and runtime."""
 from __future__ import annotations
 
+from typing import NamedTuple
+
 import torch
 from torch import nn
 
-from vis4d.common import LossesType, ModelOutput
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import apply_mask, scale_and_clip_boxes
-from vis4d.op.box.encoder import BoxEncoder2D
-from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     FRCNNOut,
@@ -19,14 +18,28 @@ from vis4d.op.detect.faster_rcnn import (
 )
 from vis4d.op.detect.rcnn import (
     Det2Mask,
+    DetOut,
+    MaskOut,
     MaskRCNNHead,
-    MaskRCNNHeadLoss,
     MaskRCNNHeadOut,
-    RCNNLoss,
     RoI2Det,
 )
-from vis4d.op.detect.rpn import RPNLoss
 from vis4d.op.fpp.fpn import FPN
+
+
+class MaskDetectionOut(NamedTuple):
+    """Mask detection output."""
+
+    boxes: DetOut
+    masks: MaskOut
+
+
+class MaskRCNNOut(NamedTuple):
+    """Mask RCNN output."""
+
+    boxes: FRCNNOut
+    masks: MaskRCNNHeadOut
+
 
 REV_KEYS = [
     (r"^rpn_head.rpn_reg\.", "rpn_head.rpn_box."),
@@ -70,9 +83,6 @@ class MaskRCNN(nn.Module):
             rcnn_box_encoder=rcnn_bbox_encoder,
         )
         self.mask_head = MaskRCNNHead()
-        self.rpn_loss = RPNLoss(anchor_gen, rpn_bbox_encoder)
-        self.rcnn_loss = RCNNLoss(rcnn_bbox_encoder)
-        self.mask_rcnn_loss = MaskRCNNHeadLoss()
         self.transform_outs = RoI2Det(rcnn_bbox_encoder)
         self.det2mask = Det2Mask()
 
@@ -93,7 +103,7 @@ class MaskRCNN(nn.Module):
         target_boxes: None | list[torch.Tensor] = None,
         target_classes: None | list[torch.Tensor] = None,
         original_hw: None | list[tuple[int, int]] = None,
-    ) -> tuple[FRCNNOut, MaskRCNNHeadOut] | ModelOutput:
+    ) -> MaskRCNNOut | MaskDetectionOut:
         """Forward pass.
 
         Args:
@@ -108,7 +118,7 @@ class MaskRCNN(nn.Module):
                 testing. Defaults to None.
 
         Returns:
-            tuple[FRCNNOut, MaskRCNNHeadOut] | ModelOutput: Either raw model
+            MaskRCNNOut | MaskDetectionOut: Either raw model
                 outputs (for training) or predicted outputs (for testing).
         """
         if self.training:
@@ -125,7 +135,7 @@ class MaskRCNN(nn.Module):
         images_hw: list[tuple[int, int]],
         target_boxes: list[torch.Tensor],
         target_classes: list[torch.Tensor],
-    ) -> tuple[FRCNNOut, MaskRCNNHeadOut]:
+    ) -> MaskRCNNOut:
         """Forward training stage.
 
         Args:
@@ -137,7 +147,7 @@ class MaskRCNN(nn.Module):
                 training. Defaults to None.
 
         Returns:
-            tuple[FRCNNOut, MaskRCNNHeadOut]: Raw model outputs.
+            MaskRCNNOut: Raw model outputs.
         """
         features = self.fpn(self.backbone(images))
         outputs = self.faster_rcnn_heads(
@@ -150,14 +160,14 @@ class MaskRCNN(nn.Module):
             outputs.sampled_proposals.boxes,
         )[0]
         mask_outs = self.mask_head(features, pos_proposals)
-        return outputs, mask_outs
+        return MaskRCNNOut(outputs, mask_outs)
 
     def forward_test(
         self,
         images: torch.Tensor,
         images_hw: list[tuple[int, int]],
         original_hw: list[tuple[int, int]],
-    ) -> ModelOutput:
+    ) -> MaskDetectionOut:
         """Forward testing stage.
 
         Args:
@@ -167,7 +177,7 @@ class MaskRCNN(nn.Module):
                 (before padding and resizing).
 
         Returns:
-            ModelOutput: Predicted outputs.
+            MaskDetectionOut: Predicted outputs.
         """
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
@@ -181,79 +191,4 @@ class MaskRCNN(nn.Module):
         masks = self.det2mask(
             mask_preds, boxes, scores, class_ids, original_hw
         )
-        return {
-            "boxes2d": boxes,
-            "boxes2d_scores": scores,
-            "boxes2d_classes": class_ids,
-            "masks": masks.masks,
-        }
-
-
-class MaskRCNNLoss(nn.Module):
-    """Mask RCNN Loss."""
-
-    def __init__(
-        self,
-        anchor_generator: AnchorGenerator,
-        rpn_box_encoder: BoxEncoder2D,
-        rcnn_box_encoder: BoxEncoder2D,
-    ) -> None:
-        """Creates an instance of the class.
-
-        Args:
-            anchor_generator (AnchorGenerator): Anchor generator for RPN.
-            rpn_box_encoder (BoxEncoder2D): RPN box encoder.
-            rcnn_box_encoder (BoxEncoder2D): RCNN box encoder.
-        """
-        super().__init__()
-        self.rpn_loss = RPNLoss(anchor_generator, rpn_box_encoder)
-        self.rcnn_loss = RCNNLoss(rcnn_box_encoder)
-        self.mask_loss = MaskRCNNHeadLoss()
-
-    def forward(
-        self,
-        outputs: tuple[FRCNNOut, MaskRCNNHeadOut],
-        images_hw: list[tuple[int, int]],
-        target_boxes: list[torch.Tensor],
-        target_masks: list[torch.Tensor],
-    ) -> LossesType:
-        """Forward of loss function.
-
-        Args:
-            outputs (tuple[FRCNNOut, MaskRCNNHeadOut]): Raw model outputs.
-            images_hw (list[tuple[int, int]]): Input image resolutions.
-            target_boxes (list[torch.Tensor]): Bounding box labels.
-            target_masks (list[torch.Tensor]): Instance mask labels.
-
-        Returns:
-            LossesType: Dictionary of model losses.
-        """
-        frcnn_outs, mask_outs = outputs
-        rpn_losses = self.rpn_loss(*frcnn_outs.rpn, target_boxes, images_hw)
-        assert frcnn_outs.sampled_proposals is not None
-        assert frcnn_outs.sampled_targets is not None
-        rcnn_losses = self.rcnn_loss(
-            *frcnn_outs.roi,
-            frcnn_outs.sampled_proposals.boxes,
-            frcnn_outs.sampled_targets.labels,
-            frcnn_outs.sampled_targets.boxes,
-            frcnn_outs.sampled_targets.classes,
-        )
-        assert frcnn_outs.sampled_target_indices is not None
-        sampled_masks = apply_mask(
-            frcnn_outs.sampled_target_indices, target_masks
-        )[0]
-        pos_proposals, pos_classes, pos_mask_targets = apply_mask(
-            [label == 1 for label in frcnn_outs.sampled_targets.labels],
-            frcnn_outs.sampled_proposals.boxes,
-            frcnn_outs.sampled_targets.classes,
-            sampled_masks,
-        )
-        mask_losses = self.mask_loss(
-            mask_outs.mask_pred, pos_proposals, pos_classes, pos_mask_targets
-        )
-        return {
-            **rpn_losses._asdict(),
-            **rcnn_losses._asdict(),
-            **mask_losses._asdict(),
-        }
+        return MaskDetectionOut(DetOut(boxes, scores, class_ids), masks)

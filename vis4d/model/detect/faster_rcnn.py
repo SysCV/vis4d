@@ -15,7 +15,7 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
-from vis4d.op.detect.rcnn import RoI2Det
+from vis4d.op.detect.rcnn import DetOut, RoI2Det
 from vis4d.op.fpp.fpn import FPN
 
 REV_KEYS = [
@@ -72,7 +72,7 @@ class FasterRCNN(nn.Module):
         boxes2d: None | list[torch.Tensor] = None,
         boxes2d_classes: None | list[torch.Tensor] = None,
         original_hw: None | list[tuple[int, int]] = None,
-    ) -> FRCNNOut | ModelOutput:
+    ) -> FRCNNOut | DetOut:
         # TODO, why do we have both.
         #  Why not just model output with different
         #  keys for training outs e.g. class_logits?
@@ -90,7 +90,7 @@ class FasterRCNN(nn.Module):
                 testing. Defaults to None.
 
         Returns:
-            FRCNNOut | ModelOutput: Either raw model outputs (for
+            FRCNNOut | DetOut: Either raw model outputs (for
                 training) or predicted outputs (for testing).
         """
         if self.training:
@@ -142,7 +142,7 @@ class FasterRCNN(nn.Module):
         images: torch.Tensor,
         images_hw: list[tuple[int, int]],
         original_hw: list[tuple[int, int]],
-    ) -> ModelOutput:
+    ) -> DetOut:
         """Forward testing stage.
 
         Args:
@@ -152,7 +152,7 @@ class FasterRCNN(nn.Module):
                 (before padding and resizing).
 
         Returns:
-            ModelOutput: Predicted outputs.
+            DetOut: Predicted outputs.
         """
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
@@ -162,8 +162,5 @@ class FasterRCNN(nn.Module):
 
         for i, boxs in enumerate(boxes):
             boxes[i] = scale_and_clip_boxes(boxs, original_hw[i], images_hw[i])
-        return {
-            "boxes2d": boxes,
-            "boxes2d_scores": scores,
-            "boxes2d_classes": class_ids,
-        }
+
+        return DetOut(boxes, scores, class_ids)

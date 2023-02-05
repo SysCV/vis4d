@@ -30,6 +30,30 @@ class SourceKeyDescription(TypedDict):
     source: str
 
 
+def data_key(key: str) -> SourceKeyDescription:
+    """Returns a SourceKeyDescription with data as source.
+
+    Args:
+        key (str): Key to use for the data entry.
+
+    Returns:
+        SourceKeyDescription: A SourceKeyDescription with data as source.
+    """
+    return SourceKeyDescription(key=key, source="data")
+
+
+def pred_key(key: str) -> SourceKeyDescription:
+    """Returns a SourceKeyDescription with prediction as source.
+
+    Args:
+        key (str): Key to use for the data entry.
+
+    Returns:
+        SourceKeyDescription: A SourceKeyDescription with prediction as source.
+    """
+    return SourceKeyDescription(key=key, source="prediction")
+
+
 class DataConnectionInfo(TypedDict):
     """Defines how and which entries to connect.
 
@@ -268,6 +292,11 @@ class StaticDataConnector(DataConnector):
         for new_key_name, old_key_name in connection_dict.items():
             # Assign field from data
             if old_key_name["source"] == "data":
+                if old_key_name["key"] not in data:
+                    raise ValueError(
+                        f"Key {old_key_name['key']} not found in data dict."
+                        f"Available keys: {data.keys()}"
+                    )
                 out[new_key_name] = data[old_key_name["key"]]
 
             # Assign field from model prediction

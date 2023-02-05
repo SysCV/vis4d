@@ -7,12 +7,17 @@ from ml_collections import ConfigDict
 
 from vis4d.common.callbacks import EvaluatorCallback, VisualizerCallback
 from vis4d.config.default.connectors import default_detection_connector
-from vis4d.config.default.loss.faster_rcnn_loss import (
-    get_default_faster_rcnn_loss,
+from vis4d.config.default.loss.mask_rcnn_loss import get_default_mask_rcnn_loss
+from vis4d.data.const import CommonKeys as CK
+from vis4d.engine.connectors import (
+    DataConnectionInfo,
+    SourceKeyDescription,
+    StaticDataConnector,
+    data_key,
+    pred_key,
 )
-from vis4d.engine.connectors import SourceKeyDescription, data_key, pred_key
 from vis4d.eval.detect.coco import COCOEvaluator
-from vis4d.model.detect.faster_rcnn import FasterRCNN
+from vis4d.model.detect.mask_rcnn import MaskRCNN
 
 warnings.filterwarnings("ignore")
 import os
@@ -115,13 +120,49 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                        MODEL                     ##
     ######################################################
-    config.model = class_config(FasterRCNN, num_classes=80, weights=None)
+    config.model = class_config(MaskRCNN, num_classes=80, weights=None)
+
+    train_connections = {
+        CK.images: CK.images,
+        CK.input_hw: "images_hw",
+        CK.boxes2d: "target_boxes",
+        CK.boxes2d_classes: "target_classes",
+    }
+    test_connections = {
+        CK.images: CK.images,
+        CK.input_hw: "images_hw",
+        CK.boxes2d: "target_boxes",
+        CK.boxes2d_classes: "target_classes",
+        "original_hw": "original_hw",
+    }
+
+    loss_connections = {
+        # RPN Losses
+        "cls_outs": pred_key("boxes.rpn.cls"),
+        "reg_outs": pred_key("boxes.rpn.box"),
+        # "target_boxes": pred_key("rpn_targets.boxes"), # TODO check this
+        "images_hw": data_key("input_hw"),
+        # RCNN Losses
+        "class_outs": pred_key("boxes.roi.cls_score"),
+        "regression_outs": pred_key("boxes.roi.bbox_pred"),
+        "boxes": pred_key("boxes.sampled_proposals.boxes"),
+        "boxes_mask": pred_key("boxes.sampled_targets.labels"),
+        "target_boxes": pred_key("boxes.sampled_targets.boxes"),
+        "target_classes": pred_key("boxes.sampled_targets.classes"),
+        "pred_sampled_proposals": pred_key("boxes.sampled_proposals"),
+        # Mask Losses
+        "mask_preds": pred_key("masks.mask_pred"),
+        "target_masks": data_key("masks"),
+        "sampled_target_indices": pred_key("boxes.sampled_target_indices"),
+        "sampled_targets": pred_key("boxes.sampled_targets"),
+        "sampled_proposals": pred_key("boxes.sampled_proposals"),
+    }
 
     ######################################################
     ##                        LOSS                      ##
     ######################################################
 
-    config.loss = class_config(get_default_faster_rcnn_loss)
+    config.loss = class_config(get_default_mask_rcnn_loss)
 
     ######################################################
     ##                    OPTIMIZERS                    ##
@@ -144,10 +185,10 @@ def get_config() -> ConfigDict:
         {"bboxes": class_config(BoundingBoxVisualizer)}
     )
     # data connector for visualizer
+
     bbox_vis = dict()
     bbox_vis["images"] = data_key("images")
     bbox_vis["boxes"] = pred_key("boxes.boxes")
-    vis_connectors = dict(bbox=bbox_vis)
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
@@ -159,11 +200,27 @@ def get_config() -> ConfigDict:
     coco_eval["pred_scores"] = pred_key("boxes.scores")
     coco_eval["pred_classes"] = pred_key("boxes.class_ids")
 
-    eval_connectors = dict(coco=coco_eval)
+    # TODO, add segmentation evaluator
+    # test_evals = [COCOEvaluator(data_root), COCOEvaluator(data_root, "segm")]
+    # Also add lr scheduler, warmup
+    # scheduler = optim.lr_scheduler.MultiStepLR(
+    #     optimizer, milestones=[8, 11], gamma=0.1
+    # )
+    # warmup = LinearLRWarmup(0.001, 500)
 
     data_connector_cfg = default_detection_connector(
-        eval_connectors, vis_connectors
+        dict(coco=coco_eval), dict(bboxes=bbox_vis)
     )
+
+    # Visualizer
+    info = DataConnectionInfo(
+        train=train_connections,
+        test=test_connections,
+        loss=loss_connections,
+        evaluators=dict(coco=coco_eval),
+        vis=dict(bboxes=bbox_vis),
+    )
+    data_connector_cfg = class_config(StaticDataConnector, connections=info)
 
     config.data_connector = data_connector_cfg
 
