@@ -2,19 +2,21 @@
 from __future__ import annotations
 
 from math import prod
-from typing import NamedTuple
+from typing import NamedTuple, Protocol
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.ops import roi_align
 
-from vis4d.op.box.box2d import bbox_clip, multiclass_nms
+from vis4d.op.box.box2d import apply_mask, bbox_clip, multiclass_nms
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.poolers import MultiScaleRoIAlign
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss
 from vis4d.op.mask.util import paste_masks_in_image
+
+from ..typing import Proposals, Targets
 
 
 class RCNNOut(NamedTuple):
@@ -560,6 +562,7 @@ class MaskRCNNHeadLosses(NamedTuple):
     rcnn_loss_mask: torch.Tensor
 
 
+# TODO, why is this here and not in losses.py?
 class MaskRCNNHeadLoss(nn.Module):
     """Mask RoI head loss function."""
 
@@ -652,3 +655,114 @@ class MaskRCNNHeadLoss(nn.Module):
             loss_mask = mask_targets.sum()
 
         return MaskRCNNHeadLosses(rcnn_loss_mask=loss_mask)
+
+
+class MaskSampler(Protocol):
+    """Type definition for mask sampler."""
+
+    def __call__(
+        self,
+        target_masks: list[Tensor],
+        sampled_target_indices: list[Tensor],
+        sampled_targets: Targets,
+        sampled_proposals: Proposals,
+    ) -> tuple[list[Tensor], list[Tensor], list[Tensor]]:
+        """Type definition for function call.
+
+        Args:
+            target_masks (list[Tensor]): list of [N, H, W] target masks per
+                batch element.
+            sampled_target_indices (list[Tensor]): list of [M] indices of
+                sampled targets per batch element.
+            sampled_targets (Targets): sampled targets.
+            sampled_proposals (Proposals): sampled proposals.
+
+        Returns:
+            tuple[list[Tensor], list[Tensor], list[Tensor]]: sampled masks,
+                sampled target indices, sampled targets.
+        """
+
+
+def positive_mask_sampler(  # TODO: Maybe move to op?
+    target_masks: list[Tensor],
+    sampled_target_indices: list[Tensor],
+    sampled_targets: Targets,
+    sampled_proposals: Proposals,
+) -> tuple[list[Tensor], list[Tensor], list[Tensor]]:
+    """Sample only positive masks from target masks.
+
+    Args:
+        target_masks (list[Tensor]): list of [N, H, W] target masks per
+            batch element.
+        sampled_target_indices (list[Tensor]): list of [M] indices of
+            sampled targets per batch element.
+        sampled_targets (Targets): sampled targets.
+        sampled_proposals (Proposals): sampled proposals.
+
+    Returns:
+        tuple[list[Tensor], list[Tensor], list[Tensor]]: sampled masks,
+            sampled target indices, sampled targets.
+    """
+    sampled_masks = apply_mask(sampled_target_indices, target_masks)[0]
+
+    pos_proposals, pos_classes, pos_mask_targets = apply_mask(
+        [label == 1 for label in sampled_targets.labels],
+        sampled_proposals.boxes,
+        sampled_targets.classes,
+        sampled_masks,
+    )
+    return pos_proposals, pos_classes, pos_mask_targets
+
+
+class SampledMaskLoss(nn.Module):
+    """Sampled Mask RCNN head loss function."""
+
+    def __init__(
+        self,
+        mask_sampler: MaskSampler,
+        loss: MaskRCNNHeadLoss,
+    ) -> None:
+        """Initialize sampled mask loss.
+
+        Args:
+            mask_sampler (MaskSampler): mask sampler.
+            loss (MaskRCNNHeadLoss): mask loss.
+        """
+        super().__init__()
+        self.loss = loss
+        self.mask_sampler = mask_sampler
+
+    def forward(
+        self,
+        mask_preds: list[Tensor],
+        target_masks: list[Tensor],
+        sampled_target_indices: list[Tensor],
+        sampled_targets: Targets,
+        sampled_proposals: Proposals,
+    ) -> MaskRCNNHeadLosses:
+        """Calculate losses of Mask RCNN head.
+
+        Args:
+            mask_preds (list[torch.Tensor]): [M, C, H', W'] mask outputs per
+                batch element.
+            target_masks (list[torch.Tensor]): list of [M, H, W] assigned
+                target masks for each proposal.
+            sampled_target_indices (list[Tensor]): list of [M, 4] assigned
+                target boxes for each proposal.
+            sampled_targets (Targets): list of [M, 4] assigned
+                target boxes for each proposal.
+            sampled_proposals (Proposals): list of [M, 4] assigned
+                target boxes for each proposal.
+
+        Returns:
+            MaskRCNNHeadLosses: mask loss.
+        """
+        pos_proposals, pos_classes, pos_mask_targets = self.mask_sampler(
+            target_masks,
+            sampled_target_indices,
+            sampled_targets,
+            sampled_proposals,
+        )
+        return self.loss(
+            mask_preds, pos_proposals, pos_classes, pos_mask_targets
+        )
