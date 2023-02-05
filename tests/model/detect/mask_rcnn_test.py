@@ -69,11 +69,9 @@ class MaskRCNNTest(unittest.TestCase):
             prediction: torch.Tensor, gts: torch.Tensor, n_samples=test_samples
         ) -> None:
             """Assert prediction and ground truth are equal."""
-            for i in range(len(gts)):
+            for pred, gt in zip(prediction, gts):
                 assert (
-                    torch.isclose(prediction[i][:n_samples], gts[i], atol=1e-4)
-                    .all()
-                    .item()
+                    torch.isclose(pred[:n_samples], gt, atol=1e-4).all().item()
                 )
 
         _assert_eq(masks.boxes.boxes, testcase_gt["boxes2d"])

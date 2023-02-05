@@ -4,7 +4,6 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from vis4d.common import ModelOutput
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
@@ -108,7 +107,7 @@ class FasterRCNN(nn.Module):
         boxes2d: None | list[torch.Tensor] = None,
         boxes2d_classes: None | list[torch.Tensor] = None,
         original_hw: None | list[tuple[int, int]] = None,
-    ) -> FRCNNOut | ModelOutput:
+    ) -> FRCNNOut | DetOut:
         """Type definition for call implementation."""
         return self._call_impl(
             images, input_hw, boxes2d, boxes2d_classes, original_hw
