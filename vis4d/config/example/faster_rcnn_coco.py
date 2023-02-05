@@ -106,13 +106,6 @@ def get_config() -> ConfigDict:
         samples_per_gpu=1,
         workers_per_gpu=1,
         batchprocess_fn=class_config("vis4d.data.transforms.pad.pad_image"),
-        # FIXME: Currently, resolving transforms is broken if we directly pass
-        # the function instead of the name to resolve, since resolving
-        # the function path with the decorator converts e.g. 'pad_image' which
-        # is 'BatchTransform.__call__.<locals>.get_transform_fn'
-        # to  vis4d.data.transforms.base.get_transform_fn.
-        # We need to use to full config path for now. Should probably be fixed
-        # with the transform update
         shuffle=True,
     )
 
@@ -192,9 +185,9 @@ def get_config() -> ConfigDict:
             evaluator=class_config(
                 COCOEvaluator, data_root=COCO_DATA_ROOT, split="train"
             ),
-            eval_connector=data_connector_cfg,
+            eval_connector=config.get_ref("data_connector"),
             test_every_nth_epoch=1,
-            num_epochs=engine.num_epochs,
+            num_epochs=engine.get_ref("num_epochs"),
         )
     }
 
@@ -202,9 +195,9 @@ def get_config() -> ConfigDict:
         "bboxes": class_config(
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer),
-            data_connector=data_connector_cfg,
+            data_connector=config.get_ref("data_connector"),
             vis_every_nth_epoch=1,
-            num_epochs=engine.num_epochs,
+            num_epochs=engine.get_ref("num_epochs"),
             output_dir=os.path.join(engine.save_prefix, "vis"),
         )
     }
