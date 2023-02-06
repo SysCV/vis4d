@@ -7,7 +7,8 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
-from vis4d.common.callbacks import EvaluatorCallback, default_eval_connector
+from vis4d.common.callbacks import EvaluatorCallback
+from vis4d.engine.connectors import DataConnector, StaticDataConnector
 from vis4d.eval.base import Evaluator
 
 # from vis4d.pl.distributed import all_gather_object_cpu
@@ -24,7 +25,9 @@ class DefaultEvaluatorCallback(Callback):
         self,
         dataloader_idx: int,
         evaluator: Evaluator,
-        eval_connector=default_eval_connector,
+        eval_connector: DataConnector = StaticDataConnector(
+            {"train": {}, "test": {}, "loss": {}}  # TODO: better default value
+        ),
         output_dir: None | str = None,
         collect: str = "cpu",
     ) -> None:

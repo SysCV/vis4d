@@ -52,7 +52,6 @@ class Trainer:
         optimizer: list[Optimizer],
         loss: torch.nn.Module | None = None,
         tester: None | Tester = None,
-        metric: None | str = None,
     ) -> None:
         """Training loop.
 
@@ -64,8 +63,6 @@ class Trainer:
             loss: Loss function that should be used for training. Defaults to
                 None.
             tester: Tester that should be used for testing. Defaults to None.
-            metric: Metric that should be used for testing. Defaults to None.
-
         """
         logger = logging.getLogger(__name__)
 
@@ -76,6 +73,8 @@ class Trainer:
         # optimizers require the model parameters.
         for opt in optimizer:
             opt.setup(model)
+
+        device = next(model.parameters()).device  # model device
 
         for epoch in range(self.num_epochs):
             # Set model to train mode
@@ -92,9 +91,6 @@ class Trainer:
                     opt.zero_grad()
 
                 # input data
-                device = next(model.parameters()).device  # model device.
-                # TODO: Is this needed in every iteration? Can it change?
-
                 data_moved: DictData = move_data_to_device(data, device)
                 train_input = self.data_connector.get_train_input(data_moved)
 
@@ -153,7 +149,6 @@ class Trainer:
                 if epoch % self.test_every_nth_epoch == (
                     self.test_every_nth_epoch - 1
                 ):
-                    assert metric is not None
-                    tester.test(model, metric, epoch)
+                    tester.test(model, epoch)
 
         logger.info("training done.")

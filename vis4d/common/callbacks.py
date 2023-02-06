@@ -11,6 +11,7 @@ from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.distributed import get_rank
 from vis4d.common.typing import DictStrAny
 from vis4d.data.typing import DictData
+from vis4d.engine.connectors import DataConnector
 from vis4d.eval.base import Evaluator
 from vis4d.vis.base import Visualizer
 
@@ -61,11 +62,10 @@ def default_eval_connector(
 class EvaluatorCallback(Callback):
     """Callback for model evaluation."""
 
-    # TODO, fix eval_connector typing
-    def __init__(  # type: ignore
+    def __init__(
         self,
         evaluator: Evaluator,
-        eval_connector=default_eval_connector,
+        eval_connector: DataConnector,
         test_every_nth_epoch: int = 1,
         num_epochs: int = -1,
         output_dir: None | str = None,
@@ -75,7 +75,7 @@ class EvaluatorCallback(Callback):
 
         Args:
             evaluator (Evaluator): Evaluator.
-            eval_connector (): Data connector for evaluator.
+            eval_connector (DataConnector): Data connector for evaluator.
             test_every_nth_epoch (int): Evaluate model every nth epoch.
                 Defaults to 1.
             num_epochs (int): Number of total epochs, used for determining
@@ -159,11 +159,10 @@ class EvaluatorCallback(Callback):
 class VisualizerCallback(Callback):
     """Callback for model visualization."""
 
-    # TODO: fix typing for data_connector
-    def __init__(  # type: ignore
+    def __init__(
         self,
         visualizer: Visualizer,
-        data_connector=default_eval_connector,
+        data_connector: DataConnector,
         vis_every_nth_epoch: int = 1,
         num_epochs: int = -1,
         output_dir: None | str = None,
@@ -173,7 +172,7 @@ class VisualizerCallback(Callback):
 
         Args:
             visualizer (Visualizer): Visualizer.
-            data_connector (): Data connector for visualizer.
+            data_connector (DataConnector): Data connector for visualizer.
             vis_every_nth_epoch (int): Visualize results every nth epoch.
                 Defaults to 1.
             num_epochs (int): Number of total epochs, used for determining

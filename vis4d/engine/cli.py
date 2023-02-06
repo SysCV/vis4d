@@ -142,9 +142,7 @@ def _train(config: ConfigDict) -> None:
     )
 
     # run training
-    trainer.train(
-        cfg.model, cfg.optimizers, cfg.loss, tester, cfg.engine.metric
-    )
+    trainer.train(cfg.model, cfg.optimizers, cfg.loss, tester)
 
 
 def main(  # type:ignore # pylint: disable=unused-argument
