@@ -133,6 +133,7 @@ def _train(config: ConfigDict) -> None:
         log_step=1,
         dataloaders=cfg.train_dl,
         data_connector=cfg.data_connector,
+        train_callbacks=cfg.get("train_callbacks", None),
     )
     tester = Tester(
         dataloaders=cfg.test_dl,
@@ -142,12 +143,7 @@ def _train(config: ConfigDict) -> None:
 
     # run training
     trainer.train(
-        cfg.model,
-        cfg.optimizers,
-        cfg.loss,
-        cfg.engine.save_prefix,
-        tester,
-        cfg.engine.metric,
+        cfg.model, cfg.optimizers, cfg.loss, tester, cfg.engine.metric
     )
 
 

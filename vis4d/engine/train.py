@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from vis4d.common import DictStrAny
-from vis4d.common.distributed import get_rank
+from vis4d.common.callbacks import Callback
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.progress import compose_log_str
 from vis4d.common.time import Timer
@@ -30,17 +29,20 @@ class Trainer:
         log_step: int,
         dataloaders: DataLoader[DictData],
         data_connector: DataConnector,
+        train_callbacks: dict[str, Callback] | None,
         test_every_nth_epoch: int = 1,
-        save_every_nth_epoch: int = 1,
-        # vis_every_nth_epoch: int = 1,
     ) -> None:
         """Creates an instance of the class."""
         self.num_epochs = num_epochs
         self.log_step = log_step
         self.test_every_nth_epoch = test_every_nth_epoch
-        self.save_every_nth_epoch = save_every_nth_epoch
         self.train_dataloader = dataloaders
         self.data_connector = data_connector
+
+        if train_callbacks is None:
+            self.train_callbacks = {}
+        else:
+            self.train_callbacks = train_callbacks
 
         self.timer = Timer()
 
@@ -49,7 +51,6 @@ class Trainer:
         model: torch.nn.Module,
         optimizer: list[Optimizer],
         loss: torch.nn.Module | None = None,
-        save_prefix: str = "model",
         tester: None | Tester = None,
         metric: None | str = None,
     ) -> None:
@@ -62,7 +63,6 @@ class Trainer:
                 scheduler.
             loss: Loss function that should be used for training. Defaults to
                 None.
-            save_prefix: Prefix for the saved model. Defaults to "model".
             tester: Tester that should be used for testing. Defaults to None.
             metric: Metric that should be used for testing. Defaults to None.
 
@@ -138,19 +138,15 @@ class Trainer:
                 for opt in optimizer:
                     opt.step(step)
 
+                for k, callback in self.train_callbacks.items():
+                    if callback.run_on_epoch(epoch):
+                        callback.on_train_batch_end()
+
                 step += 1
 
-            if (
-                epoch % self.save_every_nth_epoch
-                == (self.save_every_nth_epoch - 1)
-                and get_rank() == 0
-            ):
-                os.makedirs(os.path.dirname(save_prefix), exist_ok=True)
-                torch.save(
-                    model.state_dict(),  # TODO, save full state dict with
-                    # optimizer, scheduler, etc.
-                    f"{save_prefix}_{epoch + 1}.pt",
-                )
+            for k, callback in self.train_callbacks.items():
+                if callback.run_on_epoch(epoch):
+                    callback.on_train_epoch_end(model, epoch)
 
             # testing
             if tester is not None:

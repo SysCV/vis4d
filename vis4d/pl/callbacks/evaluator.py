@@ -1,27 +1,16 @@
-# pylint: disable=consider-alternative-union-syntax,consider-using-alias,duplicate-code
 """Evaluation components for tracking."""
-import logging
-import os
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
+from typing import Any
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
-from vis4d.common import MetricLogs
-from vis4d.common.typing import DictStrAny
-from vis4d.data.typing import DictData
+from vis4d.common.callbacks import EvaluatorCallback, default_eval_connector
 from vis4d.eval.base import Evaluator
-from vis4d.pl.distributed import all_gather_object_cpu
 
-
-def default_eval_connector(
-    mode: str,  # pylint: disable=unused-argument
-    data: DictData,
-    outputs: Any,  # type:ignore
-) -> DictStrAny:
-    """Default eva connector forwards input and outputs."""
-    return {"data": data, "outputs": outputs}
+# from vis4d.pl.distributed import all_gather_object_cpu
 
 
 class DefaultEvaluatorCallback(Callback):
@@ -36,78 +25,54 @@ class DefaultEvaluatorCallback(Callback):
         dataloader_idx: int,
         evaluator: Evaluator,
         eval_connector=default_eval_connector,
-        output_dir: Optional[str] = None,
+        output_dir: None | str = None,
         collect: str = "cpu",
     ) -> None:
         """Init class."""
-        assert collect in set(
-            ("cpu", "gpu")
-        ), f"Collect device {collect} unknown."
-        self.logging_disabled = False
-        self.collect = collect
         self.dataloader_idx = dataloader_idx
-        self.output_dir = output_dir
-        self.evaluator = evaluator
-        self.eval_connector = eval_connector
+        self.eval_callback = EvaluatorCallback(
+            evaluator, eval_connector, output_dir=output_dir, collect=collect
+        )
         self.logging_disabled = False
         self.run_eval = True
-
-        if self.output_dir is not None:
-            os.makedirs(self.output_dir, exist_ok=True)
 
     def on_test_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_test_epoch_end PL hook to call 'evaluate'."""
-
-        def gather_func(x):
-            return all_gather_object_cpu(x, pl_module)
-
-        self.evaluator.gather(gather_func)
-        if trainer.is_global_zero:
-            self.evaluate()
-        self.evaluator.reset()
+        self.eval_callback.on_test_epoch_end()
 
     def on_validation_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
-
-        def gather_func(x):
-            return all_gather_object_cpu(x, pl_module)
-
-        self.evaluator.gather(gather_func)
-        if trainer.is_global_zero:
-            self.evaluate()
-        self.evaluator.reset()
+        self.eval_callback.on_test_epoch_end()
 
     def on_test_batch_end(  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
-        outputs: Optional[STEP_OUTPUT],
+        outputs: STEP_OUTPUT | None,
         batch: Any,
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
         """Wait for on_test_batch_end PL hook to call 'process'."""
         if dataloader_idx == self.dataloader_idx:
-            eval_inputs = self.eval_connector("", batch, outputs)
-            self.evaluator.process(**eval_inputs)
+            self.eval_callback.on_test_batch_end(outputs, batch, "")
 
     def on_validation_batch_end(  # type: ignore
         self,
         trainer: pl.Trainer,
         pl_module: pl.LightningModule,
-        outputs: Optional[STEP_OUTPUT],
+        outputs: STEP_OUTPUT | None,
         batch: Any,
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
         """Wait for on_validation_batch_end PL hook to call 'process'."""
         if dataloader_idx == self.dataloader_idx:
-            eval_inputs = self.eval_connector("", batch, outputs)
-            self.evaluator.process(**eval_inputs)
+            self.eval_callback.on_test_batch_end(outputs, batch, "")
 
     def on_sanity_check_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -122,28 +87,3 @@ class DefaultEvaluatorCallback(Callback):
         """Enable logging of results after sanity check."""
         self.logging_disabled = False
         self.run_eval = True
-
-    def evaluate(self) -> Dict[str, MetricLogs]:
-        """Evaluate the performance after processing all input/output pairs."""
-        if not self.run_eval:
-            return {}
-
-        results = {}
-        logger = logging.getLogger(__name__)
-        if not self.logging_disabled:
-            logger.info("Running evaluator %s...", str(self.evaluator))
-
-        for metric in self.evaluator.metrics:
-            if self.output_dir is not None:
-                output_dir = os.path.join(self.output_dir, metric)
-                os.makedirs(output_dir, exist_ok=True)
-                self.evaluator.t(output_dir, metric)  # TODO implement save
-
-            log_dict, log_str = self.evaluator.evaluate(metric)
-            results[metric] = log_dict
-            if not self.logging_disabled:
-                for k, v in log_dict.items():
-                    self.log(k, v, rank_zero_only=True)  # type: ignore # pylint: disable=no-member,line-too-long
-                logger.info("Showing results for %s", metric)
-                logger.info(log_str)
-        return results

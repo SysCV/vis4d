@@ -5,7 +5,11 @@ import warnings
 
 from ml_collections import ConfigDict
 
-from vis4d.common.callbacks import EvaluatorCallback, VisualizerCallback
+from vis4d.common.callbacks import (
+    CheckpointCallback,
+    EvaluatorCallback,
+    VisualizerCallback,
+)
 from vis4d.config.default.connectors import default_detection_connector
 from vis4d.config.default.loss.faster_rcnn_loss import (
     get_default_faster_rcnn_loss,
@@ -54,7 +58,7 @@ def get_config() -> ConfigDict:
     engine.learning_rate = (
         engine.get_ref("lr") / 16 * engine.get_ref("batch_size")
     )
-    engine.experiment_name = "frcnn_coco_epoch"
+    engine.experiment_name = "frcnn_coco"
     engine.save_prefix = "vis4d-workspace/test/" + engine.get_ref(
         "experiment_name"
     )
@@ -138,28 +142,23 @@ def get_config() -> ConfigDict:
     ]
 
     ######################################################
-    ##                    Visualizer                    ##
-    ######################################################
-    config.visualizers = ConfigDict(
-        {"bboxes": class_config(BoundingBoxVisualizer)}
-    )
-    # data connector for visualizer
-    bbox_vis = dict()
-    bbox_vis["images"] = data_key("images")
-    bbox_vis["boxes"] = pred_key("boxes.boxes")
-    vis_connectors = dict(bbox=bbox_vis)
-
-    ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
 
-    coco_eval = dict()
+    # data connector for evaluator
+    coco_eval = {}
     coco_eval["coco_image_id"] = data_key("coco_image_id")
-    coco_eval["pred_boxes"] = pred_key("boxes.boxes")
-    coco_eval["pred_scores"] = pred_key("boxes.scores")
-    coco_eval["pred_classes"] = pred_key("boxes.class_ids")
+    coco_eval["pred_boxes"] = pred_key("boxes")
+    coco_eval["pred_scores"] = pred_key("scores")
+    coco_eval["pred_classes"] = pred_key("class_ids")
 
-    eval_connectors = dict(coco=coco_eval)
+    eval_connectors = {"coco": coco_eval}
+
+    # data connector for visualizer
+    bbox_vis = {}
+    bbox_vis["images"] = data_key("images")
+    bbox_vis["boxes"] = pred_key("boxes")
+    vis_connectors = {"bbox": bbox_vis}
 
     data_connector_cfg = default_detection_connector(
         eval_connectors, vis_connectors
@@ -170,6 +169,14 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                    CALLBACKS                     ##
     ######################################################
+
+    config.train_callbacks = {
+        "ckpt": class_config(
+            CheckpointCallback,
+            save_prefix=engine.get_ref("save_prefix"),
+            save_every_nth_epoch=1,
+        )
+    }
 
     eval_callbacks = {
         "coco": class_config(
@@ -184,7 +191,7 @@ def get_config() -> ConfigDict:
     }
 
     vis_callbacks = {
-        "bboxes": class_config(
+        "bbox": class_config(
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer),
             data_connector=config.get_ref("data_connector"),

@@ -4,6 +4,9 @@ from __future__ import annotations
 import logging
 import os
 
+import torch
+from torch import nn
+
 from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.distributed import get_rank
 from vis4d.common.typing import DictStrAny
@@ -19,8 +22,13 @@ class Callback:
         """Returns whether to run callback for current epoch (default True)."""
         return epoch is None or epoch >= 0
 
-    def on_train_epoch_end(self) -> None:
-        """Hook to run at the end of a training epoch."""
+    def on_train_epoch_end(self, model: nn.Module, epoch: int) -> None:
+        """Hook to run at the end of a training epoch.
+
+        Args:
+            model (nn.Module): Model that is being trained.
+            epoch (int): Current training epoch.
+        """
 
     def on_train_batch_end(self) -> None:
         """Hook to run at the end of a training batch."""
@@ -31,7 +39,14 @@ class Callback:
     def on_test_batch_end(
         self, outputs: ArgsType, batch: ArgsType, key_name: str
     ) -> None:
-        """Hook to run at the end of a testing batch."""
+        """Hook to run at the end of a testing batch.
+
+        Args:
+            outputs (ArgsType): Model predictions.
+            batch (ArgsType): Testing input data.
+            key_name (str): Key name used to extract data using the data
+                connector.
+        """
 
 
 def default_eval_connector(
@@ -56,7 +71,20 @@ class EvaluatorCallback(Callback):
         output_dir: None | str = None,
         collect: str = "cpu",
     ) -> None:
-        """Init callback."""
+        """Init callback.
+
+        Args:
+            evaluator (Evaluator): Evaluator.
+            eval_connector (): Data connector for evaluator.
+            test_every_nth_epoch (int): Evaluate model every nth epoch.
+                Defaults to 1.
+            num_epochs (int): Number of total epochs, used for determining
+                whether to evaluate at the final epoch. Defaults to -1.
+            output_dir (str, Optional): Output directory for saving the
+                evaluation results. Defaults to None (no save).
+            collect (str): Which device to collect results across GPUs on.
+                Defaults to "cpu".
+        """
         assert collect in set(
             ("cpu", "gpu")
         ), f"Collect device {collect} unknown."
@@ -141,7 +169,20 @@ class VisualizerCallback(Callback):
         output_dir: None | str = None,
         collect: str = "cpu",
     ) -> None:
-        """Init callback."""
+        """Init callback.
+
+        Args:
+            visualizer (Visualizer): Visualizer.
+            data_connector (): Data connector for visualizer.
+            vis_every_nth_epoch (int): Visualize results every nth epoch.
+                Defaults to 1.
+            num_epochs (int): Number of total epochs, used for determining
+                whether to visualize at the final epoch. Defaults to -1.
+            output_dir (str, Optional): Output directory for saving the
+                visualizations. Defaults to None (no save).
+            collect (str): Which device to collect results across GPUs on.
+                Defaults to "cpu".
+        """
         assert collect in set(
             ("cpu", "gpu")
         ), f"Collect device {collect} unknown."
@@ -183,3 +224,35 @@ class VisualizerCallback(Callback):
             key_name, outputs, batch
         )
         self.visualizer.process(**eval_kwargs)
+
+
+class CheckpointCallback(Callback):
+    """Callback for model checkpointing."""
+
+    def __init__(
+        self, save_prefix: str, save_every_nth_epoch: int = 1
+    ) -> None:
+        """Init callback.
+
+        Args:
+            save_prefix (str): Prefix of checkpoint path for saving.
+            save_every_nth_epoch (int): Save model checkpoint every nth epoch.
+                Defaults to 1.
+        """
+        self.save_prefix = save_prefix
+        self.save_every_nth_epoch = save_every_nth_epoch
+
+    def run_on_epoch(self, epoch: int | None) -> bool:
+        """Returns whether to run callback for current epoch (default True)."""
+        return epoch is None or epoch % self.save_every_nth_epoch == (
+            self.save_every_nth_epoch - 1
+        )
+
+    def on_train_epoch_end(self, model: nn.Module, epoch: int) -> None:
+        """Hook to run at the end of a training epoch."""
+        os.makedirs(os.path.dirname(self.save_prefix), exist_ok=True)
+        torch.save(
+            model.state_dict(),  # TODO, save full state dict with
+            # optimizer, scheduler, etc.
+            f"{self.save_prefix}/model_e{epoch + 1}.pt",
+        )
