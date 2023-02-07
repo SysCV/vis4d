@@ -1,14 +1,13 @@
 """Vis4D tester."""
 from __future__ import annotations
 
-import logging
-
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from vis4d.common.callbacks import Callback
+from vis4d.common.logging import rank_zero_info
 from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
 
@@ -36,10 +35,8 @@ class Tester:
     @torch.no_grad()  # type: ignore
     def test(self, model: nn.Module, epoch: None | int = None) -> None:
         """Testing loop."""
-        logger = logging.getLogger(__name__)
-
         model.eval()
-        logger.info("Running validation...")
+        rank_zero_info("Running validation...")
         for test_loader in self.test_dataloader:
             for _, data in enumerate(tqdm(test_loader)):
                 # input data

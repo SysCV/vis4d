@@ -1,8 +1,6 @@
 """Vis4D trainer."""
 from __future__ import annotations
 
-import logging
-
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
@@ -64,8 +62,6 @@ class Trainer:
                 None.
             tester: Tester that should be used for testing. Defaults to None.
         """
-        logger = logging.getLogger(__name__)
-
         running_losses: DictStrAny = {}
         step = 0
 
@@ -151,4 +147,4 @@ class Trainer:
                 ):
                     tester.test(model, epoch)
 
-        logger.info("training done.")
+        rank_zero_info("Training done.")

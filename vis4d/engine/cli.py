@@ -6,9 +6,11 @@ Example to run this script:
 # Functional Interface
 from __future__ import annotations
 
-import logging  # TODO change to vis4d logging
+import os
 import sys
 
+import torch
+import torch.multiprocessing as mp
 import yaml
 from absl import app, flags
 from ml_collections import ConfigDict
@@ -16,7 +18,11 @@ from ml_collections.config_flags.config_flags import (
     _ConfigFileParser,
     _ConfigFlag,
 )
+from torch.distributed import destroy_process_group, init_process_group
+from torch.nn.parallel import DistributedDataParallel as DDP
 
+from vis4d.common.distributed import get_world_size
+from vis4d.common.logging import rank_zero_info
 from vis4d.config.replicator import replicate_config
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.test import Tester
@@ -114,18 +120,17 @@ _SWEEP = DEFINE_config_file("sweep")
 _MODE = flags.DEFINE_string(
     "mode", default="train", help="Choice of [train, test]"
 )
+_GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 
-logger = logging.getLogger(__name__)
 
-
-def _train(config: ConfigDict) -> None:
+def _train(config: ConfigDict, rank: None | int = None) -> None:
     """Train the model."""
     # TODO, connect this to SLURM cluster to directly spawn jobs.
-    logger.info("Starting training")
+    rank_zero_info("Starting training")
 
-    logger.info("*" * 80)
-    logger.info(pprints_config(config))
-    logger.info("*" * 80)
+    rank_zero_info("*" * 80)
+    rank_zero_info(pprints_config(config))
+    rank_zero_info("*" * 80)
 
     cfg: ConfigDict = instantiate_classes(config)
     trainer = Trainer(
@@ -141,8 +146,35 @@ def _train(config: ConfigDict) -> None:
         test_callbacks=cfg.get("test_callbacks", None),
     )
 
+    if rank is not None:
+        device = torch.device(f"cuda:{rank}")
+    else:
+        device = torch.device("cpu")
+    cfg.model.to(device)
+    if get_world_size() > 1:
+        cfg.model = DDP(cfg.model, device_ids=[rank])
+
     # run training
     trainer.train(cfg.model, cfg.optimizers, cfg.loss, tester)
+
+
+def ddp_setup(rank: int, world_size: int) -> None:
+    """Setup DDP environment and init processes.
+
+    Args:
+        rank (int): Unique identifier of each process.
+        world_size (int): Total number of processes.
+    """
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
+    init_process_group(backend="nccl", rank=rank, world_size=world_size)
+
+
+def _dist_train(rank: int, world_size: int, config: ConfigDict) -> None:
+    """Train script setting up DDP, executing action, terminating."""
+    ddp_setup(rank, world_size)
+    _train(config, rank)
+    destroy_process_group()
 
 
 def main(  # type:ignore # pylint: disable=unused-argument
@@ -156,6 +188,11 @@ def main(  # type:ignore # pylint: disable=unused-argument
     Or to run a parameter sweep:
     >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --sweep vis4d/config/example/lr_sweep.py
     """
+    if _GPUS.value != _CONFIG.value.engine.gpus:
+        # Replace # gpus in config with cli
+        _CONFIG.value.engine.gpus = _GPUS.value
+    num_gpus = _CONFIG.value.engine.gpus
+
     if _SWEEP.value is not None:
         # Perform parameter sweep
         # TODO, improve. Where to save the results? What name for the run?
@@ -169,7 +206,12 @@ def main(  # type:ignore # pylint: disable=unused-argument
         ):
             _train(config)
     elif _MODE.value == "train":
-        _train(_CONFIG.value)
+        if num_gpus > 1:
+            mp.spawn(
+                _dist_train, args=(num_gpus, _CONFIG.value), nprocs=num_gpus
+            )
+        else:
+            _train(_CONFIG.value)
 
 
 if __name__ == "__main__":

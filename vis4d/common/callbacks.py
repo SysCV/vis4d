@@ -8,7 +8,7 @@ import torch
 from torch import nn
 
 from vis4d.common import ArgsType, MetricLogs
-from vis4d.common.distributed import get_rank
+from vis4d.common.distributed import all_gather_object_cpu, get_rank
 from vis4d.common.typing import DictStrAny
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
@@ -111,11 +111,7 @@ class EvaluatorCallback(Callback):
 
     def on_test_epoch_end(self) -> None:
         """Hook to run at the end of a testing epoch."""
-        # TODO: need an all_gather function?
-        # def gather_func(x):
-        #     return all_gather_object_cpu(x)
-
-        # self.evaluator.gather(gather_func)
+        self.evaluator.gather(all_gather_object_cpu)
         if get_rank() == 0:
             self.evaluate()
         self.evaluator.reset()
@@ -205,11 +201,6 @@ class VisualizerCallback(Callback):
 
     def on_test_epoch_end(self) -> None:
         """Hook to run at the end of a testing epoch."""
-        # TODO: need an all_gather function?
-        # def gather_func(x):
-        #     return all_gather_object_cpu(x)
-
-        # self.evaluator.gather(gather_func)
         if get_rank() == 0:
             if self.output_dir is not None:
                 self.visualizer.save_to_disk(self.output_dir)

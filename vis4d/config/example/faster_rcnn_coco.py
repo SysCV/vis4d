@@ -64,6 +64,7 @@ def get_config() -> ConfigDict:
     )
     engine.metric = "COCO_AP"
     engine.num_epochs = 25
+    engine.gpus = 1
     config.engine = engine
 
     ######################################################
