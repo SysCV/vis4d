@@ -22,9 +22,13 @@ def test_resize() -> None:
     # change desired shape now, see if parameter sharing works
     x.shape = (8, 8)
     data: DictData = dict(
-        cam=dict(img=torch.zeros((1, 3, 32, 32)), boxes2d=torch.ones((1, 4)))
+        cam=dict(
+            img=torch.zeros((1, 3, 32, 32)),
+            boxes2d=torch.ones((1, 4)),
+            transforms=data["transforms"],
+        ),
     )
-    data = x(data, generate_parameters=False)["cam"]
+    data = x(data)["cam"]
 
     # it should not still resize to 16, 16
     assert tuple(data["img"].shape) == (1, 3, 16, 16)

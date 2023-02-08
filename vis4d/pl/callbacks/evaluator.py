@@ -24,7 +24,7 @@ def default_eval_connector(
     return dict(data=data, outputs=outputs)
 
 
-class DefaultEvaluatorCallback(Callback):
+class DefaultEvaluconatorCallback(Callback):
     """Base class for Vis4D Evaluators.
 
     This class will accumulate the inputs/outputs in 'process', and produce
@@ -33,8 +33,8 @@ class DefaultEvaluatorCallback(Callback):
 
     def __init__(
         self,
-        dataloader_idx: int,
         evaluator: Evaluator,
+        dataloader_idx: int = 0,
         eval_connector=default_eval_connector,
         output_dir: Optional[str] = None,
         collect: str = "cpu",

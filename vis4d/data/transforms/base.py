@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TypeVar
+from typing import Any, NamedTuple, TypeVar
 
 import torch
 
@@ -13,6 +13,8 @@ from vis4d.data.typing import DictData
 
 AnyFunction = Callable  # type: ignore
 TInput = TypeVar("TInput")  # pylint: disable=invalid-name
+TupleGetter = Any  # type: ignore
+TransformParam = NamedTuple  # type: ignore
 
 
 class Transform(PrettyRepMixin):
@@ -38,6 +40,7 @@ class Transform(PrettyRepMixin):
 
     _registered_in_keys: list[list[str]] = []
     _registered_out_keys: list[list[str]] = []
+    _registered_param_keys: list[list[TupleGetter]] = []
     _registered_funcs: list[AnyFunction] = []
     _remapped_keys: dict[str, str] = {}
 
@@ -83,12 +86,21 @@ class Transform(PrettyRepMixin):
 
     @classmethod
     def register(
-        cls, in_keys: list[str] | str, out_keys: list[str] | str
+        cls,
+        in_keys: list[str] | str,
+        out_keys: list[str] | str,
+        param_keys: TupleGetter | list[TupleGetter] | None = None,
     ) -> AnyFunction:
         if isinstance(in_keys, str):
             in_keys = [in_keys]
         if isinstance(out_keys, str):
             out_keys = [out_keys]
+
+        if param_keys is not None:
+            if not isinstance(param_keys, list):
+                param_keys = [param_keys]
+        else:
+            param_keys = []
 
         def _register(func: AnyFunction) -> None:
             assert isinstance(in_keys, list)
@@ -96,37 +108,65 @@ class Transform(PrettyRepMixin):
             cls._registered_funcs.append(func)
             cls._registered_in_keys.append(in_keys)
             cls._registered_out_keys.append(out_keys)
+            cls._registered_param_keys.append(param_keys)
 
         return _register
 
-    @property
-    def _param_in_keys(self) -> list[str]:
+    def parameter_in_keys(self) -> str | list[str]:
         raise NotImplementedError
 
-    def _generate_parameters(
+    def generate_parameters(
         self, *args: ArgsType, **kwargs: ArgsType
-    ) -> None:
+    ) -> TransformParam:
         raise NotImplementedError
 
-    def _apply(
-        self, data: DictData, generate_parameters: bool = True
-    ) -> DictData:
-        if generate_parameters:
+    def _get_obj_id(self) -> str:
+        return str(id(self))
+
+    @classmethod
+    def _get_attr_from_tuple(
+        cls, the_tuple: NamedTuple, getter: TupleGetter
+    ) -> str:
+        tuple_type = type(the_tuple)
+        getters = [getattr(tuple_type, f) for f in tuple_type._fields]
+        field_index = getters.index(getter)
+        return the_tuple[field_index]
+
+    def _get_param_from_dict(self, data: DictData) -> TransformParam | None:
+        if "transforms" not in data.keys():
+            return None
+        elif self._get_obj_id() not in data["transforms"].keys():
+            return None
+        else:
+            return data["transforms"][self._get_obj_id()]
+
+    def _apply(self, data: DictData) -> DictData:
+        parameters = self._get_param_from_dict(data)
+        if parameters is None:
+            param_in_keys = self.parameter_in_keys()
+            if isinstance(param_in_keys, str):
+                param_in_keys = [param_in_keys]
             param_in_keys = [
                 k if k not in self._remapped_keys else self._remapped_keys[k]
-                for k in self._param_in_keys
+                for k in param_in_keys
             ]
             in_data = [
                 get_dict_nested(data, key.split(".")) for key in param_in_keys
             ]
-            self._generate_parameters(*in_data)
+            parameters = self.generate_parameters(*in_data)
+            if not "transforms" in data.keys():
+                data["transforms"] = {}
+            data["transforms"][self._get_obj_id()] = parameters
 
-        for transform_func, in_keys, out_keys in zip(
+        for transform_func, in_keys, out_keys, param_keys in zip(
             self._registered_funcs,
             self._registered_in_keys,
             self._registered_out_keys,
+            self._registered_param_keys,
         ):
             try:
+                # Optionally allow the function to get the full data dict as
+                # aux input.
                 in_data = [
                     get_dict_nested(data, key.split("."))
                     if key != "data"
@@ -138,9 +178,12 @@ class Transform(PrettyRepMixin):
                 # TODO we might want to raise a warning here, but just once...
                 continue
 
-            # Optionally allow the function to get the full data dict as
-            # aux input.
-            result = transform_func(*in_data, self)
+            in_params = [
+                self._get_attr_from_tuple(parameters, getter)
+                for getter in param_keys
+            ]
+
+            result = transform_func(*in_data, *in_params)
             if len(out_keys) == 1:
                 result = [result]
             for key, value in zip(out_keys, result):
@@ -148,12 +191,10 @@ class Transform(PrettyRepMixin):
 
         return data
 
-    def __call__(
-        self, data: DictData, generate_parameters: bool = True
-    ) -> DictData:
+    def __call__(self, data: DictData) -> DictData:
         if self.sensors is not None:
             for sensor in self.sensors:
-                data[sensor] = self._apply(data[sensor], generate_parameters)
+                data[sensor] = self._apply(data[sensor])
             return data
         return self._apply(data)
 
