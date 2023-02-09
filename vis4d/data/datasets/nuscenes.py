@@ -233,20 +233,20 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         extrinsics = _get_extrinsics(ego_pose, calibration_lidar)
         return points, extrinsics, timestamp
 
+    # TODO: add unit tests for all coordinate transforms
     def _load_cam_data(
-        self, cam_token: str, ego_pose: DictStrAny
+        self, cam_data: DictStrAny, ego_pose_cam: DictStrAny
     ) -> tuple[Tensor, Tensor, Tensor, str]:
         """Load camera data.
 
         Args:
-            cam_token (str): Token of camera.
-            ego_pose (dict): Ego vehicle pose in NuScenes format.
+            cam_data (DictStrAny): NuScenes format camera data.
+            ego_pose_cam (dict): Ego vehicle pose in NuScenes format.
 
         Returns:
             tuple[Tensor, Tensor, Tensor, str]: Image, intrinscs, extrinsics,
                 timestamp.
         """
-        cam_data = self.data.get("sample_data", cam_token)
         timestamp = cam_data["timestamp"]
         cam_filepath = cam_data["filename"]
         calibration_cam = self.data.get(
@@ -261,7 +261,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             .permute(2, 0, 1)
             .unsqueeze(0)
         )
-        extrinsics = _get_extrinsics(ego_pose, calibration_cam)
+        extrinsics = _get_extrinsics(ego_pose_cam, calibration_cam)
         intrinsics = torch.tensor(
             calibration_cam["camera_intrinsic"], dtype=torch.float32
         )
@@ -424,12 +424,16 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             for cam in NuScenes._CAMERAS:
                 if cam in self._SENSORS:
                     cam_token = sample["data"][cam]
+                    cam_data = self.data.get("sample_data", cam_token)
+                    ego_pose_cam = self.data.get(
+                        "ego_pose", cam_data["ego_pose_token"]
+                    )
                     (
                         image,
                         intrinsics,
                         extrinsics,
                         timestamp,
-                    ) = self._load_cam_data(cam_token, ego_pose)
+                    ) = self._load_cam_data(cam_data, ego_pose_cam)
                     image_hw = image.size(2), image.size(3)
                     (
                         boxes3d,

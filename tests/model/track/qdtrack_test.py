@@ -25,7 +25,7 @@ class QDTrackTest(unittest.TestCase):
         """Inference test.
 
         Run::
-            >>> pytest vis4d/op/track/qdtrack_test.py::QDTrackTest::test_inference
+            >>> pytest tests/model/track/qdtrack_test.py::QDTrackTest::test_inference
         """
         qdtrack = FasterRCNNQDTrack(num_classes=8)
         load_model_checkpoint(qdtrack, self.model_weights)

@@ -1,6 +1,8 @@
 """QD-3DT detector."""
 from __future__ import annotations
 
+import numpy as np
+from torch import Tensor
 from typing import NamedTuple
 
 import torch
@@ -16,14 +18,12 @@ from vis4d.op.box.samplers import (
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.geometry.rotation import generate_rotation_output
 
-import pdb
-
 
 class QD3DTBBox3DHeadOutput(NamedTuple):
     """Output of QD-3DT bounding box 3D head."""
 
-    boxes_3d: List[torch.Tensor]  # (N, 12) x,y,z,h,w,l,rx,ry,rz,vx,vy,vz
-    depth_uncertainty: List[torch.Tensor]  # (N, 1)
+    boxes_3d: list[Tensor]  # (N, 12): x,y,z,h,w,l,rx,ry,rz,vx,vy,vz
+    depth_uncertainty: list[Tensor]  # (N, 1)
 
 
 def get_default_proposal_pooler() -> RoIPooler:
@@ -83,10 +83,10 @@ class QD3DTBBox3DHead(nn.Module):
         fc_out_dim: int = 1024,
         roi_feat_size: int = 7,
         conv_has_bias: bool = True,
-        norm: Optional[str] = None,
+        norm: None | str = None,
         num_groups: int = 32,
         num_rotation_bins: int = 2,
-        in_features: Tuple[str, ...] = ("p2", "p3", "p4", "p5"),
+        num_dims: int = 12,
     ):
         """Initialize the QD-3DT bounding box 3D head."""
         super().__init__()
@@ -113,7 +113,7 @@ class QD3DTBBox3DHead(nn.Module):
         self.num_shared_convs = num_shared_convs
         self.num_shared_fcs = num_shared_fcs
         self.num_rotation_bins = num_rotation_bins
-        self.in_features = in_features
+        self.num_dims = num_dims
         self.proposal_append_gt = proposal_append_gt
         self.cls_out_channels = num_classes
 
@@ -249,10 +249,10 @@ class QD3DTBBox3DHead(nn.Module):
         conv_out_dim: int,
         fc_out_dim: int,
         conv_has_bias: bool,
-        norm: Optional[str],
+        norm: None | str,
         num_groups: int,
         is_shared: bool = False,
-    ) -> Tuple[nn.ModuleList, nn.ModuleList, int]:
+    ) -> tuple[nn.ModuleList, nn.ModuleList, int]:
         """Init modules of head."""
         last_layer_dim = in_channels
         # add branch specific conv layers
@@ -281,8 +281,8 @@ class QD3DTBBox3DHead(nn.Module):
         return convs, fcs, last_layer_dim
 
     def get_embeds(
-        self, feat: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        self, feat: Tensor
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Generate embedding from bbox feature."""
         # shared part
         if self.num_shared_convs > 0:
@@ -332,11 +332,11 @@ class QD3DTBBox3DHead(nn.Module):
 
     def get_outputs(
         self,
-        x_dep: torch.Tensor,
-        x_dim: torch.Tensor,
-        x_rot: torch.Tensor,
-        x_cen_2d: torch.Tensor,
-    ) -> torch.Tensor:
+        x_dep: Tensor,
+        x_dim: Tensor,
+        x_rot: Tensor,
+        x_cen_2d: Tensor,
+    ) -> Tensor:
         """Generate output 3D bounding box parameters."""
         depth = self.fc_dep(x_dep).view(-1, self.cls_out_channels, 1)
         depth_uncertainty = self.fc_dep_uncer(x_dep).view(
@@ -355,40 +355,40 @@ class QD3DTBBox3DHead(nn.Module):
 
     def get_predictions(
         self,
-        features: List[torch.Tensor],
-        boxes: List[torch.Tensor],
-    ) -> List[torch.Tensor]:
+        features: list[Tensor],
+        boxes_2d: list[Tensor],
+    ) -> list[Tensor]:
         """Get 3D bounding box prediction parameters."""
-        roi_feats = self.proposal_pooler(features[2:6], boxes)
+        roi_feats = self.proposal_pooler(features[2:6], boxes_2d)
         x_dep, x_dim, x_rot, x_cen_2d = self.get_embeds(roi_feats)
 
         outputs = self.get_outputs(x_dep, x_dim, x_rot, x_cen_2d)
 
-        outputs: List[torch.Tensor] = self.get_outputs(
+        outputs: list[Tensor] = self.get_outputs(
             x_dep, x_dim, x_rot, x_cen_2d
-        ).split([len(b) for b in boxes])
+        ).split([len(b) for b in boxes_2d])
         return outputs
 
-    def get_targets(
-        self,
-        pos_assigned_gt_inds: List[torch.Tensor],
-        targets: LabelInstances,
-        cam_intrinsics: Intrinsics,
-    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
-        """Get 3D bounding box targets for training."""
-        bbox_targets = self.bbox_coder.encode(
-            targets.boxes2d, targets.boxes3d, cam_intrinsics
-        )
+    # def get_targets(
+    #     self,
+    #     pos_assigned_gt_inds: List[Tensor],
+    #     targets: LabelInstances,
+    #     cam_intrinsics: Intrinsics,
+    # ) -> Tuple[List[Tensor], List[Tensor]]:
+    #     """Get 3D bounding box targets for training."""
+    #     bbox_targets = self.bbox_coder.encode(
+    #         targets.boxes2d, targets.boxes3d, cam_intrinsics
+    #     )
 
-        bbox_targets = [
-            b[p] for b, p in zip(bbox_targets, pos_assigned_gt_inds)
-        ]
+    #     bbox_targets = [
+    #         b[p] for b, p in zip(bbox_targets, pos_assigned_gt_inds)
+    #     ]
 
-        labels = [
-            t.class_ids[p]
-            for t, p in zip(targets.boxes2d, pos_assigned_gt_inds)
-        ]
-        return bbox_targets, labels
+    #     labels = [
+    #         t.class_ids[p]
+    #         for t, p in zip(targets.boxes2d, pos_assigned_gt_inds)
+    #     ]
+    #     return bbox_targets, labels
 
     # def forward_train(
     #     self,
@@ -439,69 +439,83 @@ class QD3DTBBox3DHead(nn.Module):
     #     )
     #     return loss, sampling_results
 
-    def forward(
+    def _forward_test(
         self,
         features: list[Tensor],
-        boxes: list[Tensor],
+        boxes_2d: list[Tensor],
         class_ids: list[Tensor],
-        intrinsics: torch.Tensor,
+        intrinsics: Tensor,
     ) -> QD3DTBBox3DHeadOutput:
         """Forward pass during testing stage.
 
         Args:
             inputs: InputSamples (images, metadata, etc). Batched.
             features: Input feature maps. Batched.
-            boxes: Input boxes to apply RoIHead on.
+            boxes_2d: Input 2D boxes to apply RoIHead on.
 
         Returns:
             List[Boxes3D]: Prediction output.
         """
         assert features is not None, "QD-3DT box3D head requires features!"
-        if sum(len(b) for b in boxes) == 0:
+        device = boxes_2d[0].device
+        if sum(len(b) for b in boxes_2d) == 0:
             boxes_3d = [
-                torch.empty((0, 12), device=boxes[0].device)
-                for _ in range(len(boxes))
+                torch.empty((0, self.num_dims), device=device)
+                for _ in range(len(boxes_2d))
             ]
             depth_uncertainty = [
-                torch.empty((0, 1), device=boxes[0].device)
-                for _ in range(len(boxes))
+                torch.empty((0), device=device) for _ in range(len(boxes_2d))
             ]
             return QD3DTBBox3DHeadOutput(
                 boxes_3d=boxes_3d,
                 depth_uncertainty=depth_uncertainty,
             )
 
-        predictions = self.get_predictions(features, boxes)
+        predictions = self.get_predictions(features, boxes_2d)
 
         boxes_3d = []
         depth_uncertainty = []
-        for (boxes_, class_ids_, box_deltas_, intrinsics_) in zip(
-            boxes, class_ids, predictions, intrinsics
+        for (_boxes_2d, _class_ids, _boxes_deltas, _intrinsics) in zip(
+            boxes_2d, class_ids, predictions, intrinsics
         ):
-            if len(boxes_) == 0:
-                boxes_3d.append(torch.empty(0, 12).to(boxes_.device))
-                depth_uncertainty.append(torch.empty(0, 1).to(boxes_.device))
+            if len(_boxes_2d) == 0:
+                boxes_3d.append(torch.empty(0, self.num_dims).to(device))
+                depth_uncertainty.append(torch.empty(0).to(device))
                 continue
-            box_deltas_ = box_deltas_[
-                torch.arange(box_deltas_.shape[0]), class_ids_
+
+            _boxes_deltas = _boxes_deltas[
+                torch.arange(_boxes_deltas.shape[0]), _class_ids
             ]
-            boxes3d_ = self.box_encoder.decode(
-                boxes_, box_deltas_, intrinsics_
+
+            depth_uncertainty.append(
+                _boxes_deltas[:, -1].clamp(min=0.0, max=1.0)
             )
-            boxes_3d.append(boxes3d_[:, :12])
-            depth_uncertainty.append(boxes3d_[:, 12])
+            boxes_3d.append(
+                self.box_encoder.decode(_boxes_2d, _boxes_deltas, _intrinsics)
+            )
 
         return QD3DTBBox3DHeadOutput(
             boxes_3d=boxes_3d,
             depth_uncertainty=depth_uncertainty,
         )
 
+    def forward(
+        self,
+        features: list[Tensor],
+        boxes_2d: list[Tensor],
+        class_ids: list[Tensor],
+        intrinsics: Tensor,
+    ) -> QD3DTBBox3DHeadOutput:
+        """Forward."""
+        # TODO implement forward_train
+        return self._forward_test(features, boxes_2d, class_ids, intrinsics)
+
     def __call__(
         self,
         features: list[Tensor],
-        boxes: list[Tensor],
+        boxes_2d: list[Tensor],
         class_ids: list[Tensor],
-        intrinsics: torch.Tensor,
+        intrinsics: Tensor,
     ) -> QD3DTBBox3DHeadOutput:
         """Type definition."""
-        return self._call_impl(features, boxes, class_ids, intrinsics)
+        return self._call_impl(features, boxes_2d, class_ids, intrinsics)

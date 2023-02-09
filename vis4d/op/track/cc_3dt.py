@@ -39,8 +39,8 @@ class CC3DTrackAssociation:
 
     def __init__(
         self,
-        init_score_thr: float = 0.7,
-        obj_score_thr: float = 0.3,
+        init_score_thr: float = 0.8,
+        obj_score_thr: float = 0.5,
         match_score_thr: float = 0.5,
         nms_backdrop_iou_thr: float = 0.3,
         nms_class_iou_thr: float = 0.7,
@@ -83,8 +83,16 @@ class CC3DTrackAssociation:
                 embeddings, and filtered indices.
         """
         scores, inds = scores.sort(descending=True)
-        detections, embeddings, class_ids, detections_3d, scores_3d = (
+        (
+            detections,
+            camera_ids,
+            embeddings,
+            class_ids,
+            detections_3d,
+            scores_3d,
+        ) = (
             detections[inds],
+            camera_ids[inds],
             embeddings[inds],
             class_ids[inds],
             detections_3d[inds],
@@ -174,12 +182,12 @@ class CC3DTrackAssociation:
     def __call__(
         self,
         detections: Tensor,
+        camera_ids: Tensor,
         detection_scores: Tensor,
         detections_3d: Tensor,
         detection_scores_3d: Tensor,
         detection_class_ids: Tensor,
         detection_embeddings: Tensor,
-        camera_ids: Tensor,
         memory_boxes_3d: Tensor,
         memory_track_ids: Tensor,
         memory_class_ids: Tensor,

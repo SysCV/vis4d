@@ -29,19 +29,23 @@ def bbox_scale(
 
 
 def bbox_clip(
-    boxes: torch.Tensor, image_hw: tuple[float, float]
+    boxes: torch.Tensor,
+    image_hw: tuple[float, float],
+    epsilon: int = 0,
 ) -> torch.Tensor:
     """Clip bounding boxes to image dims.
 
     Args:
         boxes (torch.Tensor): Bounding boxes with shape [N, 4]
         image_hw (tuple[float, float]): Image dimensions.
+        epsilon (int): Epsilon for clipping.
+            Defaults to 0.
 
     Returns:
         torch.Tensor: Clipped bounding boxes.
     """
-    boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, image_hw[1] - 1)
-    boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(0, image_hw[0] - 1)
+    boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, image_hw[1] - epsilon)
+    boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(0, image_hw[0] - epsilon)
     return boxes
 
 

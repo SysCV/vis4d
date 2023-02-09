@@ -103,30 +103,26 @@ class QD3DTBox3DEncoder(BoxEncoder3D):
 
     def decode(
         self,
-        boxes: Tensor,
-        box_deltas: Tensor,
+        boxes_2d: Tensor,
+        boxes_deltas: Tensor,
         intrinsics: Tensor,
     ) -> Tensor:
-        """Decode the predicted box_deltas according to given base boxes."""
-        # depth uncertainty
-        depth_uncertainty = box_deltas[:, -1].unsqueeze(-1)
-        depth_uncertainty = depth_uncertainty.clamp(min=0.0, max=1.0)
-
+        """Decode the predicted boxes_deltas according to given 2D boxes."""
         # center
-        delta_center = box_deltas[:, 0:2] * self.center_scale
-        ctr_x = (boxes[:, 0] + boxes[:, 2]) / 2
-        ctr_y = (boxes[:, 1] + boxes[:, 3]) / 2
-        boxes_center = torch.stack([ctr_x, ctr_y], -1)
-        center_2d = boxes_center + delta_center
-        depth = torch.exp(box_deltas[:, 2:3] / self.depth_log_scale)
+        delta_center = boxes_deltas[:, 0:2] * self.center_scale
+        ctr_x = (boxes_2d[:, 0] + boxes_2d[:, 2]) / 2
+        ctr_y = (boxes_2d[:, 1] + boxes_2d[:, 3]) / 2
+        boxes_2d_center = torch.stack([ctr_x, ctr_y], -1)
+        center_2d = boxes_2d_center + delta_center
+        depth = torch.exp(boxes_deltas[:, 2:3] / self.depth_log_scale)
         center_3d = unproject_points(center_2d, depth, intrinsics)
 
         # dimensions
-        dimensions = torch.exp(box_deltas[:, 3:6] / self.dim_log_scale)
+        dimensions = torch.exp(boxes_deltas[:, 3:6] / self.dim_log_scale)
 
         # rot_y
         alpha = rotation_output_to_alpha(
-            box_deltas[:, 6:-1], self.num_rotation_bins
+            boxes_deltas[:, 6:-1], self.num_rotation_bins
         )
         rot_y = alpha2yaw(alpha, center_3d)
         orientation = torch.stack(
@@ -134,7 +130,7 @@ class QD3DTBox3DEncoder(BoxEncoder3D):
         )
 
         velocities = torch.zeros(
-            (box_deltas.shape[0], 3), device=box_deltas.device
+            (boxes_deltas.shape[0], 3), device=boxes_deltas.device
         )
 
         return torch.cat(
@@ -143,7 +139,6 @@ class QD3DTBox3DEncoder(BoxEncoder3D):
                 dimensions,
                 orientation,
                 velocities,
-                depth_uncertainty,
             ],
             1,
         )

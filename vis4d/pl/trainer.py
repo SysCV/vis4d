@@ -13,7 +13,6 @@ from pytorch_lightning.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.core import LightningModule
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.strategies.strategy import Strategy
-from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType, DictStrAny
@@ -152,11 +151,10 @@ class DefaultTrainer(pl.Trainer):
         ]
 
         # add distributed strategy
-        if "gpus" in kwargs:  # pragma: no cover
-            gpu_ids = parse_gpu_ids(
-                kwargs["gpus"], include_cuda=True, include_mps=True
+        if kwargs["accelerator"] == "gpu":  # pragma: no cover
+            num_gpus = (
+                len(kwargs["devices"]) if kwargs["devices"] is not None else 0
             )
-            num_gpus = len(gpu_ids) if gpu_ids is not None else 0
             if num_gpus > 1:
                 strategy = kwargs["strategy"]
                 if strategy == "ddp" or strategy is None:
@@ -202,9 +200,11 @@ class CLI(LightningCLI):
         trainer_class: Union[
             Type[pl.Trainer], Callable[..., pl.Trainer]
         ] = DefaultTrainer,
-        description: str = "Vis4D command line tool",
-        env_prefix: str = "V4D",
-        save_config_overwrite: bool = True,
+        parser_kwargs={
+            "description": "Vis4D command line tool",
+            "env_prefix": "V4D",
+        },
+        save_config_kwargs={"overwrite": True},
         **kwargs: ArgsType,
     ) -> None:
         """Creates an instance of the class."""
@@ -213,9 +213,8 @@ class CLI(LightningCLI):
             datamodule_class=datamodule_class,
             save_config_callback=save_config_callback,
             trainer_class=trainer_class,
-            description=description,
-            env_prefix=env_prefix,
-            save_config_overwrite=save_config_overwrite,
+            parser_kwargs=parser_kwargs,
+            save_config_kwargs=save_config_kwargs,
             **kwargs,
         )
 

@@ -1,55 +1,74 @@
-"""Memory for QD-3DT inference."""
+"""Memory for CC-3DT inference."""
 from __future__ import annotations
 
-from typing import Generic, NamedTuple, TypeVar
+from typing import NamedTuple
 from vis4d.op.box.box2d import bbox_iou
-from .qdtrack import BaseTrackMemory, QDTrackMemory
 
 from vis4d.op.track.motion import BaseMotionModel
-from vis4d.common import ArgsType
+import copy
 
 import torch
+
+from torch import Tensor
+
+from .base import BaseTrackMemory
+
 import pdb
 
 
-class QD3DTrackState(NamedTuple):
-    """QD-3DT Track state."""
+class CC3DTrackState(NamedTuple):
+    """CC-3DT Track state."""
 
-    track_ids: torch.Tensor
-    boxes: torch.Tensor
-    scores: torch.Tensor
-    boxes_3d: torch.Tensor
-    scores_3d: torch.Tensor
-    class_ids: torch.Tensor
-    embeddings: torch.Tensor
-    motion_models: List[BaseMotionModel] | List[List[BaseMotionModel]]
-    velocities: torch.Tensor
+    track_ids: Tensor
+    boxes: Tensor
+    camera_ids: Tensor
+    scores: Tensor
+    boxes_3d: Tensor
+    scores_3d: Tensor
+    class_ids: Tensor
+    embeddings: Tensor
+    motion_models: None | list[BaseMotionModel] | list[list[BaseMotionModel]]
+    velocities: None | Tensor
+    last_frames: Tensor
+    acc_frames: Tensor
 
 
-class QD3DTrackMemory(QDTrackMemory):
-    """QD-3DT Track Memory."""
+class CC3DTrackMemory(BaseTrackMemory[CC3DTrackState]):
+    """CC-3DT Track Memory."""
 
     def __init__(
         self,
-        *args: ArgsType,
+        memory_limit: int = -1,
         nms_backdrop_iou_thr: float = 0.3,
         motion_dims: int = 7,
-        **kwargs: ArgsType,
+        backdrop_memory_limit: int = 1,
+        memory_momentum: float = 0.8,
     ):
         """Creates an instance of the class."""
-        super().__init__(*args, **kwargs)
+        super().__init__(memory_limit)
+        self.backdrop_frames: list[CC3DTrackState] = []
+        self.memo_momentum = memory_momentum
+        self.backdrop_memory_limit = backdrop_memory_limit
         self.nms_backdrop_iou_thr = nms_backdrop_iou_thr
         self.motion_dims = motion_dims
+        assert backdrop_memory_limit >= 0
+        assert 0 <= memory_momentum <= 1.0
+
+    def reset(self) -> None:
+        """Empty the memory."""
+        super().reset()
+        self.backdrop_frames.clear()
 
     @staticmethod
-    def _generate_data(data: QD3DTrackState, indices: torch.Tensor):
+    def _generate_data(data: CC3DTrackState, indices: torch.Tensor):
         """Generate data for the track memory."""
         motion_models = []
         for i in indices:
             motion_models.append(data.motion_models[i])
-        return QD3DTrackState(
+        return CC3DTrackState(
             data.track_ids[indices],
             data.boxes[indices],
+            data.camera_ids[indices],
             data.scores[indices],
             data.boxes_3d[indices],
             data.scores_3d[indices],
@@ -57,15 +76,19 @@ class QD3DTrackMemory(QDTrackMemory):
             data.embeddings[indices],
             motion_models,
             data.velocities[indices],
+            data.last_frames[indices],
+            data.acc_frames[indices],
         )
 
-    def update(self, data: QD3DTrackState) -> None:
+    def update(self, data: CC3DTrackState) -> None:
         """Update the track memory with a new state."""
         valid_tracks = torch.nonzero(
             data.track_ids > -1, as_tuple=False
         ).squeeze(1)
 
         new_tracks = self._generate_data(data, valid_tracks)
+
+        super().update(new_tracks)
 
         # handle vanished tracklets
         if len(self.frames) > 0:
@@ -74,9 +97,7 @@ class QD3DTrackMemory(QDTrackMemory):
                 if track_id not in new_tracks.track_ids:
                     pd_box_3d = cur_memory.motion_models[i].predict()
                     cur_memory.boxes_3d[i][:6] = pd_box_3d[:6]
-                    cur_memory.boxes_3d[8] = pd_box_3d[6]
-
-        BaseTrackMemory.update(self, new_tracks)
+                    cur_memory.boxes_3d[i][8] = pd_box_3d[6]
 
         # backdrops
         backdrop_tracks = torch.nonzero(
@@ -86,12 +107,16 @@ class QD3DTrackMemory(QDTrackMemory):
         ious = bbox_iou(
             data.boxes[backdrop_tracks],
             data.boxes,
+            data.camera_ids[backdrop_tracks],
+            data.camera_ids,
         )
 
         for i, ind in enumerate(backdrop_tracks):
             if (ious[i, :ind] > self.nms_backdrop_iou_thr).any():
                 backdrop_tracks[i] = -1
         backdrop_tracks = backdrop_tracks[backdrop_tracks > -1]
+
+        # pdb.set_trace()
 
         new_backdrops = self._generate_data(data, backdrop_tracks)
         self.backdrop_frames.append(new_backdrops)
@@ -102,12 +127,15 @@ class QD3DTrackMemory(QDTrackMemory):
             self.backdrop_frames.pop(0)
 
     @staticmethod
-    def _concat_states(states: list[QD3DTrackState]) -> QD3DTrackState:
+    def _concat_states(states: list[CC3DTrackState]) -> CC3DTrackState:
         """Concatenate multiple states into a single one."""
         memory_track_ids = torch.cat(
             [mem_entry.track_ids for mem_entry in states]
         )
         memory_boxes = torch.cat([mem_entry.boxes for mem_entry in states])
+        memory_camera_ids = torch.cat(
+            [mem_entry.camera_ids for mem_entry in states]
+        )
         memory_scores = torch.cat([mem_entry.scores for mem_entry in states])
         memory_boxes_3d = torch.cat(
             [mem_entry.boxes_3d for mem_entry in states]
@@ -127,9 +155,16 @@ class QD3DTrackMemory(QDTrackMemory):
         memory_velocities = torch.cat(
             [mem_entry.velocities for mem_entry in states]
         )
-        return QD3DTrackState(
+        memory_last_frames = torch.cat(
+            [mem_entry.last_frames for mem_entry in states]
+        )
+        memory_acc_frames = torch.cat(
+            [mem_entry.acc_frames for mem_entry in states]
+        )
+        return CC3DTrackState(
             memory_track_ids,
             memory_boxes,
+            memory_camera_ids,
             memory_scores,
             memory_boxes_3d,
             memory_scores_3d,
@@ -137,9 +172,29 @@ class QD3DTrackMemory(QDTrackMemory):
             memory_embeddings,
             memory_motion_models,
             memory_velocities,
+            memory_last_frames,
+            memory_acc_frames,
         )
 
-    def get_current_tracks(self, device: torch.device) -> QD3DTrackState:
+    def get_track(self, track_id: int) -> list[CC3DTrackState]:
+        """Get representation of a single track across memory frames.
+
+        Args:
+            track_id (int): track id of query track.
+
+        Returns:
+            list[QDTrackState]: List of track states for given query track.
+        """
+        track = []
+        for frame in self.frames:
+            idx = (frame.track_ids == track_id).nonzero(as_tuple=True)[0]
+            if len(idx) > 0:
+                track.append(
+                    CC3DTrackState(*(element[idx] for element in frame))
+                )
+        return track  # type: ignore
+
+    def get_current_tracks(self, device: torch.device) -> CC3DTrackState:
         """Get all active tracks and backdrops in memory."""
         # get last states of all tracks
         if len(self.frames) > 0:
@@ -147,6 +202,14 @@ class QD3DTrackMemory(QDTrackMemory):
 
             track_ids = memory.track_ids.unique()
             class_ids = torch.zeros_like(track_ids)
+            camera_ids = torch.zeros(
+                (
+                    len(
+                        track_ids,
+                    )
+                ),
+                device=track_ids.device,
+            )
             scores = torch.zeros(
                 (
                     len(
@@ -175,6 +238,10 @@ class QD3DTrackMemory(QDTrackMemory):
             velocities = torch.zeros(
                 (len(track_ids), self.motion_dims), device=track_ids.device
             )
+            last_frames = torch.zeros(
+                (len(track_ids)), device=track_ids.device
+            )
+            acc_frames = torch.zeros((len(track_ids)), device=track_ids.device)
 
             # calculate exponential moving average of embedding across memory
             for i, track_id in enumerate(track_ids):
@@ -182,22 +249,26 @@ class QD3DTrackMemory(QDTrackMemory):
                     as_tuple=False
                 )[-1]
                 boxes[i] = memory.boxes[track_mask]
+                camera_ids[i] = memory.camera_ids[track_mask]
                 scores[i] = memory.scores[track_mask]
                 boxes_3d[i] = memory.boxes_3d[track_mask]
                 scores_3d[i] = memory.scores_3d[track_mask]
                 class_ids[i] = memory.class_ids[track_mask]
                 embeds = memory.embeddings[track_mask]
                 embed = embeds[0]
-                for mem_embed in embeds[1:]:
-                    embed = (
-                        1 - self.memo_momentum
-                    ) * embed + self.memo_momentum * mem_embed
+                # for mem_embed in embeds[1:]:
+                #     embed = (
+                #         1 - self.memo_momentum
+                #     ) * embed + self.memo_momentum * mem_embed
                 embeddings[i] = embed
                 motion_models.append(memory.motion_models[track_mask])
                 velocities[i] = memory.velocities[track_mask]
+                last_frames[i] = memory.last_frames[track_mask]
+                acc_frames[i] = memory.acc_frames[track_mask]
         else:
             track_ids = torch.empty((0,), dtype=torch.int64, device=device)
             class_ids = torch.empty((0,), dtype=torch.int64, device=device)
+            camera_ids = torch.empty((0,), dtype=torch.int64, device=device)
             scores = torch.empty((0,), device=device)
             boxes = torch.empty((0, 4), device=device)
             scores_3d = torch.empty((0,), device=device)
@@ -205,12 +276,15 @@ class QD3DTrackMemory(QDTrackMemory):
             embeddings = torch.empty((0, 1), device=device)
             motion_models = []
             velocities = torch.empty((0, self.motion_dims), device=device)
+            last_frames = torch.empty((0,), device=device)
+            acc_frames = torch.empty((0,), device=device)
 
         # add backdrops
         if len(self.backdrop_frames) > 0:
             backdrops = self._concat_states(self.backdrop_frames)
             track_ids = torch.cat([track_ids, backdrops.track_ids])
             boxes = torch.cat([boxes, backdrops.boxes])
+            camera_ids = torch.cat([camera_ids, backdrops.camera_ids])
             scores = torch.cat([scores, backdrops.scores])
             boxes_3d = torch.cat([boxes_3d, backdrops.boxes_3d])
             scores_3d = torch.cat([scores_3d, backdrops.scores_3d])
@@ -225,10 +299,13 @@ class QD3DTrackMemory(QDTrackMemory):
             embeddings = torch.cat([embeddings, backdrops.embeddings])
             motion_models.extend(backdrops.motion_models)
             velocities = torch.cat([velocities, backdrops.velocities])
+            last_frames = torch.cat([last_frames, backdrops.last_frames])
+            acc_frames = torch.cat([acc_frames, backdrops.acc_frames])
 
-        return QD3DTrackState(
+        return CC3DTrackState(
             track_ids,
             boxes,
+            camera_ids,
             scores,
             boxes_3d,
             scores_3d,
@@ -236,4 +313,6 @@ class QD3DTrackMemory(QDTrackMemory):
             embeddings,
             motion_models,
             velocities,
+            last_frames,
+            acc_frames,
         )

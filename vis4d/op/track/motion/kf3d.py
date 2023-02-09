@@ -13,54 +13,6 @@ from .base import BaseMotionModel
 from filterpy.kalman import KalmanFilter, predict
 
 
-# def _get_kalman_filter(motion_dims: int) -> KalmanFilter:
-#     """Initialize the Kalman Filter."""
-#     return KalmanFilter(dim_x=motion_dims + 3, dim_z=motion_dims)
-
-
-# def kf3d_init(obs_3d: Tensor, motion_dims: int) -> tuple[Tensor, Tensor]:
-#     """Initialize the Kalman Filter."""
-#     kf = _get_kalman_filter(motion_dims)
-#     # state transition matrix
-#     kf.F = np.array(
-#         [
-#             [1, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-#             [0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
-#             [0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-#             [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-#             [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-#             [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-#             [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-#             [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-#             [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-#             [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-#         ]
-#     )
-#     # measurement function
-#     kf.H = np.array(
-#         [
-#             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-#             [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-#             [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-#             [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-#             [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-#             [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-#             [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-#         ]
-#     )
-#     # state uncertainty, give high uncertainty to
-#     kf.P[motion_dims:, motion_dims:] *= 1000.0
-#     # the unobservable initial velocities, covariance matrix
-#     kf.P *= 10.0
-
-#     # process uncertainty
-#     kf.Q[motion_dims:, motion_dims:] *= 0.01
-
-#     bbox_3d = obs_3d[:motion_dims].cpu().numpy()
-
-#     kf.x[:motion_dims] = bbox_3d.reshape((motion_dims, 1))
-
-
 class KF3DMotionModel(BaseMotionModel):
     """Kalman Filter 3D motion model."""
 
@@ -114,17 +66,14 @@ class KF3DMotionModel(BaseMotionModel):
         # process uncertainty
         self.kf.Q[self.motion_dims :, self.motion_dims :] *= 0.01
 
-        bbox_3d = obs_3d[: self.motion_dims].cpu().numpy()
-        info = obs_3d[self.motion_dims :].cpu().numpy()
+        bbox_3d = obs_3d.cpu().numpy()
 
         self.kf.x[: self.motion_dims] = bbox_3d.reshape((self.motion_dims, 1))
-        self.info = info
         self.prev_ref = bbox_3d
 
     def update(self, obs_3d: torch.Tensor) -> None:  # type: ignore
         """Updates the state vector with observed bbox."""
-        bbox_3d = obs_3d[: self.motion_dims].cpu().numpy()
-        info = obs_3d[self.motion_dims :].cpu().numpy()
+        bbox_3d = obs_3d.cpu().numpy()
 
         self.time_since_update = 0
         self.hits += 1
@@ -140,7 +89,6 @@ class KF3DMotionModel(BaseMotionModel):
 
         self.kf.x[6] = normalize_angle(self.kf.x[6])
 
-        self.info = info
         self.prev_ref = self.kf.x[: self.motion_dims].flatten()
 
     def predict_velocity(self) -> torch.Tensor:  # type: ignore
