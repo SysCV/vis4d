@@ -4,6 +4,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+from collections.abc import Sequence
 
 import numpy as np
 import pycocotools.mask as maskUtils
@@ -134,18 +135,21 @@ class COCO(Dataset, CacheMappingMixin):
 
     DESCRIPTION = """COCO is a large-scale object detection, segmentation, and
     captioning dataset."""
-    URL = "http://cocodataset.org/#home"
-    KEYS = ["images", "boxes2d", "boxes2d_classes", "masks"]
+    HOMEPAGE = "http://cocodataset.org"
+    PAPER = "http://arxiv.org/abs/1405.0312"
+    LICENSE = "BY-NC-SA 2.0"
+
+    KEYS = [
+        CommonKeys.images,
+        CommonKeys.boxes2d,
+        CommonKeys.boxes2d_classes,
+        CommonKeys.masks,
+    ]
 
     def __init__(
         self,
         data_root: str,
-        keys_to_load: tuple[str, ...] = (
-            CommonKeys.images,
-            CommonKeys.boxes2d,
-            CommonKeys.boxes2d_classes,
-            CommonKeys.masks,
-        ),
+        keys_to_load: Sequence[str] = KEYS,
         split: str = "train2017",
         remove_empty: bool = False,
         minimum_box_area: float = 0,
