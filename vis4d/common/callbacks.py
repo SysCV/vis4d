@@ -1,7 +1,6 @@
 """This module contains utilities for callbacks."""
 from __future__ import annotations
 
-import logging
 import os
 
 import torch
@@ -9,8 +8,7 @@ from torch import nn
 
 from vis4d.common import ArgsType, MetricLogs
 from vis4d.common.distributed import all_gather_object_cpu, get_rank
-from vis4d.common.typing import DictStrAny
-from vis4d.data.typing import DictData
+from vis4d.common.logging import rank_zero_info
 from vis4d.engine.connectors import DataConnector
 from vis4d.eval.base import Evaluator
 from vis4d.vis.base import Visualizer
@@ -48,15 +46,6 @@ class Callback:
             key_name (str): Key name used to extract data using the data
                 connector.
         """
-
-
-def default_eval_connector(
-    mode: str,  # pylint: disable=unused-argument
-    data: DictData,
-    outputs: ArgsType,
-) -> DictStrAny:
-    """Default eval connector forwards input and outputs."""
-    return {"data": data, "outputs": outputs}
 
 
 class EvaluatorCallback(Callback):
@@ -132,9 +121,10 @@ class EvaluatorCallback(Callback):
             return {}
 
         results = {}
-        logger = logging.getLogger(__name__)
         if not self.logging_disabled:
-            logger.info("Running evaluator %s...", str(self.evaluator))
+            rank_zero_info(  # type: ignore
+                "Running evaluator %s...", str(self.evaluator)
+            )
 
         for metric in self.evaluator.metrics:
             if self.output_dir is not None:
@@ -146,9 +136,13 @@ class EvaluatorCallback(Callback):
             results[metric] = log_dict
             if not self.logging_disabled:
                 for k, v in log_dict.items():
-                    self.log(k, v, rank_zero_only=True)  # type: ignore # pylint: disable=no-member,line-too-long
-                logger.info("Showing results for %s", metric)
-                logger.info(log_str)
+                    self.log(  # type: ignore # pylint: disable=no-member
+                        k, v, rank_zero_only=True
+                    )
+                rank_zero_info(  # type: ignore
+                    "Showing results for %s", metric
+                )
+                rank_zero_info(log_str)
         return results
 
 

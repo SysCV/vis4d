@@ -30,7 +30,19 @@ class Trainer:
         train_callbacks: dict[str, Callback] | None,
         test_every_nth_epoch: int = 1,
     ) -> None:
-        """Creates an instance of the class."""
+        """Initialize the trainer.
+
+        Args:
+            num_epochs (int): Number of training epochs.
+            log_step (int): Interval for logging losses.
+            dataloaders (DataLoader[DictData]): Dataloader for training.
+            data_connector (DataConnector): Data connector used for generating
+                training inputs from a batch of data.
+            train_callbacks (dict[str, Callback] | None): Callback functions
+                used during training.
+            test_every_nth_epoch (int, optional): Interval for evaluating the
+                model during training. Defaults to 1.
+        """
         self.num_epochs = num_epochs
         self.log_step = log_step
         self.test_every_nth_epoch = test_every_nth_epoch

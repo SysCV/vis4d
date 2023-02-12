@@ -23,7 +23,15 @@ class Tester:
         data_connector: DataConnector,
         test_callbacks: dict[str, Callback] | None,
     ) -> None:
-        """Creates an instance of the class."""
+        """Initialize the tester.
+
+        Args:
+            dataloaders (list[DataLoader[DictData]]): Dataloaders for testing.
+            data_connector (DataConnector): Data connector used for generating
+                testing inputs from a batch of data.
+            test_callbacks (dict[str, Callback] | None): Callback functions
+                used during testing.
+        """
         self.test_dataloader = dataloaders
         self.data_connector = data_connector
 
@@ -32,9 +40,15 @@ class Tester:
         else:
             self.test_callbacks = test_callbacks
 
-    @torch.no_grad()  # type: ignore
+    @torch.no_grad()
     def test(self, model: nn.Module, epoch: None | int = None) -> None:
-        """Testing loop."""
+        """Testing loop.
+
+        Args:
+            model (nn.Module): Model that should be tested.
+            epoch (None | int, optional): Epoch for testing (None if not used
+                during training). Defaults to None.
+        """
         model.eval()
         rank_zero_info("Running validation...")
         for test_loader in self.test_dataloader:

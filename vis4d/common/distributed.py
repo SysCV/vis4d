@@ -72,7 +72,7 @@ def get_rank() -> int:  # pragma: no cover
     Returns:
         int: The global rank.
     """
-    rank_keys = ("RANK", "SLURM_PROCID", "LOCAL_RANK")
+    rank_keys = ("RANK", "LOCAL_RANK", "SLURM_PROCID")
     for key in rank_keys:
         rank = os.environ.get(key)
         if rank is not None:
@@ -167,8 +167,8 @@ def pad_to_largest_tensor(
         [tensor.numel()], dtype=torch.int64, device=tensor.device
     )
     local_size_list = [local_size.clone() for _ in range(world_size)]
-    size_list = dist.all_gather(local_size_list, local_size)
-    size_list = [int(size.item()) for size in size_list]
+    dist.all_gather_object(local_size_list, local_size)
+    size_list = [int(size.item()) for size in local_size_list]
     max_size = max(size_list)
 
     # we pad the tensor because torch all_gather does not support
@@ -201,14 +201,14 @@ def all_gather_object_gpu(  # type: ignore
     tensor = serialize_to_tensor(data)
     size_list, tensor = pad_to_largest_tensor(tensor)
     tensor_list = [tensor.clone() for _ in range(world_size)]
-    tensors = dist.all_gather(tensor_list, tensor)  # (world_size, N)
+    dist.all_gather_object(tensor_list, tensor)  # (world_size, N)
 
     if rank_zero_return_only and not rank == 0:
         return None
 
     # decode
     data_list = []
-    for size, tensor in zip(size_list, tensors):
+    for size, tensor in zip(size_list, tensor_list):
         buffer = tensor.cpu().numpy().tobytes()[:size]
         data_list.append(pickle.loads(buffer))
 
@@ -270,7 +270,7 @@ def all_gather_object_cpu(  # type: ignore
             data_list.append(pickle.load(f))
 
     # rm dir
-    if not rank_zero_only:
+    if not rank_zero_return_only:
         # wait for all processes to finish loading before removing tmpdir
         synchronize()
     if rank == 0:

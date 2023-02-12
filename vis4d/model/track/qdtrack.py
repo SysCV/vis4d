@@ -129,7 +129,7 @@ class QDTrack(nn.Module):
             ref_track_ids.append(current_track_ids)
         return key_embeddings, ref_embeddings, key_track_ids, ref_track_ids
 
-    @torch.no_grad()  # type: ignore
+    @torch.no_grad()
     def _sample_proposals(
         self,
         det_boxes: list[torch.Tensor],

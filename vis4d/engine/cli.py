@@ -10,7 +10,6 @@ import os
 import sys
 
 import torch
-import torch.multiprocessing as mp
 import yaml
 from absl import app, flags
 from ml_collections import ConfigDict
@@ -19,6 +18,7 @@ from ml_collections.config_flags.config_flags import (
     _ConfigFlag,
 )
 from torch.distributed import destroy_process_group, init_process_group
+from torch.multiprocessing import spawn  # type: ignore
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from vis4d.common.distributed import get_world_size
@@ -152,6 +152,7 @@ def _train(config: ConfigDict, rank: None | int = None) -> None:
         device = torch.device("cpu")
     cfg.model.to(device)
     if get_world_size() > 1:
+        assert rank is not None, "Requires rank for multi-processing"
         cfg.model = DDP(cfg.model, device_ids=[rank])
 
     # run training
@@ -167,6 +168,8 @@ def ddp_setup(rank: int, world_size: int) -> None:
     """
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "12355"
+    os.environ["LOCAL_RANK"] = str(rank)
+    torch.cuda.set_device(rank)
     init_process_group(backend="nccl", rank=rank, world_size=world_size)
 
 
@@ -207,9 +210,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
             _train(config)
     elif _MODE.value == "train":
         if num_gpus > 1:
-            mp.spawn(
-                _dist_train, args=(num_gpus, _CONFIG.value), nprocs=num_gpus
-            )
+            spawn(_dist_train, args=(num_gpus, _CONFIG.value), nprocs=num_gpus)
         else:
             _train(_CONFIG.value)
 
