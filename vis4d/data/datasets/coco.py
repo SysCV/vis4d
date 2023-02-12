@@ -16,7 +16,7 @@ from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData
 
-from .base import Dataset, MultitaskMixin
+from .base import Dataset
 from .util import CacheMappingMixin, im_decode
 
 # COCO detection
@@ -129,18 +129,18 @@ coco_seg_map = {
 }
 
 
-class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
+class COCO(Dataset, CacheMappingMixin):
     """COCO dataset class."""
 
-    _DESCRIPTION = """COCO is a large-scale object detection, segmentation, and
+    DESCRIPTION = """COCO is a large-scale object detection, segmentation, and
     captioning dataset."""
-    _KEYS = ["images", "boxes2d", "boxes2d_classes", "masks"]
-    _URL = "http://cocodataset.org/#home"
+    URL = "http://cocodataset.org/#home"
+    KEYS = ["images", "boxes2d", "boxes2d_classes", "masks"]
 
     def __init__(
         self,
         data_root: str,
-        keys: tuple[str, ...] = (
+        keys_to_load: tuple[str, ...] = (
             CommonKeys.images,
             CommonKeys.boxes2d,
             CommonKeys.boxes2d_classes,
@@ -152,11 +152,23 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         use_pascal_voc_cats: bool = False,
         data_backend: None | DataBackend = None,
     ) -> None:
-        """Creates an instance of the class."""
+        """Initialize the COCO dataset.
+
+        Args:
+            data_root (str): Path to the root directory of the dataset.
+            keys_to_load (tuple[str, ...]): Keys to load from the dataset.
+            split (split): Which split to load. Default: "train2017".
+            remove_empty (bool): Whether to remove images with no annotations.
+            minimum_box_area (float): Minimum area of the bounding boxes.
+                Default: 0.
+            use_pascal_voc_cats (bool): Whether to use Pascal VOC categories.
+            data_backend (None | DataBackend): Data backend to use.
+                Default: None.
+        """
         super().__init__()
 
         self.data_root = data_root
-        self.keys = keys
+        self.keys_to_load = keys_to_load
         self.split = split
         self.remove_empty = remove_empty
         self.minimum_box_area = minimum_box_area
@@ -166,12 +178,12 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
         )
 
         # handling keys to load
-        self.validate_keys(keys)
-        self.with_images = CommonKeys.images in keys
-        self.with_boxes = (CommonKeys.boxes2d in keys) or (
-            CommonKeys.boxes2d_classes in keys
+        self.validate_keys(keys_to_load)
+        self.with_images = CommonKeys.images in keys_to_load
+        self.with_boxes = (CommonKeys.boxes2d in keys_to_load) or (
+            CommonKeys.boxes2d_classes in keys_to_load
         )
-        self.with_masks = CommonKeys.masks in keys
+        self.with_masks = CommonKeys.masks in keys_to_load
 
         self.data = self._load_mapping(self._generate_data_mapping)
 

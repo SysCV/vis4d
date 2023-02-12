@@ -24,12 +24,20 @@ from .util import CacheMappingMixin
 class S3DIS(Dataset, CacheMappingMixin):
     """S3DIS dataset class."""
 
-    _DESCRIPTION = """S3DIS is a large-scale indoor pointcloud dataset."""
-    _TASKS = ["3DSegment"]
-    _URL = (
+    DESCRIPTION = """S3DIS is a large-scale indoor pointcloud dataset."""
+    HOMEPAGE = "https://buildingparser.stanford.edu/dataset.html"
+    PAPER = (
         "https://openaccess.thecvf.com/content_cvpr_2016/papers/"
         "Armeni_3D_Semantic_Parsing_CVPR_2016_paper.pdf"
     )
+    LICENSE = "CC BY-NC-SA 4.0"
+
+    KEYS = [
+        CommonKeys.points3d,
+        CommonKeys.colors3d,
+        CommonKeys.semantics3d,
+        CommonKeys.instances3d,
+    ]
 
     CLASS_NAME_TO_IDX = {
         "ceiling": 0,
@@ -96,7 +104,7 @@ class S3DIS(Dataset, CacheMappingMixin):
         data_root: str,
         split: str = "trainNoArea5",
         data_backend: DataBackend | None = None,
-        keys_to_load: Sequence[str] = AVAILABLE_KEYS,
+        keys_to_load: Sequence[str] = KEYS,
         cache_points: bool = True,
     ) -> None:
         """Creates a new S3DIS dataset.
