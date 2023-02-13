@@ -70,7 +70,7 @@ def get_rank() -> int:  # pragma: no cover
     Returns:
         int: The global rank.
     """
-    rank_keys = ("RANK", "SLURM_PROCID", "LOCAL_RANK")
+    rank_keys = ("RANK", "LOCAL_RANK", "SLURM_PROCID", "JSM_NAMESPACE_RANK")
     for key in rank_keys:
         rank = os.environ.get(key)
         if rank is not None:

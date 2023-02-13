@@ -9,6 +9,10 @@ from scipy.spatial.transform import Rotation as R
 
 import json
 
+from collections.abc import Callable
+from typing import Any
+import itertools
+
 
 class NuScenesEvaluator(Evaluator):
 
@@ -49,6 +53,24 @@ class NuScenesEvaluator(Evaluator):
     @property
     def metrics(self) -> list[str]:
         return ["detect_3d", "track_3d"]
+
+    def gather(  # type: ignore
+        self, gather_func: Callable[[Any], Any]
+    ) -> None:
+        """Gather variables in case of distributed setting (if needed).
+
+        Args:
+            gather_func (Callable[[Any], Any]): Gather function.
+        """
+        tracks_3d_list = gather_func(self.tracks_3d)
+        if tracks_3d_list is not None:
+            prediction_list = [p.items() for p in tracks_3d_list]
+            self.tracks_3d = dict(itertools.chain(*prediction_list))
+
+        detect_3d_list = gather_func(self.detect_3d)
+        if detect_3d_list is not None:
+            prediction_list = [p.items() for p in detect_3d_list]
+            self.detect_3d = dict(itertools.chain(*prediction_list))
 
     def reset(self) -> None:
         self.tracks_3d = {}

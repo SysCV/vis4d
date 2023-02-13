@@ -33,7 +33,7 @@ from vis4d.data.transforms.normalize import (
 from vis4d.data.transforms.pad import pad_image
 from vis4d.data.transforms.resize import resize_image, resize_intrinsics
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
-
+from vis4d.data.datasets import VideoMixin
 from vis4d.common import ArgsType
 
 
@@ -115,6 +115,15 @@ def cc_3dt_connect(mode: str, data):
     raise NotImplementedError
 
 
+class VideoDataPipe(DataPipe, VideoMixin):  # TODO: refactor data pipe
+    def __init__(self, *args: ArgsType, **kwargs: ArgsType) -> None:
+        super().__init__(*args, **kwargs)
+
+    @property
+    def video_to_indices(self):
+        return self.datasets[0].video_to_indices
+
+
 def default_test_pipeline(
     datasets: Dataset | list[Dataset],
     batch_size: int,
@@ -141,7 +150,7 @@ def default_test_pipeline(
     )
 
     return build_inference_dataloaders(
-        DataPipe(datasets, preprocess_fn),
+        VideoDataPipe(datasets, preprocess_fn),
         samples_per_gpu=batch_size,
         workers_per_gpu=num_workers,
         batchprocess_fn=batchprocess_fn,
@@ -204,10 +213,11 @@ if __name__ == "__main__":
     """Main function.
 
     Example Usage:
-    >>> python -m vis4d.pl.model.cc_3dt test --data.experiment nuscenes_mini \
-        --trainer.devices [0] --trainer.accelerator gpu \
+    >>> python -m vis4d.pl.model.cc_3dt test \
+        --trainer.exp_name cc_3dt_r50_kf3d \
+        --trainer.accelerator gpu --trainer.devices 2 \
+        --data.experiment nuscenes_mini \
         --data.samples_per_gpu 1 --data.workers_per_gpu 4 \
-        --seed_everything 1 --trainer.exp_name cc_3dt_r50_kf3d \
         --ckpt vis4d-workspace/checkpoints/cc_3dt_R_50_FPN_nuscenes_12_accumulate_gradient_2.ckpt
     """
     DefaultCLI(model_class=setup_model, datamodule_class=TrackDataModule)

@@ -13,6 +13,7 @@ from pytorch_lightning.cli import LightningCLI, SaveConfigCallback
 from pytorch_lightning.core import LightningModule
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.strategies.strategy import Strategy
+from pytorch_lightning.utilities.device_parser import new_parse_gpu_ids
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common import ArgsType, DictStrAny
@@ -152,10 +153,10 @@ class DefaultTrainer(pl.Trainer):
 
         # add distributed strategy
         if kwargs["accelerator"] == "gpu":  # pragma: no cover
-            num_gpus = (
-                len(kwargs["devices"]) if kwargs["devices"] is not None else 0
+            kwargs["devices"] = new_parse_gpu_ids(
+                kwargs["devices"], include_cuda=True, include_mps=True
             )
-            if num_gpus > 1:
+            if len(kwargs["devices"]) > 1:
                 strategy = kwargs["strategy"]
                 if strategy == "ddp" or strategy is None:
                     ddp_plugin: Strategy = DDPStrategy(
