@@ -116,7 +116,7 @@ class Trainer:
     def train(
         self,
         model: torch.nn.Module,
-        optimizer: list[Optimizer],
+        optimizers: list[Optimizer],
         loss: torch.nn.Module | None = None,
         tester: None | Tester = None,
     ) -> None:
@@ -124,9 +124,9 @@ class Trainer:
 
         Args:
             model: Model that should be trained.
-            optimizer: Optimizer that should be used for training. This bundles
-                the optimizer, the learning rate scheduler, and the warmup
-                scheduler.
+            optimizers: Optimizers that should be used for training. This
+                bundles the optimizers, the learning rate schedulers, and the
+                warmup schedulers.
             loss: Loss function that should be used for training. Defaults to
                 None.
             tester: Tester that should be used for testing. Defaults to None.
@@ -136,7 +136,7 @@ class Trainer:
 
         # Set up optimizers and schedulers. This is done here because the
         # optimizers require the model parameters.
-        for opt in optimizer:
+        for opt in optimizers:
             opt.setup(model)
 
         device = next(model.parameters()).device  # model device
@@ -151,8 +151,8 @@ class Trainer:
                 self.train_dataloader.sampler.set_epoch(epoch)
 
             for i, data in enumerate(self.train_dataloader):
-                # zero grad optimziers
-                for opt in optimizer:
+                # zero grad optimizers
+                for opt in optimizers:
                     opt.zero_grad()
 
                 # input data
@@ -166,12 +166,11 @@ class Trainer:
                     # Do we want to support no loss?
                     # Idea is to allow the user to somewhat define a custom
                     # loss implementation in a custom optimizer.step()
-
                     self.calculate_losses(
                         i, epoch, output, data_moved, loss, running_losses
                     )
 
-                for opt in optimizer:
+                for opt in optimizers:
                     opt.step(step)
 
                 for _, callback in self.train_callbacks.items():
