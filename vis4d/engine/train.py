@@ -56,6 +56,63 @@ class Trainer:
 
         self.timer = Timer()
 
+    def _run_test_on_epoch(self, epoch: int) -> bool:
+        """Return whether to run test on current training epoch.
+
+        Args:
+            epoch (int): Current training epoch.
+
+        Returns:
+            bool: Whether to run test.
+        """
+        return epoch % self.test_every_nth_epoch == (
+            self.test_every_nth_epoch - 1
+        )
+
+    def calculate_losses(
+        self,
+        cur_iter: int,
+        epoch: int,
+        output: DictData,
+        data: DictData,
+        loss: torch.nn.Module,
+        running_losses: DictStrAny,
+    ) -> None:
+        """Compute losses for a batch of training data and log statistics.
+
+        Args:
+            cur_iter (int): Current training iteration.
+            epoch (int): Current training epoch.
+            output (DictData): Model output.
+            data (DictData): Batch of training data.
+            loss (torch.nn.Module): Loss function.
+            running_losses (DictStrAny): Running statistics of losses.
+        """
+        loss_input = self.data_connector.get_loss_input(output, data)
+        losses = loss(**loss_input)
+        total_loss = sum(losses.values())
+        total_loss.backward()
+
+        # update statistics
+        losses = {"loss": total_loss, **losses}
+        for k, v in losses.items():
+            if k in running_losses:
+                running_losses[k] += v
+            else:
+                running_losses[k] = v
+
+        # log losses
+        if cur_iter % self.log_step == (self.log_step - 1):
+            rank_zero_info(
+                compose_log_str(
+                    f"Epoch {epoch + 1}",
+                    cur_iter + 1,
+                    len(self.train_dataloader),
+                    self.timer,
+                    {k: v / self.log_step for k, v in running_losses.items()},
+                )
+            )
+
     def train(
         self,
         model: torch.nn.Module,
@@ -105,58 +162,30 @@ class Trainer:
                 # forward + backward + optimize
                 output = model(**train_input)
 
-                if loss is not None:  # TODO ugly nested. Maybe move
-                    # to own function? Do we want to support no loss?
+                if loss is not None:
+                    # Do we want to support no loss?
                     # Idea is to allow the user to somewhat define a custom
                     # loss implementation in a custom optimizer.step()
 
-                    # Calculate loss
-                    loss_input = self.data_connector.get_loss_input(
-                        output, data_moved
+                    self.calculate_losses(
+                        i, epoch, output, data_moved, loss, running_losses
                     )
-                    losses = loss(**loss_input)
-                    total_loss = sum(losses.values())
-                    total_loss.backward()
-
-                    # print statistics
-                    losses = {"loss": total_loss, **losses}
-                    for k, v in losses.items():
-                        if k in running_losses:
-                            running_losses[k] += v
-                        else:
-                            running_losses[k] = v
-                    if i % self.log_step == (self.log_step - 1):
-                        rank_zero_info(
-                            compose_log_str(
-                                f"Epoch {epoch + 1}",
-                                i + 1,
-                                len(self.train_dataloader),
-                                self.timer,
-                                {
-                                    k: v / self.log_step
-                                    for k, v in running_losses.items()
-                                },
-                            )
-                        )
 
                 for opt in optimizer:
                     opt.step(step)
 
-                for k, callback in self.train_callbacks.items():
+                for _, callback in self.train_callbacks.items():
                     if callback.run_on_epoch(epoch):
                         callback.on_train_batch_end()
 
                 step += 1
 
-            for k, callback in self.train_callbacks.items():
+            for _, callback in self.train_callbacks.items():
                 if callback.run_on_epoch(epoch):
                     callback.on_train_epoch_end(model, epoch)
 
             # testing
-            if tester is not None:
-                if epoch % self.test_every_nth_epoch == (
-                    self.test_every_nth_epoch - 1
-                ):
-                    tester.test(model, epoch)
+            if tester is not None and self._run_test_on_epoch(epoch):
+                tester.test(model, epoch)
 
         rank_zero_info("Training done.")
