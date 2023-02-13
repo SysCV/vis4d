@@ -1,33 +1,26 @@
 """SHIFT dataset."""
 from __future__ import annotations
 
-from vis4d.common.imports import BDD100K_AVAILABLE, SCALABEL_AVAILABLE
+import os
+
+from vis4d.common.imports import SCALABEL_AVAILABLE
+from vis4d.data.const import CommonKeys
 
 from .scalabel import Scalabel
 
-bdd100k_det_map = {
-    "pedestrian": 0,
-    "rider": 1,
-    "car": 2,
+shift_det_map = {
+    "bicycle": 0,
+    "car": 1,
+    "motor": 2,
     "truck": 3,
-    "bus": 4,
-    "train": 5,
-    "motorcycle": 6,
-    "bicycle": 7,
-    "traffic light": 8,
-    "traffic sign": 9,
 }
-bdd100k_track_map = {
-    "pedestrian": 0,
-    "rider": 1,
-    "car": 2,
+shfit_track_map = {
+    "bicycle": 0,
+    "car": 1,
+    "motor": 2,
     "truck": 3,
-    "bus": 4,
-    "train": 5,
-    "motorcycle": 6,
-    "bicycle": 7,
 }
-bdd100k_seg_map = {
+shift_seg_map = {
     "road": 0,
     "sidewalk": 1,
     "building": 2,
@@ -48,62 +41,30 @@ bdd100k_seg_map = {
     "motorcycle": 17,
     "bicycle": 18,
 }
-bdd100k_panseg_map = {
-    "dynamic": 0,
-    "ego vehicle": 1,
-    "ground": 2,
-    "static": 3,
-    "parking": 4,
-    "rail track": 5,
-    "road": 6,
-    "sidewalk": 7,
-    "bridge": 8,
-    "building": 9,
-    "fence": 10,
-    "garage": 11,
-    "guard rail": 12,
-    "tunnel": 13,
-    "wall": 14,
-    "banner": 15,
-    "billboard": 16,
-    "lane divider": 17,
-    "parking sign": 18,
-    "pole": 19,
-    "polegroup": 20,
-    "street light": 21,
-    "traffic cone": 22,
-    "traffic device": 23,
-    "traffic light": 24,
-    "traffic sign": 25,
-    "traffic sign frame": 26,
-    "terrain": 27,
-    "vegetation": 28,
-    "sky": 29,
-    "person": 30,
-    "rider": 31,
-    "bicycle": 32,
-    "bus": 33,
-    "car": 34,
-    "caravan": 35,
-    "motorcycle": 36,
-    "trailer": 37,
-    "train": 38,
-    "truck": 39,
-}
 
-if BDD100K_AVAILABLE and SCALABEL_AVAILABLE:
-    from bdd100k.common.utils import load_bdd100k_config
-    from bdd100k.label.to_scalabel import bdd100k_to_scalabel
+if SCALABEL_AVAILABLE:
     from scalabel.label.io import load
     from scalabel.label.typing import Dataset as ScalabelData
 
 
-class SHIFT(Scalabel):
+class SHIFT(Dataset):
     """SHIFT dataset, based on Scalabel."""
+
+    def __init__(
+        self,
+        data_root: str,
+        split: str,
+        keys_to_load: Sequence[str] = (CommonKeys.images, CommonKeys.boxes2d),
+        views_to_load: Sequence[str] = ("front",),
+    ) -> None:
+        """Initialize SHIFT dataset."""
+        self.annotation_path = os.path.join(
+            self.data_root, "annotations", f"{self.split}.json"
+        )
 
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
-        bdd100k_anns = load(self.annotation_path)
+        shift_anns = load(self.annotation_path)
         frames = bdd100k_anns.frames
         bdd100k_cfg = load_bdd100k_config(self.config_path)
         scalabel_frames = bdd100k_to_scalabel(frames, bdd100k_cfg)

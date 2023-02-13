@@ -101,6 +101,12 @@ if BDD100K_AVAILABLE and SCALABEL_AVAILABLE:
 class BDD100K(Scalabel):
     """BDD100K type dataset, based on Scalabel."""
 
+    DESCRIPTION = """BDD100K is a large-scale dataset for driving scene
+        understanding."""
+    HOMEPAGE = "https://www.bdd100k.com/"
+    PAPER_URL = "https://arxiv.org/abs/1805.04687"
+    LICENSE = "CC BY-NC-SA 4.0"
+
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
         bdd100k_anns = load(self.annotation_path)

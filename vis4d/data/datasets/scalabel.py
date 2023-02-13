@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Union
 
 import numpy as np
@@ -152,8 +152,10 @@ class Scalabel(Dataset, CacheMappingMixin):
         self,
         data_root: str,
         annotation_path: str,
-        inputs_to_load: tuple[str, ...] = (CommonKeys.images,),
-        targets_to_load: tuple[str, ...] = (CommonKeys.boxes2d,),
+        keys_to_load: Sequence[str] = (
+            CommonKeys.images,
+            CommonKeys.boxes2d,
+        ),
         data_backend: None | DataBackend = None,
         category_map: None | CategoryMap = None,
         config_path: None | str = None,
@@ -188,8 +190,7 @@ class Scalabel(Dataset, CacheMappingMixin):
         super().__init__()
         self.data_root = data_root
         self.annotation_path = annotation_path
-        self.inputs_to_load = inputs_to_load
-        self.targets_to_load = targets_to_load
+        self.keys_to_load = keys_to_load
         self.global_instance_ids = global_instance_ids
         self.bg_as_class = bg_as_class
         self.data_backend = (
@@ -216,7 +217,7 @@ class Scalabel(Dataset, CacheMappingMixin):
 
     def _setup_categories(self, category_map: CategoryMap) -> None:
         """Setup categories."""
-        for target in self.targets_to_load:
+        for target in self.keys_to_load:
             if isinstance(list(category_map.values())[0], int):
                 self.cats_name2id[target] = category_map  # type: ignore
             else:
@@ -252,7 +253,7 @@ class Scalabel(Dataset, CacheMappingMixin):
     def _load_inputs(self, frame: Frame) -> DictData:
         """Load inputs given a scalabel frame."""
         data: DictData = {}
-        if frame.url is not None and CommonKeys.images in self.inputs_to_load:
+        if frame.url is not None and CommonKeys.images in self.keys_to_load:
             im_bytes = self.data_backend.get(frame.url)
             image = im_decode(im_bytes)
             image = torch.as_tensor(
@@ -269,13 +270,13 @@ class Scalabel(Dataset, CacheMappingMixin):
             data["videoName"] = frame.videoName
         if (
             frame.intrinsics is not None
-            and CommonKeys.intrinsics in self.inputs_to_load
+            and CommonKeys.intrinsics in self.keys_to_load
         ):
             data[CommonKeys.intrinsics] = load_intrinsics(frame.intrinsics)
 
         if (
             frame.extrinsics is not None
-            and CommonKeys.extrinsics in self.inputs_to_load
+            and CommonKeys.extrinsics in self.keys_to_load
         ):
             data[CommonKeys.extrinsics] = load_extrinsics(frame.extrinsics)
         return data
@@ -294,21 +295,21 @@ class Scalabel(Dataset, CacheMappingMixin):
         if not labels_used:
             return  # pragma: no cover
 
-        if CommonKeys.masks in self.targets_to_load:
+        if CommonKeys.masks in self.keys_to_load:
             ins_map = self.cats_name2id[CommonKeys.masks]
             instance_masks = instance_masks_from_scalabel(
                 labels_used, ins_map, instid_map, frame.size
             )
             data[CommonKeys.masks] = instance_masks  # TODO sync boxes2d?
 
-        if CommonKeys.segmentation_masks in self.targets_to_load:
+        if CommonKeys.segmentation_masks in self.keys_to_load:
             sem_map = self.cats_name2id[CommonKeys.segmentation_masks]
             semantic_masks = semantic_masks_from_scalabel(
                 labels_used, sem_map, instid_map, frame.size, self.bg_as_class
             )
             data[CommonKeys.segmentation_masks] = semantic_masks
 
-        if CommonKeys.boxes2d in self.targets_to_load:
+        if CommonKeys.boxes2d in self.keys_to_load:
             boxes2d, classes, track_ids = boxes2d_from_scalabel(
                 labels_used, self.cats_name2id[CommonKeys.boxes2d], instid_map
             )
@@ -316,7 +317,7 @@ class Scalabel(Dataset, CacheMappingMixin):
             data[CommonKeys.boxes2d_classes] = classes
             data[CommonKeys.boxes2d_track_ids] = track_ids
 
-        if CommonKeys.boxes3d in self.targets_to_load:
+        if CommonKeys.boxes3d in self.keys_to_load:
             boxes3d, classes, track_ids = boxes3d_from_scalabel(
                 labels_used, self.cats_name2id[CommonKeys.boxes3d], instid_map
             )
@@ -332,10 +333,10 @@ class Scalabel(Dataset, CacheMappingMixin):
         """Get item from dataset at given index."""
         frame = self.frames[index]  # type: Frame
         data = self._load_inputs(frame)
-        if len(self.targets_to_load) > 0:
+        if len(self.keys_to_load) > 0:
             if len(self.cats_name2id) == 0:
                 raise AttributeError(
-                    "Category mapping is empty but targets_to_load is not. "
+                    "Category mapping is empty but keys_to_load is not. "
                     "Please specify a category mapping."
                 )
             # load annotations to input sample
