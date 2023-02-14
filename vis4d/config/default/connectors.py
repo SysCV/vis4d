@@ -25,12 +25,12 @@ def default_detection_connector(
     Use the 'evaluators' argument to provide additional, dataset dependant
     evaluators.
 
-
     Args:
         evaluators (dict[str, dict[str, SourceKeyDescription]], optional):
-        Mapping from evaluator name to key, value remapping for this evaluator.
+            Mapping from evaluator name to key, value remapping for this
+            evaluator.
         visualizers (dict[str, dict[str, SourceKeyDescription]], optional):
-        Mapping from visuliazer name to key, value remapping.
+            Mapping from visuliazer name to key, value remapping.
 
     Returns:
         ConfigDict: Config dict that can be instantiated as Data Connector.

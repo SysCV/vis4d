@@ -135,7 +135,7 @@ class FasterRCNNHead(nn.Module):
         self.rpn2roi = RPN2RoI(self.anchor_generator, self.rpn_box_encoder)
         self.roi_head = RCNNHead(num_classes=num_classes)
 
-    @torch.no_grad()
+    @torch.no_grad()  # type: ignore # untyped decorator
     def _sample_proposals(
         self,
         proposal_boxes: list[torch.Tensor],
