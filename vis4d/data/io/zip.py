@@ -72,6 +72,7 @@ class ZipBackend(DataBackend):
 
         Raises:
             ValueError: If filepath is not a valid .zip file
+            NotImplementedError: If the method is not implemented.
         """
         if ".zip" not in filepath:
             raise ValueError(f"{filepath} not a valid .zip filepath!")
@@ -88,8 +89,9 @@ class ZipBackend(DataBackend):
         Returns:
             ZipFile: the hdf5 file.
         """
+        assert len(mode) == 1, "Mode must be a single character for zip file."
         if zip_path not in self.db_cache:
-            client = ZipFile(zip_path, mode)
+            client = ZipFile(zip_path, mode[0])
             self.db_cache[zip_path] = (client, mode)
         else:
             client, current_mode = self.db_cache[zip_path]
@@ -112,7 +114,8 @@ class ZipBackend(DataBackend):
 
         Raises:
             ZipFileNotFoundError: If no suitable file exists.
-            ValueError: If key not found inside hdf5 file.
+            IOError: If the file cannot be opened.
+            ValueError: If key not found inside zip file.
 
         Returns:
             bytes: The file content in bytes

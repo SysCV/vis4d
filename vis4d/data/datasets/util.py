@@ -80,7 +80,7 @@ def ply_decode(ply_bytes: bytes, mode: str = "XYZI") -> NDArrayFloat:
     return points
 
 
-def filter_by_keys(data_dict: DictData, keys_to_keep: list[str]):
+def filter_by_keys(data_dict: DictData, keys_to_keep: list[str]) -> DictData:
     """Filter a dictionary by keys.
 
     Args:

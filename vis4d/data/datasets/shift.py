@@ -108,7 +108,9 @@ class _SHIFTScalabelLabels(Scalabel):
             view_to_load (str): Which view to load. Default: "front".
         """
         # Validate input
-        assert split in set("train", "val", "test"), f"Invalid split '{split}'"
+        assert split in set(
+            ("train", "val", "test")
+        ), f"Invalid split '{split}'"
         assert view in _SHIFTScalabelLabels.VIEWS, f"Invalid view '{view}'"
         assert (
             data_group in _SHIFTScalabelLabels.DATA_GROUP
@@ -187,7 +189,9 @@ class SHIFT(Dataset):
     ) -> None:
         """Initialize SHIFT dataset."""
         # Validate input
-        assert split in set("train", "val", "test"), f"Invalid split '{split}'"
+        assert split in set(
+            ("train", "val", "test")
+        ), f"Invalid split '{split}'"
         self.validate_keys(keys_to_load)
 
         # Set attributes

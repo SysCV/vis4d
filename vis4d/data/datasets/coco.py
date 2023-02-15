@@ -149,7 +149,7 @@ class COCO(Dataset, CacheMappingMixin):
     def __init__(
         self,
         data_root: str,
-        keys_to_load: Sequence[str] = KEYS,
+        keys_to_load: Sequence[str] = (CommonKeys.images, CommonKeys.boxes2d),
         split: str = "train2017",
         remove_empty: bool = False,
         minimum_box_area: float = 0,
@@ -302,9 +302,9 @@ class COCO(Dataset, CacheMappingMixin):
                     np.ascontiguousarray(masks), dtype=torch.uint8
                 )
 
-            if CommonKeys.boxes2d in self.keys:
+            if CommonKeys.boxes2d in self.keys_to_load:
                 dict_data[CommonKeys.boxes2d] = box_tensor
-            if CommonKeys.boxes2d_classes in self.keys:
+            if CommonKeys.boxes2d_classes in self.keys_to_load:
                 dict_data[CommonKeys.boxes2d_classes] = torch.tensor(
                     classes, dtype=torch.long
                 )
