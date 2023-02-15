@@ -93,6 +93,27 @@ def filter_by_keys(data_dict: DictData, keys_to_keep: list[str]) -> DictData:
     return {key: data_dict[key] for key in keys_to_keep if key in data_dict}
 
 
+def get_used_data_groups(
+    data_groups: dict[str, list[str]], keys: list[str]
+) -> list[str]:
+    """Get the data groups that are used by the given keys.
+
+    Args:
+        data_groups (dict[str, list[str]]): The data groups.
+        keys (list[str]): The keys to check.
+
+    Returns:
+        list[str]: The used data groups.
+    """
+    used_groups = []
+    for group_name, group_keys in data_groups.items():
+        if not group_keys:
+            continue
+        if any(key in keys for key in group_keys):
+            used_groups.append(group_name)
+    return used_groups
+
+
 class CacheMappingMixin:
     """Caches a mapping for fast I/O and multi-processing.
 

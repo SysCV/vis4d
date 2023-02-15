@@ -9,7 +9,7 @@ import torch
 from torch import Tensor
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.datasets.base import Dataset
 from vis4d.data.datasets.util import filter_by_keys, im_decode, ply_decode
 from vis4d.data.io import DataBackend, HDF5Backend, ZipBackend
@@ -139,36 +139,36 @@ class _SHIFTScalabelLabels(Scalabel):
 
 
 class SHIFT(Dataset):
-    """SHIFT dataset."""
+    """SHIFT dataset class, supporting multiple tasks and views."""
 
     DESCRIPTION = """SHIFT Dataset, a synthetic driving dataset for continuous
     multi-task domain adaptation"""
-    PAPER = "https://arxiv.org/abs/2206.08367"
     HOMEPAGE = "https://www.vis.xyz/shift/"
+    PAPER = "https://arxiv.org/abs/2206.08367"
     LICENSE = "CC BY-NC-SA 4.0"
 
     KEYS = [
         # Scalabel formatted annotations
-        CommonKeys.images,
-        CommonKeys.original_hw,
-        CommonKeys.input_hw,
-        CommonKeys.intrinsics,
-        CommonKeys.extrinsics,
-        CommonKeys.timestamp,
-        CommonKeys.axis_mode,
-        CommonKeys.boxes2d,
-        CommonKeys.boxes2d_classes,
-        CommonKeys.boxes2d_track_ids,
-        CommonKeys.masks,
-        CommonKeys.boxes3d,
-        CommonKeys.boxes3d_classes,
-        CommonKeys.boxes3d_track_ids,
+        Keys.images,
+        Keys.original_hw,
+        Keys.input_hw,
+        Keys.intrinsics,
+        Keys.extrinsics,
+        Keys.timestamp,
+        Keys.axis_mode,
+        Keys.boxes2d,
+        Keys.boxes2d_classes,
+        Keys.boxes2d_track_ids,
+        Keys.masks,
+        Keys.boxes3d,
+        Keys.boxes3d_classes,
+        Keys.boxes3d_track_ids,
         # Bit masks
-        CommonKeys.segmentation_masks,
-        CommonKeys.depth_maps,
-        CommonKeys.optical_flows,
+        Keys.segmentation_masks,
+        Keys.depth_maps,
+        Keys.optical_flows,
         # Point clouds
-        CommonKeys.points3d,
+        Keys.points3d,
     ]
 
     VIEWS = [
@@ -181,11 +181,43 @@ class SHIFT(Dataset):
         "left_stereo",
     ]
 
+    DATA_GROUPS = {
+        "det_2d": [
+            Keys.images,
+            Keys.original_hw,
+            Keys.input_hw,
+            Keys.intrinsics,
+            Keys.extrinsics,
+            Keys.timestamp,
+            Keys.axis_mode,
+            Keys.boxes2d,
+            Keys.boxes2d_classes,
+            Keys.boxes2d_track_ids,
+        ],
+        "det_3d": [
+            Keys.boxes3d,
+            Keys.boxes3d_classes,
+            Keys.boxes3d_track_ids,
+        ],
+        "det_insseg_2d": [
+            Keys.masks,
+        ],
+        "depth": [
+            Keys.depth_maps,
+        ],
+        "flow": [
+            Keys.optical_flows,
+        ],
+        "lidar": [
+            Keys.points3d,
+        ],
+    }
+
     def __init__(
         self,
         data_root: str,
         split: str,
-        keys_to_load: Sequence[str] = (CommonKeys.images, CommonKeys.boxes2d),
+        keys_to_load: Sequence[str] = (Keys.images, Keys.boxes2d),
         views_to_load: Sequence[str] = ("front",),
         backend: DataBackend = HDF5Backend(),
     ) -> None:
@@ -209,6 +241,12 @@ class SHIFT(Dataset):
 
         # Get the data groups' classes that need to be loaded
         self._data_groups_to_load = self._get_data_groups(keys_to_load)
+        if "det_2d" not in self._data_groups_to_load:
+            raise ValueError(
+                "In current implementation, the 'det_2d' data group must be"
+                "loaded to load any other data group."
+            )
+
         self.scalabel_datasets = {}
         for view in self.views_to_load:
             if view == "center":
@@ -227,31 +265,10 @@ class SHIFT(Dataset):
     def _get_data_groups(self, keys_to_load: Sequence[str]) -> list[str]:
         """Get the data groups that need to be loaded."""
         data_groups = []
-        if any(
-            key in keys_to_load
-            for key in (
-                CommonKeys.intrinsics,
-                CommonKeys.extrinsics,
-                CommonKeys.timestamp,
-                CommonKeys.axis_mode,
-                CommonKeys.boxes2d,
-                CommonKeys.boxes2d_classes,
-                CommonKeys.boxes2d_track_ids,
-            )
-        ):
-            data_groups.append("det_2d")
-        if any(
-            key in keys_to_load
-            for key in (
-                CommonKeys.boxes3d,
-                CommonKeys.boxes3d_classes,
-                CommonKeys.boxes3d_track_ids,
-            )
-        ):
-            data_groups.append("det_3d")
-        if any(key in keys_to_load for key in (CommonKeys.masks,)):
-            data_groups.append("det_insseg_2d")
-        return data_groups
+        for data_group, group_keys in self.DATA_GROUPS.items():
+            if any(key in group_keys for key in keys_to_load):
+                data_groups.append(data_group)
+        return list(set(data_groups))
 
     def _load(
         self, view: str, data_group: str, file_ext: str, video: str, frame: str
@@ -317,8 +334,7 @@ class SHIFT(Dataset):
                 list(self.scalabel_datasets.keys())[0]
             ].frames
             return frames[idx].videoName, frames[idx].name
-
-        raise NotImplementedError
+        raise ValueError("No Scalabel file has been loaded.")
 
     def __len__(self) -> int:
         """Get the number of samples in the dataset."""
@@ -326,8 +342,7 @@ class SHIFT(Dataset):
             return len(
                 self.scalabel_datasets[list(self.scalabel_datasets.keys())[0]]
             )
-
-        raise NotImplementedError
+        raise ValueError("No Scalabel file has been loaded.")
 
     def __getitem__(self, idx: int) -> DictData:
         """Get single sample.
@@ -347,8 +362,8 @@ class SHIFT(Dataset):
 
             if view == "center":
                 # Lidar is only available in the center view
-                if CommonKeys.points3d in self.keys_to_load:
-                    data_dict_view[CommonKeys.points3d] = self._load(
+                if Keys.points3d in self.keys_to_load:
+                    data_dict_view[Keys.points3d] = self._load(
                         view, "lidar", "ply", video_name, frame_name
                     )
             else:
@@ -359,16 +374,16 @@ class SHIFT(Dataset):
                     )
 
                 # Load data from bit masks
-                if CommonKeys.segmentation_masks in self.keys_to_load:
-                    data_dict_view[CommonKeys.segmentation_masks] = self._load(
+                if Keys.segmentation_masks in self.keys_to_load:
+                    data_dict_view[Keys.segmentation_masks] = self._load(
                         view, "semseg", "png", video_name, frame_name
                     )
-                if CommonKeys.depth_maps in self.keys_to_load:
-                    data_dict_view[CommonKeys.depth_maps] = self._load(
+                if Keys.depth_maps in self.keys_to_load:
+                    data_dict_view[Keys.depth_maps] = self._load(
                         view, "depth", "png", video_name, frame_name
                     )
-                if CommonKeys.optical_flows in self.keys_to_load:
-                    data_dict_view[CommonKeys.optical_flows] = self._load(
+                if Keys.optical_flows in self.keys_to_load:
+                    data_dict_view[Keys.optical_flows] = self._load(
                         view, "flow", "npz", video_name, frame_name
                     )
 

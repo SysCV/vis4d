@@ -104,8 +104,8 @@ class BDD100K(Scalabel):
     DESCRIPTION = """BDD100K is a large-scale dataset for driving scene
         understanding."""
     HOMEPAGE = "https://www.bdd100k.com/"
-    PAPER_URL = "https://arxiv.org/abs/1805.04687"
-    LICENSE = "CC BY-NC-SA 4.0"
+    PAPER = "https://arxiv.org/abs/1805.04687"
+    LICENSE = "https://www.bdd100k.com/license"
 
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
