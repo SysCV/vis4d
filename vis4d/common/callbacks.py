@@ -17,9 +17,27 @@ from vis4d.vis.base import Visualizer
 class Callback:
     """Base class for Vis4D Callbacks."""
 
+    def __init__(
+        self, run_every_nth_epoch: int = 1, num_epochs: int = -1
+    ) -> None:
+        """Init callback.
+
+        Args:
+            run_every_nth_epoch (int): Evaluate model every nth epoch.
+                Defaults to 1.
+            num_epochs (int): Number of total epochs, used for determining
+                whether to evaluate at the final epoch. Defaults to -1.
+        """
+        self.run_every_nth_epoch = run_every_nth_epoch
+        self.num_epochs = num_epochs
+
     def run_on_epoch(self, epoch: int | None) -> bool:
         """Returns whether to run callback for current epoch (default True)."""
-        return epoch is None or epoch >= 0
+        return (
+            epoch is None
+            or epoch == self.num_epochs - 1
+            or epoch % self.run_every_nth_epoch == self.run_every_nth_epoch - 1
+        )
 
     def on_train_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a training epoch.
@@ -55,25 +73,26 @@ class EvaluatorCallback(Callback):
         self,
         evaluator: Evaluator,
         eval_connector: DataConnector,
-        test_every_nth_epoch: int = 1,
-        num_epochs: int = -1,
         output_dir: None | str = None,
         collect: str = "cpu",
+        run_every_nth_epoch: int = 1,
+        num_epochs: int = -1,
     ) -> None:
         """Init callback.
 
         Args:
             evaluator (Evaluator): Evaluator.
             eval_connector (DataConnector): Data connector for evaluator.
-            test_every_nth_epoch (int): Evaluate model every nth epoch.
-                Defaults to 1.
-            num_epochs (int): Number of total epochs, used for determining
-                whether to evaluate at the final epoch. Defaults to -1.
             output_dir (str, Optional): Output directory for saving the
                 evaluation results. Defaults to None (no save).
             collect (str): Which device to collect results across GPUs on.
                 Defaults to "cpu".
+            run_every_nth_epoch (int): Evaluate model every nth epoch.
+                Defaults to 1.
+            num_epochs (int): Number of total epochs, used for determining
+                whether to evaluate at the final epoch. Defaults to -1.
         """
+        super().__init__(run_every_nth_epoch, num_epochs)
         assert collect in set(
             ("cpu", "gpu")
         ), f"Collect device {collect} unknown."
@@ -81,22 +100,11 @@ class EvaluatorCallback(Callback):
         self.output_dir = output_dir
         self.evaluator = evaluator
         self.eval_connector = eval_connector
-        self.test_every_nth_epoch = test_every_nth_epoch
-        self.num_epochs = num_epochs
         self.logging_disabled = False
         self.run_eval = True
 
         if self.output_dir is not None:
             os.makedirs(self.output_dir, exist_ok=True)
-
-    def run_on_epoch(self, epoch: int | None) -> bool:
-        """Returns whether to run callback for current epoch (default True)."""
-        return (
-            epoch is None
-            or epoch == self.num_epochs - 1
-            or epoch % self.test_every_nth_epoch
-            == self.test_every_nth_epoch - 1
-        )
 
     def on_test_epoch_end(self) -> None:
         """Hook to run at the end of a testing epoch."""
@@ -153,25 +161,26 @@ class VisualizerCallback(Callback):
         self,
         visualizer: Visualizer,
         data_connector: DataConnector,
-        vis_every_nth_epoch: int = 1,
-        num_epochs: int = -1,
         output_dir: None | str = None,
         collect: str = "cpu",
+        run_every_nth_epoch: int = 1,
+        num_epochs: int = -1,
     ) -> None:
         """Init callback.
 
         Args:
             visualizer (Visualizer): Visualizer.
             data_connector (DataConnector): Data connector for visualizer.
-            vis_every_nth_epoch (int): Visualize results every nth epoch.
-                Defaults to 1.
-            num_epochs (int): Number of total epochs, used for determining
-                whether to visualize at the final epoch. Defaults to -1.
             output_dir (str, Optional): Output directory for saving the
                 visualizations. Defaults to None (no save).
             collect (str): Which device to collect results across GPUs on.
                 Defaults to "cpu".
+            run_every_nth_epoch (int): Visualize results every nth epoch.
+                Defaults to 1.
+            num_epochs (int): Number of total epochs, used for determining
+                whether to visualize at the final epoch. Defaults to -1.
         """
+        super().__init__(run_every_nth_epoch, num_epochs)
         assert collect in set(
             ("cpu", "gpu")
         ), f"Collect device {collect} unknown."
@@ -179,19 +188,9 @@ class VisualizerCallback(Callback):
         self.output_dir = output_dir
         self.visualizer = visualizer
         self.data_connector = data_connector
-        self.vis_every_nth_epoch = vis_every_nth_epoch
-        self.num_epochs = num_epochs
 
         if self.output_dir is not None:
             os.makedirs(self.output_dir, exist_ok=True)
-
-    def run_on_epoch(self, epoch: int | None) -> bool:
-        """Returns whether to run callback for current epoch (default True)."""
-        return (
-            epoch is None
-            or epoch == self.num_epochs - 1
-            or epoch % self.vis_every_nth_epoch == self.vis_every_nth_epoch - 1
-        )
 
     def on_test_epoch_end(self) -> None:
         """Hook to run at the end of a testing epoch."""
@@ -214,23 +213,22 @@ class CheckpointCallback(Callback):
     """Callback for model checkpointing."""
 
     def __init__(
-        self, save_prefix: str, save_every_nth_epoch: int = 1
+        self,
+        save_prefix: str,
+        run_every_nth_epoch: int = 1,
+        num_epochs: int = -1,
     ) -> None:
         """Init callback.
 
         Args:
             save_prefix (str): Prefix of checkpoint path for saving.
-            save_every_nth_epoch (int): Save model checkpoint every nth epoch.
+            run_every_nth_epoch (int): Save model checkpoint every nth epoch.
                 Defaults to 1.
+            num_epochs (int): Number of total epochs, used for determining
+                whether to visualize at the final epoch. Defaults to -1.
         """
+        super().__init__(run_every_nth_epoch, num_epochs)
         self.save_prefix = save_prefix
-        self.save_every_nth_epoch = save_every_nth_epoch
-
-    def run_on_epoch(self, epoch: int | None) -> bool:
-        """Returns whether to run callback for current epoch (default True)."""
-        return epoch is None or epoch % self.save_every_nth_epoch == (
-            self.save_every_nth_epoch - 1
-        )
 
     def on_train_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a training epoch."""

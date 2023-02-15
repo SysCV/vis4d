@@ -206,9 +206,9 @@ def get_config() -> ConfigDict:
                 data_root=config.get_ref("dataset_root"),
                 split=config.get_ref("test_split"),
             ),
-            test_every_nth_epoch=1,
-            num_epochs=config.get_ref("num_epochs"),
             eval_connector=config.get_ref("data_connector"),
+            run_every_nth_epoch=1,
+            num_epochs=config.get_ref("num_epochs"),
         )
     }
 
@@ -224,10 +224,10 @@ def get_config() -> ConfigDict:
         "bbox": class_config(
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer),
-            vis_every_nth_epoch=1,
-            num_epochs=config.get_ref("num_epochs"),
             output_dir=config.get_ref("save_prefix") + "/vis",
             data_connector=config.get_ref("data_connector"),
+            run_every_nth_epoch=1,
+            num_epochs=config.get_ref("num_epochs"),
         )
     }
     ######################################################
@@ -240,7 +240,8 @@ def get_config() -> ConfigDict:
         "ckpt": class_config(
             CheckpointCallback,
             save_prefix=config.get_ref("save_prefix"),
-            save_every_nth_epoch=1,
+            run_every_nth_epoch=1,
+            num_epochs=config.get_ref("num_epochs"),
         )
     }
 
