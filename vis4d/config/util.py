@@ -216,8 +216,6 @@ class DelayedInstantiator:
     the class. Instead, it returns a function that can be called to instantiate
     the class.
 
-    TODO: Look for a better way to do this.
-
     Args:
         instantiable (ConfigDict): The configuration object to delay the
             instantiation of.

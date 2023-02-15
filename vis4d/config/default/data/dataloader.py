@@ -42,7 +42,7 @@ def default_image_dl(
     return default_dataloader_config(
         preprocess_cfg,
         dataset_cfg,
-        batch_size / n_gpus,
+        batch_size // n_gpus,
         num_workers_per_gpu,
         class_config("vis4d.data.transforms.pad.pad_image"),
         # FIXME: Currently, resolving transforms is broken if we directly pass

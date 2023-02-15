@@ -9,7 +9,7 @@ from ml_collections.config_dict import ConfigDict
 from vis4d.config.util import class_config
 
 
-def default_detect_augmentations() -> Iterable[ConfigDict]:
+def det_augmentations() -> Iterable[ConfigDict]:
     """Returns the default image augmentations used for detection tasks.
 
     These augmentations consist of solely of left-right flipping the image and
@@ -24,13 +24,11 @@ def default_detect_augmentations() -> Iterable[ConfigDict]:
     )
 
 
-def default_detection_preprocessing(
+def det_preprocessing(
     target_img_height: int | FieldReference,
     target_img_width: int | FieldReference,
-    augmentation_probability: float | FieldReference,
-    augmentation_transforms: Iterable[
-        ConfigDict
-    ] = default_detect_augmentations(),
+    augment_probability: float | FieldReference,
+    augmentation_transforms: Iterable[ConfigDict] = det_augmentations(),
 ) -> ConfigDict:
     """Creates the default image preprocessing pipeling for a detection tasks.
 
@@ -51,7 +49,7 @@ def default_detection_preprocessing(
             should be fed to the network.
         target_img_width (int | FieldReference): Target image width which
             should be fed to the network.
-        augmentation_probability (float | FieldReference): Probability to apply
+        augment_probability (float | FieldReference): Probability to apply
             the augmentation operations.
         augmentation_transforms (list[ConfigDict], optional): List of
             transformation configurations that will be chained together and
@@ -74,7 +72,7 @@ def default_detection_preprocessing(
         class_config(
             "vis4d.data.transforms.base.random_apply",
             transforms=augmentation_transforms,
-            probability=augmentation_probability,
+            probability=augment_probability,
         ),
         class_config("vis4d.data.transforms.normalize.normalize_image"),
     ]

@@ -26,6 +26,24 @@ class OptimizerBuilder(Protocol):
         """
 
 
+class LRSchedulerBuilder(Protocol):
+    """Protocol for LR scheduler builder."""
+
+    __name__: str = "LRSchedulerBuilder"
+
+    def __call__(
+        self, optimizer: optim.Optimizer
+    ) -> optim.lr_scheduler._LRScheduler:
+        """Returns the scheduler for the desired optimizer.
+
+        Args:
+            optimizer: The optimizer.
+
+        Returns:
+            The LR Scheduler.
+        """
+
+
 class Optimizer:
     """Vis4D Optimizer.
 
@@ -36,10 +54,7 @@ class Optimizer:
     def __init__(
         self,
         optimizer_cb: OptimizerBuilder,
-        lr_scheduler_cb: Callable[
-            [optim.Optimizer], optim.lr_scheduler._LRScheduler
-        ]
-        | None = None,
+        lr_scheduler_cb: LRSchedulerBuilder | None = None,
         lr_warmup: None | BaseLRWarmup = None,
     ) -> None:
         """Creates an instance of the class.
@@ -70,7 +85,7 @@ class Optimizer:
         """
         self.optimizer = self._optimizer_cb(params=model.parameters())
         self.lr_scheduler = (
-            self._lr_scheduler_cb(self.optimizer)
+            self._lr_scheduler_cb(optimizer=self.optimizer)
             if self._lr_scheduler_cb is not None
             else None
         )

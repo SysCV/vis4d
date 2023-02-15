@@ -1,41 +1,30 @@
 """Faster RCNN COCO training example."""
 from __future__ import annotations
 
-import warnings
-from sys import base_prefix
+import os
 
 from ml_collections import ConfigDict
+from torch import optim
+from torch.optim.lr_scheduler import StepLR
 
 from vis4d.common.callbacks import (
     CheckpointCallback,
     EvaluatorCallback,
     VisualizerCallback,
 )
-from vis4d.config.default.data_connectors.faster_rcnn import (
-    eval_bbox_conn,
-    loss_conn,
-    test_data_conn,
-    train_data_conn,
-    vis_bbox_conn,
-)
+from vis4d.config.default.data.dataloader import default_image_dl
+from vis4d.config.default.data.detect import det_preprocessing
+from vis4d.config.default.data_connectors import faster_rcnn as frcnn_dc
 from vis4d.config.default.loss.faster_rcnn_loss import (
     get_default_faster_rcnn_loss,
 )
 from vis4d.config.default.optimizer.default import optimizer_cfg
-from vis4d.engine.connectors import DataConnectionInfo
-from vis4d.eval.detect.coco import COCOEvaluator
-from vis4d.model.detect.faster_rcnn import FasterRCNN
-
-warnings.filterwarnings("ignore")
-import os
-
-from torch import optim
-from torch.optim.lr_scheduler import StepLR
-
-from vis4d.config.default.data.dataloader import default_image_dl
-from vis4d.config.default.data.detect import default_detection_preprocessing
+from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import class_config
 from vis4d.data.datasets.coco import COCO
+from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
+from vis4d.eval.detect.coco import COCOEvaluator
+from vis4d.model.detect.faster_rcnn import FasterRCNN
 from vis4d.vis.image import BoundingBoxVisualizer
 
 # This is just for demo purposes. Uses the relative path to the vis4d root.
@@ -54,7 +43,7 @@ def get_config() -> ConfigDict:
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
     E.g.:
-    >>> python -m vis4d.run --config vis4d/config/example/faster_rcnn_coco_simple.py --config.params.num_epochs 100 -- config.params.lr 0.001
+    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --config.num_epochs 100 -- config.params.lr 0.001
 
     Returns:
         ConfigDict: The configuration
@@ -76,16 +65,15 @@ def get_config() -> ConfigDict:
     config.dataset_root = COCO_DATA_ROOT
     config.train_split = TRAIN_SPLIT
     config.test_split = TEST_SPLIT
+    config.n_gpus = 1
+    config.num_epochs = 10
 
     ## High level hyper parameters
     params = ConfigDict()
     params.batch_size = 16
     params.lr = 0.01
-    params.num_epochs = 0.01
-    params.n_gpus = 0.01
-    params.augmentation_probability = 0.5
+    params.augment_proba = 0.5
     params.num_classes = 80
-
     config.params = params
 
     ######################################################
@@ -102,12 +90,9 @@ def get_config() -> ConfigDict:
         data_root=config.get_ref("dataset_root"),
         split=config.get_ref("train_split"),
     )
-    preprocess_cfg_train = default_detection_preprocessing(
-        800, 1333, augmentation_probability=params.augmentation_probability
-    )
-
+    preproc = det_preprocessing(800, 1333, params.augment_proba)
     dataloader_train_cfg = default_image_dl(
-        preprocess_cfg_train,
+        preproc,
         dataset_cfg_train,
         params.get_ref("batch_size"),
         shuffle=True,
@@ -120,9 +105,7 @@ def get_config() -> ConfigDict:
         data_root=config.get_ref("dataset_root"),
         split=config.get_ref("test_split"),
     )
-    preprocess_test_cfg = default_detection_preprocessing(
-        800, 1333, augmentation_probability=0.0
-    )
+    preprocess_test_cfg = det_preprocessing(800, 1333, augment_probability=0)
     dataloader_cfg_test = default_image_dl(
         preprocess_test_cfg,
         dataset_test_cfg,
@@ -195,12 +178,15 @@ def get_config() -> ConfigDict:
     # data flow of the pipeline.
     # We use the default connections provided for faster_rcnn.
 
-    config.data_connector = DataConnectionInfo(
-        train=train_data_conn(),
-        test=test_data_conn(),
-        loss=loss_conn(),
-        evaluators={"coco": eval_bbox_conn()},
-        vis={"coco": vis_bbox_conn()},
+    config.data_connector = class_config(
+        StaticDataConnector,
+        connections=DataConnectionInfo(
+            train=frcnn_dc.train_data_conn(),
+            test=frcnn_dc.test_data_conn(),
+            loss=frcnn_dc.loss_conn(),
+            evaluators={"coco": frcnn_dc.eval_bbox_conn()},
+            vis={"bbox": frcnn_dc.vis_bbox_conn()},
+        ),
     )
 
     ######################################################
@@ -221,7 +207,7 @@ def get_config() -> ConfigDict:
                 split=config.get_ref("test_split"),
             ),
             test_every_nth_epoch=1,
-            num_epochs=params.get_ref("num_epochs"),
+            num_epochs=config.get_ref("num_epochs"),
             eval_connector=config.get_ref("data_connector"),
         )
     }
@@ -239,8 +225,8 @@ def get_config() -> ConfigDict:
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer),
             vis_every_nth_epoch=1,
-            num_epochs=params.get_ref("num_epochs"),
-            output_dir=os.path.join(config.get_ref(base_prefix), "vis"),
+            num_epochs=config.get_ref("num_epochs"),
+            output_dir=config.get_ref("save_prefix") + "/vis",
             data_connector=config.get_ref("data_connector"),
         )
     }
@@ -262,3 +248,14 @@ def get_config() -> ConfigDict:
     config.test_callbacks = {**eval_callbacks, **vis_callbacks}
 
     return config
+
+
+def get_sweep() -> ConfigDict:
+    """Returns the config dict for a grid search over learning rate.
+
+    Returns:
+        ConfigDict: The configuration that can be used to run a grid search.
+            It can be passed to replicate_config to create a list of configs
+            that can be used to run a grid search.
+    """
+    return linear_grid_search("params.lr", 0.001, 0.01, 3)

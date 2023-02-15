@@ -29,7 +29,7 @@ import os
 from torch import optim
 
 from vis4d.config.default.data.dataloader import default_dataloader_config
-from vis4d.config.default.data.detect import default_detection_preprocessing
+from vis4d.config.default.data.detect import det_preprocessing
 from vis4d.config.util import class_config, delay_instantiation
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.opt import Optimizer
@@ -81,8 +81,8 @@ def get_config() -> ConfigDict:
         data_root=COCO_DATA_ROOT,
         split=TRAIN_SPLIT,
     )
-    preprocess_cfg_train = default_detection_preprocessing(
-        800, 1333, augmentation_probability=0.5
+    preprocess_cfg_train = det_preprocessing(
+        800, 1333, augment_probability=0.5
     )
     dataloader_train_cfg = default_dataloader_config(
         preprocess_cfg_train,
@@ -106,9 +106,7 @@ def get_config() -> ConfigDict:
         data_root=COCO_DATA_ROOT,
         split=TEST_SPLIT,
     )
-    preprocess_test_cfg = default_detection_preprocessing(
-        800, 1333, augmentation_probability=0.0
-    )
+    preprocess_test_cfg = det_preprocessing(800, 1333, augment_probability=0.0)
     dataloader_cfg_test = default_dataloader_config(
         preprocess_test_cfg,
         dataset_test_cfg,
