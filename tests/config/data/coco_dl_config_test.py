@@ -8,7 +8,7 @@ from torch.utils.data.dataloader import DataLoader
 
 from tests.util import get_test_data
 from vis4d.config.default.data.dataloader import default_dataloader_config
-from vis4d.config.default.data.detect import default_detection_preprocessing
+from vis4d.config.default.data.detect import det_preprocessing
 from vis4d.config.util import class_config, instantiate_classes
 from vis4d.data.datasets.coco import COCO
 
@@ -59,9 +59,7 @@ class TestDataloaderConfig(unittest.TestCase):
             split="train",
         )
 
-        preprocess_cfg_train = default_detection_preprocessing(
-            800, 1333, augmentation_probability=0.5
-        )
+        preprocess_cfg_train = det_preprocessing(800, 1333, 0.5)
         dataloader_train_cfg = default_dataloader_config(
             preprocess_cfg_train,
             dataset_cfg_train,
