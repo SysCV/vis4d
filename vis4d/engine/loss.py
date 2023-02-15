@@ -31,8 +31,8 @@ class LossDefinition(TypedDict):
 NestedLossesType = Union[dict[str, "NestedLossesType"], LossesType]
 
 
-def _get_tensors_nested(  # type: ignore  # TODO: Move to util
-    loss_dict: NestedLossesType, prefix=""
+def _get_tensors_nested(
+    loss_dict: NestedLossesType, prefix: str = ""
 ) -> list[tuple[str, Tensor]]:
     """Get tensors from loss dict.
 
@@ -64,59 +64,31 @@ def _get_tensors_nested(  # type: ignore  # TODO: Move to util
     return named_tensors
 
 
-# def test_fn():
-#     # Test case 1: Loss dict with tensors
-#     loss_dict = {"loss1": torch.randn(1), "loss2": torch.randn(1)}
-#     named_tensors = _get_tensors_nested(loss_dict)
-#     assert len(named_tensors) == 2
-#     assert isinstance(named_tensors[0][1], torch.Tensor)
-#     assert isinstance(named_tensors[1][1], torch.Tensor)
-
-#     # Test case 2: Loss dict with nested tensors
-#     loss_dict = {"loss1": {"loss2": torch.randn(1)}}
-#     named_tensors = _get_tensors_nested(loss_dict)
-#     assert len(named_tensors) == 1
-#     assert isinstance(named_tensors[0][1], torch.Tensor)
-
-#     # Test case 3: Loss dict with nested dicts
-#     loss_dict = {"loss1": {"loss2": {"loss3": torch.randn(1)}}}
-#     named_tensors = _get_tensors_nested(loss_dict)
-#     assert len(named_tensors) == 1
-#     assert isinstance(named_tensors[0][1], torch.Tensor)
-
-#     # Test case 4: Loss dict with non-tensor values
-#     loss_dict = {"loss1": {"loss2": {"loss3": "not a tensor"}}}
-#     try:
-#         named_tensors = _get_tensors_nested(loss_dict)
-#     except ValueError as e:
-#         assert (
-#             str(e)
-#             == "Loss dict must only contain tensors or dicts.
-#                   Found <class 'str'> at loss1.loss2.loss3."
-#         )
-
-#     # Test case 5: Loss dict with empty dict
-#     loss_dict = {}
-#     named_tensors = _get_tensors_nested(loss_dict)
-#     assert len(named_tensors) == 0
-
-#     # Test case 6: Loss dict with prefix
-#     loss_dict = {"loss1": {"loss2": torch.randn(1)}}
-#     prefix = "test"
-#     named_tensors = _get_tensors_nested(loss_dict, prefix)
-#     assert len(named_tensors) == 1
-#     assert named_tensors[0][0] == "test.loss1.loss2"
-
-
 class WeightedMultiLoss(nn.Module):
-    """Weighted Multi Loss."""
+    """Loss that combines multiple losses with weights.
+
+    This loss combines multiple losses with weights. The loss values are
+    weighted by the corresponding weight and returned as a dictionary.
+    """
 
     def __init__(self, losses: list[LossDefinition]) -> None:
         """Creates an instance of the class.
 
+        By default, each loss will be called with arguments matching the
+        kwargs of the loss function. This behavior can be changed by
+        providing a mapping in in_keys for each loss definition.
+
         Args:
-            losses (list[nn.Module]): List of loss functions.
+            losses (list[nn.Module]): List of loss defintions.
             weights (list[float]): List of weights.
+
+        Example:
+            >>> loss = WeightedMultiLoss(
+            >>>     [
+            >>>         {"loss": nn.MSELoss(), "weight": 1.0},
+            >>>         {"loss": nn.L1Loss(), "weight": 0.5},
+            >>>     ]
+            >>> )
         """
         super().__init__()
         self.losses: list[LossDefinition] = []
@@ -145,11 +117,18 @@ class WeightedMultiLoss(nn.Module):
     def forward(self, **kwargs: Any) -> LossesType:  # type: ignore
         """Forward of loss function.
 
+        This function will call all loss functions and return a dictionary
+        containing the loss values. The loss values are weighted by the
+        corresponding weight.
+
+        If two losses have the same name, the name will be appended with
+        two underscores.
+
         Args:
             **kwargs (Any): Arguments to pass to loss functions.
 
         Returns:
-            torch.Tensor: Loss.
+            LossesType: The loss values.
         """
         loss_dict: LossesType = {}
         for loss in self.losses:
@@ -158,7 +137,7 @@ class WeightedMultiLoss(nn.Module):
             # Save loss value
             loss_value = loss["loss"](
                 **{
-                    key_o: kwargs.get(key_i, None)  # TODO, maybe raise warning
+                    key_o: kwargs.get(key_i, None)
                     for key_o, key_i in loss["in_keys"].items()
                 }
             )
@@ -182,47 +161,8 @@ class WeightedMultiLoss(nn.Module):
             # Assign values
             for key, value in loss_values_as_dict.items():
                 while key in loss_values_as_dict:
-                    # TODO, show warning once
                     key = "__" + key
 
                 loss_dict[key] = loss["weight"] * value
 
         return loss_dict
-        # losses = [loss() for loss in self.losses]
-        # return sum(
-        #     [loss * weight for loss, weight in zip(losses, self.weights)]
-        # )
-
-    def __call__(self, **kwargs: Any) -> torch.Tensor:  # type: ignore
-        """Type definition for call implementation."""
-        return self._call_impl(**kwargs)
-
-
-# class STH(nn.Module):
-#     def __init__(self) -> None:
-#         super().__init__()
-
-#     def forward(self, test=0) -> torch.Tensor:
-#         return {
-#             "mutli": torch.tensor(1.0),
-#             "nested": {"loss": torch.tensor(1.0)},
-#         }
-#         # return {"mutli": torch.tensor(1.0), "loss": torch.tensor(1.0)}
-
-
-# if __name__ == "__main__":
-
-#     print("hi")
-#     l = Box3DUncertaintyLoss()
-#     print(l)
-#     import inspect
-
-#     wm = WeightedMultiLoss(
-#         [
-#             LossDefinition(loss=STH(), weight=1),
-#             LossDefinition(loss=STH(), weight=1),
-#         ]
-#     )
-#     print(wm(test=1), "called")
-#     print(inspect.signature(l.forward).parameters.keys())
-#     print(inspect.signature(STH().forward).parameters.keys())

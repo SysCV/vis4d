@@ -89,7 +89,7 @@ def logspace_sampler(
 def replicate_config(  # type: ignore
     configuration: ConfigDict,
     sampling_args: list[tuple[str, Callable[[], Generator[Any, None, None]]]],
-    method: str = "grid",  # TODO @zrene, change to callable
+    method: str = "grid",
 ) -> Generator[ConfigDict, None, None]:
     """Function used to replicate a config.
 

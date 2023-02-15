@@ -6,6 +6,7 @@ from typing import Dict, NamedTuple, TypedDict, Union
 from torch import Tensor
 from typing_extensions import NotRequired
 
+from vis4d.common.dict import get_dict_nested
 from vis4d.common.named_tuple import get_from_namedtuple
 from vis4d.data.typing import DictData
 from vis4d.engine.util import is_namedtuple
@@ -306,14 +307,10 @@ class StaticDataConnector(DataConnector):
                         prediction, old_key_name["key"]  # type: ignore
                     )
                 else:
-                    # TODO: dict nested lookups
                     old_key = old_key_name["key"]
-                    if old_key not in prediction:
-                        raise ValueError(
-                            f"Key {old_key} not found in prediction dict."
-                            f"Available keys: {prediction.keys()}"  # type: ignore # pylint: disable=line-too-long
-                        )
-                    out[new_key_name] = prediction[old_key]  # type: ignore # pylint: disable=line-too-long
+                    out[new_key_name] = get_dict_nested(
+                        prediction, old_key.split(".")  # type: ignore
+                    )
             else:
                 raise ValueError(
                     f"Unknown data source {old_key_name['source']}."
