@@ -80,6 +80,8 @@ class CommonKeys:
     boxes2d_track_ids = "boxes2d_track_ids"
     masks = "masks"
     segmentation_masks = "segmentation_masks"
+    depth_maps = "depth_maps"
+    optical_flows = "optical_flows"
 
     # Image Classification
     categories = "categories"

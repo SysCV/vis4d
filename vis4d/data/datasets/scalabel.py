@@ -292,8 +292,8 @@ class Scalabel(Dataset, CacheMappingMixin):
                 labels_used.append(label)
                 if label.id not in instid_map:
                     instid_map[label.id] = int(label.attributes["instance_id"])
-        if not labels_used:
-            return  # pragma: no cover
+        # if not labels_used:
+        #     return  # pragma: no cover
 
         if CommonKeys.masks in self.keys_to_load:
             ins_map = self.cats_name2id[CommonKeys.masks]

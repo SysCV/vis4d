@@ -67,6 +67,27 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
     into the Vis4D expected format for multi-sensor, video datasets.
     """
 
+    DESCRIPTION = "NuScenes multi-sensor driving video dataset."
+    HOMEPAGE = "https://www.nuscenes.org/"
+    PAPER = "https://arxiv.org/abs/1903.11027"
+    LICENSE = "https://www.nuscenes.org/license"
+
+    KEYS = [
+        CommonKeys.images,
+        CommonKeys.original_hw,
+        CommonKeys.input_hw,
+        CommonKeys.intrinsics,
+        CommonKeys.extrinsics,
+        CommonKeys.timestamp,
+        CommonKeys.axis_mode,
+        CommonKeys.boxes2d,
+        CommonKeys.boxes2d_classes,
+        CommonKeys.boxes2d_track_ids,
+        CommonKeys.boxes3d,
+        CommonKeys.boxes3d_classes,
+        CommonKeys.boxes3d_track_ids,
+    ]
+
     _SENSORS = [
         "LIDAR_TOP",
         "CAM_FRONT",

@@ -6,6 +6,7 @@ jsonargparse[signatures]
 numpy>=1.21.0
 pandas
 pillow
+plyfile
 pycocotools
 pytorch-lightning>=1.9.0
 setuptools

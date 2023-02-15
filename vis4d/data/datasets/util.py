@@ -11,6 +11,7 @@ from typing import Any
 
 import appdirs
 import numpy as np
+import plyfile
 from PIL import Image, ImageOps
 from torch.utils.data import Dataset
 
@@ -18,6 +19,8 @@ from vis4d.common import DictStrAny, NDArrayI64, NDArrayUI8
 from vis4d.common.imports import OPENCV_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
+from vis4d.common.typing import NDArrayFloat
+from vis4d.data.typing import DictData
 
 if OPENCV_AVAILABLE:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module
@@ -55,6 +58,39 @@ def im_decode(
     else:
         raise NotImplementedError(f"Image backend {backend} not known!")
     return img
+
+
+def ply_decode(ply_bytes: bytes, mode: str = "XYZI") -> NDArrayFloat:
+    """Decode to point clouds (numpy array) from bytes."""
+    assert mode in {
+        "XYZ",
+        "XYZI",
+    }, f"{mode} not supported for points decoding!"
+
+    plydata = plyfile.PlyData.read(BytesIO(bytearray(ply_bytes)))
+    num_points = plydata["vertex"].count
+    num_channels = 3 if mode == "XYZ" else 4
+    points = np.zeros((num_points, num_channels), dtype=np.float32)
+
+    points[:, 0] = plydata["vertex"].data["x"]
+    points[:, 1] = plydata["vertex"].data["y"]
+    points[:, 2] = plydata["vertex"].data["z"]
+    if mode == "XYZI":
+        points[:, 3] = plydata["vertex"].data["intensity"]
+    return points
+
+
+def filter_by_keys(data_dict: DictData, keys_to_keep: list[str]):
+    """Filter a dictionary by keys.
+
+    Args:
+        data_dict (DictData): The dictionary to filter.
+        keys_to_keep (list[str]): The keys to keep.
+
+    Returns:
+        DictData: The filtered dictionary.
+    """
+    return {key: data_dict[key] for key in keys_to_keep if key in data_dict}
 
 
 class CacheMappingMixin:
