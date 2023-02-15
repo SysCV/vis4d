@@ -12,7 +12,7 @@ from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.base import Dataset
 from vis4d.data.datasets.util import filter_by_keys, im_decode, ply_decode
-from vis4d.data.io import DataBackend, HDF5Backend
+from vis4d.data.io import DataBackend, HDF5Backend, ZipBackend
 from vis4d.data.typing import DictData, DictStrAny
 
 from .scalabel import Scalabel
@@ -64,6 +64,8 @@ def _get_extension(backend: DataBackend):
     """Get the appropriate file extension for the given backend."""
     if isinstance(backend, HDF5Backend):
         return ".hdf5"
+    if isinstance(backend, ZipBackend):
+        return ".zip"
     return ""
 
 
