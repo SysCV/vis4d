@@ -8,7 +8,11 @@ from torch.utils.data import DataLoader, Dataset
 from vis4d.common import ArgsType
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import VideoMixin
-from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_track_map
+from vis4d.data.datasets.nuscenes import (
+    NuScenes,
+    nuscenes_track_map,
+    nuscenes_class_range_map,
+)
 from vis4d.data.loader import (
     DataPipe,
     build_inference_dataloaders,
@@ -166,6 +170,7 @@ def setup_model(  # pylint: disable=invalid-name
     """Setup model with experiment specific hyperparameters."""
     if "nuscenes" in experiment:
         num_classes = len(nuscenes_track_map)
+        class_range_map = torch.Tensor(nuscenes_class_range_map)
     else:
         raise NotImplementedError(f"Experiment {experiment} not known!")
 
@@ -177,6 +182,7 @@ def setup_model(  # pylint: disable=invalid-name
                 motion_model=motion_model,
                 pure_det=pure_det,
                 weights=weights,
+                class_range_map=class_range_map,
             )
         else:
             # TODO: add without motion functionality

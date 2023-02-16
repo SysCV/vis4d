@@ -42,6 +42,8 @@ nuscenes_track_map = {
     "barrier": 9,
 }
 
+nuscenes_class_range_map = [40, 40, 40, 50, 50, 50, 50, 50, 30, 30]
+
 
 def _get_extrinsics(
     ego_pose: DictStrAny, car_from_sensor: DictStrAny
