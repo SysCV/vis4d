@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import torch
-
 from torch import Tensor
 
-from .base import Transform, BatchTransform
+from .base import BatchTransform, Transform
 
 
 @Transform()

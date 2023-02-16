@@ -4,6 +4,7 @@ from __future__ import annotations
 from math import prod
 from typing import NamedTuple, Tuple
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
@@ -12,7 +13,6 @@ from torchvision.ops import roi_align
 from vis4d.op.box.box2d import bbox_clip, multiclass_nms
 from vis4d.op.box.encoder import BoxEncoder2D
 from vis4d.op.box.poolers import MultiScaleRoIAlign
-import numpy as np
 from vis4d.op.layer import add_conv_branch
 from vis4d.op.loss.common import l1_loss
 from vis4d.op.loss.reducer import SumWeightedLoss

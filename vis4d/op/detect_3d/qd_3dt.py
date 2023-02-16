@@ -1,12 +1,12 @@
 """QD-3DT detector."""
 from __future__ import annotations
 
-import numpy as np
-from torch import Tensor
 from typing import NamedTuple
 
+import numpy as np
 import torch
-from torch import nn
+from torch import Tensor, nn
+
 from vis4d.op.box.encoder import BoxEncoder3D, QD3DTBox3DEncoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.poolers import MultiScaleRoIAlign, RoIPooler
@@ -15,8 +15,8 @@ from vis4d.op.box.samplers import (
     Sampler,
     match_and_sample_proposals,
 )
-from vis4d.op.layer import add_conv_branch
 from vis4d.op.geometry.rotation import generate_rotation_output
+from vis4d.op.layer import add_conv_branch
 
 
 class QD3DTBBox3DHeadOutput(NamedTuple):

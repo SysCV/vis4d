@@ -1,13 +1,13 @@
 """Utility functions for bounding boxes."""
 from __future__ import annotations
 
+from typing import Optional
+
 import torch
 from torch import Tensor
 from torchvision.ops import batched_nms
 
 from vis4d.op.geometry.transform import transform_points
-
-from typing import Optional
 
 
 def bbox_scale(

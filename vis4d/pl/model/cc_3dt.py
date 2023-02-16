@@ -2,39 +2,33 @@
 """Default run configuration for pytorch lightning."""
 from typing import Optional
 
+import torch
 from torch.utils.data import DataLoader, Dataset
 
+from vis4d.common import ArgsType
 from vis4d.data.const import CommonKeys
-
-from vis4d.eval import Evaluator
-from vis4d.pl.data.base import DataModule
-from vis4d.pl.defaults import sgd, step_schedule
-
-from ..optimizer import DefaultOptimizer
-from ..trainer import CLI
-
-import torch
-
+from vis4d.data.datasets import VideoMixin
+from vis4d.data.datasets.nuscenes import NuScenes, nuscenes_track_map
 from vis4d.data.loader import (
     DataPipe,
     build_inference_dataloaders,
     multi_sensor_collate,
 )
-
-from vis4d.data.datasets.nuscenes import nuscenes_track_map, NuScenes
-from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
-from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.data.transforms import compose
-
-from vis4d.data.transforms.normalize import (
-    # normalize_image,
+from vis4d.data.transforms.normalize import (  # normalize_image,
     batched_normalize_image,
 )
 from vis4d.data.transforms.pad import pad_image
 from vis4d.data.transforms.resize import resize_image, resize_intrinsics
+from vis4d.engine.ckpt import load_model_checkpoint
+from vis4d.eval import Evaluator
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
-from vis4d.data.datasets import VideoMixin
-from vis4d.common import ArgsType
+from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
+from vis4d.pl.data.base import DataModule
+from vis4d.pl.defaults import sgd, step_schedule
+
+from ..optimizer import DefaultOptimizer
+from ..trainer import CLI
 
 
 class TrackDataModule(DataModule):

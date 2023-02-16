@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import numpy as np
 import torch
-
 from torch import Tensor
 
 from ...geometry.projection import project_points, unproject_points
@@ -37,7 +36,7 @@ class QD3DTBox3DEncoder(BoxEncoder3D):
 
     def encode(
         self,
-        boxes: List[Tensor],
+        boxes: list[Tensor],
         targets: Tensor,
         intrinsics: Tensor,
     ) -> list[Tensor]:

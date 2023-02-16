@@ -12,16 +12,12 @@ from vis4d.data.loader import (
     build_inference_dataloaders,
     multi_sensor_collate,
 )
-from vis4d.data.transforms.normalize import (
-    batched_normalize_image,
-)
-from vis4d.data.transforms.pad import pad_image
-from vis4d.engine.ckpt import load_model_checkpoint
-from vis4d.data.transforms.resize import resize_image, resize_intrinsics
-
-
-from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
 from vis4d.data.transforms import compose
+from vis4d.data.transforms.normalize import batched_normalize_image
+from vis4d.data.transforms.pad import pad_image
+from vis4d.data.transforms.resize import resize_image, resize_intrinsics
+from vis4d.engine.ckpt import load_model_checkpoint
+from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
 
 
 class CC3DTTest(unittest.TestCase):

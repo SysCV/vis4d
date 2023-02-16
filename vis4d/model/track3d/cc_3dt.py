@@ -3,34 +3,33 @@
 This file composes the operations associated with
 CC-3DT `https://arxiv.org/abs/2212.01247' into the full model implementation.
 """
-import torch
-import copy
-
 from typing import List
+
+import torch
+from torch import Tensor, nn
+
+from vis4d.common import ArgsType
 from vis4d.engine.ckpt import load_model_checkpoint
-from torch import nn, Tensor
-from vis4d.op.box.box2d import bbox_clip
 from vis4d.model.track.qdtrack import QDTrack
 from vis4d.op.base import ResNet
+from vis4d.op.box.box2d import bbox_clip
 from vis4d.op.detect.faster_rcnn import (
+    AnchorGenerator,
     FasterRCNNHead,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
 from vis4d.op.detect.rcnn import RoI2Det
-from vis4d.op.fpp import FPN
-from vis4d.op.track.assignment import TrackIDCounter
-from vis4d.state.track.cc_3dt import CC3DTrackState, CC3DTrackMemory
-from vis4d.op.track.cc_3dt import CC3DTrackAssociation
+from vis4d.op.detect_3d.filter import bev_3d_nms, filter_distance
 from vis4d.op.detect_3d.qd_3dt import QD3DTBBox3DHead
-from vis4d.common import ArgsType
-from vis4d.op.track.motion.kf3d import KF3DMotionModel
-from vis4d.op.detect_3d.filter import filter_distance, bev_3d_nms
-
-from vis4d.op.geometry.transform import transform_points
+from vis4d.op.fpp import FPN
 from vis4d.op.geometry.rotation import rotate_orientation, rotate_velocities
-
-from vis4d.op.detect.faster_rcnn import AnchorGenerator
+from vis4d.op.geometry.transform import transform_points
+from vis4d.op.track.assignment import TrackIDCounter
+from vis4d.op.track.cc_3dt import CC3DTrackAssociation
+from vis4d.op.track.motion.kalman_filter import predict
+from vis4d.op.track.motion.kf3d import kf3d_predict, kf3d_update
+from vis4d.state.track.cc_3dt import CC3DTrackMemory, CC3DTrackState
 import pdb
 
 
@@ -67,6 +66,58 @@ class CC3DTrack(QDTrack):
         self.pure_det = pure_det
         self.fps = fps
         self.memo_momentum = 0.8
+
+        self._init_motion_model()
+
+    def _init_motion_model(self) -> None:
+        """Initialize motion model."""
+        if self.motion_model == "KF3D":
+            motion_mat = torch.Tensor(
+                [
+                    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+                    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                ]
+            )
+
+            update_mat = torch.Tensor(
+                [
+                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                ]
+            )
+
+            cov_motion_Q = torch.eye(self.motion_dims + 3)
+            cov_motion_Q[self.motion_dims :, self.motion_dims :] *= 0.01
+
+            cov_project_R = torch.eye(self.motion_dims)
+
+            self.register_buffer("_motion_mat", motion_mat, False)  # F
+            self.register_buffer("_update_mat", update_mat, False)  # H
+            self.register_buffer("_cov_motion_Q", cov_motion_Q, False)  # Q
+            self.register_buffer("_cov_project_R", cov_project_R, False)  # R
+        else:
+            raise NotImplementedError
+
+    def _init_kf3d_mean_cov(self, obs_3d: Tensor) -> tuple[Tensor, Tensor]:
+        """Initialize KF3D mean and covariance."""
+        mean = torch.zeros(self.motion_dims + 3).to(obs_3d.device)
+        mean[: self.motion_dims] = obs_3d
+        covariance = torch.eye(self.motion_dims + 3).to(obs_3d.device) * 10.0
+        covariance[self.motion_dims :, self.motion_dims :] *= 1000.0
+        return mean, covariance
 
     def forward(
         self,
@@ -176,7 +227,8 @@ class CC3DTrack(QDTrack):
         obs_boxes_3d: Tensor,
     ):
         """Update track."""
-        motion_models = []
+        motion_states = []
+        motion_hidden = []
         velocities = []
         last_frames = []
         acc_frames = []
@@ -185,19 +237,31 @@ class CC3DTrack(QDTrack):
             obs_3d = obs_boxes_3d[i]
             if track_id in match_ids:
                 # update track
-                track = self.track_memory.get_track(track_id)[-1]
-                motion_model = copy.deepcopy(track.motion_models)
+                tracks, _ = self.track_memory.get_track(track_id)
+                track = tracks[-1]
 
-                # pdb.set_trace()
+                mean, covariance = kf3d_update(
+                    self._update_mat.to(obs_3d.device),
+                    self._cov_project_R.to(obs_3d.device),
+                    track.motion_states[0],
+                    track.motion_hidden[0],
+                    obs_3d,
+                )
 
-                motion_model.update(obs_3d)
-                pd_box_3d = motion_model.get_state()[: self.motion_dims]
+                pd_box_3d = mean[: self.motion_dims]
 
                 boxes_3d[i][:6] = pd_box_3d[:6]
                 boxes_3d[i][8] = pd_box_3d[6]
 
-                boxes_3d[i][9:12] = motion_model.predict_velocity() * self.fps
+                boxes_3d[i][:6]
 
+                pred_loc, _ = predict(
+                    self._motion_mat.to(obs_3d.device),
+                    self._cov_motion_Q.to(obs_3d.device),
+                    mean,
+                    covariance,
+                )
+                boxes_3d[i][9:12] = (pred_loc[:3] - mean[:3]) * self.fps
                 prev_obs = torch.cat(
                     [track.boxes_3d[0, :6], track.boxes_3d[:, 8]], dim=0
                 )
@@ -214,22 +278,24 @@ class CC3DTrack(QDTrack):
                     1 - self.memo_momentum
                 ) * track.embeddings + self.memo_momentum * embeddings[i]
 
-                motion_models.append(motion_model)
+                motion_states.append(mean)
+                motion_hidden.append(covariance)
             else:
                 # create track
-                motion_models.append(
-                    KF3DMotionModel(
-                        num_frames=self.num_frames,
-                        obs_3d=obs_3d,
-                        motion_dims=self.motion_dims,
-                    )
-                )
+                if self.motion_model == "KF3D":
+                    mean, covariance = self._init_kf3d_mean_cov(obs_3d)
+                    motion_states.append(mean)
+                    motion_hidden.append(covariance)
+                else:
+                    raise NotImplementedError
                 velocities.append(
                     torch.zeros(self.motion_dims, device=bbox_3d.device)
                 )
                 acc_frames.append(0)
             last_frames.append(frame_id)
 
+        motion_states = torch.stack(motion_states)
+        motion_hidden = torch.stack(motion_hidden)
         velocities = torch.stack(velocities)
         last_frames = torch.tensor(last_frames, device=boxes_2d.device)
         acc_frames = torch.tensor(acc_frames, device=boxes_2d.device)
@@ -243,7 +309,8 @@ class CC3DTrack(QDTrack):
             scores_3d,
             class_ids,
             embeddings,
-            motion_models,
+            motion_states,
+            motion_hidden,
             velocities,
             last_frames,
             acc_frames,
@@ -324,10 +391,35 @@ class CC3DTrack(QDTrack):
 
         if len(cur_memory.track_ids) > 0:
             memory_boxes_3d_predict = memory_boxes_3d.clone()
-            for ind, motion_model in enumerate(cur_memory.motion_models):
-                memory_boxes_3d_predict[ind, :3] += motion_model.predict(
-                    update_state=motion_model.age != 0
-                )[self.motion_dims :]
+            for i, track_id in enumerate(cur_memory.track_ids):
+                mean, cov = kf3d_predict(
+                    self._motion_mat.to(boxes_2d.device),
+                    self._cov_motion_Q.to(boxes_2d.device),
+                    cur_memory.motion_states[i],
+                    cur_memory.motion_hidden[i],
+                )
+                memory_boxes_3d_predict[i, :3] += mean[self.motion_dims :]
+                _, fids = self.track_memory.get_track(track_id)
+
+                if len(fids) > 0:
+                    valid = (
+                        self.track_memory.frames[fids[-1]].track_ids
+                        == track_id
+                    ).nonzero(as_tuple=False)[-1]
+                    valid_track = self.track_memory.get_frame(fids[-1])
+
+                    motion_states = list(valid_track.motion_states)
+                    motion_states[valid] = mean
+                    self.track_memory.update_frame(
+                        fids[-1], "motion_states", torch.stack(motion_states)
+                    )
+
+                    motion_hidden = list(valid_track.motion_hidden)
+                    motion_hidden[valid] = cov
+                    self.track_memory.update_frame(
+                        fids[-1], "motion_hidden", torch.stack(motion_hidden)
+                    )
+
         else:
             memory_boxes_3d_predict = torch.empty(
                 (0, 7), device=boxes_2d.device
@@ -371,6 +463,46 @@ class CC3DTrack(QDTrack):
 
         tracks = self.track_memory.last_frame
 
+        # handle vanished tracklets
+        cur_memory = self.track_memory.get_current_tracks(
+            device=track_ids.device
+        )
+        for i, track_id in enumerate(cur_memory.track_ids):
+            if frame_id > cur_memory.last_frames[i] and track_id > -1:
+                _, fids = self.track_memory.get_track(track_id)
+                valid = (
+                    self.track_memory.frames[fids[-1]].track_ids == track_id
+                ).nonzero(as_tuple=False)[-1]
+
+                mean, covariance = kf3d_predict(
+                    self._motion_mat.to(boxes_2d.device),
+                    self._cov_motion_Q.to(boxes_2d.device),
+                    cur_memory.motion_states[i],
+                    cur_memory.motion_hidden[i],
+                )
+                new_boxes_3d = list(
+                    self.track_memory.frames[fids[-1]].boxes_3d
+                )
+                new_boxes_3d[valid][:6] = mean[:6]
+                new_boxes_3d[valid][8] = mean[6]
+                self.track_memory.update_frame(
+                    fids[-1], "boxes_3d", torch.stack(new_boxes_3d)
+                )
+                motion_states = list(
+                    self.track_memory.frames[fids[-1]].motion_states
+                )
+                motion_states[valid] = mean
+                self.track_memory.update_frame(
+                    fids[-1], "motion_states", torch.stack(motion_states)
+                )
+                motion_hidden = list(
+                    self.track_memory.frames[fids[-1]].motion_hidden
+                )
+                motion_hidden[valid] = covariance
+                self.track_memory.update_frame(
+                    fids[-1], "motion_hidden", torch.stack(motion_hidden)
+                )
+
         # Update 3D score and move 3D boxes into group sensor coordinate
         track_scores_3d = tracks.scores_3d * tracks.scores
 
@@ -383,7 +515,8 @@ class CC3DTrack(QDTrack):
             track_scores_3d,
             tracks.class_ids,
             tracks.embeddings,
-            tracks.motion_models,
+            tracks.motion_states,
+            tracks.motion_hidden,
             tracks.velocities,
             tracks.last_frames,
             tracks.acc_frames,

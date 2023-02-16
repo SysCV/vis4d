@@ -1,16 +1,11 @@
 """Filter boxes3d on distance."""
-# -*- coding: utf-8 -*-
-# Copyright (c) Facebook, Inc. and its affiliates.
-
-import torch
-
 import numpy as np
-
-from torch import Tensor
+import torch
 
 # TODO: remove this dependency and now it is aware of GPU architecture,
 # need to rebuild it if switch to other GPU.
 from detectron2.layers.nms import batched_nms_rotated
+from torch import Tensor
 
 
 def bev_3d_nms(

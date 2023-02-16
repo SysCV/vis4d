@@ -4,7 +4,6 @@ from __future__ import annotations
 import copy
 import os
 from collections import defaultdict
-
 from typing import List
 
 import numpy as np

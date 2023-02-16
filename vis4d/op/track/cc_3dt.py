@@ -2,15 +2,13 @@
 from __future__ import annotations
 
 import torch
-from torch import Tensor
-
 import torch.nn.functional as F
+from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
 
 from .assignment import TrackIDCounter, greedy_assign
 from .matching import calc_bisoftmax_affinity
-
 import pdb
 
 # @torch.jit.script TODO

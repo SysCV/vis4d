@@ -1,17 +1,17 @@
 """"NuScenes evaluation code."""
-from ..base import Evaluator
-from vis4d.common import MetricLogs
-import numpy as np
+import itertools
+import json
+from collections.abc import Callable
+from typing import Any
 
-from vis4d.data.datasets.nuscenes import nuscenes_track_map
+import numpy as np
 from nuscenes.utils.data_classes import Quaternion
 from scipy.spatial.transform import Rotation as R
 
-import json
+from vis4d.common import MetricLogs
+from vis4d.data.datasets.nuscenes import nuscenes_track_map
 
-from collections.abc import Callable
-from typing import Any
-import itertools
+from ..base import Evaluator
 
 
 class NuScenesEvaluator(Evaluator):
