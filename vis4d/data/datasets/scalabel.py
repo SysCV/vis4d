@@ -14,7 +14,8 @@ from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
 from vis4d.common.typing import DictStrAny
-from vis4d.data.const import AxisMode, CommonKeys
+from vis4d.data.const import AxisMode
+from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.datasets.util import CacheMappingMixin, DatasetFromList
 from vis4d.data.io import DataBackend, FileBackend
 from vis4d.data.typing import DictData
@@ -24,7 +25,7 @@ from vis4d.op.geometry.rotation import (
 )
 
 from .base import Dataset, VideoMixin
-from .util import im_decode
+from .util import im_decode, ply_decode
 
 if SCALABEL_AVAILABLE:
     from scalabel.label.io import load, load_label_config
@@ -61,6 +62,26 @@ def load_extrinsics(extrinsics: Extrinsics) -> Tensor:
         get_matrix_from_extrinsics(extrinsics)
     ).to(torch.float32)
     return extrinsics_matrix
+
+
+def load_image(url: str, backend: DataBackend) -> Tensor:
+    """Load image tensor from url."""
+    im_bytes = backend.get(url)
+    image = im_decode(im_bytes)
+    image = torch.as_tensor(
+        np.ascontiguousarray(image.transpose(2, 0, 1)),
+        dtype=torch.float32,
+    ).unsqueeze(0)
+    return image
+
+
+def load_pointcloud(url: str, backend: DataBackend) -> Tensor:
+    """Load pointcloud tensor from url."""
+    assert url.endswith(".ply"), "Only PLY files are supported now."
+    ply_bytes = backend.get(url)
+    pointcloud = ply_decode(ply_bytes)
+    pointcloud = torch.as_tensor(pointcloud, dtype=torch.float32)
+    return pointcloud
 
 
 def instance_ids_to_global(
@@ -153,8 +174,8 @@ class Scalabel(Dataset, CacheMappingMixin):
         data_root: str,
         annotation_path: str,
         keys_to_load: Sequence[str] = (
-            CommonKeys.images,
-            CommonKeys.boxes2d,
+            Keys.images,
+            Keys.boxes2d,
         ),
         data_backend: None | DataBackend = None,
         category_map: None | CategoryMap = None,
@@ -167,11 +188,8 @@ class Scalabel(Dataset, CacheMappingMixin):
         Args:
             data_root (str): Root directory of the data.
             annotation_path (str): Path to the annotation json(s).
-            inputs_to_load (tuple[str, ...], optional): Input fields to load.
-                Defaults to (CommonKeys.images,).
-            targets_to_load (tuple[str, ...], optional): Annotation fields to
-                load. Defaults to (CommonKeys.boxes2d,
-                CommonKeys.boxes2d_classes).
+            keys_to_load (Sequence[str, ...], optional): Keys to load from the
+                dataset. Defaults to (Keys.images, Keys.boxes2d).
             data_backend (None | DataBackend, optional): Data backend, if None
                 then classic file backend. Defaults to None.
             category_map (None | CategoryMap, optional): Mapping from a
@@ -253,32 +271,29 @@ class Scalabel(Dataset, CacheMappingMixin):
     def _load_inputs(self, frame: Frame) -> DictData:
         """Load inputs given a scalabel frame."""
         data: DictData = {}
-        if frame.url is not None and CommonKeys.images in self.keys_to_load:
-            im_bytes = self.data_backend.get(frame.url)
-            image = im_decode(im_bytes)
-            image = torch.as_tensor(
-                np.ascontiguousarray(image.transpose(2, 0, 1)),
-                dtype=torch.float32,
-            ).unsqueeze(0)
-            data[CommonKeys.images] = image
-            data[CommonKeys.original_hw] = (image.shape[2], image.shape[3])
-            data[CommonKeys.input_hw] = (image.shape[2], image.shape[3])
-            data[CommonKeys.axis_mode] = AxisMode.OPENCV
-            data[CommonKeys.frame_ids] = frame.frameIndex
+        if frame.url is not None and Keys.images in self.keys_to_load:
+            image = load_image(frame.url, self.data_backend)
+            data[Keys.images] = image
+            data[Keys.original_hw] = (image.shape[2], image.shape[3])
+            data[Keys.input_hw] = (image.shape[2], image.shape[3])
+            data[Keys.axis_mode] = AxisMode.OPENCV
+            data[Keys.frame_ids] = frame.frameIndex
             # TODO how to properly integrate such metadata?
             data["name"] = frame.name
             data["videoName"] = frame.videoName
+        if frame.url is not None and Keys.points3d in self.keys_to_load:
+            data[Keys.points3d] = load_pointcloud(frame.url, self.data_backend)
         if (
             frame.intrinsics is not None
-            and CommonKeys.intrinsics in self.keys_to_load
+            and Keys.intrinsics in self.keys_to_load
         ):
-            data[CommonKeys.intrinsics] = load_intrinsics(frame.intrinsics)
+            data[Keys.intrinsics] = load_intrinsics(frame.intrinsics)
 
         if (
             frame.extrinsics is not None
-            and CommonKeys.extrinsics in self.keys_to_load
+            and Keys.extrinsics in self.keys_to_load
         ):
-            data[CommonKeys.extrinsics] = load_extrinsics(frame.extrinsics)
+            data[Keys.extrinsics] = load_extrinsics(frame.extrinsics)
         return data
 
     def _add_annotations(self, frame: Frame, data: DictData) -> None:
@@ -295,35 +310,35 @@ class Scalabel(Dataset, CacheMappingMixin):
         # if not labels_used:
         #     return  # pragma: no cover
 
-        if CommonKeys.masks in self.keys_to_load:
-            ins_map = self.cats_name2id[CommonKeys.masks]
+        if Keys.masks in self.keys_to_load:
+            ins_map = self.cats_name2id[Keys.masks]
             instance_masks = instance_masks_from_scalabel(
                 labels_used, ins_map, instid_map, frame.size
             )
-            data[CommonKeys.masks] = instance_masks  # TODO sync boxes2d?
+            data[Keys.masks] = instance_masks  # TODO sync boxes2d?
 
-        if CommonKeys.segmentation_masks in self.keys_to_load:
-            sem_map = self.cats_name2id[CommonKeys.segmentation_masks]
+        if Keys.segmentation_masks in self.keys_to_load:
+            sem_map = self.cats_name2id[Keys.segmentation_masks]
             semantic_masks = semantic_masks_from_scalabel(
                 labels_used, sem_map, instid_map, frame.size, self.bg_as_class
             )
-            data[CommonKeys.segmentation_masks] = semantic_masks
+            data[Keys.segmentation_masks] = semantic_masks
 
-        if CommonKeys.boxes2d in self.keys_to_load:
+        if Keys.boxes2d in self.keys_to_load:
             boxes2d, classes, track_ids = boxes2d_from_scalabel(
-                labels_used, self.cats_name2id[CommonKeys.boxes2d], instid_map
+                labels_used, self.cats_name2id[Keys.boxes2d], instid_map
             )
-            data[CommonKeys.boxes2d] = boxes2d
-            data[CommonKeys.boxes2d_classes] = classes
-            data[CommonKeys.boxes2d_track_ids] = track_ids
+            data[Keys.boxes2d] = boxes2d
+            data[Keys.boxes2d_classes] = classes
+            data[Keys.boxes2d_track_ids] = track_ids
 
-        if CommonKeys.boxes3d in self.keys_to_load:
+        if Keys.boxes3d in self.keys_to_load:
             boxes3d, classes, track_ids = boxes3d_from_scalabel(
-                labels_used, self.cats_name2id[CommonKeys.boxes3d], instid_map
+                labels_used, self.cats_name2id[Keys.boxes3d], instid_map
             )
-            data[CommonKeys.boxes3d] = boxes3d
-            data[CommonKeys.boxes3d_classes] = classes
-            data[CommonKeys.boxes3d_track_ids] = track_ids
+            data[Keys.boxes3d] = boxes3d
+            data[Keys.boxes3d_classes] = classes
+            data[Keys.boxes3d_track_ids] = track_ids
 
     def __len__(self) -> int:
         """Length of dataset."""

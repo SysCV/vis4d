@@ -5,7 +5,7 @@ import copy
 import hashlib
 import os
 import pickle
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from io import BytesIO
 from typing import Any
 
@@ -80,7 +80,9 @@ def ply_decode(ply_bytes: bytes, mode: str = "XYZI") -> NDArrayFloat:
     return points
 
 
-def filter_by_keys(data_dict: DictData, keys_to_keep: list[str]) -> DictData:
+def filter_by_keys(
+    data_dict: DictData, keys_to_keep: Sequence[str]
+) -> DictData:
     """Filter a dictionary by keys.
 
     Args:

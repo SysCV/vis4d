@@ -13,7 +13,7 @@ from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.datasets.base import Dataset
 from vis4d.data.datasets.util import filter_by_keys, im_decode, ply_decode
 from vis4d.data.io import DataBackend, HDF5Backend, ZipBackend
-from vis4d.data.typing import DictData, DictStrAny
+from vis4d.data.typing import DictData
 
 from .scalabel import Scalabel
 
@@ -69,18 +69,8 @@ def _get_extension(backend: DataBackend):
     return ""
 
 
-def _get_data_archive(data_group: str) -> str:
-    """Get the name of the data archive."""
-    if data_group == "center":
-        return "lidar"
-    return "img"
-
-
 class _SHIFTScalabelLabels(Scalabel):
-    """Dataset class for the labels in SHIFT Dataset that are stored using
-    Scalabel format."""
-
-    DATA_GROUP = ["det_2d", "det_3d", "det_insseg_2d"]
+    """Helper class for labels in SHIFT that are stored in Scalabel format."""
 
     VIEWS = [
         "front",
@@ -96,7 +86,8 @@ class _SHIFTScalabelLabels(Scalabel):
         self,
         data_root: str,
         split: str,
-        data_group: str = "det_2d",
+        data_file: str = "",
+        annotation_file: str = "",
         view: str = "front",
         backend: DataBackend = HDF5Backend(),
         **kwargs: DictStrAny,
@@ -106,26 +97,25 @@ class _SHIFTScalabelLabels(Scalabel):
         Args:
             data_root (str): Path to the root directory of the dataset.
             split (str): Which data split to load.
-            data_group (str): Which data group to load. Default: "det_2d".
-            view_to_load (str): Which view to load. Default: "front".
+            data_file (str): Path to the data archive file. Default: "".
+            annotation_file (str): Path to the annotation file. Default: "".
+            view (str): Which view to load. Default: "front".
+            backend (DataBackend): Backend to use for loading data. Default:
+                HDF5Backend().
         """
         # Validate input
         assert split in set(
             ("train", "val", "test")
         ), f"Invalid split '{split}'"
         assert view in _SHIFTScalabelLabels.VIEWS, f"Invalid view '{view}'"
-        assert (
-            data_group in _SHIFTScalabelLabels.DATA_GROUP
-        ), f"Invalid data group of {data_group}."
 
         # Set attributes
         annotation_path = os.path.join(
-            data_root, "discrete", "images", split, view, f"{data_group}.json"
+            data_root, "discrete", "images", split, view, annotation_file
         )
-        data_arch = _get_data_archive(data_group)
         ext = _get_extension(backend)
         data_path = os.path.join(
-            data_root, "discrete", "images", split, view, f"{data_arch}{ext}"
+            data_root, "discrete", "images", split, view, f"{data_file}{ext}"
         )
 
         super().__init__(
@@ -148,10 +138,12 @@ class SHIFT(Dataset):
     LICENSE = "CC BY-NC-SA 4.0"
 
     KEYS = [
-        # Scalabel formatted annotations
+        # Inputs
         Keys.images,
         Keys.original_hw,
         Keys.input_hw,
+        Keys.points3d,
+        # Scalabel formatted annotations
         Keys.intrinsics,
         Keys.extrinsics,
         Keys.timestamp,
@@ -167,8 +159,6 @@ class SHIFT(Dataset):
         Keys.segmentation_masks,
         Keys.depth_maps,
         Keys.optical_flows,
-        # Point clouds
-        Keys.points3d,
     ]
 
     VIEWS = [
@@ -182,14 +172,16 @@ class SHIFT(Dataset):
     ]
 
     DATA_GROUPS = {
-        "det_2d": [
+        "image": [
             Keys.images,
             Keys.original_hw,
             Keys.input_hw,
             Keys.intrinsics,
-            Keys.extrinsics,
+        ],
+        "det_2d": [
             Keys.timestamp,
             Keys.axis_mode,
+            Keys.extrinsics,
             Keys.boxes2d,
             Keys.boxes2d_classes,
             Keys.boxes2d_track_ids,
@@ -212,6 +204,8 @@ class SHIFT(Dataset):
             Keys.points3d,
         ],
     }
+
+    GROUPS_IN_SCALABEL = ["det_2d", "det_3d", "det_insseg_2d"]
 
     def __init__(
         self,
@@ -250,24 +244,45 @@ class SHIFT(Dataset):
         self.scalabel_datasets = {}
         for view in self.views_to_load:
             if view == "center":
-                continue
-            for group in self._data_groups_to_load:
-                name = f"{view}/{group}"
-                self.scalabel_datasets[name] = _SHIFTScalabelLabels(
+                # Load lidar data, only available for center view
+                self.scalabel_datasets["center/lidar"] = _SHIFTScalabelLabels(
                     data_root=self.data_root,
                     split=self.split,
-                    data_group=group,
+                    data_file="lidar",
+                    annotation_file="det_3d.json",
                     view=view,
-                    keys_to_load=keys_to_load,
+                    keys_to_load=(Keys.points3d, *self.DATA_GROUPS["det_3d"]),
                     backend=backend,
                 )
+            else:
+                # Skip the lidar data group, which is loaded separately
+                image_loaded = False
+                for group in self._data_groups_to_load:
+                    name = f"{view}/{group}"
+                    keys_to_load = list(self.DATA_GROUPS[group])
+                    # Load the image data group only once
+                    if not image_loaded:
+                        keys_to_load.extend(self.DATA_GROUPS["image"])
+                        image_loaded = True
+
+                    self.scalabel_datasets[name] = _SHIFTScalabelLabels(
+                        data_root=self.data_root,
+                        split=self.split,
+                        data_file="img",
+                        annotation_file=f"{group}.json",
+                        view=view,
+                        keys_to_load=keys_to_load,
+                        backend=backend,
+                    )
 
     def _get_data_groups(self, keys_to_load: Sequence[str]) -> list[str]:
-        """Get the data groups that need to be loaded."""
+        """Get the data groups that need to be loaded from Scalabel."""
         data_groups = []
         for data_group, group_keys in self.DATA_GROUPS.items():
-            if any(key in group_keys for key in keys_to_load):
-                data_groups.append(data_group)
+            if data_group in self.GROUPS_IN_SCALABEL:
+                # If the data group is loaded by Scalabel, add it to the list
+                if any(key in group_keys for key in keys_to_load):
+                    data_groups.append(data_group)
         return list(set(data_groups))
 
     def _load(
@@ -288,8 +303,6 @@ class SHIFT(Dataset):
             return self._load_depth(filepath)
         if data_group == "flow":
             return self._load_flow(filepath)
-        if data_group == "lidar":
-            return self._load_lidar(filepath)
         raise ValueError(f"Invalid data group '{data_group}'")
 
     def _load_semseg(self, filepath: str) -> Tensor:
@@ -353,7 +366,6 @@ class SHIFT(Dataset):
         Returns:
             DictData: sample at index in Vis4D input format.
         """
-
         # load camera frames
         data_dict = {}
         for view in self.views_to_load:
@@ -363,8 +375,8 @@ class SHIFT(Dataset):
             if view == "center":
                 # Lidar is only available in the center view
                 if Keys.points3d in self.keys_to_load:
-                    data_dict_view[Keys.points3d] = self._load(
-                        view, "lidar", "ply", video_name, frame_name
+                    data_dict_view.update(
+                        self.scalabel_datasets["center/lidar"][idx]
                     )
             else:
                 # Load data from Scalabel

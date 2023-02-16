@@ -63,7 +63,7 @@ class ZipBackend(DataBackend):
         return url in file.namelist()
 
     def set(self, filepath: str, content: bytes) -> None:
-        """Set the file content.
+        """Write the file content to the zip file.
 
         Args:
             filepath: path/to/file.zip/key1/key2/key3
@@ -76,8 +76,11 @@ class ZipBackend(DataBackend):
         """
         if ".zip" not in filepath:
             raise ValueError(f"{filepath} not a valid .zip filepath!")
-        # TODO: implement
-        raise NotImplementedError
+
+        zip_path, keys = self._get_zip_path(filepath)
+        zip_file = self._get_client(zip_path, "a")
+        url = "".join(reversed(keys))
+        zip_file.writestr(url, content)
 
     def _get_client(self, zip_path: str, mode: str) -> ZipFile:
         """Get Zip client from path.
@@ -97,7 +100,9 @@ class ZipBackend(DataBackend):
             client, current_mode = self.db_cache[zip_path]
             if current_mode != mode:
                 client.close()
-                client = ZipFile(zip_path, mode)
+                client = ZipFile(  # pylint:disable=consider-using-with
+                    zip_path, mode
+                )
                 self.db_cache[zip_path] = (client, mode)
         return client
 
@@ -114,7 +119,7 @@ class ZipBackend(DataBackend):
 
         Raises:
             ZipFileNotFoundError: If no suitable file exists.
-            IOError: If the file cannot be opened.
+            OSError: If the file cannot be opened.
             ValueError: If key not found inside zip file.
 
         Returns:
@@ -123,9 +128,9 @@ class ZipBackend(DataBackend):
         zip_path, keys = self._get_zip_path(filepath)
 
         if not os.path.exists(zip_path):
-            raise IOError(f"Corresponding zip file not found:" f" {filepath}")
-        file = self._get_client(zip_path, "r")
+            raise OSError(f"Corresponding zip file not found:" f" {filepath}")
+        zip_file = self._get_client(zip_path, "r")
         url = "".join(reversed(keys))
-        with file.open(url) as zfile:
-            content = zfile.read()
+        with zip_file.open(url) as zf:
+            content = zf.read()
         return bytes(content)
