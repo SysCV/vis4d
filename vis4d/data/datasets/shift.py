@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
+from io import BytesIO
 
 import numpy as np
 import torch
@@ -311,15 +312,15 @@ class SHIFT(Dataset):
     def _load_semseg(self, filepath: str) -> Tensor:
         """Load semantic segmentation data."""
         im_bytes = self.backend.get(filepath)
-        image = im_decode(im_bytes, mode="L")
-        return torch.as_tensor(image, dtype=torch.int64)
+        image = im_decode(im_bytes)[..., 0]
+        return torch.as_tensor(image, dtype=torch.int64).unsqueeze(0)
 
     def _load_depth(self, filepath: str, max_depth: float = 1000.0) -> Tensor:
         """Load depth data."""
         assert max_depth > 0, "Max depth value must be greater than 0."
 
         im_bytes = self.backend.get(filepath)
-        image = im_decode(im_bytes, mode="RGB")
+        image = im_decode(im_bytes)
         if image.shape[2] > 3:  # pragma: no cover
             image = image[:, :, :3]
         image = image.astype(np.float32)
@@ -335,7 +336,13 @@ class SHIFT(Dataset):
 
     def _load_flow(self, filepath: str) -> Tensor:
         """Load optical flow data."""
-        raise NotImplementedError
+        im_bytes = self.backend.get(filepath)
+        flow = np.load(BytesIO(im_bytes))
+        return (
+            torch.as_tensor(flow["flow"], dtype=torch.float32)
+            .permute(2, 0, 1)
+            .unsqueeze(0)
+        )
 
     def _load_lidar(self, filepath: str) -> Tensor:
         """Load lidar data."""

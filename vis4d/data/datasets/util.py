@@ -26,6 +26,7 @@ if OPENCV_AVAILABLE:
     from cv2 import (  # pylint: disable=no-member,no-name-in-module
         COLOR_BGR2RGB,
         IMREAD_COLOR,
+        IMREAD_GRAYSCALE,
         cvtColor,
         imdecode,
     )
@@ -35,15 +36,25 @@ def im_decode(
     im_bytes: bytes, mode: str = "RGB", backend: str = "PIL"
 ) -> NDArrayUI8:
     """Decode to image (numpy array, RGB) from bytes."""
-    assert mode in {"BGR", "RGB"}, f"{mode} not supported for image decoding!"
+    assert mode in {
+        "BGR",
+        "RGB",
+        "L",
+    }, f"{mode} not supported for image decoding!"
     if backend == "PIL":
         pil_img = Image.open(BytesIO(bytearray(im_bytes)))
         pil_img = ImageOps.exif_transpose(pil_img)
         if pil_img.mode == "L":  # pragma: no cover
-            # convert grayscale image to RGB
-            pil_img = pil_img.convert("RGB")
+            if mode == "L":
+                img: NDArrayUI8 = np.array(pil_img)[..., None]
+            else:
+                # convert grayscale image to RGB
+                pil_img = pil_img.convert("RGB")
+        else:  # pragma: no cover
+            if mode == "L":
+                raise ValueError("Cannot convert colorful image to grayscale!")
         if mode == "BGR":  # pragma: no cover
-            img: NDArrayUI8 = np.array(pil_img)[..., [2, 1, 0]]
+            img = np.array(pil_img)[..., [2, 1, 0]]
         elif mode == "RGB":
             img = np.array(pil_img)
     elif backend == "cv2":  # pragma: no cover
@@ -52,7 +63,9 @@ def im_decode(
                 "Please install opencv-python to use cv2 backend!"
             )
         img_np: NDArrayUI8 = np.frombuffer(im_bytes, np.uint8)
-        img = imdecode(img_np, IMREAD_COLOR)
+        img = imdecode(
+            img_np, IMREAD_GRAYSCALE if mode == "L" else IMREAD_COLOR
+        )
         if mode == "RGB":
             cvtColor(img, COLOR_BGR2RGB, img)
     else:
