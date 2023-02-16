@@ -68,11 +68,10 @@ def load_image(url: str, backend: DataBackend) -> Tensor:
     """Load image tensor from url."""
     im_bytes = backend.get(url)
     image = im_decode(im_bytes)
-    image = torch.as_tensor(
+    return torch.as_tensor(
         np.ascontiguousarray(image.transpose(2, 0, 1)),
         dtype=torch.float32,
     ).unsqueeze(0)
-    return image
 
 
 def load_pointcloud(url: str, backend: DataBackend) -> Tensor:
@@ -80,8 +79,7 @@ def load_pointcloud(url: str, backend: DataBackend) -> Tensor:
     assert url.endswith(".ply"), "Only PLY files are supported now."
     ply_bytes = backend.get(url)
     pointcloud = ply_decode(ply_bytes)
-    pointcloud = torch.as_tensor(pointcloud, dtype=torch.float32)
-    return pointcloud
+    return torch.as_tensor(pointcloud, dtype=torch.float32)
 
 
 def instance_ids_to_global(

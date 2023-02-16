@@ -172,7 +172,7 @@ class SHIFT(Dataset):
     ]
 
     DATA_GROUPS = {
-        "image": [
+        "img": [
             Keys.images,
             Keys.original_hw,
             Keys.input_hw,
@@ -193,6 +193,9 @@ class SHIFT(Dataset):
         ],
         "det_insseg_2d": [
             Keys.masks,
+        ],
+        "semseg": [
+            Keys.segmentation_masks,
         ],
         "depth": [
             Keys.depth_maps,
@@ -262,7 +265,7 @@ class SHIFT(Dataset):
                     keys_to_load = list(self.DATA_GROUPS[group])
                     # Load the image data group only once
                     if not image_loaded:
-                        keys_to_load.extend(self.DATA_GROUPS["image"])
+                        keys_to_load.extend(self.DATA_GROUPS["img"])
                         image_loaded = True
 
                     self.scalabel_datasets[name] = _SHIFTScalabelLabels(

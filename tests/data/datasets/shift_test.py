@@ -34,6 +34,7 @@ class SHIFTTest(unittest.TestCase):
             Keys.boxes2d,
             Keys.boxes2d_track_ids,
             Keys.boxes3d,
+            Keys.segmentation_masks,
             Keys.depth_maps,
             Keys.points3d,
         ],
@@ -65,12 +66,21 @@ class SHIFTTest(unittest.TestCase):
                     Keys.boxes2d,
                     Keys.boxes2d_track_ids,
                     Keys.boxes3d,
+                    Keys.segmentation_masks,
                     Keys.depth_maps,
                 ),
             )
             self.assertEqual(
                 self.dataset_multiview[0][view][Keys.images].shape,
                 (1, 3, 800, 1280),
+            )
+            self.assertEqual(
+                self.dataset_multiview[0][view][Keys.segmentation_masks].shape,
+                (1, 800, 1280),
+            )
+            self.assertEqual(
+                self.dataset_multiview[0][view][Keys.depth_maps].shape,
+                (1, 800, 1280),
             )
 
         for view in ("center",):

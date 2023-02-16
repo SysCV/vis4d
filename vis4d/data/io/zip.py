@@ -6,6 +6,7 @@ the given Zip file contains the whole dataset associated to this backend.
 from __future__ import annotations
 
 import os
+from typing import Literal
 from zipfile import ZipFile
 
 from .base import DataBackend
@@ -59,7 +60,7 @@ class ZipBackend(DataBackend):
         if not os.path.exists(zip_path):
             return False
         file = self._get_client(zip_path, "r")
-        url = "".join(reversed(keys))
+        url = "/".join(reversed(keys))
         return url in file.namelist()
 
     def set(self, filepath: str, content: bytes) -> None:
@@ -79,10 +80,12 @@ class ZipBackend(DataBackend):
 
         zip_path, keys = self._get_zip_path(filepath)
         zip_file = self._get_client(zip_path, "a")
-        url = "".join(reversed(keys))
+        url = "/".join(reversed(keys))
         zip_file.writestr(url, content)
 
-    def _get_client(self, zip_path: str, mode: str) -> ZipFile:
+    def _get_client(
+        self, zip_path: str, mode: Literal["r", "w", "a", "x"]
+    ) -> ZipFile:
         """Get Zip client from path.
 
         Args:
@@ -94,7 +97,7 @@ class ZipBackend(DataBackend):
         """
         assert len(mode) == 1, "Mode must be a single character for zip file."
         if zip_path not in self.db_cache:
-            client = ZipFile(zip_path, mode[0])
+            client = ZipFile(zip_path, mode)
             self.db_cache[zip_path] = (client, mode)
         else:
             client, current_mode = self.db_cache[zip_path]
@@ -128,9 +131,14 @@ class ZipBackend(DataBackend):
         zip_path, keys = self._get_zip_path(filepath)
 
         if not os.path.exists(zip_path):
-            raise OSError(f"Corresponding zip file not found:" f" {filepath}")
+            raise FileNotFoundError(
+                f"Corresponding zip file not found:" f" {filepath}"
+            )
         zip_file = self._get_client(zip_path, "r")
-        url = "".join(reversed(keys))
-        with zip_file.open(url) as zf:
-            content = zf.read()
+        url = "/".join(reversed(keys))
+        try:
+            with zip_file.open(url) as zf:
+                content = zf.read()
+        except KeyError as e:
+            raise ValueError(f"Value '{url}' not found in {zip_path}!") from e
         return bytes(content)
