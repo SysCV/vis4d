@@ -167,7 +167,7 @@ def evaluate_sem_seg(
     num_classes = num_classes + 1
     hist = np.zeros((num_classes, num_classes), dtype=np.int32)
     gt_id_set = set()
-    for (hist_, gt_id_set_) in hist_and_gt_id_sets:
+    for hist_, gt_id_set_ in hist_and_gt_id_sets:
         hist += hist_
         gt_id_set.update(gt_id_set_)
     # print(gt_id_set)

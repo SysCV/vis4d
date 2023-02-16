@@ -51,5 +51,6 @@ if __name__ == "__main__":
     """Main function.
 
     Example Usage:
-    >>> python -m vis4d.pl.model.faster_rcnn fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8"""
+    >>> python -m vis4d.pl.model.faster_rcnn fit --data.experiment coco --trainer.gpus 6,7 --data.samples_per_gpu 8 --data.workers_per_gpu 8
+    """
     DefaultCLI(model_class=setup_model, datamodule_class=DetectDataModule)
