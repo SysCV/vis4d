@@ -19,14 +19,15 @@ class Tester:
 
     def __init__(
         self,
-        dataloaders: list[DataLoader[DictData]],
+        dataloaders: dict[str, DataLoader[DictData]],
         data_connector: DataConnector,
         test_callbacks: dict[str, Callback] | None,
     ) -> None:
         """Initialize the tester.
 
         Args:
-            dataloaders (list[DataLoader[DictData]]): Dataloaders for testing.
+            dataloaders (dict[str, DataLoader[DictData]]): Dataloaders for
+                testing.
             data_connector (DataConnector): Data connector used for generating
                 testing inputs from a batch of data.
             test_callbacks (dict[str, Callback] | None): Callback functions
@@ -51,7 +52,7 @@ class Tester:
         """
         model.eval()
         rank_zero_info("Running validation...")
-        for test_loader in self.test_dataloader:
+        for dl_k, test_loader in self.test_dataloader.items():
             for _, data in enumerate(tqdm(test_loader)):
                 # input data
                 device = next(model.parameters()).device  # model device
@@ -62,7 +63,7 @@ class Tester:
                 output = model(**test_input)
 
                 for k, callback in self.test_callbacks.items():
-                    if callback.run_on_epoch(epoch):
+                    if dl_k == k and callback.run_on_epoch(epoch):
                         callback.on_test_batch_end(
                             self.data_connector.get_callback_input(
                                 k, output, data

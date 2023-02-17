@@ -113,7 +113,7 @@ def get_config() -> ConfigDict:
         num_workers_per_gpu=1,
         shuffle=False,
     )
-    config.test_dl = [dataloader_cfg_test]
+    config.test_dl = {"coco_eval": dataloader_cfg_test}
 
     ######################################################
     ##                        MODEL                     ##
