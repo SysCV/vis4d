@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import os
 
-from ml_collections import ConfigDict
 from torch import optim
 from torch.optim.lr_scheduler import StepLR
 
@@ -20,7 +19,7 @@ from vis4d.config.default.loss.faster_rcnn_loss import (
 )
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.sweep.default import linear_grid_search
-from vis4d.config.util import class_config
+from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
@@ -87,14 +86,14 @@ def get_config() -> ConfigDict:
     # Training Datasets
     dataset_cfg_train = class_config(
         COCO,
-        data_root=config.get_ref("dataset_root"),
-        split=config.get_ref("train_split"),
+        data_root=config.dataset_root,
+        split=config.train_split,
     )
     preproc = det_preprocessing(800, 1333, params.augment_proba)
     dataloader_train_cfg = default_image_dl(
         preproc,
         dataset_cfg_train,
-        params.get_ref("batch_size"),
+        params.batch_size,
         shuffle=True,
     )
     config.train_dl = dataloader_train_cfg
@@ -102,8 +101,8 @@ def get_config() -> ConfigDict:
     # Test
     dataset_test_cfg = class_config(
         COCO,
-        data_root=config.get_ref("dataset_root"),
-        split=config.get_ref("test_split"),
+        data_root=config.dataset_root,
+        split=config.test_split,
     )
     preprocess_test_cfg = det_preprocessing(800, 1333, augment_probability=0)
     dataloader_cfg_test = default_image_dl(
@@ -122,9 +121,7 @@ def get_config() -> ConfigDict:
     # Here we define the model. We use the default Faster RCNN model
     # provided by vis4d.
 
-    config.model = class_config(
-        FasterRCNN, num_classes=params.get_ref("num_classes")
-    )
+    config.model = class_config(FasterRCNN, num_classes=params.num_classes)
 
     ######################################################
     ##                        LOSS                      ##
@@ -156,14 +153,14 @@ def get_config() -> ConfigDict:
     # config.optimizers = [
     #    optimizer_cfg(
     #        optimizer=class_config(only_encoder_params,
-    #           fun=class_config(optim.SGD, lr=params.get_ref("lr"))
+    #           fun=class_config(optim.SGD, lr=params.lr"))
     #        )
     #    )
     # ]
 
     config.optimizers = [
         optimizer_cfg(
-            optimizer=class_config(optim.SGD, lr=params.get_ref("lr")),
+            optimizer=class_config(optim.SGD, lr=params.lr),
             lr_scheduler=class_config(StepLR, step_size=3, gamma=0.1),
             lr_warmup=None,
         )
@@ -205,11 +202,11 @@ def get_config() -> ConfigDict:
             EvaluatorCallback,
             evaluator=class_config(
                 COCOEvaluator,
-                data_root=config.get_ref("dataset_root"),
-                split=config.get_ref("test_split"),
+                data_root=config.dataset_root,
+                split=config.test_split,
             ),
             run_every_nth_epoch=1,
-            num_epochs=config.get_ref("num_epochs"),
+            num_epochs=config.num_epochs,
         )
     }
 
@@ -225,9 +222,9 @@ def get_config() -> ConfigDict:
         "bbox_vis": class_config(
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer),
-            output_dir=config.get_ref("save_prefix") + "/vis",
+            output_dir=config.save_prefix + "/vis",
             run_every_nth_epoch=1,
-            num_epochs=config.get_ref("num_epochs"),
+            num_epochs=config.num_epochs,
         )
     }
     ######################################################
@@ -239,16 +236,15 @@ def get_config() -> ConfigDict:
     config.train_callbacks = {
         "ckpt": class_config(
             CheckpointCallback,
-            save_prefix=config.get_ref("save_prefix"),
+            save_prefix=config.save_prefix,
             run_every_nth_epoch=1,
-            num_epochs=config.get_ref("num_epochs"),
+            num_epochs=config.num_epochs,
         )
     }
 
     # Assign the defined callbacks to the config
     config.test_callbacks = {**eval_callbacks, **vis_callbacks}
-
-    return config
+    return config.value_mode()
 
 
 def get_sweep() -> ConfigDict:
