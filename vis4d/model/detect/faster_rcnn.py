@@ -7,6 +7,8 @@ from torch import nn
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
+from vis4d.op.box.encoder.base import BoxEncoder2D
+from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     FRCNNOut,
@@ -32,7 +34,17 @@ REV_KEYS = [
 class FasterRCNN(nn.Module):
     """Faster RCNN model."""
 
-    def __init__(self, num_classes: int, weights: None | str = None) -> None:
+    def __init__(
+        self,
+        num_classes: int,
+        weights: None | str = None,
+        anchor_generator: AnchorGenerator = get_default_anchor_generator(),
+        rpn_box_encoder: BoxEncoder2D = get_default_rpn_box_encoder(),
+        rcnn_box_encoder: BoxEncoder2D = get_default_rcnn_box_encoder(),
+        backbone: nn.Module = ResNet(
+            "resnet50", pretrained=True, trainable_layers=3
+        ),
+    ) -> None:
         """Creates an instance of the class.
 
         Args:
@@ -42,10 +54,10 @@ class FasterRCNN(nn.Module):
                 Defaults to None.
         """
         super().__init__()
-        self.anchor_gen = get_default_anchor_generator()
-        self.rpn_bbox_encoder = get_default_rpn_box_encoder()
-        self.rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        self.anchor_gen = anchor_generator
+        self.rpn_bbox_encoder = rpn_box_encoder
+        self.rcnn_bbox_encoder = rcnn_box_encoder
+        self.backbone = backbone
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
         self.faster_rcnn_heads = FasterRCNNHead(
             num_classes=num_classes,

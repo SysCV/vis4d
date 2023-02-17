@@ -130,9 +130,7 @@ class EvaluatorCallback(Callback):
             results[metric] = log_dict
             if not self.logging_disabled:
                 for k, v in log_dict.items():
-                    self.log(  # type: ignore # pylint: disable=no-member
-                        k, v, rank_zero_only=True
-                    )
+                    rank_zero_info(k, v)  # TODO: @thomas, this was .log()
                 rank_zero_info(  # type: ignore
                     "Showing results for %s", metric
                 )

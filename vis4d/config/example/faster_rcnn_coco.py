@@ -13,7 +13,14 @@ from vis4d.common.callbacks import (
 )
 from vis4d.config.default.data.dataloader import default_image_dl
 from vis4d.config.default.data.detect import det_preprocessing
-from vis4d.config.default.data_connectors import faster_rcnn as frcnn_dc
+from vis4d.config.default.data_connectors import (
+    CONN_BBOX_2D_TEST,
+    CONN_BBOX_2D_TRAIN,
+    CONN_BBOX_2D_VIS,
+    CONN_COCO_BBOX_EVAL,
+    CONN_ROI_LOSS_2D,
+    CONN_RPN_LOSS_2D,
+)
 from vis4d.config.default.loss.faster_rcnn_loss import (
     get_default_faster_rcnn_loss,
 )
@@ -24,6 +31,11 @@ from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
 from vis4d.model.detect.faster_rcnn import FasterRCNN
+from vis4d.op.detect.faster_rcnn import (
+    get_default_anchor_generator,
+    get_default_rcnn_box_encoder,
+    get_default_rpn_box_encoder,
+)
 from vis4d.vis.image import BoundingBoxVisualizer
 
 # This is just for demo purposes. Uses the relative path to the vis4d root.
@@ -120,8 +132,18 @@ def get_config() -> ConfigDict:
 
     # Here we define the model. We use the default Faster RCNN model
     # provided by vis4d.
+    config.gen = ConfigDict()
+    config.gen.anchor_generator = class_config(get_default_anchor_generator)
+    config.gen.rcnn_box_encoder = class_config(get_default_rcnn_box_encoder)
+    config.gen.rpn_box_encoder = class_config(get_default_rpn_box_encoder)
 
-    config.model = class_config(FasterRCNN, num_classes=params.num_classes)
+    config.model = class_config(
+        FasterRCNN,
+        num_classes=params.num_classes,
+        rpn_box_encoder=config.gen.rpn_box_encoder,
+        rcnn_box_encoder=config.gen.rcnn_box_encoder,
+        anchor_generator=config.gen.anchor_generator,
+    )
 
     ######################################################
     ##                        LOSS                      ##
@@ -132,7 +154,12 @@ def get_config() -> ConfigDict:
     # Note, that the loss functions consists of multiple loss terms which
     # are averaged using a weighted sum.
 
-    config.loss = class_config(get_default_faster_rcnn_loss)
+    config.loss = class_config(
+        get_default_faster_rcnn_loss,
+        rpn_box_encoder=config.gen.rpn_box_encoder,
+        rcnn_box_encoder=config.gen.rcnn_box_encoder,
+        anchor_generator=config.gen.anchor_generator,
+    )
 
     ######################################################
     ##                    OPTIMIZERS                    ##
@@ -178,12 +205,12 @@ def get_config() -> ConfigDict:
     config.data_connector = class_config(
         StaticDataConnector,
         connections=DataConnectionInfo(
-            train=frcnn_dc.train_data_conn(),
-            test=frcnn_dc.test_data_conn(),
-            loss=frcnn_dc.loss_conn(),
+            train=CONN_BBOX_2D_TRAIN,
+            test=CONN_BBOX_2D_TEST,
+            loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
             callbacks={
-                "coco_eval": frcnn_dc.eval_bbox_conn(),
-                "bbox_vis": frcnn_dc.vis_bbox_conn(),
+                "coco_eval": CONN_COCO_BBOX_EVAL,
+                "bbox_vis": CONN_BBOX_2D_VIS,
             },
         ),
     )
