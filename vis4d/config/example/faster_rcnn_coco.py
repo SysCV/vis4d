@@ -97,16 +97,11 @@ def get_config() -> ConfigDict:
 
     # Training Datasets
     dataset_cfg_train = class_config(
-        COCO,
-        data_root=config.dataset_root,
-        split=config.train_split,
+        COCO, data_root=config.dataset_root, split=config.train_split
     )
     preproc = det_preprocessing(800, 1333, params.augment_proba)
     dataloader_train_cfg = default_image_dl(
-        preproc,
-        dataset_cfg_train,
-        params.batch_size,
-        shuffle=True,
+        preproc, dataset_cfg_train, params.batch_size, shuffle=True
     )
     config.train_dl = dataloader_train_cfg
 
