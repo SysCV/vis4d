@@ -34,8 +34,9 @@ class DefaultEvaluatorCallback(Callback):
         """Init class."""
         self.dataloader_idx = dataloader_idx
         self.eval_callback = EvaluatorCallback(
-            evaluator, eval_connector, output_dir=output_dir, collect=collect
+            evaluator, output_dir=output_dir, collect=collect
         )
+        self.eval_connector = eval_connector
         self.logging_disabled = False
         self.run_eval = True
 
@@ -62,7 +63,9 @@ class DefaultEvaluatorCallback(Callback):
     ) -> None:
         """Wait for on_test_batch_end PL hook to call 'process'."""
         if dataloader_idx == self.dataloader_idx:
-            self.eval_callback.on_test_batch_end(outputs, batch, "")
+            self.eval_callback.on_test_batch_end(
+                self.eval_connector.get_callback_input("", outputs, batch)
+            )
 
     def on_validation_batch_end(  # type: ignore
         self,
@@ -75,7 +78,9 @@ class DefaultEvaluatorCallback(Callback):
     ) -> None:
         """Wait for on_validation_batch_end PL hook to call 'process'."""
         if dataloader_idx == self.dataloader_idx:
-            self.eval_callback.on_test_batch_end(outputs, batch, "")
+            self.eval_callback.on_test_batch_end(
+                self.eval_connector.get_callback_input("", outputs, batch)
+            )
 
     def on_sanity_check_start(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule

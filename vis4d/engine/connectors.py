@@ -110,8 +110,7 @@ class DataConnectionInfo(TypedDict):
 
     loss: dict[str, SourceKeyDescription]
 
-    vis: NotRequired[dict[str, dict[str, SourceKeyDescription]]]
-    evaluators: NotRequired[dict[str, dict[str, SourceKeyDescription]]]
+    callbacks: NotRequired[dict[str, dict[str, SourceKeyDescription]]]
 
 
 ### Base Class
@@ -174,29 +173,10 @@ class DataConnector:
         """
         raise NotImplementedError()
 
-    def get_visualizer_input(
+    def get_callback_input(
         self, mode: str, prediction: DictData, data: DictData
     ) -> dict[str, Tensor | DictStrArrNested]:
-        """Returns the kwargs that are passed to the visualizer.
-
-        Args:
-            mode (str): Unique string defining which 'mode' to load for
-                visualization. This could be 'masks', 'bboxes' or similar.
-            prediction (DictData): The datadict (e.g. output from model) which
-                contains all the model outputs.
-            data (DictData): The datadict (e.g. from the dataloader) which
-                contains all data that was loaded.
-
-        Returns:
-            dict[str, Tensor | DictStrArrayNested]: kwargs that  are passed
-                onto the loss.
-        """
-        raise NotImplementedError()
-
-    def get_evaluator_input(
-        self, mode: str, prediction: DictData, data: DictData
-    ) -> dict[str, Tensor | DictStrArrNested]:
-        """Returns the kwargs that are passed to the evaluator.
+        """Returns the kwargs that are passed to the callback.
 
         Args:
             mode (str): Unique string defining which 'mode' to load for
@@ -207,8 +187,8 @@ class DataConnector:
                 contains all data that was loaded.
 
         Returns:
-            dict[str, Tensor | DictStrArrayNested]: kwargs that  are passed
-                onto the evaluator.
+            dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
+                onto the callback.
         """
         raise NotImplementedError()
 
@@ -367,30 +347,10 @@ class StaticDataConnector(DataConnector):
             self.connections["loss"], prediction, data
         )
 
-    def get_visualizer_input(
-        self, mode: str, prediction: DictData | NamedTuple, data: DictData
-    ) -> dict[str, Tensor | DictStrArrNested]:
-        """Returns the kwargs that are passed to the visualizer.
-
-        Args:
-            mode (str): Unique string defining which 'mode' to load for
-                visualization. This could be 'masks', 'bboxes' or similar.
-            prediction (DictData): The datadict (e.g. output from model) which
-                contains all the model outputs.
-            data (DictData): The datadict (e.g. from the dataloader) which
-                contains all data that was loaded.
-
-        Returns:
-            dict[str, Tensor | DictStrArrayNested]: kwargs that  are passed
-                onto the loss.
-        """
-        vis_dict = self.connections["vis"][mode]
-        return self._get_inputs_for_pred_and_data(vis_dict, prediction, data)
-
-    def get_evaluator_input(
+    def get_callback_input(
         self, mode: str, prediction: NamedTuple | DictData, data: DictData
     ) -> dict[str, Tensor | DictStrArrNested]:
-        """Returns the kwargs that are passed to the evaluator.
+        """Returns the kwargs that are passed to the callback.
 
         Args:
             mode (str): Unique string defining which 'mode' to load for
@@ -401,8 +361,8 @@ class StaticDataConnector(DataConnector):
                 contains all data that was loaded.
 
         Returns:
-            dict[str, Tensor | DictStrArrayNested]: kwargs that  are passed
-                onto the evaluator.
+            dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
+                onto the callback.
         """
-        eval_dict = self.connections["evaluators"][mode]
-        return self._get_inputs_for_pred_and_data(eval_dict, prediction, data)
+        clbk_dict = self.connections["callbacks"][mode]
+        return self._get_inputs_for_pred_and_data(clbk_dict, prediction, data)

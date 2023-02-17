@@ -183,10 +183,10 @@ def _get_static_connector_infos(
         in_keys=loss_in, out_keys=loss_out, name="Loss Connector"
     )
 
-    # Evaluators
-    evaluators: list[DataConnectionInfo] = []
+    # callbacks
+    callbacks: list[DataConnectionInfo] = []
     for name, evaluator in data_connector.connections.get(
-        "evaluators", {}
+        "callbacks", {}
     ).items():
         # evaluator
         eval_out = []
@@ -197,28 +197,13 @@ def _get_static_connector_infos(
         connection_info = DataConnectionInfo(
             in_keys=eval_in, out_keys=eval_out, name=name
         )
-        evaluators.append(connection_info)
-
-    # Visualizers
-    visualizers: list[DataConnectionInfo] = []
-    for name, vis in data_connector.connections.get("vis", {}).items():
-        # evaluator
-        eval_out = []
-        eval_in = []
-        for entry, value in vis.items():
-            eval_out.append(f"{entry}")
-            eval_in.append(f"<{_rename_ds(value['source'])}>-" + value["key"])
-        connection_info = DataConnectionInfo(
-            in_keys=eval_in, out_keys=eval_out, name=name
-        )
-        visualizers.append(connection_info)
+        callbacks.append(connection_info)
 
     return dict(
         train=[train_connection_info],
         test=[test_connection_info],
         loss=[loss_connection_info],
-        evaluators=evaluators,
-        visualizers=visualizers,
+        callbacks=callbacks,
     )
 
 

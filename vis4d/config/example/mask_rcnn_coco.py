@@ -205,7 +205,7 @@ def get_config() -> ConfigDict:
     bbox_vis["boxes"] = pred_key("boxes")
 
     data_connector_cfg = default_detection_connector(
-        dict(coco=coco_eval), dict(bbox=bbox_vis)
+        dict(coco=coco_eval, bbox=bbox_vis)
     )
 
     # Visualizer
@@ -213,8 +213,7 @@ def get_config() -> ConfigDict:
         train=train_connections,
         test=test_connections,
         loss=loss_connections,
-        evaluators=dict(coco=coco_eval),
-        vis=dict(bbox=bbox_vis),
+        callbacks=dict(coco=coco_eval, bbox=bbox_vis),
     )
     data_connector_cfg = class_config(StaticDataConnector, connections=info)
 

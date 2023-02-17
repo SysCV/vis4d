@@ -6,10 +6,9 @@ import os
 import torch
 from torch import nn
 
-from vis4d.common import ArgsType, MetricLogs
+from vis4d.common import DictStrAny, MetricLogs
 from vis4d.common.distributed import all_gather_object_cpu, get_rank
 from vis4d.common.logging import rank_zero_info
-from vis4d.engine.connectors import DataConnector
 from vis4d.eval.base import Evaluator
 from vis4d.vis.base import Visualizer
 
@@ -53,16 +52,11 @@ class Callback:
     def on_test_epoch_end(self) -> None:
         """Hook to run at the end of a testing epoch."""
 
-    def on_test_batch_end(
-        self, outputs: ArgsType, batch: ArgsType, key_name: str
-    ) -> None:
+    def on_test_batch_end(self, inputs: DictStrAny) -> None:
         """Hook to run at the end of a testing batch.
 
         Args:
-            outputs (ArgsType): Model predictions.
-            batch (ArgsType): Testing input data.
-            key_name (str): Key name used to extract data using the data
-                connector.
+            inputs (ArgsType): Inputs for callback.
         """
 
 
@@ -72,7 +66,6 @@ class EvaluatorCallback(Callback):
     def __init__(
         self,
         evaluator: Evaluator,
-        eval_connector: DataConnector,
         output_dir: None | str = None,
         collect: str = "cpu",
         run_every_nth_epoch: int = 1,
@@ -82,7 +75,6 @@ class EvaluatorCallback(Callback):
 
         Args:
             evaluator (Evaluator): Evaluator.
-            eval_connector (DataConnector): Data connector for evaluator.
             output_dir (str, Optional): Output directory for saving the
                 evaluation results. Defaults to None (no save).
             collect (str): Which device to collect results across GPUs on.
@@ -99,7 +91,6 @@ class EvaluatorCallback(Callback):
         self.collect = collect
         self.output_dir = output_dir
         self.evaluator = evaluator
-        self.eval_connector = eval_connector
         self.logging_disabled = False
         self.run_eval = True
 
@@ -113,15 +104,10 @@ class EvaluatorCallback(Callback):
             self.evaluate()
         self.evaluator.reset()
 
-    def on_test_batch_end(
-        self, outputs: ArgsType, batch: ArgsType, key_name: str
-    ) -> None:
+    def on_test_batch_end(self, inputs: DictStrAny) -> None:
         """Hook to run at the end of a testing batch."""
         # TODO, this should be all numpy.
-        eval_inputs = self.eval_connector.get_evaluator_input(
-            key_name, outputs, batch
-        )
-        self.evaluator.process(**eval_inputs)
+        self.evaluator.process(**inputs)
 
     def evaluate(self) -> dict[str, MetricLogs]:
         """Evaluate the performance after processing all input/output pairs."""
@@ -160,7 +146,6 @@ class VisualizerCallback(Callback):
     def __init__(
         self,
         visualizer: Visualizer,
-        data_connector: DataConnector,
         output_dir: None | str = None,
         collect: str = "cpu",
         run_every_nth_epoch: int = 1,
@@ -170,7 +155,6 @@ class VisualizerCallback(Callback):
 
         Args:
             visualizer (Visualizer): Visualizer.
-            data_connector (DataConnector): Data connector for visualizer.
             output_dir (str, Optional): Output directory for saving the
                 visualizations. Defaults to None (no save).
             collect (str): Which device to collect results across GPUs on.
@@ -187,7 +171,6 @@ class VisualizerCallback(Callback):
         self.collect = collect
         self.output_dir = output_dir
         self.visualizer = visualizer
-        self.data_connector = data_connector
 
         if self.output_dir is not None:
             os.makedirs(self.output_dir, exist_ok=True)
@@ -199,14 +182,9 @@ class VisualizerCallback(Callback):
                 self.visualizer.save_to_disk(self.output_dir)
         self.visualizer.reset()
 
-    def on_test_batch_end(
-        self, outputs: ArgsType, batch: ArgsType, key_name: str
-    ) -> None:
+    def on_test_batch_end(self, inputs: DictStrAny) -> None:
         """Hook to run at the end of a testing batch."""
-        eval_kwargs = self.data_connector.get_visualizer_input(
-            key_name, outputs, batch
-        )
-        self.visualizer.process(**eval_kwargs)
+        self.visualizer.process(**inputs)
 
 
 class CheckpointCallback(Callback):

@@ -184,8 +184,10 @@ def get_config() -> ConfigDict:
             train=frcnn_dc.train_data_conn(),
             test=frcnn_dc.test_data_conn(),
             loss=frcnn_dc.loss_conn(),
-            evaluators={"coco": frcnn_dc.eval_bbox_conn()},
-            vis={"bbox": frcnn_dc.vis_bbox_conn()},
+            callbacks={
+                "coco_eval": frcnn_dc.eval_bbox_conn(),
+                "bbox_vis": frcnn_dc.vis_bbox_conn(),
+            },
         ),
     )
 
@@ -199,14 +201,13 @@ def get_config() -> ConfigDict:
     # section. And use the same name here.
 
     eval_callbacks = {
-        "coco": class_config(
+        "coco_eval": class_config(
             EvaluatorCallback,
             evaluator=class_config(
                 COCOEvaluator,
                 data_root=config.get_ref("dataset_root"),
                 split=config.get_ref("test_split"),
             ),
-            eval_connector=config.get_ref("data_connector"),
             run_every_nth_epoch=1,
             num_epochs=config.get_ref("num_epochs"),
         )
@@ -221,11 +222,10 @@ def get_config() -> ConfigDict:
     # section. And use the same name here.
 
     vis_callbacks = {
-        "bbox": class_config(
+        "bbox_vis": class_config(
             VisualizerCallback,
             visualizer=class_config(BoundingBoxVisualizer),
             output_dir=config.get_ref("save_prefix") + "/vis",
-            data_connector=config.get_ref("data_connector"),
             run_every_nth_epoch=1,
             num_epochs=config.get_ref("num_epochs"),
         )

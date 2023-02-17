@@ -13,8 +13,7 @@ from vis4d.engine.connectors import (
 
 
 def default_detection_connector(
-    evaluators: dict[str, dict[str, SourceKeyDescription]] | None = None,
-    visualizers: dict[str, dict[str, SourceKeyDescription]] | None = None,
+    callbacks: dict[str, dict[str, SourceKeyDescription]] | None = None,
 ) -> ConfigDict:
     """Default data connector for detection task.
 
@@ -26,11 +25,9 @@ def default_detection_connector(
     evaluators.
 
     Args:
-        evaluators (dict[str, dict[str, SourceKeyDescription]], optional):
-            Mapping from evaluator name to key, value remapping for this
-            evaluator.
-        visualizers (dict[str, dict[str, SourceKeyDescription]], optional):
-            Mapping from visuliazer name to key, value remapping.
+        callbacks (dict[str, dict[str, SourceKeyDescription]], optional):
+            Mapping from callback name to key, value remapping for this
+            callback.
 
     Returns:
         ConfigDict: Config dict that can be instantiated as Data Connector.
@@ -99,9 +96,7 @@ def default_detection_connector(
 
     # Visualizer
     info = DataConnectionInfo(train=train, test=test, loss=loss)
-    if evaluators is not None:
-        info["evaluators"] = evaluators
-    if visualizers is not None:
-        info["vis"] = visualizers
+    if callbacks is not None:
+        info["callbacks"] = callbacks
 
     return class_config(StaticDataConnector, connections=info)
