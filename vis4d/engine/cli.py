@@ -13,6 +13,7 @@ from ml_collections import ConfigDict
 from torch.distributed import destroy_process_group, init_process_group
 from torch.multiprocessing import spawn  # type: ignore
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common.distributed import get_world_size
 from vis4d.common.logging import rank_zero_info
@@ -22,28 +23,57 @@ from vis4d.engine.parser import DEFINE_config_file
 from vis4d.engine.test import Tester
 from vis4d.engine.train import Trainer
 
-# TODO: Currently this does not allow to load multpile config files.
-# extend functionality to chain multiple config files using
+# Currently this does not allow to load multpile config files.
+# Would be nice to extend functionality to chain multiple config files using
 # e.g. --config=model_1.py --config=loader_args.py
 # or --config=my_config.py --config.train_dl=different_dl.py
+
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _SWEEP = DEFINE_config_file("sweep", method_name="get_sweep")
 _MODE = flags.DEFINE_string(
     "mode", default="train", help="Choice of [train, test]"
 )
 _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
+_SHOW_CONFIG = flags.DEFINE_bool(
+    "print-config", default=False, help="If set, prints the configuration."
+)
+
+
+def _test(config: ConfigDict, rank: None | int = None) -> None:
+    """Test the model."""
+    # Would be nice to  connect this to SLURM cluster to directly spawn jobs.
+    rank_zero_info("Testing model")
+    if _SHOW_CONFIG.value:
+        rank_zero_info("*" * 80)
+        rank_zero_info(pprints_config(config))
+        rank_zero_info("*" * 80)
+
+    cfg: ConfigDict = instantiate_classes(config)
+    tester = Tester(
+        dataloaders=cfg.test_dl,
+        data_connector=cfg.data_connector,
+        test_callbacks=cfg.get("test_callbacks", None),
+    )
+
+    if rank is not None:
+        device = torch.device(f"cuda:{rank}")
+    else:
+        device = torch.device("cpu")
+
+    cfg.model.to(device)
+    tester.test(cfg.model)
 
 
 def _train(config: ConfigDict, rank: None | int = None) -> None:
     """Train the model."""
-    # Would be nice to  connect this to SLURM cluster to directly spawn jobs.
-    rank_zero_info("Starting training")
-
-    rank_zero_info("*" * 80)
-    rank_zero_info(pprints_config(config))
-    rank_zero_info("*" * 80)
+    # Would be nice to  connect this to SLURM cluster to directly spawn jobs.)
+    if _SHOW_CONFIG.value:
+        rank_zero_info("*" * 80)
+        rank_zero_info(pprints_config(config))
+        rank_zero_info("*" * 80)
 
     cfg: ConfigDict = instantiate_classes(config)
+
     trainer = Trainer(
         num_epochs=cfg.num_epochs,
         log_step=1,
@@ -91,6 +121,20 @@ def _dist_train(rank: int, world_size: int, config: ConfigDict) -> None:
     destroy_process_group()
 
 
+def train(config: ConfigDict) -> None:
+    """Train the model. If multiple GPUs are available, uses DDP."""
+    rank_zero_info("Starting training")
+    rank_zero_info("Environment info: %s", get_pretty_env_info())
+    if torch.cuda.is_available():
+        rank_zero_info(
+            "\n Using %d/%d GPUs", config.n_gpus, torch.cuda.device_count()
+        )
+    if config.n_gpus > 1:
+        spawn(_dist_train, args=(config.n_gpus, config), nprocs=config.n_gpus)
+    else:
+        _train(config, 0 if config.n_gpus == 1 else None)
+
+
 def main(  # type:ignore # pylint: disable=unused-argument
     *args, **kwargs
 ) -> None:
@@ -121,12 +165,13 @@ def main(  # type:ignore # pylint: disable=unused-argument
             method=sweep_obj.method,
             sampling_args=sweep_obj.sampling_args,
         ):
-            _train(config)
+            train(_CONFIG.value)
+
     elif _MODE.value == "train":
-        if num_gpus > 1:
-            spawn(_dist_train, args=(num_gpus, _CONFIG.value), nprocs=num_gpus)
-        else:
-            _train(_CONFIG.value)
+        train(_CONFIG.value)
+
+    elif _MODE.value == "test":
+        _test(_CONFIG.value, 0 if num_gpus > 0 else None)
 
 
 if __name__ == "__main__":
