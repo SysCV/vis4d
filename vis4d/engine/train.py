@@ -103,13 +103,14 @@ class Trainer:
 
         # log losses
         if cur_iter % self.log_step == (self.log_step - 1):
+            total_batches = len(self.train_dataloader) * epoch + cur_iter + 1
             rank_zero_info(
                 compose_log_str(
                     f"Epoch {epoch + 1}",
                     cur_iter + 1,
                     len(self.train_dataloader),
                     self.timer,
-                    {k: v / self.log_step for k, v in running_losses.items()},
+                    {k: v / total_batches for k, v in running_losses.items()},
                 )
             )
 

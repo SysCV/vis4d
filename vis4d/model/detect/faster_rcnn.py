@@ -5,7 +5,7 @@ import torch
 from torch import nn
 
 from vis4d.engine.ckpt import load_model_checkpoint
-from vis4d.op.base.resnet import ResNet
+from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
 from vis4d.op.box.encoder.base import BoxEncoder2D
 from vis4d.op.detect.anchor_generator import AnchorGenerator
@@ -41,7 +41,7 @@ class FasterRCNN(nn.Module):
         anchor_generator: AnchorGenerator = get_default_anchor_generator(),
         rpn_box_encoder: BoxEncoder2D = get_default_rpn_box_encoder(),
         rcnn_box_encoder: BoxEncoder2D = get_default_rcnn_box_encoder(),
-        backbone: nn.Module = ResNet(
+        backbone: BaseModel = ResNet(
             "resnet50", pretrained=True, trainable_layers=3
         ),
     ) -> None:
@@ -52,6 +52,14 @@ class FasterRCNN(nn.Module):
             weights (None | str, optional): Weights to load for model. If
                 set to "mmdet", will load MMDetection pre-trained weights.
                 Defaults to None.
+            anchor_generator (AnchorGenerator, optional): Generator for anchors
+                for detection. Defaults to get_default_anchor_generator().
+            rpn_box_encoder (BoxEncoder2D, optional): Encoder for RPN bounding
+                boxes. Defaults to get_default_rpn_box_encoder().
+            rcnn_box_encoder (BoxEncoder2D, optional): Encoder for RCNN
+                bounding boxes. Defaults to get_default_rcnn_box_encoder().
+            backbone (nn.Module, optional): Backbone network. Defaults to
+                ResNet( "resnet50", pretrained=True, trainable_layers=3 ).
         """
         super().__init__()
         self.anchor_gen = anchor_generator
