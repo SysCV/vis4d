@@ -221,9 +221,7 @@ class SHIFT(Dataset):
     ) -> None:
         """Initialize SHIFT dataset."""
         # Validate input
-        assert split in set(
-            ("train", "val", "test")
-        ), f"Invalid split '{split}'"
+        assert split in {"train", "val", "test"}, f"Invalid split '{split}'."
         self.validate_keys(keys_to_load)
 
         # Set attributes
