@@ -59,8 +59,8 @@ def default_image_dl(
 def default_dataloader_config(
     preprocess_cfg: ConfigDict,
     dataset_cfg: ConfigDict,
-    samples_per_gpu: int | FieldReference = 1,
-    workers_per_gpu: int | FieldReference = 1,
+    samples_per_gpu: int | FieldReference = 0,
+    workers_per_gpu: int | FieldReference = 0,
     batchprocess_fn: Callable[[list[DictData]], list[DictData]]
     | ConfigDict = lambda x: x,
     shuffle: bool | FieldReference = True,

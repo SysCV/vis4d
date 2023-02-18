@@ -48,6 +48,28 @@ class FCNResNet(nn.Module):
             self.basemodel.out_channels[4:], num_classes, resize=resize
         )
 
+    def forward_train(self, images: torch.Tensor) -> FCNOut:
+        """Forward pass for training.
+
+        Args:
+            images (torch.Tensor): Input images.
+
+        Returns:
+            FCNOut: Raw model predictions.
+        """
+        return self.forward(images)
+
+    def forward_test(self, images: torch.Tensor) -> FCNOut:
+        """Forward pass for testing.
+
+        Args:
+            images (torch.Tensor): Input images.
+
+        Returns:
+            FCNOut: Raw model predictions.
+        """
+        return self.forward(images)
+
     def forward(self, images: torch.Tensor) -> FCNOut:
         """Forward pass.
 

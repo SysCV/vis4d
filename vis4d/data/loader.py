@@ -35,14 +35,17 @@ def default_collate(batch: list[DictData]) -> DictData:
     """Default batch collate."""
     data: DictData = {}
     for key in batch[0]:
-        if key == CommonKeys.images:
-            data[key] = torch.cat([b[key] for b in batch])
-        elif key in [CommonKeys.extrinsics, CommonKeys.intrinsics]:
-            data[key] = torch.stack([b[key] for b in batch], 0)
-        elif key == CommonKeys.segmentation_masks:
-            data[key] = torch.stack([b[key] for b in batch], 0)
-        else:
-            data[key] = [b[key] for b in batch]
+        try:
+            if key == CommonKeys.images:
+                data[key] = torch.cat([b[key] for b in batch])
+            elif key in [CommonKeys.extrinsics, CommonKeys.intrinsics]:
+                data[key] = torch.stack([b[key] for b in batch], 0)
+            elif key == CommonKeys.segmentation_masks:
+                data[key] = torch.cat([b[key] for b in batch])
+            else:
+                data[key] = [b[key] for b in batch]
+        except RuntimeError as e:
+            raise RuntimeError(f"Error collating key {key}") from e
     return data
 
 
