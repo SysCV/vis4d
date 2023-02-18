@@ -134,7 +134,13 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
 
     _DESCRIPTION = """COCO is a large-scale object detection, segmentation, and
     captioning dataset."""
-    _KEYS = ["images", "boxes2d", "boxes2d_classes", "masks"]
+    _KEYS = [
+        "images",
+        "boxes2d",
+        "boxes2d_classes",
+        "masks",
+        "segmentation_masks",
+    ]
     _URL = "http://cocodataset.org/#home"
 
     def __init__(
@@ -145,6 +151,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             CommonKeys.boxes2d,
             CommonKeys.boxes2d_classes,
             CommonKeys.masks,
+            CommonKeys.segmentation_masks,
         ),
         split: str = "train2017",
         remove_empty: bool = False,
@@ -172,6 +179,7 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             CommonKeys.boxes2d_classes in keys
         )
         self.with_masks = CommonKeys.masks in keys
+        self.with_sem_masks = CommonKeys.segmentation_masks in keys
 
         self.data = self._load_mapping(self._generate_data_mapping)
 
@@ -254,10 +262,11 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             ], "Image's shape doesn't match annotation."
             dict_data[CommonKeys.images] = img_tensor
 
-        if self.with_boxes or self.with_masks:
+        if self.with_boxes or self.with_masks or self.with_sem_masks:
             boxes = []
             classes = []
             masks = []
+
             for ann in data["anns"]:
                 x1, y1, width, height = ann["bbox"]
                 x2, y2 = x1 + width, y1 + height
@@ -294,5 +303,12 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
                 )
             if self.with_masks:
                 dict_data[CommonKeys.masks] = mask_tensor
+            if CommonKeys.segmentation_masks in self.keys:
+                mask_with_class = (
+                    torch.tensor(classes).reshape(-1, 1, 1) * mask_tensor
+                ).long()
+                dict_data[CommonKeys.segmentation_masks] = mask_with_class.max(
+                    dim=0
+                )[0].unsqueeze(0)
 
         return dict_data
