@@ -89,7 +89,7 @@ def get_config() -> ConfigDict:
     ## High level hyper parameters
     params = ConfigDict()
     params.batch_size = 16
-    params.lr = 0.01
+    params.lr = 0.0001
     params.augment_proba = 0.5
     params.num_classes = 80
     config.params = params
