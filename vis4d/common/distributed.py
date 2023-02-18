@@ -7,13 +7,20 @@ import os
 import pickle
 import shutil
 import tempfile
-from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
 import cloudpickle
 import torch
 import torch.distributed as dist
+from typing_extensions import Protocol
+
+
+class AnyCallback(Protocol):
+    """Protocol for callback with any arguments."""
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:  # type: ignore
+        """Call."""
 
 
 class PicklableWrapper:  #  mypy: disable=line-too-long
@@ -126,7 +133,7 @@ def serialize_to_tensor(data: Any) -> torch.Tensor:  # pragma: no cover
     return tensor
 
 
-def rank_zero_only(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
+def rank_zero_only(func: AnyCallback) -> AnyCallback:
     """Allows the decorated function to be called only on global rank 0.
 
     Args:

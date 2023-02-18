@@ -116,9 +116,7 @@ class EvaluatorCallback(Callback):
 
         results = {}
         if not self.logging_disabled:
-            rank_zero_info(  # type: ignore
-                "Running evaluator %s...", str(self.evaluator)
-            )
+            rank_zero_info("Running evaluator %s...", str(self.evaluator))
 
         for metric in self.evaluator.metrics:
             if self.output_dir is not None:
@@ -131,9 +129,7 @@ class EvaluatorCallback(Callback):
             if not self.logging_disabled:
                 for k, v in log_dict.items():
                     rank_zero_info(k, v)
-                rank_zero_info(  # type: ignore
-                    "Showing results for %s", metric
-                )
+                rank_zero_info("Showing results for %s", metric)
                 rank_zero_info(log_str)
         return results
 
