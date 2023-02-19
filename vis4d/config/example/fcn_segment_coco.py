@@ -1,4 +1,4 @@
-"""Faster RCNN COCO training example."""
+"""FCN Segment training example."""
 from __future__ import annotations
 
 import os
@@ -20,7 +20,6 @@ from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.model.segment.fcn_resnet import FCNResNet
 from vis4d.op.segment.fcn import FCNLoss
 from vis4d.optim import PolyLR
-
 
 # This is just for demo purposes. Uses the relative path to the vis4d root.
 VIS4D_ROOT = os.path.abspath(os.path.dirname(__file__) + "../../../../")
