@@ -66,11 +66,6 @@ def _test(config: ConfigDict, rank: None | int = None) -> None:
 
 def _train(config: ConfigDict, rank: None | int = None) -> None:
     """Train the model."""
-    # Would be nice to  connect this to SLURM cluster to directly spawn jobs.)
-    if _SHOW_CONFIG.value:
-        rank_zero_info("*" * 80)
-        rank_zero_info(pprints_config(config))
-        rank_zero_info("*" * 80)
 
     cfg: ConfigDict = instantiate_classes(config)
 
@@ -125,6 +120,13 @@ def train(config: ConfigDict) -> None:
     """Train the model. If multiple GPUs are available, uses DDP."""
     rank_zero_info("Starting training")
     rank_zero_info("Environment info: %s", get_pretty_env_info())
+
+    # Would be nice to  connect this to SLURM cluster to directly spawn jobs.)
+    if _SHOW_CONFIG.value:
+        rank_zero_info("*" * 80)
+        rank_zero_info(pprints_config(config))
+        rank_zero_info("*" * 80)
+
     if torch.cuda.is_available():
         rank_zero_info(
             "\n Using %d/%d GPUs", config.n_gpus, torch.cuda.device_count()

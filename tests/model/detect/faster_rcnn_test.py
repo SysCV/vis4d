@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data, get_test_file
+from vis4d.config.example.faster_rcnn_coco import get_config
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
@@ -22,6 +23,7 @@ from vis4d.data.transforms.resize import (
     resize_image,
     resize_masks,
 )
+from vis4d.engine.cli import _train as cli_train
 from vis4d.model.detect.faster_rcnn import FasterRCNN
 from vis4d.op.detect.rcnn import DetOut
 
@@ -103,58 +105,11 @@ class FasterRCNNTest(unittest.TestCase):
         _assert_eq(dets.scores, testcase_gt["boxes2d_scores"])
         _assert_eq(dets.class_ids, testcase_gt["boxes2d_classes"])
 
-    # def test_train(self) -> None:  # TODO: Move this to CLI/config tests
-    #     """Test Faster RCNN training."""
-    #     faster_rcnn = FasterRCNN(num_classes=80)
-    #     rcnn_loss = FasterRCNNLoss()
+    def test_cli_training(self) -> None:
+        """Test Faster RCNN training via CLI."""
 
-    #     optimizer = optim.SGD(faster_rcnn.parameters(), lr=0.001,
-    #                           momentum=0.9)
+        config = get_config()
+        config.num_epochs = 2
+        config.n_gpus = 0
 
-    #     dataset = COCO(get_test_data("coco_test"), split="train")
-    #     train_loader = get_train_dataloader(dataset, 2, (256, 256))
-
-    #     running_losses = {}
-    #     faster_rcnn.train()
-    #     log_step = 1
-    #     for epoch in range(2):
-    #         for i, data in enumerate(train_loader):
-    #             inputs, images_hw, gt_boxes, gt_class_ids = (
-    #                 data[CommonKeys.images],
-    #                 data[CommonKeys.input_hw],
-    #                 data[CommonKeys.boxes2d],
-    #                 data[CommonKeys.boxes2d_classes],
-    #             )
-
-    #             # zero the parameter gradients
-    #             optimizer.zero_grad()
-
-    #             # forward + backward + optimize
-    #             outputs = faster_rcnn(
-    #                 inputs, images_hw, gt_boxes, gt_class_ids
-    #             )
-    #             rcnn_losses = rcnn_loss(outputs, images_hw, gt_boxes)
-    #             total_loss = sum(rcnn_losses.values())
-    #             total_loss.backward()
-    #             optimizer.step()
-
-    #             # print statistics
-    #             losses = dict(loss=total_loss, **rcnn_losses)
-    #             for k, loss in losses.items():
-    #                 if k in running_losses:
-    #                     running_losses[k] += loss
-    #                 else:
-    #                     running_losses[k] = loss
-    #             if i % log_step == (log_step - 1):
-    #                 log_str = f"[{epoch + 1}, {i + 1:5d}] "
-    #                 for k, loss in running_losses.items():
-    #                     log_str += f"{k}: {loss / log_step:.3f}, "
-    #                 print(log_str.rstrip(", "))
-    #                 running_losses = {}
-
-    # def test_torchscript(self) -> None: # TODO: fix this test
-    #     """Test torchscript export of Faster RCNN."""
-    #     sample_images = torch.rand((2, 3, 512, 512))
-    #     faster_rcnn = FasterRCNN(80)
-    #     frcnn_scripted = torch.jit.script(faster_rcnn)
-    #     frcnn_scripted(sample_images)
+        cli_train(config)
