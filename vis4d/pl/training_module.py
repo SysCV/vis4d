@@ -23,6 +23,7 @@ class TorchOptimizer(optim.Optimizer):
             model: The model to optimize.
         """
         self.optim = optimizer
+        assert self.optim.optimizer is not None
         self.optim.setup(model)
         self._step = 0
         super().__init__(
@@ -39,7 +40,7 @@ class TorchOptimizer(optim.Optimizer):
         self.optim.step(self._step, closure)
         self._step += 1
 
-    def zero_grad(self) -> None:  # pylint: disable=arguments-differ
+    def zero_grad(self, set_to_none: bool = False) -> None:
         """Clears the gradients of all optimized parameters."""
         self.optim.zero_grad()
 
@@ -73,13 +74,13 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         self.loss = loss
         self.data_connector = data_connector
 
-    def forward(  # pylint: disable=arguments-differ,line-too-long,unused-argument # type: ignore
+    def forward(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, data: DictData
     ) -> Any:
         """Forward pass through the model."""
         return self.model(**self.data_connector.get_train_input(data))
 
-    def training_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument # type: ignore
+    def training_step(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int
     ) -> Any:
         """Perform a single training step."""
@@ -87,14 +88,14 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         l = self.loss(**self.data_connector.get_loss_input(out, batch))
         return {"loss": sum(l.values()), "predictions": out}
 
-    def validation_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument # type: ignore
+    def validation_step(  # type: ignore  # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0
     ) -> Any:
         """Perform a single validation step."""
         out = self.model(**self.data_connector.get_test_input(batch))
         return out
 
-    def test_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument # type: ignore
+    def test_step(  # type: ignore  # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0
     ) -> Any:
         """Perform a single test step."""
