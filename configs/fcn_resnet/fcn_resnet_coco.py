@@ -1,55 +1,23 @@
-"""Faster RCNN COCO training example."""
+"""FCN-ResNet COCO training example."""
 from __future__ import annotations
 
-import os
-
 from torch import nn, optim
-from torch.optim.lr_scheduler import StepLR
 
-from vis4d.common.callbacks import (
-    CheckpointCallback,
-    EvaluatorCallback,
-    VisualizerCallback,
-)
 from vis4d.config.default.data.dataloader import default_image_dl
 from vis4d.config.default.data.segment import segment_preprocessing
-from vis4d.config.default.data_connectors import (
-    CONN_BBOX_2D_TEST,
-    CONN_BBOX_2D_TRAIN,
-    CONN_BBOX_2D_VIS,
-    CONN_COCO_BBOX_EVAL,
-    CONN_ROI_LOSS_2D,
-    CONN_RPN_LOSS_2D,
-)
 from vis4d.config.default.data_connectors.segment import (
     CONN_FCN_LOSS,
     CONN_MASKS_TEST,
     CONN_MASKS_TRAIN,
-)
-from vis4d.config.default.loss.faster_rcnn_loss import (
-    get_default_faster_rcnn_loss,
 )
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
-from vis4d.eval.detect.coco import COCOEvaluator
-from vis4d.model.detect.faster_rcnn import FasterRCNN
 from vis4d.model.segment.fcn_resnet import FCNResNet
-from vis4d.op.detect.faster_rcnn import (
-    get_default_anchor_generator,
-    get_default_rcnn_box_encoder,
-    get_default_rpn_box_encoder,
-)
 from vis4d.op.segment.fcn import FCNLoss
-from vis4d.vis.image import BoundingBoxVisualizer
-
-# This is just for demo purposes. Uses the relative path to the vis4d root.
-VIS4D_ROOT = os.path.abspath(os.path.dirname(__file__) + "../../../../")
-COCO_DATA_ROOT = os.path.join(VIS4D_ROOT, "tests/vis4d-test-data/coco_test")
-TRAIN_SPLIT = "train"
-TEST_SPLIT = "train"  # "val"
+from vis4d.optim import PolyLR
 
 
 def get_config() -> ConfigDict:
@@ -80,18 +48,18 @@ def get_config() -> ConfigDict:
         "experiment_name"
     )
 
-    config.dataset_root = COCO_DATA_ROOT
-    config.train_split = TRAIN_SPLIT
-    config.test_split = TEST_SPLIT
+    config.dataset_root = "./data/COCO"
+    config.train_split = "train2017"
+    config.test_split = "val2017"
     config.n_gpus = 1
-    config.num_epochs = 10
+    config.num_epochs = 40
 
     ## High level hyper parameters
     params = ConfigDict()
-    params.batch_size = 16
+    params.batch_size = 8
     params.lr = 0.0001
     params.augment_proba = 0.5
-    params.num_classes = 80
+    params.num_classes = 21
     config.params = params
 
     ######################################################
@@ -107,8 +75,10 @@ def get_config() -> ConfigDict:
         COCO,
         data_root=config.dataset_root,
         split=config.train_split,
+        use_pascal_voc_cats=True,
+        minimum_box_area=10,
     )
-    preproc = segment_preprocessing(800, 1333, params.augment_proba)
+    preproc = segment_preprocessing(520, 520, params.augment_proba)
     dataloader_train_cfg = default_image_dl(
         preproc,
         dataset_cfg_train,
@@ -123,9 +93,10 @@ def get_config() -> ConfigDict:
         COCO,
         data_root=config.dataset_root,
         split=config.test_split,
+        use_pascal_voc_cats=True,
     )
     preprocess_test_cfg = segment_preprocessing(
-        800, 1333, augment_probability=0
+        520, 520, augment_probability=0
     )
     dataloader_cfg_test = default_image_dl(
         preprocess_test_cfg,
@@ -142,8 +113,9 @@ def get_config() -> ConfigDict:
 
     config.model = class_config(
         FCNResNet,
+        base_model="resnet50",
         num_classes=params.num_classes,
-        resize=(800, 1333),
+        resize=(520, 520),
     )
 
     ######################################################
@@ -189,7 +161,9 @@ def get_config() -> ConfigDict:
     config.optimizers = [
         optimizer_cfg(
             optimizer=class_config(optim.Adam, lr=params.lr),
-            lr_scheduler=None,
+            lr_scheduler=class_config(
+                PolyLR, max_steps=config.num_epochs, power=0.9
+            ),
             lr_warmup=None,
         )
     ]

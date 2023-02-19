@@ -1,5 +1,5 @@
 """Vis4D optimize tools."""
-from .scheduler import PolyLRScheduler
+from .scheduler import PolyLR
 from .warmup import (
     BaseLRWarmup,
     ConstantLRWarmup,
@@ -8,7 +8,7 @@ from .warmup import (
 )
 
 __all__ = [
-    "PolyLRScheduler",
+    "PolyLR",
     "BaseLRWarmup",
     "LinearLRWarmup",
     "ConstantLRWarmup",
