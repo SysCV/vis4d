@@ -107,7 +107,6 @@ class FasterRCNNTest(unittest.TestCase):
 
     def test_cli_training(self) -> None:
         """Test Faster RCNN training via CLI."""
-
         config = get_config()
         config.num_epochs = 2
         config.n_gpus = 0
