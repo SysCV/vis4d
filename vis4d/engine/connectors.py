@@ -364,5 +364,8 @@ class StaticDataConnector(DataConnector):
             dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
                 onto the callback.
         """
+        if mode not in self.connections["callbacks"]:
+            return {}  # No inputs registered for this callback type
+
         clbk_dict = self.connections["callbacks"][mode]
         return self._get_inputs_for_pred_and_data(clbk_dict, prediction, data)
