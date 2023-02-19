@@ -8,7 +8,9 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
-from pytorch_lightning.strategies import DDPStrategy
+from pytorch_lightning.strategies import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
+    DDPStrategy,
+)
 from pytorch_lightning.strategies.strategy import Strategy
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
 
@@ -91,7 +93,7 @@ class DefaultTrainer(pl.Trainer):
             isinstance(kwargs["logger"], bool) and kwargs["logger"]
         ):
             if wandb:  # pragma: no cover
-                exp_logger = pl.loggers.WandbLogger(
+                exp_logger = pl.loggers.WandbLogger(  # type: ignore[attr-defined] # pylint: disable=line-too-long
                     save_dir=work_dir,
                     project=exp_name,
                     name=version,
