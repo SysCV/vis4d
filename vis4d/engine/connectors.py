@@ -1,6 +1,7 @@
 """Defines data structures for data connection."""
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Dict, NamedTuple, TypedDict, Union
 
 from torch import Tensor
@@ -29,6 +30,27 @@ class SourceKeyDescription(TypedDict):
 
     key: str
     source: str
+
+
+def remap_pred_keys(
+    info: dict[str, SourceKeyDescription], parent_key: str
+) -> dict[str, SourceKeyDescription]:
+    """Remaps the key of a connection mapping to a new parent key.
+
+    Args:
+        info (SourceKeyDescription): Description to remap.
+        parent_key (str): New parent_key to use.
+
+    Returns:
+        SourceKeyDescription: Description with new key.
+
+    """
+    info = deepcopy(info)
+
+    for value in info.values():
+        if value["source"] == "prediction":
+            value["key"] = parent_key + "." + value["key"]
+    return info
 
 
 def data_key(key: str) -> SourceKeyDescription:

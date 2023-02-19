@@ -9,6 +9,8 @@ from torch import nn
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.op.base.resnet import ResNet
 from vis4d.op.box.box2d import apply_mask, scale_and_clip_boxes
+from vis4d.op.box.encoder.base import BoxEncoder2D
+from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     FRCNNOut,
@@ -61,7 +63,14 @@ REV_KEYS = [
 class MaskRCNN(nn.Module):
     """Mask RCNN model."""
 
-    def __init__(self, num_classes: int, weights: None | str = None) -> None:
+    def __init__(
+        self,
+        num_classes: int,
+        weights: None | str = None,
+        anchor_generator: AnchorGenerator = get_default_anchor_generator(),
+        rpn_box_encoder: BoxEncoder2D = get_default_rpn_box_encoder(),
+        rcnn_box_encoder: BoxEncoder2D = get_default_rcnn_box_encoder(),
+    ) -> None:
         """Creates an instance of the class.
 
         Args:
@@ -71,19 +80,16 @@ class MaskRCNN(nn.Module):
                 Defaults to None.
         """
         super().__init__()
-        anchor_gen = get_default_anchor_generator()
-        rpn_bbox_encoder = get_default_rpn_box_encoder()
-        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
         self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
         self.faster_rcnn_heads = FasterRCNNHead(
             num_classes=num_classes,
-            anchor_generator=anchor_gen,
-            rpn_box_encoder=rpn_bbox_encoder,
-            rcnn_box_encoder=rcnn_bbox_encoder,
+            anchor_generator=anchor_generator,
+            rpn_box_encoder=rpn_box_encoder,
+            rcnn_box_encoder=rcnn_box_encoder,
         )
         self.mask_head = MaskRCNNHead()
-        self.transform_outs = RoI2Det(rcnn_bbox_encoder)
+        self.transform_outs = RoI2Det(rcnn_box_encoder)
         self.det2mask = Det2Mask()
 
         if weights == "mmdet":
@@ -99,9 +105,9 @@ class MaskRCNN(nn.Module):
     def forward(
         self,
         images: torch.Tensor,
-        images_hw: list[tuple[int, int]],
-        target_boxes: None | list[torch.Tensor] = None,
-        target_classes: None | list[torch.Tensor] = None,
+        input_hw: list[tuple[int, int]],
+        boxes2d: None | list[torch.Tensor] = None,
+        boxes2d_classes: None | list[torch.Tensor] = None,
         original_hw: None | list[tuple[int, int]] = None,
     ) -> MaskRCNNOut | MaskDetectionOut:
         """Forward pass.
@@ -122,12 +128,12 @@ class MaskRCNN(nn.Module):
                 outputs (for training) or predicted outputs (for testing).
         """
         if self.training:
-            assert target_boxes is not None and target_classes is not None
+            assert boxes2d is not None and boxes2d_classes is not None
             return self.forward_train(
-                images, images_hw, target_boxes, target_classes
+                images, input_hw, boxes2d, boxes2d_classes
             )
         assert original_hw is not None
-        return self.forward_test(images, images_hw, original_hw)
+        return self.forward_test(images, input_hw, original_hw)
 
     def forward_train(
         self,

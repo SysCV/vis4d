@@ -31,3 +31,11 @@ CONN_ROI_LOSS_2D = {
     "target_classes": pred_key("sampled_targets.classes"),
     "pred_sampled_proposals": pred_key("sampled_proposals"),
 }
+
+CONN_MASK_HEAD_LOSS_2D = {
+    "mask_preds": pred_key("masks.mask_pred"),
+    "target_masks": data_key("masks"),
+    "sampled_target_indices": pred_key("boxes.sampled_target_indices"),
+    "sampled_targets": pred_key("boxes.sampled_targets"),
+    "sampled_proposals": pred_key("boxes.sampled_proposals"),
+}
