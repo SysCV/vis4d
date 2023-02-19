@@ -38,7 +38,6 @@ class CallbackWrapper(pl.Callback):
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         """Wait for on_test_epoch_end PL hook to call 'evaluate'."""
-
         if self.callback.run_on_epoch(pl_module.current_epoch):
             self.callback.on_test_epoch_end()
 
@@ -90,12 +89,7 @@ class CallbackWrapper(pl.Callback):
     def on_train_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
-        """Hook to run at the end of a training epoch.
-
-        Args:
-            model (nn.Module): Model that is being trained.
-            epoch (int): Current training epoch.
-        """
+        """Hook to run at the end of a training epoch."""
         if self.callback.run_on_epoch(pl_module.current_epoch):
             self.callback.on_train_epoch_end(
                 get_model(pl_module), pl_module.current_epoch

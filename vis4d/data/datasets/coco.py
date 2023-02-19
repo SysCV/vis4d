@@ -151,7 +151,6 @@ class COCO(Dataset, MultitaskMixin, CacheMappingMixin):
             CommonKeys.boxes2d,
             CommonKeys.boxes2d_classes,
             CommonKeys.masks,
-            CommonKeys.segmentation_masks,
         ),
         split: str = "train2017",
         remove_empty: bool = False,

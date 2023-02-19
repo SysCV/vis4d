@@ -88,6 +88,9 @@
 #     train_loader, test_loader, test_evals, test_metric = get_dataloaders(
 #         True, batch_size
 #     )
+from vis4d.model.detect.retinanet import RetinaNet
+
+RetinaNet()
 
 #     # model
 #     retinanet = RetinaNet(num_classes=80, weights=ckpt)

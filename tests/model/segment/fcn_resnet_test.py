@@ -106,11 +106,12 @@ class FCNResNetTest(unittest.TestCase):
                 # forward + backward + optimize
                 outputs = model(data[CommonKeys.images])
                 loss = loss_fn(outputs, data[CommonKeys.segmentation_masks])
-                loss.total_loss.backward()
+                total_loss = sum(loss.values())
+                total_loss.backward()
                 optimizer.step()
 
                 # print statistics
-                losses = {"loss": loss.total_loss}
+                losses = {"loss": total_loss}
                 for k, loss in losses.items():
                     if k in running_losses:
                         running_losses[k] += loss.item()

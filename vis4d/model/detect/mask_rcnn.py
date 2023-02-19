@@ -78,6 +78,12 @@ class MaskRCNN(nn.Module):
             weights (None | str, optional): Weights to load for model. If set
                 to "mmdet", will load MMDetection pre-trained weights.
                 Defaults to None.
+            anchor_generator (AnchorGenerator, optional): Anchor generator.
+                Defaults to get_default_anchor_generator().
+            rpn_box_encoder (BoxEncoder2D, optional): RPN box encoder.
+                Defaults to get_default_rpn_box_encoder().
+            rcnn_box_encoder (BoxEncoder2D, optional): RCNN box encoder.
+                Defaults to get_default_rcnn_box_encoder().
         """
         super().__init__()
         self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
@@ -114,10 +120,10 @@ class MaskRCNN(nn.Module):
 
         Args:
             images (torch.Tensor): Input images.
-            images_hw (list[tuple[int, int]]): Input image resolutions.
-            target_boxes (None | list[torch.Tensor], optional): Bounding box
+            input_hw (list[tuple[int, int]]): Input image resolutions.
+            boxes2d (None | list[torch.Tensor], optional): Bounding box
                 labels. Required for training. Defaults to None.
-            target_classes (None | list[torch.Tensor], optional): Class
+            boxes2d_classes (None | list[torch.Tensor], optional): Class
                 labels. Required for training. Defaults to None.
             original_hw (None | list[tuple[int, int]], optional): Original
                 image resolutions (before padding and resizing). Required for

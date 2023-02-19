@@ -60,20 +60,14 @@ def test_get_started() -> None:
     """Test get started notebooks."""
     ignores = (
         "/cells/*/metadata",
+        "/cells/1/outputs/",  # Suppress downloading checkpoint output
         "/metadata/widgets",
         "/cells/5/outputs/",  # Suppress downloading checkpoint output
         "/cells/*/execution_count",
         "/cells/*/outputs/*/data/image",
         "/metadata/language_info/version",
     )
-    replace = (
-        ("/cells/*/outputs", "\\[Open3D INFO\\] [^\\n]+ *\\n?", ""),
-        (
-            "/cells/*/outputs",
-            "Jupyter environment detected. Enabling Open3D WebVisualizer. *\\n?",  # pylint: disable=line-too-long
-            "",
-        ),
-    )
+    replace = (("/cells/*/outputs", "\\[Open3D INFO\\] [^\\n]+ *\\n?", ""),)
 
     fixture = (
         NBRegressionFixture(  # Higher timeout for downloading checkpoints

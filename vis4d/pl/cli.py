@@ -9,7 +9,7 @@ from typing import Any
 
 from absl import app, flags
 from ml_collections import ConfigDict
-from pytorch_lightning import Callback, Trainer
+from pytorch_lightning import Callback
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
 
 from vis4d.common.logging import rank_zero_info
@@ -29,7 +29,8 @@ _SHOW_CONFIG = flags.DEFINE_bool(
 )
 
 
-def get_default(config: ConfigDict, key: str, default) -> Any:
+def get_default(config: ConfigDict, key: str, default: Any) -> Any:  # type: ignore # pylint: disable=line-too-long
+    """Returns the value of a key in a config dict, or a default value."""
     return config[key] if key in config else default
 
 

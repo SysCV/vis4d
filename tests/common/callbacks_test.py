@@ -28,17 +28,18 @@ class TestCallbacks(unittest.TestCase):
             run_every_nth_epoch=1,
             num_epochs=5,
         )
-        clbk.on_train_batch_end()
+        clbk.on_train_batch_end(model=MockModel(0), inputs={})
         clbk.on_train_epoch_end(MockModel(0), 0)
         clbk.on_test_batch_end(
+            MockModel(0),
             {
                 "coco_image_id": [0],
                 "pred_boxes": [torch.zeros((0, 4))],
                 "pred_scores": [torch.zeros((0, 1))],
                 "pred_classes": [torch.zeros((0, 1))],
-            }
+            },
         )
-        clbk.on_test_epoch_end()
+        clbk.on_test_epoch_end(MockModel(0), 0)
 
     def test_visualizer_callback(self) -> None:
         """Test the visualizer callback."""
@@ -48,15 +49,16 @@ class TestCallbacks(unittest.TestCase):
             run_every_nth_epoch=1,
             num_epochs=5,
         )
-        clbk.on_train_batch_end()
+        clbk.on_train_batch_end(MockModel(0), inputs={})
         clbk.on_train_epoch_end(MockModel(0), 0)
         clbk.on_test_batch_end(
+            MockModel(0),
             {
                 "images": [torch.zeros((32, 32, 3))],
                 "boxes": [torch.zeros((0, 4))],
-            }
+            },
         )
-        clbk.on_test_epoch_end()
+        clbk.on_test_epoch_end(MockModel(0), 0)
 
     def test_checkpoint_callback(self) -> None:
         """Test the checkpoint callback."""
@@ -65,7 +67,7 @@ class TestCallbacks(unittest.TestCase):
             run_every_nth_epoch=1,
             num_epochs=5,
         )
-        clbk.on_train_batch_end()
+        clbk.on_train_batch_end(MockModel(0), {})
         clbk.on_train_epoch_end(MockModel(0), 0)
-        clbk.on_test_batch_end({})
-        clbk.on_test_epoch_end()
+        clbk.on_test_batch_end(MockModel(0), {})
+        clbk.on_test_epoch_end(MockModel(0), 0)
