@@ -29,6 +29,3 @@ def get_default_faster_rcnn_loss(
     return WeightedMultiLoss(
         [{"loss": rpn_loss, "weight": 1.0}, {"loss": rcnn_loss, "weight": 1.0}]
     )
-
-
-# print(get_default_faster_rcnn_loss())

@@ -107,7 +107,6 @@ class EvaluatorCallback(Callback):
 
     def on_test_batch_end(self, model: nn.Module, inputs: DictStrAny) -> None:
         """Hook to run at the end of a testing batch."""
-        # TODO, this should be all numpy.
         self.evaluator.process(**inputs)
 
     def evaluate(self) -> dict[str, MetricLogs]:
@@ -120,7 +119,7 @@ class EvaluatorCallback(Callback):
             rank_zero_info("Running evaluator %s...", str(self.evaluator))
 
         for metric in self.evaluator.metrics:
-            if self.output_d - +ir is not None:
+            if self.output_dir is not None:
                 output_dir = os.path.join(self.output_dir, metric)
                 os.makedirs(output_dir, exist_ok=True)
                 # self.evaluator.t(output_dir, metric)  # TODO implement save
@@ -129,7 +128,7 @@ class EvaluatorCallback(Callback):
             results[metric] = log_dict
             if not self.logging_disabled:
                 for k, v in log_dict.items():
-                    rank_zero_info(k, v)
+                    rank_zero_info("%s: %.3f", k, v)
                 rank_zero_info("Showing results for %s", metric)
                 rank_zero_info(log_str)
         return results

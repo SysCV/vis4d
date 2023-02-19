@@ -87,8 +87,15 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         l = self.loss(**self.data_connector.get_loss_input(out, batch))
         return {"loss": sum(l.values()), "predictions": out}
 
+    def validation_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument # type: ignore
+        self, batch: DictData, batch_idx: int, dataloader_idx: int = 0
+    ) -> Any:
+        """Perform a single validation step."""
+        out = self.model(**self.data_connector.get_test_input(batch))
+        return out
+
     def test_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument # type: ignore
-        self, batch: DictData, batch_idx: int
+        self, batch: DictData, batch_idx: int, dataloader_idx: int = 0
     ) -> Any:
         """Perform a single test step."""
         out = self.model(**self.data_connector.get_test_input(batch))

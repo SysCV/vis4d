@@ -174,9 +174,14 @@ class Trainer:
                 for opt in optimizers:
                     opt.step(step)
 
-                for _, callback in self.train_callbacks.items():
+                for k, callback in self.train_callbacks.items():
                     if callback.run_on_epoch(epoch):
-                        callback.on_train_batch_end()
+                        callback.on_train_batch_end(
+                            model,
+                            self.data_connector.get_callback_input(
+                                k, output, data_moved, "train"
+                            ),
+                        )
 
                 step += 1
 

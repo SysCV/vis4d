@@ -65,11 +65,12 @@ class Tester:
                 for k, callback in self.test_callbacks.items():
                     if dl_k == k and callback.run_on_epoch(epoch):
                         callback.on_test_batch_end(
+                            model,
                             self.data_connector.get_callback_input(
-                                k, output, data
-                            )
+                                k, output, data, "test"
+                            ),
                         )
 
         for k, callback in self.test_callbacks.items():
             if callback.run_on_epoch(epoch):
-                callback.on_test_epoch_end()
+                callback.on_test_epoch_end(model, epoch or 0)

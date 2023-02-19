@@ -139,6 +139,7 @@ def get_config() -> ConfigDict:
 
     config.model = class_config(
         FasterRCNN,
+        weights="mmdet",
         num_classes=params.num_classes,
         rpn_box_encoder=config.gen.rpn_box_encoder,
         rcnn_box_encoder=config.gen.rcnn_box_encoder,
@@ -209,8 +210,8 @@ def get_config() -> ConfigDict:
             test=CONN_BBOX_2D_TEST,
             loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
             callbacks={
-                "coco_eval": CONN_COCO_BBOX_EVAL,
-                "bbox_vis": CONN_BBOX_2D_VIS,
+                "coco_eval_test": CONN_COCO_BBOX_EVAL,
+                "bbox_vis_test": CONN_BBOX_2D_VIS,
             },
         ),
     )

@@ -170,7 +170,6 @@ def evaluate_sem_seg(
     for hist_, gt_id_set_ in hist_and_gt_id_sets:
         hist += hist_
         gt_id_set.update(gt_id_set_)
-    # print(gt_id_set)
 
     ious = per_class_iou(hist)
     accs = per_class_acc(hist)

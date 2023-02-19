@@ -42,13 +42,6 @@ class CallbackWrapper(pl.Callback):
         if self.callback.run_on_epoch(pl_module.current_epoch):
             self.callback.on_test_epoch_end()
 
-    def on_validation_epoch_end(
-        self, trainer: pl.Trainer, pl_module: pl.LightningModule
-    ) -> None:
-        """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
-        if self.callback.run_on_epoch(pl_module.current_epoch):
-            self.callback.on_test_epoch_end()
-
     def on_test_batch_end(  # type: ignore
         self,
         trainer: pl.Trainer,
@@ -63,8 +56,17 @@ class CallbackWrapper(pl.Callback):
             self.callback.on_test_batch_end(
                 model=get_model(pl_module),
                 inputs=self.data_connector.get_callback_input(
-                    self.callback_key, outputs, batch
+                    self.callback_key, outputs, batch, cb_type="test"
                 ),
+            )
+
+    def on_validation_epoch_end(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
+        if self.callback.run_on_epoch(pl_module.current_epoch):
+            self.callback.on_test_epoch_end(
+                get_model(pl_module), pl_module.current_epoch
             )
 
     def on_validation_batch_end(  # type: ignore
@@ -78,8 +80,11 @@ class CallbackWrapper(pl.Callback):
     ) -> None:
         """Wait for on_validation_batch_end PL hook to call 'process'."""
         if self.callback.run_on_epoch(pl_module.current_epoch):
-            self.callback.on_test_epoch_end(
-                get_model(pl_module), pl_module.current_epoch
+            self.callback.on_test_batch_end(
+                model=get_model(pl_module),
+                inputs=self.data_connector.get_callback_input(
+                    self.callback_key, outputs, batch, cb_type="test"
+                ),
             )
 
     def on_train_epoch_end(
@@ -110,6 +115,6 @@ class CallbackWrapper(pl.Callback):
             self.callback.on_train_batch_end(
                 model=get_model(pl_module),
                 inputs=self.data_connector.get_callback_input(
-                    self.callback_key, model_pred, batch
+                    self.callback_key, model_pred, batch, cb_type="train"
                 ),
             )

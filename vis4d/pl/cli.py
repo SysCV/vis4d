@@ -100,13 +100,14 @@ def main(  # type:ignore # pylint: disable=unused-argument
                 cfg.model, cfg.optimizers, cfg.loss, cfg.data_connector
             ),
             cfg.train_dl,
+            list(cfg.test_dl.values()),
         )
     elif _MODE.value == "test":
         trainer.test(
             TrainingModule(
                 cfg.model, cfg.optimizers, cfg.loss, cfg.data_connector
             ),
-            cfg.train_dl,
+            list(cfg.test_dl.values()),
         )
 
 

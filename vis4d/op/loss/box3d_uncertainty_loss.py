@@ -89,7 +89,6 @@ class Box3DUncertaintyLoss(Loss):
 
         # depth loss
         depth_mask = target[:, 2] > 0
-        print(depth_mask)
         loss_dep = smooth_l1_loss(
             pred[:, 2][depth_mask],
             target[:, 2][depth_mask],

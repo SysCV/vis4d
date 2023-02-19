@@ -174,7 +174,11 @@ class DataConnector:
         raise NotImplementedError()
 
     def get_callback_input(
-        self, mode: str, prediction: DictData, data: DictData
+        self,
+        mode: str,
+        prediction: DictData,
+        data: DictData,
+        cb_type: str = "",
     ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the callback.
 
@@ -185,6 +189,8 @@ class DataConnector:
                 contains all the model outputs.
             data (DictData): The datadict (e.g. from the dataloader) which
                 contains all data that was loaded.
+            cb_type (str): Current type of the trainer loop. This can be
+                'train', 'test' or 'val'.
 
         Returns:
             dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
@@ -348,7 +354,11 @@ class StaticDataConnector(DataConnector):
         )
 
     def get_callback_input(
-        self, mode: str, prediction: NamedTuple | DictData, data: DictData
+        self,
+        mode: str,
+        prediction: NamedTuple | DictData,
+        data: DictData,
+        cb_type: str = "",
     ) -> dict[str, Tensor | DictStrArrNested]:
         """Returns the kwargs that are passed to the callback.
 
@@ -359,13 +369,29 @@ class StaticDataConnector(DataConnector):
                 contains all the model outputs.
             data (DictData): The datadict (e.g. from the dataloader) which
                 contains all data that was loaded.
+            cb_type (str): Current type of the trainer loop. This can be
+                'train', 'test' or 'val'.
+
+        Raises:
+            ValueError: If the key could not be found in the data dict.
 
         Returns:
             dict[str, Tensor | DictStrArrayNested]: kwargs that are passed
                 onto the callback.
         """
-        if mode not in self.connections["callbacks"]:
-            return {}  # No inputs registered for this callback type
+        if f"{mode}_{cb_type}" in self.connections["callbacks"]:
+            mode = f"{mode}_{cb_type}"
 
-        clbk_dict = self.connections["callbacks"][mode]
-        return self._get_inputs_for_pred_and_data(clbk_dict, prediction, data)
+        if mode in self.connections["callbacks"]:
+            clbk_dict = self.connections["callbacks"][mode]
+        else:
+            return {}  # No inputs registered for this callback cb_type
+
+        try:
+            return self._get_inputs_for_pred_and_data(
+                clbk_dict, prediction, data
+            )
+        except ValueError as e:
+            raise ValueError(
+                f"Error while loading callback input for mode {mode}.", e
+            ) from e

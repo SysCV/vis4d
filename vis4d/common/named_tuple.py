@@ -39,19 +39,3 @@ def get_from_namedtuple(entry: NamedTuple, key: str) -> Any:  # type: ignore
         return getattr(entry, first_key)
 
     return get_from_namedtuple(getattr(entry, first_key), ".".join(keys[1:]))
-
-
-# print("hi")
-
-
-# class Test(NamedTuple):
-#     data: int
-
-
-# class Nested(NamedTuple):
-#     test: Test
-#     data: int
-
-
-# print(get_from_namedtuple(Nested(Test(10), 20), "test.data"))
-# print(get_from_namedtuple(Nested(Test(10), 20), "data"))
