@@ -68,7 +68,7 @@ def det_preprocessing(
             ),
             keep_ratio=True,
         ),
-        class_config("vis4d.data.transforms.resize.resize_masks"),
+        class_config("vis4d.data.transforms.resize.resize_boxes2d"),
         class_config(
             "vis4d.data.transforms.base.random_apply",
             transforms=augmentation_transforms,
