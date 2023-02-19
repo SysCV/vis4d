@@ -15,7 +15,7 @@ from ..common import ArgsType
 from ..common.time import Timer
 
 
-class DefaultProgressBar(pl.callbacks.ProgressBarBase):  # type: ignore
+class DefaultProgressBar(pl.callbacks.ProgressBarBase):
     """ProgressBar with separate printout per log step."""
 
     def __init__(self, refresh_rate: int = 50) -> None:
