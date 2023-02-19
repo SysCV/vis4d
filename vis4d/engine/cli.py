@@ -66,7 +66,6 @@ def _test(config: ConfigDict, rank: None | int = None) -> None:
 
 def _train(config: ConfigDict, rank: None | int = None) -> None:
     """Train the model."""
-
     cfg: ConfigDict = instantiate_classes(config)
 
     trainer = Trainer(
