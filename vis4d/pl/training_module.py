@@ -22,12 +22,12 @@ class TorchOptimizer(optim.Optimizer):
             optimizer: The vis4d optimizer to wrap.
             model: The model to optimize.
         """
-        self.optimizer = optimizer
-        self.optimizer.setup(model)
+        self.optim = optimizer
+        self.optim.setup(model)
         self._step = 0
         super().__init__(
-            params=self.optimizer.optimizer.param_groups,
-            defaults=self.optimizer.optimizer.defaults,
+            params=self.optim.optimizer.param_groups,
+            defaults=self.optim.optimizer.defaults,
         )
 
     def step(self, closure: Callable[[], float] | None = None) -> None:
@@ -36,12 +36,12 @@ class TorchOptimizer(optim.Optimizer):
         Args:
            closure: A closure that reevaluates the model and returns the loss.
         """
-        self.optimizer.step(self._step, closure)
+        self.optim.step(self._step, closure)
         self._step += 1
 
     def zero_grad(self) -> None:  # pylint: disable=arguments-differ
         """Clears the gradients of all optimized parameters."""
-        self.optimizer.zero_grad()
+        self.optim.zero_grad()
 
 
 class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
@@ -69,7 +69,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         """
         super().__init__()
         self.model = model
-        self.optimizers = optimizers
+        self.optims = optimizers
         self.loss = loss
         self.data_connector = data_connector
 
@@ -85,7 +85,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         """Perform a single training step."""
         out = self.model(**self.data_connector.get_train_input(batch))
         l = self.loss(**self.data_connector.get_loss_input(out, batch))
-        return sum(l.values())
+        return {"loss": sum(l.values()), "predictions": out}
 
     def test_step(  # pylint: disable=arguments-differ,line-too-long,unused-argument # type: ignore
         self, batch: DictData, batch_idx: int
@@ -96,4 +96,4 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
 
     def configure_optimizers(self) -> list[TorchOptimizer]:
         """Return the optimizer to use."""
-        return [TorchOptimizer(o, self.model) for o in self.optimizers]
+        return [TorchOptimizer(o, self.model) for o in self.optims]

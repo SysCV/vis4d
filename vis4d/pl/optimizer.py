@@ -23,22 +23,6 @@ from vis4d.data.typing import DictData
 
 from ..optim.warmup import BaseLRWarmup, LinearLRWarmup
 
-DEFAULT_OPTIM = {
-    "class_path": "torch.optim.SGD",
-    "init_args": {
-        "lr": 1.0e-3,
-        "momentum": 0.9,
-        "weight_decay": 0.0001,
-    },
-}
-
-
-def default_data_connector(
-    mode: str, data: DictData  # pylint: disable=unused-argument
-) -> DictStrAny:
-    """Default data connector forwards input with key data."""
-    return {"data": data}
-
 
 class DefaultOptimizer(
     pl.LightningModule
@@ -98,48 +82,6 @@ class DefaultOptimizer(
             scheduler = instantiate_class(optimizer, self.lr_scheduler_init)
             return [optimizer], [scheduler]
         return [optimizer]
-
-    @no_type_check
-    def optimizer_step(
-        self,
-        epoch: int,
-        batch_idx: int,
-        optimizer: Optimizer | pl.core.LightningOptimizer,
-        optimizer_idx: int = 0,
-        optimizer_closure: Callable[[], Any] | None = None,
-        on_tpu: bool = False,
-        using_lbfgs: bool = False,
-    ) -> None:
-        """Optimizer step plus learning rate warmup."""
-        base_lr = optimizer.defaults.get("lr", None)
-        if base_lr is None:
-            raise ValueError(
-                "Couldn't determine base LR from optimizer defaults: "
-                f"{optimizer.defaults}"
-            )
-
-        if self.trainer.global_step < self.lr_warmup.warmup_steps:
-            for pg in optimizer.param_groups:
-                pg["lr"] = self.lr_warmup(self.trainer.global_step, base_lr)
-        elif self.trainer.global_step == self.lr_warmup.warmup_steps:
-            for pg in optimizer.param_groups:
-                pg["lr"] = base_lr
-
-        # update params
-        optimizer.step(closure=optimizer_closure)
-
-        # if lr_scheduler is step-based, we need to call .step(), PL calls
-        # .step() only after each epoch.
-        if (
-            self.lr_scheduler_init is not None
-            and self.lr_scheduler_init.get("mode", "epoch") == "step"
-        ):
-            lr_schedulers = self.lr_schedulers()
-            if isinstance(lr_schedulers, Iterable):  # pragma: no cover
-                for scheduler in lr_schedulers:
-                    scheduler.step()
-            else:
-                lr_schedulers.step()
 
     def _log_metric(
         self, key: str, value: torch.Tensor, prefix: str = ""
