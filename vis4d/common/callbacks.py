@@ -46,16 +46,17 @@ class Callback:
             epoch (int): Current training epoch.
         """
 
-    def on_train_batch_end(self) -> None:
+    def on_train_batch_end(self, model: nn.Module, inputs: DictStrAny) -> None:
         """Hook to run at the end of a training batch."""
 
-    def on_test_epoch_end(self) -> None:
+    def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a testing epoch."""
 
-    def on_test_batch_end(self, inputs: DictStrAny) -> None:
+    def on_test_batch_end(self, model: nn.Module, inputs: DictStrAny) -> None:
         """Hook to run at the end of a testing batch.
 
         Args:
+            model: Model that is being trained.
             inputs (ArgsType): Inputs for callback.
         """
 
@@ -97,14 +98,14 @@ class EvaluatorCallback(Callback):
         if self.output_dir is not None:
             os.makedirs(self.output_dir, exist_ok=True)
 
-    def on_test_epoch_end(self) -> None:
+    def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a testing epoch."""
         self.evaluator.gather(all_gather_object_cpu)
         if get_rank() == 0:
             self.evaluate()
         self.evaluator.reset()
 
-    def on_test_batch_end(self, inputs: DictStrAny) -> None:
+    def on_test_batch_end(self, model: nn.Module, inputs: DictStrAny) -> None:
         """Hook to run at the end of a testing batch."""
         # TODO, this should be all numpy.
         self.evaluator.process(**inputs)
@@ -119,7 +120,7 @@ class EvaluatorCallback(Callback):
             rank_zero_info("Running evaluator %s...", str(self.evaluator))
 
         for metric in self.evaluator.metrics:
-            if self.output_dir is not None:
+            if self.output_d - +ir is not None:
                 output_dir = os.path.join(self.output_dir, metric)
                 os.makedirs(output_dir, exist_ok=True)
                 # self.evaluator.t(output_dir, metric)  # TODO implement save
@@ -169,14 +170,14 @@ class VisualizerCallback(Callback):
         if self.output_dir is not None:
             os.makedirs(self.output_dir, exist_ok=True)
 
-    def on_test_epoch_end(self) -> None:
+    def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a testing epoch."""
         if get_rank() == 0:
             if self.output_dir is not None:
                 self.visualizer.save_to_disk(self.output_dir)
         self.visualizer.reset()
 
-    def on_test_batch_end(self, inputs: DictStrAny) -> None:
+    def on_test_batch_end(self, model: nn.Module, inputs: DictStrAny) -> None:
         """Hook to run at the end of a testing batch."""
         self.visualizer.process(**inputs)
 
