@@ -82,7 +82,7 @@ class CacheMappingMixin:
         """Load possibly cached mapping via generate_map_func."""
         if use_cache:
             app_dir = os.getenv(
-                'VIS4D_CACHE_DIR', appdirs.user_cache_dir(appname="vis4d")
+                "VIS4D_CACHE_DIR", appdirs.user_cache_dir(appname="vis4d")
             )
             cache_dir = os.path.join(
                 app_dir,
