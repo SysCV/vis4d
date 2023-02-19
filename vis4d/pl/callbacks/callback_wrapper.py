@@ -39,7 +39,9 @@ class CallbackWrapper(pl.Callback):
     ) -> None:
         """Wait for on_test_epoch_end PL hook to call 'evaluate'."""
         if self.callback.run_on_epoch(pl_module.current_epoch):
-            self.callback.on_test_epoch_end()
+            self.callback.on_test_epoch_end(
+                get_model(pl_module), pl_module.current_epoch
+            )
 
     def on_test_batch_end(  # type: ignore
         self,
