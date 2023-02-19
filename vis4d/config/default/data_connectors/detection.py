@@ -2,6 +2,17 @@
 from vis4d.data.const import CommonKeys as CK
 from vis4d.engine.connectors import data_key, pred_key
 
+CONN_IMAGES_TRAIN = {
+    CK.images: CK.images,
+    CK.input_hw: CK.input_hw,
+}
+
+CONN_IMAGES_TEST = {
+    CK.images: CK.images,
+    CK.input_hw: CK.input_hw,
+    "original_hw": "original_hw",
+}
+
 CONN_BBOX_2D_TRAIN = {
     CK.images: CK.images,
     CK.input_hw: CK.input_hw,
@@ -14,6 +25,13 @@ CONN_BBOX_2D_TEST = {
     "original_hw": "original_hw",
 }
 
+
+CONN_BOX_LOSS_2D = {
+    "cls_outs": pred_key("cls_score"),
+    "reg_outs": pred_key("bbox_pred"),
+    "target_boxes": data_key("boxes2d"),
+    "images_hw": data_key("input_hw"),
+}
 
 CONN_RPN_LOSS_2D = {
     "cls_outs": pred_key("rpn.cls"),

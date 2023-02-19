@@ -76,14 +76,14 @@ class RetinaNet(nn.Module):
     def forward(
         self,
         images: torch.Tensor,
-        images_hw: None | list[tuple[int, int]] = None,
+        input_hw: None | list[tuple[int, int]] = None,
         original_hw: None | list[tuple[int, int]] = None,
     ) -> RetinaNetOut | ModelOutput:
         """Forward pass.
 
         Args:
             images (torch.Tensor): Input images.
-            images_hw (None | list[tuple[int, int]], optional): Input image
+            input_hw (None | list[tuple[int, int]], optional): Input image
                 resolutions. Defaults to None.
             original_hw (None | list[tuple[int, int]], optional): Original
                 image resolutions (before padding and resizing). Required for
@@ -95,8 +95,8 @@ class RetinaNet(nn.Module):
         """
         if self.training:
             return self.forward_train(images)
-        assert images_hw is not None and original_hw is not None
-        return self.forward_test(images, images_hw, original_hw)
+        assert input_hw is not None and original_hw is not None
+        return self.forward_test(images, input_hw, original_hw)
 
     def forward_train(self, images: torch.Tensor) -> RetinaNetOut:
         """Forward training stage.
