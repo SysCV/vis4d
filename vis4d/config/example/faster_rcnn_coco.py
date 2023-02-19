@@ -27,6 +27,7 @@ from vis4d.config.default.loss.faster_rcnn_loss import (
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
+from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
@@ -97,7 +98,10 @@ def get_config() -> ConfigDict:
 
     # Training Datasets
     dataset_cfg_train = class_config(
-        COCO, data_root=config.dataset_root, split=config.train_split
+        COCO,
+        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes),
+        data_root=config.dataset_root,
+        split=config.train_split,
     )
     preproc = det_preprocessing(800, 1333, params.augment_proba)
     dataloader_train_cfg = default_image_dl(
@@ -108,6 +112,7 @@ def get_config() -> ConfigDict:
     # Test
     dataset_test_cfg = class_config(
         COCO,
+        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.test_split,
     )
