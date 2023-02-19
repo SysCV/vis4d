@@ -139,7 +139,7 @@ logging-format-style=old
 [MISCELLANEOUS]
 
 # List of note tags to take in consideration, separated by a comma.
-notes=FIXME,XXX # TODO, TODO REMOVED!
+notes=FIXME,XXX,TODO
 
 # Regular expression of note tags to take in consideration.
 #notes-rgx=
@@ -546,7 +546,7 @@ never-returning-functions=sys.exit,argparse.parse_error
 [STRING]
 
 # This flag controls whether inconsistent-quotes generates a warning when the
-# character used as a quote delimiter is used inconsistently wtithin a module.
+# character used as a quote delimiter is used inconsistently within a module.
 check-quote-consistency=no
 
 # This flag controls whether the implicit-str-concat should generate a warning
