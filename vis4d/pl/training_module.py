@@ -26,7 +26,9 @@ class TorchOptimizer(optim.Optimizer):
         assert self.optim.optimizer is not None
         self.optim.setup(model)
         self._step = 0
-        super().__init__(
+        # For some reason, mypy complains about the defuaults argument,
+        # but it is fine.
+        super().__init__(  # type: ignore[call-arg]
             params=self.optim.optimizer.param_groups,
             defaults=self.optim.optimizer.defaults,
         )

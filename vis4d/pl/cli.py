@@ -10,7 +10,9 @@ from typing import Any
 from absl import app, flags
 from ml_collections import ConfigDict
 from pytorch_lightning import Callback
-from pytorch_lightning.utilities.exceptions import MisconfigurationException
+from pytorch_lightning.utilities.exceptions import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
+    MisconfigurationException,
+)
 
 from vis4d.common.logging import rank_zero_info
 from vis4d.config.util import instantiate_classes, pprints_config
