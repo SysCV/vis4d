@@ -8,7 +8,7 @@ from torch import optim
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_file
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
     DataPipe,
@@ -63,7 +63,7 @@ class FCNResNetTest(unittest.TestCase):
         model = FCNResNet(base_model="resnet50", resize=(520, 520))
         dataset = COCO(
             get_test_file("coco_test"),
-            keys=(CommonKeys.images,),
+            keys_to_load=(Keys.images,),
             split="train",
         )
         test_loader = get_test_dataloader(dataset, 2)
@@ -76,7 +76,7 @@ class FCNResNetTest(unittest.TestCase):
 
         model.eval()
         with torch.no_grad():
-            outs = model(batch[CommonKeys.images])
+            outs = model(batch[Keys.images])
 
         pred = outs.pred.argmax(1)
         testcase_gt = torch.load(get_test_file("fcn_resnet.pt"))
@@ -104,8 +104,8 @@ class FCNResNetTest(unittest.TestCase):
                 optimizer.zero_grad()
 
                 # forward + backward + optimize
-                outputs = model(data[CommonKeys.images])
-                loss = loss_fn(outputs, data[CommonKeys.segmentation_masks])
+                outputs = model(data[Keys.images])
+                loss = loss_fn(outputs, data[Keys.segmentation_masks])
                 total_loss = sum(loss.values())
                 total_loss.backward()
                 optimizer.step()

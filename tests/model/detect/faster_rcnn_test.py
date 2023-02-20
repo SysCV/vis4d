@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from tests.util import get_test_data, get_test_file
 from vis4d.config.example.faster_rcnn_coco import get_config
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
     DataPipe,
@@ -75,14 +75,14 @@ class FasterRCNNTest(unittest.TestCase):
         """
         dataset = COCO(
             get_test_data("coco_test"),
-            keys=(CommonKeys.images,),
+            keys_to_load=(Keys.images,),
             split="train",
         )
         test_loader = get_test_dataloader(dataset, 2, (512, 512))
         batch = next(iter(test_loader))
         inputs, images_hw = (
-            batch[CommonKeys.images],
-            batch[CommonKeys.input_hw],
+            batch[Keys.images],
+            batch[Keys.input_hw],
         )
 
         faster_rcnn = FasterRCNN(num_classes=80, weights="mmdet")

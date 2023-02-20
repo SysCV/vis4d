@@ -50,9 +50,8 @@ def im_decode(
             else:
                 # convert grayscale image to RGB
                 pil_img = pil_img.convert("RGB")
-        else:  # pragma: no cover
-            if mode == "L":
-                raise ValueError("Cannot convert colorful image to grayscale!")
+        elif mode == "L":  # pragma: no cover
+            raise ValueError("Cannot convert colorful image to grayscale!")
         if mode == "BGR":  # pragma: no cover
             img = np.array(pil_img)[..., [2, 1, 0]]
         elif mode == "RGB":

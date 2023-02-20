@@ -5,7 +5,7 @@ import torch
 from torch import optim
 
 from tests.util import get_test_data, get_test_file
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.datasets import COCO
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.model.detect.retinanet import REV_KEYS, RetinaNet, RetinaNetLoss
@@ -24,14 +24,14 @@ class RetinaNetTest(unittest.TestCase):
         """
         dataset = COCO(
             get_test_data("coco_test"),
-            keys=(CommonKeys.images,),
+            keys_to_load=(Keys.images,),
             split="train",
         )
         test_loader = get_test_dataloader(dataset, 2, (512, 512))
         batch = next(iter(test_loader))
         inputs, images_hw = (
-            batch[CommonKeys.images],
-            batch[CommonKeys.input_hw],
+            batch[Keys.images],
+            batch[Keys.input_hw],
         )
 
         weights = (
@@ -76,10 +76,10 @@ class RetinaNetTest(unittest.TestCase):
         for epoch in range(2):
             for i, data in enumerate(train_loader):
                 inputs, images_hw, gt_boxes, gt_class_ids = (
-                    data[CommonKeys.images],
-                    data[CommonKeys.input_hw],
-                    data[CommonKeys.boxes2d],
-                    data[CommonKeys.boxes2d_classes],
+                    data[Keys.images],
+                    data[Keys.input_hw],
+                    data[Keys.boxes2d],
+                    data[Keys.boxes2d_classes],
                 )
 
                 # zero the parameter gradients

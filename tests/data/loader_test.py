@@ -6,7 +6,7 @@ from __future__ import annotations
 import torch
 
 from tests.util import get_test_data
-from vis4d.data.const import CommonKeys
+from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.datasets.coco import COCO
 from vis4d.data.datasets.s3dis import S3DIS
 from vis4d.data.loader import (
@@ -41,9 +41,9 @@ def test_train_loader() -> None:
     )
 
     for sample in train_loader:
-        assert isinstance(sample[CommonKeys.images], torch.Tensor)
-        assert batch_size == sample[CommonKeys.images].size(0)
-        assert batch_size == len(sample[CommonKeys.boxes2d])
+        assert isinstance(sample[Keys.images], torch.Tensor)
+        assert batch_size == sample[Keys.images].size(0)
+        assert batch_size == len(sample[Keys.boxes2d])
         break
 
 
@@ -64,9 +64,9 @@ def test_inference_loader() -> None:
     )
 
     for sample in test_loaders[0]:
-        assert isinstance(sample[CommonKeys.images], torch.Tensor)
-        assert sample[CommonKeys.images].size(0) == 1
-        assert len(sample[CommonKeys.boxes2d]) == 1
+        assert isinstance(sample[Keys.images], torch.Tensor)
+        assert sample[Keys.images].size(0) == 1
+        assert len(sample[Keys.boxes2d]) == 1
         break
 
 
@@ -91,8 +91,8 @@ def test_segment_train_loader() -> None:
     train_loader = build_train_dataloader(datapipe, samples_per_gpu=batch_size)
 
     for sample in train_loader:
-        images = sample[CommonKeys.images]
-        segmentation_masks = sample[CommonKeys.segmentation_masks]
+        images = sample[Keys.images]
+        segmentation_masks = sample[Keys.segmentation_masks]
 
         assert isinstance(images, torch.Tensor)
         assert isinstance(segmentation_masks, torch.Tensor)
@@ -120,8 +120,8 @@ def test_segment_inference_loader() -> None:
     test_loader = build_inference_dataloaders(datapipe)
 
     for sample in test_loader[0]:
-        images = sample[CommonKeys.images]
-        segmentation_masks = sample[CommonKeys.segmentation_masks]
+        images = sample[Keys.images]
+        segmentation_masks = sample[Keys.segmentation_masks]
 
         assert isinstance(images, torch.Tensor)
         assert isinstance(segmentation_masks, torch.Tensor)
@@ -145,10 +145,10 @@ def point_collate(batch: list[DictData]) -> DictData:
     data = {}
     for key in batch[0]:
         if key in (
-            CommonKeys.points3d,
-            CommonKeys.colors3d,
-            CommonKeys.instances3d,
-            CommonKeys.semantics3d,
+            Keys.points3d,
+            Keys.colors3d,
+            Keys.instances3d,
+            Keys.semantics3d,
         ):
             data[key] = torch.stack([b[key] for b in batch], 0)
         else:
@@ -162,10 +162,10 @@ def test_train_loader_3d() -> None:
 
     batch_size = 2
     keys = (
-        CommonKeys.points3d,
-        CommonKeys.colors3d,
-        CommonKeys.instances3d,
-        CommonKeys.semantics3d,
+        Keys.points3d,
+        Keys.colors3d,
+        Keys.instances3d,
+        Keys.semantics3d,
     )
     preprocess_fn = compose(
         [sample_points_random(in_keys=keys, out_keys=keys, num_pts=1024)]
@@ -177,13 +177,13 @@ def test_train_loader_3d() -> None:
     )
 
     for sample in train_loader:
-        assert isinstance(sample[CommonKeys.colors3d], torch.Tensor)
-        assert isinstance(sample[CommonKeys.points3d], torch.Tensor)
-        assert isinstance(sample[CommonKeys.semantics3d], torch.Tensor)
-        assert isinstance(sample[CommonKeys.instances3d], torch.Tensor)
-        assert batch_size == sample[CommonKeys.colors3d].size(0)
-        assert batch_size == sample[CommonKeys.points3d].size(0)
-        assert batch_size == sample[CommonKeys.semantics3d].size(0)
+        assert isinstance(sample[Keys.colors3d], torch.Tensor)
+        assert isinstance(sample[Keys.points3d], torch.Tensor)
+        assert isinstance(sample[Keys.semantics3d], torch.Tensor)
+        assert isinstance(sample[Keys.instances3d], torch.Tensor)
+        assert batch_size == sample[Keys.colors3d].size(0)
+        assert batch_size == sample[Keys.points3d].size(0)
+        assert batch_size == sample[Keys.semantics3d].size(0)
         break
 
 
@@ -191,10 +191,10 @@ def test_train_loader_3d_batched() -> None:
     """Test the data loading pipeline for 3D Data with full scene sampling."""
     s3dis = S3DIS(data_root=get_test_data("s3d_test"))
     keys = (
-        CommonKeys.points3d,
-        CommonKeys.colors3d,
-        CommonKeys.instances3d,
-        CommonKeys.semantics3d,
+        Keys.points3d,
+        Keys.colors3d,
+        Keys.instances3d,
+        Keys.semantics3d,
     )
     batch_size = 2
     preprocess_fn = compose(
@@ -213,13 +213,13 @@ def test_train_loader_3d_batched() -> None:
     )
 
     for sample in inference_loader[0]:
-        assert isinstance(sample[CommonKeys.colors3d], torch.Tensor)
-        assert isinstance(sample[CommonKeys.points3d], torch.Tensor)
-        assert isinstance(sample[CommonKeys.semantics3d], torch.Tensor)
-        assert isinstance(sample[CommonKeys.instances3d], torch.Tensor)
+        assert isinstance(sample[Keys.colors3d], torch.Tensor)
+        assert isinstance(sample[Keys.points3d], torch.Tensor)
+        assert isinstance(sample[Keys.semantics3d], torch.Tensor)
+        assert isinstance(sample[Keys.instances3d], torch.Tensor)
 
-        assert batch_size == sample[CommonKeys.colors3d].size(0)
-        assert batch_size == sample[CommonKeys.points3d].size(0)
-        assert batch_size == sample[CommonKeys.semantics3d].size(0)
-        assert batch_size == sample[CommonKeys.instances3d].size(0)
+        assert batch_size == sample[Keys.colors3d].size(0)
+        assert batch_size == sample[Keys.points3d].size(0)
+        assert batch_size == sample[Keys.semantics3d].size(0)
+        assert batch_size == sample[Keys.instances3d].size(0)
         break
