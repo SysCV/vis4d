@@ -5,8 +5,8 @@ import torch
 
 from tests.util import get_test_data
 from vis4d.data.const import CommonKeys as Keys
-from vis4d.data.datasets.scalabel import Scalabel
 from vis4d.data.datasets.bdd100k import BDD100K
+from vis4d.data.datasets.scalabel import Scalabel
 
 
 def test_len_getitem():

@@ -31,8 +31,8 @@ if SCALABEL_AVAILABLE:
     from scalabel.label.io import load, load_label_config
     from scalabel.label.transforms import (
         box2d_to_xyxy,
-        rle_to_mask,
         poly2ds_to_mask,
+        rle_to_mask,
     )
     from scalabel.label.typing import Config
     from scalabel.label.typing import Dataset as ScalabelData
@@ -505,7 +505,7 @@ def instance_masks_from_scalabel(
     Args:
         labels (list[Label]): list of scalabel labels.
         class_to_idx (dict[str, int]): mapping from class name to index.
-        input_hw (tuple[int, int], optional): image size. Defaults to None.
+        image_size (ImageSize, optional): image size. Defaults to None.
         bg_as_class (bool, optional): whether to include background as a class.
             Defaults to False.
 
