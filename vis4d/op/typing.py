@@ -11,3 +11,11 @@ class Proposals(NamedTuple):
 
     boxes: list[Tensor]
     scores: list[Tensor]
+
+
+class Targets(NamedTuple):
+    """Output structure for targets."""
+
+    boxes: list[Tensor]
+    classes: list[Tensor]
+    labels: list[Tensor]

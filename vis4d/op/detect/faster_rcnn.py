@@ -15,18 +15,10 @@ from vis4d.op.box.samplers import (
     match_and_sample_proposals,
 )
 
-from ..typing import Proposals
+from ..typing import Proposals, Targets
 from .anchor_generator import AnchorGenerator
 from .rcnn import RCNNHead, RCNNOut
 from .rpn import RPN2RoI, RPNHead, RPNOut
-
-
-class Targets(NamedTuple):
-    """Output structure for targets."""
-
-    boxes: list[torch.Tensor]
-    classes: list[torch.Tensor]
-    labels: list[torch.Tensor]
 
 
 class FRCNNOut(NamedTuple):
@@ -143,7 +135,7 @@ class FasterRCNNHead(nn.Module):
         self.rpn2roi = RPN2RoI(self.anchor_generator, self.rpn_box_encoder)
         self.roi_head = RCNNHead(num_classes=num_classes)
 
-    @torch.no_grad()  # type: ignore
+    @torch.no_grad()
     def _sample_proposals(
         self,
         proposal_boxes: list[torch.Tensor],

@@ -19,7 +19,7 @@ app/dist/
 /data
 
 #python
-.pyc
+*.pyc
 __pycache__/
 
 # pytype
@@ -65,7 +65,7 @@ dist/
 scalabel.egg-info
 
 # coverage
-.coverage
+.coverage*
 
 # package default workspace
 vis4d-workspace
@@ -78,3 +78,4 @@ log/
 /*.sh
 docs/source/api/*
 docs/source/tutorials/.ipynb_checkpoints/*
+wandb/

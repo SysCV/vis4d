@@ -105,7 +105,7 @@ class PointCloudVisualizer(Visualizer):
             points_xyz, colors=colors, classes=semantics, instances=instances
         )
 
-    def process(  # type: ignore # pylint: disable=arguments-renamed,arguments-differ,line-too-long
+    def process(  # pylint: disable=arguments-renamed,arguments-differ,line-too-long
         self,
         points_xyz: NDArrayF64,
         semantics: NDArrayI64 | None = None,

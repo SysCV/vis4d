@@ -56,7 +56,7 @@ class QDTrackTest(unittest.TestCase):
             tracks = qdtrack(  # pylint: disable=unused-variable
                 images, inputs_hw, frame_ids
             )
-        # FIXME
+        # TODO: Fix test
         # testcase_gt = torch.load(get_test_file("qdtrack.pt"))
         # for pred, expected in zip(tracks, testcase_gt):
         #     for pred_entry, expected_entry in zip(pred, expected):
@@ -67,11 +67,11 @@ class QDTrackTest(unittest.TestCase):
         #             .item()
         #         )
 
-    # def test_train(self): #FIXME
+    # def test_train(self): # TODO: Fix test
     #     """Training test."""
     #     pass
 
-    # def test_torchscript(self):  #FIXME
+    # def test_torchscript(self): # TODO: Fix test
     #     """Test torchscipt export."""
     #     sample_images = torch.rand((2, 3, 512, 512))
     #     qdtrack = FasterRCNNQDTrack(num_classes=8)

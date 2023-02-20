@@ -19,7 +19,7 @@ def convert_to_seg_masks():
         cats = torch.as_tensor(classes, dtype=masks.dtype)
         target, _ = (masks * cats[:, None, None]).max(dim=0)
         target[masks.sum(0) > 1] = 255  # discard overlapping instances
-        return target
+        return target.unsqueeze(0)
 
     return _convert
 

@@ -153,8 +153,11 @@ class CacheMappingMixin:
     ) -> list[DictStrAny]:
         """Load possibly cached mapping via generate_map_func."""
         if use_cache:
+            app_dir = os.getenv(
+                "VIS4D_CACHE_DIR", appdirs.user_cache_dir(appname="vis4d")
+            )
             cache_dir = os.path.join(
-                appdirs.user_cache_dir(appname="vis4d"),
+                app_dir,
                 "data_mapping",
                 self.__class__.__name__,
             )

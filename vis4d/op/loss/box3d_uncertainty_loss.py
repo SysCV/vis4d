@@ -58,13 +58,13 @@ class Box3DUncertaintyLoss(Loss):
             loss_ctr3d = loss_dep3d = loss_dim3d = loss_rot3d = loss_conf3d = (
                 pred.sum() * 0
             )
-            result_dict = dict(
-                loss_ctr3d=loss_ctr3d,
-                loss_dep3d=loss_dep3d,
-                loss_dim3d=loss_dim3d,
-                loss_rot3d=loss_rot3d,
-                loss_conf3d=loss_conf3d,
-            )
+            result_dict = {
+                "loss_ctr3d": loss_ctr3d,
+                "loss_dep3d": loss_dep3d,
+                "loss_dim3d": loss_dim3d,
+                "loss_rot3d": loss_rot3d,
+                "loss_conf3d": loss_conf3d,
+            }
 
             return result_dict
 
@@ -89,7 +89,6 @@ class Box3DUncertaintyLoss(Loss):
 
         # depth loss
         depth_mask = target[:, 2] > 0
-        print(depth_mask)
         loss_dep = smooth_l1_loss(
             pred[:, 2][depth_mask],
             target[:, 2][depth_mask],
@@ -123,10 +122,10 @@ class Box3DUncertaintyLoss(Loss):
             beta=1 / 9,
         )
 
-        return dict(
-            loss_ctr3d=self.loss_weights[0] * loss_cen,
-            loss_dep3d=self.loss_weights[1] * loss_dep,
-            loss_dim3d=self.loss_weights[2] * loss_dim,
-            loss_rot3d=self.loss_weights[3] * loss_rot,
-            loss_unc3d=self.loss_weights[4] * loss_unc3d,
-        )
+        return {
+            "loss_ctr3d": self.loss_weights[0] * loss_cen,
+            "loss_dep3d": self.loss_weights[1] * loss_dep,
+            "loss_dim3d": self.loss_weights[2] * loss_dim,
+            "loss_rot3d": self.loss_weights[3] * loss_rot,
+            "loss_unc3d": self.loss_weights[4] * loss_unc3d,
+        }

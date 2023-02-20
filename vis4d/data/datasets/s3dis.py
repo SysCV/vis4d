@@ -185,10 +185,12 @@ class S3DIS(Dataset, CacheMappingMixin):
                 ):
                     instance_id = os.path.basename(anns.replace(".txt", ""))
                     sem_name = instance_id.split("_")[0]
-                    room_data[instance_id] = dict(
-                        class_label=S3DIS.CLASS_NAME_TO_IDX.get(sem_name, 12),
-                        path=anns,
-                    )
+                    room_data[instance_id] = {
+                        "class_label": S3DIS.CLASS_NAME_TO_IDX.get(
+                            sem_name, 12
+                        ),
+                        "path": anns,
+                    }
                 data.append(room_data)
 
         return data
