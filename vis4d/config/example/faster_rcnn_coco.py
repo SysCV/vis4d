@@ -99,7 +99,7 @@ def get_config() -> ConfigDict:
     # Training Datasets
     dataset_cfg_train = class_config(
         COCO,
-        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes),
+        keys_to_load=(CK.images, CK.boxes2d, CK.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.train_split,
     )
@@ -112,7 +112,7 @@ def get_config() -> ConfigDict:
     # Test
     dataset_test_cfg = class_config(
         COCO,
-        keys=(CK.images, CK.boxes2d, CK.boxes2d_classes),
+        keys_to_load=(CK.images, CK.boxes2d, CK.boxes2d_classes),
         data_root=config.dataset_root,
         split=config.test_split,
     )

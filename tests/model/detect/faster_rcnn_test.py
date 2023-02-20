@@ -75,7 +75,7 @@ class FasterRCNNTest(unittest.TestCase):
         """
         dataset = COCO(
             get_test_data("coco_test"),
-            keys_to_load=(Keys.images,),
+            keys_to_load=(Keys.images, Keys.boxes2d, Keys.boxes2d_classes),
             split="train",
         )
         test_loader = get_test_dataloader(dataset, 2, (512, 512))

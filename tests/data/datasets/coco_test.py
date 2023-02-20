@@ -2,13 +2,23 @@
 import unittest
 
 from tests.util import get_test_data
+from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.datasets.coco import COCO
 
 
 class COCOTest(unittest.TestCase):
     """Test coco dataloading."""
 
-    coco = COCO(data_root=get_test_data("coco_test"), split="train")
+    coco = COCO(
+        data_root=get_test_data("coco_test"),
+        split="train",
+        keys_to_load=(
+            Keys.images,
+            Keys.boxes2d,
+            Keys.boxes2d_classes,
+            Keys.masks,
+        ),
+    )
 
     def test_len(self) -> None:
         """Test if len of dataset correct."""

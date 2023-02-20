@@ -149,7 +149,12 @@ class COCO(Dataset, CacheMappingMixin):
     def __init__(
         self,
         data_root: str,
-        keys_to_load: Sequence[str] = (Keys.images, Keys.boxes2d),
+        keys_to_load: Sequence[str] = (
+            Keys.images,
+            Keys.boxes2d,
+            Keys.boxes2d_classes,
+            Keys.masks,
+        ),
         split: str = "train2017",
         remove_empty: bool = False,
         minimum_box_area: float = 0,

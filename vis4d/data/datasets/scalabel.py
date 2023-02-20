@@ -13,7 +13,7 @@ from torch import Tensor
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.common.typing import DictStrAny
+from vis4d.common.typing import DictStrAny, NDArrayUI8
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.datasets.util import CacheMappingMixin, DatasetFromList
@@ -29,7 +29,11 @@ from .util import im_decode, ply_decode
 
 if SCALABEL_AVAILABLE:
     from scalabel.label.io import load, load_label_config
-    from scalabel.label.transforms import box2d_to_xyxy
+    from scalabel.label.transforms import (
+        box2d_to_xyxy,
+        rle_to_mask,
+        poly2ds_to_mask,
+    )
     from scalabel.label.typing import Config
     from scalabel.label.typing import Dataset as ScalabelData
     from scalabel.label.typing import (
@@ -271,16 +275,19 @@ class Scalabel(Dataset, CacheMappingMixin):
         data: DictData = {}
         if frame.url is not None and Keys.images in self.keys_to_load:
             image = load_image(frame.url, self.data_backend)
+            input_hw = (image.shape[2], image.shape[3])
             data[Keys.images] = image
-            data[Keys.original_hw] = (image.shape[2], image.shape[3])
-            data[Keys.input_hw] = (image.shape[2], image.shape[3])
+            data[Keys.original_hw] = input_hw
+            data[Keys.input_hw] = input_hw
             data[Keys.axis_mode] = AxisMode.OPENCV
             data[Keys.frame_ids] = frame.frameIndex
             # TODO how to properly integrate such metadata?
             data["name"] = frame.name
             data["videoName"] = frame.videoName
+
         if frame.url is not None and Keys.points3d in self.keys_to_load:
             data[Keys.points3d] = load_pointcloud(frame.url, self.data_backend)
+
         if (
             frame.intrinsics is not None
             and Keys.intrinsics in self.keys_to_load
@@ -308,27 +315,40 @@ class Scalabel(Dataset, CacheMappingMixin):
         # if not labels_used:
         #     return  # pragma: no cover
 
-        if Keys.masks in self.keys_to_load:
-            ins_map = self.cats_name2id[Keys.masks]
-            instance_masks = instance_masks_from_scalabel(
-                labels_used, ins_map, instid_map, frame.size
+        image_size = (
+            ImageSize(
+                height=data[Keys.input_hw][0], width=data[Keys.input_hw][0]
             )
-            data[Keys.masks] = instance_masks  # TODO sync boxes2d?
-
-        if Keys.segmentation_masks in self.keys_to_load:
-            sem_map = self.cats_name2id[Keys.segmentation_masks]
-            semantic_masks = semantic_masks_from_scalabel(
-                labels_used, sem_map, instid_map, frame.size, self.bg_as_class
-            )
-            data[Keys.segmentation_masks] = semantic_masks
+            if Keys.input_hw in data
+            else frame.size
+        )
 
         if Keys.boxes2d in self.keys_to_load:
+            cats_name2id = self.cats_name2id[Keys.boxes2d]
             boxes2d, classes, track_ids = boxes2d_from_scalabel(
-                labels_used, self.cats_name2id[Keys.boxes2d], instid_map
+                labels_used, cats_name2id, instid_map
             )
             data[Keys.boxes2d] = boxes2d
             data[Keys.boxes2d_classes] = classes
             data[Keys.boxes2d_track_ids] = track_ids
+
+        if Keys.masks in self.keys_to_load:
+            # NOTE: instance masks' mapping is consistent with boxes2d
+            cats_name2id = self.cats_name2id[Keys.masks]
+            instance_masks = instance_masks_from_scalabel(
+                labels_used,
+                cats_name2id,
+                image_size=image_size,
+                bg_as_class=self.bg_as_class,
+            )
+            data[Keys.masks] = instance_masks
+
+        if Keys.segmentation_masks in self.keys_to_load:
+            sem_map = self.cats_name2id[Keys.segmentation_masks]
+            semantic_masks = semantic_masks_from_scalabel(
+                labels_used, sem_map, instid_map, image_size, self.bg_as_class
+            )
+            data[Keys.segmentation_masks] = semantic_masks
 
         if Keys.boxes3d in self.keys_to_load:
             boxes3d, classes, track_ids = boxes3d_from_scalabel(
@@ -433,6 +453,15 @@ def boxes2d_from_scalabel(
     NOTE: The box definition in Scalabel includes x2y2 in the box area, whereas
     Vis4D and other software libraries like detectron2 and mmdet do not include
     this, which is why we convert via box2d_to_xyxy.
+
+    Args:
+        labels (list[Label]): list of scalabel labels.
+        class_to_idx (dict[str, int]): mapping from class name to index.
+        label_id_to_idx (dict[str, int] | None, optional): mapping from label
+            id to index. Defaults to None.
+
+    Returns:
+        tuple[Tensor, Tensor, Tensor]: boxes, classes, track_ids
     """
     box_list, cls_list, idx_list = [], [], []
     for i, label in enumerate(labels):
@@ -468,11 +497,57 @@ def boxes2d_from_scalabel(
 def instance_masks_from_scalabel(
     labels: list[Label],
     class_to_idx: dict[str, int],
-    label_id_to_idx: dict[str, int] | None = None,
-    frame_size: ImageSize | None = None,
+    image_size: ImageSize | None = None,
+    bg_as_class: bool = False,
 ) -> Tensor:
-    """Convert from scalabel format to Vis4D."""
-    raise NotImplementedError
+    """Convert from scalabel format to Vis4D.
+
+    Args:
+        labels (list[Label]): list of scalabel labels.
+        class_to_idx (dict[str, int]): mapping from class name to index.
+        input_hw (tuple[int, int], optional): image size. Defaults to None.
+        bg_as_class (bool, optional): whether to include background as a class.
+            Defaults to False.
+
+    Returns:
+        Tensor: instance masks.
+    """
+    bitmask_list = []
+    if bg_as_class:
+        foreground: NDArrayUI8 | None = None
+    for label in labels:
+        if label.category not in class_to_idx:
+            continue
+        if label.poly2d is None and label.rle is None:
+            continue
+        if label.rle is not None:
+            bitmask = rle_to_mask(label.rle)
+        elif label.poly2d is not None:
+            assert (
+                image_size is not None
+            ), "image size must be specified for masks with polygons!"
+            bitmask_raw = poly2ds_to_mask(image_size, label.poly2d)
+            bitmask: NDArrayUI8 = (bitmask_raw > 0).astype(  # type: ignore
+                bitmask_raw.dtype
+            )
+        bitmask_list.append(bitmask)
+        if bg_as_class:
+            foreground = (
+                bitmask
+                if foreground is None
+                else np.logical_or(foreground, bitmask)
+            )
+    if bg_as_class:
+        if foreground is None:  # pragma: no cover
+            assert image_size is not None
+            foreground = np.zeros(
+                (image_size.height, image_size.width), dtype=np.uint8
+            )
+        bitmask_list.append(np.logical_not(foreground))
+    if len(bitmask_list) == 0:  # pragma: no cover
+        return torch.empty(0, 0, 0, dtype=torch.uint8)
+    mask_tensor = torch.tensor(np.array(bitmask_list), dtype=torch.uint8)
+    return mask_tensor
 
 
 def semantic_masks_from_scalabel(

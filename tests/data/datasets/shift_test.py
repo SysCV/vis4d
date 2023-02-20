@@ -35,8 +35,10 @@ class SHIFTTest(unittest.TestCase):
             Keys.input_hw,
             Keys.intrinsics,
             Keys.boxes2d,
+            Keys.boxes2d_classes,
             Keys.boxes2d_track_ids,
             Keys.boxes3d,
+            Keys.masks,
             Keys.segmentation_masks,
             Keys.depth_maps,
             Keys.optical_flows,
@@ -68,8 +70,10 @@ class SHIFTTest(unittest.TestCase):
                     Keys.input_hw,
                     Keys.intrinsics,
                     Keys.boxes2d,
+                    Keys.boxes2d_classes,
                     Keys.boxes2d_track_ids,
                     Keys.boxes3d,
+                    Keys.masks,
                     Keys.segmentation_masks,
                     Keys.depth_maps,
                     Keys.optical_flows,
@@ -78,6 +82,10 @@ class SHIFTTest(unittest.TestCase):
             self.assertEqual(
                 self.dataset_multiview[0][view][Keys.images].shape,
                 (1, 3, 800, 1280),
+            )
+            self.assertEqual(
+                self.dataset_multiview[0][view][Keys.masks].shape,
+                (2, 800, 1280) if view == "front" else (0, 0, 0),
             )
             self.assertEqual(
                 self.dataset_multiview[0][view][Keys.segmentation_masks].shape,
