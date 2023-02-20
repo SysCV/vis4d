@@ -5,11 +5,8 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.common import DictStrAny
 from vis4d.common.callbacks import Callback
 from vis4d.common.logging import rank_zero_info
-from vis4d.common.progress import compose_log_str
-from vis4d.common.time import Timer
 from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
 
@@ -54,8 +51,6 @@ class Trainer:
         else:
             self.train_callbacks = train_callbacks
 
-        self.timer = Timer()
-
     def _run_test_on_epoch(self, epoch: int) -> bool:
         """Return whether to run test on current training epoch.
 
@@ -68,51 +63,6 @@ class Trainer:
         return epoch % self.test_every_nth_epoch == (
             self.test_every_nth_epoch - 1
         )
-
-    def calculate_losses(
-        self,
-        cur_iter: int,
-        epoch: int,
-        output: DictData,
-        data: DictData,
-        loss: torch.nn.Module,
-        running_losses: DictStrAny,
-    ) -> None:
-        """Compute losses for a batch of training data and log statistics.
-
-        Args:
-            cur_iter (int): Current training iteration.
-            epoch (int): Current training epoch.
-            output (DictData): Model output.
-            data (DictData): Batch of training data.
-            loss (torch.nn.Module): Loss function.
-            running_losses (DictStrAny): Running statistics of losses.
-        """
-        loss_input = self.data_connector.get_loss_input(output, data)
-        losses = loss(**loss_input)
-        total_loss = sum(losses.values())
-        total_loss.backward()
-
-        # update statistics
-        losses = {"loss": total_loss, **losses}
-        for k, v in losses.items():
-            if k in running_losses:
-                running_losses[k] += v
-            else:
-                running_losses[k] = v
-
-        # log losses
-        if cur_iter % self.log_step == (self.log_step - 1):
-            total_batches = len(self.train_dataloader) * epoch + cur_iter + 1
-            rank_zero_info(
-                compose_log_str(
-                    f"Epoch {epoch + 1}",
-                    cur_iter + 1,
-                    len(self.train_dataloader),
-                    self.timer,
-                    {k: v / total_batches for k, v in running_losses.items()},
-                )
-            )
 
     def train(
         self,
@@ -132,7 +82,6 @@ class Trainer:
                 None.
             tester: Tester that should be used for testing. Defaults to None.
         """
-        running_losses: DictStrAny = {}
         step = 0
 
         # Set up optimizers and schedulers. This is done here because the
@@ -167,20 +116,29 @@ class Trainer:
                     # Do we want to support no loss?
                     # Idea is to allow the user to somewhat define a custom
                     # loss implementation in a custom optimizer.step()
-                    self.calculate_losses(
-                        i, epoch, output, data_moved, loss, running_losses
+                    loss_input = self.data_connector.get_loss_input(
+                        output, data
                     )
+                    losses = loss(**loss_input)
+                    total_loss = sum(losses.values())
+                    total_loss.backward()
+
+                    # update statistics
+                    losses = {"loss": total_loss, **losses}
+                else:
+                    losses = {}
 
                 for opt in optimizers:
                     opt.step(step)
 
                 for k, callback in self.train_callbacks.items():
                     if callback.run_on_epoch(epoch):
+                        clbk_kwargs = self.data_connector.get_callback_input(
+                            k, output, data_moved, "train"
+                        )
+                        num_train = len(self.train_dataloader)
                         callback.on_train_batch_end(
-                            model,
-                            self.data_connector.get_callback_input(
-                                k, output, data_moved, "train"
-                            ),
+                            model, clbk_kwargs, losses, epoch, i, num_train
                         )
 
                 step += 1

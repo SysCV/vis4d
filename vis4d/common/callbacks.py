@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from collections import defaultdict
 
 import torch
 from torch import nn
@@ -9,6 +10,8 @@ from torch import nn
 from vis4d.common import DictStrAny, MetricLogs
 from vis4d.common.distributed import all_gather_object_cpu, get_rank
 from vis4d.common.logging import rank_zero_info
+from vis4d.common.progress import compose_log_str
+from vis4d.common.time import Timer
 from vis4d.eval.base import Evaluator
 from vis4d.vis.base import Visualizer
 
@@ -46,7 +49,15 @@ class Callback:
             epoch (int): Current training epoch.
         """
 
-    def on_train_batch_end(self, model: nn.Module, inputs: DictStrAny) -> None:
+    def on_train_batch_end(
+        self,
+        model: nn.Module,
+        inputs: DictStrAny,
+        losses: DictStrAny,
+        epoch: int,
+        cur_iter: int,
+        total_batches: int,
+    ) -> None:
         """Hook to run at the end of a training batch."""
 
     def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
@@ -179,6 +190,44 @@ class VisualizerCallback(Callback):
     def on_test_batch_end(self, model: nn.Module, inputs: DictStrAny) -> None:
         """Hook to run at the end of a testing batch."""
         self.visualizer.process(**inputs)
+
+
+class LoggingCallback(Callback):
+    """Callback for logging."""
+
+    def __init__(self, refresh_rate: int = 50) -> None:
+        """Init callback."""
+        super().__init__(1, -1)
+        self._refresh_rate = refresh_rate
+        self._metrics: dict[str, list[torch.Tensor]] = defaultdict(list)
+        self.timer = Timer()
+
+    def on_train_batch_end(
+        self,
+        model: nn.Module,
+        inputs: DictStrAny,
+        losses: DictStrAny,
+        epoch: int,
+        cur_iter: int,
+        total_batches: int,
+    ) -> None:
+        """Hook to run at the end of a training batch."""
+        for k, v in losses.items():
+            self._metrics[k].append(v)
+        if cur_iter % self._refresh_rate == self._refresh_rate - 1:
+            rank_zero_info(
+                compose_log_str(
+                    f"Epoch {epoch + 1}",
+                    cur_iter + 1,
+                    total_batches,
+                    self.timer,
+                    {
+                        k: sum(v) / len(v) if len(v) > 0 else float("NaN")
+                        for k, v in self._metrics.items()
+                    },
+                )
+            )
+            self._metrics = defaultdict(list)
 
 
 class CheckpointCallback(Callback):
