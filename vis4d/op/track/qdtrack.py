@@ -68,6 +68,7 @@ class QDTrackAssociation:
         init_score_thr: float = 0.7,
         obj_score_thr: float = 0.3,
         match_score_thr: float = 0.5,
+        nms_conf_thr: float = 0.5,
         nms_backdrop_iou_thr: float = 0.3,
         nms_class_iou_thr: float = 0.7,
         with_cats: bool = True,
@@ -79,6 +80,7 @@ class QDTrackAssociation:
         self.match_score_thr = match_score_thr
         self.nms_backdrop_iou_thr = nms_backdrop_iou_thr
         self.nms_class_iou_thr = nms_class_iou_thr
+        self.nms_conf_thr = nms_conf_thr
         self.with_cats = with_cats
 
     def _filter_detections(
@@ -161,9 +163,11 @@ class QDTrackAssociation:
             detection_embeddings,
         )
         if len(detections) == 0:
-            return torch.empty(
-                (0,), dtype=torch.long, device=detections.device
-            ), torch.empty((0,), dtype=torch.long, device=detections.device)
+            return (
+                torch.empty((0,), dtype=torch.long, device=detections.device),
+                torch.empty((0,), dtype=torch.long, device=detections.device),
+                torch.empty((0,), dtype=torch.long, device=detections.device),
+            )
 
         # match if buffer is not empty
         if len(memory_track_ids) > 0:
@@ -180,6 +184,7 @@ class QDTrackAssociation:
                 affinity_scores,
                 self.match_score_thr,
                 self.obj_score_thr,
+                self.nms_conf_thr,
             )
         else:
             ids = torch.full(
@@ -188,12 +193,12 @@ class QDTrackAssociation:
                 dtype=torch.long,
                 device=detections.device,
             )
-
+        match_ids = ids[ids > -1]
         new_inds = (ids == -1) & (detection_scores > self.init_score_thr)
         ids[new_inds] = TrackIDCounter.get_ids(
             new_inds.sum(), device=ids.device  # type: ignore
         )
-        return ids, permute_inds
+        return ids, match_ids, permute_inds
 
 
 class QDSimilarityHead(nn.Module):

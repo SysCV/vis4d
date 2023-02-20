@@ -14,7 +14,7 @@ def bev_3d_nms(
     class_ids: Tensor,
     class_agnostic: bool = True,
     iou_threshold: float = 0.1,
-):
+) -> Tensor:
     """BEV 3D NMS in world coordinate."""
     center_x = boxes3d[:, 0].unsqueeze(1)
     center_y = boxes3d[:, 1].unsqueeze(1)

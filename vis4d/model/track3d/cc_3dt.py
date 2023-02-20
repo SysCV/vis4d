@@ -12,7 +12,6 @@ from vis4d.common import ArgsType
 from vis4d.engine.ckpt import load_model_checkpoint
 from vis4d.model.track.qdtrack import QDTrack
 from vis4d.op.base import ResNet
-from vis4d.op.box.box2d import bbox_clip
 from vis4d.op.detect.faster_rcnn import (
     AnchorGenerator,
     FasterRCNNHead,
@@ -20,16 +19,21 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rpn_box_encoder,
 )
 from vis4d.op.detect.rcnn import RoI2Det
-from vis4d.op.detect_3d.filter import bev_3d_nms, filter_distance
+from vis4d.op.detect_3d.filter import bev_3d_nms
 from vis4d.op.detect_3d.qd_3dt import QD3DTBBox3DHead
 from vis4d.op.fpp import FPN
-from vis4d.op.geometry.rotation import rotate_orientation, rotate_velocities
-from vis4d.op.geometry.transform import transform_points
 from vis4d.op.track.assignment import TrackIDCounter
-from vis4d.op.track.cc_3dt import CC3DTrackAssociation
+from vis4d.op.track_3d.cc_3dt import CC3DTrackAssociation, cam_to_global
 from vis4d.op.track.motion.kalman_filter import predict
-from vis4d.op.track.motion.kf3d import kf3d_predict, kf3d_update
+from vis4d.op.track_3d.motion.kf3d import (
+    kf3d_init,
+    kf3d_init_mean_cov,
+    kf3d_predict,
+    kf3d_update,
+)
+from vis4d.op.track_3d.motion.lstm_3d import VeloLSTM
 from vis4d.state.track.cc_3dt import CC3DTrackMemory, CC3DTrackState
+from vis4d.op.detect.rcnn import RCNNHead
 import pdb
 
 
@@ -40,6 +44,11 @@ def get_default_anchor_generator() -> AnchorGenerator:
         ratios=[0.25, 0.5, 1.0, 2.0, 4.0],
         strides=[4, 8, 16, 32, 64],
     )
+
+
+def get_default_roi_head(num_classes: int) -> RCNNHead:
+    """Get default ROI head."""
+    return RCNNHead(num_shared_convs=4, num_classes=num_classes)
 
 
 class CC3DTrack(QDTrack):
@@ -53,135 +62,37 @@ class CC3DTrack(QDTrack):
         motion_dims: int = 7,
         num_frames: int = 5,
         pure_det: bool = False,
-        fps: int = 2,
-        memory_momentum: float = 0.8,
         **kwargs: ArgsType,
     ) -> None:
         """Creates an instance of the class."""
-        super().__init__(*args, memory_size, **kwargs)
-        self.track_memory = CC3DTrackMemory(memory_limit=memory_size)
+        super().__init__(*args, memory_size=memory_size, **kwargs)
+        self.track_memory = CC3DTrackMemory(
+            memory_limit=memory_size,
+            motion_dims=motion_dims,
+            num_frames=num_frames,
+        )
         self.track_graph = CC3DTrackAssociation()
         self.motion_model = motion_model
         self.motion_dims = motion_dims
         self.num_frames = num_frames
         self.pure_det = pure_det
-        self.fps = fps
-        self.memo_momentum = memory_momentum
 
-        self._init_motion_model()
-
-    def _init_motion_model(self) -> None:
-        """Initialize motion model."""
         if self.motion_model == "KF3D":
-            motion_mat = torch.Tensor(
-                [
-                    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-                    [0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
-                    [0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-                    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                ]
+            motion_mat, update_mat, cov_motion_Q, cov_project_R = kf3d_init(
+                self.motion_dims
             )
-
-            update_mat = torch.Tensor(
-                [
-                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-                ]
-            )
-
-            cov_motion_Q = torch.eye(self.motion_dims + 3)
-            cov_motion_Q[self.motion_dims :, self.motion_dims :] *= 0.01
-
-            cov_project_R = torch.eye(self.motion_dims)
-
             self.register_buffer("_motion_mat", motion_mat, False)  # F
             self.register_buffer("_update_mat", update_mat, False)  # H
             self.register_buffer("_cov_motion_Q", cov_motion_Q, False)  # Q
             self.register_buffer("_cov_project_R", cov_project_R, False)  # R
         else:
-            raise NotImplementedError
-
-    def _init_kf3d_mean_cov(self, obs_3d: Tensor) -> tuple[Tensor, Tensor]:
-        """Initialize KF3D mean and covariance."""
-        mean = torch.zeros(self.motion_dims + 3).to(obs_3d.device)
-        mean[: self.motion_dims] = obs_3d
-        covariance = torch.eye(self.motion_dims + 3).to(obs_3d.device) * 10.0
-        covariance[self.motion_dims :, self.motion_dims :] *= 1000.0
-        return mean, covariance
-
-    def _cam_to_global(
-        self,
-        boxes_2d_list: list[Tensor],
-        scores_2d_list: list[Tensor],
-        boxes_3d_list: list[Tensor],
-        scores_3d_list: list[Tensor],
-        class_ids_list: list[Tensor],
-        embeddings_list: list[Tensor],
-        extrinsics: Tensor,
-        class_range_map: None | Tensor = None,
-    ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
-        """Move 3D boxes to global coordinates."""
-        camera_ids_list = []
-        if sum(len(b) for b in boxes_3d_list) != 0:
-            for i, boxes_3d in enumerate(boxes_3d_list):
-                if len(boxes_3d) != 0:
-                    # filter out boxes that are too far away
-                    if class_range_map is not None:
-                        valid_boxes = filter_distance(
-                            class_ids_list[i], boxes_3d, class_range_map
-                        )
-                        boxes_2d_list[i] = boxes_2d_list[i][valid_boxes]
-                        scores_2d_list[i] = scores_2d_list[i][valid_boxes]
-                        boxes_3d_list[i] = boxes_3d[valid_boxes]
-                        scores_3d_list[i] = scores_3d_list[i][valid_boxes]
-                        class_ids_list[i] = class_ids_list[i][valid_boxes]
-                        embeddings_list[i] = embeddings_list[i][valid_boxes]
-
-                    # move 3D boxes to world coordinates
-                    boxes_3d_list[i][:, :3] = transform_points(
-                        boxes_3d_list[i][:, :3], extrinsics[i]
-                    )
-                    boxes_3d_list[i][:, 6:9] = rotate_orientation(
-                        boxes_3d_list[i][:, 6:9], extrinsics[i]
-                    )
-                    boxes_3d_list[i][:, 9:12] = rotate_velocities(
-                        boxes_3d_list[i][:, 9:12], extrinsics[i]
-                    )
-
-                    # add camera id
-                    camera_ids_list.append(
-                        (torch.ones(len(boxes_2d_list[i])) * i).to(
-                            boxes_2d_list[i].device
-                        )
-                    )
-
-        boxes_2d = torch.cat(boxes_2d_list)
-        camera_ids = torch.cat(camera_ids_list)
-        scores_2d = torch.cat(scores_2d_list)
-        boxes_3d = torch.cat(boxes_3d_list)
-        scores_3d = torch.cat(scores_3d_list)
-        class_ids = torch.cat(class_ids_list)
-        embeddings = torch.cat(embeddings_list)
-        return (
-            boxes_2d,
-            camera_ids,
-            scores_2d,
-            boxes_3d,
-            scores_3d,
-            class_ids,
-            embeddings,
-        )
+            self.lstm_model = VeloLSTM(
+                feature_dim=64,
+                hidden_size=128,
+                num_layers=2,
+                loc_dim=self.motion_dims,
+            )
+            self.num_frames = num_frames
 
     def _update_memory(
         self,
@@ -189,7 +100,7 @@ class CC3DTrack(QDTrack):
         track_id: Tensor,
         update_attr: str,
         update_value: Tensor,
-    ):
+    ) -> None:
         """Update track memory."""
         track_indice = (
             self.track_memory.frames[frame_id].track_ids == track_id
@@ -214,10 +125,12 @@ class CC3DTrack(QDTrack):
         class_ids: Tensor,
         embeddings: Tensor,
         obs_boxes_3d: Tensor,
+        fps: int,
     ):
         """Update track."""
         motion_states = []
         motion_hidden = []
+        vel_histories = []
         velocities = []
         last_frames = []
         acc_frames = []
@@ -248,7 +161,7 @@ class CC3DTrack(QDTrack):
                     mean,
                     covariance,
                 )
-                boxes_3d[i][9:12] = (pred_loc[:3] - mean[:3]) * self.fps
+                boxes_3d[i][9:12] = (pred_loc[:3] - mean[:3]) * fps
                 prev_obs = torch.cat(
                     [track.boxes_3d[0, :6], track.boxes_3d[0, 8].unsqueeze(0)]
                 )
@@ -267,14 +180,31 @@ class CC3DTrack(QDTrack):
 
                 motion_states.append(mean)
                 motion_hidden.append(covariance)
+                vel_histories.append(
+                    torch.zeros(self.num_frames, self.motion_dims).to(
+                        obs_3d.device
+                    )
+                )
             else:
                 # create track
                 if self.motion_model == "KF3D":
-                    mean, covariance = self._init_kf3d_mean_cov(obs_3d)
+                    mean, covariance = kf3d_init_mean_cov(
+                        obs_3d, self.motion_dims
+                    )
                     motion_states.append(mean)
                     motion_hidden.append(covariance)
+                elif self.motion_model == "VeloLSTM":
+                    ref_hidden = self.lstm_model.init_hidden(obs_3d.device)
+                    pred_hidden = self.lstm_model.init_hidden(obs_3d.device)
+                    motion_states.append(ref_hidden)
+                    motion_hidden.append(pred_hidden)
                 else:
                     raise NotImplementedError
+                vel_histories.append(
+                    torch.zeros(self.num_frames, self.motion_dims).to(
+                        obs_3d.device
+                    )
+                )
                 velocities.append(
                     torch.zeros(self.motion_dims, device=bbox_3d.device)
                 )
@@ -284,6 +214,7 @@ class CC3DTrack(QDTrack):
         motion_states = torch.stack(motion_states)
         motion_hidden = torch.stack(motion_hidden)
         velocities = torch.stack(velocities)
+        vel_histories = torch.stack(vel_histories)
         last_frames = torch.tensor(last_frames, device=boxes_2d.device)
         acc_frames = torch.tensor(acc_frames, device=boxes_2d.device)
 
@@ -298,10 +229,48 @@ class CC3DTrack(QDTrack):
             embeddings,
             motion_states,
             motion_hidden,
+            vel_histories,
             velocities,
             last_frames,
             acc_frames,
         )
+
+    def _motion_predict(
+        self,
+        cur_memory: CC3DTrackState,
+        index: int,
+        track_id: int,
+        device: torch.device,
+        update: bool = True,
+    ) -> Tensor:
+        """Motion prediction."""
+        if self.motion_model == "KF3D":
+            pd_box_3d, cov = kf3d_predict(
+                self._motion_mat.to(device),
+                self._cov_motion_Q.to(device),
+                cur_memory.motion_states[index],
+                cur_memory.motion_hidden[index],
+            )
+            if update:
+                _, fids = self.track_memory.get_track(track_id)
+
+                if len(fids) > 0:
+                    self._update_memory(
+                        fids[-1], track_id, "motion_states", pd_box_3d
+                    )
+                    self._update_memory(
+                        fids[-1], track_id, "motion_hidden", cov
+                    )
+        elif self.motion_model == "VeloLSTM":
+            with torch.no_grad():
+                pd_box_3d, hidden_pred = self.lstm_model.predcit(
+                    cur_memory.vel_history[index],
+                    cur_memory.motion_hidden[index],
+                )
+        else:
+            raise NotImplementedError
+
+        return pd_box_3d
 
     def _forward_test(
         self,
@@ -314,6 +283,7 @@ class CC3DTrack(QDTrack):
         frame_ids: List[int],
         extrinsics: torch.Tensor,
         class_range_map: None | Tensor = None,
+        fps: int = 2,
     ) -> list[CC3DTrackState]:
         """Forward function during testing."""
         embeddings_list = list(
@@ -328,7 +298,7 @@ class CC3DTrack(QDTrack):
             scores_3d,
             class_ids,
             embeddings,
-        ) = self._cam_to_global(
+        ) = cam_to_global(
             boxes_2d_list,
             scores_2d_list,
             boxes_3d_list,
@@ -354,6 +324,7 @@ class CC3DTrack(QDTrack):
                 embeddings,
                 empty_track.motion_states,
                 empty_track.motion_hidden,
+                empty_track.vel_histories,
                 empty_track.velocities,
                 empty_track.last_frames,
                 empty_track.acc_frames,
@@ -396,23 +367,10 @@ class CC3DTrack(QDTrack):
         if len(cur_memory.track_ids) > 0:
             memory_boxes_3d_predict = memory_boxes_3d.clone()
             for i, track_id in enumerate(cur_memory.track_ids):
-                mean, cov = kf3d_predict(
-                    self._motion_mat.to(boxes_2d.device),
-                    self._cov_motion_Q.to(boxes_2d.device),
-                    cur_memory.motion_states[i],
-                    cur_memory.motion_hidden[i],
+                pd_box_3d = self._motion_predict(
+                    cur_memory, i, track_id, boxes_2d.device
                 )
-                memory_boxes_3d_predict[i, :3] += mean[self.motion_dims :]
-                _, fids = self.track_memory.get_track(track_id)
-
-                if len(fids) > 0:
-                    self._update_memory(
-                        fids[-1], track_id, "motion_states", mean
-                    )
-                    self._update_memory(
-                        fids[-1], track_id, "motion_hidden", cov
-                    )
-
+                memory_boxes_3d_predict[i, :3] += pd_box_3d[self.motion_dims :]
         else:
             memory_boxes_3d_predict = torch.empty(
                 (0, 7), device=boxes_2d.device
@@ -450,6 +408,7 @@ class CC3DTrack(QDTrack):
             class_ids[filter_indices],
             embeddings[filter_indices],
             obs_boxes_3d[filter_indices],
+            fps,
         )
 
         self.track_memory.update(data)
@@ -462,23 +421,16 @@ class CC3DTrack(QDTrack):
         )
         for i, track_id in enumerate(cur_memory.track_ids):
             if frame_id > cur_memory.last_frames[i] and track_id > -1:
-                mean, covariance = kf3d_predict(
-                    self._motion_mat.to(boxes_2d.device),
-                    self._cov_motion_Q.to(boxes_2d.device),
-                    cur_memory.motion_states[i],
-                    cur_memory.motion_hidden[i],
+                pd_box_3d = self._motion_predict(
+                    cur_memory, i, track_id, boxes_2d.device
                 )
 
                 _, fids = self.track_memory.get_track(track_id)
 
                 new_box_3d = list(cur_memory.boxes_3d)[i]
-                new_box_3d[:6] = mean[:6]
-                new_box_3d[8] = mean[6]
+                new_box_3d[:6] = pd_box_3d[:6]
+                new_box_3d[8] = pd_box_3d[6]
                 self._update_memory(fids[-1], track_id, "boxes_3d", new_box_3d)
-                self._update_memory(fids[-1], track_id, "motion_states", mean)
-                self._update_memory(
-                    fids[-1], track_id, "motion_hidden", covariance
-                )
 
         # update 3D score
         track_scores_3d = tracks.scores_3d * tracks.scores
@@ -494,6 +446,7 @@ class CC3DTrack(QDTrack):
             tracks.embeddings,
             tracks.motion_states,
             tracks.motion_hidden,
+            tracks.vel_histories,
             tracks.velocities,
             tracks.last_frames,
             tracks.acc_frames,
@@ -510,6 +463,7 @@ class CC3DTrack(QDTrack):
         frame_ids: List[int],
         extrinsics: torch.Tensor,
         class_range_map: None | torch.Tensor = None,
+        fps: int = 2,
     ) -> list[CC3DTrackState]:
         """Forward function."""
         assert frame_ids is not None, "Need frame ids during inference!"
@@ -523,6 +477,7 @@ class CC3DTrack(QDTrack):
             frame_ids,
             extrinsics,
             class_range_map,
+            fps,
         )
 
 
@@ -536,6 +491,7 @@ class FasterRCNNCC3DT(nn.Module):
         motion_model: str,
         pure_det: bool,
         class_range_map: None | Tensor = None,
+        dataset_fps: int = 2,
         weights: None | str = None,
     ) -> None:
         """Creates an instance of the class."""
@@ -551,12 +507,14 @@ class FasterRCNNCC3DT(nn.Module):
             anchor_generator=self.anchor_gen,
             rpn_box_encoder=self.rpn_bbox_encoder,
             rcnn_box_encoder=self.rcnn_bbox_encoder,
+            roi_head=get_default_roi_head(num_classes),
         )
         self.roi2det = RoI2Det(self.rcnn_bbox_encoder)
         self.bbox_3d_head = QD3DTBBox3DHead(num_classes=num_classes)
         self.track = CC3DTrack(motion_model=motion_model, pure_det=pure_det)
 
         self.class_range_map = class_range_map
+        self.dataset_fps = dataset_fps
 
         if weights is not None:
             load_model_checkpoint(self, weights)
@@ -611,6 +569,7 @@ class FasterRCNNCC3DT(nn.Module):
             frame_ids,
             extrinsics,
             self.class_range_map,
+            self.dataset_fps,
         )
         return outs
 

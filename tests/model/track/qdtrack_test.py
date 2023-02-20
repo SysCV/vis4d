@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from tests.util import get_test_data
+from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.scalabel import Scalabel
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
@@ -57,15 +57,15 @@ class QDTrackTest(unittest.TestCase):
                 images, inputs_hw, frame_ids
             )
         # FIXME
-        # testcase_gt = torch.load(get_test_file("qdtrack.pt"))
-        # for pred, expected in zip(tracks, testcase_gt):
-        #     for pred_entry, expected_entry in zip(pred, expected):
-        #         pass
-        #         assert (
-        #             torch.isclose(pred_entry, expected_entry, atol=1e-4)
-        #             .all()
-        #             .item()
-        #         )
+        testcase_gt = torch.load(get_test_file("qdtrack.pt"))
+        for pred, expected in zip(tracks, testcase_gt):
+            for pred_entry, expected_entry in zip(pred, expected):
+                pass
+                assert (
+                    torch.isclose(pred_entry, expected_entry, atol=1e-4)
+                    .all()
+                    .item()
+                )
 
     # def test_train(self): #FIXME
     #     """Training test."""

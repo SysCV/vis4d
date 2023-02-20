@@ -24,7 +24,7 @@ from vis4d.data.transforms.normalize import (  # normalize_image,
 )
 from vis4d.data.transforms.pad import pad_image
 from vis4d.data.transforms.resize import resize_image, resize_intrinsics
-from vis4d.engine.ckpt import load_model_checkpoint
+
 from vis4d.eval import Evaluator
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT
@@ -161,7 +161,7 @@ def setup_model(  # pylint: disable=invalid-name
     lr: float = 0.01,
     max_epochs: int = 12,
     detector: str = "FRCNN",
-    backbone: str = "resnet50",
+    backbone: str = "resnet101",
     motion_model: str = "KF3D",
     pure_det: bool = False,
     with_motion: bool = True,
@@ -171,6 +171,7 @@ def setup_model(  # pylint: disable=invalid-name
     if "nuscenes" in experiment:
         num_classes = len(nuscenes_track_map)
         class_range_map = torch.Tensor(nuscenes_class_range_map)
+        fps = 2
     else:
         raise NotImplementedError(f"Experiment {experiment} not known!")
 
@@ -214,10 +215,10 @@ if __name__ == "__main__":
 
     Example Usage:
     >>> python -m vis4d.pl.model.cc_3dt test \
-        --trainer.exp_name cc_3dt_r50_kf3d \
-        --trainer.accelerator gpu --trainer.devices 2 \
+        --trainer.exp_name cc_3dt_r101_kf3d \
+        --trainer.accelerator gpu --trainer.devices 1 \
         --data.experiment nuscenes_mini \
         --data.samples_per_gpu 1 --data.workers_per_gpu 4 \
-        --ckpt vis4d-workspace/checkpoints/cc_3dt_R_50_FPN_nuscenes_12_accumulate_gradient_2.ckpt
+        --ckpt vis4d-workspace/checkpoints/cc_3dt_R_101_FPN_nuscenes_24.ckpt
     """
     DefaultCLI(model_class=setup_model, datamodule_class=TrackDataModule)

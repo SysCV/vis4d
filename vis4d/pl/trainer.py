@@ -112,7 +112,6 @@ class DefaultTrainer(pl.Trainer):
                     name=exp_name,
                     version=version,
                     default_hp_metric=False,
-                    log_graph=True,
                 )
             else:
                 exp_logger = None

@@ -110,3 +110,7 @@ class BDD100K(Scalabel):
         return ScalabelData(
             frames=scalabel_frames, config=bdd100k_cfg.scalabel
         )
+
+    def __repr__(self) -> str:
+        """Concise representation of the dataset."""
+        return "BDD100KDataset"

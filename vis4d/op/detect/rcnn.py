@@ -39,7 +39,7 @@ class RCNNHead(nn.Module):
 
     def __init__(
         self,
-        num_shared_convs: int = 4,
+        num_shared_convs: int = 0,
         num_shared_fcs: int = 2,
         conv_out_channels: int = 256,
         in_channels: int = 256,

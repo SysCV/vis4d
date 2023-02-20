@@ -1,20 +1,21 @@
 """Utilities for tracking state."""
 from __future__ import annotations
 
+from typing import NamedTuple
+
 import torch
 from torch import Tensor
-from .base import TTrackState
 import pdb
 
 
 def update_frames(
-    frames: list[TTrackState], data: TTrackState, memory_limit: int
-) -> list[TTrackState]:
+    frames: list[NamedTuple], data: NamedTuple, memory_limit: int
+) -> list[NamedTuple]:
     """Store tracks in memory.
 
     Args:
-        frames (list[TTrackState]): List of frames.
-        data (TTrackState): Data to be stored.
+        frames (list[NamedTuple]): List of frames.
+        data (NamedTuple): Data to be stored.
         memory_limit (int): Frame limit of memory.
     """
     frames.append(data)
@@ -23,11 +24,11 @@ def update_frames(
     return frames
 
 
-def concat_states(states: list[TTrackState]) -> tuple[Tensor, ...]:
+def concat_states(states: list[NamedTuple]) -> tuple[Tensor, ...]:
     """Concatenate states.
 
     Args:
-        states (list[TTrackState]): List of states.
+        states (list[NamedTuple]): List of states.
 
     Returns:
         memory_states (tuple[Tensor, ...]): Concatenated states.
@@ -36,15 +37,15 @@ def concat_states(states: list[TTrackState]) -> tuple[Tensor, ...]:
     return memory_states
 
 
-def merge_tracks(tracks_1: TTrackState, tracks_2: TTrackState) -> TTrackState:
+def merge_tracks(tracks_1: NamedTuple, tracks_2: NamedTuple) -> NamedTuple:
     """Merge two tracks.
 
     Args:
-        tracks_1 (TTrackState): First track.
-        tracks_2 (TTrackState): Second track.
+        tracks_1 (NamedTuple): First track.
+        tracks_2 (NamedTuple): Second track.
 
     Returns:
-        merged_tracks (TTrackState): Merged tracks.
+        merged_tracks (NamedTuple): Merged tracks.
     """
     merged_tracks = tuple(
         torch.cat((track_1, track_2))
@@ -53,17 +54,21 @@ def merge_tracks(tracks_1: TTrackState, tracks_2: TTrackState) -> TTrackState:
     return merged_tracks
 
 
-def get_last_tracks(memory_states: TTrackState) -> tuple[Tensor, ...]:
+def get_last_tracks(memory_states: NamedTuple) -> tuple[Tensor, ...]:
     """Get last states of all tracks.
 
     Args:
-        memory_states (TTrackState): Memory states.
+        memory_states (NamedTuple): Memory states.
 
     Returns:
         last_tracks (tuple[Tensor, ...]): Last tracks.
     """
     track_ids = memory_states.track_ids.unique()
     value_dict = {k: [] for k in memory_states._fields}
+
+    if track_ids.numel() == 0:
+        return memory_states
+
     for track_id in track_ids:
         idx = (memory_states.track_ids == track_id).nonzero(as_tuple=False)[-1]
         for k in value_dict:

@@ -6,9 +6,13 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
+from vis4d.op.detect_3d.filter import filter_distance
+from vis4d.op.track.assignment import TrackIDCounter, greedy_assign
+from vis4d.op.track.matching import calc_bisoftmax_affinity
 
-from .assignment import TrackIDCounter, greedy_assign
-from .matching import calc_bisoftmax_affinity
+from vis4d.op.geometry.rotation import rotate_orientation, rotate_velocities
+from vis4d.op.geometry.transform import transform_points
+
 import pdb
 
 # @torch.jit.script TODO
@@ -42,8 +46,8 @@ class CC3DTrackAssociation:
         match_score_thr: float = 0.5,
         nms_backdrop_iou_thr: float = 0.3,
         nms_class_iou_thr: float = 0.7,
-        with_cats: bool = True,
         nms_conf_thr: float = 0.5,
+        with_cats: bool = True,
         bbox_affinity_weight: float = 0.5,
     ) -> None:
         """Creates an instance of the class."""
@@ -53,8 +57,8 @@ class CC3DTrackAssociation:
         self.match_score_thr = match_score_thr
         self.nms_backdrop_iou_thr = nms_backdrop_iou_thr
         self.nms_class_iou_thr = nms_class_iou_thr
-        self.with_cats = with_cats
         self.nms_conf_thr = nms_conf_thr
+        self.with_cats = with_cats
         self.bbox_affinity_weight = bbox_affinity_weight
         self.feat_affinity_weight = 1 - bbox_affinity_weight
 
@@ -228,9 +232,11 @@ class CC3DTrackAssociation:
         )
 
         if len(detections) == 0:
-            return torch.empty(
-                (0,), dtype=torch.long, device=detections.device
-            ), torch.empty((0,), dtype=torch.long, device=detections.device)
+            return (
+                torch.empty((0,), dtype=torch.long, device=detections.device),
+                torch.empty((0,), dtype=torch.long, device=detections.device),
+                torch.empty((0,), dtype=torch.long, device=detections.device),
+            )
 
         # match if buffer is not empty
         if len(memory_track_ids) > 0:
@@ -306,3 +312,66 @@ class CC3DTrackAssociation:
             new_inds.sum(), device=ids.device  # type: ignore
         )
         return ids, match_ids, permute_inds
+
+
+def cam_to_global(
+    boxes_2d_list: list[Tensor],
+    scores_2d_list: list[Tensor],
+    boxes_3d_list: list[Tensor],
+    scores_3d_list: list[Tensor],
+    class_ids_list: list[Tensor],
+    embeddings_list: list[Tensor],
+    extrinsics: Tensor,
+    class_range_map: None | Tensor = None,
+) -> tuple[Tensor, ...]:
+    """Convert camera coordinates to global coordinates."""
+    camera_ids_list = []
+    if sum(len(b) for b in boxes_3d_list) != 0:
+        for i, boxes_3d in enumerate(boxes_3d_list):
+            if len(boxes_3d) != 0:
+                # filter out boxes that are too far away
+                if class_range_map is not None:
+                    valid_boxes = filter_distance(
+                        class_ids_list[i], boxes_3d, class_range_map
+                    )
+                    boxes_2d_list[i] = boxes_2d_list[i][valid_boxes]
+                    scores_2d_list[i] = scores_2d_list[i][valid_boxes]
+                    boxes_3d_list[i] = boxes_3d[valid_boxes]
+                    scores_3d_list[i] = scores_3d_list[i][valid_boxes]
+                    class_ids_list[i] = class_ids_list[i][valid_boxes]
+                    embeddings_list[i] = embeddings_list[i][valid_boxes]
+
+                # move 3D boxes to world coordinates
+                boxes_3d_list[i][:, :3] = transform_points(
+                    boxes_3d_list[i][:, :3], extrinsics[i]
+                )
+                boxes_3d_list[i][:, 6:9] = rotate_orientation(
+                    boxes_3d_list[i][:, 6:9], extrinsics[i]
+                )
+                boxes_3d_list[i][:, 9:12] = rotate_velocities(
+                    boxes_3d_list[i][:, 9:12], extrinsics[i]
+                )
+
+                # add camera id
+                camera_ids_list.append(
+                    (torch.ones(len(boxes_2d_list[i])) * i).to(
+                        boxes_2d_list[i].device
+                    )
+                )
+
+    boxes_2d = torch.cat(boxes_2d_list)
+    camera_ids = torch.cat(camera_ids_list)
+    scores_2d = torch.cat(scores_2d_list)
+    boxes_3d = torch.cat(boxes_3d_list)
+    scores_3d = torch.cat(scores_3d_list)
+    class_ids = torch.cat(class_ids_list)
+    embeddings = torch.cat(embeddings_list)
+    return (
+        boxes_2d,
+        camera_ids,
+        scores_2d,
+        boxes_3d,
+        scores_3d,
+        class_ids,
+        embeddings,
+    )

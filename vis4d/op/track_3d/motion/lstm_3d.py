@@ -1,12 +1,12 @@
 """LSTM 3D motion model."""
-from __future__ import annotations
+from typing import Tuple
 
 import numpy as np
 import torch
 from torch import nn
 
+from vis4d.op.geometry.rotation import normalize_angle, acute_angle
 from vis4d.common import ArgsType
-from vis4d.op.geometry.rotation import normalize_angle
 
 from .base import BaseMotionModel
 
@@ -38,11 +38,14 @@ class LSTM3DMotionModel(BaseMotionModel):
         self.ref_history = torch.cat(
             [bbox_3d.view(1, self.motion_dims)] * (self.num_frames + 1)
         )
-        self.prev_obs = bbox_3d.clone()
         self.prev_ref = bbox_3d.clone()
         self.info = info
-        self.hidden_pred = self.lstm_model.init_hidden(self.device)
-        self.hidden_ref = self.lstm_model.init_hidden(self.device)
+        self.hidden_pred = self.lstm_model.init_hidden(
+            self.device, batch_size=1
+        )
+        self.hidden_ref = self.lstm_model.init_hidden(
+            self.device, batch_size=1
+        )
 
     def _update_history(self, bbox_3d: torch.Tensor) -> None:
         """Update velocity history."""
@@ -80,23 +83,8 @@ class LSTM3DMotionModel(BaseMotionModel):
         self.obj_state[6] = normalize_angle(self.obj_state[6])
         bbox_3d[6] = normalize_angle(bbox_3d[6])
 
-        # if the angle of two theta is not acute angle
-        # make the theta still in the range
-        curr_yaw = bbox_3d[6]
-        if np.pi / 2.0 < abs(curr_yaw - self.obj_state[6]) < np.pi * 3 / 2.0:
-            self.obj_state[6] += np.pi
-            if self.obj_state[6] > np.pi:
-                self.obj_state[6] -= np.pi * 2
-            if self.obj_state[6] < -np.pi:
-                self.obj_state[6] += np.pi * 2
-
-        # now the angle is acute: < 90 or > 270,
-        # convert the case of > 270 to < 90
-        if abs(curr_yaw - self.obj_state[6]) >= np.pi * 3 / 2.0:
-            if curr_yaw > 0:
-                self.obj_state[6] += np.pi * 2
-            else:
-                self.obj_state[6] -= np.pi * 2
+        # acute angle
+        self.obj_state[6] = acute_angle(self.obj_state[6], bbox_3d[6])
 
         with torch.no_grad():
             refined_loc, self.hidden_ref = self.lstm_model.refine(
@@ -111,7 +99,6 @@ class LSTM3DMotionModel(BaseMotionModel):
         refined_obj[6] = normalize_angle(refined_obj[6])
 
         self.obj_state[: self.motion_dims] = refined_obj
-        self.prev_obs = bbox_3d
 
         if self.init_flag:
             self._init_history(refined_obj)
@@ -120,6 +107,18 @@ class LSTM3DMotionModel(BaseMotionModel):
             self._update_history(refined_obj)
 
         self.info = info
+
+    def predict_velocity(self) -> torch.Tensor:  # type: ignore
+        """Predict velocity."""
+        with torch.no_grad():
+            pred_loc, _ = self.lstm_model.predict(
+                self.history[..., : self.motion_dims].view(
+                    self.num_frames, -1, self.motion_dims
+                ),
+                self.obj_state[: self.motion_dims],
+                self.hidden_pred,
+            )
+        return pred_loc[0][:3] - self.prev_ref[:3]
 
     def predict(self, update_state: bool = True) -> torch.Tensor:  # type: ignore # pylint: disable=line-too-long
         """Advances the state vector and returns the predicted bounding box."""
@@ -167,16 +166,14 @@ class VeloLSTM(nn.Module):  # type: ignore  # pylint: disable=abstract-method
 
     def __init__(
         self,
-        batch_size: int,
         feature_dim: int,
         hidden_size: int,
         num_layers: int,
         loc_dim: int,
-        dropout: float = 0.0,
+        dropout: float = 0.1,
     ) -> None:
-        """Creates an instance of the class."""
+        """Init."""
         super().__init__()
-        self.batch_size = batch_size
         self.feature_dim = feature_dim
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -221,16 +218,18 @@ class VeloLSTM(nn.Module):  # type: ignore  # pylint: disable=abstract-method
 
         self._init_param()
 
-    def init_hidden(self, device: str) -> tuple[torch.Tensor, torch.Tensor]:
+    def init_hidden(
+        self, device: str, batch_size: int = 1
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Initializae hidden state.
 
         The axes semantics are (num_layers, minibatch_size, hidden_dim)
         """
         return (
-            torch.zeros(self.num_layers, self.batch_size, self.hidden_size).to(
+            torch.zeros(self.num_layers, batch_size, self.hidden_size).to(
                 device
             ),
-            torch.zeros(self.num_layers, self.batch_size, self.hidden_size).to(
+            torch.zeros(self.num_layers, batch_size, self.hidden_size).to(
                 device
             ),
         )
@@ -250,8 +249,8 @@ class VeloLSTM(nn.Module):  # type: ignore  # pylint: disable=abstract-method
         observation: torch.Tensor,
         prev_location: torch.Tensor,
         confidence: torch.Tensor,
-        hc_0: tuple[torch.Tensor, torch.Tensor],
-    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+        hc_0: Tuple[torch.Tensor, torch.Tensor],
+    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """Refine predicted location using single frame estimation at t+1.
 
         Input:
@@ -313,8 +312,8 @@ class VeloLSTM(nn.Module):  # type: ignore  # pylint: disable=abstract-method
         self,
         vel_history: torch.Tensor,
         location: torch.Tensor,
-        hc_0: tuple[torch.Tensor, torch.Tensor],
-    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+        hc_0: Tuple[torch.Tensor, torch.Tensor],
+    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """Predict location at t+1 using updated location at t.
 
         Input:

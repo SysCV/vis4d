@@ -48,6 +48,7 @@ class QDTrack(nn.Module):
     def __init__(
         self,
         memory_size: int = 10,
+        memory_momentum: float = 0.8,
         num_ref_views: int = 1,
         proposal_append_gt: bool = True,
     ) -> None:
@@ -57,6 +58,8 @@ class QDTrack(nn.Module):
         self.similarity_head = QDSimilarityHead()
 
         # only in inference
+        assert 0 <= memory_momentum <= 1.0
+        self.memo_momentum = memory_momentum
         self.track_graph = QDTrackAssociation()
         self.track_memory = QDTrackMemory(memory_limit=memory_size)
 
@@ -208,7 +211,7 @@ class QDTrack(nn.Module):
                 TrackIDCounter.reset()
 
             cur_memory = self.track_memory.get_current_tracks(box.device)
-            track_ids, filter_indices = self.track_graph(
+            track_ids, match_ids, filter_indices = self.track_graph(
                 box,
                 score,
                 cls_id,
@@ -218,15 +221,24 @@ class QDTrack(nn.Module):
                 cur_memory.embeddings,
             )
 
+            embeddings = embeds[filter_indices]
+
+            for i, track_id in enumerate(track_ids):
+                if track_id in match_ids:
+                    track = self.track_memory.get_track(track_id)[-1]
+                    embeddings[i] = (
+                        1 - self.memo_momentum
+                    ) * track.embeddings + self.memo_momentum * embeddings[i]
+
             data = QDTrackState(
                 track_ids,
                 box[filter_indices],
                 score[filter_indices],
                 cls_id[filter_indices],
-                embeds[filter_indices],
+                embeddings,
             )
             self.track_memory.update(data)
-            batched_tracks.append(self.track_memory.last_frame)
+            batched_tracks.append(self.track_memory.frames[-1])
 
         return batched_tracks
 

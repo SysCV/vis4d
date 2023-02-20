@@ -24,7 +24,7 @@ def greedy_assign(
         conf, memo_ind = torch.max(affinity_scores[i, :], dim=0)
         cur_id = tracklet_ids[memo_ind]
         if conf > match_score_thr:
-            if cur_id != -1:
+            if cur_id > -1:
                 if score > obj_score_thr:
                     ids[i] = cur_id
                     affinity_scores[:i, memo_ind] = 0

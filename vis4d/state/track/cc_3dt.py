@@ -9,7 +9,22 @@ from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
 
-from .util import update_frames, concat_states, get_last_tracks, merge_tracks
+from ..util import update_frames, concat_states, get_last_tracks, merge_tracks
+
+
+# class KF3DMotionState(NamedTuple):
+#     """KF3D motion state."""
+
+#     mean: Tensor
+#     covariance: Tensor
+
+# class VeloLSTMState(NamedTuple):
+#     """VeloLSTM motion state."""
+
+#     history: Tensor
+#     ref_history: Tensor
+#     hidden_pred: Tensor
+#     hidden_ref: Tensor
 
 
 class CC3DTrackState(NamedTuple):
@@ -25,6 +40,7 @@ class CC3DTrackState(NamedTuple):
     embeddings: Tensor
     motion_states: Tensor
     motion_hidden: Tensor
+    vel_histories: Tensor
     velocities: Tensor
     last_frames: Tensor
     acc_frames: Tensor
@@ -36,19 +52,22 @@ class CC3DTrackMemory:
     def __init__(
         self,
         memory_limit: int = -1,
+        backdrop_memory_limit: int = 1,
         nms_backdrop_iou_thr: float = 0.3,
         motion_dims: int = 7,
-        backdrop_memory_limit: int = 1,
+        num_frames: int = 5,
     ):
         """Creates an instance of the class."""
         assert memory_limit >= -1
         self.memory_limit = memory_limit
-        self.motion_dims = motion_dims
         self.frames: list[CC3DTrackState] = []
         self.backdrop_frames: list[CC3DTrackState] = []
         assert backdrop_memory_limit >= 0
         self.backdrop_memory_limit = backdrop_memory_limit
         self.nms_backdrop_iou_thr = nms_backdrop_iou_thr
+
+        self.motion_dims = motion_dims
+        self.num_frames = num_frames
 
     def reset(self) -> None:
         """Empty the memory."""
@@ -139,6 +158,9 @@ class CC3DTrackMemory:
             (n_tracks, self.motion_dims + 3, self.motion_dims + 3),
             device=device,
         )
+        vel_histories = torch.empty(
+            (n_tracks, self.num_frames, self.motion_dims), device=device
+        )
         velocities = torch.empty((n_tracks, self.motion_dims), device=device)
         last_frames = torch.empty((n_tracks,), device=device)
         acc_frames = torch.empty((n_tracks,), device=device)
@@ -153,6 +175,7 @@ class CC3DTrackMemory:
             embeddings,
             motion_states,
             motion_hidden,
+            vel_histories,
             velocities,
             last_frames,
             acc_frames,
@@ -164,9 +187,7 @@ class CC3DTrackMemory:
         if len(self.frames) > 0:
             memory_states = CC3DTrackState(*(concat_states(self.frames)))
 
-            last_tracks = CC3DTrackState(
-                *(get_last_tracks(memory_states, True))
-            )
+            last_tracks = CC3DTrackState(*(get_last_tracks(memory_states)))
         else:
             last_tracks = self.get_empty_frame(0, device)
 
@@ -178,7 +199,7 @@ class CC3DTrackMemory:
                 assert (
                     len(last_tracks.embeddings) == 0
                 ), "Unequal shape of backdrop embeddings and track embeddings!"
-                last_frames = last_frames._replace(
+                last_tracks = last_tracks._replace(
                     embeddings=torch.empty(
                         (0, backdrops.embeddings.size(1)), device=device
                     )

@@ -1,8 +1,6 @@
 """Kalman Filter implementation based on torch for vis4d."""
 from __future__ import annotations
 
-import pdb
-
 import torch
 from torch import Tensor
 
@@ -106,7 +104,11 @@ def update(
     # x = x + Ky
     new_mean = mean + torch.matmul(innovation, kalman_gain.T)
 
-    I = torch.eye(10).to(device=measurement.device)
+    # P = (I-KH)P(I-KH)' + KRK'
+    # This is more numerically stable
+    # and works for non-optimal K vs the equation
+    # P = (I-KH)P usually seen in the literature.
+    I = torch.eye(mean.shape[-1]).to(device=measurement.device)
 
     I_KH = I - torch.matmul(kalman_gain, update_mat)
 
@@ -114,8 +116,4 @@ def update(
         torch.matmul(I_KH, covariance), I_KH.T
     ) + torch.matmul(torch.matmul(kalman_gain, cov_project_R), kalman_gain.T)
 
-    # P = P - KHP #TODO: check if this is stable
-    # new_covariance = covariance - torch.matmul(
-    #     kalman_gain, torch.matmul(projected_cov, kalman_gain.T)
-    # )
     return new_mean, new_covariance
