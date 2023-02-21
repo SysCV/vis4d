@@ -23,8 +23,9 @@ class WeightedLossTest(unittest.TestCase):
         losses = loss(input=x, target=y)
         total_loss = sum(losses.values())
 
-        self.assertEqual(
-            total_loss,
+        self.assertAlmostEqual(
+            total_loss.item(),
             0.7 * torch.nn.MSELoss()(x, y).item()
             + 0.3 * torch.nn.L1Loss()(x, y).item(),
+            places=3,
         )

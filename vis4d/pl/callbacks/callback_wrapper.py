@@ -113,4 +113,8 @@ class CallbackWrapper(pl.Callback):
                 inputs=self.data_connector.get_callback_input(
                     self.callback_key, model_pred, batch, cb_type="train"
                 ),
+                losses=outputs,
+                epoch=pl_module.current_epoch,
+                cur_iter=batch_idx,
+                total_batches=int(trainer.num_training_batches),
             )
