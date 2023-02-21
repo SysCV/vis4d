@@ -167,19 +167,18 @@ def evaluate_sem_seg(
     num_classes = num_classes + 1
     hist = np.zeros((num_classes, num_classes), dtype=np.int32)
     gt_id_set = set()
-    for (hist_, gt_id_set_) in hist_and_gt_id_sets:
+    for hist_, gt_id_set_ in hist_and_gt_id_sets:
         hist += hist_
         gt_id_set.update(gt_id_set_)
-    # print(gt_id_set)
 
     ious = per_class_iou(hist)
     accs = per_class_acc(hist)
-    res_dict = dict(
-        mIoU=np.multiply(np.mean(ious[list(gt_id_set)]), 100),
-        Acc=np.multiply(np.mean(accs[list(gt_id_set)]), 100),
-        fIoU=np.multiply(freq_iou(hist), 100),
-        pAcc=np.multiply(whole_acc(hist), 100),
-        IoUs=np.multiply(ious, 100),
-        Accs=np.multiply(accs, 100),
-    )
+    res_dict = {
+        "mIoU": np.multiply(np.mean(ious[list(gt_id_set)]), 100),
+        "Acc": np.multiply(np.mean(accs[list(gt_id_set)]), 100),
+        "fIoU": np.multiply(freq_iou(hist), 100),
+        "pAcc": np.multiply(whole_acc(hist), 100),
+        "IoUs": np.multiply(ious, 100),
+        "Accs": np.multiply(accs, 100),
+    }
     return res_dict, gt_id_set

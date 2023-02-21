@@ -78,3 +78,4 @@ log/
 /*.sh
 docs/source/api/*
 docs/source/tutorials/.ipynb_checkpoints/*
+wandb/

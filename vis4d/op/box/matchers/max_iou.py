@@ -92,7 +92,7 @@ class MaxIoUMatcher(Matcher):
 
         match_labels = matches.new_full(matches.size(), 1, dtype=torch.int8)
 
-        for (l, low, high) in zip(
+        for l, low, high in zip(
             self.labels, self.thresholds[:-1], self.thresholds[1:]
         ):
             low_high = (matched_vals >= low) & (matched_vals < high)

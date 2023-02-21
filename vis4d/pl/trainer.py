@@ -1,25 +1,22 @@
 # pylint: disable=consider-using-alias,consider-alternative-union-syntax
 """Vis4D Trainer."""
-import logging
 import os.path as osp
 from datetime import datetime
-from typing import Callable, List, Optional, Type, Union
+from typing import List, Optional
 
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks.progress.base import ProgressBarBase
 from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
-from pytorch_lightning.cli import LightningCLI, SaveConfigCallback
-from pytorch_lightning.core import LightningModule
-from pytorch_lightning.strategies import DDPStrategy
+from pytorch_lightning.strategies import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
+    DDPStrategy,
+)
 from pytorch_lightning.strategies.strategy import Strategy
 from pytorch_lightning.utilities.device_parser import parse_gpu_ids
-from torch.utils.collect_env import get_pretty_env_info
 
-from vis4d.common import ArgsType, DictStrAny
+from vis4d.common import ArgsType
 from vis4d.common.imports import TENSORBOARD_AVAILABLE, is_torch_tf32_available
-from vis4d.common.logging import rank_zero_info, rank_zero_warn, setup_logger
-from vis4d.pl.data import DataModule
+from vis4d.common.logging import rank_zero_info, rank_zero_warn
 from vis4d.pl.progress import DefaultProgressBar
 
 
@@ -42,7 +39,6 @@ class DefaultTrainer(pl.Trainer):
         model's.
         tqdm: Activate tqdm based terminal logging behavior.
         tuner_params: which parameters to tune.
-        tuner_metrics: which metrics to observe while tuning.
     """
 
     def __init__(
@@ -58,8 +54,6 @@ class DefaultTrainer(pl.Trainer):
         tqdm: bool = False,
         use_tf32: bool = False,
         progress_bar_refresh_rate: int = 50,
-        tuner_params: Optional[DictStrAny] = None,
-        tuner_metrics: Optional[List[str]] = None,
         **kwargs: ArgsType,
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
@@ -79,8 +73,6 @@ class DefaultTrainer(pl.Trainer):
                 torch.backends.cuda.matmul.allow_tf32 = False
                 torch.backends.cudnn.allow_tf32 = False
 
-        self.tuner_params = tuner_params
-        self.tuner_metrics = tuner_metrics
         self.resume = resume
         self.work_dir = work_dir
         self.exp_name = exp_name
@@ -101,7 +93,7 @@ class DefaultTrainer(pl.Trainer):
             isinstance(kwargs["logger"], bool) and kwargs["logger"]
         ):
             if wandb:  # pragma: no cover
-                exp_logger = pl.loggers.WandbLogger(
+                exp_logger = pl.loggers.WandbLogger(  # type: ignore[attr-defined] # pylint: disable=line-too-long
                     save_dir=work_dir,
                     project=exp_name,
                     name=version,
@@ -183,83 +175,3 @@ class DefaultTrainer(pl.Trainer):
         """Get current logging directory."""
         dirpath = self.strategy.broadcast(self.output_dir)
         return dirpath
-
-
-class CLI(LightningCLI):
-    """Basic pytorch lightning CLI."""
-
-    def __init__(  # type: ignore
-        self,
-        model_class: Optional[
-            Union[Type[LightningModule], Callable[..., LightningModule]]
-        ] = None,
-        datamodule_class: Optional[
-            Union[Type[DataModule], Callable[..., DataModule]]
-        ] = None,
-        save_config_callback: Optional[
-            Type[SaveConfigCallback]
-        ] = SaveConfigCallback,
-        trainer_class: Union[
-            Type[pl.Trainer], Callable[..., pl.Trainer]
-        ] = DefaultTrainer,
-        description: str = "Vis4D command line tool",
-        env_prefix: str = "V4D",
-        save_config_overwrite: bool = True,
-        **kwargs: ArgsType,
-    ) -> None:
-        """Creates an instance of the class."""
-        super().__init__(
-            model_class=model_class,
-            datamodule_class=datamodule_class,
-            save_config_callback=save_config_callback,
-            trainer_class=trainer_class,
-            description=description,
-            env_prefix=env_prefix,
-            save_config_overwrite=save_config_overwrite,
-            **kwargs,
-        )
-
-    def instantiate_classes(self) -> None:
-        """Instantiate trainer, datamodule and model."""
-        # setup cmd line logging, print env info
-        subcommand = self.config["subcommand"]
-        work_dir = self.config[subcommand].trainer.work_dir
-        exp_name = self.config[subcommand].trainer.exp_name
-        version = self.config[subcommand].trainer.version
-        timestamp = (
-            str(datetime.now())
-            .split(".", maxsplit=1)[0]
-            .replace(" ", "_")
-            .replace(":", "-")
-        )
-        if version is None:
-            version = timestamp
-        self.config[subcommand].trainer.version = version
-
-        logger_vis4d = logging.getLogger("vis4d")
-        logger_pl = logging.getLogger("pytorch_lightning")
-        log_dir = osp.join(work_dir, exp_name, version, f"log_{timestamp}.txt")
-        setup_logger(logger_vis4d, log_dir)
-        setup_logger(logger_pl, log_dir)
-
-        rank_zero_info("Environment info: %s", get_pretty_env_info())
-
-        # instantiate classes
-        # self.config[subcommand].data.subcommand = subcommand
-        self.config_init = self.parser.instantiate_classes(self.config)
-        self.datamodule = self._get(self.config_init, "data")
-        self.model = self._get(self.config_init, "model")
-        self._add_configure_optimizers_method_to_model(self.subcommand)
-        self.trainer = self.instantiate_trainer()
-        assert isinstance(self.trainer, DefaultTrainer), (
-            "Trainer needs to inherit from DefaultTrainer "
-            "for BaseCLI to work properly."
-        )
-
-        if self.trainer.resume:  # pragma: no cover
-            weights = self.config_init[subcommand].ckpt_path
-            if weights is None:
-                weights = osp.join(
-                    self.trainer.output_dir, "checkpoints/last.ckpt"
-                )
-            self.config_init[subcommand].ckpt_path = weights

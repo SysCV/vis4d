@@ -4,10 +4,11 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from vis4d.common import LossesType, ModelOutput
 from vis4d.engine.ckpt import load_model_checkpoint
-from vis4d.op.base.resnet import ResNet
+from vis4d.op.base import BaseModel, ResNet
 from vis4d.op.box.box2d import scale_and_clip_boxes
+from vis4d.op.box.encoder.base import BoxEncoder2D
+from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
     FasterRCNNHead,
     FRCNNOut,
@@ -15,8 +16,7 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
-from vis4d.op.detect.rcnn import RCNNLoss, RoI2Det
-from vis4d.op.detect.rpn import RPNLoss
+from vis4d.op.detect.rcnn import DetOut, RoI2Det
 from vis4d.op.fpp.fpn import FPN
 
 REV_KEYS = [
@@ -34,7 +34,17 @@ REV_KEYS = [
 class FasterRCNN(nn.Module):
     """Faster RCNN model."""
 
-    def __init__(self, num_classes: int, weights: None | str = None) -> None:
+    def __init__(
+        self,
+        num_classes: int,
+        weights: None | str = None,
+        anchor_generator: AnchorGenerator = get_default_anchor_generator(),
+        rpn_box_encoder: BoxEncoder2D = get_default_rpn_box_encoder(),
+        rcnn_box_encoder: BoxEncoder2D = get_default_rcnn_box_encoder(),
+        backbone: BaseModel = ResNet(
+            "resnet50", pretrained=True, trainable_layers=3
+        ),
+    ) -> None:
         """Creates an instance of the class.
 
         Args:
@@ -42,12 +52,20 @@ class FasterRCNN(nn.Module):
             weights (None | str, optional): Weights to load for model. If
                 set to "mmdet", will load MMDetection pre-trained weights.
                 Defaults to None.
+            anchor_generator (AnchorGenerator, optional): Generator for anchors
+                for detection. Defaults to get_default_anchor_generator().
+            rpn_box_encoder (BoxEncoder2D, optional): Encoder for RPN bounding
+                boxes. Defaults to get_default_rpn_box_encoder().
+            rcnn_box_encoder (BoxEncoder2D, optional): Encoder for RCNN
+                bounding boxes. Defaults to get_default_rcnn_box_encoder().
+            backbone (nn.Module, optional): Backbone network. Defaults to
+                ResNet( "resnet50", pretrained=True, trainable_layers=3 ).
         """
         super().__init__()
-        self.anchor_gen = get_default_anchor_generator()
-        self.rpn_bbox_encoder = get_default_rpn_box_encoder()
-        self.rcnn_bbox_encoder = get_default_rcnn_box_encoder()
-        self.backbone = ResNet("resnet50", pretrained=True, trainable_layers=3)
+        self.anchor_gen = anchor_generator
+        self.rpn_bbox_encoder = rpn_box_encoder
+        self.rcnn_bbox_encoder = rcnn_box_encoder
+        self.backbone = backbone
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
         self.faster_rcnn_heads = FasterRCNNHead(
             num_classes=num_classes,
@@ -73,7 +91,10 @@ class FasterRCNN(nn.Module):
         boxes2d: None | list[torch.Tensor] = None,
         boxes2d_classes: None | list[torch.Tensor] = None,
         original_hw: None | list[tuple[int, int]] = None,
-    ) -> FRCNNOut | ModelOutput:
+    ) -> FRCNNOut | DetOut:
+        # TODO, why do we have both.
+        #  Why not just model output with different
+        #  keys for training outs e.g. class_logits?
         """Forward pass.
 
         Args:
@@ -88,7 +109,7 @@ class FasterRCNN(nn.Module):
                 testing. Defaults to None.
 
         Returns:
-            FRCNNOut | ModelOutput: Either raw model outputs (for
+            FRCNNOut | DetOut: Either raw model outputs (for
                 training) or predicted outputs (for testing).
         """
         if self.training:
@@ -106,7 +127,7 @@ class FasterRCNN(nn.Module):
         boxes2d: None | list[torch.Tensor] = None,
         boxes2d_classes: None | list[torch.Tensor] = None,
         original_hw: None | list[tuple[int, int]] = None,
-    ) -> FRCNNOut | ModelOutput:
+    ) -> FRCNNOut | DetOut:
         """Type definition for call implementation."""
         return self._call_impl(
             images, input_hw, boxes2d, boxes2d_classes, original_hw
@@ -140,7 +161,7 @@ class FasterRCNN(nn.Module):
         images: torch.Tensor,
         images_hw: list[tuple[int, int]],
         original_hw: list[tuple[int, int]],
-    ) -> ModelOutput:
+    ) -> DetOut:
         """Forward testing stage.
 
         Args:
@@ -150,7 +171,7 @@ class FasterRCNN(nn.Module):
                 (before padding and resizing).
 
         Returns:
-            ModelOutput: Predicted outputs.
+            DetOut: Predicted outputs.
         """
         features = self.fpn(self.backbone(images))
         outs = self.faster_rcnn_heads(features, images_hw)
@@ -160,62 +181,5 @@ class FasterRCNN(nn.Module):
 
         for i, boxs in enumerate(boxes):
             boxes[i] = scale_and_clip_boxes(boxs, original_hw[i], images_hw[i])
-        return dict(
-            boxes2d=boxes, boxes2d_scores=scores, boxes2d_classes=class_ids
-        )
 
-
-class FasterRCNNLoss(nn.Module):
-    """Faster RCNN Loss."""
-
-    def __init__(self) -> None:
-        """Creates an instance of the class."""
-        super().__init__()
-        anchor_generator = get_default_anchor_generator()
-        rpn_box_encoder = get_default_rpn_box_encoder()
-        rcnn_box_encoder = get_default_rcnn_box_encoder()
-        self.rpn_loss = RPNLoss(anchor_generator, rpn_box_encoder)
-        self.rcnn_loss = RCNNLoss(rcnn_box_encoder)
-
-    def forward(
-        self,
-        outputs: FRCNNOut,
-        input_hw: list[tuple[int, int]],
-        boxes2d: list[torch.Tensor],
-    ) -> LossesType:
-        """Forward of loss function.
-
-        Args:
-            outputs (FRCNNOut): Raw model outputs.
-            input_hw (list[tuple[int, int]]): Input image resolutions.
-            boxes2d (list[torch.Tensor]): Bounding box labels.
-
-        Returns:
-            LossesType: Dictionary of model losses.
-        """
-        rpn_losses = self.rpn_loss(*outputs.rpn, boxes2d, input_hw)
-        assert (
-            outputs.sampled_proposals is not None
-            and outputs.sampled_targets is not None
-        )
-        rcnn_losses = self.rcnn_loss(
-            *outputs.roi,
-            outputs.sampled_proposals.boxes,
-            outputs.sampled_targets.labels,
-            outputs.sampled_targets.boxes,
-            outputs.sampled_targets.classes,
-        )
-        return dict(**rpn_losses._asdict(), **rcnn_losses._asdict())
-
-    def __call__(
-        self,
-        outputs: FRCNNOut,
-        input_hw: list[tuple[int, int]],
-        boxes2d: list[torch.Tensor],
-    ) -> LossesType:
-        """Type definition for call implementation."""
-        return self._call_impl(
-            outputs,
-            input_hw,
-            boxes2d,
-        )
+        return DetOut(boxes, scores, class_ids)
