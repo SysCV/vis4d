@@ -83,7 +83,11 @@ def test_cli() -> None:
     """Test the cli notebook."""
     # Lets for now ignore the output of the training cells. Cuda/Python version
     # on the server are different and the training is slightly non-det.
-    ignores = ("/cells/2/outputs/", "/cells/4/outputs/")
+    ignores = (
+        "/cells/2/outputs/",
+        "/cells/4/outputs/",
+        "/cells/*/metadata",
+    )
     fixture = (
         NBRegressionFixture(  # Higher timeout for downloading checkpoints
             exec_timeout=300, diff_ignore=ignores
