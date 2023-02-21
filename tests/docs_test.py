@@ -87,6 +87,7 @@ def test_cli() -> None:
         "/cells/2/outputs/",
         "/cells/4/outputs/",
         "/cells/*/metadata",
+        "/metadata/language_info/version",
     )
     fixture = (
         NBRegressionFixture(  # Higher timeout for downloading checkpoints
