@@ -25,13 +25,13 @@ class ImageNet(Dataset):
     HOMEPAGE = "http://www.image-net.org/"
     LICENSE = "http://www.image-net.org/terms-of-use"
 
-    _KEYS = [Keys.images, Keys.labels]
+    _KEYS = [Keys.images, Keys.categories]
 
     def __init__(
         self,
         data_root: str,
         split: str = "train",
-        keys_to_load: tuple[str, ...] = (Keys.images, Keys.labels),
+        keys_to_load: tuple[str, ...] = (Keys.images, Keys.categories),
         backend: DataBackend = FileBackend(),
     ):
         """Initialize ImageNet 1k dataset.
@@ -39,8 +39,10 @@ class ImageNet(Dataset):
         Args:
             data_root (str): Root directory of dataset.
             split (str, optional): Dataset split. Defaults to "train".
-            keys_to_load (tuple[str, ...], optional): Keys to load. Defaults to ("image", "label").
-            backend (DataBackend, optional): Data backend. Defaults to FileBackend().
+            keys_to_load (tuple[str, ...], optional): Keys to load. Defaults to
+                (Keys.images, Keys.categories).
+            backend (DataBackend, optional): Data backend. Defaults to
+                FileBackend().
         """
         self.keys_to_load = keys_to_load
         self.split = split
@@ -79,6 +81,6 @@ class ImageNet(Dataset):
         dict_data = {}
         if Keys.images in self.keys_to_load:
             dict_data[Keys.images] = self._load_img(data["image_path"])
-        if Keys.labels in self.keys_to_load:
-            dict_data[Keys.labels] = data["label"]
+        if Keys.categories in self.keys_to_load:
+            dict_data[Keys.categories] = data["label"]
         return dict_data

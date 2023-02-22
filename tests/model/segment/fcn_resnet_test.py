@@ -63,8 +63,9 @@ class FCNResNetTest(unittest.TestCase):
         model = FCNResNet(base_model="resnet50", resize=(520, 520))
         dataset = COCO(
             get_test_file("coco_test"),
-            keys_to_load=(Keys.images, Keys.segmentation_masks),
             split="train",
+            use_pascal_voc_cats=True,
+            minimum_box_area=10,
         )
         test_loader = get_test_dataloader(dataset, 2)
         batch = next(iter(test_loader))

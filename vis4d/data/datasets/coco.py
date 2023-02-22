@@ -144,6 +144,7 @@ class COCO(Dataset, CacheMappingMixin):
         Keys.boxes2d,
         Keys.boxes2d_classes,
         Keys.masks,
+        Keys.segmentation_masks,
     ]
 
     def __init__(
@@ -324,5 +325,6 @@ class COCO(Dataset, CacheMappingMixin):
                 dict_data[Keys.segmentation_masks] = mask_with_class.max(
                     dim=0
                 )[0].unsqueeze(0)
+                print(dict_data[Keys.segmentation_masks].shape)
 
         return dict_data
