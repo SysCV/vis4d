@@ -1,4 +1,4 @@
-"""Residual networks for classification."""
+"""Visual transformer models for classification."""
 from __future__ import annotations
 
 import torch
