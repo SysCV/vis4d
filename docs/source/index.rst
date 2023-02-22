@@ -10,6 +10,7 @@ Welcome to Vis4D's documentation!
    tutorials/install
    tutorials/getting_started
    tutorials/visualization
+   tutorials/cli_interface
    tutorials/3D_visualization
 
 

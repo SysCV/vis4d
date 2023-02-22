@@ -9,6 +9,7 @@ from torch.optim.lr_scheduler import StepLR
 from vis4d.common.callbacks import (
     CheckpointCallback,
     EvaluatorCallback,
+    LoggingCallback,
     VisualizerCallback,
 )
 from vis4d.config.default.data.dataloader import default_image_dl
@@ -262,12 +263,13 @@ def get_config() -> ConfigDict:
     # do not need to be registered with the data connector.
 
     config.train_callbacks = {
+        "logging": class_config(LoggingCallback, refresh_rate=1),
         "ckpt": class_config(
             CheckpointCallback,
             save_prefix=config.save_prefix,
             run_every_nth_epoch=1,
             num_epochs=config.num_epochs,
-        )
+        ),
     }
 
     # Assign the defined callbacks to the config

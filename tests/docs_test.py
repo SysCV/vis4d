@@ -77,3 +77,23 @@ def test_get_started() -> None:
     fixture.diff_color_words = False
     file = "docs/source/tutorials/getting_started.ipynb"
     fixture.check(file)
+
+
+def test_cli() -> None:
+    """Test the cli notebook."""
+    # Lets for now ignore the output of the training cells. Cuda/Python version
+    # on the server are different and the training is slightly non-det.
+    ignores = (
+        "/cells/2/outputs/",
+        "/cells/4/outputs/",
+        "/cells/*/metadata",
+        "/metadata/language_info/version",
+    )
+    fixture = (
+        NBRegressionFixture(  # Higher timeout for downloading checkpoints
+            exec_timeout=300, diff_ignore=ignores
+        )
+    )
+    fixture.diff_color_words = False
+    file = "docs/source/tutorials/cli_interface.ipynb"
+    fixture.check(file)
