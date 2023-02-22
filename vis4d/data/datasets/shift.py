@@ -14,7 +14,7 @@ from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.datasets.base import Dataset
 from vis4d.data.datasets.util import filter_by_keys, im_decode, ply_decode
 from vis4d.data.io import DataBackend, HDF5Backend, ZipBackend
-from vis4d.data.typing import DictData, DictStrAny
+from vis4d.data.typing import DictData
 
 from .scalabel import Scalabel
 
@@ -61,7 +61,7 @@ if SCALABEL_AVAILABLE:
     from scalabel.label.typing import Dataset as ScalabelData
 
 
-def _get_extension(backend: DataBackend):
+def _get_extension(backend: DataBackend) -> str:
     """Get the appropriate file extension for the given backend."""
     if isinstance(backend, HDF5Backend):
         return ".hdf5"
@@ -87,11 +87,11 @@ class _SHIFTScalabelLabels(Scalabel):
         self,
         data_root: str,
         split: str,
+        keys_to_load: Sequence[str],
         data_file: str = "",
         annotation_file: str = "",
         view: str = "front",
         backend: DataBackend = HDF5Backend(),
-        **kwargs: DictStrAny,
     ) -> None:
         """Initialize SHIFT dataset for one view.
 
@@ -99,6 +99,7 @@ class _SHIFTScalabelLabels(Scalabel):
             data_root (str): Path to the root directory of the dataset.
             split (str): Which data split to load.
             data_file (str): Path to the data archive file. Default: "".
+            keys_to_load (Sequence[str]): List of keys to load.
             annotation_file (str): Path to the annotation file. Default: "".
             view (str): Which view to load. Default: "front".
             backend (DataBackend): Backend to use for loading data. Default:
@@ -120,7 +121,10 @@ class _SHIFTScalabelLabels(Scalabel):
         )
 
         super().__init__(
-            data_path, annotation_path, data_backend=backend, **kwargs
+            data_path,
+            annotation_path,
+            keys_to_load=keys_to_load,
+            data_backend=backend,
         )
 
     def _generate_mapping(self) -> ScalabelData:

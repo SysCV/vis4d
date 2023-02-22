@@ -110,6 +110,8 @@ class BDD100K(Scalabel):
     def _generate_mapping(self) -> ScalabelData:
         """Generate data mapping."""
         bdd100k_anns = load(self.annotation_path)
+        if self.config_path is None:
+            return bdd100k_anns
         frames = bdd100k_anns.frames
         bdd100k_cfg = load_bdd100k_config(self.config_path)
         scalabel_frames = bdd100k_to_scalabel(frames, bdd100k_cfg)

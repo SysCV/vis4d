@@ -246,7 +246,7 @@ class COCO(Dataset, CacheMappingMixin):
 
     def __len__(self) -> int:
         """Return length of dataset."""
-        return len(self.data)
+        return len(self.data)  # type: ignore
 
     def __getitem__(self, idx: int) -> DictData:
         """Transform coco sample to vis4d input format.
@@ -318,13 +318,12 @@ class COCO(Dataset, CacheMappingMixin):
                 )
             if self.with_masks:
                 dict_data[Keys.masks] = mask_tensor
-            if Keys.segmentation_masks in self.keys_to_load:
-                mask_with_class = (
-                    torch.tensor(classes).reshape(-1, 1, 1) * mask_tensor
-                ).long()
-                dict_data[Keys.segmentation_masks] = mask_with_class.max(
-                    dim=0
-                )[0].unsqueeze(0)
-                print(dict_data[Keys.segmentation_masks].shape)
+            if self.with_sem_masks:
+                seg_masks, _ = (
+                    mask_tensor * torch.tensor(classes)[:, None, None]
+                ).max(dim=0)
+                seg_masks = seg_masks.long()
+                seg_masks[mask_tensor.sum(0) > 1] = 255  # discard overlapped
+                dict_data[Keys.segmentation_masks] = seg_masks.unsqueeze(0)
 
         return dict_data

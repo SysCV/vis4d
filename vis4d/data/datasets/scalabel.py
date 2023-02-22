@@ -13,7 +13,7 @@ from torch import Tensor
 from vis4d.common.imports import SCALABEL_AVAILABLE
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
-from vis4d.common.typing import DictStrAny, NDArrayUI8
+from vis4d.common.typing import DictStrAny, ListAny, NDArrayUI8
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.datasets.util import CacheMappingMixin, DatasetFromList
@@ -217,7 +217,9 @@ class Scalabel(Dataset, CacheMappingMixin):
             data_backend if data_backend is not None else FileBackend()
         )
         self.config_path = config_path
-        self.frames, self.cfg = self._load_mapping(self._generate_mapping)
+        self.frames, self.cfg = self._load_mapping(
+            self._generate_mapping  # type: ignore
+        )
 
         assert self.cfg is not None, (
             "No dataset configuration found. Please provide a configuration "
@@ -248,11 +250,11 @@ class Scalabel(Dataset, CacheMappingMixin):
                 assert isinstance(target_map, dict)
                 self.cats_name2id[target] = target_map
 
-    def _load_mapping(
+    def _load_mapping(  # type: ignore
         self,
         generate_map_func: Callable[[], list[DictStrAny]],
         use_cache: bool = True,
-    ) -> tuple[Dataset, Config]:
+    ) -> tuple[ListAny, Config]:
         """Load cached mapping or generate if not exists."""
         timer = Timer()
         data = self._load_mapping_data(generate_map_func, use_cache)
@@ -317,7 +319,7 @@ class Scalabel(Dataset, CacheMappingMixin):
 
         image_size = (
             ImageSize(
-                height=data[Keys.input_hw][0], width=data[Keys.input_hw][0]
+                height=data[Keys.input_hw][0], width=data[Keys.input_hw][1]
             )
             if Keys.input_hw in data
             else frame.size
@@ -364,7 +366,7 @@ class Scalabel(Dataset, CacheMappingMixin):
 
     def __getitem__(self, index: int) -> DictData:
         """Get item from dataset at given index."""
-        frame = self.frames[index]  # type: Frame
+        frame = self.frames[index]
         data = self._load_inputs(frame)
         if len(self.keys_to_load) > 0:
             if len(self.cats_name2id) == 0:
@@ -389,7 +391,7 @@ class ScalabelVideo(Scalabel, VideoMixin):
         """
         video_to_indices: dict[str, list[int]] = defaultdict(list)
         video_to_frameidx: dict[str, list[int]] = defaultdict(list)
-        for idx, frame in enumerate(self.frames):  # type: ignore
+        for idx, frame in enumerate(self.frames):
             if frame.videoName is not None:
                 assert (
                     frame.frameIndex is not None

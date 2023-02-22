@@ -1,7 +1,7 @@
 """Vis4D data samplers."""
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Iterator
 
 import numpy as np
 from torch.utils.data.distributed import DistributedSampler
@@ -62,13 +62,13 @@ class VideoInferenceSampler(
         )
         chunks = np.array_split(self.sequences, self.num_replicas)
         self._local_seqs = chunks[self.rank]
-        self._local_idcs = []
+        self._local_idcs: list[int] = []
         for seq in self._local_seqs:
             self._local_idcs.extend(dataset.video_to_indices[seq])
 
-    def __iter__(self) -> Generator[int, None, None]:
+    def __iter__(self) -> Iterator[list[int]]:
         """Iteration method."""
-        yield from self._local_idcs
+        return iter(self._local_idcs)  # type: ignore
 
     def __len__(self) -> int:
         """Return length of sampler instance."""
