@@ -32,7 +32,7 @@ class VGG(BaseModel):
             ValueError: The VGG name is not supported
         """
         super().__init__()
-        if vgg_name not in [
+        if vgg_name not in {
             "vgg11",
             "vgg13",
             "vgg16",
@@ -41,7 +41,7 @@ class VGG(BaseModel):
             "vgg13_bn",
             "vgg16_bn",
             "vgg19_bn",
-        ]:
+        }:
             raise ValueError("The VGG name is not supported!")
 
         vgg = _vgg.__dict__[vgg_name](pretrained=pretrained)
