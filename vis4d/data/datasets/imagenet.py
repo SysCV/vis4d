@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import contextlib
-import io
 import os
+import tarfile
+from collections.abc import Sequence
 
 import numpy as np
+import torch
 
-from vis4d.common import DictStrAny
 from vis4d.data.const import CommonKeys as Keys
-from vis4d.data.io.base import DataBackend
-from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData
 
 from .base import Dataset
@@ -19,66 +17,89 @@ from .util import im_decode
 
 
 class ImageNet(Dataset):
-    """ImageNet 1k dataset."""
+    """ImageNet 1K dataset."""
 
-    DESCRIPTION = "ImageNet 1k dataset."
+    DESCRIPTION = """ImageNet is a large visual database designed for use in
+        visual object recognition software research."""
     HOMEPAGE = "http://www.image-net.org/"
+    PAPER = "http://www.image-net.org/papers/imagenet_cvpr09.pdf"
     LICENSE = "http://www.image-net.org/terms-of-use"
 
-    _KEYS = [Keys.images, Keys.labels]
+    KEYS = [Keys.images, Keys.categories]
 
     def __init__(
         self,
         data_root: str,
+        keys_to_load: Sequence[str] = (Keys.images, Keys.categories),
         split: str = "train",
-        keys_to_load: tuple[str, ...] = (Keys.images, Keys.labels),
-        backend: DataBackend = FileBackend(),
-    ):
-        """Initialize ImageNet 1k dataset.
+        num_classes: int = 1000,
+    ) -> None:
+        """Initialize ImageNet dataset.
 
         Args:
-            data_root (str): Root directory of dataset.
-            split (str, optional): Dataset split. Defaults to "train".
-            keys_to_load (tuple[str, ...], optional): Keys to load. Defaults to ("image", "label").
-            backend (DataBackend, optional): Data backend. Defaults to FileBackend().
+            data_root (str): Path to root directory of dataset.
+            keys_to_load (list[str], optional): List of keys to load. Defaults
+                to (Keys.images, Keys.categories).
+            split (str, optional): Dataset split to load. Defaults to "train".
+            num_classes (int, optional): Number of classes to load. Defaults to
+                1000.
+        NOTE: The dataset is expected to be in the following format:
+            data_root
+            ├── train
+            │   ├── n01440764.tar
+            │   ├── ...
+            └── val
+                ├── n01440764.tar
+                ├── ...
+            With each tar file containing the images of a single class. The
+            images are expected to be in ".JPEG" extension.
+            
+            Currently, we are not using the DataBackend for loading the tars to
+            avoid keeping too many file pointers open at the same time.
         """
+        self.data_root = data_root
         self.keys_to_load = keys_to_load
         self.split = split
-        self.data_root = data_root
-        self.backend = backend
-        self._data_infos = self._load_data()
-        self._len = len(self._data_infos)
+        self.data_infos = []
+
+        self._classes = []
+        for file in os.listdir(os.path.join(data_root, split)):
+            if file.endswith(".tar"):
+                self._classes.append(file)
+        assert (
+            len(self._classes) == num_classes
+        ), f"Expected {num_classes} classes, but found {len(self._classes)}."
+        self._classes = sorted(self._classes)
+
+        for class_idx, file in enumerate(self._classes):
+            with tarfile.open(os.path.join(data_root, split, file)) as f:
+                members = f.getmembers()
+                for member in members:
+                    if member.isfile() and member.name.endswith(".JPEG"):
+                        self.data_infos.append((class_idx, member.name))
 
     def __len__(self) -> int:
-        """Get length of dataset."""
-        return self._len
-
-    def _load_img(self, filepath: str) -> np.ndarray:
-        """Load image from path."""
-        return im_decode(self.backend.read(filepath))
-
-    def _load_data(self) -> list[DictStrAny]:
-        """Load data infos from imagenet annotation file."""
-        with contextlib.redirect_stdout(io.StringIO()):
-            data_infos = [
-                {
-                    "image_path": os.path.join(
-                        self.data_root, self.split, line.split()[0]
-                    ),
-                    "label": int(line.split()[1]),
-                }
-                for line in self.backend.read(
-                    os.path.join(self.data_root, f"{self.split}.txt")
-                ).splitlines()
-            ]
-        return data_infos
+        """Return length of dataset."""
+        return len(self.data_infos)
 
     def __getitem__(self, idx: int) -> DictData:
-        """Get item from dataset."""
-        data = self._data_infos[idx]
-        dict_data = {}
+        """Convert single element at given index into Vis4D data format."""
+        class_idx, image_name = self.data_infos[idx]
+        with tarfile.open(
+            os.path.join(self.data_root, self.split, self._classes[class_idx])
+        ) as f:
+            im_bytes = f.extractfile(image_name)
+            assert im_bytes is not None, f"Could not extract {image_name}"
+            image = im_decode(im_bytes.read())
+
+        data_dict = {}
         if Keys.images in self.keys_to_load:
-            dict_data[Keys.images] = self._load_img(data["image_path"])
-        if Keys.labels in self.keys_to_load:
-            dict_data[Keys.labels] = data["label"]
-        return dict_data
+            data_dict[Keys.images] = torch.as_tensor(
+                np.ascontiguousarray(image.transpose(2, 0, 1)),
+                dtype=torch.float32,
+            ).unsqueeze(0)
+        if Keys.categories in self.keys_to_load:
+            data_dict[Keys.categories] = torch.tensor(
+                class_idx, dtype=torch.long
+            )
+        return data_dict

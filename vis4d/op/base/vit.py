@@ -22,6 +22,7 @@ class ViT(BaseModel):
         **kwargs: ArgsType,
     ):
         """Initialize the ViT base model from torch vision.
+
         Args:
             vit_name (str): Name of the ViT variant.
             image_size (int, optional): Size of input image. Defaults to 224.
@@ -65,6 +66,7 @@ class ViT(BaseModel):
     @property
     def out_channels(self) -> list[int]:
         """Get the number of channels for feature embedding.
+
         Returns:
             list[int]: number of channels
         """
@@ -78,8 +80,10 @@ class ViT(BaseModel):
 
     def forward(self, images: torch.Tensor) -> list[torch.Tensor]:
         """Torchvision ViT forward.
+
         Args:
             images (torch.Tensor): Image input tensor with shape [N, C, H, W].
+
         Returns:
             embeddings (torch.Tensor): List of embedding tensors. It stores two
                 level of embeddings, before and after the seq-to-seq

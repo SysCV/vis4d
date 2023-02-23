@@ -2,7 +2,7 @@
 from .base import BaseModel
 from .dla import DLA
 from .resnet import ResNet
-from .vit import ViT
 from .vgg import VGG
+from .vit import ViT
 
 __all__ = ["BaseModel", "DLA", "ResNet", "ViT", "VGG"]

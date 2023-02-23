@@ -32,4 +32,3 @@ class TestViT(unittest.TestCase):
         for i in range(2):
             self.assertEqual(out[i].shape[-1], vit.out_channels[i])
             self.assertEqual(out[i].shape[-2], n_patches)
-            
