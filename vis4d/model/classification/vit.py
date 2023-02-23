@@ -9,7 +9,12 @@ from vis4d.op.base import ViT
 class ClassificationViT(nn.Module):
     """ViT for classification tasks."""
 
-    def __init__(self, num_classes: int, **kwargs: ArgsType) -> None:
+    def __init__(
+        self,
+        num_classes: int,
+        representation_size: int = 2048,
+        **kwargs: ArgsType
+    ) -> None:
         """Initialize the classification ViT.
 
         Args:
@@ -19,10 +24,18 @@ class ClassificationViT(nn.Module):
         super().__init__()
         self.num_classes = num_classes
         self.vit = ViT(**kwargs)
-        self.classifier = nn.Linear(self.vit.out_channels[-1], num_classes)
+        self.hidden_dim = self.vit.out_channels[-1]
+        self.classifier = nn.Sequential(
+            nn.Linear(self.hidden_dim, representation_size),
+            nn.Tanh(),
+            nn.Linear(representation_size, num_classes),
+        )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
         """Forward pass."""
-        _, feats = self.vit(x)
+        _, feats = self.vit(images)
+
+        # Classifier "token" as used by standard language architectures
+        feats = feats[:, 0]
         y = self.classifier(feats)
         return y
