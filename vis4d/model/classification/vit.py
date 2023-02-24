@@ -4,6 +4,7 @@ from torch import nn
 
 from vis4d.common import ArgsType
 from vis4d.op.base import ViT
+from vis4d.model.classification.common import ClsOut
 
 
 class ClassificationViT(nn.Module):
@@ -31,11 +32,11 @@ class ClassificationViT(nn.Module):
             nn.Linear(representation_size, num_classes),
         )
 
-    def forward(self, images: torch.Tensor) -> torch.Tensor:
+    def forward(self, images: torch.Tensor) -> ClsOut:
         """Forward pass."""
         _, feats = self.vit(images)
 
         # Classifier "token" as used by standard language architectures
         feats = feats[:, 0]
-        y = self.classifier(feats)
-        return y
+        logits = self.classifier(feats)
+        return ClsOut(logits=logits, probs=torch.softmax(logits, dim=-1))

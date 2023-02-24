@@ -19,6 +19,7 @@ from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.normalize import normalize_image
 from vis4d.data.transforms.resize import resize_image
 from vis4d.engine.cli import _train as cli_train
+from vis4d.model.classification.common import ClsOut
 from vis4d.model.classification.vit import ClassificationViT
 
 
@@ -74,9 +75,11 @@ class ViTTest(unittest.TestCase):
 
         model.eval()
         with torch.no_grad():
-            y = model(images)
+            out = model(images)
 
-        self.assertEqual(y.shape, (2, 2))
+        assert isinstance(out, ClsOut)
+        self.assertEqual(out.logits.shape, (2, 2))
+        self.assertEqual(out.probs.shape, (2, 2))
 
     # def test_cli_training(self) -> None:
     #     """Test Faster RCNN training via CLI."""
