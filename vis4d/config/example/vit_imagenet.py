@@ -1,6 +1,7 @@
 """ViT ImageNet training example."""
 from __future__ import annotations
 
+import os
 from torch import nn, optim
 
 from vis4d.config.default.data.dataloader import default_image_dl
@@ -15,6 +16,12 @@ from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.engine.connectors import data_key, pred_key
 from vis4d.model.classification.vit import ClassificationViT
 from vis4d.optim import PolyLR
+
+
+VIS4D_ROOT = os.path.abspath(os.path.dirname(__file__) + "../../../../")
+IMAGENET_DATA_ROOT = os.path.join(
+    VIS4D_ROOT, "tests/vis4d-test-data/imagenet_1k_test"
+)
 
 
 def get_config() -> ConfigDict:
@@ -42,7 +49,7 @@ def get_config() -> ConfigDict:
         "experiment_name"
     )
 
-    config.dataset_root = "./data/ImageNet"
+    config.dataset_root = IMAGENET_DATA_ROOT
     config.train_split = "train"
     config.test_split = "val"
     config.n_gpus = 1
@@ -53,7 +60,7 @@ def get_config() -> ConfigDict:
     params.batch_size = 8
     params.lr = 0.0001
     params.augment_proba = 0.5
-    params.num_classes = 1000
+    params.num_classes = 2
     config.params = params
 
     ######################################################
@@ -70,7 +77,7 @@ def get_config() -> ConfigDict:
         data_root=config.dataset_root,
         split=config.train_split,
         num_classes=params.num_classes,
-        use_sample_lists=True,
+        use_sample_lists=False,
     )
     preproc = classification_preprocessing(224, 224, params.augment_proba)
     dataloader_train_cfg = default_image_dl(
@@ -88,7 +95,7 @@ def get_config() -> ConfigDict:
         data_root=config.dataset_root,
         split=config.train_split,
         num_classes=params.num_classes,
-        use_sample_lists=True,
+        use_sample_lists=False,
     )
     preproc_test = classification_preprocessing(224, 224, 0)
     dataloader_cfg_test = default_image_dl(
