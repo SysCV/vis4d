@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
+from vis4d.common.time import Timer
 from vis4d.common.callbacks import Callback
 from vis4d.common.logging import rank_zero_info
 from vis4d.data import DictData
@@ -92,6 +93,10 @@ class Trainer:
         device = next(model.parameters()).device  # model device
 
         for epoch in range(self.num_epochs):
+            for _, callback in self.train_callbacks.items():
+                if callback.run_on_epoch(epoch):
+                    callback.on_train_epoch_begin(model, epoch)
+
             # Set model to train mode
             model.train()
 
@@ -130,8 +135,11 @@ class Trainer:
                 else:
                     losses = {}
 
-                for opt in optimizers:
+                for i, opt in enumerate(optimizers):
                     opt.step(step)
+                    base_lr = opt.optimizer.defaults.get("lr", None)
+                    if base_lr is not None:
+                        losses[f"optimizer{i}_lr"] = base_lr
 
                 for k, callback in self.train_callbacks.items():
                     if callback.run_on_epoch(epoch):

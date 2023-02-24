@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from torch import nn, optim
 
+import vis4d
 from vis4d.config.default.data.dataloader import default_image_dl
 from vis4d.config.default.data.classification import (
     classification_preprocessing,
@@ -16,7 +17,7 @@ from vis4d.data.datasets.imagenet import ImageNet
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.engine.connectors import data_key, pred_key
 from vis4d.model.classification.vit import ClassificationViT
-from vis4d.optim import PolyLR
+from vis4d.optim import PolyLR, LinearLRWarmup
 
 
 def get_config() -> ConfigDict:
@@ -44,12 +45,12 @@ def get_config() -> ConfigDict:
     config.train_split = "train"
     config.test_split = "val"
     config.n_gpus = 1
-    config.num_epochs = 40
+    config.num_epochs = 80
 
     ## High level hyper parameters
     params = ConfigDict()
-    params.batch_size = 8
-    params.lr = 0.0001
+    params.batch_size = 64
+    params.lr = 0.003
     params.augment_proba = 0.5
     params.num_classes = 1000
     config.params = params
@@ -71,7 +72,7 @@ def get_config() -> ConfigDict:
         preproc,
         dataset_cfg_train,
         params.batch_size,
-        num_workers_per_gpu=0,
+        num_workers_per_gpu=4,
         shuffle=True,
     )
     config.train_dl = dataloader_train_cfg
@@ -89,7 +90,7 @@ def get_config() -> ConfigDict:
         preproc_test,
         dataset_cfg_test,
         batch_size=1,
-        num_workers_per_gpu=0,
+        num_workers_per_gpu=4,
         shuffle=False,
     )
     config.test_dl = {"imagenet_eval": dataloader_cfg_test}
@@ -117,11 +118,13 @@ def get_config() -> ConfigDict:
 
     config.optimizers = [
         optimizer_cfg(
-            optimizer=class_config(optim.AdamW, lr=params.lr),
+            optimizer=class_config(optim.AdamW, lr=params.lr, weight_decay=0.3),
             lr_scheduler=class_config(
                 PolyLR, max_steps=config.num_epochs, power=0.9
             ),
-            lr_warmup=None,
+            lr_warmup=class_config(
+                LinearLRWarmup, warmup_ratio=0.033, warmup_steps=10
+            ),
         )
     ]
 
@@ -138,6 +141,7 @@ def get_config() -> ConfigDict:
                 "input": pred_key("logits"),
                 "target": data_key("categories"),
             },
+            callbacks={},
         ),
     )
 

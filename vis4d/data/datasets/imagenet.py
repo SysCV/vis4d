@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import os
-import tarfile
 import pickle
+import tarfile
 from collections.abc import Sequence
 
 import numpy as np
 import torch
 
-from vis4d.common.logging import rank_zero_info
+from vis4d.common.time import Timer
+from vis4d.common.logging import rank_zero_info, rank_zero_warn
 from vis4d.common.time import Timer
 from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.typing import DictData
@@ -82,9 +83,10 @@ class ImageNet(Dataset):
         for file in os.listdir(os.path.join(self.data_root, self.split)):
             if file.endswith(".tar"):
                 self._classes.append(file)
-        assert (
-            len(self._classes) == self.num_classes
-        ), f"Expected {self.num_classes} classes, but found {len(self._classes)} tar files."
+        assert len(self._classes) == self.num_classes, (
+            f"Expected {self.num_classes} classes, but found "
+            f"{len(self._classes)} tar files."
+        )
         self._classes = sorted(self._classes)
 
         sample_list_path = os.path.join(self.data_root, f"{self.split}.pkl")
@@ -93,7 +95,6 @@ class ImageNet(Dataset):
                 sample_list = pickle.load(f)[0]
                 if sample_list[-1][1] == self.num_classes - 1:
                     self.data_infos = sample_list
-                    return
                 else:
                     raise ValueError(
                         "Sample list does not match the number of classes. "
@@ -119,9 +120,11 @@ class ImageNet(Dataset):
 
     def __getitem__(self, idx: int) -> DictData:
         """Convert single element at given index into Vis4D data format."""
+        timer = Timer()
         member, class_idx = self.data_infos[idx]
         with tarfile.open(
-            os.path.join(self.data_root, self.split, self._classes[class_idx])
+            os.path.join(self.data_root, self.split, self._classes[class_idx]),
+            mode="r:*"  # unexclusive read mode
         ) as f:
             im_bytes = f.extractfile(member)
             assert im_bytes is not None, f"Could not extract {member.name}!"
@@ -137,4 +140,7 @@ class ImageNet(Dataset):
             data_dict[Keys.categories] = torch.tensor(
                 class_idx, dtype=torch.long
             ).unsqueeze(0)
+        t = timer.time()
+        if t > 1.0:
+            rank_zero_warn(f"idx: {idx} time: {t:.3f} name: {member.name}")
         return data_dict

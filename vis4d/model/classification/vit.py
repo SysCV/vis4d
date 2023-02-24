@@ -3,8 +3,8 @@ import torch
 from torch import nn
 
 from vis4d.common import ArgsType
-from vis4d.op.base import ViT
 from vis4d.model.classification.common import ClsOut
+from vis4d.op.base import ViT
 
 
 class ClassificationViT(nn.Module):

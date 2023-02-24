@@ -128,7 +128,7 @@ class Optimizer:
         # Warmup step
         warmed_up = self.warmup_step(step)
         # LR scheduler step
-        if self.lr_scheduler is not None and warmed_up:
+        if self.lr_scheduler is not None and not warmed_up:
             self.lr_scheduler.step()
 
     def warmup_step(self, step: int) -> bool:
@@ -153,6 +153,7 @@ class Optimizer:
             )
 
         if self._warmup is not None and step <= self._warmup.warmup_steps:
+            print(self._warmup(step, base_lr))
             for g in self.optimizer.param_groups:
                 if step < self._warmup.warmup_steps:
                     g["lr"] = self._warmup(step, base_lr)

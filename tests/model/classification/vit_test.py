@@ -55,27 +55,27 @@ def get_test_dataloader(
 class ViTTest(unittest.TestCase):
     """ViT test class."""
 
-    # def test_inference(self) -> None:
-    #     """Test inference of ViT Classification."""
-    #     dataset = ImageNet(
-    #         data_root=get_test_data("imagenet_1k_test"),
-    #         keys_to_load=(CommonKeys.images, CommonKeys.categories),
-    #         split="train",
-    #         num_classes=2,
-    #         use_sample_lists=False,
-    #     )
-    #     test_loader = get_test_dataloader(dataset, 2, (224, 224))
-    #     model = ClassificationViT(num_classes=2, vit_name="vit_b_16")
-    #     model.eval()
+    def test_inference(self) -> None:
+        """Test inference of ViT Classification."""
+        dataset = ImageNet(
+            data_root=get_test_data("imagenet_1k_test"),
+            keys_to_load=(CommonKeys.images, CommonKeys.categories),
+            split="train",
+            num_classes=2,
+            use_sample_lists=False,
+        )
+        test_loader = get_test_dataloader(dataset, 2, (224, 224))
+        model = ClassificationViT(num_classes=2, vit_name="vit_b_16")
+        model.eval()
 
-    #     batch = next(iter(test_loader))
-    #     images = batch[CommonKeys.images]
-    #     with torch.no_grad():
-    #         out = model(images)
+        batch = next(iter(test_loader))
+        images = batch[CommonKeys.images]
+        with torch.no_grad():
+            out = model(images)
 
-    #     assert isinstance(out, ClsOut)
-    #     self.assertEqual(out.logits.shape, (2, 2))
-    #     self.assertEqual(out.probs.shape, (2, 2))
+        assert isinstance(out, ClsOut)
+        self.assertEqual(out.logits.shape, (2, 2))
+        self.assertEqual(out.probs.shape, (2, 2))
 
     def test_cli_training(self) -> None:
         """Test ViT training via CLI."""

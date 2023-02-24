@@ -2,22 +2,26 @@
 from __future__ import annotations
 
 import os
+
 from torch import nn, optim
 
-from vis4d.config.default.data.dataloader import default_image_dl
+from vis4d.common.callbacks import EvaluatorCallback, LoggingCallback
 from vis4d.config.default.data.classification import (
     classification_preprocessing,
 )
-
-from vis4d.common.callbacks import LoggingCallback
+from vis4d.config.default.data.dataloader import default_image_dl
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.imagenet import ImageNet
-from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
-from vis4d.engine.connectors import data_key, pred_key
+from vis4d.engine.connectors import (
+    DataConnectionInfo,
+    StaticDataConnector,
+    data_key,
+    pred_key,
+)
+from vis4d.eval import ClassificationEvaluator
 from vis4d.model.classification.vit import ClassificationViT
 from vis4d.optim import PolyLR
-
 
 VIS4D_ROOT = os.path.abspath(os.path.dirname(__file__) + "../../../../")
 IMAGENET_DATA_ROOT = os.path.join(
@@ -163,6 +167,28 @@ def get_config() -> ConfigDict:
             lr_warmup=None,
         )
     ]
+
+    ######################################################
+    ##                     EVALUATOR                    ##
+    ######################################################
+
+    # Here we define the evaluator. We use the default COCO evaluator for
+    # bounding box detection. Note, that we need to define the connections
+    # between the evaluator and the data connector in the data connector
+    # section. And use the same name here.
+
+    eval_callbacks = {
+        "imagenet_eval": class_config(
+            EvaluatorCallback,
+            evaluator=class_config(
+                ClassificationEvaluator,
+                data_root=config.dataset_root,
+                split=config.test_split,
+            ),
+            run_every_nth_epoch=1,
+            num_epochs=config.num_epochs,
+        )
+    }
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
