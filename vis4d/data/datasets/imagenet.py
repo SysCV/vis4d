@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import tarfile
+import pickle
 from collections.abc import Sequence
 
 import numpy as np
@@ -33,6 +34,7 @@ class ImageNet(Dataset):
         keys_to_load: Sequence[str] = (Keys.images, Keys.categories),
         split: str = "train",
         num_classes: int = 1000,
+        use_sample_lists: bool = True,
     ) -> None:
         """Initialize ImageNet dataset.
 
@@ -43,8 +45,13 @@ class ImageNet(Dataset):
             split (str, optional): Dataset split to load. Defaults to "train".
             num_classes (int, optional): Number of classes to load. Defaults to
                 1000.
+            use_lists (bool, optional): Whether to load the sample lists from
+                the pickle files. If False, the lists will be generated on the
+                fly, which is much slower. Defaults to True.
         NOTE: The dataset is expected to be in the following format:
             data_root
+            ├── train.pkl  # Sample lists for training set (optional)
+            ├── val.pkl    # Sample lists for validation set (optional)
             ├── train
             │   ├── n01440764.tar
             │   ├── ...
@@ -53,13 +60,15 @@ class ImageNet(Dataset):
                 ├── ...
             With each tar file containing the images of a single class. The
             images are expected to be in ".JPEG" extension.
-            
+
             Currently, we are not using the DataBackend for loading the tars to
             avoid keeping too many file pointers open at the same time.
         """
         self.data_root = data_root
         self.keys_to_load = keys_to_load
         self.split = split
+        self.num_classes = num_classes
+        self.use_sample_lists = use_sample_lists
         self.data_infos = []
 
         self._classes = []
@@ -70,13 +79,33 @@ class ImageNet(Dataset):
             len(self._classes) == num_classes
         ), f"Expected {num_classes} classes, but found {len(self._classes)}."
         self._classes = sorted(self._classes)
+        self._load_data_infos()
 
-        for class_idx, file in enumerate(self._classes):
-            with tarfile.open(os.path.join(data_root, split, file)) as f:
-                members = f.getmembers()
-                for member in members:
-                    if member.isfile() and member.name.endswith(".JPEG"):
-                        self.data_infos.append((class_idx, member.name))
+    def _load_data_infos(self) -> None:
+        """Load data infos from disk."""
+        sample_list_path = os.path.join(self.data_root, f"{self.split}.pkl")
+        if self.use_sample_lists and os.path.exists(sample_list_path):
+            with open(sample_list_path, "rb") as f:
+                sample_list = pickle.load(f)[0]
+                if sample_list[-1][1] == self.num_classes - 1:
+                    self.data_infos = sample_list
+                    return
+                else:
+                    raise ValueError(
+                        "Sample list does not match the number of classes. "
+                        "Please regenerate the sample list or set "
+                        "use_sample_lists=False."
+                    )
+        # If sample lists are not available, generate them on the fly.
+        else:
+            for class_idx, file in enumerate(self._classes):
+                with tarfile.open(
+                    os.path.join(self.data_root, self.split, file)
+                ) as f:
+                    members = f.getmembers()
+                    for member in members:
+                        if member.isfile() and member.name.endswith(".JPEG"):
+                            self.data_infos.append((member, class_idx))
 
     def __len__(self) -> int:
         """Return length of dataset."""
@@ -84,12 +113,12 @@ class ImageNet(Dataset):
 
     def __getitem__(self, idx: int) -> DictData:
         """Convert single element at given index into Vis4D data format."""
-        class_idx, image_name = self.data_infos[idx]
+        member, class_idx = self.data_infos[idx]
         with tarfile.open(
             os.path.join(self.data_root, self.split, self._classes[class_idx])
         ) as f:
-            im_bytes = f.extractfile(image_name)
-            assert im_bytes is not None, f"Could not extract {image_name}"
+            im_bytes = f.extractfile(member)
+            assert im_bytes is not None, f"Could not extract {member.name}!"
             image = im_decode(im_bytes.read())
 
         data_dict = {}
@@ -101,5 +130,5 @@ class ImageNet(Dataset):
         if Keys.categories in self.keys_to_load:
             data_dict[Keys.categories] = torch.tensor(
                 class_idx, dtype=torch.long
-            )
+            ).unsqueeze(0)
         return data_dict

@@ -70,6 +70,7 @@ def get_config() -> ConfigDict:
         data_root=config.dataset_root,
         split=config.train_split,
         num_classes=params.num_classes,
+        use_sample_lists=False,
     )
     preproc = classification_preprocessing(224, 224, params.augment_proba)
     dataloader_train_cfg = default_image_dl(
@@ -87,6 +88,7 @@ def get_config() -> ConfigDict:
         data_root=config.dataset_root,
         split=config.train_split,
         num_classes=params.num_classes,
+        use_sample_lists=False,
     )
     preproc_test = classification_preprocessing(224, 224, 0)
     dataloader_cfg_test = default_image_dl(
@@ -169,7 +171,7 @@ def get_config() -> ConfigDict:
             train={"images": "images"},
             test={"images": "images"},
             loss={
-                "input": pred_key("outputs"),
+                "input": pred_key("logits"),
                 "target": data_key("categories"),
             },
         ),

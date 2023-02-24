@@ -120,11 +120,13 @@ class Trainer:
                         output, data
                     )
                     losses = loss(**loss_input)
-                    total_loss = sum(losses.values())
+                    if isinstance(losses, dict):
+                        total_loss: torch.Tensor = sum(losses.values())
+                        losses = {"loss": total_loss, **losses}
+                    else:
+                        total_loss = losses
+                        losses = {"loss": total_loss}
                     total_loss.backward()
-
-                    # update statistics
-                    losses = {"loss": total_loss, **losses}
                 else:
                     losses = {}
 

@@ -42,6 +42,8 @@ def default_collate(batch: list[DictData]) -> DictData:
                 data[key] = torch.stack([b[key] for b in batch], 0)
             elif key == CommonKeys.segmentation_masks:
                 data[key] = torch.cat([b[key] for b in batch])
+            elif key == CommonKeys.categories:
+                data[key] = torch.cat([b[key] for b in batch])
             else:
                 data[key] = [b[key] for b in batch]
         except RuntimeError as e:
