@@ -10,6 +10,8 @@ from collections.abc import Sequence
 import numpy as np
 import torch
 
+from vis4d.common.logging import rank_zero_info
+from vis4d.common.time import Timer
 from vis4d.data.const import CommonKeys as Keys
 from vis4d.data.typing import DictData
 
@@ -70,19 +72,21 @@ class ImageNet(Dataset):
         self.num_classes = num_classes
         self.use_sample_lists = use_sample_lists
         self.data_infos = []
-
         self._classes = []
-        for file in os.listdir(os.path.join(data_root, split)):
-            if file.endswith(".tar"):
-                self._classes.append(file)
-        assert (
-            len(self._classes) == num_classes
-        ), f"Expected {num_classes} classes, but found {len(self._classes)}."
-        self._classes = sorted(self._classes)
         self._load_data_infos()
 
     def _load_data_infos(self) -> None:
         """Load data infos from disk."""
+        timer = Timer()
+        # Load tar files
+        for file in os.listdir(os.path.join(self.data_root, self.split)):
+            if file.endswith(".tar"):
+                self._classes.append(file)
+        assert (
+            len(self._classes) == self.num_classes
+        ), f"Expected {self.num_classes} classes, but found {len(self._classes)} tar files."
+        self._classes = sorted(self._classes)
+
         sample_list_path = os.path.join(self.data_root, f"{self.split}.pkl")
         if self.use_sample_lists and os.path.exists(sample_list_path):
             with open(sample_list_path, "rb") as f:
@@ -106,6 +110,8 @@ class ImageNet(Dataset):
                     for member in members:
                         if member.isfile() and member.name.endswith(".JPEG"):
                             self.data_infos.append((member, class_idx))
+
+        rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
 
     def __len__(self) -> int:
         """Return length of dataset."""
