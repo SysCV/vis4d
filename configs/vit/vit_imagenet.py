@@ -8,6 +8,8 @@ from vis4d.config.default.data.classification import (
     classification_preprocessing,
 )
 
+from vis4d.common.callbacks import LoggingCallback
+
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.datasets.imagenet import ImageNet
@@ -138,4 +140,13 @@ def get_config() -> ConfigDict:
             },
         ),
     )
+
+    ######################################################
+    ##                GENERIC CALLBACKS                 ##
+    ######################################################
+
+    config.train_callbacks = {
+        "logging": class_config(LoggingCallback, refresh_rate=1),
+    }
+
     return config.value_mode()
