@@ -32,10 +32,6 @@ def get_config() -> ConfigDict:
     ##                    General Config                ##
     ######################################################
 
-    # Here we define the general config for the experiment.
-    # This includes the experiment name, the dataset root, the splits
-    # and the high level hyper parameters.
-
     config = ConfigDict()
     config.experiment_name = "vit_imagenet"
     config.save_prefix = "vis4d-workspace/test/" + config.get_ref(
@@ -60,10 +56,6 @@ def get_config() -> ConfigDict:
     ##          Datasets with augmentations             ##
     ######################################################
 
-    # Here we define the training and test datasets.
-    # We use the COCO dataset and the default data augmentation
-    # provided by vis4d.
-
     # Training Datasets
     dataset_cfg_train = class_config(
         ImageNet,
@@ -82,7 +74,7 @@ def get_config() -> ConfigDict:
     )
     config.train_dl = dataloader_train_cfg
 
-    # Test
+    # Testing Datasets
     dataset_cfg_test = class_config(
         ImageNet,
         data_root=config.dataset_root,
@@ -115,36 +107,11 @@ def get_config() -> ConfigDict:
     ##                        LOSS                      ##
     ######################################################
 
-    # Here we define the loss function. We use the default loss function
-    # provided for the Faster RCNN model.
-    # Note, that the loss functions consists of multiple loss terms which
-    # are averaged using a weighted sum.
-
     config.loss = class_config(nn.CrossEntropyLoss)
 
     ######################################################
     ##                    OPTIMIZERS                    ##
     ######################################################
-
-    # Here we define which optimizer to use. We use the default optimizer
-    # provided by vis4d. By default, it consists of a optimizer, a learning
-    # rate scheduler and a learning rate warmup and passes all the parameters
-    # to the optimizer.
-    # If required, we can also define multiple, custom optimizers and pass
-    # them to the config. In order to only subscribe to a subset of the
-    # parameters,
-    #
-    # We could add a filtering function as follows:
-    # def only_encoder_params(params: Iterable[torch.Tensor], fun: Callable):
-    #     return fun([p for p in params if "encoder" in p.name])
-    #
-    # config.optimizers = [
-    #    optimizer_cfg(
-    #        optimizer=class_config(only_encoder_params,
-    #           fun=class_config(optim.SGD, lr=params.lr"))
-    #        )
-    #    )
-    # ]
 
     config.optimizers = [
         optimizer_cfg(
@@ -159,11 +126,6 @@ def get_config() -> ConfigDict:
     ######################################################
     ##                  DATA CONNECTOR                  ##
     ######################################################
-
-    # This defines how the output of each component is connected to the next
-    # component. This is a very important part of the config. It defines the
-    # data flow of the pipeline.
-    # We use the default connections provided for faster_rcnn.
 
     config.data_connector = class_config(
         StaticDataConnector,

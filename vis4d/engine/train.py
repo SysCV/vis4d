@@ -117,7 +117,7 @@ class Trainer:
                     # Idea is to allow the user to somewhat define a custom
                     # loss implementation in a custom optimizer.step()
                     loss_input = self.data_connector.get_loss_input(
-                        output, data
+                        output, data_moved
                     )
                     losses = loss(**loss_input)
                     if isinstance(losses, dict):
