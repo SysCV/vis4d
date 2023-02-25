@@ -11,6 +11,7 @@ def optimizer_cfg(
     optimizer: ConfigDict,
     lr_scheduler: ConfigDict | None = None,
     lr_warmup: ConfigDict | None = None,
+    epoch_based: bool = False,
 ) -> ConfigDict:
     """Default optimizer configuration.
 
@@ -22,6 +23,8 @@ def optimizer_cfg(
         optimizer (ConfigDict): Optimizer configuration.
         lr_scheduler (ConfigDict, optional): Learning rate scheduler
         lr_warmup (ConfigDict, optional): Learning rate warmup.
+        epoch_based (bool, optional): Whether the learning rate scheduler is
+            epoch based or step based. Defaults to False.
 
     Returns:
         ConfigDict: Config dict that can be instantiated as Optimizer.
@@ -43,4 +46,5 @@ def optimizer_cfg(
         if lr_scheduler is not None
         else None,
         lr_warmup=lr_warmup,
+        epoch_based=epoch_based,
     )
