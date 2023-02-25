@@ -3,6 +3,7 @@ import unittest
 
 import torch
 
+from tests.util import MockModel
 from vis4d.config.util import (
     class_config,
     delay_instantiation,
@@ -10,8 +11,6 @@ from vis4d.config.util import (
 )
 from vis4d.engine.opt import Optimizer
 from vis4d.optim import LinearLRWarmup, PolyLR
-
-from ..util import MockModel
 
 
 class TestOptimizer(unittest.TestCase):
