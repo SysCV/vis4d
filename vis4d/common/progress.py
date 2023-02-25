@@ -30,7 +30,7 @@ def compose_log_str(
             name = k.split("/")[-1]  # remove prefix, e.g. train/loss
             if isinstance(v, (torch.Tensor, float)):
                 # display more digits for small values
-                if v < 1e-3:
+                if abs(v) < 1e-3:  # type: ignore[operator]
                     kv_str = f"{name}: {v:.6f}"
                 else:
                     kv_str = f"{name}: {v:.4f}"
