@@ -31,7 +31,7 @@ def compose_log_str(
             if isinstance(v, (torch.Tensor, float)):
                 # display more digits for small values
                 if abs(v) < 1e-3:  # type: ignore[operator]
-                    kv_str = f"{name}: {v:.6f}"
+                    kv_str = f"{name}: {v:.3e}"
                 else:
                     kv_str = f"{name}: {v:.4f}"
             else:

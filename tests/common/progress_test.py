@@ -20,5 +20,5 @@ class TestProgressBar(unittest.TestCase):
             log_str = compose_log_str(prefix, i, num_batches, timer, metrics)
             self.assertTrue(log_str.startswith(prefix))
             log_list = log_str.split(", ")
-            self.assertEqual(log_list[-2], "loss: 0.000010")
+            self.assertEqual(log_list[-2], "loss: 1.000e-05")
             self.assertEqual(log_list[-1], "accuracy: 0.5000")
