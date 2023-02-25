@@ -53,7 +53,7 @@ class Tester:
         model.eval()
         rank_zero_info("Running validation...")
         for dl_k, test_loader in self.test_dataloader.items():
-            for _, data in enumerate(tqdm(test_loader)):
+            for _, data in enumerate(tqdm(test_loader, mininterval=10.0)):
                 # input data
                 device = next(model.parameters()).device  # model device
                 data = move_data_to_device(data, device)

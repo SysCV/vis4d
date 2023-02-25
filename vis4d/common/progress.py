@@ -29,8 +29,9 @@ def compose_log_str(
         for k, v in metrics.items():
             name = k.split("/")[-1]  # remove prefix, e.g. train/loss
             if isinstance(v, (torch.Tensor, float)):
-                if v < 1e-3:
-                    kv_str = f"{name}: {v:.6f}"
+                # display more digits for small values
+                if abs(v) < 1e-3:  # type: ignore[operator]
+                    kv_str = f"{name}: {v:.3e}"
                 else:
                     kv_str = f"{name}: {v:.4f}"
             else:

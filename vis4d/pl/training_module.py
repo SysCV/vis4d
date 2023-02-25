@@ -39,7 +39,7 @@ class TorchOptimizer(optim.Optimizer):
         Args:
            closure: A closure that reevaluates the model and returns the loss.
         """
-        self.optim.step(self._step, closure)
+        self.optim.step_on_batch(self._step, closure)
         self._step += 1
 
     def zero_grad(self, set_to_none: bool = False) -> None:
