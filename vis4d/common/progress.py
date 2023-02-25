@@ -28,11 +28,14 @@ def compose_log_str(
     if metrics is not None:
         for k, v in metrics.items():
             name = k.split("/")[-1]  # remove prefix, e.g. train/loss
-            kv_str = (
-                f"{name}: {v:.3f}"
-                if isinstance(v, (torch.Tensor, float))
-                else f"{name}: {v}"
-            )
+            if isinstance(v, (torch.Tensor, float)):
+                # display more digits for small values
+                if abs(v) < 1e-3:  # type: ignore[operator]
+                    kv_str = f"{name}: {v:.3e}"
+                else:
+                    kv_str = f"{name}: {v:.4f}"
+            else:
+                kv_str = f"{name}: {v}"
             if name == "loss":  # put total loss first
                 metrics_list.insert(0, kv_str)
             else:

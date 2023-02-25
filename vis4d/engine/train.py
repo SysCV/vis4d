@@ -81,6 +81,10 @@ class Trainer:
             loss: Loss function that should be used for training. Defaults to
                 None.
             tester: Tester that should be used for testing. Defaults to None.
+
+        Raises:
+            TypeError: If the loss value is not a torch.Tensor or a dict of
+                torch.Tensor.
         """
         step = 0
 
@@ -92,26 +96,38 @@ class Trainer:
         device = next(model.parameters()).device  # model device
 
         for epoch in range(self.num_epochs):
+            total_iters = len(self.train_dataloader)
+
+            # Run callbacks for epoch begin
+            for _, callback in self.train_callbacks.items():
+                if callback.run_on_epoch(epoch):
+                    callback.on_train_epoch_begin(model, epoch)
+
             # Set model to train mode
             model.train()
 
+            # Update learning rate on epoch
+            for opt in optimizers:
+                opt.step_on_epoch(epoch)
+
+            # Set epoch for distributed sampler
             if hasattr(self.train_dataloader, "sampler") and isinstance(
                 self.train_dataloader.sampler, DistributedSampler
             ):
                 self.train_dataloader.sampler.set_epoch(epoch)
 
-            for i, data in enumerate(self.train_dataloader):
-                # zero grad optimizers
+            # Training loop for one epoch
+            for cur_iter, data in enumerate(self.train_dataloader):
+                # Zero grad optimizers
                 for opt in optimizers:
                     opt.zero_grad()
 
-                # input data
+                # Input data
                 data_moved: DictData = move_data_to_device(data, device)
                 train_input = self.data_connector.get_train_input(data_moved)
 
-                # forward + backward + optimize
+                # Forward + backward + optimize
                 output = model(**train_input)
-
                 if loss is not None:
                     # Do we want to support no loss?
                     # Idea is to allow the user to somewhat define a custom
@@ -120,36 +136,47 @@ class Trainer:
                         output, data_moved
                     )
                     losses = loss(**loss_input)
-                    if isinstance(losses, dict):
-                        total_loss: torch.Tensor = sum(losses.values())
-                        losses = {"loss": total_loss, **losses}
-                    else:
+                    if isinstance(losses, torch.Tensor):
                         total_loss = losses
-                        losses = {"loss": total_loss}
+                        metrics = {"loss": losses}
+                    elif isinstance(losses, dict):
+                        total_loss = sum(losses.values())  # type: ignore
+                        metrics = {"loss": total_loss, **losses}
+                    else:
+                        raise TypeError(
+                            "Loss function must return a torch.Tensor or a "
+                            "dict of torch.Tensors"
+                        )
                     total_loss.backward()
                 else:
                     losses = {}
 
                 for opt in optimizers:
-                    opt.step(step)
+                    opt.step_on_batch(step)
 
                 for k, callback in self.train_callbacks.items():
                     if callback.run_on_epoch(epoch):
                         clbk_kwargs = self.data_connector.get_callback_input(
                             k, output, data_moved, "train"
                         )
-                        num_train = len(self.train_dataloader)
                         callback.on_train_batch_end(
-                            model, clbk_kwargs, losses, epoch, i, num_train
+                            model,
+                            clbk_kwargs,
+                            metrics,
+                            epoch,
+                            self.num_epochs,
+                            cur_iter,
+                            total_iters,
                         )
 
                 step += 1
 
+            # Run callbacks for epoch end
             for _, callback in self.train_callbacks.items():
                 if callback.run_on_epoch(epoch):
                     callback.on_train_epoch_end(model, epoch)
 
-            # testing
+            # Testing
             if tester is not None and self._run_test_on_epoch(epoch):
                 tester.test(model, epoch)
 
