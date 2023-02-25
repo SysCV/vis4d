@@ -42,7 +42,7 @@ def im_decode(
         if mode == "BGR":  # pragma: no cover
             img: NDArrayUI8 = np.array(pil_img)[..., [2, 1, 0]]
         elif mode == "RGB":
-            img = np.array(pil_img)
+            img: NDArrayUI8 = np.array(pil_img)[..., [0, 1, 2]]
     elif backend == "cv2":  # pragma: no cover
         if not OPENCV_AVAILABLE:
             raise ImportError(

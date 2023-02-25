@@ -141,6 +141,6 @@ class ImageNet(Dataset):
                 class_idx, dtype=torch.long
             ).unsqueeze(0)
         t = timer.time()
-        if t > 1.0:
+        if t > 1.5:
             rank_zero_warn(f"idx: {idx} time: {t:.3f} name: {member.name}")
         return data_dict

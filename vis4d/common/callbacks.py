@@ -147,7 +147,7 @@ class EvaluatorCallback(Callback):
             results[metric] = log_dict
             if not self.logging_disabled:
                 for k, v in log_dict.items():
-                    rank_zero_info("%s: %.3f", k, v)
+                    rank_zero_info("%s: %.4f", k, v)
                 rank_zero_info("Showing results for %s", metric)
                 rank_zero_info(log_str)
         return results
@@ -211,7 +211,7 @@ class LoggingCallback(Callback):
         self.timer = Timer()
 
     def on_train_epoch_begin(self, model: nn.Module, epoch: int) -> None:
-        rank_zero_info(f"Epoch {epoch + 1}")
+        rank_zero_info(f"[Epoch {epoch + 1}]")
 
     def on_train_batch_end(
         self,

@@ -9,7 +9,7 @@ from vis4d.config.default.data.classification import (
     classification_preprocessing,
 )
 
-from vis4d.common.callbacks import LoggingCallback
+from vis4d.common.callbacks import LoggingCallback, CheckpointCallback
 
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.util import ConfigDict, class_config
@@ -37,7 +37,7 @@ def get_config() -> ConfigDict:
 
     config = ConfigDict()
     config.experiment_name = "vit_imagenet"
-    config.save_prefix = "vis4d-workspace/test/" + config.get_ref(
+    config.save_prefix = "vis4d-workspace/" + config.get_ref(
         "experiment_name"
     )
 
@@ -45,7 +45,7 @@ def get_config() -> ConfigDict:
     config.train_split = "train"
     config.test_split = "val"
     config.n_gpus = 1
-    config.num_epochs = 80
+    config.num_epochs = 50
 
     ## High level hyper parameters
     params = ConfigDict()
@@ -53,6 +53,7 @@ def get_config() -> ConfigDict:
     params.lr = 0.003
     params.augment_proba = 0.5
     params.num_classes = 1000
+    params.grad_norm_clip = 1.0
     config.params = params
 
     ######################################################
@@ -65,7 +66,6 @@ def get_config() -> ConfigDict:
         data_root=config.dataset_root,
         split=config.train_split,
         num_classes=params.num_classes,
-        use_sample_lists=True,
     )
     preproc = classification_preprocessing(224, 224, params.augment_proba)
     dataloader_train_cfg = default_image_dl(
@@ -83,7 +83,6 @@ def get_config() -> ConfigDict:
         data_root=config.dataset_root,
         split=config.train_split,
         num_classes=params.num_classes,
-        use_sample_lists=True,
     )
     preproc_test = classification_preprocessing(224, 224, 0)
     dataloader_cfg_test = default_image_dl(
@@ -110,7 +109,7 @@ def get_config() -> ConfigDict:
     ##                        LOSS                      ##
     ######################################################
 
-    config.loss = class_config(nn.CrossEntropyLoss)
+    config.loss = class_config(nn.CrossEntropyLoss, label_smoothing=0.11)
 
     ######################################################
     ##                    OPTIMIZERS                    ##
@@ -123,8 +122,9 @@ def get_config() -> ConfigDict:
                 PolyLR, max_steps=config.num_epochs, power=0.9
             ),
             lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=0.033, warmup_steps=10
+                LinearLRWarmup, warmup_ratio=0.033, warmup_steps=5
             ),
+            epoch_based=True,
         )
     ]
 
@@ -150,7 +150,13 @@ def get_config() -> ConfigDict:
     ######################################################
 
     config.train_callbacks = {
-        "logging": class_config(LoggingCallback, refresh_rate=1),
+        "logging": class_config(LoggingCallback, refresh_rate=10),
+        "ckpt": class_config(
+            CheckpointCallback,
+            save_prefix=config.save_prefix,
+            run_every_nth_epoch=5,
+            num_epochs=config.num_epochs,
+        ),
     }
 
     return config.value_mode()

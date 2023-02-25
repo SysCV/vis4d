@@ -11,6 +11,7 @@ def optimizer_cfg(
     optimizer: ConfigDict,
     lr_scheduler: ConfigDict | None = None,
     lr_warmup: ConfigDict | None = None,
+    epoch_based: bool = False,
 ) -> ConfigDict:
     """Default optimizer configuration.
 
@@ -43,4 +44,5 @@ def optimizer_cfg(
         if lr_scheduler is not None
         else None,
         lr_warmup=lr_warmup,
+        epoch_based=epoch_based,
     )

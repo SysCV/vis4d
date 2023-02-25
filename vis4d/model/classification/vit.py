@@ -1,4 +1,6 @@
 """ViT for classification tasks."""
+from __future__ import annotations
+
 import torch
 from torch import nn
 
@@ -13,7 +15,7 @@ class ClassificationViT(nn.Module):
     def __init__(
         self,
         num_classes: int,
-        representation_size: int = 2048,
+        representation_size: int | None = None,
         **kwargs: ArgsType
     ) -> None:
         """Initialize the classification ViT.
@@ -26,11 +28,18 @@ class ClassificationViT(nn.Module):
         self.num_classes = num_classes
         self.vit = ViT(**kwargs)
         self.hidden_dim = self.vit.out_channels[-1]
-        self.classifier = nn.Sequential(
-            nn.Linear(self.hidden_dim, representation_size),
-            nn.Tanh(),
-            nn.Linear(representation_size, num_classes),
-        )
+
+        if representation_size is not None:
+            self.classifier = nn.Sequential(
+                nn.Linear(self.hidden_dim, representation_size),
+                nn.Tanh(),
+                nn.Linear(representation_size, num_classes),
+            )
+            nn.init.zeros_(self.classifier[0].bias)
+        else:
+            self.classifier = nn.Linear(self.hidden_dim, num_classes)
+            nn.init.zeros_(self.classifier.weight)
+            nn.init.zeros_(self.classifier.bias)
 
     def forward(self, images: torch.Tensor) -> ClsOut:
         """Forward pass."""
@@ -39,4 +48,4 @@ class ClassificationViT(nn.Module):
         # Classifier "token" as used by standard language architectures
         feats = feats[:, 0]
         logits = self.classifier(feats)
-        return ClsOut(logits=logits, probs=torch.softmax(logits, dim=-1))
+        return ClsOut(logits=logits, probs=torch.softmax(logits.detach(), dim=-1))

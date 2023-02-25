@@ -27,6 +27,7 @@ class Trainer:
         data_connector: DataConnector,
         train_callbacks: dict[str, Callback] | None,
         test_every_nth_epoch: int = 1,
+        grad_norm_clip: float | None = None,
     ) -> None:
         """Initialize the trainer.
 
@@ -46,6 +47,7 @@ class Trainer:
         self.test_every_nth_epoch = test_every_nth_epoch
         self.train_dataloader = dataloaders
         self.data_connector = data_connector
+        self.grad_norm_clip = grad_norm_clip
 
         if train_callbacks is None:
             self.train_callbacks = {}
@@ -97,6 +99,9 @@ class Trainer:
                 if callback.run_on_epoch(epoch):
                     callback.on_train_epoch_begin(model, epoch)
 
+            for opt in optimizers:
+                opt.step_on_epoch(epoch)
+
             # Set model to train mode
             model.train()
 
@@ -106,6 +111,8 @@ class Trainer:
                 self.train_dataloader.sampler.set_epoch(epoch)
 
             for i, data in enumerate(self.train_dataloader):
+                total_batches = len(self.train_dataloader)
+
                 # zero grad optimizers
                 for opt in optimizers:
                     opt.zero_grad()
@@ -135,20 +142,25 @@ class Trainer:
                 else:
                     losses = {}
 
-                for i, opt in enumerate(optimizers):
+                # clip gradients (if needed)
+                if self.grad_norm_clip:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), self.grad_norm_clip)
+
+                for j, opt in enumerate(optimizers):
                     opt.step(step)
-                    base_lr = opt.optimizer.defaults.get("lr", None)
-                    if base_lr is not None:
-                        losses[f"optimizer{i}_lr"] = base_lr
+                    try:
+                        current_lr = opt.optimizer.param_groups[0]['lr']
+                        losses[f"opt{j}_lr"] = current_lr
+                    except:
+                        pass
 
                 for k, callback in self.train_callbacks.items():
                     if callback.run_on_epoch(epoch):
                         clbk_kwargs = self.data_connector.get_callback_input(
                             k, output, data_moved, "train"
                         )
-                        num_train = len(self.train_dataloader)
                         callback.on_train_batch_end(
-                            model, clbk_kwargs, losses, epoch, i, num_train
+                            model, clbk_kwargs, losses, epoch, i, total_batches
                         )
 
                 step += 1

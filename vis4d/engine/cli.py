@@ -74,6 +74,7 @@ def _train(config: ConfigDict, rank: None | int = None) -> None:
         dataloaders=cfg.train_dl,
         data_connector=cfg.data_connector,
         train_callbacks=cfg.get("train_callbacks", None),
+        grad_norm_clip=cfg.params.get("grad_norm_clip", None)
     )
     tester = Tester(
         dataloaders=cfg.test_dl,

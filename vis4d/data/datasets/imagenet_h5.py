@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import h5py
+import pickle
+import tarfile
 from collections.abc import Sequence
 
 import numpy as np
@@ -56,24 +58,30 @@ class ImageNet(Dataset):
         self.keys_to_load = keys_to_load
         self.split = split
         self.num_classes = num_classes
-
         self.file = h5py.File(os.path.join(data_root, f"{split}.hdf5"), "r")
-        self.groups = list(self.file.keys())
-        self.group_sizes = [len(self.file[group]) for group in self.groups]
+        self._load_data_infos()
+
+    def _load_data_infos(self) -> None:
+        """Load data infos from disk."""
+        timer = Timer()
+        sample_list_path = os.path.join(self.data_root, f"{self.split}.pkl")
+        with open(sample_list_path, "rb") as f:
+            sample_list = pickle.load(f)[0]
+        if sample_list[-1][1] != self.num_classes - 1:
+            raise ValueError("Number of classes unmatched!")
+        self.data_infos = [(member.name, class_idx) for member, class_idx in sample_list]
+        rank_zero_info(f"Loading {self} takes {timer.time():.2f} seconds.")
 
     def __len__(self) -> int:
         """Return length of dataset."""
-        return sum(self.group_sizes)
+        return len(self.data_infos)
 
     def __getitem__(self, idx: int) -> DictData:
         """Convert single element at given index into Vis4D data format."""
-        group_idx = 0
-        while idx >= self.group_sizes[group_idx]:
-            idx -= self.group_sizes[group_idx]
-            group_idx += 1
-        group_name = self.groups[group_idx]
-        img_name = list(self.file[group_name].keys())[idx]
-        img_bytes = bytearray(self.file[group_name][img_name])
+        timer = Timer()
+        img_name, class_idx = self.data_infos[idx]
+        group_name = img_name.split('_')[0]
+        img_bytes = bytearray(self.file[f"{group_name}/{img_name}"])
         img = im_decode(img_bytes)
 
         data_dict = {}
@@ -84,6 +92,9 @@ class ImageNet(Dataset):
             ).unsqueeze(0)
         if Keys.categories in self.keys_to_load:
             data_dict[Keys.categories] = torch.tensor(
-                group_idx, dtype=torch.long
+                class_idx, dtype=torch.long
             ).unsqueeze(0)
+        t = timer.time()
+        if t > 1.0:
+            rank_zero_info(f"idx: {idx} time: {t:.3f} name: {img_name}")
         return data_dict

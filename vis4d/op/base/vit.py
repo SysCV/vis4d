@@ -59,6 +59,9 @@ class ViT(BaseModel):
             image_size=image_size, **kwargs
         )
         self.vit.load_state_dict(model_state)
+        # only compute gradients for the used parts
+        self.vit.heads.head.weight.requires_grad = False
+        self.vit.heads.head.bias.requires_grad = False
 
         self.name = vit_name
         self.patch_size = patch_size
