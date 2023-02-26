@@ -131,7 +131,7 @@ class SegmentationEvaluator(Evaluator):
         assert (
             self._confusion_matrix is not None
         ), """Evaluate() needs to process samples first.
-            Please call the process() function before calling evaluate()"""
+            Please call the process() function before calling evaluate()."""
 
         metric_data, short_description = {}, ""
         if metric in [

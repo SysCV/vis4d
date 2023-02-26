@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import os
-import tarfile
 import pickle
+import tarfile
 from collections.abc import Sequence
 
 import numpy as np
@@ -115,7 +115,7 @@ class ImageNet(Dataset):
 
     def __len__(self) -> int:
         """Return length of dataset."""
-        return len(self.data_infos)
+        return 10  # len(self.data_infos)
 
     def __getitem__(self, idx: int) -> DictData:
         """Convert single element at given index into Vis4D data format."""

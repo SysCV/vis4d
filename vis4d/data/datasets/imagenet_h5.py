@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import os
-import h5py
 from collections.abc import Sequence
 
+import h5py
 import numpy as np
 import torch
 

@@ -1,8 +1,8 @@
 """Datasets module."""
 from .base import Dataset, MultitaskMixin, VideoMixin
+from .bdd100k import BDD100K
 from .coco import COCO
 from .imagenet import ImageNet
-from .bdd100k import BDD100K
 
 __all__ = [
     "Dataset",
