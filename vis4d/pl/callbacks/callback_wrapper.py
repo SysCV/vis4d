@@ -34,6 +34,15 @@ class CallbackWrapper(pl.Callback):
         self.data_connector = data_connector
         self.callback_key = callback_key
 
+    def on_test_epoch_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Hook to run at the start of a testing epoch."""
+        if self.callback.run_on_epoch(pl_module.current_epoch):
+            self.callback.on_test_epoch_start(
+                get_model(pl_module), pl_module.current_epoch
+            )
+
     def on_test_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
@@ -59,6 +68,15 @@ class CallbackWrapper(pl.Callback):
                 inputs=self.data_connector.get_callback_input(
                     self.callback_key, outputs, batch, cb_type="test"
                 ),
+            )
+
+    def on_validation_epoch_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Hook to run at the start of a validation epoch."""
+        if self.callback.run_on_epoch(pl_module.current_epoch):
+            self.callback.on_test_epoch_start(
+                get_model(pl_module), pl_module.current_epoch
             )
 
     def on_validation_epoch_end(
@@ -88,6 +106,15 @@ class CallbackWrapper(pl.Callback):
                 ),
             )
 
+    def on_train_epoch_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Hook to run at the start of a training epoch."""
+        if self.callback.run_on_epoch(pl_module.current_epoch):
+            self.callback.on_train_epoch_start(
+                get_model(pl_module), pl_module.current_epoch
+            )
+
     def on_train_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
@@ -113,8 +140,9 @@ class CallbackWrapper(pl.Callback):
                 inputs=self.data_connector.get_callback_input(
                     self.callback_key, model_pred, batch, cb_type="train"
                 ),
-                losses=outputs,
-                epoch=pl_module.current_epoch,
-                cur_iter=batch_idx,
+                metrics=outputs,
+                cur_epoch=pl_module.current_epoch,
+                total_epochs=trainer.max_epochs if trainer.max_epochs else 0,
+                cur_batch=batch_idx,
                 total_batches=int(trainer.num_training_batches),
             )

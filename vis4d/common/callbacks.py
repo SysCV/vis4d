@@ -41,6 +41,14 @@ class Callback:
             or epoch % self.run_every_nth_epoch == self.run_every_nth_epoch - 1
         )
 
+    def on_train_epoch_start(self, model: nn.Module, epoch: int) -> None:
+        """Hook to run at the beginning of a training epoch.
+
+        Args:
+            model (nn.Module): Model that is being trained.
+            epoch (int): Current training epoch.
+        """
+
     def on_train_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a training epoch.
 
@@ -53,12 +61,21 @@ class Callback:
         self,
         model: nn.Module,
         inputs: DictStrAny,
-        losses: DictStrAny,
-        epoch: int,
-        cur_iter: int,
+        metrics: DictStrAny,
+        cur_epoch: int,
+        total_epochs: int,
+        cur_batch: int,
         total_batches: int,
     ) -> None:
         """Hook to run at the end of a training batch."""
+
+    def on_test_epoch_start(self, model: nn.Module, epoch: int) -> None:
+        """Hook to run at the beginning of a testing epoch.
+
+        Args:
+            model (nn.Module): Model that is being trained.
+            epoch (int): Current training epoch.
+        """
 
     def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a testing epoch."""
@@ -202,23 +219,29 @@ class LoggingCallback(Callback):
         self._metrics: dict[str, list[torch.Tensor]] = defaultdict(list)
         self.timer = Timer()
 
+    def on_train_epoch_start(self, model: nn.Module, epoch: int) -> None:
+        """Hook to run at the start of a training epoch."""
+        self.timer.reset()
+        rank_zero_info(f"Epoch {epoch + 1} started.")
+
     def on_train_batch_end(
         self,
         model: nn.Module,
         inputs: DictStrAny,
-        losses: DictStrAny,
-        epoch: int,
-        cur_iter: int,
+        metrics: DictStrAny,
+        cur_epoch: int,
+        total_epochs: int,
+        cur_batch: int,
         total_batches: int,
     ) -> None:
         """Hook to run at the end of a training batch."""
-        for k, v in losses.items():
+        for k, v in metrics.items():
             self._metrics[k].append(v)
-        if cur_iter % self._refresh_rate == self._refresh_rate - 1:
+        if cur_batch % self._refresh_rate == self._refresh_rate - 1:
             rank_zero_info(
                 compose_log_str(
-                    f"Epoch {epoch + 1}",
-                    cur_iter + 1,
+                    f"Epoch {cur_epoch + 1}/{total_epochs}",
+                    cur_batch + 1,
                     total_batches,
                     self.timer,
                     {
