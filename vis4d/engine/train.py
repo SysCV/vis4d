@@ -101,7 +101,7 @@ class Trainer:
             # Run callbacks for epoch begin
             for _, callback in self.train_callbacks.items():
                 if callback.run_on_epoch(epoch):
-                    callback.on_train_epoch_begin(model, epoch)
+                    callback.on_train_epoch_start(model, epoch)
 
             # Set model to train mode
             model.train()
