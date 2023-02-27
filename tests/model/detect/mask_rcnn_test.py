@@ -8,7 +8,20 @@ from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.engine.ckpt import load_model_checkpoint
-from vis4d.model.detect.mask_rcnn import REV_KEYS, MaskRCNN, MaskRCNNLoss
+from vis4d.engine.loss import WeightedMultiLoss
+from vis4d.model.detect.mask_rcnn import (
+    REV_KEYS,
+    MaskDetectionOut,
+    MaskRCNN,
+    MaskRCNNOut,
+)
+from vis4d.op.detect.rcnn import (
+    MaskRCNNHeadLoss,
+    RCNNLoss,
+    SampledMaskLoss,
+    positive_mask_sampler,
+)
+from vis4d.op.detect.rpn import RPNLoss
 
 from .faster_rcnn_test import get_test_dataloader, get_train_dataloader
 
@@ -46,27 +59,42 @@ class MaskRCNNTest(unittest.TestCase):
         with torch.no_grad():
             masks = mask_rcnn(inputs, images_hw, original_hw=images_hw)
 
+        assert isinstance(masks, MaskDetectionOut)
+
         test_samples = 10
-        for key in masks:
-            for i, _ in enumerate(masks[key]):
-                masks[key][i] = masks[key][i][:test_samples]
+
         testcase_gt = torch.load(get_test_file("mask_rcnn.pt"))
-        for k in testcase_gt:
-            assert k in masks
-            for i in range(len(testcase_gt[k])):
+
+        def _assert_eq(
+            prediction: torch.Tensor, gts: torch.Tensor, n_samples=test_samples
+        ) -> None:
+            """Assert prediction and ground truth are equal."""
+            for pred, gt in zip(prediction, gts):
                 assert (
-                    torch.isclose(masks[k][i], testcase_gt[k][i], atol=1e-4)
-                    .all()
-                    .item()
+                    torch.isclose(pred[:n_samples], gt, atol=1e-4).all().item()
                 )
+
+        _assert_eq(masks.boxes.boxes, testcase_gt["boxes2d"])
+        _assert_eq(masks.boxes.scores, testcase_gt["boxes2d_scores"])
+        _assert_eq(masks.boxes.class_ids, testcase_gt["boxes2d_classes"])
+        _assert_eq(masks.masks.masks, testcase_gt["masks"])
 
     def test_train(self):
         """Test Mask RCNN training."""
         mask_rcnn = MaskRCNN(num_classes=80)
-        mask_rcnn_loss = MaskRCNNLoss(
+
+        rpn_loss = RPNLoss(
             mask_rcnn.faster_rcnn_heads.anchor_generator,
             mask_rcnn.faster_rcnn_heads.rpn_box_encoder,
-            mask_rcnn.faster_rcnn_heads.rcnn_box_encoder,
+        )
+        rcnn_loss = RCNNLoss(mask_rcnn.faster_rcnn_heads.rcnn_box_encoder)
+        mask_loss = SampledMaskLoss(positive_mask_sampler, MaskRCNNHeadLoss())
+        mask_rcnn_loss = WeightedMultiLoss(
+            [
+                {"loss": rpn_loss, "weight": 1.0},
+                {"loss": rcnn_loss, "weight": 1.0},
+                {"loss": mask_loss, "weight": 1.0},
+            ]
         )
 
         optimizer = optim.SGD(mask_rcnn.parameters(), lr=0.001, momentum=0.9)
@@ -92,15 +120,33 @@ class MaskRCNNTest(unittest.TestCase):
 
                 # forward + backward + optimize
                 outputs = mask_rcnn(inputs, images_hw, gt_boxes, gt_class_ids)
+                boxes = outputs.boxes
+                assert isinstance(outputs, MaskRCNNOut)
+
                 mask_losses = mask_rcnn_loss(
-                    outputs, images_hw, gt_boxes, gt_masks
+                    cls_outs=boxes.rpn.cls,
+                    reg_outs=boxes.rpn.box,
+                    images_hw=images_hw,
+                    class_outs=boxes.roi.cls_score,
+                    regression_outs=boxes.roi.bbox_pred,
+                    boxes=boxes.sampled_proposals.boxes,
+                    boxes_mask=boxes.sampled_targets.labels,
+                    target_boxes=boxes.sampled_targets.boxes,
+                    target_classes=boxes.sampled_targets.labels,
+                    pred_sampled_proposals=boxes.sampled_proposals,
+                    mask_preds=outputs.masks.mask_pred,
+                    target_masks=gt_masks,
+                    sampled_target_indices=boxes.sampled_target_indices,
+                    sampled_targets=boxes.sampled_targets,
+                    sampled_proposals=boxes.sampled_proposals,
                 )
+
                 total_loss = sum(mask_losses.values())
                 total_loss.backward()
                 optimizer.step()
 
                 # print statistics
-                losses = dict(loss=total_loss, **mask_losses)
+                losses = {"loss": total_loss, **mask_losses}
                 for k, loss in losses.items():
                     if k in running_losses:
                         running_losses[k] += loss

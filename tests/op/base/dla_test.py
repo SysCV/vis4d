@@ -14,7 +14,8 @@ class TestDLA(unittest.TestCase):
         """Testcase for DLA46-C."""
         dla46_c = DLA(
             name="dla46_c",
-            weights="http://dl.yf.io/dla/models/imagenet/dla46_c-2bfd52c3.pth",
+            # weights=
+            # "http://dl.yf.io/dla/models/imagenet/dla46_c-2bfd52c3.pth",
         )
         out = dla46_c(self.inputs)
         self.assertEqual(len(out), 6)

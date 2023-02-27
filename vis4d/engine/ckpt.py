@@ -254,7 +254,7 @@ def get_torchvision_models() -> dict[str, str]:
     return model_urls
 
 
-@CheckpointLoader.register_scheme(prefixes=("torchvision://"))
+@CheckpointLoader.register_scheme(prefixes="torchvision://")
 def load_from_torchvision(
     filename: str,
     map_location: str | torch.device | None = None,

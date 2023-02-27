@@ -41,8 +41,8 @@ class FCNHeadTest(unittest.TestCase):
             losses_unweighted = fcn_loss_unweighted(outputs, mock_targets)
 
         assert len(outputs) == 6
-        assert len(losses_weighted.losses) == 2
-        assert len(losses_unweighted.losses) == 2
+        assert len(losses_weighted.keys()) == 2
+        assert len(losses_unweighted.keys()) == 2
         assert pred.shape == (2, 21, 512, 512)
         for output in outputs[-2:]:
             assert output.shape == (2, 21, 512, 512)

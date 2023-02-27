@@ -16,7 +16,8 @@ from pytest_notebook.nb_regression import NBRegressionFixture
 #         ("/cells/*/outputs", "\\[Open3D INFO\\] [^\\n]+ *\\n?", ""),
 #         (
 #             "/cells/*/outputs",
-#             "Jupyter environment detected. Enabling Open3D WebVisualizer. *\\n?",
+#             "Jupyter environment detected. Enabling Open3D WebVisualizer.
+#              *\\n?",
 #             "",
 #         ),
 #     )
@@ -59,20 +60,14 @@ def test_get_started() -> None:
     """Test get started notebooks."""
     ignores = (
         "/cells/*/metadata",
+        "/cells/1/outputs/",  # Suppress downloading checkpoint output
         "/metadata/widgets",
         "/cells/5/outputs/",  # Suppress downloading checkpoint output
         "/cells/*/execution_count",
         "/cells/*/outputs/*/data/image",
         "/metadata/language_info/version",
     )
-    replace = (
-        ("/cells/*/outputs", "\\[Open3D INFO\\] [^\\n]+ *\\n?", ""),
-        (
-            "/cells/*/outputs",
-            "Jupyter environment detected. Enabling Open3D WebVisualizer. *\\n?",  # pylint: disable=line-too-long
-            "",
-        ),
-    )
+    replace = (("/cells/*/outputs", "\\[Open3D INFO\\] [^\\n]+ *\\n?", ""),)
 
     fixture = (
         NBRegressionFixture(  # Higher timeout for downloading checkpoints
@@ -81,4 +76,24 @@ def test_get_started() -> None:
     )
     fixture.diff_color_words = False
     file = "docs/source/tutorials/getting_started.ipynb"
+    fixture.check(file)
+
+
+def test_cli() -> None:
+    """Test the cli notebook."""
+    # Lets for now ignore the output of the training cells. Cuda/Python version
+    # on the server are different and the training is slightly non-det.
+    ignores = (
+        "/cells/2/outputs/",
+        "/cells/4/outputs/",
+        "/cells/*/metadata",
+        "/metadata/language_info/version",
+    )
+    fixture = (
+        NBRegressionFixture(  # Higher timeout for downloading checkpoints
+            exec_timeout=300, diff_ignore=ignores
+        )
+    )
+    fixture.diff_color_words = False
+    file = "docs/source/tutorials/cli_interface.ipynb"
     fixture.check(file)
