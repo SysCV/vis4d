@@ -41,7 +41,11 @@ class Callback:
             or epoch % self.run_every_nth_epoch == self.run_every_nth_epoch - 1
         )
 
+<<<<<<< HEAD
     def on_train_epoch_begin(self, model: nn.Module, epoch: int) -> None:
+=======
+    def on_train_epoch_start(self, model: nn.Module, epoch: int) -> None:
+>>>>>>> main
         """Hook to run at the beginning of a training epoch.
 
         Args:
@@ -68,6 +72,14 @@ class Callback:
         total_batches: int,
     ) -> None:
         """Hook to run at the end of a training batch."""
+
+    def on_test_epoch_start(self, model: nn.Module, epoch: int) -> None:
+        """Hook to run at the beginning of a testing epoch.
+
+        Args:
+            model (nn.Module): Model that is being trained.
+            epoch (int): Current training epoch.
+        """
 
     def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a testing epoch."""
@@ -211,7 +223,11 @@ class LoggingCallback(Callback):
         self._metrics: dict[str, list[torch.Tensor]] = defaultdict(list)
         self.timer = Timer()
 
+<<<<<<< HEAD
     def on_train_epoch_begin(self, model: nn.Module, epoch: int) -> None:
+=======
+    def on_train_epoch_start(self, model: nn.Module, epoch: int) -> None:
+>>>>>>> main
         """Hook to run at the start of a training epoch."""
         self.timer.reset()
         rank_zero_info(f"Epoch {epoch + 1} started.")

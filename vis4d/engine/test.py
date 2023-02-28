@@ -52,6 +52,12 @@ class Tester:
         """
         model.eval()
         rank_zero_info("Running validation...")
+
+        # run callbacks on test epoch begin
+        for k, callback in self.test_callbacks.items():
+            if callback.run_on_epoch(epoch):
+                callback.on_test_epoch_start(model, epoch or 0)
+
         for dl_k, test_loader in self.test_dataloader.items():
             for _, data in enumerate(tqdm(test_loader, mininterval=10.0)):
                 # input data
@@ -71,6 +77,7 @@ class Tester:
                             ),
                         )
 
+        # run callbacks on test epoch end
         for k, callback in self.test_callbacks.items():
             if callback.run_on_epoch(epoch):
                 callback.on_test_epoch_end(model, epoch or 0)
