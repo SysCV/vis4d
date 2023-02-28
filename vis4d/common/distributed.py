@@ -233,11 +233,11 @@ def create_tmpdir(
         # create a temporary directory
         default_tmpdir = tempfile.gettempdir()
         if default_tmpdir is not None:
-            dir_path = os.path.join(default_tmpdir, ".dist_tmp")
+            dist_tmpdir = os.path.join(default_tmpdir, ".dist_tmp")
         else:
-            dir_path = ".dist_tmp"
-        os.makedirs(dir_path, exist_ok=True)
-        tmpdir = tempfile.mkdtemp(dir=dir_path)
+            dist_tmpdir = ".dist_tmp"
+        os.makedirs(dist_tmpdir, exist_ok=True)
+        tmpdir = tempfile.mkdtemp(dir=dist_tmpdir)
     else:
         tmpdir = None
     tmp_list = all_gather_object_gpu(tmpdir, rank_zero_return_only=False)

@@ -5,6 +5,49 @@ import torch
 from torch import nn
 
 
+class MLP(nn.Module):
+    """Multi-layer perceptron module."""
+
+    def __init__(
+        self,
+        in_features: int,
+        hidden_features: int | None = None,
+        out_features: int | None = None,
+        activation_layer: type[nn.Module] = nn.GELU,
+        dropout: float = 0.0,
+    ):
+        """Multi-layer perceptron module.
+
+        Args:
+            in_features: (int) Input dimension.
+            hidden_features: (int, optional) Hidden dimension. If not
+                specified, defaults to ``in_features``.
+            out_features: (int, optional) Output dimension. If not specified,
+                defaults to ``in_features``.
+            activation_layer: (nn.Module, optional) Activation layer. Defaults
+                to ``nn.GELU``.
+            dropout: (float, optional) Dropout probability. Defaults to 0.0.
+        """
+        super().__init__()
+        out_features = out_features or in_features
+        hidden_features = hidden_features or in_features
+        self.norm = nn.LayerNorm(in_features)
+        self.fc1 = nn.Linear(in_features, hidden_features)
+        self.fc2 = nn.Linear(hidden_features, out_features)
+        self.act = activation_layer()
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        x = self.norm(x)
+        x = self.fc1(x)
+        x = self.act(x)
+        x = self.drop(x)
+        x = self.fc2(x)
+        x = self.drop(x)
+        return x
+
+
 class ResnetBlockFC(nn.Module):
     """Fully connected ResNet Block consisting of two linear layers."""
 

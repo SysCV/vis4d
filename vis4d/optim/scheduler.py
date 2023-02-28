@@ -35,9 +35,9 @@ class PolyLR(lr_scheduler._LRScheduler):  # pylint: disable=protected-access
     def get_lr(self) -> list[float]:  # type: ignore
         """Compute current learning rate."""
         step_count = self._step_count  # type: ignore
-        if step_count >= self.max_steps:
+        if step_count > self.max_steps:
             return [self.min_lr for _ in self.base_lrs]
-        coeff = (1 - step_count / self.max_steps) ** self.power
+        coeff = (1 - (step_count - 1) / self.max_steps) ** self.power
         return [
             (base_lr - self.min_lr) * coeff + self.min_lr
             for base_lr in self.base_lrs

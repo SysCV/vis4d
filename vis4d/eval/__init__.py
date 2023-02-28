@@ -8,6 +8,7 @@ from .segment import SegmentationEvaluator
 
 __all__ = [
     "Evaluator",
+    "ClassificationEvaluator",
     "COCOEvaluator",
     "SegmentationEvaluator",
     "OccupancyEvaluator",

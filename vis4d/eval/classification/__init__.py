@@ -1,4 +1,5 @@
-"""Classification Evaluation."""
-from .classification_evaluator import ClassificationEvaluator
+"""Classification evaluators."""
+
+from .classification_evaluatior import ClassificationEvaluator
 
 __all__ = ["ClassificationEvaluator"]

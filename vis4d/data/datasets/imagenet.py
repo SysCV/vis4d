@@ -47,9 +47,10 @@ class ImageNet(Dataset):
             split (str, optional): Dataset split to load. Defaults to "train".
             num_classes (int, optional): Number of classes to load. Defaults to
                 1000.
-            use_lists (bool, optional): Whether to load the sample lists from
-                the pickle files. If False, the lists will be generated on the
-                fly, which is much slower. Defaults to True.
+            use_sample_lists (bool, optional): Whether to load the sample lists
+                from the pickle files. If False, the lists will be generated on
+                the fly, which is much slower. Defaults to True.
+
         NOTE: The dataset is expected to be in the following format:
             data_root
             ├── train.pkl  # Sample lists for training set (optional)
