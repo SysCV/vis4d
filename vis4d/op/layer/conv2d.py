@@ -50,6 +50,60 @@ class Conv2d(torch.nn.Conv2d):
         return x
 
 
+class ConvBN2d(torch.nn.Sequential):
+    """Helper class to create a Conv2d with BatchNorm2d."""
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        bn_weight_init: float = 1.0,
+        **kwargs,
+    ):
+        super().__init__()
+        self.add_module(
+            "conv",
+            torch.nn.Conv2d(
+                in_channels,
+                out_channels,
+                bias=False,
+                **kwargs,
+            ),
+        )
+        batch_norm = torch.nn.BatchNorm2d(out_channels)
+        torch.nn.init.constant_(batch_norm.weight, bn_weight_init)
+        torch.nn.init.constant_(batch_norm.bias, 0)
+        self.add_module("bn", batch_norm)
+
+    @torch.no_grad()
+    def fuse(self) -> torch.nn.Conv2d:
+        """Fuse conv and bn."""
+        conv, batch_norm = self._modules.values()
+        weight = (
+            batch_norm.weight
+            / (batch_norm.running_var + batch_norm.eps) ** 0.5
+        )
+        weight = conv.weight * weight[:, None, None, None]
+        bias = (
+            batch_norm.bias
+            - batch_norm.running_mean
+            * batch_norm.weight
+            / (batch_norm.running_var + batch_norm.eps) ** 0.5
+        )
+        fused_conv = torch.nn.Conv2d(
+            weight.size(1) * self.conv.groups,
+            weight.size(0),
+            weight.shape[2:],
+            stride=self.conv.stride,
+            padding=self.conv.padding,
+            dilation=self.conv.dilation,
+            groups=self.conv.groups,
+        )
+        fused_conv.weight.data.copy_(weight)
+        fused_conv.bias.data.copy_(bias)
+        return fused_conv
+
+
 def add_conv_branch(
     num_branch_convs: int,
     last_layer_dim: int,
