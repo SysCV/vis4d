@@ -42,7 +42,7 @@ _SHOW_CONFIG = flags.DEFINE_bool(
 def _test(config: ConfigDict, rank: None | int = None) -> None:
     """Test the model."""
     # Would be nice to  connect this to SLURM cluster to directly spawn jobs.
-    rank_zero_info("Testing model")
+    rank_zero_info("[CLI] Testing model")
     if _SHOW_CONFIG.value:
         rank_zero_info("*" * 80)
         rank_zero_info(pprints_config(config))
@@ -74,7 +74,7 @@ def _train(config: ConfigDict, rank: None | int = None) -> None:
         dataloaders=cfg.train_dl,
         data_connector=cfg.data_connector,
         train_callbacks=cfg.get("train_callbacks", None),
-        grad_norm_clip=cfg.params.get("grad_norm_clip", None)
+        grad_norm_clip=cfg.params.get("grad_norm_clip", None),
     )
     tester = Tester(
         dataloaders=cfg.test_dl,
@@ -126,11 +126,21 @@ def train(config: ConfigDict) -> None:
         rank_zero_info("*" * 80)
         rank_zero_info(pprints_config(config))
         rank_zero_info("*" * 80)
+    else:
+        rank_zero_info("")
+        rank_zero_info("[config.params]")
+        rank_zero_info(pprints_config(config.params))
+        rank_zero_info("[config.model]")
+        rank_zero_info(pprints_config(config.model))
 
     if torch.cuda.is_available():
         rank_zero_info(
-            "\n Using %d/%d GPUs", config.n_gpus, torch.cuda.device_count()
+            "\n[CLI] Using %d/%d GPUs",
+            config.n_gpus,
+            torch.cuda.device_count(),
         )
+    else:
+        rank_zero_info("\n[CLI] Not using GPU.")
     if config.n_gpus > 1:
         spawn(_dist_train, args=(config.n_gpus, config), nprocs=config.n_gpus)
     else:

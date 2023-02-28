@@ -1,11 +1,14 @@
 """Vis4D trainer."""
 from __future__ import annotations
 
+import gc
+import getpass
+
+import psutil
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from vis4d.common.time import Timer
 from vis4d.common.callbacks import Callback
 from vis4d.common.logging import rank_zero_info
 from vis4d.data import DictData
@@ -14,6 +17,34 @@ from vis4d.engine.connectors import DataConnector
 from .opt import Optimizer
 from .test import Tester
 from .util import move_data_to_device
+
+
+def log_memory_usage(decimal_places=2):
+    """Print current memory usage."""
+
+    def human_readable_size(size):
+        for unit in ("B", "KB", "MB", "GB", "TB"):
+            if size < 1024.0:
+                break
+            size /= 1024.0
+        return f"{size:.{decimal_places}f} {unit}"
+
+    total_mem = 0
+    visited_pids = set()
+    current_user = getpass.getuser()
+    # check memory usage of all subprocesses
+    for process in psutil.process_iter():
+        try:
+            user = process.username()
+            pid = process.pid
+            if current_user == user and pid not in visited_pids:
+                visited_pids.add(pid)
+                visited_pids.update(process.children(recursive=True))
+                total_mem += process.memory_info().rss
+        except:
+            pass
+    mem_str = human_readable_size(total_mem)
+    rank_zero_info(f"[Memory] System memory usage: {mem_str}.")
 
 
 class Trainer:
@@ -104,7 +135,7 @@ class Trainer:
             # Run callbacks for epoch begin
             for _, callback in self.train_callbacks.items():
                 if callback.run_on_epoch(epoch):
-                    callback.on_train_epoch_begin(model, epoch)
+                    callback.on_train_epoch_start(model, epoch)
 
             # Set model to train mode
             model.train()
@@ -163,8 +194,8 @@ class Trainer:
                 for j, opt in enumerate(optimizers):
                     opt.step_on_batch(step)
                     try:
-                        current_lr = opt.optimizer.param_groups[0]['lr']
-                        losses[f"opt{j}_lr"] = current_lr
+                        current_lr = opt.optimizer.param_groups[0]["lr"]
+                        metrics[f"opt{j}_lr"] = current_lr
                     except:
                         pass
 
@@ -182,6 +213,8 @@ class Trainer:
                             cur_iter,
                             total_iters,
                         )
+                if step % 1000 == 0:
+                    log_memory_usage()
                 step += 1
 
             # Run callbacks for epoch end
@@ -189,8 +222,18 @@ class Trainer:
                 if callback.run_on_epoch(epoch):
                     callback.on_train_epoch_end(model, epoch)
 
+            rank_zero_info("[Memory] Clearning memory...")
+            gc.collect()
+            torch.cuda.empty_cache()
+            log_memory_usage()
+
             # Testing
             if tester is not None and self._run_test_on_epoch(epoch):
                 tester.test(model, epoch)
 
-        rank_zero_info("Training done.")
+            rank_zero_info("[Memory] Clearning memory...")
+            gc.collect()
+            torch.cuda.empty_cache()
+            log_memory_usage()
+
+        rank_zero_info("[Trainer] Training done.")

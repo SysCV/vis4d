@@ -12,6 +12,7 @@ from vis4d.common.distributed import all_gather_object_cpu, get_rank
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.progress import compose_log_str
 from vis4d.common.time import Timer
+from vis4d.engine.util import move_data_to_device
 from vis4d.eval.base import Evaluator
 from vis4d.vis.base import Visualizer
 
@@ -41,7 +42,7 @@ class Callback:
             or epoch % self.run_every_nth_epoch == self.run_every_nth_epoch - 1
         )
 
-    def on_train_epoch_begin(self, model: nn.Module, epoch: int) -> None:
+    def on_train_epoch_start(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the beginning of a training epoch.
 
         Args:
@@ -68,6 +69,14 @@ class Callback:
         total_batches: int,
     ) -> None:
         """Hook to run at the end of a training batch."""
+
+    def on_test_epoch_start(self, model: nn.Module, epoch: int) -> None:
+        """Hook to run at the beginning of a testing epoch.
+
+        Args:
+            model (nn.Module): Model that is being trained.
+            epoch (int): Current training epoch.
+        """
 
     def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a testing epoch."""
@@ -127,6 +136,8 @@ class EvaluatorCallback(Callback):
 
     def on_test_batch_end(self, model: nn.Module, inputs: DictStrAny) -> None:
         """Hook to run at the end of a testing batch."""
+        if self.collect == "cpu":
+            inputs = move_data_to_device(inputs, "cpu")
         self.evaluator.process(**inputs)
 
     def evaluate(self) -> dict[str, MetricLogs]:
@@ -136,7 +147,7 @@ class EvaluatorCallback(Callback):
 
         results = {}
         if not self.logging_disabled:
-            rank_zero_info("Running evaluator %s...", str(self.evaluator))
+            rank_zero_info("[Evaluator] Running %s...", str(self.evaluator))
 
         for metric in self.evaluator.metrics:
             if self.output_dir is not None:
@@ -147,9 +158,10 @@ class EvaluatorCallback(Callback):
             log_dict, log_str = self.evaluator.evaluate(metric)
             results[metric] = log_dict
             if not self.logging_disabled:
+                rank_zero_info("[Evaluator] Metrics for '%s':", metric)
                 for k, v in log_dict.items():
                     rank_zero_info("%s: %.4f", k, v)
-                rank_zero_info("Showing results for %s", metric)
+                rank_zero_info("[Evaluator] Description for '%s':", metric)
                 rank_zero_info(log_str)
         return results
 
@@ -211,10 +223,10 @@ class LoggingCallback(Callback):
         self._metrics: dict[str, list[torch.Tensor]] = defaultdict(list)
         self.timer = Timer()
 
-    def on_train_epoch_begin(self, model: nn.Module, epoch: int) -> None:
+    def on_train_epoch_start(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the start of a training epoch."""
         self.timer.reset()
-        rank_zero_info(f"Epoch {epoch + 1} started.")
+        rank_zero_info(f"[Trainer] Epoch {epoch + 1} started.")
 
     def on_train_batch_end(
         self,
@@ -269,8 +281,10 @@ class CheckpointCallback(Callback):
     def on_train_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a training epoch."""
         os.makedirs(os.path.dirname(self.save_prefix), exist_ok=True)
+        save_path = f"{self.save_prefix}/model_e{epoch + 1}.pt"
         torch.save(
             model.state_dict(),  # TODO, save full state dict with
             # optimizer, scheduler, etc.
-            f"{self.save_prefix}/model_e{epoch + 1}.pt",
+            save_path,
         )
+        rank_zero_info(f"[Checkpoint] Model saved at {save_path}.")

@@ -225,7 +225,7 @@ def pprints_config(data: _ConfigDict) -> str:
 def _pprints_config(  # type: ignore
     data: _ConfigDict | Any,
     prefix: str = "",
-    n_indents: int = 1,
+    n_indents: int = 2,
 ) -> str:
     """Converts a Config Dict into a string with a .yaml like structure.
 

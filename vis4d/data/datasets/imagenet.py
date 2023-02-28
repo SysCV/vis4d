@@ -10,7 +10,6 @@ from collections.abc import Sequence
 import numpy as np
 import torch
 
-from vis4d.common.time import Timer
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
 from vis4d.common.time import Timer
 from vis4d.data.const import CommonKeys as Keys
@@ -124,7 +123,7 @@ class ImageNet(Dataset):
         member, class_idx = self.data_infos[idx]
         with tarfile.open(
             os.path.join(self.data_root, self.split, self._classes[class_idx]),
-            mode="r:*"  # unexclusive read mode
+            mode="r:*",  # unexclusive read mode
         ) as f:
             im_bytes = f.extractfile(member)
             assert im_bytes is not None, f"Could not extract {member.name}!"

@@ -231,6 +231,7 @@ def build_train_dataloader(
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
     pin_memory: bool = True,
     shuffle: bool = True,
+    persistent_workers: bool = False,
 ) -> _DATALOADER:
     """Build training dataloader."""
 
@@ -261,7 +262,7 @@ def build_train_dataloader(
             else _collate_fn_multi
         ),
         sampler=sampler,
-        persistent_workers=workers_per_gpu > 0,
+        persistent_workers=persistent_workers,
         pin_memory=pin_memory,
         shuffle=shuffle,
     )
@@ -275,6 +276,7 @@ def build_inference_dataloaders(
     video_based_inference: bool = True,
     batchprocess_fn: Callable[[list[DictData]], list[DictData]] = lambda x: x,
     collate_fn: Callable[[list[DictData]], DictData] = default_collate,
+    persistent_workers: bool = False,
 ) -> list[_DATALOADER]:
     """Build dataloaders for test / predict."""
     if isinstance(datasets, Dataset):
@@ -300,7 +302,7 @@ def build_inference_dataloaders(
             sampler=dset_sampler,
             shuffle=False,
             collate_fn=_collate_fn,
-            persistent_workers=workers_per_gpu > 0,
+            persistent_workers=persistent_workers,  # workers_per_gpu > 0,
         )
         dataloaders.append(test_dataloader)
     return dataloaders

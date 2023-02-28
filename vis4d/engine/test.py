@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from vis4d.common.callbacks import Callback
+from vis4d.common.distributed import get_rank
 from vis4d.common.logging import rank_zero_info
 from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
@@ -51,9 +52,18 @@ class Tester:
                 during training). Defaults to None.
         """
         model.eval()
-        rank_zero_info("Running validation...")
+        rank_zero_info("[Tester] Running validation...")
+
+        # run callbacks on test epoch begin
+        for k, callback in self.test_callbacks.items():
+            if callback.run_on_epoch(epoch):
+                callback.on_test_epoch_start(model, epoch or 0)
+
         for dl_k, test_loader in self.test_dataloader.items():
-            for _, data in enumerate(tqdm(test_loader, mininterval=10.0)):
+            # Show progress bar only on rank 0
+            for _, data in enumerate(
+                tqdm(test_loader, mininterval=60.0, disable=get_rank() != 0)
+            ):
                 # input data
                 device = next(model.parameters()).device  # model device
                 data = move_data_to_device(data, device)
@@ -70,7 +80,9 @@ class Tester:
                                 k, output, data, "test"
                             ),
                         )
+            del test_loader
 
+        # run callbacks on test epoch end
         for k, callback in self.test_callbacks.items():
             if callback.run_on_epoch(epoch):
                 callback.on_test_epoch_end(model, epoch or 0)

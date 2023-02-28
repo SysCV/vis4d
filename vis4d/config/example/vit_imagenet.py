@@ -182,8 +182,7 @@ def get_config() -> ConfigDict:
             EvaluatorCallback,
             evaluator=class_config(
                 ClassificationEvaluator,
-                data_root=config.dataset_root,
-                split=config.test_split,
+                num_classes=params.num_classes,
             ),
             run_every_nth_epoch=1,
             num_epochs=config.num_epochs,
@@ -208,7 +207,12 @@ def get_config() -> ConfigDict:
                 "input": pred_key("logits"),
                 "target": data_key("categories"),
             },
-            callbacks={},
+            callbacks={
+                "imagenet_eval_test": {
+                    "predictions": pred_key("probs"),
+                    "labels": data_key("categories"),
+                }
+            },
         ),
     )
 
@@ -221,5 +225,6 @@ def get_config() -> ConfigDict:
     config.train_callbacks = {
         "logging": class_config(LoggingCallback, refresh_rate=1),
     }
+    config.test_callbacks = {**eval_callbacks}
 
     return config.value_mode()

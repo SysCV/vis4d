@@ -16,7 +16,7 @@ class ClassificationViT(nn.Module):
         self,
         num_classes: int,
         representation_size: int | None = None,
-        **kwargs: ArgsType
+        **kwargs: ArgsType,
     ) -> None:
         """Initialize the classification ViT.
 
@@ -48,4 +48,6 @@ class ClassificationViT(nn.Module):
         # Classifier "token" as used by standard language architectures
         feats = feats[:, 0]
         logits = self.classifier(feats)
-        return ClsOut(logits=logits, probs=torch.softmax(logits.detach(), dim=-1))
+        return ClsOut(
+            logits=logits, probs=torch.softmax(logits.detach(), dim=-1)
+        )

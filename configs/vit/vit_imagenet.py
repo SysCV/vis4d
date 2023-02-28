@@ -9,7 +9,11 @@ from vis4d.config.default.data.classification import (
     classification_preprocessing,
 )
 
-from vis4d.common.callbacks import LoggingCallback, CheckpointCallback
+from vis4d.common.callbacks import (
+    LoggingCallback,
+    CheckpointCallback,
+    EvaluatorCallback,
+)
 
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.util import ConfigDict, class_config
@@ -17,6 +21,7 @@ from vis4d.data.datasets.imagenet import ImageNet
 from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.engine.connectors import data_key, pred_key
 from vis4d.model.classification.vit import ClassificationViT
+from vis4d.eval import ClassificationEvaluator
 from vis4d.optim import PolyLR, LinearLRWarmup
 
 
@@ -37,9 +42,7 @@ def get_config() -> ConfigDict:
 
     config = ConfigDict()
     config.experiment_name = "vit_imagenet"
-    config.save_prefix = "vis4d-workspace/" + config.get_ref(
-        "experiment_name"
-    )
+    config.save_prefix = "vis4d-workspace/" + config.get_ref("experiment_name")
 
     config.dataset_root = "./data/ImageNet"
     config.train_split = "train"
@@ -49,8 +52,8 @@ def get_config() -> ConfigDict:
 
     ## High level hyper parameters
     params = ConfigDict()
-    params.batch_size = 64
-    params.lr = 0.003
+    params.batch_size = 40 
+    params.lr = 0.0005
     params.augment_proba = 0.5
     params.num_classes = 1000
     params.grad_norm_clip = 1.0
@@ -72,7 +75,7 @@ def get_config() -> ConfigDict:
         preproc,
         dataset_cfg_train,
         params.batch_size,
-        num_workers_per_gpu=4,
+        num_workers_per_gpu=3,
         shuffle=True,
     )
     config.train_dl = dataloader_train_cfg
@@ -88,8 +91,8 @@ def get_config() -> ConfigDict:
     dataloader_cfg_test = default_image_dl(
         preproc_test,
         dataset_cfg_test,
-        batch_size=1,
-        num_workers_per_gpu=4,
+        batch_size=params.batch_size,
+        num_workers_per_gpu=3,
         shuffle=False,
     )
     config.test_dl = {"imagenet_eval": dataloader_cfg_test}
@@ -117,16 +120,39 @@ def get_config() -> ConfigDict:
 
     config.optimizers = [
         optimizer_cfg(
-            optimizer=class_config(optim.AdamW, lr=params.lr, weight_decay=0.3),
+            optimizer=class_config(
+                optim.AdamW, lr=params.lr, weight_decay=0.3
+            ),
             lr_scheduler=class_config(
                 PolyLR, max_steps=config.num_epochs, power=0.9
             ),
             lr_warmup=class_config(
-                LinearLRWarmup, warmup_ratio=0.033, warmup_steps=5
+                LinearLRWarmup, warmup_ratio=0.01, warmup_steps=5
             ),
             epoch_based=True,
         )
     ]
+
+    ######################################################
+    ##                     EVALUATOR                    ##
+    ######################################################
+
+    # Here we define the evaluator. We use the default COCO evaluator for
+    # bounding box detection. Note, that we need to define the connections
+    # between the evaluator and the data connector in the data connector
+    # section. And use the same name here.
+
+    eval_callbacks = {
+        "imagenet_eval": class_config(
+            EvaluatorCallback,
+            evaluator=class_config(
+                ClassificationEvaluator,
+                num_classes=params.num_classes,
+            ),
+            run_every_nth_epoch=1,
+            num_epochs=config.num_epochs,
+        )
+    }
 
     ######################################################
     ##                  DATA CONNECTOR                  ##
@@ -141,7 +167,12 @@ def get_config() -> ConfigDict:
                 "input": pred_key("logits"),
                 "target": data_key("categories"),
             },
-            callbacks={},
+            callbacks={
+                "imagenet_eval_test": {
+                    "predictions": pred_key("probs"),
+                    "labels": data_key("categories"),
+                }
+            },
         ),
     )
 
@@ -150,13 +181,14 @@ def get_config() -> ConfigDict:
     ######################################################
 
     config.train_callbacks = {
-        "logging": class_config(LoggingCallback, refresh_rate=10),
+        "logging": class_config(LoggingCallback, refresh_rate=50),
         "ckpt": class_config(
             CheckpointCallback,
             save_prefix=config.save_prefix,
-            run_every_nth_epoch=5,
+            run_every_nth_epoch=1,
             num_epochs=config.num_epochs,
         ),
     }
+    config.test_callbacks = {**eval_callbacks}
 
     return config.value_mode()

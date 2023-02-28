@@ -46,7 +46,7 @@ def compose_log_str(
         if time_sec_avg > 1
         else f"{1/time_sec_avg:.2f}it/s"
     )
-    logging_str = f"{prefix}: {batch_idx - 1}/{total_batches}, {time_str}"
+    logging_str = f"{prefix}: {batch_idx - 1}/{total_batches} - {time_str}"
     if len(metrics_list) > 0:
-        logging_str += ", " + ", ".join(metrics_list)
+        logging_str += " - " + ", ".join(metrics_list)
     return logging_str
