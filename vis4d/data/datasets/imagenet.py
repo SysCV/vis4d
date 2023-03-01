@@ -9,7 +9,7 @@ from collections.abc import Sequence
 import numpy as np
 import torch
 
-from vis4d.data.const import CommonKeys as Keys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.typing import DictData
 
 from .base import Dataset
@@ -25,12 +25,12 @@ class ImageNet(Dataset):
     PAPER = "http://www.image-net.org/papers/imagenet_cvpr09.pdf"
     LICENSE = "http://www.image-net.org/terms-of-use"
 
-    KEYS = [Keys.images, Keys.categories]
+    KEYS = [K.images, K.categories]
 
     def __init__(
         self,
         data_root: str,
-        keys_to_load: Sequence[str] = (Keys.images, Keys.categories),
+        keys_to_load: Sequence[str] = (K.images, K.categories),
         split: str = "train",
         num_classes: int = 1000,
     ) -> None:
@@ -39,7 +39,7 @@ class ImageNet(Dataset):
         Args:
             data_root (str): Path to root directory of dataset.
             keys_to_load (list[str], optional): List of keys to load. Defaults
-                to (Keys.images, Keys.categories).
+                to (K.images, K.categories).
             split (str, optional): Dataset split to load. Defaults to "train".
             num_classes (int, optional): Number of classes to load. Defaults to
                 1000.
@@ -94,13 +94,11 @@ class ImageNet(Dataset):
             image = im_decode(im_bytes.read())
 
         data_dict = {}
-        if Keys.images in self.keys_to_load:
-            data_dict[Keys.images] = torch.as_tensor(
+        if K.images in self.keys_to_load:
+            data_dict[K.images] = torch.as_tensor(
                 np.ascontiguousarray(image.transpose(2, 0, 1)),
                 dtype=torch.float32,
             ).unsqueeze(0)
-        if Keys.categories in self.keys_to_load:
-            data_dict[Keys.categories] = torch.tensor(
-                class_idx, dtype=torch.long
-            )
+        if K.categories in self.keys_to_load:
+            data_dict[K.categories] = torch.tensor(class_idx, dtype=torch.long)
         return data_dict

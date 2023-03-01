@@ -92,6 +92,14 @@ def ply_decode(ply_bytes: bytes, mode: str = "XYZI") -> NDArrayFloat:
     return points
 
 
+def npy_decode(npy_bytes: bytes, key: str | None = None) -> NDArrayFloat:
+    """Decode to numpy array from npy/npz file bytes."""
+    data = np.load(BytesIO(bytearray(npy_bytes)))
+    if key is not None:
+        data = data[key]
+    return data
+
+
 def filter_by_keys(
     data_dict: DictData, keys_to_keep: Sequence[str]
 ) -> DictData:

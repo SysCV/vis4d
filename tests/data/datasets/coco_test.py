@@ -2,7 +2,7 @@
 import unittest
 
 from tests.util import get_test_data
-from vis4d.data.const import CommonKeys as Keys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
 
 
@@ -13,10 +13,10 @@ class COCOTest(unittest.TestCase):
         data_root=get_test_data("coco_test"),
         split="train",
         keys_to_load=(
-            Keys.images,
-            Keys.boxes2d,
-            Keys.boxes2d_classes,
-            Keys.masks,
+            K.images,
+            K.boxes2d,
+            K.boxes2d_classes,
+            K.instance_masks,
         ),
     )
 
@@ -39,9 +39,9 @@ class COCOTest(unittest.TestCase):
                 "masks",
             ),
         )
-        self.assertEqual(len(item[Keys.boxes2d]), 14)
-        self.assertEqual(len(item[Keys.boxes2d_classes]), 14)
-        self.assertEqual(len(item[Keys.masks]), 14)
+        self.assertEqual(len(item[K.boxes2d]), 14)
+        self.assertEqual(len(item[K.boxes2d_classes]), 14)
+        self.assertEqual(len(item[K.instance_masks]), 14)
 
 
 class COCOSegTest(unittest.TestCase):
@@ -51,11 +51,11 @@ class COCOSegTest(unittest.TestCase):
         data_root=get_test_data("coco_test"),
         split="train",
         keys_to_load=(
-            Keys.images,
-            Keys.boxes2d,
-            Keys.boxes2d_classes,
-            Keys.masks,
-            Keys.segmentation_masks,
+            K.images,
+            K.boxes2d,
+            K.boxes2d_classes,
+            K.instance_masks,
+            K.segmentation_masks,
         ),
         remove_empty=True,
         minimum_box_area=10,
@@ -79,4 +79,4 @@ class COCOSegTest(unittest.TestCase):
             "masks",
             "segmentation_masks",
         )
-        self.assertEqual(item[Keys.segmentation_masks].shape, (1, 230, 352))
+        self.assertEqual(item[K.segmentation_masks].shape, (1, 230, 352))

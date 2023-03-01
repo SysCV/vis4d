@@ -29,7 +29,7 @@ from vis4d.config.default.loss.mask_rcnn_loss import get_default_mask_rcnn_loss
 from vis4d.config.default.optimizer.default import optimizer_cfg
 from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
-from vis4d.data.const import CommonKeys as CK
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.coco import COCO
 from vis4d.engine.connectors import (
     DataConnectionInfo,
@@ -106,7 +106,12 @@ def get_config() -> ConfigDict:
     # Training Datasets
     dataset_cfg_train = class_config(
         COCO,
-        keys_to_load=(CK.images, CK.boxes2d, CK.boxes2d_classes, CK.masks),
+        keys_to_load=(
+            K.images,
+            K.boxes2d,
+            K.boxes2d_classes,
+            K.instance_masks,
+        ),
         data_root=config.dataset_root,
         split=config.train_split,
     )
@@ -119,7 +124,12 @@ def get_config() -> ConfigDict:
     # Test
     dataset_test_cfg = class_config(
         COCO,
-        keys_to_load=(CK.images, CK.boxes2d, CK.boxes2d_classes, CK.masks),
+        keys_to_load=(
+            K.images,
+            K.boxes2d,
+            K.boxes2d_classes,
+            K.instance_masks,
+        ),
         data_root=config.dataset_root,
         split=config.test_split,
     )

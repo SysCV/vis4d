@@ -4,7 +4,7 @@ import os
 import torch
 
 from tests.util import get_test_data
-from vis4d.data.const import CommonKeys as Keys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.scalabel import Scalabel
 
 
@@ -16,23 +16,23 @@ def test_3d_data() -> None:
         data_root,
         annotations,
         keys_to_load=(
-            Keys.images,
-            Keys.original_hw,
-            Keys.boxes3d,
-            Keys.boxes3d_classes,
-            Keys.boxes3d_track_ids,
+            K.images,
+            K.original_hw,
+            K.boxes3d,
+            K.boxes3d_classes,
+            K.boxes3d_track_ids,
         ),
     )
     assert len(dataset) == 4
     item = dataset[0]
-    assert len(item[Keys.boxes3d]) == 7
+    assert len(item[K.boxes3d]) == 7
     assert torch.isclose(
-        item[Keys.boxes3d_classes],
+        item[K.boxes3d_classes],
         torch.tensor([2, 2, 2, 2, 2, 2, 2], dtype=torch.long),
     ).all()
-    assert item[Keys.original_hw] == (375, 1242)
+    assert item[K.original_hw] == (375, 1242)
 
     assert torch.isclose(
-        item[Keys.boxes3d_track_ids],
+        item[K.boxes3d_track_ids],
         torch.tensor([0, 1, 2, 3, 4, 5, 6], dtype=torch.long),
     ).all()

@@ -78,7 +78,7 @@ class CommonKeys:
     boxes2d = "boxes2d"
     boxes2d_classes = "boxes2d_classes"
     boxes2d_track_ids = "boxes2d_track_ids"
-    masks = "masks"
+    instance_masks = "instance_masks"
     segmentation_masks = "segmentation_masks"
     depth_maps = "depth_maps"
     optical_flows = "optical_flows"

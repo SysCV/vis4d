@@ -5,7 +5,7 @@ import unittest
 import torch
 
 from tests.util import get_test_data
-from vis4d.data.const import CommonKeys as Keys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.bdd100k import BDD100K
 
 
@@ -21,10 +21,10 @@ class BDD100KDetTest(unittest.TestCase):
         data_root,
         annotations,
         keys_to_load=(
-            Keys.images,
-            Keys.boxes2d,
-            Keys.boxes2d_classes,
-            Keys.boxes2d_track_ids,
+            K.images,
+            K.boxes2d,
+            K.boxes2d_classes,
+            K.boxes2d_track_ids,
         ),
         config_path=config_path,
     )
@@ -52,17 +52,17 @@ class BDD100KDetTest(unittest.TestCase):
             ),
         )
 
-        self.assertEqual(item[Keys.images].shape, (1, 3, 720, 1280))
-        self.assertEqual(len(item[Keys.boxes2d]), 10)
-        self.assertEqual(len(item[Keys.boxes2d_classes]), 10)
-        self.assertEqual(len(item[Keys.boxes2d_track_ids]), 10)
+        self.assertEqual(item[K.images].shape, (1, 3, 720, 1280))
+        self.assertEqual(len(item[K.boxes2d]), 10)
+        self.assertEqual(len(item[K.boxes2d_classes]), 10)
+        self.assertEqual(len(item[K.boxes2d_track_ids]), 10)
 
         assert torch.isclose(
-            item[Keys.boxes2d_classes],
+            item[K.boxes2d_classes],
             torch.tensor([8, 8, 8, 8, 8, 9, 2, 2, 2, 2], dtype=torch.long),
         ).all()
         assert torch.isclose(
-            item[Keys.boxes2d_track_ids],
+            item[K.boxes2d_track_ids],
             torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=torch.long),
         ).all()
 
@@ -79,11 +79,11 @@ class BDD100KInsSegTest(unittest.TestCase):
         data_root,
         annotations,
         keys_to_load=(
-            Keys.images,
-            Keys.boxes2d,
-            Keys.boxes2d_classes,
-            Keys.boxes2d_track_ids,
-            Keys.masks,
+            K.images,
+            K.boxes2d,
+            K.boxes2d_classes,
+            K.boxes2d_track_ids,
+            K.instance_masks,
         ),
         config_path=config_path,
     )
@@ -112,7 +112,7 @@ class BDD100KInsSegTest(unittest.TestCase):
             ),
         )
 
-        self.assertEqual(len(item[Keys.boxes2d]), 10)
-        self.assertEqual(len(item[Keys.boxes2d_classes]), 10)
-        self.assertEqual(len(item[Keys.boxes2d_track_ids]), 10)
-        self.assertEqual(item[Keys.masks].shape, (4, 720, 1280))
+        self.assertEqual(len(item[K.boxes2d]), 10)
+        self.assertEqual(len(item[K.boxes2d_classes]), 10)
+        self.assertEqual(len(item[K.boxes2d_track_ids]), 10)
+        self.assertEqual(item[K.instance_masks].shape, (4, 720, 1280))

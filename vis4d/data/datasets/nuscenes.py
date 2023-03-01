@@ -12,7 +12,7 @@ from torch import Tensor
 from vis4d.common.imports import NUSCENES_AVAILABLE
 from vis4d.common.typing import DictStrAny
 from vis4d.data.const import AxisMode
-from vis4d.data.const import CommonKeys as Keys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import Dataset, VideoMixin
 from vis4d.data.datasets.util import CacheMappingMixin, im_decode
 from vis4d.data.io import DataBackend, FileBackend
@@ -74,19 +74,19 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
     LICENSE = "https://www.nuscenes.org/license"
 
     KEYS = [
-        Keys.images,
-        Keys.original_hw,
-        Keys.input_hw,
-        Keys.intrinsics,
-        Keys.extrinsics,
-        Keys.timestamp,
-        Keys.axis_mode,
-        Keys.boxes2d,
-        Keys.boxes2d_classes,
-        Keys.boxes2d_track_ids,
-        Keys.boxes3d,
-        Keys.boxes3d_classes,
-        Keys.boxes3d_track_ids,
+        K.images,
+        K.original_hw,
+        K.input_hw,
+        K.intrinsics,
+        K.extrinsics,
+        K.timestamp,
+        K.axis_mode,
+        K.boxes2d,
+        K.boxes2d_classes,
+        K.boxes2d_track_ids,
+        K.boxes3d,
+        K.boxes3d_classes,
+        K.boxes3d_track_ids,
     ]
 
     _SENSORS = [
@@ -413,13 +413,13 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                 boxes, extrinsics
             )
             data_dict["LIDAR_TOP"] = {
-                Keys.points3d: points,
-                Keys.extrinsics: extrinsics,
-                Keys.timestamp: timestamp,
-                Keys.axis_mode: AxisMode.ROS,
-                Keys.boxes3d: boxes3d,
-                Keys.boxes3d_classes: boxes3d_classes,
-                Keys.boxes3d_track_ids: boxes3d_track_ids,
+                K.points3d: points,
+                K.extrinsics: extrinsics,
+                K.timestamp: timestamp,
+                K.axis_mode: AxisMode.ROS,
+                K.boxes3d: boxes3d,
+                K.boxes3d_classes: boxes3d_classes,
+                K.boxes3d_track_ids: boxes3d_track_ids,
             }
 
         # load camera frames
@@ -440,20 +440,20 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                     boxes3d, intrinsics, image_hw
                 )
                 data_dict[cam] = {
-                    Keys.images: image,
-                    Keys.original_hw: image_hw,
-                    Keys.input_hw: image_hw,
-                    Keys.frame_ids: sample["frame_index"],
-                    Keys.intrinsics: intrinsics,
-                    Keys.extrinsics: extrinsics,
-                    Keys.timestamp: timestamp,
-                    Keys.axis_mode: AxisMode.OPENCV,
-                    Keys.boxes2d: boxes2d,
-                    Keys.boxes2d_classes: boxes3d_classes[mask],
-                    Keys.boxes2d_track_ids: boxes3d_track_ids[mask],
-                    Keys.boxes3d: boxes3d[mask],
-                    Keys.boxes3d_classes: boxes3d_classes[mask],
-                    Keys.boxes3d_track_ids: boxes3d_track_ids[mask],
+                    K.images: image,
+                    K.original_hw: image_hw,
+                    K.input_hw: image_hw,
+                    K.frame_ids: sample["frame_index"],
+                    K.intrinsics: intrinsics,
+                    K.extrinsics: extrinsics,
+                    K.timestamp: timestamp,
+                    K.axis_mode: AxisMode.OPENCV,
+                    K.boxes2d: boxes2d,
+                    K.boxes2d_classes: boxes3d_classes[mask],
+                    K.boxes2d_track_ids: boxes3d_track_ids[mask],
+                    K.boxes3d: boxes3d[mask],
+                    K.boxes3d_classes: boxes3d_classes[mask],
+                    K.boxes3d_track_ids: boxes3d_track_ids[mask],
                 }
 
         # TODO add RADAR, Map data

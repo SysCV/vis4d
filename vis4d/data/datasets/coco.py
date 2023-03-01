@@ -12,7 +12,7 @@ import torch
 from pycocotools.coco import COCO as COCOAPI
 
 from vis4d.common import DictStrAny
-from vis4d.data.const import CommonKeys as Keys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.io.base import DataBackend
 from vis4d.data.io.file import FileBackend
 from vis4d.data.typing import DictData
@@ -140,21 +140,21 @@ class COCO(Dataset, CacheMappingMixin):
     LICENSE = "BY-NC-SA 2.0"
 
     KEYS = [
-        Keys.images,
-        Keys.boxes2d,
-        Keys.boxes2d_classes,
-        Keys.masks,
-        Keys.segmentation_masks,
+        K.images,
+        K.boxes2d,
+        K.boxes2d_classes,
+        K.instance_masks,
+        K.segmentation_masks,
     ]
 
     def __init__(
         self,
         data_root: str,
         keys_to_load: Sequence[str] = (
-            Keys.images,
-            Keys.boxes2d,
-            Keys.boxes2d_classes,
-            Keys.masks,
+            K.images,
+            K.boxes2d,
+            K.boxes2d_classes,
+            K.instance_masks,
         ),
         split: str = "train2017",
         remove_empty: bool = False,
@@ -189,12 +189,12 @@ class COCO(Dataset, CacheMappingMixin):
 
         # handling keys to load
         self.validate_keys(keys_to_load)
-        self.with_images = Keys.images in keys_to_load
-        self.with_boxes = (Keys.boxes2d in keys_to_load) or (
-            Keys.boxes2d_classes in keys_to_load
+        self.with_images = K.images in keys_to_load
+        self.with_boxes = (K.boxes2d in keys_to_load) or (
+            K.boxes2d_classes in keys_to_load
         )
-        self.with_masks = Keys.masks in keys_to_load
-        self.with_sem_masks = Keys.segmentation_masks in keys_to_load
+        self.with_masks = K.instance_masks in keys_to_load
+        self.with_sem_masks = K.segmentation_masks in keys_to_load
 
         self.data = self._load_mapping(self._generate_data_mapping)
 
@@ -257,8 +257,8 @@ class COCO(Dataset, CacheMappingMixin):
         data = self.data[idx]
         img_h, img_w = data["img"]["height"], data["img"]["width"]
         dict_data = {
-            Keys.original_hw: [img_h, img_w],
-            Keys.input_hw: [img_h, img_w],
+            K.original_hw: [img_h, img_w],
+            K.input_hw: [img_h, img_w],
             "coco_image_id": data["img"]["id"],
         }
 
@@ -275,7 +275,7 @@ class COCO(Dataset, CacheMappingMixin):
             assert (img_h, img_w) == img_tensor.shape[
                 2:
             ], "Image's shape doesn't match annotation."
-            dict_data[Keys.images] = img_tensor
+            dict_data[K.images] = img_tensor
 
         if self.with_boxes or self.with_masks or self.with_sem_masks:
             boxes = []
@@ -310,20 +310,20 @@ class COCO(Dataset, CacheMappingMixin):
                     np.ascontiguousarray(masks), dtype=torch.uint8
                 )
 
-            if Keys.boxes2d in self.keys_to_load:
-                dict_data[Keys.boxes2d] = box_tensor
-            if Keys.boxes2d_classes in self.keys_to_load:
-                dict_data[Keys.boxes2d_classes] = torch.tensor(
+            if K.boxes2d in self.keys_to_load:
+                dict_data[K.boxes2d] = box_tensor
+            if K.boxes2d_classes in self.keys_to_load:
+                dict_data[K.boxes2d_classes] = torch.tensor(
                     classes, dtype=torch.long
                 )
             if self.with_masks:
-                dict_data[Keys.masks] = mask_tensor
+                dict_data[K.instance_masks] = mask_tensor
             if self.with_sem_masks:
                 seg_masks, _ = (
                     mask_tensor * torch.tensor(classes)[:, None, None]
                 ).max(dim=0)
                 seg_masks = seg_masks.long()
                 seg_masks[mask_tensor.sum(0) > 1] = 255  # discard overlapped
-                dict_data[Keys.segmentation_masks] = seg_masks.unsqueeze(0)
+                dict_data[K.segmentation_masks] = seg_masks.unsqueeze(0)
 
         return dict_data

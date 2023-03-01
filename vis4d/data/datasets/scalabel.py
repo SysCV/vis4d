@@ -15,7 +15,7 @@ from vis4d.common.logging import rank_zero_info
 from vis4d.common.time import Timer
 from vis4d.common.typing import DictStrAny, ListAny, NDArrayUI8
 from vis4d.data.const import AxisMode
-from vis4d.data.const import CommonKeys as Keys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.util import CacheMappingMixin, DatasetFromList
 from vis4d.data.io import DataBackend, FileBackend
 from vis4d.data.typing import DictData
@@ -176,8 +176,8 @@ class Scalabel(Dataset, CacheMappingMixin):
         data_root: str,
         annotation_path: str,
         keys_to_load: Sequence[str] = (
-            Keys.images,
-            Keys.boxes2d,
+            K.images,
+            K.boxes2d,
         ),
         data_backend: None | DataBackend = None,
         category_map: None | CategoryMap = None,
@@ -191,7 +191,7 @@ class Scalabel(Dataset, CacheMappingMixin):
             data_root (str): Root directory of the data.
             annotation_path (str): Path to the annotation json(s).
             keys_to_load (Sequence[str, ...], optional): Keys to load from the
-                dataset. Defaults to (Keys.images, Keys.boxes2d).
+                dataset. Defaults to (K.images, K.boxes2d).
             data_backend (None | DataBackend, optional): Data backend, if None
                 then classic file backend. Defaults to None.
             category_map (None | CategoryMap, optional): Mapping from a
@@ -275,32 +275,26 @@ class Scalabel(Dataset, CacheMappingMixin):
     def _load_inputs(self, frame: Frame) -> DictData:
         """Load inputs given a scalabel frame."""
         data: DictData = {}
-        if frame.url is not None and Keys.images in self.keys_to_load:
+        if frame.url is not None and K.images in self.keys_to_load:
             image = load_image(frame.url, self.data_backend)
             input_hw = (image.shape[2], image.shape[3])
-            data[Keys.images] = image
-            data[Keys.original_hw] = input_hw
-            data[Keys.input_hw] = input_hw
-            data[Keys.axis_mode] = AxisMode.OPENCV
-            data[Keys.frame_ids] = frame.frameIndex
+            data[K.images] = image
+            data[K.original_hw] = input_hw
+            data[K.input_hw] = input_hw
+            data[K.axis_mode] = AxisMode.OPENCV
+            data[K.frame_ids] = frame.frameIndex
             # TODO how to properly integrate such metadata?
             data["name"] = frame.name
             data["videoName"] = frame.videoName
 
-        if frame.url is not None and Keys.points3d in self.keys_to_load:
-            data[Keys.points3d] = load_pointcloud(frame.url, self.data_backend)
+        if frame.url is not None and K.points3d in self.keys_to_load:
+            data[K.points3d] = load_pointcloud(frame.url, self.data_backend)
 
-        if (
-            frame.intrinsics is not None
-            and Keys.intrinsics in self.keys_to_load
-        ):
-            data[Keys.intrinsics] = load_intrinsics(frame.intrinsics)
+        if frame.intrinsics is not None and K.intrinsics in self.keys_to_load:
+            data[K.intrinsics] = load_intrinsics(frame.intrinsics)
 
-        if (
-            frame.extrinsics is not None
-            and Keys.extrinsics in self.keys_to_load
-        ):
-            data[Keys.extrinsics] = load_extrinsics(frame.extrinsics)
+        if frame.extrinsics is not None and K.extrinsics in self.keys_to_load:
+            data[K.extrinsics] = load_extrinsics(frame.extrinsics)
         return data
 
     def _add_annotations(self, frame: Frame, data: DictData) -> None:
@@ -318,47 +312,45 @@ class Scalabel(Dataset, CacheMappingMixin):
         #     return  # pragma: no cover
 
         image_size = (
-            ImageSize(
-                height=data[Keys.input_hw][0], width=data[Keys.input_hw][1]
-            )
-            if Keys.input_hw in data
+            ImageSize(height=data[K.input_hw][0], width=data[K.input_hw][1])
+            if K.input_hw in data
             else frame.size
         )
 
-        if Keys.boxes2d in self.keys_to_load:
-            cats_name2id = self.cats_name2id[Keys.boxes2d]
+        if K.boxes2d in self.keys_to_load:
+            cats_name2id = self.cats_name2id[K.boxes2d]
             boxes2d, classes, track_ids = boxes2d_from_scalabel(
                 labels_used, cats_name2id, instid_map
             )
-            data[Keys.boxes2d] = boxes2d
-            data[Keys.boxes2d_classes] = classes
-            data[Keys.boxes2d_track_ids] = track_ids
+            data[K.boxes2d] = boxes2d
+            data[K.boxes2d_classes] = classes
+            data[K.boxes2d_track_ids] = track_ids
 
-        if Keys.masks in self.keys_to_load:
+        if K.instance_masks in self.keys_to_load:
             # NOTE: instance masks' mapping is consistent with boxes2d
-            cats_name2id = self.cats_name2id[Keys.masks]
+            cats_name2id = self.cats_name2id[K.instance_masks]
             instance_masks = instance_masks_from_scalabel(
                 labels_used,
                 cats_name2id,
                 image_size=image_size,
                 bg_as_class=self.bg_as_class,
             )
-            data[Keys.masks] = instance_masks
+            data[K.instance_masks] = instance_masks
 
-        if Keys.segmentation_masks in self.keys_to_load:
-            sem_map = self.cats_name2id[Keys.segmentation_masks]
+        if K.segmentation_masks in self.keys_to_load:
+            sem_map = self.cats_name2id[K.segmentation_masks]
             semantic_masks = semantic_masks_from_scalabel(
                 labels_used, sem_map, instid_map, image_size, self.bg_as_class
             )
-            data[Keys.segmentation_masks] = semantic_masks
+            data[K.segmentation_masks] = semantic_masks
 
-        if Keys.boxes3d in self.keys_to_load:
+        if K.boxes3d in self.keys_to_load:
             boxes3d, classes, track_ids = boxes3d_from_scalabel(
-                labels_used, self.cats_name2id[Keys.boxes3d], instid_map
+                labels_used, self.cats_name2id[K.boxes3d], instid_map
             )
-            data[Keys.boxes3d] = boxes3d
-            data[Keys.boxes3d_classes] = classes
-            data[Keys.boxes3d_track_ids] = track_ids
+            data[K.boxes3d] = boxes3d
+            data[K.boxes3d_classes] = classes
+            data[K.boxes3d_track_ids] = track_ids
 
     def __len__(self) -> int:
         """Length of dataset."""

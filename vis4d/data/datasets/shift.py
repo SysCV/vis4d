@@ -3,16 +3,20 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
-from io import BytesIO
 
 import numpy as np
 import torch
 from torch import Tensor
 
 from vis4d.common.imports import SCALABEL_AVAILABLE
-from vis4d.data.const import CommonKeys as Keys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets.base import Dataset
-from vis4d.data.datasets.util import filter_by_keys, im_decode, ply_decode
+from vis4d.data.datasets.util import (
+    filter_by_keys,
+    im_decode,
+    npy_decode,
+    ply_decode,
+)
 from vis4d.data.io import DataBackend, HDF5Backend, ZipBackend
 from vis4d.data.typing import DictData
 
@@ -148,26 +152,26 @@ class SHIFT(Dataset):
 
     KEYS = [
         # Inputs
-        Keys.images,
-        Keys.original_hw,
-        Keys.input_hw,
-        Keys.points3d,
+        K.images,
+        K.original_hw,
+        K.input_hw,
+        K.points3d,
         # Scalabel formatted annotations
-        Keys.intrinsics,
-        Keys.extrinsics,
-        Keys.timestamp,
-        Keys.axis_mode,
-        Keys.boxes2d,
-        Keys.boxes2d_classes,
-        Keys.boxes2d_track_ids,
-        Keys.masks,
-        Keys.boxes3d,
-        Keys.boxes3d_classes,
-        Keys.boxes3d_track_ids,
+        K.intrinsics,
+        K.extrinsics,
+        K.timestamp,
+        K.axis_mode,
+        K.boxes2d,
+        K.boxes2d_classes,
+        K.boxes2d_track_ids,
+        K.instance_masks,
+        K.boxes3d,
+        K.boxes3d_classes,
+        K.boxes3d_track_ids,
         # Bit masks
-        Keys.segmentation_masks,
-        Keys.depth_maps,
-        Keys.optical_flows,
+        K.segmentation_masks,
+        K.depth_maps,
+        K.optical_flows,
     ]
 
     VIEWS = [
@@ -182,38 +186,38 @@ class SHIFT(Dataset):
 
     DATA_GROUPS = {
         "img": [
-            Keys.images,
-            Keys.original_hw,
-            Keys.input_hw,
-            Keys.intrinsics,
+            K.images,
+            K.original_hw,
+            K.input_hw,
+            K.intrinsics,
         ],
         "det_2d": [
-            Keys.timestamp,
-            Keys.axis_mode,
-            Keys.extrinsics,
-            Keys.boxes2d,
-            Keys.boxes2d_classes,
-            Keys.boxes2d_track_ids,
+            K.timestamp,
+            K.axis_mode,
+            K.extrinsics,
+            K.boxes2d,
+            K.boxes2d_classes,
+            K.boxes2d_track_ids,
         ],
         "det_3d": [
-            Keys.boxes3d,
-            Keys.boxes3d_classes,
-            Keys.boxes3d_track_ids,
+            K.boxes3d,
+            K.boxes3d_classes,
+            K.boxes3d_track_ids,
         ],
         "det_insseg_2d": [
-            Keys.masks,
+            K.instance_masks,
         ],
         "semseg": [
-            Keys.segmentation_masks,
+            K.segmentation_masks,
         ],
         "depth": [
-            Keys.depth_maps,
+            K.depth_maps,
         ],
         "flow": [
-            Keys.optical_flows,
+            K.optical_flows,
         ],
         "lidar": [
-            Keys.points3d,
+            K.points3d,
         ],
     }
 
@@ -223,7 +227,7 @@ class SHIFT(Dataset):
         self,
         data_root: str,
         split: str,
-        keys_to_load: Sequence[str] = (Keys.images, Keys.boxes2d),
+        keys_to_load: Sequence[str] = (K.images, K.boxes2d),
         views_to_load: Sequence[str] = ("front",),
         backend: DataBackend = HDF5Backend(),
     ) -> None:
@@ -261,7 +265,7 @@ class SHIFT(Dataset):
                     data_file="lidar",
                     annotation_file="det_3d.json",
                     view=view,
-                    keys_to_load=(Keys.points3d, *self.DATA_GROUPS["det_3d"]),
+                    keys_to_load=(K.points3d, *self.DATA_GROUPS["det_3d"]),
                     backend=backend,
                 )
             else:
@@ -342,10 +346,10 @@ class SHIFT(Dataset):
 
     def _load_flow(self, filepath: str) -> Tensor:
         """Load optical flow data."""
-        im_bytes = self.backend.get(filepath)
-        flow = np.load(BytesIO(im_bytes))
+        npy_bytes = self.backend.get(filepath)
+        flow = npy_decode(npy_bytes, key="flow")
         return (
-            torch.as_tensor(flow["flow"], dtype=torch.float32)
+            torch.as_tensor(flow, dtype=torch.float32)
             .permute(2, 0, 1)
             .unsqueeze(0)
         )
@@ -390,7 +394,7 @@ class SHIFT(Dataset):
 
             if view == "center":
                 # Lidar is only available in the center view
-                if Keys.points3d in self.keys_to_load:
+                if K.points3d in self.keys_to_load:
                     data_dict_view.update(
                         self.scalabel_datasets["center/lidar"][idx]
                     )
@@ -402,16 +406,16 @@ class SHIFT(Dataset):
                     )
 
                 # Load data from bit masks
-                if Keys.segmentation_masks in self.keys_to_load:
-                    data_dict_view[Keys.segmentation_masks] = self._load(
+                if K.segmentation_masks in self.keys_to_load:
+                    data_dict_view[K.segmentation_masks] = self._load(
                         view, "semseg", "png", video_name, frame_name
                     )
-                if Keys.depth_maps in self.keys_to_load:
-                    data_dict_view[Keys.depth_maps] = self._load(
+                if K.depth_maps in self.keys_to_load:
+                    data_dict_view[K.depth_maps] = self._load(
                         view, "depth", "png", video_name, frame_name
                     )
-                if Keys.optical_flows in self.keys_to_load:
-                    data_dict_view[Keys.optical_flows] = self._load(
+                if K.optical_flows in self.keys_to_load:
+                    data_dict_view[K.optical_flows] = self._load(
                         view, "flow", "npz", video_name, frame_name
                     )
 

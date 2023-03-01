@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from tests.util import generate_boxes, get_test_data
-from vis4d.data.const import CommonKeys as Keys
+from vis4d.data.const import CommonKeys as K
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
 from vis4d.eval.detect.coco import COCOEvaluator
@@ -45,7 +45,7 @@ class TestCOCOEvaluator(unittest.TestCase):
         # test gt
         dataset = COCO(
             get_test_data("coco_test"),
-            keys_to_load=(Keys.boxes2d, Keys.boxes2d_classes),
+            keys_to_load=(K.boxes2d, K.boxes2d_classes),
             split="train",
         )
         test_loader = get_dataloader(dataset, batch_size)

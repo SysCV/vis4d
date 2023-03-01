@@ -151,8 +151,8 @@ def resize_intrinsics():
 
 
 @Transform(
-    in_keys=(CommonKeys.masks, CommonKeys.input_hw),
-    out_keys=(CommonKeys.masks,),
+    in_keys=(CommonKeys.instance_masks, CommonKeys.input_hw),
+    out_keys=(CommonKeys.instance_masks,),
 )
 def resize_masks():
     """Resize masks."""
