@@ -108,7 +108,7 @@ class BDD100KInsSegTest(unittest.TestCase):
                 "boxes2d",
                 "boxes2d_classes",
                 "boxes2d_track_ids",
-                "masks",
+                "instance_masks",
             ),
         )
 

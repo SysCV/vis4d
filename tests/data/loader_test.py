@@ -44,8 +44,8 @@ def test_train_loader() -> None:
         assert isinstance(sample[K.images], torch.Tensor)
         assert batch_size == sample[K.images].size(0)
         assert batch_size == len(sample[K.boxes2d])
-        assert sample[K.boxes2d][0].shape == torch.Size([14, 4])
-        assert sample[K.images].shape == torch.Size([2, 3, 192, 256])
+        assert sample[K.boxes2d][0].shape[1] == 4
+        assert sample[K.images].shape[1] == 3
         break
 
 

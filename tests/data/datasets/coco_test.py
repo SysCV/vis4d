@@ -36,7 +36,7 @@ class COCOTest(unittest.TestCase):
                 "images",
                 "boxes2d",
                 "boxes2d_classes",
-                "masks",
+                "instance_masks",
             ),
         )
         self.assertEqual(len(item[K.boxes2d]), 14)
@@ -76,7 +76,7 @@ class COCOSegTest(unittest.TestCase):
             "images",
             "boxes2d",
             "boxes2d_classes",
-            "masks",
+            "instance_masks",
             "segmentation_masks",
         )
         self.assertEqual(item[K.segmentation_masks].shape, (1, 230, 352))
