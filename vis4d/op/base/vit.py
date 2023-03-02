@@ -10,7 +10,7 @@ from vis4d.common import ArgsType
 from .base import BaseModel
 
 
-class ViT(BaseModel):
+class _TorchVisionViT(BaseModel):
     """Wrapper for torch vision ViT backbones."""
 
     def __init__(

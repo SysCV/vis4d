@@ -19,8 +19,8 @@ from vis4d.data.transforms.base import compose
 from vis4d.data.transforms.normalize import normalize_image
 from vis4d.data.transforms.resize import resize_image
 from vis4d.engine.cli import _train as cli_train
-from vis4d.model.classification.common import ClsOut
 from vis4d.model.classification import ClassificationTinyViT
+from vis4d.model.classification.common import ClsOut
 
 
 def get_train_dataloader(

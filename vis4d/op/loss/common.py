@@ -129,3 +129,21 @@ def rotation_loss(
             loss_res += loss_sin + loss_cos
 
     return loss_bins + loss_res
+
+
+def inverse_sigmoid(inputs: torch.Tensor, eps: float = 1e-5) -> torch.Tensor:
+    """Inverse sigmoid function.
+
+    inv_sigmoid(x) := log(x / (1 - x))
+
+    Args:
+        x (torch.Tensor): Input tensor
+        eps (float, optional): Epsilon value. Defaults to 1e-5.
+
+    Returns:
+        torch.Tensor: Inverse sigmoid value
+    """
+    inputs = inputs.clamp(min=0, max=1)
+    x1 = inputs.clamp(min=eps)
+    x2 = (1 - inputs).clamp(min=eps)
+    return torch.log(x1 / x2)
