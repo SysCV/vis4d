@@ -68,6 +68,8 @@ class CallbackWrapper(pl.Callback):
                 inputs=self.data_connector.get_callback_input(
                     self.callback_key, outputs, batch, cb_type="test"
                 ),
+                cur_batch=batch_idx,
+                total_batches=trainer.num_test_batches[dataloader_idx],
             )
 
     def on_validation_epoch_start(

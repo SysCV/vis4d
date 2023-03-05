@@ -4,6 +4,8 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from torch import Tensor
+
 import numpy as np
 from nuscenes.utils.data_classes import Quaternion
 from scipy.spatial.transform import Rotation as R
@@ -102,15 +104,21 @@ class NuScenesEvaluator(Evaluator):
                 attr = self.DefaultAttribute[name]
         return attr
 
-    def _process_track_3d(self, data, outputs) -> None:
+    def _process_track_3d(
+        self,
+        token: str,
+        boxes_3d: Tensor,
+        scores_3d: Tensor,
+        class_ids: Tensor,
+        track_ids: Tensor,
+    ) -> None:
         annos = []
-        token = data["CAM_FRONT"]["token"][0]
-        if len(outputs.boxes_3d) != 0:
+        if len(boxes_3d) != 0:
             for track_id, box_3d, score_3d, class_id in zip(
-                outputs.track_ids,
-                outputs.boxes_3d,
-                outputs.scores_3d,
-                outputs.class_ids,
+                track_ids,
+                boxes_3d,
+                scores_3d,
+                class_ids,
             ):
                 category = self.inv_nuscenes_track_map[
                     int(class_id.cpu().numpy())
@@ -146,14 +154,19 @@ class NuScenesEvaluator(Evaluator):
                 annos.append(nusc_anno)
         self.tracks_3d[token] = annos
 
-    def _process_detect_3d(self, data, outputs) -> None:
+    def _process_detect_3d(
+        self,
+        token: str,
+        boxes_3d: Tensor,
+        scores_3d: Tensor,
+        class_ids: Tensor,
+    ) -> None:
         annos = []
-        token = data["CAM_FRONT"]["token"][0]
-        if len(outputs.boxes_3d) != 0:
+        if len(boxes_3d) != 0:
             for box_3d, score_3d, class_id in zip(
-                outputs.boxes_3d,
-                outputs.scores_3d,
-                outputs.class_ids,
+                boxes_3d,
+                scores_3d,
+                class_ids,
             ):
                 category = self.inv_nuscenes_track_map[
                     int(class_id.cpu().numpy())
@@ -190,13 +203,23 @@ class NuScenesEvaluator(Evaluator):
                 annos.append(nusc_anno)
         self.detect_3d[token] = annos
 
-    def process(self, data, outputs) -> None:
-        self._process_detect_3d(data, outputs)
-        self._process_track_3d(data, outputs)
+    def process(
+        self,
+        token: str,
+        boxes_3d: Tensor,
+        scores_3d: Tensor,
+        class_ids: Tensor,
+        track_ids: Tensor,
+    ) -> None:
+        self._process_detect_3d(token, boxes_3d, scores_3d, class_ids)
+        self._process_track_3d(
+            token, boxes_3d, scores_3d, class_ids, track_ids
+        )
 
     def evaluate(
         self,
         metric: str,
+        output_dir: str,
     ) -> tuple[MetricLogs, str]:
         # TODO: Add nuscenes eval code.
         metadata = {
@@ -211,13 +234,13 @@ class NuScenesEvaluator(Evaluator):
                 "results": self.tracks_3d,
                 "meta": metadata,
             }
-            result_file = f"./vis4d-workspace/nusc_{self.split}/track_3d_predictions.json"
+            result_file = f"{output_dir}/track_3d_predictions.json"
         elif metric == "detect_3d":
             nusc_annos = {
                 "results": self.detect_3d,
                 "meta": metadata,
             }
-            result_file = f"./vis4d-workspace/nusc_{self.split}/detect_3d_predictions.json"
+            result_file = f"{output_dir}/detect_3d_predictions.json"
 
         with open(result_file, mode="w", encoding="utf-8") as f:
             json.dump(nusc_annos, f)

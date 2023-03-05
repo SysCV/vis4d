@@ -12,7 +12,9 @@ from torch import Tensor
 
 from vis4d.common.imports import NUSCENES_AVAILABLE
 from vis4d.common.typing import DictStrAny
-from vis4d.data.const import AxisMode, CommonKeys
+
+from vis4d.data.const import AxisMode
+from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets import Dataset, VideoMixin
 from vis4d.data.datasets.util import CacheMappingMixin, im_decode
 from vis4d.data.io import DataBackend, FileBackend
@@ -102,6 +104,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         data_root: str,
         version: str = "v1.0-trainval",
         split: str = "train",
+        keys_to_load: tuple[str, ...] = (),
         include_non_key: bool = False,
         metadata: List[str] = ["use_camera"],
         data_backend: DataBackend | None = None,
@@ -126,23 +129,7 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             FileBackend() if data_backend is None else data_backend
         )
         self.data_root = data_root
-        assert version in {"v1.0-trainval", "v1.0-test", "v1.0-mini"}
-        self.version = version
-        if "mini" in version:
-            assert split in {
-                "mini_train",
-                "mini_val",
-            }, f"Invalid split for NuScenes {version}!"
-        elif "test" in version:
-            split = "test"
-        else:
-            assert split in {
-                "train",
-                "val",
-            }, f"Invalid split for NuScenes {version}!"
-            # TODO improve error msg for mini version
-
-        self.split = split
+        self._check_version_and_split(version, split)
         self.include_non_key = include_non_key
 
         for m in metadata:
@@ -152,15 +139,27 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         self.data = NuScenesDevkit(
             version=self.version, dataroot=self.data_root, verbose=False
         )
-        self.samples = self._load_mapping(
-            self._generate_data_mapping,
-            os.path.join(
-                self.data_root,
-                self.version,
-                self.split + ".pkl",
-            ),
-        )
+        self.samples = self._load_mapping(self._generate_data_mapping)
         self.instance_tokens = []
+
+    def _check_version_and_split(self, version: str, split: str) -> None:
+        """Check that the version and split are valid."""
+        assert version in [
+            "v1.0-trainval",
+            "v1.0-test",
+            "v1.0-mini",
+        ], f"Invalid version {version} for NuScenes!"
+        self.version = version
+
+        if "mini" in version:
+            valid_splits = ["mini_train", "mini_val"]
+        elif "test" in version:
+            valid_splits = ["test"]
+        else:
+            valid_splits = ["train", "val"]
+
+        assert split in valid_splits, f"Invalid split for NuScenes {version}!"
+        self.split = split
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
@@ -411,13 +410,13 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                 boxes, extrinsics
             )
             data_dict["LIDAR_TOP"] = {
-                CommonKeys.points3d: points,
-                CommonKeys.extrinsics: extrinsics,
-                CommonKeys.timestamp: timestamp,
-                CommonKeys.axis_mode: AxisMode.ROS,
-                CommonKeys.boxes3d: boxes3d,
-                CommonKeys.boxes3d_classes: boxes3d_classes,
-                CommonKeys.boxes3d_track_ids: boxes3d_track_ids,
+                CK.points3d: points,
+                CK.extrinsics: extrinsics,
+                CK.timestamp: timestamp,
+                CK.axis_mode: AxisMode.ROS,
+                CK.boxes3d: boxes3d,
+                CK.boxes3d_classes: boxes3d_classes,
+                CK.boxes3d_track_ids: boxes3d_track_ids,
             }
 
         # load camera frames
@@ -447,20 +446,20 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
                     )
                     data_dict[cam] = {
                         "token": sample["token"],
-                        CommonKeys.images: image,
-                        CommonKeys.original_hw: image_hw,
-                        CommonKeys.input_hw: image_hw,
-                        CommonKeys.frame_ids: sample["frame_index"],
-                        CommonKeys.intrinsics: intrinsics,
-                        CommonKeys.extrinsics: extrinsics,
-                        CommonKeys.timestamp: timestamp,
-                        CommonKeys.axis_mode: AxisMode.OPENCV,
-                        CommonKeys.boxes2d: boxes2d,
-                        CommonKeys.boxes2d_classes: boxes3d_classes[mask],
-                        CommonKeys.boxes2d_track_ids: boxes3d_track_ids[mask],
-                        CommonKeys.boxes3d: boxes3d[mask],
-                        CommonKeys.boxes3d_classes: boxes3d_classes[mask],
-                        CommonKeys.boxes3d_track_ids: boxes3d_track_ids[mask],
+                        CK.images: image,
+                        CK.original_hw: image_hw,
+                        CK.input_hw: image_hw,
+                        CK.frame_ids: sample["frame_index"],
+                        CK.intrinsics: intrinsics,
+                        CK.extrinsics: extrinsics,
+                        CK.timestamp: timestamp,
+                        CK.axis_mode: AxisMode.OPENCV,
+                        CK.boxes2d: boxes2d,
+                        CK.boxes2d_classes: boxes3d_classes[mask],
+                        CK.boxes2d_track_ids: boxes3d_track_ids[mask],
+                        CK.boxes3d: boxes3d[mask],
+                        CK.boxes3d_classes: boxes3d_classes[mask],
+                        CK.boxes3d_track_ids: boxes3d_track_ids[mask],
                     }
 
         # TODO add RADAR, Map data

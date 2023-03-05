@@ -23,8 +23,8 @@ class TorchOptimizer(optim.Optimizer):
             model: The model to optimize.
         """
         self.optim = optimizer
-        assert self.optim.optimizer is not None
         self.optim.setup(model)
+        assert self.optim.optimizer is not None
         self._step = 0
         # For some reason, mypy complains about the defuaults argument,
         # but it is fine.

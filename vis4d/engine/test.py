@@ -4,14 +4,13 @@ from __future__ import annotations
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from vis4d.common.callbacks import Callback
-from vis4d.common.logging import rank_zero_info
 from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
 
 from .util import move_data_to_device
+import pdb
 
 
 class Tester:
@@ -33,7 +32,7 @@ class Tester:
             test_callbacks (dict[str, Callback] | None): Callback functions
                 used during testing.
         """
-        self.test_dataloader = dataloaders
+        self.test_dataloaders = dataloaders
         self.data_connector = data_connector
 
         if test_callbacks is None:
@@ -51,15 +50,16 @@ class Tester:
                 during training). Defaults to None.
         """
         model.eval()
-        rank_zero_info("Running validation...")
 
         # run callbacks on test epoch begin
         for k, callback in self.test_callbacks.items():
             if callback.run_on_epoch(epoch):
                 callback.on_test_epoch_start(model, epoch or 0)
 
-        for dl_k, test_loader in self.test_dataloader.items():
-            for _, data in enumerate(tqdm(test_loader, mininterval=10.0)):
+        for test_loader in self.test_dataloaders:
+            for cur_batch, data in enumerate(test_loader):
+                total_batches = len(test_loader)
+
                 # input data
                 device = next(model.parameters()).device  # model device
                 data = move_data_to_device(data, device)
@@ -69,12 +69,15 @@ class Tester:
                 output = model(**test_input)
 
                 for k, callback in self.test_callbacks.items():
-                    if dl_k == k and callback.run_on_epoch(epoch):
+                    if callback.run_on_epoch(epoch):
+                        clbk_kwargs = self.data_connector.get_callback_input(
+                            k, output, data, "test"
+                        )
                         callback.on_test_batch_end(
-                            model,
-                            self.data_connector.get_callback_input(
-                                k, output, data, "test"
-                            ),
+                            model=model,
+                            cur_batch=cur_batch,
+                            total_batches=total_batches,
+                            inputs=clbk_kwargs,
                         )
 
         # run callbacks on test epoch end

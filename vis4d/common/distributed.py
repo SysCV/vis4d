@@ -59,6 +59,15 @@ class PicklableWrapper:  #  mypy: disable=line-too-long
         return getattr(self, attr)
 
 
+def broadcast(obj: Any, src: int = 0) -> Any:
+    obj = [obj]
+    rank = get_rank()
+    if rank != src:
+        obj = [None]  # type: ignore[list-item]
+    torch.distributed.broadcast_object_list(obj, src)
+    return obj[0]
+
+
 # no coverage for these functions, since we don't unittest distributed setting
 def get_world_size() -> int:  # pragma: no cover
     """Get the world size (number of processes) of torch.distributed.
@@ -66,11 +75,19 @@ def get_world_size() -> int:  # pragma: no cover
     Returns:
         int: The world size.
     """
-    if not dist.is_available():
+    # TODO: check slurm submission with torchrun and see which is which
+    if os.environ.get("WORLD_SIZE", None):
+        return int(os.environ["WORLD_SIZE"])
+    elif os.environ.get("SLURM_NTASKS", None):
+        return int(os.environ["SLURM_NTASKS"])
+    else:
         return 1
-    if not dist.is_initialized():
-        return 1
-    return int(dist.get_world_size())
+
+    # if not dist.is_available():
+    #     return 1
+    # if not dist.is_initialized():
+    #     return 1
+    # return int(dist.get_world_size())
 
 
 def get_rank() -> int:  # pragma: no cover
@@ -79,12 +96,28 @@ def get_rank() -> int:  # pragma: no cover
     Returns:
         int: The global rank.
     """
-    rank_keys = ("RANK", "LOCAL_RANK", "SLURM_PROCID")
-    for key in rank_keys:
-        rank = os.environ.get(key)
-        if rank is not None:
-            return int(rank)
-    return 0
+    # rank_keys = ("RANK", "LOCAL_RANK", "SLURM_PROCID")
+    # for key in rank_keys:
+    #     rank = os.environ.get(key)
+    #     if rank is not None:
+    #         return int(rank)
+    # return 0
+    if os.environ.get("RANK", None):
+        return int(os.environ["RANK"])
+    elif os.environ.get("SLURM_PROCID", None):
+        return int(os.environ["SLURM_PROCID"])
+
+
+def get_local_rank() -> int:  # pragma: no cover
+    """Get the local rank of the current process in torch.distributed.
+
+    Returns:
+        int: The local rank.
+    """
+    if os.environ.get("LOCAL_RANK", None):
+        return int(os.environ["LOCAL_RANK"])
+    elif os.environ.get("SLURM_LOCALID", None):
+        return int(os.environ["SLURM_LOCALID"])
 
 
 def synchronize() -> None:  # pragma: no cover

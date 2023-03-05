@@ -38,7 +38,7 @@ def batched_normalize_image(
     mean: tuple[float, float, float] = (123.675, 116.28, 103.53),
     std: tuple[float, float, float] = (58.395, 57.12, 57.375),
 ):
-    def _normalize(images: List[Tensor]) -> List[Tensor]:
+    def _normalize(images: list[Tensor]) -> list[Tensor]:
         pixel_mean = torch.tensor(mean, device=images[0].device).view(-1, 1, 1)
         pixel_std = torch.tensor(std, device=images[0].device).view(-1, 1, 1)
 

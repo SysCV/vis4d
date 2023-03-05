@@ -44,6 +44,7 @@ def load_model_checkpoint(
     weights: str,
     strict: bool = False,
     rev_keys: None | list[tuple[str, str]] = None,
+    map_location: str | torch.device | None = None,
 ) -> None:
     """Load checkpoint from a file or URI.
 
@@ -63,12 +64,18 @@ def load_model_checkpoint(
     if re.compile(r"^mm(det|seg)://").search(weights):
         pre = weights[:8]
         weights = MM_MODEL_MAP[pre] + weights.split(pre)[-1]
-        _load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
+        _load_checkpoint(
+            model, weights, map_location, strict=strict, revise_keys=rev_keys
+        )
     elif weights.startswith("bdd100k://"):
         weights = BDD100K_MODEL_PREFIX + weights.split("bdd100k://")[-1]
-        _load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
+        _load_checkpoint(
+            model, weights, map_location, strict=strict, revise_keys=rev_keys
+        )
     else:  # pragma: no cover
-        _load_checkpoint(model, weights, strict=strict, revise_keys=rev_keys)
+        _load_checkpoint(
+            model, weights, map_location, strict=strict, revise_keys=rev_keys
+        )
 
 
 class CheckpointLoader:

@@ -3,7 +3,8 @@
 This file composes the operations associated with
 CC-3DT `https://arxiv.org/abs/2212.01247' into the full model implementation.
 """
-from typing import List
+from __future__ import annotations
+from typing import NamedTuple
 
 import torch
 from torch import Tensor, nn
@@ -34,7 +35,15 @@ from vis4d.op.track_3d.motion.kf3d import (
 from vis4d.op.track_3d.motion.lstm_3d import VeloLSTM
 from vis4d.state.track.cc_3dt import CC3DTrackMemory, CC3DTrackState
 from vis4d.op.detect.rcnn import RCNNHead
-import pdb
+
+
+class Track3DOut(NamedTuple):
+    """Output of track 3D model."""
+
+    boxes_3d: Tensor  # (N, 12): x,y,z,h,w,l,rx,ry,rz,vx,vy,vz
+    class_ids: Tensor
+    scores_3d: Tensor
+    track_ids: Tensor
 
 
 def get_default_anchor_generator() -> AnchorGenerator:
@@ -126,7 +135,7 @@ class CC3DTrack(QDTrack):
         embeddings: Tensor,
         obs_boxes_3d: Tensor,
         fps: int,
-    ):
+    ) -> CC3DTrackState:
         """Update track."""
         motion_states = []
         motion_hidden = []
@@ -280,11 +289,11 @@ class CC3DTrack(QDTrack):
         boxes_3d_list: list[torch.Tensor],
         scores_3d_list: list[torch.Tensor],
         class_ids_list: list[torch.Tensor],
-        frame_ids: List[int],
+        frame_ids: list[int],
         extrinsics: torch.Tensor,
         class_range_map: None | Tensor = None,
         fps: int = 2,
-    ) -> list[CC3DTrackState]:
+    ) -> Track3DOut:
         """Forward function during testing."""
         embeddings_list = list(
             self.similarity_head(features_list, boxes_2d_list)
@@ -345,8 +354,11 @@ class CC3DTrack(QDTrack):
         class_ids = class_ids[keep_indices]
         embeddings = embeddings[keep_indices]
 
-        # TODO: Add bateched tracks with cc-3dt data connector
-        frame_id = frame_ids[0][0]
+        for frame_id in frame_ids:
+            assert (
+                frame_id == frame_ids[0]
+            ), "All cameras should have same frame_id."
+        frame_id = frame_ids[0]
         tracks = []
 
         # reset graph at begin of sequence
@@ -435,21 +447,11 @@ class CC3DTrack(QDTrack):
         # update 3D score
         track_scores_3d = tracks.scores_3d * tracks.scores
 
-        return CC3DTrackState(
-            tracks.track_ids,
-            tracks.boxes,
-            tracks.camera_ids,
-            tracks.scores,
+        return Track3DOut(
             tracks.boxes_3d,
-            track_scores_3d,
             tracks.class_ids,
-            tracks.embeddings,
-            tracks.motion_states,
-            tracks.motion_hidden,
-            tracks.vel_histories,
-            tracks.velocities,
-            tracks.last_frames,
-            tracks.acc_frames,
+            track_scores_3d,
+            tracks.track_ids,
         )
 
     def forward(
@@ -460,11 +462,11 @@ class CC3DTrack(QDTrack):
         det_boxes_3d: list[torch.Tensor],
         det_scores_3d: list[torch.Tensor],
         det_class_ids: list[torch.Tensor],
-        frame_ids: List[int],
+        frame_ids: list[int],
         extrinsics: torch.Tensor,
         class_range_map: None | torch.Tensor = None,
         fps: int = 2,
-    ) -> list[CC3DTrackState]:
+    ) -> Track3DOut:
         """Forward function."""
         assert frame_ids is not None, "Need frame ids during inference!"
         return self._forward_test(
@@ -496,20 +498,21 @@ class FasterRCNNCC3DT(nn.Module):
     ) -> None:
         """Creates an instance of the class."""
         super().__init__()
-        self.anchor_gen = get_default_anchor_generator()
-        self.rpn_bbox_encoder = get_default_rpn_box_encoder()
-        self.rcnn_bbox_encoder = get_default_rcnn_box_encoder()
+        anchor_generator = get_default_anchor_generator()
+        rpn_bbox_encoder = get_default_rpn_box_encoder()
+        rcnn_bbox_encoder = get_default_rcnn_box_encoder()
+        roi_head = get_default_roi_head(num_classes)
 
         self.backbone = ResNet(backbone, pretrained=True, trainable_layers=3)
         self.fpn = FPN(self.backbone.out_channels[2:], 256)
         self.faster_rcnn_heads = FasterRCNNHead(
             num_classes=num_classes,
-            anchor_generator=self.anchor_gen,
-            rpn_box_encoder=self.rpn_bbox_encoder,
-            rcnn_box_encoder=self.rcnn_bbox_encoder,
-            roi_head=get_default_roi_head(num_classes),
+            anchor_generator=anchor_generator,
+            rpn_box_encoder=rpn_bbox_encoder,
+            rcnn_box_encoder=rcnn_bbox_encoder,
+            roi_head=roi_head,
         )
-        self.roi2det = RoI2Det(self.rcnn_bbox_encoder)
+        self.roi2det = RoI2Det(rcnn_bbox_encoder)
         self.bbox_3d_head = QD3DTBBox3DHead(num_classes=num_classes)
         self.track = CC3DTrack(motion_model=motion_model, pure_det=pure_det)
 
@@ -517,7 +520,7 @@ class FasterRCNNCC3DT(nn.Module):
         self.dataset_fps = dataset_fps
 
         if weights is not None:
-            load_model_checkpoint(self, weights)
+            load_model_checkpoint(self, weights, map_location="cpu")
 
     def forward(
         self,

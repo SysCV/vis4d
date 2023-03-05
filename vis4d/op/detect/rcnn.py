@@ -99,7 +99,7 @@ class RCNNHead(nn.Module):
         num_branch_fcs: int = 0,
         in_channels: int = 0,
         is_shared: bool = False,
-    ) -> Tuple[nn.ModuleList, nn.ModuleList, int]:
+    ) -> tuple[nn.ModuleList, nn.ModuleList, int]:
         """Add shared or separable branch."""
         last_layer_dim = in_channels
         # add branch specific conv layers

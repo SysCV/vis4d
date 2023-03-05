@@ -123,8 +123,8 @@ class Trainer:
                     opt.zero_grad()
 
                 # Input data
-                data_moved: DictData = move_data_to_device(data, device)
-                train_input = self.data_connector.get_train_input(data_moved)
+                data = move_data_to_device(data, device)
+                train_input = self.data_connector.get_train_input(data)
 
                 # Forward + backward + optimize
                 output = model(**train_input)
@@ -157,7 +157,7 @@ class Trainer:
                 for k, callback in self.train_callbacks.items():
                     if callback.run_on_epoch(epoch):
                         clbk_kwargs = self.data_connector.get_callback_input(
-                            k, output, data_moved, "train"
+                            k, output, data, "train"
                         )
                         callback.on_train_batch_end(
                             model,

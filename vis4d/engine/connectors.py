@@ -225,7 +225,7 @@ class StaticDataConnector(DataConnector):
     """DataConnector with static remapping of the keys."""
 
     def __init__(self, connections: DataConnectionInfo) -> None:
-        """Creates  new DataConnector with the specified DataConnectionInfo.
+        """Creates new DataConnector with the specified DataConnectionInfo.
 
         This data connector is used in the training / testing loop in order to
         provide input to the models / losses / evaluators and visualizers.

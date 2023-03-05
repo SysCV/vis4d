@@ -1,7 +1,8 @@
 # pylint: disable=consider-using-alias,consider-alternative-union-syntax
 """Vis4D Trainer."""
+from __future__ import annotations
+
 import os.path as osp
-from datetime import datetime
 from typing import List, Optional
 
 import pytorch_lightning as pl
@@ -58,8 +59,9 @@ class DefaultTrainer(pl.Trainer):
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
 
-        1. Print environment info
-        2. Setup callbacks: logger, LRMonitor, GPUMonitor, Checkpoint, etc
+        1. Setup env.
+        2. Setup logger.
+        2. Setup callbacks.
         3. Init distributed plugin
         """
         if is_torch_tf32_available():  # pragma: no cover
@@ -76,14 +78,6 @@ class DefaultTrainer(pl.Trainer):
         self.resume = resume
         self.work_dir = work_dir
         self.exp_name = exp_name
-        if version is None:
-            timestamp = (
-                str(datetime.now())
-                .split(".", maxsplit=1)[0]
-                .replace(" ", "_")
-                .replace(":", "-")
-            )
-            version = timestamp
         self.version = version
 
         self.output_dir = osp.join(work_dir, exp_name, version)
@@ -122,25 +116,28 @@ class DefaultTrainer(pl.Trainer):
                 pl.callbacks.LearningRateMonitor(logging_interval="step")
             ]
 
+        # TODO: Test PL callbacks in config
         # add progress bar (train progress separate from validation)
-        if tqdm:
-            progress_bar: ProgressBarBase = TQDMProgressBar(
-                progress_bar_refresh_rate
-            )
-        else:
-            progress_bar = DefaultProgressBar(progress_bar_refresh_rate)
-        callbacks += [progress_bar]
+        # if tqdm:
+        #     progress_bar: ProgressBarBase = TQDMProgressBar(
+        #         progress_bar_refresh_rate
+        #     )
+        # else:
+        #     progress_bar = DefaultProgressBar(progress_bar_refresh_rate)
+        # callbacks += [progress_bar]
 
         # add Model checkpointer
-        callbacks += [
-            pl.callbacks.ModelCheckpoint(
-                dirpath=osp.join(self.output_dir, "checkpoints"),
-                verbose=True,
-                save_last=True,
-                every_n_epochs=checkpoint_period,
-                save_on_train_epoch_end=True,
-            )
-        ]
+        # callbacks += [
+        #     pl.callbacks.ModelCheckpoint(
+        #         dirpath=osp.join(self.output_dir, "checkpoints"),
+        #         verbose=True,
+        #         save_last=True,
+        #         every_n_epochs=checkpoint_period,
+        #         save_on_train_epoch_end=True,
+        #     )
+        # ]
+
+        kwargs["callbacks"] += callbacks
 
         # add distributed strategy
         if kwargs["accelerator"] == "gpu":  # pragma: no cover
@@ -148,23 +145,10 @@ class DefaultTrainer(pl.Trainer):
                 kwargs["devices"], include_cuda=True, include_mps=True
             )
             if len(kwargs["devices"]) > 1:
-                strategy = kwargs["strategy"]
-                if strategy == "ddp" or strategy is None:
-                    ddp_plugin: Strategy = DDPStrategy(
-                        find_unused_parameters=find_unused_parameters
-                    )
-                    kwargs["strategy"] = ddp_plugin
-                else:
-                    raise AttributeError(
-                        f"Vis4D does not support strategy {strategy}"
-                    )
-
-        if "callbacks" not in kwargs or kwargs["callbacks"] is None:
-            kwargs["callbacks"] = callbacks
-        elif isinstance(kwargs["callbacks"], pl.callbacks.Callback):
-            kwargs["callbacks"] = [kwargs["callbacks"], *callbacks]
-        else:
-            kwargs["callbacks"] += callbacks
+                ddp_plugin: Strategy = DDPStrategy(
+                    find_unused_parameters=find_unused_parameters
+                )
+                kwargs["strategy"] = ddp_plugin
 
         super().__init__(*args, **kwargs)
 

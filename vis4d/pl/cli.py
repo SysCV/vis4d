@@ -5,7 +5,9 @@ Example to run this script:
 """
 from __future__ import annotations
 
-from typing import Any
+import logging
+import os.path as osp
+from torch.utils.collect_env import get_pretty_env_info
 
 from absl import app, flags
 from ml_collections import ConfigDict
@@ -14,12 +16,14 @@ from pytorch_lightning.utilities.exceptions import (  # type: ignore[attr-define
     MisconfigurationException,
 )
 
-from vis4d.common.logging import rank_zero_info
+from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.parser import DEFINE_config_file
 from vis4d.pl.callbacks.callback_wrapper import CallbackWrapper
 from vis4d.pl.trainer import DefaultTrainer
 from vis4d.pl.training_module import TrainingModule
+from vis4d.pl.data_module import DataModule
+import pdb
 
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _MODE = flags.DEFINE_string(
@@ -29,11 +33,6 @@ _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
-
-
-def get_default(config: ConfigDict, key: str, default: Any) -> Any:  # type: ignore # pylint: disable=line-too-long
-    """Returns the value of a key in a config dict, or a default value."""
-    return config[key] if key in config else default
 
 
 def main(  # type:ignore # pylint: disable=unused-argument
@@ -55,34 +54,63 @@ def main(  # type:ignore # pylint: disable=unused-argument
         # references to the config
     num_gpus = config.n_gpus
 
+    # Setup logging
+    logger_vis4d = logging.getLogger("vis4d")
+    logger_pl = logging.getLogger("pytorch_lightning")
+    log_file = osp.join(config.output_dir, f"log_{config.timestamp}.txt")
+    setup_logger(logger_vis4d, log_file)
+    setup_logger(logger_pl, log_file)
+
+    rank_zero_info("Environment info: %s", get_pretty_env_info())
+
     if _SHOW_CONFIG.value:
         rank_zero_info("*" * 80)
         rank_zero_info(pprints_config(config))
         rank_zero_info("*" * 80)
 
     # Load Trainer kwargs from config
-    cfg: ConfigDict = instantiate_classes(config)
-
-    pl_config = get_default(cfg, "pl", ConfigDict())
-    trainer_args = get_default(pl_config, "trainer", ConfigDict())
-    pl_callbacks = get_default(pl_config, "callbacks", [])
+    trainer_args = ConfigDict()
+    pl_trainer = instantiate_classes(config.pl_trainer)
+    for key, value in pl_trainer.items():
+        trainer_args[key] = value
 
     # Update GPU mode
     if num_gpus > 0:
         trainer_args.devices = num_gpus
         trainer_args.accelerator = "gpu"
 
+    # Disable progress bar for logger
+    trainer_args.enable_progress_bar = False
+    trainer_args.work_dir = config.work_dir
+    trainer_args.exp_name = config.experiment_name
+    trainer_args.version = config.version
+
+    trainer_args = instantiate_classes(trainer_args)
+
+    # Instantiate classes
+    data_connector = instantiate_classes(config.data_connector)
+    model = instantiate_classes(config.model)
+    optimizers = instantiate_classes(config.optimizers)
+    loss = instantiate_classes(config.loss)
+
+    # Callbacks
     callbacks: list[Callback] = []
-    if "train_callbacks" in cfg:
-        for key, cb in cfg.train_callbacks.items():
+    if "train_callbacks" in config and _MODE.value == "train":
+        train_callbacks = instantiate_classes(config.train_callbacks)
+        for key, cb in train_callbacks.items():
             rank_zero_info(f"Adding callback {key}")
-            callbacks.append(CallbackWrapper(cb, cfg.data_connector, key))
+            callbacks.append(CallbackWrapper(cb, data_connector, key))
 
-    if "test_callbacks" in cfg:
-        for key, cb in cfg.test_callbacks.items():
+    if "test_callbacks" in config:
+        test_callbacks = instantiate_classes(config.test_callbacks)
+        for key, cb in test_callbacks.items():
             rank_zero_info(f"Adding callback {key}")
+            callbacks.append(CallbackWrapper(cb, data_connector, key))
 
-            callbacks.append(CallbackWrapper(cb, cfg.data_connector, key))
+    if "pl_callbacks" in config:
+        pl_callbacks = instantiate_classes(config.pl_callbacks)
+    else:
+        pl_callbacks = []
 
     for cb in pl_callbacks:
         if not isinstance(cb, Callback):
@@ -96,21 +124,17 @@ def main(  # type:ignore # pylint: disable=unused-argument
         callbacks.append(cb)
 
     trainer = DefaultTrainer(callbacks=callbacks, **trainer_args)
+    data_module = DataModule(config.data)
 
     if _MODE.value == "train":
         trainer.fit(
-            TrainingModule(
-                cfg.model, cfg.optimizers, cfg.loss, cfg.data_connector
-            ),
-            cfg.train_dl,
-            list(cfg.test_dl.values()),
+            TrainingModule(model, optimizers, loss, data_connector),
+            datamodule=data_module,
         )
     elif _MODE.value == "test":
         trainer.test(
-            TrainingModule(
-                cfg.model, cfg.optimizers, cfg.loss, cfg.data_connector
-            ),
-            list(cfg.test_dl.values()),
+            TrainingModule(model, optimizers, loss, data_connector),
+            datamodule=data_module,
         )
 
 
