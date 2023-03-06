@@ -52,9 +52,7 @@ class DefaultTrainer(pl.Trainer):
         checkpoint_period: int = 1,
         resume: bool = False,
         wandb: bool = False,
-        tqdm: bool = False,
         use_tf32: bool = False,
-        progress_bar_refresh_rate: int = 50,
         **kwargs: ArgsType,
     ) -> None:
         """Perform some basic common setups at the beginning of a job.
@@ -116,26 +114,16 @@ class DefaultTrainer(pl.Trainer):
                 pl.callbacks.LearningRateMonitor(logging_interval="step")
             ]
 
-        # TODO: Test PL callbacks in config
-        # add progress bar (train progress separate from validation)
-        # if tqdm:
-        #     progress_bar: ProgressBarBase = TQDMProgressBar(
-        #         progress_bar_refresh_rate
-        #     )
-        # else:
-        #     progress_bar = DefaultProgressBar(progress_bar_refresh_rate)
-        # callbacks += [progress_bar]
-
         # add Model checkpointer
-        # callbacks += [
-        #     pl.callbacks.ModelCheckpoint(
-        #         dirpath=osp.join(self.output_dir, "checkpoints"),
-        #         verbose=True,
-        #         save_last=True,
-        #         every_n_epochs=checkpoint_period,
-        #         save_on_train_epoch_end=True,
-        #     )
-        # ]
+        callbacks += [
+            pl.callbacks.ModelCheckpoint(
+                dirpath=osp.join(self.output_dir, "checkpoints"),
+                verbose=True,
+                save_last=True,
+                every_n_epochs=checkpoint_period,
+                save_on_train_epoch_end=True,
+            )
+        ]
 
         kwargs["callbacks"] += callbacks
 

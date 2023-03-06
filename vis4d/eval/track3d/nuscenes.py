@@ -4,11 +4,10 @@ import json
 from collections.abc import Callable
 from typing import Any
 
-from torch import Tensor
-
 import numpy as np
 from nuscenes.utils.data_classes import Quaternion
 from scipy.spatial.transform import Rotation as R
+from torch import Tensor
 
 from vis4d.common import MetricLogs
 from vis4d.data.datasets.nuscenes import nuscenes_track_map
@@ -219,9 +218,12 @@ class NuScenesEvaluator(Evaluator):
     def evaluate(
         self,
         metric: str,
-        output_dir: str,
     ) -> tuple[MetricLogs, str]:
         # TODO: Add nuscenes eval code.
+        return {}, "Currently only save the json files."
+
+    def save(self, metric: str, output_dir: str) -> None:
+        """Save the results to json files."""
         metadata = {
             "use_camera": True,
             "use_lidar": False,
@@ -244,5 +246,3 @@ class NuScenesEvaluator(Evaluator):
 
         with open(result_file, mode="w", encoding="utf-8") as f:
             json.dump(nusc_annos, f)
-
-        return {}, "Currently only save the json files."

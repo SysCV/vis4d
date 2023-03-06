@@ -5,8 +5,8 @@ import numpy as np
 import torch
 from torch import nn
 
-from vis4d.op.geometry.rotation import normalize_angle, acute_angle
 from vis4d.common import ArgsType
+from vis4d.op.geometry.rotation import acute_angle, normalize_angle
 
 from .base import BaseMotionModel
 

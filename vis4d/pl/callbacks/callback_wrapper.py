@@ -62,14 +62,18 @@ class CallbackWrapper(pl.Callback):
         dataloader_idx: int,
     ) -> None:
         """Wait for on_test_batch_end PL hook to call 'process'."""
+        shared_clbk_kwargs = {
+            "epoch": pl_module.current_epoch,
+            "cur_iter": batch_idx,
+            "total_iters": trainer.num_test_batches[dataloader_idx],
+        }
         if self.callback.run_on_epoch(pl_module.current_epoch):
             self.callback.on_test_batch_end(
                 model=get_model(pl_module),
+                shared_inputs=shared_clbk_kwargs,
                 inputs=self.data_connector.get_callback_input(
                     self.callback_key, outputs, batch, cb_type="test"
                 ),
-                cur_batch=batch_idx,
-                total_batches=trainer.num_test_batches[dataloader_idx],
             )
 
     def on_validation_epoch_start(
@@ -101,8 +105,56 @@ class CallbackWrapper(pl.Callback):
     ) -> None:
         """Wait for on_validation_batch_end PL hook to call 'process'."""
         if self.callback.run_on_epoch(pl_module.current_epoch):
+            shared_clbk_kwargs = {
+                "epoch": pl_module.current_epoch,
+                "cur_iter": batch_idx,
+                "total_iters": trainer.num_val_batches[dataloader_idx],
+            }
             self.callback.on_test_batch_end(
                 model=get_model(pl_module),
+                shared_inputs=shared_clbk_kwargs,
+                inputs=self.data_connector.get_callback_input(
+                    self.callback_key, outputs, batch, cb_type="test"
+                ),
+            )
+
+    def on_predict_epoch_start(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Hook to run at the start of a predict epoch."""
+        if self.callback.run_on_epoch(pl_module.current_epoch):
+            self.callback.on_test_epoch_start(
+                get_model(pl_module), pl_module.current_epoch
+            )
+
+    def on_predict_epoch_end(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    ) -> None:
+        """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
+        if self.callback.run_on_epoch(pl_module.current_epoch):
+            self.callback.on_test_epoch_end(
+                get_model(pl_module), pl_module.current_epoch
+            )
+
+    def on_predict_batch_end(  # type: ignore
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        """Wait for on_validation_batch_end PL hook to call 'process'."""
+        if self.callback.run_on_epoch(pl_module.current_epoch):
+            shared_clbk_kwargs = {
+                "epoch": pl_module.current_epoch,
+                "cur_iter": batch_idx,
+                "total_iters": trainer.num_predict_batches[dataloader_idx],
+            }
+            self.callback.on_test_batch_end(
+                model=get_model(pl_module),
+                shared_inputs=shared_clbk_kwargs,
                 inputs=self.data_connector.get_callback_input(
                     self.callback_key, outputs, batch, cb_type="test"
                 ),
@@ -137,14 +189,17 @@ class CallbackWrapper(pl.Callback):
         """Hook to run at the end of a training batch."""
         if self.callback.run_on_epoch(pl_module.current_epoch):
             model_pred = outputs["predictions"]
+            shared_clbk_kwargs = {
+                "metrics": outputs["metrics"],
+                "epoch": pl_module.current_epoch,
+                "num_epochs": trainer.max_epochs if trainer.max_epochs else 0,
+                "cur_iter": batch_idx,
+                "total_iters": int(trainer.num_training_batches),
+            }
             self.callback.on_train_batch_end(
                 model=get_model(pl_module),
+                shared_inputs=shared_clbk_kwargs,
                 inputs=self.data_connector.get_callback_input(
                     self.callback_key, model_pred, batch, cb_type="train"
                 ),
-                metrics=outputs,
-                cur_epoch=pl_module.current_epoch,
-                total_epochs=trainer.max_epochs if trainer.max_epochs else 0,
-                cur_batch=batch_idx,
-                total_batches=int(trainer.num_training_batches),
             )

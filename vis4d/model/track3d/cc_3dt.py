@@ -4,6 +4,7 @@ This file composes the operations associated with
 CC-3DT `https://arxiv.org/abs/2212.01247' into the full model implementation.
 """
 from __future__ import annotations
+
 from typing import NamedTuple
 
 import torch
@@ -19,13 +20,13 @@ from vis4d.op.detect.faster_rcnn import (
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
 )
-from vis4d.op.detect.rcnn import RoI2Det
+from vis4d.op.detect.rcnn import RCNNHead, RoI2Det
 from vis4d.op.detect_3d.filter import bev_3d_nms
 from vis4d.op.detect_3d.qd_3dt import QD3DTBBox3DHead
 from vis4d.op.fpp import FPN
 from vis4d.op.track.assignment import TrackIDCounter
-from vis4d.op.track_3d.cc_3dt import CC3DTrackAssociation, cam_to_global
 from vis4d.op.track.motion.kalman_filter import predict
+from vis4d.op.track_3d.cc_3dt import CC3DTrackAssociation, cam_to_global
 from vis4d.op.track_3d.motion.kf3d import (
     kf3d_init,
     kf3d_init_mean_cov,
@@ -34,7 +35,6 @@ from vis4d.op.track_3d.motion.kf3d import (
 )
 from vis4d.op.track_3d.motion.lstm_3d import VeloLSTM
 from vis4d.state.track.cc_3dt import CC3DTrackMemory, CC3DTrackState
-from vis4d.op.detect.rcnn import RCNNHead
 
 
 class Track3DOut(NamedTuple):

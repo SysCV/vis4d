@@ -9,8 +9,8 @@ from ml_collections.config_dict import ConfigDict
 from vis4d.config.util import class_config
 from vis4d.data.loader import (
     DataPipe,
-    build_train_dataloader,
     build_inference_dataloaders,
+    build_train_dataloader,
 )
 
 
@@ -19,7 +19,7 @@ def default_image_dataloader(
     dataset_cfg: ConfigDict,
     num_samples_per_gpu: int | FieldReference = 1,
     num_workers_per_gpu: int | FieldReference = 4,
-    shuffle: bool | FieldReference = True,
+    shuffle: bool | FieldReference = False,
     # FIXME: Currently, resolving transforms is broken if we directly pass
     # the function instead of the name to resolve, since resolving
     # the function path with the decorator converts e.g. 'pad_image' which

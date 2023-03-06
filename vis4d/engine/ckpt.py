@@ -16,7 +16,11 @@ from torch.hub import load_state_dict_from_url as load_url
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 from vis4d.common import TorchCheckpoint
-from vis4d.common.distributed import get_rank, get_world_size
+from vis4d.common.distributed import (
+    get_rank,
+    get_world_size,
+    synchronize,
+)
 from vis4d.common.logging import rank_zero_info, rank_zero_warn
 
 CheckpointLoadFunc = Callable[
@@ -44,7 +48,7 @@ def load_model_checkpoint(
     weights: str,
     strict: bool = False,
     rev_keys: None | list[tuple[str, str]] = None,
-    map_location: str | torch.device | None = None,
+    map_location: str | torch.device | None = "cpu",
 ) -> None:
     """Load checkpoint from a file or URI.
 
@@ -224,7 +228,7 @@ def load_from_http(
     if rank == 0:
         checkpoint = load_url(filename, map_location=map_location)
     if world_size > 1:
-        torch.distributed.barrier()
+        synchronize()
         if rank > 0:
             checkpoint = load_url(filename, map_location=map_location)
     return checkpoint

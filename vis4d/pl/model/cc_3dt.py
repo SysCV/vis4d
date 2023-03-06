@@ -10,8 +10,8 @@ from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import VideoMixin
 from vis4d.data.datasets.nuscenes import (
     NuScenes,
-    nuscenes_track_map,
     nuscenes_class_range_map,
+    nuscenes_track_map,
 )
 from vis4d.data.loader import (
     DataPipe,
@@ -24,7 +24,6 @@ from vis4d.data.transforms.normalize import (  # normalize_image,
 )
 from vis4d.data.transforms.pad import pad_image
 from vis4d.data.transforms.resize import resize_image, resize_intrinsics
-
 from vis4d.eval import Evaluator
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
 from vis4d.model.track3d.cc_3dt import FasterRCNNCC3DT

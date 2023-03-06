@@ -10,6 +10,7 @@ from torch import nn, optim
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.opt import Optimizer
+from torchmetrics import MeanMetric
 
 
 class TorchOptimizer(optim.Optimizer):
@@ -73,7 +74,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         super().__init__()
         self.model = model
         self.optims = optimizers
-        self.loss = loss
+        self.loss_fn = loss
         self.data_connector = data_connector
 
     def forward(  # type: ignore # pylint: disable=arguments-differ,line-too-long,unused-argument
@@ -87,8 +88,37 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
     ) -> Any:
         """Perform a single training step."""
         out = self.model(**self.data_connector.get_train_input(batch))
-        l = self.loss(**self.data_connector.get_loss_input(out, batch))
-        return {"loss": sum(l.values()), "predictions": out}
+        losses = self.loss_fn(**self.data_connector.get_loss_input(out, batch))
+        losses["loss"] = sum(list(losses.values()))
+
+        log_dict = {}
+        metric_attributes = []
+        for k, v in losses.items():
+            if not hasattr(self, f"k"):
+                metric = MeanMetric()
+                metric.to(self.device)
+                setattr(self, k, metric)
+
+            metric = getattr(self, k)
+            metric(v.detach())
+            log_dict["train/" + k] = metric
+            metric_attributes += [k]
+
+        for (k, v), k_name in zip(log_dict.items(), metric_attributes):
+            self.log(
+                k,
+                v,
+                logger=True,
+                prog_bar=True,
+                on_step=True,
+                on_epoch=False,
+                metric_attribute=k_name,
+            )
+        return {
+            "loss": losses["loss"],
+            "metrics": losses,
+            "predictions": out,
+        }
 
     def validation_step(  # type: ignore  # pylint: disable=arguments-differ,line-too-long,unused-argument
         self, batch: DictData, batch_idx: int, dataloader_idx: int = 0

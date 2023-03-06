@@ -12,7 +12,6 @@ from torch import Tensor
 
 from vis4d.common.imports import NUSCENES_AVAILABLE
 from vis4d.common.typing import DictStrAny
-
 from vis4d.data.const import AxisMode
 from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets import Dataset, VideoMixin

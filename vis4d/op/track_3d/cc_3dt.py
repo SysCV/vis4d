@@ -7,13 +7,11 @@ from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
 from vis4d.op.detect_3d.filter import filter_distance
+from vis4d.op.geometry.rotation import rotate_orientation, rotate_velocities
+from vis4d.op.geometry.transform import transform_points
 from vis4d.op.track.assignment import TrackIDCounter, greedy_assign
 from vis4d.op.track.matching import calc_bisoftmax_affinity
 
-from vis4d.op.geometry.rotation import rotate_orientation, rotate_velocities
-from vis4d.op.geometry.transform import transform_points
-
-import pdb
 
 # @torch.jit.script TODO
 class CC3DTrackAssociation:

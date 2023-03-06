@@ -7,7 +7,7 @@ import torch
 
 from vis4d.op.box.box2d import bbox_iou
 
-from ..util import update_frames, concat_states, get_last_tracks, merge_tracks
+from ..util import concat_states, get_last_tracks, merge_tracks, update_frames
 
 
 class QDTrackState(NamedTuple):

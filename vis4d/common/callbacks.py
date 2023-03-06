@@ -7,8 +7,8 @@ from collections import defaultdict
 import torch
 from torch import nn
 
-from vis4d.common import DictStrAny, MetricLogs, ArgsType
-from vis4d.common.distributed import all_gather_object_cpu, get_rank, broadcast
+from vis4d.common import ArgsType, DictStrAny
+from vis4d.common.distributed import all_gather_object_cpu, get_rank
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.progress import compose_log_str
 from vis4d.common.time import Timer
@@ -60,12 +60,8 @@ class Callback:
     def on_train_batch_end(
         self,
         model: nn.Module,
+        shared_inputs: DictStrAny,
         inputs: DictStrAny,
-        metrics: DictStrAny,
-        cur_epoch: int,
-        total_epochs: int,
-        cur_batch: int,
-        total_batches: int,
     ) -> None:
         """Hook to run at the end of a training batch."""
 
@@ -80,7 +76,9 @@ class Callback:
     def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a testing epoch."""
 
-    def on_test_batch_end(self, model: nn.Module, inputs: DictStrAny) -> None:
+    def on_test_batch_end(
+        self, model: nn.Module, shared_inputs: DictStrAny, inputs: DictStrAny
+    ) -> None:
         """Hook to run at the end of a testing batch.
 
         Args:
@@ -118,16 +116,8 @@ class EvaluatorCallback(Callback):
             ("cpu", "gpu")
         ), f"Collect device {collect} unknown."
         self.collect = collect
-        self.save_prefix = save_prefix
+        self.output_dir = save_prefix
         self.evaluator = evaluator
-        self.logging_disabled = False
-        self.run_eval = True
-
-    @property
-    def output_dir(self) -> None:
-        """Get output directory."""
-        dirpath = broadcast(self.save_prefix)
-        return dirpath
 
     def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a testing epoch."""
@@ -137,36 +127,28 @@ class EvaluatorCallback(Callback):
         self.evaluator.reset()
 
     def on_test_batch_end(
-        self, *args: ArgsType, inputs: DictStrAny, **kwargs: ArgsType
+        self, model: nn.Module, shared_inputs: DictStrAny, inputs: DictStrAny
     ) -> None:
         """Hook to run at the end of a testing batch."""
         self.evaluator.process(**inputs)
 
-    def evaluate(self) -> dict[str, MetricLogs]:
+    def evaluate(self) -> None:
         """Evaluate the performance after processing all input/output pairs."""
-        if not self.run_eval:
-            return {}
-
-        results = {}
-        if not self.logging_disabled:
-            rank_zero_info("Running evaluator %s...", str(self.evaluator))
+        rank_zero_info("Running evaluator %s...", str(self.evaluator))
 
         for metric in self.evaluator.metrics:
+            # Save output
             if self.output_dir is not None:
                 output_dir = os.path.join(self.output_dir, metric)
                 os.makedirs(output_dir, exist_ok=True)
-            else:
-                output_dir = None
+                self.evaluator.save(metric, output_dir)
 
-            # Move save function to evaluator
-            log_dict, log_str = self.evaluator.evaluate(metric, output_dir)
-            results[metric] = log_dict
-            if not self.logging_disabled:
-                for k, v in log_dict.items():
-                    rank_zero_info("%s: %.3f", k, v)
-                rank_zero_info("Showing results for %s", metric)
-                rank_zero_info(log_str)
-        return results
+            # Evaluate metric
+            log_dict, log_str = self.evaluator.evaluate(metric)
+            for k, v in log_dict.items():
+                rank_zero_info("%s: %.3f", k, v)
+            rank_zero_info("Showing results for %s", metric)
+            rank_zero_info(log_str)
 
 
 class VisualizerCallback(Callback):
@@ -175,7 +157,7 @@ class VisualizerCallback(Callback):
     def __init__(
         self,
         visualizer: Visualizer,
-        output_dir: None | str = None,
+        save_prefix: None | str = None,
         collect: str = "cpu",
         run_every_nth_epoch: int = 1,
         num_epochs: int = -1,
@@ -184,7 +166,7 @@ class VisualizerCallback(Callback):
 
         Args:
             visualizer (Visualizer): Visualizer.
-            output_dir (str, Optional): Output directory for saving the
+            save_prefix (str, Optional): Output directory for saving the
                 visualizations. Defaults to None (no save).
             collect (str): Which device to collect results across GPUs on.
                 Defaults to "cpu".
@@ -198,11 +180,13 @@ class VisualizerCallback(Callback):
             ("cpu", "gpu")
         ), f"Collect device {collect} unknown."
         self.collect = collect
-        self.output_dir = output_dir
         self.visualizer = visualizer
 
-        if self.output_dir is not None:
+        if save_prefix is not None:
+            self.output_dir = f"{save_prefix}/vis"
             os.makedirs(self.output_dir, exist_ok=True)
+        else:
+            self.output_dir = None
 
     def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a testing epoch."""
@@ -211,7 +195,9 @@ class VisualizerCallback(Callback):
                 self.visualizer.save_to_disk(self.output_dir)
         self.visualizer.reset()
 
-    def on_test_batch_end(self, model: nn.Module, inputs: DictStrAny) -> None:
+    def on_test_batch_end(
+        self, model: nn.Module, shared_inputs: DictStrAny, inputs: DictStrAny
+    ) -> None:
         """Hook to run at the end of a testing batch."""
         self.visualizer.process(**inputs)
 
@@ -229,27 +215,22 @@ class LoggingCallback(Callback):
     def on_train_epoch_start(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the start of a training epoch."""
         self.timer.reset()
-        rank_zero_info(f"Epoch {epoch + 1} started.")
 
     def on_train_batch_end(
         self,
         model: nn.Module,
+        shared_inputs: DictStrAny,
         inputs: DictStrAny,
-        metrics: DictStrAny,
-        cur_epoch: int,
-        total_epochs: int,
-        cur_batch: int,
-        total_batches: int,
     ) -> None:
         """Hook to run at the end of a training batch."""
-        for k, v in metrics.items():
+        for k, v in shared_inputs["metrics"].items():
             self._metrics[k].append(v)
-        if cur_batch % self._refresh_rate == self._refresh_rate - 1:
+        if shared_inputs["cur_iter"] % self._refresh_rate == 0:
             rank_zero_info(
                 compose_log_str(
-                    f"Epoch {cur_epoch + 1}/{total_epochs}",
-                    cur_batch + 1,
-                    total_batches,
+                    f"Epoch {shared_inputs['epoch'] + 1}",
+                    shared_inputs["cur_iter"] + 1,
+                    shared_inputs["total_iters"],
                     self.timer,
                     {
                         k: sum(v) / len(v) if len(v) > 0 else float("NaN")
@@ -265,18 +246,18 @@ class LoggingCallback(Callback):
 
     def on_test_batch_end(
         self,
-        *args: ArgsType,
-        cur_batch: int,
-        total_batches: int,
-        **kwargs: ArgsType,
+        model: nn.Module,
+        shared_inputs: DictStrAny,
+        inputs: DictStrAny,
     ) -> None:
         """Hook to run at the end of a training batch."""
-        if cur_batch % self._refresh_rate == 0:
+        if shared_inputs["cur_iter"] % self._refresh_rate == 0:
             rank_zero_info(
                 compose_log_str(
                     "Testing",
-                    cur_batch + 1,  # TODO: use cur_iter once remove pl logger
-                    total_batches,
+                    shared_inputs["cur_iter"]
+                    + 1,  # TODO: use cur_iter once remove pl logger
+                    shared_inputs["total_iters"],
                     self.timer,
                 )
             )
@@ -301,21 +282,15 @@ class CheckpointCallback(Callback):
                 whether to visualize at the final epoch. Defaults to -1.
         """
         super().__init__(run_every_nth_epoch, num_epochs)
-        self.save_prefix = save_prefix
 
-    @property
-    def output_dir(self) -> str:
-        """Return output directory."""
-        dirpath = broadcast(self.save_prefix)
-        return dirpath
+        self.output_dir = f"{save_prefix}/checkpoints"
+        os.makedirs(self.output_dir, exist_ok=True)
 
     def on_train_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a training epoch."""
-        output_dir = os.path.join(self.output_dir, "checkpoints")
-        os.makedirs(output_dir, exist_ok=True)
         # TODO, save full state dict with optimizer, scheduler, etc.
         if get_rank() == 0:
             torch.save(
                 model.state_dict(),
-                f"{output_dir}/model_e{epoch + 1}.pt",
+                f"{self.output_dir}/model_e{epoch + 1}.pt",
             )

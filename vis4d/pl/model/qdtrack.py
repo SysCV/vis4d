@@ -2,7 +2,7 @@
 """Default run configuration for pytorch lightning."""
 from torch.utils.data import DataLoader
 
-from vis4d.common.imports import SCALABEL_AVAILABLE, BDD100K_AVAILABLE
+from vis4d.common.imports import BDD100K_AVAILABLE, SCALABEL_AVAILABLE
 from vis4d.common.typing import MetricLogs
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.bdd100k import BDD100K, bdd100k_track_map

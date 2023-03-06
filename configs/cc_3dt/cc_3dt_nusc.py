@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import torch
-import os.path as osp
+
 from datetime import datetime
 from torch import optim
 from torch.optim.lr_scheduler import MultiStepLR
@@ -263,12 +263,11 @@ def get_config() -> ConfigDict:
     }
 
     # Assign the defined callbacks to the config
-    config.train_callbacks = {
-        **ckpt_callback,
-        **eval_callbacks,
-        **logger_callback,
-    }
-    config.test_callbacks = {**eval_callbacks, **logger_callback}
+    config.shared_callbacks = {**logger_callback, **eval_callbacks}
+
+    config.train_callbacks = {**ckpt_callback}
+
+    config.test_callbacks = {}
 
     ######################################################
     ##                  PL CALLBACKS                    ##

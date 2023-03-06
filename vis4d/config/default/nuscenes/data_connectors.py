@@ -1,12 +1,12 @@
 """NuScenes data connector."""
 from typing import NamedTuple
+
 import torch
 from torch import Tensor
 
-from vis4d.engine.connectors import StaticDataConnector
-
 from vis4d.common.typing import ArgsType, DictStrArrNested
 from vis4d.data.typing import DictData
+from vis4d.engine.connectors import StaticDataConnector
 
 
 class NuscDataConnector(StaticDataConnector):

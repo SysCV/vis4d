@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 import os.path as osp
-from torch.utils.collect_env import get_pretty_env_info
 
 from absl import app, flags
 from ml_collections import ConfigDict
@@ -15,15 +14,15 @@ from pytorch_lightning import Callback
 from pytorch_lightning.utilities.exceptions import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
     MisconfigurationException,
 )
+from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common.logging import rank_zero_info, setup_logger
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.parser import DEFINE_config_file
 from vis4d.pl.callbacks.callback_wrapper import CallbackWrapper
+from vis4d.pl.data_module import DataModule
 from vis4d.pl.trainer import DefaultTrainer
 from vis4d.pl.training_module import TrainingModule
-from vis4d.pl.data_module import DataModule
-import pdb
 
 _CONFIG = DEFINE_config_file("config", method_name="get_config")
 _MODE = flags.DEFINE_string(
@@ -47,12 +46,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
     >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --sweep vis4d/config/example/faster_rcnn_coco.py
     """
     config = _CONFIG.value
-
-    if _GPUS.value != config.n_gpus:
-        # Replace # gpus in config with cli
-        config.n_gpus = _GPUS.value  # patch it like this to update potential
-        # references to the config
-    num_gpus = config.n_gpus
+    config.n_gpus = _GPUS.value
 
     # Setup logging
     logger_vis4d = logging.getLogger("vis4d")
@@ -73,10 +67,12 @@ def main(  # type:ignore # pylint: disable=unused-argument
     pl_trainer = instantiate_classes(config.pl_trainer)
     for key, value in pl_trainer.items():
         trainer_args[key] = value
+    trainer_args.max_epochs = config.params.num_epochs
+    trainer_args.num_sanity_val_steps = 0
 
     # Update GPU mode
-    if num_gpus > 0:
-        trainer_args.devices = num_gpus
+    if config.n_gpus > 0:
+        trainer_args.devices = config.n_gpus
         trainer_args.accelerator = "gpu"
 
     # Disable progress bar for logger
@@ -95,6 +91,12 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
     # Callbacks
     callbacks: list[Callback] = []
+    if "shared_callbacks" in config:
+        shared_callbacks = instantiate_classes(config.shared_callbacks)
+        for key, cb in shared_callbacks.items():
+            rank_zero_info(f"Adding callback {key}")
+            callbacks.append(CallbackWrapper(cb, data_connector, key))
+
     if "train_callbacks" in config and _MODE.value == "train":
         train_callbacks = instantiate_classes(config.train_callbacks)
         for key, cb in train_callbacks.items():

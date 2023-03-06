@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from vis4d.common.callbacks import Callback
-from vis4d.common.logging import rank_zero_info
+from vis4d.common.distributed import synchronize, get_rank
 from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
 
@@ -156,17 +156,21 @@ class Trainer:
 
                 for k, callback in self.train_callbacks.items():
                     if callback.run_on_epoch(epoch):
+                        shared_clbk_kwargs = {
+                            "metrics": metrics,
+                            "epoch": epoch,
+                            "num_epochs": self.num_epochs,
+                            "cur_iter": cur_iter,
+                            "total_iters": total_iters,
+                        }
                         clbk_kwargs = self.data_connector.get_callback_input(
                             k, output, data, "train"
                         )
+
                         callback.on_train_batch_end(
                             model,
+                            shared_clbk_kwargs,
                             clbk_kwargs,
-                            metrics,
-                            epoch,
-                            self.num_epochs,
-                            cur_iter,
-                            total_iters,
                         )
 
                 step += 1
@@ -179,5 +183,3 @@ class Trainer:
             # Testing
             if tester is not None and self._run_test_on_epoch(epoch):
                 tester.test(model, epoch)
-
-        rank_zero_info("Training done.")

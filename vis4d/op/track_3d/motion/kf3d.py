@@ -5,7 +5,6 @@ import torch
 from torch import Tensor
 
 from vis4d.op.geometry.rotation import acute_angle, normalize_angle
-
 from vis4d.op.track.motion.kalman_filter import predict, update
 
 

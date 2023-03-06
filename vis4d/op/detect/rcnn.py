@@ -118,12 +118,7 @@ class RCNNHead(nn.Module):
                 last_layer_dim *= np.prod(self.roi_pooler.resolution)
             for i in range(num_branch_fcs):
                 fc_in_dim = last_layer_dim if i == 0 else self.fc_out_channels
-                fcs.append(
-                    nn.Sequential(
-                        nn.Linear(fc_in_dim, self.fc_out_channels),
-                        nn.ReLU(inplace=True),
-                    )
-                )
+                fcs.append(nn.Linear(fc_in_dim, self.fc_out_channels))
         return convs, fcs, last_layer_dim
 
     @staticmethod

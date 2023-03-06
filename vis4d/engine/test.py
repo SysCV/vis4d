@@ -1,6 +1,8 @@
 """Vis4D tester."""
 from __future__ import annotations
 
+import pdb
+
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -10,7 +12,6 @@ from vis4d.data import DictData
 from vis4d.engine.connectors import DataConnector
 
 from .util import move_data_to_device
-import pdb
 
 
 class Tester:
@@ -57,8 +58,8 @@ class Tester:
                 callback.on_test_epoch_start(model, epoch or 0)
 
         for test_loader in self.test_dataloaders:
-            for cur_batch, data in enumerate(test_loader):
-                total_batches = len(test_loader)
+            for cur_iter, data in enumerate(test_loader):
+                total_iters = len(test_loader)
 
                 # input data
                 device = next(model.parameters()).device  # model device
@@ -70,17 +71,21 @@ class Tester:
 
                 for k, callback in self.test_callbacks.items():
                     if callback.run_on_epoch(epoch):
+                        shared_clbk_kwargs = {
+                            "epoch": epoch,
+                            "cur_iter": cur_iter,
+                            "total_iters": total_iters,
+                        }
                         clbk_kwargs = self.data_connector.get_callback_input(
                             k, output, data, "test"
                         )
                         callback.on_test_batch_end(
-                            model=model,
-                            cur_batch=cur_batch,
-                            total_batches=total_batches,
-                            inputs=clbk_kwargs,
+                            model,
+                            shared_clbk_kwargs,
+                            clbk_kwargs,
                         )
 
         # run callbacks on test epoch end
         for k, callback in self.test_callbacks.items():
             if callback.run_on_epoch(epoch):
-                callback.on_test_epoch_end(model, epoch or 0)
+                callback.on_test_epoch_end(model, epoch)

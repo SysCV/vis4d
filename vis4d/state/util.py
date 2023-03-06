@@ -5,7 +5,6 @@ from typing import NamedTuple
 
 import torch
 from torch import Tensor
-import pdb
 
 
 def update_frames(

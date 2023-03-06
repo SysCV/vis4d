@@ -16,8 +16,8 @@ from torch.multiprocessing import spawn  # type: ignore
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.collect_env import get_pretty_env_info
 
-from vis4d.common.distributed import get_world_size, get_rank, get_local_rank
-from vis4d.common.logging import rank_zero_info, setup_logger, _info
+from vis4d.common.distributed import get_local_rank, get_rank, get_world_size
+from vis4d.common.logging import _info, rank_zero_info, setup_logger
 from vis4d.config.replicator import replicate_config
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.parser import DEFINE_config_file
@@ -45,7 +45,7 @@ def _train(config: ConfigDict, rank: None | int = None) -> None:
     cfg: ConfigDict = instantiate_classes(config)
 
     trainer = Trainer(
-        num_epochs=cfg.num_epochs,
+        num_epochs=cfg.params.num_epochs,
         log_step=1,
         dataloaders=cfg.train_dl,
         data_connector=cfg.data_connector,
@@ -168,22 +168,31 @@ def main(  # type:ignore # pylint: disable=unused-argument
     optimizers = instantiate_classes(config.optimizers)
     loss = instantiate_classes(config.loss)
 
-    if "train_callbacks" in config and _MODE.value == "train":
-        train_callbacks = instantiate_classes(config.train_callbacks)
+    if "shared_callbacks" in config:
+        shared_callbacks = instantiate_classes(config.shared_callbacks)
     else:
-        train_callbacks = None
+        shared_callbacks = {}
+
+    if "train_callbacks" in config and _MODE.value == "train":
+        train_callbacks = {
+            **shared_callbacks,
+            **(instantiate_classes(config.train_callbacks)),
+        }
+    else:
+        train_callbacks = shared_callbacks
 
     if "test_callbacks" in config:
-        test_callbacks = instantiate_classes(config.test_callbacks)
+        test_callbacks = {
+            **shared_callbacks,
+            **(instantiate_classes(config.test_callbacks)),
+        }
     else:
-        test_callbacks = None
+        test_callbacks = shared_callbacks
 
     if config.n_gpus > 1:
         ddp_setup()
 
-    train_dataloader = instantiate_classes(
-        config.data.train_dataloader
-    ).values()[0]
+    train_dataloader = instantiate_classes(config.data.train_dataloader)
 
     test_dataloader = instantiate_classes(
         config.data.test_dataloader
@@ -220,7 +229,7 @@ def main(  # type:ignore # pylint: disable=unused-argument
         pass
     elif _MODE.value == "train":
         trainer = Trainer(
-            num_epochs=config.num_epochs,
+            num_epochs=config.params.num_epochs,
             log_step=1,
             dataloaders=train_dataloader,
             data_connector=data_connector,
@@ -236,4 +245,5 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
 
 if __name__ == "__main__":
+    os.environ["TORCH_CPP_LOG_LEVEL"] = "INFO"
     app.run(main)

@@ -13,6 +13,7 @@ from typing import Any
 import cloudpickle
 import torch
 import torch.distributed as dist
+from torch.distributed import broadcast_object_list
 from typing_extensions import Protocol
 
 
@@ -59,15 +60,6 @@ class PicklableWrapper:  #  mypy: disable=line-too-long
         return getattr(self, attr)
 
 
-def broadcast(obj: Any, src: int = 0) -> Any:
-    obj = [obj]
-    rank = get_rank()
-    if rank != src:
-        obj = [None]  # type: ignore[list-item]
-    torch.distributed.broadcast_object_list(obj, src)
-    return obj[0]
-
-
 # no coverage for these functions, since we don't unittest distributed setting
 def get_world_size() -> int:  # pragma: no cover
     """Get the world size (number of processes) of torch.distributed.
@@ -75,19 +67,15 @@ def get_world_size() -> int:  # pragma: no cover
     Returns:
         int: The world size.
     """
-    # TODO: check slurm submission with torchrun and see which is which
     if os.environ.get("WORLD_SIZE", None):
         return int(os.environ["WORLD_SIZE"])
-    elif os.environ.get("SLURM_NTASKS", None):
-        return int(os.environ["SLURM_NTASKS"])
-    else:
-        return 1
 
-    # if not dist.is_available():
-    #     return 1
-    # if not dist.is_initialized():
-    #     return 1
-    # return int(dist.get_world_size())
+    # In interactive job not using slurm ntasks
+    if os.environ.get("SLURM_JOB_NAME", None) != "bash":
+        if os.environ.get("SLURM_NTASKS", None):
+            return int(os.environ["SLURM_NTASKS"])
+
+    return 1
 
 
 def get_rank() -> int:  # pragma: no cover
@@ -96,16 +84,18 @@ def get_rank() -> int:  # pragma: no cover
     Returns:
         int: The global rank.
     """
-    # rank_keys = ("RANK", "LOCAL_RANK", "SLURM_PROCID")
-    # for key in rank_keys:
-    #     rank = os.environ.get(key)
-    #     if rank is not None:
-    #         return int(rank)
-    # return 0
+    # For torchrun
     if os.environ.get("RANK", None):
         return int(os.environ["RANK"])
-    elif os.environ.get("SLURM_PROCID", None):
+
+    # Because pl don't set global rank, use local rank for interactive job and
+    # slurm process id for submitted job
+    if os.environ.get("SLURM_JOB_NAME", None) == "bash":
+        return get_local_rank()
+    if os.environ.get("SLURM_PROCID", None):
         return int(os.environ["SLURM_PROCID"])
+
+    return 0
 
 
 def get_local_rank() -> int:  # pragma: no cover
@@ -116,20 +106,40 @@ def get_local_rank() -> int:  # pragma: no cover
     """
     if os.environ.get("LOCAL_RANK", None):
         return int(os.environ["LOCAL_RANK"])
-    elif os.environ.get("SLURM_LOCALID", None):
+    if os.environ.get("SLURM_LOCALID", None):
         return int(os.environ["SLURM_LOCALID"])
+
+    return 0
+
+
+def distributed_available() -> bool:  # pragma: no cover
+    """Check if torch.distributed is available.
+
+    Returns:
+        bool: Whether torch.distributed is available.
+    """
+    return dist.is_available() and dist.is_initialized()
 
 
 def synchronize() -> None:  # pragma: no cover
     """Sync (barrier) among all processes when using distributed training."""
-    if not dist.is_available():
+    if not distributed_available():
         return
-    if not dist.is_initialized():
+    if get_world_size() == 1:
         return
-    world_size = dist.get_world_size()
-    if world_size == 1:
-        return
-    dist.barrier()
+    dist.barrier(group=dist.group.WORLD, device_ids=[get_rank()])
+
+
+def broadcast(obj: Any, src: int = 0) -> Any:  # pragma: no cover
+    """Broadcast an object from a source to all processes."""
+    if not distributed_available():
+        return obj
+    obj = [obj]
+    rank = get_rank()
+    if rank != src:
+        obj = [None]  # type: ignore[list-item]
+    broadcast_object_list(obj, src, group=dist.group.WORLD)
+    return obj[0]
 
 
 def serialize_to_tensor(data: Any) -> torch.Tensor:  # pragma: no cover
@@ -273,10 +283,7 @@ def create_tmpdir(
         tmpdir = tempfile.mkdtemp(dir=dist_tmpdir)
     else:
         tmpdir = None
-    tmp_list = all_gather_object_gpu(tmpdir, rank_zero_return_only=False)
-    tmpdir = [tmp for tmp in tmp_list if tmp is not None][0]  # type: ignore
-    assert isinstance(tmpdir, str), "Gather failed, tmpdir not a string!"
-    return tmpdir
+    return broadcast(tmpdir)
 
 
 def all_gather_object_cpu(  # type: ignore
@@ -298,7 +305,7 @@ def all_gather_object_cpu(  # type: ignore
     if world_size == 1:
         return [data]
 
-    # mk dir
+    # make tmp dir
     tmpdir = create_tmpdir(rank, tmpdir)
 
     # encode & save
@@ -315,7 +322,7 @@ def all_gather_object_cpu(  # type: ignore
         with open(os.path.join(tmpdir, f"part_{i}.pkl"), "rb") as f:
             data_list.append(pickle.load(f))
 
-    # rm dir
+    # remove dir
     if not rank_zero_return_only:
         # wait for all processes to finish loading before removing tmpdir
         synchronize()

@@ -157,10 +157,7 @@ def paste_masks_in_image(
         num_masks, img_h, img_w, device=masks.device, dtype=torch.bool
     )
     for inds in chunks:
-        (
-            masks_chunk,
-            spatial_inds,
-        ) = _do_paste_mask(
+        (masks_chunk, spatial_inds,) = _do_paste_mask(
             masks[inds, None, :, :],
             boxes[inds, :4],
             img_h,

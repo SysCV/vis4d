@@ -2,14 +2,12 @@
 """Data module composing the data loading pipeline."""
 from __future__ import annotations
 
-from vis4d.data.typing import DictData
-
 import pytorch_lightning as pl
+from ml_collections import ConfigDict
 from torch.utils import data
 
-from ml_collections import ConfigDict
 from vis4d.config.util import instantiate_classes
-import pdb
+from vis4d.data.typing import DictData
 
 
 class DataModule(pl.LightningDataModule):  # pylint: disable=too-many-ancestors
@@ -29,7 +27,7 @@ class DataModule(pl.LightningDataModule):  # pylint: disable=too-many-ancestors
 
     def train_dataloader(self) -> data.DataLoader[DictData]:
         """Return dataloader for training."""
-        return instantiate_classes(self.data_cfg.train_dataloader).values()[0]
+        return instantiate_classes(self.data_cfg.train_dataloader)
 
     def test_dataloader(self) -> list[data.DataLoader]:
         """Return dataloaders for testing."""
