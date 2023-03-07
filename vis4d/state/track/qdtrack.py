@@ -32,12 +32,14 @@ class QDTrackMemory:
         memory_limit: int = -1,
         nms_backdrop_iou_thr: float = 0.3,
         backdrop_memory_limit: int = 1,
-    ):
+    ) -> None:
         """Creates an instance of the class.
 
         Args:
             memory_limit (int, optional): Maximum number of frames to be stored
                 inside the memory. Defaults to -1.
+            nms_backdrop_iou_thr (float, optional): IoU threshold for NMS
+                between backdrops. Defaults to 0.3.
             backdrop_memory_limit (int, optional): Maximum number of frames
                 backdrops are stored. Defaults to 1.
             memory_momentum (float, optional): Momentum value for accumulating

@@ -52,13 +52,19 @@ class RCNNHead(nn.Module):
         """Creates an instance of the class.
 
         Args:
-            num_classes (int, optional): number of categories. Defaults to 80.
-            roi_size (tuple[int, int], optional): size of pooled RoIs. Defaults
-                to (7, 7).
+            num_shared_convs (int, optional): number of shared conv layers.
+                Defaults to 0.
+            num_shared_fcs (int, optional): number of shared fc layers.
+                Defaults to 2.
+            conv_out_channels (int, optional): number of output channels for
+                shared conv layers. Defaults to 256.
             in_channels (int, optional): Number of channels in input feature
                 maps. Defaults to 256.
             fc_out_channels (int, optional): Output channels of shared linear
                 layers. Defaults to 1024.
+            num_classes (int, optional): number of categories. Defaults to 80.
+            roi_size (tuple[int, int], optional): size of pooled RoIs. Defaults
+                to (7, 7).
         """
         super().__init__()
         self.roi_pooler = MultiScaleRoIAlign(

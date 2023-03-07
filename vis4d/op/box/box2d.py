@@ -1,8 +1,6 @@
 """Utility functions for bounding boxes."""
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 from torch import Tensor
 from torchvision.ops import batched_nms
@@ -96,8 +94,8 @@ def bbox_area(boxes: torch.Tensor) -> torch.Tensor:
 def bbox_intersection(
     boxes1: Tensor,
     boxes2: Tensor,
-    camera1_ids: Optional[Tensor] = None,
-    camera2_ids: Optional[Tensor] = None,
+    camera1_ids: Tensor = torch.empty(0),
+    camera2_ids: Tensor = torch.empty(0),
 ) -> torch.Tensor:
     """Given two lists of boxes of size N and M, compute N x M intersection.
 
@@ -110,7 +108,7 @@ def bbox_intersection(
     Returns:
         Tensor: intersection (N, M).
     """
-    if camera1_ids is not None and camera2_ids is not None:
+    if not (len(camera1_ids) == 0 and len(camera2_ids) == 0):
         valid = torch.eq(
             camera1_ids.unsqueeze(1), camera2_ids.unsqueeze(0)
         ).int()
@@ -129,8 +127,8 @@ def bbox_intersection(
 def bbox_iou(
     boxes1: torch.Tensor,
     boxes2: torch.Tensor,
-    camera1_ids: Optional[Tensor] = None,
-    camera2_ids: Optional[Tensor] = None,
+    camera1_ids: Tensor = torch.empty(0),
+    camera2_ids: Tensor = torch.empty(0),
 ) -> torch.Tensor:
     """Compute IoU between all pairs of boxes.
 

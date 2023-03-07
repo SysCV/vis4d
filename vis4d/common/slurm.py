@@ -1,6 +1,7 @@
 """Slurm job submission.
+
 Code adapted from:
-https://github.com/open-mmlab/mmcv/blob/master/mmcv/runner/dist_utils.py
+    https://github.com/open-mmlab/mmcv/blob/master/mmcv/runner/dist_utils.py
 """
 import os
 import socket

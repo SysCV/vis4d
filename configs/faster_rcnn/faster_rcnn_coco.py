@@ -9,7 +9,7 @@ from vis4d.common.callbacks import (
     EvaluatorCallback,
     VisualizerCallback,
 )
-from vis4d.config.default.data.dataloader import default_image_dl
+from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.detect import det_preprocessing
 from vis4d.config.default.data_connectors import (
     CONN_BBOX_2D_TEST,
@@ -47,7 +47,7 @@ def get_config() -> ConfigDict:
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
     E.g.:
-    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --config.num_epochs 100 -- config.params.lr 0.001
+    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --config.num_epochs 100 -- config.params.learning_rate 0.001
 
     Returns:
         ConfigDict: The configuration
@@ -73,7 +73,7 @@ def get_config() -> ConfigDict:
     ## High level hyper parameters
     params = ConfigDict()
     params.batch_size = 16
-    params.lr = 0.01
+    params.learning_rate = 0.01
     params.augment_proba = 0.5
     params.num_classes = 80
     config.params = params
@@ -94,7 +94,7 @@ def get_config() -> ConfigDict:
         split=config.train_split,
     )
     preproc = det_preprocessing(800, 1333, params.augment_proba)
-    dataloader_train_cfg = default_image_dl(
+    dataloader_train_cfg = default_image_dataloader(
         preproc, dataset_cfg_train, params.batch_size, shuffle=True
     )
     config.train_dl = dataloader_train_cfg
@@ -107,7 +107,7 @@ def get_config() -> ConfigDict:
         split=config.test_split,
     )
     preprocess_test_cfg = det_preprocessing(800, 1333, augment_probability=0)
-    dataloader_cfg_test = default_image_dl(
+    dataloader_cfg_test = default_image_dataloader(
         preprocess_test_cfg,
         dataset_test_cfg,
         batch_size=1,
@@ -171,14 +171,14 @@ def get_config() -> ConfigDict:
     # config.optimizers = [
     #    optimizer_cfg(
     #        optimizer=class_config(only_encoder_params,
-    #           fun=class_config(optim.SGD, lr=params.lr"))
+    #           fun=class_config(optim.SGD, lr=params.learning_rate"))
     #        )
     #    )
     # ]
 
     config.optimizers = [
         optimizer_cfg(
-            optimizer=class_config(optim.SGD, lr=params.lr),
+            optimizer=class_config(optim.SGD, lr=params.learning_rate),
             lr_scheduler=class_config(StepLR, step_size=3, gamma=0.1),
             lr_warmup=None,
         )
@@ -273,4 +273,4 @@ def get_sweep() -> ConfigDict:
             It can be passed to replicate_config to create a list of configs
             that can be used to run a grid search.
     """
-    return linear_grid_search("params.lr", 0.001, 0.01, 3)
+    return linear_grid_search("params.learning_rate", 0.001, 0.01, 3)

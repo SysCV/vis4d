@@ -1,4 +1,4 @@
-""""NuScenes evaluation code."""
+"""NuScenes evaluation code."""
 import itertools
 import json
 from collections.abc import Callable
@@ -99,13 +99,12 @@ class NuScenesEvaluator(Evaluator):
                 attr = "cycle.with_rider"
             else:
                 attr = self.DefaultAttribute[name]
+        elif name in {"pedestrian"}:
+            attr = "pedestrian.standing"
+        elif name in {"bus"}:
+            attr = "vehicle.stopped"
         else:
-            if name in {"pedestrian"}:
-                attr = "pedestrian.standing"
-            elif name in {"bus"}:
-                attr = "vehicle.stopped"
-            else:
-                attr = self.DefaultAttribute[name]
+            attr = self.DefaultAttribute[name]
         return attr
 
     def _process_track_3d(

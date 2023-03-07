@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
 
 import pytorch_lightning as pl
 from torch import optim
@@ -60,7 +59,7 @@ def get_config() -> ConfigDict:
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
     E.g.:
-    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --config.num_epochs 100 -- config.params.lr 0.001
+    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --config.num_epochs 100 -- config.params.learning_rate 0.001
 
     Returns:
         ConfigDict: The configuration
@@ -86,7 +85,7 @@ def get_config() -> ConfigDict:
     ## High level hyper parameters
     params = ConfigDict()
     params.samples_per_gpu = 1
-    params.lr = 0.01
+    params.learning_rate = 0.01
     params.num_epochs = 12
     params.augment_proba = 0.5
     params.num_classes = 80
@@ -189,14 +188,14 @@ def get_config() -> ConfigDict:
     # config.optimizers = [
     #    optimizer_cfg(
     #        optimizer=class_config(only_encoder_params,
-    #           fun=class_config(optim.SGD, lr=params.lr"))
+    #           fun=class_config(optim.SGD, lr=params.learning_rate"))
     #        )
     #    )
     # ]
 
     config.optimizers = [
         optimizer_cfg(
-            optimizer=class_config(optim.SGD, lr=params.lr),
+            optimizer=class_config(optim.SGD, lr=params.learning_rate),
             lr_scheduler=class_config(
                 MultiStepLR, milestones=[8, 11], gamma=0.1
             ),
@@ -318,4 +317,4 @@ def get_sweep() -> ConfigDict:
             It can be passed to replicate_config to create a list of configs
             that can be used to run a grid search.
     """
-    return linear_grid_search("params.lr", 0.001, 0.01, 3)
+    return linear_grid_search("params.learning_rate", 0.001, 0.01, 3)

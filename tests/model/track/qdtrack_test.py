@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from tests.util import get_test_data, get_test_file
+from tests.util import get_test_data
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets.scalabel import Scalabel
 from vis4d.data.loader import DataPipe, build_inference_dataloaders
@@ -17,6 +17,7 @@ from vis4d.model.track.qdtrack import FasterRCNNQDTrack
 class QDTrackTest(unittest.TestCase):
     """QDTrack class tests."""
 
+    # TODO: Fix test with reproduced design
     model_weights = (
         "https://dl.cv.ethz.ch/vis4d/qdtrack_bdd100k_frcnn_res50_heavy_augs.pt"
     )

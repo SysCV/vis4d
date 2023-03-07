@@ -10,6 +10,7 @@ from vis4d.op.box.box2d import bbox_iou
 
 from ..util import concat_states, get_last_tracks, merge_tracks, update_frames
 
+# TODO: Add VeloLSTM motion state
 # class KF3DMotionState(NamedTuple):
 #     """KF3D motion state."""
 

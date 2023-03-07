@@ -109,6 +109,8 @@ class FasterRCNNHead(nn.Module):
                 for RCNN stage. Defaults to None.
             proposal_append_gt (bool): If to append the ground truth boxes for
                 proposal sampling during training. Defaults to True.
+            roi_head (Optional[nn.Module], optional): Custom ROI head. Defaults
+                to None.
         """
         super().__init__()
         self.anchor_generator = (

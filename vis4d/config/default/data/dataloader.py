@@ -1,7 +1,7 @@
 """Default dataloader configurations."""
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict
@@ -20,7 +20,7 @@ def default_image_dataloader(
     num_samples_per_gpu: int | FieldReference = 1,
     num_workers_per_gpu: int | FieldReference = 4,
     shuffle: bool | FieldReference = False,
-    # FIXME: Currently, resolving transforms is broken if we directly pass
+    # TODO: Currently, resolving transforms is broken if we directly pass
     # the function instead of the name to resolve, since resolving
     # the function path with the decorator converts e.g. 'pad_image' which
     # is 'BatchTransform.__call__.<locals>.get_transform_fn'
@@ -30,7 +30,7 @@ def default_image_dataloader(
     batchprocess_cfg: ConfigDict = class_config(
         "vis4d.data.transforms.pad.pad_image"
     ),
-    DataPipe: Callable = DataPipe,
+    data_pipe: Callable = DataPipe,
     train: bool = True,
 ) -> ConfigDict:
     """Creates a dataloader configuration given dataset and preprocessing.
@@ -46,9 +46,9 @@ def default_image_dataloader(
         num_workers_per_gpu (int | FieldReference, optional): How many workers
             to spawn per GPU. Defaults to 4.
         shuffle (bool, optional): Whether to shuffle the dataset.
-        batchprocess_cfg (ConfigDict, optional): The configuration that contains
-            the batch processing operations.
-        DataPipe (Callable, optional): The data pipe class to use.
+        batchprocess_cfg (ConfigDict, optional): The configuration that
+            contains the batch processing operations.
+        data_pipe (Callable, optional): The data pipe class to use.
             Defaults to DataPipe.
         train (bool, optional): Whether to create a train dataloader.
 
@@ -59,7 +59,7 @@ def default_image_dataloader(
         return class_config(
             build_train_dataloader,
             dataset=class_config(
-                DataPipe,
+                data_pipe,
                 datasets=dataset_cfg,
                 preprocess_fn=preprocess_cfg,
             ),
@@ -72,7 +72,7 @@ def default_image_dataloader(
     return class_config(
         build_inference_dataloaders,
         datasets=class_config(
-            DataPipe,
+            data_pipe,
             datasets=dataset_cfg,
             preprocess_fn=preprocess_cfg,
         ),

@@ -1,7 +1,7 @@
 """Loss for faster_rcnn model."""
 from __future__ import annotations
 
-import torch.nn as nn
+from torch import nn
 
 from vis4d.engine.loss import WeightedMultiLoss
 from vis4d.op.box.encoder.base import BoxEncoder2D

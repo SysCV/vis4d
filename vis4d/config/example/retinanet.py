@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 
+import pytorch_lightning as pl
 from torch import optim
 from torch.optim.lr_scheduler import StepLR
 
@@ -11,43 +12,24 @@ from vis4d.common.callbacks import (
     EvaluatorCallback,
     VisualizerCallback,
 )
-from vis4d.config.default.data.dataloader import default_image_dl
+from vis4d.config.default.data.dataloader import default_image_dataloader
 from vis4d.config.default.data.detect import det_preprocessing
 from vis4d.config.default.data_connectors import (
-    CONN_BBOX_2D_TEST,
-    CONN_BBOX_2D_TRAIN,
     CONN_BBOX_2D_VIS,
     CONN_COCO_BBOX_EVAL,
-    CONN_MASK_HEAD_LOSS_2D,
-    CONN_ROI_LOSS_2D,
-    CONN_RPN_LOSS_2D,
 )
 from vis4d.config.default.data_connectors.detection import (
     CONN_BOX_LOSS_2D,
     CONN_IMAGES_TEST,
     CONN_IMAGES_TRAIN,
 )
-from vis4d.config.default.loss.faster_rcnn_loss import (
-    get_default_faster_rcnn_loss,
-)
-from vis4d.config.default.loss.mask_rcnn_loss import get_default_mask_rcnn_loss
 from vis4d.config.default.optimizer.default import optimizer_cfg
-from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets.coco import COCO
-from vis4d.engine.connectors import (
-    DataConnectionInfo,
-    StaticDataConnector,
-    remap_pred_keys,
-)
+from vis4d.engine.connectors import DataConnectionInfo, StaticDataConnector
 from vis4d.eval.detect.coco import COCOEvaluator
-from vis4d.model.detect.retinanet import RetinaNet, RetinaNetLoss
-from vis4d.op.detect.faster_rcnn import (
-    get_default_anchor_generator,
-    get_default_rcnn_box_encoder,
-    get_default_rpn_box_encoder,
-)
+from vis4d.model.detect.retinanet import RetinaNet
 from vis4d.op.detect.retinanet import (
     RetinaNetHeadLoss,
     get_default_anchor_generator,
@@ -71,7 +53,7 @@ def get_config() -> ConfigDict:
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
     E.g.:
-    >>> python -m vis4d.engine.cli --config vis4d/config/example/mask_rcnn_coco.py --config.num_epochs 100 -- config.params.lr 0.001
+    >>> python -m vis4d.engine.cli --config vis4d/config/example/mask_rcnn_coco.py --config.num_epochs 100 -- config.params.learning_rate 0.001
 
     Returns:
         ConfigDict: The configuration
@@ -99,7 +81,7 @@ def get_config() -> ConfigDict:
     ## High level hyper parameters
     params = ConfigDict()
     params.batch_size = 16
-    params.lr = 0.01
+    params.learning_rate = 0.01
     params.augment_proba = 0.5
     params.num_classes = 80
     config.params = params
@@ -120,7 +102,7 @@ def get_config() -> ConfigDict:
         split=config.train_split,
     )
     preproc = det_preprocessing(512, 512, params.augment_proba)
-    dataloader_train_cfg = default_image_dl(
+    dataloader_train_cfg = default_image_dataloader(
         preproc, dataset_cfg_train, params.batch_size, shuffle=True
     )
     config.train_dl = dataloader_train_cfg
@@ -133,10 +115,10 @@ def get_config() -> ConfigDict:
         split=config.test_split,
     )
     preprocess_test_cfg = det_preprocessing(512, 512, augment_probability=0)
-    dataloader_cfg_test = default_image_dl(
+    dataloader_cfg_test = default_image_dataloader(
         preprocess_test_cfg,
         dataset_test_cfg,
-        batch_size=1,
+        num_samples_per_gpu=1,
         num_workers_per_gpu=1,
         shuffle=False,
     )
@@ -190,14 +172,14 @@ def get_config() -> ConfigDict:
     # config.optimizers = [
     #    optimizer_cfg(
     #        optimizer=class_config(only_encoder_params,
-    #           fun=class_config(optim.SGD, lr=params.lr"))
+    #           fun=class_config(optim.SGD, lr=params.learning_rate"))
     #        )
     #    )
     # ]
 
     config.optimizers = [
         optimizer_cfg(
-            optimizer=class_config(optim.SGD, lr=params.lr),
+            optimizer=class_config(optim.SGD, lr=params.learning_rate),
             lr_scheduler=class_config(StepLR, step_size=3, gamma=0.1),
             lr_warmup=None,
         )
@@ -270,6 +252,17 @@ def get_config() -> ConfigDict:
             num_epochs=config.num_epochs,
         )
     }
+
+    ######################################################
+    ##                  PL CALLBACKS                    ##
+    ######################################################
+    pl_trainer = ConfigDict()
+
+    pl_callbacks: list[pl.callbacks.Callback] = []
+
+    config.pl_trainer = pl_trainer
+    config.pl_callbacks = pl_callbacks
+
     ######################################################
     ##                GENERIC CALLBACKS                 ##
     ######################################################
@@ -288,14 +281,3 @@ def get_config() -> ConfigDict:
     # Assign the defined callbacks to the config
     config.test_callbacks = {**eval_callbacks, **vis_callbacks}
     return config.value_mode()
-
-
-def get_sweep() -> ConfigDict:
-    """Returns the config dict for a grid search over learning rate.
-
-    Returns:
-        ConfigDict: The configuration that can be used to run a grid search.
-            It can be passed to replicate_config to create a list of configs
-            that can be used to run a grid search.
-    """
-    return linear_grid_search("params.lr", 0.001, 0.01, 3)

@@ -1,9 +1,9 @@
 """Replication methods to perform different parameters sweeps."""
 from __future__ import annotations
 
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Iterable
 from queue import Queue
-from typing import Any, Iterable
+from typing import Any
 
 from ml_collections import ConfigDict
 

@@ -44,7 +44,7 @@ def test_association() -> None:
     mem_embeddings = embeddings.clone()
     mem_classes = classes.clone()
 
-    track_ids, indices = tracker(
+    track_ids, indices, _ = tracker(
         boxes,
         scores,
         classes,
@@ -64,7 +64,7 @@ def test_association() -> None:
     ).all()
 
     # test non-equal classes
-    track_ids, indices = tracker(
+    track_ids, indices, _ = tracker(
         boxes,
         scores,
         classes + 1,

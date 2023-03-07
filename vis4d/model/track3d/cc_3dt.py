@@ -33,7 +33,6 @@ from vis4d.op.track_3d.motion.kf3d import (
     kf3d_predict,
     kf3d_update,
 )
-from vis4d.op.track_3d.motion.lstm_3d import VeloLSTM
 from vis4d.state.track.cc_3dt import CC3DTrackMemory, CC3DTrackState
 
 
@@ -95,13 +94,8 @@ class CC3DTrack(QDTrack):
             self.register_buffer("_cov_motion_q", cov_motion_q, False)  # Q
             self.register_buffer("_cov_project_r", cov_project_r, False)  # R
         else:
-            self.lstm_model = VeloLSTM(
-                feature_dim=64,
-                hidden_size=128,
-                num_layers=2,
-                loc_dim=self.motion_dims,
-            )
-            self.num_frames = num_frames
+            # TODO: add VeloLSTM
+            raise NotImplementedError
 
     def _update_memory(
         self,
@@ -202,11 +196,6 @@ class CC3DTrack(QDTrack):
                     )
                     motion_states.append(mean)
                     motion_hidden.append(covariance)
-                elif self.motion_model == "VeloLSTM":
-                    ref_hidden = self.lstm_model.init_hidden(obs_3d.device)
-                    pred_hidden = self.lstm_model.init_hidden(obs_3d.device)
-                    motion_states.append(ref_hidden)
-                    motion_hidden.append(pred_hidden)
                 else:
                     raise NotImplementedError
                 vel_histories.append(
@@ -270,12 +259,6 @@ class CC3DTrack(QDTrack):
                     self._update_memory(
                         fids[-1], track_id, "motion_hidden", cov
                     )
-        elif self.motion_model == "VeloLSTM":
-            with torch.no_grad():
-                pd_box_3d, hidden_pred = self.lstm_model.predcit(
-                    cur_memory.vel_history[index],
-                    cur_memory.motion_hidden[index],
-                )
         else:
             raise NotImplementedError
 

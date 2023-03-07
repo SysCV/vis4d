@@ -55,15 +55,7 @@ CONN_NUSC_EVAL = {
 
 
 def get_config() -> ConfigDict:
-    """Returns the config dict for the coco detection task.
-
-    This is a simple example that shows how to set up a training experiment
-    for the COCO detection task.
-
-    Note that the high level params are exposed in the config. This allows
-    to easily change them from the command line.
-    E.g.:
-    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --config.num_epochs 100 --config.params.lr 0.001
+    """Returns the config dict for cc-3dt on nuScenes.
 
     Returns:
         ConfigDict: The configuration
@@ -82,7 +74,7 @@ def get_config() -> ConfigDict:
     # Hyper Parameters
     params = ConfigDict()
     params.samples_per_gpu = 4
-    params.lr = 0.01
+    params.learning_rate = 0.01
     params.num_epochs = 12
     config.params = params
 
@@ -150,7 +142,7 @@ def get_config() -> ConfigDict:
         test_dataset_cfg,
         num_samples_per_gpu=1,
         batchprocess_cfg=test_batchprocess_cfg,
-        DataPipe=VideoDataPipe,
+        data_pipe=VideoDataPipe,
         train=False,
     )
     data.test_dataloader = {"nusc_eval": test_dataloader_cfg}
@@ -185,7 +177,7 @@ def get_config() -> ConfigDict:
     ######################################################
     config.optimizers = [
         optimizer_cfg(
-            optimizer=class_config(optim.SGD, lr=params.lr),
+            optimizer=class_config(optim.SGD, lr=params.learning_rate),
             lr_scheduler=class_config(
                 MultiStepLR, milestones=[8, 11], gamma=0.1
             ),

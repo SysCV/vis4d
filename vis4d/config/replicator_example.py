@@ -52,7 +52,7 @@
 # print("=" * 20)
 # for c in replicated_config:
 #     print(
-#         f"lr {round(c.trainer.lr,3):<7} bs {c.trainer.bs:<4} optim {c.trainer.optimizer_name}"
+#         f"lr {round(c.trainer.lr,3):<7} bs {c.trainer.bs:<4} optim {c.trainer.optimizer_name}" # pylint: disable=line-too-long
 #     )
 
 # replicated_config = replicate_config(
@@ -67,5 +67,5 @@
 # print("=" * 20)
 # for c in replicated_config:
 #     print(
-#         f"lr {round(c.trainer.lr,3):<7} bs {c.trainer.bs:<4} optim {c.trainer.optimizer_name}"
+#         f"lr {round(c.trainer.lr,3):<7} bs {c.trainer.bs:<4} optim {c.trainer.optimizer_name}"  # pylint: disable=line-too-long
 #     )

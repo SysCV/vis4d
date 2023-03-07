@@ -431,8 +431,7 @@ class MultiSensorDataConnector(StaticDataConnector):
         sensors: list[str],
         **kwargs: ArgsType,
     ) -> None:
-        """Initializes multi-sensor data connector with all required sensors
-        and setting the default sensor.
+        """Initializes multi-sensor data connector with all required sensors.
 
         Args:
             *args: Arguments to pass to the parent class.

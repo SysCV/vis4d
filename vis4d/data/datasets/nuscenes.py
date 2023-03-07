@@ -118,6 +118,8 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
             include_non_key (bool, optional): Whether to include non-key
                 samples. Note that Non-key samples do not have annotations.
                 Defaults to False.
+            metadata (list[str], optional): Which metadata to use for the
+                submission. Defaults to None.
             data_backend (Optional[DataBackend], optional): Which data backend
                 to use to load the NuScenes data. Defaults to None.
         """
