@@ -6,11 +6,11 @@ from typing import Any
 
 import pytorch_lightning as pl
 from torch import nn, optim
+from torchmetrics import MeanMetric
 
 from vis4d.data.typing import DictData
 from vis4d.engine.connectors import DataConnector
 from vis4d.engine.opt import Optimizer
-from torchmetrics import MeanMetric
 
 
 class TorchOptimizer(optim.Optimizer):
@@ -94,7 +94,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         log_dict = {}
         metric_attributes = []
         for k, v in losses.items():
-            if not hasattr(self, f"k"):
+            if not hasattr(self, k):
                 metric = MeanMetric()
                 metric.to(self.device)
                 setattr(self, k, metric)

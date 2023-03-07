@@ -1,8 +1,6 @@
 """Vis4D tester."""
 from __future__ import annotations
 
-import pdb
-
 import torch
 from torch import nn
 from torch.utils.data import DataLoader

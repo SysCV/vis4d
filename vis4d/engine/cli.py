@@ -10,15 +10,14 @@ import os
 
 import torch
 from absl import app, flags
-from ml_collections import ConfigDict
 from torch.distributed import destroy_process_group, init_process_group
-from torch.multiprocessing import spawn  # type: ignore
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.collect_env import get_pretty_env_info
 
 from vis4d.common.distributed import get_local_rank, get_rank, get_world_size
 from vis4d.common.logging import _info, rank_zero_info, setup_logger
-from vis4d.config.replicator import replicate_config
+from vis4d.common.slurm import init_dist_slurm
+from vis4d.common.util import set_tf32
 from vis4d.config.util import instantiate_classes, pprints_config
 from vis4d.engine.parser import DEFINE_config_file
 from vis4d.engine.test import Tester
@@ -38,74 +37,23 @@ _GPUS = flags.DEFINE_integer("gpus", default=0, help="Number of GPUs")
 _SHOW_CONFIG = flags.DEFINE_bool(
     "print-config", default=False, help="If set, prints the configuration."
 )
-
-
-def _train(config: ConfigDict, rank: None | int = None) -> None:
-    """Train the model."""
-    cfg: ConfigDict = instantiate_classes(config)
-
-    trainer = Trainer(
-        num_epochs=cfg.params.num_epochs,
-        log_step=1,
-        dataloaders=cfg.train_dl,
-        data_connector=cfg.data_connector,
-        train_callbacks=cfg.get("train_callbacks", None),
-    )
-    tester = Tester(
-        dataloaders=cfg.test_dl,
-        data_connector=cfg.data_connector,
-        test_callbacks=cfg.get("test_callbacks", None),
-    )
-
-    if rank is not None:
-        device = torch.device(f"cuda:{rank}")
-    else:
-        device = torch.device("cpu")
-    cfg.model.to(device)
-    if get_world_size() > 1:
-        assert rank is not None, "Requires rank for multi-processing"
-        cfg.model = DDP(cfg.model, device_ids=[rank])
-
-    # run training
-    trainer.train(cfg.model, cfg.optimizers, cfg.loss, tester)
-
-
-def _dist_train(rank: int, world_size: int, config: ConfigDict) -> None:
-    """Train script setting up DDP, executing action, terminating."""
-    ddp_setup(rank, world_size)
-    _train(config, rank)
-    destroy_process_group()
-
-
-def train(config: ConfigDict) -> None:
-    """Train the model. If multiple GPUs are available, uses DDP."""
-    rank_zero_info("Starting training")
-    rank_zero_info("Environment info: %s", get_pretty_env_info())
-
-    # Would be nice to  connect this to SLURM cluster to directly spawn jobs.)
-    if _SHOW_CONFIG.value:
-        rank_zero_info("*" * 80)
-        rank_zero_info(pprints_config(config))
-        rank_zero_info("*" * 80)
-
-    if torch.cuda.is_available():
-        rank_zero_info(
-            "\n Using %d/%d GPUs", config.n_gpus, torch.cuda.device_count()
-        )
-    if config.n_gpus > 1:
-        spawn(_dist_train, args=(config.n_gpus, config), nprocs=config.n_gpus)
-    else:
-        _train(config, 0 if config.n_gpus == 1 else None)
+_SLURM = flags.DEFINE_bool(
+    "slurm", default=False, help="If set, setup slurm running jobs."
+)
 
 
 def ddp_setup(
-    torch_distributed_backend: str = "nccl",
+    torch_distributed_backend: str = "nccl", slurm: bool = False
 ) -> None:
     """Setup DDP environment and init processes.
 
     Args:
-        torch_distributed_backend: Backend to use (includes `nccl` and `gloo`)
+        torch_distributed_backend (str): Backend to use (`nccl` or `gloo`)
+        slurm (bool): If set, setup slurm running jobs.
     """
+    if slurm:
+        init_dist_slurm()
+
     global_rank = get_rank()
     world_size = get_world_size()
     _info(
@@ -189,8 +137,9 @@ def main(  # type:ignore # pylint: disable=unused-argument
     else:
         test_callbacks = shared_callbacks
 
+    set_tf32(False)
     if config.n_gpus > 1:
-        ddp_setup()
+        ddp_setup(slurm=_SLURM.value)
 
     train_dataloader = instantiate_classes(config.data.train_dataloader)
 
@@ -207,7 +156,9 @@ def main(  # type:ignore # pylint: disable=unused-argument
     model.to(device)
 
     if config.n_gpus > 1:
-        model = DDP(model, device_ids=[rank])
+        model = DDP(  # pylint: disable=redefined-variable-type
+            model, device_ids=[rank]
+        )
 
     tester = Tester(
         dataloaders=test_dataloader,
@@ -219,6 +170,8 @@ def main(  # type:ignore # pylint: disable=unused-argument
     if _SWEEP.value is not None:
         # config = _CONFIG.value
         # sweep_obj = instantiate_classes(_SWEEP.value)
+
+        # from vis4d.config.replicator import replicate_config
 
         # for config in replicate_config(
         #     _CONFIG.value,
@@ -245,5 +198,4 @@ def main(  # type:ignore # pylint: disable=unused-argument
 
 
 if __name__ == "__main__":
-    os.environ["TORCH_CPP_LOG_LEVEL"] = "INFO"
     app.run(main)

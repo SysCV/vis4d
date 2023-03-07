@@ -16,6 +16,7 @@ from ..base import Evaluator
 
 
 class NuScenesEvaluator(Evaluator):
+    """NuScenes 3D detection and tracking evaluation class."""
 
     inv_nuscenes_track_map = {v: k for k, v in nuscenes_track_map.items()}
 
@@ -42,17 +43,20 @@ class NuScenesEvaluator(Evaluator):
         "truck",
     ]
 
-    def __init__(self, split: str) -> None:
+    def __init__(self) -> None:
+        """Initialize NuScenes evaluator."""
         super().__init__()
-        self.split = split
+        self.detect_3d = {}
+        self.tracks_3d = {}
         self.reset()
 
     def __repr__(self) -> str:
         """Concise representation of the dataset evaluator."""
-        return f"NuScenesEvaluator"
+        return "NuScenesEvaluator"
 
     @property
     def metrics(self) -> list[str]:
+        """Supported metrics."""
         return ["detect_3d", "track_3d"]
 
     def gather(  # type: ignore
@@ -74,6 +78,7 @@ class NuScenesEvaluator(Evaluator):
             self.detect_3d = dict(itertools.chain(*prediction_list))
 
     def reset(self) -> None:
+        """Reset evaluator."""
         self.tracks_3d = {}
         self.detect_3d = {}
 
@@ -82,22 +87,22 @@ class NuScenesEvaluator(Evaluator):
     ) -> str:
         """Get nuScenes attributes."""
         if np.sqrt(velocity[0] ** 2 + velocity[1] ** 2) > velocity_thres:
-            if name in [
+            if name in {
                 "car",
                 "construction_vehicle",
                 "bus",
                 "truck",
                 "trailer",
-            ]:
+            }:
                 attr = "vehicle.moving"
-            elif name in ["bicycle", "motorcycle"]:
+            elif name in {"bicycle", "motorcycle"}:
                 attr = "cycle.with_rider"
             else:
                 attr = self.DefaultAttribute[name]
         else:
-            if name in ["pedestrian"]:
+            if name in {"pedestrian"}:
                 attr = "pedestrian.standing"
-            elif name in ["bus"]:
+            elif name in {"bus"}:
                 attr = "vehicle.stopped"
             else:
                 attr = self.DefaultAttribute[name]
@@ -111,6 +116,7 @@ class NuScenesEvaluator(Evaluator):
         class_ids: Tensor,
         track_ids: Tensor,
     ) -> None:
+        """Process 3D tracking results."""
         annos = []
         if len(boxes_3d) != 0:
             for track_id, box_3d, score_3d, class_id in zip(
@@ -160,6 +166,7 @@ class NuScenesEvaluator(Evaluator):
         scores_3d: Tensor,
         class_ids: Tensor,
     ) -> None:
+        """Process 3D detection results."""
         annos = []
         if len(boxes_3d) != 0:
             for box_3d, score_3d, class_id in zip(
@@ -202,7 +209,7 @@ class NuScenesEvaluator(Evaluator):
                 annos.append(nusc_anno)
         self.detect_3d[token] = annos
 
-    def process(
+    def process(  # type: ignore # pylint: disable=arguments-differ
         self,
         token: str,
         boxes_3d: Tensor,
@@ -210,6 +217,7 @@ class NuScenesEvaluator(Evaluator):
         class_ids: Tensor,
         track_ids: Tensor,
     ) -> None:
+        """Process the results."""
         self._process_detect_3d(token, boxes_3d, scores_3d, class_ids)
         self._process_track_3d(
             token, boxes_3d, scores_3d, class_ids, track_ids
@@ -219,6 +227,7 @@ class NuScenesEvaluator(Evaluator):
         self,
         metric: str,
     ) -> tuple[MetricLogs, str]:
+        """Evaluate the results."""
         # TODO: Add nuscenes eval code.
         return {}, "Currently only save the json files."
 

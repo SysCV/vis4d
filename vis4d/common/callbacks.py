@@ -7,7 +7,7 @@ from collections import defaultdict
 import torch
 from torch import nn
 
-from vis4d.common import ArgsType, DictStrAny
+from vis4d.common import DictStrAny
 from vis4d.common.distributed import all_gather_object_cpu, get_rank
 from vis4d.common.logging import rank_zero_info
 from vis4d.common.progress import compose_log_str
@@ -49,6 +49,20 @@ class Callback:
             epoch (int): Current training epoch.
         """
 
+    def on_train_batch_end(
+        self,
+        model: nn.Module,
+        shared_inputs: DictStrAny,
+        inputs: DictStrAny,
+    ) -> None:
+        """Hook to run at the end of a training batch.
+
+        Args:
+            model: Model that is being trained.
+            shared_inputs (ArgsType): Shared inputs for callback.
+            inputs (ArgsType): Inputs for callback.
+        """
+
     def on_train_epoch_end(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the end of a training epoch.
 
@@ -57,24 +71,13 @@ class Callback:
             epoch (int): Current training epoch.
         """
 
-    def on_train_batch_end(
-        self,
-        model: nn.Module,
-        shared_inputs: DictStrAny,
-        inputs: DictStrAny,
-    ) -> None:
-        """Hook to run at the end of a training batch."""
-
     def on_test_epoch_start(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the beginning of a testing epoch.
 
         Args:
             model (nn.Module): Model that is being trained.
-            epoch (int): Current training epoch.
+            epoch (int): Current testing epoch.
         """
-
-    def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
-        """Hook to run at the end of a testing epoch."""
 
     def on_test_batch_end(
         self, model: nn.Module, shared_inputs: DictStrAny, inputs: DictStrAny
@@ -83,7 +86,16 @@ class Callback:
 
         Args:
             model: Model that is being trained.
+            shared_inputs (ArgsType): Shared inputs for callback.
             inputs (ArgsType): Inputs for callback.
+        """
+
+    def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
+        """Hook to run at the end of a testing epoch.
+
+        Args:
+            model (nn.Module): Model that is being trained.
+            epoch (int): Current testing epoch.
         """
 
 
@@ -240,7 +252,7 @@ class LoggingCallback(Callback):
             )
             self._metrics = defaultdict(list)
 
-    def on_test_epoch_start(self, *args: ArgsType, **kwargs: ArgsType) -> None:
+    def on_test_epoch_start(self, model: nn.Module, epoch: int) -> None:
         """Hook to run at the start of a training epoch."""
         self.timer.reset()
 
@@ -255,8 +267,7 @@ class LoggingCallback(Callback):
             rank_zero_info(
                 compose_log_str(
                     "Testing",
-                    shared_inputs["cur_iter"]
-                    + 1,  # TODO: use cur_iter once remove pl logger
+                    shared_inputs["cur_iter"] + 1,
                     shared_inputs["total_iters"],
                     self.timer,
                 )

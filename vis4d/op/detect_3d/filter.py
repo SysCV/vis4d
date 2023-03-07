@@ -2,8 +2,7 @@
 import numpy as np
 import torch
 
-# TODO: remove this dependency and now it is aware of GPU architecture,
-# need to rebuild it if switch to other GPU.
+# TODO: remove this dependency and now it is aware of GPU architecture.
 from detectron2.layers.nms import batched_nms_rotated
 from torch import Tensor
 

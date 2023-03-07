@@ -13,7 +13,7 @@ torchrun \
     --master_addr=$MASTER_ADDR \
     --master_port=$PORT \
     --nproc_per_node=$GPUS \
-    -m vis4d.engine.cli --mode test\
+    -m vis4d.engine.cli --mode test \
     --config $CONFIG \
     --gpus $GPUS \
     ${@:3}

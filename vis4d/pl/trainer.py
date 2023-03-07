@@ -6,9 +6,6 @@ import os.path as osp
 from typing import List, Optional
 
 import pytorch_lightning as pl
-import torch
-from pytorch_lightning.callbacks.progress.base import ProgressBarBase
-from pytorch_lightning.callbacks.progress.tqdm_progress import TQDMProgressBar
 from pytorch_lightning.strategies import (  # type: ignore[attr-defined] # pylint: disable=line-too-long
     DDPStrategy,
 )
@@ -16,9 +13,9 @@ from pytorch_lightning.strategies.strategy import Strategy
 from pytorch_lightning.utilities.device_parser import new_parse_gpu_ids
 
 from vis4d.common import ArgsType
-from vis4d.common.imports import TENSORBOARD_AVAILABLE, is_torch_tf32_available
-from vis4d.common.logging import rank_zero_info, rank_zero_warn
-from vis4d.pl.progress import DefaultProgressBar
+from vis4d.common.imports import TENSORBOARD_AVAILABLE
+from vis4d.common.logging import rank_zero_info
+from vis4d.common.util import set_tf32
 
 
 class DefaultTrainer(pl.Trainer):
@@ -62,16 +59,7 @@ class DefaultTrainer(pl.Trainer):
         2. Setup callbacks.
         3. Init distributed plugin
         """
-        if is_torch_tf32_available():  # pragma: no cover
-            if use_tf32:
-                rank_zero_warn(
-                    "Torch TF32 is available and turned on by default! "
-                    + "It might harm the performance due to the precision. "
-                    + "You can turn it off by setting trainer.use_tf32=False."
-                )
-            else:
-                torch.backends.cuda.matmul.allow_tf32 = False
-                torch.backends.cudnn.allow_tf32 = False
+        set_tf32(use_tf32)
 
         self.resume = resume
         self.work_dir = work_dir

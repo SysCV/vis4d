@@ -18,7 +18,7 @@ def update_frames(
         memory_limit (int): Frame limit of memory.
     """
     frames.append(data)
-    if memory_limit >= 0 and len(frames) > memory_limit:
+    if len(frames) > memory_limit >= 0:
         frames.pop(0)
     return frames
 

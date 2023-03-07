@@ -63,25 +63,25 @@ def main(  # type:ignore # pylint: disable=unused-argument
         rank_zero_info("*" * 80)
 
     # Load Trainer kwargs from config
-    trainer_args = ConfigDict()
+    trainer_args_cfg = ConfigDict()
     pl_trainer = instantiate_classes(config.pl_trainer)
     for key, value in pl_trainer.items():
-        trainer_args[key] = value
-    trainer_args.max_epochs = config.params.num_epochs
-    trainer_args.num_sanity_val_steps = 0
+        trainer_args_cfg[key] = value
+    trainer_args_cfg.max_epochs = config.params.num_epochs
+    trainer_args_cfg.num_sanity_val_steps = 0
 
     # Update GPU mode
     if config.n_gpus > 0:
-        trainer_args.devices = config.n_gpus
-        trainer_args.accelerator = "gpu"
+        trainer_args_cfg.devices = config.n_gpus
+        trainer_args_cfg.accelerator = "gpu"
 
     # Disable progress bar for logger
-    trainer_args.enable_progress_bar = False
-    trainer_args.work_dir = config.work_dir
-    trainer_args.exp_name = config.experiment_name
-    trainer_args.version = config.version
+    trainer_args_cfg.enable_progress_bar = False
+    trainer_args_cfg.work_dir = config.work_dir
+    trainer_args_cfg.exp_name = config.experiment_name
+    trainer_args_cfg.version = config.version
 
-    trainer_args = instantiate_classes(trainer_args)
+    trainer_args = instantiate_classes(trainer_args_cfg)
 
     # Instantiate classes
     data_connector = instantiate_classes(config.data_connector)

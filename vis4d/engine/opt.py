@@ -78,6 +78,7 @@ class Optimizer:
         self._lr_scheduler_cb = lr_scheduler_cb
         self.epoch_based = epoch_based
 
+        # TODO: Maybe can refactor it, becasue we can get the model first now.
         # These need to be set in setup() since they might depend on the model
         self.lr_scheduler: optim.lr_scheduler._LRScheduler | None = None
         self.optimizer: None | optim.Optimizer = None

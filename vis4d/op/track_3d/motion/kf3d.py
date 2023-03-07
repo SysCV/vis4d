@@ -37,11 +37,11 @@ def kf3d_init(motion_dims: int) -> tuple[Tensor, Tensor]:
         ]
     )
 
-    cov_motion_Q = torch.eye(motion_dims + 3)
-    cov_motion_Q[motion_dims:, motion_dims:] *= 0.01
+    cov_motion_q = torch.eye(motion_dims + 3)
+    cov_motion_q[motion_dims:, motion_dims:] *= 0.01
 
-    cov_project_R = torch.eye(motion_dims)
-    return motion_mat, update_mat, cov_motion_Q, cov_project_R
+    cov_project_r = torch.eye(motion_dims)
+    return motion_mat, update_mat, cov_motion_q, cov_project_r
 
 
 def kf3d_init_mean_cov(
@@ -57,7 +57,7 @@ def kf3d_init_mean_cov(
 
 def kf3d_update(
     update_mat: Tensor,
-    cov_project_R: Tensor,
+    cov_project_r: Tensor,
     mean: Tensor,
     covariance: Tensor,
     obs_3d: Tensor,
@@ -70,7 +70,7 @@ def kf3d_update(
 
     new_mean, new_covariance = update(
         update_mat,
-        cov_project_R,
+        cov_project_r,
         mean,
         covariance,
         obs_3d,
@@ -80,11 +80,11 @@ def kf3d_update(
 
 
 def kf3d_predict(
-    motion_mat: Tensor, cov_motion_Q: Tensor, mean: Tensor, covariance: Tensor
+    motion_mat: Tensor, cov_motion_q: Tensor, mean: Tensor, covariance: Tensor
 ) -> tuple[Tensor, Tensor]:  # TODO: check update_state=motion_model.age != 0
     """KF3D predict function."""
     new_mean, new_covariance = predict(
-        motion_mat, cov_motion_Q, mean, covariance
+        motion_mat, cov_motion_q, mean, covariance
     )
     new_mean[6] = normalize_angle(new_mean[6])
     return new_mean, new_covariance

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import torch
 
-from datetime import datetime
 from torch import optim
 from torch.optim.lr_scheduler import MultiStepLR
 import pytorch_lightning as pl
@@ -34,10 +33,9 @@ from vis4d.engine.connectors import (
 
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
 
-from vis4d.config.default.nuscenes.data_connectors import NuscDataConnector
-from vis4d.config.default.nuscenes.data_pipe import NuscVideoDataPipe
-import pdb
-
+from vis4d.engine.connectors import MultiSensorDataConnector
+from vis4d.data.loader import VideoDataPipe
+from vis4d.config.default.runtime import set_output_dir
 
 CONN_BBOX_3D_TEST = {
     CK.images: CK.images,
@@ -77,22 +75,7 @@ def get_config() -> ConfigDict:
     config.n_gpus = 8
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "cc_3dt_r50_kf3d"
-    timestamp = (
-        str(datetime.now())
-        .split(".", maxsplit=1)[0]
-        .replace(" ", "_")
-        .replace(":", "-")
-    )
-    config.version = timestamp
-    config.timestamp = timestamp
-
-    config.output_dir = (
-        config.get_ref("work_dir")
-        + "/"
-        + config.get_ref("experiment_name")
-        + "/"
-        + config.get_ref("version")
-    )
+    config = set_output_dir(config)
 
     ckpt_path = "vis4d-workspace/checkpoints/cc_3dt_R_50_FPN_nuscenes_12_accumulate_gradient_2.ckpt"
 
@@ -108,10 +91,13 @@ def get_config() -> ConfigDict:
     ######################################################
     data = ConfigDict()
     dataset_root = "data/nuscenes"
+    # version = "v1.0-trainval"
+    # train_split = "train"
+    # test_split = "val"
     version = "v1.0-mini"
     train_split = "mini_train"
     test_split = "mini_val"
-    meta_data = ["use_camera"]
+    metadata = ["use_camera"]
     data_backend = HDF5Backend()
 
     # TODO: Add train dataset
@@ -125,9 +111,8 @@ def get_config() -> ConfigDict:
         data_root=dataset_root,
         version=version,
         split=test_split,
-        metadata=meta_data,
+        metadata=metadata,
         data_backend=data_backend,
-        keys_to_load=(),  # TODO: Add common keys
     )
 
     test_preprocess_cfg = class_config(
@@ -165,7 +150,7 @@ def get_config() -> ConfigDict:
         test_dataset_cfg,
         num_samples_per_gpu=1,
         batchprocess_cfg=test_batchprocess_cfg,
-        DataPipe=NuscVideoDataPipe,
+        DataPipe=VideoDataPipe,
         train=False,
     )
     data.test_dataloader = {"nusc_eval": test_dataloader_cfg}
@@ -216,13 +201,14 @@ def get_config() -> ConfigDict:
     # data flow of the pipeline.
     # We use the default connections provided for faster_rcnn.
     config.data_connector = class_config(
-        NuscDataConnector,
+        MultiSensorDataConnector,
         connections=DataConnectionInfo(
             # train=CONN_BBOX_2D_TRAIN,
             test=CONN_BBOX_3D_TEST,
             # loss={**CONN_RPN_LOSS_2D, **CONN_ROI_LOSS_2D},
             callbacks={"nusc_eval_test": CONN_NUSC_EVAL},
         ),
+        default_sensor=NuScenes._CAMERAS[0],
         sensors=NuScenes._CAMERAS,
     )
 
@@ -236,10 +222,7 @@ def get_config() -> ConfigDict:
         "nusc_eval": class_config(
             EvaluatorCallback,
             save_prefix=config.output_dir,
-            evaluator=class_config(
-                NuScenesEvaluator,
-                split=test_split,
-            ),
+            evaluator=class_config(NuScenesEvaluator),
             run_every_nth_epoch=1,
             num_epochs=params.num_epochs,
         ),

@@ -10,11 +10,7 @@ from torch import Tensor, nn
 from vis4d.op.box.encoder import BoxEncoder3D, QD3DTBox3DEncoder
 from vis4d.op.box.matchers import Matcher, MaxIoUMatcher
 from vis4d.op.box.poolers import MultiScaleRoIAlign, RoIPooler
-from vis4d.op.box.samplers import (
-    CombinedSampler,
-    Sampler,
-    match_and_sample_proposals,
-)
+from vis4d.op.box.samplers import CombinedSampler, Sampler
 from vis4d.op.geometry.rotation import generate_rotation_output
 from vis4d.op.layer import add_conv_branch
 
@@ -60,7 +56,7 @@ def get_default_box_encoder() -> QD3DTBox3DEncoder:
 class QD3DTBBox3DHead(nn.Module):
     """This class implements the QD-3DT bounding box 3D head."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         num_classes: int,
         proposal_pooler: None | RoIPooler = None,
@@ -423,7 +419,7 @@ class QD3DTBBox3DHead(nn.Module):
     #     positives = [l == 1 for l in sampling_results.sampled_labels]
     #     pos_assigned_gt_inds = [
     #         i[p] if len(p) != 0 else p
-    #         for i, p in zip(sampling_results.sampled_target_indices, positives)
+    #         for i, p in zip(sampling_results.sampled_target_indices, positives) # pylint: disable=line-too-long
     #     ]
     #     pos_boxes = [
     #         b[p] for b, p in zip(sampling_results.sampled_boxes, positives)
@@ -449,9 +445,10 @@ class QD3DTBBox3DHead(nn.Module):
         """Forward pass during testing stage.
 
         Args:
-            inputs: InputSamples (images, metadata, etc). Batched.
-            features: Input feature maps. Batched.
+            features: Input feature maps.
             boxes_2d: Input 2D boxes to apply RoIHead on.
+            class_ids: Input class ids for boxes_3d.
+            intrinsics: Input camera intrinsics.
 
         Returns:
             List[Boxes3D]: Prediction output.
@@ -475,7 +472,7 @@ class QD3DTBBox3DHead(nn.Module):
 
         boxes_3d = []
         depth_uncertainty = []
-        for (_boxes_2d, _class_ids, _boxes_deltas, _intrinsics) in zip(
+        for _boxes_2d, _class_ids, _boxes_deltas, _intrinsics in zip(
             boxes_2d, class_ids, predictions, intrinsics
         ):
             if len(_boxes_2d) == 0:

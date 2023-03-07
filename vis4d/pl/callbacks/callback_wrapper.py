@@ -1,6 +1,4 @@
 """Wrapper to connect vis4d callbacks to pytorch lightning callbacks."""
-
-
 from __future__ import annotations
 
 from typing import Any
@@ -127,8 +125,11 @@ class CallbackWrapper(pl.Callback):
                 get_model(pl_module), pl_module.current_epoch
             )
 
-    def on_predict_epoch_end(
-        self, trainer: pl.Trainer, pl_module: pl.LightningModule
+    def on_predict_epoch_end(  # type: ignore
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: list[Any],
     ) -> None:
         """Wait for on_validation_epoch_end PL hook to call 'evaluate'."""
         if self.callback.run_on_epoch(pl_module.current_epoch):

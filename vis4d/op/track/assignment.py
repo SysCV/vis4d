@@ -1,5 +1,5 @@
 """Track assignment functions."""
-from typing import Optional
+from __future__ import annotations
 
 import torch
 
@@ -10,7 +10,7 @@ def greedy_assign(
     affinity_scores: torch.Tensor,
     match_score_thr: float = 0.5,
     obj_score_thr: float = 0.3,
-    nms_conf_thr: Optional[float] = None,
+    nms_conf_thr: None | float = None,
 ) -> torch.Tensor:
     """Greedy assignment of detections to tracks given affinities."""
     ids = torch.full(

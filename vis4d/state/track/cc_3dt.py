@@ -1,7 +1,6 @@
 """Memory for CC-3DT inference."""
 from __future__ import annotations
 
-import pdb
 from typing import NamedTuple
 
 import torch
@@ -124,7 +123,8 @@ class CC3DTrackMemory:
             track_id (int): track id of query track.
 
         Returns:
-            track (list[CC3DTrackState]): List of track states for given query track.
+            track (list[CC3DTrackState]): List of track states for given query
+            track.
             frame_ids (list[int]): List of frame ids for given query track.
         """
         frame_ids = []

@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+
+import pytorch_lightning as pl
 from torch import optim
 from torch.optim.lr_scheduler import MultiStepLR
-import pytorch_lightning as pl
 
 from vis4d.common.callbacks import (
     CheckpointCallback,
@@ -27,6 +28,7 @@ from vis4d.config.default.loss.faster_rcnn_loss import (
     get_default_faster_rcnn_loss,
 )
 from vis4d.config.default.optimizer.default import optimizer_cfg
+from vis4d.config.default.runtime import set_output_dir
 from vis4d.config.default.sweep.default import linear_grid_search
 from vis4d.config.util import ConfigDict, class_config
 from vis4d.data.const import CommonKeys as CK
@@ -75,22 +77,7 @@ def get_config() -> ConfigDict:
     config.n_gpus = 8
     config.work_dir = "vis4d-workspace"
     config.experiment_name = "faster_rcnn_coco_example"
-    timestamp = (
-        str(datetime.now())
-        .split(".", maxsplit=1)[0]
-        .replace(" ", "_")
-        .replace(":", "-")
-    )
-    config.version = timestamp
-    config.timestamp = timestamp
-
-    config.output_dir = (
-        config.get_ref("work_dir")
-        + "/"
-        + config.get_ref("experiment_name")
-        + "/"
-        + config.get_ref("version")
-    )
+    config = set_output_dir(config)
 
     config.dataset_root = COCO_DATA_ROOT
     config.train_split = TRAIN_SPLIT

@@ -74,7 +74,10 @@ class CC3DTrackAssociation:
 
         Args:
             detections (Tensor): [N, 4] Tensor of boxes.
+            camera_ids (Tensor): [N,] Tensor of camera ids.
             scores (Tensor): [N,] Tensor of confidence scores.
+            detections_3d (Tensor): [N, 7] Tensor of 3D boxes.
+            scores_3d (Tensor): [N,] Tensor of 3D confidence scores.
             class_ids (Tensor): [N,] Tensor of class ids.
             embeddings (Tensor): [N, C] tensor of appearance embeddings.
 

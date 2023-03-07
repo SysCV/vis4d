@@ -4,7 +4,6 @@ from __future__ import annotations
 import copy
 import os
 from collections import defaultdict
-from typing import List
 
 import numpy as np
 import torch
@@ -103,9 +102,8 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         data_root: str,
         version: str = "v1.0-trainval",
         split: str = "train",
-        keys_to_load: tuple[str, ...] = (),
         include_non_key: bool = False,
-        metadata: List[str] = ["use_camera"],
+        metadata: None | list[str] = None,
         data_backend: DataBackend | None = None,
     ) -> None:
         """Creates an instance of the class.
@@ -131,9 +129,10 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
         self._check_version_and_split(version, split)
         self.include_non_key = include_non_key
 
-        for m in metadata:
-            assert m in self._METADATA, f"Invalid metadata {m}!"
-            self._METADATA[m] = True
+        if metadata is not None:
+            for m in metadata:
+                assert m in self._METADATA, f"Invalid metadata {m}!"
+                self._METADATA[m] = True
 
         self.data = NuScenesDevkit(
             version=self.version, dataroot=self.data_root, verbose=False
@@ -143,19 +142,19 @@ class NuScenes(Dataset, CacheMappingMixin, VideoMixin):
 
     def _check_version_and_split(self, version: str, split: str) -> None:
         """Check that the version and split are valid."""
-        assert version in [
+        assert version in {
             "v1.0-trainval",
             "v1.0-test",
             "v1.0-mini",
-        ], f"Invalid version {version} for NuScenes!"
+        }, f"Invalid version {version} for NuScenes!"
         self.version = version
 
         if "mini" in version:
-            valid_splits = ["mini_train", "mini_val"]
+            valid_splits = {"mini_train", "mini_val"}
         elif "test" in version:
-            valid_splits = ["test"]
+            valid_splits = {"test"}
         else:
-            valid_splits = ["train", "val"]
+            valid_splits = {"train", "val"}
 
         assert split in valid_splits, f"Invalid split for NuScenes {version}!"
         self.split = split

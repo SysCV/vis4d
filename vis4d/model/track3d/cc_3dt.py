@@ -87,13 +87,13 @@ class CC3DTrack(QDTrack):
         self.pure_det = pure_det
 
         if self.motion_model == "KF3D":
-            motion_mat, update_mat, cov_motion_Q, cov_project_R = kf3d_init(
+            motion_mat, update_mat, cov_motion_q, cov_project_r = kf3d_init(
                 self.motion_dims
             )
             self.register_buffer("_motion_mat", motion_mat, False)  # F
             self.register_buffer("_update_mat", update_mat, False)  # H
-            self.register_buffer("_cov_motion_Q", cov_motion_Q, False)  # Q
-            self.register_buffer("_cov_project_R", cov_project_R, False)  # R
+            self.register_buffer("_cov_motion_q", cov_motion_q, False)  # Q
+            self.register_buffer("_cov_project_r", cov_project_r, False)  # R
         else:
             self.lstm_model = VeloLSTM(
                 feature_dim=64,
@@ -153,7 +153,7 @@ class CC3DTrack(QDTrack):
 
                 mean, covariance = kf3d_update(
                     self._update_mat.to(obs_3d.device),
-                    self._cov_project_R.to(obs_3d.device),
+                    self._cov_project_r.to(obs_3d.device),
                     track.motion_states[0],
                     track.motion_hidden[0],
                     obs_3d,
@@ -166,7 +166,7 @@ class CC3DTrack(QDTrack):
 
                 pred_loc, _ = predict(
                     self._motion_mat.to(obs_3d.device),
-                    self._cov_motion_Q.to(obs_3d.device),
+                    self._cov_motion_q.to(obs_3d.device),
                     mean,
                     covariance,
                 )
@@ -256,7 +256,7 @@ class CC3DTrack(QDTrack):
         if self.motion_model == "KF3D":
             pd_box_3d, cov = kf3d_predict(
                 self._motion_mat.to(device),
-                self._cov_motion_Q.to(device),
+                self._cov_motion_q.to(device),
                 cur_memory.motion_states[index],
                 cur_memory.motion_hidden[index],
             )
@@ -281,7 +281,7 @@ class CC3DTrack(QDTrack):
 
         return pd_box_3d
 
-    def _forward_test(
+    def _forward_test(  # type: ignore # pylint: disable=arguments-differ
         self,
         features_list: list[torch.Tensor],
         boxes_2d_list: list[torch.Tensor],
@@ -454,7 +454,7 @@ class CC3DTrack(QDTrack):
             tracks.track_ids,
         )
 
-    def forward(
+    def forward(  # type: ignore # pylint: disable=arguments-differ
         self,
         features: list[torch.Tensor],
         boxes_2d: list[torch.Tensor],
