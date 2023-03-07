@@ -160,7 +160,7 @@ class WeightedMultiLoss(nn.Module):
                     loss_values_as_dict[name + "." + loss_name] = loss_value
             # Assign values
             for key, value in loss_values_as_dict.items():
-                while key in loss_values_as_dict:
+                while key in loss_dict:
                     key = "__" + key
 
                 loss_dict[key] = loss["weight"] * value
