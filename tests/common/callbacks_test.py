@@ -68,11 +68,23 @@ class TestCallbacks(unittest.TestCase):
         clbk = LoggingCallback(refresh_rate=1)
         clbk.on_train_batch_end(
             MockModel(0),
+            {
+                "metrics": {"loss1": 0, "loss2": 1},
+                "epoch": 0,
+                "cur_iter": 0,
+                "total_iters": 1,
+            },
             {},
-            {"loss1": 0, "loss2": 1},
         )
         clbk.on_train_epoch_end(MockModel(0), 0)
-        clbk.on_test_batch_end(MockModel(0), {}, {})
+        clbk.on_test_batch_end(
+            MockModel(0),
+            {
+                "cur_iter": 0,
+                "total_iters": 1,
+            },
+            {},
+        )
         clbk.on_test_epoch_end(MockModel(0), 0)
 
     def test_checkpoint_callback(self) -> None:
