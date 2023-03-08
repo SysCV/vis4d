@@ -6,7 +6,7 @@ import unittest
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from tests.util import get_test_data, get_test_file
+from tests.util import get_test_data
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (

@@ -4,7 +4,7 @@ import unittest
 import torch
 from torch import optim
 
-from tests.util import get_test_data, get_test_file
+from tests.util import get_test_data
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.engine.ckpt import load_model_checkpoint
@@ -61,20 +61,20 @@ class MaskRCNNTest(unittest.TestCase):
 
         assert isinstance(masks, MaskDetectionOut)
 
-        test_samples = 10
-
-        testcase_gt = torch.load(get_test_file("mask_rcnn.pt"))
-
-        def _assert_eq(
-            prediction: torch.Tensor, gts: torch.Tensor, n_samples=test_samples
-        ) -> None:
-            """Assert prediction and ground truth are equal."""
-            for pred, gt in zip(prediction, gts):
-                assert (
-                    torch.isclose(pred[:n_samples], gt, atol=1e-4).all().item()
-                )
-
         # TODO: update test gt after refactoring config
+        # test_samples = 10
+
+        # testcase_gt = torch.load(get_test_file("mask_rcnn.pt"))
+
+        # def _assert_eq(
+        #     prediction: torch.Tensor, gts: torch.Tensor, n_samples=test_samples # pylint: disable=line-too-long
+        # ) -> None:
+        #     """Assert prediction and ground truth are equal."""
+        #     for pred, gt in zip(prediction, gts):
+        #         assert (
+        #             torch.isclose(pred[:n_samples], gt, atol=1e-4).all().item() # pylint: disable=line-too-long
+        #         )
+
         # _assert_eq(masks.boxes.boxes, testcase_gt["boxes2d"])
         # _assert_eq(masks.boxes.scores, testcase_gt["boxes2d_scores"])
         # _assert_eq(masks.boxes.class_ids, testcase_gt["boxes2d_classes"])
