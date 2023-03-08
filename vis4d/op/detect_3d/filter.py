@@ -18,7 +18,7 @@ def bev_3d_nms(  # pragma: no cover
     iou_threshold: float = 0.1,
 ) -> Tensor:
     """BEV 3D NMS in world coordinate."""
-    if not DETECTRON2_AVAILABLE:
+    if DETECTRON2_AVAILABLE:
         center_x = boxes3d[:, 0].unsqueeze(1)
         center_y = boxes3d[:, 1].unsqueeze(1)
         width = boxes3d[:, 4].unsqueeze(1)
