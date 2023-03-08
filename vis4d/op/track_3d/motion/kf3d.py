@@ -8,7 +8,7 @@ from vis4d.op.geometry.rotation import acute_angle, normalize_angle
 from vis4d.op.track.motion.kalman_filter import predict, update
 
 
-def kf3d_init(motion_dims: int) -> tuple[Tensor, Tensor]:
+def kf3d_init(motion_dims: int) -> tuple[Tensor, Tensor, Tensor, Tensor]:
     """KF3D init function."""
     motion_mat = torch.Tensor(
         [

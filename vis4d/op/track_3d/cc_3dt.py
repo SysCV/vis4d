@@ -69,7 +69,7 @@ class CC3DTrackAssociation:
         scores_3d: Tensor,
         class_ids: Tensor,
         embeddings: Tensor,
-    ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         """Remove overlapping objects across classes via nms.
 
         Args:
@@ -145,7 +145,7 @@ class CC3DTrackAssociation:
                     keepdim=True,
                 )
             )
-        centroid_weight = torch.cat(centroid_weight_list, axis=1)
+        centroid_weight = torch.cat(centroid_weight_list, dim=1)
         centroid_weight = torch.exp(-centroid_weight / 10.0)
 
         # Moving distance should be aligned
@@ -158,7 +158,7 @@ class CC3DTrackAssociation:
             motion_weight_list.append(
                 F.pairwise_distance(v, memory_velocities[:, :3]).unsqueeze(0)
             )
-        motion_weight = torch.cat(motion_weight_list, axis=0)
+        motion_weight = torch.cat(motion_weight_list, dim=0)
         motion_weight = torch.exp(-motion_weight / 5.0)
 
         # Moving direction should be aligned
@@ -172,7 +172,7 @@ class CC3DTrackAssociation:
             cos_sim_list.append(
                 F.cosine_similarity(d, memory_velocities[:, :2]).unsqueeze(0)
             )
-        cos_sim = torch.cat(cos_sim_list, axis=0)
+        cos_sim = torch.cat(cos_sim_list, dim=0)
         cos_sim += 1.0
         cos_sim /= 2.0
 
@@ -251,7 +251,7 @@ class CC3DTrackAssociation:
                         keepdim=True,
                     )
                 )
-            bbox3d_weight = torch.cat(bbox3d_weight_list, axis=1)
+            bbox3d_weight = torch.cat(bbox3d_weight_list, dim=1)
             scores_iou = torch.exp(-bbox3d_weight / 10.0)
 
             # Depth Ordering

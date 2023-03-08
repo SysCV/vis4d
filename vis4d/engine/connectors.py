@@ -8,7 +8,7 @@ import torch
 from torch import Tensor
 from typing_extensions import NotRequired
 
-from vis4d.common import ArgsType
+from vis4d.common import ArgsType, DictStrAny
 from vis4d.common.dict import get_dict_nested
 from vis4d.common.named_tuple import get_from_namedtuple
 from vis4d.data.typing import DictData
@@ -443,11 +443,11 @@ class MultiSensorDataConnector(StaticDataConnector):
         self.default_sensor = default_sensor
         self.sensors = sensors
 
-    def get_test_input(
-        self, data: DictData
-    ) -> dict[str, Tensor | DictStrArrNested]:
+    def get_test_input(self, data: DictData) -> DictStrAny:
         """Returns the test input for the model."""
-        test_input_dict = {v: [] for _, v in self.connections["test"].items()}
+        test_input_dict: DictStrAny = {
+            v: [] for _, v in self.connections["test"].items()
+        }
         for sensor in self.sensors:
             for k, v in self.connections["test"].items():
                 test_input_dict[v].append(data[sensor][0][k])

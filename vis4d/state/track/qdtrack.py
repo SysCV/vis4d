@@ -7,7 +7,7 @@ import torch
 
 from vis4d.op.box.box2d import bbox_iou
 
-from ..util import concat_states, get_last_tracks, merge_tracks, update_frames
+from .util import concat_states, get_last_tracks, merge_tracks, update_frames
 
 
 class QDTrackState(NamedTuple):
@@ -70,7 +70,9 @@ class QDTrackMemory:
         ).squeeze(1)
 
         new_tracks = QDTrackState(*(entry[valid_tracks] for entry in data))
-        self.frames = update_frames(self.frames, new_tracks, self.memory_limit)
+        self.frames = update_frames(
+            self.frames, new_tracks, self.memory_limit  # type: ignore
+        )
 
         # backdrops
         backdrop_tracks = torch.nonzero(
@@ -88,7 +90,7 @@ class QDTrackMemory:
             *(entry[backdrop_tracks] for entry in data)
         )
         self.backdrop_frames = update_frames(
-            self.backdrop_frames, new_backdrops, self.backdrop_memory_limit
+            self.backdrop_frames, new_backdrops, self.backdrop_memory_limit  # type: ignore # pylint: disable=line-too-long
         )
 
     def get_track(self, track_id: int) -> list[QDTrackState]:
@@ -107,7 +109,7 @@ class QDTrackMemory:
                 track.append(
                     QDTrackState(*(element[idx] for element in frame))
                 )
-        return track  # type: ignore
+        return track
 
     def get_empty_frame(
         self, n_tracks: int, device: torch.device
@@ -132,7 +134,9 @@ class QDTrackMemory:
         """Get all active tracks and backdrops in memory."""
         # get last states of all tracks
         if len(self.frames) > 0:
-            memory = QDTrackState(*(concat_states(self.frames)))
+            memory = QDTrackState(
+                *(concat_states(self.frames))  # type: ignore
+            )
 
             last_tracks = QDTrackState(*(get_last_tracks(memory)))
         else:
@@ -140,13 +144,15 @@ class QDTrackMemory:
 
         # add backdrops
         if len(self.backdrop_frames) > 0:
-            backdrops = QDTrackState(*(concat_states(self.backdrop_frames)))
+            backdrops = QDTrackState(
+                *(concat_states(self.backdrop_frames))  # type: ignore
+            )
 
             if backdrops.embeddings.size(1) != last_tracks.embeddings.size(1):
                 assert (
                     len(last_tracks.embeddings) == 0
                 ), "Unequal shape of backdrop embeddings and track embeddings!"
-                last_tracks.embeddings = last_tracks._replace(
+                last_tracks = last_tracks._replace(
                     embeddings=torch.empty(
                         (0, backdrops.embeddings.size(1)), device=device
                     )

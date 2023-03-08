@@ -9,7 +9,7 @@ from nuscenes.utils.data_classes import Quaternion
 from scipy.spatial.transform import Rotation as R
 from torch import Tensor
 
-from vis4d.common import MetricLogs
+from vis4d.common import DictStrAny, MetricLogs
 from vis4d.data.datasets.nuscenes import nuscenes_track_map
 
 from ..base import Evaluator
@@ -46,8 +46,8 @@ class NuScenesEvaluator(Evaluator):
     def __init__(self) -> None:
         """Initialize NuScenes evaluator."""
         super().__init__()
-        self.detect_3d = {}
-        self.tracks_3d = {}
+        self.detect_3d: DictStrAny = {}
+        self.tracks_3d: DictStrAny = {}
         self.reset()
 
     def __repr__(self) -> str:
@@ -79,11 +79,11 @@ class NuScenesEvaluator(Evaluator):
 
     def reset(self) -> None:
         """Reset evaluator."""
-        self.tracks_3d = {}
-        self.detect_3d = {}
+        self.tracks_3d.clear()
+        self.detect_3d.clear()
 
     def get_attributes(
-        self, name: str, velocity, velocity_thres: float = 1.0
+        self, name: str, velocity: list[float], velocity_thres: float = 1.0
     ) -> str:
         """Get nuScenes attributes."""
         if np.sqrt(velocity[0] ** 2 + velocity[1] ** 2) > velocity_thres:

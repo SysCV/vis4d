@@ -17,7 +17,7 @@ class Tester:
 
     def __init__(
         self,
-        dataloaders: dict[str, DataLoader[DictData]],
+        dataloaders: DataLoader[DictData],
         data_connector: DataConnector,
         test_callbacks: dict[str, Callback] | None,
     ) -> None:
@@ -60,7 +60,7 @@ class Tester:
                 total_iters = len(test_loader)
 
                 # input data
-                device = next(model.parameters()).device  # model device
+                device = next(model.parameters()).device
                 data = move_data_to_device(data, device)
                 test_input = self.data_connector.get_test_input(data)
 

@@ -133,7 +133,7 @@ class QDTrackAssociation:
         memory_track_ids: Tensor,
         memory_class_ids: Tensor,
         memory_embeddings: Tensor,
-    ) -> tuple[Tensor, Tensor]:
+    ) -> tuple[Tensor, Tensor, Tensor]:
         """Process inputs, match detections with existing tracks.
 
         Args:

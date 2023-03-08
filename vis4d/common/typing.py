@@ -31,7 +31,6 @@ NDArrayInt = Union[NDArrayI64, NDArrayI32]
 NDArrayNumber = Union[NDArrayFloat, NDArrayInt, NDArrayBool]
 MetricLogs = Dict[str, Union[float, int]]
 DictStrAny = Dict[str, Any]  # type: ignore
-DictStrArrNested = Dict[str, Union[Tensor, Dict[str, Tensor]]]
 ArgsType = Any  # type: ignore
 ModelOutput = DictStrAny
 TorchCheckpoint = DictStrAny

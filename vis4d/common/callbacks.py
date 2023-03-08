@@ -90,7 +90,9 @@ class Callback:
             inputs (ArgsType): Inputs for callback.
         """
 
-    def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
+    def on_test_epoch_end(
+        self, model: nn.Module, epoch: None | int = None
+    ) -> None:
         """Hook to run at the end of a testing epoch.
 
         Args:
@@ -131,7 +133,9 @@ class EvaluatorCallback(Callback):
         self.output_dir = save_prefix
         self.evaluator = evaluator
 
-    def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
+    def on_test_epoch_end(
+        self, model: nn.Module, epoch: None | int = None
+    ) -> None:
         """Hook to run at the end of a testing epoch."""
         self.evaluator.gather(all_gather_object_cpu)
         if get_rank() == 0:
@@ -193,17 +197,18 @@ class VisualizerCallback(Callback):
         ), f"Collect device {collect} unknown."
         self.collect = collect
         self.visualizer = visualizer
+        self.save_prefix = save_prefix
 
-        if save_prefix is not None:
-            self.output_dir = f"{save_prefix}/vis"
+        if self.save_prefix is not None:
+            self.output_dir = f"{self.save_prefix}/vis"
             os.makedirs(self.output_dir, exist_ok=True)
-        else:
-            self.output_dir = None
 
-    def on_test_epoch_end(self, model: nn.Module, epoch: int) -> None:
+    def on_test_epoch_end(
+        self, model: nn.Module, epoch: None | int = None
+    ) -> None:
         """Hook to run at the end of a testing epoch."""
         if get_rank() == 0:
-            if self.output_dir is not None:
+            if self.save_prefix is not None:
                 self.visualizer.save_to_disk(self.output_dir)
         self.visualizer.reset()
 

@@ -96,7 +96,7 @@ class TrainingModule(pl.LightningModule):  # pylint: disable=too-many-ancestors
         for k, v in losses.items():
             if not hasattr(self, k):
                 metric = MeanMetric()
-                metric.to(self.device)
+                metric.to(self.device)  # type: ignore
                 setattr(self, k, metric)
 
             metric = getattr(self, k)

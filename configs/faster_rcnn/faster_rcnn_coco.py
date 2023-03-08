@@ -47,7 +47,7 @@ def get_config() -> ConfigDict:
     Note that the high level params are exposed in the config. This allows
     to easily change them from the command line.
     E.g.:
-    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --config.num_epochs 100 -- config.params.learning_rate 0.001
+    >>> python -m vis4d.engine.cli --config vis4d/config/example/faster_rcnn_coco.py --config.num_epochs 100 -- config.params.lr 0.001
 
     Returns:
         ConfigDict: The configuration
@@ -73,7 +73,7 @@ def get_config() -> ConfigDict:
     ## High level hyper parameters
     params = ConfigDict()
     params.batch_size = 16
-    params.learning_rate = 0.01
+    params.lr = 0.01
     params.augment_proba = 0.5
     params.num_classes = 80
     config.params = params
@@ -171,14 +171,14 @@ def get_config() -> ConfigDict:
     # config.optimizers = [
     #    optimizer_cfg(
     #        optimizer=class_config(only_encoder_params,
-    #           fun=class_config(optim.SGD, lr=params.learning_rate"))
+    #           fun=class_config(optim.SGD, lr=params.lr"))
     #        )
     #    )
     # ]
 
     config.optimizers = [
         optimizer_cfg(
-            optimizer=class_config(optim.SGD, lr=params.learning_rate),
+            optimizer=class_config(optim.SGD, lr=params.lr),
             lr_scheduler=class_config(StepLR, step_size=3, gamma=0.1),
             lr_warmup=None,
         )
@@ -273,4 +273,4 @@ def get_sweep() -> ConfigDict:
             It can be passed to replicate_config to create a list of configs
             that can be used to run a grid search.
     """
-    return linear_grid_search("params.learning_rate", 0.001, 0.01, 3)
+    return linear_grid_search("params.lr", 0.001, 0.01, 3)

@@ -6,6 +6,8 @@ from typing import NamedTuple
 import torch
 from torch import Tensor
 
+from vis4d.common import DictStrAny
+
 
 def update_frames(
     frames: list[NamedTuple], data: NamedTuple, memory_limit: int
@@ -36,7 +38,9 @@ def concat_states(states: list[NamedTuple]) -> tuple[Tensor, ...]:
     return memory_states
 
 
-def merge_tracks(tracks_1: NamedTuple, tracks_2: NamedTuple) -> NamedTuple:
+def merge_tracks(
+    tracks_1: NamedTuple, tracks_2: NamedTuple
+) -> tuple[Tensor, ...]:
     """Merge two tracks.
 
     Args:
@@ -44,7 +48,7 @@ def merge_tracks(tracks_1: NamedTuple, tracks_2: NamedTuple) -> NamedTuple:
         tracks_2 (NamedTuple): Second track.
 
     Returns:
-        merged_tracks (NamedTuple): Merged tracks.
+        merged_tracks (tuple[Tensor, ...]): Merged tracks.
     """
     merged_tracks = tuple(
         torch.cat((track_1, track_2))
@@ -62,16 +66,16 @@ def get_last_tracks(memory_states: NamedTuple) -> tuple[Tensor, ...]:
     Returns:
         last_tracks (tuple[Tensor, ...]): Last tracks.
     """
-    track_ids = memory_states.track_ids.unique()
-    value_dict = {k: [] for k in memory_states._fields}
+    track_ids = memory_states.track_ids.unique()  # type: ignore
+    value_dict: DictStrAny = {k: [] for k in memory_states._fields}
 
     if track_ids.numel() == 0:
         return memory_states
 
     for track_id in track_ids:
-        idx = (memory_states.track_ids == track_id).nonzero(as_tuple=False)[-1]
+        idx = (memory_states.track_ids == track_id).nonzero(as_tuple=False)[-1]  # type: ignore # pylint: disable=line-too-long
         for k in value_dict:
             value_dict[k].append(getattr(memory_states, k)[idx])
 
-    last_tracks = (torch.cat(value_dict[k]) for k in value_dict)
+    last_tracks = tuple(torch.cat(value_dict[k]) for k in value_dict)
     return last_tracks

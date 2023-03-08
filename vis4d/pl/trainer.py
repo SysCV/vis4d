@@ -10,7 +10,6 @@ from pytorch_lightning.strategies import (  # type: ignore[attr-defined] # pylin
     DDPStrategy,
 )
 from pytorch_lightning.strategies.strategy import Strategy
-from pytorch_lightning.utilities.device_parser import new_parse_gpu_ids
 
 from vis4d.common import ArgsType
 from vis4d.common.imports import TENSORBOARD_AVAILABLE
@@ -42,9 +41,9 @@ class DefaultTrainer(pl.Trainer):
     def __init__(
         self,
         *args: ArgsType,
-        work_dir: str = "vis4d-workspace",
-        exp_name: str = "unnamed",
-        version: Optional[str] = None,
+        work_dir: str,
+        exp_name: str,
+        version: str,
         find_unused_parameters: bool = False,
         checkpoint_period: int = 1,
         resume: bool = False,
@@ -116,15 +115,13 @@ class DefaultTrainer(pl.Trainer):
         kwargs["callbacks"] += callbacks
 
         # add distributed strategy
-        if kwargs["accelerator"] == "gpu":  # pragma: no cover
-            kwargs["devices"] = new_parse_gpu_ids(
-                kwargs["devices"], include_cuda=True, include_mps=True
+        if (
+            kwargs["accelerator"] == "gpu" and kwargs["devices"] > 1
+        ):  # pragma: no cover
+            ddp_plugin: Strategy = DDPStrategy(
+                find_unused_parameters=find_unused_parameters
             )
-            if len(kwargs["devices"]) > 1:
-                ddp_plugin: Strategy = DDPStrategy(
-                    find_unused_parameters=find_unused_parameters
-                )
-                kwargs["strategy"] = ddp_plugin
+            kwargs["strategy"] = ddp_plugin
 
         super().__init__(*args, **kwargs)
 

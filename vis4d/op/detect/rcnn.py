@@ -121,7 +121,7 @@ class RCNNHead(nn.Module):
         fcs = nn.ModuleList()
         if num_branch_fcs > 0:
             if is_shared or num_branch_fcs == 0:
-                last_layer_dim *= np.prod(self.roi_pooler.resolution)
+                last_layer_dim *= int(np.prod(self.roi_pooler.resolution))
             for i in range(num_branch_fcs):
                 fc_in_dim = last_layer_dim if i == 0 else self.fc_out_channels
                 fcs.append(nn.Linear(fc_in_dim, self.fc_out_channels))

@@ -1,8 +1,6 @@
 """Default dataloader configurations."""
 from __future__ import annotations
 
-from collections.abc import Callable
-
 from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict
 
@@ -30,7 +28,7 @@ def default_image_dataloader(
     batchprocess_cfg: ConfigDict = class_config(
         "vis4d.data.transforms.pad.pad_image"
     ),
-    data_pipe: Callable = DataPipe,
+    data_pipe: type = DataPipe,
     train: bool = True,
 ) -> ConfigDict:
     """Creates a dataloader configuration given dataset and preprocessing.
@@ -41,16 +39,16 @@ def default_image_dataloader(
         preprocess_cfg (ConfigDict): The configuration that contains the
             preprocessing operations.
         dataset_cfg (ConfigDict): The configuration that contains the dataset.
-        num_samples_per_gpu (int | FieldReference,  optional): How many samples
+        num_samples_per_gpu (int | FieldReference): How many samples
             each GPU will process. Defaults to 1.
-        num_workers_per_gpu (int | FieldReference, optional): How many workers
+        num_workers_per_gpu (int | FieldReference): How many workers
             to spawn per GPU. Defaults to 4.
-        shuffle (bool, optional): Whether to shuffle the dataset.
-        batchprocess_cfg (ConfigDict, optional): The configuration that
+        shuffle (bool, FieldReference): Whether to shuffle the dataset.
+        batchprocess_cfg (ConfigDict): The configuration that
             contains the batch processing operations.
-        data_pipe (Callable, optional): The data pipe class to use.
+        data_pipe (Callable): The data pipe class to use.
             Defaults to DataPipe.
-        train (bool, optional): Whether to create a train dataloader.
+        train (bool): Whether to create a train dataloader.
 
     Returns:
         ConfigDict: Configuration that can be instantiate as a dataloader.

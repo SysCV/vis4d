@@ -224,7 +224,8 @@ class QD3DTBBox3DHead(nn.Module):
 
     def _init_weights(self) -> None:
         """Init weights of modules in head."""
-        module_lists = [self.shared_fcs]
+        module_lists: list[nn.ModuleList | nn.Linear] = []
+        module_lists += [self.shared_fcs]
         module_lists += [self.fc_dep_uncer]
         module_lists += [self.fc_dep, self.dep_fcs]
         module_lists += [self.fc_dim, self.dim_fcs]
@@ -264,7 +265,7 @@ class QD3DTBBox3DHead(nn.Module):
         fcs = nn.ModuleList()
         if num_branch_fcs > 0:
             if is_shared or num_branch_fcs == 0:
-                last_layer_dim *= np.prod(self.proposal_pooler.resolution)
+                last_layer_dim *= int(np.prod(self.proposal_pooler.resolution))
             for i in range(num_branch_fcs):
                 fc_in_dim = last_layer_dim if i == 0 else fc_out_dim
                 fcs.append(
@@ -357,8 +358,6 @@ class QD3DTBBox3DHead(nn.Module):
         """Get 3D bounding box prediction parameters."""
         roi_feats = self.proposal_pooler(features[2:6], boxes_2d)
         x_dep, x_dim, x_rot, x_cen_2d = self.get_embeds(roi_feats)
-
-        outputs = self.get_outputs(x_dep, x_dim, x_rot, x_cen_2d)
 
         outputs: list[Tensor] = self.get_outputs(
             x_dep, x_dim, x_rot, x_cen_2d

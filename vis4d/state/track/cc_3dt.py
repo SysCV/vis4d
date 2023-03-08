@@ -8,7 +8,7 @@ from torch import Tensor
 
 from vis4d.op.box.box2d import bbox_iou
 
-from ..util import concat_states, get_last_tracks, merge_tracks, update_frames
+from .util import concat_states, get_last_tracks, merge_tracks, update_frames
 
 # TODO: Add VeloLSTM motion state
 # class KF3DMotionState(NamedTuple):
@@ -81,7 +81,9 @@ class CC3DTrackMemory:
 
         new_tracks = CC3DTrackState(*(entry[valid_tracks] for entry in data))
 
-        self.frames = update_frames(self.frames, new_tracks, self.memory_limit)
+        self.frames = update_frames(
+            self.frames, new_tracks, self.memory_limit  # type: ignore
+        )
 
         # backdrops
         backdrop_tracks = torch.nonzero(
@@ -104,12 +106,12 @@ class CC3DTrackMemory:
             *(entry[backdrop_tracks] for entry in data)
         )
         self.backdrop_frames = update_frames(
-            self.backdrop_frames, new_backdrops, self.backdrop_memory_limit
+            self.backdrop_frames, new_backdrops, self.backdrop_memory_limit  # type: ignore # pylint: disable=line-too-long
         )
 
     def replace_frame(
         self, frame_id: int, state_attr: str, state_value: Tensor
-    ):
+    ) -> None:
         """Replace the frame of track memory with a new state."""
         self.frames[frame_id] = self.frames[frame_id]._replace(
             **{state_attr: state_value}
@@ -137,7 +139,7 @@ class CC3DTrackMemory:
                     CC3DTrackState(*(element[idx] for element in frame))
                 )
                 frame_ids.append(i)
-        return track, frame_ids  # type: ignore
+        return track, frame_ids
 
     def get_empty_frame(
         self, n_tracks: int, device: torch.device
@@ -185,7 +187,9 @@ class CC3DTrackMemory:
         """Get all active tracks and backdrops in memory."""
         # get last states of all tracks
         if len(self.frames) > 0:
-            memory_states = CC3DTrackState(*(concat_states(self.frames)))
+            memory_states = CC3DTrackState(
+                *(concat_states(self.frames))  # type: ignore
+            )
 
             last_tracks = CC3DTrackState(*(get_last_tracks(memory_states)))
         else:
@@ -193,7 +197,9 @@ class CC3DTrackMemory:
 
         # add backdrops
         if len(self.backdrop_frames) > 0:
-            backdrops = CC3DTrackState(*(concat_states(self.backdrop_frames)))
+            backdrops = CC3DTrackState(
+                *(concat_states(self.backdrop_frames))  # type: ignore
+            )
 
             if backdrops.embeddings.size(1) != last_tracks.embeddings.size(1):
                 assert (

@@ -137,7 +137,7 @@ def broadcast(obj: Any, src: int = 0) -> Any:  # pragma: no cover
     obj = [obj]
     rank = get_rank()
     if rank != src:
-        obj = [None]  # type: ignore[list-item]
+        obj = [None]
     broadcast_object_list(obj, src, group=dist.group.WORLD)
     return obj[0]
 

@@ -10,12 +10,10 @@ from typing import NamedTuple
 import torch
 from torch import Tensor, nn
 
-from vis4d.common import ArgsType
 from vis4d.engine.ckpt import load_model_checkpoint
-from vis4d.model.track.qdtrack import QDTrack
 from vis4d.op.base import ResNet
+from vis4d.op.detect.anchor_generator import AnchorGenerator
 from vis4d.op.detect.faster_rcnn import (
-    AnchorGenerator,
     FasterRCNNHead,
     get_default_rcnn_box_encoder,
     get_default_rpn_box_encoder,
@@ -26,6 +24,7 @@ from vis4d.op.detect_3d.qd_3dt import QD3DTBBox3DHead
 from vis4d.op.fpp import FPN
 from vis4d.op.track.assignment import TrackIDCounter
 from vis4d.op.track.motion.kalman_filter import predict
+from vis4d.op.track.qdtrack import QDSimilarityHead
 from vis4d.op.track_3d.cc_3dt import CC3DTrackAssociation, cam_to_global
 from vis4d.op.track_3d.motion.kf3d import (
     kf3d_init,
@@ -59,21 +58,22 @@ def get_default_roi_head(num_classes: int) -> RCNNHead:
     return RCNNHead(num_shared_convs=4, num_classes=num_classes)
 
 
-class CC3DTrack(QDTrack):
+class CC3DTrack(nn.Module):
     """CC-3DT model."""
 
     def __init__(
         self,
-        *args: ArgsType,
         memory_size: int = 10,
+        memory_momentum: float = 0.8,
         motion_model: str = "KF3D",
         motion_dims: int = 7,
         num_frames: int = 5,
         pure_det: bool = False,
-        **kwargs: ArgsType,
     ) -> None:
         """Creates an instance of the class."""
-        super().__init__(*args, memory_size=memory_size, **kwargs)
+        super().__init__()
+        self.similarity_head = QDSimilarityHead()
+        self.memo_momentum = memory_momentum
         self.track_memory = CC3DTrackMemory(
             memory_limit=memory_size,
             motion_dims=motion_dims,
@@ -86,13 +86,12 @@ class CC3DTrack(QDTrack):
         self.pure_det = pure_det
 
         if self.motion_model == "KF3D":
-            motion_mat, update_mat, cov_motion_q, cov_project_r = kf3d_init(
-                self.motion_dims
-            )
-            self.register_buffer("_motion_mat", motion_mat, False)  # F
-            self.register_buffer("_update_mat", update_mat, False)  # H
-            self.register_buffer("_cov_motion_q", cov_motion_q, False)  # Q
-            self.register_buffer("_cov_project_r", cov_project_r, False)  # R
+            (
+                self._motion_mat,  # F
+                self._update_mat,  # H
+                self._cov_motion_q,  # Q
+                self._cov_project_r,  # R
+            ) = kf3d_init(self.motion_dims)
         else:
             # TODO: add VeloLSTM
             raise NotImplementedError
@@ -100,7 +99,7 @@ class CC3DTrack(QDTrack):
     def _update_memory(
         self,
         frame_id: int,
-        track_id: Tensor,
+        track_id: int,
         update_attr: str,
         update_value: Tensor,
     ) -> None:
@@ -117,7 +116,7 @@ class CC3DTrack(QDTrack):
 
     def _update_track(
         self,
-        frame_id: Tensor,
+        frame_id: int,
         track_ids: Tensor,
         match_ids: Tensor,
         boxes_2d: Tensor,
@@ -131,12 +130,12 @@ class CC3DTrack(QDTrack):
         fps: int,
     ) -> CC3DTrackState:
         """Update track."""
-        motion_states = []
-        motion_hidden = []
-        vel_histories = []
-        velocities = []
-        last_frames = []
-        acc_frames = []
+        motion_states_list = []
+        motion_hidden_list = []
+        vel_histories_list = []
+        velocities_list = []
+        last_frames_list = []
+        acc_frames_list = []
         for i, track_id in enumerate(track_ids):
             bbox_3d = boxes_3d[i]
             obs_3d = obs_boxes_3d[i]
@@ -171,19 +170,19 @@ class CC3DTrack(QDTrack):
                 velocity = (pd_box_3d - prev_obs) / (
                     frame_id - track.last_frames[0]
                 )
-                velocities.append(
+                velocities_list.append(
                     (track.velocities[0] * track.acc_frames[0] + velocity)
                     / (track.acc_frames[0] + 1)
                 )
-                acc_frames.append(track.acc_frames[0] + 1)
+                acc_frames_list.append(track.acc_frames[0] + 1)
 
                 embeddings[i] = (
                     1 - self.memo_momentum
                 ) * track.embeddings + self.memo_momentum * embeddings[i]
 
-                motion_states.append(mean)
-                motion_hidden.append(covariance)
-                vel_histories.append(
+                motion_states_list.append(mean)
+                motion_hidden_list.append(covariance)
+                vel_histories_list.append(
                     torch.zeros(self.num_frames, self.motion_dims).to(
                         obs_3d.device
                     )
@@ -194,27 +193,27 @@ class CC3DTrack(QDTrack):
                     mean, covariance = kf3d_init_mean_cov(
                         obs_3d, self.motion_dims
                     )
-                    motion_states.append(mean)
-                    motion_hidden.append(covariance)
+                    motion_states_list.append(mean)
+                    motion_hidden_list.append(covariance)
                 else:
                     raise NotImplementedError
-                vel_histories.append(
+                vel_histories_list.append(
                     torch.zeros(self.num_frames, self.motion_dims).to(
                         obs_3d.device
                     )
                 )
-                velocities.append(
+                velocities_list.append(
                     torch.zeros(self.motion_dims, device=bbox_3d.device)
                 )
-                acc_frames.append(0)
-            last_frames.append(frame_id)
+                acc_frames_list.append(torch.zeros(1, device=bbox_3d.device))
+            last_frames_list.append(frame_id)
 
-        motion_states = torch.stack(motion_states)
-        motion_hidden = torch.stack(motion_hidden)
-        velocities = torch.stack(velocities)
-        vel_histories = torch.stack(vel_histories)
-        last_frames = torch.tensor(last_frames, device=boxes_2d.device)
-        acc_frames = torch.tensor(acc_frames, device=boxes_2d.device)
+        motion_states = torch.stack(motion_states_list)
+        motion_hidden = torch.stack(motion_hidden_list)
+        velocities = torch.stack(velocities_list)
+        vel_histories = torch.stack(vel_histories_list)
+        last_frames = torch.tensor(last_frames_list, device=boxes_2d.device)
+        acc_frames = torch.tensor(acc_frames_list, device=boxes_2d.device)
 
         return CC3DTrackState(
             track_ids,
@@ -264,7 +263,7 @@ class CC3DTrack(QDTrack):
 
         return pd_box_3d
 
-    def _forward_test(  # type: ignore # pylint: disable=arguments-differ
+    def _forward_test(
         self,
         features_list: list[torch.Tensor],
         boxes_2d_list: list[torch.Tensor],
@@ -302,24 +301,11 @@ class CC3DTrack(QDTrack):
         )
 
         if self.pure_det:
-            empty_track = self.track_memory.get_empty_frame(
-                len(class_ids), boxes_2d.device
-            )
-            return CC3DTrackState(
-                empty_track.track_ids,
-                boxes_2d,
-                camera_ids,
-                scores_2d,
+            return Track3DOut(
                 boxes_3d,
-                scores_3d,
                 class_ids,
-                embeddings,
-                empty_track.motion_states,
-                empty_track.motion_hidden,
-                empty_track.vel_histories,
-                empty_track.velocities,
-                empty_track.last_frames,
-                empty_track.acc_frames,
+                scores_2d * scores_3d,
+                torch.zeros_like(class_ids),
             )
 
         # merge multi-view boxes
@@ -342,7 +328,6 @@ class CC3DTrack(QDTrack):
                 frame_id == frame_ids[0]
             ), "All cameras should have same frame_id."
         frame_id = frame_ids[0]
-        tracks = []
 
         # reset graph at begin of sequence
         if frame_id == 0:
@@ -437,7 +422,7 @@ class CC3DTrack(QDTrack):
             tracks.track_ids,
         )
 
-    def forward(  # type: ignore # pylint: disable=arguments-differ
+    def forward(
         self,
         features: list[torch.Tensor],
         boxes_2d: list[torch.Tensor],

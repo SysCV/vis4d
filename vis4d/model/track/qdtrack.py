@@ -221,21 +221,22 @@ class QDTrack(nn.Module):
                 cur_memory.embeddings,
             )
 
-            embeddings = embeds[filter_indices]
+            valid_embeds = embeds[filter_indices]
 
             for i, track_id in enumerate(track_ids):
                 if track_id in match_ids:
                     track = self.track_memory.get_track(track_id)[-1]
-                    embeddings[i] = (
-                        1 - self.memo_momentum
-                    ) * track.embeddings + self.memo_momentum * embeddings[i]
+                    valid_embeds[i] = (
+                        (1 - self.memo_momentum) * track.embeddings
+                        + self.memo_momentum * valid_embeds[i]
+                    )
 
             data = QDTrackState(
                 track_ids,
                 box[filter_indices],
                 score[filter_indices],
                 cls_id[filter_indices],
-                embeddings,
+                valid_embeds,
             )
             self.track_memory.update(data)
             batched_tracks.append(self.track_memory.frames[-1])

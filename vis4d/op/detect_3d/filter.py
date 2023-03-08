@@ -7,7 +7,7 @@ from detectron2.layers.nms import batched_nms_rotated
 from torch import Tensor
 
 
-def bev_3d_nms(
+def bev_3d_nms(  # pragma: no cover
     boxes3d: Tensor,
     scores_3d: Tensor,
     class_ids: Tensor,
@@ -25,7 +25,7 @@ def bev_3d_nms(
         class_ids = torch.zeros_like(scores_3d, dtype=torch.int64)
 
     keep_indices = batched_nms_rotated(
-        torch.cat([center_x, center_y, width, length, angle], axis=-1),
+        torch.cat([center_x, center_y, width, length, angle], dim=-1),
         scores_3d,
         class_ids,
         iou_threshold,

@@ -74,7 +74,7 @@ def get_config() -> ConfigDict:
     # Hyper Parameters
     params = ConfigDict()
     params.samples_per_gpu = 4
-    params.learning_rate = 0.01
+    params.lr = 0.01
     params.num_epochs = 12
     config.params = params
 
@@ -177,7 +177,7 @@ def get_config() -> ConfigDict:
     ######################################################
     config.optimizers = [
         optimizer_cfg(
-            optimizer=class_config(optim.SGD, lr=params.learning_rate),
+            optimizer=class_config(optim.SGD, lr=params.lr),
             lr_scheduler=class_config(
                 MultiStepLR, milestones=[8, 11], gamma=0.1
             ),
