@@ -4,7 +4,7 @@ import unittest
 import torch
 from torch import optim
 
-from tests.util import get_test_data
+from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.engine.ckpt import load_model_checkpoint
@@ -33,7 +33,7 @@ class MaskRCNNTest(unittest.TestCase):
         """Test inference of Mask RCNN.
 
         Run::
-            >>> pytest vis4d/model/detect/mask_rcnn_test.py::MaskRCNNTest::test_inference
+            >>> pytest tests/model/detect/mask_rcnn_test.py::MaskRCNNTest::test_inference
         """
         dataset = COCO(
             get_test_data("coco_test"),
@@ -61,24 +61,23 @@ class MaskRCNNTest(unittest.TestCase):
 
         assert isinstance(masks, MaskDetectionOut)
 
-        # TODO: update test gt after refactoring config
-        # test_samples = 10
+        test_samples = 10
 
-        # testcase_gt = torch.load(get_test_file("mask_rcnn.pt"))
+        testcase_gt = torch.load(get_test_file("mask_rcnn.pt"))
 
-        # def _assert_eq(
-        #     prediction: torch.Tensor, gts: torch.Tensor, n_samples=test_samples # pylint: disable=line-too-long
-        # ) -> None:
-        #     """Assert prediction and ground truth are equal."""
-        #     for pred, gt in zip(prediction, gts):
-        #         assert (
-        #             torch.isclose(pred[:n_samples], gt, atol=1e-4).all().item() # pylint: disable=line-too-long
-        #         )
+        def _assert_eq(
+            prediction: torch.Tensor, gts: torch.Tensor, n_samples=test_samples
+        ) -> None:
+            """Assert prediction and ground truth are equal."""
+            for pred, gt in zip(prediction, gts):
+                assert (
+                    torch.isclose(pred[:n_samples], gt, atol=1e-4).all().item()
+                )
 
-        # _assert_eq(masks.boxes.boxes, testcase_gt["boxes2d"])
-        # _assert_eq(masks.boxes.scores, testcase_gt["boxes2d_scores"])
-        # _assert_eq(masks.boxes.class_ids, testcase_gt["boxes2d_classes"])
-        # _assert_eq(masks.masks.masks, testcase_gt["masks"])
+        _assert_eq(masks.boxes.boxes, testcase_gt["boxes2d"])
+        _assert_eq(masks.boxes.scores, testcase_gt["boxes2d_scores"])
+        _assert_eq(masks.boxes.class_ids, testcase_gt["boxes2d_classes"])
+        _assert_eq(masks.masks.masks, testcase_gt["masks"])
 
     def test_train(self):
         """Test Mask RCNN training."""

@@ -83,12 +83,9 @@ def get_config() -> ConfigDict:
     ######################################################
     data = ConfigDict()
     dataset_root = "data/nuscenes"
-    # version = "v1.0-trainval"
-    # train_split = "train"
-    # test_split = "val"
-    version = "v1.0-mini"
-    train_split = "mini_train"
-    test_split = "mini_val"
+    version = "v1.0-trainval"
+    train_split = "train"
+    test_split = "val"
     metadata = ["use_camera"]
     data_backend = HDF5Backend()
 

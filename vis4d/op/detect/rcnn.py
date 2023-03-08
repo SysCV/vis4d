@@ -160,7 +160,7 @@ class RCNNHead(nn.Module):
         return self._call_impl(features, boxes)
 
 
-class DetOut(NamedTuple):
+class DetOut(NamedTuple):  # TODO: decide where to put the class
     """Output of the final detections from RCNN."""
 
     boxes: list[torch.Tensor]  # N, 4

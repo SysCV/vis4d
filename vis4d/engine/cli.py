@@ -141,7 +141,8 @@ def main(  # type:ignore # pylint: disable=unused-argument
     if config.n_gpus > 1:
         ddp_setup(slurm=_SLURM.value)
 
-    train_dataloader = instantiate_classes(config.data.train_dataloader)
+    if _MODE.value == "train":
+        train_dataloader = instantiate_classes(config.data.train_dataloader)
 
     test_dataloader = instantiate_classes(
         config.data.test_dataloader

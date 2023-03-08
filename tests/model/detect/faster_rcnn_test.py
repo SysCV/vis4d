@@ -6,7 +6,7 @@ import unittest
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from tests.util import get_test_data
+from tests.util import get_test_data, get_test_file
 from vis4d.data.const import CommonKeys
 from vis4d.data.datasets import COCO
 from vis4d.data.loader import (
@@ -66,7 +66,11 @@ class FasterRCNNTest(unittest.TestCase):
     """Faster RCNN test class."""
 
     def test_inference(self) -> None:
-        """Test inference of Faster RCNN."""
+        """Test inference of Faster RCNN.
+
+        Run::
+            >>> pytest tests/model/detect/faster_rcnn_test.py::FasterRCNNTest::test_inference
+        """
         dataset = COCO(
             get_test_data("coco_test"),
             keys=(CommonKeys.images,),
@@ -86,20 +90,19 @@ class FasterRCNNTest(unittest.TestCase):
             dets = faster_rcnn(inputs, images_hw, original_hw=images_hw)
         assert isinstance(dets, DetOut)
 
-        # TODO: update test gt after refactoring config
-        # testcase_gt = torch.load(get_test_file("faster_rcnn.pt"))
+        testcase_gt = torch.load(get_test_file("faster_rcnn.pt"))
 
-        # def _assert_eq(
-        #     prediction: list[torch.Tensor], gts: list[torch.Tensor]
-        # ) -> None:
-        #     """Assert prediction and ground truth are equal."""
-        #     for pred, gt in zip(prediction, gts):
-        #         assert torch.isclose(pred, gt, atol=1e-4).all().item()
+        def _assert_eq(
+            prediction: list[torch.Tensor], gts: list[torch.Tensor]
+        ) -> None:
+            """Assert prediction and ground truth are equal."""
+            for pred, gt in zip(prediction, gts):
+                assert torch.isclose(pred, gt, atol=1e-4).all().item()
 
-        # _assert_eq(dets.boxes, testcase_gt["boxes2d"])
-        # _assert_eq(dets.scores, testcase_gt["boxes2d_scores"])
-        # _assert_eq(dets.class_ids, testcase_gt["boxes2d_classes"])
+        _assert_eq(dets.boxes, testcase_gt["boxes2d"])
+        _assert_eq(dets.scores, testcase_gt["boxes2d_scores"])
+        _assert_eq(dets.class_ids, testcase_gt["boxes2d_classes"])
 
+    # TODO: add test for training after refactoring config
     # def test_cli_training(self) -> None:
     #     """Test Faster RCNN training via CLI."""
-    # TODO: add test for training after refactoring config
