@@ -51,15 +51,6 @@ def default_collate(batch: list[DictData]) -> DictData:
     return data
 
 
-def multi_sensor_collate(batch: list[DictData]) -> DictData:
-    """Default multi-sensor batch collate."""
-    data = {}
-    sensors = list(batch[0].keys())
-    for sensor in sensors:
-        data[sensor] = default_collate([d[sensor] for d in batch])
-    return data
-
-
 class DataPipe(_CONCAT_DATASET):
     """DataPipe class.
 
