@@ -27,13 +27,13 @@ from vis4d.data.datasets.nuscenes import (
 from vis4d.data.io.hdf5 import HDF5Backend
 from vis4d.engine.connectors import (
     DataConnectionInfo,
+    MultiSensorDataConnector,
     data_key,
     pred_key,
 )
 
 from vis4d.eval.track3d.nuscenes import NuScenesEvaluator
 
-from vis4d.engine.connectors import MultiSensorDataConnector
 from vis4d.data.loader import VideoDataPipe
 from vis4d.config.default.runtime import set_output_dir
 
