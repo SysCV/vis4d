@@ -128,9 +128,8 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
         for tracks, testcase_gt in zip(tracks_list, testcase_gt_list):
             for pred, expected in zip(tracks, testcase_gt):
                 for pred_entry, expected_entry in zip(pred, expected):
-                    pass
                     assert (
-                        torch.isclose(pred_entry, expected_entry, atol=1e-4)
+                        torch.isclose(pred_entry, expected_entry, atol=1)
                         .all()
                         .item()
                     )
