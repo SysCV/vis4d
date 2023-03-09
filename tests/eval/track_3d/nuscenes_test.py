@@ -9,7 +9,11 @@ from torch.utils.data import DataLoader, Dataset
 from tests.util import get_test_data
 from vis4d.data.const import CommonKeys as CK
 from vis4d.data.datasets.nuscenes import NuScenes
-from vis4d.data.loader import VideoDataPipe, build_inference_dataloaders
+from vis4d.data.loader import (
+    VideoDataPipe,
+    build_inference_dataloaders,
+    multi_sensor_collate,
+)
 from vis4d.engine.connectors import (
     DataConnectionInfo,
     MultiSensorDataConnector,
@@ -23,7 +27,10 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     """Get data loader for testing."""
     datapipe = VideoDataPipe(datasets)
     return build_inference_dataloaders(
-        datapipe, samples_per_gpu=batch_size, workers_per_gpu=1
+        datapipe,
+        samples_per_gpu=batch_size,
+        workers_per_gpu=1,
+        collate_fn=multi_sensor_collate,
     )[0]
 
 

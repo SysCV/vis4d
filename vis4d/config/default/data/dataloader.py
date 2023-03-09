@@ -1,6 +1,8 @@
 """Default dataloader configurations."""
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from ml_collections import FieldReference
 from ml_collections.config_dict import ConfigDict
 
@@ -9,7 +11,9 @@ from vis4d.data.loader import (
     DataPipe,
     build_inference_dataloaders,
     build_train_dataloader,
+    default_collate,
 )
+from vis4d.data.typing import DictData
 
 
 def default_image_dataloader(
@@ -30,6 +34,7 @@ def default_image_dataloader(
     ),
     data_pipe: type = DataPipe,
     train: bool = True,
+    collate_fn: Callable[[list[DictData]], DictData] = default_collate,
 ) -> ConfigDict:
     """Creates a dataloader configuration given dataset and preprocessing.
 
@@ -49,6 +54,7 @@ def default_image_dataloader(
         data_pipe (Callable): The data pipe class to use.
             Defaults to DataPipe.
         train (bool): Whether to create a train dataloader.
+        collate_fn (Callable): The collate function to use.
 
     Returns:
         ConfigDict: Configuration that can be instantiate as a dataloader.
@@ -62,6 +68,7 @@ def default_image_dataloader(
                 preprocess_fn=preprocess_cfg,
             ),
             batchprocess_fn=batchprocess_cfg,
+            collate_fn=collate_fn,
             samples_per_gpu=num_samples_per_gpu,
             workers_per_gpu=num_workers_per_gpu,
             shuffle=shuffle,
@@ -77,4 +84,5 @@ def default_image_dataloader(
         batchprocess_fn=batchprocess_cfg,
         samples_per_gpu=num_samples_per_gpu,
         workers_per_gpu=num_workers_per_gpu,
+        collate_fn=collate_fn,
     )

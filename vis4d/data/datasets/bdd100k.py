@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from vis4d.common.imports import BDD100K_AVAILABLE, SCALABEL_AVAILABLE
 
-from .scalabel import Scalabel
+from .scalabel import ScalabelVideo
 
 bdd100k_det_map = {
     "pedestrian": 0,
@@ -98,7 +98,7 @@ if BDD100K_AVAILABLE and SCALABEL_AVAILABLE:
     from scalabel.label.typing import Dataset as ScalabelData
 
 
-class BDD100K(Scalabel):
+class BDD100K(ScalabelVideo):
     """BDD100K type dataset, based on Scalabel."""
 
     def _generate_mapping(self) -> ScalabelData:
@@ -113,4 +113,4 @@ class BDD100K(Scalabel):
 
     def __repr__(self) -> str:
         """Concise representation of the dataset."""
-        return "BDD100KDataset"
+        return f"BDD100KDataset {self.data_root}"

@@ -19,7 +19,7 @@ from torch.utils.data.distributed import DistributedSampler
 from vis4d.common import ArgsType
 
 from ..common.distributed import get_world_size
-from .const import CommonKeys
+from .const import CommonKeys as CK
 from .datasets import VideoMixin
 from .reference import ReferenceViewSampler
 from .samplers import VideoInferenceSampler
@@ -36,18 +36,27 @@ _DATALOADER = DataLoader[DictDataOrList]  # pylint: disable=invalid-name
 def default_collate(batch: list[DictData]) -> DictData:
     """Default batch collate."""
     data: DictData = {}
+    # TODO: It seems dangerous if batches originally contain different keys.
+    # e.g. if batch[0] has annotations but batch[1] doesn't.
     for key in batch[0]:
         try:
-            if key == CommonKeys.images:
+            if key in [CK.images, CK.segmentation_masks]:
                 data[key] = torch.cat([b[key] for b in batch])
-            elif key in [CommonKeys.extrinsics, CommonKeys.intrinsics]:
+            elif key in [CK.extrinsics, CK.intrinsics]:
                 data[key] = torch.stack([b[key] for b in batch], 0)
-            elif key == CommonKeys.segmentation_masks:
-                data[key] = torch.cat([b[key] for b in batch])
             else:
                 data[key] = [b[key] for b in batch]
         except RuntimeError as e:
             raise RuntimeError(f"Error collating key {key}") from e
+    return data
+
+
+def multi_sensor_collate(batch: list[DictData]) -> DictData:
+    """Default multi-sensor batch collate."""
+    data = {}
+    sensors = list(batch[0].keys())
+    for sensor in sensors:
+        data[sensor] = default_collate([d[sensor] for d in batch])
     return data
 
 

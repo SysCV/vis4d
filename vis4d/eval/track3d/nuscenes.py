@@ -210,17 +210,18 @@ class NuScenesEvaluator(Evaluator):
 
     def process(  # type: ignore # pylint: disable=arguments-differ
         self,
-        token: str,
+        token: list[str],
         boxes_3d: Tensor,
         scores_3d: Tensor,
         class_ids: Tensor,
         track_ids: Tensor,
     ) -> None:
         """Process the results."""
-        self._process_detect_3d(token, boxes_3d, scores_3d, class_ids)
-        self._process_track_3d(
-            token, boxes_3d, scores_3d, class_ids, track_ids
-        )
+        for _token in token:
+            self._process_detect_3d(_token, boxes_3d, scores_3d, class_ids)
+            self._process_track_3d(
+                _token, boxes_3d, scores_3d, class_ids, track_ids
+            )
 
     def evaluate(
         self,

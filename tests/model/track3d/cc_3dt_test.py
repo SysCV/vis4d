@@ -10,7 +10,11 @@ from vis4d.data.datasets.nuscenes import (
     nuscenes_class_range_map,
     nuscenes_track_map,
 )
-from vis4d.data.loader import VideoDataPipe, build_inference_dataloaders
+from vis4d.data.loader import (
+    VideoDataPipe,
+    build_inference_dataloaders,
+    multi_sensor_collate,
+)
 from vis4d.data.transforms import compose
 from vis4d.data.transforms.normalize import batched_normalize_image
 from vis4d.data.transforms.pad import pad_image
@@ -95,6 +99,7 @@ class CC3DTTest(unittest.TestCase):  # TODO: add training test
             samples_per_gpu=1,
             workers_per_gpu=1,
             batchprocess_fn=batch_fn,
+            collate_fn=multi_sensor_collate,
         )[0]
 
         data_connection_info = DataConnectionInfo(

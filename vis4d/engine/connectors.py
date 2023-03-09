@@ -8,9 +8,10 @@ import torch
 from torch import Tensor
 from typing_extensions import NotRequired
 
-from vis4d.common import ArgsType, DictStrAny
+from vis4d.common import ArgsType
 from vis4d.common.dict import get_dict_nested
 from vis4d.common.named_tuple import get_from_namedtuple
+from vis4d.data.const import CommonKeys as CK
 from vis4d.data.typing import DictData
 from vis4d.engine.util import is_namedtuple
 
@@ -443,22 +444,22 @@ class MultiSensorDataConnector(StaticDataConnector):
         self.default_sensor = default_sensor
         self.sensors = sensors
 
-    def get_test_input(self, data: DictData) -> DictStrAny:
+    def get_test_input(self, data: DictData) -> DictData:
         """Returns the test input for the model."""
-        test_input_dict: DictStrAny = {
+        test_input_dict: DictData = {
             v: [] for _, v in self.connections["test"].items()
         }
         for sensor in self.sensors:
             for k, v in self.connections["test"].items():
-                test_input_dict[v].append(data[sensor][0][k])
+                test_input_dict[v].append(data[sensor][k])
 
-        test_input_dict["images"] = torch.cat(test_input_dict["images"])
-        test_input_dict["intrinsics"] = torch.stack(
-            test_input_dict["intrinsics"]
-        )
-        test_input_dict["extrinsics"] = torch.stack(
-            test_input_dict["extrinsics"]
-        )
+        for key in test_input_dict:
+            if key in [CK.images, CK.segmentation_masks]:
+                test_input_dict[key] = torch.cat(test_input_dict[key])
+            elif key in [CK.intrinsics, CK.extrinsics]:
+                test_input_dict[key] = torch.stack(test_input_dict[key])
+            else:
+                test_input_dict[key] = sum(test_input_dict[key], [])
 
         return test_input_dict
 
@@ -497,7 +498,7 @@ class MultiSensorDataConnector(StaticDataConnector):
 
         try:
             return self._get_inputs_for_pred_and_data(
-                clbk_dict, prediction, data[self.default_sensor][0]
+                clbk_dict, prediction, data[self.default_sensor]
             )
 
         except ValueError as e:
