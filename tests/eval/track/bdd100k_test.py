@@ -17,7 +17,7 @@ from vis4d.engine.connectors import (
     data_key,
     pred_key,
 )
-from vis4d.eval.track.scalabel import ScalabelEvaluator
+from vis4d.eval.track.bdd100k import BDD100KEvaluator
 
 
 def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
@@ -30,8 +30,8 @@ def get_dataloader(datasets: Dataset, batch_size: int) -> DataLoader:
     )[0]
 
 
-class TestScalabelEvaluator(unittest.TestCase):
-    """Scalabel evaluator testcase class."""
+class TestBDD100KEvaluator(unittest.TestCase):
+    """BDD100K tracking evaluator testcase class."""
 
     CONN_BBOX_2D_TEST = {
         CK.images: CK.images,
@@ -57,7 +57,7 @@ class TestScalabelEvaluator(unittest.TestCase):
         annotations = osp.join(get_test_data("bdd100k_test"), "track/labels")
         config = osp.join(get_test_data("bdd100k_test"), "track/config.toml")
 
-        scalabel_eval = ScalabelEvaluator(annotation_path=annotations)
+        scalabel_eval = BDD100KEvaluator(annotation_path=annotations)
 
         # test gt
         dataset = BDD100K(

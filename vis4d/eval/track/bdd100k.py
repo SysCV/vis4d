@@ -22,8 +22,8 @@ if SCALABEL_AVAILABLE and BDD100K_AVAILABLE:
     from scalabel.label.typing import Frame, Label
 
 
-class ScalabelEvaluator(Evaluator):
-    """Scalabel 2D tracking evaluation class."""
+class BDD100KEvaluator(Evaluator):
+    """BDD100K 2D tracking evaluation class."""
 
     inverse_track_map = {v: k for k, v in bdd100k_track_map.items()}
 
@@ -36,7 +36,7 @@ class ScalabelEvaluator(Evaluator):
 
     def __repr__(self) -> str:
         """Concise representation of the dataset evaluator."""
-        return "ScalabelEvaluator"
+        return "BDD100K Tracking Evaluator"
 
     @property
     def metrics(self) -> list[str]:

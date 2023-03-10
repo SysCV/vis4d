@@ -23,7 +23,7 @@ from vis4d.engine.connectors import (
     pred_key,
 )
 
-from vis4d.eval.track.scalabel import ScalabelEvaluator
+from vis4d.eval.track.bdd100k import BDD100KEvaluator
 
 from vis4d.data.loader import VideoDataPipe
 from vis4d.config.default.runtime import set_output_dir
@@ -185,7 +185,7 @@ def get_config() -> ConfigDict:
             EvaluatorCallback,
             save_prefix=config.output_dir,
             evaluator=class_config(
-                ScalabelEvaluator,
+                BDD100KEvaluator,
                 annotation_path=annotation_path,
             ),
             run_every_nth_epoch=1,
