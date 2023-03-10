@@ -200,7 +200,8 @@ def get_config() -> ConfigDict:
             lr_warmup=class_config(
                 LinearLRWarmup, warmup_ratio=0.001, warmup_steps=500
             ),
-            epoch_based=True,
+            epoch_based_lr=True,
+            epoch_based_warmup=False,
         )
     ]
 

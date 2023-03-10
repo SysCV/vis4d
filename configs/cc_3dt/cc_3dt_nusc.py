@@ -180,6 +180,7 @@ def get_config() -> ConfigDict:
                 MultiStepLR, milestones=[8, 11], gamma=0.1
             ),
             lr_warmup=None,
+            epoch_based_lr=True,
         )
     ]
 

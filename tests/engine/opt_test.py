@@ -46,7 +46,8 @@ class TestOptimizer(unittest.TestCase):
             optimizer_cb=delay_instantiation(instantiable=opt),
             lr_scheduler_cb=delay_instantiation(instantiable=scheduler),
             lr_warmup=warmup,
-            epoch_based=True,
+            epoch_based_lr=True,
+            epoch_based_warmup=True,
         )
         optimizer = instantiate_classes(optimizer_cfg)
         optimizer.setup(MockModel(0))
@@ -74,7 +75,8 @@ class TestOptimizer(unittest.TestCase):
             Optimizer,
             optimizer_cb=delay_instantiation(instantiable=opt),
             lr_scheduler_cb=delay_instantiation(instantiable=scheduler),
-            epoch_based=True,
+            epoch_based_lr=True,
+            epoch_based_warmup=True,
         )
         optimizer = instantiate_classes(optimizer_cfg)
         optimizer.setup(MockModel(0))
@@ -105,7 +107,8 @@ class TestOptimizer(unittest.TestCase):
             optimizer_cb=delay_instantiation(instantiable=opt),
             lr_scheduler_cb=delay_instantiation(instantiable=scheduler),
             lr_warmup=warmup,
-            epoch_based=False,
+            epoch_based_lr=False,
+            epoch_based_warmup=False,
         )
         optimizer = instantiate_classes(optimizer_cfg)
         optimizer.setup(MockModel(0))
