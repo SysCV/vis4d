@@ -116,5 +116,5 @@ class BDD100K(Scalabel):
         bdd100k_cfg = load_bdd100k_config(self.config_path)
         scalabel_frames = bdd100k_to_scalabel(frames, bdd100k_cfg)
         return ScalabelData(
-            frames=scalabel_frames, config=bdd100k_cfg.scalabel
+            frames=scalabel_frames, config=bdd100k_cfg.scalabel, groups=None
         )
