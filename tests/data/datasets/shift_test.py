@@ -8,7 +8,7 @@ from vis4d.data.io import HDF5Backend, ZipBackend
 
 
 class SHIFTTest(unittest.TestCase):
-    """Test S3DIS dataloading."""
+    """Test SHIFT dataloading."""
 
     dataset = SHIFT(data_root=get_test_data("shift_test"), split="val")
 

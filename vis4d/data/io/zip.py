@@ -1,4 +1,4 @@
-"""Hdf5 data backend.
+"""Zip data backend.
 
 This backend works with filepaths pointing to valid Zip files. We assume that
 the given Zip file contains the whole dataset associated to this backend.

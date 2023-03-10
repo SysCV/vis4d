@@ -73,7 +73,14 @@ def im_decode(
 
 
 def ply_decode(ply_bytes: bytes, mode: str = "XYZI") -> NDArrayFloat:
-    """Decode to point clouds (numpy array) from bytes."""
+    """Decode to point clouds (numpy array) from bytes.
+
+    Args:
+        ply_bytes (bytes): The bytes of the ply file.
+        mode (str, optional): The point format of the ply file. If "XYZI", the
+            intensity channel will be included, otherwise only the XYZ
+            coordinates. Defaults to "XYZI".
+    """
     assert mode in {
         "XYZ",
         "XYZI",
